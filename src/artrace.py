@@ -653,7 +653,6 @@ def model_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
 	satmask = arcyarc.saturation_mask(msarc, slf._spect['det']['saturation']*slf._spect['det']['nonlinear'])
 	ordwid = 0.5*np.abs(slf._lordloc-slf._rordloc)
 	satsnd = arcyarc.order_saturation(satmask,ordcen,(ordwid+0.5).astype(np.int),slf._dispaxis)
-	print "complete"
 #	arutils.ds9plot(satmask)
 #	arutils.ds9plot(msarc)
 #	arutils.ds9plot((1.0-satmask)*msarc)

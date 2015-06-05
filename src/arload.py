@@ -56,7 +56,7 @@ def optarg(argv, last_updated):
 	prgn_spl = argv[0].split('/')
 	fname = ""
 	for i in range(0,len(prgn_spl)-1): fname += prgn_spl[i]+"/"
-	fname += 'settings.armed'
+	fname += 'settings.armlsd'
 	argflag = load_settings(fname)
 	argflag['run']['prognm'] = argv[0]
 	# Load options from command line
