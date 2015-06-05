@@ -6,8 +6,10 @@ The Python Spectroscopic Data Reduction Pipeline
 * numpy
 * scipy
 * ginga
+* cython
 * astropy
 * matplotlib
+* GNU Scientific Library
 
 # License
 This program is free software: you can redistribute it and/or modify
