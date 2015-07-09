@@ -1,0 +1,239 @@
+\documentclass[11pt,preprint]{aastex}
+
+\usepackage{latexsym}
+\usepackage{fancybox}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{color}
+\usepackage{ulem}
+\usepackage{float}
+\usepackage{multicol}
+\usepackage{enumitem}
+%\usepackage{setspace}
+
+\pretolerance=10000
+\textwidth=6.4in
+\textheight=8.9in
+\voffset = 0.0in
+\topmargin=0.0in
+\headheight=0.00in
+\hoffset = 0.0in
+\headsep=0.20in
+\oddsidemargin=0in
+\evensidemargin=0in
+\parindent=2em
+\parskip=0.25ex
+ 
+%\input{defs_xavier}
+%\input{/u/xavier/bin/latex}
+%\input{/u/xavier/bin/defs}
+
+\newcommand{\npair}{50}
+\def\ssp{\def\baselinestretch{1.0}\large\normalsize}
+\newcommand{\oneskip}{\vskip \baselineskip}
+\newcommand{\annrev}{ARA\&A}
+\newcommand{\za}{z$_{ abs}$}
+\newcommand{\zg}{z$_{ galaxy}$}
+\newcommand{\zl}{$z_{emitter}$}
+\newcommand{\zf}{z$_{df}$}
+\newcommand{\avxi}{$\langle\xi\rangle$}
+\newcommand{\omg}{$\Omega_{g}(z)$}
+\newcommand{\tu}{$\tau( > M)$}
+\newcommand{\mc}{$10^{12}M_{\odot}$}
+\def \lnhi {$\log N_{HI}$}
+\def \cmm  {cm$^{-2}$}
+\def \cmmm {cm$^{-3}$}
+\def \hfreq {$f_{\rm{HI}} (N,X)$}
+\def \gamrate {$\Gamma_{912}$}
+\def \fn {$f_{\rm{HI}} (N,X)$}
+\def \lyaf {Ly--$\alpha$ forest}
+\def \nqso  {seven}
+\def \cmm  {\rm cm^{-2}}
+\newcommand{\lya}{Ly$\alpha$}
+
+\usepackage{multicol}
+
+\newenvironment{my_itemize}{
+\begin{itemize}
+  \setlength{\itemsep}{1pt}
+  \setlength{\parskip}{0pt}
+  \setlength{\parsep}{0pt}}{\end{itemize}
+}
+
+\newenvironment{my_enumerate}{
+\begin{enumerate}
+  \setlength{\itemsep}{1pt}
+  \setlength{\parskip}{0pt}
+  \setlength{\parsep}{0pt}}{\end{enumerate}
+}
+
+
+
+\usepackage{geometry}
+\geometry{letterpaper,tmargin=1.3in,bmargin=0.7in,lmargin=0.95in,rmargin=0.95in}
+\usepackage[layout=modern]{advancedcoverpage}
+
+
+\title{{\Large A Level~1 Data Reduction Pipeline for the APF}}
+
+\presentedto{{\large \underline{2015 UCO Call for Instrumentation}} \\
+\vskip 0.1in
+{\it Submitted to the UCOAC}
+}
+
+
+\author{
+{\bf PI:} Brad Holden (Astronomy \& Astrophysics; 831-495-xxxx; holden@ucolick.org) \\
+\vskip 0.1in
+{\bf UCSC Faculty Co-I's:}
+J. Xavier Prochaska (Astronomy \& Astrophysics) \\
+\vskip 0.1in
+{\bf UCSC other Co-I's:} R. Cooke \\
+\vskip 0.1in
+%\includegraphics[width=5.5in]{../WhitePaper/title_fig2.pdf}
+}
+
+ 
+\begin{document}
+\maketitle
+
+	\pagestyle{myheadings}    % Go for customized headings
+%\markright{Prochaska--U079 2008A Proposal---Quasars Probing Quasars}
+	\markboth{\hfill Holden -- PyPit for APF (v1.0) \hfill}{\hfill
+          Holden -- PyPit for APF \hfill}
+
+
+\noindent 
+{\bf Abstract:} \\
+Blah
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\vskip 0.2in
+
+\noindent 
+{\bf Summary:} \\
+The Automated Planetary Finder (APF) facility is a UCO-owned and operated
+observatory at Mt.\ Hamilton, developed for high-cadence relative velocity (RV)
+observations to discover new planetary systems.
+The facility has been in operation since 201X and $\approx 20\%$ of its observing
+time is now competed for by the full UC astronomical community.
+These community programs are a combination of RV work with the Iodine cell and
+other non-Iodine projects that leverage the high-throughput and resolution
+of the Levy spectrometer.  It is also expected that the [China] Observatory
+will begin purchasing access to the APF.
+
+With the growing user-base for the APF, there has been an increasing demand
+for custom software to process the complex raw data frames into fully
+calibrated spectra for analysis.  With the proposed funding, we would provide
+a Level~1 data reduction pipeline (DRP) for the APF facility that offers
+Th-Ar calibrated and fluxed spectra. [add one line]  
+Further work would analyze Iodine cell observations for higher-precision
+calibration.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\vskip 0.2in
+
+\noindent 
+{\bf Technical:} \\
+Over the past several months, Co-I Cooke has developed a Python-based
+software package (PyPit) for the reduction of optical spectroscopy.
+As of July 2015, this pipeline has been applied successfully to the 
+Subaru/HDS and Keck/HIRES spectrometers.  The package is currently
+under development for the Lick/Kast and the APF/Levy
+spectrometers (without Iodine cell analysis).
+It is the long-term goal of PyPit's contributors to release a
+significant portion, if not all, of their software to the astronomical
+community (via github).  The proposed funding would facilitate
+this process, by enabling the development of custom routines
+for the APF facility for (ideally) fully-automated processing
+of the archival, raw data files.
+%
+It is our experience from years of developing DRPs and then releasing
+these to the public (e.g.\ LowRedux, HIRedux) that substantial effort
+is required to insure broad usage of the software.  Common
+challenges include:
+(i) insuring multi-platform compatability;
+(ii) offering the software in a non-proprietary language;
+(iii) developing comprehensive documentation and `cookbooks';
+(iv) offering a suite of test cases.
+We are now faced with these challenges as regards the Levy 
+spectrometer and our PyPit package.  Although none of these are
+insurmountable, all require significant person-hours of effort.
+And, we emphasize that this effort comes with very little professional
+gain for the lead contributors of PyPit.  This strongly motivates
+the current proposal.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%
+\vskip 0.2in
+
+\noindent 
+{\bf Work Plan:} \\
+With \$XXk funding, we will provide the following deliverables
+for the APF community, which comprises our Level~1 DRP:
+
+{\small 
+\begin{my_enumerate}
+\item A Python-based GUI for organzing an ingested set of raw data
+and calibration files (e.g.\ Figure~\ref{fig:GUI}).  
+This GUI may also be used to launch execution
+of the DRP (and control options).
+\item Software to parse standard APF archival products.
+\item Automated performance monitoring of the APF through analysis of 
+spectrophotometric standard stars (e.g.\ http://ESI).
+\item Extensive documentation of the APF-specific algorithms in PyPit.
+\item A HOWTO cookbook for standard usage cases.
+\item A suite of test cases for insuring that future releases of
+PyPit continue to support the APF.
+\item First-look spectra including S/N estimations.  
+These may be archived on the APF site.
+\item Insuring multi-platform funcionality, including but not limited
+to Mac OS X 10.7 or greater, Linux Centos, and MS Windows [give version].
+\end{my_enumerate}
+}
+To meet these deliverables in a one year time-scale, we are requesting
+\$50k to cover XX months salary of PI Holden and 3 weeks of summer
+salary for Co-I Prochaska (1 month at 75\% effort).
+Co-I Cooke, the main contributor and author of PyPit, is fully funded
+by a Hubble Fellowship.  His motivations to contributing to this project
+are primarily scientific and to expand the user-base of his software.
+
+PI Holden will lead this project and will distiribute his effort as 
+follows: (i) XX months to deliverables \#X-X; (ii) etc.
+Co-I Prochaska will concentrate on deliverables
+\#4,5, and 7.
+
+[NOT SURE WHERE TO PUT THIS;
+Although we will not provide explicit software for RV analysis
+with the Iodince cell, we will insure that the Level~1 products
+seemlessly enable such analysis.]
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+\clearpage
+
+\begin{figure}
+ \vskip -0.5in
+\begin{center}
+%\includegraphics[scale=0.55]{../WhitePaper/esi_footprint2.pdf}
+\end{center}
+ \caption{\footnotesize  
+(left) Raw image of APF data
+(right) Series of extracted echelle orders from PyPit
+}\label{fig:redux}
+%  \end{minipage}
+\end{figure}
+
+\begin{figure}
+ \vskip -0.5in
+\begin{center}
+%\includegraphics[scale=0.59]{../WhitePaper/deployed_K2DM3.pdf}
+\end{center}
+ \caption{\footnotesize  
+Example (notional) GUI
+}\label{fig:GUI}
+%  \end{minipage}
+\end{figure}
+
+\end{document}

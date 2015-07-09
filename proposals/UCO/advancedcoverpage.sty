@@ -1,0 +1,187 @@
+%%
+%% Advanced Cover Page for LaTeX, advancedcoverpage.sty
+%% Copyright (C) 2005-2006 Georges-Etienne Legendre <http://legege.com>
+%%
+%% This work may be distributed and/or modified under the
+%% conditions of the LaTeX Project Public License, either version 1.3
+%% of this license or (at your option) any later version.
+%% The latest version of this license is in
+%%   http://www.latex-project.org/lppl.txt
+%% and version 1.3 or later is part of all distributions of LaTeX
+%% version 2005/12/01 or later.
+%%
+%% This work has the LPPL maintenance status `author-maintained'.
+%% 
+%% The Current Maintainer of this work is Georges-Etienne Legendre.
+%%
+%% This work consists of the file advancedcoverpage.sty.
+%%
+%% --------------------------------------------------------------------------------
+%%
+%% This LaTeX package allows to easily create cover pages for your documents.
+%% More details can be found here: <http://legege.com>.
+%%
+%% How to use this package?
+%% 1) Import the package. 
+%%    \usepackage[layout=<classic|modern|custom>]{advancedcoverpage}
+%% 2) Use the following declarations to complete your cover page:
+%%    \header{}, \title{}, \subtitle{}, \subsubtitle{}, \thanks{}, \presentedto{}, 
+%%    \author{}, \organization{}, \date{}, \location{}, \footer{}
+%% 3) Use the command \maketitle to generate the cover page.
+%%
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{advancedcoverpage}[2006/05/21 v2.1 Advanced Cover Page]
+
+\RequirePackage{xkeyval}
+
+\DeclareOptionX{layout}{%
+  \def\ACP@layout{#1}%
+}
+\ExecuteOptionsX{layout=classic}
+\ProcessOptionsX
+
+\def\ACP@header{}
+\def\ACP@footer{}
+\def\ACP@subtitle{}
+\def\ACP@subsubtitle{}
+\def\ACP@presentedto{}
+\def\ACP@organization{}
+\def\ACP@location{}
+
+\def\header#1{\gdef\ACP@header{#1}}
+\def\footer#1{\gdef\ACP@footer{#1}}
+\def\subtitle#1{\gdef\ACP@subtitle{#1}}
+\def\subsubtitle#1{\gdef\ACP@subsubtitle{#1}}
+\def\presentedto#1{\gdef\ACP@presentedto{#1}}
+\def\organization#1{\gdef\ACP@organization{#1}}
+\def\location#1{\gdef\ACP@location{#1}}
+
+\newcommand{\AdvancedCoverPageFontTitle}{\Huge\sffamily\bfseries}
+\newcommand{\AdvancedCoverPageFontSubTitle}{\Large\sffamily\bfseries}
+\newcommand{\AdvancedCoverPageFontSubSubTitle}{\sffamily\bfseries}
+
+\renewcommand*{\maketitle}{%
+  \def\ACP@maketitlesection{
+    {\noindent\AdvancedCoverPageFontTitle\@title\par}
+    \ifx\ACP@subtitle\@empty\else
+      {\vskip 1em\noindent\AdvancedCoverPageFontSubTitle\ACP@subtitle\par}
+    \fi
+    \ifx\ACP@subsubtitle\@empty\else
+      {\vskip 1em\noindent\AdvancedCoverPageFontSubSubTitle\ACP@subsubtitle\par}
+    \fi
+  }
+
+  \begin{titlepage}
+    \renewcommand\thefootnote{\@fnsymbol\c@footnote}%
+    \def\@makefnmark{\rlap{\@textsuperscript{\normalfont\@thefnmark}}}%
+    \long\def\@makefntext##1{\parindent 1em\noindent
+      \hb@xt@1.8em{%
+        \hss\@textsuperscript{\normalfont\@thefnmark}}##1}%
+
+    \let\footnote\@thanks
+    \csname ACP@dolayout\ACP@layout\endcsname
+    \@thanks
+    \setcounter{footnote}{0}%
+  \end{titlepage}
+
+  \global\let\@title\@empty
+  \global\let\@thanks\@empty
+  \global\let\@author\@empty
+  \global\let\@date\@empty
+  \global\let\title\relax
+  \global\let\thanks\relax
+  \global\let\author\relax
+  \global\let\date\relax
+  
+  \global\let\ACP@header\@empty
+  \global\let\ACP@footer\@empty
+  \global\let\ACP@subtitle\@empty
+  \global\let\ACP@subsubtitle\@empty
+  \global\let\ACP@presentedto\@empty
+  \global\let\ACP@organization\@empty
+  \global\let\ACP@location\@empty
+  \global\let\header\relax
+  \global\let\footer\relax
+  \global\let\subtitle\relax
+  \global\let\subsubtitle\relax
+  \global\let\presentedto\relax
+  \global\let\organization\relax
+  \global\let\location\relax
+
+  \global\let\AdvancedCoverPageFontTitle\relax
+  \global\let\AdvancedCoverPageFontSubTitle\relax
+  \global\let\AdvancedCoverPageFontSubSubTitle\relax
+
+  \global\let\ACP@maketitlesection\relax
+  \global\let\ACP@dolayoutclassic\relax
+  \global\let\ACP@dolayoutmodern\relax
+  \global\let\maketitle\relax
+}
+
+%% Classic Layout
+\newcommand{\ACP@dolayoutclassic}{
+  \begin{center}
+    \ifx\ACP@header\@empty\null\vfil\par\vskip 2em
+    \else\noindent\ACP@header\par\vskip 4em
+    \fi
+
+    \ACP@maketitlesection\vfill
+    \noindent\ACP@presentedto\par\vfill
+    \noindent\@author\par\vfill
+
+    \ifx\ACP@organization\@empty\else
+      \noindent\ACP@organization\par
+    \fi
+
+    \ifx\@data\@empty\else
+      \vskip 1em\noindent\@date\par
+    \fi
+
+    \ifx\ACP@location\@empty\else
+      \noindent\ACP@location\par
+    \fi
+
+    \ifx\ACP@footer\@empty
+    \else\vskip 1em\noindent\ACP@footer\par
+    \fi
+  \end{center}\par
+}
+
+%% Modern Layout
+\newcommand{\ACP@dolayoutmodern}{
+  \begin{center}
+    \ifx\ACP@header\@empty\null\vfil\par\vskip 2em
+    \else\noindent\ACP@header\par\vskip 3em
+    \fi
+
+    \ACP@maketitlesection\vskip 3em
+    \noindent\@author\par
+    
+    \vfill
+    \ifx\ACP@presentedto\@empty\else
+      \noindent\ACP@presentedto\par\vskip 1em
+    \fi
+
+    \ifx\ACP@organization\@empty\else
+      \vskip 1em\noindent\ACP@organization\par
+    \fi
+
+    \ifx\@data\@empty\else
+      \vskip 1em\noindent\@date\par
+    \fi
+
+    \ifx\ACP@location\@empty\else
+      \noindent\ACP@location\par
+    \fi
+
+    \ifx\ACP@footer\@empty
+    \else\vskip 1em\noindent\ACP@footer\par
+    \fi
+  \end{center}\par
+}
+
+%% Custom Layout
+\newcommand{\AdvancedCoverPageCustomLayout}{
+  \PackageError{advancedcoverpage}{You have to renew the command AdvancedCoverPageCustomLayout for this layout.}
+}
+\newcommand{\ACP@dolayoutcustom}{\AdvancedCoverPageCustomLayout}
