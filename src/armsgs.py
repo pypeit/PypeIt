@@ -40,7 +40,7 @@ def armedheader(prognm):
 	header += "python %s [options] filelist" % (prognm)
 	return header
 
-def pypeitheader(prognm):
+def pypitheader(prognm):
 	header = "##  "
 	header += colors.start + colors.white_GR + "PYPIT : "
 	header += "The Python Spectroscopic Data Reduction Pipeline v1.0" + colors.end + "\n"
