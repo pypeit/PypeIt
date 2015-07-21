@@ -7,12 +7,12 @@ include_gsl_dir = "/Users/rcooke/local/include/"
 lib_gsl_dir = "/Users/rcooke/local/lib/"
 
 ext = Extension("arcytrace", ["arcytrace.pyx"],
-	include_dirs=[numpy.get_include(),
-				include_gsl_dir],
-	library_dirs=[lib_gsl_dir],
-	libraries=["gsl","gslcblas"]
+    include_dirs=[numpy.get_include(),
+                include_gsl_dir],
+    library_dirs=[lib_gsl_dir],
+    libraries=["gsl","gslcblas"]
 )
 
 setup(ext_modules=[ext],
-		cmdclass = {'build_ext': build_ext})
+        cmdclass = {'build_ext': build_ext})
 
