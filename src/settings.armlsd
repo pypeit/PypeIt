@@ -17,6 +17,7 @@ reduce nlcorr False             # Perform a non-linear correction
 reduce usebias overscan         # How to subtract the detector bias (bias, overscan, dark, none), you can also specify a master calibrations file if it exists.
 reduce oscanMethod SavGol       # Method used to fit the overscan (polynomial, savgol)
 reduce oscanParams [5,65]       # Parameters used for the overscan method (for polynomial use [#] where # is replaced by the polynomial order, for savgol use [#,$] where # is the order and $ is the window size (should be odd)
+reduce oscanfit 2 				# Order for polynomial fit
 reduce badpix True              # Make a bad pixel mask? (This step requires bias frames)
 reduce trim True                # Trim the frame to isolate the data
 reduce usearc arc               # What filetype should be used for wavelength calibration (arc), you can also specify a master calibrations file if it exists.

@@ -8,11 +8,10 @@ import arcyutils
 import arutils
 import arpca
 import arplot
-import arfitbase
+#import arfitbase
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import scipy.ndimage.interpolation as interp
-import ds9
 
 def dispdir(msframe, dispwin=None, mode=0):
     """
@@ -1531,6 +1530,7 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
     # Plot the tilts in real time if the user requests
     if slf._argflag['run']['qcontrol']:
         # Set up a ds9 instance
+        import ds9
         d = ds9.ds9()
         # Load the image
         d.set_np2arr(msarc)
