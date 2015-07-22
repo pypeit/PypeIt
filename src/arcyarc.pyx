@@ -1876,7 +1876,7 @@ def nbrightest(np.ndarray[DTYPE_t, ndim=2] pixels not None,
 #  O  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def order_saturation(np.ndarray[ITYPE_t, ndim=2] satmask not None,
                     np.ndarray[ITYPE_t, ndim=2] ordcen not None,
                     np.ndarray[ITYPE_t, ndim=2] ordwid not None,
@@ -2493,7 +2493,7 @@ def robust_linreg(np.ndarray[DTYPE_t, ndim=1] xarr not None,
 #  S  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def saturation_mask(np.ndarray[DTYPE_t, ndim=2] array not None,
                     double satlevel):
    

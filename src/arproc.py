@@ -372,8 +372,11 @@ def sub_overscan(slf,file):
         xos=np.arange(x0,x1)
         yos=np.arange(y0,y1)
         w = np.ix_(xos,yos)
-        oscan = file[w]
-        if oscan.shape[0] > oscan.shape[1]:
+        try:
+            oscan = file[w]
+        except IndexError:
+            raise IndexError('PROBABLY NEED TO TRANSPOSE')
+        if oscan.shape[0] > oscan.shape[1]:  # JXP :: Looks a bit risky
             osfit = np.median(oscan,axis=1)
         else:
             osfit = np.median(oscan,axis=0)
