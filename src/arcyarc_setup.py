@@ -1,10 +1,10 @@
 from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
-import numpy
+import numpy, os
 
-include_gsl_dir = "/Users/rcooke/local/include/"
-lib_gsl_dir = "/Users/rcooke/local/lib/"
+include_gsl_dir = os.getenv('GSL_PATH')+'/include/'
+lib_gsl_dir = os.getenv('GSL_PATH')+'/lib/'
 
 ext = Extension("arcyarc", ["arcyarc.pyx"],
     include_dirs=[numpy.get_include(),
