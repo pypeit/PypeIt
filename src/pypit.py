@@ -137,8 +137,9 @@ class ClassMain:
             # Flip the transpose switch
             self._transpose = True
             # Transpose the master bias frame
-            self._msbias = self._msbias.T
-            arsave.save_master(self, self._msbias, filename=self._msbias_name, frametype=self._argflag['reduce']['usebias'], ind=ind)
+            if self._msbias_name is not None:
+                self._msbias = self._msbias.T
+                arsave.save_master(self, self._msbias, filename=self._msbias_name, frametype=self._argflag['reduce']['usebias'], ind=ind)
             # Transpose the master arc, and save it
             self._msarc = self._msarc.T
             arsave.save_master(self, self._msarc, filename=self._msarc_name, frametype='arc', ind=ind)
@@ -248,16 +249,18 @@ class ClassMain:
                 self._name_bias.append(msbias_name)
         elif self._argflag['reduce']['usebias'] == 'overscan':
             msbias = 'overscan'
+            msbias_name = None
         elif self._argflag['reduce']['usebias'] == 'none':
             msgs.info("Not performing a bias/dark subtraction")
             msbias=None
+            msbias_name = None
         else: # It must be the name of a file the user wishes to load
             msbias_name = os.getcwd()+self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usebias']
             msbias = arload.load_master(self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usebias'], frametype=None)
         return msbias, msbias_name
 
     def MasterFlatField(self, sc):
-        if self._argflag['reduce']['flatfield']:
+        if self._argflag['reduce']['flatfield']: # Only do it if the user wants to flat field
             ###############
             # Generate a master pixel flat frame
             if self._argflag['reduce']['useflat'] in ['pixflat', 'blzflat']:
@@ -447,8 +450,11 @@ class ClassMain:
             # Determine the dispersion direction (and transpose if necessary) only on the first pass through
             self.GetDispersionDirection(self._spect['arc']['index'][sc])
             ###############
+            # Prepare the pixel flat field frame
+            self._mspixflat, self._mspixflatnrm, self._msblaze, self._mspixflat_name = self.MasterFlatField(sc)
+            ###############
             # Generate a master trace frame
-            self._mstrace, self._mstracename = self.MasterTrace(sc)
+            #self._mstrace, self._mstracename = self.MasterTrace(sc)
             ###############
             # Generate an array that provides the physical pixel locations on the detector
             self.GetPixelLocations()
@@ -463,9 +469,6 @@ class ClassMain:
             self._pixwid  = (self._rordloc-self._lordloc).mean(0).astype(np.int)
             self._lordpix = artrace.phys_to_pix(self._lordloc, self._pixlocn, self._dispaxis, 1-self._dispaxis)
             self._rordpix = artrace.phys_to_pix(self._rordloc, self._pixlocn, self._dispaxis, 1-self._dispaxis)
-            ###############
-            # Prepare the pixel flat field frame
-            self._mspixflat, self._mspixflatnrm, self._msblaze, self._mspixflat_name = self.MasterFlatField(sc)
             ###############
             # Derive the spectral tilt
             if self._foundarc:

@@ -14,13 +14,16 @@ run  stopcheck    False         # If True, ARMLSD will stop and require a user c
 # REDUCTION RULES
 reduce locations None           # If desired, a fits file can be specified (of the appropriate form) to specify the locations of the pixels on the detector
 reduce nlcorr False             # Perform a non-linear correction
-reduce usebias bias             # How to subtract the detector bias (bias, overscan, dark, none), you can also specify a master calibrations file if it exists.
-reduce oscanfit 1               # Order of the polynomial to be used to fit the overscan region
+reduce usebias overscan         # How to subtract the detector bias (bias, overscan, dark, none), you can also specify a master calibrations file if it exists.
+reduce oscanMethod SavGol       # Method used to fit the overscan (polynomial, savgol)
+reduce oscanParams [5,65]       # Parameters used for the overscan method (for polynomial use [#] where # is replaced by the polynomial order, for savgol use [#,$] where # is the order and $ is the window size (should be odd)
 reduce badpix True              # Make a bad pixel mask? (This step requires bias frames)
 reduce trim True                # Trim the frame to isolate the data
 reduce usearc arc               # What filetype should be used for wavelength calibration (arc), you can also specify a master calibrations file if it exists.
 reduce useflat pixflat          # How to flat field the data (pixflat, blzflat), you can also specify a master calibrations file if it exists.
 reduce flatfield True           # Flatfield the data?
+reduce FlatMethod SpatialFit    # Method used to flat field the data (SpatialFit, PolyScan)
+reduce FlatParams [0]           # Flat field method parameters (PolyFit: order of fit, PolyScan: SavGol params)
 reduce flatmatch -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
 reduce arcmatch -1.0            # Match similar arc frames together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
 reduce calibrate True           # Wavelength calibrate the data?

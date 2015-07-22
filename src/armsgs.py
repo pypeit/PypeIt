@@ -30,6 +30,7 @@ class colors:
         self.green_CL = ''
         self.black_RD = ''
         self.black_GR = ''
+        return
 
 def armedheader(prognm):
     header = "##  "
@@ -53,15 +54,18 @@ def signal_handler(signalnum, handler):
     if signalnum == 2:
         info("Ctrl+C was pressed. Ending processes...")
         sys.exit()
+    return
 
 def error(msg):
     premsg="\n"+colors.start + colors.white_RD + "[ERROR]   ::" + colors.end + " "
     print >>sys.stderr,premsg+msg
     sys.exit()
+    return
 
 def info(msg):
     premsg=colors.start + colors.green_CL + "[INFO]    ::" + colors.end + " "
     print >>sys.stderr,premsg+msg
+    return
 
 def info_update(msg,last=False):
     premsg="\r" + colors.start + colors.green_CL + "[INFO]    ::" + colors.end + " "
@@ -69,27 +73,33 @@ def info_update(msg,last=False):
         print >>sys.stderr,premsg+msg
     else:
         print >>sys.stderr,premsg+msg,
+    return
 
 def test(msg):
     premsg=colors.start + colors.white_BL   + "[TEST]    ::" + colors.end + " "
     print >>sys.stderr,premsg+msg
+    return
 
 def warn(msg):
     premsg=colors.start + colors.red_CL   + "[WARNING] ::" + colors.end + " "
     print >>sys.stderr,premsg+msg
+    return
 
 def bug(msg):
     premsg=colors.start + colors.white_BK   + "[BUG]     ::" + colors.end + " "
     print >>sys.stderr,premsg+msg
+    return
 
 def work(msg):
     premsgP=colors.start + colors.black_CL   + "[WORK IN ]::" + colors.end + "\n"
     premsgS=colors.start + colors.yellow_CL   + "[PROGRESS]::" + colors.end + " "
     print >>sys.stderr,premsgP+premsgS+msg
+    return
 
 def prindent(msg):
     premsg = "             "
     print >>sys.stderr,premsg+msg
+    return
 
 def input():
     premsg=colors.start + colors.blue_CL  + "[INPUT]   ::" + colors.end + " "
