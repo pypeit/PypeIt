@@ -1,5 +1,6 @@
 import numpy as np
 import armsgs as msgs
+from scipy.signal import savgol_filter
 from matplotlib import pyplot as plt
 import arcyextract
 import arcyutils
@@ -258,7 +259,6 @@ def flatnorm(slf, msflat, maskval=-999999.9, overpix=6, fname=""):
     overpix/2 = the number of pixels to extend beyond each side of the order trace
     """
     msgs.info("Normalizing the master flat field frame")
-    polyorder, polypoints, repeat = 4, 128, 1
     polyord_blz = 2 # This probably doesn't need to be a parameter that can be set by the user
     norders = slf._lordloc.shape[1]
     # Look at the end corners of the detector to get detector size in the dispersion direction
@@ -283,46 +283,54 @@ def flatnorm(slf, msflat, maskval=-999999.9, overpix=6, fname=""):
     for o in range(norders):
         # Rectify this order
         recframe = arcyextract.rectify(msflat, ordpix, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o]+overpix, maskval, slf._dispaxis)
-        # Take the median along the spatial dimension
-        flatmed = np.median(recframe,axis=1)
-        # Perform a polynomial fitting scheme to determine the blaze profile
-        xarray = np.arange(flatmed.size,dtype=np.float)
-        weight = flatmed.copy()
-        blazet = arcyutils.polyfit_scan(xarray, flatmed.copy(), weight, maskval, polyorder, polypoints, repeat)
-        # Remove the masked endpoints
-        outx, outy, outm, lox, hix = arcyproc.remove_maskedends(xarray, flatmed, blazet, maskval)
-        # Inspect the end points and extrapolate from the best fitting end pixels
-        derv = (outm[1:]-outm[:-1])/(outx[1:]-outx[:-1])
-        dervx = 0.5*(outx[1:]+outx[:-1])
-        derv2 = (derv[1:]-derv[:-1])/(dervx[1:]-dervx[:-1])
-        medv = np.median(derv2)
-        madv = 1.4826*np.median(np.abs(derv2-medv))
-        blaze = arcyproc.blaze_fitends(outx, outy, outm, derv2-medv, madv, polyord_blz, polypoints)
-        #plt.plot(xarray,flatmed,'k-',drawstyle='steps')
-        #plt.plot(xarray, blaze, 'r-')
-        #plt.show()
-        #np.savetxt("check_blaze_ord{0:d}.txt".format(o),np.transpose((xarray,flatmed)))
-        # Divide the flat by the fitted flat profile
-        finalblaze = np.ones(recframe.shape[0])
-        finalblaze[lox:hix] = blaze.copy()
-        blazenrm = finalblaze.reshape((finalblaze.size,1)).repeat(recframe.shape[1],axis=1)
-        recframe /= blazenrm
-        # Store the blaze for this order
-        msblaze[lox:hix,o] = blaze.copy()
-        flat_ext1d[:,o] = flatmed.copy()
-        # Sort the normalized frames along the dispersion direction
-        recsort = np.sort(recframe,axis=0)
-        # Find the mean value, but only consider the "innermost" 50 per cent of pixels (i.e. the pixels closest to 1.0)
-        recmean = arcyproc.scale_blaze(recsort, maskval)
-        #rows = np.arange(recsort.shape[0]/4,(3*recsort.shape[0])/4,dtype=np.int)
-        #w = np.ix_(rows,np.arange(recframe.shape[1]))
-        #recmean = np.mean(recsort[w],axis=0)
-        for i in range(recmean.size):
-            recframe[i,:] /= recmean[i]
-        # Undo the rectification
-        normflat_unrec = arcyextract.rectify_undo(recframe, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o], maskval, msflat.shape[0], msflat.shape[1], slf._dispaxis)
-        # Apply the normalized flatfield for this order to the master normalized frame
-        msnormflat = arcyproc.combine_nrmflat(msnormflat, normflat_unrec, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o]+overpix, maskval, slf._dispaxis)
+        if slf._argflag["reduce"]["FlatMethod"].lower()=="polyscan":
+            polyorder = slf._argflag["reduce"]["FlatParams"][0]
+            polypoints = slf._argflag["reduce"]["FlatParams"][1]
+            repeat = slf._argflag["reduce"]["FlatParams"][2]
+            # Take the median along the spatial dimension
+            flatmed = np.median(recframe,axis=1)
+            # Perform a polynomial fitting scheme to determine the blaze profile
+            xarray = np.arange(flatmed.size,dtype=np.float)
+            weight = flatmed.copy()
+            msgs.work("Routine doesn't support user parameters yet")
+            msgs.bug("Routine doesn't support user parameters yet")
+            blazet = arcyutils.polyfit_scan(xarray, flatmed.copy(), weight, maskval, polyorder, polypoints, repeat)
+             # Remove the masked endpoints
+            outx, outy, outm, lox, hix = arcyproc.remove_maskedends(xarray, flatmed, blazet, maskval)
+            # Inspect the end points and extrapolate from the best fitting end pixels
+            derv = (outm[1:]-outm[:-1])/(outx[1:]-outx[:-1])
+            dervx = 0.5*(outx[1:]+outx[:-1])
+            derv2 = (derv[1:]-derv[:-1])/(dervx[1:]-dervx[:-1])
+            medv = np.median(derv2)
+            madv = 1.4826*np.median(np.abs(derv2-medv))
+            blaze = arcyproc.blaze_fitends(outx, outy, outm, derv2-medv, madv, polyord_blz, polypoints)
+            #plt.plot(xarray,flatmed,'k-',drawstyle='steps')
+            #plt.plot(xarray, blaze, 'r-')
+            #plt.show()
+            #np.savetxt("check_blaze_ord{0:d}.txt".format(o),np.transpose((xarray,flatmed)))
+            # Divide the flat by the fitted flat profile
+            finalblaze = np.ones(recframe.shape[0])
+            finalblaze[lox:hix] = blaze.copy()
+            blazenrm = finalblaze.reshape((finalblaze.size,1)).repeat(recframe.shape[1],axis=1)
+            recframe /= blazenrm
+            # Store the blaze for this order
+            msblaze[lox:hix,o] = blaze.copy()
+            flat_ext1d[:,o] = flatmed.copy()
+            # Sort the normalized frames along the dispersion direction
+            recsort = np.sort(recframe,axis=0)
+            # Find the mean value, but only consider the "innermost" 50 per cent of pixels (i.e. the pixels closest to 1.0)
+            recmean = arcyproc.scale_blaze(recsort, maskval)
+            #rows = np.arange(recsort.shape[0]/4,(3*recsort.shape[0])/4,dtype=np.int)
+            #w = np.ix_(rows,np.arange(recframe.shape[1]))
+            #recmean = np.mean(recsort[w],axis=0)
+            for i in range(recmean.size):
+                recframe[i,:] /= recmean[i]
+            # Undo the rectification
+            normflat_unrec = arcyextract.rectify_undo(recframe, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o], maskval, msflat.shape[0], msflat.shape[1], slf._dispaxis)
+            # Apply the normalized flatfield for this order to the master normalized frame
+            msnormflat = arcyproc.combine_nrmflat(msnormflat, normflat_unrec, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o]+overpix, maskval, slf._dispaxis)
+        else:
+            msgs.error("Flatfield method {0:s} is not supported".format(slf._argflag["reduce"]["FlatMethod"]))
     #arutils.ds9plot(msnormflat.astype(np.float))
     #arutils.ds9plot(msblaze.astype(np.float))
     # Send the blaze away to be plotted and saved
@@ -374,12 +382,20 @@ def sub_overscan(slf,file):
         w = np.ix_(xos,yos)
         oscan = file[w]
         if oscan.shape[0] > oscan.shape[1]:
-            osfit = np.median(oscan,axis=1)
+            osfit = np.mean(oscan,axis=1)
         else:
-            osfit = np.median(oscan,axis=0)
+            osfit = np.mean(oscan,axis=0)
         # Fit the overscan region
-        c=np.polyfit(np.arange(osfit.size),osfit,slf._argflag['reduce']['oscanfit'])
-        ossub = np.polyval(c,np.arange(osfit.size))#.reshape(osfit.size,1)
+        if slf._argflag['reduce']['oscanMethod'].lower()=="polynomial":
+            c=np.polyfit(np.arange(osfit.size),osfit,slf._argflag['reduce']['oscanParams'][0])
+            ossub = np.polyval(c,np.arange(osfit.size))#.reshape(osfit.size,1)
+        elif slf._argflag['reduce']['oscanMethod'].lower()=="savgol":
+            ossub = savgol_filter(osfit,slf._argflag['reduce']['oscanParams'][1],slf._argflag['reduce']['oscanParams'][0])
+        else:
+            msgs.warn("Overscan subtraction method {0:s} is not implemented".format(slf._argflag['reduce']['oscanMethod']))
+            msgs.info("Using a linear fit to the overscan region")
+            c=np.polyfit(np.arange(osfit.size),osfit,1)
+            ossub = np.polyval(c,np.arange(osfit.size))#.reshape(osfit.size,1)
         #plt.plot(np.arange(osfit.size),osfit,'k-')
         #plt.plot(np.arange(osfit.size),ossub,'r-')
         #plt.show()

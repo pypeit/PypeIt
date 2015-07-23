@@ -282,7 +282,7 @@ class ClassMain:
                         break
                 if not found:
                     # Load the frames for tracing
-                    frames = arload.load_frames(self, ind, frametype='pixel flat', msbias=self._msbias)
+                    frames = arload.load_frames(self, ind, frametype='pixel flat', msbias=self._msbias, transpose=self._transpose)
                     if self._argflag['reduce']['flatmatch'] > 0.0:
                         sframes = arsort.match_frames(self, frames, self._argflag['reduce']['flatmatch'], frametype='pixel flat', satlevel=self._spect['det']['saturation']*self._spect['det']['nonlinear'])
                         subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
@@ -450,11 +450,8 @@ class ClassMain:
             # Determine the dispersion direction (and transpose if necessary) only on the first pass through
             self.GetDispersionDirection(self._spect['arc']['index'][sc])
             ###############
-            # Prepare the pixel flat field frame
-            self._mspixflat, self._mspixflatnrm, self._msblaze, self._mspixflat_name = self.MasterFlatField(sc)
-            ###############
             # Generate a master trace frame
-            #self._mstrace, self._mstracename = self.MasterTrace(sc)
+            self._mstrace, self._mstracename = self.MasterTrace(sc)
             ###############
             # Generate an array that provides the physical pixel locations on the detector
             self.GetPixelLocations()
@@ -469,6 +466,9 @@ class ClassMain:
             self._pixwid  = (self._rordloc-self._lordloc).mean(0).astype(np.int)
             self._lordpix = artrace.phys_to_pix(self._lordloc, self._pixlocn, self._dispaxis, 1-self._dispaxis)
             self._rordpix = artrace.phys_to_pix(self._rordloc, self._pixlocn, self._dispaxis, 1-self._dispaxis)
+            ###############
+            # Prepare the pixel flat field frame
+            self._mspixflat, self._mspixflatnrm, self._msblaze, self._mspixflat_name = self.MasterFlatField(sc)
             ###############
             # Derive the spectral tilt
             if self._foundarc:

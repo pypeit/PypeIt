@@ -1,6 +1,5 @@
 import os
 import astropy.io.fits as pyfits
-import ds9
 import itertools
 import numpy as np
 import armsgs as msgs
@@ -9,18 +8,23 @@ import arcyarc
 #import matplotlib.pyplot as plt
 #import arplot
 
-def ds9plot(array):
-    # Set up a ds9 instance
-    d = ds9.ds9()
-    # Load the image
-    d.set_np2arr(array)
-    # Zoom to fit
-    d.set('zoom to fit')
-    # Change the colormap and scaling
-    d.set('cmap gray')
-    d.set('scale log')
-    null = raw_input("TEST PLOT GENERATED: Press enter to continue...")
-    return
+try:
+    import ds9
+except ImportError:
+    msgs.warn("ds9 module not installed")
+else:
+    def ds9plot(array):
+        # Set up a ds9 instance
+        d = ds9.ds9()
+        # Load the image
+        d.set_np2arr(array)
+        # Zoom to fit
+        d.set('zoom to fit')
+        # Change the colormap and scaling
+        d.set('cmap gray')
+        d.set('scale log')
+        null = raw_input("TEST PLOT GENERATED: Press enter to continue...")
+        return
 
 def quicksave(data,fname):
     """
