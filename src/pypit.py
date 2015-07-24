@@ -133,7 +133,7 @@ class ClassMain:
         # Change dispersion direction and files if necessary
         # The code is programmed assuming dispaxis=0
         if (self._dispaxis==1):
-            msgs.info("Transposing frames")
+            msgs.info("Transposing frames and keywords")
             # Flip the transpose switch
             self._transpose = True
             # Transpose the master bias frame
@@ -145,6 +145,13 @@ class ClassMain:
             arsave.save_master(self, self._msarc, filename=self._msarc_name, frametype='arc', ind=ind)
             # Transpose the bad pixel mask
             self._bpix = self._bpix.T
+            # Transpose the amplifier sections frame
+            self._ampsec = self._ampsec.T
+            # Update the keywords of the fits files
+            for i in range(len(self._fitsdict['naxis0'])):
+                temp = self._fitsdict['naxis0'][i]
+                self._fitsdict['naxis0'][i] = self._fitsdict['naxis1'][i]
+                self._fitsdict['naxis1'][i] = temp
             # Change the user-specified (x,y) pixel sizes
             tmp = self._spect['det']['xgap']
             self._spect['det']['xgap'] = self._spect['det']['ygap']
@@ -435,6 +442,9 @@ class ClassMain:
             sciext_name_p, sciext_name_e = os.path.splitext(self._fitsdict['filename'][scidx[0]])
             prefix = "{0:s}{1:s}".format(sciext_name_p,self._spect["det"]["suffix"])
             ###############
+            # Get amplifier sections
+            self._ampsec = arproc.get_ampsec_trimmed(self, self._fitsdict['naxis0'][scidx[0]], self._fitsdict['naxis1'][scidx[0]])
+            ###############
             # Generate master bias frame
             self._msbias, self._msbias_name = self.MasterBias(sc)
             ###############
@@ -442,7 +452,7 @@ class ClassMain:
             self.BadPixelMask(sc)
             ###############
             # Estimate gain and readout noise for the amplifiers
-            msgs.work("Estimate Gain and Readout noise...")
+            msgs.work("Estimate Gain and Readout noise from the raw frames...")
             ###############
             # Generate a master arc frame
             self._msarc, self._msarc_name = self.MasterArc(sc)
@@ -468,6 +478,8 @@ class ClassMain:
             self._rordpix = artrace.phys_to_pix(self._rordloc, self._pixlocn, self._dispaxis, 1-self._dispaxis)
             ###############
             # Prepare the pixel flat field frame
+            mspixflatnrm, msblaze = arproc.flatnorm(self, self._mstrace.copy(), overpix=0, fname=os.path.basename(os.path.splitext(self._mstracename)[0]))
+            msgs.error("temporary")
             self._mspixflat, self._mspixflatnrm, self._msblaze, self._mspixflat_name = self.MasterFlatField(sc)
             ###############
             # Derive the spectral tilt
