@@ -341,6 +341,8 @@ def load_input(slf):
     # Attach argflag to slf object and return
     slf._argflag = argflag
     msgs.info("Input file loaded successfully")
+    if len(datlines)==0: msgs.error("There are no raw data frames"+msgs.newline()+"Perhaps the path to the data is incorrect?")
+    else: msgs.info("Found {0:d} raw data frames".format(len(datlines)))
     return parlines, datlines, spclines
 
 def load_spect(slf, lines=None):
@@ -461,7 +463,7 @@ def load_headers(slf):
     del headarr
     # Convert the fitsdict arrays into numpy arrays
     for k in fitsdict.keys(): fitsdict[k] = np.array(fitsdict[k])
-    msgs.info("Headers loaded successfully")
+    msgs.info("Headers loaded for {0:d} files successfully".format(-1))
     return fitsdict
 
 def load_frames(slf, ind, frametype='<None>', msbias=None, trim=True, transpose=False):

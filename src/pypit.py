@@ -479,7 +479,6 @@ class ClassMain:
             ###############
             # Prepare the pixel flat field frame
             mspixflatnrm, msblaze = arproc.flatnorm(self, self._mstrace.copy(), overpix=0, fname=os.path.basename(os.path.splitext(self._mstracename)[0]))
-            msgs.error("temporary")
             self._mspixflat, self._mspixflatnrm, self._msblaze, self._mspixflat_name = self.MasterFlatField(sc)
             ###############
             # Derive the spectral tilt
@@ -498,7 +497,7 @@ class ClassMain:
                 # Save the tilts
                 arsave.save_tilts(self, self._msarc_name)
                 msgs.error("OK?")
-
+            # Extraction -- ryan
         # Insert remaining reduction steps here
         return success
 

@@ -294,9 +294,9 @@ def flatnorm(slf, msflat, maskval=-999999.9, overpix=6, fname=""):
             polypoints = slf._argflag["reduce"]["FlatParams"][1]
             repeat = slf._argflag["reduce"]["FlatParams"][2]
             # Take the median along the spatial dimension
-            flatmed = np.median(recframe,axis=1)
+            flatmed = np.median(recframe, axis=1)
             # Perform a polynomial fitting scheme to determine the blaze profile
-            xarray = np.arange(flatmed.size,dtype=np.float)
+            xarray = np.arange(flatmed.size, dtype=np.float)
             weight = flatmed.copy()
             msgs.work("Routine doesn't support user parameters yet")
             msgs.bug("Routine doesn't support user parameters yet")
@@ -337,8 +337,9 @@ def flatnorm(slf, msflat, maskval=-999999.9, overpix=6, fname=""):
             msnormflat = arcyproc.combine_nrmflat(msnormflat, normflat_unrec, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o]+overpix, maskval, slf._dispaxis)
         else:
             msgs.error("Flatfield method {0:s} is not supported".format(slf._argflag["reduce"]["FlatMethod"]))
-    #arutils.ds9plot(msnormflat.astype(np.float))
-    #arutils.ds9plot(msblaze.astype(np.float))
+    # arutils.ds9plot(msnormflat.astype(np.float))
+    # arutils.ds9plot(sclframe.astype(np.float))
+    # arutils.ds9plot(msblaze.astype(np.float))
     # Send the blaze away to be plotted and saved
     msgs.work("Perform a 2D PCA analysis on echelle blaze fits?")
     arplot.plot_orderfits(slf, msblaze, flat_ext1d, plotsdir=slf._argflag['run']['plotsdir'], prefix=fname+"_blaze")
@@ -370,35 +371,37 @@ def get_ampscale(slf, msflat):
                     bbst = b
         # Determine the scaling factor for these two amplifiers
         tstframe = np.zeros_like(msflat)
-        tstframe[np.where(slf._ampsec==abst+1)]=1
-        tstframe[np.where(slf._ampsec==bbst+1)]=2
+        tstframe[np.where(slf._ampsec==abst+1)] = 1
+        tstframe[np.where(slf._ampsec==bbst+1)] = 2
         if (abs(n0bst)>abs(n1bst)):
             # The amplifiers overlap on the zeroth index
             w = np.where(tstframe[1:,:]-tstframe[:-1,:] != 0)
-            sclval = np.mean(msflat[w[0][0],w[1]]/msflat[w[0][0]-1,w[1]])
-            if n0bst>0:
-                # Then pixel w[0][0]-1 falls on amplifier a
-                sclval = sclframe[w[0][0]-1,w[1]] * sclval
+            sclval = np.median(msflat[w[0][0]+1, w[1]])/np.median(msflat[w[0][0], w[1]])
+            # msflat[w[0][0], w[1][0:50]] = 1.0E10
+            # msflat[w[0][0]-1, w[1][0:50]] = -1.0E10
+            # arutils.ds9plot(msflat)
+            if n0bst > 0:
+                # Then pixel w[0][0] falls on amplifier a
+                sclval = sclframe[w[0][0], w[1]] * sclval
             else:
-                # pixel w[0][0] falls on amplifier a
-                sclval = sclframe[w[0][0],w[1]] / sclval
+                # pixel w[0][0] falls on amplifier b
+                sclval = sclframe[w[0][0]+1, w[1]] / sclval
         else:
             # The amplifiers overlap on the first index
             w = np.where(tstframe[:,1:]-tstframe[:,:-1] != 0)
-            sclval = np.mean(msflat[w[0],w[1][0]]/msflat[w[0],w[1][0]-1])
-            if n1bst>0:
-                # Then pixel w[1][0]-1 falls on amplifier a
-                sclval = sclframe[w[0],w[1][0]-1] * sclval
+            sclval = np.median(msflat[w[0], w[1][0]+1]/msflat[w[0], w[1][0]])
+            if n1bst > 0:
+                # Then pixel w[1][0] falls on amplifier a
+                sclval = sclframe[w[0], w[1][0]] * sclval
             else:
-                # pixel w[0][0] falls on amplifier a
-                sclval = sclframe[w[0],w[1][0]] / sclval
+                # pixel w[1][0] falls on amplifier b
+                sclval = sclframe[w[0], w[1][0]+1] / sclval
         # Finally, apply the scale factor thwe amplifier b
-        w = np.where(slf._ampsec==bbst+1)
-        sclframe[w] = sclval[0]
+        w = np.where(slf._ampsec == bbst+1)
+        sclframe[w] = np.median(sclval)
         ampdone[bbst] = 1
-    arutils.ds9plot(msflat)
-    arutils.ds9plot(sclframe)
     return sclframe
+
 
 def get_ampsec_trimmed(slf, naxis0, naxis1):
     """
