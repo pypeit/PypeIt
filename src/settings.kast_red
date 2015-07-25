@@ -46,7 +46,7 @@ det suffix _red                     # Suffix to be appended to all saved calibra
 
 ### Checks to perform
 check 01.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
-check 01.DSENSOR Ret_400x1200          # Check the CCD name
+check 01.DSENSOR Ret_400x1200          # Check the CCD name (replace any spaces with underscores)
 
 ### Keyword Identifiers
 keyword target 01.OBJECT               # Header keyword for the name given by the observer to a given frame
@@ -56,8 +56,8 @@ keyword date 01.DATE                   # The date of the observation (in the for
 keyword equinox None                   # The equinox to use
 keyword ra 01.RA                       # Right Ascension of the target
 keyword dec 01.DEC                     # Declination of the target
-keyword naxis1 01.NAXIS1               # Number of pixels in a row
-keyword naxis2 01.NAXIS2               # Number of pixels in a column
+keyword naxis0 01.NAXIS2               # Number of pixels along the zeroth axis
+keyword naxis1 01.NAXIS1               # Number of pixels along the first axis
 keyword exptime 01.EXPTIME             # Exposure time keyword
 keyword filter1 01.RDFILT_N            # Filter 1
 keyword filter2 None                   # Filter 2
@@ -120,15 +120,15 @@ standard idname OBJECT               # Header key value of science frame for hea
 standard number 1                    # Number of standard star frames to use
 standard canbe None                  # If there are frames that will be science ***in addition to other frame types***, include the other frame types here.
 standard check condition1 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off
-standard match naxis1 =0                # Match the row binning of bias and science frames
-standard match naxis2 =0                # Match the column binning of bias and science frames
+standard match naxis0 =0             # Match the shape of standard and science frames
+standard match naxis1 =0             # Match the shape of standard and science frames
 
 ### Bias/Dark frames
 bias idname DARK                    # Header key value of bias frame for header keyword keyword+idname
 bias number 5                       # Number of bias frames to use
 bias canbe None                     # If there are frames that will be bias ***in addition to other frame types***, include the other frame types here.
-bias match naxis1 =0                # Match the row binning of bias and science frames
-bias match naxis2 =0                # Match the column binning of bias and science frames
+bias match naxis0 =0                # Match the shape of bias and science frames
+bias match naxis1 =0                # Match the shape of bias and science frames
 
 ### Pixel Flat frames
 pixflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
@@ -136,8 +136,8 @@ pixflat number 5                    # Number of flat frames to use
 pixflat canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
 pixflat lscomb False                # Combine a long and short flat
 pixflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
-pixflat match naxis1 =0             # Match the row binning of flats with science
-pixflat match naxis2 =0             # Match the column binning of flats with science
+pixflat match naxis0 =0             # Match the shape of flats with science
+pixflat match naxis1 =0             # Match the shape of flats with science
 pixflat match decker ''             # Check the same decker as the science frame was used
 pixflat match cdangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
 pixflat match echangle ''           # Match the echelle angle
@@ -153,8 +153,8 @@ trace number 5                    # Number of flat frames to use
 trace canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
 trace lscomb False                # Combine a long and short flat
 trace check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
-trace match naxis1 =0             # Match the row binning of flats with science
-trace match naxis2 =0             # Match the column binning of flats with science
+trace match naxis0 =0             # Match the shape of flats with science
+trace match naxis1 =0             # Match the shape of flats with science
 trace match decker ''             # Check the same decker as the science frame was used
 trace match cdangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
 trace match echangle ''           # Match the echelle angle
@@ -165,7 +165,7 @@ arc number 1                        # Number of arc frames to use
 arc canbe None                      # If there are frames that will be arc ***in addition to other frame types***, include the other frame types here.
 arc lscomb False                    # Combine a long and short arc
 arc check condition1 lampstat06=on|lampstat07=on|lampstat08=on|lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on|lampstat13=on|lampstat14=on|lampstat15=on|lampstat16=on
-arc match naxis1 =0                 # Match the row binning of arcs with science
-arc match naxis2 =0                 # Match the column binning of arcs with science
+arc match naxis0 =0                 # Match the shape of arcs with science
+arc match naxis1 =0                 # Match the shape of arcs with science
 arc match cdangle |<=5              # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
 arc match echangle ''               # Match the echelle angle

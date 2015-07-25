@@ -259,6 +259,12 @@ def flatnorm(slf, msflat, maskval=-999999.9, overpix=6, fname=""):
     overpix/2 = the number of pixels to extend beyond each side of the order trace
     """
     msgs.info("Normalizing the master flat field frame")
+    # First, determine the relative scale of each amplifier (assume amplifier 1 has a scale of 1.0)
+    if slf._spect['det']['numamplifiers'] > 1:
+        sclframe = get_ampscale(slf, msflat)
+        # Divide the master flat by the relative scale frame
+        msflat /= sclframe
+    # Determine the blaze
     polyord_blz = 2 # This probably doesn't need to be a parameter that can be set by the user
     norders = slf._lordloc.shape[1]
     # Look at the end corners of the detector to get detector size in the dispersion direction
@@ -288,9 +294,9 @@ def flatnorm(slf, msflat, maskval=-999999.9, overpix=6, fname=""):
             polypoints = slf._argflag["reduce"]["FlatParams"][1]
             repeat = slf._argflag["reduce"]["FlatParams"][2]
             # Take the median along the spatial dimension
-            flatmed = np.median(recframe,axis=1)
+            flatmed = np.median(recframe, axis=1)
             # Perform a polynomial fitting scheme to determine the blaze profile
-            xarray = np.arange(flatmed.size,dtype=np.float)
+            xarray = np.arange(flatmed.size, dtype=np.float)
             weight = flatmed.copy()
             msgs.work("Routine doesn't support user parameters yet")
             msgs.bug("Routine doesn't support user parameters yet")
@@ -331,12 +337,101 @@ def flatnorm(slf, msflat, maskval=-999999.9, overpix=6, fname=""):
             msnormflat = arcyproc.combine_nrmflat(msnormflat, normflat_unrec, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o]+overpix, maskval, slf._dispaxis)
         else:
             msgs.error("Flatfield method {0:s} is not supported".format(slf._argflag["reduce"]["FlatMethod"]))
-    #arutils.ds9plot(msnormflat.astype(np.float))
-    #arutils.ds9plot(msblaze.astype(np.float))
+    # arutils.ds9plot(msnormflat.astype(np.float))
+    # arutils.ds9plot(sclframe.astype(np.float))
+    # arutils.ds9plot(msblaze.astype(np.float))
     # Send the blaze away to be plotted and saved
     msgs.work("Perform a 2D PCA analysis on echelle blaze fits?")
     arplot.plot_orderfits(slf, msblaze, flat_ext1d, plotsdir=slf._argflag['run']['plotsdir'], prefix=fname+"_blaze")
+    # If there is more than 1 amplifier, apply the scale between amplifiers to the normalized flat
+    if slf._spect['det']['numamplifiers'] > 1: msnormflat *= sclframe
     return msnormflat, msblaze
+
+def get_ampscale(slf, msflat):
+    sclframe = np.ones_like(msflat)
+    ampdone = np.zeros(slf._spect['det']['numamplifiers']) # 1 = amplifiers have been assigned a scale
+    ampdone[0]=1
+    while np.sum(ampdone) != slf._spect['det']['numamplifiers']:
+        abst, bbst, nbst, n0bst, n1bst = -1, -1, -1, -1, -1 # Reset the values for the most overlapping amplifier
+        for a in range(0,slf._spect['det']['numamplifiers']): # amplifier 'a' is always the reference amplifier
+            if ampdone[a]==0: continue
+            for b in range(0,slf._spect['det']['numamplifiers']):
+                if ampdone[b]==1 or a==b: continue
+                tstframe = np.zeros_like(msflat)
+                tstframe[np.where(slf._ampsec==a+1)]=1
+                tstframe[np.where(slf._ampsec==b+1)]=2
+                # Determine the total number of adjacent edges between amplifiers a and b
+                n0 = np.sum(tstframe[1:,:]-tstframe[:-1,:])
+                n1 = np.sum(tstframe[:,1:]-tstframe[:,:-1])
+                if (abs(n0)+abs(n1)) > nbst:
+                    n0bst = n0
+                    n1bst = n1
+                    nbst = abs(n0)+abs(n1)
+                    abst = a
+                    bbst = b
+        # Determine the scaling factor for these two amplifiers
+        tstframe = np.zeros_like(msflat)
+        tstframe[np.where(slf._ampsec==abst+1)] = 1
+        tstframe[np.where(slf._ampsec==bbst+1)] = 2
+        if (abs(n0bst)>abs(n1bst)):
+            # The amplifiers overlap on the zeroth index
+            w = np.where(tstframe[1:,:]-tstframe[:-1,:] != 0)
+            sclval = np.median(msflat[w[0][0]+1, w[1]])/np.median(msflat[w[0][0], w[1]])
+            # msflat[w[0][0], w[1][0:50]] = 1.0E10
+            # msflat[w[0][0]-1, w[1][0:50]] = -1.0E10
+            # arutils.ds9plot(msflat)
+            if n0bst > 0:
+                # Then pixel w[0][0] falls on amplifier a
+                sclval = sclframe[w[0][0], w[1]] * sclval
+            else:
+                # pixel w[0][0] falls on amplifier b
+                sclval = sclframe[w[0][0]+1, w[1]] / sclval
+        else:
+            # The amplifiers overlap on the first index
+            w = np.where(tstframe[:,1:]-tstframe[:,:-1] != 0)
+            sclval = np.median(msflat[w[0], w[1][0]+1]/msflat[w[0], w[1][0]])
+            if n1bst > 0:
+                # Then pixel w[1][0] falls on amplifier a
+                sclval = sclframe[w[0], w[1][0]] * sclval
+            else:
+                # pixel w[1][0] falls on amplifier b
+                sclval = sclframe[w[0], w[1][0]+1] / sclval
+        # Finally, apply the scale factor thwe amplifier b
+        w = np.where(slf._ampsec == bbst+1)
+        sclframe[w] = np.median(sclval)
+        ampdone[bbst] = 1
+    return sclframe
+
+
+def get_ampsec_trimmed(slf, naxis0, naxis1):
+    """
+     Generate a frame that identifies each pixel to an amplifier, and then trim it to the data sections.
+     This frame can be used to later identify which trimmed pixels correspond to which amplifier
+
+    :param slf:
+    :param file: An untrimmed, unprocessed raw frame
+    :return: numpy array, the same shape as a trimmed frame, with values given by the amplifier number
+    """
+    retarr = np.zeros((naxis0, naxis1))
+    for i in range(slf._spect['det']['numamplifiers']):
+        datasec = "datasec{0:02d}".format(i+1)
+        x0, x1, y0, y1 = slf._spect['det'][datasec][0][0], slf._spect['det'][datasec][0][1], slf._spect['det'][datasec][1][0], slf._spect['det'][datasec][1][1]
+        # Fill in the pixels for this amplifier
+        xv=np.arange(x0, x1)
+        yv=np.arange(y0, y1)
+        w = np.ix_(xv, yv)
+        retarr[w] = i+1
+        # Save these locations for trimming
+        if i == 0:
+            xfin = xv.copy()
+            yfin = yv.copy()
+        else:
+            xfin = np.unique(np.append(xfin, xv.copy()))
+            yfin = np.unique(np.append(yfin, yv.copy()))
+    # Construct and array with the rows and columns to be extracted
+    w = np.ix_(xfin, yfin)
+    return retarr[w]
+
 
 def get_wscale(slf):
     """
@@ -354,6 +449,7 @@ def get_wscale(slf):
     msgs.info("Extracted wavelength range will be: {0:.5f} - {1:.5f}".format(wave.min(),wave.max()))
     msgs.info("Total number of spectral pixels in the extracted spectrum will be: {0:d}".format(1+nmax-nmin))
     return wave
+
 
 def sn_frame(slf, sciframe, idx):
     # Dark Current noise
@@ -373,19 +469,30 @@ def sn_frame(slf, sciframe, idx):
     snframe[w] = sciframe[w]/np.sqrt(errframe[w])
     return snframe
 
+
 def sub_overscan(slf,file):
-    for i in range (slf._spect['det']['numamplifiers']):
+    for i in range(slf._spect['det']['numamplifiers']):
+        # Determine the section of the chip that contains the overscan region
         oscansec = "oscansec{0:02d}".format(i+1)
-        x0, x1, y0, y1 = slf._spect['det'][oscansec][0][0], slf._spect['det'][oscansec][0][1], slf._spect['det'][oscansec][1][0], slf._spect['det'][oscansec][1][1]
-        xos=np.arange(x0,x1)
-        yos=np.arange(y0,y1)
+        ox0, ox1, oy0, oy1 = slf._spect['det'][oscansec][0][0], slf._spect['det'][oscansec][0][1], slf._spect['det'][oscansec][1][0], slf._spect['det'][oscansec][1][1]
+        xos=np.arange(ox0,ox1)
+        yos=np.arange(oy0,oy1)
         w = np.ix_(xos,yos)
         oscan = file[w]
-        if oscan.shape[0] > oscan.shape[1]:
+        # Determine the section of the chip that is read out by the amplifier
+        ampsec = "ampsec{0:02d}".format(i+1)
+        ax0, ax1, ay0, ay1 = slf._spect['det'][ampsec][0][0], slf._spect['det'][ampsec][0][1], slf._spect['det'][ampsec][1][0], slf._spect['det'][ampsec][1][1]
+        xam=np.arange(ax0,ax1)
+        yam=np.arange(ay0,ay1)
+        wa = np.ix_(xam,yam)
+        # Make sure the overscan section has at least one side consistent with ampsec (note: ampsec should contain both datasec and oscansec)
+        if (ax1-ax0==ox1-ox0):
             osfit = np.mean(oscan,axis=1)
-        else:
+        elif (ay1-ay0==oy1-oy0):
             osfit = np.mean(oscan,axis=0)
-        # Fit the overscan region
+        else:
+            msgs.error("Overscan sections do not match amplifier sections for amplifier {0:d}".format(i+1))
+        # Fit/Model the overscan region
         if slf._argflag['reduce']['oscanMethod'].lower()=="polynomial":
             c=np.polyfit(np.arange(osfit.size),osfit,slf._argflag['reduce']['oscanParams'][0])
             ossub = np.polyval(c,np.arange(osfit.size))#.reshape(osfit.size,1)
@@ -400,24 +507,21 @@ def sub_overscan(slf,file):
         #plt.plot(np.arange(osfit.size),ossub,'r-')
         #plt.show()
         #plt.clf()
+        # Determine the section of the chip that contains data for this amplifier
+        datasec = "datasec{0:02d}".format(i+1)
+        dx0, dx1, dy0, dy1 = slf._spect['det'][datasec][0][0], slf._spect['det'][datasec][0][1], slf._spect['det'][datasec][1][0], slf._spect['det'][datasec][1][1]
+        xds=np.arange(dx0,dx1)
+        yds=np.arange(dy0,dy1)
+        wd = np.ix_(xds,yds)
         ossub = ossub.reshape(osfit.size,1)
-        #print osfit
-        #print ossub
-        # Determine the section of the chip that is read out by the amplifier
-        ampsec = "ampsec{0:02d}".format(i+1)
-        x0, x1, y0, y1 = slf._spect['det'][ampsec][0][0], slf._spect['det'][ampsec][0][1], slf._spect['det'][ampsec][1][0], slf._spect['det'][ampsec][1][1]
-        xam=np.arange(x0,x1)
-        yam=np.arange(y0,y1)
-        w = np.ix_(xam,yam)
-        if w[0].shape[0] == ossub.shape[0]:
-            file[w] -= ossub
-        elif w[1].shape[1] == ossub.shape[0]:
-            file[w] -= ossub.T
+        if wd[0].shape[0] == ossub.shape[0]:
+            file[wd] -= ossub
+        elif wd[1].shape[1] == ossub.shape[0]:
+            file[wd] -= ossub.T
         else:
             msgs.error("Could not subtract bias from overscan region --"+msgs.newline()+"size of extracted regions does not match")
-    del xam, yam, xos, yos, oscan
+    del xam, yam, xds, yds, xos, yos, oscan
     return file
-
 
 
 def trim(slf,file):

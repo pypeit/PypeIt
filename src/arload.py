@@ -341,6 +341,8 @@ def load_input(slf):
     # Attach argflag to slf object and return
     slf._argflag = argflag
     msgs.info("Input file loaded successfully")
+    if len(datlines)==0: msgs.error("There are no raw data frames"+msgs.newline()+"Perhaps the path to the data is incorrect?")
+    else: msgs.info("Found {0:d} raw data frames".format(len(datlines)))
     return parlines, datlines, spclines
 
 def load_spect(slf, lines=None):
@@ -348,7 +350,7 @@ def load_spect(slf, lines=None):
         det = dict({'xgap':0.0, 'ygap':0.0, 'ysize':1.0, 'darkcurr':0.0, 'ronoise':1.0, 'gain':1.0, 'saturation':65536.0, 'nonlinear':1.0, 'numamplifiers':1, 'latitude':0.0, 'longitude':0.0, 'elevation':0.0, 'suffix':""})
         chk = dict({})
         stf = dict({'science':[], 'standard':[], 'bias':[], 'pixflat':[], 'blzflat':[], 'arc':[], 'trace':[], 'dark':[]})
-        kyw = dict({'target':'01.OBJECT', 'idname':'01.OBSTYPE', 'time':'01.MJD', 'date':'', 'equinox':'', 'ra':'', 'dec':'', 'naxis1':'01.NAXIS1', 'naxis2':'01.NAXIS2', 'exptime':'01.EXPTIME', 'filter1':'01.FILTNAME', 'filter2':None, 'lamps':'01.LAMPNAME', 'decker':'01.DECKNAME', 'slitwid':'01.SLITWIDTH', 'slitlen':'01.SLITLENGTH', 'detrot':'01.DETECTORROTATION', 'cdangle':'01.XDISPANGLE', 'echangle':'01.ECHELLEANGLE', 'crossdisp':'01.XDISPERS'})
+        kyw = dict({'target':'01.OBJECT', 'idname':'01.OBSTYPE', 'time':'01.MJD', 'date':'', 'equinox':'', 'ra':'', 'dec':'', 'naxis0':'01.NAXIS2', 'naxis1':'01.NAXIS1', 'exptime':'01.EXPTIME', 'filter1':'01.FILTNAME', 'filter2':None, 'lamps':'01.LAMPNAME', 'decker':'01.DECKNAME', 'slitwid':'01.SLITWIDTH', 'slitlen':'01.SLITLENGTH', 'detrot':'01.DETECTORROTATION', 'cdangle':'01.XDISPANGLE', 'echangle':'01.ECHELLEANGLE', 'crossdisp':'01.XDISPERS'})
         fts = dict({'numhead':1, 'numlamps':1, 'dataext':0, 'calwin':12.0, 'timeunit':'mjd'})
         sci = dict({'index':[], 'check':dict({}), 'idname':'OBJECT', 'canbe':None})
         std = dict({'index':[], 'check':dict({}), 'match':dict({}), 'number':1, 'idname':'OBJECT', 'canbe':None, 'combsame':dict({})})
@@ -461,7 +463,7 @@ def load_headers(slf):
     del headarr
     # Convert the fitsdict arrays into numpy arrays
     for k in fitsdict.keys(): fitsdict[k] = np.array(fitsdict[k])
-    msgs.info("Headers loaded successfully")
+    msgs.info("Headers loaded for {0:d} files successfully".format(-1))
     return fitsdict
 
 def load_frames(slf, ind, frametype='<None>', msbias=None, trim=True, transpose=False):

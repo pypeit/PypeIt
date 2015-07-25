@@ -131,7 +131,7 @@ def sort_write(slf,space=3):
     msgs.info("Preparing to write out the data sorting details")
     nfiles=slf._fitsdict['filename'].size
     # Specify which keywords to print after 'filename' and 'filetype'
-    prord = ['filename', 'frametype', 'target', 'exptime', 'naxis1', 'naxis2', 'filter1', 'filter2']
+    prord = ['filename', 'frametype', 'target', 'exptime', 'naxis0', 'naxis1', 'filter1', 'filter2']
     prdtp = ["char",     "char",      "char",   "double",  "int",    "int",    "char",     "char"]
     # Now insert the remaining keywords:
     fkey = slf._spect['keyword'].keys()
