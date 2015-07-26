@@ -837,7 +837,7 @@ def polyfit_scan(np.ndarray[DTYPE_t, ndim=1] xarr not None,
     return model
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def prepare_bsplfit(np.ndarray[DTYPE_t, ndim=2] arcfr not None,
                     np.ndarray[DTYPE_t, ndim=3] pixmap not None,
                     np.ndarray[DTYPE_t, ndim=1] tilts not None,

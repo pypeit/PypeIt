@@ -9,13 +9,14 @@ import artrace
 import arutils
 import arplot
 
-def background_subtraction(slf, sciframe, errframe, k=3, crsigma=20.0, maskval=-999999.9, nsample=1):
+def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-999999.9, nsample=1):
     """
     Perform a background subtraction on the science frame by
     fitting a b-spline to the background.
 
     This routine will (probably) work poorly if the order traces overlap (of course)
     """
+    errframe = np.sqrt(varframe)
     retframe = np.zeros_like(sciframe)
     norders = slf._lordloc.shape[1]
     # Look at the end corners of the detector to get detector size in the dispersion direction
@@ -106,7 +107,7 @@ def background_subtraction(slf, sciframe, errframe, k=3, crsigma=20.0, maskval=-
 
     msgs.work("Plot/save background locations")
     msgs.work("Deal with bad orders")
-    arutils.ds9plot(ordpix.astype(np.float))
+    #arutils.ds9plot(ordpix.astype(np.float))
 
     msgs.info("Fitting and reconstructing background")
     # Create the over-sampled array of points in the dispersion direction (detector)
@@ -470,7 +471,7 @@ def sn_frame(slf, sciframe, idx):
     return snframe
 
 
-def sub_overscan(slf,file):
+def sub_overscan(slf, file):
     for i in range(slf._spect['det']['numamplifiers']):
         # Determine the section of the chip that contains the overscan region
         oscansec = "oscansec{0:02d}".format(i+1)

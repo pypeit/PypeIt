@@ -54,7 +54,7 @@ def dispdir(msframe, dispwin=None, mode=0):
             msgs.info("Dispersion axis is predominantly along a column")
             return 1
 
-def trace_orders(slf, mstrace, prefix="", trcprefix=""):
+def trace_orders(slf, mstrace, prefix="", trcprefix="", maskBadColumns=False):
     """
     This routine will traces the locations of the order edges.
     """
@@ -95,6 +95,7 @@ def trace_orders(slf, mstrace, prefix="", trcprefix=""):
     wl = np.where(diff < -6.0*siglev)
     ttedges[wr] = +1.0
     ttedges[wl] = -1.0
+    #arutils.ds9plot(ttedges)
     # Second test for an edge
     diff = (troll-binarr)
     siglev = 1.4826*np.median(np.abs(diff))
@@ -104,28 +105,30 @@ def trace_orders(slf, mstrace, prefix="", trcprefix=""):
     tedges[wr] = +1.0
     tedges[wl] = -1.0
     nedgear = arcytrace.clean_edges(diff, tedges, slf._dispaxis)
-    if slf._dispaxis == 0: srchtxt = "rows"
-    else: srchtxt = "columns"
-    msgs.info("Searching for bad pixel {0:s}".format(srchtxt))
-    edgsum = np.sum(nedgear,axis=slf._dispaxis)
-    sigma = 1.4826*np.median(np.abs(edgsum-np.median(edgsum)))
-    w = np.where(np.abs(edgsum)>=1.5*sigma)[0]
-#	maskcols = np.unique(np.append(w,np.append(np.append(w+2,w+1),np.append(w-2,w-1))))
-    maskcols = np.unique(np.append(w,np.append(w+1,w-1)))
-    #plt.plot(np.arange(nedgear.shape[1]),np.sum(nedgear,axis=0),'k-',drawstyle='steps')
-    #plt.plot([0.0,nedgear.shape[1]],[sigma,sigma],'r-',drawstyle='steps')
-    #plt.plot([0.0,nedgear.shape[1]],[-sigma,-sigma],'r-',drawstyle='steps')
-    #plt.plot([0.0,nedgear.shape[1]],[2.0*sigma,2.0*sigma],'g-',drawstyle='steps')
-    #plt.plot([0.0,nedgear.shape[1]],[-2.0*sigma,-2.0*sigma],'g-',drawstyle='steps')
-    #plt.plot(maskcols,np.zeros(maskcols.size),'ro')
-    #plt.show()
-    msgs.info("Masking {0:d} bad pixel {1:s}".format(maskcols.size,srchtxt))
-    for i in range(maskcols.size):
-        if maskcols[i] < 0 or maskcols[i] >= nedgear.shape[1-slf._dispaxis]: continue
-        if slf._dispaxis == 0:
-            nedgear[:,maskcols[i]] = 0
-        else:
-            nedgear[maskcols[i],:] = 0
+    #arutils.ds9plot(nedgear)
+    if maskBadColumns:
+        if slf._dispaxis == 0: srchtxt = "rows"
+        else: srchtxt = "columns"
+        msgs.info("Searching for bad pixel {0:s}".format(srchtxt))
+        edgsum = np.sum(nedgear,axis=slf._dispaxis)
+        sigma = 1.4826*np.median(np.abs(edgsum-np.median(edgsum)))
+        w = np.where(np.abs(edgsum)>=1.5*sigma)[0]
+    #	maskcols = np.unique(np.append(w,np.append(np.append(w+2,w+1),np.append(w-2,w-1))))
+        maskcols = np.unique(np.append(w,np.append(w+1,w-1)))
+        #plt.plot(np.arange(nedgear.shape[1]),np.sum(nedgear,axis=0),'k-',drawstyle='steps')
+        #plt.plot([0.0,nedgear.shape[1]],[sigma,sigma],'r-',drawstyle='steps')
+        #plt.plot([0.0,nedgear.shape[1]],[-sigma,-sigma],'r-',drawstyle='steps')
+        #plt.plot([0.0,nedgear.shape[1]],[2.0*sigma,2.0*sigma],'g-',drawstyle='steps')
+        #plt.plot([0.0,nedgear.shape[1]],[-2.0*sigma,-2.0*sigma],'g-',drawstyle='steps')
+        #plt.plot(maskcols,np.zeros(maskcols.size),'ro')
+        #plt.show()
+        msgs.info("Masking {0:d} bad pixel {1:s}".format(maskcols.size,srchtxt))
+        for i in range(maskcols.size):
+            if maskcols[i] < 0 or maskcols[i] >= nedgear.shape[1-slf._dispaxis]: continue
+            if slf._dispaxis == 0:
+                nedgear[:,maskcols[i]] = 0
+            else:
+                nedgear[maskcols[i],:] = 0
     #arutils.ds9plot(nedgear)
     ######
     msgs.info("Applying bad pixel mask")
@@ -146,7 +149,11 @@ def trace_orders(slf, mstrace, prefix="", trcprefix=""):
     # Assign a number to each of the edges
     msgs.info("Matching order edges")
     lcnt, rcnt = arcytrace.match_edges(edgearr,slf._dispaxis)
-    msgs.info("{0:d} left edges and {1:d} right edges were found in the trace".format(lcnt,rcnt))
+    if lcnt==1: letxt = "edge"
+    else: letxt = "edges"
+    if rcnt==1: retxt = "edge"
+    else: retxt = "edges"
+    msgs.info("{0:d} left {1:s} and {2:d} right {3:s} were found in the trace".format(lcnt,letxt,rcnt,retxt))
     if lcnt == 0 or rcnt == 0:
         msgs.error("Unable to trace order edges"+msgs.newline()+"try a different method to trace the order edges")
     # Now assign each edge detection to an order
@@ -192,7 +199,20 @@ def trace_orders(slf, mstrace, prefix="", trcprefix=""):
         tlfitx = plxbin[w]
         tlfity = plybin[w]
         rcoeff[:,i-rmin] = arutils.func_fit(tlfitx,tlfity,slf._argflag['trace']['orders']['function'],slf._argflag['trace']['orders']['polyorder'],min=minvf,max=maxvf)
+    # Check if no further work is needed (i.e. there only exists one order)
+    if (lmax+1-lmin==1) and (rmax+1-rmin==1):
+        # Just a single order has been identified (i.e. probably longslit)
+        if slf._dispaxis == 0:
+            xint = slf._pixlocn[:,0,0]
+        else:
+            xint = slf._pixlocn[0,:,0]
+        lcenint = np.zeros((mstrace.shape[slf._dispaxis],1))
+        rcenint = np.zeros((mstrace.shape[slf._dispaxis],1))
+        lcenint[:,0] = arutils.func_val(lcoeff[:,0],xint,slf._argflag['trace']['orders']['function'],min=minvf,max=maxvf)
+        rcenint[:,0] = arutils.func_val(rcoeff[:,0],xint,slf._argflag['trace']['orders']['function'],min=minvf,max=maxvf)
+        return lcenint, rcenint
     msgs.info("Synchronizing left and right order traces")
+    # Define the array of pixel values along the dispersion direction
     if slf._dispaxis == 0:
         xv = plxbin[:,0]
     else:
@@ -634,13 +654,14 @@ def model_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
         slf._argflag['trace']['orders']['tilts'] = 'fit1d'
     # Extract a rough spectrum of the arc in each order
     msgs.info("Extracting an approximate arc spectrum at the centre of the chip")
-    pixcen = np.arange(msarc.shape[slf._dispaxis],dtype=np.int)
-    ordcen = (msarc.shape[1-slf._dispaxis]/2)*np.ones(msarc.shape[slf._dispaxis],dtype=np.int)
-    if len(ordcen.shape) != 1: msgs.error("The function artrace.model_tilt should only be used for"+msgs.newline()+"a single spectrum (or order)")
-    ordcen = ordcen.reshape((ordcen.shape[0],1))
-    maskrows = np.ones(msarc.shape[0],dtype=np.int) # Start by masking every row, then later unmask the rows with usable arc lines
+    pixcen = np.arange(msarc.shape[slf._dispaxis], dtype=np.int)
+    #ordcen = (msarc.shape[1-slf._dispaxis]/2)*np.ones(msarc.shape[slf._dispaxis],dtype=np.int)
+    #if len(ordcen.shape) != 1: msgs.error("The function artrace.model_tilt should only be used for"+msgs.newline()+"a single spectrum (or order)")
+    #ordcen = ordcen.reshape((ordcen.shape[0],1))
+    ordcen = slf._pixcen.copy()
+    maskrows = np.ones(msarc.shape[0], dtype=np.int) # Start by masking every row, then later unmask the rows with usable arc lines
     msgs.work("No orders being masked at the moment")
-    # Average over three pixels to remove some random fluctuations, and increase S/N
+    # Average over several pixels to remove some random fluctuations, and increase S/N
     op1 = ordcen+1
     op2 = ordcen+2
     om1 = ordcen-1
@@ -707,9 +728,9 @@ def model_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
     # Trace the tilts
     if slf._argflag['trace']['orders']['tilts'] == 'fit1D':
         # Go along each order and fit the tilts in 1D
-        tiltang=-999999.9*np.ones(arcdet.size)
-        centval=-999999.9*np.ones(arcdet.size)
-        tcoeff = np.ones((slf._argflag['trace']['orders']['tiltorder']+1,msarc.shape[0]))
+        tiltang = -999999.9*np.ones(arcdet.size)
+        centval = -999999.9*np.ones(arcdet.size)
+        tcoeff  = np.ones((slf._argflag['trace']['orders']['tiltorder']+1,msarc.shape[0]))
         msgs.work("This next step could be multiprocessed to speed up the reduction")
         msgs.info("Tracing tilt")
         for j in range(arcdet.size): # For each detection in this order
@@ -802,8 +823,8 @@ def model_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
             tilts = extrap_tilt
             #arpca.pc_plot_arctilt(tiltang, centval, tilts, plotsdir=slf._argflag['run']['plotsdir'], pcatype="tilts", prefix=prefix)
         else:
-            msgs.warn("Could not perform a PCA when tracing the order tilts"+msgs.newline()+"Not enough well-traced orders")
-            msgs.info("Attempting to fit tilts by assuming the tilt is order-independent")
+            msgs.warn("Could not perform a PCA when tracing the spectral tilt"+msgs.newline()+"Not enough well-traced arc lines")
+            msgs.info("Attempting to fit tilts by assuming the tilt is independent along the dispersion direction")
             xtiltfit = np.array([])
             ytiltfit = np.array([])
             for o in range(tiltang.shape[1]):

@@ -36,9 +36,9 @@ det gain 3.0                        # Inverse gain (e-/ADU)
 det saturation 65535.0              # The detector Saturation level
 det nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det numamplifiers 1                 # Number of amplifiers
-det ampsec01 [52:222,1:1232]        # For each amplifier, you should specify the detector sections each amplifier reads out (values are inclusive).
-det datasec01 [52:222,1:1200]       # Either the data sections or the header keyword where the valid data sections can be obtained
-det oscansec01 [52:222,1200:1232]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+det ampsec01 [0:400,1:1232]        # For each amplifier, you should specify the detector sections each amplifier reads out (values are inclusive).
+det datasec01 [0:400,1:1200]       # Either the data sections or the header keyword where the valid data sections can be obtained
+det oscansec01 [0:400,1200:1232]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
 det latitude 37.3413889             # Latitude of the telescope
 det longitude +121.6428             # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
 det elevation 1283.0                # Elevation of the telescope (in m)

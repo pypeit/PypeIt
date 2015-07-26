@@ -40,9 +40,9 @@ def basis(xfit, yfit, coeff, npc, pnpc, skipx0=True, x0in=None, mask=None, funct
 
     coeffstr=[]
     for i in range(1,npc+1):
-        if pnpc[i] == 0:
-            coeffstr.append([-9.99E9])
-            continue
+#        if pnpc[i] == 0:
+#            coeffstr.append([-9.99E9])
+#            continue
         #coeff0 = arutils.robust_regression(x0in[usetrace], hidden[i-1,:], pnpc[i], 0.1, function=function, min=x0in[0], max=x0in[-1])
         tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1,:], pnpc[i], sigma=2.0, function=function, min=x0in[0], max=x0in[-1])
         coeffstr.append(coeff0)

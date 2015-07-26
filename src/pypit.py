@@ -15,6 +15,7 @@ import arproc
 import arsort
 import artrace
 import arutils
+import arvcorr
 
 last_updated = "Last updated 20th July 2015"
 
@@ -461,15 +462,14 @@ class ClassMain:
             self.GetDispersionDirection(self._spect['arc']['index'][sc])
             ###############
             # Generate a master trace frame
-            self._mstrace, self._mstracename = self.MasterTrace(sc)
+            self._mstrace, self._mstrace_name = self.MasterTrace(sc)
             ###############
             # Generate an array that provides the physical pixel locations on the detector
             self.GetPixelLocations()
             ###############
             # Determine the edges of the spectrum
-            # Take the edges of the (trimmed) data to be the order edges
-            self._lordloc = self._pixlocn[:,0,1].reshape((self._pixlocn.shape[0],1))
-            self._rordloc = self._pixlocn[:,-1,1].reshape((self._pixlocn.shape[0],1))
+            self._lordloc, self._rordloc = artrace.trace_orders(self, self._mstrace, prefix=prefix, trcprefix=self._trcprefix)
+            arsave.save_ordloc(self, self._mstrace_name)
             # Convert physical trace into a pixel trace
             msgs.info("Converting physical trace locations to nearest pixel")
             self._pixcen  = artrace.phys_to_pix(0.5*(self._lordloc+self._rordloc), self._pixlocn, self._dispaxis, 1-self._dispaxis)
@@ -478,7 +478,7 @@ class ClassMain:
             self._rordpix = artrace.phys_to_pix(self._rordloc, self._pixlocn, self._dispaxis, 1-self._dispaxis)
             ###############
             # Prepare the pixel flat field frame
-            mspixflatnrm, msblaze = arproc.flatnorm(self, self._mstrace.copy(), overpix=0, fname=os.path.basename(os.path.splitext(self._mstracename)[0]))
+            mspixflatnrm, msblaze = arproc.flatnorm(self, self._mstrace.copy(), overpix=0, fname=os.path.basename(os.path.splitext(self._mstrace_name)[0]))
             self._mspixflat, self._mspixflatnrm, self._msblaze, self._mspixflat_name = self.MasterFlatField(sc)
             ###############
             # Derive the spectral tilt
@@ -488,16 +488,81 @@ class ClassMain:
                     self._tilts, self._satmask = arload.load_tilts(self._msarc_name)
                 except:
                     # If this fails, rederive the order tilts
-                    self._tilts, self._satmask = artrace.model_tilt(self, self._msarc, prefix=prefix, trcprefix=self._trcprefix, tltprefix=self._tltprefix) # NOTE: self._tilts = tan(tilt angle), where "tilt angle" is the angle between (1) the line representing constant wavelength and (2) the column of pixels that is most closely parallel with the spatial direction of the slit.
+                    self._tilts, self._satmask = artrace.model_tilt(self, self._msarc, prefix=prefix, trcprefix=self._trcprefix, tltprefix=self._tltprefix)
                     # Save the traces
                     arsave.save_tilts(self, self._msarc_name)
             else:
                 # First time encountered this set of arc frames --> derive the order tilts
-                self._tilts, self._satmask = artrace.model_tilt(self, self._msarc, prefix=prefix, trcprefix=self._trcprefix, tltprefix=self._tltprefix) # NOTE: self._tilts = tan(tilt angle), where "tilt angle" is the angle between (1) the line representing constant wavelength and (2) the column of pixels that is most closely parallel with the spatial direction of the slit.
+                self._tilts, self._satmask = artrace.model_tilt(self, self._msarc, prefix=prefix, trcprefix=self._trcprefix, tltprefix=self._tltprefix)
                 # Save the tilts
                 arsave.save_tilts(self, self._msarc_name)
-                msgs.error("OK?")
-            # Extraction -- ryan
+            # Note: self._tilts is the
+            ###############
+            # Extract arc and identify lines
+
+
+            msgs.error("JXP :: working on wavelength calibration")
+            ###############
+            # Check if the user only wants to prepare the calibrations
+            msgs.info("All calibration frames have been prepared")
+            if self._argflag['run']['preponly']:
+                msgs.info("If you would like to continue with the reduction,"+msgs.newline()+"disable the run+preponly command")
+                continue
+            ###############
+            # Load the science frame and from this generate a Poisson error frame
+            sciframe = arload.load_frames(self, scidx, frametype='science', msbias=self._msbias, transpose=self._transpose)
+            sciframe = sciframe[:,:,0]
+            # Convert ADUs to electrons
+            sciframe *= self._spect['det']['gain']
+            varframe = arproc.variance_frame(self, sciframe, scidx[0])
+            ###############
+            # Subtract off the scattered light from the image
+            msgs.work("Scattered light subtraction is not yet implemented...")
+            ###############
+            # Flat field the science frame
+            if self._argflag['reduce']['flatfield']:
+                msgs.info("Flat fielding the science frame")
+                sciframe = arproc.flatfield(self, sciframe, mspixflatnrm)
+            else:
+                msgs.info("Not performing a flat field calibration")
+            msgs.error("RJC :: up to here")
+            ###############
+            # Subtract Sky Background
+            if self._argflag['reduce']['bgsubtraction']:
+                msgs.info("Preparing a sky background frame from the science frame")
+                scibgsub, bgframe = arproc.background_subtraction(self, sciframe, varframe)
+                # Derive a suitable name for the master sky background frame
+                msbg_name = "{0:s}/{1:s}/{2:s}_{3:03d}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]],"sky")
+                # Send the data away to be saved
+                arsave.save_master(self, bgframe, filename=msbg_name, frametype='sky background', ind=ind)
+                # Derive a suitable name for the sky-subtracted science frame
+                msscibg_name = "{0:s}/{1:s}/{2:s}_{3:03d}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]],"skysub")
+                # Send the data away to be saved
+                arsave.save_master(self, scibgsub, filename=msscibg_name, frametype='sky subtracted science', ind=ind)
+            ###############
+            # Perform a velocity correction
+            if self._argflag['reduce']['heliocorr'] == True:
+                if self._argflag['science']['load']['extracted'] == True:
+                    msgs.warn("Heliocentric correction will not be applied if an extracted science frame exists, and is used")
+                msgs.work("Perform a full barycentric correction")
+                msgs.work("Include the facility to correct for gravitational redshifts and time delays (see Pulsar timing work)")
+                msgs.info("Performing a heliocentric correction")
+                # Load the header for the science frame
+                self._waveids = arvcorr.helio_corr(self, scidx[0])
+            else:
+                msgs.info("A heliocentric correction will not be performed")
+            ###############
+            # Using model sky, calculate a flexure correction
+            msgs.error("Implement flexure correction")
+
+            ###############
+            # Determine the wavelength scale (i.e. the wavelength of each pixel) to be used during the extraction
+            msgs.info("Generating the array of extraction wavelengths")
+            self._wavelength = arproc.get_wscale(self)
+            ###############
+            # Extraction
+
+
         # Insert remaining reduction steps here
         return success
 

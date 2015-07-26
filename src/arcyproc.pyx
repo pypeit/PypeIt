@@ -257,7 +257,7 @@ def polyfit(np.ndarray[DTYPE_t, ndim=1] x not None,
     # Return the best-fitting coefficients
     return
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def prepare_bgmodel(np.ndarray[DTYPE_t, ndim=2] arcfr not None,
                     np.ndarray[DTYPE_t, ndim=3] pixmap not None,
                     np.ndarray[DTYPE_t, ndim=1] tilts not None,

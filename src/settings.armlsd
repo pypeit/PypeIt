@@ -23,7 +23,7 @@ reduce usearc arc               # What filetype should be used for wavelength ca
 reduce useflat pixflat          # How to flat field the data (pixflat, blzflat), you can also specify a master calibrations file if it exists.
 reduce flatfield True           # Flatfield the data?
 reduce FlatMethod PolyScan      # Method used to flat field the data (PolyScan)
-reduce FlatParams [3,32,1]      # Flat field method parameters (PolyScan: [order,numPixels,repeat])
+reduce FlatParams [2,16,3]      # Flat field method parameters (PolyScan: [order,numPixels,repeat])
 reduce flatmatch -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
 reduce arcmatch -1.0            # Match similar arc frames together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
 reduce calibrate True           # Wavelength calibrate the data?
@@ -82,8 +82,8 @@ trace orders pca [3,2,1,0,0,0]        # What order polynomials should be used to
 trace orders pcxpos     3             # How many extra orders to predict in the positive direction
 trace orders pcxneg     3             # How many extra orders to predict in the negative direction
 trace orders tilts      fit1D         # What method should be used to trace the tilt of the slit along an order (trace, fit1D, fit2D, perp, zero)
-trace orders pcatilt    [1,0]         # What order polynomials should be used to fit the tilt principle components
-trace orders tiltorder  1             # What is the order of the function to be used for tilts in a given order
+trace orders pcatilt    [1,1,0]         # What order polynomials should be used to fit the tilt principle components
+trace orders tiltorder  2             # What is the order of the function to be used for tilts in a given order
 
 # PIXEL FLAT FRAMES
 pixflat comb method weightmean          # How should the pixel flat frames be combined (mean, median, weightmean)
