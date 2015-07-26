@@ -417,6 +417,10 @@ def get_ampsec_trimmed(slf, naxis0, naxis1):
     for i in range(slf._spect['det']['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
         x0, x1, y0, y1 = slf._spect['det'][datasec][0][0], slf._spect['det'][datasec][0][1], slf._spect['det'][datasec][1][0], slf._spect['det'][datasec][1][1]
+        if x0 < 0: x0 += naxis0
+        if x1 < 0: x1 += naxis0
+        if y0 < 0: y0 += naxis1
+        if y1 < 0: y1 += naxis1
         # Fill in the pixels for this amplifier
         xv=np.arange(x0, x1)
         yv=np.arange(y0, y1)
@@ -476,6 +480,10 @@ def sub_overscan(slf, file):
         # Determine the section of the chip that contains the overscan region
         oscansec = "oscansec{0:02d}".format(i+1)
         ox0, ox1, oy0, oy1 = slf._spect['det'][oscansec][0][0], slf._spect['det'][oscansec][0][1], slf._spect['det'][oscansec][1][0], slf._spect['det'][oscansec][1][1]
+        if ox0 < 0: ox0 += file.shape[0]
+        if ox1 < 0: ox1 += file.shape[0]
+        if oy0 < 0: oy0 += file.shape[1]
+        if oy1 < 0: oy1 += file.shape[1]
         xos=np.arange(ox0,ox1)
         yos=np.arange(oy0,oy1)
         w = np.ix_(xos,yos)
@@ -483,6 +491,10 @@ def sub_overscan(slf, file):
         # Determine the section of the chip that is read out by the amplifier
         ampsec = "ampsec{0:02d}".format(i+1)
         ax0, ax1, ay0, ay1 = slf._spect['det'][ampsec][0][0], slf._spect['det'][ampsec][0][1], slf._spect['det'][ampsec][1][0], slf._spect['det'][ampsec][1][1]
+        if ax0 < 0: ax0 += file.shape[0]
+        if ax1 < 0: ax1 += file.shape[0]
+        if ay0 < 0: ay0 += file.shape[1]
+        if ay1 < 0: ay1 += file.shape[1]
         xam=np.arange(ax0,ax1)
         yam=np.arange(ay0,ay1)
         wa = np.ix_(xam,yam)
@@ -511,6 +523,10 @@ def sub_overscan(slf, file):
         # Determine the section of the chip that contains data for this amplifier
         datasec = "datasec{0:02d}".format(i+1)
         dx0, dx1, dy0, dy1 = slf._spect['det'][datasec][0][0], slf._spect['det'][datasec][0][1], slf._spect['det'][datasec][1][0], slf._spect['det'][datasec][1][1]
+        if dx0 < 0: dx0 += file.shape[0]
+        if dx1 < 0: dx1 += file.shape[0]
+        if dy0 < 0: dy0 += file.shape[1]
+        if dy1 < 0: dy1 += file.shape[1]
         xds=np.arange(dx0,dx1)
         yds=np.arange(dy0,dy1)
         wd = np.ix_(xds,yds)
@@ -529,6 +545,10 @@ def trim(slf,file):
     for i in range (slf._spect['det']['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
         x0, x1, y0, y1 = slf._spect['det'][datasec][0][0], slf._spect['det'][datasec][0][1], slf._spect['det'][datasec][1][0], slf._spect['det'][datasec][1][1]
+        if x0 < 0: x0 += file.shape[0]
+        if x1 < 0: x1 += file.shape[0]
+        if y0 < 0: y0 += file.shape[1]
+        if y1 < 0: y1 += file.shape[1]
         if i==0:
             xv=np.arange(x0,x1)
             yv=np.arange(y0,y1)
