@@ -498,12 +498,11 @@ class ClassMain:
                 # Save the tilts
                 arsave.save_tilts(self, self._msarc_name)
             # Note: self._tilts is the
-                # Setup arc parameters (e.g. linelist)
-                self._arcparam = ararc.setup_param(self, sc)
-                ###############
-                # Extract arc and identify lines
-                self.wv_calib = ararc.simple_calib(self)
+            ###############
+            # Extract arc and identify lines
+            self.wv_calib = ararc.simple_calib(self, self._msarc)
             msgs.error("JXP :: working on wavelength calibration")
+
 
             ###############
             # Check if the user only wants to prepare the calibrations
