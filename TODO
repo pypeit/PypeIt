@@ -6,3 +6,5 @@ The following is a list of items to be included in pypit
 * Store master calibrations for each master frame (to save recalculating the solutions -- including slit trace, tilts, and wavelength)
 * Flexure correction (TH)
 * Extraction (RJC)
+* Force matplotlib RC params of plots to be the default throughout (i.e. don't allow user-specified matplotlib rcparams)
+* Save all QA to a single fits file and/or pdf file (?).
