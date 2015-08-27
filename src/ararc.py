@@ -12,7 +12,7 @@ from astropy.io import ascii
 import os
 import time
 
-from xastropy.xutils import xdebug as xdb
+#from xastropy.xutils import xdebug as xdb
 
 def detect_lines(slf,msarc):
     '''Extract an arc down the center of the chip and identify
@@ -81,7 +81,7 @@ def detect_lines(slf,msarc):
     return tampl, tcent, twid, w, satsnd, yprep
 
 ###
-def setup(slf, sc):
+def setup_param(slf, sc):
     '''Setup for arc analysis
     '''
     # Defaults
@@ -285,6 +285,8 @@ def simple_calib(slf, get_poly=False, debug=False):
     #get_poly=True
     if get_poly:
         poly_fit = arutils.func_fit(yfit,xfit, 'polynomial',2,min=fmin,max=fmax)
+        print(' Most likely you with to record these values:')
+        print(poly_fit)
         import pdb
         pdb.set_trace()
     # Pack up fit
