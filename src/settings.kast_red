@@ -56,6 +56,7 @@ keyword date 01.DATE                   # The date of the observation (in the for
 keyword equinox None                   # The equinox to use
 keyword ra 01.RA                       # Right Ascension of the target
 keyword dec 01.DEC                     # Declination of the target
+keyword airmass 01.AIRMASS             # Airmass at start of observation
 keyword naxis0 01.NAXIS2               # Number of pixels along the zeroth axis
 keyword naxis1 01.NAXIS1               # Number of pixels along the first axis
 keyword exptime 01.EXPTIME             # Exposure time keyword
@@ -98,8 +99,10 @@ keyword lampstat16 01.LAMPSTAK         # Status of a lamp
 keyword slitwid None                   # Slit Width
 keyword slitlen None                   # Slit Length
 keyword detrot None                    # Detector Rotation angle
+keyword dichroic 01.BSPLIT_N           # Dichroic name
+keyword disperser 01.GRATNG_N          # Grating name
 keyword cdangle 01.GRTILT_P            # Cross-disperser angle
-keyword echangle 01.GRATNG_N           # Echelle angle
+keyword echangle None                  # Echelle angle
 keyword crossdisp None                 # Cross-disperser
 
 ### Fits properties

@@ -353,7 +353,7 @@ def load_spect(slf, lines=None):
         det = dict({'xgap':0.0, 'ygap':0.0, 'ysize':1.0, 'darkcurr':0.0, 'ronoise':1.0, 'gain':1.0, 'saturation':65536.0, 'nonlinear':1.0, 'numamplifiers':1, 'latitude':0.0, 'longitude':0.0, 'elevation':0.0, 'suffix':""})
         chk = dict({})
         stf = dict({'science':[], 'standard':[], 'bias':[], 'pixflat':[], 'blzflat':[], 'arc':[], 'trace':[], 'dark':[]})
-        kyw = dict({'target':'01.OBJECT', 'idname':'01.OBSTYPE', 'time':'01.MJD', 'date':'', 'equinox':'', 'ra':'', 'dec':'', 'naxis0':'01.NAXIS2', 'naxis1':'01.NAXIS1', 'exptime':'01.EXPTIME', 'filter1':'01.FILTNAME', 'filter2':None, 'lamps':'01.LAMPNAME', 'decker':'01.DECKNAME', 'slitwid':'01.SLITWIDTH', 'slitlen':'01.SLITLENGTH', 'detrot':'01.DETECTORROTATION', 'cdangle':'01.XDISPANGLE', 'echangle':'01.ECHELLEANGLE', 'crossdisp':'01.XDISPERS'})
+        kyw = dict({'target':'01.OBJECT', 'idname':'01.OBSTYPE', 'time':'01.MJD', 'date':'', 'equinox':'', 'ra':'', 'dec':'', 'airmass':'', 'naxis0':'01.NAXIS2', 'naxis1':'01.NAXIS1', 'exptime':'01.EXPTIME', 'filter1':'01.FILTNAME', 'filter2':None, 'lamps':'01.LAMPNAME', 'decker':'01.DECKNAME', 'slitwid':'01.SLITWIDTH', 'slitlen':'01.SLITLENGTH', 'detrot':'01.DETECTORROTATION', 'cdangle':'01.XDISPANGLE', 'echangle':'01.ECHELLEANGLE', 'crossdisp':'01.XDISPERS', 'dichroic':'', 'disperser':''})
         fts = dict({'numhead':1, 'numlamps':1, 'dataext':0, 'calwin':12.0, 'timeunit':'mjd'})
         sci = dict({'index':[], 'check':dict({}), 'idname':'OBJECT', 'canbe':None})
         std = dict({'index':[], 'check':dict({}), 'match':dict({}), 'number':1, 'idname':'OBJECT', 'canbe':None, 'combsame':dict({})})
@@ -435,7 +435,11 @@ def load_headers(slf):
             if slf._spect['keyword'][kw] is None: value='None' # This instrument doesn't have/need this keyword
             else:
                 ch = slf._spect['keyword'][kw]
-                tfrhd = int(ch.split('.')[0])-1
+                try:
+                    tfrhd = int(ch.split('.')[0])-1
+                except:
+                    import pdb
+                    pdb.set_trace()
                 frhd  = whddict['{0:02d}'.format(tfrhd)]
                 kchk  = '.'.join(ch.split('.')[1:])
                 value = headarr[frhd][kchk]

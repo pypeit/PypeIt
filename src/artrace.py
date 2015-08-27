@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import copy
+import ararc
 import armsgs as msgs
 import arcyarc
 import arcytrace
@@ -643,6 +644,10 @@ def model_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
     """
 
+    msgs.work("Detecting lines..")
+    tampl, tcent, twid, w, satsnd, _ = ararc.detect_lines(slf,msarc)
+
+    '''
     msgs.work("Haven't used physical pixel locations in this routine")
 
     if slf._argflag['trace']['orders']['tilts'] == 'zero':
@@ -722,9 +727,14 @@ def model_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
     pixt = pixt[np.where(pixt!=-1)].astype(np.int)
     tampl, tcent, twid, ngood = arcyarc.fit_arcorder(xrng,yprep,pixt,fitp)
     w = np.where((np.isnan(twid)==False) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent>0.0) & (tcent<xrng[-1]))
+    '''
     arcdet = (tcent[w]+0.5).astype(np.int)
+    maskrows = np.ones(msarc.shape[0], dtype=np.int) # Start by masking every row, then later unmask the rows with usable arc lines
+    totnum = 0
     if np.size(w[0])>totnum:
         totnum = np.size(w[0])
+
+    ordcen = slf._pixcen.copy()
     # Trace the tilts
     if slf._argflag['trace']['orders']['tilts'] == 'fit1D':
         # Go along each order and fit the tilts in 1D
