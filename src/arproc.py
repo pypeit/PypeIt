@@ -11,6 +11,13 @@ import arplot
 
 def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-999999.9, nsample=1):
     """
+    Idea for background subtraction:
+    (1) Assume that all pixels are background and (by considering the tilts) create an array of pixel flux vs pixel wavelength.
+    (2) Step along pixel wavelength, and mask out the N pixels (where N ~ 5) that have the maximum flux in each "pixel" bin.
+    (3) At each pixel bin, perform a robust regression with the remaining values until all values in a given bin are consistent with a constant value.
+    (4) Using all non-masked values, perform a least-squares spline fit to the points. This corresponds to the background spectrum
+    (5) Reconstruct the background image by accounting for the tilts.
+
     Perform a background subtraction on the science frame by
     fitting a b-spline to the background.
 
@@ -33,15 +40,15 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     msgs.info("Applying bad pixel mask")
     ordpix *= (1-slf._bpix.astype(np.int))
     whord = np.where(ordpix != 0)
-    msgs.info("Masking cosmic ray hits")
-    crr_id = arcyutils.crreject(sciframe/np.median(sciframe[whord]), slf._dispaxis)
-    cruse = np.abs(crr_id/sciframe)[whord]
-    medcr = np.median(cruse)
-    madcr = 1.4826*np.median(np.abs(cruse-medcr))
-    whcrt = np.where(cruse>medcr+crsigma*madcr)
-    whcrr = (whord[0][whcrt],whord[1][whcrt])
-    msgs.info("Identified {0:d} pixels affected by cosmic rays within orders in the science frame".format(whord[0].size))
-    if whcrr[0].size != 0: ordpix[whcrr] = 0
+#    msgs.info("Masking cosmic ray hits")
+#    crr_id = arcyutils.crreject(sciframe/np.median(sciframe[whord]), slf._dispaxis)
+#    cruse = np.abs(crr_id/sciframe)[whord]
+#    medcr = np.median(cruse)
+#    madcr = 1.4826*np.median(np.abs(cruse-medcr))
+#    whcrt = np.where(cruse>medcr+crsigma*madcr)
+#    whcrr = (whord[0][whcrt],whord[1][whcrt])
+#    msgs.info("Identified {0:d} pixels affected by cosmic rays within orders in the science frame".format(whord[0].size))
+#    if whcrr[0].size != 0: ordpix[whcrr] = 0
 #	temp = sciframe.copy()
 #	temp[whcrr] = 0.0
 #	arutils.ds9plot(temp.astype(np.float))
@@ -68,6 +75,13 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
         #arutils.ds9plot(recframe.astype(np.float))
         #objprof = arcyextract.maskedaverage_order(recframe[w], recerror[w]**2, maskval)
         recframesmth = arcyproc.smooth_gaussmask(recframe[w], maskval, 4.0)
+        # Sort the pixels along the spatial direction based on their flux
+
+        # Select only pixels with a flux consistent with a constant valueIdentify the most common columns are
+
+
+
+
         #arutils.ds9plot(recframe[w].astype(np.float))
         #arutils.ds9plot(recframesmth.astype(np.float))
         objprofm = arcyextract.maskedmedian_order(recframesmth, maskval)

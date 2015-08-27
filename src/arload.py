@@ -54,11 +54,12 @@ def optarg(argv, last_updated):
 
     # Load the default settings
     prgn_spl = argv[0].split('/')
-    fname = ""
-    for i in range(0,len(prgn_spl)-1): fname += prgn_spl[i]+"/"
-    fname += 'settings.armlsd'
+    tfname = ""
+    for i in range(0,len(prgn_spl)-1): tfname += prgn_spl[i]+"/"
+    fname = tfname + 'settings.armlsd'
     argflag = load_settings(fname)
     argflag['run']['prognm'] = argv[0]
+    argflag['run']['pypitdir'] = tfname
     # Load options from command line
     try:
         opt,arg=getopt.getopt(argv[1:],'hc:v:', ['help',

@@ -103,7 +103,7 @@ def setup_param(slf, sc):
     idx = slf._spect['arc']['index'][sc]
     disperser = slf._fitsdict["disperser"][idx[0]]
     if sname=='kast_blue':
-        arcparam['llist'] = os.getenv('PYPIT')+'/data/arc_lines/kast_blue.lst'
+        arcparam['llist'] = slf._argflag['run']['pypitdir'] + 'data/arc_lines/kast_blue.lst'
         if disperser == '600/4310':
             arcparam['disp']=1.02
             arcparam['b1']=6.88935788e-04
@@ -111,7 +111,7 @@ def setup_param(slf, sc):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='kast_red':
-        arcparam['llist'] = os.getenv('PYPIT')+'/data/arc_lines/kast_red.lst'
+        arcparam['llist'] = slf._argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
         if disperser == '600/7500':
             arcparam['disp']=2.35
             arcparam['b1']= 1./arcparam['disp']/slf._msarc.shape[0] 

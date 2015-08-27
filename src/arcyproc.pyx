@@ -410,6 +410,8 @@ def scale_blaze(np.ndarray[DTYPE_t, ndim=2] recsort not None,
 def smooth_gaussmask(np.ndarray[DTYPE_t, ndim=2] flux not None,
                     double maskval, double nsig):
     """
+    Smooths a spectrum along the spectral direction
+
     nsig = number of pixels in 1 standard deviation
     """
     cdef int d, sz_d, s, sz_s, dmin, dmax, m
