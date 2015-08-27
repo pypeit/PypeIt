@@ -55,8 +55,8 @@ def optarg(argv, last_updated):
     # Load the default settings
     prgn_spl = argv[0].split('/')
     tfname = ""
-    for i in range(0,len(prgn_spl)-1): tfname += prgn_spl[i]+"/"
-    fname = tfname + 'settings.armlsd'
+    for i in range(0,len(prgn_spl)-2): tfname += prgn_spl[i]+"/"
+    fname = tfname + prgn_spl[-2] + '/settings.armlsd'
     argflag = load_settings(fname)
     argflag['run']['prognm'] = argv[0]
     argflag['run']['pypitdir'] = tfname
