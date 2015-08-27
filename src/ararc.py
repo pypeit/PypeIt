@@ -80,14 +80,58 @@ def detect_lines(slf,msarc):
     # Return
     return tampl, tcent, twid, w, satsnd, yprep
 
+###
+def setup(slf, sc):
+    '''Setup for arc analysis
+    '''
+    # Defaults
+    arcparam = dict(llist='', 
+        disp=1.02,          # Ang 
+        b1=0.,              # Pixel fit term
+        b2=0.,              # Pixel fit term
+        disp_toler=0.1,     # 10% tolerance
+        match_toler=3.,     # Matcing tolerance (pixels)
+        func='legendre',    # Function for fitting
+        n_first=1,          # Order of polynomial for first fit
+        n_final=4,          # Order of polynomial for final fit
+        nsig_rej=2.,        # Number of sigma for rejection
+        nsig_rej_final=3.0, # Number of sigma for rejection (final fit)
+        Nstrong=13)
 
-def simple_calib(slf, msarc, get_poly=False):
+    # Instrument/disperser specific
+    sname = slf._argflag['run']['spectrograph']
+    idx = slf._spect['arc']['index'][sc]
+    disperser = slf._fitsdict["disperser"][idx[0]]
+    if sname=='kast_blue':
+        arcparam['llist'] = os.getenv('PYPIT')+'/data/arc_lines/kast_blue.lst'
+        if disperser == '600/4310':
+            arcparam['disp']=1.02
+            arcparam['b1']=6.88935788e-04
+            arcparam['b2']=-2.38634231e-08
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+    elif sname=='kast_red':
+        arcparam['llist'] = os.getenv('PYPIT')+'/data/arc_lines/kast_red.lst'
+        if disperser == '600/7500':
+            arcparam['disp']=2.35
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc.shape[0] 
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+    else:
+        msgs.error('Not ready for this instrument {:s}!'.format(sname))
+    # Return
+    return arcparam
+
+def simple_calib(slf, get_poly=False, debug=False):
     '''Simple calibration algorithm for longslit wavelengths
+    Uses slf._arcparam to guide the analysis
 
     Parameters:
     ----------
     get_poly: bool, optional
       Pause to record the polynomial pix = b0 + b1*lambda + b2*lambda**2
+    debug: bool, optional
+      Debug
 
     Returns:
     ----------
@@ -97,71 +141,62 @@ def simple_calib(slf, msarc, get_poly=False):
 
     # Extract the arc
     msgs.work("Detecting lines..")
-    tampl, tcent, twid, w, satsnd, yprep = detect_lines(slf,msarc)
+    tampl, tcent, twid, w, satsnd, yprep = detect_lines(slf,slf._msarc)
 
     # Cut down to the good ones
     tcent = tcent[w]
     tampl = tampl[w]
 
-    # Read linelist
-    kast_list = '/Users/xavier/local/Python/PYPIT/data/arc_lines/kast_blue.lst'
-    llist = ascii.read(kast_list,
+    # Parameters (just for convenience)
+    aparm = slf._arcparam
+
+    # Read Arc linelist
+    llist = ascii.read(aparm['llist'],
         format='fixed_width_no_header', comment='#', #data_start=1, 
         names=('wave', 'flag', 'ID'),
         col_starts=(2,12,14), col_ends=(11,13,24))
-
-    # Fit parameters
-    disp = 1.02 #* msarc.shape[0] # Ang (handles normalized pixel space)
-    b1 = 6.88935788e-04 # Pixel fit term
-    b2 = -2.38634231e-08# Pixel fit term
-    disp_toler = 0.1    # 10% tolerance
-    match_toler = 2     # pixels
-    n_first = 1         # Order of polynomial for first fit
-    n_final = 4         # Order of polynomial for final fit
-    nsig_rej = 2.       # Number of sigma for rejection
-    nsig_rej_final = 3. # Number of sigma for rejection (final fit)
-    Nstrong = 13
 
     # Generate dpix pairs
     nlist = len(llist)
     dpix_list = np.zeros((nlist,nlist))
     for kk,row in enumerate(llist):
         #dpix_list[kk,:] = (np.array(row['wave'] - llist['wave']))/disp
-        dpix_list[kk,:] = msarc.shape[0]*( b1*(np.array(row['wave'] - 
-            llist['wave'])) + b2 *np.array(row['wave']**2 - llist['wave']**2) )
+        dpix_list[kk,:] = slf._msarc.shape[0]*(aparm['b1']*(np.array(row['wave'] - 
+            llist['wave'])) + aparm['b2']*np.array(row['wave']**2 - llist['wave']**2) )
 
     # Lambda pairs for the strongest N lines
     srt = np.argsort(tampl)
-    idx_str = srt[-Nstrong:]
+    idx_str = srt[-aparm['Nstrong']:]
     idx_str.sort()
-    dpix_obs = np.zeros((Nstrong,Nstrong))
+    dpix_obs = np.zeros((aparm['Nstrong'],aparm['Nstrong']))
     for kk,idx in enumerate(idx_str):
         dpix_obs[kk,:] = np.array(tcent[idx] - tcent[idx_str])
 
     # Match up (ugly loops)
-    ids = np.zeros(Nstrong)
-    for kk in range(Nstrong):
+    ids = np.zeros(aparm['Nstrong'])
+    for kk in range(aparm['Nstrong']):
         med_off = np.zeros(nlist)
         for ss in range(nlist):
             dpix = dpix_list[ss]
             min_off = []
-            for jj in range(Nstrong):
+            for jj in range(aparm['Nstrong']):
                 min_off.append(np.min(np.abs(dpix_obs[kk,jj]-dpix)))
             med_off[ss] = np.median(min_off)
         # Set by minimum
         idm = np.argmin(med_off)
         ids[kk] = llist['wave'][idm]
-    if debug:
-        xdb.xplot(tcent[idx_str],ids,scatter=True)
-        xdb.set_trace()
 
     # Calculate disp of the good lines
-    disp_str = np.zeros(Nstrong)
-    for kk in range(Nstrong):
+    disp_str = np.zeros(aparm['Nstrong'])
+    for kk in range(aparm['Nstrong']):
         disp_str[kk] = np.median( (ids[kk]-ids)/
             (tcent[idx_str[kk]]-tcent[idx_str]) )
     # Consider calculating the RMS with clipping
-    gd_str = np.where( np.abs(disp_str-disp)/disp < disp_toler)[0]
+    gd_str = np.where( np.abs(disp_str-aparm['disp'])/aparm['disp'] < aparm['disp_toler'])[0]
+
+    if debug:
+        xdb.xplot(tcent[idx_str[gd_str]],ids[gd_str],scatter=True)
+        xdb.set_trace()
 
     # Consider a cross-correlation here (as a double-check)
 
@@ -172,25 +207,26 @@ def simple_calib(slf, msarc, get_poly=False):
     all_ids[ifit] = ids[gd_str]
     # Fit 
     debug = False
-    n_order = n_first
+    n_order = aparm['n_first']
     flg_quit = False
     fmin, fmax = -1., 1. 
-    while (n_order <= n_final) and (flg_quit is False):
-        xfit, yfit = tcent[ifit], all_ids[ifit]
+    while (n_order <= aparm['n_final']) and (flg_quit is False):
+        #msgs.info('n_order={:d}'.format(n_order))
         # Fit with rejection
+        xfit, yfit = tcent[ifit], all_ids[ifit]
         mask, fit = arutils.robust_polyfit(xfit, yfit, n_order,
-            function='legendre', sigma=nsig_rej, min=fmin, max=fmax) 
+            function=aparm['func'], sigma=aparm['nsig_rej'], min=fmin, max=fmax) 
         # DEBUG
         if debug:
-            wave = arutils.func_val(fit, np.arange(msarc.shape[0]), 'legendre', min=fmin, max=fmax)
-            xdb.xplot(xfit,yfit,scatter=True,xtwo=np.arange(msarc.shape[0]), ytwo=wave)
+            wave = arutils.func_val(fit, np.arange(slf._msarc.shape[0]), aparm['func'], min=fmin, max=fmax)
+            xdb.xplot(xfit,yfit,scatter=True,xtwo=np.arange(slf._msarc.shape[0]), ytwo=wave)
         # Reject but keep originals (until final fit)
         ifit = list(ifit[mask==0]) + sv_ifit
         # Find new points (should we allow removal of the originals?)
-        twave = arutils.func_val(fit, tcent, 'legendre', min=fmin, max=fmax)
+        twave = arutils.func_val(fit, tcent, aparm['func'], min=fmin, max=fmax)
         for ss,iwave in enumerate(twave):
             mn = np.min(np.abs(iwave-llist['wave']))
-            if mn/disp < match_toler:
+            if mn/aparm['disp'] < aparm['match_toler']:
                 if debug:
                     print('Adding {:g} at {:g}'.format(iwave,tcent[ss]))
                 imn = np.argmin(np.abs(iwave-llist['wave']))
@@ -202,7 +238,7 @@ def simple_calib(slf, msarc, get_poly=False):
         if debug:
             xdb.set_trace()
         # Increment order
-        if n_order < n_final:
+        if n_order < aparm['n_final']:
             n_order += 1
         else:
             # This does 2 iterations at the final order
@@ -210,11 +246,19 @@ def simple_calib(slf, msarc, get_poly=False):
 
     # Final fit (originals can now be rejected)
     fmin, fmax = 0., 1. 
-    xfit, yfit = tcent[ifit]/msarc.shape[0], all_ids[ifit]
+    xfit, yfit = tcent[ifit]/slf._msarc.shape[0], all_ids[ifit]
     mask, fit = arutils.robust_polyfit(xfit, yfit, n_order, 
-        function='legendre', sigma=nsig_rej_final, min=fmin, max=fmax)#, debug=True)
-    for imask in np.where(mask==1)[0]:
-        msgs.info('Rejecting arc line {:g}'.format(yfit[imask]))
+        function=aparm['func'], sigma=aparm['nsig_rej_final'],
+        min=fmin, max=fmax)#, debug=True)
+    irej = np.where(mask==1)[0]
+    if len(irej) > 0:
+        xrej = xfit[irej]
+        yrej = yfit[irej]
+        for imask in irej:
+            msgs.info('Rejecting arc line {:g}'.format(yfit[imask]))
+    else:
+        xrej = []
+        yrej = []
     xfit = xfit[mask==0]
     yfit = yfit[mask==0]
     #
@@ -238,14 +282,15 @@ def simple_calib(slf, msarc, get_poly=False):
         #    'legendre', min=fmin, max=fmax)
         #xdb.set_trace()
     # 2nd order Poly fit for archival
-    get_poly=True
+    #get_poly=True
     if get_poly:
-        poly_fit = arutils.func_fit(yfit,xfit*msarc.shape[0], 'polynomial',2,min=fmin,max=fmax)
+        poly_fit = arutils.func_fit(yfit,xfit, 'polynomial',2,min=fmin,max=fmax)
         import pdb
         pdb.set_trace()
     # Pack up fit
     final_fit = dict(fitc=fit, xfit=xfit, yfit=yfit, 
-        fmin=fmin, fmax=fmax, xnorm=float(msarc.shape[0]))
+        fmin=fmin, fmax=fmax, xnorm=float(slf._msarc.shape[0]),
+        xrej=xrej, yrej=yrej)
     # QA
     arc_qa(final_fit, yprep)
     # Return
@@ -271,21 +316,33 @@ def arc_qa(fit, arc_spec, outfil=None):
     # Simple spectrum plot
     ax_spec = plt.subplot(gs[:,0])
     ax_spec.plot(np.arange(len(arc_spec)), arc_spec)
+    ymin, ymax = 0., np.max(arc_spec)
+    ysep = ymax*0.03
     for kk,x in enumerate(fit['xfit']*fit['xnorm']):
-        ax_spec.text(x, 1.05*arc_spec[int(x)], 
-            '{:g}'.format(fit['yfit'][kk]), 
+        yline = np.max(arc_spec[int(x)-2:int(x)+2])
+        # Tick mark
+        ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], 'g-')
+        # label
+        ax_spec.text(x, yline+ysep*1.3, 
+            '{:g}'.format(fit['yfit'][kk]), ha='center', va='bottom',
             size='xx-small', rotation=90., color='green')
     ax_spec.set_xlim(0., len(arc_spec))
+    ax_spec.set_ylim(ymin, ymax*1.2)
     ax_spec.set_xlabel('Pixel')
     ax_spec.set_ylabel('Flux')
 
     # Arc Fit
     ax_fit = plt.subplot(gs[0,1])
+    # Points
+    ax_fit.scatter(fit['xfit']*fit['xnorm'], fit['yfit'], marker='x')
+    if len(fit['xrej']) > 0:
+        ax_fit.scatter(fit['xrej']*fit['xnorm'], fit['yrej'], marker='o',
+            edgecolor='gray', facecolor='none')
+    # Solution
     xval = np.arange(len(arc_spec))
     wave = arutils.func_val(fit['fitc'], xval/fit['xnorm'], 'legendre', 
         min=fit['fmin'], max=fit['fmax'])
-    ax_fit.scatter(fit['xfit']*fit['xnorm'], fit['yfit'], marker='o')
-    ax_fit.plot(xval, wave)
+    ax_fit.plot(xval, wave, 'r-')
     xmin, xmax = 0., len(arc_spec)
     ax_fit.set_xlim(xmin, xmax)
     ymin,ymax = np.min(wave)*.95,  np.max(wave)*1.05
@@ -304,7 +361,7 @@ def arc_qa(fit, arc_spec, outfil=None):
     # Arc Residuals
     ax_res = plt.subplot(gs[1,1])
     res = fit['yfit']-wave_fit
-    ax_res.scatter(fit['xfit']*fit['xnorm'], res/dwv_pix, marker='o')
+    ax_res.scatter(fit['xfit']*fit['xnorm'], res/dwv_pix, marker='x')
     ax_res.plot([xmin,xmax], [0.,0], 'k--')
     ax_res.set_xlim(xmin, xmax)
     ax_res.set_xlabel('Pixel')
