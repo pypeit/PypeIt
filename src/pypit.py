@@ -8,6 +8,7 @@ import traceback
 import numpy as np
 # Import PYPIT routines
 import armsgs as msgs
+import ararc
 import arload
 import arsave
 import arcomb
@@ -499,9 +500,10 @@ class ClassMain:
             # Note: self._tilts is the
             ###############
             # Extract arc and identify lines
-
-
+            self.wv_calib = ararc.simple_calib(self, self._msarc)
             msgs.error("JXP :: working on wavelength calibration")
+
+
             ###############
             # Check if the user only wants to prepare the calibrations
             msgs.info("All calibration frames have been prepared")

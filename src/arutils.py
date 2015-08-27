@@ -357,7 +357,7 @@ def poly_iterfit(x,y,ordr,maxrej=5):
     return c
 
 
-def robust_polyfit(xarray, yarray, order, maxone=True, sigma=3.0, function="polynomial", initialmask=None, forceimask=False, min=None, max=None):
+def robust_polyfit(xarray, yarray, order, maxone=True, sigma=3.0, function="polynomial", initialmask=None, forceimask=False, min=None, max=None, debug=False):
     """
     A robust (equally weighted) polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are masked values
@@ -379,6 +379,9 @@ def robust_polyfit(xarray, yarray, order, maxone=True, sigma=3.0, function="poly
         ct = func_fit(xfit,yfit,function,order,min=min,max=max)
         yrng = func_val(ct,xarray,function,min=min,max=max)
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
+        if debug:
+            import pdb
+            pdb.set_trace()
         if xarray.size-np.sum(mask) <= order+2:
             msgs.warn("More parameters than data points - fit might be undesirable")
             break # More data was masked than allowed by order
