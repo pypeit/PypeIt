@@ -497,13 +497,13 @@ class ClassMain:
                 self._tilts, self._satmask = artrace.model_tilt(self, self._msarc, prefix=prefix, trcprefix=self._trcprefix, tltprefix=self._tltprefix)
                 # Save the tilts
                 arsave.save_tilts(self, self._msarc_name)
-            # Note: self._tilts is the
+                msgs.bug("Need to include the definitions below in the above exception as a failsafe")
                 # Setup arc parameters (e.g. linelist)
                 self._arcparam = ararc.setup_param(self, sc)
                 ###############
                 # Extract arc and identify lines
                 self.wv_calib = ararc.simple_calib(self)
-            msgs.error("JXP :: working on wavelength calibration")
+            #msgs.error("JXP :: working on wavelength calibration")
 
             ###############
             # Check if the user only wants to prepare the calibrations
@@ -528,10 +528,12 @@ class ClassMain:
                 sciframe = arproc.flatfield(self, sciframe, mspixflatnrm)
             else:
                 msgs.info("Not performing a flat field calibration")
-            msgs.error("RJC :: up to here")
             ###############
             # Subtract Sky Background
             if self._argflag['reduce']['bgsubtraction']:
+                # Perform an iterative background/science extraction
+                scibgsub, bgframe = arproc.extract_optimal(self, sciframe, varframe)
+                msgs.error("RJC :: up to here")
                 msgs.info("Preparing a sky background frame from the science frame")
                 scibgsub, bgframe = arproc.background_subtraction(self, sciframe, varframe)
                 # Derive a suitable name for the master sky background frame

@@ -1,6 +1,7 @@
 import numpy as np
 import armsgs as msgs
 from scipy.signal import savgol_filter
+import scipy.interpolate as inter
 from matplotlib import pyplot as plt
 import arcyextract
 import arcyutils
@@ -8,6 +9,7 @@ import arcyproc
 import artrace
 import arutils
 import arplot
+import pdb
 
 def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-999999.9, nsample=1):
     """
@@ -234,12 +236,6 @@ def badpix(slf,frame,sigdev=10.0):
     msgs.info("Identified {0:d} bad pixels".format(int(np.sum(bpix))))
     return bpix
 
-def variance_frame(slf, sciframe, idx):
-    # Dark Current noise
-    dnoise = slf._spect['det']['darkcurr'] * float(slf._fitsdict["exptime"][idx])/3600.0
-    # The effective read noise
-    rnoise = slf._spect['det']['ronoise']**2 + (0.5*slf._spect['det']['gain'])**2
-    return np.abs(sciframe) + rnoise + dnoise
 
 def error_frame_postext(slf, sciframe, idx):
     # Dark Current noise
@@ -252,6 +248,127 @@ def error_frame_postext(slf, sciframe, idx):
     w = np.where(sciframe == -999999.9)
     errframe[w] = 999999.9
     return errframe
+
+
+def extract_optimal(slf, sciframe, varframe, rejsigma=2.0, maskval=-999999.9):
+    """
+    Extract a science target and background flux
+    :param slf:
+    :param sciframe:
+    :param varframe:
+    :return:
+    """
+    # Set some starting parameters (maybe make these available to the user)
+    msgs.work("Should these parameters be made available to the user?")
+    polyorder, repeat = 3, 1
+    numknots = sciframe.shape[0]
+    # Begin the algorithm
+    errframe = np.sqrt(varframe)
+    norders = slf._lordloc.shape[1]
+    # Look at the end corners of the detector to get detector size in the dispersion direction
+    xstr = slf._pixlocn[0,0,slf._dispaxis]-slf._pixlocn[0,0,slf._dispaxis+2]/2.0
+    xfin = slf._pixlocn[-1,-1,slf._dispaxis]+slf._pixlocn[-1,-1,slf._dispaxis+2]/2.0
+    if slf._dispaxis == 0:
+        xint = slf._pixlocn[:,0,0]
+    else:
+        xint = slf._pixlocn[0,:,0]
+    # Find which pixels are within the order edges
+    msgs.info("Identifying pixels within each order")
+    ordpix = arcyutils.order_pixels(slf._pixlocn, slf._lordloc, slf._rordloc, slf._dispaxis)
+    allordpix = ordpix.copy()
+    msgs.info("Applying bad pixel mask")
+    ordpix *= (1-slf._bpix.astype(np.int))
+    # Construct an array of pixels to be fit with a spline
+    msgs.bug("Tilts are the wrong shape, transposing -- fix this later")
+    msgs.bug("Remember to include the following in a loop over order number")
+    #whord = np.where(ordpix != 0)
+    o = 0 # order=1
+    whord = np.where(ordpix == o+1)
+    tilts = slf._tilts.transpose()
+    bbox = [min(0.0,np.min(tilts)), max(1.0,np.max(tilts))]
+    xvpix  = tilts[whord]
+    scipix = sciframe[whord]
+    varpix = varframe[whord]
+    xargsrt = np.argsort(xvpix,kind='mergesort')
+    sxvpix  = xvpix[xargsrt]
+    sscipix = scipix[xargsrt]
+    svarpix = varpix[xargsrt]
+    # Reject deviant pixels -- step through every 1.0/sciframe.shape[0] in sxvpix and reject significantly deviant pixels
+    maskpix = np.zeros(sxvpix.size)
+    edges = np.linspace(min(0.0,np.min(sxvpix)),max(1.0,np.max(sxvpix)),sciframe.shape[0])
+    fitcls = np.zeros(sciframe.shape[0])
+    msgs.info("Identifying cosmic rays and pixels containing the science target")
+    msgs.work("Speed up this step in cython")
+    for i in range(sciframe.shape[0]-1):
+        wpix = np.where((sxvpix>=edges[i])&(sxvpix<=edges[i+1]))
+        if (wpix[0].size>5):
+            txpix = sxvpix[wpix]
+            typix = sscipix[wpix]
+            msk, cf = arutils.robust_polyfit(txpix,typix,0,sigma=rejsigma)
+            maskpix[wpix] = msk
+            fitcls[i] = cf[0]
+    # Check the mask is reasonable
+    scimask = sciframe.copy()
+    rxargsrt = np.argsort(xargsrt)
+    scimask[whord] *= (1.0-maskpix)[rxargsrt]
+    #arutils.ds9plot(scimask)
+    # Now trace the sky lines to get a better estimate of the spectral tilt during the observations
+    scifrcp = sciframe.copy()
+    scifrcp[whord] = slf._spect['det']['saturation']
+    scitilts, satsnd = artrace.model_tilt(slf, scifrcp, tltprefix="sciobs", censpec=fitcls)
+    # Redetermine the solution of constant wavelength, based on the new set of tilts
+    msgs.bug("Science Tilts are the wrong shape, transposing -- fix this later")
+    scitilts = scitilts.transpose()
+    bbox = [min(0.0,np.min(scitilts)), max(1.0,np.max(scitilts))]
+    xvpix  = scitilts[whord]
+    scipix = sciframe[whord]
+    varpix = varframe[whord]
+    xargsrt = np.argsort(xvpix,kind='mergesort')
+    sxvpix  = xvpix[xargsrt]
+    sscipix = scipix[xargsrt]
+    svarpix = varpix[xargsrt]
+    msgs.info("Fitting sky background spectrum")
+    wbg = np.where(maskpix==0)
+    polypoints = 3*slf._pixwid[o]
+    fitfunc = arcyutils.polyfit_scan(sxvpix[wbg], sscipix[wbg], 1.0/svarpix[wbg], maskval, polyorder, polypoints, repeat)
+    #msgs.info("Determining spline knot locations")
+    #knots = arutils.get_splknots(edges,fitcls,numknots,minv=edges[0],maxv=edges[-1],maxknots=4)
+    #plt.clf()
+    #plt.plot(edges,fitcls,'b-')
+    #plt.plot(knots,np.zeros_like(knots),'rx')
+    #plt.show()
+    #msgs.info("Starting fit...")
+    #tedge = 0.5*(edges[1:]+edges[:-1])
+    # Check conditions
+    #pdb.set_trace()
+    #bgspline = inter.LSQUnivariateSpline(sxvpix[wbg], sscipix[wbg], tedge, w=1.0/svarpix[wbg], bbox=bbox, k=3)
+    #tck, u = inter.splprep([sxvpix[wbg],sscipix[wbg]], w=1.0/svarpix[wbg], k=3, s=.size, task=0)
+    #bgspline = inter.UnivariateSpline(sxvpix[wbg], sscipix[wbg], w=1.0/np.sqrt(svarpix[wbg]), bbox=bbox, k=3, s=sxvpix[wbg].size, ext=0)
+    msgs.info("Generating sky background image")
+    bgframe = np.interp(tilts.flatten(), sxvpix[wbg], fitfunc).reshape(tilts.shape)
+    #bgmod += arcyproc.background_model(fitfunc_model, xapix, yapix, sciframe.shape[0], sciframe.shape[1])
+    #tlt_i, flx_i = inter.splev(tilts.flatten(),tck)
+    #bgframe = flx_i.reshape(tilts.shape)
+    #bgframe = bgspline(tilts.flatten()).reshape(tilts.shape)
+    arutils.ds9plot(bgframe)
+    arutils.ds9plot(sciframe-bgframe)
+    msgs.error("Halting!")
+
+#    msgs.info("Masking cosmic ray hits")
+#    crr_id = arcyutils.crreject(sciframe/np.median(sciframe[whord]), slf._dispaxis)
+#    cruse = np.abs(crr_id/sciframe)[whord]
+#    medcr = np.median(cruse)
+#    madcr = 1.4826*np.median(np.abs(cruse-medcr))
+#    whcrt = np.where(cruse>medcr+crsigma*madcr)
+#    whcrr = (whord[0][whcrt],whord[1][whcrt])
+#    msgs.info("Identified {0:d} pixels affected by cosmic rays within orders in the science frame".format(whord[0].size))
+#    if whcrr[0].size != 0: ordpix[whcrr] = 0
+#	temp = sciframe.copy()
+#	temp[whcrr] = 0.0
+#	arutils.ds9plot(temp.astype(np.float))
+
+    return
+
 
 def flatfield(slf, sciframe, flatframe, snframe=None):
     retframe = np.zeros_like(sciframe)
@@ -267,6 +384,7 @@ def flatfield(slf, sciframe, flatframe, snframe=None):
         wnz = np.where(snframe>0.0)
         errframe[wnz] = retframe[wnz]/snframe[wnz]
         return retframe, errframe
+
 
 def flatnorm(slf, msflat, maskval=-999999.9, overpix=6, fname=""):
     """
@@ -361,6 +479,7 @@ def flatnorm(slf, msflat, maskval=-999999.9, overpix=6, fname=""):
     # If there is more than 1 amplifier, apply the scale between amplifiers to the normalized flat
     if slf._spect['det']['numamplifiers'] > 1: msnormflat *= sclframe
     return msnormflat, msblaze
+
 
 def get_ampscale(slf, msflat):
     sclframe = np.ones_like(msflat)
@@ -580,3 +699,11 @@ def trim(slf,file):
 #	else:
 #		msgs.error("Cannot trim {0:d}D frame".format(int(len(file.shape))))
     return file[w]
+
+
+def variance_frame(slf, sciframe, idx):
+    # Dark Current noise
+    dnoise = slf._spect['det']['darkcurr'] * float(slf._fitsdict["exptime"][idx])/3600.0
+    # The effective read noise
+    rnoise = slf._spect['det']['ronoise']**2 + (0.5*slf._spect['det']['gain'])**2
+    return np.abs(sciframe) + rnoise + dnoise

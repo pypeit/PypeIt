@@ -468,6 +468,32 @@ def crreject(np.ndarray[DTYPE_t, ndim=2] frame not None,
 
 
 #######
+#  G  #
+#######
+
+@cython.boundscheck(False)
+def get_splknots(np.ndarray[DTYPE_t, ndim=1] xarr not None,
+                    np.ndarray[ITYPE_t, ndim=1] knotarr not None,
+                    double minv, double maxv, int num):
+
+    cdef int x, i, sz_x, cnt
+    cdef double diff, sdiff
+    cdef np.ndarray[DTYPE_t, ndim=1] knots = np.zeros((num), dtype=DTYPE)
+
+    sz_x = xarr.shape[0]
+    diff = (maxv-minv)/<double>(sz_x-1)
+    cnt = 0
+    for x in range(0,sz_x):
+        sdiff = diff/<double>(2*knotarr[x])
+        for i in range(0,knotarr[x]):
+            if x==0: knots[cnt+i] = minv + diff*<double>(2*i)/<double>(2*knotarr[x]+1)
+            elif x==sz_x-1: knots[cnt+i] = maxv - 2.0*diff*<double>(knotarr[x]-i-1)/<double>(2*knotarr[x]+1)
+            else: knots[cnt+i] = minv + diff*<double>(x) + sdiff*<double>(2*i + 1)
+        cnt += knotarr[x]
+    return knots
+
+
+#######
 #  M  #
 #######
 
@@ -754,13 +780,14 @@ def polyfit(np.ndarray[DTYPE_t, ndim=1] x not None,
     return chisq
 #	return coeffs
 
+
 #@cython.boundscheck(False)
 def polyfit_scan(np.ndarray[DTYPE_t, ndim=1] xarr not None,
-                np.ndarray[DTYPE_t, ndim=1] yarr not None,
-                np.ndarray[DTYPE_t, ndim=1] warr not None,
-                double maskval, int polyorder, int polypoints, int repeat):
+                    np.ndarray[DTYPE_t, ndim=1] yarr not None,
+                    np.ndarray[DTYPE_t, ndim=1] warr not None,
+                    double maskval, int polyorder, int polypoints, int repeat):
 
-    cdef int x, sz_x, i, j, r, xmin, xmax, xdprev, nsub, cnt
+    cdef int x, sz_x, i, j, r, ers, cnt, upto
     cdef int degree = polyorder+1
     cdef double mval, chisq
     cdef int sz_p = polypoints/2
@@ -769,7 +796,7 @@ def polyfit_scan(np.ndarray[DTYPE_t, ndim=1] xarr not None,
     sz_x = xarr.shape[0]
 
     cdef np.ndarray[DTYPE_t, ndim=1] model = np.zeros(sz_x, dtype=DTYPE)
-    cdef np.ndarray[DTYPE_t, ndim=1] mask = np.zeros(sz_pp, dtype=DTYPE)
+    cdef np.ndarray[ITYPE_t, ndim=1] mask  = np.zeros(sz_pp, dtype=ITYPE)
 
     cdef gsl_multifit_linear_workspace *ws
     cdef gsl_matrix *cov
@@ -779,50 +806,82 @@ def polyfit_scan(np.ndarray[DTYPE_t, ndim=1] xarr not None,
     cdef gsl_vector *wgt
     cdef gsl_vector *c
 
+    xmat = gsl_matrix_alloc(sz_pp, degree)
+    wgt  = gsl_vector_alloc(sz_pp)
+    yvec = gsl_vector_alloc(sz_pp)
+    c    = gsl_vector_alloc(degree)
+    cov  = gsl_matrix_alloc(degree, degree)
+    ws = gsl_multifit_linear_alloc(sz_pp, degree)
+
     for r in range(repeat):
-        xdprev = 0
-        for x in range(0,sz_x):
-            xmin = x-sz_p
-            xmax = x+sz_p+1
-            if xmin < 0: xmin = 0
-            if xmax > sz_x: xmax = sz_x
-            # Make sure there are no masked points
-            nsub = 0
-            for i in range(xmax-xmin):
-                if yarr[i+xmin] == maskval:
-                    nsub += 1
-                    mask[i] = 1
-                else: mask[i] = 0
-            if (xmax-xmin-nsub < degree*3):
-                model[x] = maskval
-                continue
-            # Allocate the appropriate space for the vectors and matrices
-            if xdprev != xmax-xmin-nsub:
-                xmat = gsl_matrix_alloc(xmax-xmin-nsub, degree)
-                wgt = gsl_vector_alloc(xmax-xmin-nsub)
-                yvec = gsl_vector_alloc(xmax-xmin-nsub)
-                c    = gsl_vector_alloc(degree)
-                cov  = gsl_matrix_alloc(degree, degree)
-            cnt = 0
-            for i in range(0,xmax-xmin-nsub):
-                if mask[i] == 1: continue
-                gsl_matrix_set(xmat, cnt, 0, 1.0)
+        # Set the initial arrays
+        cnt = sz_pp
+        for i in range(sz_pp):
+            if (i-sz_p < 0):
+                for j in range(0,degree):
+                    gsl_matrix_set(xmat, i, j, 0.0)
+                gsl_vector_set(yvec, i, 0.0)
+                gsl_vector_set(wgt, i, 0.0)
+                mask[i] = 1
+                cnt -= 1
+            elif (yarr[i-sz_p] == maskval):
+                for j in range(0,degree):
+                    gsl_matrix_set(xmat, i, j, 0.0)
+                gsl_vector_set(yvec, i, 0.0)
+                gsl_vector_set(wgt, i, 0.0)
+                mask[i] = 1
+                cnt -= 1
+            else:
+                gsl_matrix_set(xmat, i, 0, 1.0)
                 for j in range(1,degree):
-                    gsl_matrix_set(xmat, cnt, j, cpow(xarr[i+xmin], j))
-                gsl_vector_set(yvec, cnt, yarr[i+xmin])
-                gsl_vector_set(wgt, cnt, warr[i+xmin])
-                cnt += 1
+                    gsl_matrix_set(xmat, i, j, cpow(xarr[i-sz_p], j))
+                gsl_vector_set(yvec, i, yarr[i-sz_p])
+                gsl_vector_set(wgt, i, warr[i-sz_p])
+                mask[i] = 0
+        ers  = sz_pp-1
+        upto = sz_pp-1-sz_p
+        for x in range(0,sz_x):
+            if (cnt < degree*3):
+                model[x] = maskval
+            else:
+                # Fit with a polynomial
+                #gsl_multifit_linear(xmat, yvec, c, cov, &chisq, ws)
+                gsl_multifit_wlinear(xmat, wgt, yvec, c, cov, &chisq, ws)
+                # Obtain the model value at this location
+                mval = 0.0
+                for i in range(0,degree): mval += gsl_vector_get(c, i) * cpow(xarr[x], i)
+                model[x] = mval
 
-            # Fit with a polynomial
-            ws = gsl_multifit_linear_alloc(xmax-xmin-nsub, degree)
-            #gsl_multifit_linear(xmat, yvec, c, cov, &chisq, ws)
-            gsl_multifit_wlinear(xmat, wgt, yvec, c, cov, &chisq, ws)
+            # Update the arrays to be fit with the next iteration
+            upto += 1
+            ers  += 1
+            if ers == sz_pp: ers = 0
+            if (upto >= sz_x):
+                if mask[ers] == 0:
+                    #for j in range(0,degree):
+                    #    gsl_matrix_set(xmat, ers, j, 0.0)
+                    #gsl_vector_set(yvec, ers, 0.0)
+                    gsl_vector_set(wgt, ers, 0.0)
+                    mask[ers] = 1
+                    cnt -= 1
+            elif (yarr[upto] == maskval):
+                if mask[ers] == 0:
+                    #for j in range(0,degree):
+                    #    gsl_matrix_set(xmat, ers, j, 0.0)
+                    #gsl_vector_set(yvec, ers, 0.0)
+                    gsl_vector_set(wgt, ers, 0.0)
+                    mask[ers] = 1
+                    cnt -= 1
+            else:
+                gsl_matrix_set(xmat, ers, 0, 1.0)
+                for j in range(1,degree):
+                    gsl_matrix_set(xmat, ers, j, cpow(xarr[upto], j))
+                gsl_vector_set(yvec, ers, yarr[upto])
+                gsl_vector_set(wgt, ers, warr[upto])
+                if mask[ers] == 1:
+                    mask[ers] = 0
+                    cnt += 1
 
-            # Obtain the model value at this location
-            mval = 0.0
-            for i in range(0,degree): mval += gsl_vector_get(c, i) * cpow(xarr[x], i)
-            model[x] = mval
-            xdprev = xmax-xmin-nsub
         if r != repeat-1:
             # Update yarr for the next loop
             for x in range(sz_x): yarr[x] = model[x]

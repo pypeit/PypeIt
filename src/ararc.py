@@ -14,24 +14,27 @@ import time
 
 #from xastropy.xutils import xdebug as xdb
 
-def detect_lines(slf,msarc):
-    '''Extract an arc down the center of the chip and identify
+def detect_lines(slf,msarc,censpec=None):
+    '''
+    Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
     '''
     # Extract a rough spectrum of the arc in each order
+    msgs.info("Detecting lines")
     msgs.info("Extracting an approximate arc spectrum at the centre of the chip")
-    pixcen = np.arange(msarc.shape[slf._dispaxis], dtype=np.int)
-    #ordcen = (msarc.shape[1-slf._dispaxis]/2)*np.ones(msarc.shape[slf._dispaxis],dtype=np.int)
-    #if len(ordcen.shape) != 1: msgs.error("The function artrace.model_tilt should only be used for"+msgs.newline()+"a single spectrum (or order)")
-    #ordcen = ordcen.reshape((ordcen.shape[0],1))
     ordcen = slf._pixcen.copy()
-    msgs.work("No orders being masked at the moment")
-    # Average over several pixels to remove some random fluctuations, and increase S/N
-    op1 = ordcen+1
-    op2 = ordcen+2
-    om1 = ordcen-1
-    om2 = ordcen-2
-    arccen = (msarc[:,ordcen]+msarc[:,op1]+msarc[:,op2]+msarc[:,om1]+msarc[:,om2])/5.0
+    if censpec is None:
+        #pixcen = np.arange(msarc.shape[slf._dispaxis], dtype=np.int)
+        #ordcen = (msarc.shape[1-slf._dispaxis]/2)*np.ones(msarc.shape[slf._dispaxis],dtype=np.int)
+        #if len(ordcen.shape) != 1: msgs.error("The function artrace.model_tilt should only be used for"+msgs.newline()+"a single spectrum (or order)")
+        #ordcen = ordcen.reshape((ordcen.shape[0],1))
+        msgs.work("No orders being masked at the moment")
+        # Average over several pixels to remove some random fluctuations, and increase S/N
+        op1 = ordcen+1
+        op2 = ordcen+2
+        om1 = ordcen-1
+        om2 = ordcen-2
+        censpec = (msarc[:,ordcen]+msarc[:,op1]+msarc[:,op2]+msarc[:,om1]+msarc[:,om2])/5.0
     # Generate a saturation mask
     msgs.info("Generating a mask of arc line saturation streaks")
     satmask = arcyarc.saturation_mask(msarc, slf._spect['det']['saturation']*slf._spect['det']['nonlinear'])
@@ -41,14 +44,15 @@ def detect_lines(slf,msarc):
     msgs.info("Detecting the strongest, nonsaturated arc lines")
     #####
     # Old algorithm for arc line detection
-#   arcdet = arcyarc.detections_allorders(arccen, satsnd)
+#   arcdet = arcyarc.detections_allorders(censpec, satsnd)
     #####
     # New algorithm for arc line detection
     pixels=[]
     siglev = 2.0*slf._argflag['arc']['calibrate']['detection']
     bpfit = 5 # order of the polynomial used to fit the background 'continuum'
     fitp = slf._argflag['arc']['calibrate']['nfitpix']
-    detns = arccen[:,0].flatten()
+    if len(censpec.shape) == 3: detns = censpec[:,0].flatten()
+    else: detns = censpec.copy()
     xrng = np.arange(float(detns.size))
     mask = np.zeros(detns.size,dtype=np.int)
     mskcnt=0
@@ -77,6 +81,11 @@ def detect_lines(slf,msarc):
     pixt = pixt[np.where(pixt!=-1)].astype(np.int)
     tampl, tcent, twid, ngood = arcyarc.fit_arcorder(xrng,yprep,pixt,fitp)
     w = np.where((np.isnan(twid)==False) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent>0.0) & (tcent<xrng[-1]))
+    # Check the results
+    #plt.clf()
+    #plt.plot(xrng,yprep,'k-')
+    #plt.plot(tcent,tampl,'ro')
+    #plt.show()
     # Return
     return tampl, tcent, twid, w, satsnd, yprep
 

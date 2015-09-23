@@ -1,5 +1,6 @@
 import os
 import astropy.io.fits as pyfits
+from scipy import interpolate
 import itertools
 import numpy as np
 import armsgs as msgs
@@ -83,9 +84,9 @@ def func_der(coeffs,func,nderive=1):
     else:
         msgs.error("Functional derivative '{0:s}' is not implemented yet"+msgs.newline()+"Please choose from 'polynomial', 'legendre', 'chebyshev'")
 
-def func_fit(x,y,func,deg,min=None,max=None):
+def func_fit(x,y,func,deg,min=None,max=None,w=None):
     if func == "polynomial":
-        return np.polynomial.polynomial.polyfit(x,y,deg)
+        return np.polynomial.polynomial.polyfit(x,y,deg,w=w)
     elif func == "legendre":
         if min is None or max is None:
             if np.size(x) == 1:
@@ -95,7 +96,7 @@ def func_fit(x,y,func,deg,min=None,max=None):
         else:
             xmin, xmax = min, max
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.legendre.legfit(xv,y,deg)
+        return np.polynomial.legendre.legfit(xv,y,deg,w=w)
     elif func == "chebyshev":
         if min is None or max is None:
             if np.size(x) == 1:
@@ -105,7 +106,7 @@ def func_fit(x,y,func,deg,min=None,max=None):
         else:
             xmin, xmax = min, max
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.chebyshev.chebfit(xv,y,deg)
+        return np.polynomial.chebyshev.chebfit(xv,y,deg,w=w)
     else:
         msgs.error("Fitting function '{0:s}' is not implemented yet"+msgs.newline()+"Please choose from 'polynomial', 'legendre', 'chebyshev'")
 
@@ -160,6 +161,37 @@ def func_vander(x,func,deg,min=None,max=None):
         return np.polynomial.chebyshev.chebvander(xv,deg)
     else:
         msgs.error("Fitting function '{0:s}' is not implemented yet"+msgs.newline()+"Please choose from 'polynomial', 'legendre', 'chebyshev'")
+
+
+def get_splknots(xarr,yarr,num,minv=None,maxv=None,maxknots=None):
+    """
+    Determine the best location for the knots of the scipy function LSQUnivariateSpline
+    :param xarr, yarr: Input (x,y) arrays which are used to highlight were the strongest gradients are in the fitted
+                        function. yarr should be a reduced (in size) and approximate representation of the data being
+                        fitted, and xarr should be the corresponding x values.
+    :param yarr: Input array which is used to highlight were the strongest gradients are in the fitted function.
+                    This array should be a reduced (in size) and approximate representation of the data being fitted
+    :param num: Number of knot locations to use
+    :param min: The minimum x-value of the knots
+    :param max: The maximum x-value of the knots
+    :return: knots
+    """
+    # First determine the derivative
+    if minv is None: minv = np.min(xarr)
+    if maxv is None: maxv = np.max(xarr)
+    tck = interpolate.splrep(xarr, np.sqrt(np.abs(yarr)), xb=minv, xe=maxv, s=0)
+    deriv = np.abs(interpolate.splev(xarr, tck, der=2))
+    drvsum = np.cumsum(np.abs(deriv))
+    drvsum *= num/drvsum[-1] # drvsum represents the cumulative number of knots to be placed at a given coordinate.
+    # Now undo the cumulative sum
+    drv = np.append(drvsum[0], drvsum[1:]-drvsum[:-1])
+    drv = np.ceil(drv).astype(np.int)
+    drv[np.where(drv<2)] = 2
+    if maxknots is not None: drv[np.where(drv>maxknots)] = maxknots
+    print drv
+    knots = arcyutils.get_splknots(xarr, drv, minv, maxv, np.sum(drv))
+    msgs.info("Generated {0:d} knots".format(knots.size))
+    return knots
 
 
 def mask_polyfit(xarray,yarray,order,maxone=True,sigma=3.0):
@@ -357,10 +389,24 @@ def poly_iterfit(x,y,ordr,maxrej=5):
     return c
 
 
-def robust_polyfit(xarray, yarray, order, maxone=True, sigma=3.0, function="polynomial", initialmask=None, forceimask=False, min=None, max=None, debug=False):
+def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, function="polynomial", initialmask=None, forceimask=False, min=None, max=None, debug=False):
     """
     A robust (equally weighted) polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are masked values
+
+    :param xarray: independent variable values
+    :param yarray: dependent variable values
+    :param order: the order of the polynomial to be used in the fitting
+    :param weights: weights to be used in the fitting (weights = 1/sigma)
+    :param maxone: If True, only the most deviant point in a given iteration will be removed
+    :param sigma: confidence interval for rejection
+    :param function: which function should be used in the fitting (valid inputs: 'polynomial', 'legendre', 'chebyshev')
+    :param initialmask: a mask can be supplied as input, these values will be masked for the first iteration. 1 = value masked
+    :param forceimask: if True, the initialmask will be forced for all iterations
+    :param min: minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
+    :param max: maximum value in the array (or the right limit for a legendre/chebyshev polynomial)
+    :param debug:
+    :return: mask, ct -- mask is an array of the masked values, ct is the coefficients of the robust polyfit.
     """
     # Setup the initial mask
     if initialmask is None:

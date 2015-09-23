@@ -639,13 +639,12 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders, disp
         i -= 1
     return extfit, outpar
 
-def model_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
+def model_tilt(slf, msarc, prefix="", tltprefix="", trcprefix="",censpec=None):
     """
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
     """
 
-    msgs.work("Detecting lines..")
-    tampl, tcent, twid, w, satsnd, _ = ararc.detect_lines(slf,msarc)
+    tampl, tcent, twid, w, satsnd, _ = ararc.detect_lines(slf, msarc, censpec=censpec)
 
     '''
     msgs.work("Haven't used physical pixel locations in this routine")
@@ -741,9 +740,12 @@ def model_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
         tiltang = -999999.9*np.ones(arcdet.size)
         centval = -999999.9*np.ones(arcdet.size)
         tcoeff  = np.ones((slf._argflag['trace']['orders']['tiltorder']+1,msarc.shape[0]))
+        weights = np.zeros(msarc.shape[0])
         msgs.work("This next step could be multiprocessed to speed up the reduction")
         msgs.info("Tracing tilt")
+        nspecfit=5
         for j in range(arcdet.size): # For each detection in this order
+            amplVal = None
             sz = int(np.floor(np.abs(slf._rordloc[arcdet[j],0]-slf._lordloc[arcdet[j],0])/2.0))-1
             xtfit = np.arange(-sz,sz+1,1.0) # pixel along the arc line
             ytfit = np.zeros(2*sz+1) # Fitted centroid
@@ -751,18 +753,18 @@ def model_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
             mtfit = np.zeros(2*sz+1) # Mask of bad fits
             # Fit up
             pcen = arcdet[j]
-            if (pcen < 3) or (pcen > msarc.shape[0]-4): continue
+            if (pcen < nspecfit) or (pcen > msarc.shape[0]-(nspecfit+1)): continue
             offchip = False
             for k in range(0,sz+1):
-                if (pcen < 3) or (pcen > msarc.shape[0]-4):
+                if (pcen < nspecfit) or (pcen > msarc.shape[0]-(nspecfit+1)):
                     offchip == True
                     break
                 if ordcen[pcen,0]+k >= msarc.shape[1]:
                     mtfit[k+sz] = 1.0
                     offchip = True
                     break
-                xfit = np.arange(pcen-3, pcen+3+1, 1.0)  # 2x4 + 1 = 9 pixels total along the spectral dimension
-                yfit = msarc[pcen-3:pcen+3+1,ordcen[pcen,0]+k]
+                xfit = np.arange(pcen-nspecfit, pcen+nspecfit+1, 1.0)  # 2x4 + 1 = 9 pixels total along the spectral dimension
+                yfit = msarc[pcen-nspecfit:pcen+nspecfit+1,ordcen[pcen,0]+k]
                 if np.size(yfit) == 0:
                     mtfit[k+sz] = 1.0
                     offchip = True
@@ -773,19 +775,20 @@ def model_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
                 etfit[k+sz] = 0.02
                 if fail: mtfit[k+sz] = 1.0
                 else: pcen = int(0.5+params[1])
+                if amplVal is None and not fail: amplVal = params[0]
             if offchip: continue
             # Fit down
             pcen = int(0.5+ytfit[sz]) # Start with the best-fitting centroid at arccen
             for k in range(1,sz+1):
-                if (pcen < 3) or (pcen > msarc.shape[0]-4):
+                if (pcen < nspecfit) or (pcen > msarc.shape[0]-(nspecfit+1)):
                     offchip == True
                     break
                 if ordcen[pcen,0]-k < 0:
                     mtfit[sz-k] = 1.0
                     offchip = True
                     break
-                xfit = np.arange(pcen-3, pcen+3+1, 1.0)
-                yfit = msarc[pcen-3:pcen+3+1,ordcen[pcen,0]-k]
+                xfit = np.arange(pcen-nspecfit, pcen+nspecfit+1, 1.0)
+                yfit = msarc[pcen-nspecfit:pcen+nspecfit+1,ordcen[pcen,0]-k]
                 if np.size(yfit) == 0:
                     mtfit[sz-k] = 1.0
                     offchip = True
@@ -796,6 +799,7 @@ def model_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
                 etfit[sz-k] = 0.02
                 if fail: mtfit[sz-k] = 1.0
                 else: pcen = int(0.5+params[1])
+                if amplVal is None and not fail: amplVal = params[0]
             if offchip: continue
             wmask = np.where(mtfit==0.0)
 #				try:
@@ -805,9 +809,10 @@ def model_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
             null, mcoeff = arutils.robust_polyfit(xtfit[wmask], ytfit[wmask]/msarc.shape[0], slf._argflag['trace']['orders']['tiltorder'], function=slf._argflag['trace']['orders']['function'], sigma=2.0,min=0.0,max=msarc.shape[1]-1)
             # Save the tilt angle, and unmask the row
             idx = int(msarc.shape[0]*mcoeff[0]+0.5)
-            if (idx > 0) and (idx < msarc.shape[0]):
+            if (idx > 0) and (idx < msarc.shape[0]) and (amplVal is not None):
                 maskrows[idx] = 0     # mcoeff[0] is the centroid of the arc line
                 tcoeff[:,idx] = mcoeff.copy()
+                weights[idx]  = amplVal
 
         maskrw = np.where(maskrows==1)[0]
         maskrw.sort()
@@ -822,10 +827,10 @@ def model_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
             msgs.info("Performing a PCA on the tilts")
             ordsnd = np.linspace(0.0,1.0,msarc.shape[0])
             xcen = xv[:,np.newaxis].repeat(msarc.shape[0],axis=1)
-            fitted, outpar = arpca.basis(xcen,tiltval,tcoeff,lnpc,ofit,x0in=ordsnd,mask=maskrw,skipx0=True,function=slf._argflag['trace']['orders']['function'])
+            fitted, outpar = arpca.basis(xcen,tiltval,tcoeff,lnpc,ofit,weights=weights,x0in=ordsnd,mask=maskrw,skipx0=True,function=slf._argflag['trace']['orders']['function'])
             # If the PCA worked OK, do the following
             msgs.work("Should something be done here inbetween the two basis calls?")
-            fitted, outpar = arpca.basis(xcen,tiltval,tcoeff,lnpc,ofit,x0in=ordsnd,mask=maskrw,skipx0=False,function=slf._argflag['trace']['orders']['function'])
+            fitted, outpar = arpca.basis(xcen,tiltval,tcoeff,lnpc,ofit,weights=weights,x0in=ordsnd,mask=maskrw,skipx0=False,function=slf._argflag['trace']['orders']['function'])
             arpca.pc_plot(outpar, ofit, plotsdir=slf._argflag['run']['plotsdir'], pcatype="tilts", prefix=prefix, addOne=False)
             # Extrapolate the remaining orders requested
             orders = np.linspace(0.0,1.0,msarc.shape[0])
@@ -1459,7 +1464,7 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
         lnpc = len(ofit)-1
         if np.sum(1.0-extrap_ord) > ofit[0]+1: # Only do a PCA if there are enough good orders
             # Perform a PCA on the tilts
-            msgs.info("Performing a PCA on the order edges")
+            msgs.info("Performing a PCA on the order tilts")
             ordsnd = np.arange(maskorder.size)+1.0
             xcen = xv[:,np.newaxis].repeat(maskorder.size,axis=1)
             fitted, outpar = arpca.basis(xcen,tiltval,tcoeff,lnpc,ofit,x0in=ordsnd,mask=maskord,skipx0=True,function=slf._argflag['trace']['orders']['function'])

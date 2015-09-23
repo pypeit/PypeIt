@@ -6,7 +6,7 @@ import arutils
 from arplot import get_dimen as get_dimen
 
 
-def basis(xfit, yfit, coeff, npc, pnpc, skipx0=True, x0in=None, mask=None, function='polynomial', retmask=False):
+def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, mask=None, function='polynomial', retmask=False):
     nrow = xfit.shape[0]
     ntrace = xfit.shape[1]
     if x0in is None: x0in = np.arange(float(ntrace))
@@ -44,7 +44,7 @@ def basis(xfit, yfit, coeff, npc, pnpc, skipx0=True, x0in=None, mask=None, funct
 #            coeffstr.append([-9.99E9])
 #            continue
         #coeff0 = arutils.robust_regression(x0in[usetrace], hidden[i-1,:], pnpc[i], 0.1, function=function, min=x0in[0], max=x0in[-1])
-        tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1,:], pnpc[i], sigma=2.0, function=function, min=x0in[0], max=x0in[-1])
+        tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1,:], pnpc[i], weights=weights, sigma=2.0, function=function, min=x0in[0], max=x0in[-1])
         coeffstr.append(coeff0)
         high_order_matrix[:,i-1] = arutils.func_val(coeff0, x0in, function)
 #	high_order_matrix[:,1] = arutils.func_val(coeff1, x0in, function)
@@ -71,7 +71,7 @@ def basis(xfit, yfit, coeff, npc, pnpc, skipx0=True, x0in=None, mask=None, funct
             x0[good] = numer[good]/denom[good]
             imask = np.zeros(float(ntrace))
             imask[bad] = 1.0
-            ttmask, x0res = arutils.robust_polyfit(x0in, x0, pnpc[0], sigma=2.0, function=function, min=x0in[0], max=x0in[-1], initialmask=imask)
+            ttmask, x0res = arutils.robust_polyfit(x0in, x0, pnpc[0], weights=weights, sigma=2.0, function=function, min=x0in[0], max=x0in[-1], initialmask=imask)
             x0fit = arutils.func_val(x0res, x0in, function, min=x0in[0], max=x0in[-1])
             good = np.where(ttmask==0)[0]
             xstd = 1.0 # This should represent the dispersion in the fit
@@ -84,7 +84,7 @@ def basis(xfit, yfit, coeff, npc, pnpc, skipx0=True, x0in=None, mask=None, funct
                 good = np.where(fitmask!=0)[0]
                 x0[good] = numer[good]/denom[good]
 #				x0res = arutils.robust_regression(x0in[good],x0[good],pnpc[0],0.2,function=function)
-                x0res = arutils.func_fit(x0in[good], x0[good], function, pnpc[0], min=x0in[0], max=x0in[-1])
+                x0res = arutils.func_fit(x0in[good], x0[good], function, pnpc[0], weights=weights, min=x0in[0], max=x0in[-1])
                 x0fit = arutils.func_val(x0res, x0in, function, min=x0in[0], max=x0in[-1])
                 chisq = (x0[good]-x0fit[good])**2.0
                 fitmask[good] *= (chisq < np.sum(chisq)/2.0).astype(np.int)

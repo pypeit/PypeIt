@@ -8,3 +8,5 @@ The following is a list of items that are currently in development
 * Extraction (RJC)
 * Force matplotlib RC params of plots to be the default throughout (i.e. don't allow user-specified matplotlib rcparams)
 * Save all QA to a single fits file and/or pdf file (?).
+* Quick reduction methods (for use in real time at the telescope)
+* barycentric velocity correction
