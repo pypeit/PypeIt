@@ -18,6 +18,8 @@ import artrace
 import arutils
 import arvcorr
 
+from xastropy.xutils import xdebug as xdb
+
 last_updated = "Last updated 20th July 2015"
 
 def usage(prognm):
@@ -442,6 +444,7 @@ class ClassMain:
             # First set the index for the science frame
             scidx = self._spect['science']['index'][sc]
             sciext_name_p, sciext_name_e = os.path.splitext(self._fitsdict['filename'][scidx[0]])
+            xdb.set_trace()
             prefix = "{0:s}{1:s}".format(sciext_name_p,self._spect["det"]["suffix"])
             ###############
             # Get amplifier sections

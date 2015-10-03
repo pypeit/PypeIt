@@ -370,6 +370,9 @@ def arc_qa(fit, arc_spec, outfil=None):
     ax_res.set_ylabel('Residuals (Pix)')
 
     # Finish
+    # Finish
+    plt.tight_layout(pad=0.2,h_pad=0.0,w_pad=0.0)
+    plt.savefig(outfil)
     plt.tight_layout(pad=0.2,h_pad=0.0,w_pad=0.0)
     plt.savefig(outfil)
 

@@ -11,6 +11,8 @@ from multiprocessing import cpu_count
 #from multiprocessing.pool import ApplyResult
 #import arutils
 
+from xastropy.xutils import xdebug as xdb
+
 def cpucheck(ncpu,curcpu=0):
     cpucnt=cpu_count()
     if ncpu == 'all':
@@ -155,6 +157,7 @@ def set_params(lines, indict, setstr=""):
         if lines[i].strip()[0] == '#': continue
         tline = lines[i].strip().split("#")[0]
         linspl = tline.split()
+        #print(linspl)
         if len(linspl) <= 2:
             msgs.error("Not enough parameters given on line:"+msgs.newline()+lines[i])
         if linspl[0] == 'check':
@@ -164,36 +167,21 @@ def set_params(lines, indict, setstr=""):
             else:
                 indict[linspl[0]][linspl[1]] = text
         elif linspl[0] in indict.keys():
-            if linspl[1] == 'check' or linspl[1] == 'match' or linspl[1] == 'combsame':
+            if linspl[1] in ['check','match','combsame']:
                 text = str(linspl[3]).strip().replace('_',' ')
                 if ',' in text and text[0:2] != '%,': # There are multiple possibilities - split the infile
                     indict[linspl[0]][linspl[1]][linspl[2]] += text.split(',')
                 else:
                     indict[linspl[0]][linspl[1]][linspl[2]] = text
-            elif linspl[1][:6] == 'ampsec': # Amplifier Sections
-                try:
-                    null = np.int(linspl[1][6:])
-                except ValueError:
-                    msgs.error("keyword ampsec must contain an integer suffix")
-                indict[linspl[0]][linspl[1]] = load_sections(linspl[2], strtxt=linspl[1])
+            elif linspl[1][:6] == 'ndet': # Mosaic of Detectors
+                indict[linspl[0]][linspl[1]] = int(linspl[2])
+                indict['det'] = indict['det']*indict['mosaic']['ndet']
             elif linspl[1][:7] == 'headext': # Header Sections
                 try:
                     null = np.int(linspl[1][7:])
                 except ValueError:
                     msgs.error("keyword headext must contain an integer suffix")
                 indict[linspl[0]][linspl[1]] = int(linspl[2])
-            elif linspl[1][:7] == 'datasec': # Data Sections
-                try:
-                    null = np.int(linspl[1][7:])
-                except ValueError:
-                    msgs.error("keyword datasec must contain an integer suffix")
-                indict[linspl[0]][linspl[1]] = load_sections(linspl[2], strtxt=linspl[1])
-            elif linspl[1][:8] == 'oscansec': # Overscan Sections
-                try:
-                    null = np.int(linspl[1][8:])
-                except ValueError:
-                    msgs.error("keyword oscansec must contain an integer suffix")
-                indict[linspl[0]][linspl[1]] = load_sections(linspl[2], strtxt=linspl[1])
             elif linspl[1][:8] == 'lampname': # Lamp names
                 try:
                     null = np.int(linspl[1][8:])
@@ -208,8 +196,36 @@ def set_params(lines, indict, setstr=""):
                 indict[linspl[0]][linspl[1]] = linspl[2]
             elif linspl[1] in indict[linspl[0]].keys():
                 indict[linspl[0]][linspl[1]] = set_params_wtype(indict[linspl[0]][linspl[1]],linspl[2],lines=tline,setstr=setstr)
-            else: msgs.error(setstr + "Settings contains bad line (arg 2):"+msgs.newline()+lines[i].split('#')[0].strip())
-        else: msgs.error(setstr + "Settings contains bad line (arg 1):"+msgs.newline()+lines[i].split('#')[0].strip())
+            else: 
+                msgs.error(setstr + "Settings contains bad line (arg 2):"+msgs.newline()+lines[i].split('#')[0].strip())
+        elif linspl[0][:3] == 'det': # Detector parameters
+            try:
+                didx = np.int(linspl[0][4:]) - 1 
+            except ValueError:
+                msgs.error("keyword det must contain an integer suffix")
+            else:
+                linspl[0] = 'det'
+            if linspl[1][:6] == 'ampsec': # Amplifier Sections
+                try:
+                    null = np.int(linspl[1][6:])
+                except ValueError:
+                    msgs.error("keyword ampsec must contain an integer suffix")
+                indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], strtxt=linspl[1])
+
+            elif linspl[1][:7] == 'datasec': # Data Sections
+                try:
+                    null = np.int(linspl[1][7:])
+                except ValueError:
+                    msgs.error("keyword datasec must contain an integer suffix")
+                indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], strtxt=linspl[1])
+            elif linspl[1][:8] == 'oscansec': # Overscan Sections
+                try:
+                    null = np.int(linspl[1][8:])
+                except ValueError:
+                    msgs.error("keyword oscansec must contain an integer suffix")
+                indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], strtxt=linspl[1])
+        else: 
+            msgs.error(setstr + "Settings contains bad line (arg 1):"+msgs.newline()+lines[i].split('#')[0].strip())
     return indict
 
 def load_sections(string, strtxt="<not specified>"):
@@ -261,8 +277,8 @@ def load_settings(fname):
     # Read in the default settings
     msgs.info("Loading the default settings")
     argflag = initialise()
-    infile = open(fname, 'r')
-    lines = infile.readlines()
+    with open(fname, 'r') as infile:
+        lines = infile.readlines()
     argflag = set_params(lines, argflag, setstr="Default ")
     return argflag
 
@@ -351,7 +367,9 @@ def load_input(slf):
 
 def load_spect(slf, lines=None):
     def initialise():
-        det = dict({'xgap':0.0, 'ygap':0.0, 'ysize':1.0, 'darkcurr':0.0, 'ronoise':1.0, 'gain':1.0, 'saturation':65536.0, 'nonlinear':1.0, 'numamplifiers':1, 'latitude':0.0, 'longitude':0.0, 'elevation':0.0, 'suffix':""})
+        msc = dict({'ndet':0, 'latitude':0.0, 'longitude':0.0, 'elevation':0.0})
+        ddet = dict({'xgap':0.0, 'ygap':0.0, 'ysize':1.0, 'darkcurr':0.0, 'ronoise':1.0, 'gain':1.0, 'saturation':65536.0, 'nonlinear':1.0, 'numamplifiers':1, 'suffix':""})
+        det = [ddet] # Load with one dict to start
         chk = dict({})
         stf = dict({'science':[], 'standard':[], 'bias':[], 'pixflat':[], 'blzflat':[], 'arc':[], 'trace':[], 'dark':[]})
         kyw = dict({'target':'01.OBJECT', 'idname':'01.OBSTYPE', 'time':'01.MJD', 'date':'', 'equinox':'', 'ra':'', 'dec':'', 'airmass':'', 'naxis0':'01.NAXIS2', 'naxis1':'01.NAXIS1', 'exptime':'01.EXPTIME', 'filter1':'01.FILTNAME', 'filter2':None, 'lamps':'01.LAMPNAME', 'decker':'01.DECKNAME', 'slitwid':'01.SLITWIDTH', 'slitlen':'01.SLITLENGTH', 'detrot':'01.DETECTORROTATION', 'cdangle':'01.XDISPANGLE', 'echangle':'01.ECHELLEANGLE', 'crossdisp':'01.XDISPERS', 'dichroic':'', 'disperser':''})
@@ -364,7 +382,7 @@ def load_spect(slf, lines=None):
         arc = dict({'index':[], 'check':dict({}), 'match':dict({}), 'number':1, 'idname':'OBJECT', 'canbe':None, 'combsame':dict({}), 'lscomb':False })
         bia = dict({'index':[], 'check':dict({}), 'match':dict({}), 'number':5, 'idname':'OBJECT', 'canbe':None, 'combsame':dict({}) })
         drk = dict({'index':[], 'check':dict({}), 'match':dict({}), 'number':5, 'idname':'OBJECT', 'canbe':None, 'combsame':dict({}) })
-        spectt = dict({'det':det, 'check':chk, 'set':stf, 'keyword':kyw, 'fits':fts, 'science':sci, 'standard':std, 'pixflat':pfl, 'blzflat':bfl, 'trace':trc, 'arc':arc, 'bias':bia, 'dark':drk})
+        spectt = dict({'mosaic': msc, 'det': det, 'check':chk, 'set':stf, 'keyword':kyw, 'fits':fts, 'science':sci, 'standard':std, 'pixflat':pfl, 'blzflat':bfl, 'trace':trc, 'arc':arc, 'bias':bia, 'dark':drk})
         return spectt
     # The spectrograph name
     sname = slf._argflag['run']['spectrograph']
@@ -377,8 +395,8 @@ def load_spect(slf, lines=None):
         fname += 'settings.'+sname
         msgs.info("Loading the "+sname+" settings")
         spect = initialise()
-        infile = open(fname, 'r')
-        lines = infile.readlines()
+        with open(fname, 'r') as infile:
+            lines = infile.readlines()
         spect = set_params(lines, spect, setstr="Default "+sname+" ")
     else:
         spect = set_params(lines, slf._spect, setstr="Infile "+sname+" ")
@@ -408,6 +426,7 @@ def load_headers(slf):
             kchk  = '.'.join(ch.split('.')[1:])
             frhd  = whddict['{0:02d}'.format(tfrhd)]
             if slf._spect['check'][ch] != str(headarr[frhd][kchk]).strip():
+                xdb.set_trace()
                 #print ch, frhd, kchk
                 #print slf._spect['check'][ch], str(headarr[frhd][kchk]).strip()
                 msgs.error("The following file:"+msgs.newline()+slf._datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(slf._argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
@@ -438,16 +457,20 @@ def load_headers(slf):
                 ch = slf._spect['keyword'][kw]
                 try:
                     tfrhd = int(ch.split('.')[0])-1
-                except:
-                    import pdb
-                    pdb.set_trace()
-                frhd  = whddict['{0:02d}'.format(tfrhd)]
-                kchk  = '.'.join(ch.split('.')[1:])
-                value = headarr[frhd][kchk]
+                except ValueError:
+                    value = ch # Keyword given a value. Only a string allowed for now
+                else:
+                    frhd  = whddict['{0:02d}'.format(tfrhd)]
+                    kchk  = '.'.join(ch.split('.')[1:])
+                    try:
+                        value = headarr[frhd][kchk]
+                    except KeyError: # Keyword not found in header
+                        msgs.warn("{:s} keyword not in header. Setting to None".format(kchk))
+                        value='None'
             # Convert the input time into hours
             if kw == 'time':
-                if slf._spect['fits']['timeunit']   == 's'  : value /= 3600.0    # Convert seconds to hours
-                elif slf._spect['fits']['timeunit'] == 'm'  : value /= 60.0      # Convert minutes to hours
+                if slf._spect['fits']['timeunit']   == 's'  : value = float(value)/3600.0    # Convert seconds to hours
+                elif slf._spect['fits']['timeunit'] == 'm'  : value = float(value)/60.0      # Convert minutes to hours
                 elif slf._spect['fits']['timeunit'] == 'dt' : # Date+Time
                     dspT = value.split('T')
                     dy,dm,dd = np.array(dspT[0].split('-')).astype(np.int)
@@ -457,6 +480,8 @@ def load_headers(slf):
                     jdn = dd + (153*t+2)/5 + 365*s + s/4 - 32083
                     value = jdn + (12.-th)/24 + tm/1440 + ts/86400 - 2400000.5 # THIS IS THE MJD
                     value *= 24.0 # Put MJD in hours
+                else:
+                    msgs.error('Bad time unit')
             # Put the value in the keyword
             typv = type(value)
             if typv is int or typv is np.int_:
@@ -471,7 +496,7 @@ def load_headers(slf):
     del headarr
     # Convert the fitsdict arrays into numpy arrays
     for k in fitsdict.keys(): fitsdict[k] = np.array(fitsdict[k])
-    msgs.info("Headers loaded for {0:d} files successfully".format(-1))
+    msgs.info("Headers loaded for {0:d} files successfully".format(len(slf._datlines)))
     return fitsdict
 
 def load_frames(slf, ind, frametype='<None>', msbias=None, trim=True, transpose=False):

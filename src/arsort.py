@@ -9,6 +9,8 @@ import arcyutils
 from astropy.io.votable.tree import VOTableFile, Resource, Table, Field
 #from scipy.stats import chi2 as chisq
 
+from xastropy.xutils import xdebug as xdb
+
 def sort_data(slf):
     from arvcorr import radec_to_decdeg
     msgs.bug("There appears to be a bug with the assignment of arc frames when only one science frame is supplied")
@@ -32,6 +34,7 @@ def sort_data(slf):
         n = np.intersect1d(n,w)
         # Perform additional checks in order to make sure this identification is true
         chkk = slf._spect[fkey[i]]['check'].keys()
+        xdb.set_trace()
         for ch in chkk:
             if ch[0:9]=='condition':
                 # Deal with a conditional argument
