@@ -1,5 +1,6 @@
 import os
 import sys
+import copy
 import glob
 import getopt
 import astropy.io.fits as pyfits
@@ -175,7 +176,10 @@ def set_params(lines, indict, setstr=""):
                     indict[linspl[0]][linspl[1]][linspl[2]] = text
             elif linspl[1][:6] == 'ndet': # Mosaic of Detectors
                 indict[linspl[0]][linspl[1]] = int(linspl[2])
-                indict['det'] = indict['det']*indict['mosaic']['ndet']
+                tmp = []
+                for ii in range(indict['mosaic']['ndet']): # List
+                    tmp.append(copy.deepcopy(indict['det']))
+                indict['det'] = tmp
             elif linspl[1][:7] == 'headext': # Header Sections
                 try:
                     null = np.int(linspl[1][7:])
@@ -211,7 +215,6 @@ def set_params(lines, indict, setstr=""):
                 except ValueError:
                     msgs.error("keyword ampsec must contain an integer suffix")
                 indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], strtxt=linspl[1])
-
             elif linspl[1][:7] == 'datasec': # Data Sections
                 try:
                     null = np.int(linspl[1][7:])
@@ -224,6 +227,8 @@ def set_params(lines, indict, setstr=""):
                 except ValueError:
                     msgs.error("keyword oscansec must contain an integer suffix")
                 indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], strtxt=linspl[1])
+            else:  # Read value
+                indict[linspl[0]][didx][linspl[1]] = set_params_wtype(indict[linspl[0]][didx][linspl[1]],linspl[2],lines=tline,setstr=setstr)
         else: 
             msgs.error(setstr + "Settings contains bad line (arg 1):"+msgs.newline()+lines[i].split('#')[0].strip())
     return indict
@@ -252,7 +257,7 @@ def load_settings(fname):
         """
         Initialise the default settings called argflag
         """
-        rna = dict({'prognm':'armed.py', 'redname':'filelist.red', 'spectrograph':'hamspec', 'masterdir':'MasterFrames', 'plotsdir':'Plots', 'scidir':'Science', 'ncpus':-1, 'nsubpix':5, 'calcheck':False, 'qcontrol':True, 'preponly':False, 'stopcheck':False})
+        rna = dict({'prognm':'armed.py', 'redname':'filelist.red', 'spectrograph':'hamspec', 'masterdir':'MasterFrames', 'plotsdir':'Plots', 'scidir':'Science', 'ncpus':-1, 'nsubpix':5, 'calcheck':False, 'qcontrol':True, 'preponly':False, 'stopcheck':False, 'use_idname':False})
         red = dict({'locations':None, 'nlcorr':False, 'trim':True, 'badpix':True, 'usebias':'bias', 'usetrace':'trace', 'usearc':'arc', 'useflat':'pixflat', 'subdark':False, 'flatfield':True, 'FlatMethod':'SpatialFit', 'FlatParams':[0], 'bgsubtraction':True, 'arcmatch':2.0, 'flatmatch':2.0, 'calibrate':True, 'fluxcalibrate':True, 'extraction':'2D', 'oscanMethod':'polynomial', 'oscanParams':[1], 'heliocorr':True, 'pixelsize':2.5})
         csq = dict({'atol':1.0E-3, 'xtol':1.0E-10, 'gtol':1.0E-10, 'ftol':1.0E-10, 'fstep':2.0})
         opa = dict({'verbose':2, 'sorted':None, 'plots':True, 'overwrite':False})
@@ -367,12 +372,13 @@ def load_input(slf):
 
 def load_spect(slf, lines=None):
     def initialise():
-        msc = dict({'ndet':0, 'latitude':0.0, 'longitude':0.0, 'elevation':0.0})
+        msc = dict({'ndet':0, 'latitude':0.0, 'longitude':0.0, 'elevation':0.0, 'minexp':0.})
+        # det starts as a dict but becomes a list of dicts in set_params
         ddet = dict({'xgap':0.0, 'ygap':0.0, 'ysize':1.0, 'darkcurr':0.0, 'ronoise':1.0, 'gain':1.0, 'saturation':65536.0, 'nonlinear':1.0, 'numamplifiers':1, 'suffix':""})
-        det = [ddet] # Load with one dict to start
+        #
         chk = dict({})
         stf = dict({'science':[], 'standard':[], 'bias':[], 'pixflat':[], 'blzflat':[], 'arc':[], 'trace':[], 'dark':[]})
-        kyw = dict({'target':'01.OBJECT', 'idname':'01.OBSTYPE', 'time':'01.MJD', 'date':'', 'equinox':'', 'ra':'', 'dec':'', 'airmass':'', 'naxis0':'01.NAXIS2', 'naxis1':'01.NAXIS1', 'exptime':'01.EXPTIME', 'filter1':'01.FILTNAME', 'filter2':None, 'lamps':'01.LAMPNAME', 'decker':'01.DECKNAME', 'slitwid':'01.SLITWIDTH', 'slitlen':'01.SLITLENGTH', 'detrot':'01.DETECTORROTATION', 'cdangle':'01.XDISPANGLE', 'echangle':'01.ECHELLEANGLE', 'crossdisp':'01.XDISPERS', 'dichroic':'', 'disperser':''})
+        kyw = dict({'target':'01.OBJECT', 'idname':'01.OBSTYPE', 'time':'01.MJD', 'date':'', 'equinox':'', 'ra':'', 'dec':'', 'airmass':'', 'naxis0':'01.NAXIS2', 'naxis1':'01.NAXIS1', 'exptime':'01.EXPTIME', 'hatch':'01.TRAPDOOR','filter1':'01.FILTNAME', 'filter2':None, 'lamps':'01.LAMPNAME', 'decker':'01.DECKNAME', 'slitwid':'01.SLITWIDTH', 'slitlen':'01.SLITLENGTH', 'detrot':'01.DETECTORROTATION', 'cdangle':'01.XDISPANGLE', 'echangle':'01.ECHELLEANGLE', 'crossdisp':'01.XDISPERS', 'dichroic':'', 'disperser':'', 'binning':''})
         fts = dict({'numhead':1, 'numlamps':1, 'dataext':0, 'calwin':12.0, 'timeunit':'mjd'})
         sci = dict({'index':[], 'check':dict({}), 'idname':'OBJECT', 'canbe':None})
         std = dict({'index':[], 'check':dict({}), 'match':dict({}), 'number':1, 'idname':'OBJECT', 'canbe':None, 'combsame':dict({})})
@@ -382,7 +388,7 @@ def load_spect(slf, lines=None):
         arc = dict({'index':[], 'check':dict({}), 'match':dict({}), 'number':1, 'idname':'OBJECT', 'canbe':None, 'combsame':dict({}), 'lscomb':False })
         bia = dict({'index':[], 'check':dict({}), 'match':dict({}), 'number':5, 'idname':'OBJECT', 'canbe':None, 'combsame':dict({}) })
         drk = dict({'index':[], 'check':dict({}), 'match':dict({}), 'number':5, 'idname':'OBJECT', 'canbe':None, 'combsame':dict({}) })
-        spectt = dict({'mosaic': msc, 'det': det, 'check':chk, 'set':stf, 'keyword':kyw, 'fits':fts, 'science':sci, 'standard':std, 'pixflat':pfl, 'blzflat':bfl, 'trace':trc, 'arc':arc, 'bias':bia, 'dark':drk})
+        spectt = dict({'mosaic': msc, 'det': ddet, 'check':chk, 'set':stf, 'keyword':kyw, 'fits':fts, 'science':sci, 'standard':std, 'pixflat':pfl, 'blzflat':bfl, 'trace':trc, 'arc':arc, 'bias':bia, 'dark':drk})
         return spectt
     # The spectrograph name
     sname = slf._argflag['run']['spectrograph']
@@ -450,6 +456,9 @@ def load_headers(slf):
         else:
             fitsdict['utc'].append(None)
             msgs.warn("UTC is not listed as a header keyword in file:"+msgs.newline()+slf._datlines[i])
+        # Read binning-dependent detector properties here? (maybe read speed too)
+        #if slf._argflag['run']['spectrograph'] in ['lris_blue']:
+        #    arlris.set_det(fitsdict, headarr[k])
         # Now get the rest of the keywords
         for kw in keys:
             if slf._spect['keyword'][kw] is None: value='None' # This instrument doesn't have/need this keyword
@@ -499,7 +508,21 @@ def load_headers(slf):
     msgs.info("Headers loaded for {0:d} files successfully".format(len(slf._datlines)))
     return fitsdict
 
-def load_frames(slf, ind, frametype='<None>', msbias=None, trim=True, transpose=False):
+def load_frames(slf, ind, det=1, frametype='<None>', msbias=None, trim=True, transpose=False):
+    '''Load data frames, usually raw.
+    Bias subtrac too
+    Parameters:
+    -----------
+    ind: list or array
+      integers of indices
+    det: int, optional
+      Detector number, starts at 1
+
+    Returns:
+    ---------
+    frames: ndarray (3 dimensional)
+      One image per ind
+    '''
     def load_indfr(name,ext):
         msgs.work("Trim and overscan has not been applied")
         temp = pyfits.getdata(name, ext)
@@ -511,7 +534,11 @@ def load_frames(slf, ind, frametype='<None>', msbias=None, trim=True, transpose=
         return None
     msgs.work("Implement multiprocessing here (better -- at the moment it's slower than not) to speed up data reading")
     for i in range(np.size(ind)):
-        temp = pyfits.getdata(slf._fitsdict['directory'][ind[i]]+slf._fitsdict['filename'][ind[i]], slf._spect['fits']['dataext'])
+        # Instrument specific read
+        if slf._argflag['run']['spectrograph'] in ['lris_blue']:
+            temp = arlris.read_lris_det(slf._fitsdict['directory'][ind[i]]+slf._fitsdict['filename'][ind[i]], det)
+        else:
+            temp = pyfits.getdata(slf._fitsdict['directory'][ind[i]]+slf._fitsdict['filename'][ind[i]], slf._spect['fits']['dataext'])
         if transpose: temp = temp.T
         if msbias is not None:
             if type(msbias) is np.ndarray:

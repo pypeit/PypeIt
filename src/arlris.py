@@ -1,4 +1,4 @@
-# Module for I/O of data files
+# Module for LRIS spectific codes
 import numpy as np
 import glob
 import armsgs as msgs

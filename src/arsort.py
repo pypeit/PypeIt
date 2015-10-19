@@ -7,6 +7,7 @@ import armsgs as msgs
 import arutils
 import arcyutils
 from astropy.io.votable.tree import VOTableFile, Resource, Table, Field
+from astropy.table import Table as tTable, Column
 #from scipy.stats import chi2 as chisq
 
 from xastropy.xutils import xdebug as xdb
@@ -29,24 +30,28 @@ def sort_data(slf):
     filarr = np.zeros((len(fkey),numfiles), dtype=np.int)
     # Identify the frames:
     for i in range(len(fkey)):
-        w = np.where(slf._fitsdict['idname']==slf._spect[fkey[i]]['idname'])[0]
+        # Self identification
+        if slf._argflag['run']['use_idname']:
+            w = np.where(slf._fitsdict['idname']==slf._spect[fkey[i]]['idname'])[0]
+            msgs.info("Sorting files")
+        else:
+            w = np.arange(numfiles)
+        #
         n = np.arange(numfiles)
         n = np.intersect1d(n,w)
         # Perform additional checks in order to make sure this identification is true
         chkk = slf._spect[fkey[i]]['check'].keys()
-        xdb.set_trace()
         for ch in chkk:
             if ch[0:9]=='condition':
                 # Deal with a conditional argument
                 conds = re.split("(\||\&)",slf._spect[fkey[i]]['check'][ch])
-                tcond = conds[0].split("=")
-                ntmp = (slf._fitsdict[tcond[0]]==tcond[1])
+                ntmp = chk_condition(slf,conds[0]) 
+                # And more
                 for cn in range((len(conds)-1)/2):
-                    tcond = conds[2*cn+2].split("=")
                     if conds[2*cn+1]=="|":
-                        ntmp = ntmp | (slf._fitsdict[tcond[0]]==tcond[1])
+                        ntmp = ntmp | chk_condition(slf,conds[2*cn+2])
                     elif conds[2*cn+1]=="&":
-                        ntmp = ntmp & (slf._fitsdict[tcond[0]]==tcond[1])
+                        ntmp = ntmp & chk_condition(slf,conds[2*cn+2])
                 w = np.where(ntmp)[0]
             else:
                 w = np.where(slf._fitsdict[ch]==slf._spect[fkey[i]]['check'][ch])[0]
@@ -96,7 +101,8 @@ def sort_data(slf):
         for i in range(np.size(badfiles)): print slf._fitsdict['filename'][badfiles[i]]
         msgs.error("Check these files and your settings.{0:s} file before continuing".format(slf._argflag['run']['spectrograph']))
     # Now identify the dark frames
-    wdark = np.where((filarr[np.where(fkey=='bias')[0],:]==1).flatten() & (slf._fitsdict['exptime'].astype(np.float64) > 0.0))[0]
+    wdark = np.where((filarr[np.where(fkey=='bias')[0],:]==1).flatten() & 
+        (slf._fitsdict['exptime'].astype(np.float64) > slf._spect['mosaic']['minexp']))[0]
     ftag['dark'] = wdark
     # Make any forced changes
     msgs.info("Making forced file identification changes")
@@ -121,6 +127,22 @@ def sort_data(slf):
     # Return ftag!
     msgs.info("Sorting completed successfully")
     return ftag
+
+def chk_condition(slf,cond): 
+    """
+    Code to perform condition.  A bit messy so a separeate definition
+    was generated.
+    """
+    if "=" in cond:
+        tcond = cond.split("=")
+        ntmp = (slf._fitsdict[tcond[0]]==tcond[1])
+    elif "<" in cond:
+        tcond = cond.split("<")
+        ntmp = slf._fitsdict[tcond[0]]<float(tcond[1])
+    elif ">" in cond:
+        tcond = cond.split(">")
+        ntmp = slf._fitsdict[tcond[0]]>float(tcond[1])
+    return ntmp
 
 def sort_write(slf,space=3):
     """
@@ -184,6 +206,27 @@ def sort_write(slf,space=3):
         fname = slf._argflag['out']['sorted']+'.xml'
     votable.to_xml(fname)
     msgs.info("Successfully written sorted data information file:"+msgs.newline()+"{0:s}".format(fname))
+
+    # ASCII file (JXP)
+    jxpord = ['filename', 'frametype', 'target', 'exptime', 'binning',
+        'dichroic', 'disperser', 'dangl', 'decker']
+    # Generate the columns
+    clms = []
+    for pr in jxpord:
+        try:
+            lidx = prord.index(pr)
+        except ValueError:
+            msgs.warn('{:s} keyword not used'.format(pr))
+        else:
+            clm = []
+            for i in range(nfiles):
+                clm.append(table.array[i][lidx])
+            clms.append( Column(clm, name=pr))
+    # Create Table
+    jxp_tbl = tTable(clms)
+    # Write
+    jxp_name = fname.replace('.xml', '.lst')
+    jxp_tbl.write(jxp_name, format='ascii.fixed_width')
     return
 
 def match_science(slf):
