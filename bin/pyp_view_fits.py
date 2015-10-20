@@ -15,7 +15,7 @@ import subprocess
 from astropy.io import fits
 
 sys.path.append(os.path.abspath('/Users/xavier/local/Python/PYPIT/src'))
-import ario as pyp_ario
+import arlris 
 import armsgs as msgs
 
 def main() :
@@ -30,7 +30,7 @@ def main() :
     # RAW_LRIS??
     if args.raw_lris:
         # 
-        img, head = pyp_ario.read_lris(args.file)
+        img, head = arlris.read_lris(args.file)
         # Generate hdu
         hdu = fits.PrimaryHDU(img)
         hdulist = fits.HDUList([hdu])

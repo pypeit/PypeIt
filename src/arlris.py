@@ -14,8 +14,8 @@ import arplot
 
 from xastropy.xutils import xdebug as xdb
 
-def read_lris(raw_file, TRIM=False):
-    ''' Read a full raw LRIS data frame (both detectors)
+def read_lris(raw_file, det=None, TRIM=False):
+    ''' Read a raw LRIS data frame (one or more detectors)
     Packed in a multi-extension HDU
     Based on readmhdufits.pro
 
@@ -23,6 +23,8 @@ def read_lris(raw_file, TRIM=False):
     ----------
     raw_file: str
       Filename
+    det: int, optional
+      Detector number; Default = both
     TRIM: bool, optional
       Trim the image?
 
@@ -54,13 +56,13 @@ def read_lris(raw_file, TRIM=False):
 
     #; First read over the header info to determine the size of the output
     #; array...
-    n_ext = len(hdu)
+    n_ext = len(hdu)-1 # Number of extensions (usually 4)
     xcol  = []
     xmax = 0
     ymax = 0
     xmin = 10000
     ymin = 10000
-    for i in range(1,n_ext):
+    for i in np.arange(n_ext)+1:
         theader = hdu[i].header
         detsec = theader['DETSEC']
         if detsec != '0':
@@ -94,6 +96,16 @@ def read_lris(raw_file, TRIM=False):
     precol = precol / xbin
     postpix = postpix / xbin
 
+    # Deal with detectors
+    if det in [1,2]:
+        nx = nx / 2
+        n_ext = n_ext / 2
+        det_idx = np.arange(n_ext) + (det-1)*n_ext
+    elif det is None:
+        det_idx = np.arange(n_ext) 
+    else:
+        raise ValueError('Bad value for det')
+
     #; change size for pre/postscan...
     if not TRIM:
         nx += n_ext*(precol+postpix)
@@ -103,11 +115,12 @@ def read_lris(raw_file, TRIM=False):
     array = np.zeros( (nx, ny) )
     order = np.argsort(np.array(xcol))
 
+
     #; insert extensions into master image...
-    for i in range(1,n_ext):
+    for i in order[det_idx]:
 
         #; grab complete extension...
-        data, predata, postdata, x1, y1 = lris_read_amp(hdu, i)
+        data, predata, postdata, x1, y1 = lris_read_amp(hdu, i+1)
                             #, linebias=linebias, nobias=nobias, $
                             #x1=x1, x2=x2, y1=y1, y2=y2, gaindata=gaindata)
         #; insert components into output array...
@@ -115,8 +128,8 @@ def read_lris(raw_file, TRIM=False):
             #; insert predata...
             buf = predata.shape
             nxpre = buf[0]
-            xs = order[i-1]*precol
-            xe = xs + nxpre 
+            xs = i*precol
+            xe = xs + nxpre
             '''
             if keyword_set(VERBOSE) then begin
                 section = '['+stringify(xs)+':'+stringify(xe)+',*]'
@@ -139,12 +152,13 @@ def read_lris(raw_file, TRIM=False):
                          ' data     in '+section, /info
             endif 
             '''
+            print('data',xs,xe)
             array[xs:xe,:] = data
 
             #; insert postdata...
             buf = postdata.shape
             nxpost = buf[0]
-            xs = nx - n_ext*postpix + order[i-1]*postpix
+            xs = nx - n_ext*postpix + i*postpix
             xe = xs + nxpost 
             '''
             if keyword_set(VERBOSE) then begin
@@ -245,13 +259,13 @@ def lris_read_amp(inp, ext):
     xdata1,xdata2,ydata1,ydata2 = np.array(arload.load_sections(datasec)).flatten()
 
     #; grab the components...
-    predata  = temp[0:precol-1,:]
+    predata  = temp[0:precol,:]
     # datasec appears to have the x value for the keywords that are zero
     # based. This is only true in the image header extensions
     # not true in the main header.
     #data     = temp[xdata1-1:xdata2-1,*]
-    data     = temp[xdata1:xdata2,:]
-    postdata = temp[nxt-postpix:nxt-1,:]
+    data     = temp[xdata1:xdata2+1,:]
+    postdata = temp[nxt-postpix:nxt,:]
 
     #; flip in X as needed...
     if x1 > x2:

@@ -7,6 +7,7 @@ import astropy.io.fits as pyfits
 import numpy as np
 import armsgs as msgs
 import arproc
+import arlris
 from multiprocessing import cpu_count
 #from multiprocessing import Pool as mpPool
 #from multiprocessing.pool import ApplyResult
@@ -178,7 +179,9 @@ def set_params(lines, indict, setstr=""):
                 indict[linspl[0]][linspl[1]] = int(linspl[2])
                 tmp = []
                 for ii in range(indict['mosaic']['ndet']): # List
-                    tmp.append(copy.deepcopy(indict['det']))
+                    tmpi = copy.deepcopy(indict['det'])
+                    tmpi['suffix'] = str(ii)
+                    tmp.append(tmpi)
                 indict['det'] = tmp
             elif linspl[1][:7] == 'headext': # Header Sections
                 try:
@@ -508,14 +511,14 @@ def load_headers(slf):
     msgs.info("Headers loaded for {0:d} files successfully".format(len(slf._datlines)))
     return fitsdict
 
-def load_frames(slf, ind, det=1, frametype='<None>', msbias=None, trim=True, transpose=False):
+def load_frames(slf, ind, det, frametype='<None>', msbias=None, trim=True, transpose=False):
     '''Load data frames, usually raw.
     Bias subtrac too
     Parameters:
     -----------
     ind: list or array
       integers of indices
-    det: int, optional
+    det: int
       Detector number, starts at 1
 
     Returns:
@@ -536,7 +539,7 @@ def load_frames(slf, ind, det=1, frametype='<None>', msbias=None, trim=True, tra
     for i in range(np.size(ind)):
         # Instrument specific read
         if slf._argflag['run']['spectrograph'] in ['lris_blue']:
-            temp = arlris.read_lris_det(slf._fitsdict['directory'][ind[i]]+slf._fitsdict['filename'][ind[i]], det)
+            temp, head0 = arlris.read_lris(slf._fitsdict['directory'][ind[i]]+slf._fitsdict['filename'][ind[i]], det)
         else:
             temp = pyfits.getdata(slf._fitsdict['directory'][ind[i]]+slf._fitsdict['filename'][ind[i]], slf._spect['fits']['dataext'])
         if transpose: temp = temp.T

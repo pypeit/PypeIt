@@ -49,6 +49,7 @@ det01 ampsec02 [:,1024:2048]      # For each amplifier, you should specify the d
 det01 datasec02 [:,1024:2048]     # Either the data sections or the header keyword where the valid data sections can be obtained
 det01 oscansec02 [:,2080:2111]    # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
 det01 suffix _01blue                  # Suffix to be appended to all saved calibration and extraction frames
+det02 suffix _02blue                  # Suffix to be appended to all saved calibration and extraction frames
 
 ### Checks to perform
 check 01.INSTRUME LRISBLUE             # THIS IS A MUST! It checks the instrument
@@ -144,7 +145,7 @@ bias number 5                       # Number of bias frames to use
 bias canbe None                     # If there are frames that will be bias ***in addition to other frame types***, include the other frame types here.
 bias check condition1 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off
 bias check condition2 hatch=closed  # Required for bias
-bias check condition3 exptime<2     # Required for bias
+bias check condition3 exptime<1     # Required for bias
 bias match binning ''             		# Match the shape of standard and science frames
 #bias match naxis0 =0                # Match the shape of bias and science frames
 #bias match naxis1 =0                # Match the shape of bias and science frames

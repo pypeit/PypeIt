@@ -28,6 +28,7 @@ def sort_data(slf):
     fkey = np.array(ftag.keys())
     # Create an array where 1 means it is a certain type of frame and 0 means it isn't.
     filarr = np.zeros((len(fkey),numfiles), dtype=np.int)
+    setarr = np.zeros((len(fkey),numfiles), dtype=np.int)
     # Identify the frames:
     for i in range(len(fkey)):
         # Self identification
@@ -111,8 +112,9 @@ def sort_data(slf):
         for j in slf._spect['set'][sk]:
             w = np.where(slf._fitsdict['filename']==j)[0]
             filarr[:,w]=0
-            filarr[np.where(fkey==sk)[0],w]=1
+            setarr[np.where(fkey==sk)[0],w]=1
             del w
+    filarr = filarr + setarr
     # Store the frames in the ftag array
     for i in range(len(fkey)):
         ftag[fkey[i]] = np.where(filarr[i,:]==1)[0]
