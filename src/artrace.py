@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import scipy.ndimage.interpolation as interp
 
+from xastropy.xutils import xdebug as xdb
+
 def dispdir(msframe, dispwin=None, mode=0):
     """
     msframe is a frame to determine the dispersion direction
@@ -89,7 +91,11 @@ def trace_orders(slf, mstrace, prefix="", trcprefix="", maskBadColumns=False):
     # First test for an edge
     diff = np.zeros_like(binarr)
     w = np.where(troll!=0.0)
-    diff[w] = (troll[w]-binarr[w])/binarr[w]
+    diff[w] = (troll[w]-binarr[w])/binarr[w] 
+    # Deal with NAN
+    bad = np.isinf(diff)
+    diff[bad] = 0.
+    # Find significant deviations
     siglev = 1.4826*np.median(np.abs(diff))
     ttedges = np.zeros_like(binarr)
     wr = np.where(diff > +6.0*siglev)
@@ -101,8 +107,12 @@ def trace_orders(slf, mstrace, prefix="", trcprefix="", maskBadColumns=False):
     diff = (troll-binarr)
     siglev = 1.4826*np.median(np.abs(diff))
     tedges = np.zeros_like(binarr)
-    wr = np.where((diff > +6.0*siglev) & (ttedges == +1))
-    wl = np.where((diff < -6.0*siglev) & (ttedges == -1))
+    # JXP REMOVED FOR NOW
+    #wr = np.where((diff > +6.0*siglev) & (ttedges == +1))
+    #wl = np.where((diff < -6.0*siglev) & (ttedges == -1))
+    siglev = np.std(diff)
+    wr = np.where(diff > +6.0*siglev) 
+    wl = np.where(diff < -6.0*siglev)
     tedges[wr] = +1.0
     tedges[wl] = -1.0
     nedgear = arcytrace.clean_edges(diff, tedges, slf._dispaxis)
@@ -146,6 +156,7 @@ def trace_orders(slf, mstrace, prefix="", trcprefix="", maskBadColumns=False):
     edgearr = np.zeros_like(nedgear)
     edgearr[np.where((nedgear == +1) | (tedgear == +1))] = +1
     edgearr[np.where((nedgear == -1) | (tedgear == -1))] = -1
+    xdb.set_trace()
     #arutils.ds9plot(edgearr)
     # Assign a number to each of the edges
     msgs.info("Matching order edges")
@@ -160,6 +171,7 @@ def trace_orders(slf, mstrace, prefix="", trcprefix="", maskBadColumns=False):
     # Now assign each edge detection to an order
     msgs.info("Assigning orders")
     #arutils.ds9plot(edgearr)
+    xdb.set_trace()
     lmin, lmax, rmin, rmax = arcytrace.assign_orders(edgearr, slf._dispaxis, lcnt, rcnt)
     msgs.info("Ignoring orders that span < {0:3.2f}x{1:d} pixels on the detector".format(slf._argflag['trace']['orders']['fracignore'],int(edgearr.shape[slf._dispaxis]*binby)))
     fracpix = int(slf._argflag['trace']['orders']['fracignore']*edgearr.shape[slf._dispaxis])
@@ -1605,17 +1617,17 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
             msgs.info("DS9 window was updated")
     return tilts, satsnd
 
-def gen_pixloc(slf,frame,gen=True):
+def gen_pixloc(slf,frame,det,gen=True):
     msgs.info("Deriving physical pixel locations on the detector")
     if gen:
-        msgs.info("Pixel gap in the dispersion direction = {0:4.3f}".format(slf._spect['det']['xgap']))
+        msgs.info("Pixel gap in the dispersion direction = {0:4.3f}".format(slf._spect['det'][det-1]['xgap']))
         msgs.info("Pixel size in the dispersion direction = {0:4.3f}".format(1.0))
-        xs = np.arange(frame.shape[slf._dispaxis]*1.0)*slf._spect['det']['xgap']
+        xs = np.arange(frame.shape[slf._dispaxis]*1.0)*slf._spect['det'][det-1]['xgap']
         xt = 0.5 + np.arange(frame.shape[slf._dispaxis]*1.0) + xs
-        msgs.info("Pixel gap in the spatial direction = {0:4.3f}".format(slf._spect['det']['ygap']))
-        msgs.info("Pixel size in the spatial direction = {0:4.3f}".format(slf._spect['det']['ysize']))
-        ys = np.arange(frame.shape[1-slf._dispaxis])*slf._spect['det']['ygap']*slf._spect['det']['ysize']
-        yt = slf._spect['det']['ysize']*(0.5 + np.arange(frame.shape[1-slf._dispaxis]*1.0)) + ys
+        msgs.info("Pixel gap in the spatial direction = {0:4.3f}".format(slf._spect['det'][det-1]['ygap']))
+        msgs.info("Pixel size in the spatial direction = {0:4.3f}".format(slf._spect['det'][det-1]['ysize']))
+        ys = np.arange(frame.shape[1-slf._dispaxis])*slf._spect['det'][det-1]['ygap']*slf._spect['det'][det-1]['ysize']
+        yt = slf._spect['det'][det-1]['ysize']*(0.5 + np.arange(frame.shape[1-slf._dispaxis]*1.0)) + ys
         xloc, yloc = np.meshgrid(xt,yt)
 #		xwid, ywid = np.meshgrid(xs,ys)
         msgs.info("Saving pixel locations")
@@ -1624,12 +1636,12 @@ def gen_pixloc(slf,frame,gen=True):
             locations[:,:,0] = xloc.T
             locations[:,:,1] = yloc.T
             locations[:,:,2] = 1.0
-            locations[:,:,3] = slf._spect['det']['ysize']
+            locations[:,:,3] = slf._spect['det'][det-1]['ysize']
         else:
             locations[:,:,0] = xloc
             locations[:,:,1] = yloc
             locations[:,:,2] = 1.0
-            locations[:,:,3] = slf._spect['det']['ysize']
+            locations[:,:,3] = slf._spect['det'][det-1]['ysize']
     else:
         msgs.error("Have not yet included an algorithm to automatically generate pixel locations")
     return locations

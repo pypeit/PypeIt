@@ -8,3 +8,4 @@ The following is a list of items that are currently in development
 * Extraction (RJC)
 * Force matplotlib RC params of plots to be the default throughout (i.e. don't allow user-specified matplotlib rcparams)
 * Save all QA to a single fits file and/or pdf file (?).
+* Have reduction features be read from instrument settings file

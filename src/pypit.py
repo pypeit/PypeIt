@@ -118,7 +118,9 @@ class ClassMain:
             msgs.info("Not preparing a bad pixel mask")
         return
 
-    def GetDispersionDirection(self, ind):
+    def GetDispersionDirection(self, ind, det):
+        '''Sets dispersion axis and transposes image as needed
+        '''
         if self._argflag['trace']['disp']['direction'] is None:
             self._dispaxis = artrace.dispdir(self._msarc, dispwin=self._argflag['trace']['disp']['window'], mode=0)
         elif self._argflag['trace']['disp']['direction'] in [0,1]:
@@ -157,27 +159,27 @@ class ClassMain:
                 self._fitsdict['naxis0'][i] = self._fitsdict['naxis1'][i]
                 self._fitsdict['naxis1'][i] = temp
             # Change the user-specified (x,y) pixel sizes
-            tmp = self._spect['det']['xgap']
-            self._spect['det']['xgap'] = self._spect['det']['ygap']
-            self._spect['det']['ygap'] = tmp
-            self._spect['det']['ysize'] = 1.0/self._spect['det']['ysize']
+            tmp = self._spect['det'][det-1]['xgap']
+            self._spect['det'][det-1]['xgap'] = self._spect['det'][det-1]['ygap']
+            self._spect['det'][det-1]['ygap'] = tmp
+            self._spect['det'][det-1]['ysize'] = 1.0/self._spect['det'][det-1]['ysize']
             # Update the amplifier/data/overscan sections
-            for i in range(self._spect['det']['numamplifiers']):
+            for i in range(self._spect['det'][det-1]['numamplifiers']):
                 # Flip the order of the sections
-                self._spect['det']['ampsec{0:02d}'.format(i+1)] = self._spect['det']['ampsec{0:02d}'.format(i+1)][::-1]
-                self._spect['det']['datasec{0:02d}'.format(i+1)] = self._spect['det']['datasec{0:02d}'.format(i+1)][::-1]
-                self._spect['det']['oscansec{0:02d}'.format(i+1)] = self._spect['det']['oscansec{0:02d}'.format(i+1)][::-1]
+                self._spect['det'][det-1]['ampsec{0:02d}'.format(i+1)] = self._spect['det'][det-1]['ampsec{0:02d}'.format(i+1)][::-1]
+                self._spect['det'][det-1]['datasec{0:02d}'.format(i+1)] = self._spect['det'][det-1]['datasec{0:02d}'.format(i+1)][::-1]
+                self._spect['det'][det-1]['oscansec{0:02d}'.format(i+1)] = self._spect['det'][det-1]['oscansec{0:02d}'.format(i+1)][::-1]
             # Change the user-specified (x,y) pixel sizes
             msgs.work("Transpose gain and readnoise frames")
             # Set the new dispersion axis
             self._dispaxis=0
         return
 
-    def GetPixelLocations(self):
+    def GetPixelLocations(self, det):
         if self._argflag['reduce']['locations'] is None:
-            self._pixlocn = artrace.gen_pixloc(self, self._mstrace,gen=True)
+            self._pixlocn = artrace.gen_pixloc(self, self._mstrace, det, gen=True)
         elif self._argflag['reduce']['locations'] in ["mstrace"]:
-            self._pixlocn = arutils.gen_pixloc(self._spect,self._mstrace,gen=False)
+            self._pixlocn = arutils.gen_pixloc(self._spect,self._mstrace, det, gen=False)
         else:
             self._pixlocn = arload.load_master(self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['locations'], frametype=None)
         return
@@ -350,7 +352,7 @@ class ClassMain:
             mspixflat_name = None
         return mspixflat, mspixflatnrm, msblaze, mspixflat_name
 
-    def MasterTrace(self, sc):
+    def MasterTrace(self, sc, det):
         if self._argflag['reduce']['usetrace'] in ['trace', 'blzflat']:
             msgs.info("Preparing a master trace frame with {0:s}".format(self._argflag['reduce']['usetrace']))
             if self._argflag['reduce']['usetrace'] == 'trace':
@@ -371,29 +373,29 @@ class ClassMain:
                     break
             if not foundtrc:
                 # Load the frames for tracing
-                frames = arload.load_frames(self, ind, frametype='trace', msbias=self._msbias, trim=self._argflag['reduce']['trim'], transpose=self._transpose)
+                frames = arload.load_frames(self, ind, det, frametype='trace', msbias=self._msbias, trim=self._argflag['reduce']['trim'], transpose=self._transpose)
                 if self._argflag['reduce']['flatmatch'] > 0.0:
-                    sframes = arsort.match_frames(self, frames, self._argflag['reduce']['flatmatch'], frametype='trace', satlevel=self._spect['det']['saturation']*self._spect['det']['nonlinear'])
+                    sframes = arsort.match_frames(self, frames, self._argflag['reduce']['flatmatch'], frametype='trace', satlevel=self._spect['det'][det-1]['saturation']*self._spect['det'][det-1]['nonlinear'])
                     subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
                     numarr = np.array([])
                     for i in range(len(sframes)):
                         numarr = np.append(numarr, sframes[i].shape[2])
                         mstrace = arcomb.comb_frames(sframes[i], spect=self._spect, frametype='trace', **self._argflag['trace']['comb'])
-                        mstrace_name = "{0:s}/{1:s}/sub-msflat{2:s}_{3:03d}_{4:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"]["suffix"],len(self._done_flat),i)
+                        mstrace_name = "{0:s}/{1:s}/sub-msflat{2:s}_{3:03d}_{4:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"][det-1]["suffix"],len(self._done_flat),i)
                         null = os.path.splitext(os.path.basename(mstrace_name))[0]
-                        self._trcprefix = "{0:s}{1:s}".format(null,self._spect["det"]["suffix"])
+                        self._trcprefix = "{0:s}{1:s}".format(null,self._spect["det"][det-1]["suffix"])
                         # Send the data away to be saved
                         arsave.save_master(self, mstrace, filename=mstrace_name, frametype='trace', ind=ind)
                         subframes[:,:,i]=mstrace.copy()
                     del sframes
                     # Combine all sub-frames
-                    mstrace = arcomb.comb_frames(subframes, spect=self._spect, frametype='trace', weights=numarr, **self._argflag['trace']['comb'])
+                    mstrace = arcomb.comb_frames(subframes, det, spect=self._spect, frametype='trace', weights=numarr, **self._argflag['trace']['comb'])
                     del subframes
                 else:
-                    mstrace = arcomb.comb_frames(frames, spect=self._spect, frametype='trace', **self._argflag['trace']['comb'])
+                    mstrace = arcomb.comb_frames(frames, det, spect=self._spect, frametype='trace', **self._argflag['trace']['comb'])
                 del frames
                 # Derive a suitable name for the master trace frame
-                mstrace_name = "{0:s}/{1:s}/msflat{2:s}_{3:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"]["suffix"],len(self._done_flat))
+                mstrace_name = "{0:s}/{1:s}/msflat{2:s}_{3:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"][det-1]["suffix"],len(self._done_flat))
                 self._trcprefix = os.path.splitext(os.path.basename(mstrace_name))[0]
                 # Send the data away to be saved
                 arsave.save_master(self, mstrace, filename=mstrace_name, frametype='trace', ind=ind)
@@ -466,7 +468,7 @@ class ClassMain:
                 prefix = "{0:s}{1:s}".format(sciext_name_p,self._spect["det"][kk]["suffix"])
                 ###############
                 # Get amplifier sections
-                #self._ampsec = arproc.get_ampsec_trimmed(self, self._fitsdict['naxis0'][scidx[0]], self._fitsdict['naxis1'][scidx[0]])
+                self._ampsec = arproc.get_ampsec_trimmed(self, det, scidx[0])
                 ###############
                 # Generate master bias frame
                 self._msbias, self._msbias_name = self.MasterBias(sc, det)
@@ -481,14 +483,13 @@ class ClassMain:
                 self._msarc, self._msarc_name = self.MasterArc(sc, det)
                 ###############
                 # Determine the dispersion direction (and transpose if necessary) only on the first pass through
-                xdb.set_trace()
-                self.GetDispersionDirection(self._spect['arc']['index'][sc])
+                self.GetDispersionDirection(self._spect['arc']['index'][sc], det)
                 ###############
                 # Generate a master trace frame
-                self._mstrace, self._mstrace_name = self.MasterTrace(sc)
+                self._mstrace, self._mstrace_name = self.MasterTrace(sc, det)
                 ###############
                 # Generate an array that provides the physical pixel locations on the detector
-                self.GetPixelLocations()
+                self.GetPixelLocations(det)
                 ###############
                 # Determine the edges of the spectrum
                 self._lordloc, self._rordloc = artrace.trace_orders(self, self._mstrace, prefix=prefix, trcprefix=self._trcprefix)

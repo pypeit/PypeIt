@@ -8,6 +8,8 @@ import arcyproc
 import artrace
 import arutils
 import arplot
+import arload
+import arlris
 
 from xastropy.xutils import xdebug as xdb
 
@@ -420,7 +422,7 @@ def get_ampscale(slf, msflat):
     return sclframe
 
 
-def get_ampsec_trimmed(slf, naxis0, naxis1):
+def get_ampsec_trimmed(slf, det, scidx):#naxis0, naxis1):
     """
      Generate a frame that identifies each pixel to an amplifier, and then trim it to the data sections.
      This frame can be used to later identify which trimmed pixels correspond to which amplifier
@@ -429,10 +431,28 @@ def get_ampsec_trimmed(slf, naxis0, naxis1):
     :param file: An untrimmed, unprocessed raw frame
     :return: numpy array, the same shape as a trimmed frame, with values given by the amplifier number
     """
+    # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
+    if slf._argflag['run']['spectrograph'] in ['lris_blue']:
+        msgs.info("Parsing datasec,oscansec,ampsec from headers")
+        temp, head0, secs = arlris.read_lris(slf._datlines[scidx],det)
+        # Naxis
+        slf._fitsdict['naxis0'][scidx] = temp.shape[0]
+        slf._fitsdict['naxis1'][scidx] = temp.shape[1]
+        # Loop on amplifiers
+        for kk in range(slf._spect['det'][det-1]['numamplifiers']):
+            datasec = "datasec{0:02d}".format(kk+1)
+            slf._spect['det'][det-1][datasec] = arload.load_sections(secs[0][kk])
+            oscansec = "oscansec{0:02d}".format(kk+1)
+            slf._spect['det'][det-1][oscansec] = arload.load_sections(secs[1][kk])
+            ampsec = "ampsec{0:02d}".format(kk+1)
+            slf._spect['det'][det-1][ampsec] = arload.load_sections(secs[2][kk])
+    # For convenience
+    naxis0, naxis1 = int(slf._fitsdict['naxis0'][scidx]), int(slf._fitsdict['naxis1'][scidx])
+    #
     retarr = np.zeros((naxis0, naxis1))
-    for i in range(slf._spect['det']['numamplifiers']):
+    for i in range(slf._spect['det'][det-1]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
-        x0, x1, y0, y1 = slf._spect['det'][datasec][0][0], slf._spect['det'][datasec][0][1], slf._spect['det'][datasec][1][0], slf._spect['det'][datasec][1][1]
+        x0, x1, y0, y1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
         if x0 < 0: x0 += naxis0
         if x1 < 0: x1 += naxis0
         if y0 < 0: y0 += naxis1

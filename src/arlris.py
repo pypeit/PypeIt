@@ -33,6 +33,8 @@ def read_lris(raw_file, det=None, TRIM=False):
     array: ndarray
       Combined image 
     header: FITS header
+    sections: list
+      List of datasec, oscansec, ampsec sections
     '''
     # Check for file; allow for extra .gz, etc. suffix
     fil = glob.glob(raw_file+'*') 
@@ -50,8 +52,10 @@ def read_lris(raw_file, det=None, TRIM=False):
     preline = head0['PRELINE']
     postline = head0['POSTLINE']
 
-    # Setup for datasec
+    # Setup for datasec, oscansec, ampsec
     dsec = []
+    osec = []
+    asec = []
 
     # get the x and y binning factors...
     binning = head0['BINNING']
@@ -104,7 +108,9 @@ def read_lris(raw_file, det=None, TRIM=False):
         nx = nx / 2
         n_ext = n_ext / 2
         det_idx = np.arange(n_ext) + (det-1)*n_ext
+        ndet = 1
     elif det is None:
+        ndet = 2
         det_idx = np.arange(n_ext) 
     else:
         raise ValueError('Bad value for det')
@@ -120,7 +126,7 @@ def read_lris(raw_file, det=None, TRIM=False):
 
 
     #; insert extensions into master image...
-    for i in order[det_idx]:
+    for kk,i in enumerate(order[det_idx]):
 
         #; grab complete extension...
         data, predata, postdata, x1, y1 = lris_read_amp(hdu, i+1)
@@ -131,7 +137,7 @@ def read_lris(raw_file, det=None, TRIM=False):
             #; insert predata...
             buf = predata.shape
             nxpre = buf[0]
-            xs = i*precol
+            xs = kk*precol
             xe = xs + nxpre
             '''
             if keyword_set(VERBOSE) then begin
@@ -145,18 +151,21 @@ def read_lris(raw_file, det=None, TRIM=False):
             #; insert data...
             buf = data.shape
             nxdata = buf[0]
-            xs = n_ext*precol + (x1-xmin)/xbin
+            xs = n_ext*precol + kk*nxdata #(x1-xmin)/xbin
             xe = xs + nxdata 
-            section = '[{:d}:{:d},:]'.format(xs,xe)
+            section = '[:,{:d}:{:d}]'.format(xs,xe)
             dsec.append(section)
+            asec.append(section)
             #print('data',xs,xe)
             array[xs:xe,:] = data
 
             #; insert postdata...
             buf = postdata.shape
             nxpost = buf[0]
-            xs = nx - n_ext*postpix + i*postpix
+            xs = nx - n_ext*postpix + kk*postpix
             xe = xs + nxpost 
+            section = '[:,{:d}:{:d}]'.format(xs,xe)
+            osec.append(section)
             '''
             if keyword_set(VERBOSE) then begin
                 section = '['+stringify(xs)+':'+stringify(xe)+',*]'
@@ -195,7 +204,7 @@ def read_lris(raw_file, det=None, TRIM=False):
     head0['BZERO'] = 32768-obzero
 
     # Return, transposing array back to goofy Python indexing
-    return array.transpose(), head0, dsec
+    return array.T, head0, (dsec,osec,asec)
 
 def lris_read_amp(inp, ext):
     ''' Read one amplifier of an LRIS multi-extension FITS image

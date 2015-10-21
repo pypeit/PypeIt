@@ -42,12 +42,6 @@ det01 saturation 65535.0              # The detector Saturation level
 det01 nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 ## PULL THE FOLLOWING FROM THE HEADER WHEN POSSIBLE (FOR BINNING ESPECIALLY)##
 det01 numamplifiers 2                 # Number of amplifiers
-det01 ampsec01 [:,0:1024]         # For each amplifier, you should specify the detector sections each amplifier reads out (values are inclusive).
-det01 datasec01 [:,0:1024]        # Either the data sections or the header keyword where the valid data sections can be obtained
-det01 oscansec01 [:,2049:2080]    # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
-det01 ampsec02 [:,1024:2048]      # For each amplifier, you should specify the detector sections each amplifier reads out (values are inclusive).
-det01 datasec02 [:,1024:2048]     # Either the data sections or the header keyword where the valid data sections can be obtained
-det01 oscansec02 [:,2080:2111]    # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
 det01 suffix _01blue                  # Suffix to be appended to all saved calibration and extraction frames
 det02 suffix _02blue                  # Suffix to be appended to all saved calibration and extraction frames
 
