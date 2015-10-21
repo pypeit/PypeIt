@@ -9,6 +9,8 @@ import artrace
 import arutils
 import arplot
 
+from xastropy.xutils import xdebug as xdb
+
 def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-999999.9, nsample=1):
     """
     Idea for background subtraction:
@@ -207,19 +209,19 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     msgs.info("Subtracting the sky background from the science frame")
     return sciframe-skybg, skybg
 
-def badpix(slf,frame,sigdev=10.0):
+def badpix(slf, det, frame, sigdev=10.0):
     """
     frame is a master bias frame
     sigdev is the number of standard deviations away from the median that a pixel needs to be in order to be classified as a bad pixel
     """
     bpix = np.zeros_like(frame)
     nbad = 0
-    for i in range (slf._spect['det']['numamplifiers']):
+    for i in range(slf._spect['det'][det-1]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
-        x0, x1, y0, y1 = slf._spect['det'][datasec][0][0], slf._spect['det'][datasec][0][1], slf._spect['det'][datasec][1][0], slf._spect['det'][datasec][1][1]
+        x0, x1, y0, y1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
         xv=np.arange(x0,x1)
         yv=np.arange(y0,y1)
-        # Construct and array with the rows and columns to be extracted
+        # Construct an array with the rows and columns to be extracted
         w = np.ix_(xv,yv)
         tframe = frame[w]
         temp = np.abs(np.median(tframe)-tframe)
@@ -230,11 +232,11 @@ def badpix(slf,frame,sigdev=10.0):
         bpix[w] = subfr
     del subfr, tframe, temp
     # Finally, trim the bad pixel frame
-    bpix=trim(slf,bpix)
+    bpix=trim(slf,bpix,det)
     msgs.info("Identified {0:d} bad pixels".format(int(np.sum(bpix))))
     return bpix
 
-def variance_frame(slf, sciframe, idx):
+def variance_frame(slf, det, sciframe, idx):
     # Dark Current noise
     dnoise = slf._spect['det']['darkcurr'] * float(slf._fitsdict["exptime"][idx])/3600.0
     # The effective read noise
@@ -489,7 +491,7 @@ def sn_frame(slf, sciframe, idx):
     return snframe
 
 
-def sub_overscan(slf, file):
+def sub_overscan(slf, det, file):
     for i in range(slf._spect['det']['numamplifiers']):
         # Determine the section of the chip that contains the overscan region
         oscansec = "oscansec{0:02d}".format(i+1)
@@ -555,10 +557,10 @@ def sub_overscan(slf, file):
     return file
 
 
-def trim(slf,file):
-    for i in range (slf._spect['det']['numamplifiers']):
+def trim(slf,file,det):
+    for i in range (slf._spect['det'][det-1]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
-        x0, x1, y0, y1 = slf._spect['det'][datasec][0][0], slf._spect['det'][datasec][0][1], slf._spect['det'][datasec][1][0], slf._spect['det'][datasec][1][1]
+        x0, x1, y0, y1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
         if x0 < 0: x0 += file.shape[0]
         if x1 < 0: x1 += file.shape[0]
         if y0 < 0: y0 += file.shape[1]

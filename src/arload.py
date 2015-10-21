@@ -539,7 +539,11 @@ def load_frames(slf, ind, det, frametype='<None>', msbias=None, trim=True, trans
     for i in range(np.size(ind)):
         # Instrument specific read
         if slf._argflag['run']['spectrograph'] in ['lris_blue']:
-            temp, head0 = arlris.read_lris(slf._fitsdict['directory'][ind[i]]+slf._fitsdict['filename'][ind[i]], det)
+            temp, head0, dsec = arlris.read_lris(slf._fitsdict['directory'][ind[i]]+slf._fitsdict['filename'][ind[i]], det)
+            # Deal with datasec
+            for jj,idsec in enumerate(dsec):
+                datasec = "datasec{0:02d}".format(jj+1)
+                slf._spect['det'][det-1][datasec] = load_sections(idsec)
         else:
             temp = pyfits.getdata(slf._fitsdict['directory'][ind[i]]+slf._fitsdict['filename'][ind[i]], slf._spect['fits']['dataext'])
         if transpose: temp = temp.T
@@ -551,7 +555,7 @@ def load_frames(slf, ind, det, frametype='<None>', msbias=None, trim=True, trans
                     arproc.sub_overscan(slf, temp)
                 else:
                     msgs.error("Could not subtract bias level when loading {0:s} frames".format(frametype))
-            if trim: temp = arproc.trim(slf, temp)
+            if trim: temp = arproc.trim(slf, temp, det)
         if i == 0:
             frames = np.zeros((temp.shape[0], temp.shape[1], np.size(ind)))
             frames[:,:,i] = temp.copy()

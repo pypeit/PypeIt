@@ -111,8 +111,8 @@ class ClassMain:
             ind = self._spect['bias']['index'][sc]
             # Load the Bias frames
             frames = arload.load_frames(self, ind, det, frametype='bias', trim=False)
-            tbpix = arcomb.comb_frames(frames, spect=self._spect, frametype='bias', **self._argflag['bias']['comb'])
-            self._bpix = arproc.badpix(self,tbpix)
+            tbpix = arcomb.comb_frames(frames, det, spect=self._spect, frametype='bias', **self._argflag['bias']['comb'])
+            self._bpix = arproc.badpix(self, det, tbpix)
             del tbpix
         else:
             msgs.info("Not preparing a bad pixel mask")
@@ -182,7 +182,15 @@ class ClassMain:
             self._pixlocn = arload.load_master(self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['locations'], frametype=None)
         return
 
-    def MasterArc(self, sc):
+    def MasterArc(self, sc, det):
+        '''Generate MasterBias frame for a given detector
+        Parameters:
+        -----------
+        sc: int 
+          Index of the science frame
+        det: int 
+          Index of the detector
+        '''
         if self._argflag['reduce']['usearc'] in ['arc']:
             msgs.info("Preparing a master arc frame")
             ind = self._spect['arc']['index'][sc]
@@ -197,27 +205,27 @@ class ClassMain:
                     self.SetFoundArc(True)
             if not self._foundarc:
                 # Load the arc frames
-                frames = arload.load_frames(self, ind, frametype='arc', msbias=self._msbias)
+                frames = arload.load_frames(self, ind, det, frametype='arc', msbias=self._msbias)
                 if self._argflag['reduce']['arcmatch'] > 0.0:
                     sframes = arsort.match_frames(self, frames, self._argflag['reduce']['arcmatch'], frametype='arc', satlevel=self._spect['det']['saturation']*self._spect['det']['nonlinear'])
                     subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
                     numarr = np.array([])
                     for i in range(len(sframes)):
                         numarr = np.append(numarr,sframes[i].shape[2])
-                        msarc = arcomb.comb_frames(sframes[i], spect=self._spect, frametype='arc', **self._argflag['arc']['comb'])
+                        msarc = arcomb.comb_frames(sframes[i], det, spect=self._spect, frametype='arc', **self._argflag['arc']['comb'])
                         msarc_name = "{0:s}/{1:s}/sub-msarc{2:s}_{3:03d}_{4:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"]["suffix"],len(self._done_arcs),i)
                         # Send the data away to be saved
                         arsave.save_master(self, msarc, filename=msarc_name, frametype='arc', ind=ind)
                         subframes[:,:,i]=msarc.copy()
                     del sframes
                     # Combine all sub-frames
-                    msarc = arcomb.comb_frames(subframes, spect=self._spect, frametype='arc', weights=numarr, **self._argflag['arc']['comb'])
+                    msarc = arcomb.comb_frames(subframes, det, spect=self._spect, frametype='arc', weights=numarr, **self._argflag['arc']['comb'])
                     del subframes
                 else:
-                    msarc = arcomb.comb_frames(frames, spect=self._spect, frametype='arc', **self._argflag['arc']['comb'])
+                    msarc = arcomb.comb_frames(frames, det, spect=self._spect, frametype='arc', **self._argflag['arc']['comb'])
                 del frames
                 # Derive a suitable name for the master arc frame
-                msarc_name = "{0:s}/{1:s}/msarc{2:s}_{3:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"]["suffix"],len(self._done_arcs))
+                msarc_name = "{0:s}/{1:s}/msarc{2:s}_{3:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"][det-1]["suffix"],len(self._done_arcs))
                 self._tltprefix = os.path.splitext(os.path.basename(msarc_name))[0]
                 # Send the data away to be saved
                 arsave.save_master(self, msarc, filename=msarc_name, frametype='arc', ind=ind)
@@ -258,7 +266,7 @@ class ClassMain:
             if not found:
                 # Load the Bias/Dark frames
                 frames = arload.load_frames(self, ind, det, frametype=self._argflag['reduce']['usebias'], transpose=self._transpose)
-                msbias = arcomb.comb_frames(frames, spect=self._spect, frametype=self._argflag['reduce']['usebias'], **self._argflag['bias']['comb'])
+                msbias = arcomb.comb_frames(frames, det, spect=self._spect, frametype=self._argflag['reduce']['usebias'], **self._argflag['bias']['comb'])
                 # Derive a suitable name for the master bias frame
                 msbias_name = "{0:s}/{1:s}/msbias{2:s}_{3:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"][det-1]["suffix"],len(self._done_bias))
                 # Send the data away to be saved
@@ -440,7 +448,6 @@ class ClassMain:
         self.Setup()
         sci = self._filesort['science']
         numsci = np.size(sci)
-        xdb.set_trace()
         if numsci == 0:
             msgs.bug("What to do if no science frames are input? The calibrations should still be processed.")
             msgs.work("Maybe assume that each non-identical arc is a science frame, but force no science extraction")
@@ -471,9 +478,10 @@ class ClassMain:
                 msgs.work("Estimate Gain and Readout noise from the raw frames...")
                 ###############
                 # Generate a master arc frame
-                self._msarc, self._msarc_name = self.MasterArc(sc)
+                self._msarc, self._msarc_name = self.MasterArc(sc, det)
                 ###############
                 # Determine the dispersion direction (and transpose if necessary) only on the first pass through
+                xdb.set_trace()
                 self.GetDispersionDirection(self._spect['arc']['index'][sc])
                 ###############
                 # Generate a master trace frame

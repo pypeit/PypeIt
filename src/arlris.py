@@ -50,6 +50,9 @@ def read_lris(raw_file, det=None, TRIM=False):
     preline = head0['PRELINE']
     postline = head0['POSTLINE']
 
+    # Setup for datasec
+    dsec = []
+
     # get the x and y binning factors...
     binning = head0['BINNING']
     xbin,ybin = [int(ibin) for ibin in binning.split(',')]
@@ -144,15 +147,9 @@ def read_lris(raw_file, det=None, TRIM=False):
             nxdata = buf[0]
             xs = n_ext*precol + (x1-xmin)/xbin
             xe = xs + nxdata 
-            '''
-            if keyword_set(VERBOSE) then begin
-                section = '['+stringify(xs)+':'+stringify(xe)+',*]'
-
-                message, 'inserting extension '+stringify(i)+ $
-                         ' data     in '+section, /info
-            endif 
-            '''
-            print('data',xs,xe)
+            section = '[{:d}:{:d},:]'.format(xs,xe)
+            dsec.append(section)
+            #print('data',xs,xe)
             array[xs:xe,:] = data
 
             #; insert postdata...
@@ -198,7 +195,7 @@ def read_lris(raw_file, det=None, TRIM=False):
     head0['BZERO'] = 32768-obzero
 
     # Return, transposing array back to goofy Python indexing
-    return array.transpose(), head0
+    return array.transpose(), head0, dsec
 
 def lris_read_amp(inp, ext):
     ''' Read one amplifier of an LRIS multi-extension FITS image
