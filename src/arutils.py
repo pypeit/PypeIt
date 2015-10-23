@@ -1,5 +1,7 @@
 import os
 import astropy.io.fits as pyfits
+from scipy.optimize import curve_fit
+from scipy.special import erf
 from scipy import interpolate
 import itertools
 import numpy as np
@@ -50,7 +52,7 @@ def calc_offset(raA, decA, raB, decB, distance=False):
     else:
         return delRA, delDEC
 
-def erf(x):
+def erf_func(x):
     """
     This is a very good approximation to the erf function.
     A probability is calculated as such:
@@ -220,6 +222,17 @@ def mask_polyfit(xarray,yarray,order,maxone=True,sigma=3.0):
     return mask
 
 
+def robust_meanstd(array):
+    """
+    Determine a robust measure of the mean and dispersion of array
+    :param array: an array of values
+    :return: median of the array and a robust estimate of the standand deviation (assuming a symmetric distribution)
+    """
+    med = np.median(array)
+    mad = np.median(np.abs(array-med))
+    return med, 1.4826*mad
+
+
 def perturb(covar, bparams, nsim=1000):
     cvsize = covar.shape[0]
     # Generate a new set of starting parameters from the covariance matrix
@@ -285,6 +298,33 @@ def polyval2d(x, y, m):
         z += a * x**i * y**j
     return z
 
+def gauss_lsqfit(x,y,pcen):
+    def gfunc(x,ampl,cent,sigm):
+        df = (x[1:]-x[:-1])/2.0
+        df = np.append(df,df[-1])
+        sqt = sigm*np.sqrt(2.0)
+        #return cons*df*2.0 + \
+        return ampl*0.5*np.sqrt(np.pi)*sqt*(erf((x+df-cent)/sqt) - erf((x-df-cent)/sqt))
+        #return cons + ampl*np.exp(-0.5*((x-cent)/sigm)**2)
+
+    if np.any(y<0.0):
+        return [0.0, 0.0, 0.0], True
+    # Obtain a quick first guess at the parameters
+    ampl, cent, sigm, good = arcyarc.fit_gauss(x, y, np.zeros(3,dtype=np.float), 0, x.size, float(pcen))
+    if good == 0:
+        return [0.0, 0.0, 0.0], True
+    elif np.any(np.isnan([ampl, cent, sigm])):
+        return [0.0, 0.0, 0.0], True
+    else:
+        # Perform a least squares fit
+        try:
+            popt, pcov = curve_fit(gfunc, x, y, p0=[ampl, cent, sigm], maxfev=100)
+            #popt, pcov = curve_fit(gfunc, x, y, p0=[0.0,ampl, cent, sigm], maxfev=100)
+        except:
+            return [0.0, 0.0, 0.0], True
+        return [popt[0], popt[1], popt[2]], False
+        #return [popt[1], popt[2], popt[3]], False
+
 def gauss_fit(x,y,pcen):
 #	dx = np.ones(x.size)*np.mean(x[1:]-x[:-1])
 #	coeffs = polyfit_integral(x, y, dx, 2)
@@ -293,6 +333,8 @@ def gauss_fit(x,y,pcen):
         return [0.0, 0.0, 0.0], True
     ampl, cent, sigm, good = arcyarc.fit_gauss(x, y, np.zeros(3,dtype=np.float), 0, x.size, float(pcen))
     if good == 0:
+        return [0.0, 0.0, 0.0], True
+    elif np.any(np.isnan([ampl, cent, sigm])):
         return [0.0, 0.0, 0.0], True
     else:
         return [ampl, cent, sigm], False
@@ -303,6 +345,44 @@ def poly_to_gauss(coeffs):
     cent = -0.5*coeffs[1]/coeffs[2]
     ampl = np.exp( coeffs[0] + 0.5*cent/sigm**2 )
     return [ampl, cent, sigm]
+
+
+def polyfit2d(x, y, z, deg, w=None):
+    """
+    :param x: array of x values
+    :param y: array of y values
+    :param z: value of data at each (x,y) coordinate
+    :param deg: degree of polynomial fit in the form [nx,ny]
+    :param w: weights
+    :return: coefficients
+    """
+    msgs.work("Generalize to different polynomial types")
+    x = np.asarray(x)
+    y = np.asarray(y)
+    z = np.asarray(z)
+    deg = np.asarray(deg)
+    vander = np.polynomial.polynomial.polyvander2d(x, y, deg)
+    if w is not None:
+        w = np.asarray(w) + 0.0
+        if w.ndim != 1:
+            msgs.bug("arutils.polyfit2d - Expected 1D vector for weights")
+        if len(x) != len(w) or len(y) != len(w) or len(x) != len(y):
+            msgs.bug("arutils.polyfit2d - Expected x, y and weights to have same length")
+        z = z * w
+        vander = vander * w[:,np.newaxis]
+
+    vander = vander.reshape((-1,vander.shape[-1]))
+    z = z.reshape((vander.shape[0],))
+    c = np.linalg.lstsq(vander, z)[0]
+    return c.reshape(deg+1)
+
+
+def polyval2d(c, x, y):
+    msgs.work("Generalize to different polynomial types")
+    xx, yy = np.meshgrid(x,y)
+    surf = np.polynomial.polynomial.polyval2d(xx, yy, c)
+    return surf
+
 
 def polyfit_integral(x, y, dx, deg, rcond=None, full=False, w=None):
     order = int(deg) + 1
@@ -329,9 +409,9 @@ def polyfit_integral(x, y, dx, deg, rcond=None, full=False, w=None):
     if w is not None:
         w = np.asarray(w) + 0.0
         if w.ndim != 1:
-            raise TypeError("expected 1D vector for w")
+            msgs.bug("Expected 1D vector for weights in arutils.polyfit2d")
         if len(x) != len(w):
-            raise TypeError("expected x and w to have same length")
+            msgs.bug("Expected x and weights to have same length in arutils.polyfit2d")
         # apply weights. Don't use inplace operations as they
         # can cause problems with NA.
         lhs = lhs * w
@@ -387,6 +467,17 @@ def poly_iterfit(x,y,ordr,maxrej=5):
         r += 1
     msgs.info("Robust regression identified {0:d} outliers".format(r))
     return c
+
+
+def rebin(frame, newshape):
+    shape = frame.shape
+    lenShape = len(shape)
+    factor = np.asarray(shape)/np.asarray(newshape)
+    evList = ['frame.reshape('] + \
+             ['newshape[%d],factor[%d],'%(i,i) for i in xrange(lenShape)] + \
+             [')'] + ['.sum(%d)'%(i+1) for i in xrange(lenShape)] + \
+             ['/factor[%d]'%i for i in xrange(lenShape)]
+    return eval(''.join(evList))
 
 
 def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, function="polynomial", initialmask=None, forceimask=False, min=None, max=None, debug=False):
@@ -538,8 +629,17 @@ def spline_coeffs(a, b, y, alpha=0.0, beta=0.0):
     c[-1] = beta * h**2/6 + 2 * c[-2] - c[-3]
     return c
 
+
 def spline_interp(xnew,xold,yold):
     # Calculate the coefficients
     c = spline_coeffs(xold[0], xold[-1], yold)
     ynew = arcyutils.spline_interpolate(xnew, c, xold[0], xold[-1])
     return ynew
+
+
+def subsample(frame):
+    newshape = (2*frame.shape[0], 2*frame.shape[1])
+    slices = [slice(0, old, float(old)/new) for old, new in zip(frame.shape, newshape)]
+    coordinates = np.mgrid[slices]
+    indices = coordinates.astype('i')
+    return frame[tuple(indices)]
