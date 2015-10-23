@@ -25,8 +25,10 @@ def dispdir(msframe, dispwin=None, mode=0):
     msgs.info("Determining the dispersion direction")
     ds1, ds2 = msframe.shape
     if dispwin is None:
-        min1, max1 = ds1/2-10, ds1/2+10
-        min2, max2 = ds2/2-10, ds2/2+10
+        #min1, max1 = ds1/2-10, ds1/2+10
+        #min2, max2 = ds2/2-10, ds2/2+10
+        min1, max1 = ds1/4, 3*(ds1/4)
+        min2, max2 = ds2/4, 3*(ds2/4)
     elif type(dispwin) is list: # User has specified the location of the window (x1:x2,y1:y2)
         min1, max1 = dispwin[0]
         min2, max2 = dispwin[1]
@@ -34,8 +36,10 @@ def dispdir(msframe, dispwin=None, mode=0):
         min1, max1 = ds1/2-dispwin, ds1/2+dispwin
         min2, max2 = ds2/2-dispwin, ds2/2+dispwin
     # Generate the two test statistics
-    test1 = np.median(msframe[min1:max1,:],axis=0)
-    test2 = np.median(msframe[:,min2:max2],axis=1)
+    #test1 = np.median(msframe[min1:max1,:],axis=0)
+    #test2 = np.median(msframe[:,min2:max2],axis=1)
+    test1 = np.mean(msframe[min1:max1,:],axis=0) # Using mean for LRIS
+    test2 = np.mean(msframe[:,min2:max2],axis=1)
     # Calculate the step difference
     htst1 = test1[1:]-test1[:-1]
     htst2 = test2[1:]-test2[:-1]
@@ -91,12 +95,10 @@ def trace_orders(slf, mstrace, prefix="", trcprefix="", maskBadColumns=False):
     # First test for an edge
     diff = np.zeros_like(binarr)
     w = np.where(troll!=0.0)
-    diff[w] = (troll[w]-binarr[w])/binarr[w] 
-    # Deal with NAN
-    bad = np.isinf(diff)
-    diff[bad] = 0.
-    # Find significant deviations
+    diff[w] = (troll[w]-binarr[w])/binarr[w]
     siglev = 1.4826*np.median(np.abs(diff))
+    siglev = 0.02
+    msgs.warn("JXP kludged siglev.  Needs a proper algorithm")
     ttedges = np.zeros_like(binarr)
     wr = np.where(diff > +6.0*siglev)
     wl = np.where(diff < -6.0*siglev)
@@ -107,12 +109,8 @@ def trace_orders(slf, mstrace, prefix="", trcprefix="", maskBadColumns=False):
     diff = (troll-binarr)
     siglev = 1.4826*np.median(np.abs(diff))
     tedges = np.zeros_like(binarr)
-    # JXP REMOVED FOR NOW
-    #wr = np.where((diff > +6.0*siglev) & (ttedges == +1))
-    #wl = np.where((diff < -6.0*siglev) & (ttedges == -1))
-    siglev = np.std(diff)
-    wr = np.where(diff > +6.0*siglev) 
-    wl = np.where(diff < -6.0*siglev)
+    wr = np.where((diff > +6.0*siglev) & (ttedges == +1))
+    wl = np.where((diff < -6.0*siglev) & (ttedges == -1))
     tedges[wr] = +1.0
     tedges[wl] = -1.0
     nedgear = arcytrace.clean_edges(diff, tedges, slf._dispaxis)
@@ -124,7 +122,7 @@ def trace_orders(slf, mstrace, prefix="", trcprefix="", maskBadColumns=False):
         edgsum = np.sum(nedgear,axis=slf._dispaxis)
         sigma = 1.4826*np.median(np.abs(edgsum-np.median(edgsum)))
         w = np.where(np.abs(edgsum)>=1.5*sigma)[0]
-    #	maskcols = np.unique(np.append(w,np.append(np.append(w+2,w+1),np.append(w-2,w-1))))
+    #   maskcols = np.unique(np.append(w,np.append(np.append(w+2,w+1),np.append(w-2,w-1))))
         maskcols = np.unique(np.append(w,np.append(w+1,w-1)))
         #plt.plot(np.arange(nedgear.shape[1]),np.sum(nedgear,axis=0),'k-',drawstyle='steps')
         #plt.plot([0.0,nedgear.shape[1]],[sigma,sigma],'r-',drawstyle='steps')
@@ -156,7 +154,6 @@ def trace_orders(slf, mstrace, prefix="", trcprefix="", maskBadColumns=False):
     edgearr = np.zeros_like(nedgear)
     edgearr[np.where((nedgear == +1) | (tedgear == +1))] = +1
     edgearr[np.where((nedgear == -1) | (tedgear == -1))] = -1
-    xdb.set_trace()
     #arutils.ds9plot(edgearr)
     # Assign a number to each of the edges
     msgs.info("Matching order edges")
@@ -166,12 +163,14 @@ def trace_orders(slf, mstrace, prefix="", trcprefix="", maskBadColumns=False):
     if rcnt==1: retxt = "edge"
     else: retxt = "edges"
     msgs.info("{0:d} left {1:s} and {2:d} right {3:s} were found in the trace".format(lcnt,letxt,rcnt,retxt))
-    if lcnt == 0 or rcnt == 0:
-        msgs.error("Unable to trace order edges"+msgs.newline()+"try a different method to trace the order edges")
-    # Now assign each edge detection to an order
+    if (lcnt == 0) & (rcnt == 0):
+        msgs.error("Unable to trace any edges"+msgs.newline()+"try a different method to trace the order edges")
+    elif (rcnt == 0) & (lcnt == 1):
+        msgs.warn("Unable to find a right edge. Adding one in.")
+        edgearr[:,-1] = 1000
+        rcnt = 1
     msgs.info("Assigning orders")
     #arutils.ds9plot(edgearr)
-    xdb.set_trace()
     lmin, lmax, rmin, rmax = arcytrace.assign_orders(edgearr, slf._dispaxis, lcnt, rcnt)
     msgs.info("Ignoring orders that span < {0:3.2f}x{1:d} pixels on the detector".format(slf._argflag['trace']['orders']['fracignore'],int(edgearr.shape[slf._dispaxis]*binby)))
     fracpix = int(slf._argflag['trace']['orders']['fracignore']*edgearr.shape[slf._dispaxis])
@@ -215,6 +214,7 @@ def trace_orders(slf, mstrace, prefix="", trcprefix="", maskBadColumns=False):
     # Check if no further work is needed (i.e. there only exists one order)
     if (lmax+1-lmin==1) and (rmax+1-rmin==1):
         # Just a single order has been identified (i.e. probably longslit)
+        msgs.info("Only one order was identified.  Should be a longslit.")
         if slf._dispaxis == 0:
             xint = slf._pixlocn[:,0,0]
         else:
@@ -940,6 +940,95 @@ def model_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
 # 			msgs.info("DS9 window was updated")
     return tilts, satsnd
 
+def trace_fweight(fimage, xinit, invvar=None, radius=3.):
+    '''Python port of trace_fweight.pro from IDLUTILS
+
+    Parameters:
+    -----------
+    fimage: 2D ndarray
+      Image for tracing
+    xinit: ndarray
+      Initial guesses for x-trace
+    invvar: ndarray, optional
+      Inverse variance array for the image
+    radius: float, optional
+      Radius for centroiding; default to 3.0
+    '''
+    # Definitions for Cython
+    #cdef int nx,ny,ncen
+
+    # Init
+    nx = fimage.shape[1]
+    ny = fimage.shape[0]
+    ncen = len(xinit)
+    xnew = copy.deepcopy(xinit)
+    xerr = np.zeros(ncen) + 999.
+
+    ycen = np.arange(ny, dtype=int)
+    invvar = 0. * fimage + 1.
+    x1 = xinit - radius + 0.5
+    x2 = xinit + radius + 0.5
+    ix1 = np.floor(x1).astype(int)
+    ix2 = np.floor(x2).astype(int)
+
+    fullpix = int(np.maximum(np.min(ix2-ix1)-1,0))
+    sumw = np.zeros(ny)
+    sumxw = np.zeros(ny)
+    sumwt = np.zeros(ny)
+    sumsx1 = np.zeros(ny)
+    sumsx2 = np.zeros(ny)
+    qbad = np.array([False]*ny) 
+
+    if invvar is None: 
+        invvar = np.zeros_like(fimage) + 1. 
+
+    '''
+    cdef np.ndarray[ITYPE_t, ndim=1] ycen = np.arange(ny, dtype=ITYPE)
+    cdef np.ndarray[DTYPE_t, ndim=1] invvar = 0. * fimage + 1.
+    cdef np.ndarray[DTYPE_t, ndim=1] x1 = xinit - radius + 0.5
+    cdef np.ndarray[DTYPE_t, ndim=1] x2 = xinit + radius + 0.5
+    cdef np.ndarray[ITYPE_t, ndim=1] ix1 = np.fix(x1)
+    cdef np.ndarray[ITYPE_t, ndim=1] ix2 = np.fix(x2)
+    cdef np.ndarray[DTYPE_t, ndim=1] fullpix = np.maximum(np.min(ix2-ix1)-1),0)
+
+    cdef np.ndarray[DTYPE_t, ndim=1] sumw = np.zeros(ny, dypte=DTYPE)
+    cdef np.ndarray[DTYPE_t, ndim=1] sumxw = np.zeros(ny, dypte=DTYPE)
+    cdef np.ndarray[DTYPE_t, ndim=1] sumwt = np.zeros(ny, dypte=DTYPE)
+    cdef np.ndarray[DTYPE_t, ndim=1] sumsx1 = np.zeros(ny, dypte=DTYPE)
+    cdef np.ndarray[DTYPE_t, ndim=1] sumsx2 = np.zeros(ny, dypte=DTYPE)
+    cdef np.ndarray[ITYPE_t, ndim=1] qbad = np.zeros(ny, dypte=ITYPE)
+    '''
+
+    # Compute
+    for ii in range(0,fullpix+3):
+        spot = ix1 - 1 + ii
+        ih = np.clip(spot,0,nx-1)
+        xdiff = spot - xinit
+        #
+        wt = np.clip(radius - np.abs(xdiff) + 0.5,0,1) * ((spot >= 0) & (spot < nx))
+        sumw = sumw + fimage[ycen,ih] * wt
+        sumwt = sumwt + wt
+        sumxw = sumxw + fimage[ycen,ih] * xdiff * wt
+        var_term = wt**2 / (invvar[ycen,ih] + (invvar[ycen,ih] == 0))
+        sumsx2 = sumsx2 + var_term
+        sumsx1 = sumsx1 + xdiff**2 * var_term
+        #qbad = qbad or (invvar[ycen,ih] <= 0)
+        qbad = np.any([qbad, invvar[ycen,ih] <= 0], axis=0)
+
+    # Fill up
+    good = (sumw > 0) &  (~qbad)
+    if np.sum(good) > 0:
+        delta_x = sumxw[good]/sumw[good]
+        xnew[good] = delta_x + xinit[good]
+        xerr[good] = np.sqrt(sumsx1[good] + sumsx2[good]*delta_x**2)/sumw[good]
+
+    bad = np.any([np.abs(xnew-xinit) > radius + 0.5,xinit < radius - 0.5,xinit > nx - 0.5 - radius],axis=0)
+    if np.sum(bad) > 0:
+        xnew[bad] = xinit[bad]
+        xerr[bad] = 999.0
+
+    # Return
+    return xnew, xerr
 
 def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
     """

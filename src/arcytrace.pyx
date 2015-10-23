@@ -2516,6 +2516,77 @@ def polyfit_xy(np.ndarray[DTYPE_t, ndim=2] xy not None,
 #  T  #
 #######
 
+'''
+@cython.boundscheck(False)
+def trace_fweight(np.ndarray[DTYPE_t, ndim=2] fimage not None,
+                np.ndarray[DTYPE_t, ndim=1] xinit not None,
+                double radius=3.):
+    JXP port of trace_fweight from IDLUTILS
+    Parameters:
+    -----------
+    fimage: 2D ndarray
+      Image for tracing
+    xinit: ndarray
+      Initial guesses for x-trace
+    radius: float, optional
+      Radius for centroiding; default to 3.0
+    # Definitions
+    cdef int nx,ny,ncen
+
+    # Init
+    nx = fimage.shape[0]
+    ny = fimage.shape[1]
+    ncen = len(xcen)
+
+    cdef np.ndarray[ITYPE_t, ndim=1] ycen = np.arange(nx, dtype=ITYPE)
+    cdef np.ndarray[DTYPE_t, ndim=1] invvar = 0. * fimage + 1.
+    cdef np.ndarray[DTYPE_t, ndim=1] x1 = xinit - radius + 0.5
+    cdef np.ndarray[DTYPE_t, ndim=1] x2 = xinit + radius + 0.5
+    cdef np.ndarray[ITYPE_t, ndim=1] ix1 = np.fix(x1)
+    cdef np.ndarray[ITYPE_t, ndim=1] ix2 = np.fix(x2)
+    cdef np.ndarray[DTYPE_t, ndim=1] fullpix = np.maximum(np.min(ix2-ix1)-1),0)
+
+    cdef np.ndarray[DTYPE_t, ndim=1] sumw = np.zeros(nx, dypte=DTYPE)
+    cdef np.ndarray[DTYPE_t, ndim=1] sumxw = np.zeros(nx, dypte=DTYPE)
+    cdef np.ndarray[DTYPE_t, ndim=1] sumwt = np.zeros(nx, dypte=DTYPE)
+    cdef np.ndarray[DTYPE_t, ndim=1] sumsx1 = np.zeros(nx, dypte=DTYPE)
+    cdef np.ndarray[DTYPE_t, ndim=1] sumsx2 = np.zeros(nx, dypte=DTYPE)
+    cdef np.ndarray[ITYPE_t, ndim=1] qbad = np.zeros(nx, dypte=ITYPE)
+
+    # INIT
+    fullpix = np.maximum(np.min(ix2-ix1)-1),0) 
+
+    for ii in range(0,fullpix+3):
+        spot = ix1 - 1 + ii
+        ih = np.clip(spot,0,nx-1)
+        xdiff = spot - xinit
+        #
+        wt = np.clip(radius - np.abs(xdiff) + 0.5,0,1) * ((spot >= 0) & (spot < nx))
+        sumw = sumw + fimage[ih,ycen] * wt
+        sumwt = sumwt + wt
+        sumxw = sumxw + fimage[ih,ycen] * xdiff * wt
+        var_term = wt**2 / (invvar[ih,ycen] + (invvar[ih,ycen] EQ 0))
+        sumsx2 = sumsx2 + var_term
+        sumsx1 = sumsx1 + xdiff^2 * var_term
+        qbad = qbad OR (invvar[ih,ycen] LE 0)
+
+ xnew = xinit
+ xerr = xinit*0. + 999.0
+ good = where(sumw GT 0 AND qbad EQ 0)
+ if good[0] NE -1 then begin
+   delta_x = sumxw[good]/sumw[good]
+   xnew[good] = delta_x + xinit[good]
+   xerr[good] = sqrt(sumsx1[good] + sumsx2[good]*delta_x^2 )/sumw[good] 
+ endif 
+
+ bad = where(abs(xnew-xinit) GT radius + 0.5 OR $
+             xinit LT radius - 0.5 OR xinit GT nx - 0.5 - radius)
+ if bad[0] NE -1 then begin
+   xnew[bad] = xinit[bad]
+   xerr[bad] = 999.0
+ endif
+'''
+
 @cython.boundscheck(False)
 def trace_tilts(np.ndarray[DTYPE_t, ndim=2] msarc not None,
                 np.ndarray[ITYPE_t, ndim=2] ordcen not None,

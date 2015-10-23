@@ -1,5 +1,6 @@
 import os
 import astropy.io.fits as pyfits
+from astropy.stats import sigma_clip as sigma_clip
 import itertools
 import numpy as np
 import armsgs as msgs
@@ -72,6 +73,28 @@ def erf(x):
     t = 1.0/(1.0 + p*x)
     y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*np.exp(-x*x)
     return sign*y
+
+def find_peaks(yval, siglev=10.):
+    '''Find peaks in a input array
+    yerror is calculated from the array itself (RMS of clipped data)
+
+    Parameters:
+    -------------
+    yval: ndarray
+      Vector of y-values
+    siglev: float, optional
+      Sigma level for detection
+    '''
+    # Calculate RMS
+    yclipped = sig_clip(yval)
+    rms = np.std(yclipped)
+    #
+    tpixt, num = arcyarc.detections_sigma(yval,np.array([rms]*mid_row.shape[0]),np.zeros(yval.shape[0],dtype=np.int),siglev/2.0,siglev) 
+    # Remove similar
+    pixt = arcyarc.remove_similar(tpixt, num)
+    pixt = pixt[np.where(pixt!=-1)].astype(np.int)
+    # Return
+    return pixt
 
 def func_der(coeffs,func,nderive=1):
     if func == "polynomial":

@@ -582,9 +582,9 @@ def trim(slf,file,det):
         datasec = "datasec{0:02d}".format(i+1)
         x0, x1, y0, y1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
         if x0 < 0: x0 += file.shape[0]
-        if x1 < 0: x1 += file.shape[0]
+        if x1 <= 0: x1 += file.shape[0]
         if y0 < 0: y0 += file.shape[1]
-        if y1 < 0: y1 += file.shape[1]
+        if y1 <= 0: y1 += file.shape[1]
         if i==0:
             xv=np.arange(x0,x1)
             yv=np.arange(y0,y1)

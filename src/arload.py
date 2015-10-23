@@ -246,9 +246,9 @@ def load_sections(string, strtxt="<not specified>"):
     """
     try:
         xyrng = string.strip('[]()').split(',')
-        if xyrng[0]==":": xyarrX = [0,-1] # -1 should allow all to be used
+        if xyrng[0]==":": xyarrX = [0,0] 
         else: xyarrX = xyrng[0].split(':')
-        if xyrng[1]==":": xyarrY = [0,-1] # -1 should allow all to be used
+        if xyrng[1]==":": xyarrY = [0,0] 
         else: xyarrY = xyrng[1].split(':')
         return [[np.int(xyarrX[0]),np.int(xyarrX[1])],[np.int(xyarrY[0]),np.int(xyarrY[1])]]
     except:

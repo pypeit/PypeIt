@@ -17,6 +17,7 @@ import arsort
 import artrace
 import arutils
 import arvcorr
+import arqa
 
 from xastropy.xutils import xdebug as xdb
 
@@ -494,6 +495,18 @@ class ClassMain:
                 # Determine the edges of the spectrum
                 self._lordloc, self._rordloc = artrace.trace_orders(self, self._mstrace, prefix=prefix, trcprefix=self._trcprefix)
                 arsave.save_ordloc(self, self._mstrace_name)
+                arqa.trace_qa(self, self._mstrace, self._lordloc, self._rordloc, self._mstrace_name)
+                '''
+                do_pickle = True
+                if do_pickle:
+                    import pickle, copy
+                    lordloc = copy.deepcopy(self._lordloc)
+                    rordloc = copy.deepcopy(self._rordloc)
+                    flat = copy.deepcopy(self._mstrace)
+                    with open("tmp.pickle", "wb") as f:
+                        pickle.dump((flat,lordloc,rordloc),f)
+                '''
+                xdb.set_trace()
                 # Convert physical trace into a pixel trace
                 msgs.info("Converting physical trace locations to nearest pixel")
                 self._pixcen  = artrace.phys_to_pix(0.5*(self._lordloc+self._rordloc), self._pixlocn, self._dispaxis, 1-self._dispaxis)
