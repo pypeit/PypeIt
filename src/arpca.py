@@ -39,7 +39,7 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
 #	coeff1 = arutils.robust_regression(x0in[usetrace], y, pnpc[2], 0.1, function=function)
 
     coeffstr=[]
-    for i in range(1,npc+1):
+    for i in xrange(1,npc+1):
 #        if pnpc[i] == 0:
 #            coeffstr.append([-9.99E9])
 #            continue
@@ -80,7 +80,7 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
             fitmask = 1.0-ttmask
             msgs.prindent("  Reduced chi-squared = {0:E}".format(chisqnu))
         else:
-            for i in range(1,5):
+            for i in xrange(1,5):
                 good = np.where(fitmask!=0)[0]
                 x0[good] = numer[good]/denom[good]
 #				x0res = arutils.robust_regression(x0in[good],x0[good],pnpc[0],0.2,function=function)
@@ -145,7 +145,7 @@ def extrapolate(outpar,ords,function='polynomial'):
 
     # Order centre
     high_matr = np.zeros((nords,outpar['npc']))
-    for i in range(1,outpar['npc']+1):
+    for i in xrange(1,outpar['npc']+1):
         if outpar['coeffstr'][i-1][0] == -9.99E9:
             high_matr[:,i-1] = np.ones(nords)*outpar['high_fit'][0,i-1]
             continue
@@ -196,15 +196,15 @@ def get_pc(data, k, tol=0.0, maxiter=20, nofix=False, noortho=False):
         eigv = np.dot(data,np.dot(hidden.T,np.linalg.inv(np.dot(hidden,hidden.T))))
         if tol > 0.0:
             diff = 0.0
-            for i in range(k):
+            for i in xrange(k):
                 diff += np.abs( 1.0 - np.sum(oldeigv[:,i]*eigv[:,i])/np.sqrt(np.sum(oldeigv[:,i]**2)*np.sum(eigv[:,i]**2)) )
         niter += 1
 
     # Orthonormalize?
     if not noortho:
-        for b in range(k):
+        for b in xrange(k):
             # Orthogonalize
-            for bp in range(b):
+            for bp in xrange(b):
                 dot = np.sum(eigv[:,b]*eigv[:,bp])
                 eigv[:,b] -= dot*eigv[:,bp]
             # Normalize
@@ -218,6 +218,61 @@ def get_pc(data, k, tol=0.0, maxiter=20, nofix=False, noortho=False):
             eigv = np.dot(eigv,evec_hidden.T)
         hidden = np.dot(eigv.T,data)
     return eigv, hidden
+
+################################################
+# 2D Image PCA
+
+def image_basis(img, numpc=0):
+    """
+    img is a masked array
+    numpc is the number of principal components
+    """
+    # Compute the eigenvalues and eigenvectors of the covariance matrix
+    # First, subtract the median (along the spatial direction)
+    #imgmed = (img.data - img.mean(axis=1).data.reshape((img.data.shape[0],1))).T
+    imgmed = (img.data - np.median(img.data,axis=1).reshape((img.data.shape[0],1))).T
+    imgmed[np.where(img.mask.T)] = 0.0
+    eigval, eigvec = np.linalg.eig(np.cov(imgmed))
+    p = np.size(eigvec, axis=1)
+    # Sort the eigenvalues in ascending order
+    idx = np.argsort(eigval,kind='mergesort')
+    idx = idx[::-1]
+    # Sort eigenvectors according to the sorted eigenvalues
+    eigvec = eigvec[:, idx]
+    eigval = eigval[idx]
+    # Select the first few principal components
+    import pdb
+    pdb.set_trace()
+    if (numpc < p) and (numpc >= 0):
+        eigvec = eigvec[:,range(numpc)]
+    # Project the data
+    imgmed[np.where(img.mask.T)] = 0.0
+    score = np.dot(eigvec.T, imgmed)
+    return eigvec, eigval, score
+
+"""
+imgmed[np.where(img.mask.T)] = 0.0
+idx=[0]
+eigvecn = eigvec[:,idx]
+score = np.dot(eigvecn.T, imgmed)
+imgpca = np.dot(eigvecn, score).T + img.mean(axis=0).data
+arutils.ds9plot(imgpca.astype(np.float).T)
+"""
+
+def pca2d(img, numpc, mask=None, maskval=-999999.9):
+    img = img.T
+    # Check if the number of principle components is within bounds
+    if (numpc<0) or (numpc > img.shape[0]): numpc = img.shape[0]/2
+    # Obtain the principal components
+    if mask is None:
+        mask = np.zeros_like(img)
+        mask[np.where(img == maskval)] = 1
+    mimg = np.ma.array(img, mask=mask)
+    eigvec, eigval, score = image_basis(mimg, numpc)
+    # Reconstruct the image
+    imgpca = np.dot(eigvec, score).T + mimg.mean(axis=0).data
+    return imgpca.astype(np.float).T
+
 
 ################################################
 
@@ -238,7 +293,7 @@ def pc_plot(inpar, ofit, plotsdir="Plots", pcatype="<unknown>", maxp=25, prefix=
     # Loop through all pages and plot the results
     #ord=np.linspace(1,nc,nc)
     ndone=0
-    for i in range(len(pages)):
+    for i in xrange(len(pages)):
         f, axes = plt.subplots(pages[i][1], pages[i][0])
         ipx, ipy = 0, 0
         if i == 0:
@@ -271,7 +326,7 @@ def pc_plot(inpar, ofit, plotsdir="Plots", pcatype="<unknown>", maxp=25, prefix=
                 ipx = 0
                 ipy += 1
             npp[0] = npp[0] - 1
-        for j in range(npp[i]):
+        for j in xrange(npp[i]):
             if pages[i][1] == 1: ind = (ipx)
             elif pages[i][0] == 1: ind = (ipy)
             else: ind = (ipy,ipx)
@@ -310,7 +365,7 @@ def pc_plot(inpar, ofit, plotsdir="Plots", pcatype="<unknown>", maxp=25, prefix=
                 ipy += 1
         if i == 0: npp[0] = npp[0] + 1
         # Delete the unnecessary axes
-        for j in range(npp[i],axes.size):
+        for j in xrange(npp[i],axes.size):
             if pages[i][1] == 1: ind = (ipx)
             elif pages[i][0] == 1: ind = (ipy)
             else: ind = (ipy,ipx)
@@ -341,7 +396,7 @@ def pc_plot_arctilt(tiltang, centval, tilts, plotsdir="Plots", pcatype="<unknown
     x0=np.arange(tilts.shape[0])
     # First calculate the min and max values for the plotting axes, to make sure they are all the same
     ymin, ymax = None, None
-    for i in range(npc):
+    for i in xrange(npc):
         w = np.where(tiltang[:,i]!=-999999.9)
         if np.size(w[0]) == 0: continue
         medv = np.median(tiltang[:,i][w])
@@ -361,10 +416,10 @@ def pc_plot_arctilt(tiltang, centval, tilts, plotsdir="Plots", pcatype="<unknown
         return
     # Generate the plots
     ndone=0
-    for i in range(len(pages)):
+    for i in xrange(len(pages)):
         f, axes = plt.subplots(pages[i][1], pages[i][0])
         ipx, ipy = 0, 0
-        for j in range(npp[i]):
+        for j in xrange(npp[i]):
             if pages[i][1] == 1: ind = (ipx)
             elif pages[i][0] == 1: ind = (ipy)
             else: ind = (ipy,ipx)
@@ -380,7 +435,7 @@ def pc_plot_arctilt(tiltang, centval, tilts, plotsdir="Plots", pcatype="<unknown
                 ipy += 1
             ndone += 1
         # Delete the unnecessary axes
-        for j in range(npp[i],axes.size):
+        for j in xrange(npp[i],axes.size):
             if pages[i][1] == 1: ind = (ipx)
             elif pages[i][0] == 1: ind = (ipy)
             else: ind = (ipy,ipx)
@@ -412,7 +467,7 @@ def pc_plot_extcenwid(tempcen, cenwid, binval, plotsdir="Plots", pcatype="<unkno
     # First calculate the min and max values for the plotting axes, to make sure they are all the same
     ymin, ymax = None, None
     """
-    for i in range(npc):
+    for i in xrange(npc):
         w = np.where(tempcen[:,i]!=-999999.9)
         if np.size(w[0]) == 0: continue
         medv = np.median(tempcen[:,i][w])
@@ -447,10 +502,10 @@ def pc_plot_extcenwid(tempcen, cenwid, binval, plotsdir="Plots", pcatype="<unkno
         return
     # Generate the plots
     ndone=0
-    for i in range(len(pages)):
+    for i in xrange(len(pages)):
         f, axes = plt.subplots(pages[i][1], pages[i][0])
         ipx, ipy = 0, 0
-        for j in range(npp[i]):
+        for j in xrange(npp[i]):
             if pages[i][1] == 1: ind = (ipx)
             elif pages[i][0] == 1: ind = (ipy)
             else: ind = (ipy,ipx)
@@ -467,7 +522,7 @@ def pc_plot_extcenwid(tempcen, cenwid, binval, plotsdir="Plots", pcatype="<unkno
                 ipy += 1
             ndone += 1
         # Delete the unnecessary axes
-        for j in range(npp[i],axes.size):
+        for j in xrange(npp[i],axes.size):
             if pages[i][1] == 1: ind = (ipx)
             elif pages[i][0] == 1: ind = (ipy)
             else: ind = (ipy,ipx)

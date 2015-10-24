@@ -167,13 +167,14 @@ def zsc_compute_sigma(flat, badpix, npix):
 
     return ngoodpix, mean, sigma
 
-def plot_orderfits(slf, model, ydata, xdata=None, plotsdir="Plots", maxp=4, prefix="", maskval=-999999.9):
+def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, plotsdir="Plots", textplt="Order", maxp=4, prefix="", maskval=-999999.9):
     """
     Given data and a model, the model+fit of each order is saved to a pdf
     """
     npix, nord = ydata.shape
     pages, npp = get_dimen(nord,maxp=maxp)
     if xdata is None: xdata = np.arange(npix).reshape((npix,1)).repeat(nord,axis=1)
+    if xmodl is None: xmodl = np.arange(model.shape[0])
     # Loop through all pages and plot the results
     ndone=0
     usepdf=True
@@ -194,21 +195,31 @@ def plot_orderfits(slf, model, ydata, xdata=None, plotsdir="Plots", maxp=4, pref
             elif pages[i][0] == 1: ind = (ipy)
             else: ind = (ipy,ipx)
             if axesIdx:
-                axes[ind].plot(xdata[:,ndone+j],ydata[:,ndone+j],'k-',drawstyle='steps')
-                axes[ind].plot(xdata[:,ndone+j],model[:,ndone+j],'r-')
+                axes[ind].plot(xdata[:,ndone+j],ydata[:,ndone+j],'bx',drawstyle='steps')
+                axes[ind].plot(xmodl,model[:,ndone+j],'r-')
             else:
-                axes.plot(xdata[:,ndone+j],ydata[:,ndone+j],'k-',drawstyle='steps')
-                axes.plot(xdata[:,ndone+j],model[:,ndone+j],'r-')
+                axes.plot(xdata[:,ndone+j],ydata[:,ndone+j],'bx',drawstyle='steps')
+                axes.plot(xmodl,model[:,ndone+j],'r-')
             ytmp = ydata[:,ndone+j]
             ytmp = ytmp[np.where(ytmp!=maskval)]
-            amn = np.min(ytmp)
-            amx = max(np.max(ytmp),np.max(model[:,ndone+j]))
-            if axesIdx:
-                axes[ind].axis([0,npix,amn,amx])
-                axes[ind].set_title("Order {0:d}".format(ndone+j+1))
+            if ytmp.size != 0: amn = min(np.min(ytmp),np.min(model[:,ndone+j]))
+            else: amn = np.min(model[:,ndone+j])
+            if ytmp.size != 0: amx = max(np.max(ytmp),np.max(model[:,ndone+j]))
+            else: amx= np.max(model[:,ndone+j])
+            xtmp = xdata[:,ndone+j]
+            xtmp = xtmp[np.where(xtmp!=maskval)]
+            if xtmp.size==0:
+                xmn = np.min(xmodl)
+                xmx = np.max(xmodl)
             else:
-                axes.axis([0,npix,amn,amx])
-                axes.set_title("Order {0:d}".format(ndone+j+1))
+                xmn = min(np.min(xtmp),np.min(xmodl))
+                xmx = max(np.max(xtmp),np.max(xmodl))
+            if axesIdx:
+                axes[ind].axis([xmn,xmx,amn,amx])
+                axes[ind].set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
+            else:
+                axes.axis([xmn,xmx,amn,amx])
+                axes.set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
             ipx += 1
             if ipx == pages[i][0]:
                 ipx = 0

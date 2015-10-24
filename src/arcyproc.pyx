@@ -257,6 +257,98 @@ def polyfit(np.ndarray[DTYPE_t, ndim=1] x not None,
     # Return the best-fitting coefficients
     return
 
+
+#@cython.boundscheck(False)
+def polyscan_fitsky(np.ndarray[DTYPE_t, ndim=2] xarr not None,
+                    np.ndarray[DTYPE_t, ndim=2] yarr not None,
+                    np.ndarray[DTYPE_t, ndim=2] warr not None,
+                    double maskval, int polyorder, int polypoints,
+                    int nsmth, int repeat):
+
+    cdef int x, sz_x, y, sz_y, i, j, k, r, cnt, ngood
+    cdef int degree = polyorder+1
+    cdef double mval, chisq
+    cdef int sz_p = polypoints/2
+    cdef int sz_pp = 2*sz_p + 1
+
+    # Make sure nsmth is odd
+    nsmth /= 2   # later, (2*nsmth + 1)  is used
+
+    sz_x = xarr.shape[0]
+    sz_y = xarr.shape[1]
+
+    cdef np.ndarray[DTYPE_t, ndim=2] model = np.zeros((sz_x,sz_y), dtype=DTYPE)
+
+    cdef gsl_multifit_linear_workspace *ws
+    cdef gsl_matrix *cov
+    cdef gsl_matrix *xmat
+
+    cdef gsl_vector *yvec
+    cdef gsl_vector *wgt
+    cdef gsl_vector *c
+
+    xmat = gsl_matrix_alloc(sz_pp*(2*nsmth+1), degree)
+    wgt  = gsl_vector_alloc(sz_pp*(2*nsmth+1))
+    yvec = gsl_vector_alloc(sz_pp*(2*nsmth+1))
+    c    = gsl_vector_alloc(degree)
+    cov  = gsl_matrix_alloc(degree, degree)
+    ws   = gsl_multifit_linear_alloc(sz_pp*(2*nsmth+1), degree)
+
+    for r in range(repeat):
+        for x in range(0,sz_x):
+            for y in range(0,sz_y):
+                if yarr[x,y] == maskval:
+                    model[x,y] = maskval
+                    continue
+                # Fill in the arrays
+                cnt = 0
+                ngood = 0
+                for i in range(-sz_p,sz_p+1):
+                    if (x+i < 0) or (x+i >=sz_x):
+                        for j in range(0,2*nsmth+1):
+                            gsl_vector_set(wgt, cnt, 0.0)
+                            cnt += 1
+                        continue
+                    for j in range(-nsmth,nsmth+1):
+                        if (y+j >= 0) and (y+j < sz_y):
+                            if (yarr[x+i, y+j] == maskval):
+                                gsl_vector_set(wgt, cnt, 0.0)
+                            else:
+                                gsl_matrix_set(xmat, cnt, 0, 1.0)
+                                for k in range(1,degree):
+                                    gsl_matrix_set(xmat, cnt, k, cpow(xarr[x+i,y+j], k))
+                                gsl_vector_set(yvec, cnt, yarr[x+i,y+j])
+                                gsl_vector_set(wgt, cnt, warr[x+i,y+j])
+                                ngood += 1
+                        else: gsl_vector_set(wgt, cnt, 0.0)
+                        cnt += 1
+                # Fit the data
+                if (ngood < degree*nsmth):
+                    model[x,y] = maskval
+                else:
+                    # Fit with a polynomial
+                    gsl_multifit_wlinear(xmat, wgt, yvec, c, cov, &chisq, ws)
+                    # Obtain the model value at this location
+                    mval = 0.0
+                    for i in range(0,degree): mval += gsl_vector_get(c, i) * cpow(xarr[x,y], i)
+                    model[x,y] = mval
+            # Update the arrays to be fit with the next iteration
+        if r != repeat-1:
+            # Update yarr for the next loop
+            for x in range(sz_x):
+                for y in range(sz_y):
+                    yarr[x,y] = model[x,y]
+
+    # Free some of these arrays from memory
+    gsl_multifit_linear_free(ws)
+    gsl_matrix_free(xmat)
+    gsl_matrix_free(cov)
+    gsl_vector_free(yvec)
+    gsl_vector_free(c)
+
+    return model
+
+
 #@cython.boundscheck(False)
 def prepare_bgmodel(np.ndarray[DTYPE_t, ndim=2] arcfr not None,
                     np.ndarray[DTYPE_t, ndim=3] pixmap not None,
@@ -405,6 +497,7 @@ def scale_blaze(np.ndarray[DTYPE_t, ndim=2] recsort not None,
             cntr += 1.0
         recmean[s] = mval/cntr
     return recmean
+
 
 @cython.boundscheck(False)
 def smooth_gaussmask(np.ndarray[DTYPE_t, ndim=2] flux not None,

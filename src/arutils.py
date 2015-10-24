@@ -281,6 +281,7 @@ def polyfitter2d(data,mask=None,order=2):
     #plt.show()
     #return m, polyval2d(x,y,m).T
 
+
 def polyfit2d(x, y, z, order=3):
     ncols = (order + 1)**2
     G = np.zeros((x.size, ncols))
@@ -290,6 +291,7 @@ def polyfit2d(x, y, z, order=3):
     m, null, null, null = np.linalg.lstsq(G, z)
     return m
 
+
 def polyval2d(x, y, m):
     order = int(np.sqrt(len(m))) - 1
     ij = itertools.product(range(order+1), range(order+1))
@@ -298,7 +300,15 @@ def polyval2d(x, y, m):
         z += a * x**i * y**j
     return z
 
+
 def gauss_lsqfit(x,y,pcen):
+    """
+
+    :param x:
+    :param y:
+    :param pcen: An estimate of the Gaussian mean
+    :return:
+    """
     def gfunc(x,ampl,cent,sigm):
         df = (x[1:]-x[:-1])/2.0
         df = np.append(df,df[-1])
@@ -324,6 +334,7 @@ def gauss_lsqfit(x,y,pcen):
             return [0.0, 0.0, 0.0], True
         return [popt[0], popt[1], popt[2]], False
         #return [popt[1], popt[2], popt[3]], False
+
 
 def gauss_fit(x,y,pcen):
 #	dx = np.ones(x.size)*np.mean(x[1:]-x[:-1])

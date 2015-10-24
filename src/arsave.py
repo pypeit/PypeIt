@@ -99,6 +99,7 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
         msgs.info("{0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
     return
 
+
 def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[]):
     msgs.info("Saving master {0:s} frame as:".format(frametype)+msgs.newline()+filename)
     hdu = pyfits.PrimaryHDU(data)
@@ -106,8 +107,8 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[]):
     msgs.info("Writing header information")
     for i in range(len(ind)):
         hdrname = "FRAME{0:03d}".format(i+1)
-        hdulist[0].header[hdrname] = (slf._fitsdict['filename'][ind[i]], 'ARMED: File used to generate Master {0:s}'.format(frametype))
-    hdulist[0].header["FRAMETYP"] = (frametype, 'ARMED: Master calibration frame type')
+        hdulist[0].header[hdrname] = (slf._fitsdict['filename'][ind[i]], 'PYPIT: File used to generate Master {0:s}'.format(frametype))
+    hdulist[0].header["FRAMETYP"] = (frametype, 'PYPIT: Master calibration frame type')
     # Write the file to disk
     if os.path.exists(filename):
         if slf._argflag['out']['overwrite'] == True:
@@ -131,6 +132,7 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[]):
         hdulist.writeto(filename)
         msgs.info("Master {0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
     return
+
 
 def save_ordloc(slf, fname):
     # Derive a suitable name

@@ -1,6 +1,8 @@
 import numpy as np
 import armsgs as msgs
 from scipy.signal import savgol_filter
+import scipy.signal as signal
+import scipy.ndimage as ndimage
 import scipy.interpolate as inter
 from matplotlib import pyplot as plt
 import arcyextract
@@ -9,6 +11,7 @@ import arcyproc
 import artrace
 import arutils
 import arplot
+from arpca import pca2d
 import pdb
 
 def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-999999.9, nsample=1):
@@ -58,7 +61,7 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     msgs.work("Multiprocess this step to make it faster")
     badorders = np.zeros(norders)
     ordpixnew = np.zeros_like(ordpix)
-    for o in range(norders):
+    for o in xrange(norders):
         # Rectify this order
         recframe = arcyextract.rectify(sciframe, ordpix, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o], maskval, slf._dispaxis)
         recerror = arcyextract.rectify(errframe, ordpix, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o], maskval, slf._dispaxis)
@@ -138,7 +141,7 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     """
     bgmod = np.zeros_like(sciframe)
     polyorder, repeat = 9, 1
-    for o in range(norders):
+    for o in xrange(norders):
         #if o < 3 or o > norders-5: continue
         xpix, ypix = np.where(ordpix==o+1)
         print "Preparing", o+1
@@ -178,7 +181,7 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
 # 	print ordwid
 # 	test_rect = arcyextract.rectify_fast(sciframe, cord_pix, ordwid, -999999.9, slf._dispaxis)
 # 	arutils.ds9plot(test_rect)
-# 	for o in range(norders):
+# 	for o in xrange(norders):
 # 		pass
 
 
@@ -196,7 +199,7 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     # Prepare and fit the sky background pixels in every order
     msgs.work("Multiprocess this step to make it faster")
     skybg = np.zeros_like(sciframe)
-    for o in range(norders):
+    for o in xrange(norders):
         xpix, ypix = np.where(ordpix==1+o)
         msgs.info("Preparing sky pixels in order {0:d}/{1:d} for a b-spline fit".format(o+1,norders))
         xbarr, ybarr = cybspline.prepare_bsplfit(arc, pixmap, tilts, xmod, ycen, xpix, ypix, dispaxis)
@@ -209,6 +212,7 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     msgs.info("Subtracting the sky background from the science frame")
     return sciframe-skybg, skybg
 
+
 def badpix(slf,frame,sigdev=10.0):
     """
     frame is a master bias frame
@@ -216,7 +220,7 @@ def badpix(slf,frame,sigdev=10.0):
     """
     bpix = np.zeros_like(frame)
     nbad = 0
-    for i in range (slf._spect['det']['numamplifiers']):
+    for i in xrange (slf._spect['det']['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
         x0, x1, y0, y1 = slf._spect['det'][datasec][0][0], slf._spect['det'][datasec][0][1], slf._spect['det'][datasec][1][0], slf._spect['det'][datasec][1][1]
         xv=np.arange(x0,x1)
@@ -237,20 +241,7 @@ def badpix(slf,frame,sigdev=10.0):
     return bpix
 
 
-def error_frame_postext(slf, sciframe, idx):
-    # Dark Current noise
-    dnoise = slf._spect['det']['darkcurr'] * float(slf._fitsdict["exptime"][idx])/3600.0
-    # The effective read noise
-    rnoise = slf._spect['det']['ronoise']**2 + (0.5*slf._spect['det']['gain'])**2
-    errframe = np.zeros_like(sciframe)
-    w = np.where(sciframe != -999999.9)
-    errframe[w] = np.sqrt(sciframe[w] + rnoise + dnoise)
-    w = np.where(sciframe == -999999.9)
-    errframe[w] = 999999.9
-    return errframe
-
-
-def extract_optimal(slf, sciframe, varframe, rejsigma=2.0, maskval=-999999.9):
+def bg_subtraction(slf, sciframe, varframe, crpix, rejsigma=3.0, maskval=-999999.9):
     """
     Extract a science target and background flux
     :param slf:
@@ -260,8 +251,7 @@ def extract_optimal(slf, sciframe, varframe, rejsigma=2.0, maskval=-999999.9):
     """
     # Set some starting parameters (maybe make these available to the user)
     msgs.work("Should these parameters be made available to the user?")
-    polyorder, repeat = 3, 1
-    numknots = sciframe.shape[0]
+    polyorder, repeat = 5, 1
     # Begin the algorithm
     errframe = np.sqrt(varframe)
     norders = slf._lordloc.shape[1]
@@ -274,17 +264,17 @@ def extract_optimal(slf, sciframe, varframe, rejsigma=2.0, maskval=-999999.9):
         xint = slf._pixlocn[0,:,0]
     # Find which pixels are within the order edges
     msgs.info("Identifying pixels within each order")
-    ordpix = arcyutils.order_pixels(slf._pixlocn, slf._lordloc, slf._rordloc, slf._dispaxis)
+    ordpix = arcyutils.order_pixels(slf._pixlocn, slf._lordloc*0.95+slf._rordloc*0.05, slf._lordloc*0.05+slf._rordloc*0.95, slf._dispaxis)
     allordpix = ordpix.copy()
     msgs.info("Applying bad pixel mask")
-    ordpix *= (1-slf._bpix.astype(np.int))
+    ordpix *= (1-slf._bpix.astype(np.int))*(1-crpix.astype(np.int))
     # Construct an array of pixels to be fit with a spline
-    msgs.bug("Tilts are the wrong shape, transposing -- fix this later")
+    #msgs.bug("Tilts are the wrong shape, transposing -- fix this later")
     msgs.bug("Remember to include the following in a loop over order number")
     #whord = np.where(ordpix != 0)
     o = 0 # order=1
     whord = np.where(ordpix == o+1)
-    tilts = slf._tilts.transpose()
+    tilts = slf._tilts.copy()
     bbox = [min(0.0,np.min(tilts)), max(1.0,np.max(tilts))]
     xvpix  = tilts[whord]
     scipix = sciframe[whord]
@@ -299,75 +289,61 @@ def extract_optimal(slf, sciframe, varframe, rejsigma=2.0, maskval=-999999.9):
     fitcls = np.zeros(sciframe.shape[0])
     msgs.info("Identifying cosmic rays and pixels containing the science target")
     msgs.work("Speed up this step in cython")
-    for i in range(sciframe.shape[0]-1):
+    for i in xrange(sciframe.shape[0]-1):
         wpix = np.where((sxvpix>=edges[i])&(sxvpix<=edges[i+1]))
         if (wpix[0].size>5):
             txpix = sxvpix[wpix]
             typix = sscipix[wpix]
-            msk, cf = arutils.robust_polyfit(txpix,typix,0,sigma=rejsigma)
+            msk, cf = arutils.robust_polyfit(txpix, typix, 0, sigma=rejsigma)
             maskpix[wpix] = msk
-            fitcls[i] = cf[0]
+            #fitcls[i] = cf[0]
+            wgd=np.where(msk==0)
+            szt = np.size(wgd[0])
+            if szt > 8:
+                fitcls[i] = np.mean(typix[wgd][szt/2-3:szt/2+4]) # Average the 7 middle pixels
+                #fitcls[i] = np.mean(np.random.shuffle(typix[wgd])[:5]) # Average the 5 random pixels
+            else:
+                fitcls[i] = cf[0]
     # Check the mask is reasonable
     scimask = sciframe.copy()
-    rxargsrt = np.argsort(xargsrt)
+    rxargsrt = np.argsort(xargsrt,kind='mergesort')
     scimask[whord] *= (1.0-maskpix)[rxargsrt]
     #arutils.ds9plot(scimask)
     # Now trace the sky lines to get a better estimate of the spectral tilt during the observations
-    scifrcp = sciframe.copy()
-    scifrcp[whord] = slf._spect['det']['saturation']
-    scitilts, satsnd = artrace.model_tilt(slf, scifrcp, tltprefix="sciobs", censpec=fitcls)
-    # Redetermine the solution of constant wavelength, based on the new set of tilts
-    msgs.bug("Science Tilts are the wrong shape, transposing -- fix this later")
-    scitilts = scitilts.transpose()
-    bbox = [min(0.0,np.min(scitilts)), max(1.0,np.max(scitilts))]
-    xvpix  = scitilts[whord]
-    scipix = sciframe[whord]
-    varpix = varframe[whord]
-    xargsrt = np.argsort(xvpix,kind='mergesort')
-    sxvpix  = xvpix[xargsrt]
-    sscipix = scipix[xargsrt]
-    svarpix = varpix[xargsrt]
+    scifrcp = scimask.copy()
+    scifrcp[whord] += (maskval*maskpix)[rxargsrt]
+    scifrcp[np.where(ordpix == 0)] = maskval
     msgs.info("Fitting sky background spectrum")
-    wbg = np.where(maskpix==0)
-    polypoints = 3*slf._pixwid[o]
-    fitfunc = arcyutils.polyfit_scan(sxvpix[wbg], sscipix[wbg], 1.0/svarpix[wbg], maskval, polyorder, polypoints, repeat)
-    #msgs.info("Determining spline knot locations")
-    #knots = arutils.get_splknots(edges,fitcls,numknots,minv=edges[0],maxv=edges[-1],maxknots=4)
-    #plt.clf()
-    #plt.plot(edges,fitcls,'b-')
-    #plt.plot(knots,np.zeros_like(knots),'rx')
-    #plt.show()
-    #msgs.info("Starting fit...")
-    #tedge = 0.5*(edges[1:]+edges[:-1])
-    # Check conditions
-    #pdb.set_trace()
-    #bgspline = inter.LSQUnivariateSpline(sxvpix[wbg], sscipix[wbg], tedge, w=1.0/svarpix[wbg], bbox=bbox, k=3)
-    #tck, u = inter.splprep([sxvpix[wbg],sscipix[wbg]], w=1.0/svarpix[wbg], k=3, s=.size, task=0)
-    #bgspline = inter.UnivariateSpline(sxvpix[wbg], sscipix[wbg], w=1.0/np.sqrt(svarpix[wbg]), bbox=bbox, k=3, s=sxvpix[wbg].size, ext=0)
+    polypoints = 5
+    nsmth = 15
+    bgmodel = arcyproc.polyscan_fitsky(tilts.copy(), scifrcp.copy(), 1.0/errframe, maskval, polyorder, polypoints, nsmth, repeat)
+    bgpix = bgmodel[whord]
+    sbgpix = bgpix[xargsrt]
+    wbg = np.where(sbgpix != maskval)
+    # Smooth this spectrum
+    polyorder = 1
+    xpix = sxvpix[wbg]
+    maxdiff = np.sort(xpix[1:]-xpix[:-1])[xpix.size-sciframe.shape[0]-1] # only include the next pixel in the fit if it is less than 10x the median difference between all pixels
     msgs.info("Generating sky background image")
-    bgframe = np.interp(tilts.flatten(), sxvpix[wbg], fitfunc).reshape(tilts.shape)
-    #bgmod += arcyproc.background_model(fitfunc_model, xapix, yapix, sciframe.shape[0], sciframe.shape[1])
-    #tlt_i, flx_i = inter.splev(tilts.flatten(),tck)
-    #bgframe = flx_i.reshape(tilts.shape)
-    #bgframe = bgspline(tilts.flatten()).reshape(tilts.shape)
-    arutils.ds9plot(bgframe)
-    arutils.ds9plot(sciframe-bgframe)
-    msgs.error("Halting!")
+    bgscan = arcyutils.polyfit_scan_lim(sxvpix[wbg], sbgpix[wbg].copy(), np.ones(wbg[0].size,dtype=np.float), maskval, polyorder, sciframe.shape[1]/3, repeat, maxdiff)
+    bgframe = np.interp(tilts.flatten(), sxvpix[wbg], bgscan).reshape(tilts.shape)
+    # Plot to make sure that the result is good
+    #arutils.ds9plot(bgframe)
+    #arutils.ds9plot(sciframe-bgframe)
+    return bgframe
 
-#    msgs.info("Masking cosmic ray hits")
-#    crr_id = arcyutils.crreject(sciframe/np.median(sciframe[whord]), slf._dispaxis)
-#    cruse = np.abs(crr_id/sciframe)[whord]
-#    medcr = np.median(cruse)
-#    madcr = 1.4826*np.median(np.abs(cruse-medcr))
-#    whcrt = np.where(cruse>medcr+crsigma*madcr)
-#    whcrr = (whord[0][whcrt],whord[1][whcrt])
-#    msgs.info("Identified {0:d} pixels affected by cosmic rays within orders in the science frame".format(whord[0].size))
-#    if whcrr[0].size != 0: ordpix[whcrr] = 0
-#	temp = sciframe.copy()
-#	temp[whcrr] = 0.0
-#	arutils.ds9plot(temp.astype(np.float))
 
-    return
+def error_frame_postext(slf, sciframe, idx):
+    # Dark Current noise
+    dnoise = slf._spect['det']['darkcurr'] * float(slf._fitsdict["exptime"][idx])/3600.0
+    # The effective read noise
+    rnoise = slf._spect['det']['ronoise']**2 + (0.5*slf._spect['det']['gain'])**2
+    errframe = np.zeros_like(sciframe)
+    w = np.where(sciframe != -999999.9)
+    errframe[w] = np.sqrt(sciframe[w] + rnoise + dnoise)
+    w = np.where(sciframe == -999999.9)
+    errframe[w] = 999999.9
+    return errframe
 
 
 def flatfield(slf, sciframe, flatframe, snframe=None):
@@ -419,7 +395,7 @@ def flatnorm(slf, msflat, maskval=-999999.9, overpix=6, fname=""):
     msgs.work("Must consider different amplifiers when normalizing and determining the blaze function")
     msgs.work("Multiprocess this step to make it faster")
     flat_ext1d = maskval*np.ones((msflat.shape[slf._dispaxis],norders))
-    for o in range(norders):
+    for o in xrange(norders):
         # Rectify this order
         recframe = arcyextract.rectify(msflat, ordpix, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o]+overpix, maskval, slf._dispaxis)
         if slf._argflag["reduce"]["FlatMethod"].lower()=="polyscan":
@@ -462,7 +438,7 @@ def flatnorm(slf, msflat, maskval=-999999.9, overpix=6, fname=""):
             #rows = np.arange(recsort.shape[0]/4,(3*recsort.shape[0])/4,dtype=np.int)
             #w = np.ix_(rows,np.arange(recframe.shape[1]))
             #recmean = np.mean(recsort[w],axis=0)
-            for i in range(recmean.size):
+            for i in xrange(recmean.size):
                 recframe[i,:] /= recmean[i]
             # Undo the rectification
             normflat_unrec = arcyextract.rectify_undo(recframe, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o], maskval, msflat.shape[0], msflat.shape[1], slf._dispaxis)
@@ -487,9 +463,9 @@ def get_ampscale(slf, msflat):
     ampdone[0]=1
     while np.sum(ampdone) != slf._spect['det']['numamplifiers']:
         abst, bbst, nbst, n0bst, n1bst = -1, -1, -1, -1, -1 # Reset the values for the most overlapping amplifier
-        for a in range(0,slf._spect['det']['numamplifiers']): # amplifier 'a' is always the reference amplifier
+        for a in xrange(0,slf._spect['det']['numamplifiers']): # amplifier 'a' is always the reference amplifier
             if ampdone[a]==0: continue
-            for b in range(0,slf._spect['det']['numamplifiers']):
+            for b in xrange(0,slf._spect['det']['numamplifiers']):
                 if ampdone[b]==1 or a==b: continue
                 tstframe = np.zeros_like(msflat)
                 tstframe[np.where(slf._ampsec==a+1)]=1
@@ -547,7 +523,7 @@ def get_ampsec_trimmed(slf, naxis0, naxis1):
     :return: numpy array, the same shape as a trimmed frame, with values given by the amplifier number
     """
     retarr = np.zeros((naxis0, naxis1))
-    for i in range(slf._spect['det']['numamplifiers']):
+    for i in xrange(slf._spect['det']['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
         x0, x1, y0, y1 = slf._spect['det'][datasec][0][0], slf._spect['det'][datasec][0][1], slf._spect['det'][datasec][1][0], slf._spect['det'][datasec][1][1]
         if x0 < 0: x0 += naxis0
@@ -608,8 +584,131 @@ def sn_frame(slf, sciframe, idx):
     return snframe
 
 
+def lacosmic(slf, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
+    """
+    Identify cosmic rays using the L.A.Cosmic algorithm
+    U{http://www.astro.yale.edu/dokkum/lacosmic/}
+    (article : U{http://arxiv.org/abs/astro-ph/0108003})
+    This routine is mostly courtesy of Malte Tewes
+
+    :param grow: Once CRs are identified, grow each CR detection by all pixels within this radius
+    :return: mask of cosmic rays (0=no CR, 1=CR)
+    """
+    msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
+    msgs.work("Include these parameters in the settings files to be adjusted by the user")
+    sigclip = 5.0
+    sigfrac = 0.3
+    objlim  = 5.0
+    # Set the settings
+    scicopy = sciframe.copy()
+    crmask = np.cast['bool'](np.zeros(sciframe.shape))
+    sigcliplow = sigclip * sigfrac
+
+    # Determine if there are saturated pixels
+    satpix = np.zeros_like(sciframe)
+    satlev = slf._spect['det']['saturation']*slf._spect['det']['nonlinear']
+    wsat = np.where(sciframe >= satlev)
+    if wsat[0].size == 0: satpix = None
+    else:
+        satpix[wsat] = 1.0
+        satpix = np.cast['bool'](satpix)
+
+    # Define the kernels
+    laplkernel = np.array([[0.0, -1.0, 0.0], [-1.0, 4.0, -1.0], [0.0, -1.0, 0.0]])  # Laplacian kernal
+    growkernel = np.ones((3,3))
+    for i in xrange(1, maxiter+1):
+        msgs.info("Convolving image with Laplacian kernel")
+        # Subsample, convolve, clip negative values, and rebin to original size
+        #pdb.set_trace()
+        subsam = arutils.subsample(scicopy)
+        conved = signal.convolve2d(subsam, laplkernel, mode="same", boundary="symm")
+        cliped = conved.clip(min=0.0)
+        lplus = arutils.rebin(cliped, np.array(cliped.shape)/2.0)
+
+        msgs.info("Creating noise model")
+        # Build a custom noise map, and compare  this to the laplacian
+        m5 = ndimage.filters.median_filter(scicopy, size=5, mode='mirror')
+        noise = np.sqrt(variance_frame(slf, m5, slf._scidx))
+        msgs.info("Calculating Laplacian signal to noise ratio")
+
+        # Laplacian S/N
+        s = lplus / (2.0 * noise)  # Note that the 2.0 is from the 2x2 subsampling
+
+        # Remove the large structures
+        sp = s - ndimage.filters.median_filter(s, size=5, mode='mirror')
+
+        msgs.info("Selecting candidate cosmic rays")
+        # Candidate cosmic rays (this will include HII regions)
+        candidates = sp > sigclip
+        nbcandidates = np.sum(candidates)
+
+        msgs.info("{0:5d} candidate pixels".format(nbcandidates))
+
+        # At this stage we use the saturated stars to mask the candidates, if available :
+        if satpix is not None:
+            msgs.info("Masking saturated pixels")
+            candidates = np.logical_and(np.logical_not(satpix), candidates)
+            nbcandidates = np.sum(candidates)
+
+            msgs.info("{0:5d} candidate pixels not part of saturated stars".format(nbcandidates))
+
+        msgs.info("Building fine structure image")
+
+        # We build the fine structure image :
+        m3 = ndimage.filters.median_filter(scicopy, size=3, mode='mirror')
+        m37 = ndimage.filters.median_filter(m3, size=7, mode='mirror')
+        f = m3 - m37
+        f /= noise
+        f = f.clip(min=0.01)
+
+        msgs.info("Removing suspected compact bright objects")
+
+        # Now we have our better selection of cosmics :
+        cosmics = np.logical_and(candidates, sp/f > objlim)
+        nbcosmics = np.sum(cosmics)
+
+        msgs.info("{0:5d} remaining candidate pixels".format(nbcosmics))
+
+        # What follows is a special treatment for neighbors, with more relaxed constains.
+
+        msgs.info("Finding neighboring pixels affected by cosmic rays")
+
+        # We grow these cosmics a first time to determine the immediate neighborhod  :
+        growcosmics = np.cast['bool'](signal.convolve2d(np.cast['float32'](cosmics), growkernel, mode="same", boundary="symm"))
+
+        # From this grown set, we keep those that have sp > sigmalim
+        # so obviously not requiring sp/f > objlim, otherwise it would be pointless
+        growcosmics = np.logical_and(sp > sigclip, growcosmics)
+
+        # Now we repeat this procedure, but lower the detection limit to sigmalimlow :
+
+        finalsel = np.cast['bool'](signal.convolve2d(np.cast['float32'](growcosmics), growkernel, mode="same", boundary="symm"))
+        finalsel = np.logical_and(sp > sigcliplow, finalsel)
+
+        # Unmask saturated pixels:
+        if satpix != None:
+            msgs.info("Masking saturated stars")
+            finalsel = np.logical_and(np.logical_not(satpix), finalsel)
+
+        ncrp = np.sum(finalsel)
+
+        msgs.info("{0:5d} pixels detected as cosmics".format(ncrp))
+
+        # We find how many cosmics are not yet known :
+        newmask = np.logical_and(np.logical_not(crmask), finalsel)
+        nnew = np.sum(newmask)
+
+        # We update the mask with the cosmics we have found :
+        crmask = np.logical_or(crmask, finalsel)
+
+        msgs.info("Iteration {0:d} -- {1:d} pixels identified as cosmic rays ({2:d} new)".format(i, ncrp, nnew))
+        if ncrp == 0: break
+    crmask = arcyutils.grow_masked(crmask.astype(np.float), grow, 1.0)
+    return crmask
+
+
 def sub_overscan(slf, file):
-    for i in range(slf._spect['det']['numamplifiers']):
+    for i in xrange(slf._spect['det']['numamplifiers']):
         # Determine the section of the chip that contains the overscan region
         oscansec = "oscansec{0:02d}".format(i+1)
         ox0, ox1, oy0, oy1 = slf._spect['det'][oscansec][0][0], slf._spect['det'][oscansec][0][1], slf._spect['det'][oscansec][1][0], slf._spect['det'][oscansec][1][1]
@@ -675,7 +774,7 @@ def sub_overscan(slf, file):
 
 
 def trim(slf,file):
-    for i in range (slf._spect['det']['numamplifiers']):
+    for i in xrange (slf._spect['det']['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
         x0, x1, y0, y1 = slf._spect['det'][datasec][0][0], slf._spect['det'][datasec][0][1], slf._spect['det'][datasec][1][0], slf._spect['det'][datasec][1][1]
         if x0 < 0: x0 += file.shape[0]
@@ -694,7 +793,7 @@ def trim(slf,file):
 #		trimfile = file[w]
 #	elif len(file.shape) == 3:
 #		trimfile = np.zeros((w[0].shape[0],w[1].shape[1],file.shape[2]))
-#		for f in range(file.shape[2]):
+#		for f in xrange(file.shape[2]):
 #			trimfile[:,:,f] = file[:,:,f][w]
 #	else:
 #		msgs.error("Cannot trim {0:d}D frame".format(int(len(file.shape))))

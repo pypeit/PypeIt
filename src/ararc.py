@@ -131,6 +131,7 @@ def setup_param(slf, sc):
     # Return
     return arcparam
 
+
 def simple_calib(slf, get_poly=False, debug=False):
     '''Simple calibration algorithm for longslit wavelengths
     Uses slf._arcparam to guide the analysis
