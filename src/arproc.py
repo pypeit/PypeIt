@@ -16,7 +16,10 @@ import arlris
 from arpca import pca2d
 import pdb
 
-from xastropy.xutils import xdebug as xdb
+try:
+    from xastropy.xutils import xdebug as xdb
+except:
+    pass
 
 def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-999999.9, nsample=1):
     """

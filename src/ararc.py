@@ -13,7 +13,10 @@ from astropy.io import ascii
 import os
 import time
 
-from xastropy.xutils import xdebug as xdb
+try:
+    from xastropy.xutils import xdebug as xdb
+except:
+    pass
 
 def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     '''Extract an arc down the center of the chip and identify

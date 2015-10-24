@@ -10,7 +10,10 @@ import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
 from matplotlib.backends.backend_pdf import PdfPages
 
-from xastropy.xutils import xdebug as xdb
+try:
+    from xastropy.xutils import xdebug as xdb
+except:
+    pass
 
 def trace_qa(slf, flat, lordloc, rordloc, root='trace', outfil=None):
     ''' Generate a QA plot for the traces

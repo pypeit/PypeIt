@@ -22,8 +22,10 @@ import arutils
 import arvcorr
 import arqa
 
-
-from xastropy.xutils import xdebug as xdb
+try:
+    from xastropy.xutils import xdebug as xdb
+except:
+    pass
 
 last_updated = "Last updated 20th July 2015"
 

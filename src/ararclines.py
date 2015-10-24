@@ -5,7 +5,10 @@ import os, glob, copy
 import yaml
 import time
 
-from xastropy.xutils import xdebug as xdb
+try:
+    from xastropy.xutils import xdebug as xdb
+except:
+    pass
 
 def parse_nist(slf,ion):
     '''Parse a NIST ASCII table.  Note that the long ---- should have

@@ -10,7 +10,10 @@ from astropy.io.votable.tree import VOTableFile, Resource, Table, Field
 from astropy.table import Table as tTable, Column
 #from scipy.stats import chi2 as chisq
 
-from xastropy.xutils import xdebug as xdb
+try:
+    from xastropy.xutils import xdebug as xdb
+except:
+    pass
 
 def sort_data(slf):
     from arvcorr import radec_to_decdeg

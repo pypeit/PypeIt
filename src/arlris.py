@@ -12,7 +12,10 @@ import artrace
 import arutils
 import arplot
 
-from xastropy.xutils import xdebug as xdb
+try:
+    from xastropy.xutils import xdebug as xdb
+except:
+    pass
 
 def read_lris(raw_file, det=None, TRIM=False):
     ''' Read a raw LRIS data frame (one or more detectors)

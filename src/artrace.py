@@ -15,7 +15,10 @@ import scipy.interpolate as interp
 import pdb
 import scipy.ndimage as ndimage
 
-from xastropy.xutils import xdebug as xdb
+try:
+    from xastropy.xutils import xdebug as xdb
+except:
+    pass
 
 def dispdir(msframe, dispwin=None, mode=0):
     """
