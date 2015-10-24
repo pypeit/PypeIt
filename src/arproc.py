@@ -11,8 +11,15 @@ import arcyproc
 import artrace
 import arutils
 import arplot
+import arload
+import arlris
 from arpca import pca2d
 import pdb
+
+try:
+    from xastropy.xutils import xdebug as xdb
+except:
+    pass
 
 def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-999999.9, nsample=1):
     """
@@ -185,14 +192,6 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
 # 		pass
 
 
-
-
-
-
-
-
-
-
     assert(False)
     # Mask out ordpix pixels where there is target flux
     ordpix = None
@@ -212,20 +211,19 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     msgs.info("Subtracting the sky background from the science frame")
     return sciframe-skybg, skybg
 
-
-def badpix(slf,frame,sigdev=10.0):
+def badpix(slf, det, frame, sigdev=10.0):
     """
     frame is a master bias frame
     sigdev is the number of standard deviations away from the median that a pixel needs to be in order to be classified as a bad pixel
     """
     bpix = np.zeros_like(frame)
     nbad = 0
-    for i in xrange (slf._spect['det']['numamplifiers']):
+    for i in xrange(slf._spect['det'][det-1]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
-        x0, x1, y0, y1 = slf._spect['det'][datasec][0][0], slf._spect['det'][datasec][0][1], slf._spect['det'][datasec][1][0], slf._spect['det'][datasec][1][1]
+        x0, x1, y0, y1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
         xv=np.arange(x0,x1)
         yv=np.arange(y0,y1)
-        # Construct and array with the rows and columns to be extracted
+        # Construct an array with the rows and columns to be extracted
         w = np.ix_(xv,yv)
         tframe = frame[w]
         temp = np.abs(np.median(tframe)-tframe)
@@ -236,7 +234,7 @@ def badpix(slf,frame,sigdev=10.0):
         bpix[w] = subfr
     del subfr, tframe, temp
     # Finally, trim the bad pixel frame
-    bpix=trim(slf,bpix)
+    bpix=trim(slf,bpix,det)
     msgs.info("Identified {0:d} bad pixels".format(int(np.sum(bpix))))
     return bpix
 
@@ -361,16 +359,19 @@ def flatfield(slf, sciframe, flatframe, snframe=None):
         errframe[wnz] = retframe[wnz]/snframe[wnz]
         return retframe, errframe
 
-
-def flatnorm(slf, msflat, maskval=-999999.9, overpix=6, fname=""):
+def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, fname=""):
     """
     Normalize the flat-field frame
+    Parameters:
+    ----------
+    det: int
+      Detector number
     overpix/2 = the number of pixels to extend beyond each side of the order trace
     """
     msgs.info("Normalizing the master flat field frame")
     # First, determine the relative scale of each amplifier (assume amplifier 1 has a scale of 1.0)
-    if slf._spect['det']['numamplifiers'] > 1:
-        sclframe = get_ampscale(slf, msflat)
+    if slf._spect['det'][det-1]['numamplifiers'] > 1:
+        sclframe = get_ampscale(slf, det, msflat)
         # Divide the master flat by the relative scale frame
         msflat /= sclframe
     # Determine the blaze
@@ -453,19 +454,18 @@ def flatnorm(slf, msflat, maskval=-999999.9, overpix=6, fname=""):
     msgs.work("Perform a 2D PCA analysis on echelle blaze fits?")
     arplot.plot_orderfits(slf, msblaze, flat_ext1d, plotsdir=slf._argflag['run']['plotsdir'], prefix=fname+"_blaze")
     # If there is more than 1 amplifier, apply the scale between amplifiers to the normalized flat
-    if slf._spect['det']['numamplifiers'] > 1: msnormflat *= sclframe
+    if slf._spect['det'][det-1]['numamplifiers'] > 1: msnormflat *= sclframe
     return msnormflat, msblaze
 
-
-def get_ampscale(slf, msflat):
+def get_ampscale(slf, det, msflat):
     sclframe = np.ones_like(msflat)
-    ampdone = np.zeros(slf._spect['det']['numamplifiers']) # 1 = amplifiers have been assigned a scale
+    ampdone = np.zeros(slf._spect['det'][det-1]['numamplifiers'], dtype=int) # 1 = amplifiers have been assigned a scale
     ampdone[0]=1
-    while np.sum(ampdone) != slf._spect['det']['numamplifiers']:
+    while np.sum(ampdone) != slf._spect['det'][det-1]['numamplifiers']:
         abst, bbst, nbst, n0bst, n1bst = -1, -1, -1, -1, -1 # Reset the values for the most overlapping amplifier
-        for a in xrange(0,slf._spect['det']['numamplifiers']): # amplifier 'a' is always the reference amplifier
+        for a in xrange(0,slf._spect['det'][det-1]['numamplifiers']): # amplifier 'a' is always the reference amplifier
             if ampdone[a]==0: continue
-            for b in xrange(0,slf._spect['det']['numamplifiers']):
+            for b in xrange(0,slf._spect['det'][det-1]['numamplifiers']):
                 if ampdone[b]==1 or a==b: continue
                 tstframe = np.zeros_like(msflat)
                 tstframe[np.where(slf._ampsec==a+1)]=1
@@ -513,7 +513,7 @@ def get_ampscale(slf, msflat):
     return sclframe
 
 
-def get_ampsec_trimmed(slf, naxis0, naxis1):
+def get_ampsec_trimmed(slf, det, scidx):#naxis0, naxis1):
     """
      Generate a frame that identifies each pixel to an amplifier, and then trim it to the data sections.
      This frame can be used to later identify which trimmed pixels correspond to which amplifier
@@ -522,14 +522,32 @@ def get_ampsec_trimmed(slf, naxis0, naxis1):
     :param file: An untrimmed, unprocessed raw frame
     :return: numpy array, the same shape as a trimmed frame, with values given by the amplifier number
     """
+    # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
+    if slf._argflag['run']['spectrograph'] in ['lris_blue']:
+        msgs.info("Parsing datasec,oscansec,ampsec from headers")
+        temp, head0, secs = arlris.read_lris(slf._datlines[scidx],det)
+        # Naxis
+        slf._fitsdict['naxis0'][scidx] = temp.shape[0]
+        slf._fitsdict['naxis1'][scidx] = temp.shape[1]
+        # Loop on amplifiers
+        for kk in range(slf._spect['det'][det-1]['numamplifiers']):
+            datasec = "datasec{0:02d}".format(kk+1)
+            slf._spect['det'][det-1][datasec] = arload.load_sections(secs[0][kk])
+            oscansec = "oscansec{0:02d}".format(kk+1)
+            slf._spect['det'][det-1][oscansec] = arload.load_sections(secs[1][kk])
+            ampsec = "ampsec{0:02d}".format(kk+1)
+            slf._spect['det'][det-1][ampsec] = arload.load_sections(secs[2][kk])
+    # For convenience
+    naxis0, naxis1 = int(slf._fitsdict['naxis0'][scidx]), int(slf._fitsdict['naxis1'][scidx])
+    #
     retarr = np.zeros((naxis0, naxis1))
-    for i in xrange(slf._spect['det']['numamplifiers']):
+    for i in xrange(slf._spect['det'][det-1]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
-        x0, x1, y0, y1 = slf._spect['det'][datasec][0][0], slf._spect['det'][datasec][0][1], slf._spect['det'][datasec][1][0], slf._spect['det'][datasec][1][1]
+        x0, x1, y0, y1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
         if x0 < 0: x0 += naxis0
-        if x1 < 0: x1 += naxis0
+        if x1 <= 0: x1 += naxis0
         if y0 < 0: y0 += naxis1
-        if y1 < 0: y1 += naxis1
+        if y1 <= 0: y1 += naxis1
         # Fill in the pixels for this amplifier
         xv=np.arange(x0, x1)
         yv=np.arange(y0, y1)
@@ -584,7 +602,8 @@ def sn_frame(slf, sciframe, idx):
     return snframe
 
 
-def lacosmic(slf, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
+
+def lacosmic(slf, det, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
     """
     Identify cosmic rays using the L.A.Cosmic algorithm
     U{http://www.astro.yale.edu/dokkum/lacosmic/}
@@ -606,7 +625,7 @@ def lacosmic(slf, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
 
     # Determine if there are saturated pixels
     satpix = np.zeros_like(sciframe)
-    satlev = slf._spect['det']['saturation']*slf._spect['det']['nonlinear']
+    satlev = slf._spect['det'][det-1]['saturation']*slf._spect['det'][det-1]['nonlinear']
     wsat = np.where(sciframe >= satlev)
     if wsat[0].size == 0: satpix = None
     else:
@@ -628,7 +647,7 @@ def lacosmic(slf, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
         msgs.info("Creating noise model")
         # Build a custom noise map, and compare  this to the laplacian
         m5 = ndimage.filters.median_filter(scicopy, size=5, mode='mirror')
-        noise = np.sqrt(variance_frame(slf, m5, slf._scidx))
+        noise = np.sqrt(variance_frame(slf, det, m5, slf._scidx))
         msgs.info("Calculating Laplacian signal to noise ratio")
 
         # Laplacian S/N
@@ -706,27 +725,28 @@ def lacosmic(slf, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
     crmask = arcyutils.grow_masked(crmask.astype(np.float), grow, 1.0)
     return crmask
 
-
-def sub_overscan(slf, file):
-    for i in xrange(slf._spect['det']['numamplifiers']):
+def sub_overscan(slf, det, file):
+    '''Subtract overscan
+    '''
+    for i in xrange(slf._spect['det'][det-1]['numamplifiers']):
         # Determine the section of the chip that contains the overscan region
         oscansec = "oscansec{0:02d}".format(i+1)
-        ox0, ox1, oy0, oy1 = slf._spect['det'][oscansec][0][0], slf._spect['det'][oscansec][0][1], slf._spect['det'][oscansec][1][0], slf._spect['det'][oscansec][1][1]
+        ox0, ox1, oy0, oy1 = slf._spect['det'][det-1][oscansec][0][0], slf._spect['det'][det-1][oscansec][0][1], slf._spect['det'][det-1][oscansec][1][0], slf._spect['det'][det-1][oscansec][1][1]
         if ox0 < 0: ox0 += file.shape[0]
-        if ox1 < 0: ox1 += file.shape[0]
+        if ox1 <= 0: ox1 += file.shape[0]
         if oy0 < 0: oy0 += file.shape[1]
-        if oy1 < 0: oy1 += file.shape[1]
+        if oy1 <= 0: oy1 += file.shape[1]
         xos=np.arange(ox0,ox1)
         yos=np.arange(oy0,oy1)
         w = np.ix_(xos,yos)
         oscan = file[w]
         # Determine the section of the chip that is read out by the amplifier
         ampsec = "ampsec{0:02d}".format(i+1)
-        ax0, ax1, ay0, ay1 = slf._spect['det'][ampsec][0][0], slf._spect['det'][ampsec][0][1], slf._spect['det'][ampsec][1][0], slf._spect['det'][ampsec][1][1]
+        ax0, ax1, ay0, ay1 = slf._spect['det'][det-1][ampsec][0][0], slf._spect['det'][det-1][ampsec][0][1], slf._spect['det'][det-1][ampsec][1][0], slf._spect['det'][det-1][ampsec][1][1]
         if ax0 < 0: ax0 += file.shape[0]
-        if ax1 < 0: ax1 += file.shape[0]
+        if ax1 <= 0: ax1 += file.shape[0]
         if ay0 < 0: ay0 += file.shape[1]
-        if ay1 < 0: ay1 += file.shape[1]
+        if ay1 <= 0: ay1 += file.shape[1]
         xam=np.arange(ax0,ax1)
         yam=np.arange(ay0,ay1)
         wa = np.ix_(xam,yam)
@@ -754,11 +774,11 @@ def sub_overscan(slf, file):
         #plt.clf()
         # Determine the section of the chip that contains data for this amplifier
         datasec = "datasec{0:02d}".format(i+1)
-        dx0, dx1, dy0, dy1 = slf._spect['det'][datasec][0][0], slf._spect['det'][datasec][0][1], slf._spect['det'][datasec][1][0], slf._spect['det'][datasec][1][1]
+        dx0, dx1, dy0, dy1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
         if dx0 < 0: dx0 += file.shape[0]
-        if dx1 < 0: dx1 += file.shape[0]
+        if dx1 <= 0: dx1 += file.shape[0]
         if dy0 < 0: dy0 += file.shape[1]
-        if dy1 < 0: dy1 += file.shape[1]
+        if dy1 <= 0: dy1 += file.shape[1]
         xds=np.arange(dx0,dx1)
         yds=np.arange(dy0,dy1)
         wd = np.ix_(xds,yds)
@@ -773,14 +793,14 @@ def sub_overscan(slf, file):
     return file
 
 
-def trim(slf,file):
-    for i in xrange (slf._spect['det']['numamplifiers']):
+def trim(slf,file,det):
+    for i in xrange (slf._spect['det'][det-1]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
-        x0, x1, y0, y1 = slf._spect['det'][datasec][0][0], slf._spect['det'][datasec][0][1], slf._spect['det'][datasec][1][0], slf._spect['det'][datasec][1][1]
+        x0, x1, y0, y1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
         if x0 < 0: x0 += file.shape[0]
-        if x1 < 0: x1 += file.shape[0]
+        if x1 <= 0: x1 += file.shape[0]
         if y0 < 0: y0 += file.shape[1]
-        if y1 < 0: y1 += file.shape[1]
+        if y1 <= 0: y1 += file.shape[1]
         if i==0:
             xv=np.arange(x0,x1)
             yv=np.arange(y0,y1)
@@ -799,10 +819,9 @@ def trim(slf,file):
 #		msgs.error("Cannot trim {0:d}D frame".format(int(len(file.shape))))
     return file[w]
 
-
-def variance_frame(slf, sciframe, idx):
+def variance_frame(slf, det, sciframe, idx):
     # Dark Current noise
-    dnoise = slf._spect['det']['darkcurr'] * float(slf._fitsdict["exptime"][idx])/3600.0
+    dnoise = slf._spect['det'][det-1]['darkcurr'] * float(slf._fitsdict["exptime"][idx])/3600.0
     # The effective read noise
-    rnoise = slf._spect['det']['ronoise']**2 + (0.5*slf._spect['det']['gain'])**2
+    rnoise = slf._spect['det'][det-1]['ronoise']**2 + (0.5*slf._spect['det'][det-1]['gain'])**2
     return np.abs(sciframe) + rnoise + dnoise

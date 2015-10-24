@@ -3,13 +3,15 @@ import armsgs as msgs
 import arcycomb
 import time # For Ryan testing --- comment out otherwise
 
-def comb_frames(frames_arr, method='weightmean', spect=None, weight=None, frametype='<None>',
+def comb_frames(frames_arr, det, method='weightmean', spect=None, weight=None, frametype='<None>',
                 rej_cosmicray=-1.0, rej_lowhigh=[0,0], rej_level=[0.0,0.0],
                 sat_pix='ignore', weights=None, set_allrej='median',
                 maskvalue=1048577):
     """
     Combine several frames
     frames: Array of frames to be combined
+    det: int
+      Detector index
     method: How to combine? Allowed values are 'mean', 'median', 'weightmean'
     weight: How to weight the combination ('counts', 'exptime', None)
     frametype: What type of frame are you combining? (only used for screen printout)
@@ -83,7 +85,7 @@ def comb_frames(frames_arr, method='weightmean', spect=None, weight=None, framet
         msgs.work("No weights are implemented yet")
         allrej_arr = arcycomb.masked_weightmean(frames_arr, maskvalue)
     elif set_allrej == 'maxnonsat':
-        allrej_arr = arcycomb.maxnonsat(frames_arr, spect['det']['saturation']*spect['det']['nonlinear'])
+        allrej_arr = arcycomb.maxnonsat(frames_arr, spect['det'][det-1]['saturation']*spect['det'][det-1]['nonlinear'])
     else:
         msgs.error("You must specify what to do in case all pixels are rejected")
     ################
@@ -94,11 +96,11 @@ def comb_frames(frames_arr, method='weightmean', spect=None, weight=None, framet
 #		satw = np.zeros_like(frames_arr)
 #		satw[np.where(frames_arr > spect['det']['saturation']*spect['det']['nonlinear'])] = 1.0
 #		satw = np.any(satw,axis=2)
-        setsat = arcycomb.masked_limitget(frames_arr, spect['det']['saturation']*spect['det']['nonlinear'], 2 )
+        setsat = arcycomb.masked_limitget(frames_arr, spect['det'][det-1]['saturation']*spect['det'][det-1]['nonlinear'], 2 )
 #		del satw
     elif sat_pix == 'reject':
         # Ignore saturated pixels in frames if possible
-        frames_arr = arcycomb.masked_limitset(frames_arr, spect['det']['saturation']*spect['det']['nonlinear'], 2, maskvalue)
+        frames_arr = arcycomb.masked_limitset(frames_arr, spect['det'][det-1]['saturation']*spect['det'][det-1]['nonlinear'], 2, maskvalue)
     elif sat_pix == 'nothing':
         # Don't do anything special for saturated pixels (Hopefully the user has specified how to deal with them below!)
         pass
@@ -179,7 +181,7 @@ def comb_frames(frames_arr, method='weightmean', spect=None, weight=None, framet
     # Apply the saturated pixels:
     if sat_pix == 'force':
         msgs.info("Applying saturated pixels to final combined image")
-        frames_arr[setsat] = spect['det']['saturation']
+        frames_arr[setsat] = spect['det'][det]['saturation']
     ##############
     # And return a 2D numpy array
     msgs.info("{0:d} {1:s} frames combined successfully!".format(num_frames,frametype))

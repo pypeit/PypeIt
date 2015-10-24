@@ -1,0 +1,200 @@
+# SIMPLE RULES:
+#
+# 1. If a keyword is specified in science/pixflat/blzflat/trace/bias/arc frames
+#    it must also appear in the Keyword identifiers list.
+# 2. You must check NAXIS is 2 in ``checks to perform''.
+# 3. If a keyword value contains only some interesting value,
+#    you can split the keyword value using the '%,' notation.
+#    For example, suppose you have the string 10:50:23.45, and
+#    you're interested in the 50 for a match condition, you would
+#    use '%' to indicate you want to split the keyword value, ':'
+#    indicates the delimiter text, '1' indicates you're interested
+#    in the 1st argument (0-indexed), '<60' is an example criteria.
+#    Each of these should be specified in this order, seperated by
+#    commas, so the final string would be:
+#    %,:,1,<60
+# 4. If the text '|' appears in the match condition, the absolute
+#    value will be taken. For example '|<=0.05' means that a given
+#    keyword's value for a calibration frame must be within 0.05 of
+#    a science frame's value, in order to be matched.
+# 5. If a keyword's value contains spaces, replace all spaces with
+#    one underscore.
+# 6. If the header contains two keyword's of the same name, only
+#    the value of the first one will be recognised.
+# 7. Strictly speaking, ARMLSD likes a one-to-one relationship between
+#    a given frame and a frame type. If you would like a one-to-many
+#    relationship (i.e. a given frame can be both a pixel and a blaze
+#    flat, use the canbe option).
+#    
+### Detector properties
+mosaic ndet 2                         # Number of detectors in the mosaic
+mosaic latitude 37.3413889             # Latitude of the telescope
+mosaic longitude +121.6428             # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+mosaic elevation 1283.0                # Elevation of the telescope (in m)
+mosaic minexp 1.0                     # Minimum exposure time (s)
+det01 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
+det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
+det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)
+det01 darkcurr 0.0                    # Dark current (e-/hour)
+det01 ronoise 12.5                    # Read-out noise (e-)
+det01 gain 3.0                        # Inverse gain (e-/ADU)
+det01 saturation 65535.0              # The detector Saturation level
+det01 nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+## PULL THE FOLLOWING FROM THE HEADER WHEN POSSIBLE (FOR BINNING ESPECIALLY)##
+det01 numamplifiers 2                 # Number of amplifiers
+det01 suffix _01blue                  # Suffix to be appended to all saved calibration and extraction frames
+det02 suffix _02blue                  # Suffix to be appended to all saved calibration and extraction frames
+
+
+### Checks to perform
+check 01.INSTRUME LRISBLUE             # THIS IS A MUST! It checks the instrument
+check 02.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 03.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 04.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 05.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 02.CCDGEOM e2v_(Marconi)_CCD44-82 # Check the CCD name (replace any spaces with underscores)
+check 02.CCDNAME 00151-14-1 # Check the CCD name (replace any spaces with underscores)
+
+### Keyword Identifiers
+keyword target 01.TARGNAME             # Header keyword for the name given by the observer to a given frame
+keyword idname 01.OBSTYPE              # The keyword that identifies the frame type (i.e. bias, flat, etc.)
+keyword time 01.MJD-OBS                # The time stamp of the observation (i.e. decimal MJD)
+keyword date 01.DATE                   # The date of the observation (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
+keyword equinox None                   # The equinox to use
+keyword ra 01.RA                       # Right Ascension of the target
+keyword dec 01.DEC                     # Declination of the target
+keyword airmass 01.AIRMASS             # Airmass at start of observation
+#keyword naxis0 01.NAXIS2               # Number of pixels along the zeroth axis
+#keyword naxis1 01.NAXIS1               # Number of pixels along the first axis
+keyword binning 01.BINNING             # Binning
+keyword exptime 01.ELAPTIME            # Exposure time keyword
+keyword filter1 01.BLUFILT             # Filter 1
+keyword filter2 None                   # Filter 2
+keyword decker 01.SLITNAME             # Which decker/slit/mask is being used
+keyword lamps None                     # Lamps being used
+keyword lampname01 MERCURY             # Name of a lamp
+keyword lampstat01 01.MERCURY          # Status of a lamp
+keyword lampname02 NEON                # Name of a lamp
+keyword lampstat02 01.NEON             # Status of a lamp
+keyword lampname03 ARGON               # Name of a lamp
+keyword lampstat03 01.ARGON            # Status of a lamp
+keyword lampname04 CADMIUM             # Name of a lamp
+keyword lampstat04 01.CADMIUM          # Status of a lamp
+keyword lampname05 ZINC                # Name of a lamp
+keyword lampstat05 01.ZINC             # Status of a lamp
+keyword lampname06 KRYPTON             # Name of a lamp
+keyword lampstat06 01.KRYPTON          # Status of a lamp
+keyword lampname07 XENON               # Name of a lamp
+keyword lampstat07 01.XENON            # Status of a lamp
+keyword lampname08 FEARGON             # Name of a lamp
+keyword lampstat08 01.FEARGON          # Status of a lamp
+keyword lampname09 DEUTERIUM           # Name of a lamp
+keyword lampstat09 01.DEUTERI          # Status of a lamp
+keyword lampname10 FLAMP1              # Name of a lamp
+keyword lampstat10 01.FLAMP1           # Status of a lamp
+keyword lampname11 FLAMP2              # Name of a lamp
+keyword lampstat11 01.FLAMP2           # Status of a lamp
+keyword lampname12 HALOGEN             # Name of a lamp
+keyword lampstat12 01.HALOGEN          # Status of a lamp
+keyword slitwid None                   # Slit Width
+keyword slitlen None                   # Slit Length
+keyword detrot None                    # Detector Rotation angle
+keyword dichroic 01.DICHNAME           # Dichroic name
+keyword disperser 01.GRISNAME          # Grism name
+#keyword dangle 01.GRTILT_P            # Tilt
+
+### Fits properties
+fits timeunit s                     # The unit of keyword+time (s=seconds, m=minutes, h=hours, mjd=MJD, dt=datetime)
+fits calwin 12.0                    # The window of time in hours to search for calibration frames for a science frame
+fits dataext 0                      # Extension number of data
+fits numhead 5                      # How many headers need to be read in for a given file
+fits headext01 0                    # Extension number of header (one for each headnum, starting with 01)
+fits headext02 1                    # Extension number of header (one for each headnum, starting with 01)
+fits headext03 2                    # Extension number of header (one for each headnum, starting with 01)
+fits headext04 3                    # Extension number of header (one for each headnum, starting with 01)
+fits headext05 4                    # Extension number of header (one for each headnum, starting with 01)
+fits numlamps 16                    # How many lamps are there listed in the header
+
+### Science frames
+science idname OBJECT               # Header key value of science frame for header keyword keyword+idname
+science canbe None                  # If there are frames that will be science ***in addition to other frame types***, include the other frame types here.
+science check condition1 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off
+science check condition2 hatch=open # Required for science
+science check condition3 exptime>29 # Arbitrary exptime limit
+
+### Standard Star frames
+standard idname OBJECT               # Header key value of science frame for header keyword keyword+idname
+standard number 1                    # Number of standard star frames to use
+standard canbe None                  # If there are frames that will be science ***in addition to other frame types***, include the other frame types here.
+standard check condition1 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off
+standard check condition2 hatch=open # Required for standard
+standard match disperser ''             # Check the same decker as the science frame was used
+standard match dichroic ''             # Check the same decker as the science frame was used
+standard match binning ''             # Match the shape of standard and science frames
+#standard match naxis0 =0             # Match the shape of standard and science frames
+#standard match naxis1 =0             # Match the shape of standard and science frames
+
+### Bias/Dark frames
+bias idname DARK                    # Header key value of bias frame for header keyword keyword+idname
+bias number 5                       # Number of bias frames to use
+bias canbe None                     # If there are frames that will be bias ***in addition to other frame types***, include the other frame types here.
+bias check condition1 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off
+bias check condition2 hatch=closed  # Required for bias
+bias check condition3 exptime<1     # Required for bias
+bias match binning ''             		# Match the shape of standard and science frames
+#bias match naxis0 =0                # Match the shape of bias and science frames
+#bias match naxis1 =0                # Match the shape of bias and science frames
+
+### Pixel Flat frames
+pixflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
+pixflat number 5                    # Number of flat frames to use
+pixflat canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
+pixflat lscomb False                # Combine a long and short flat
+#pixflat check condition1 lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on
+pixflat check condition1 hatch=open   # Required for blaze flats 
+pixflat check condition2 exptime<30   # Avoid stars
+pixflat match binning ''             		# Match the shape of standard and science frames
+pixflat match decker ''             # Check the same decker as the science frame was used
+pixflat match dichroic ''             # Check the same decker as the science frame was used
+pixflat match disperser ''             # Check the same decker as the science frame was used
+
+### Blaze Flat frames
+blzflat idname None                   # Header key value of trace frame for header keyword keyword+idname
+blzflat number 0                      # Number of trace frames to use
+blzflat check condition1 hatch=open   # Required for blaze flats 
+blzflat check condition2 exptime<30   # Avoid stars
+blzflat canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
+blzflat match binning ''             		# Match the shape of standard and science frames
+blzflat match dichroic ''             # Check the same decker as the science frame was used
+blzflat match disperser ''             # Check the same decker as the science frame was used
+
+### Trace frames
+trace idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
+trace number 0                    # Number of flat frames to use
+trace canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
+trace lscomb False                # Combine a long and short flat
+# Blue side should be using twilight sky
+#trace check condition1 lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on
+trace check condition1 hatch=open # Required for trace flats 
+trace check condition2 exptime<30 # Calibration
+trace match binning ''                 # Match the shape of trace with science
+#trace match naxis0 =0             # Match the shape of flats with science
+#trace match naxis1 =0             # Match the shape of flats with science
+trace match decker ''             # Check the same decker as the science frame was used
+trace match dichroic ''             # Check the same decker as the science frame was used
+trace match disperser ''             # Check the same decker as the science frame was used
+#trace match cdangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+
+### Arc frames
+arc idname OBJECT                   # Header key value of arc frame for header keyword keyword+idname
+arc number 1                        # Number of arc frames to use
+arc canbe None                      # If there are frames that will be arc ***in addition to other frame types***, include the other frame types here.
+arc lscomb False                    # Combine a long and short arc
+arc check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on|lampstat06=on|lampstat07=on|lampstat08=on
+arc check condition2 hatch=closed # Required for arcs
+arc match binning ''                 # Match the shape of arcs with science
+arc match disperser ''             # Check the same decker as the science frame was used
+arc match dichroic ''             # Check the same decker as the science frame was used
+#arc match naxis1 =0                 # Match the shape of arcs with science
+#arc match cdangle |<=5              # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+#arc match echangle ''               # Match the echelle angle
