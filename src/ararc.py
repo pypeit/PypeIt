@@ -5,6 +5,7 @@ import arsave
 import arutils
 import armsgs as msgs
 from arplot import get_dimen as get_dimen
+import ararclines
 #import arfitbase
 from matplotlib import pyplot as plt
 import scipy.interpolate as interpolate
@@ -12,9 +13,9 @@ from astropy.io import ascii
 import os
 import time
 
-#from xastropy.xutils import xdebug as xdb
+from xastropy.xutils import xdebug as xdb
 
-def detect_lines(slf,msarc):
+def detect_lines(slf, det, msarc, MK_SATMASK=False):
     '''Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
     '''
@@ -34,9 +35,12 @@ def detect_lines(slf,msarc):
     arccen = (msarc[:,ordcen]+msarc[:,op1]+msarc[:,op2]+msarc[:,om1]+msarc[:,om2])/5.0
     # Generate a saturation mask
     msgs.info("Generating a mask of arc line saturation streaks")
-    satmask = arcyarc.saturation_mask(msarc, slf._spect['det']['saturation']*slf._spect['det']['nonlinear'])
     ordwid = 0.5*np.abs(slf._lordloc-slf._rordloc)
-    satsnd = arcyarc.order_saturation(satmask,ordcen,(ordwid+0.5).astype(np.int),slf._dispaxis)
+    if MK_SATMASK:
+        satmask = arcyarc.saturation_mask(msarc, slf._spect['det'][det-1]['saturation']*slf._spect['det'][det-1]['nonlinear'])
+        satsnd = arcyarc.order_saturation(satmask,ordcen,(ordwid+0.5).astype(np.int),slf._dispaxis)
+    else:
+        satsnd = np.zeros_like(ordcen)
     # Detect the location of the arc lines
     msgs.info("Detecting the strongest, nonsaturated arc lines")
     #####
@@ -103,7 +107,9 @@ def setup_param(slf, sc):
     idx = slf._spect['arc']['index'][sc]
     disperser = slf._fitsdict["disperser"][idx[0]]
     if sname=='kast_blue':
-        arcparam['llist'] = slf._argflag['run']['pypitdir'] + 'data/arc_lines/kast_blue.lst'
+        # Could have the following depend on lamps that were turned on
+        arcparam['llist'] = ararclines.load_arcline_list(slf,['CdI','HgI','HeI'])
+        #arcparam['llist'] = slf._argflag['run']['pypitdir'] + 'data/arc_lines/kast_blue.lst'
         if disperser == '600/4310':
             arcparam['disp']=1.02
             arcparam['b1']=6.88935788e-04
@@ -117,12 +123,19 @@ def setup_param(slf, sc):
             arcparam['b1']= 1./arcparam['disp']/slf._msarc.shape[0] 
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+    elif sname=='lris_blue':
+        arcparam['llist'] = slf._argflag['run']['pypitdir'] + 'data/arc_lines/lris_blue_600.lst'
+        if disperser == '600/4000':
+            arcparam['disp']=0.63 # Ang per pixel (unbinned)
+            if slf._fitsdict['binning'][idx[0]] in ['2,2']:
+                arcparam['disp'] *= 2
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc.shape[0] 
     else:
-        msgs.error('Not ready for this instrument {:s}!'.format(sname))
+        msgs.error('ararc.setup_param: Not ready for this instrument {:s}!'.format(sname))
     # Return
     return arcparam
 
-def simple_calib(slf, get_poly=False, debug=False):
+def simple_calib(slf, det, get_poly=False, debug=False):
     '''Simple calibration algorithm for longslit wavelengths
     Uses slf._arcparam to guide the analysis
 
@@ -141,7 +154,7 @@ def simple_calib(slf, get_poly=False, debug=False):
 
     # Extract the arc
     msgs.work("Detecting lines..")
-    tampl, tcent, twid, w, satsnd, yprep = detect_lines(slf,slf._msarc)
+    tampl, tcent, twid, w, satsnd, yprep = detect_lines(slf,det,slf._msarc)
 
     # Cut down to the good ones
     tcent = tcent[w]
@@ -151,18 +164,18 @@ def simple_calib(slf, get_poly=False, debug=False):
     aparm = slf._arcparam
 
     # Read Arc linelist
-    llist = ascii.read(aparm['llist'],
-        format='fixed_width_no_header', comment='#', #data_start=1, 
-        names=('wave', 'flag', 'ID'),
-        col_starts=(2,12,14), col_ends=(11,13,24))
+    llist = aparm['llist']
+    #llist = ascii.read(aparm['llist'],
+    #    format='fixed_width_no_header', comment='#', #data_start=1, 
+    #    names=('wave', 'flag', 'ID'),
+    #    col_starts=(0,12,14), col_ends=(11,13,24))
 
     # Generate dpix pairs
     nlist = len(llist)
     dpix_list = np.zeros((nlist,nlist))
     for kk,row in enumerate(llist):
         #dpix_list[kk,:] = (np.array(row['wave'] - llist['wave']))/disp
-        dpix_list[kk,:] = slf._msarc.shape[0]*(aparm['b1']*(np.array(row['wave'] - 
-            llist['wave'])) + aparm['b2']*np.array(row['wave']**2 - llist['wave']**2) )
+        dpix_list[kk,:] = slf._msarc.shape[0]*(aparm['b1']*(np.array(row['wave'] - llist['wave'])) + aparm['b2']*np.array(row['wave']**2 - llist['wave']**2) )
 
     # Lambda pairs for the strongest N lines
     srt = np.argsort(tampl)

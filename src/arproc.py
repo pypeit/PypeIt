@@ -184,14 +184,6 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
 # 		pass
 
 
-
-
-
-
-
-
-
-
     assert(False)
     # Mask out ordpix pixels where there is target flux
     ordpix = None
@@ -272,15 +264,19 @@ def flatfield(slf, sciframe, flatframe, snframe=None):
         errframe[wnz] = retframe[wnz]/snframe[wnz]
         return retframe, errframe
 
-def flatnorm(slf, msflat, maskval=-999999.9, overpix=6, fname=""):
+def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, fname=""):
     """
     Normalize the flat-field frame
+    Parameters:
+    ----------
+    det: int
+      Detector number
     overpix/2 = the number of pixels to extend beyond each side of the order trace
     """
     msgs.info("Normalizing the master flat field frame")
     # First, determine the relative scale of each amplifier (assume amplifier 1 has a scale of 1.0)
-    if slf._spect['det']['numamplifiers'] > 1:
-        sclframe = get_ampscale(slf, msflat)
+    if slf._spect['det'][det-1]['numamplifiers'] > 1:
+        sclframe = get_ampscale(slf, det, msflat)
         # Divide the master flat by the relative scale frame
         msflat /= sclframe
     # Determine the blaze
@@ -363,18 +359,18 @@ def flatnorm(slf, msflat, maskval=-999999.9, overpix=6, fname=""):
     msgs.work("Perform a 2D PCA analysis on echelle blaze fits?")
     arplot.plot_orderfits(slf, msblaze, flat_ext1d, plotsdir=slf._argflag['run']['plotsdir'], prefix=fname+"_blaze")
     # If there is more than 1 amplifier, apply the scale between amplifiers to the normalized flat
-    if slf._spect['det']['numamplifiers'] > 1: msnormflat *= sclframe
+    if slf._spect['det'][det-1]['numamplifiers'] > 1: msnormflat *= sclframe
     return msnormflat, msblaze
 
-def get_ampscale(slf, msflat):
+def get_ampscale(slf, det, msflat):
     sclframe = np.ones_like(msflat)
-    ampdone = np.zeros(slf._spect['det']['numamplifiers']) # 1 = amplifiers have been assigned a scale
+    ampdone = np.zeros(slf._spect['det'][det-1]['numamplifiers'], dtype=int) # 1 = amplifiers have been assigned a scale
     ampdone[0]=1
-    while np.sum(ampdone) != slf._spect['det']['numamplifiers']:
+    while np.sum(ampdone) != slf._spect['det'][det-1]['numamplifiers']:
         abst, bbst, nbst, n0bst, n1bst = -1, -1, -1, -1, -1 # Reset the values for the most overlapping amplifier
-        for a in range(0,slf._spect['det']['numamplifiers']): # amplifier 'a' is always the reference amplifier
+        for a in range(0,slf._spect['det'][det-1]['numamplifiers']): # amplifier 'a' is always the reference amplifier
             if ampdone[a]==0: continue
-            for b in range(0,slf._spect['det']['numamplifiers']):
+            for b in range(0,slf._spect['det'][det-1]['numamplifiers']):
                 if ampdone[b]==1 or a==b: continue
                 tstframe = np.zeros_like(msflat)
                 tstframe[np.where(slf._ampsec==a+1)]=1
@@ -454,9 +450,9 @@ def get_ampsec_trimmed(slf, det, scidx):#naxis0, naxis1):
         datasec = "datasec{0:02d}".format(i+1)
         x0, x1, y0, y1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
         if x0 < 0: x0 += naxis0
-        if x1 < 0: x1 += naxis0
+        if x1 <= 0: x1 += naxis0
         if y0 < 0: y0 += naxis1
-        if y1 < 0: y1 += naxis1
+        if y1 <= 0: y1 += naxis1
         # Fill in the pixels for this amplifier
         xv=np.arange(x0, x1)
         yv=np.arange(y0, y1)
@@ -512,25 +508,27 @@ def sn_frame(slf, sciframe, idx):
 
 
 def sub_overscan(slf, det, file):
-    for i in range(slf._spect['det']['numamplifiers']):
+    '''Subtract overscan
+    '''
+    for i in range(slf._spect['det'][det-1]['numamplifiers']):
         # Determine the section of the chip that contains the overscan region
         oscansec = "oscansec{0:02d}".format(i+1)
-        ox0, ox1, oy0, oy1 = slf._spect['det'][oscansec][0][0], slf._spect['det'][oscansec][0][1], slf._spect['det'][oscansec][1][0], slf._spect['det'][oscansec][1][1]
+        ox0, ox1, oy0, oy1 = slf._spect['det'][det-1][oscansec][0][0], slf._spect['det'][det-1][oscansec][0][1], slf._spect['det'][det-1][oscansec][1][0], slf._spect['det'][det-1][oscansec][1][1]
         if ox0 < 0: ox0 += file.shape[0]
-        if ox1 < 0: ox1 += file.shape[0]
+        if ox1 <= 0: ox1 += file.shape[0]
         if oy0 < 0: oy0 += file.shape[1]
-        if oy1 < 0: oy1 += file.shape[1]
+        if oy1 <= 0: oy1 += file.shape[1]
         xos=np.arange(ox0,ox1)
         yos=np.arange(oy0,oy1)
         w = np.ix_(xos,yos)
         oscan = file[w]
         # Determine the section of the chip that is read out by the amplifier
         ampsec = "ampsec{0:02d}".format(i+1)
-        ax0, ax1, ay0, ay1 = slf._spect['det'][ampsec][0][0], slf._spect['det'][ampsec][0][1], slf._spect['det'][ampsec][1][0], slf._spect['det'][ampsec][1][1]
+        ax0, ax1, ay0, ay1 = slf._spect['det'][det-1][ampsec][0][0], slf._spect['det'][det-1][ampsec][0][1], slf._spect['det'][det-1][ampsec][1][0], slf._spect['det'][det-1][ampsec][1][1]
         if ax0 < 0: ax0 += file.shape[0]
-        if ax1 < 0: ax1 += file.shape[0]
+        if ax1 <= 0: ax1 += file.shape[0]
         if ay0 < 0: ay0 += file.shape[1]
-        if ay1 < 0: ay1 += file.shape[1]
+        if ay1 <= 0: ay1 += file.shape[1]
         xam=np.arange(ax0,ax1)
         yam=np.arange(ay0,ay1)
         wa = np.ix_(xam,yam)
@@ -558,11 +556,11 @@ def sub_overscan(slf, det, file):
         #plt.clf()
         # Determine the section of the chip that contains data for this amplifier
         datasec = "datasec{0:02d}".format(i+1)
-        dx0, dx1, dy0, dy1 = slf._spect['det'][datasec][0][0], slf._spect['det'][datasec][0][1], slf._spect['det'][datasec][1][0], slf._spect['det'][datasec][1][1]
+        dx0, dx1, dy0, dy1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
         if dx0 < 0: dx0 += file.shape[0]
-        if dx1 < 0: dx1 += file.shape[0]
+        if dx1 <= 0: dx1 += file.shape[0]
         if dy0 < 0: dy0 += file.shape[1]
-        if dy1 < 0: dy1 += file.shape[1]
+        if dy1 <= 0: dy1 += file.shape[1]
         xds=np.arange(dx0,dx1)
         yds=np.arange(dy0,dy1)
         wd = np.ix_(xds,yds)

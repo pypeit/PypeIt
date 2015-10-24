@@ -5,7 +5,6 @@ import armsgs as msgs
 import numpy as np
 
 import matplotlib
-matplotlib.use('Agg')  # For Travis
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
@@ -32,6 +31,7 @@ def trace_qa(slf, flat, lordloc, rordloc, root='trace', outfil=None):
     if outfil is None:
         if 'fits' in root: # Expecting name of msflat FITS file
             outfil = root.replace('.fits', '_trc.pdf')
+            outfil = outfil.replace('MasterFrames', 'Plots')
         else:
             outfil = root+'.pdf'
     ntrc = lordloc.shape[1]

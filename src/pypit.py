@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('Agg')  # For Travis
+
 import os
 import sys
 import getopt
@@ -18,6 +21,7 @@ import artrace
 import arutils
 import arvcorr
 import arqa
+
 
 from xastropy.xutils import xdebug as xdb
 
@@ -289,7 +293,7 @@ class ClassMain:
             msbias = arload.load_master(self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usebias'], frametype=None)
         return msbias, msbias_name
 
-    def MasterFlatField(self, sc):
+    def MasterFlatField(self, sc, det):
         if self._argflag['reduce']['flatfield']: # Only do it if the user wants to flat field
             ###############
             # Generate a master pixel flat frame
@@ -314,13 +318,13 @@ class ClassMain:
                     # Load the frames for tracing
                     frames = arload.load_frames(self, ind, frametype='pixel flat', msbias=self._msbias, transpose=self._transpose)
                     if self._argflag['reduce']['flatmatch'] > 0.0:
-                        sframes = arsort.match_frames(self, frames, self._argflag['reduce']['flatmatch'], frametype='pixel flat', satlevel=self._spect['det']['saturation']*self._spect['det']['nonlinear'])
+                        sframes = arsort.match_frames(self, frames, self._argflag['reduce']['flatmatch'], frametype='pixel flat', satlevel=self._spect['det'][det-1]['saturation']*self._spect['det'][det-1]['nonlinear'])
                         subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
                         numarr = np.array([])
                         for i in range(len(sframes)):
                             numarr = np.append(numarr,sframes[i].shape[2])
                             mspixflat = arcomb.comb_frames(sframes[i], spect=self._spect, frametype='pixel flat', **self._argflag['pixflat']['comb'])
-                            mspixflat_name = "{0:s}/{1:s}/sub-msflat{2:s}_{3:03d}_{4:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"]["suffix"],len(self._done_flat),i)
+                            mspixflat_name = "{0:s}/{1:s}/sub-msflat{2:s}_{3:03d}_{4:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"][det-1]["suffix"],len(self._done_flat),i)
                             # Send the data away to be saved
                             arsave.save_master(self, mspixflat, filename=mspixflat_name, frametype='pixel flat', ind=ind)
                             subframes[:,:,i]=mspixflat.copy()
@@ -332,7 +336,7 @@ class ClassMain:
                         mspixflat = arcomb.comb_frames(frames, spect=self._spect, frametype='pixel flat', **self._argflag['pixflat']['comb'])
                     del frames
                     # Derive a suitable name for the master pixel flat frame
-                    mspixflat_name = "{0:s}/{1:s}/msflat{2:s}_{3:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"]["suffix"],len(self._done_flat))
+                    mspixflat_name = "{0:s}/{1:s}/msflat{2:s}_{3:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"][det-1]["suffix"],len(self._done_flat))
                     # Send the data away to be saved
                     arsave.save_master(self, mspixflat, filename=mspixflat_name, frametype='pixel flat', ind=ind)
                     # Store the files used and the master bias name in case it can be used during the later reduction processes
@@ -343,7 +347,7 @@ class ClassMain:
                 mspixflat=arload.load_master(mspixflat_name, frametype=None)
             # Now that the combined, master flat field frame is loaded...
             # Normalize the flat field
-            mspixflatnrm, msblaze = arproc.flatnorm(self, mspixflat, overpix=0, fname=os.path.basename(os.path.splitext(mspixflat_name)[0]))
+            mspixflatnrm, msblaze = arproc.flatnorm(self, det, mspixflat, overpix=0, fname=os.path.basename(os.path.splitext(mspixflat_name)[0]))
         else:
             msgs.work("Pixel Flat arrays need to be generated when not flat fielding")
             msgs.bug("Blaze is currently undefined")
@@ -493,20 +497,9 @@ class ClassMain:
                 self.GetPixelLocations(det)
                 ###############
                 # Determine the edges of the spectrum
-                self._lordloc, self._rordloc = artrace.trace_orders(self, self._mstrace, prefix=prefix, trcprefix=self._trcprefix)
+                self._lordloc, self._rordloc = artrace.trace_orders(self, self._mstrace, ARMLSD=True, prefix=prefix, trcprefix=self._trcprefix)
                 arsave.save_ordloc(self, self._mstrace_name)
                 arqa.trace_qa(self, self._mstrace, self._lordloc, self._rordloc, self._mstrace_name)
-                '''
-                do_pickle = True
-                if do_pickle:
-                    import pickle, copy
-                    lordloc = copy.deepcopy(self._lordloc)
-                    rordloc = copy.deepcopy(self._rordloc)
-                    flat = copy.deepcopy(self._mstrace)
-                    with open("tmp.pickle", "wb") as f:
-                        pickle.dump((flat,lordloc,rordloc),f)
-                '''
-                xdb.set_trace()
                 # Convert physical trace into a pixel trace
                 msgs.info("Converting physical trace locations to nearest pixel")
                 self._pixcen  = artrace.phys_to_pix(0.5*(self._lordloc+self._rordloc), self._pixlocn, self._dispaxis, 1-self._dispaxis)
@@ -515,8 +508,8 @@ class ClassMain:
                 self._rordpix = artrace.phys_to_pix(self._rordloc, self._pixlocn, self._dispaxis, 1-self._dispaxis)
                 ###############
                 # Prepare the pixel flat field frame
-                mspixflatnrm, msblaze = arproc.flatnorm(self, self._mstrace.copy(), overpix=0, fname=os.path.basename(os.path.splitext(self._mstrace_name)[0]))
-                self._mspixflat, self._mspixflatnrm, self._msblaze, self._mspixflat_name = self.MasterFlatField(sc)
+                mspixflatnrm, msblaze = arproc.flatnorm(self, det, self._mstrace.copy(), overpix=0, fname=os.path.basename(os.path.splitext(self._mstrace_name)[0]))
+                self._mspixflat, self._mspixflatnrm, self._msblaze, self._mspixflat_name = self.MasterFlatField(sc,det)
                 ###############
                 # Derive the spectral tilt
                 if self._foundarc:
@@ -530,7 +523,7 @@ class ClassMain:
                         arsave.save_tilts(self, self._msarc_name)
                 else:
                     # First time encountered this set of arc frames --> derive the order tilts
-                    self._tilts, self._satmask = artrace.model_tilt(self, self._msarc, prefix=prefix, trcprefix=self._trcprefix, tltprefix=self._tltprefix)
+                    self._tilts, self._satmask = artrace.model_tilt(self, det, self._msarc, prefix=prefix, trcprefix=self._trcprefix, tltprefix=self._tltprefix)
                     # Save the tilts
                     arsave.save_tilts(self, self._msarc_name)
                 # Note: self._tilts is the
@@ -538,7 +531,7 @@ class ClassMain:
                     self._arcparam = ararc.setup_param(self, sc)
                     ###############
                     # Extract arc and identify lines
-                    self.wv_calib = ararc.simple_calib(self)
+                    self.wv_calib = ararc.simple_calib(self, det)
                 msgs.error("JXP :: working on wavelength calibration")
 
                 ###############

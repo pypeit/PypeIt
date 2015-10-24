@@ -549,7 +549,7 @@ def load_frames(slf, ind, det, frametype='<None>', msbias=None, trim=True, trans
                 temp -= msbias # Subtract the master bias frame
             elif type(msbias) is str:
                 if msbias == "overscan":
-                    arproc.sub_overscan(slf, temp)
+                    arproc.sub_overscan(slf, det, temp)
                 else:
                     msgs.error("Could not subtract bias level when loading {0:s} frames".format(frametype))
             if trim: 

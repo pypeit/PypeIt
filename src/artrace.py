@@ -61,9 +61,15 @@ def dispdir(msframe, dispwin=None, mode=0):
             msgs.info("Dispersion axis is predominantly along a column")
             return 1
 
-def trace_orders(slf, mstrace, prefix="", trcprefix="", maskBadColumns=False):
+def trace_orders(slf, mstrace, prefix="", trcprefix="", maskBadColumns=False, ARMLSD=False, flx_frac=0.3):
     """
     This routine will traces the locations of the order edges.
+    Parameters:
+    ------------
+    ARMLSD: bool, optional
+      If True, use 'kludges' for Longslit
+    flx_frac: float, optional
+      Fraction of flux for making the cut for stats
     """
     msgs.info("Preparing trace frame for order edge detection")
     # Generate a binned version of the trace frame
@@ -96,9 +102,21 @@ def trace_orders(slf, mstrace, prefix="", trcprefix="", maskBadColumns=False):
     diff = np.zeros_like(binarr)
     w = np.where(troll!=0.0)
     diff[w] = (troll[w]-binarr[w])/binarr[w]
-    siglev = 1.4826*np.median(np.abs(diff))
-    siglev = 0.02
-    msgs.warn("JXP kludged siglev.  Needs a proper algorithm")
+    if ARMLSD: # Created for LRIS, but probably ok 
+        msgs.warn("JXP kludged siglev.  But might be ok..")
+        # Sort flux values
+        bflat = binarr.flatten()
+        bflat.sort()
+        cumsum = np.cumsum(bflat)
+        # Take 30% value
+        ifrac = np.argmin(np.abs(flx_frac-cumsum/cumsum[-1]))
+        flux_thresh = bflat[ifrac]
+        # Now std_dev
+        gdpix = np.where(binarr > flux_thresh)
+        siglev = np.std(diff[gdpix])
+        #siglev2 = 1.4826*np.median(np.abs(diff[gdpix]))
+    else:
+        siglev = 1.4826*np.median(np.abs(diff))
     ttedges = np.zeros_like(binarr)
     wr = np.where(diff > +6.0*siglev)
     wl = np.where(diff < -6.0*siglev)
@@ -164,11 +182,22 @@ def trace_orders(slf, mstrace, prefix="", trcprefix="", maskBadColumns=False):
     else: retxt = "edges"
     msgs.info("{0:d} left {1:s} and {2:d} right {3:s} were found in the trace".format(lcnt,letxt,rcnt,retxt))
     if (lcnt == 0) & (rcnt == 0):
-        msgs.error("Unable to trace any edges"+msgs.newline()+"try a different method to trace the order edges")
+        if np.median(binarr) > 500:
+            msgs.warn("Found flux but no edges.  Assuming they go to the edge of the detector.")
+            edgearr[:,-1] = 1000
+            rcnt = 1
+            edgearr[:,0] = -1000
+            lcnt = 1
+        else:
+            msgs.error("Unable to trace any edges"+msgs.newline()+"try a different method to trace the order edges")
     elif (rcnt == 0) & (lcnt == 1):
         msgs.warn("Unable to find a right edge. Adding one in.")
         edgearr[:,-1] = 1000
         rcnt = 1
+    elif (lcnt == 0) & (rcnt == 1):
+        msgs.warn("Unable to find a left edge. Adding one in.")
+        edgearr[:,0] = -1000
+        lcnt = 1
     msgs.info("Assigning orders")
     #arutils.ds9plot(edgearr)
     lmin, lmax, rmin, rmax = arcytrace.assign_orders(edgearr, slf._dispaxis, lcnt, rcnt)
@@ -651,13 +680,13 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders, disp
         i -= 1
     return extfit, outpar
 
-def model_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
+def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix=""):
     """
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
     """
 
     msgs.work("Detecting lines..")
-    tampl, tcent, twid, w, satsnd, _ = ararc.detect_lines(slf,msarc)
+    tampl, tcent, twid, w, satsnd, _ = ararc.detect_lines(slf, det, msarc)
 
     '''
     msgs.work("Haven't used physical pixel locations in this routine")
