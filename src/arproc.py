@@ -603,7 +603,7 @@ def sn_frame(slf, sciframe, idx):
 
 
 
-def lacosmic(slf, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
+def lacosmic(slf, det, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
     """
     Identify cosmic rays using the L.A.Cosmic algorithm
     U{http://www.astro.yale.edu/dokkum/lacosmic/}
@@ -625,7 +625,7 @@ def lacosmic(slf, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
 
     # Determine if there are saturated pixels
     satpix = np.zeros_like(sciframe)
-    satlev = slf._spect['det']['saturation']*slf._spect['det']['nonlinear']
+    satlev = slf._spect['det'][det-1]['saturation']*slf._spect['det'][det-1]['nonlinear']
     wsat = np.where(sciframe >= satlev)
     if wsat[0].size == 0: satpix = None
     else:
@@ -647,7 +647,7 @@ def lacosmic(slf, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
         msgs.info("Creating noise model")
         # Build a custom noise map, and compare  this to the laplacian
         m5 = ndimage.filters.median_filter(scicopy, size=5, mode='mirror')
-        noise = np.sqrt(variance_frame(slf, m5, slf._scidx))
+        noise = np.sqrt(variance_frame(slf, det, m5, slf._scidx))
         msgs.info("Calculating Laplacian signal to noise ratio")
 
         # Laplacian S/N

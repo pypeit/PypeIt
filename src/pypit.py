@@ -544,11 +544,11 @@ class ClassMain:
                     continue
                 ###############
                 # Load the science frame and from this generate a Poisson error frame
-                sciframe = arload.load_frames(self, scidx, frametype='science', msbias=self._msbias, transpose=self._transpose)
+                sciframe = arload.load_frames(self, scidx, det, frametype='science', msbias=self._msbias, transpose=self._transpose)
                 sciframe = sciframe[:,:,0]
                 # Convert ADUs to electrons
-                sciframe *= self._spect['det']['gain']
-                varframe = arproc.variance_frame(self, sciframe, scidx[0])
+                sciframe *= self._spect['det'][det-1]['gain']
+                varframe = arproc.variance_frame(self, det, sciframe, scidx[0])
                 ###############
                 # Subtract off the scattered light from the image
                 msgs.work("Scattered light subtraction is not yet implemented...")
@@ -563,7 +563,7 @@ class ClassMain:
                 # Identify cosmic rays
                 msgs.work("Include L.A.Cosmic arguments in the settings files")
                 #if self._argflag['reduce']['crmask']:
-                if True: crmask = arproc.lacosmic(self, sciframe, grow=1.5)
+                if True: crmask = arproc.lacosmic(self, det, sciframe, grow=1.5)
                 else: crmask = np.zeros(sciframe.shape)
                 #arutils.ds9plot(crmask)
                 #arutils.ds9plot(sciframe*(1.0-crmask))
