@@ -8,7 +8,12 @@ The following is a list of items that are currently in development
 * Extraction (RJC)
 * Force matplotlib RC params of plots to be the default throughout (i.e. don't allow user-specified matplotlib rcparams)
 * Save all QA to a single fits file and/or pdf file (?).
+<<<<<<< HEAD
 * Have reduction features be read from instrument settings file
 * Avoid re-making Bias, Arc, etc. frames
 * Organize lamp line lists better (1 file!!)
 * Add code to confirm rejected arc lines are in NIST lists (e.g. when the NIST wavelengths change)
+=======
+* Quick reduction methods (for use in real time at the telescope)
+* barycentric velocity correction
+>>>>>>> upstream/master

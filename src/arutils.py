@@ -1,6 +1,9 @@
 import os
 import astropy.io.fits as pyfits
 from astropy.stats import sigma_clip as sigma_clip
+from scipy.optimize import curve_fit
+from scipy.special import erf
+from scipy import interpolate
 import itertools
 import numpy as np
 import armsgs as msgs
@@ -50,7 +53,7 @@ def calc_offset(raA, decA, raB, decB, distance=False):
     else:
         return delRA, delDEC
 
-def erf(x):
+def erf_func(x):
     """
     This is a very good approximation to the erf function.
     A probability is calculated as such:
@@ -106,9 +109,9 @@ def func_der(coeffs,func,nderive=1):
     else:
         msgs.error("Functional derivative '{0:s}' is not implemented yet"+msgs.newline()+"Please choose from 'polynomial', 'legendre', 'chebyshev'")
 
-def func_fit(x,y,func,deg,min=None,max=None):
+def func_fit(x,y,func,deg,min=None,max=None,w=None):
     if func == "polynomial":
-        return np.polynomial.polynomial.polyfit(x,y,deg)
+        return np.polynomial.polynomial.polyfit(x,y,deg,w=w)
     elif func == "legendre":
         if min is None or max is None:
             if np.size(x) == 1:
@@ -118,7 +121,7 @@ def func_fit(x,y,func,deg,min=None,max=None):
         else:
             xmin, xmax = min, max
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.legendre.legfit(xv,y,deg)
+        return np.polynomial.legendre.legfit(xv,y,deg,w=w)
     elif func == "chebyshev":
         if min is None or max is None:
             if np.size(x) == 1:
@@ -128,7 +131,7 @@ def func_fit(x,y,func,deg,min=None,max=None):
         else:
             xmin, xmax = min, max
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.chebyshev.chebfit(xv,y,deg)
+        return np.polynomial.chebyshev.chebfit(xv,y,deg,w=w)
     else:
         msgs.error("Fitting function '{0:s}' is not implemented yet"+msgs.newline()+"Please choose from 'polynomial', 'legendre', 'chebyshev'")
 
@@ -185,6 +188,37 @@ def func_vander(x,func,deg,min=None,max=None):
         msgs.error("Fitting function '{0:s}' is not implemented yet"+msgs.newline()+"Please choose from 'polynomial', 'legendre', 'chebyshev'")
 
 
+def get_splknots(xarr,yarr,num,minv=None,maxv=None,maxknots=None):
+    """
+    Determine the best location for the knots of the scipy function LSQUnivariateSpline
+    :param xarr, yarr: Input (x,y) arrays which are used to highlight were the strongest gradients are in the fitted
+                        function. yarr should be a reduced (in size) and approximate representation of the data being
+                        fitted, and xarr should be the corresponding x values.
+    :param yarr: Input array which is used to highlight were the strongest gradients are in the fitted function.
+                    This array should be a reduced (in size) and approximate representation of the data being fitted
+    :param num: Number of knot locations to use
+    :param min: The minimum x-value of the knots
+    :param max: The maximum x-value of the knots
+    :return: knots
+    """
+    # First determine the derivative
+    if minv is None: minv = np.min(xarr)
+    if maxv is None: maxv = np.max(xarr)
+    tck = interpolate.splrep(xarr, np.sqrt(np.abs(yarr)), xb=minv, xe=maxv, s=0)
+    deriv = np.abs(interpolate.splev(xarr, tck, der=2))
+    drvsum = np.cumsum(np.abs(deriv))
+    drvsum *= num/drvsum[-1] # drvsum represents the cumulative number of knots to be placed at a given coordinate.
+    # Now undo the cumulative sum
+    drv = np.append(drvsum[0], drvsum[1:]-drvsum[:-1])
+    drv = np.ceil(drv).astype(np.int)
+    drv[np.where(drv<2)] = 2
+    if maxknots is not None: drv[np.where(drv>maxknots)] = maxknots
+    print drv
+    knots = arcyutils.get_splknots(xarr, drv, minv, maxv, np.sum(drv))
+    msgs.info("Generated {0:d} knots".format(knots.size))
+    return knots
+
+
 def mask_polyfit(xarray,yarray,order,maxone=True,sigma=3.0):
     mask = np.zeros(xarray.size,dtype=np.int)
     mskcnt=0
@@ -209,6 +243,17 @@ def mask_polyfit(xarray,yarray,order,maxone=True,sigma=3.0):
         if mskcnt == np.sum(mask): break # No new values have been included in the mask
         mskcnt = np.sum(mask)
     return mask
+
+
+def robust_meanstd(array):
+    """
+    Determine a robust measure of the mean and dispersion of array
+    :param array: an array of values
+    :return: median of the array and a robust estimate of the standand deviation (assuming a symmetric distribution)
+    """
+    med = np.median(array)
+    mad = np.median(np.abs(array-med))
+    return med, 1.4826*mad
 
 
 def perturb(covar, bparams, nsim=1000):
@@ -259,6 +304,7 @@ def polyfitter2d(data,mask=None,order=2):
     #plt.show()
     #return m, polyval2d(x,y,m).T
 
+
 def polyfit2d(x, y, z, order=3):
     ncols = (order + 1)**2
     G = np.zeros((x.size, ncols))
@@ -268,6 +314,7 @@ def polyfit2d(x, y, z, order=3):
     m, null, null, null = np.linalg.lstsq(G, z)
     return m
 
+
 def polyval2d(x, y, m):
     order = int(np.sqrt(len(m))) - 1
     ij = itertools.product(range(order+1), range(order+1))
@@ -275,6 +322,42 @@ def polyval2d(x, y, m):
     for a, (i,j) in zip(m, ij):
         z += a * x**i * y**j
     return z
+
+
+def gauss_lsqfit(x,y,pcen):
+    """
+
+    :param x:
+    :param y:
+    :param pcen: An estimate of the Gaussian mean
+    :return:
+    """
+    def gfunc(x,ampl,cent,sigm):
+        df = (x[1:]-x[:-1])/2.0
+        df = np.append(df,df[-1])
+        sqt = sigm*np.sqrt(2.0)
+        #return cons*df*2.0 + \
+        return ampl*0.5*np.sqrt(np.pi)*sqt*(erf((x+df-cent)/sqt) - erf((x-df-cent)/sqt))
+        #return cons + ampl*np.exp(-0.5*((x-cent)/sigm)**2)
+
+    if np.any(y<0.0):
+        return [0.0, 0.0, 0.0], True
+    # Obtain a quick first guess at the parameters
+    ampl, cent, sigm, good = arcyarc.fit_gauss(x, y, np.zeros(3,dtype=np.float), 0, x.size, float(pcen))
+    if good == 0:
+        return [0.0, 0.0, 0.0], True
+    elif np.any(np.isnan([ampl, cent, sigm])):
+        return [0.0, 0.0, 0.0], True
+    else:
+        # Perform a least squares fit
+        try:
+            popt, pcov = curve_fit(gfunc, x, y, p0=[ampl, cent, sigm], maxfev=100)
+            #popt, pcov = curve_fit(gfunc, x, y, p0=[0.0,ampl, cent, sigm], maxfev=100)
+        except:
+            return [0.0, 0.0, 0.0], True
+        return [popt[0], popt[1], popt[2]], False
+        #return [popt[1], popt[2], popt[3]], False
+
 
 def gauss_fit(x,y,pcen):
 #	dx = np.ones(x.size)*np.mean(x[1:]-x[:-1])
@@ -285,6 +368,8 @@ def gauss_fit(x,y,pcen):
     ampl, cent, sigm, good = arcyarc.fit_gauss(x, y, np.zeros(3,dtype=np.float), 0, x.size, float(pcen))
     if good == 0:
         return [0.0, 0.0, 0.0], True
+    elif np.any(np.isnan([ampl, cent, sigm])):
+        return [0.0, 0.0, 0.0], True
     else:
         return [ampl, cent, sigm], False
 
@@ -294,6 +379,44 @@ def poly_to_gauss(coeffs):
     cent = -0.5*coeffs[1]/coeffs[2]
     ampl = np.exp( coeffs[0] + 0.5*cent/sigm**2 )
     return [ampl, cent, sigm]
+
+
+def polyfit2d(x, y, z, deg, w=None):
+    """
+    :param x: array of x values
+    :param y: array of y values
+    :param z: value of data at each (x,y) coordinate
+    :param deg: degree of polynomial fit in the form [nx,ny]
+    :param w: weights
+    :return: coefficients
+    """
+    msgs.work("Generalize to different polynomial types")
+    x = np.asarray(x)
+    y = np.asarray(y)
+    z = np.asarray(z)
+    deg = np.asarray(deg)
+    vander = np.polynomial.polynomial.polyvander2d(x, y, deg)
+    if w is not None:
+        w = np.asarray(w) + 0.0
+        if w.ndim != 1:
+            msgs.bug("arutils.polyfit2d - Expected 1D vector for weights")
+        if len(x) != len(w) or len(y) != len(w) or len(x) != len(y):
+            msgs.bug("arutils.polyfit2d - Expected x, y and weights to have same length")
+        z = z * w
+        vander = vander * w[:,np.newaxis]
+
+    vander = vander.reshape((-1,vander.shape[-1]))
+    z = z.reshape((vander.shape[0],))
+    c = np.linalg.lstsq(vander, z)[0]
+    return c.reshape(deg+1)
+
+
+def polyval2d(c, x, y):
+    msgs.work("Generalize to different polynomial types")
+    xx, yy = np.meshgrid(x,y)
+    surf = np.polynomial.polynomial.polyval2d(xx, yy, c)
+    return surf
+
 
 def polyfit_integral(x, y, dx, deg, rcond=None, full=False, w=None):
     order = int(deg) + 1
@@ -320,9 +443,9 @@ def polyfit_integral(x, y, dx, deg, rcond=None, full=False, w=None):
     if w is not None:
         w = np.asarray(w) + 0.0
         if w.ndim != 1:
-            raise TypeError("expected 1D vector for w")
+            msgs.bug("Expected 1D vector for weights in arutils.polyfit2d")
         if len(x) != len(w):
-            raise TypeError("expected x and w to have same length")
+            msgs.bug("Expected x and weights to have same length in arutils.polyfit2d")
         # apply weights. Don't use inplace operations as they
         # can cause problems with NA.
         lhs = lhs * w
@@ -380,10 +503,35 @@ def poly_iterfit(x,y,ordr,maxrej=5):
     return c
 
 
-def robust_polyfit(xarray, yarray, order, maxone=True, sigma=3.0, function="polynomial", initialmask=None, forceimask=False, min=None, max=None, debug=False):
+def rebin(frame, newshape):
+    shape = frame.shape
+    lenShape = len(shape)
+    factor = np.asarray(shape)/np.asarray(newshape)
+    evList = ['frame.reshape('] + \
+             ['newshape[%d],factor[%d],'%(i,i) for i in xrange(lenShape)] + \
+             [')'] + ['.sum(%d)'%(i+1) for i in xrange(lenShape)] + \
+             ['/factor[%d]'%i for i in xrange(lenShape)]
+    return eval(''.join(evList))
+
+
+def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, function="polynomial", initialmask=None, forceimask=False, min=None, max=None, debug=False):
     """
     A robust (equally weighted) polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are masked values
+
+    :param xarray: independent variable values
+    :param yarray: dependent variable values
+    :param order: the order of the polynomial to be used in the fitting
+    :param weights: weights to be used in the fitting (weights = 1/sigma)
+    :param maxone: If True, only the most deviant point in a given iteration will be removed
+    :param sigma: confidence interval for rejection
+    :param function: which function should be used in the fitting (valid inputs: 'polynomial', 'legendre', 'chebyshev')
+    :param initialmask: a mask can be supplied as input, these values will be masked for the first iteration. 1 = value masked
+    :param forceimask: if True, the initialmask will be forced for all iterations
+    :param min: minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
+    :param max: maximum value in the array (or the right limit for a legendre/chebyshev polynomial)
+    :param debug:
+    :return: mask, ct -- mask is an array of the masked values, ct is the coefficients of the robust polyfit.
     """
     # Setup the initial mask
     if initialmask is None:
@@ -515,8 +663,17 @@ def spline_coeffs(a, b, y, alpha=0.0, beta=0.0):
     c[-1] = beta * h**2/6 + 2 * c[-2] - c[-3]
     return c
 
+
 def spline_interp(xnew,xold,yold):
     # Calculate the coefficients
     c = spline_coeffs(xold[0], xold[-1], yold)
     ynew = arcyutils.spline_interpolate(xnew, c, xold[0], xold[-1])
     return ynew
+
+
+def subsample(frame):
+    newshape = (2*frame.shape[0], 2*frame.shape[1])
+    slices = [slice(0, old, float(old)/new) for old, new in zip(frame.shape, newshape)]
+    coordinates = np.mgrid[slices]
+    indices = coordinates.astype('i')
+    return frame[tuple(indices)]

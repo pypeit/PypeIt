@@ -159,7 +159,7 @@ class ClassMain:
             # Transpose the amplifier sections frame
             self._ampsec = self._ampsec.T
             # Update the keywords of the fits files
-            for i in range(len(self._fitsdict['naxis0'])):
+            for i in xrange(len(self._fitsdict['naxis0'])):
                 temp = self._fitsdict['naxis0'][i]
                 self._fitsdict['naxis0'][i] = self._fitsdict['naxis1'][i]
                 self._fitsdict['naxis1'][i] = temp
@@ -169,7 +169,11 @@ class ClassMain:
             self._spect['det'][det-1]['ygap'] = tmp
             self._spect['det'][det-1]['ysize'] = 1.0/self._spect['det'][det-1]['ysize']
             # Update the amplifier/data/overscan sections
+<<<<<<< HEAD
             for i in range(self._spect['det'][det-1]['numamplifiers']):
+=======
+            for i in xrange(self._spect['det']['numamplifiers']):
+>>>>>>> upstream/master
                 # Flip the order of the sections
                 self._spect['det'][det-1]['ampsec{0:02d}'.format(i+1)] = self._spect['det'][det-1]['ampsec{0:02d}'.format(i+1)][::-1]
                 self._spect['det'][det-1]['datasec{0:02d}'.format(i+1)] = self._spect['det'][det-1]['datasec{0:02d}'.format(i+1)][::-1]
@@ -203,7 +207,7 @@ class ClassMain:
             ind = self._spect['arc']['index'][sc]
             # Check if an *identical* master arc frame has already been produced
             self.SetFoundArc(False)
-            for gb in range(len(self._done_arcs)):
+            for gb in xrange(len(self._done_arcs)):
                 if np.array_equal(ind, self._done_arcs[gb]):
                     msgs.info("An identical master arc frame already exists")
                     msarc = arload.load_master(self._name_arcs[gb], frametype='arc')
@@ -217,7 +221,7 @@ class ClassMain:
                     sframes = arsort.match_frames(self, frames, self._argflag['reduce']['arcmatch'], frametype='arc', satlevel=self._spect['det']['saturation']*self._spect['det']['nonlinear'])
                     subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
                     numarr = np.array([])
-                    for i in range(len(sframes)):
+                    for i in xrange(len(sframes)):
                         numarr = np.append(numarr,sframes[i].shape[2])
                         msarc = arcomb.comb_frames(sframes[i], det, spect=self._spect, frametype='arc', **self._argflag['arc']['comb'])
                         msarc_name = "{0:s}/{1:s}/sub-msarc{2:s}_{3:03d}_{4:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"]["suffix"],len(self._done_arcs),i)
@@ -264,7 +268,7 @@ class ClassMain:
                 ind = self._spect['dark']['index'][sc]
             # Check if an *identical* master bias frame has already been produced
             found = False
-            for gb in range(len(self._done_bias)):
+            for gb in xrange(len(self._done_bias)):
                 if np.array_equal(ind, self._done_bias[gb]):
                     msgs.info("An identical master {0:s} frame already exists.".format(self._argflag['reduce']['usebias']))
                     msbias = arload.load_master(self._name_bias[gb], frametype=self._argflag['reduce']['usebias'])
@@ -307,7 +311,7 @@ class ClassMain:
                     ind = self._spect['blzflat']['index'][sc]
                 # Check if an *identical* master pixel flat frame has already been produced
                 found = False
-                for gb in range(len(self._done_flat)):
+                for gb in xrange(len(self._done_flat)):
                     if np.array_equal(ind, self._done_flat[gb]):
                         msgs.info("An identical master flat frame already exists")
                         mspixflat_name = self._name_flat[gb]
@@ -321,7 +325,7 @@ class ClassMain:
                         sframes = arsort.match_frames(self, frames, self._argflag['reduce']['flatmatch'], frametype='pixel flat', satlevel=self._spect['det'][det-1]['saturation']*self._spect['det'][det-1]['nonlinear'])
                         subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
                         numarr = np.array([])
-                        for i in range(len(sframes)):
+                        for i in xrange(len(sframes)):
                             numarr = np.append(numarr,sframes[i].shape[2])
                             mspixflat = arcomb.comb_frames(sframes[i], spect=self._spect, frametype='pixel flat', **self._argflag['pixflat']['comb'])
                             mspixflat_name = "{0:s}/{1:s}/sub-msflat{2:s}_{3:03d}_{4:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"][det-1]["suffix"],len(self._done_flat),i)
@@ -368,7 +372,7 @@ class ClassMain:
                 ind = self._spect['blzflat']['index'][sc]
             # Check if an *identical* master trace frame has already been produced
             foundtrc = False
-            for gb in range(len(self._done_flat)):
+            for gb in xrange(len(self._done_flat)):
                 if np.array_equal(ind, self._done_flat[gb]):
                     msgs.info("An identical master trace frame already exists")
                     mstrace_name = self._name_flat[gb]
@@ -383,7 +387,7 @@ class ClassMain:
                     sframes = arsort.match_frames(self, frames, self._argflag['reduce']['flatmatch'], frametype='trace', satlevel=self._spect['det'][det-1]['saturation']*self._spect['det'][det-1]['nonlinear'])
                     subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
                     numarr = np.array([])
-                    for i in range(len(sframes)):
+                    for i in xrange(len(sframes)):
                         numarr = np.append(numarr, sframes[i].shape[2])
                         mstrace = arcomb.comb_frames(sframes[i], spect=self._spect, frametype='trace', **self._argflag['trace']['comb'])
                         mstrace_name = "{0:s}/{1:s}/sub-msflat{2:s}_{3:03d}_{4:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"][det-1]["suffix"],len(self._done_flat),i)
@@ -462,11 +466,13 @@ class ClassMain:
             numsci=1
             self._argflag['run']['preponly'] = True # Prepare the calibration files, but don't do the science frame reduction
         # Reduce each science frame entirely before moving to the next one
-        for sc in range(numsci):
+        for sc in xrange(numsci):
             ###############
             # First set the index for the science frame
             scidx = self._spect['science']['index'][sc]
+            self._scidx = scidx[0]
             sciext_name_p, sciext_name_e = os.path.splitext(self._fitsdict['filename'][scidx[0]])
+<<<<<<< HEAD
             # Now loop on Detectors
             for kk in range(self._spect['mosaic']['ndet']):
                 det = kk + 1 # Detectors indexed from 1
@@ -526,13 +532,12 @@ class ClassMain:
                     self._tilts, self._satmask = artrace.model_tilt(self, det, self._msarc, prefix=prefix, trcprefix=self._trcprefix, tltprefix=self._tltprefix)
                     # Save the tilts
                     arsave.save_tilts(self, self._msarc_name)
-                # Note: self._tilts is the
+                    msgs.bug("Need to include the definitions below in the above exception as a failsafe")
                     # Setup arc parameters (e.g. linelist)
                     self._arcparam = ararc.setup_param(self, sc)
                     ###############
                     # Extract arc and identify lines
                     self.wv_calib = ararc.simple_calib(self, det)
-                msgs.error("JXP :: working on wavelength calibration")
 
                 ###############
                 # Check if the user only wants to prepare the calibrations
@@ -557,20 +562,43 @@ class ClassMain:
                     sciframe = arproc.flatfield(self, sciframe, mspixflatnrm)
                 else:
                     msgs.info("Not performing a flat field calibration")
-                msgs.error("RJC :: up to here")
+                ###############
+                # Identify cosmic rays
+                msgs.work("Include L.A.Cosmic arguments in the settings files")
+                #if self._argflag['reduce']['crmask']:
+                if True: crmask = arproc.lacosmic(self, sciframe, grow=1.5)
+                else: crmask = np.zeros(sciframe.shape)
+                #arutils.ds9plot(crmask)
+                #arutils.ds9plot(sciframe*(1.0-crmask))
                 ###############
                 # Subtract Sky Background
                 if self._argflag['reduce']['bgsubtraction']:
-                    msgs.info("Preparing a sky background frame from the science frame")
-                    scibgsub, bgframe = arproc.background_subtraction(self, sciframe, varframe)
+                    # Perform an iterative background/science extraction
+                    msgs.info("Preparing a sky background frame ")
+                    bgframe = arproc.bg_subtraction(self, sciframe, varframe, crmask)
+                    #scibgsub, bgframe = arproc.background_subtraction(self, sciframe, varframe)
                     # Derive a suitable name for the master sky background frame
-                    msbg_name = "{0:s}/{1:s}/{2:s}_{3:03d}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]],"sky")
+                    msgs.work("Include an index suffix for each object frame")# e.g. if you have 3 frames of the same object, include a common integer suffix on the filenames
+                    msbg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "sky")
                     # Send the data away to be saved
-                    arsave.save_master(self, bgframe, filename=msbg_name, frametype='sky background', ind=ind)
+                    arsave.save_master(self, bgframe, filename=msbg_name, frametype='sky background')
                     # Derive a suitable name for the sky-subtracted science frame
-                    msscibg_name = "{0:s}/{1:s}/{2:s}_{3:03d}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]],"skysub")
+                    msscibg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "skysub")
                     # Send the data away to be saved
-                    arsave.save_master(self, scibgsub, filename=msscibg_name, frametype='sky subtracted science', ind=ind)
+                    arsave.save_master(self, sciframe-bgframe, filename=msscibg_name, frametype='sky subtracted science')
+
+                msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
+                msgs.error("RJC working on trace")
+                ###############
+                # Trace science objects
+                scitrace = artrace.trace_object(self, sciframe-bgframe, varframe, crmask)
+                if scitrace is None:
+                    msgs.info("Not performing extraction for science frame"+msgs.newline()+self._fitsdict['filename'][scidx[0]])
+                    continue
+                ###############
+                # Extraction
+
+
                 ###############
                 # Perform a velocity correction
                 if self._argflag['reduce']['heliocorr'] == True:
@@ -591,8 +619,8 @@ class ClassMain:
                 # Determine the wavelength scale (i.e. the wavelength of each pixel) to be used during the extraction
                 msgs.info("Generating the array of extraction wavelengths")
                 self._wavelength = arproc.get_wscale(self)
-                ###############
-                # Extraction
+
+                msgs.error("INSERT EXTRACTION HERE")
 
 
         # Insert remaining reduction steps here

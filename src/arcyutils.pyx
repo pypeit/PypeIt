@@ -13,6 +13,8 @@ ctypedef np.int_t ITYPE_t
 cdef extern from "math.h":
     double csqrt "sqrt" (double)
     double cexp "exp" (double)
+    double ccos "cos" (double)
+    double csin "sin" (double)
     double cpow "pow" (double, double)
     double cmin "fmin" (double, double)
 
@@ -87,6 +89,31 @@ def bin_x(np.ndarray[DTYPE_t, ndim=2] array not None,
             elif tcomb == 1:
                 binarr[b,y] = mean(medarr)
     return binarr
+
+
+@cython.boundscheck(False)
+def bin_x_weight(np.ndarray[DTYPE_t, ndim=2] array not None,
+                np.ndarray[DTYPE_t, ndim=2] weight not None,
+                int fact, double maskval):
+    cdef int sz_x, sz_y, sz_b
+    cdef int x, y, b
+
+    sz_x = array.shape[0]
+    sz_y = array.shape[1]
+    sz_b = sz_x/fact
+
+    cdef np.ndarray[DTYPE_t, ndim=2] binarr = np.zeros((sz_b,sz_y), dtype=DTYPE)
+    cdef np.ndarray[DTYPE_t, ndim=1] medarr = np.zeros((fact), dtype=DTYPE)
+    cdef np.ndarray[DTYPE_t, ndim=1] wgtarr = np.zeros((fact), dtype=DTYPE)
+
+    for y in range(sz_y):
+        for b in range(sz_b):
+            for x in range(fact):
+                medarr[x] = array[b*fact+x,y]
+                wgtarr[x] = weight[b*fact+x,y]
+            binarr[b,y] = mean_weight(medarr, wgtarr, maskval)
+    return binarr
+
 
 @cython.boundscheck(False)
 def bin_y(np.ndarray[DTYPE_t, ndim=2] array not None,
@@ -436,35 +463,115 @@ def crreject(np.ndarray[DTYPE_t, ndim=2] frame not None,
 
     for x in range(0,sz_x):
         for y in range(0, sz_y):
-            if dispdir == 0:
-                if y==0:
-                    maxdiff = frame[x,y+1]-frame[x,y]
-                    if maxdiff<0.0: maxdiff *= -1.0
-                elif y==sz_y-1:
-                    maxdiff = frame[x,y]-frame[x,y-1]
-                    if maxdiff<0.0: maxdiff *= -1.0
-                else:
-                    maxdiff = frame[x,y+1]-frame[x,y]
-                    tst = frame[x,y]-frame[x,y-1]
-                    if maxdiff<0.0: maxdiff *= -1.0
-                    if tst<0.0: tst *= -1.0
-                    if tst>maxdiff: maxdiff = tst
+            if y==0:
+                maxdiff = frame[x,y+1]-frame[x,y]
+                if maxdiff<0.0: maxdiff *= -1.0
+            elif y==sz_y-1:
+                maxdiff = frame[x,y]-frame[x,y-1]
+                if maxdiff<0.0: maxdiff *= -1.0
             else:
-                if x==0:
-                    maxdiff = frame[x+1,y]-frame[x,y]
-                    if maxdiff<0.0: maxdiff *= -1.0
-                elif x==sz_x-1:
-                    maxdiff = frame[x,y]-frame[x-1,y]
-                    if maxdiff<0.0: maxdiff *= -1.0
-                else:
-                    maxdiff = frame[x+1,y]-frame[x,y]
-                    tst = frame[x,y]-frame[x-1,y]
-                    if maxdiff<0.0: maxdiff *= -1.0
-                    if tst<0.0: tst *= -1.0
-                    if tst>maxdiff: maxdiff = tst
+                maxdiff = frame[x,y+1]-frame[x,y]
+                tst = frame[x,y]-frame[x,y-1]
+                if maxdiff<0.0: maxdiff *= -1.0
+                if tst<0.0: tst *= -1.0
+                if tst>maxdiff: maxdiff = tst
             crmask[x,y] = maxdiff*frame[x,y]
     # Return the mask of cosmic rays
     return crmask
+
+
+#######
+#  G  #
+#######
+
+@cython.boundscheck(False)
+def get_splknots(np.ndarray[DTYPE_t, ndim=1] xarr not None,
+                    np.ndarray[ITYPE_t, ndim=1] knotarr not None,
+                    double minv, double maxv, int num):
+
+    cdef int x, i, sz_x, cnt
+    cdef double diff, sdiff
+    cdef np.ndarray[DTYPE_t, ndim=1] knots = np.zeros((num), dtype=DTYPE)
+
+    sz_x = xarr.shape[0]
+    diff = (maxv-minv)/<double>(sz_x-1)
+    cnt = 0
+    for x in range(0,sz_x):
+        sdiff = diff/<double>(2*knotarr[x])
+        for i in range(0,knotarr[x]):
+            if x==0: knots[cnt+i] = minv + diff*<double>(2*i)/<double>(2*knotarr[x]+1)
+            elif x==sz_x-1: knots[cnt+i] = maxv - 2.0*diff*<double>(knotarr[x]-i-1)/<double>(2*knotarr[x]+1)
+            else: knots[cnt+i] = minv + diff*<double>(x) + sdiff*<double>(2*i + 1)
+        cnt += knotarr[x]
+    return knots
+
+
+@cython.boundscheck(False)
+def grow_masked(np.ndarray[DTYPE_t, ndim=2] img not None,
+              double grow, double growval):
+
+    cdef int x, y, sz_x, sz_y
+    cdef int i, j, mnx, mxx, mny, mxy
+    sz_x = img.shape[0]
+    sz_y = img.shape[1]
+    cdef int gval = <int>(1.0+grow)
+
+    cdef np.ndarray[DTYPE_t, ndim=2] imgout = img.copy()
+
+    # Grow any masked values by the specified amount
+    for x in range(0,sz_x):
+        for y in range(0,sz_y):
+            if img[x,y] != growval: continue
+            # Set x limits
+            mnx = x-gval
+            mxx = x+gval+1
+            if mnx < 0: mnx = 0
+            if mxx > sz_x: mxx = sz_x
+            # Set y limits
+            mny = y-gval
+            mxy = y+gval+1
+            if mny < 0: mny = 0
+            if mxy > sz_y: mxy = sz_y
+            for i in range(mnx,mxx):
+                for j in range(mny, mxy):
+                    if csqrt(<double>((i-x)*(i-x)+(j-y)*(j-y))) <= grow:
+                        imgout[i,j] = growval
+    return imgout
+
+
+#######
+#  H  #
+#######
+
+
+def hough(np.ndarray[DTYPE_t, ndim=2] frame not None,
+            np.ndarray[DTYPE_t, ndim=2] mask not None,
+            int ntx, int mry):
+    # Calculate the Hough transform
+    cdef int nimx, mimy, jx, iy, jtx, iry
+    cdef double rmax, r, dr, th, dth
+
+    nimx = frame.shape[0]
+    mimy = frame.shape[1]
+
+    mry = (mry/2)*2   # Make sure that this is even
+
+    cdef np.ndarray[DTYPE_t, ndim=2] hought = np.zeros((ntx, mry), dtype=DTYPE)
+
+    rmax = csqrt(<double>((nimx-1)*(nimx-1) + (mimy-1)*(mimy-1)))
+    dr = rmax / <double>(mry/2)
+    dth = 3.14159265358979 / <double>(ntx)
+
+    for jx in xrange(nimx):
+        for iy in xrange(mimy):
+            if (mask[jx,iy]==1.0): continue
+            for jtx in xrange(ntx):
+                th = dth * <double>(jtx)
+                r = <double>(jx)*ccos(th) + <double>(iy)*csin(th)
+                if r < 0.0: iry = mry/2 + <int>(r/dr-0.5)
+                else: iry = mry/2 + <int>(r/dr+0.5)
+                hought[jtx, iry-1] += 1.0
+    return hought
 
 
 #######
@@ -482,6 +589,34 @@ def mean(np.ndarray[DTYPE_t, ndim=1] array not None):
     for x in range(sz_x):
         temp += array[x]
     return temp/<double>(sz_x)
+
+
+#@cython.boundscheck(False)
+def mean_weight(np.ndarray[DTYPE_t, ndim=1] array not None,
+                np.ndarray[DTYPE_t, ndim=1] weight not None,
+                int rejhilo, double maskval):
+    cdef int sz_x
+    cdef int x, y
+    cdef double temp
+    cdef double wght = 0.0
+
+    sz_x = array.shape[0]
+
+    if rejhilo != 0:
+        # Sort the array
+        for x in range(sz_x-1):
+            for y in range(x,sz_x):
+                # Sort the array
+                if array[y] < array[x]:
+                    temp = array[x]
+                    array[x] = array[y]
+                    array[y] = temp
+    temp = 0.0
+    for x in range(rejhilo,sz_x-rejhilo):
+        temp += (weight[x]*array[x])
+        wght += weight[x]
+    if wght != 0.0: return temp/wght
+    return maskval
 
 
 @cython.boundscheck(False)
@@ -754,13 +889,14 @@ def polyfit(np.ndarray[DTYPE_t, ndim=1] x not None,
     return chisq
 #	return coeffs
 
+
 #@cython.boundscheck(False)
 def polyfit_scan(np.ndarray[DTYPE_t, ndim=1] xarr not None,
-                np.ndarray[DTYPE_t, ndim=1] yarr not None,
-                np.ndarray[DTYPE_t, ndim=1] warr not None,
-                double maskval, int polyorder, int polypoints, int repeat):
+                    np.ndarray[DTYPE_t, ndim=1] yarr not None,
+                    np.ndarray[DTYPE_t, ndim=1] warr not None,
+                    double maskval, int polyorder, int polypoints, int repeat):
 
-    cdef int x, sz_x, i, j, r, xmin, xmax, xdprev, nsub, cnt
+    cdef int x, sz_x, i, j, r, ers, cnt, upto
     cdef int degree = polyorder+1
     cdef double mval, chisq
     cdef int sz_p = polypoints/2
@@ -769,7 +905,7 @@ def polyfit_scan(np.ndarray[DTYPE_t, ndim=1] xarr not None,
     sz_x = xarr.shape[0]
 
     cdef np.ndarray[DTYPE_t, ndim=1] model = np.zeros(sz_x, dtype=DTYPE)
-    cdef np.ndarray[DTYPE_t, ndim=1] mask = np.zeros(sz_pp, dtype=DTYPE)
+    cdef np.ndarray[ITYPE_t, ndim=1] mask  = np.zeros(sz_pp, dtype=ITYPE)
 
     cdef gsl_multifit_linear_workspace *ws
     cdef gsl_matrix *cov
@@ -779,50 +915,181 @@ def polyfit_scan(np.ndarray[DTYPE_t, ndim=1] xarr not None,
     cdef gsl_vector *wgt
     cdef gsl_vector *c
 
+    xmat = gsl_matrix_alloc(sz_pp, degree)
+    wgt  = gsl_vector_alloc(sz_pp)
+    yvec = gsl_vector_alloc(sz_pp)
+    c    = gsl_vector_alloc(degree)
+    cov  = gsl_matrix_alloc(degree, degree)
+    ws = gsl_multifit_linear_alloc(sz_pp, degree)
+
     for r in range(repeat):
-        xdprev = 0
-        for x in range(0,sz_x):
-            xmin = x-sz_p
-            xmax = x+sz_p+1
-            if xmin < 0: xmin = 0
-            if xmax > sz_x: xmax = sz_x
-            # Make sure there are no masked points
-            nsub = 0
-            for i in range(xmax-xmin):
-                if yarr[i+xmin] == maskval:
-                    nsub += 1
-                    mask[i] = 1
-                else: mask[i] = 0
-            if (xmax-xmin-nsub < degree*3):
-                model[x] = maskval
-                continue
-            # Allocate the appropriate space for the vectors and matrices
-            if xdprev != xmax-xmin-nsub:
-                xmat = gsl_matrix_alloc(xmax-xmin-nsub, degree)
-                wgt = gsl_vector_alloc(xmax-xmin-nsub)
-                yvec = gsl_vector_alloc(xmax-xmin-nsub)
-                c    = gsl_vector_alloc(degree)
-                cov  = gsl_matrix_alloc(degree, degree)
-            cnt = 0
-            for i in range(0,xmax-xmin-nsub):
-                if mask[i] == 1: continue
-                gsl_matrix_set(xmat, cnt, 0, 1.0)
+        # Set the initial arrays
+        cnt = sz_pp
+        for i in range(sz_pp):
+            if (i-sz_p < 0):
+                for j in range(0,degree):
+                    gsl_matrix_set(xmat, i, j, 0.0)
+                gsl_vector_set(yvec, i, 0.0)
+                gsl_vector_set(wgt, i, 0.0)
+                mask[i] = 1
+                cnt -= 1
+            elif (yarr[i-sz_p] == maskval):
+                for j in range(0,degree):
+                    gsl_matrix_set(xmat, i, j, 0.0)
+                gsl_vector_set(yvec, i, 0.0)
+                gsl_vector_set(wgt, i, 0.0)
+                mask[i] = 1
+                cnt -= 1
+            else:
+                gsl_matrix_set(xmat, i, 0, 1.0)
                 for j in range(1,degree):
-                    gsl_matrix_set(xmat, cnt, j, cpow(xarr[i+xmin], j))
-                gsl_vector_set(yvec, cnt, yarr[i+xmin])
-                gsl_vector_set(wgt, cnt, warr[i+xmin])
+                    gsl_matrix_set(xmat, i, j, cpow(xarr[i-sz_p], j))
+                gsl_vector_set(yvec, i, yarr[i-sz_p])
+                gsl_vector_set(wgt, i, warr[i-sz_p])
+                mask[i] = 0
+        ers  = sz_pp-1
+        upto = sz_pp-1-sz_p
+        for x in range(0,sz_x):
+            if (cnt < degree*3):
+                model[x] = maskval
+            else:
+                # Fit with a polynomial
+                #gsl_multifit_linear(xmat, yvec, c, cov, &chisq, ws)
+                gsl_multifit_wlinear(xmat, wgt, yvec, c, cov, &chisq, ws)
+                # Obtain the model value at this location
+                mval = 0.0
+                for i in range(0,degree): mval += gsl_vector_get(c, i) * cpow(xarr[x], i)
+                model[x] = mval
+
+            # Update the arrays to be fit with the next iteration
+            upto += 1
+            ers  += 1
+            if ers == sz_pp: ers = 0
+            if (upto >= sz_x):
+                if mask[ers] == 0:
+                    #for j in range(0,degree):
+                    #    gsl_matrix_set(xmat, ers, j, 0.0)
+                    #gsl_vector_set(yvec, ers, 0.0)
+                    gsl_vector_set(wgt, ers, 0.0)
+                    mask[ers] = 1
+                    cnt -= 1
+            elif (yarr[upto] == maskval):
+                if mask[ers] == 0:
+                    #for j in range(0,degree):
+                    #    gsl_matrix_set(xmat, ers, j, 0.0)
+                    #gsl_vector_set(yvec, ers, 0.0)
+                    gsl_vector_set(wgt, ers, 0.0)
+                    mask[ers] = 1
+                    cnt -= 1
+            else:
+                gsl_matrix_set(xmat, ers, 0, 1.0)
+                for j in range(1,degree):
+                    gsl_matrix_set(xmat, ers, j, cpow(xarr[upto], j))
+                gsl_vector_set(yvec, ers, yarr[upto])
+                gsl_vector_set(wgt, ers, warr[upto])
+                if mask[ers] == 1:
+                    mask[ers] = 0
+                    cnt += 1
+
+        if r != repeat-1:
+            # Update yarr for the next loop
+            for x in range(sz_x): yarr[x] = model[x]
+
+    # Free some of these arrays from memory
+    gsl_multifit_linear_free(ws)
+    gsl_matrix_free(xmat)
+    gsl_matrix_free(cov)
+    gsl_vector_free(yvec)
+    gsl_vector_free(c)
+
+    return model
+
+
+#@cython.boundscheck(False)
+def polyfit_scan_lim(np.ndarray[DTYPE_t, ndim=1] xarr not None,
+                    np.ndarray[DTYPE_t, ndim=1] yarr not None,
+                    np.ndarray[DTYPE_t, ndim=1] warr not None,
+                    double maskval, int polyorder, int polypoints,
+                    int repeat, double limval):
+
+    cdef int x, sz_x, i, j, r, cnt, lmv, flag
+    cdef int degree = polyorder+1
+    cdef double mval, chisq
+    cdef int sz_p = polypoints/2
+    cdef int sz_pp = 2*sz_p + 1
+
+    sz_x = xarr.shape[0]
+
+    cdef np.ndarray[DTYPE_t, ndim=1] model = np.zeros(sz_x, dtype=DTYPE)
+
+    cdef gsl_multifit_linear_workspace *ws
+    cdef gsl_matrix *cov
+    cdef gsl_matrix *xmat
+
+    cdef gsl_vector *yvec
+    cdef gsl_vector *wgt
+    cdef gsl_vector *c
+
+    xmat = gsl_matrix_alloc(sz_pp, degree)
+    wgt  = gsl_vector_alloc(sz_pp)
+    yvec = gsl_vector_alloc(sz_pp)
+    c    = gsl_vector_alloc(degree)
+    cov  = gsl_matrix_alloc(degree, degree)
+    ws = gsl_multifit_linear_alloc(sz_pp, degree)
+
+    for r in range(repeat):
+        for x in range(0,sz_x):
+            cnt = 0
+            # Set the central value
+            if yarr[x] == maskval:
+                gsl_vector_set(wgt, sz_p, 0.0)
+            else:
+                gsl_matrix_set(xmat, sz_p, 0, 1.0)
+                for j in range(1,degree):
+                    gsl_matrix_set(xmat, sz_p, j, cpow(xarr[x], j))
+                gsl_vector_set(yvec, sz_p, yarr[x])
+                gsl_vector_set(wgt, sz_p, warr[x])
                 cnt += 1
-
-            # Fit with a polynomial
-            ws = gsl_multifit_linear_alloc(xmax-xmin-nsub, degree)
-            #gsl_multifit_linear(xmat, yvec, c, cov, &chisq, ws)
-            gsl_multifit_wlinear(xmat, wgt, yvec, c, cov, &chisq, ws)
-
-            # Obtain the model value at this location
-            mval = 0.0
-            for i in range(0,degree): mval += gsl_vector_get(c, i) * cpow(xarr[x], i)
-            model[x] = mval
-            xdprev = xmax-xmin-nsub
+            # Step backwards until limval is reached
+            lmv = x-sz_p
+            if lmv<0: lmv = 0
+            flag = 0
+            for i in range(0,x-lmv):
+                if (xarr[x-i]-xarr[x-i-1]>limval) or (flag==1):
+                    gsl_vector_set(wgt, sz_p-i-1, 0.0)
+                    flag = 1
+                else:
+                    gsl_matrix_set(xmat, sz_p-i-1, 0, 1.0)
+                    for j in range(1,degree):
+                        gsl_matrix_set(xmat, sz_p-i-1, j, cpow(xarr[x-i-1], j))
+                    gsl_vector_set(yvec, sz_p-i-1, yarr[x-i-1])
+                    gsl_vector_set(wgt, sz_p-i-1, warr[x-i-1])
+                    cnt += 1
+            # Step forwards until limval is reached
+            lmv = x+sz_p
+            if lmv>sz_x-1: lmv = sz_x-1
+            flag = 0
+            for i in range(0,lmv-x):
+                if (xarr[x+i+1]-xarr[x+i]>limval) or (flag==1):
+                    gsl_vector_set(wgt, sz_p+i+1, 0.0)
+                    flag = 1
+                else:
+                    gsl_matrix_set(xmat, sz_p+i+1, 0, 1.0)
+                    for j in range(1,degree):
+                        gsl_matrix_set(xmat, sz_p+i+1, j, cpow(xarr[x+i+1], j))
+                    gsl_vector_set(yvec, sz_p+i+1, yarr[x+i+1])
+                    gsl_vector_set(wgt, sz_p+i+1, warr[x+i+1])
+                    cnt += 1
+            # Fit the data
+            if (cnt < degree*3):
+                model[x] = maskval
+            else:
+                # Fit with a polynomial
+                gsl_multifit_wlinear(xmat, wgt, yvec, c, cov, &chisq, ws)
+                # Obtain the model value at this location
+                mval = 0.0
+                for i in range(0,degree): mval += gsl_vector_get(c, i) * cpow(xarr[x], i)
+                model[x] = mval
         if r != repeat-1:
             # Update yarr for the next loop
             for x in range(sz_x): yarr[x] = model[x]
@@ -1023,6 +1290,32 @@ def robust_regression_full(np.ndarray[DTYPE_t, ndim=1] xarr not None,
 #######
 #  S  #
 #######
+
+#@cython.boundscheck(False)
+def smooth_x(np.ndarray[DTYPE_t, ndim=2] array not None,
+            np.ndarray[DTYPE_t, ndim=2] weight not None,
+            int fact, int rejhilo, double maskval):
+    cdef int sz_x, sz_y
+    cdef int x, y, b
+    fact /= 2
+
+    sz_x = array.shape[0]
+    sz_y = array.shape[1]
+
+    cdef np.ndarray[DTYPE_t, ndim=2] smtarr = np.zeros((sz_x,sz_y), dtype=DTYPE)
+    cdef np.ndarray[DTYPE_t, ndim=1] medarr = np.zeros((2*fact+1), dtype=DTYPE)
+    cdef np.ndarray[DTYPE_t, ndim=1] wgtarr = np.zeros((2*fact+1), dtype=DTYPE)
+
+    for y in range(sz_y):
+        for x in range(sz_x):
+            for b in range(2*fact+1):
+                if (x+b-fact < 0) or (x+b-fact >= sz_x): wgtarr[b] = 0.0
+                else:
+                    medarr[b] = array[x+b-fact,y]
+                    wgtarr[b] = weight[x+b-fact,y]
+            smtarr[x,y] = mean_weight(medarr, wgtarr, rejhilo, maskval)
+    return smtarr
+
 
 @cython.boundscheck(False)
 def spline_interpolate(np.ndarray[DTYPE_t, ndim=1] xnew not None,
