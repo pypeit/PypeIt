@@ -171,11 +171,7 @@ class ClassMain:
             self._spect['det'][det-1]['ygap'] = tmp
             self._spect['det'][det-1]['ysize'] = 1.0/self._spect['det'][det-1]['ysize']
             # Update the amplifier/data/overscan sections
-<<<<<<< HEAD
-            for i in range(self._spect['det'][det-1]['numamplifiers']):
-=======
-            for i in xrange(self._spect['det']['numamplifiers']):
->>>>>>> upstream/master
+            for i in xrange(self._spect['det'][det-1]['numamplifiers']):
                 # Flip the order of the sections
                 self._spect['det'][det-1]['ampsec{0:02d}'.format(i+1)] = self._spect['det'][det-1]['ampsec{0:02d}'.format(i+1)][::-1]
                 self._spect['det'][det-1]['datasec{0:02d}'.format(i+1)] = self._spect['det'][det-1]['datasec{0:02d}'.format(i+1)][::-1]
@@ -474,9 +470,8 @@ class ClassMain:
             scidx = self._spect['science']['index'][sc]
             self._scidx = scidx[0]
             sciext_name_p, sciext_name_e = os.path.splitext(self._fitsdict['filename'][scidx[0]])
-<<<<<<< HEAD
             # Now loop on Detectors
-            for kk in range(self._spect['mosaic']['ndet']):
+            for kk in xrange(self._spect['mosaic']['ndet']):
                 det = kk + 1 # Detectors indexed from 1
                 prefix = "{0:s}{1:s}".format(sciext_name_p,self._spect["det"][kk]["suffix"])
                 ###############

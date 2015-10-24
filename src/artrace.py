@@ -974,7 +974,7 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="",censpec=No
     tampl, tcent, twid, ngood = arcyarc.fit_arcorder(xrng,yprep,pixt,fitp)
     w = np.where((np.isnan(twid)==False) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent>0.0) & (tcent<xrng[-1]))
     '''
-    satval = slf._spect['det']['saturation']*slf._spect['det']['nonlinear']
+    satval = slf._spect['det'][det-1]['saturation']*slf._spect['det'][det-1]['nonlinear']
     fitxy = [4,8]  # order of the polynomials to beused when fitting the tilts.
     arcdet = (tcent[w]+0.5).astype(np.int)
     maskrows = np.ones(msarc.shape[0], dtype=np.int) # Start by masking every row, then later unmask the rows with usable arc lines

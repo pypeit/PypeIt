@@ -330,7 +330,6 @@ def bg_subtraction(slf, sciframe, varframe, crpix, rejsigma=3.0, maskval=-999999
     #arutils.ds9plot(sciframe-bgframe)
     return bgframe
 
->>>>>>> upstream/master
 
 def error_frame_postext(slf, sciframe, idx):
     # Dark Current noise
@@ -360,12 +359,7 @@ def flatfield(slf, sciframe, flatframe, snframe=None):
         errframe[wnz] = retframe[wnz]/snframe[wnz]
         return retframe, errframe
 
-<<<<<<< HEAD
 def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, fname=""):
-=======
-
-def flatnorm(slf, msflat, maskval=-999999.9, overpix=6, fname=""):
->>>>>>> upstream/master
     """
     Normalize the flat-field frame
     Parameters:
@@ -463,26 +457,15 @@ def flatnorm(slf, msflat, maskval=-999999.9, overpix=6, fname=""):
     if slf._spect['det'][det-1]['numamplifiers'] > 1: msnormflat *= sclframe
     return msnormflat, msblaze
 
-<<<<<<< HEAD
 def get_ampscale(slf, det, msflat):
-=======
-
-def get_ampscale(slf, msflat):
->>>>>>> upstream/master
     sclframe = np.ones_like(msflat)
     ampdone = np.zeros(slf._spect['det'][det-1]['numamplifiers'], dtype=int) # 1 = amplifiers have been assigned a scale
     ampdone[0]=1
     while np.sum(ampdone) != slf._spect['det'][det-1]['numamplifiers']:
         abst, bbst, nbst, n0bst, n1bst = -1, -1, -1, -1, -1 # Reset the values for the most overlapping amplifier
-<<<<<<< HEAD
-        for a in range(0,slf._spect['det'][det-1]['numamplifiers']): # amplifier 'a' is always the reference amplifier
+        for a in xrange(0,slf._spect['det'][det-1]['numamplifiers']): # amplifier 'a' is always the reference amplifier
             if ampdone[a]==0: continue
-            for b in range(0,slf._spect['det'][det-1]['numamplifiers']):
-=======
-        for a in xrange(0,slf._spect['det']['numamplifiers']): # amplifier 'a' is always the reference amplifier
-            if ampdone[a]==0: continue
-            for b in xrange(0,slf._spect['det']['numamplifiers']):
->>>>>>> upstream/master
+            for b in xrange(0,slf._spect['det'][det-1]['numamplifiers']):
                 if ampdone[b]==1 or a==b: continue
                 tstframe = np.zeros_like(msflat)
                 tstframe[np.where(slf._ampsec==a+1)]=1
@@ -558,11 +541,7 @@ def get_ampsec_trimmed(slf, det, scidx):#naxis0, naxis1):
     naxis0, naxis1 = int(slf._fitsdict['naxis0'][scidx]), int(slf._fitsdict['naxis1'][scidx])
     #
     retarr = np.zeros((naxis0, naxis1))
-<<<<<<< HEAD
-    for i in range(slf._spect['det'][det-1]['numamplifiers']):
-=======
-    for i in xrange(slf._spect['det']['numamplifiers']):
->>>>>>> upstream/master
+    for i in xrange(slf._spect['det'][det-1]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
         x0, x1, y0, y1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
         if x0 < 0: x0 += naxis0
@@ -623,12 +602,7 @@ def sn_frame(slf, sciframe, idx):
     return snframe
 
 
-<<<<<<< HEAD
-def sub_overscan(slf, det, file):
-    '''Subtract overscan
-    '''
-    for i in range(slf._spect['det'][det-1]['numamplifiers']):
-=======
+
 def lacosmic(slf, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
     """
     Identify cosmic rays using the L.A.Cosmic algorithm
@@ -751,10 +725,10 @@ def lacosmic(slf, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
     crmask = arcyutils.grow_masked(crmask.astype(np.float), grow, 1.0)
     return crmask
 
-
-def sub_overscan(slf, file):
-    for i in xrange(slf._spect['det']['numamplifiers']):
->>>>>>> upstream/master
+def sub_overscan(slf, det, file):
+    '''Subtract overscan
+    '''
+    for i in xrange(slf._spect['det'][det-1]['numamplifiers']):
         # Determine the section of the chip that contains the overscan region
         oscansec = "oscansec{0:02d}".format(i+1)
         ox0, ox1, oy0, oy1 = slf._spect['det'][det-1][oscansec][0][0], slf._spect['det'][det-1][oscansec][0][1], slf._spect['det'][det-1][oscansec][1][0], slf._spect['det'][det-1][oscansec][1][1]
