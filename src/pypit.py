@@ -1,5 +1,5 @@
-import matplotlib
-matplotlib.use('Agg')  # For Travis
+#import matplotlib
+#matplotlib.use('Agg')  # For Travis
 
 import os
 import sys
@@ -585,7 +585,6 @@ class ClassMain:
                     arsave.save_master(self, sciframe-bgframe, filename=msscibg_name, frametype='sky subtracted science')
 
                 msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
-                msgs.error("RJC working on trace")
                 ###############
                 # Trace science objects
                 scitrace = artrace.trace_object(self, sciframe-bgframe, varframe, crmask)
@@ -595,7 +594,7 @@ class ClassMain:
                 ###############
                 # Extraction
 
-
+                msgs.error("UP TO HERE")
                 ###############
                 # Perform a velocity correction
                 if self._argflag['reduce']['heliocorr'] == True:

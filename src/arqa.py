@@ -3,6 +3,7 @@ import os
 import astropy.io.fits as pyfits
 import armsgs as msgs
 import numpy as np
+from arplot import zscale
 
 import matplotlib
 from matplotlib import pyplot as plt
@@ -15,16 +16,16 @@ try:
 except:
     pass
 
-def trace_qa(slf, flat, lordloc, rordloc, root='trace', outfil=None):
+def trace_qa(slf, frame, ltrace, rtrace, root='trace', outfil=None, normalize=True):
     ''' Generate a QA plot for the traces
     Parameters:
     ------------
-    flat: ndarray
-      Flat field image
-    lordloc: ndarray
+    frame: ndarray
+      image
+    ltrace: ndarray
       Left edge traces
-    rordloc: ndarray
-      Left edge traces
+    rtrace: ndarray
+      Right edge traces
     root: str, optional
       Root name for generating output file, e.g. msflat_01blue_000.fits
     outfil: str, optional
@@ -37,24 +38,29 @@ def trace_qa(slf, flat, lordloc, rordloc, root='trace', outfil=None):
             outfil = outfil.replace('MasterFrames', 'Plots')
         else:
             outfil = root+'.pdf'
-    ntrc = lordloc.shape[1]
-    ycen = np.arange(flat.shape[0])
+    ntrc = ltrace.shape[1]
+    ycen = np.arange(frame.shape[0])
     # Normalize flux in the traces
-    nrm_flat = np.zeros_like(flat)
-    for ii in range(ntrc):
-        xtrc = (lordloc[:,ii] + rordloc[:,ii])/2.
-        ixtrc = np.round(xtrc).astype(int)
-        # Simple 'extraction'
-        dumi = np.zeros( (flat.shape[0],3) )
-        for jj in range(3):
-            dumi[:,jj] = flat[ycen,ixtrc-1+jj]
-        trc = np.median(dumi, axis=1)
-        # Find portion of the image and normalize
-        for yy in ycen:
-            xi = max(0,int(lordloc[yy,ii])-3)
-            xe = min(flat.shape[1],int(rordloc[yy,ii])+3)
-            # Fill + normalize
-            nrm_flat[yy,xi:xe] = flat[yy,xi:xe] / trc[yy]
+    if normalize:
+        nrm_frame = np.zeros_like(frame)
+        for ii in xrange(ntrc):
+            xtrc = (ltrace[:,ii] + rtrace[:,ii])/2.
+            ixtrc = np.round(xtrc).astype(int)
+            # Simple 'extraction'
+            dumi = np.zeros( (frame.shape[0],3) )
+            for jj in xrange(3):
+                dumi[:,jj] = frame[ycen,ixtrc-1+jj]
+            trc = np.median(dumi, axis=1)
+            # Find portion of the image and normalize
+            for yy in ycen:
+                xi = max(0,int(ltrace[yy,ii])-3)
+                xe = min(frame.shape[1],int(rtrace[yy,ii])+3)
+                # Fill + normalize
+                nrm_frame[yy,xi:xe] = frame[yy,xi:xe] / trc[yy]
+        sclmin, sclmax = 0.4, 1.1
+    else:
+        nrm_frame = frame.copy()
+        sclmin, sclmax = zscale(nrm_frame)
 
     # Plot
     pp = PdfPages(outfil)
@@ -71,23 +77,23 @@ def trace_qa(slf, flat, lordloc, rordloc, root='trace', outfil=None):
     for label in ax.get_xticklabels() :
         label.set_fontproperties(ticks_font)
     cmm = cm.Greys_r
-    mplt = plt.imshow(nrm_flat,origin='lower', cmap=cmm, extent=(0., flat.shape[1], 0., flat.shape[0]))
-    mplt.set_clim(vmin=0.4, vmax=1.1)
+    mplt = plt.imshow(nrm_frame,origin='lower', cmap=cmm, extent=(0., frame.shape[1]-1, 0., frame.shape[0]-1))
+    mplt.set_clim(vmin=sclmin, vmax=sclmax)
 
     # Axes
-    plt.xlim(0., flat.shape[1])
-    plt.ylim(0., flat.shape[0])
+    plt.xlim(0., frame.shape[1]-1)
+    plt.ylim(0., frame.shape[0]-1)
 
     # Traces
-    for ii in range(ntrc):
+    for ii in xrange(ntrc):
         # Left
-        plt.plot(lordloc[:,ii], ycen, 'r--',alpha=0.7)
+        plt.plot(ltrace[:,ii], ycen, 'r--',alpha=0.7)
         # Right
-        plt.plot(rordloc[:,ii], ycen, 'g--',alpha=0.7)
+        plt.plot(rtrace[:,ii], ycen, 'g--',alpha=0.7)
         # Label
-        iy = int(flat.shape[0]/2.)
-        plt.text(lordloc[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
-        plt.text(rordloc[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='green', ha='center')
+        iy = int(frame.shape[0]/2.)
+        plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
+        plt.text(rtrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='green', ha='center')
 
     pp.savefig(bbox_inches='tight')
     pp.close()

@@ -9,6 +9,7 @@ BAD_PIXEL = 1
 KREJ = 2.5
 MAX_ITERATIONS = 5
 
+
 def get_dimen(x,maxp=25):
     """
     Assign the plotting dimensions to be the "most square"
@@ -27,6 +28,7 @@ def get_dimen(x,maxp=25):
         npp.append(xt)
         xr -= xpg*ypg
     return pages, npp
+
 
 def zscale(image, nsamples=1000, contrast=0.25, bpmask=None, zmask=None):
     """Implement IRAF zscale algorithm
@@ -64,6 +66,7 @@ def zscale(image, nsamples=1000, contrast=0.25, bpmask=None, zmask=None):
         z2 = np.min([zmax, median + (npix - center_pixel) * zslope])
     return z1, z2
 
+
 def zsc_sample(image, maxpix, bpmask=None, zmask=None):
 
     # Figure out which pixels to use for the zscale algorithm
@@ -91,7 +94,7 @@ def zsc_fit_line(samples, npix, krej, ngrow, maxiter):
     badpix = np.zeros(npix, dtype="int32")
 
     #Iterate
-    for niter in range(maxiter):
+    for niter in xrange(maxiter):
 
         if (ngoodpix >= last_ngoodpix) or (ngoodpix < minpix):
             break
@@ -186,10 +189,10 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, plotsdir="Plots", 
     except:
         # Save to a few png files instead
         usepdf=False
-    for i in range(len(pages)):
+    for i in xrange(len(pages)):
         f, axes = plt.subplots(pages[i][1], pages[i][0])
         ipx, ipy = 0, 0
-        for j in range(npp[i]):
+        for j in xrange(npp[i]):
             if pages[i][0]==1 and pages[i][1]==1: axesIdx=False
             elif pages[i][1] == 1: ind = (ipx)
             elif pages[i][0] == 1: ind = (ipy)
@@ -226,7 +229,7 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, plotsdir="Plots", 
                 ipy += 1
         # Delete the unnecessary axes
         if axesIdx:
-            for j in range(npp[i],axes.size):
+            for j in xrange(npp[i],axes.size):
                 if pages[i][1] == 1: ind = (ipx)
                 elif pages[i][0] == 1: ind = (ipy)
                 else: ind = (ipy,ipx)

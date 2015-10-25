@@ -223,7 +223,7 @@ def sort_write(slf,space=3):
             msgs.warn('{:s} keyword not used'.format(pr))
         else:
             clm = []
-            for i in range(nfiles):
+            for i in xrange(nfiles):
                 clm.append(table.array[i][lidx])
             clms.append( Column(clm, name=pr))
     # Create Table

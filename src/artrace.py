@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import copy
+import arqa
 import ararc
 import armsgs as msgs
 import arcyarc
@@ -66,6 +67,7 @@ def dispdir(msframe, dispwin=None, mode=0):
             msgs.info("Dispersion axis is predominantly along a column")
             return 1
 
+
 def trace_object(slf, sciframe, varframe, crmask, trim=2.0, sigmin=2.0, bgreg=None, maskval=-999999.9, order=0):
     """
     Finds objects, and traces their location on the detector
@@ -83,14 +85,16 @@ def trace_object(slf, sciframe, varframe, crmask, trim=2.0, sigmin=2.0, bgreg=No
     sigdet = 3.0
     smthby = 7
     rejhilo = 1
-    npix = slf._pixwid[order]
+    bgreg = 20
+    traceorder = 2   # Order of polynomial used to trace the objects
+    npix = int(slf._pixwid[order] - 2*trim)
     if bgreg is None: bgreg = npix
     # Interpolate the science array onto a new grid (with constant spatial slit length)
     msgs.info("Rectifying science frame")
     xint = np.linspace(0.0, 1.0, sciframe.shape[0])
     yint = np.linspace(0.0, 1.0, sciframe.shape[1])
-    scispl = interp.RectBivariateSpline(xint, yint, sciframe, bbox=[0.0, 1.0, 0.0, 1.0], kx=3, ky=3, s=0)
-    varspl = interp.RectBivariateSpline(xint, yint, varframe, bbox=[0.0, 1.0, 0.0, 1.0], kx=3, ky=3, s=0)
+    scispl = interp.RectBivariateSpline(xint, yint, sciframe, bbox=[0.0, 1.0, 0.0, 1.0], kx=1, ky=1, s=0)
+    varspl = interp.RectBivariateSpline(xint, yint, varframe, bbox=[0.0, 1.0, 0.0, 1.0], kx=1, ky=1, s=0)
     crmspl = interp.RectBivariateSpline(xint, yint, crmask, bbox=[0.0, 1.0, 0.0, 1.0], kx=1, ky=1, s=0)
     xx, yy = np.meshgrid(np.linspace(0.0,1.0,sciframe.shape[0]),np.linspace(0.0,1.0,npix), indexing='ij')
     ro = (slf._rordloc[:,order]-trim).reshape((-1,1))/(sciframe.shape[1]-1.0)
@@ -104,6 +108,7 @@ def trace_object(slf, sciframe, varframe, crmask, trim=2.0, sigmin=2.0, bgreg=No
     # Update the CR mask to ensure it only contains 1's and 0's
     rec_crmask[np.where(rec_crmask>0.2)] = 1.0
     rec_crmask[np.where(rec_crmask<=0.2)] = 0.0
+    msgs.info("Estimating object profiles")
     # Smooth the S/N frame
     rec_sigframe_bin = arcyutils.smooth_x(rec_sciframe/np.sqrt(rec_varframe), 1.0-rec_crmask, smthby, rejhilo, maskval)
     #rec_varframe_bin = arcyutils.smooth_x(rec_varframe, 1.0-rec_crmask, smthby, rejhilo, maskval)
@@ -118,153 +123,67 @@ def trace_object(slf, sciframe, varframe, crmask, trim=2.0, sigmin=2.0, bgreg=No
     mask_sigframe = np.ma.array(rec_sigframe_bin, mask=rec_crmask, fill_value=maskval)
     # Collapse along the spectral direction to get object profile
     trcprof = np.ma.mean(mask_sigframe[ww[0],:], axis=0).filled(0.0)
-    trcxrng = np.arange(trcprof.size)/(1.0-trcprof.size)
+    trcxrng = np.arange(npix)/(npix-1.0)
+    msgs.info("Identifying objects that are significantly detected")
     # Find significantly detected objects
     mskpix, coeff = arutils.robust_polyfit(trcxrng, trcprof, 1+npix/40, function='legendre', sigma=2.0, min=0.0, max=1.0)
     backg = arutils.func_val(coeff, trcxrng, 'legendre', min=0.0, max=1.0)
     trcprof -= backg
     wm = np.where(mskpix==0)
     if wm[0].size==0:
-        msgs.warn("No objects found in slit")
+        msgs.warn("No objects found")
         return None
     med, mad = arutils.robust_meanstd(trcprof[wm])
     trcprof -= med
-    bckl, bckr, objl, objr = arcytrace.find_objects(trcprof, bgreg, mad)
+    objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
     #plt.clf()
     #plt.plot(trcxrng,trcprof,'k-')
-    #plt.plot(trcxrng,np.zeros(trcprof.size),'g-')
-    #plt.plot(trcxrng,mad*np.ones(trcprof.size),'r-')
-    #plt.plot(trcxrng,2.0*mad*np.ones(trcprof.size),'r-')
-    #plt.plot(trcxrng,3.0*mad*np.ones(trcprof.size),'r-')
-    # Find maximum pixel where the brightest object profile is traced
-    mxp = np.argmax(trcprof)
-    while True:
-        if trcprof[mxp]>0.0: mxp += 1
-        else:
-            mxp += 2
-            break
-        if mxp >= trcprof.size: break
-    if mxp >= trcprof.size: mxp = trcprof.size
-    # Find minimum pixel where the brightest object profile is traced
-    mnp = np.argmax(trcprof)
-    while True:
-        if trcprof[mnp]>0.0: mnp -= 1
-        else:
-            mnp -= 2
-            break
-        if mnp <= 0: break
-    if mnp <= 0: mnp = 0
-    pdb.set_trace()
-    # Find the centroid of the profile
-    xfit = np.arange(mnp,mxp).reshape((1,-1))/(sciframe.shape[1]-1.0)
-    cent = np.ma.sum(mask_sigframe[:,mnp:mxp]*xfit, axis=1)
-    wght = np.ma.sum(mask_sigframe[:,mnp:mxp], axis=1)
-    cent /= wght
-
-    trcwgt = trcimg[:,-1].copy()
-    trcimg /= trcwgt.reshape((-1,1))
-    arutils.ds9plot(trcimg.data)
-
-
-    for i in xrange(5):
-        wm = np.where(mskpix==0)
-        if wm[0].size==0:
-            msgs.warn("No objects found in slit")
-            return None
-        med, mad = arutils.robust_meanstd(trcprof[wm])
-        trcprof -= med
-        wd = np.where(np.abs(trcprof) > sigdet*mad)
-        mskpix[wd] = 1.0
-        # Now determine the low level background
-        wm = np.where(mskpix==0)
-        #bckspl = interp.UnivariateSpline(trcxrng[wm], trcprof[wm], w=0.5*np.ones(wm[0].size)/mad, s=wm[0].size)
-        coeff = np.polyfit(trcxrng[wm], trcprof[wm], max(1,wm[0].size/40))
-        bck = np.polyval(coeff,trcxrng)
-        plt.clf()
-        plt.plot(trcxrng,trcprof,'k-')
-        trcprof -= bck
-        plt.plot(trcxrng,bckspl(trcxrng),'r-')
-        plt.plot(trcxrng,trcprof,'g-')
-    pdb.set_trace()
-    # Find maximum of the collapsed profile
-
-    # Find object region for brightest object
-
-    # Find 50% flux to get trace
-
-
-
-
-
-
-
-    trcimag = mask_sciframe.filled(0.0)
-    # Cross-correlate the image to get the best trace
-    ccsize = trcimag.shape[1] + trcprof.size - 1
-    fsize = 2 ** np.int(np.ceil(np.log2(ccsize))) # Use this size for a more efficient computation
-    conv = np.fft.fft(trcprof[::-1], fsize)
-    df = trcprof.size/2 - 1
-    pdb.set_trace()
-    for i in xrange(trcimag.shape[0]):
-        convb = conv*np.fft.fft(trcimag[i,:], fsize)
-        ret = np.fft.ifft(convb).real.copy()
-        print i, np.fft.fftshift(ret)
-        null = ret[df:df+trcprof.size]
-    del conv, convb
-
-    # Find the rows with significant detections
-    smthby = 7
-    rejhilo = 1
-    rec_sciframe_bin = arcyutils.smooth_x(rec_sciframe/rec_varframe, 1.0-rec_crmask, smthby, rejhilo, maskval)
-    rec_varframe_bin = arcyutils.smooth_x(rec_varframe, 1.0-rec_crmask, smthby, rejhilo, maskval)
-    rec_sigframe_bin = np.sqrt(rec_varframe_bin/(smthby-2.0*rejhilo))
-    sigframe = rec_sciframe_bin*(1.0-rec_crmask)/rec_sigframe_bin
-    w = np.where(np.sort(sigframe)[:,-1]>sigmin)
-    # Define the object profile and the error array
-    pdb.set_trace()
-    objprof = np.ma.sum(mask_sciframe[w[0],:],axis=0).filled(maskval)
-    med, mad = arutils.robust_meanstd(objprof)
-    objprof = np.ma.sum(mask_sciframe[w[0],:]/mask_varframe[w[0],:],axis=0).filled(maskval)/np.ma.sum(1.0/mask_varframe[w[0],:],axis=0).filled(1.0)
-    sigprof = np.sqrt(np.ma.sum(mask_varframe[w[0],:],axis=0).filled(1.0))
-    detprof = objprof/sigprof
-    plt.clf()
-    plt.plot(np.arange(detprof.size),detprof,'k-')
-    plt.show()
-    mask_sciframe = np.ma.array(rec_sciframe, mask=rec_crmask, fill_value=maskval)
-    mask_varframe = np.ma.array(rec_varframe, mask=rec_crmask, fill_value=maskval)
-
-
-    crmaskh = rec_crmask.copy()
-    crmaskh[np.where(sigframe<sigmin)] = 1.0
-    ntx = 60
-    nry = 360
-    htrans = arcyutils.hough(rec_sciframe_bin, crmaskh, ntx, nry)
-    arutils.ds9plot(htrans)
-    th, rd = np.meshgrid(np.arange(ntx),np.arange(nry),indexing='ij')
-    htth = np.pi*(th/ntx)
-    htrd = (2.0*rd/nry-1.0)*np.hypot(rec_sciframe_bin.shape[0]-1.0,rec_sciframe_bin.shape[1]-1.0)
-    sigframe = rec_sciframe*(1.0-rec_crmask)/np.sqrt(rec_varframe)
-    sigframe = rec_sciframe_bin*(1.0-rec_crmask)/np.sqrt(rec_varframe)
-    crmaskh = rec_crmask.copy()
-    crmaskh[np.where(sigframe<sigmin)] = 1.0
-    mask_sciframe = np.ma.array(rec_sciframe_bin, mask=rec_crmask, fill_value=maskval)
-    trcimg = np.ma.cumsum(mask_sciframe, axis=1)
-    trcwgt = trcimg[:,-1].copy()
-    trcimg /= trcwgt.reshape((-1,1))
-    arutils.ds9plot(trcimg.data)
-    # Define objects within slit
-    pdb.set_trace()
-    arutils.ds9plot(rec_sciframe)
-    nobj = None
-    if nobj == 0.0:
-        msgs.warn("No objects were traced in science frame")
-        return None
-    # Trace each object
-
-    # Fit traces
-    traces = np.zeros((sciframe.shape[0],nobj))
-
+    #wl = np.where(bckl[:,0]==1)
+    #plt.plot(trcxrng[wl],trcprof[wl],'ro')
+    #wr = np.where(bckr[:,0]==1)
+    #plt.plot(trcxrng[wr],trcprof[wr],'go')
+    #plt.plot(trcxrng[objl[0]:objr[0]+1],trcprof[objl[0]:objr[0]+1],'bx')
+    #plt.savefig("Plots/test.png", dpi=600)
+    nobj = objl.size
+    if nobj==1:
+        msgs.info("Found {0:d} object".format(objl.size))
+        msgs.info("Tracing {0:d} object".format(objl.size))
+    else:
+        msgs.info("Found {0:d} objects".format(objl.size))
+        msgs.info("Tracing {0:d} objects".format(objl.size))
+    # Trace objects
+    cval = np.zeros(nobj)
+    specfit = np.linspace(-1.0, 1.0, sciframe.shape[0])
+    allsfit = np.array([])
+    allxfit = np.array([])
+    for o in xrange(nobj):
+        xfit = np.arange(objl[o],objr[o]).reshape((1,-1))/(npix-1.0)
+        cent = np.ma.sum(mask_sigframe[:,objl[o]:objr[o]]*xfit, axis=1)
+        wght = np.ma.sum(mask_sigframe[:,objl[o]:objr[o]], axis=1)
+        cent /= wght
+        centfit = cent.filled(maskval)
+        w = np.where(centfit != maskval)
+        specfit = specfit[w]
+        centfit = centfit[w]
+        mskbad, coeffs = arutils.robust_polyfit(specfit,centfit,traceorder,function="legendre",min=-1.0,max=1.0)
+        cval[o] = arutils.func_val(coeffs, np.array([0.0]), "legendre", min=-1.0, max=1.0)[0]
+        w = np.where(mskbad==0.0)
+        if w[0].size!=0:
+            allxfit = np.append(allxfit,specfit[w])
+            allsfit = np.append(allsfit,centfit[w]-cval[o])
+    msgs.info("Performing global trace to all objects")
+    mskbad, coeffs = arutils.robust_polyfit(allxfit,allsfit,traceorder,function="legendre",min=-1.0,max=1.0)
+    trcfunc = arutils.func_val(coeffs, specfit, "legendre", min=-1.0, max=1.0)
+    msgs.info("Constructing a trace for all objects")
+    trcfunc = trcfunc.reshape((-1,1)).repeat(nobj, axis=1)
+    for o in xrange(nobj): trcfunc[:,o] += cval[o]
+    if nobj==1: msgs.info("Converting object trace to detector pixels")
+    else: msgs.info("Converting object traces to detector pixels")
+    traces = slf._lordloc[:,order].reshape((-1,1)) + trim + npix*trcfunc
+    # Save the quality control
+    arqa.trace_qa(slf,sciframe,traces,traces,root="object_trace", normalize=False)
     return traces
+
 
 def trace_orders(slf, mstrace, prefix="", trcprefix="", maskBadColumns=False, ARMLSD=False, flx_frac=0.3):
     """
