@@ -767,6 +767,78 @@ def find_between(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
 
 
 @cython.boundscheck(False)
+def find_objects(np.ndarray[DTYPE_t, ndim=1] profile not None,
+                int bgreg, double stddev):
+    """
+    Find significantly detected objects in the profile array
+    For all objects found, the background regions will be defined.
+    """
+    cdef int o, x, sz_x
+    cdef int cntr, imax
+    cdef double maxv
+
+    sz_x = profile.shape[0]
+
+    # Define the object centroids array
+    cdef np.ndarray[ITYPE_t, ndim=1] objl = -1*np.ones((sz_x), dtype=ITYPE)
+    cdef np.ndarray[ITYPE_t, ndim=1] objr = -1*np.ones((sz_x), dtype=ITYPE)
+    cdef np.ndarray[ITYPE_t, ndim=1] msk = np.zeros((sz_x), dtype=ITYPE)
+
+    cntr = 0
+    while True:
+        # Find maximum flux point
+        maxv = -1.0
+        imax = -1
+        for x in range(sz_x):
+            if msk[x] == 1: continue
+            if imax == -1:
+                imax = x
+                maxv = profile[x]
+                continue
+            if profile[x]>maxv:
+                maxv = profile[x]
+                imax = x
+        if maxv < 5.0*stddev:
+            # No more objects left to be found
+            break
+        msk[imax] = 1
+        objl[cntr] = imax
+        objr[cntr] = imax
+        # Find the left edge of this object
+        for x in range(1,imax):
+            if profile[imax-x] > 0.0:
+                objl[cntr] -= 1
+                msk[imax-x] = 1
+            else:
+                objl[cntr] -= 1
+                msk[imax-x] = 1
+                break
+        # Find the right edge of this object
+        for x in range(imax+1,sz_x):
+            if profile[x] > 0.0:
+                objr[cntr] += 1
+                msk[x] = 1
+            else:
+                objr[cntr] += 1
+                msk[x] = 1
+                break
+        cntr += 1
+
+    # Determine the background pixels for each object
+    cdef np.ndarray[ITYPE_t, ndim=2] bckl = np.zeros((sz_x,cntr), dtype=ITYPE)
+    cdef np.ndarray[ITYPE_t, ndim=2] bckr = np.zeros((sz_x,cntr), dtype=ITYPE)
+    for o in range(cntr):
+        for x in range(1,bgreg+1):
+            if objl[o]-x >= 0:
+                if msk[objl[o]-x]==0:
+                    bckl[objl[o]-x,o]=1
+            if objr[o]+x <= sz_x-1:
+                if msk[objr[o]+x]==0:
+                    bckr[objr[o]+x,o]=1
+    return objl[:cntr], objr[:cntr], bckl, bckr
+
+
+@cython.boundscheck(False)
 def find_shift(np.ndarray[DTYPE_t, ndim=2] mstrace not None,
                 np.ndarray[DTYPE_t, ndim=1] minarr not None,
                 np.ndarray[ITYPE_t, ndim=1] lopos not None,
