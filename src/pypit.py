@@ -502,7 +502,7 @@ class ClassMain:
                 # Determine the edges of the spectrum
                 self._lordloc, self._rordloc = artrace.trace_orders(self, self._mstrace, ARMLSD=True, prefix=prefix, trcprefix=self._trcprefix)
                 arsave.save_ordloc(self, self._mstrace_name)
-                arqa.trace_qa(self, self._mstrace, self._lordloc, self._rordloc, self._mstrace_name)
+                arqa.slit_trace_qa(self, self._mstrace, self._lordloc, self._rordloc, self._mstrace_name)
                 # Convert physical trace into a pixel trace
                 msgs.info("Converting physical trace locations to nearest pixel")
                 self._pixcen  = artrace.phys_to_pix(0.5*(self._lordloc+self._rordloc), self._pixlocn, self._dispaxis, 1-self._dispaxis)

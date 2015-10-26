@@ -163,7 +163,10 @@ def trace_object(slf, sciframe, varframe, crmask, trim=2.0, sigmin=2.0, bgreg=No
         cent /= wght
         centfit = cent.filled(maskval)
         w = np.where(centfit != maskval)
-        specfit = specfit[w]
+        try:
+            specfit = specfit[w]
+        except IndexError:
+            pdb.set_trace()
         centfit = centfit[w]
         mskbad, coeffs = arutils.robust_polyfit(specfit,centfit,traceorder,function="legendre",min=-1.0,max=1.0)
         cval[o] = arutils.func_val(coeffs, np.array([0.0]), "legendre", min=-1.0, max=1.0)[0]
@@ -179,9 +182,12 @@ def trace_object(slf, sciframe, varframe, crmask, trim=2.0, sigmin=2.0, bgreg=No
     for o in xrange(nobj): trcfunc[:,o] += cval[o]
     if nobj==1: msgs.info("Converting object trace to detector pixels")
     else: msgs.info("Converting object traces to detector pixels")
-    traces = slf._lordloc[:,order].reshape((-1,1)) + trim + npix*trcfunc
+    try:
+        traces = slf._lordloc[:,order].reshape((-1,1)) + trim + npix*trcfunc
+    except:
+        pdb.set_trace()
     # Save the quality control
-    arqa.trace_qa(slf,sciframe,traces,traces,root="object_trace", normalize=False)
+    arqa.obj_trace_qa(slf,sciframe,traces,traces,root="object_trace", normalize=False)
     return traces
 
 
