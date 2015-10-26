@@ -132,11 +132,12 @@ def setup_param(slf, sc):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='kast_red':
+        lamps = ['HgI','NeI','ArI']
         arcparam['llist'] = slf._argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
         if disperser == '600/7500':
             arcparam['disp']=2.35
             arcparam['b1']= 1./arcparam['disp']/slf._msarc.shape[0] 
-            arcparam['wvmnx'][0] = 4000.
+            arcparam['wvmnx'][0] = 5000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='lris_blue':

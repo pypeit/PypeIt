@@ -3,6 +3,7 @@ import armsgs as msgs
 from astropy.table import Table, Column, vstack
 import os, glob, copy
 import yaml
+import pdb
 import time
 
 try:
@@ -144,8 +145,10 @@ def parse_nist_tbl(tbl,parse_dict):
     '''
     # Parse
     gdI = tbl['RelInt'] >= parse_dict['min_intensity']
+    gdA = tbl['Aki'] >= parse_dict['min_Aki']
+    gdw = tbl['wave'] >= parse_dict['min_wave']
     # Combine
-    allgd = gdI
+    allgd = gdI & gdA & gdw
     # Return
     return tbl[allgd]
 
@@ -153,14 +156,22 @@ def load_parse_dict():
     '''Dicts for parsing Arc line lists from NIST
     Rejected lines are in the rejected_lines.yaml file
     '''
-    dict_parse = dict(min_intensity=0.)
+    dict_parse = dict(min_intensity=0., min_Aki=0., min_wave=0.)
     arcline_parse = {} 
+    # ArI
+    arcline_parse['ArI'] = copy.deepcopy(dict_parse)
+    arcline_parse['ArI']['min_intensity'] = 1000. # NOT PICKING UP REDDEST LINES
     # HgI
     arcline_parse['HgI'] = copy.deepcopy(dict_parse)
     arcline_parse['HgI']['min_intensity'] = 800.
     # HeI
     arcline_parse['HeI'] = copy.deepcopy(dict_parse)
     arcline_parse['HeI']['min_intensity'] = 20.
+    # NeI
+    arcline_parse['NeI'] = copy.deepcopy(dict_parse)
+    arcline_parse['NeI']['min_intensity'] = 500.
+    arcline_parse['NeI']['min_Aki']  = 1. # NOT GOOD FOR DEIMOS
+    arcline_parse['NeI']['min_wave'] = 5850. # NOT GOOD FOR DEIMOS
     # ZnI
     arcline_parse['ZnI'] = copy.deepcopy(dict_parse)
     arcline_parse['ZnI']['min_intensity'] = 50.
