@@ -6,6 +6,7 @@ import arutils
 import armsgs as msgs
 from arplot import get_dimen as get_dimen
 import ararclines
+import arqa
 #import arfitbase
 from matplotlib import pyplot as plt
 import scipy.interpolate as interpolate
@@ -101,17 +102,19 @@ def setup_param(slf, sc):
     '''
     # Defaults
     arcparam = dict(llist='', 
-        disp=1.02,          # Ang 
-        b1=0.,              # Pixel fit term
-        b2=0.,              # Pixel fit term
-        disp_toler=0.1,     # 10% tolerance
-        match_toler=3.,     # Matcing tolerance (pixels)
-        func='legendre',    # Function for fitting
-        n_first=1,          # Order of polynomial for first fit
-        n_final=4,          # Order of polynomial for final fit
-        nsig_rej=2.,        # Number of sigma for rejection
-        nsig_rej_final=3.0, # Number of sigma for rejection (final fit)
-        Nstrong=13)
+        disp=1.02,           # Ang (unbinned)
+        b1=0.,               # Pixel fit term (binning independent)
+        b2=0.,               # Pixel fit term
+        wvmnx=[2900.,12000.],# Pixel fit term
+        disp_toler=0.1,      # 10% tolerance
+        match_toler=3.,      # Matcing tolerance (pixels)
+        func='legendre',     # Function for fitting
+        n_first=1,           # Order of polynomial for first fit
+        n_final=4,           # Order of polynomial for final fit
+        nsig_rej=2.,         # Number of sigma for rejection
+        nsig_rej_final=3.0,  # Number of sigma for rejection (final fit)
+        Nstrong=13)          # Number of lines for auto-analysis
+
 
     # Instrument/disperser specific
     sname = slf._argflag['run']['spectrograph']
@@ -119,12 +122,13 @@ def setup_param(slf, sc):
     disperser = slf._fitsdict["disperser"][idx[0]]
     if sname=='kast_blue':
         # Could have the following depend on lamps that were turned on
-        arcparam['llist'] = ararclines.load_arcline_list(slf,['CdI','HgI','HeI'])
+        lamps = ['CdI','HgI','HeI']
         #arcparam['llist'] = slf._argflag['run']['pypitdir'] + 'data/arc_lines/kast_blue.lst'
         if disperser == '600/4310':
             arcparam['disp']=1.02
             arcparam['b1']=6.88935788e-04
             arcparam['b2']=-2.38634231e-08
+            arcparam['wvmnx'][1] = 6000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='kast_red':
@@ -132,17 +136,35 @@ def setup_param(slf, sc):
         if disperser == '600/7500':
             arcparam['disp']=2.35
             arcparam['b1']= 1./arcparam['disp']/slf._msarc.shape[0] 
+            arcparam['wvmnx'][0] = 4000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='lris_blue':
-        arcparam['llist'] = slf._argflag['run']['pypitdir'] + 'data/arc_lines/lris_blue_600.lst'
+        lamps = ['ZnI','CdI','HgI']
         if disperser == '600/4000':
+            arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.63 # Ang per pixel (unbinned)
-            if slf._fitsdict['binning'][idx[0]] in ['2,2']:
-                arcparam['disp'] *= 2
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc.shape[0] 
+            arcparam['b1']= 4.54698031e-04 
+            arcparam['b2']= -6.86414978e-09
+            #arcparam['b1']= 1./arcparam['disp']/slf._msarc.shape[0] 
+            arcparam['wvmnx'][1] = 6000.
     else:
         msgs.error('ararc.setup_param: Not ready for this instrument {:s}!'.format(sname))
+
+    # Load linelist
+    slmps = lamps[0]
+    for lamp in lamps[1:]:
+        slmps=slmps+','+lamp
+    msgs.info('Loading line list using {:s} lamps'.format(slmps))
+    arcparam['llist'] = ararclines.load_arcline_list(slf,lamps,
+        wvmnx=arcparam['wvmnx'])
+    #llist = ascii.read(aparm['llist'],
+    #    format='fixed_width_no_header', comment='#', #data_start=1, 
+    #    names=('wave', 'flag', 'ID'),
+    #    col_starts=(0,12,14), col_ends=(11,13,24))
+    # Binning
+    if slf._fitsdict['binning'][idx[0]] in ['2,2']:
+        arcparam['disp'] *= 2
     # Return
     return arcparam
 
@@ -170,16 +192,13 @@ def simple_calib(slf, det, get_poly=False, debug=False):
     # Cut down to the good ones
     tcent = tcent[w]
     tampl = tampl[w]
+    msgs.info('Detected {:d} lines in the arc spectrum.'.format(len(w[0])))
 
     # Parameters (just for convenience)
     aparm = slf._arcparam
 
     # Read Arc linelist
     llist = aparm['llist']
-    #llist = ascii.read(aparm['llist'],
-    #    format='fixed_width_no_header', comment='#', #data_start=1, 
-    #    names=('wave', 'flag', 'ID'),
-    #    col_starts=(0,12,14), col_ends=(11,13,24))
 
     # Generate dpix pairs
     nlist = len(llist)
@@ -210,16 +229,25 @@ def simple_calib(slf, det, get_poly=False, debug=False):
         idm = np.argmin(med_off)
         ids[kk] = llist['wave'][idm]
 
-    # Calculate disp of the good lines
+    # Calculate disp of the strong lines
     disp_str = np.zeros(aparm['Nstrong'])
     for kk in range(aparm['Nstrong']):
         disp_str[kk] = np.median( (ids[kk]-ids)/
             (tcent[idx_str[kk]]-tcent[idx_str]) )
     # Consider calculating the RMS with clipping
     gd_str = np.where( np.abs(disp_str-aparm['disp'])/aparm['disp'] < aparm['disp_toler'])[0]
+    msgs.info('Found {:d} lines within the disperesion threshold'.format(len(gd_str)))
+    if len(gd_str) < 5:
+        msgs.error('Insufficient lines to auto-fit.')
 
+    # Debug
+    #debug=True
     if debug:
-        xdb.xplot(tcent[idx_str[gd_str]],ids[gd_str],scatter=True)
+        tmp = list(gd_str)
+        tmp.pop(1)
+        gd_str = np.array(tmp)
+        xdb.xpcol(tcent[idx_str[gd_str]],ids[gd_str])
+        #xdb.xplot(tcent[idx_str[gd_str]],ids[gd_str],scatter=True)
         xdb.set_trace()
 
     # Consider a cross-correlation here (as a double-check)
@@ -230,10 +258,10 @@ def simple_calib(slf, det, get_poly=False, debug=False):
     all_ids = -999.*np.ones(len(tcent))
     all_ids[ifit] = ids[gd_str]
     # Fit 
-    debug = False
     n_order = aparm['n_first']
     flg_quit = False
     fmin, fmax = -1., 1. 
+    msgs.info('Iterative wavelength fitting..')
     while (n_order <= aparm['n_final']) and (flg_quit is False):
         #msgs.info('n_order={:d}'.format(n_order))
         # Fit with rejection
@@ -242,8 +270,9 @@ def simple_calib(slf, det, get_poly=False, debug=False):
             function=aparm['func'], sigma=aparm['nsig_rej'], min=fmin, max=fmax) 
         # DEBUG
         if debug:
-            wave = arutils.func_val(fit, np.arange(slf._msarc.shape[0]), aparm['func'], min=fmin, max=fmax)
-            xdb.xplot(xfit,yfit,scatter=True,xtwo=np.arange(slf._msarc.shape[0]), ytwo=wave)
+            xdb.xpcol(xfit,yfit)
+            #wave = arutils.func_val(fit, np.arange(slf._msarc.shape[0]), aparm['func'], min=fmin, max=fmax)
+            #xdb.xplot(xfit,yfit,scatter=True,xtwo=np.arange(slf._msarc.shape[0]), ytwo=wave)
         # Reject but keep originals (until final fit)
         ifit = list(ifit[mask==0]) + sv_ifit
         # Find new points (should we allow removal of the originals?)
@@ -251,9 +280,9 @@ def simple_calib(slf, det, get_poly=False, debug=False):
         for ss,iwave in enumerate(twave):
             mn = np.min(np.abs(iwave-llist['wave']))
             if mn/aparm['disp'] < aparm['match_toler']:
-                if debug:
-                    print('Adding {:g} at {:g}'.format(iwave,tcent[ss]))
                 imn = np.argmin(np.abs(iwave-llist['wave']))
+                if debug:
+                    print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
                 # Update and append
                 all_ids[ss] = llist['wave'][imn]
                 ifit.append(ss)
@@ -287,6 +316,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
     yfit = yfit[mask==0]
     #
     if debug:
+        msarc = slf._msarc
         wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]), 
             'legendre', min=fmin, max=fmax)
         xdb.xplot(xfit,yfit, scatter=True, 
@@ -301,10 +331,12 @@ def simple_calib(slf, det, get_poly=False, debug=False):
             xtwo=np.arange(msarc.shape[0]),ytwo=yprep)
         xdb.xplot(xfit,yfit, scatter=True, xtwo=np.arange(msarc.shape[0]),
             ytwo=wave)
+        xdb.set_trace()
         #from xastropy.xutils import xdebug as xdb
         #wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]), 
         #    'legendre', min=fmin, max=fmax)
         #xdb.set_trace()
+
     # 2nd order Poly fit for archival
     #get_poly=True
     if get_poly:
@@ -318,87 +350,10 @@ def simple_calib(slf, det, get_poly=False, debug=False):
         fmin=fmin, fmax=fmax, xnorm=float(slf._msarc.shape[0]),
         xrej=xrej, yrej=yrej)
     # QA
-    arc_qa(final_fit, yprep)
+    arqa.arc_fit_qa(final_fit, yprep, slf._msarc_name)
     # Return
     return final_fit
 
-
-def arc_qa(fit, arc_spec, outfil=None):
-    '''QA for Arc spectrum
-    Parameters:
-    -----------
-    outfil: str, optional
-      Name of output file
-    '''
-    import matplotlib.gridspec as gridspec
-    if outfil is None:
-        outfil = 'Plots/arc_qa.pdf'
-
-    # Begin
-    plt.figure(figsize=(8, 4.0))
-    plt.clf()
-    gs = gridspec.GridSpec(2,2)
-
-    # Simple spectrum plot
-    ax_spec = plt.subplot(gs[:,0])
-    ax_spec.plot(np.arange(len(arc_spec)), arc_spec)
-    ymin, ymax = 0., np.max(arc_spec)
-    ysep = ymax*0.03
-    for kk,x in enumerate(fit['xfit']*fit['xnorm']):
-        yline = np.max(arc_spec[int(x)-2:int(x)+2])
-        # Tick mark
-        ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], 'g-')
-        # label
-        ax_spec.text(x, yline+ysep*1.3, 
-            '{:g}'.format(fit['yfit'][kk]), ha='center', va='bottom',
-            size='xx-small', rotation=90., color='green')
-    ax_spec.set_xlim(0., len(arc_spec))
-    ax_spec.set_ylim(ymin, ymax*1.2)
-    ax_spec.set_xlabel('Pixel')
-    ax_spec.set_ylabel('Flux')
-
-    # Arc Fit
-    ax_fit = plt.subplot(gs[0,1])
-    # Points
-    ax_fit.scatter(fit['xfit']*fit['xnorm'], fit['yfit'], marker='x')
-    if len(fit['xrej']) > 0:
-        ax_fit.scatter(fit['xrej']*fit['xnorm'], fit['yrej'], marker='o',
-            edgecolor='gray', facecolor='none')
-    # Solution
-    xval = np.arange(len(arc_spec))
-    wave = arutils.func_val(fit['fitc'], xval/fit['xnorm'], 'legendre', 
-        min=fit['fmin'], max=fit['fmax'])
-    ax_fit.plot(xval, wave, 'r-')
-    xmin, xmax = 0., len(arc_spec)
-    ax_fit.set_xlim(xmin, xmax)
-    ymin,ymax = np.min(wave)*.95,  np.max(wave)*1.05
-    ax_fit.set_ylim(np.min(wave)*.95,  np.max(wave)*1.05)
-    ax_fit.set_ylabel('Wavelength')
-    ax_fit.get_xaxis().set_ticks([]) # Suppress labeling
-    # Stats
-    wave_fit = arutils.func_val(fit['fitc'], fit['xfit'], 'legendre', 
-        min=fit['fmin'], max=fit['fmax'])
-    dwv_pix = np.median(np.abs(wave-np.roll(wave,1)))
-    rms = np.sqrt(np.sum((fit['yfit']-wave_fit)**2)/len(fit['xfit'])) # Ang
-    ax_fit.text(0.1*len(arc_spec), 0.90*ymin+(ymax-ymin),
-        r'$\Delta\lambda$={:.3f} (per pix)'.format(dwv_pix), size='small')
-    ax_fit.text(0.1*len(arc_spec), 0.80*ymin+(ymax-ymin),
-        'RMS={:.3f} (pixels)'.format(rms/dwv_pix), size='small')
-    # Arc Residuals
-    ax_res = plt.subplot(gs[1,1])
-    res = fit['yfit']-wave_fit
-    ax_res.scatter(fit['xfit']*fit['xnorm'], res/dwv_pix, marker='x')
-    ax_res.plot([xmin,xmax], [0.,0], 'k--')
-    ax_res.set_xlim(xmin, xmax)
-    ax_res.set_xlabel('Pixel')
-    ax_res.set_ylabel('Residuals (Pix)')
-
-    # Finish
-    # Finish
-    plt.tight_layout(pad=0.2,h_pad=0.0,w_pad=0.0)
-    plt.savefig(outfil)
-    plt.tight_layout(pad=0.2,h_pad=0.0,w_pad=0.0)
-    plt.savefig(outfil)
 
 def calibrate(slf, filename, pixtmp=None, prefix=""):
     """

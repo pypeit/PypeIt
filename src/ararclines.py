@@ -56,13 +56,15 @@ def parse_nist(slf,ion):
     # Return
     return nist_tbl
 
-def load_arcline_list(slf,lines):
+def load_arcline_list(slf,lines, wvmnx=None):
     '''Loads arc line list from NIST files
     Parses and rejects
     Parameters:
     ------------
     lines: list
       List of ions to load
+    wvmnx: list or tuple
+      wvmin, wvmax for line list
     '''
     # Get the parse dict
     parse_dict = load_parse_dict()
@@ -88,6 +90,12 @@ def load_arcline_list(slf,lines):
         tbls.append(tbl[['Ion','wave','RelInt']])
     # Stack
     alist = vstack(tbls)
+
+    # wvmnx?
+    if wvmnx is not None:
+        msgs.info('Cutting down line list by wvmnx: {:g},{:g}'.format(wvmnx[0],wvmnx[1]))
+        gdwv = (alist['wave'] >= wvmnx[0]) & (alist['wave'] <= wvmnx[1])
+        alist = alist[gdwv]
     # Return
     return alist
 
@@ -112,7 +120,7 @@ def reject_lines(slf,tbl,rej_dict):
         close = np.where(np.abs(wave-tbl['wave']) < 0.1)[0]
         if rej_dict[wave] == 'all':
             msk[close] = False
-        elif rej_dict[wave] == slf._argflag['run']['spectrograph']:
+        elif slf._argflag['run']['spectrograph'] in rej_dict[wave].keys():
             if rej_dict[wave][slf._argflag['run']['spectrograph']] == 'all':
                 msk[close] = False
             elif slf._fitsdict["disperser"][idx[0]] in rej_dict[wave][slf._argflag['run']['spectrograph']]:
@@ -153,6 +161,9 @@ def load_parse_dict():
     # HeI
     arcline_parse['HeI'] = copy.deepcopy(dict_parse)
     arcline_parse['HeI']['min_intensity'] = 20.
+    # ZnI
+    arcline_parse['ZnI'] = copy.deepcopy(dict_parse)
+    arcline_parse['ZnI']['min_intensity'] = 50.
     #
     return arcline_parse
 
