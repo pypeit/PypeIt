@@ -1,0 +1,17 @@
+Data for Test Suite runs for PYPIT
+
+You should have your own directory outside
+of the Dropbox for running the test suites.
+And you need to setup an environemental variable
+pointing to it, e.g.
+
+setenv TST_PYPIT /Users/xavier/PYPIT/TEST_SUITES/
+
+You also need an environmental variable pointing to the
+PYPIT code:
+
+setenv PYPIT /Users/xavier/local/Python/PYPIT/
+
+Then let it rip.
+
+./run_pypit_tests

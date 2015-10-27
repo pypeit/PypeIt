@@ -22,6 +22,8 @@ import arutils
 import arvcorr
 import arqa
 
+import pdb
+
 try:
     from xastropy.xutils import xdebug as xdb
 except:
@@ -51,7 +53,7 @@ class ClassMain:
         ---------------------------------------------------
 
         """
-
+        #pdb.set_trace()
         #############################
         # Set some universal parameters
         self._argflag = argflag   # Arguments and Flags
