@@ -211,6 +211,7 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     msgs.info("Subtracting the sky background from the science frame")
     return sciframe-skybg, skybg
 
+
 def badpix(slf, det, frame, sigdev=10.0):
     """
     frame is a master bias frame
@@ -359,6 +360,7 @@ def flatfield(slf, sciframe, flatframe, snframe=None):
         errframe[wnz] = retframe[wnz]/snframe[wnz]
         return retframe, errframe
 
+
 def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, fname=""):
     """
     Normalize the flat-field frame
@@ -456,6 +458,7 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, fname=""):
     # If there is more than 1 amplifier, apply the scale between amplifiers to the normalized flat
     if slf._spect['det'][det-1]['numamplifiers'] > 1: msnormflat *= sclframe
     return msnormflat, msblaze
+
 
 def get_ampscale(slf, det, msflat):
     sclframe = np.ones_like(msflat)
@@ -725,6 +728,7 @@ def lacosmic(slf, det, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
     crmask = arcyutils.grow_masked(crmask.astype(np.float), grow, 1.0)
     return crmask
 
+
 def sub_overscan(slf, det, file):
     '''Subtract overscan
     '''
@@ -821,6 +825,7 @@ def trim(slf,file,det):
 #	else:
 #		msgs.error("Cannot trim {0:d}D frame".format(int(len(file.shape))))
     return file[w]
+
 
 def variance_frame(slf, det, sciframe, idx):
     # Dark Current noise

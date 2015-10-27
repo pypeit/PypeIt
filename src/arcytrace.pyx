@@ -806,7 +806,7 @@ def find_objects(np.ndarray[DTYPE_t, ndim=1] profile not None,
         objr[cntr] = imax
         # Find the left edge of this object
         for x in range(1,imax):
-            if profile[imax-x] > 0.0:
+            if profile[imax-x] > 3.0*stddev:
                 objl[cntr] -= 1
                 msk[imax-x] = 1
             else:
@@ -815,7 +815,7 @@ def find_objects(np.ndarray[DTYPE_t, ndim=1] profile not None,
                 break
         # Find the right edge of this object
         for x in range(imax+1,sz_x):
-            if profile[x] > 0.0:
+            if profile[x] > 3.0*stddev:
                 objr[cntr] += 1
                 msk[x] = 1
             else:

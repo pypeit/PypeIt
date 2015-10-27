@@ -99,7 +99,7 @@ def arc_fit_qa(fit, arc_spec, outroot=None, outfil=None):
     plt.close()
 
 
-def obj_trace_qa(slf, frame, objtrace, root='trace', outfil=None, normalize=True):
+def obj_trace_qa(frame, ltrace, rtrace, root='trace', outfil=None, normalize=True):
     ''' Generate a QA plot for the object trace
     Parameters:
     ------------
@@ -162,19 +162,20 @@ def obj_trace_qa(slf, frame, objtrace, root='trace', outfil=None, normalize=True
     for label in ax.get_xticklabels() :
         label.set_fontproperties(ticks_font)
     cmm = cm.Greys_r
-    mplt = plt.imshow(nrm_frame,origin='lower', cmap=cmm, extent=(0., frame.shape[1]-1, 0., frame.shape[0]-1))
+    mplt = plt.imshow(nrm_frame,origin='lower', cmap=cmm, extent=(0., frame.shape[1], 0., frame.shape[0]))
     mplt.set_clim(vmin=sclmin, vmax=sclmax)
 
     # Axes
-    plt.xlim(0., frame.shape[1]-1)
-    plt.ylim(0., frame.shape[0]-1)
+    plt.xlim(0., frame.shape[1])
+    plt.ylim(0., frame.shape[0])
+    plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
 
     # Traces
     for ii in xrange(ntrc):
         # Left
-        plt.plot(ltrace[:,ii], ycen, 'r--',alpha=0.7)
+        plt.plot(ltrace[:,ii]+0.5, ycen, 'r--',alpha=0.7)
         # Right
-        plt.plot(rtrace[:,ii], ycen, 'g--',alpha=0.7)
+        plt.plot(rtrace[:,ii]+0.5, ycen, 'g--',alpha=0.7)
         # Label
         iy = int(frame.shape[0]/2.)
         plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
@@ -185,7 +186,7 @@ def obj_trace_qa(slf, frame, objtrace, root='trace', outfil=None, normalize=True
     plt.close()
 
 
-def slit_trace_qa(slf, frame, ltrace, rtrace, root='trace', outfil=None, normalize=True):
+def slit_trace_qa(frame, ltrace, rtrace, root='trace', outfil=None, normalize=True):
     ''' Generate a QA plot for the traces
     Parameters:
     ------------
@@ -248,19 +249,20 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, root='trace', outfil=None, normali
     for label in ax.get_xticklabels() :
         label.set_fontproperties(ticks_font)
     cmm = cm.Greys_r
-    mplt = plt.imshow(nrm_frame,origin='lower', cmap=cmm, extent=(0., frame.shape[1]-1, 0., frame.shape[0]-1))
+    mplt = plt.imshow(nrm_frame,origin='lower', cmap=cmm, extent=(0., frame.shape[1], 0., frame.shape[0]), interpolation=None)
     mplt.set_clim(vmin=sclmin, vmax=sclmax)
 
     # Axes
-    plt.xlim(0., frame.shape[1]-1)
-    plt.ylim(0., frame.shape[0]-1)
+    plt.xlim(0., frame.shape[1])
+    plt.ylim(0., frame.shape[0])
+    plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
 
     # Traces
     for ii in xrange(ntrc):
         # Left
-        plt.plot(ltrace[:,ii], ycen, 'r--',alpha=0.7)
+        plt.plot(ltrace[:,ii]+0.5, ycen, 'r--',alpha=0.7)
         # Right
-        plt.plot(rtrace[:,ii], ycen, 'g--',alpha=0.7)
+        plt.plot(rtrace[:,ii]+0.5, ycen, 'g--',alpha=0.7)
         # Label
         iy = int(frame.shape[0]/2.)
         plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')

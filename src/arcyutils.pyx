@@ -481,6 +481,69 @@ def crreject(np.ndarray[DTYPE_t, ndim=2] frame not None,
 
 
 #######
+#  F  #
+#######
+
+@cython.boundscheck(False)
+def func2d_fit_val(np.ndarray[DTYPE_t, ndim=1] yarr not None,
+                    np.ndarray[DTYPE_t, ndim=2] frame not None,
+                    np.ndarray[DTYPE_t, ndim=2] weights not None,
+                    int polyorder):
+
+    cdef int x, sz_x, y, sz_y, j
+    cdef int degree = polyorder+1
+    cdef double mval, chisq
+
+    sz_x = frame.shape[0]
+    sz_y = frame.shape[1]
+
+    cdef np.ndarray[DTYPE_t, ndim=2] image = np.zeros((sz_x,sz_y), dtype=DTYPE)
+
+    cdef gsl_multifit_linear_workspace *ws
+    cdef gsl_matrix *cov
+    cdef gsl_matrix *xmat
+
+    cdef gsl_vector *yvec
+    cdef gsl_vector *wgt
+    cdef gsl_vector *c
+
+    xmat = gsl_matrix_alloc(sz_y, degree)
+    wgt  = gsl_vector_alloc(sz_y)
+    yvec = gsl_vector_alloc(sz_y)
+    c    = gsl_vector_alloc(degree)
+    cov  = gsl_matrix_alloc(degree, degree)
+    ws = gsl_multifit_linear_alloc(sz_y, degree)
+
+    for y in range(sz_y):
+        gsl_matrix_set(xmat, y, 0, 1.0)
+        for j in range(1,degree):
+            gsl_matrix_set(xmat, y, j, cpow(yarr[y], j))
+
+    for x in range(sz_x):
+        # Set the arrays
+        for y in range(sz_y):
+            gsl_vector_set(yvec, y, frame[x,y])
+            gsl_vector_set(wgt, y, weights[x,y])
+        # Fit with a polynomial
+        gsl_multifit_wlinear(xmat, wgt, yvec, c, cov, &chisq, ws)
+        # Obtain the model values for this row
+        for y in range(sz_y):
+            mval = 0.0
+            for j in range(0,degree): mval += gsl_vector_get(c, j) * cpow(yarr[y], j)
+            image[x,y] = mval
+
+    # Free some of these arrays from memory
+    gsl_multifit_linear_free(ws)
+    gsl_matrix_free(xmat)
+    gsl_matrix_free(cov)
+    gsl_vector_free(yvec)
+    gsl_vector_free(c)
+
+    # Return an image
+    return image
+
+
+#######
 #  G  #
 #######
 
