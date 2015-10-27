@@ -57,11 +57,13 @@ def parse_nist(slf,ion):
     # Return
     return nist_tbl
 
-def load_arcline_list(slf,lines, wvmnx=None):
+def load_arcline_list(slf, idx, lines, wvmnx=None):
     '''Loads arc line list from NIST files
     Parses and rejects
     Parameters:
     ------------
+    idx: list  
+      indices of the arc
     lines: list
       List of ions to load
     wvmnx: list or tuple
@@ -87,7 +89,7 @@ def load_arcline_list(slf,lines, wvmnx=None):
         # Reject
         if iline in rej_dict.keys():
             msgs.info("Rejecting select {:s} lines".format(iline))
-            tbl = reject_lines(slf,tbl,rej_dict[iline])
+            tbl = reject_lines(slf,tbl,idx,rej_dict[iline])
         tbls.append(tbl[['Ion','wave','RelInt']])
     # Stack
     alist = vstack(tbls)
@@ -101,12 +103,14 @@ def load_arcline_list(slf,lines, wvmnx=None):
     return alist
 
 
-def reject_lines(slf,tbl,rej_dict):
+def reject_lines(slf,tbl,idx,rej_dict):
     '''Parses a NIST table using various criteria
     Parameters:
     ------------
     tbl: Table
       Read previously from NIST ASCII file
+    idx: list  
+      indices of the arc
     rej_dict: dict
       Dict of rejected lines
 

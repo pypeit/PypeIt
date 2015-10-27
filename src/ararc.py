@@ -138,6 +138,7 @@ def setup_param(slf, sc):
             arcparam['disp']=2.35
             arcparam['b1']= 1./arcparam['disp']/slf._msarc.shape[0] 
             arcparam['wvmnx'][0] = 5000.
+            arcparam['n_first']=2 # Should be able to lock on
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='lris_blue':
@@ -157,7 +158,7 @@ def setup_param(slf, sc):
     for lamp in lamps[1:]:
         slmps=slmps+','+lamp
     msgs.info('Loading line list using {:s} lamps'.format(slmps))
-    arcparam['llist'] = ararclines.load_arcline_list(slf,lamps,
+    arcparam['llist'] = ararclines.load_arcline_list(slf, idx, lamps,
         wvmnx=arcparam['wvmnx'])
     #llist = ascii.read(aparm['llist'],
     #    format='fixed_width_no_header', comment='#', #data_start=1, 
@@ -244,9 +245,9 @@ def simple_calib(slf, det, get_poly=False, debug=False):
     # Debug
     #debug=True
     if debug:
-        tmp = list(gd_str)
-        tmp.pop(1)
-        gd_str = np.array(tmp)
+        #tmp = list(gd_str)
+        #tmp.pop(1)
+        #gd_str = np.array(tmp)
         xdb.xpcol(tcent[idx_str[gd_str]],ids[gd_str])
         #xdb.xplot(tcent[idx_str[gd_str]],ids[gd_str],scatter=True)
         xdb.set_trace()

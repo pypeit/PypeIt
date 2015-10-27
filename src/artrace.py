@@ -166,6 +166,7 @@ def trace_object(slf, sciframe, varframe, crmask, trim=2.0, sigmin=2.0, bgreg=No
         try:
             specfit = specfit[w]
         except IndexError:
+            msgs.error('Bad Index Error in artrace')
             pdb.set_trace()
         centfit = centfit[w]
         mskbad, coeffs = arutils.robust_polyfit(specfit,centfit,traceorder,function="legendre",min=-1.0,max=1.0)
@@ -185,6 +186,7 @@ def trace_object(slf, sciframe, varframe, crmask, trim=2.0, sigmin=2.0, bgreg=No
     try:
         traces = slf._lordloc[:,order].reshape((-1,1)) + trim + npix*trcfunc
     except:
+        msgs.error("artrace.traceobj: Problem in the traces..")
         pdb.set_trace()
     # Save the quality control
     arqa.obj_trace_qa(slf,sciframe,traces,traces,root="object_trace", normalize=False)
