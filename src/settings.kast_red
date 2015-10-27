@@ -43,7 +43,7 @@ det01 nonlinear 0.76                  # Percentage of detector range which is li
 det01 numamplifiers 1                 # Number of amplifiers
 det01 ampsec01 [:,1:1232]        # For each amplifier, you should specify the detector sections each amplifier reads out (values are inclusive).
 det01 datasec01 [:,1:1200]       # Either the data sections or the header keyword where the valid data sections can be obtained
-det01 oscansec01 [:,1200:1232]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+det01 oscansec01 [:,1202:1232]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
 det01 suffix _red                     # Suffix to be appended to all saved calibration and extraction frames
 
 ### Checks to perform

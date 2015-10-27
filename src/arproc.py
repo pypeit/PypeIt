@@ -753,8 +753,10 @@ def sub_overscan(slf, det, file):
         # Make sure the overscan section has at least one side consistent with ampsec (note: ampsec should contain both datasec and oscansec)
         if (ax1-ax0==ox1-ox0):
             osfit = np.mean(oscan,axis=1)
+            flg_oscan = 1
         elif (ay1-ay0==oy1-oy0):
             osfit = np.mean(oscan,axis=0)
+            flg_oscan = 0
         else:
             msgs.error("Overscan sections do not match amplifier sections for amplifier {0:d}".format(i+1))
         # Fit/Model the overscan region
@@ -789,6 +791,7 @@ def sub_overscan(slf, det, file):
             file[wd] -= ossub.T
         else:
             msgs.error("Could not subtract bias from overscan region --"+msgs.newline()+"size of extracted regions does not match")
+    # Return
     del xam, yam, xds, yds, xos, yos, oscan
     return file
 

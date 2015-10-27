@@ -7,11 +7,10 @@ Usually found in a Dropbox.
 import sys, os, os.path
 import pdb
 import subprocess
-import warnings as warn
+import warnings 
 
-sys.path.append(os.getenv('PYPIT')+'/src/')
-import pypit, arload
-
+#sys.path.append(os.getenv('PYPIT')+'/src/')
+#import pypit, arload
 
 # Point to all sub-folders 
 walk = os.walk('./')
@@ -21,14 +20,16 @@ pwd = os.getcwd()
 
 # Loop on instruments
 for instr in instruments:
+    #if instr in ['Kast_blue','Kast_red']: # For testing
+    #    continue
     # Setups
     setups = next(os.walk(instr))[1]
     for setup in setups:
         # Look for redux file in PYPIT
         redfile = os.getenv('PYPIT')+'/test_suite/'+instr.lower()+'_'+setup.lower()+'.red'
         if not os.path.exists(redfile):
-            warn.warn('No redux file: {:s}')
-            warn.warn('Not testing..')
+            warnings.warn('No redux file: {:s}'.format(redfile))
+            warnings.warn('Not testing..')
             continue
         # Edit data directory 
         with open(redfile, 'r') as infile:
@@ -49,18 +50,15 @@ for instr in instruments:
             for iline in lines:
                 ofile.writelines(iline)
         # Run       
-        logfile = instr.lower()+'_'+setup.lower()+'.log'
+        logfile = wdir+'/'+instr.lower()+'_'+setup.lower()+'.log'
         print('Running pypit on {:s} --- '.format(outfile))
-        argflag = arload.optarg(outfile, 'dummy')
-        ClassMain(argflag)
-        #subprocess.call(['pypit', outfile, '>', logfile], cwd=wdir)#, shell=True)
+        with open(logfile,'w') as f:
+            subprocess.call(['python', os.getenv('PYPIT')+'/src/pypit.py', outfile], stderr=f, cwd=wdir)#, shell=True)
         print('Done running pypit on {:s} --- '.format(outfile))
-        pdb.set_trace()
-        # Return
-        os.chdir(pwd)
+        subprocess.call(['tail', logfile])
+        # Need some merit of success..
 
 
 # cd to Test Suite folder
 #os.chdir(os.getenv('TST_PYPIT'))
 
-pdb.set_trace()

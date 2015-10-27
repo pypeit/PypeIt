@@ -549,6 +549,7 @@ def load_frames(slf, ind, det, frametype='<None>', msbias=None, trim=True, trans
             temp, head0, _ = arlris.read_lris(slf._fitsdict['directory'][ind[i]]+slf._fitsdict['filename'][ind[i]], det)
         else:
             temp = pyfits.getdata(slf._fitsdict['directory'][ind[i]]+slf._fitsdict['filename'][ind[i]], slf._spect['fits']['dataext'])
+        temp = temp.astype(float) # Let us avoid uint16
         if transpose: temp = temp.T
         if msbias is not None:
             if type(msbias) is np.ndarray:

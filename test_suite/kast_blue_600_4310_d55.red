@@ -17,7 +17,7 @@ spect read
  pixflat number 3
  bias number 3
  trace number 3
- set standard b24.fits 
- set standard b25.fits 
- set standard b26.fits 
+ set standard b24.fits.gz 
+ set standard b25.fits.gz 
+ set standard b26.fits.gz 
 spect end
