@@ -2,6 +2,7 @@ import os
 import sys
 import copy
 import glob
+import pdb
 import getopt
 import astropy.io.fits as pyfits
 import numpy as np
@@ -316,6 +317,8 @@ def load_input(slf):
             dfname = lines[i].rstrip('\n').strip()
             if dfname[0] == "#":
                 continue
+            elif dfname[0] == '~':
+                dfname = os.path.expanduser(dfname)
             elif dfname[0] != '/':
                 msgs.error("You must specify the full datapath for the file:"+msgs.newline()+dfname)
             elif len(dfname.split()) != 1:
@@ -546,6 +549,7 @@ def load_frames(slf, ind, det, frametype='<None>', msbias=None, trim=True, trans
             temp, head0, _ = arlris.read_lris(slf._fitsdict['directory'][ind[i]]+slf._fitsdict['filename'][ind[i]], det)
         else:
             temp = pyfits.getdata(slf._fitsdict['directory'][ind[i]]+slf._fitsdict['filename'][ind[i]], slf._spect['fits']['dataext'])
+        temp = temp.astype(float) # Let us avoid uint16
         if transpose: temp = temp.T
         if msbias is not None:
             if type(msbias) is np.ndarray:

@@ -211,6 +211,7 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     msgs.info("Subtracting the sky background from the science frame")
     return sciframe-skybg, skybg
 
+
 def badpix(slf, det, frame, sigdev=10.0):
     """
     frame is a master bias frame
@@ -359,6 +360,7 @@ def flatfield(slf, sciframe, flatframe, snframe=None):
         errframe[wnz] = retframe[wnz]/snframe[wnz]
         return retframe, errframe
 
+
 def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, fname=""):
     """
     Normalize the flat-field frame
@@ -456,6 +458,7 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, fname=""):
     # If there is more than 1 amplifier, apply the scale between amplifiers to the normalized flat
     if slf._spect['det'][det-1]['numamplifiers'] > 1: msnormflat *= sclframe
     return msnormflat, msblaze
+
 
 def get_ampscale(slf, det, msflat):
     sclframe = np.ones_like(msflat)
@@ -725,6 +728,7 @@ def lacosmic(slf, det, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
     crmask = arcyutils.grow_masked(crmask.astype(np.float), grow, 1.0)
     return crmask
 
+
 def sub_overscan(slf, det, file):
     '''Subtract overscan
     '''
@@ -753,8 +757,10 @@ def sub_overscan(slf, det, file):
         # Make sure the overscan section has at least one side consistent with ampsec (note: ampsec should contain both datasec and oscansec)
         if (ax1-ax0==ox1-ox0):
             osfit = np.mean(oscan,axis=1)
+            flg_oscan = 1
         elif (ay1-ay0==oy1-oy0):
             osfit = np.mean(oscan,axis=0)
+            flg_oscan = 0
         else:
             msgs.error("Overscan sections do not match amplifier sections for amplifier {0:d}".format(i+1))
         # Fit/Model the overscan region
@@ -789,6 +795,7 @@ def sub_overscan(slf, det, file):
             file[wd] -= ossub.T
         else:
             msgs.error("Could not subtract bias from overscan region --"+msgs.newline()+"size of extracted regions does not match")
+    # Return
     del xam, yam, xds, yds, xos, yos, oscan
     return file
 
@@ -818,6 +825,7 @@ def trim(slf,file,det):
 #	else:
 #		msgs.error("Cannot trim {0:d}D frame".format(int(len(file.shape))))
     return file[w]
+
 
 def variance_frame(slf, det, sciframe, idx):
     # Dark Current noise

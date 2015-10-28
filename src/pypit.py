@@ -20,7 +20,10 @@ import arsort
 import artrace
 import arutils
 import arvcorr
+import arextract
 import arqa
+
+import pdb
 
 try:
     from xastropy.xutils import xdebug as xdb
@@ -51,7 +54,7 @@ class ClassMain:
         ---------------------------------------------------
 
         """
-
+        #pdb.set_trace()
         #############################
         # Set some universal parameters
         self._argflag = argflag   # Arguments and Flags
@@ -115,6 +118,11 @@ class ClassMain:
         if self._argflag['reduce']['badpix']:
             msgs.info("Preparing a bad pixel mask")
             # Get all of the bias frames for this science frame
+            if len(self._spect['bias']['index']) == 0:
+                msgs.warn("No bias frames available to determine bad pixel mask")
+                msgs.info("Not preparing a bad pixel mask")
+                self._bpix = None
+                return
             ind = self._spect['bias']['index'][sc]
             # Load the Bias frames
             frames = arload.load_frames(self, ind, det, frametype='bias', trim=False)
@@ -122,8 +130,10 @@ class ClassMain:
             self._bpix = arproc.badpix(self, det, tbpix)
             del tbpix
         else:
+            self._bpix = None
             msgs.info("Not preparing a bad pixel mask")
         return
+
 
     def GetDispersionDirection(self, ind, det):
         '''Sets dispersion axis and transposes image as needed
@@ -182,6 +192,7 @@ class ClassMain:
             self._dispaxis=0
         return
 
+
     def GetPixelLocations(self, det):
         if self._argflag['reduce']['locations'] is None:
             self._pixlocn = artrace.gen_pixloc(self, self._mstrace, det, gen=True)
@@ -190,6 +201,7 @@ class ClassMain:
         else:
             self._pixlocn = arload.load_master(self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['locations'], frametype=None)
         return
+
 
     def MasterArc(self, sc, det):
         '''Generate MasterBias frame for a given detector
@@ -247,6 +259,7 @@ class ClassMain:
             msarc=arload.load_master(msarc_name, frametype=None)
         return msarc, msarc_name
 
+
     def MasterBias(self, sc, det):
         '''Generate MasterBias frame for a given detector
         Parameters:
@@ -294,6 +307,7 @@ class ClassMain:
             msbias_name = os.getcwd()+self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usebias']
             msbias = arload.load_master(self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usebias'], frametype=None)
         return msbias, msbias_name
+
 
     def MasterFlatField(self, sc, det):
         if self._argflag['reduce']['flatfield']: # Only do it if the user wants to flat field
@@ -359,6 +373,7 @@ class ClassMain:
             mspixflat_name = None
         return mspixflat, mspixflatnrm, msblaze, mspixflat_name
 
+
     def MasterTrace(self, sc, det):
         if self._argflag['reduce']['usetrace'] in ['trace', 'blzflat']:
             msgs.info("Preparing a master trace frame with {0:s}".format(self._argflag['reduce']['usetrace']))
@@ -417,6 +432,7 @@ class ClassMain:
             self._trcprefix = os.path.splitext(os.path.basename(mstrace_name))[0]
         return mstrace, mstrace_name
 
+
     def Setup(self):
         # Sort the data
         msgs.bug("Files and folders should not be deleted -- there should be an option to overwrite files automatically if they already exist, or choose to rename them if necessary")
@@ -433,8 +449,10 @@ class ClassMain:
         self._sci_targs = arsort.make_dirs(self)
         return
 
+
     # Bunch of Setters
     def SetFoundArc(self, bool): self._foundarc = bool
+
 
     ###################################
     # Reduction pipelines
@@ -447,6 +465,7 @@ class ClassMain:
         success = False
         # Insert series of reduction steps here
         return success
+
 
     def ARMLSD(self):
         """
@@ -489,6 +508,7 @@ class ClassMain:
                 ###############
                 # Generate a master arc frame
                 self._msarc, self._msarc_name = self.MasterArc(sc, det)
+                if self._bpix is None: self._bpix = np.zeros_like(self._msarc)
                 ###############
                 # Determine the dispersion direction (and transpose if necessary) only on the first pass through
                 self.GetDispersionDirection(self._spect['arc']['index'][sc], det)
@@ -502,7 +522,7 @@ class ClassMain:
                 # Determine the edges of the spectrum
                 self._lordloc, self._rordloc = artrace.trace_orders(self, self._mstrace, ARMLSD=True, prefix=prefix, trcprefix=self._trcprefix)
                 arsave.save_ordloc(self, self._mstrace_name)
-                arqa.trace_qa(self, self._mstrace, self._lordloc, self._rordloc, self._mstrace_name)
+                arqa.slit_trace_qa(self._mstrace, self._lordloc, self._rordloc, self._mstrace_name)
                 # Convert physical trace into a pixel trace
                 msgs.info("Converting physical trace locations to nearest pixel")
                 self._pixcen  = artrace.phys_to_pix(0.5*(self._lordloc+self._rordloc), self._pixlocn, self._dispaxis, 1-self._dispaxis)
@@ -593,7 +613,7 @@ class ClassMain:
                     continue
                 ###############
                 # Extraction
-
+                boxcar = arextract.boxcar(sciframe-bgframe, varframe, crmask, scitrace)
                 msgs.error("UP TO HERE")
                 ###############
                 # Perform a velocity correction

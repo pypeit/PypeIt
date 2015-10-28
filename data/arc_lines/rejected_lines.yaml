@@ -1,4 +1,10 @@
+'ArI':
+  8014.786: {'kast_red': '600/7500'} # bad blend
+'CdI':
+  3252.524: {'lris_blue': 'all'} # too weak
 'HgI':
   3131.555: 'all' # Blend
   3131.844: 'all'
   3654.842: 'all' # Blend
+'ZnI':
+  3345.57:  'all' # Blended with 3345.02
