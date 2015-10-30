@@ -256,6 +256,11 @@ def trace_orders(slf, mstrace, prefix="", trcprefix="", maskBadColumns=False, AR
     flx_frac: float, optional
       Fraction of flux for making the cut for stats
     """
+    # Idea for a new edge detection algorithm
+    # 1. Perform a sobel filter along the spatial direction (axis=1)
+    # 2. pick the frame.shape[1] most positive (and most negative) values and trace them to the edge of the detector (or until they can't trace anymore)
+    # 3. Mask out all pixels in the Sobel filter previously used
+    # 4. repeat until no more edges can be traced.
     msgs.info("Preparing trace frame for order edge detection")
     # Generate a binned version of the trace frame
     msgs.work("binby=1 makes this slow and ineffective -- increase this to 10, and add as a parameter of choice by the user")
@@ -272,99 +277,95 @@ def trace_orders(slf, mstrace, prefix="", trcprefix="", maskBadColumns=False, AR
         plybin = arcyutils.bin_y(slf._pixlocn[:,:,1],binby,1)
     msgs.info("Detecting order edges")
     ######
-    # Newest attempt at edge detection
-    smth = ndimage.gaussian_filter1d(binarr, 1, axis=1)
-    smth = ndimage.gaussian_filter1d(np.abs(binarr-smth)/smth, 1, axis=1)
-    ######
-    # Old detection algorithm
-    tedgear = arcytrace.detect_edges(binarr, slf._dispaxis)
-    #arutils.ds9plot(tedgear)
-    ######
-    # New detection algorithm
-    # First do left edges
-    troll = np.roll(binarr,1,axis=1-slf._dispaxis)
-    if slf._dispaxis == 0:
-        troll[:,0] = troll[:,1]
+    #pdb.set_trace()
+    if ARMLSD:
+        msgs.info("Detecting slit edges")
+        filt = ndimage.sobel(binarr, axis=1, mode='constant')
+        msgs.info("Applying bad pixel mask")
+        filt *= (1.0-binbpx) # Apply to the old detection algorithm
+        amin = np.argmin(filt, axis=1)
+        amax = np.argmax(filt, axis=1)
+        edgearr = np.zeros(binarr.shape, dtype=np.int)
+        edgearr[np.arange(edgearr.shape[0]),amin] = +1
+        edgearr[np.arange(edgearr.shape[0]),amax] = -1
+        # Even better would be to fit the filt/sqrt(abs(binarr)) array with a Gaussian near the maximum in each column
     else:
-        troll[0,:] = troll[1,:]
-    # First test for an edge
-    diff = np.zeros_like(binarr)
-    w = np.where(troll!=0.0)
-    diff[w] = (troll[w]-binarr[w])/binarr[w]
-    if ARMLSD: # Created for LRIS, but probably ok 
-        msgs.warn("JXP kludged siglev.  But might be ok..")
-        # Sort flux values
-        bflat = binarr.flatten()
-        bflat.sort()
-        cumsum = np.cumsum(bflat)
-        # Take 30% value
-        ifrac = np.argmin(np.abs(flx_frac-cumsum/cumsum[-1]))
-        flux_thresh = bflat[ifrac]
-        # Now std_dev
-        gdpix = np.where(binarr > flux_thresh)
-        siglev = np.std(diff[gdpix])
-        #siglev2 = 1.4826*np.median(np.abs(diff[gdpix]))
-    else:
+        ######
+        # Old detection algorithm
+        tedgear = arcytrace.detect_edges(binarr, slf._dispaxis)
+        #arutils.ds9plot(tedgear)
+        ######
+        # New detection algorithm
+        # First do left edges
+        troll = np.roll(binarr,1,axis=1-slf._dispaxis)
+        if slf._dispaxis == 0:
+            troll[:,0] = troll[:,1]
+        else:
+            troll[0,:] = troll[1,:]
+        # First test for an edge
+        diff = np.zeros_like(binarr)
+        w = np.where(troll!=0.0)
+        diff[w] = (troll[w]-binarr[w])/binarr[w]
         siglev = 1.4826*np.median(np.abs(diff))
-    ttedges = np.zeros_like(binarr)
-    wr = np.where(diff > +6.0*siglev)
-    wl = np.where(diff < -6.0*siglev)
-    ttedges[wr] = +1.0
-    ttedges[wl] = -1.0
-    #arutils.ds9plot(ttedges)
-    # Second test for an edge
-    diff = (troll-binarr)
-    siglev = 1.4826*np.median(np.abs(diff))
-    tedges = np.zeros_like(binarr)
-    wr = np.where((diff > +6.0*siglev) & (ttedges == +1))
-    wl = np.where((diff < -6.0*siglev) & (ttedges == -1))
-    tedges[wr] = +1.0
-    tedges[wl] = -1.0
-    nedgear = arcytrace.clean_edges(diff, tedges, slf._dispaxis)
-    #arutils.ds9plot(nedgear)
-    if maskBadColumns:
-        if slf._dispaxis == 0: srchtxt = "rows"
-        else: srchtxt = "columns"
-        msgs.info("Searching for bad pixel {0:s}".format(srchtxt))
-        edgsum = np.sum(nedgear,axis=slf._dispaxis)
-        sigma = 1.4826*np.median(np.abs(edgsum-np.median(edgsum)))
-        w = np.where(np.abs(edgsum)>=1.5*sigma)[0]
-    #   maskcols = np.unique(np.append(w,np.append(np.append(w+2,w+1),np.append(w-2,w-1))))
-        maskcols = np.unique(np.append(w,np.append(w+1,w-1)))
-        #plt.plot(np.arange(nedgear.shape[1]),np.sum(nedgear,axis=0),'k-',drawstyle='steps')
-        #plt.plot([0.0,nedgear.shape[1]],[sigma,sigma],'r-',drawstyle='steps')
-        #plt.plot([0.0,nedgear.shape[1]],[-sigma,-sigma],'r-',drawstyle='steps')
-        #plt.plot([0.0,nedgear.shape[1]],[2.0*sigma,2.0*sigma],'g-',drawstyle='steps')
-        #plt.plot([0.0,nedgear.shape[1]],[-2.0*sigma,-2.0*sigma],'g-',drawstyle='steps')
-        #plt.plot(maskcols,np.zeros(maskcols.size),'ro')
-        #plt.show()
-        msgs.info("Masking {0:d} bad pixel {1:s}".format(maskcols.size,srchtxt))
-        for i in xrange(maskcols.size):
-            if maskcols[i] < 0 or maskcols[i] >= nedgear.shape[1-slf._dispaxis]: continue
-            if slf._dispaxis == 0:
-                nedgear[:,maskcols[i]] = 0
-            else:
-                nedgear[maskcols[i],:] = 0
-    #arutils.ds9plot(nedgear)
-    ######
-    msgs.info("Applying bad pixel mask")
-    tedgear *= (1.0-binbpx) # Apply to the old detection algorithm
-    nedgear *= (1.0-binbpx) # Apply to the new detection algorithm
-    eroll = np.roll(binbpx,1,axis=1-slf._dispaxis)
-    if slf._dispaxis == 0:
-        eroll[:,0] = eroll[:,1]
-    else:
-        eroll[0,:] = eroll[1,:]
-    nedgear *= (1.0-eroll) # Apply to the new detection algorithm (with shift)
-    # Now roll back
-    nedgear = np.roll(nedgear,-1,axis=1-slf._dispaxis)
-    edgearr = np.zeros_like(nedgear)
-    edgearr[np.where((nedgear == +1) | (tedgear == +1))] = +1
-    edgearr[np.where((nedgear == -1) | (tedgear == -1))] = -1
+        ttedges = np.zeros_like(binarr)
+        wr = np.where(diff > +6.0*siglev)
+        wl = np.where(diff < -6.0*siglev)
+        ttedges[wr] = +1.0
+        ttedges[wl] = -1.0
+        #arutils.ds9plot(ttedges)
+        # Second test for an edge
+        diff = (troll-binarr)
+        siglev = 1.4826*np.median(np.abs(diff))
+        tedges = np.zeros_like(binarr)
+        wr = np.where((diff > +6.0*siglev) & (ttedges == +1))
+        wl = np.where((diff < -6.0*siglev) & (ttedges == -1))
+        tedges[wr] = +1.0
+        tedges[wl] = -1.0
+        nedgear = arcytrace.clean_edges(diff, tedges, slf._dispaxis)
+        #arutils.ds9plot(nedgear)
+        if maskBadColumns:
+            if slf._dispaxis == 0: srchtxt = "rows"
+            else: srchtxt = "columns"
+            msgs.info("Searching for bad pixel {0:s}".format(srchtxt))
+            edgsum = np.sum(nedgear,axis=slf._dispaxis)
+            sigma = 1.4826*np.median(np.abs(edgsum-np.median(edgsum)))
+            w = np.where(np.abs(edgsum)>=1.5*sigma)[0]
+        #   maskcols = np.unique(np.append(w,np.append(np.append(w+2,w+1),np.append(w-2,w-1))))
+            maskcols = np.unique(np.append(w,np.append(w+1,w-1)))
+            #plt.plot(np.arange(nedgear.shape[1]),np.sum(nedgear,axis=0),'k-',drawstyle='steps')
+            #plt.plot([0.0,nedgear.shape[1]],[sigma,sigma],'r-',drawstyle='steps')
+            #plt.plot([0.0,nedgear.shape[1]],[-sigma,-sigma],'r-',drawstyle='steps')
+            #plt.plot([0.0,nedgear.shape[1]],[2.0*sigma,2.0*sigma],'g-',drawstyle='steps')
+            #plt.plot([0.0,nedgear.shape[1]],[-2.0*sigma,-2.0*sigma],'g-',drawstyle='steps')
+            #plt.plot(maskcols,np.zeros(maskcols.size),'ro')
+            #plt.show()
+            msgs.info("Masking {0:d} bad pixel {1:s}".format(maskcols.size,srchtxt))
+            for i in xrange(maskcols.size):
+                if maskcols[i] < 0 or maskcols[i] >= nedgear.shape[1-slf._dispaxis]: continue
+                if slf._dispaxis == 0:
+                    nedgear[:,maskcols[i]] = 0
+                else:
+                    nedgear[maskcols[i],:] = 0
+        #arutils.ds9plot(nedgear)
+        ######
+        msgs.info("Applying bad pixel mask")
+        tedgear *= (1.0-binbpx) # Apply to the old detection algorithm
+        nedgear *= (1.0-binbpx) # Apply to the new detection algorithm
+        eroll = np.roll(binbpx,1,axis=1-slf._dispaxis)
+        if slf._dispaxis == 0:
+            eroll[:,0] = eroll[:,1]
+        else:
+            eroll[0,:] = eroll[1,:]
+        nedgear *= (1.0-eroll) # Apply to the new detection algorithm (with shift)
+        # Now roll back
+        nedgear = np.roll(nedgear,-1,axis=1-slf._dispaxis)
+        edgearr = np.zeros_like(nedgear)
+        edgearr[np.where((nedgear == +1) | (tedgear == +1))] = +1
+        edgearr[np.where((nedgear == -1) | (tedgear == -1))] = -1
     #arutils.ds9plot(edgearr)
     # Assign a number to each of the edges
     msgs.info("Matching order edges")
-    lcnt, rcnt = arcytrace.match_edges(edgearr,slf._dispaxis)
+    lcnt, rcnt = arcytrace.match_edges(edgearr, slf._dispaxis)
     if lcnt==1: letxt = "edge"
     else: letxt = "edges"
     if rcnt==1: retxt = "edge"
@@ -977,8 +978,8 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="",censpec=No
         weights = np.zeros(msarc.shape[0])
         msgs.work("This next step could be multiprocessed to speed up the reduction")
         msgs.info("Tracing tilt")
-        nspecfit=5
-        nsmth = 1 # Number of pixels +/- in the spatial direction to include in the fit (0=no smoothing, 1=3 pixels, 2=5 pixels...)
+        nspecfit=3
+        nsmth = 0  # Number of pixels +/- in the spatial direction to include in the fit (0=no smoothing, 1=3 pixels, 2=5 pixels...)
         xtilt = maskval*np.ones((msarc.shape[1],arcdet.size))
         ytilt = maskval*np.ones((msarc.shape[1],arcdet.size))
         ztilt = maskval*np.ones((msarc.shape[1],arcdet.size))
@@ -1002,7 +1003,7 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="",censpec=No
                 if ordcen[pcen,0]+k >= msarc.shape[1]:
                     offchip = True
                     break
-                xfit = np.arange(pcen-nspecfit, pcen+nspecfit+1, 1.0).reshape(2*nspecfit+1,1).repeat(2*nsmth+1,axis=1)  # 2 x nspecfit  +  1  =  9 pixels total along the spectral dimension
+                xfit = np.arange(pcen-nspecfit, pcen+nspecfit+1, 1.0).reshape(-1,1).repeat(2*nsmth+1,axis=1)  # 2 x nspecfit  +  1  =  9 pixels total along the spectral dimension
                 yfit = msarc[pcen-nspecfit:pcen+nspecfit+1,ordcen[pcen,0]+k-nsmth:ordcen[pcen,0]+k+nsmth+1]
                 if np.size(yfit) == 0:
                     offchip = True
@@ -1010,7 +1011,8 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="",censpec=No
                 wgd = np.where((yfit<satval)&(yfit!=maskval))
                 xfit = xfit[wgd]
                 yfit = yfit[wgd]
-                params, fail = arutils.gauss_lsqfit(xfit, yfit, pcen)
+                #params, fail = arutils.gauss_lsqfit(xfit, yfit, pcen)
+                params, fail = arutils.gauss_fit(xfit, yfit, pcen)
                 xtfit[k+sz] = ordcen[pcen,0]+k
                 ytfit[k+sz] = params[1]
                 etfit[k+sz] = 0.02
@@ -1038,7 +1040,8 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="",censpec=No
                 xfit = xfit[wgd]
                 yfit = yfit[wgd]
                 #params, perror, fail = arfitbase.fit_gauss(xfit,yfit)
-                params, fail = arutils.gauss_lsqfit(xfit, yfit, pcen)
+                #params, fail = arutils.gauss_lsqfit(xfit, yfit, pcen)
+                params, fail = arutils.gauss_fit(xfit, yfit, pcen)
                 xtfit[sz-k] = ordcen[pcen,0]-k
                 ytfit[sz-k] = params[1]
                 etfit[sz-k] = 0.02
@@ -1070,8 +1073,10 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="",censpec=No
             ytilt[:wmask[0].size,j] = arcdet[j]/(msarc.shape[0]-1.0)
             ztilt[:wmask[0].size,j] = ytfit[wmask]/(msarc.shape[0]-1.0)
             if not np.isnan(1.0/sig): wtilt[:wmask[0].size,j] = ((msarc.shape[0]-1.0)/sig)**2
+        #pdb.set_trace()
         wfit = np.where((wtilt!=maskval))#&(xtilt!=0.0))
-        coeff = arutils.polyfit2d(xtilt[wfit], ytilt[wfit], ztilt[wfit], fitxy, w=wtilt[wfit])
+        #coeff = arutils.polyfit2d(xtilt[wfit], ytilt[wfit], ztilt[wfit], fitxy, w=wtilt[wfit])
+        coeff = arutils.polyfit2d(xtilt[wfit], ytilt[wfit], ztilt[wfit], fitxy)
         tilts = arutils.polyval2d(coeff, np.arange(msarc.shape[1])/(msarc.shape[1]-1.0), np.arange(msarc.shape[0])/(msarc.shape[0]-1.0))
         #tltspl = interp.SmoothBivariateSpline(xtilt[wfit], ytilt[wfit], ztilt[wfit], w=wtilt[wfit], bbox=[0.0, msarc.shape[1], 0.0, msarc.shape[0]], kx=3, ky=3, s=wfit[0].size)
         #xv, yv = np.meshgrid(np.arange(msarc.shape[1]), np.arange(msarc.shape[0]))

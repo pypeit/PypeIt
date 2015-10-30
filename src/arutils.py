@@ -363,15 +363,18 @@ def gauss_fit(x,y,pcen):
 #	dx = np.ones(x.size)*np.mean(x[1:]-x[:-1])
 #	coeffs = polyfit_integral(x, y, dx, 2)
 #	return poly_to_gauss(coeffs)
-    if np.any(y<0.0):
+    try:
+        if np.any(y<0.0):
+            return [0.0, 0.0, 0.0], True
+        ampl, cent, sigm, good = arcyarc.fit_gauss(x, y, np.zeros(3,dtype=np.float), 0, x.size, float(pcen))
+        if good == 0:
+            return [0.0, 0.0, 0.0], True
+        elif np.any(np.isnan([ampl, cent, sigm])):
+            return [0.0, 0.0, 0.0], True
+        else:
+            return [ampl, cent, sigm], False
+    except:
         return [0.0, 0.0, 0.0], True
-    ampl, cent, sigm, good = arcyarc.fit_gauss(x, y, np.zeros(3,dtype=np.float), 0, x.size, float(pcen))
-    if good == 0:
-        return [0.0, 0.0, 0.0], True
-    elif np.any(np.isnan([ampl, cent, sigm])):
-        return [0.0, 0.0, 0.0], True
-    else:
-        return [ampl, cent, sigm], False
 
 
 def poly_to_gauss(coeffs):
