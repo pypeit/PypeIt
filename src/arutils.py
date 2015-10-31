@@ -359,10 +359,10 @@ def gauss_lsqfit(x,y,pcen):
         #return [popt[1], popt[2], popt[3]], False
 
 
-def gauss_fit(x,y,pcen):
-#	dx = np.ones(x.size)*np.mean(x[1:]-x[:-1])
-#	coeffs = polyfit_integral(x, y, dx, 2)
-#	return poly_to_gauss(coeffs)
+def gauss_fit(x, y, pcen):
+    # dx = np.ones(x.size)*np.mean(x[1:]-x[:-1])
+    # coeffs = polyfit_integral(x, y, dx, 2)
+    # return poly_to_gauss(coeffs)
     try:
         if np.any(y<0.0):
             return [0.0, 0.0, 0.0], True
@@ -378,10 +378,13 @@ def gauss_fit(x,y,pcen):
 
 
 def poly_to_gauss(coeffs):
-    sigm = np.sqrt(-0.5/coeffs[2])
-    cent = -0.5*coeffs[1]/coeffs[2]
-    ampl = np.exp( coeffs[0] + 0.5*cent/sigm**2 )
-    return [ampl, cent, sigm]
+    try:
+        sigm = np.sqrt(-0.5/coeffs[2])
+        cent = -0.5*coeffs[1]/coeffs[2]
+        ampl = np.exp( coeffs[0] + 0.5*(cent/sigm)**2 )
+    except:
+        return [0.0, 0.0, 0.0], True
+    return [ampl, cent, sigm], False
 
 
 def polyfit2d(x, y, z, deg, w=None):

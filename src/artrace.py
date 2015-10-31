@@ -960,7 +960,7 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="",censpec=No
     w = np.where((np.isnan(twid)==False) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent>0.0) & (tcent<xrng[-1]))
     '''
     satval = slf._spect['det'][det-1]['saturation']*slf._spect['det'][det-1]['nonlinear']
-    fitxy = [4,8]  # order of the polynomials to beused when fitting the tilts.
+    fitxy = [3,5]  # order of the polynomials to beused when fitting the tilts.
     arcdet = (tcent[w]+0.5).astype(np.int)
     maskrows = np.ones(msarc.shape[0], dtype=np.int) # Start by masking every row, then later unmask the rows with usable arc lines
     totnum = 0
@@ -978,7 +978,7 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="",censpec=No
         weights = np.zeros(msarc.shape[0])
         msgs.work("This next step could be multiprocessed to speed up the reduction")
         msgs.info("Tracing tilt")
-        nspecfit=3
+        nspecfit=2
         nsmth = 0  # Number of pixels +/- in the spatial direction to include in the fit (0=no smoothing, 1=3 pixels, 2=5 pixels...)
         xtilt = maskval*np.ones((msarc.shape[1],arcdet.size))
         ytilt = maskval*np.ones((msarc.shape[1],arcdet.size))
@@ -1011,9 +1011,13 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="",censpec=No
                 wgd = np.where((yfit<satval)&(yfit!=maskval))
                 xfit = xfit[wgd]
                 yfit = yfit[wgd]
-                #params, fail = arutils.gauss_lsqfit(xfit, yfit, pcen)
-                params, fail = arutils.gauss_fit(xfit, yfit, pcen)
-                xtfit[k+sz] = ordcen[pcen,0]+k
+                # try:
+                #     params, fail = arutils.poly_to_gauss(arutils.func_fit(xfit, yfit, 'polynomial', 2))
+                # except:
+                #     params, fail = [0,0,0], True
+                params, fail = arutils.gauss_lsqfit(xfit, yfit, arcdet[j])
+                #params, fail = arutils.gauss_fit(xfit, yfit, arcdet[j])
+                xtfit[k+sz] = ordcen[arcdet[j],0]+k
                 ytfit[k+sz] = params[1]
                 etfit[k+sz] = 0.02
                 apfit[k+sz] = params[0]
@@ -1039,15 +1043,21 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="",censpec=No
                 wgd = np.where((yfit<satval)&(yfit!=maskval))
                 xfit = xfit[wgd]
                 yfit = yfit[wgd]
+                # try:
+                #     params, fail = arutils.poly_to_gauss(arutils.func_fit(xfit, np.log(yfit), 'polynomial', 2, w=yfit))
+                #     pdb.set_trace()
+                # except:
+                #     params, fail = [0,0,0], True
                 #params, perror, fail = arfitbase.fit_gauss(xfit,yfit)
-                #params, fail = arutils.gauss_lsqfit(xfit, yfit, pcen)
-                params, fail = arutils.gauss_fit(xfit, yfit, pcen)
-                xtfit[sz-k] = ordcen[pcen,0]-k
+                params, fail = arutils.gauss_lsqfit(xfit, yfit, arcdet[j])
+                #params, fail = arutils.gauss_fit(xfit, yfit, arcdet[j])
+                xtfit[sz-k] = ordcen[arcdet[j],0]-k
                 ytfit[sz-k] = params[1]
                 etfit[sz-k] = 0.02
                 apfit[sz-k] = params[0]
                 if fail: mtfit[sz-k] = 1.0
                 else:
+                    if j==28 and pcen != int(0.5+params[1]): pdb.set_trace()
                     pcen = int(0.5+params[1])
                     mtfit[sz-k] = 0.0
             if offchip: continue # Don't use lines that go off the chip (could lead to a bad trace)
@@ -1072,11 +1082,13 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="",censpec=No
             xtilt[:wmask[0].size,j] = xtfit[wmask]/(msarc.shape[1]-1.0)
             ytilt[:wmask[0].size,j] = arcdet[j]/(msarc.shape[0]-1.0)
             ztilt[:wmask[0].size,j] = ytfit[wmask]/(msarc.shape[0]-1.0)
-            if not np.isnan(1.0/sig): wtilt[:wmask[0].size,j] = ((msarc.shape[0]-1.0)/sig)**2
+            #if not np.isnan(1.0/sig): wtilt[:wmask[0].size,j] = ((msarc.shape[0]-1.0)/sig)**2
+            zwght = ytfit[wmask]
+            if np.max(np.abs(zwght[1:]-zwght[:-1]))!=0.0: wtilt[:wmask[0].size,j] = 1.0/np.max(np.abs(zwght[1:]-zwght[:-1]))
         #pdb.set_trace()
         wfit = np.where((wtilt!=maskval))#&(xtilt!=0.0))
-        #coeff = arutils.polyfit2d(xtilt[wfit], ytilt[wfit], ztilt[wfit], fitxy, w=wtilt[wfit])
-        coeff = arutils.polyfit2d(xtilt[wfit], ytilt[wfit], ztilt[wfit], fitxy)
+        coeff = arutils.polyfit2d(xtilt[wfit], ytilt[wfit], ztilt[wfit], fitxy, w=wtilt[wfit]/np.max(wtilt[wfit]))
+        #coeff = arutils.polyfit2d(xtilt[wfit], ytilt[wfit], ztilt[wfit], fitxy)
         tilts = arutils.polyval2d(coeff, np.arange(msarc.shape[1])/(msarc.shape[1]-1.0), np.arange(msarc.shape[0])/(msarc.shape[0]-1.0))
         #tltspl = interp.SmoothBivariateSpline(xtilt[wfit], ytilt[wfit], ztilt[wfit], w=wtilt[wfit], bbox=[0.0, msarc.shape[1], 0.0, msarc.shape[0]], kx=3, ky=3, s=wfit[0].size)
         #xv, yv = np.meshgrid(np.arange(msarc.shape[1]), np.arange(msarc.shape[0]))
@@ -1146,10 +1158,13 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="",censpec=No
     # Plot the model tilts
     tiltsplot = tilts[arcdet,:]
     tiltsplot = tiltsplot - np.median(tiltsplot,axis=1).reshape((tiltsplot.shape[0],1))
+    ztilt[np.where(ztilt!=maskval)] *= (msarc.shape[0]-1.0)
     for i in xrange(arcdet.size):
         w = np.where(ztilt[:,i] != maskval)
-        if w[0].size != 0: ztilt[w[0],i] -= np.median(ztilt[w[0],i])
-    arplot.plot_orderfits(slf, tiltsplot.T, ztilt, xdata=xtilt, xmodl=np.arange(msarc.shape[1])/(msarc.shape[1]-1.0), plotsdir=slf._argflag['run']['plotsdir'], textplt="Arc line", maxp=9, prefix="Tilts", maskval=maskval)
+        if w[0].size != 0: ztilt[w[0],i] -= np.mean(ztilt[w[0],i])
+    xdat = xtilt.copy()
+    xdat[np.where(xdat!=maskval)] *= (msarc.shape[1]-1.0)
+    arplot.plot_orderfits(slf, tiltsplot.T*(msarc.shape[0]-1.0), ztilt, xdata=xdat, xmodl=np.arange(msarc.shape[1]), plotsdir=slf._argflag['run']['plotsdir'], textplt="Arc line", maxp=9, prefix="Tilts", maskval=maskval)
     #arutils.ds9plot(tilts)
     #pdb.set_trace()
     return tilts, satsnd

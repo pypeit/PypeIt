@@ -1100,7 +1100,7 @@ def fit_gauss(np.ndarray[DTYPE_t, ndim=1] xarray not None,
     gsl_vector_free(yvec)
     gsl_vector_free(c)
 
-    if coeff[0] == 0.0:
+    if coeff[0] >= 0.0:
         return 0.0, 0.0, 0.0, 0
     else:
         wid = csqrt(-0.5/coeff[0])
