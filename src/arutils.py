@@ -332,12 +332,13 @@ def gauss_lsqfit(x,y,pcen):
     :param pcen: An estimate of the Gaussian mean
     :return:
     """
-    def gfunc(x,ampl,cent,sigm):
+    def gfunc(x,ampl,cent,sigm,cons,tilt):
         df = (x[1:]-x[:-1])/2.0
         df = np.append(df,df[-1])
+        dff = (x[1:]**2 - x[:-1]**2)/2.0
+        dff = np.append(dff,dff[-1])
         sqt = sigm*np.sqrt(2.0)
-        #return cons*df*2.0 + \
-        return ampl*0.5*np.sqrt(np.pi)*sqt*(erf((x+df-cent)/sqt) - erf((x-df-cent)/sqt))
+        return cons*df*2.0 + tilt*dff + ampl*0.5*np.sqrt(np.pi)*sqt*(erf((x+df-cent)/sqt) - erf((x-df-cent)/sqt))
         #return cons + ampl*np.exp(-0.5*((x-cent)/sigm)**2)
 
     if np.any(y<0.0):
@@ -351,12 +352,11 @@ def gauss_lsqfit(x,y,pcen):
     else:
         # Perform a least squares fit
         try:
-            popt, pcov = curve_fit(gfunc, x, y, p0=[ampl, cent, sigm], maxfev=100)
+            popt, pcov = curve_fit(gfunc, x, y, p0=[ampl, cent, sigm, 0.0, 0.0], maxfev=100)
             #popt, pcov = curve_fit(gfunc, x, y, p0=[0.0,ampl, cent, sigm], maxfev=100)
         except:
             return [0.0, 0.0, 0.0], True
         return [popt[0], popt[1], popt[2]], False
-        #return [popt[1], popt[2], popt[3]], False
 
 
 def gauss_fit(x, y, pcen):

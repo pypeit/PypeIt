@@ -4,7 +4,7 @@ import armsgs as msgs
 import arcyutils
 import arutils
 from arplot import get_dimen as get_dimen
-
+import pdb
 
 def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, mask=None, function='polynomial', retmask=False):
     nrow = xfit.shape[0]
@@ -45,8 +45,16 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
 #            continue
         #coeff0 = arutils.robust_regression(x0in[usetrace], hidden[i-1,:], pnpc[i], 0.1, function=function, min=x0in[0], max=x0in[-1])
         tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1,:], pnpc[i], weights=weights, sigma=2.0, function=function, min=x0in[0], max=x0in[-1])
+        #pdb.set_trace()
         coeffstr.append(coeff0)
-        high_order_matrix[:,i-1] = arutils.func_val(coeff0, x0in, function)
+# ordr=5
+# tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1,:], ordr, weights=weights, sigma=2.0, function=function, min=x0in[0], max=x0in[-1])
+# mod = arutils.func_val(coeff0, x0in, function, min=x0in[0], max=x0in[-1])
+# plt.clf()
+# plt.plot(x0in[usetrace], hidden[i-1,:], 'bx')
+# plt.plot(x0in, mod, 'r-')
+# plt.show()
+        high_order_matrix[:,i-1] = arutils.func_val(coeff0, x0in, function, min=x0in[0], max=x0in[-1])
 #	high_order_matrix[:,1] = arutils.func_val(coeff1, x0in, function)
     high_fit = high_order_matrix.copy()
 
