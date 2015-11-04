@@ -240,8 +240,6 @@ def trace_object(slf, sciframe, varframe, crmask, trim=2.0, triml=None, trimr=No
         #arutils.ds9plot(rec_img)
     # Save the quality control
     arqa.obj_trace_qa(sciframe, trobjl, trobjr, root="object_trace", normalize=False)
-    pdb.set_trace()
-    arutils.ds9plot(rec_obj_img)
     tracedict = dict({})
     tracedict['traces'] = traces
     tracedict['object'] = rec_obj_img
