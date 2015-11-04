@@ -175,7 +175,7 @@ def trace_object(slf, sciframe, varframe, crmask, trim=2.0, triml=None, trimr=No
             allsfit = np.append(allsfit,centfit[w]-cval[o])
     msgs.info("Performing global trace to all objects")
     mskbad, coeffs = arutils.robust_polyfit(allxfit,allsfit,traceorder,function="legendre",min=-1.0,max=1.0)
-    trcfunc = arutils.func_val(coeffs, specfit, "legendre", min=-1.0, max=1.0)
+    trcfunc = arutils.func_val(coeffs, np.linspace(-1.0, 1.0, sciframe.shape[0]), "legendre", min=-1.0, max=1.0)
     msgs.info("Constructing a trace for all objects")
     trcfunc = trcfunc.reshape((-1,1)).repeat(nobj, axis=1)
     trccopy = trcfunc.copy()
@@ -184,6 +184,7 @@ def trace_object(slf, sciframe, varframe, crmask, trim=2.0, triml=None, trimr=No
     else: msgs.info("Converting object traces to detector pixels")
     ofst = slf._lordloc[:,order].reshape((-1,1)).repeat(nobj,axis=1) + triml
     diff = slf._rordloc[:,order].reshape((-1,1)).repeat(nobj,axis=1) - slf._lordloc[:,order].reshape((-1,1)).repeat(nobj,axis=1)
+    #pdb.set_trace()
     # Convert central trace
     traces = ofst + (diff-triml-trimr)*trcfunc
     # Convert left object trace
@@ -239,6 +240,8 @@ def trace_object(slf, sciframe, varframe, crmask, trim=2.0, triml=None, trimr=No
         #arutils.ds9plot(rec_img)
     # Save the quality control
     arqa.obj_trace_qa(sciframe, trobjl, trobjr, root="object_trace", normalize=False)
+    pdb.set_trace()
+    arutils.ds9plot(rec_obj_img)
     tracedict = dict({})
     tracedict['traces'] = traces
     tracedict['object'] = rec_obj_img
