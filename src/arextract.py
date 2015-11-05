@@ -10,11 +10,13 @@ try:
 except:
     pass
 
-def boxcar(wvimg, sciframe, varframe, crmask, scitrace, maskval=-999999.9, weighted=True):
+def boxcar(wvimg, sciframe, varframe, bgframe, crmask, scitrace, maskval=-999999.9, weighted=True):
     """
 
+    :param wvimg: wavelength image
     :param sciframe: science frame
     :param varframe: variance image
+    :param bgframe: sky background frame
     :param crmask: mask of cosmic ray hits
     :param scitrace: object and background trace images
     :param maskval: value to be used to mask bad pixels
@@ -37,6 +39,9 @@ def boxcar(wvimg, sciframe, varframe, crmask, scitrace, maskval=-999999.9, weigh
         # Generate wavelength array
         wvsum = np.sum(wvimg*weight, axis=1)
         wvsum /= sumweight
+        # Generate sky spectrum (flux per pixel)
+        bgsum = np.sum(bgframe*weight, axis=1)
+        bgsum /= sumweight
         # Total the object flux
         msgs.info("   Summing object counts")
         scisum = np.sum((sciframe-bgframe)*weight, axis=1)
@@ -67,4 +72,4 @@ def boxcar(wvimg, sciframe, varframe, crmask, scitrace, maskval=-999999.9, weigh
         '''
         #xdb.xplot(scisum/np.sqrt(varsum)) # S/N
         #xdb.set_trace()
-    return wvsum, scisum, varsum
+    return wvsum, scisum, varsum, bgsum

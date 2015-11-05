@@ -628,19 +628,26 @@ class ClassMain:
                 else:
                     # Write
                     mstrc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "objtrc")
-                    hdu = fits.PrimaryHDU(scitrace['traces'])
-                    hdulist = fits.HDUList([hdu])
+                    hdutrc = fits.PrimaryHDU(scitrace['traces'])
+                    hduobj = fits.ImageHDU(scitrace['object'])
+                    hdulist = fits.HDUList([hdutrc, hduobj])
                     hdulist.writeto(mstrc_name,clobber=True)               
                     msgs.info("Wrote object trace file: {:s}".format(mstrc_name))
                 ###############
                 # Boxcar Extraction
-                wave, flux, var = arextract.boxcar(self._mswvimg, sciframe-bgframe, varframe, crmask, scitrace, weighted=False)
-                #Generate and Write Spectrum
+                wave, flux, var, sky = arextract.boxcar(self._mswvimg, sciframe-bgframe, varframe, bgframe, crmask, scitrace, weighted=False)
+                #Generate and Write spectra
                 sig = np.sqrt(var)
                 xspec = XSpectrum1D.from_tuple( (wave,flux,sig) )
                 spec_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "boxcar")
                 msgs.info("Writing boxcar spectrum: {:s}".format(spec_name))
                 xspec.write_to_fits(spec_name, clobber=True)
+
+                skyspec = XSpectrum1D.from_tuple( (wave,sky) )
+                skyspec_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "skybox")
+                msgs.info("Writing sky spectrum: {:s}".format(skyspec_name))
+                skyspec.write_to_fits(skyspec_name, clobber=True)
+
                 msgs.error("UP TO HERE")
                 ###############
                 # Perform a velocity correction
