@@ -630,7 +630,7 @@ class ClassMain:
                     mstrc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "objtrc")
                     hdu = fits.PrimaryHDU(scitrace['traces'])
                     hdulist = fits.HDUList([hdu])
-                    hdulist.writeto(mstrc_name)               
+                    hdulist.writeto(mstrc_name,clobber=True)               
                     msgs.info("Wrote object trace file: {:s}".format(mstrc_name))
                 ###############
                 # Boxcar Extraction
