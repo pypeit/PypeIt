@@ -9,6 +9,7 @@ from warnings import resetwarnings, simplefilter
 from time import time
 import traceback
 import numpy as np
+from astropy.io import fits
 # Import PYPIT routines
 import armsgs as msgs
 import ararc
@@ -624,6 +625,13 @@ class ClassMain:
                 if scitrace is None:
                     msgs.info("Not performing extraction for science frame"+msgs.newline()+self._fitsdict['filename'][scidx[0]])
                     continue
+                else:
+                    # Write
+                    mstrc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "objtrc")
+                    hdu = fits.PrimaryHDU(scitrace['traces'])
+                    hdulist = fits.HDUList([hdu])
+                    hdulist.writeto(mstrc_name)               
+                    msgs.info("Wrote object trace file: {:s}".format(mstrc_name))
                 ###############
                 # Boxcar Extraction
                 wave, flux, var = arextract.boxcar(self._mswvimg, sciframe-bgframe, varframe, crmask, scitrace, weighted=False)
