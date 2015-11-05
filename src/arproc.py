@@ -326,6 +326,10 @@ def bg_subtraction(slf, sciframe, varframe, crpix, rejsigma=3.0, maskval=-999999
     msgs.info("Generating sky background image")
     bgscan = arcyutils.polyfit_scan_lim(sxvpix[wbg], sbgpix[wbg].copy(), np.ones(wbg[0].size,dtype=np.float), maskval, polyorder, sciframe.shape[1]/3, repeat, maxdiff)
     bgframe = np.interp(tilts.flatten(), sxvpix[wbg], bgscan).reshape(tilts.shape)
+    if np.sum(np.isnan(bgframe)) > 0:
+        msgs.warn("NAN in bgframe.  Replacing with 0")
+        bad = np.isnan(bgframe)
+        bgframe[bad] = 0.
     # Plot to make sure that the result is good
     #arutils.ds9plot(bgframe)
     #arutils.ds9plot(sciframe-bgframe)
@@ -828,8 +832,11 @@ def trim(slf,file,det):
 
 
 def variance_frame(slf, det, sciframe, idx):
+    ''' Calculate a simple variance image including detector noise
+    '''
     # Dark Current noise
     dnoise = slf._spect['det'][det-1]['darkcurr'] * float(slf._fitsdict["exptime"][idx])/3600.0
     # The effective read noise
     rnoise = slf._spect['det'][det-1]['ronoise']**2 + (0.5*slf._spect['det'][det-1]['gain'])**2
+    # Finish
     return np.abs(sciframe) + rnoise + dnoise

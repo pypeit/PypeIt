@@ -1,10 +1,16 @@
 import numpy as np
+import scipy
 import armsgs as msgs
 import arcyutils
 from matplotlib import pyplot as plt
 import pdb
 
-def boxcar(sciframe, varframe, crmask, scitrace, maskval=-999999.9, weighted=True):
+try:
+    from xastropy.xutils import xdebug as xdb
+except:
+    pass
+
+def boxcar(wvimg, sciframe, varframe, crmask, scitrace, maskval=-999999.9, weighted=True):
     """
 
     :param sciframe: science frame
@@ -20,7 +26,7 @@ def boxcar(sciframe, varframe, crmask, scitrace, maskval=-999999.9, weighted=Tru
     mask = 1.0-crmask
     bgfit = np.linspace(0.0, 1.0, sciframe.shape[1])
     for o in range(nobj):
-        pdb.set_trace()
+        #pdb.set_trace()
         msgs.info("Performing boxcar extraction on object {0:d}/{1:d}".format(o+1,nobj))
         # Fit the background
         msgs.info("   Fitting the background")
@@ -28,23 +34,37 @@ def boxcar(sciframe, varframe, crmask, scitrace, maskval=-999999.9, weighted=Tru
         if weighted: weight = np.abs(scitrace['object'][:,:,o]*mask*(sciframe-bgframe))
         else: weight = scitrace['object'][:,:,o]*mask
         sumweight = np.sum(weight, axis=1)
+        # Generate wavelength array
+        wvsum = np.sum(wvimg*weight, axis=1)
+        wvsum /= sumweight
         # Total the object flux
         msgs.info("   Summing object counts")
         scisum = np.sum((sciframe-bgframe)*weight, axis=1)
-        scisum /= sumweight
+        if weighted:
+            scisum /= sumweight
         # Total the variance array
         msgs.info("   Summing variance array")
         varsum = np.sum(varframe*weight, axis=1)
-        varsum /= sumweight
+        if weighted:
+            varsum /= sumweight
         # Mask zero weights
-        w = np.where(sumweight == 0.0)
-        if w[0].size != 0:
+        w = sumweight <= 0.0
+        if np.sum(w) > 0:
             scisum[w] = maskval
-            varsum[w] = abs(maskval)
+            varsum[w] = 0. #abs(maskval)
+            # Wavelength -- Need to fill these in
+            ival = np.arange(wvsum.size)
+            fwv = scipy.interpolate.InterpolatedUnivariateSpline(ival[~w], wvsum[~w], k=2)
+            wvsum[w] = fwv(ival[w]) # Includes extrapolation
+        '''
         pltv = np.arange(scisum.size)
         plt.clf()
         plt.plot(pltv, scisum, 'k-', drawstyle='steps')
         plt.plot(pltv, np.sqrt(varsum), 'r-')
-        plt.plot(pltv, -np.sqrt(varsum), 'r-')
+        #plt.plot(pltv, -np.sqrt(varsum), 'r-')
         plt.show()
-    return None
+        plt.close()
+        '''
+        #xdb.xplot(scisum/np.sqrt(varsum)) # S/N
+        #xdb.set_trace()
+    return wvsum, scisum, varsum

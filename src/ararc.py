@@ -348,7 +348,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
         import pdb
         pdb.set_trace()
     # Pack up fit
-    final_fit = dict(fitc=fit, xfit=xfit, yfit=yfit, 
+    final_fit = dict(fitc=fit, function=aparm['func'], xfit=xfit, yfit=yfit,
         fmin=fmin, fmax=fmax, xnorm=float(slf._msarc.shape[0]),
         xrej=xrej, yrej=yrej)
     # QA
@@ -372,7 +372,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
     msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")
-    msgs.warn("READ THIS IDEA!!!")
+    msgs.warn("READ THIS IDEA!!!") 
     msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")

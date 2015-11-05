@@ -23,6 +23,13 @@ import arvcorr
 import arextract
 import arqa
 
+try:
+    from linetools.spectra.xspectrum1d import XSpectrum1D
+except:
+    pass
+#else:
+#    from astropy import units as u
+
 import pdb
 
 try:
@@ -204,7 +211,7 @@ class ClassMain:
 
 
     def MasterArc(self, sc, det):
-        '''Generate MasterBias frame for a given detector
+        '''Generate MasterArc frame for a given detector
         Parameters:
         -----------
         sc: int 
@@ -519,7 +526,7 @@ class ClassMain:
                 # Generate an array that provides the physical pixel locations on the detector
                 self.GetPixelLocations(det)
                 ###############
-                # Determine the edges of the spectrum
+                # Determine the edges of the spectrum (spatial)
                 self._lordloc, self._rordloc = artrace.trace_orders(self, self._mstrace, ARMLSD=True, prefix=prefix, trcprefix=self._trcprefix)
                 arsave.save_ordloc(self, self._mstrace_name)
                 arqa.slit_trace_qa(self._mstrace, self._lordloc, self._rordloc, self._mstrace_name)
@@ -555,6 +562,12 @@ class ClassMain:
                     ###############
                     # Extract arc and identify lines
                     self.wv_calib = ararc.simple_calib(self, det)
+                    # Generate Wavelength Image
+                    self._mswvimg = arutils.func_val(self.wv_calib['fitc'], self._tilts, self.wv_calib['function'], min=self.wv_calib['fmin'], max=self.wv_calib['fmax'])
+                    ind = self._spect['arc']['index'][sc]
+                    self._mswvimg_name = "{0:s}/{1:s}/mswvimg{2:s}_{3:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"][det-1]["suffix"],len(self._done_arcs)-1)
+                    ind = self._spect['arc']['index'][sc]
+                    arsave.save_master(self, self._mswvimg, filename=self._mswvimg_name, frametype='wvimg', ind=ind)
 
                 ###############
                 # Check if the user only wants to prepare the calibrations
@@ -612,8 +625,14 @@ class ClassMain:
                     msgs.info("Not performing extraction for science frame"+msgs.newline()+self._fitsdict['filename'][scidx[0]])
                     continue
                 ###############
-                # Extraction
-                boxcar = arextract.boxcar(sciframe-bgframe, varframe, crmask, scitrace)
+                # Boxcar Extraction
+                wave, flux, var = arextract.boxcar(self._mswvimg, sciframe-bgframe, varframe, crmask, scitrace, weighted=False)
+                #Generate and Write Spectrum
+                sig = np.sqrt(var)
+                xspec = XSpectrum1D.from_tuple( (wave,flux,sig) )
+                spec_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "boxcar")
+                msgs.info("Writing boxcar spectrum: {:s}".format(spec_name))
+                xspec.write_to_fits(spec_name, clobber=True)
                 msgs.error("UP TO HERE")
                 ###############
                 # Perform a velocity correction
