@@ -583,6 +583,9 @@ class ClassMain:
                 # Convert ADUs to electrons
                 sciframe *= self._spect['det'][det-1]['gain']
                 varframe = arproc.variance_frame(self, det, sciframe, scidx[0])
+                # Write
+                msvar_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "var")
+                arsave.save_master(self, varframe, filename=msvar_name, frametype='variance')
                 ###############
                 # Subtract off the scattered light from the image
                 msgs.work("Scattered light subtraction is not yet implemented...")
@@ -643,6 +646,7 @@ class ClassMain:
                 msgs.info("Writing boxcar spectrum: {:s}".format(spec_name))
                 xspec.write_to_fits(spec_name, clobber=True)
 
+                #pdb.set_trace()
                 skyspec = XSpectrum1D.from_tuple( (wave,sky) )
                 skyspec_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "skybox")
                 msgs.info("Writing sky spectrum: {:s}".format(skyspec_name))

@@ -10,7 +10,7 @@ try:
 except:
     pass
 
-def boxcar(wvimg, sciframe, varframe, bgframe, crmask, scitrace, maskval=-999999.9, weighted=True):
+def boxcar(wvimg, sciframe, varframe, skyframe, crmask, scitrace, maskval=-999999.9, weighted=True):
     """
 
     :param wvimg: wavelength image
@@ -40,8 +40,8 @@ def boxcar(wvimg, sciframe, varframe, bgframe, crmask, scitrace, maskval=-999999
         wvsum = np.sum(wvimg*weight, axis=1)
         wvsum /= sumweight
         # Generate sky spectrum (flux per pixel)
-        bgsum = np.sum(bgframe*weight, axis=1)
-        bgsum /= sumweight
+        skysum = np.sum(skyframe*weight, axis=1)
+        skysum /= sumweight
         # Total the object flux
         msgs.info("   Summing object counts")
         scisum = np.sum((sciframe-bgframe)*weight, axis=1)
@@ -61,6 +61,7 @@ def boxcar(wvimg, sciframe, varframe, bgframe, crmask, scitrace, maskval=-999999
             ival = np.arange(wvsum.size)
             fwv = scipy.interpolate.InterpolatedUnivariateSpline(ival[~w], wvsum[~w], k=2)
             wvsum[w] = fwv(ival[w]) # Includes extrapolation
+            skysum[w] = 0. #abs(maskval)
         '''
         pltv = np.arange(scisum.size)
         plt.clf()
@@ -72,4 +73,4 @@ def boxcar(wvimg, sciframe, varframe, bgframe, crmask, scitrace, maskval=-999999
         '''
         #xdb.xplot(scisum/np.sqrt(varsum)) # S/N
         #xdb.set_trace()
-    return wvsum, scisum, varsum, bgsum
+    return wvsum, scisum, varsum, skysum
