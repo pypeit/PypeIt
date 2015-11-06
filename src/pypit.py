@@ -480,23 +480,32 @@ class ClassMain:
         Automatic Reduction & Modelling of Long Slit Data
         """
         success = False
-        # Sort data and match calibrations to science frames
+        # Sort data and match calibrations to science+standard frames
         self.Setup()
         sci = self._filesort['science']
+        std = self._filesort['standard']
         numsci = np.size(sci)
+        numstd = np.size(std)
+        if numstd == 0:
+            msgs.bug("We will proceed without a standard star, but don't ask to flux calibrate!")
         if numsci == 0:
             msgs.bug("What to do if no science frames are input? The calibrations should still be processed.")
             msgs.work("Maybe assume that each non-identical arc is a science frame, but force no science extraction")
             msgs.error("No science frames are input!!")
             numsci=1
             self._argflag['run']['preponly'] = True # Prepare the calibration files, but don't do the science frame reduction
-        # Reduce each science frame entirely before moving to the next one
-        for sc in xrange(numsci):
-            ###############
-            # First set the index for the science frame
-            scidx = self._spect['science']['index'][sc]
+        # Reduce each standard+science frame entirely before moving to the next one
+        stdsci_idx = range(numstd) + range(numsci) 
+        stdsci_types = ['standard']*numstd + ['science']*numsci
+        if stdsci_idx[0] != 0:
+            msgs.error("First index should be 0")
+        for qq,sc in enumerate(stdsci_idx):
+            sctype = stdsci_types[qq]
+            scidx = self._spect[sctype]['index'][sc]
             self._scidx = scidx[0]
             sciext_name_p, sciext_name_e = os.path.splitext(self._fitsdict['filename'][scidx[0]])
+            ###############
+            # First set the index for the science frame
             # Now loop on Detectors
             for kk in xrange(self._spect['mosaic']['ndet']):
                 det = kk + 1 # Detectors indexed from 1
@@ -638,6 +647,8 @@ class ClassMain:
                     msgs.info("Wrote object trace file: {:s}".format(mstrc_name))
                 ###############
                 # Boxcar Extraction
+                if sctype == 'standard':
+                    msgs.work("Should restrict to one object for extraction (brightest).")
                 wave, flux, var, sky = arextract.boxcar(self._mswvimg, sciframe-bgframe, varframe, bgframe, crmask, scitrace, weighted=False)
                 #Generate and Write spectra
                 sig = np.sqrt(var)
@@ -674,7 +685,9 @@ class ClassMain:
                 msgs.info("Generating the array of extraction wavelengths")
                 self._wavelength = arproc.get_wscale(self)
 
-                msgs.error("INSERT EXTRACTION HERE")
+                ###############
+                # Flux
+                msgs.error("Time to flux if you can")
 
 
         # Insert remaining reduction steps here
