@@ -140,13 +140,3 @@ def vactoair(wave):
 	wave = wavelength*u.AA
 
 	return wave
-
-
-
-
-
-
-
-
-
-
