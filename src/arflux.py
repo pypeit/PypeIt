@@ -30,7 +30,7 @@ def extinction_correction(wave, AM, extinct):
     Parameters:
     ----------
     wave: Quantity array
-      Wavelengths for interpolation
+      Wavelengths for interpolation. Should be sorted
     AM: float
       Airmass
     extinct: Table
@@ -41,6 +41,9 @@ def extinction_correction(wave, AM, extinct):
     flux_corr: ndarray
       Flux corrections at the input wavelengths
     '''
+    # Checks
+    if AM < 1.:
+        msgs.error("Bad AM value in extinction_correction")
     # Interpolate
     f_mag_ext = scipy.interpolate.interp1d(extinct['wave'],
         extinct['mag_ext'], bounds_error=False, fill_value=0.)
@@ -48,10 +51,12 @@ def extinction_correction(wave, AM, extinct):
 
     # Deal with outside wavelengths 
     gdv = np.where(mag_ext > 0.)[0]
-    if gdv[0] != 0.: # Low wavelengths
+    if len(gdv) == 0:
+        msgs.error("None of the input wavelengths are in the extinction correction range.  Presumably something was input wrong.")
+    if gdv[0] != 0: # Low wavelengths
         mag_ext[0:gdv[0]] = mag_ext[gdv[0]]
         msgs.warn("Extrapolating at low wavelengths using last valid value")
-    if gdv[-1] != 0.: # High wavelengths
+    if gdv[-1] != (mag_ext.size-1): # High wavelengths
         mag_ext[gdv[-1]+1:] = mag_ext[gdv[-1]]
         msgs.warn("Extrapolating at high wavelengths using last valid value")
     # Evaluate
@@ -65,6 +70,8 @@ def find_standard_file(slf, radec, toler=20.*u.arcmin):
 
     Parameters:
     ----------
+    slf: self
+      Needed for path to data
     radec: tuple
       ra, dec in string format ('05:06:36.6','52:52:01.0')
 
@@ -100,6 +107,7 @@ def find_standard_file(slf, radec, toler=20.*u.arcmin):
                 ra=star_tbl[int(idx)]['RA_2000'], 
                 dec=star_tbl[int(idx)]['DEC_2000'])
             # Return
+            msgs.info("Using standard star {:s}".format(std_dict['name']))
             return std_dict
 
 def load_calspec(slf):
@@ -188,9 +196,40 @@ def load_standard_file(slf, std_dict):
 
     if std_dict['fmt'] == 1:
         std_spec = fits.open(fil)[1].data
-        # Return
-        return std_spec['WAVELENGTH']*u.AA, 1e17*std_spec['FLUX']*u.erg/u.s/u.cm**2/u.AA
+        # Load
+        std_dict['wave'] = std_spec['WAVELENGTH']*u.AA 
+        std_dict['flux'] = 1e17*std_spec['FLUX']*u.erg/u.s/u.cm**2/u.AA
     else:
         msgs.error("Bad Standard Star Format")
+    return
 
+def sensfunc(slf, sc):
+    '''Generate sensitivity function from current standard star
 
+    Parameters:
+    ----------
+    sc: int
+      index for standard  (may not be necessary)
+
+    Returns:
+    --------
+    sens_func: ??
+      sensitivity function
+    '''
+    # Grab closest standard within a tolerance
+    std_dict = find_standard_file(slf, (slf._fitsdict['ra'][slf._scidx],slf._fitsdict['dec'][slf._scidx]))
+    # Load standard
+    load_standard_file(slf, std_dict)
+    # Find brightest object in the exposure
+    medfx = []
+    for spobj in slf._specobjs:
+        medfx.append(np.median(spobj.boxcar['counts']))
+    std_obj = slf._specobjs[np.argmax(np.array(medfx))]
+    # Apply Extinction
+    extinct = load_extinction_data(slf)
+    flux_corr = std_obj.boxcar['counts']*extinction_correction(std_obj.boxcar['wave'], slf._fitsdict['airmass'][slf._scidx], extinct)
+    # Convert to electrons / s
+    flux_corr /= slf._fitsdict['exptime'][slf._scidx] 
+
+    xdb.set_trace()
+    #std_dict = find_standard_file(slf, (slf._fitsdict['ra'][slf._scidx],slf._fitsdict['dec'][slf._scidx]))

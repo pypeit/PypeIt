@@ -13,16 +13,18 @@ from astropy.io import fits
 # Import PYPIT routines
 import armsgs as msgs
 import ararc
+import arextract
+import arflux
 import arload
 import arsave
 import arcomb
 import arproc
+import arqa
 import arsort
+import arspecobj
 import artrace
 import arutils
 import arvcorr
-import arextract
-import arqa
 
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
@@ -480,12 +482,16 @@ class ClassMain:
         Automatic Reduction & Modelling of Long Slit Data
         """
         success = False
+        # INIT
+        self._allspecobjs = []
         # Sort data and match calibrations to science+standard frames
         self.Setup()
         sci = self._filesort['science']
         std = self._filesort['standard']
         numsci = np.size(sci)
         numstd = np.size(std)
+        msgs.bug("I suspect the above doesn't organize the standard correctly")
+        msgs.bug("We want the ones matched to the science frames.")
         if numstd == 0:
             msgs.bug("We will proceed without a standard star, but don't ask to flux calibrate!")
         if numsci == 0:
@@ -504,6 +510,7 @@ class ClassMain:
             scidx = self._spect[sctype]['index'][sc]
             self._scidx = scidx[0]
             sciext_name_p, sciext_name_e = os.path.splitext(self._fitsdict['filename'][scidx[0]])
+            self._specobjs = []
             ###############
             # First set the index for the science frame
             # Now loop on Detectors
@@ -638,6 +645,8 @@ class ClassMain:
                     msgs.info("Not performing extraction for science frame"+msgs.newline()+self._fitsdict['filename'][scidx[0]])
                     continue
                 else:
+                    # Generate SpecObjExp list
+                    self._specobjs += arspecobj.init_exp(self,sc,det,trc_img=scitrace)
                     # Write
                     mstrc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "objtrc")
                     hdutrc = fits.PrimaryHDU(scitrace['traces'])
@@ -647,22 +656,28 @@ class ClassMain:
                     msgs.info("Wrote object trace file: {:s}".format(mstrc_name))
                 ###############
                 # Boxcar Extraction
-                if sctype == 'standard':
-                    msgs.work("Should restrict to one object for extraction (brightest).")
-                wave, flux, var, sky = arextract.boxcar(self._mswvimg, sciframe-bgframe, varframe, bgframe, crmask, scitrace, weighted=False)
+                arextract.boxcar(self, sciframe-bgframe, varframe, bgframe, crmask, scitrace)
                 #Generate and Write spectra
-                sig = np.sqrt(var)
-                xspec = XSpectrum1D.from_tuple( (wave,flux,sig) )
-                spec_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "boxcar")
-                msgs.info("Writing boxcar spectrum: {:s}".format(spec_name))
-                xspec.write_to_fits(spec_name, clobber=True)
+                if False:
+                    sig = np.sqrt(var)
+                    xspec = XSpectrum1D.from_tuple( (wave,flux,sig) )
+                    spec_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "boxcar")
+                    msgs.info("Writing boxcar spectrum: {:s}".format(spec_name))
+                    xspec.write_to_fits(spec_name, clobber=True)
 
-                #pdb.set_trace()
-                skyspec = XSpectrum1D.from_tuple( (wave,sky) )
-                skyspec_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "skybox")
-                msgs.info("Writing sky spectrum: {:s}".format(skyspec_name))
-                skyspec.write_to_fits(skyspec_name, clobber=True)
+                    #pdb.set_trace()
+                    skyspec = XSpectrum1D.from_tuple( (wave,sky) )
+                    skyspec_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "skybox")
+                    msgs.info("Writing sky spectrum: {:s}".format(skyspec_name))
+                    skyspec.write_to_fits(skyspec_name, clobber=True)
 
+                ###############
+                # If standard, generate a sensitivity function
+                if (sctype == 'standard') & (det == self._spect['mosaic']['ndet']):
+                    self._sensfunc = arflux.sensfunc(self,sc)
+                    msgs.work("What to do with multiple standard exposures??")
+
+                continue
                 msgs.error("UP TO HERE")
                 ###############
                 # Perform a velocity correction
@@ -678,17 +693,23 @@ class ClassMain:
                     msgs.info("A heliocentric correction will not be performed")
                 ###############
                 # Using model sky, calculate a flexure correction
-                msgs.error("Implement flexure correction")
+                if sctype == 'science':
+                    msgs.error("Implement flexure correction")
 
                 ###############
                 # Determine the wavelength scale (i.e. the wavelength of each pixel) to be used during the extraction
-                msgs.info("Generating the array of extraction wavelengths")
-                self._wavelength = arproc.get_wscale(self)
+                if sctype == 'science':
+                    msgs.info("Generating the array of extraction wavelengths")
+                    self._wavelength = arproc.get_wscale(self)
 
                 ###############
                 # Flux
-                msgs.error("Time to flux if you can")
+                if sctype == 'science':
+                    msgs.error("Time to flux if you can")
 
+                ###############
+                # Append for later stages (e.g. coadding)
+                self._allspecobjs += self._specobjs
 
         # Insert remaining reduction steps here
         return success

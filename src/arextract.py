@@ -10,10 +10,10 @@ try:
 except:
     pass
 
-def boxcar(wvimg, sciframe, varframe, skyframe, crmask, scitrace, maskval=-999999.9, weighted=True):
+def boxcar(slf, sciframe, varframe, skyframe, crmask, scitrace, maskval=-999999.9, weighted=False):
     """
 
-    :param wvimg: wavelength image
+    :param slf
     :param sciframe: science frame
     :param varframe: variance image
     :param bgframe: sky background frame
@@ -27,6 +27,7 @@ def boxcar(wvimg, sciframe, varframe, skyframe, crmask, scitrace, maskval=-99999
     nobj = scitrace['traces'].shape[1]
     mask = 1.0-crmask
     bgfit = np.linspace(0.0, 1.0, sciframe.shape[1])
+    # Loop on Objects
     for o in range(nobj):
         #pdb.set_trace()
         msgs.info("Performing boxcar extraction on object {0:d}/{1:d}".format(o+1,nobj))
@@ -37,7 +38,7 @@ def boxcar(wvimg, sciframe, varframe, skyframe, crmask, scitrace, maskval=-99999
         else: weight = scitrace['object'][:,:,o]*mask
         sumweight = np.sum(weight, axis=1)
         # Generate wavelength array
-        wvsum = np.sum(wvimg*weight, axis=1)
+        wvsum = np.sum(slf._mswvimg*weight, axis=1)
         wvsum /= sumweight
         # Generate sky spectrum (flux per pixel)
         skysum = np.sum(skyframe*weight, axis=1)
@@ -62,15 +63,13 @@ def boxcar(wvimg, sciframe, varframe, skyframe, crmask, scitrace, maskval=-99999
             fwv = scipy.interpolate.InterpolatedUnivariateSpline(ival[~w], wvsum[~w], k=2)
             wvsum[w] = fwv(ival[w]) # Includes extrapolation
             skysum[w] = 0. #abs(maskval)
-        '''
-        pltv = np.arange(scisum.size)
-        plt.clf()
-        plt.plot(pltv, scisum, 'k-', drawstyle='steps')
-        plt.plot(pltv, np.sqrt(varsum), 'r-')
-        #plt.plot(pltv, -np.sqrt(varsum), 'r-')
-        plt.show()
-        plt.close()
-        '''
         #xdb.xplot(scisum/np.sqrt(varsum)) # S/N
         #xdb.set_trace()
-    return wvsum, scisum, varsum, skysum
+        # Check on specobjs
+        if not slf._specobjs[o].check_trace(scitrace['traces'][:,o]):
+            msgs.error("Bad match to specobj in boxcar!")
+        # Fill
+        slf._specobjs[o].boxcar['wave'] = wvsum
+        slf._specobjs[o].boxcar['counts'] = scisum
+        slf._specobjs[o].boxcar['var'] = varsum
+        slf._specobjs[o].boxcar['sky'] = skysum # per pixel
