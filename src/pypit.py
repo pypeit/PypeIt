@@ -546,7 +546,10 @@ class ClassMain:
                         arsave.save_tilts(self, self._msarc_name)
                 else:
                     # First time encountered this set of arc frames --> derive the order tilts
-                    self._tilts, self._satmask = artrace.model_tilt(self, det, self._msarc, prefix=prefix, trcprefix=self._trcprefix, tltprefix=self._tltprefix)
+                    tilts = None
+                    for i in range(5):
+                        tilts, satmask = artrace.model_tilt(self, det, self._msarc, prefix=prefix, trcprefix=self._trcprefix, tltprefix=self._tltprefix, guesstilts=tilts)
+                    self._tilts, self._satmask = tilts, satmask
                     # Save the tilts
                     arsave.save_tilts(self, self._msarc_name)
                     msgs.bug("Need to include the definitions below in the above exception as a failsafe")
@@ -587,12 +590,13 @@ class ClassMain:
                 else: crmask = np.zeros(sciframe.shape)
                 #arutils.ds9plot(crmask)
                 #arutils.ds9plot(sciframe*(1.0-crmask))
+                msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
                 ###############
-                # Subtract Sky Background
+                # Estimate Sky Background
                 if self._argflag['reduce']['bgsubtraction']:
                     # Perform an iterative background/science extraction
-                    msgs.info("Preparing a sky background frame ")
-                    bgframe = arproc.bg_subtraction(self, sciframe, varframe, crmask)
+                    msgs.info("Estimating the sky background")
+                    bgframe = arproc.bg_subtraction(self, det, sciframe, varframe, crmask)
                     #scibgsub, bgframe = arproc.background_subtraction(self, sciframe, varframe)
                     # Derive a suitable name for the master sky background frame
                     msgs.work("Include an index suffix for each object frame")# e.g. if you have 3 frames of the same object, include a common integer suffix on the filenames
@@ -603,14 +607,40 @@ class ClassMain:
                     msscibg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "skysub")
                     # Send the data away to be saved
                     arsave.save_master(self, sciframe-bgframe, filename=msscibg_name, frametype='sky subtracted science')
-
-                msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
+                    # Redetermine the variance frame based on the new sky model
+                    varframe = arproc.variance_frame(self, det, sciframe, scidx[0], skyframe=bgframe)
                 ###############
-                # Trace science objects
+                # Estimate trace of science objects
                 scitrace = artrace.trace_object(self, sciframe-bgframe, varframe, crmask)
                 if scitrace is None:
                     msgs.info("Not performing extraction for science frame"+msgs.newline()+self._fitsdict['filename'][scidx[0]])
                     continue
+                ###############
+                # Finalize the Sky Background image
+                if self._argflag['reduce']['bgsubtraction']:
+                    # Perform an iterative background/science extraction
+                    msgs.info("Finalizing the sky background image")
+                    trcmask = scitrace['object'].sum(axis=2)
+                    trcmask[np.where(trcmask>0.0)] = 1.0
+                    bgframe = arproc.bg_subtraction(self, det, sciframe, varframe, crmask, tracemask=trcmask)
+                    # Derive a suitable name for the master sky background frame
+                    msgs.work("Include an index suffix for each object frame")# e.g. if you have 3 frames of the same object, include a common integer suffix on the filenames
+                    msbg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "sky")
+                    # Send the data away to be saved
+                    arsave.save_master(self, bgframe, filename=msbg_name, frametype='sky background')
+                    # Derive a suitable name for the sky-subtracted science frame
+                    msscibg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "skysub")
+                    # Send the data away to be saved
+                    arsave.save_master(self, sciframe-bgframe, filename=msscibg_name, frametype='sky subtracted science')
+                    # Redetermine the variance frame based on the new sky model
+                    varframe = arproc.variance_frame(self, det, sciframe, scidx[0], skyframe=bgframe)
+                ###############
+                # Determine the final trace of the science objects
+                scitrace = artrace.trace_object(self, sciframe-bgframe, varframe, crmask)
+                if scitrace is None:
+                    msgs.info("Not performing extraction for science frame"+msgs.newline()+self._fitsdict['filename'][scidx[0]])
+                    continue
+
                 ###############
                 # Extraction
                 boxcar = arextract.boxcar(sciframe-bgframe, varframe, crmask, scitrace)
