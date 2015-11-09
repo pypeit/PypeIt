@@ -625,6 +625,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
         mask = initialmask.copy()
     mskcnt=np.sum(mask)
     # Iterate, and mask out new values on each iteration
+    wfit = None
     while True:
         w = np.where(mask==0)
         xfit = xarray[w]

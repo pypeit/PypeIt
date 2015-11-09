@@ -125,7 +125,7 @@ def airtovac(wave):
 
     Returns:
     ----------
-    wave: ndarray
+    wave: Quantity array
       Wavelength array corrected to vacuum wavelengths
     '''
     # Convert to AA
@@ -155,7 +155,7 @@ def vactoair(wave):
 
     Returns:
     ----------
-    wave: ndarray
+    wave: Quantity array
       Wavelength array corrected to air
     '''
     # Convert to AA

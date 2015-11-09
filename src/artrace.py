@@ -1082,7 +1082,7 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilt
             if (idx > 0) and (idx < msarc.shape[0]):
                 maskrows[idx] = 0     # mcoeff[0] is the centroid of the arc line
                 tcoeff[:,idx] = mcoeff.copy()
-                weights[idx]  = 1.0#np.median(apfit[wmask])
+                weights[idx]  = (np.abs(np.median(apfit[wmask])))**0.25
             xtilt[:wmask.size,j] = xtfit[wmask]/(msarc.shape[1]-1.0)
             ytilt[:wmask.size,j] = arcdet[j]/(msarc.shape[0]-1.0)
             ztilt[:wmask.size,j] = ytfit[wmask]/(msarc.shape[0]-1.0)
@@ -1092,6 +1092,7 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilt
             if np.max(np.abs(zwght[1:]-zwght[:-1]))!=0.0: wtilt[:wmask.size,j] = 1.0/np.max(np.abs(zwght[1:]-zwght[:-1]))
         #pdb.set_trace()
         if True:
+            weights /= np.max(weights)
             # Do a PCA on the coefficients
             maskrw = np.where(maskrows==1)[0]
             maskrw.sort()
