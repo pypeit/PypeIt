@@ -549,11 +549,13 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
         mask = initialmask.copy()
     mskcnt=np.sum(mask)
     # Iterate, and mask out new values on each iteration
+    wfit = None
     while True:
         w = np.where(mask==0)
         xfit = xarray[w]
         yfit = yarray[w]
-        ct = func_fit(xfit,yfit,function,order,min=min,max=max)
+        if weights is not None: wfit = weights[w]
+        ct = func_fit(xfit,yfit,function,order,min=min,max=max,w=wfit)
         yrng = func_val(ct,xarray,function,min=min,max=max)
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
         if debug:
@@ -578,7 +580,8 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
         w = np.where(mask==0)
     xfit = xarray[w]
     yfit = yarray[w]
-    ct = func_fit(xfit,yfit,function,order,min=min,max=max)
+    if weights is not None: wfit = weights[w]
+    ct = func_fit(xfit,yfit,function,order,min=min,max=max,w=wfit)
     return mask, ct
 
 
