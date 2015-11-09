@@ -547,8 +547,12 @@ class ClassMain:
                 else:
                     # First time encountered this set of arc frames --> derive the order tilts
                     tilts = None
-                    for i in range(5):
-                        tilts, satmask = artrace.model_tilt(self, det, self._msarc, prefix=prefix, trcprefix=self._trcprefix, tltprefix=self._tltprefix, guesstilts=tilts)
+                    nitertilts=5
+                    doQA = False
+                    for tt in range(nitertilts):
+                        msgs.info("Iterating on spectral tilts -- Iteration {0:d}/{1:d}".format(tt+1,nitertilts))
+                        if tt==nitertilts-1: doQA=True
+                        tilts, satmask = artrace.model_tilt(self, det, self._msarc, prefix=prefix, trcprefix=self._trcprefix, tltprefix=self._tltprefix, guesstilts=tilts, plotQA=doQA)
                     self._tilts, self._satmask = tilts, satmask
                     # Save the tilts
                     arsave.save_tilts(self, self._msarc_name)

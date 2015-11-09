@@ -285,7 +285,8 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None, rejsigma
     # Reject deviant pixels -- step through every 1.0/sciframe.shape[0] in sxvpix and reject significantly deviant pixels
     edges = np.linspace(min(0.0,np.min(sxvpix)),max(1.0,np.max(sxvpix)),sciframe.shape[0])
     fitcls = np.zeros(sciframe.shape[0])
-    if tracemask is None:
+    #if tracemask is None:
+    if True:
         maskpix = np.zeros(sxvpix.size)
         msgs.info("Identifying pixels containing the science target")
         msgs.work("Speed up this step in cython")
@@ -305,8 +306,6 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None, rejsigma
                 else:
                     fitcls[i] = cf[0]
     else:
-        msgs.info("Masking known pixels containing object flux")
-        maskpix = tracemask.copy()
         msgs.work("Speed up this step in cython")
         for i in xrange(sciframe.shape[0]-1):
             wpix = np.where((sxvpix>=edges[i]) & (sxvpix<=edges[i+1]))
@@ -321,7 +320,16 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None, rejsigma
         # Trace the sky lines to get a better estimate of the tilts
         scicopy = sciframe.copy()
         scicopy[np.where(ordpix==0)] = maskval
-        scitilts, _ = artrace.model_tilt(slf, det, scicopy, guesstilts=tilts.copy(), censpec=fitcls, maskval=maskval)
+        scitilts, _ = artrace.model_tilt(slf, det, scicopy, guesstilts=tilts.copy(), censpec=fitcls, maskval=maskval, plotQA=True)
+        xvpix  = scitilts[whord]
+        scipix = sciframe[whord]
+        varpix = varframe[whord]
+        mskpix = tracemask[whord]
+        xargsrt = np.argsort(xvpix,kind='mergesort')
+        sxvpix  = xvpix[xargsrt]
+        sscipix = scipix[xargsrt]
+        svarpix = varpix[xargsrt]
+        maskpix = mskpix[xargsrt]
     # Check the mask is reasonable
     scimask = sciframe.copy()
     rxargsrt = np.argsort(xargsrt,kind='mergesort')

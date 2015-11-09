@@ -872,7 +872,7 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders, disp
     return extfit, outpar
 
 
-def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilts=None, censpec=None, maskval=-999999.9):
+def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilts=None, censpec=None, plotQA=False, maskval=-999999.9):
     """
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
     """
@@ -902,6 +902,7 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilt
         xtilt = maskval*np.ones((msarc.shape[1], arcdet.size))
         ytilt = maskval*np.ones((msarc.shape[1], arcdet.size))
         ztilt = maskval*np.ones((msarc.shape[1], arcdet.size))
+        stilt = maskval*np.ones((msarc.shape[1], arcdet.size))
         wtilt = maskval*np.ones((msarc.shape[1], arcdet.size))
         for j in xrange(arcdet.size): # For each detection in this order
             # Check if this is a saturated line
@@ -915,6 +916,7 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilt
             etfit = np.zeros(2*sz+1) # Fitted centroid error
             mtfit = np.ones(2*sz+1) # Mask of bad fits
             apfit = np.zeros(2*sz+1) # Fitted Amplitude
+            shfit = np.zeros(2*sz+1) # Shift applied
             xfit = np.arange(-nspecfit, nspecfit+1, 1.0)
             tstcc = True # A boolean to tell the loop once a good set of pixels has been found to cross-correlate with
             # Fit up
@@ -975,8 +977,8 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilt
                 params, fail = arutils.gauss_fit(xfit, cc, 0.0)
                 centv = ccval + pcen - arcdet[j] - params[1]
                 xtfit[k+sz] = ordcen[arcdet[j],0]+k
-                if guesstilts is not None: ytfit[k+sz] = centv - guesstilts[pcen,ordcen[pcen,0]+k]*float(msarc.shape[0]-1.0)
-                else: ytfit[k+sz] = centv
+                if guesstilts is not None: shfit[k+sz] = guesstilts[arcdet[j],ordcen[arcdet[j],0]+k]*float(msarc.shape[0]-1.0)
+                ytfit[k+sz] = centv - shfit[k+sz]
                 etfit[k+sz] = 0.02
                 apfit[k+sz] = params[0]
                 if fail: mtfit[k+sz] = 1.0
@@ -996,7 +998,7 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilt
                 # Get a copy of the array that will be used to cross-correlate
                 # (testcc is probably already False from the Fit Up part of the loop, but it's best to be sure)
                 if tstcc:
-                    ccyfit = msarc[arcdet[j]-nspecfit:arcdet[j]+nspecfit+1,ordcen[arcdet[j]-k,0]]
+                    ccyfit = msarc[arcdet[j]-nspecfit:arcdet[j]+nspecfit+1,ordcen[arcdet[j],0]-k]
                     wgd = np.where(ccyfit==maskval)
                     if wgd[0].size != 0: continue
                     ccval = arcdet[j] + np.sum(xfit*ccyfit)/np.sum(ccyfit)
@@ -1042,8 +1044,8 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilt
                 params, fail = arutils.gauss_fit(xfit, cc, 0.0)
                 centv = ccval + pcen - arcdet[j] - params[1]
                 xtfit[sz-k] = ordcen[arcdet[j],0]-k
-                if guesstilts is not None: ytfit[sz-k] = centv - guesstilts[pcen,ordcen[pcen,0]-k]*float(msarc.shape[0]-1.0)
-                else: ytfit[sz-k] = centv
+                if guesstilts is not None: shfit[sz-k] = guesstilts[arcdet[j],ordcen[arcdet[j],0]-k]*float(msarc.shape[0]-1.0)
+                ytfit[sz-k] = centv - shfit[sz-k]
                 etfit[sz-k] = 0.02
                 apfit[sz-k] = params[0]
                 if fail: mtfit[sz-k] = 1.0
@@ -1062,14 +1064,17 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilt
 #					tcoeff = np.polynomial.polynomial.polyfit(xtfit[wmask],ytfit[wmask],1,w=1.0/mt)
 #				except:
 #					tcoeff = np.polynomial.polynomial.polyfit(xtfit[wmask],ytfit[wmask],1)
-            wmsk, mcoeff = arutils.robust_polyfit(xtfit[wmask], ytfit[wmask]/(msarc.shape[0]-1.0), slf._argflag['trace']['orders']['tiltorder'], function=slf._argflag['trace']['orders']['function'], sigma=2.0,min=0.0,max=msarc.shape[1]-1)
+            if guesstilts is not None: ytfit[wmask] -= np.median(ytfit[wmask])
+            wmsk, mcoeff = arutils.robust_polyfit(xtfit[wmask], ytfit[wmask]/(msarc.shape[0]-1.0), slf._argflag['trace']['orders']['tiltorder'], function=slf._argflag['trace']['orders']['function'], sigma=2.0,min=0.0,max=msarc.shape[1]-1.0)
             wmask = wmask[0][np.where(wmsk==0)]
             # Calculate the dispersion among the points
             #ytst = (ytfit[wmask][1:]-ytfit[wmask][:-1])
             #sig = 1.4826*np.median(np.abs(ytst-np.median(ytst)))/np.sqrt(2.0)
 
             # Save the tilt angle, and unmask the row
-            idx = int(msarc.shape[0]*mcoeff[0]+0.5)
+            factr = (msarc.shape[0]-1.0)*arutils.func_val(mcoeff,ordcen[arcdet[j],0],slf._argflag['trace']['orders']['function'],min=0.0,max=msarc.shape[1]-1.0)
+            if guesstilts is not None: factr += guesstilts[arcdet[j],ordcen[arcdet[j],0]]*float(msarc.shape[0]-1.0)
+            idx = int(factr+0.5)
             if (idx > 0) and (idx < msarc.shape[0]):
                 maskrows[idx] = 0     # mcoeff[0] is the centroid of the arc line
                 tcoeff[:,idx] = mcoeff.copy()
@@ -1077,6 +1082,7 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilt
             xtilt[:wmask.size,j] = xtfit[wmask]/(msarc.shape[1]-1.0)
             ytilt[:wmask.size,j] = arcdet[j]/(msarc.shape[0]-1.0)
             ztilt[:wmask.size,j] = ytfit[wmask]/(msarc.shape[0]-1.0)
+            stilt[:wmask.size,j] = shfit[wmask]
             #if not np.isnan(1.0/sig): wtilt[:wmask[0].size,j] = ((msarc.shape[0]-1.0)/sig)**2
             zwght = ytfit[wmask]
             if np.max(np.abs(zwght[1:]-zwght[:-1]))!=0.0: wtilt[:wmask.size,j] = 1.0/np.max(np.abs(zwght[1:]-zwght[:-1]))
@@ -1087,7 +1093,7 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilt
             maskrw.sort()
             extrap_row = maskrows.copy()
             xv = np.arange(msarc.shape[1])
-            tiltval = arutils.func_val(tcoeff,xv,slf._argflag['trace']['orders']['function'],min=0.0,max=msarc.shape[1]-1).T
+            tiltval = arutils.func_val(tcoeff,xv,slf._argflag['trace']['orders']['function'],min=0.0,max=msarc.shape[1]-1.0).T
             msgs.work("May need to do a check here to make sure ofit is reasonable")
             ofit = slf._argflag['trace']['orders']['pcatilt']
             lnpc = len(ofit)-1
@@ -1135,7 +1141,6 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilt
 #            wfit = np.where(wtilt!=maskval)
 #            coeff = arutils.polyfit2d(xtilt[wfit], ytilt[wfit], ztilt[wfit], fitxy)#, w=wtilt[wfit]/np.max(wtilt[wfit]))
 #            tilts = arutils.polyval2d(coeff, np.arange(msarc.shape[1])/(msarc.shape[1]-1.0), np.arange(msarc.shape[0])/(msarc.shape[0]-1.0))
-            #return tilts + guesstilts
             tilts += guesstilts
     else:
         msgs.error("Please use trace+tilts+fit1d")
@@ -1156,11 +1161,16 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilt
     #tilts = arutils.polyval2d(coeff, np.arange(msarc.shape[1])/(msarc.shape[1]-1.0), np.arange(msarc.shape[0])/(msarc.shape[0]-1.0))
     # Plot the model tilts
     #pdb.set_trace()
+
+#guesstilts[arcdet[j],ordcen[arcdet[j],0]-k]*float(msarc.shape[0]-1.0)
+
+
     tiltsplot = tilts[arcdet,:].T
     tiltsplot *= (msarc.shape[0]-1.0)
-    ztilt[np.where(ztilt!=maskval)] *= (msarc.shape[0]-1.0)
+    ztilt[np.where(ztilt != maskval)] *= (msarc.shape[0]-1.0)
     for i in xrange(arcdet.size):
         w = np.where(ztilt[:,i] != maskval)
+        if guesstilts is not None: ztilt[w[0],i] += stilt[w[0],i]
         if w[0].size != 0:
             twa=(xtilt[w[0],i]*(msarc.shape[1]-1.0)+0.5).astype(np.int)
             fitcns = np.polyfit(w[0], ztilt[w[0],i]-tiltsplot[twa,i], 0)[0]
@@ -1170,8 +1180,8 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilt
     xdat = xtilt.copy()
     xdat[np.where(xdat!=maskval)] *= (msarc.shape[1]-1.0)
 
-    pdb.set_trace()
-    arplot.plot_orderfits(slf, tiltsplot, ztilt, xdata=xdat, xmodl=np.arange(msarc.shape[1]), plotsdir=slf._argflag['run']['plotsdir'], textplt="Arc line", maxp=9, prefix="Tilts", maskval=maskval)
+#    pdb.set_trace()
+    if plotQA: arplot.plot_orderfits(slf, tiltsplot, ztilt, xdata=xdat, xmodl=np.arange(msarc.shape[1]), plotsdir=slf._argflag['run']['plotsdir'], textplt="Arc line", maxp=9, prefix="Tilts", maskval=maskval)
     #arutils.ds9plot(tilts)
     #pdb.set_trace()
     return tilts, satsnd
