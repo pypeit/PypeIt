@@ -828,6 +828,11 @@ def trim(slf,file,det):
 #			trimfile[:,:,f] = file[:,:,f][w]
 #	else:
 #		msgs.error("Cannot trim {0:d}D frame".format(int(len(file.shape))))
+    try:
+        trim_file = file[w]
+    except:
+        pdb.set_trace()
+        msgs.error("Odds are datasec is set wrong.  Maybe due to transpose")
     return file[w]
 
 

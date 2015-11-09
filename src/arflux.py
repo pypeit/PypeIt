@@ -23,6 +23,123 @@ try:
 except:
     pass
 
+def apply_sensfunc(slf, sc,MAX_EXTRAP=0.05):
+    '''Apply the sensitivity function to the data
+    We also correct for extinction
+    Parameters:
+    -----------
+    MAX_EXTRAP: float, optional [0.05]
+      Fractional amount to extrapolate sensitivity function
+    '''
+    # Load extinction data
+    extinct = load_extinction_data(slf)
+    AM = slf._fitsdict['airmass'][slf._scidx]
+    # Loop on objects
+    for spobj in slf._specobjs:
+        # Loop on extraction modes
+        for extract_type in ['boxcar']:
+            try:
+                extract = getattr(spobj,extract_type)
+            except AttributeError:
+                continue
+            msgs.info("Fluxing {:s} extraction".format(extract_type))
+            wave = extract['wave'] # for convenience
+            scale = np.zeros(wave.size)
+            # Allow for some extrapolation 
+            inds = (wave >= (slf._sensfunc['wave_min']*(1-MAX_EXTRAP))) & (wave <= (slf._sensfunc['wave_max'] * (1+MAX_EXTRAP)))
+            mag_func = arutils.func_val(slf._sensfunc['c'], wave[inds], slf._sensfunc['func'])
+            sens = 10.0**(0.4*mag_func)
+            # Extinction
+            ext_corr = extinction_correction(wave[inds],AM,extinct)
+            scale[inds] = sens*ext_corr
+            # Fill
+            extract['flam'] = extract['counts']*scale/slf._fitsdict['exptime'][slf._scidx]
+            extract['flam_var'] = extract['var']*(scale/slf._fitsdict['exptime'][slf._scidx])**2
+
+
+def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
+    '''Perform a bspline fit to the flux ratio of starndard to 
+    observed counts.  Used to generate a sensitivity function.
+
+    Parameters:
+    -----------
+    wave: ndarray
+    flux: ndarray
+      counts/s as observed
+    invvar: ndarray
+      inverse variance
+    flux_std: Quantity array
+      standard star true flux (erg/s/cm^2/A)
+    nointer: bool, optional [False]
+      Skip interpolation over bad points (not recommended)?
+    **kwargs: keywords for robust_polyfit
+
+    Returns:
+    -----------
+    '''
+    invvar = (var > 0.)/(var + (var <= 0.))
+    nx = wave.size
+    pos_error = 1./np.sqrt(np.maximum(invvar,0.) + (invvar == 0))
+    pos_mask = (flux > pos_error/10.0) & (invvar > 0) & (flux_std > 0.0)
+    #pos = pos_mask==1 npos)
+
+    fluxlog = 2.5*np.log10(np.maximum(flux,pos_error/10))
+    logivar = invvar * flux**2 * pos_mask*1.08574
+
+    # cap the magfunc so that sensfunc < 1.0e10
+    magfunc = 2.5*np.log10(np.maximum(flux_std,1.0e-2)) - fluxlog
+    magfunc = np.minimum(magfunc,25.0)
+    sensfunc = 10.0**(0.4*magfunc)*pos_mask
+
+    # Interpolate over masked pixels
+    if not nointerp:
+        bad = logivar <= 0. 
+        if np.sum(bad) > 0:
+            f = scipy.interpolate.InterpolatedUnivariateSpline(wave[~bad], magfunc[~bad], k=2)
+            magfunc[bad] = f(wave[bad])
+            fi = scipy.interpolate.InterpolatedUnivariateSpline(wave[~bad], logivar[~bad], k=2)
+            logivar[bad] = fi(wave[bad])
+
+    #  First iteration
+    mask, tck = arutils.robust_polyfit(wave, magfunc, 3, function='bspline', weights=np.sqrt(logivar), **kwargs)
+    logfit1 = arutils.func_val(tck,wave,'bspline')
+    modelfit1 = 10.0**(0.4*(logfit1))
+
+    residual = sensfunc/(modelfit1 + (modelfit1 == 0)) - 1.
+    new_mask = pos_mask & (sensfunc > 0)
+    residual_ivar = (modelfit1*flux/(sensfunc + (sensfunc == 0.0)))**2*invvar
+    residual_ivar = residual_ivar*new_mask
+
+    # Interpolate over masked pixels
+    if not nointerp:
+        if np.sum(bad) > 0:
+            f = scipy.interpolate.InterpolatedUnivariateSpline(wave[~bad], residual[~bad], k=2)
+            residual[bad] = f(wave[bad])
+            fi = scipy.interpolate.InterpolatedUnivariateSpline(wave[~bad], residual_ivar[~bad], k=2)
+            residual_ivar[bad] = fi(wave[bad])
+
+    #  Now do one more fit to the ratio of data/model - 1.
+    # Fuss with the knots first ()
+    inner_knots = arutils.bspline_inner_knots(tck[0])
+    #
+    mask, tck_residual = arutils.robust_polyfit(wave, residual, 3, function='bspline', weights=np.sqrt(residual_ivar), knots=inner_knots, **kwargs)
+    if tck_residual[1].size != tck[1].size:
+        msgs.error('Problem with bspline knots in bspline_magfit')
+    #bset_residual = bspline_iterfit(wave, residual, weights=np.sqrt(residual_ivar), knots = tck[0])
+
+    tck_log1 = list(tck)
+    tck_log1[1] = tck[1] + tck_residual[1]
+
+    sensfit = 10.0**(0.4*(arutils.func_val(tck_log1,wave, 'bspline')))
+
+    absdev = np.median(np.abs(sensfit/modelfit1-1))
+    msgs.info('Difference between fits is {:g}'.format(absdev))
+
+    # QA
+    msgs.work("Add QA for sensitivity functoin")
+
+    return tck_log1
+
 def extinction_correction(wave, AM, extinct):
     '''Derive extinction correction
     Based on algorithm in LowRedux (long_extinct)
@@ -193,6 +310,7 @@ def load_standard_file(slf, std_dict):
     else:
         fil = fil[0]
         msgs.info("Loading standard star file: {:s}".format(fil))
+        msgs.info("Fluxes are flambda, normalized to 1e-17")
 
     if std_dict['fmt'] == 1:
         std_spec = fits.open(fil)[1].data
@@ -203,33 +321,85 @@ def load_standard_file(slf, std_dict):
         msgs.error("Bad Standard Star Format")
     return
 
-def sensfunc(slf, sc):
+def generate_sensfunc(slf, sc, BALM_MASK_WID=5., nresln=20):
     '''Generate sensitivity function from current standard star
+    Currently, we are using a bspline generated by bspline_magfit
 
     Parameters:
     ----------
     sc: int
       index for standard  (may not be necessary)
+    BALM_MASK_WID: float
+    nresln: int  
+      Number of resolution elements for break-point placement
+
 
     Returns:
     --------
-    sens_func: ??
-      sensitivity function
+    sens_dict: dict
+      sensitivity function described by a dict
     '''
-    # Grab closest standard within a tolerance
-    std_dict = find_standard_file(slf, (slf._fitsdict['ra'][slf._scidx],slf._fitsdict['dec'][slf._scidx]))
-    # Load standard
-    load_standard_file(slf, std_dict)
     # Find brightest object in the exposure
     medfx = []
     for spobj in slf._specobjs:
         medfx.append(np.median(spobj.boxcar['counts']))
     std_obj = slf._specobjs[np.argmax(np.array(medfx))]
+    wave = std_obj.boxcar['wave']
     # Apply Extinction
     extinct = load_extinction_data(slf)
-    flux_corr = std_obj.boxcar['counts']*extinction_correction(std_obj.boxcar['wave'], slf._fitsdict['airmass'][slf._scidx], extinct)
+    ext_corr = extinction_correction(wave,
+        slf._fitsdict['airmass'][slf._scidx], extinct)
+    flux_corr = std_obj.boxcar['counts']*ext_corr
+    var_corr = std_obj.boxcar['var']*ext_corr**2
     # Convert to electrons / s
     flux_corr /= slf._fitsdict['exptime'][slf._scidx] 
+    var_corr /= slf._fitsdict['exptime'][slf._scidx]**2
 
-    xdb.set_trace()
-    #std_dict = find_standard_file(slf, (slf._fitsdict['ra'][slf._scidx],slf._fitsdict['dec'][slf._scidx]))
+    # Grab closest standard within a tolerance
+    std_dict = find_standard_file(slf, (slf._fitsdict['ra'][slf._scidx],slf._fitsdict['dec'][slf._scidx]))
+    # Load standard
+    load_standard_file(slf, std_dict)
+    # Interpolate onto observed wavelengths
+    flux_interp = scipy.interpolate.interp1d(std_dict['wave'],
+        std_dict['flux'], bounds_error=False, fill_value=0.)
+    flux_true = flux_interp(wave.to('AA').value)
+    if np.min(flux_true) == 0.:
+        msgs.warn('Your spectrum extends beyond calibrated standard star.')
+
+    # Mask (True = good pixels)
+    msk = np.ones_like(flux_true).astype(bool)
+    # Mask bad pixels
+    msk[var_corr <= 0.] = False
+
+    # Mask edges 
+    msk[flux_true <= 0.] = False
+    msk[:10] = False
+    msk[-10:] = False
+    msgs.info("Masking edges")
+
+    # Mask Balmer
+    # Compute an effective resolution for the standard. This could be improved
+    # to setup an array of breakpoints based on the resolution. At the 
+    # moment we are using only one number
+    msgs.warn("Should pull resolution from arc line analysis")
+    std_res = 2.0*np.median(np.abs(wave - np.roll(wave, 1)))
+    resln = std_res
+
+    msgs.info("Masking Balmer")
+    lines_balm = np.array([3836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7, 5407.0, 6564.6, 8224.8, 8239.2])*u.AA
+    for line_balm in lines_balm: 
+      ibalm = np.abs(wave-line_balm) <= BALM_MASK_WID*resln
+      msk[ibalm] = False
+
+    #; Mask telluric absorption
+    msgs.info("Masking Telluric")
+    tell = np.any([((wave >= 7580.0*u.AA) & (wave <= 7750.0*u.AA)), ((wave >= 7160.0*u.AA) & (wave <= 7340.0*u.AA)),((wave >= 6860.0*u.AA)  & (wave <= 6930.0*u.AA))],axis=0)
+    msk[tell] = False
+
+    # Fit in magntiudes
+    mag_tck = bspline_magfit(wave.value, flux_corr, var_corr, flux_true, bkspace=resln.value*nresln)
+    sens_dict = dict(c=mag_tck, func='bspline',min=None,max=None, std=std_dict)
+    # Add in wavemin,wavemax
+    sens_dict['wave_min'] = np.min(wave) 
+    sens_dict['wave_max'] = np.max(wave) 
+    return sens_dict

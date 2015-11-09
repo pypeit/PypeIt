@@ -47,6 +47,8 @@ class SpecObjExp(object):
     xobj: float
        float (0-1)
        Position of object in fraction of total slit at same ypos that defines the slit
+    objtype: str, optional
+       Type of object ('unknown', 'standard', 'science')
 
     Attributes:
     ----------
@@ -59,7 +61,7 @@ class SpecObjExp(object):
     '''
     # Attributes
     # Init
-    def __init__(self, shape, setup, scidx, det, xslit, ypos, xobj):
+    def __init__(self, shape, setup, scidx, det, xslit, ypos, xobj, objtype='unknown'):
         self.shape = shape
         self.setup=setup # [10*(arcid+1) + pixflatid]
         self.scidx=scidx
@@ -68,6 +70,7 @@ class SpecObjExp(object):
         self.ypos = ypos
         self.slitcen = np.mean([xslit[0],xslit[1]])
         self.xobj = xobj
+        self.objtype = objtype
 
         # Generate IDs
         self.slitid= int(np.round(self.slitcen*1e4))
@@ -81,7 +84,7 @@ class SpecObjExp(object):
         self.idx += self.setup * 10**13
 
         # Items that are generally filled
-        self.boxcar = {}   # Boxcar extraction 'wave', 'counts', 'var', 'sky'
+        self.boxcar = {}   # Boxcar extraction 'wave', 'counts', 'var', 'sky', 'flam', 'flam_var'
         #
     def check_trace(self, trace, toler=1.):
         '''Check that the input trace matches the defined specobjexp
@@ -108,9 +111,9 @@ class SpecObjExp(object):
     # Printing
     def __repr__(self):
         # Generate sets string
-        return '[SpecObjExp: {:d} == Setup {:d} Object at {:g} in Slit at {:g} with det={:d} and scidx={:d}]'.format(self.idx, self.setup, self.xobj, self.slitcen, self.det, self.scidx)
+        return '[SpecObjExp: {:d} == Setup {:d} Object at {:g} in Slit at {:g} with det={:d}, scidx={:d} and objtype={:s}]'.format(self.idx, self.setup, self.xobj, self.slitcen, self.det, self.scidx, self.objtype)
 
-def init_exp(slf, sc, det, trc_img=None, ypos=0.5):    
+def init_exp(slf, sc, det, trc_img=None, ypos=0.5, **kwargs):    
     '''Generate a list of SpecObjExp objects for a given exposure
 
     Parameters:
@@ -140,7 +143,7 @@ def init_exp(slf, sc, det, trc_img=None, ypos=0.5):
             # xobj
             xobj = (trc_img['traces'][yidx,qq]-slf._lordloc[yidx,qq]) / (slf._rordloc[yidx,qq]-slf._lordloc[yidx,qq])
             # Generate 
-            specobj = SpecObjExp((trc_img['object'].shape[0], trc_img['object'].shape[1]), setup, slf._scidx, det, (xl_slit,xr_slit),ypos, xobj)
+            specobj = SpecObjExp((trc_img['object'].shape[0], trc_img['object'].shape[1]), setup, slf._scidx, det, (xl_slit,xr_slit),ypos, xobj, **kwargs)
             # Add traces
             specobj.trace = trc_img['traces'][:,qq]
             # Append

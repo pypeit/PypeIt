@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 import armsgs as msgs
+from astropy import units as u
 import arcyutils
 from matplotlib import pyplot as plt
 import pdb
@@ -69,7 +70,7 @@ def boxcar(slf, sciframe, varframe, skyframe, crmask, scitrace, maskval=-999999.
         if not slf._specobjs[o].check_trace(scitrace['traces'][:,o]):
             msgs.error("Bad match to specobj in boxcar!")
         # Fill
-        slf._specobjs[o].boxcar['wave'] = wvsum
+        slf._specobjs[o].boxcar['wave'] = wvsum*u.AA # Yes, units enter here
         slf._specobjs[o].boxcar['counts'] = scisum
         slf._specobjs[o].boxcar['var'] = varsum
         slf._specobjs[o].boxcar['sky'] = skysum # per pixel

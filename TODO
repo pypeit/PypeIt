@@ -17,4 +17,5 @@ The following is a list of items that are currently in development
 * Code to parse settings file into a Web Page, especially image type conditions
 * Flat indexing in "setup", e.g. arspecobj.init_exp
 * What should we with multiple standard stars?
+* Allow both bias and overscan to be used
 * How much effort for backwards-compatability (e.g. old detectors)?

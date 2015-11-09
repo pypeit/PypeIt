@@ -4,12 +4,14 @@
 import os
 import sys
 import getopt
+#import json, io, yaml
 from signal import SIGINT, signal as sigsignal
 from warnings import resetwarnings, simplefilter
 from time import time
 import traceback
 import numpy as np
 from astropy.io import fits
+from astropy import units as u
 # Import PYPIT routines
 import armsgs as msgs
 import ararc
@@ -230,9 +232,9 @@ class ClassMain:
             for gb in xrange(len(self._done_arcs)):
                 if np.array_equal(ind, self._done_arcs[gb]):
                     msgs.info("An identical master arc frame already exists")
-                    msarc = arload.load_master(self._name_arcs[gb], frametype='arc')
-                    self._tltprefix = os.path.splitext(os.path.basename(msarc_name))[0]
                     msarc_name = self._name_arcs[gb]
+                    msarc = arload.load_master(msarc_name, frametype='arc')
+                    self._tltprefix = os.path.splitext(os.path.basename(msarc_name))[0]
                     self.SetFoundArc(True)
             if not self._foundarc:
                 # Load the arc frames
@@ -511,6 +513,7 @@ class ClassMain:
             self._scidx = scidx[0]
             sciext_name_p, sciext_name_e = os.path.splitext(self._fitsdict['filename'][scidx[0]])
             self._specobjs = []
+            msgs.info("Working on file {:s}".format(self._fitsdict['filename'][scidx[0]]))
             ###############
             # First set the index for the science frame
             # Now loop on Detectors
@@ -524,15 +527,20 @@ class ClassMain:
                 # Generate master bias frame
                 self._msbias, self._msbias_name = self.MasterBias(sc, det)
                 ###############
-                # Generate a bad pixel mask
-                self.BadPixelMask(sc, det)
+                # Generate a bad pixel mask (should not repeat)
+                if not hasattr(self,'_bpix'):
+                    self.BadPixelMask(sc, det)
+                else:
+                    msgs.info("Using previously generated BadPixelMask")
+                    msgs.work("Make sure a new bad pixel mask is created for a new setup (e.g. different binning)")
                 ###############
                 # Estimate gain and readout noise for the amplifiers
                 msgs.work("Estimate Gain and Readout noise from the raw frames...")
                 ###############
                 # Generate a master arc frame
                 self._msarc, self._msarc_name = self.MasterArc(sc, det)
-                if self._bpix is None: self._bpix = np.zeros_like(self._msarc)
+                if (not hasattr(self,'_bpix')) or (self._bpix is None):
+                    self._bpix = np.zeros_like(self._msarc)
                 ###############
                 # Determine the dispersion direction (and transpose if necessary) only on the first pass through
                 self.GetDispersionDirection(self._spect['arc']['index'][sc], det)
@@ -646,7 +654,7 @@ class ClassMain:
                     continue
                 else:
                     # Generate SpecObjExp list
-                    self._specobjs += arspecobj.init_exp(self,sc,det,trc_img=scitrace)
+                    self._specobjs += arspecobj.init_exp(self,sc,det,trc_img=scitrace, objtype=sctype)
                     # Write
                     mstrc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "objtrc")
                     hdutrc = fits.PrimaryHDU(scitrace['traces'])
@@ -674,14 +682,25 @@ class ClassMain:
                 ###############
                 # If standard, generate a sensitivity function
                 if (sctype == 'standard') & (det == self._spect['mosaic']['ndet']):
-                    self._sensfunc = arflux.sensfunc(self,sc)
-                    msgs.work("What to do with multiple standard exposures??")
+                    if sc > 0:
+                        msgs.error("What to do with multiple standard exposures??")
+                    else:
+                        msgs.work("Need to check for existing sensfunc as with Arc, Trace")
+                        self._sensfunc = arflux.generate_sensfunc(self,sc) 
+                        # Write
+                        msgs.work("Need to write sensfunc to hard drive")
+                        #sensfunc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.yaml".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "sensfunc")
+                        #msgs.info("Writing sensfunc: {:s}".format(sensfunc_name))
+                        #with open(sensfunc_name, 'w') as yamlf:
+                        #    yamlf.write( yaml.dump(self._sensfunc))
+                        #with io.open(sensfunc_name, 'w', encoding='utf-8') as f:
+                        #    f.write(unicode(json.dumps(self._sensfunc, sort_keys=True, indent=4, separators=(',', ': '))))
 
-                continue
-                msgs.error("UP TO HERE")
+                #continue
+                #msgs.error("UP TO HERE")
                 ###############
                 # Perform a velocity correction
-                if self._argflag['reduce']['heliocorr'] == True:
+                if (self._argflag['reduce']['heliocorr'] == True) & False:
                     if self._argflag['science']['load']['extracted'] == True:
                         msgs.warn("Heliocentric correction will not be applied if an extracted science frame exists, and is used")
                     msgs.work("Perform a full barycentric correction")
@@ -694,22 +713,30 @@ class ClassMain:
                 ###############
                 # Using model sky, calculate a flexure correction
                 if sctype == 'science':
-                    msgs.error("Implement flexure correction")
+                    msgs.warn("Implement flexure correction!!")
 
                 ###############
                 # Determine the wavelength scale (i.e. the wavelength of each pixel) to be used during the extraction
+                '''
                 if sctype == 'science':
                     msgs.info("Generating the array of extraction wavelengths")
                     self._wavelength = arproc.get_wscale(self)
+                '''
 
                 ###############
                 # Flux
                 if sctype == 'science':
-                    msgs.error("Time to flux if you can")
+                    msgs.work("Need to check for existing sensfunc") 
+                    msgs.work("Consider using archived sensitivity if not found")
+                    msgs.info("Fluxing with {:s}".format(self._sensfunc['std']['Name']))
+                    arflux.apply_sensfunc(self,sc)
 
                 ###############
                 # Append for later stages (e.g. coadding)
                 self._allspecobjs += self._specobjs
+                if sctype == 'science':
+                    msgs.error("STOP FOR NOW")
+
 
         # Insert remaining reduction steps here
         return success
