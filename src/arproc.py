@@ -240,7 +240,7 @@ def badpix(slf, det, frame, sigdev=10.0):
     return bpix
 
 
-def bg_subtraction(slf, sciframe, varframe, crpix, rejsigma=3.0, maskval=-999999.9):
+def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None, rejsigma=3.0, maskval=-999999.9):
     """
     Extract a science target and background flux
     :param slf:
@@ -266,7 +266,8 @@ def bg_subtraction(slf, sciframe, varframe, crpix, rejsigma=3.0, maskval=-999999
     ordpix = arcyutils.order_pixels(slf._pixlocn, slf._lordloc*0.95+slf._rordloc*0.05, slf._lordloc*0.05+slf._rordloc*0.95, slf._dispaxis)
     allordpix = ordpix.copy()
     msgs.info("Applying bad pixel mask")
-    ordpix *= (1-slf._bpix.astype(np.int))*(1-crpix.astype(np.int))
+    ordpix *= (1-slf._bpix.astype(np.int)) * (1-crpix.astype(np.int))
+    if tracemask is not None: ordpix *= (1-tracemask.astype(np.int))
     # Construct an array of pixels to be fit with a spline
     #msgs.bug("Tilts are the wrong shape, transposing -- fix this later")
     msgs.bug("Remember to include the following in a loop over order number")
@@ -274,7 +275,6 @@ def bg_subtraction(slf, sciframe, varframe, crpix, rejsigma=3.0, maskval=-999999
     o = 0 # order=1
     whord = np.where(ordpix == o+1)
     tilts = slf._tilts.copy()
-    bbox = [min(0.0,np.min(tilts)), max(1.0,np.max(tilts))]
     xvpix  = tilts[whord]
     scipix = sciframe[whord]
     varpix = varframe[whord]
@@ -283,26 +283,53 @@ def bg_subtraction(slf, sciframe, varframe, crpix, rejsigma=3.0, maskval=-999999
     sscipix = scipix[xargsrt]
     svarpix = varpix[xargsrt]
     # Reject deviant pixels -- step through every 1.0/sciframe.shape[0] in sxvpix and reject significantly deviant pixels
-    maskpix = np.zeros(sxvpix.size)
     edges = np.linspace(min(0.0,np.min(sxvpix)),max(1.0,np.max(sxvpix)),sciframe.shape[0])
     fitcls = np.zeros(sciframe.shape[0])
-    msgs.info("Identifying cosmic rays and pixels containing the science target")
-    msgs.work("Speed up this step in cython")
-    for i in xrange(sciframe.shape[0]-1):
-        wpix = np.where((sxvpix>=edges[i])&(sxvpix<=edges[i+1]))
-        if (wpix[0].size>5):
-            txpix = sxvpix[wpix]
+    #if tracemask is None:
+    if True:
+        maskpix = np.zeros(sxvpix.size)
+        msgs.info("Identifying pixels containing the science target")
+        msgs.work("Speed up this step in cython")
+        for i in xrange(sciframe.shape[0]-1):
+            wpix = np.where((sxvpix>=edges[i]) & (sxvpix<=edges[i+1]))
+            if (wpix[0].size>5):
+                txpix = sxvpix[wpix]
+                typix = sscipix[wpix]
+                msk, cf = arutils.robust_polyfit(txpix, typix, 0, sigma=rejsigma)
+                maskpix[wpix] = msk
+                #fitcls[i] = cf[0]
+                wgd=np.where(msk==0)
+                szt = np.size(wgd[0])
+                if szt > 8:
+                    fitcls[i] = np.mean(typix[wgd][szt/2-3:szt/2+4]) # Average the 7 middle pixels
+                    #fitcls[i] = np.mean(np.random.shuffle(typix[wgd])[:5]) # Average the 5 random pixels
+                else:
+                    fitcls[i] = cf[0]
+    else:
+        msgs.work("Speed up this step in cython")
+        for i in xrange(sciframe.shape[0]-1):
+            wpix = np.where((sxvpix>=edges[i]) & (sxvpix<=edges[i+1]))
             typix = sscipix[wpix]
-            msk, cf = arutils.robust_polyfit(txpix, typix, 0, sigma=rejsigma)
-            maskpix[wpix] = msk
-            #fitcls[i] = cf[0]
-            wgd=np.where(msk==0)
-            szt = np.size(wgd[0])
+            szt = typix.size
             if szt > 8:
-                fitcls[i] = np.mean(typix[wgd][szt/2-3:szt/2+4]) # Average the 7 middle pixels
-                #fitcls[i] = np.mean(np.random.shuffle(typix[wgd])[:5]) # Average the 5 random pixels
+                fitcls[i] = np.mean(typix[szt/2-3:szt/2+4]) # Average the 7 middle pixels
+            elif szt != 0:
+                fitcls[i] = np.mean(typix)
             else:
-                fitcls[i] = cf[0]
+                fitcls[i] = 0.0
+        # Trace the sky lines to get a better estimate of the tilts
+        scicopy = sciframe.copy()
+        scicopy[np.where(ordpix==0)] = maskval
+        scitilts, _ = artrace.model_tilt(slf, det, scicopy, guesstilts=tilts.copy(), censpec=fitcls, maskval=maskval, plotQA=True)
+        xvpix  = scitilts[whord]
+        scipix = sciframe[whord]
+        varpix = varframe[whord]
+        mskpix = tracemask[whord]
+        xargsrt = np.argsort(xvpix,kind='mergesort')
+        sxvpix  = xvpix[xargsrt]
+        sscipix = scipix[xargsrt]
+        svarpix = varpix[xargsrt]
+        maskpix = mskpix[xargsrt]
     # Check the mask is reasonable
     scimask = sciframe.copy()
     rxargsrt = np.argsort(xargsrt,kind='mergesort')
@@ -729,6 +756,18 @@ def lacosmic(slf, det, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
 
         msgs.info("Iteration {0:d} -- {1:d} pixels identified as cosmic rays ({2:d} new)".format(i, ncrp, nnew))
         if ncrp == 0: break
+    # Additional algorithms (not traditionally implemented by LA cosmic) to remove some false positives.
+    msgs.work("The following algorithm would be better on the rectified, tilts-corrected image")
+    filt  = ndimage.sobel(sciframe, axis=1, mode='constant')
+    filty = ndimage.sobel(filt/np.sqrt(np.abs(sciframe)), axis=0, mode='constant')
+    filty[np.where(np.isnan(filty))]=0.0
+    sigimg  = arcyproc.cr_screen(filty,0.0)
+    sigsmth = ndimage.filters.gaussian_filter(sigimg,1.5)
+    sigsmth[np.where(np.isnan(sigsmth))]=0.0
+    sigmask = np.cast['bool'](np.zeros(sciframe.shape))
+    sigmask[np.where(sigsmth>sigclip)] = True
+    crmask = np.logical_and(crmask, sigmask)
+    msgs.info("Growing cosmic ray mask by 1 pixel")
     crmask = arcyutils.grow_masked(crmask.astype(np.float), grow, 1.0)
     return crmask
 
@@ -836,12 +875,16 @@ def trim(slf,file,det):
     return file[w]
 
 
-def variance_frame(slf, det, sciframe, idx):
-    ''' Calculate a simple variance image including detector noise
+def variance_frame(slf, det, sciframe, idx, skyframe=None):
+    ''' Calculate the variance image including detector noise
     '''
+    scicopy = sciframe.copy()
+    if skyframe is not None:
+        msgs.warn("arproc.variance_frame: JXP worries the next line could be biased.")
+        wfill = np.where(np.abs(skyframe) > np.abs(scicopy))
+        scicopy[wfill] = np.abs(skyframe[wfill])
     # Dark Current noise
     dnoise = slf._spect['det'][det-1]['darkcurr'] * float(slf._fitsdict["exptime"][idx])/3600.0
     # The effective read noise
     rnoise = slf._spect['det'][det-1]['ronoise']**2 + (0.5*slf._spect['det'][det-1]['gain'])**2
-    # Finish
-    return np.abs(sciframe) + rnoise + dnoise
+    return np.abs(scicopy) + rnoise + dnoise
