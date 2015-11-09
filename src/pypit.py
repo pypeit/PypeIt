@@ -508,12 +508,14 @@ class ClassMain:
         if stdsci_idx[0] != 0:
             msgs.error("First index should be 0")
         for qq,sc in enumerate(stdsci_idx):
+            # Some book-keeping
             sctype = stdsci_types[qq]
             scidx = self._spect[sctype]['index'][sc]
             self._scidx = scidx[0]
             sciext_name_p, sciext_name_e = os.path.splitext(self._fitsdict['filename'][scidx[0]])
             self._specobjs = []
-            msgs.info("Working on file {:s}".format(self._fitsdict['filename'][scidx[0]]))
+            self.target = ''.join(self._fitsdict['target'][scidx[0]].split())
+            msgs.info("Working on file {:s}, target {:s}".format(self._fitsdict['filename'][scidx[0]],self.target))
             ###############
             # First set the index for the science frame
             # Now loop on Detectors
@@ -615,7 +617,7 @@ class ClassMain:
                 sciframe *= self._spect['det'][det-1]['gain']
                 varframe = arproc.variance_frame(self, det, sciframe, scidx[0])
                 # Write
-                msvar_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "var")
+                msvar_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self.target, 0, "var")
                 arsave.save_master(self, varframe, filename=msvar_name, frametype='variance')
                 ###############
                 # Subtract off the scattered light from the image
@@ -645,11 +647,11 @@ class ClassMain:
                     #scibgsub, bgframe = arproc.background_subtraction(self, sciframe, varframe)
                     # Derive a suitable name for the master sky background frame
                     msgs.work("Include an index suffix for each object frame")# e.g. if you have 3 frames of the same object, include a common integer suffix on the filenames
-                    msbg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "sky")
+                    msbg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self.target, 0, "sky")
                     # Send the data away to be saved
                     arsave.save_master(self, bgframe, filename=msbg_name, frametype='sky background')
                     # Derive a suitable name for the sky-subtracted science frame
-                    msscibg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "skysub")
+                    msscibg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self.target, 0, "skysub")
                     # Send the data away to be saved
                     arsave.save_master(self, sciframe-bgframe, filename=msscibg_name, frametype='sky subtracted science')
                     # Redetermine the variance frame based on the new sky model
@@ -664,7 +666,7 @@ class ClassMain:
                     # Generate SpecObjExp list
                     self._specobjs += arspecobj.init_exp(self,sc,det,trc_img=scitrace, objtype=sctype)
                     # Write
-                    mstrc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "objtrc")
+                    mstrc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self.target, 0, "objtrc")
                     hdutrc = fits.PrimaryHDU(scitrace['traces'])
                     hduobj = fits.ImageHDU(scitrace['object'])
                     hdulist = fits.HDUList([hdutrc, hduobj])
@@ -680,11 +682,11 @@ class ClassMain:
                     bgframe = arproc.bg_subtraction(self, det, sciframe, varframe, crmask, tracemask=trcmask)
                     # Derive a suitable name for the master sky background frame
                     msgs.work("Include an index suffix for each object frame")# e.g. if you have 3 frames of the same object, include a common integer suffix on the filenames
-                    msbg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "sky")
+                    msbg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self.target, 0, "sky")
                     # Send the data away to be saved
                     arsave.save_master(self, bgframe, filename=msbg_name, frametype='sky background')
                     # Derive a suitable name for the sky-subtracted science frame
-                    msscibg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "skysub")
+                    msscibg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self.target, 0, "skysub")
                     # Send the data away to be saved
                     arsave.save_master(self, sciframe-bgframe, filename=msscibg_name, frametype='sky subtracted science')
                     # Redetermine the variance frame based on the new sky model
@@ -701,13 +703,13 @@ class ClassMain:
                 if False:
                     sig = np.sqrt(var)
                     xspec = XSpectrum1D.from_tuple( (wave,flux,sig) )
-                    spec_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "boxcar")
+                    spec_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self.target, 0, "boxcar")
                     msgs.info("Writing boxcar spectrum: {:s}".format(spec_name))
                     xspec.write_to_fits(spec_name, clobber=True)
 
                     #pdb.set_trace()
                     skyspec = XSpectrum1D.from_tuple( (wave,sky) )
-                    skyspec_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "skybox")
+                    skyspec_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self.target, 0, "skybox")
                     msgs.info("Writing sky spectrum: {:s}".format(skyspec_name))
                     skyspec.write_to_fits(skyspec_name, clobber=True)
 
@@ -717,10 +719,10 @@ class ClassMain:
                     if sc > 0:
                         msgs.error("What to do with multiple standard exposures??")
                     else:
-                        msgs.work("Need to check for existing sensfunc as with Arc, Trace")
+                        msgs.warn("Need to check for existing sensfunc as with Arc, Trace")
                         self._sensfunc = arflux.generate_sensfunc(self,sc) 
                         # Write
-                        msgs.work("Need to write sensfunc to hard drive")
+                        msgs.warn("Need to write sensfunc to hard drive")
                         #sensfunc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.yaml".format(os.getcwd(), self._argflag['run']['masterdir'], self._fitsdict['target'][scidx[0]], 0, "sensfunc")
                         #msgs.info("Writing sensfunc: {:s}".format(sensfunc_name))
                         #with open(sensfunc_name, 'w') as yamlf:
@@ -760,7 +762,7 @@ class ClassMain:
                 if sctype == 'science':
                     msgs.work("Need to check for existing sensfunc") 
                     msgs.work("Consider using archived sensitivity if not found")
-                    msgs.info("Fluxing with {:s}".format(self._sensfunc['std']['Name']))
+                    msgs.info("Fluxing with {:s}".format(self._sensfunc['std']['name']))
                     arflux.apply_sensfunc(self,sc)
 
                 ###############

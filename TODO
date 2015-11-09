@@ -19,3 +19,4 @@ The following is a list of items that are currently in development
 * What should we with multiple standard stars?
 * Allow both bias and overscan to be used
 * How much effort for backwards-compatability (e.g. old detectors)?
+* Consolidate QA PDFs??

@@ -3,6 +3,7 @@
 import numpy as np
 import scipy
 import glob
+import pdb
 
 from astropy.table import Table
 from astropy.coordinates import SkyCoord
@@ -131,17 +132,25 @@ def init_exp(slf, sc, det, trc_img=None, ypos=0.5, **kwargs):
     specobjs = []
     setup = arsort.setup(slf) 
     yidx = int(np.round(ypos*slf._lordloc.shape[0]))
+    nslit = slf._lordloc.shape[1]
+    pixl_slits = slf._lordloc[yidx,:]
+    pixr_slits = slf._rordloc[yidx,:]
     #
-    if trc_img is not None:
-        for qq in range(trc_img['traces'].shape[1]):
-            # xslit
-            try:
-                xl_slit = slf._lordloc[yidx,qq]/trc_img['object'].shape[1]
-            except:
-                xdb.set_trace()
-            xr_slit = slf._rordloc[yidx,qq]/trc_img['object'].shape[1]
+    if trc_img is not None: # Object traces
+        for qq in xrange(trc_img['traces'].shape[1]): # Loop on objects
+            # Find the slit
+            gds = np.where( (trc_img['traces'][yidx,qq]>pixl_slits) & 
+                (trc_img['traces'][yidx,qq]<pixr_slits))[0]
+            if len(gds) != 1:
+                msgs.error('arspecobj.init_exp: Problem finding the slit')
+            else:
+                islit = gds[0]
+                pixl_slit = pixl_slits[islit]
+                pixr_slit = pixr_slits[islit]
+                xl_slit = pixl_slit/trc_img['object'].shape[1]
+                xr_slit = pixr_slit/trc_img['object'].shape[1]
             # xobj
-            xobj = (trc_img['traces'][yidx,qq]-slf._lordloc[yidx,qq]) / (slf._rordloc[yidx,qq]-slf._lordloc[yidx,qq])
+            xobj = (trc_img['traces'][yidx,qq]-pixl_slit) / (pixr_slit-pixl_slit)
             # Generate 
             specobj = SpecObjExp((trc_img['object'].shape[0], trc_img['object'].shape[1]), setup, slf._scidx, det, (xl_slit,xr_slit),ypos, xobj, **kwargs)
             # Add traces

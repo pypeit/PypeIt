@@ -64,8 +64,6 @@ def boxcar(slf, sciframe, varframe, skyframe, crmask, scitrace, maskval=-999999.
             fwv = scipy.interpolate.InterpolatedUnivariateSpline(ival[~w], wvsum[~w], k=2)
             wvsum[w] = fwv(ival[w]) # Includes extrapolation
             skysum[w] = 0. #abs(maskval)
-        #xdb.xplot(scisum/np.sqrt(varsum)) # S/N
-        #xdb.set_trace()
         # Check on specobjs
         if not slf._specobjs[o].check_trace(scitrace['traces'][:,o]):
             msgs.error("Bad match to specobj in boxcar!")
