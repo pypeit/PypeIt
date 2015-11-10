@@ -41,7 +41,10 @@ for instr in instruments:
                 newdpth = ' '+pwd+'/'+instr+'/'+setup+dpth[i0:]
                 lines[kk+1] = newdpth
         # Generate folder as need be
-        wdir = os.getenv('TST_PYPIT')+'/'+instr
+        idir = os.getenv('TST_PYPIT')+'/'+instr
+        if not os.path.exists(idir):
+            os.makedirs(idir)
+        wdir = os.path.join(os.getenv('TST_PYPIT'),instr,setup)
         if not os.path.exists(wdir):
             os.makedirs(wdir)
         # Write to TST_PYPIT

@@ -42,7 +42,8 @@ try:
 except:
     pass
 
-last_updated = "Last updated 20th July 2015"
+last_updated = "Last updated 09 November 2015"
+version = 'v0.2'
 
 def usage(prognm):
     print "\n#####################################################################"
@@ -700,14 +701,17 @@ class ClassMain:
                 # Boxcar Extraction
                 arextract.boxcar(self, sciframe-bgframe, varframe, bgframe, crmask, scitrace)
                 #Generate and Write spectra
-                if False:
-                    sig = np.sqrt(var)
+                if True:
+                    sig = np.sqrt(self._specobjs[0].boxcar['var'])
+                    wave = self._specobjs[0].boxcar['wave']
+                    flux = self._specobjs[0].boxcar['counts']
+                    sky = self._specobjs[0].boxcar['sky']
+                    #
                     xspec = XSpectrum1D.from_tuple( (wave,flux,sig) )
                     spec_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self.target, 0, "boxcar")
                     msgs.info("Writing boxcar spectrum: {:s}".format(spec_name))
                     xspec.write_to_fits(spec_name, clobber=True)
 
-                    #pdb.set_trace()
                     skyspec = XSpectrum1D.from_tuple( (wave,sky) )
                     skyspec_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self.target, 0, "skybox")
                     msgs.info("Writing sky spectrum: {:s}".format(skyspec_name))

@@ -10,10 +10,12 @@ import armsgs
 import arutils
 
 #testing on my data
+'''
 object_sky=fits.open("/Users/tiffanyhsyu/Dropbox/DropboxData/05192015_Lick/blue_side/combined_frames/extract/kast_sky_blue_fluxed.fits")
 object_wave1=np.arange(0.,2048.,1.)
 object_wave2=3428.12+(1.0196*object_wave1)
 object_flux=object_sky[0].data
+'''
 
 def flexure(obj_wave, obj_flux):
     #look for appropriate archived sky file based on latitude and longitude

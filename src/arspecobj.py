@@ -2,6 +2,7 @@
 #  Includes ArSpecObj class
 import numpy as np
 import scipy
+import copy
 import glob
 import pdb
 
@@ -65,7 +66,7 @@ class SpecObjExp(object):
     def __init__(self, shape, setup, scidx, det, xslit, ypos, xobj, objtype='unknown'):
         self.shape = shape
         self.setup=setup # [10*(arcid+1) + pixflatid]
-        self.scidx=scidx
+        self.scidx=copy.deepcopy(scidx)
         self.det=det
         self.xslit = xslit
         self.ypos = ypos
@@ -78,14 +79,14 @@ class SpecObjExp(object):
         self.objid= int(np.round(xobj*1e3))
 
         # Generate a unique index for this expsoure
-        self.idx = self.scidx
-        self.idx += self.det * 10**4
-        self.idx += self.slitid * 10**6
-        self.idx += self.objid * 10**10
-        self.idx += self.setup * 10**13
+        self.idx = '{:02d}'.format(self.setup)
+        self.idx += '{:03d}'.format(self.objid)
+        self.idx += '{:04d}'.format(self.slitid)
+        self.idx += '{:02d}'.format(self.det)
+        self.idx += '{:04d}'.format(self.scidx)
 
         # Items that are generally filled
-        self.boxcar = {}   # Boxcar extraction 'wave', 'counts', 'var', 'sky', 'flam', 'flam_var'
+        self.boxcar = {}   # Boxcar extraction 'wave', 'counts', 'var', 'sky', 'mask', 'flam', 'flam_var'
         #
     def check_trace(self, trace, toler=1.):
         '''Check that the input trace matches the defined specobjexp
@@ -112,7 +113,7 @@ class SpecObjExp(object):
     # Printing
     def __repr__(self):
         # Generate sets string
-        return '[SpecObjExp: {:d} == Setup {:d} Object at {:g} in Slit at {:g} with det={:d}, scidx={:d} and objtype={:s}]'.format(self.idx, self.setup, self.xobj, self.slitcen, self.det, self.scidx, self.objtype)
+        return '[SpecObjExp: {:s} == Setup {:d} Object at {:g} in Slit at {:g} with det={:d}, scidx={:d} and objtype={:s}]'.format(self.idx, self.setup, self.xobj, self.slitcen, self.det, self.scidx, self.objtype)
 
 def init_exp(slf, sc, det, trc_img=None, ypos=0.5, **kwargs):    
     '''Generate a list of SpecObjExp objects for a given exposure
@@ -152,7 +153,7 @@ def init_exp(slf, sc, det, trc_img=None, ypos=0.5, **kwargs):
             # xobj
             xobj = (trc_img['traces'][yidx,qq]-pixl_slit) / (pixr_slit-pixl_slit)
             # Generate 
-            specobj = SpecObjExp((trc_img['object'].shape[0], trc_img['object'].shape[1]), setup, slf._scidx, det, (xl_slit,xr_slit),ypos, xobj, **kwargs)
+            specobj = SpecObjExp((trc_img['object'].shape[:2]), setup, slf._scidx, det, (xl_slit,xr_slit),ypos, xobj, **kwargs)
             # Add traces
             specobj.trace = trc_img['traces'][:,qq]
             # Append
