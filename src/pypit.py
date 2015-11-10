@@ -701,7 +701,7 @@ class ClassMain:
                 # Boxcar Extraction
                 arextract.boxcar(self, sciframe-bgframe, varframe, bgframe, crmask, scitrace)
                 #Generate and Write spectra
-                if True:
+                if False:
                     sig = np.sqrt(self._specobjs[0].boxcar['var'])
                     wave = self._specobjs[0].boxcar['wave']
                     flux = self._specobjs[0].boxcar['counts']
