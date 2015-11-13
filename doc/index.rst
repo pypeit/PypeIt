@@ -9,9 +9,11 @@ Welcome to PYPIT's documentation!
 Contents:
 
 .. toctree::
+   :caption Table of Contents
    :maxdepth: 2
 
    intro
+   wavelengths
    outputs
 
 
