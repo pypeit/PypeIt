@@ -6,20 +6,33 @@
 Welcome to PYPIT's documentation!
 =================================
 
-Contents:
+
+PYPIT is a Python based data reduction pipeline (DRP) written
+oringinally for echelle spectroscopy and since expanded
+to low-resolution spectrometers.  This documentation details
+the code, how to run it, and what it produces.
+
+Philosophy
+++++++++++
+
+[Your thoughts here]
+
+Contents
+++++++++
 
 .. toctree::
-   :caption Table of Contents
    :maxdepth: 2
 
-   intro
-   wavelengths
+   installing
+   setup 
+   running
    outputs
+   api
 
 
 
 Indices and tables
-==================
+++++++++++++++++++
 
 * :ref:`genindex`
 * :ref:`modindex`
