@@ -20,3 +20,7 @@ The following is a list of items that are currently in development
 * Allow both bias and overscan to be used
 * How much effort for backwards-compatability (e.g. old detectors)?
 * Consolidate QA PDFs??
+* Generate tests for adding new instrument
+  extinction
+  wavelengths
+  settings file

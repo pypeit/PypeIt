@@ -663,16 +663,6 @@ class ClassMain:
                 if scitrace is None:
                     msgs.info("Not performing extraction for science frame"+msgs.newline()+self._fitsdict['filename'][scidx[0]])
                     continue
-                else:
-                    # Generate SpecObjExp list
-                    self._specobjs += arspecobj.init_exp(self,sc,det,trc_img=scitrace, objtype=sctype)
-                    # Write
-                    mstrc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self.target, 0, "objtrc")
-                    hdutrc = fits.PrimaryHDU(scitrace['traces'])
-                    hduobj = fits.ImageHDU(scitrace['object'])
-                    hdulist = fits.HDUList([hdutrc, hduobj])
-                    hdulist.writeto(mstrc_name,clobber=True)               
-                    msgs.info("Wrote object trace file: {:s}".format(mstrc_name))
                 ###############
                 # Finalize the Sky Background image
                 if self._argflag['reduce']['bgsubtraction']:
@@ -695,6 +685,17 @@ class ClassMain:
                 ###############
                 # Determine the final trace of the science objects
                 scitrace = artrace.trace_object(self, sciframe-bgframe, varframe, crmask)
+                # Write
+                mstrc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), self._argflag['run']['masterdir'], self.target, 0, "objtrc")
+                hdutrc = fits.PrimaryHDU(scitrace['traces'])
+                hduobj = fits.ImageHDU(scitrace['object'])
+                hdulist = fits.HDUList([hdutrc, hduobj])
+                hdulist.writeto(mstrc_name,clobber=True)               
+                msgs.info("Wrote object trace file: {:s}".format(mstrc_name))
+                # Generate SpecObjExp list
+                self._specobjs += arspecobj.init_exp(self,sc,det,trc_img=scitrace, objtype=sctype)
+                ###############
+                # Extract
                 if scitrace is None:
                     msgs.info("Not performing extraction for science frame"+msgs.newline()+self._fitsdict['filename'][scidx[0]])
                     continue

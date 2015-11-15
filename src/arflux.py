@@ -3,11 +3,13 @@ import numpy as np
 import scipy
 import glob
 
-from astropy.table import Table
+from astropy.table import Table, Column
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy import units as u
 from astropy import coordinates as coords
+
+from linetools.spectra.xspectrum1d import XSpectrum1D
 
 import armsgs as msgs
 import arcyextract
@@ -25,15 +27,16 @@ except:
 
 def apply_sensfunc(slf, sc,MAX_EXTRAP=0.05):
     '''Apply the sensitivity function to the data
-    We also correct for extinction
+    We also correct for extinction.
+
     Parameters:
     -----------
-    MAX_EXTRAP: float, optional [0.05]
+    MAX_EXTRAP : float, optional [0.05]
       Fractional amount to extrapolate sensitivity function
     '''
     # Load extinction data
     extinct = load_extinction_data(slf)
-    AM = slf._fitsdict['airmass'][slf._scidx]
+    airmass = slf._fitsdict['airmass'][slf._scidx]
     # Loop on objects
     for spobj in slf._specobjs:
         # Loop on extraction modes
@@ -46,11 +49,12 @@ def apply_sensfunc(slf, sc,MAX_EXTRAP=0.05):
             wave = extract['wave'] # for convenience
             scale = np.zeros(wave.size)
             # Allow for some extrapolation 
-            inds = (wave >= (slf._sensfunc['wave_min']*(1-MAX_EXTRAP))) & (wave <= (slf._sensfunc['wave_max'] * (1+MAX_EXTRAP)))
+            dwv = slf._sensfunc['wave_max']-slf._sensfunc['wave_min']
+            inds = (wave >= slf._sensfunc['wave_min']-dwv*MAX_EXTRAP) & (wave <= slf._sensfunc['wave_max']+dwv*MAX_EXTRAP)
             mag_func = arutils.func_val(slf._sensfunc['c'], wave[inds], slf._sensfunc['func'])
             sens = 10.0**(0.4*mag_func)
             # Extinction
-            ext_corr = extinction_correction(wave[inds],AM,extinct)
+            ext_corr = extinction_correction(wave[inds],airmass,extinct)
             scale[inds] = sens*ext_corr
             # Fill
             extract['flam'] = extract['counts']*scale/slf._fitsdict['exptime'][slf._scidx]
@@ -58,7 +62,7 @@ def apply_sensfunc(slf, sc,MAX_EXTRAP=0.05):
 
 
 def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
-    '''Perform a bspline fit to the flux ratio of starndard to 
+    '''Perform a bspline fit to the flux ratio of standard to 
     observed counts.  Used to generate a sensitivity function.
 
     Parameters:
@@ -136,21 +140,21 @@ def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
     msgs.info('Difference between fits is {:g}'.format(absdev))
 
     # QA
-    msgs.work("Add QA for sensitivity functoin")
+    msgs.work("Add QA for sensitivity function")
 
     return tck_log1
 
-def extinction_correction(wave, AM, extinct):
+def extinction_correction(wave, airmass, extinct):
     '''Derive extinction correction
     Based on algorithm in LowRedux (long_extinct)
 
     Parameters:
     ----------
-    wave: Quantity array
+    wave : Quantity array
       Wavelengths for interpolation. Should be sorted
-    AM: float
+    airmass : float
       Airmass
-    extinct: Table
+    extinct : Table
       Table of extinction values
 
     Returns:
@@ -159,8 +163,8 @@ def extinction_correction(wave, AM, extinct):
       Flux corrections at the input wavelengths
     '''
     # Checks
-    if AM < 1.:
-        msgs.error("Bad AM value in extinction_correction")
+    if airmass < 1.:
+        msgs.error("Bad airmass value in extinction_correction")
     # Interpolate
     f_mag_ext = scipy.interpolate.interp1d(extinct['wave'],
         extinct['mag_ext'], bounds_error=False, fill_value=0.)
@@ -177,7 +181,7 @@ def extinction_correction(wave, AM, extinct):
         mag_ext[gdv[-1]+1:] = mag_ext[gdv[-1]]
         msgs.warn("Extrapolating at high wavelengths using last valid value")
     # Evaluate
-    flux_corr = 10.0**(0.4*mag_ext*AM)
+    flux_corr = 10.0**(0.4*mag_ext*airmass)
     # Return
     return flux_corr
 
@@ -187,14 +191,14 @@ def find_standard_file(slf, radec, toler=20.*u.arcmin):
 
     Parameters:
     ----------
-    slf: self
-      Needed for path to data
-    radec: tuple
+    radec : tuple
       ra, dec in string format ('05:06:36.6','52:52:01.0')
+    toler : Angle
+      tolerance on matching archived standards to input
 
     Returns:
     --------
-    sdict: dict
+    sdict : dict
       'file': str -- Filename
       'fmt': int -- Format flag
            1=Calspec style FITS binary table
@@ -210,6 +214,7 @@ def find_standard_file(slf, radec, toler=20.*u.arcmin):
     obj_coord = SkyCoord(radec[0], radec[1], unit=(u.hourangle, u.deg))
 
     # Loop on standard sets
+    closest = dict(sep=999*u.deg)
     for qq,sset in enumerate(std_sets):
         # Stars
         path, star_tbl = sset(slf)
@@ -226,6 +231,19 @@ def find_standard_file(slf, radec, toler=20.*u.arcmin):
             # Return
             msgs.info("Using standard star {:s}".format(std_dict['name']))
             return std_dict
+        else: # Save closest, if it is
+            imind2d = np.argmin(d2d)
+            mind2d = d2d[imind2d]
+            if mind2d < closest['sep']:
+                closest['sep'] = mind2d
+                closest.update(dict(name=star_tbl[int(idx)]['Name'], 
+                    ra=star_tbl[int(idx)]['RA_2000'], 
+                    dec=star_tbl[int(idx)]['DEC_2000']))
+    # Failed
+    msgs.warn("No standards star found within the tolerance of {:g}".format(toler))
+    msgs.info("Closest standard was {:s} at separation {:g}".format(closest['name'],closest['sep'].to('arcmin')))
+    msgs.warn("Flux calibration will not be performed")
+    return None
 
 def load_calspec(slf):
     ''' Load the list of calspec standards
@@ -278,13 +296,15 @@ def load_extinction_data(slf, toler=1.*u.deg):
         extinct_file = extinct_files[int(idx)]['File']
         msgs.info("Using {:s} for extinction corrections.".format(extinct_file))
     else:
-        extinct_file = 'atm_trans_am1.0.dat'
-        msgs.warn("Using {:s} for extinction corrections.".format(extinct_file))
-        msgs.warn("You may wish to generate a site-specific file")
+        msgs.warn("No file found for extinction corrections.  Applying none") 
+        msgs.warn("You should generate a site-specific file")
+        return None
     # Read
-    extinct = Table.read(extinct_path+extinct_file,comment='#',format='ascii', names=('wave','mag_ext'))
+    extinct = Table.read(extinct_path+extinct_file,comment='#',format='ascii', names=('iwave','mag_ext'))
+    wave = Column(np.array(extinct['iwave'])*u.AA, name='wave')
+    extinct.add_column(wave)
     # Return
-    return extinct
+    return extinct[['wave','mag_ext']]
 
 
 def load_standard_file(slf, std_dict):
@@ -327,16 +347,18 @@ def generate_sensfunc(slf, sc, BALM_MASK_WID=5., nresln=20):
 
     Parameters:
     ----------
-    sc: int
+    sc : int
       index for standard  (may not be necessary)
-    BALM_MASK_WID: float
-    nresln: int  
+    BALM_MASK_WID : float
+      Mask parameter for Balmer absorption.  A region equal to 
+      BALM_MASK_WID*resln is masked wher resln is the estimate 
+      for the spectral resolution.
+    nresln : int  
       Number of resolution elements for break-point placement
-
 
     Returns:
     --------
-    sens_dict: dict
+    sens_dict : dict
       sensitivity function described by a dict
     '''
     # Find brightest object in the exposure
@@ -360,9 +382,12 @@ def generate_sensfunc(slf, sc, BALM_MASK_WID=5., nresln=20):
     # Load standard
     load_standard_file(slf, std_dict)
     # Interpolate onto observed wavelengths
-    flux_interp = scipy.interpolate.interp1d(std_dict['wave'],
-        std_dict['flux'], bounds_error=False, fill_value=0.)
-    flux_true = flux_interp(wave.to('AA').value)
+    std_xspec = XSpectrum1D.from_tuple((std_dict['wave'],std_dict['flux']))
+    xspec = std_xspec.rebin(wave) # Conserves flambda
+    #flux_interp = scipy.interpolate.interp1d(std_dict['wave'],
+    #    std_dict['flux'], bounds_error=False, fill_value=0.)
+    #flux_true = flux_interp(wave.to('AA').value)
+    flux_true = xspec.flux.value
     if np.min(flux_true) == 0.:
         msgs.warn('Your spectrum extends beyond calibrated standard star.')
 

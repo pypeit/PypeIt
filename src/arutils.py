@@ -114,8 +114,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
 
 
 def calc_offset(raA, decA, raB, decB, distance=False):
-    """
-    Calculate the offset in arcseconds between two sky coordinates
+    """ Calculate the offset in arcseconds between two sky coordinates
     All coordinates must be in decimal degrees.
     """
     delRA  = 3600.0*(raA-raB)*np.cos(decA*np.pi/180.0)
@@ -124,6 +123,26 @@ def calc_offset(raA, decA, raB, decB, distance=False):
         return np.sqrt(delRA**2 + delDEC**2)
     else:
         return delRA, delDEC
+
+def dummy_self(pypitdir=None):
+    """Generate a dummy self class for testing
+    Parameters:
+    -----------
+    pypitdir : str, optional
+      Path to the PYPIT main directory
+    Returns:
+    --------
+    slf
+    """
+    # Dummy Class
+    slf = type('Dummy', (object,), {"_argflag": {}, "_spect": {}})
+    slf._argflag['run'] = {}
+    if pypitdir is not None:
+        slf._argflag['run']['pypitdir'] = pypitdir
+    #
+    slf._spect['mosaic'] = {}
+    #
+    return slf
 
 def erf_func(x):
     """

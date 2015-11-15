@@ -69,7 +69,7 @@ def boxcar(slf, sciframe, varframe, skyframe, crmask, scitrace):
         msgs.info("   Summing variance array")
         varsum = np.sum(varframe*weight, axis=1)
         # Mask 
-        boxmask = np.zeros_like(wvsum).astype(int)
+        boxmask = np.zeros_like(wvsum, dtype=np.int)
         # Bad detector pixels
         BPs = np.sum(weight*slf._bpix,axis=1)
         bp = BPs > 0.
