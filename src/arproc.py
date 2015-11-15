@@ -354,6 +354,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None, rejsigma
     bgscan = arcyutils.polyfit_scan_lim(sxvpix[wbg], sbgpix[wbg].copy(), np.ones(wbg[0].size,dtype=np.float), maskval, polyorder, sciframe.shape[1]/3, repeat, maxdiff)
     bgframe = np.interp(tilts.flatten(), sxvpix[wbg], bgscan).reshape(tilts.shape)
     # Plot to make sure that the result is good
+    #pdb.set_trace()
     #arutils.ds9plot(bgframe)
     #arutils.ds9plot(sciframe-bgframe)
     return bgframe

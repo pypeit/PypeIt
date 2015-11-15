@@ -36,6 +36,7 @@ def boxcar(sciframe, varframe, crmask, scitrace, maskval=-999999.9, weighted=Tru
         msgs.info("   Summing variance array")
         varsum = np.sum(varframe*weight, axis=1)
         varsum /= sumweight
+        pdb.set_trace()
         # Mask zero weights
         w = np.where(sumweight == 0.0)
         if w[0].size != 0:

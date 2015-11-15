@@ -872,7 +872,7 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders, disp
     return extfit, outpar
 
 
-def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilts=None, censpec=None, plotQA=False, maskval=-999999.9):
+def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilts=None, censpec=None, plotQA=False, refine_tilts=False, maskval=-999999.9):
     """
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
     """
@@ -1146,17 +1146,10 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilt
     else:
         msgs.error("Please use trace+tilts+fit1d")
 
-    # Create the knots (10 knots in each direction, making 100 total
-    #pdb.set_trace()
-    #xknot = np.linspace(0.0, 1.0, 6)
-    #yknot = np.linspace(0.0, 1.0, 6)
-    #tiltspl = interp.LSQBivariateSpline(xtilt[wfit].ravel(), ytilt[wfit].ravel(), ztilt[wfit].ravel(),
-    #                                           xknot, yknot, w=wtilt[wfit].ravel(), bbox=[0.0, 1.0, 0.0, 1.0], kx=3, ky=3)
-    #xx, yy = np.meshgrid(np.linspace(0.0,1.0,msarc.shape[1]),np.linspace(0.0,1.0,msarc.shape[0]))
-    #tilts = tiltspl(xx.ravel(),yy.ravel()).reshape(msarc.shape)
-    #for i in xrange(arcdet.size): plt.plot(np.arange(tilts.shape[1])/(msarc.shape[1]-1.0), tilts[arcdet[i],:],'r-')
-    #plt.show()
-    # Perform a high order 2D polynomial fit to the PCA tilts
+    # Perform a high order 2D polynomial fit to the best PCA tilts, then interpolate
+#    if refine_tilts:
+#        pdb.set_trace()
+
     #xx, yy = np.meshgrid(np.arange(msarc.shape[1])/(msarc.shape[1]-1.0), np.arange(msarc.shape[0])/(msarc.shape[0]-1.0))
     #coeff = arutils.polyfit2d(xx, yy, tilts, [8,8])
     #tilts = arutils.polyval2d(coeff, np.arange(msarc.shape[1])/(msarc.shape[1]-1.0), np.arange(msarc.shape[0])/(msarc.shape[0]-1.0))
@@ -1185,6 +1178,11 @@ def model_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix="", guesstilt
     if plotQA: arplot.plot_orderfits(slf, tiltsplot, ztilt, xdata=xdat, xmodl=np.arange(msarc.shape[1]), plotsdir=slf._argflag['run']['plotsdir'], textplt="Arc line", maxp=9, prefix="Tilts", maskval=maskval)
     #arutils.ds9plot(tilts)
     #pdb.set_trace()
+    if refine_tilts:
+        print outpar['x0mask'][outpar['usetrc']]
+        # Fit each arc line the same as the blaze fitting algorithm, but only consider the brightest lines
+        # Linearly interpolate over the result. In between the best lines, take an average of the PCA and the interpolated tilts (based on the brightest lines)
+        pdb.set_trace()
     return tilts, satsnd
 
     # Write out ds9 regions file for slit tilts.
