@@ -1,0 +1,16 @@
+# Describes PYPIT outputs
+# 1st level is the Output Type
+# 2nd level is the product
+#   Name: Variable type(s), Modes where generated, Description
+spec1D:  # All possible entires in the spec1D binary FITS table
+    # Meta
+    DET_ID: ['int', ['all'], 'Detector ID']
+    SLIT_ID: ['int', ['all'], 'Slit ID; center of slit at ny/2 in detector fraction*1000']
+    OBJ_ID: ['int', ['all'], 'Object ID; center of obj in slit; fraction*1000']
+    # Extraction parameters
+    BOXCAR_APER: [['float','float'], ['quick','full'], 'Boxcar aperture; -pix, +pix']
+    # Extraction arrays
+    BOXCAR: ['ndarray', ['quick','full'], 'Boxcar extraction products, e.g. BOXCAR_WAVE']
+    OPTIMAL: ['ndarray', ['standard','full'], 'Optimal extraction products, e.g. OPTIMAL_WAVE']
+
+

@@ -174,16 +174,16 @@ def simple_calib(slf, det, get_poly=False, debug=False):
     '''Simple calibration algorithm for longslit wavelengths
     Uses slf._arcparam to guide the analysis
 
-    Parameters:
+    Parameters
     ----------
-    get_poly: bool, optional
+    get_poly : bool, optional
       Pause to record the polynomial pix = b0 + b1*lambda + b2*lambda**2
-    debug: bool, optional
+    debug : bool, optional
       Debug
 
-    Returns:
-    ----------
-    final_fit: dict
+    Returns
+    -------
+    final_fit : dict
       Dict of fit info
     '''
 
@@ -364,8 +364,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
 
 
 def calibrate(slf, filename, pixtmp=None, prefix=""):
-    """
-    A new idea for automated wavelength calibration
+    """A new idea for automated wavelength calibration
 
     Use the same idea as in the patterns (i.e. assume a linear scaling between pixels and wavelength)
     but use the entire list of arc lines and relate this to a small collection of 10 or so pixels in

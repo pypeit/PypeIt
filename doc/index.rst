@@ -38,3 +38,4 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
+.. _kast webpage: http://mthamilton.ucolick.org/techdocs/instruments/kast/
