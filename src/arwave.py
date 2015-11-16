@@ -10,10 +10,12 @@ import armsgs
 import arutils
 
 #testing on my data
+'''
 object_sky=fits.open("/Users/tiffanyhsyu/Dropbox/DropboxData/05192015_Lick/blue_side/combined_frames/extract/kast_sky_blue_fluxed.fits")
 object_wave1=np.arange(0.,2048.,1.)
 object_wave2=3428.12+(1.0196*object_wave1)
 object_flux=object_sky[0].data
+'''
 
 def flexure(obj_wave, obj_flux):
     #look for appropriate archived sky file based on latitude and longitude
@@ -116,27 +118,60 @@ def flexure(obj_wave, obj_flux):
 #flexure(object_wave2,object_flux)
 
 def airtovac(wave):
+    '''Convert air-based wavelengths to vacuum
+
+    Parameters:
+    ----------
+    wave: Quantity array
+      Wavelengths 
+
+    Returns:
+    ----------
+    wave: Quantity array
+      Wavelength array corrected to vacuum wavelengths
+    '''
+    # Convert to AA
     wave = wave.to(u.AA)
     wavelength = wave.value
 
+    # Standard conversion format
     sigma_sq = (1.e4/wavelength)**2. #wavenumber squared
     factor = 1 + (5.792105e-2/(238.0185-sigma_sq)) + (1.67918e-3/(57.362-sigma_sq))
     factor = factor*(wavelength>=2000.) + 1.*(wavelength<2000.) #only modify above 2000A
 
+    # Convert
     wavelength = wavelength*factor
-    wave = wavelength*u.AA
+    # Units
+    new_wave = wavelength*u.AA
+    new_wave.to(wave.unit)
 
-    return wave
+    return new_wave
 
 def vactoair(wave):
+    '''Convert to air-based wavelengths from vacuum
+
+    Parameters:
+    ----------
+    wave: Quantity array
+      Wavelengths 
+
+    Returns:
+    ----------
+    wave: Quantity array
+      Wavelength array corrected to air
+    '''
+    # Convert to AA
     wave = wave.to(u.AA)
     wavelength = wave.value
 
+    # Standard conversion format
     sigma_sq = (1.e4/wavelength)**2. #wavenumber squared
     factor = 1 + (5.792105e-2/(238.0185-sigma_sq)) + (1.67918e-3/(57.362-sigma_sq))
     factor = factor*(wavelength>=2000.) + 1.*(wavelength<2000.) #only modify above 2000A
 
+    # Convert
     wavelength = wavelength/factor
-    wave = wavelength*u.AA
+    new_wave = wavelength*u.AA
+    new_wave.to(wave.unit)
 
-    return wave
+    return new_wave

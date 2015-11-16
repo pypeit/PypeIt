@@ -49,7 +49,7 @@ def arc_fit_qa(fit, arc_spec, outroot=None, outfil=None):
         ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], 'g-')
         # label
         ax_spec.text(x, yline+ysep*1.3, 
-            '{:g}'.format(fit['yfit'][kk]), ha='center', va='bottom',
+            '{:s} {:g}'.format(fit['ions'][kk], fit['yfit'][kk]), ha='center', va='bottom',
             size='xx-small', rotation=90., color='green')
     ax_spec.set_xlim(0., len(arc_spec))
     ax_spec.set_ylim(ymin, ymax*1.2)

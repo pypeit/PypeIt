@@ -441,7 +441,7 @@ def load_headers(slf):
             kchk  = '.'.join(ch.split('.')[1:])
             frhd  = whddict['{0:02d}'.format(tfrhd)]
             if slf._spect['check'][ch] != str(headarr[frhd][kchk]).strip():
-                #xdb.set_trace()
+                #pdb.set_trace()
                 #print ch, frhd, kchk
                 #print slf._spect['check'][ch], str(headarr[frhd][kchk]).strip()
                 msgs.error("The following file:"+msgs.newline()+slf._datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(slf._argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
@@ -661,35 +661,6 @@ def load_ordloc(fname):
     msgs.info("Loaded right order locations for frame:"+msgs.newline()+fname)
     return ltrace, rtrace
 
-def load_standards(slf):
-    from arvcorr import radec_to_decdeg
-    standdict = dict({})
-    # Load the default settings
-    prgn_spl = slf._argflag['run']['prognm'].split('/')
-    fname = ""
-    for i in range(0,len(prgn_spl)-1): fname += prgn_spl[i]+"/"
-    fname += 'standards.list'
-    # Load the list of flux standard stars
-    stdlines = open(fname,'r').readlines()
-    std_name, std_ra, std_dec, std_mag, std_type = [], [], [], [], []
-    for i in range(len(stdlines)):
-        if stdlines[i].strip()[0]=="#": continue
-        linspl = stdlines[i].split()
-        std_name += [linspl[0]]
-        tmpra  = linspl[1]+" "+linspl[2]+" "+linspl[3]
-        tmpdec = linspl[4]+" "+linspl[5]+" "+linspl[6]
-        raval, decval = radec_to_decdeg(tmpra, tmpdec)
-        std_ra   += [15.0*raval]
-        std_dec  += [decval]
-        std_mag  += [float(linspl[7])]
-        std_type += [linspl[8]]
-    # Store data in a dictionary
-    standdict["name"] = std_name
-    standdict["RA"]   = np.array(std_ra)  # In decimal degrees (J200)
-    standdict["DEC"]  = np.array(std_dec) # In decimal degrees (J200)
-    standdict["mag"]  = std_mag
-    standdict["type"] = std_type
-    return standdict
 
 def load_tilts(fname):
     # Load the files
@@ -702,6 +673,7 @@ def load_tilts(fname):
     satmask = np.array(pyfits.getdata(sname, 0),dtype=np.float)
     msgs.info("Loaded saturation mask for frame:"+msgs.newline()+fname)
     return tilts, satmask
+
 
 def waveids(fname):
     infile = pyfits.open(fname)

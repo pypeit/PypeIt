@@ -1,0 +1,73 @@
+# Module to run tests on simple fitting routines for arrays
+
+### TEST_UNICODE_LITERALS
+
+import numpy as np
+import sys
+import os, pdb
+import pytest
+
+from astropy import units as u
+
+sys.path.append(os.getenv('PYPIT')+'/src/')
+import arflux as arflx
+import arutils as arut
+
+#from xastropy.xutils import afits as xafits
+#from xastropy.xutils import xdebug as xdb
+
+#def data_path(filename):
+#    data_dir = os.path.join(os.path.dirname(__file__), 'files')
+#    return os.path.join(data_dir, filename)
+
+pypitdir=os.getenv('PYPIT')
+
+def test_find_standard():
+    # Dummy self
+    slf = arut.dummy_self(pypitdir=pypitdir)
+    # G191b2b
+    std_ra = '05:06:36.6'
+    std_dec = '52:52:01.0'
+    # Grab
+    std_dict = arflx.find_standard_file(slf,(std_ra,std_dec))
+    # Test
+    assert std_dict['name'] == 'G191B2B'
+    assert std_dict['file'] == '/data/standards/calspec/g191b2b_mod_005.fits'
+    assert std_dict['fmt'] == 1
+    # Fail to find
+    # near G191b2b
+    std_ra = '05:06:36.6'
+    std_dec = '52:22:01.0'
+    std_dict = arflx.find_standard_file(slf,(std_ra,std_dec))
+    assert std_dict is None
+
+def test_load_extinction():
+    # Dummy self
+    slf = arut.dummy_self(pypitdir=pypitdir)
+    slf._spect['mosaic']['latitude'] = 37.3413889
+    slf._spect['mosaic']['longitude'] = 121.6428
+    # Load
+    extinct = arflx.load_extinction_data(slf)
+    np.testing.assert_allclose(extinct['wave'][0], 3200.)
+    assert extinct['wave'].unit == u.AA
+    np.testing.assert_allclose(extinct['mag_ext'][0], 1.084)
+    # Fail
+    slf._spect['mosaic']['latitude'] = 37.3413889
+    slf._spect['mosaic']['longitude'] = 0.
+    #
+    extinct = arflx.load_extinction_data(slf)
+    assert extinct is None
+
+def test_extinction_correction():
+    # Dummy self
+    slf = arut.dummy_self(pypitdir=pypitdir)
+    slf._spect['mosaic']['latitude'] = 37.3413889
+    slf._spect['mosaic']['longitude'] = 121.6428
+    # Load
+    extinct = arflx.load_extinction_data(slf)
+    # Correction
+    wave = np.arange(3000.,10000.)*u.AA
+    AM=1.5
+    flux_corr = arflx.extinction_correction(wave,AM,extinct)
+    # Test
+    np.testing.assert_allclose(flux_corr[0], 4.47095192)

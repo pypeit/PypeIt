@@ -247,6 +247,7 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, plotsdir="Plots", 
         f.tight_layout()
         if usepdf:
             pp.savefig()
+            plt.close()
         else:
             if prefix != "":
                 f.savefig("{0:s}/{1:s}_page-{2:d}.png".format(plotsdir,prefix,i+1), dpi=200, orientation='landscape')
@@ -258,5 +259,6 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, plotsdir="Plots", 
     else:
         msgs.info("Saved several png files")
     f.clf()
+    #plt.close()
     del f
     return

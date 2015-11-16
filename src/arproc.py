@@ -353,6 +353,10 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None, rejsigma
     msgs.info("Generating sky background image")
     bgscan = arcyutils.polyfit_scan_lim(sxvpix[wbg], sbgpix[wbg].copy(), np.ones(wbg[0].size,dtype=np.float), maskval, polyorder, sciframe.shape[1]/3, repeat, maxdiff)
     bgframe = np.interp(tilts.flatten(), sxvpix[wbg], bgscan).reshape(tilts.shape)
+    if np.sum(np.isnan(bgframe)) > 0:
+        msgs.warn("NAN in bgframe.  Replacing with 0")
+        bad = np.isnan(bgframe)
+        bgframe[bad] = 0.
     # Plot to make sure that the result is good
     #pdb.set_trace()
     #arutils.ds9plot(bgframe)
@@ -864,12 +868,20 @@ def trim(slf,file,det):
 #			trimfile[:,:,f] = file[:,:,f][w]
 #	else:
 #		msgs.error("Cannot trim {0:d}D frame".format(int(len(file.shape))))
+    try:
+        trim_file = file[w]
+    except:
+        pdb.set_trace()
+        msgs.error("Odds are datasec is set wrong.  Maybe due to transpose")
     return file[w]
 
 
 def variance_frame(slf, det, sciframe, idx, skyframe=None):
+    ''' Calculate the variance image including detector noise
+    '''
     scicopy = sciframe.copy()
     if skyframe is not None:
+        msgs.warn("arproc.variance_frame: JXP worries the next line could be biased.")
         wfill = np.where(np.abs(skyframe) > np.abs(scicopy))
         scicopy[wfill] = np.abs(skyframe[wfill])
     # Dark Current noise

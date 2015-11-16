@@ -68,12 +68,17 @@ def load_arcline_list(slf, idx, lines, wvmnx=None):
       List of ions to load
     wvmnx: list or tuple
       wvmin, wvmax for line list
+
+    Returns:
+    ----------
+    alist: Table
+      Table of arc lines
     '''
     # Get the parse dict
     parse_dict = load_parse_dict()
     # Read rejection file
     if slf is None:
-        root = '/Users/xavier/local/Python/PYPIT'
+        root = os.getenv('PYPIT')
     else:
         root = slf._argflag['run']['pypitdir'] 
     with open(root+'/data/arc_lines/rejected_lines.yaml', 'r') as infile:
@@ -125,6 +130,8 @@ def reject_lines(slf,tbl,idx,rej_dict):
         close = np.where(np.abs(wave-tbl['wave']) < 0.1)[0]
         if rej_dict[wave] == 'all':
             msk[close] = False
+        elif slf == None:
+            continue
         elif slf._argflag['run']['spectrograph'] in rej_dict[wave].keys():
             if rej_dict[wave][slf._argflag['run']['spectrograph']] == 'all':
                 msk[close] = False
@@ -174,8 +181,9 @@ def load_parse_dict():
     # NeI
     arcline_parse['NeI'] = copy.deepcopy(dict_parse)
     arcline_parse['NeI']['min_intensity'] = 500.
-    arcline_parse['NeI']['min_Aki']  = 1. # NOT GOOD FOR DEIMOS
-    arcline_parse['NeI']['min_wave'] = 5850. # NOT GOOD FOR DEIMOS
+    arcline_parse['NeI']['min_Aki']  = 1. # NOT GOOD FOR DEIMOS, DESI
+    #arcline_parse['NeI']['min_wave'] = 5700. 
+    arcline_parse['NeI']['min_wave'] = 5850. # NOT GOOD FOR DEIMOS?
     # ZnI
     arcline_parse['ZnI'] = copy.deepcopy(dict_parse)
     arcline_parse['ZnI']['min_intensity'] = 50.
