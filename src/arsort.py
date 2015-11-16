@@ -224,7 +224,7 @@ def sort_write(slf,space=3):
     msgs.info("Successfully written sorted data information file:"+msgs.newline()+"{0:s}".format(fname))
 
     # ASCII file (JXP)
-    jxpord = ['filename', 'frametype', 'target', 'exptime', 'binning',
+    jxpord = ['filename', 'date', 'frametype', 'target', 'exptime', 'binning',
         'dichroic', 'disperser', 'cdangle', 'decker']
     # Generate the columns
     clms = []

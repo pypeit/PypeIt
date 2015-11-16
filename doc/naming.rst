@@ -14,7 +14,7 @@ Our approach is a compromise between these competing requirements/desires.
 Source Files
 ============
 
-The following sections describe the components of file naming
+This section describes the components of file naming
 for observed sources (including standard stars).
 
 .. _prefix:
@@ -45,15 +45,66 @@ The second label indicates the instrument.  Here are the
 set of currently supported instruments in PYPIT: 
 
 .. _KastWebSite: http://mthamilton.ucolick.org/techdocs/instruments/kast/
+.. _LRISWebSite: https://www2.keck.hawaii.edu/inst/lris/
+.. _LowRedux: http://www.ucolick.org/~xavier/LowRedux/
 
-=====   ============= ====================== =======================
-Instr   Telescope     Short Description      Web Page
-=====   ============= ====================== =======================
-kastb   Lick Shane 3m Kast dual-spectrometer KastWebSite_
-=====   ============= ====================== =======================
+=====   ============= ======================= =======================
+Instr   Telescope     Short Description       Web Page
+=====   ============= ======================= =======================
+kastb   Lick Shane 3m blue camera of the Kast KastWebSite_
+                      dual-spectrometer 
+kastr   Lick Shane 3m red camera of the Kast  KastWebSite_
+                      dual-spectrometer  
+lrisb   Keck I        blue camera of the LRIS LRISWebSite_
+                      spectrometer
+=====   ============= ======================= =======================
+
+Date and Time
+-------------
+
+By including the UT observing date and time to the nearest second, we 
+believe the filename is now unique.  The UT date + time are drawn from
+the Header and refer to the start of the observation, if there
+are multiple time stamps.  Other DRPs (e.g. LowRedux_)
+have tended to use the Frame number as the unique identifier.
+We have broken with that tradition: (1) to better follow 
+archival naming conventions; (2) because of concerns that
+some facilities may not include the frame number in the header;
+(3) some users may intentionally or accidentally generate multiple
+raw files with the same frame number.  
+
+The adopted format is::
+
+	YYYYMMMDDTHHMMSS
+	e.g. 2015nov11T231402
+
+A typical filename may then appear as::
+
+	spec1D_lrisb_2011nov11T231402.fits
+
+Source Identifiers
+------------------
+
+PYPIT reduces each detector separately and associates identified
+slits and objects to that detector.  Therefore, sources are 
+uniquely identified by a combination of these :ref:`source-id-values`.  
+If requested (:ref:`outputs-compactness-explode`), the Spec1D files
+can be exploded to yield one FITS file per source.  In this
+case, the filenames are appended by the source identifiers::
+
+	_DetID_SlitID_ObjID
+
+
+A complete filename may then appear as::
+
+	spec1D_lrisb_2011nov11T231402_02_783_423.fits
+
+For sanity sake, files that are exploded in this manner are 
+placed into their own folders named by the instrument and timestamp.
+
 
 Calibration Files
 =================
 
-The following sections describe the components of file naming
+The following section describes the components of file naming
 for calibrations.

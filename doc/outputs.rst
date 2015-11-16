@@ -13,10 +13,10 @@ full description of the naming system is described
 Contents
 ========
 
-.. toctree::
-   :maxdepth: 1
-
-   Naming <naming>
+.. toctree:: 
+   :maxdepth: 1 
+   
+   Naming <naming> 
    out_spec1D
 
 .. _standard-products:
@@ -85,6 +85,8 @@ Compact
 Write the fewest files possible, generally one per each
 of the :ref:`standard-products`. 
 This is the PYPIT default for all :ref:`outputs-reduction-modes`.
+
+.. _outputs-compactness-explode:
 
 Explode
 -------
