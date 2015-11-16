@@ -8,12 +8,19 @@ The following is a list of items that are currently in development
 * Extraction (RJC)
 * Force matplotlib RC params of plots to be the default throughout (i.e. don't allow user-specified matplotlib rcparams)
 * Save all QA to a single fits file and/or pdf file (?).
-<<<<<<< HEAD
 * Have reduction features be read from instrument settings file
-* Avoid re-making Bias, Arc, etc. frames
+* Avoid re-making Bias, Arc, etc. frames as an option
 * Organize lamp line lists better (1 file!!)
 * Add code to confirm rejected arc lines are in NIST lists (e.g. when the NIST wavelengths change)
-=======
 * Quick reduction methods (for use in real time at the telescope)
 * barycentric velocity correction
->>>>>>> upstream/master
+* Code to parse settings file into a Web Page, especially image type conditions
+* Flat indexing in "setup", e.g. arspecobj.init_exp
+* What should we with multiple standard stars?
+* Allow both bias and overscan to be used
+* How much effort for backwards-compatability (e.g. old detectors)?
+* Consolidate QA PDFs??
+* Generate tests for adding new instrument
+  extinction
+  wavelengths
+  settings file

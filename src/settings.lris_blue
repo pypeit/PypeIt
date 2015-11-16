@@ -28,9 +28,9 @@
 #    
 ### Detector properties
 mosaic ndet 2                         # Number of detectors in the mosaic
-mosaic latitude 37.3413889             # Latitude of the telescope
-mosaic longitude +121.6428             # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
-mosaic elevation 1283.0                # Elevation of the telescope (in m)
+mosaic longitude 155.47833            # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+mosaic latitude 19.82833              # Latitude of the telescope
+mosaic elevation 4160.0               # Elevation of the telescope (in m)
 mosaic minexp 1.0                     # Minimum exposure time (s)
 det01 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
 det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)

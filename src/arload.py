@@ -441,7 +441,7 @@ def load_headers(slf):
             kchk  = '.'.join(ch.split('.')[1:])
             frhd  = whddict['{0:02d}'.format(tfrhd)]
             if slf._spect['check'][ch] != str(headarr[frhd][kchk]).strip():
-                #xdb.set_trace()
+                #pdb.set_trace()
                 #print ch, frhd, kchk
                 #print slf._spect['check'][ch], str(headarr[frhd][kchk]).strip()
                 msgs.error("The following file:"+msgs.newline()+slf._datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(slf._argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")

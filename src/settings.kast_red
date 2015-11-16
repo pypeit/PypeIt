@@ -27,7 +27,7 @@
 #    flat, use the canbe option).
 #    
 ### Detector properties
-mosaic ndet 2                         # Number of detectors in the mosaic
+mosaic ndet 1                         # Number of detectors in the mosaic
 mosaic latitude 37.3413889             # Latitude of the telescope
 mosaic longitude +121.6428             # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
 mosaic elevation 1283.0                # Elevation of the telescope (in m)
@@ -126,6 +126,7 @@ standard canbe None                  # If there are frames that will be science 
 standard check condition1 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off
 standard match naxis0 =0             # Match the shape of standard and science frames
 standard match naxis1 =0             # Match the shape of standard and science frames
+standard match cdangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 20 ~ 2pixel)
 
 ### Bias/Dark frames
 bias idname DARK                    # Header key value of bias frame for header keyword keyword+idname
@@ -141,6 +142,7 @@ pixflat number 5                    # Number of flat frames to use
 pixflat canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
 pixflat lscomb False                # Combine a long and short flat
 pixflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
+pixflat check condition2 exptime>0  # Required for bias
 pixflat match naxis0 =0             # Match the shape of flats with science
 pixflat match naxis1 =0             # Match the shape of flats with science
 pixflat match decker ''             # Check the same decker as the science frame was used
@@ -159,6 +161,7 @@ trace number 5                    # Number of flat frames to use
 trace canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
 trace lscomb False                # Combine a long and short flat
 trace check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
+trace check condition2 exptime>0  # Required for bias
 trace match naxis0 =0             # Match the shape of flats with science
 trace match naxis1 =0             # Match the shape of flats with science
 trace match decker ''             # Check the same decker as the science frame was used
@@ -173,5 +176,5 @@ arc lscomb False                    # Combine a long and short arc
 arc check condition1 lampstat06=on|lampstat07=on|lampstat08=on|lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on|lampstat13=on|lampstat14=on|lampstat15=on|lampstat16=on
 arc match naxis0 =0                 # Match the shape of arcs with science
 arc match naxis1 =0                 # Match the shape of arcs with science
-arc match cdangle |<=5              # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+arc match cdangle |<=10              # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 10 ~ 2pixel)
 arc match echangle ''               # Match the echelle angle

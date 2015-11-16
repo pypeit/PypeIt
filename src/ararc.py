@@ -219,6 +219,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
 
     # Match up (ugly loops)
     ids = np.zeros(aparm['Nstrong'])
+    idsion = np.array(['     ']*aparm['Nstrong'])
     for kk in range(aparm['Nstrong']):
         med_off = np.zeros(nlist)
         for ss in range(nlist):
@@ -230,6 +231,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
         # Set by minimum
         idm = np.argmin(med_off)
         ids[kk] = llist['wave'][idm]
+        idsion[kk] = llist['Ion'][idm]
 
     # Calculate disp of the strong lines
     disp_str = np.zeros(aparm['Nstrong'])
@@ -258,7 +260,9 @@ def simple_calib(slf, det, get_poly=False, debug=False):
     ifit = idx_str[gd_str]
     sv_ifit = list(ifit) # Keep the originals
     all_ids = -999.*np.ones(len(tcent))
+    all_idsion = np.array(['12345']*len(tcent))
     all_ids[ifit] = ids[gd_str]
+    all_idsion[ifit] = idsion[gd_str]
     # Fit 
     n_order = aparm['n_first']
     flg_quit = False
@@ -287,6 +291,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
                     print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
                 # Update and append
                 all_ids[ss] = llist['wave'][imn]
+                all_idsion[ss] = llist['Ion'][imn]
                 ifit.append(ss)
         # Keep unique ones
         ifit = np.unique(np.array(ifit,dtype=int))
@@ -316,6 +321,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
         yrej = []
     xfit = xfit[mask==0]
     yfit = yfit[mask==0]
+    ions = all_idsion[ifit][mask==0]
     #
     if debug:
         msarc = slf._msarc
@@ -348,8 +354,8 @@ def simple_calib(slf, det, get_poly=False, debug=False):
         import pdb
         pdb.set_trace()
     # Pack up fit
-    final_fit = dict(fitc=fit, xfit=xfit, yfit=yfit, 
-        fmin=fmin, fmax=fmax, xnorm=float(slf._msarc.shape[0]),
+    final_fit = dict(fitc=fit, function=aparm['func'], xfit=xfit, yfit=yfit,
+        ions=ions, fmin=fmin, fmax=fmax, xnorm=float(slf._msarc.shape[0]),
         xrej=xrej, yrej=yrej)
     # QA
     arqa.arc_fit_qa(final_fit, yprep, slf._msarc_name)
@@ -372,7 +378,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
     msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")
-    msgs.warn("READ THIS IDEA!!!")
+    msgs.warn("READ THIS IDEA!!!") 
     msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")

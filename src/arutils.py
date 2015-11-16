@@ -13,6 +13,11 @@ import arcyarc
 #import arplot
 
 try:
+    from xastropy.xutils import xdebug as xdb
+except:
+    pass
+
+try:
     import ds9
 except ImportError:
     msgs.warn("ds9 module not installed")
@@ -41,9 +46,75 @@ def quicksave(data,fname):
     hdulist.writeto(fname)
     return
 
+def bspline_inner_knots(all_knots):
+    '''Trim to the inner knots.  Used in bspline_magfit
+    Might be useful elsewhere
+    '''
+    diff = all_knots - np.roll(all_knots,1)
+    pos = np.where(diff>0.)[0]
+    i0=pos[0]
+    i1=pos[-1]
+    return all_knots[i0:i1]
+
+def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bkspace=None):
+    ''' bspline fit to x,y
+    Should probably only be called from func_fit
+
+    Parameters:
+    ---------
+    x: ndarray
+    y: ndarray
+    func: str
+      Name of the fitting function:  polynomial, legendre, chebyshev, bspline
+    deg: int 
+      deg of the spline.  Default=3 (cubic)
+    xmin: float, optional
+      Minimum value in the array  [both must be set to normalize]
+    xmax: float, optional
+      Maximum value in the array  [both must be set to normalize]
+    w: ndarray, optional
+      weights to be used in the fitting (weights = 1/sigma)
+    everyn: int 
+      Knot everyn good pixels, if used
+    bkspace: float 
+      Spacing of breakpoints in units of x
+
+    Returns:
+    ---------
+    fit_dict: dict  
+      dict describing the bspline fit 
+    ''' 
+    #
+    if w is None:
+        ngd = x.size
+        gd = np.arange(ngd)
+        weights = None
+    else:
+        gd = np.where(w > 0.)[0]
+        weights = w[gd]
+    # Make the knots
+    if knots is None:
+        if bkspace is not None: 
+            xrnge = (np.max(x) - np.min(x))
+            startx = np.min(x)
+            nbkpts = max(int(xrnge/bkspace) + 1,2)
+            tempbkspace = xrnge/(nbkpts-1)
+            knots = np.arange(1,nbkpts-1)*tempbkspace + startx
+        elif everyn is not None:
+            idx_knots = np.arange(10, ngd-10, everyn) # A knot every good N pixels
+            knots = x[gd[idx_knots]]
+        else:
+            msgs.error("No method specified to generate knots")
+    # Generate spline
+    try:
+        tck = interpolate.splrep( x[gd], y[gd], w=weights, k=order, t=knots)
+    except ValueError: # Knot problem
+        pdb.set_trace()
+    return tck
+
+
 def calc_offset(raA, decA, raB, decB, distance=False):
-    """
-    Calculate the offset in arcseconds between two sky coordinates
+    """ Calculate the offset in arcseconds between two sky coordinates
     All coordinates must be in decimal degrees.
     """
     delRA  = 3600.0*(raA-raB)*np.cos(decA*np.pi/180.0)
@@ -52,6 +123,26 @@ def calc_offset(raA, decA, raB, decB, distance=False):
         return np.sqrt(delRA**2 + delDEC**2)
     else:
         return delRA, delDEC
+
+def dummy_self(pypitdir=None):
+    """Generate a dummy self class for testing
+    Parameters:
+    -----------
+    pypitdir : str, optional
+      Path to the PYPIT main directory
+    Returns:
+    --------
+    slf
+    """
+    # Dummy Class
+    slf = type('Dummy', (object,), {"_argflag": {}, "_spect": {}})
+    slf._argflag['run'] = {}
+    if pypitdir is not None:
+        slf._argflag['run']['pypitdir'] = pypitdir
+    #
+    slf._spect['mosaic'] = {}
+    #
+    return slf
 
 def erf_func(x):
     """
@@ -109,7 +200,7 @@ def func_der(coeffs,func,nderive=1):
     else:
         msgs.error("Functional derivative '{0:s}' is not implemented yet"+msgs.newline()+"Please choose from 'polynomial', 'legendre', 'chebyshev'")
 
-def func_fit(x,y,func,deg,min=None,max=None,w=None):
+def func_fit(x,y,func,deg,min=None,max=None,w=None,**kwargs):
     if func == "polynomial":
         return np.polynomial.polynomial.polyfit(x,y,deg,w=w)
     elif func == "legendre":
@@ -132,8 +223,10 @@ def func_fit(x,y,func,deg,min=None,max=None,w=None):
             xmin, xmax = min, max
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
         return np.polynomial.chebyshev.chebfit(xv,y,deg,w=w)
+    elif func == "bspline":
+        return bspline_fit(x,y,order=deg,w=w,**kwargs)
     else:
-        msgs.error("Fitting function '{0:s}' is not implemented yet"+msgs.newline()+"Please choose from 'polynomial', 'legendre', 'chebyshev'")
+        msgs.error("Fitting function '{0:s}' is not implemented yet"+msgs.newline()+"Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
 
 def func_val(c,x,func,min=None,max=None):
     if func == "polynomial":
@@ -158,8 +251,10 @@ def func_val(c,x,func,min=None,max=None):
             xmin, xmax = min, max
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
         return np.polynomial.chebyshev.chebval(xv,c)
+    elif func == "bspline":
+        return interpolate.splev(x, c, ext=1)
     else:
-        msgs.error("Fitting function '{0:s}' is not implemented yet"+msgs.newline()+"Please choose from 'polynomial', 'legendre', 'chebyshev'")
+        msgs.error("Fitting function '{0:s}' is not implemented yet"+msgs.newline()+"Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
 
 def func_vander(x,func,deg,min=None,max=None):
     if func == "polynomial":
@@ -520,7 +615,7 @@ def rebin(frame, newshape):
     return eval(''.join(evList))
 
 
-def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, function="polynomial", initialmask=None, forceimask=False, min=None, max=None, debug=False):
+def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, function="polynomial", initialmask=None, forceimask=False, min=None, max=None, debug=False, **kwargs):
     """
     A robust (equally weighted) polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are masked values
@@ -531,7 +626,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
     :param weights: weights to be used in the fitting (weights = 1/sigma)
     :param maxone: If True, only the most deviant point in a given iteration will be removed
     :param sigma: confidence interval for rejection
-    :param function: which function should be used in the fitting (valid inputs: 'polynomial', 'legendre', 'chebyshev')
+    :param function: which function should be used in the fitting (valid inputs: 'polynomial', 'legendre', 'chebyshev', 'bspline')
     :param initialmask: a mask can be supplied as input, these values will be masked for the first iteration. 1 = value masked
     :param forceimask: if True, the initialmask will be forced for all iterations
     :param min: minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
@@ -554,8 +649,11 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
         w = np.where(mask==0)
         xfit = xarray[w]
         yfit = yarray[w]
-        if weights is not None: wfit = weights[w]
-        ct = func_fit(xfit,yfit,function,order,min=min,max=max,w=wfit)
+        if weights is not None:
+           wfit = weights[w] 
+        else:
+           wfit = None
+        ct = func_fit(xfit,yfit,function,order,w=wfit,min=min,max=max,**kwargs)
         yrng = func_val(ct,xarray,function,min=min,max=max)
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
         if debug:
@@ -578,10 +676,14 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
         if mskcnt == np.sum(mask): break # No new values have been included in the mask
         mskcnt = np.sum(mask)
         w = np.where(mask==0)
+    # Final fit
     xfit = xarray[w]
     yfit = yarray[w]
-    if weights is not None: wfit = weights[w]
-    ct = func_fit(xfit,yfit,function,order,min=min,max=max,w=wfit)
+    if weights is not None:
+       wfit = weights[w] 
+    else:
+       wfit = None
+    ct = func_fit(xfit,yfit,function,order,w=wfit,min=min,max=max, **kwargs)
     return mask, ct
 
 
