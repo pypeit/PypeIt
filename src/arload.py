@@ -294,13 +294,40 @@ def load_settings(fname):
     argflag = set_params(lines, argflag, setstr="Default ")
     return argflag
 
-def load_input(slf):
+def load_input(argflag):
+    """
+    Load user defined input reduction file. Updates are
+    made to the argflag dictionary.
+
+    Parameters:
+    -----------
+    argflag: dict
+      Arguments and flags used for reduction
+
+    Returns:
+    -----------
+    argflag: dict
+      Updated arguments and flags used for reduction
+    parlines: list
+      Input (uncommented) lines specified by the user.
+      parlines is used in this routine to update the
+      argflag dictionary
+    datlines: list
+      Input (uncommented) lines specified by the user.
+      datlines contains the full data path to every
+      raw exposure listed by the user
+    spclines: list
+      Input (uncommented) lines specified by the user.
+      spclines contains a list of user-specified changes
+      that should be made to the default spectrograph
+      settings.
+    """
     # Read in the model file
     msgs.info("Loading the input file")
     try:
-        infile = open(slf._argflag['run']['redname'], 'r')
+        infile = open(argflag['run']['redname'], 'r')
     except IOError:
-        msgs.error("The filename does not exist -"+msgs.newline()+slf._argflag['run']['redname'])
+        msgs.error("The filename does not exist -"+msgs.newline()+argflag['run']['redname'])
         sys.exit()
     lines = infile.readlines()
     parlines = []
@@ -344,17 +371,17 @@ def load_input(slf):
     if rddata == 0:
         msgs.error("You haven't specified any data!")
     elif rddata == 1:
-        msgs.error("Missing 'data end' in "+slf._argflag['run']['redname'])
+        msgs.error("Missing 'data end' in "+argflag['run']['redname'])
     if rddata == 0:
         msgs.info("Using Default spectrograph parameters")
     elif rddata != 2:
-        msgs.error("Missing 'spect end' in "+slf._argflag['run']['redname'])
+        msgs.error("Missing 'spect end' in "+argflag['run']['redname'])
     # Check there are no duplicate inputs
     if len(datlines)!=len(set(datlines)):
         msgs.error("There are duplicate files in the list of data.")
     # Now update the settings
-    curcpu=slf._argflag['run']['ncpus'] # Store the current number of CPUs
-    argflag = set_params(parlines, slf._argflag, setstr="Input ")
+    curcpu = argflag['run']['ncpus'] # Store the current number of CPUs
+    argflag = set_params(parlines, argflag, setstr="Input ")
     # Check requested CPUs
     argflag['run']['ncpus'] = cpucheck(argflag['run']['ncpus'], curcpu=curcpu)
     # Perform some checks on the input parameters:
@@ -372,14 +399,34 @@ def load_input(slf):
     osrtspl = argflag['out']['sorted'].split('.')
     if len(osrtspl) != 1:
         if osrtspl[-1] != 'xml': msgs.error("The output format for 'sorted' is .xml, not .{0:s}".format(osrtspl[-1]))
-    # Attach argflag to slf object and return
-    slf._argflag = argflag
     msgs.info("Input file loaded successfully")
     if len(datlines)==0: msgs.error("There are no raw data frames"+msgs.newline()+"Perhaps the path to the data is incorrect?")
     else: msgs.info("Found {0:d} raw data frames".format(len(datlines)))
-    return parlines, datlines, spclines
+    return argflag, parlines, datlines, spclines
 
-def load_spect(slf, lines=None):
+
+def load_spect(argflag, spect=None, lines=None):
+    """
+    Load spectrograph settings
+
+    Parameters:
+    -----------
+    argflag: dict
+      Arguments and flags used for reduction
+    spect: dict
+      Properties of the spectrograph.
+      If None, spect will be created, otherwise spect
+      will be updated.
+    lines: list
+      Input (uncommented) lines specified by the user.
+      lines contains a list of user-specified changes
+      that should be made to the default spectrograph
+      settings.
+    Returns:
+    -----------
+    spect: dict
+      Loaded or updated properties of the spectrograph
+    """
     def initialise():
         msc = dict({'ndet':0, 'latitude':0.0, 'longitude':0.0, 'elevation':0.0, 'minexp':0.})
         # det starts as a dict but becomes a list of dicts in set_params
@@ -400,11 +447,11 @@ def load_spect(slf, lines=None):
         spectt = dict({'mosaic': msc, 'det': ddet, 'check':chk, 'set':stf, 'keyword':kyw, 'fits':fts, 'science':sci, 'standard':std, 'pixflat':pfl, 'blzflat':bfl, 'trace':trc, 'arc':arc, 'bias':bia, 'dark':drk})
         return spectt
     # The spectrograph name
-    sname = slf._argflag['run']['spectrograph']
+    sname = argflag['run']['spectrograph']
     if lines is None:
         # Read in the default settings
         # Get the software path
-        prgn_spl = slf._argflag['run']['prognm'].split('/')
+        prgn_spl = argflag['run']['prognm'].split('/')
         fname = ""
         for i in range(0,len(prgn_spl)-1): fname += prgn_spl[i]+"/"
         fname += 'settings.'+sname
@@ -414,44 +461,63 @@ def load_spect(slf, lines=None):
             lines = infile.readlines()
         spect = set_params(lines, spect, setstr="Default "+sname+" ")
     else:
-        spect = set_params(lines, slf._spect, setstr="Infile "+sname+" ")
+        if spect is not None:
+            spect = set_params(lines, spect, setstr="Infile "+sname+" ")
     return spect
 
-def load_headers(slf):
+
+def load_headers(argflag, spect, datlines):
     """
     Load the header information for each fits file
+
+    Parameters:
+    -----------
+    argflag: dict
+      Arguments and flags used for reduction
+    spect: dict
+      Properties of the spectrograph.
+      If None, spect will be created, otherwise spect
+      will be updated.
+    datlines: list
+      Input (uncommented) lines specified by the user.
+      datlines contains the full data path to every
+      raw exposure listed by the user.
+    Returns:
+    -----------
+    spect: dict
+      Loaded or updated properties of the spectrograph
     """
-    chks=slf._spect['check'].keys()
-    keys=slf._spect['keyword'].keys()
+    chks = spect['check'].keys()
+    keys = spect['keyword'].keys()
     fitsdict = dict({'directory':[], 'filename':[], 'utc':[]})
     whddict = dict({})
     for k in keys: fitsdict[k]=[]
-    headarr = [None for k in range(slf._spect['fits']['numhead'])]
-    for i in range(len(slf._datlines)):
+    headarr = [None for k in range(spect['fits']['numhead'])]
+    for i in range(len(datlines)):
         # Try to open the fits file
         try:
-            for k in range(slf._spect['fits']['numhead']):
-                headarr[k] = pyfits.getheader(slf._datlines[i], ext=slf._spect['fits']['headext{0:02d}'.format(k+1)])
-                whddict['{0:02d}'.format(slf._spect['fits']['headext{0:02d}'.format(k+1)])] = k
+            for k in range(spect['fits']['numhead']):
+                headarr[k] = pyfits.getheader(datlines[i], ext=spect['fits']['headext{0:02d}'.format(k+1)])
+                whddict['{0:02d}'.format(spect['fits']['headext{0:02d}'.format(k+1)])] = k
         except:
-            msgs.error("Error reading header from extension {0:d} of file:".format(slf._spect['fits']['headext{0:02d}'.format(k+1)])+msgs.newline()+slf._datlines[i])
+            msgs.error("Error reading header from extension {0:d} of file:".format(spect['fits']['headext{0:02d}'.format(k+1)])+msgs.newline()+datlines[i])
         # Perform checks on each fits files, as specified in the settings.instrument file.
         for ch in chks:
             tfrhd = int(ch.split('.')[0])-1
             kchk  = '.'.join(ch.split('.')[1:])
             frhd  = whddict['{0:02d}'.format(tfrhd)]
-            if slf._spect['check'][ch] != str(headarr[frhd][kchk]).strip():
+            if spect['check'][ch] != str(headarr[frhd][kchk]).strip():
                 #pdb.set_trace()
                 #print ch, frhd, kchk
-                #print slf._spect['check'][ch], str(headarr[frhd][kchk]).strip()
-                msgs.error("The following file:"+msgs.newline()+slf._datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(slf._argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
+                #print spect['check'][ch], str(headarr[frhd][kchk]).strip()
+                msgs.error("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
         # Now set the key values for each of the required keywords
-        dspl=slf._datlines[i].split('/')
+        dspl=datlines[i].split('/')
         fitsdict['directory'].append('/'.join(dspl[:-1])+'/')
         fitsdict['filename'].append(dspl[-1])
         # Attempt to load a UTC
         utcfound = False
-        for k in range(slf._spect['fits']['numhead']):
+        for k in range(spect['fits']['numhead']):
             if 'UTC' in headarr[k].keys():
                 utc = headarr[k]['UTC']
                 utcfound = True
@@ -464,15 +530,15 @@ def load_headers(slf):
             fitsdict['utc'].append(utc)
         else:
             fitsdict['utc'].append(None)
-            msgs.warn("UTC is not listed as a header keyword in file:"+msgs.newline()+slf._datlines[i])
+            msgs.warn("UTC is not listed as a header keyword in file:"+msgs.newline()+datlines[i])
         # Read binning-dependent detector properties here? (maybe read speed too)
-        #if slf._argflag['run']['spectrograph'] in ['lris_blue']:
+        #if argflag['run']['spectrograph'] in ['lris_blue']:
         #    arlris.set_det(fitsdict, headarr[k])
         # Now get the rest of the keywords
         for kw in keys:
-            if slf._spect['keyword'][kw] is None: value='None' # This instrument doesn't have/need this keyword
+            if spect['keyword'][kw] is None: value='None' # This instrument doesn't have/need this keyword
             else:
-                ch = slf._spect['keyword'][kw]
+                ch = spect['keyword'][kw]
                 try:
                     tfrhd = int(ch.split('.')[0])-1
                 except ValueError:
@@ -487,9 +553,9 @@ def load_headers(slf):
                         value='None'
             # Convert the input time into hours
             if kw == 'time':
-                if slf._spect['fits']['timeunit']   == 's'  : value = float(value)/3600.0    # Convert seconds to hours
-                elif slf._spect['fits']['timeunit'] == 'm'  : value = float(value)/60.0      # Convert minutes to hours
-                elif slf._spect['fits']['timeunit'] == 'dt' : # Date+Time
+                if spect['fits']['timeunit']   == 's'  : value = float(value)/3600.0    # Convert seconds to hours
+                elif spect['fits']['timeunit'] == 'm'  : value = float(value)/60.0      # Convert minutes to hours
+                elif spect['fits']['timeunit'] == 'dt' : # Date+Time
                     dspT = value.split('T')
                     dy,dm,dd = np.array(dspT[0].split('-')).astype(np.int)
                     th,tm,ts = np.array(dspT[1].split(':')).astype(np.float64)
@@ -511,11 +577,11 @@ def load_headers(slf):
             else:
                 msgs.bug("I didn't expect useful headers to contain type {0:s}".format(typv).replace('<type ','').replace('>',''))
 
-        if slf._argflag['out']['verbose'] == 2: msgs.info("Successfully loaded headers for file:"+msgs.newline()+slf._datlines[i])
+        if argflag['out']['verbose'] == 2: msgs.info("Successfully loaded headers for file:"+msgs.newline()+datlines[i])
     del headarr
     # Convert the fitsdict arrays into numpy arrays
     for k in fitsdict.keys(): fitsdict[k] = np.array(fitsdict[k])
-    msgs.info("Headers loaded for {0:d} files successfully".format(len(slf._datlines)))
+    msgs.info("Headers loaded for {0:d} files successfully".format(len(datlines)))
     return fitsdict
 
 def load_frames(slf, ind, det, frametype='<None>', msbias=None, trim=True, transpose=False):

@@ -25,7 +25,7 @@ try:
 except:
     pass
 
-def apply_sensfunc(slf, sc, MAX_EXTRAP=0.05):
+def apply_sensfunc(slf, sc,MAX_EXTRAP=0.05):
     '''Apply the sensitivity function to the data
     We also correct for extinction.
 
