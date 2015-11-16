@@ -6,7 +6,18 @@ Outputs
 
 PYPIT, despite a pipeline for data *reduction*, is capable of generating
 an inordinate amount of data products.  These pages document the
-various data products and the means to control the output.
+various data products and the means to control the output.  A
+full description of the naming system is described 
+:doc:`here </naming>`.
+
+Contents
+========
+
+.. toctree::
+   :maxdepth: 1
+
+   Naming <naming>
+   out_spec1D
 
 .. _standard-products:
 
@@ -26,7 +37,6 @@ Output Type  Prefix  Description
 Calibration  calib   Calibration images, fits, meta files, etc.
 QA           qa      Quality assurance figures
 ===========  ======  ===========
-
 
 .. _outputs-reduction-modes:
 
@@ -66,6 +76,8 @@ Compactness
 
 There are two modes for writing the output files which
 differ in the number of files written.
+
+.. _outputs-compactness-compact:
 
 Compact
 -------
