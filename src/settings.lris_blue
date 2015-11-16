@@ -32,6 +32,8 @@ mosaic longitude 155.47833            # Longitude of the telescope (NOTE: West s
 mosaic latitude 19.82833              # Latitude of the telescope
 mosaic elevation 4160.0               # Elevation of the telescope (in m)
 mosaic minexp 1.0                     # Minimum exposure time (s)
+mosaic reduction ARMLSD               # Which reduction pipeline should be used for this instrument
+
 det01 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
 det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
 det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)

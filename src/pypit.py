@@ -89,9 +89,6 @@ def PYPIT(argflag, quick=False):
     # Load the Input file
     argflag, parlines, datlines, spclines = arload.load_input(argflag)
 
-    # Determine the type of data that is being reduced
-    msgs.work("TO BE DONE")
-
     # If a quick reduction has been requested, make sure the requested pipeline
     # is the quick implementation (if it exists), otherwise run the standard pipeline.
     if quick:
@@ -108,14 +105,27 @@ def PYPIT(argflag, quick=False):
     fitsdict = arload.load_headers(argflag, spect, datlines)
 
     # Reduce the data!
-    msgs.work("Send the data away to a definition of the type of reduction needed")
     status = 0
+    msgs.work("Make appropriate changes to quick reduction")
     if quick:
         msgs.work("define what is needed here")
-    else:
-        success = ARMLSD()
+    # Send the data away to be reduced
+    if spect['mosaic']['reduction']=='ARMLSD':
+        msgs.info("Data reduction will be performed using PYPIT-ARMLSD")
+        import pypArmlsd
+        status = pypArmlsd.ARMLSD(argflag, spect, )
+    elif spect['mosaic']['reduction']=='ARMED':
+        msgs.info("Data reduction will be performed using PYPIT-ARMED")
+        import pypArmed
+        status = pypArmed.ARMED()
+    # Check for successful reduction
     if status==0:
         msgs.info("Reduction complete")
+    else:
+        msgs.error("Reduction failed with status ID {0:d}".format(status))
+    tend=time()
+
+    msgs.info("Time for code {0:f}".format(codetime))
 
 ###################################
 # Reduction pipelines

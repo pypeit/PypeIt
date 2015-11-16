@@ -31,6 +31,7 @@ mosaic ndet 1                         # Number of detectors in the mosaic
 mosaic latitude 37.3413889             # Latitude of the telescope
 mosaic longitude +121.6428             # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
 mosaic elevation 1283.0                # Elevation of the telescope (in m)
+mosaic reduction ARMLSD                # Which reduction pipeline should be used for this instrument
 
 ### Detector properties
 det01 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
