@@ -547,7 +547,7 @@ class ClassMain:
                 else:
                     # First time encountered this set of arc frames --> derive the order tilts
                     tilts = None
-                    nitertilts=3
+                    nitertilts=1
                     doQA = False
                     doRefine = False
                     for tt in range(nitertilts):

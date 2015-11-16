@@ -46,7 +46,7 @@ arc calibrate nfitpix  5             # Number of pixels to fit when deriving the
 arc calibrate idfile wave_ThAr_3100-11000.npy  # Name of arc identification file. The default is for a ThAr arc line identification
 arc calibrate linelist arclist.ThAr # name of the file containing a list of all arc lines to be identified
 arc calibrate method simple          # What method should be used to fit the individual arc lines (options are: fit, simple); fit is perhaps the most accurate; simple uses a polynomial fit (to the log of a gaussian), is the fastest and is reliable
-arc calibrate detection 6.0          # How significant should the arc line detections be (in units of a standard deviation)
+arc calibrate detection 6.0         # How significant should the arc line detections be (in units of a standard deviation)
 arc calibrate numsearch 20           # Number of brightest arc lines to search for preliminary identification
 #arc calibrate sigmacut 2.0          # Significance level
 arc calibrate cwpolyorder 2          # Polynomial order to fit central wavelength solution
