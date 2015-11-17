@@ -14,9 +14,10 @@ except:
 def parse_nist(slf,ion):
     '''Parse a NIST ASCII table.  Note that the long ---- should have
     been commented out and also the few lines at the start.
-    Parameters:
-    ------------
-    ion: str
+
+    Parameters
+    ----------
+    ion : str
       Name of ion
     '''
     # Root (for development only)
@@ -60,18 +61,19 @@ def parse_nist(slf,ion):
 def load_arcline_list(slf, idx, lines, wvmnx=None):
     '''Loads arc line list from NIST files
     Parses and rejects
-    Parameters:
-    ------------
-    idx: list  
+
+    Parameters
+    ----------
+    idx : list  
       indices of the arc
-    lines: list
+    lines : list
       List of ions to load
-    wvmnx: list or tuple
+    wvmnx : list or tuple
       wvmin, wvmax for line list
 
-    Returns:
-    ----------
-    alist: Table
+    Returns
+    -------
+    alist : Table
       Table of arc lines
     '''
     # Get the parse dict
@@ -110,18 +112,18 @@ def load_arcline_list(slf, idx, lines, wvmnx=None):
 
 def reject_lines(slf,tbl,idx,rej_dict):
     '''Parses a NIST table using various criteria
-    Parameters:
-    ------------
-    tbl: Table
+    Parameters
+    ----------
+    tbl : Table
       Read previously from NIST ASCII file
-    idx: list  
+    idx : list  
       indices of the arc
-    rej_dict: dict
+    rej_dict : dict
       Dict of rejected lines
 
-    Returns:
-    ---------
-    tbl: Table
+    Returns
+    -------
+    tbl : Table
       Rows not rejected
     '''
     msk = tbl['wave'] == tbl['wave']
@@ -142,16 +144,16 @@ def reject_lines(slf,tbl,idx,rej_dict):
 
 def parse_nist_tbl(tbl,parse_dict):
     '''Parses a NIST table using various criteria
-    Parameters:
-    ------------
-    tbl: Table
+    Parameters
+    ----------
+    tbl : Table
       Read previously from NIST ASCII file
-    parse_dict: dict
+    parse_dict : dict
       Dict of parsing criteria.  Read from load_parse_dict
 
-    Returns:
-    ---------
-    tbl: Table
+    Returns
+    -------
+    tbl : Table
       Rows meeting the criteria
     '''
     # Parse
