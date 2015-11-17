@@ -113,32 +113,36 @@ def PYPIT(argflag, quick=False):
     if spect['mosaic']['reduction']=='ARMLSD':
         msgs.info("Data reduction will be performed using PYPIT-ARMLSD")
         import pypArmlsd
-        status = pypArmlsd.ARMLSD(argflag, spect, )
+        status = pypArmlsd.ARMLSD(argflag, spect, fitsdict)
     elif spect['mosaic']['reduction']=='ARMED':
         msgs.info("Data reduction will be performed using PYPIT-ARMED")
         import pypArmed
-        status = pypArmed.ARMED()
+        status = pypArmed.ARMED(argflag, spect, fitsdict)
     # Check for successful reduction
     if status==0:
         msgs.info("Reduction complete")
     else:
         msgs.error("Reduction failed with status ID {0:d}".format(status))
-    tend=time()
+    # Capture the end time and print it to user
+    tend = time()
+    codetime = tend-tstart
+    if codetime < 60.0:
+        msgs.info("Data reduction execution time: {0:.2f}s".format(codetime))
+    elif codetime/60.0 < 60.0:
+        mns = int(codetime/60.0)
+        scs = codetime - 60.0*mns
+        msgs.info("Data reduction execution time: {0:d}m {1:.2f}s".format(mns, scs))
+    else:
+        hrs = int(codetime/3600.0)
+        mns = int(60.0*(codetime/3600.0 - hrs))
+        scs = codetime - 60.0*mns - 3600.0*hrs
+        msgs.info("Data reduction execution time: {0:d}h {1:d}m {2:.2f}s".format(hrs, mns, scs))
+    return
 
-    msgs.info("Time for code {0:f}".format(codetime))
 
 ###################################
 # Reduction pipelines
 ###################################
-
-def ARMED(self):
-    """
-    Automatic Reduction & Modelling of Echelle Data
-    """
-    success = False
-    # Insert series of reduction steps here
-    return success
-
 
 def ARMLSD(self):
     """
