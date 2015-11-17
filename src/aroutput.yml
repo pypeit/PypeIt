@@ -22,4 +22,14 @@ spec2D:  # 2D spectral data products
     SKYSUB:    ['ndarray', ['standard','full'],  'Sky-subtracted, processed image']
     SKYMODEL:  ['ndarray', ['full'],  'Model of sky emission on detector']
     WAVEIMG:   ['ndarray', ['standard','full'],  'Wavelength image.  Vacuum, flexure, and helio-centric corrected']
+QA:  # Quality Assurance Products
+    source:
+        S2N: [['all'],'S/N figure from 1D extraction']
+        OBJ_TRACE: [['full'],'Object trace']
+        OBJ_PROFILE: [['full'],'Object spatial profile']
+    calib:
+        FLEXURE: [['standard','full'],'Flexure estimate from sky lines']
+        ARC_TILTS: [['standard','full'],'Arc line tilt QA']
+        SLITDEF: [['standard','full'],'Slit definitions and comparison to mask design']
+        WAVELENGTH: [['all'],'Wavelength solution']
 
