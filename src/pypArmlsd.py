@@ -6,7 +6,7 @@ import armsgs as msgs
 import arsort
 import arproc
 
-def ARMLSD(argflag, spect, fitsdict):
+def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
     """
     Automatic Reduction and Modeling of Long Slit Data
 
@@ -18,6 +18,12 @@ def ARMLSD(argflag, spect, fitsdict):
       Properties of the spectrograph.
     fitsdict : dict
       Contains relevant information from fits header files
+    reuseMaster : bool
+      If True, a master frame that will be used for another science frame
+      will not be regenerated after it is first made.
+      This setting comes with a price, and if a large number of science frames are
+      being generated, it may be more efficient to simply regenerate the master
+      calibrations on the fly.
 
     Returns
     -------
@@ -46,28 +52,33 @@ def ARMLSD(argflag, spect, fitsdict):
             ###############
             # Generate master bias frame
             update = slf.MasterBias(fitsdict, det)
-            if update: UpdateMasters(sciexp, sc, det, ftype="bias")
+            if update and reuseMaster: UpdateMasters(sciexp, sc, det, ftype="bias")
             ###############
             # Generate a bad pixel mask (should not repeat)
             update = slf.BadPixelMask(det)
-            if update: UpdateMasters(sciexp, sc, det, ftype="arc")
+            if update and reuseMaster: UpdateMasters(sciexp, sc, det, ftype="arc")
             ###############
             # Estimate gain and readout noise for the amplifiers
             msgs.work("Estimate Gain and Readout noise from the raw frames...")
             ###############
             # Generate a master arc frame
             update = slf.MasterArc(fitsdict, det)
-            if update: UpdateMasters(sciexp, sc, det, ftype="arc")
+            if update and reuseMaster: UpdateMasters(sciexp, sc, det, ftype="arc")
             ###############
             # Determine the dispersion direction (and transpose if necessary)
             slf.GetDispersionDirection(fitsdict, det)
             if (slf._bpix[det-1] is None):
                 slf.SetMasterFrame(np.zeros((slf._nspec[det-1], slf._nspat[det-1])), "badpix", det)
+            ###############
+            # Generate a master trace frame
+            update = slf.MasterTrace(fitsdict, det)
+            if update and reuseMaster: UpdateMasters(sciexp, sc, det, ftype="trace")
 
 
             msgs.error("UP TO HERE")
             pdb.set_trace()
-
+        # Free up some memory by replacing the reduced ScienceExposure class
+        sciexp[sc] = None
     return status
 
 
@@ -129,12 +140,16 @@ def UpdateMasters(sciexp, sc, det, ftype=None):
     numsci = len(sciexp)
     if ftype == "arc": chkarr = sciexp[sc]._idx_arcs
     elif ftype == "bias": chkarr = sciexp[sc]._idx_bias
+    elif ftype == "trace": chkarr = sciexp[sc]._idx_trace
     else:
         msgs.bug("I could not update frame of type: {0:s}".format(ftype))
         return
     for i in xrange(sc+1,numsci):
         # Check if an *identical* master frame has already been produced
-        if np.array_equal(chkarr, sciexp[i]._idx_bias):
+        if ftype == "arc": chkfarr = sciexp[i]._idx_arcs
+        elif ftype == "bias": chkfarr = sciexp[i]._idx_bias
+        elif ftype == "trace": chkfarr = sciexp[i]._idx_trace
+        if np.array_equal(chkarr, chkfarr):
             msgs.info("Updating master {0:s} frame for science target {1:d}/{2:d}".format(ftype, i+1, numsci))
-            sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(sciexp[sc], ftype, det), ftype, det)
+            sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(ftype, det), ftype, det)
     return
