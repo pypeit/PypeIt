@@ -548,22 +548,34 @@ def get_ampscale(slf, det, msflat):
     return sclframe
 
 
-def get_ampsec_trimmed(slf, det, scidx):#naxis0, naxis1):
+def get_ampsec_trimmed(slf, fitsdict, det, scidx):
     """
      Generate a frame that identifies each pixel to an amplifier, and then trim it to the data sections.
      This frame can be used to later identify which trimmed pixels correspond to which amplifier
 
-    :param slf:
-    :param file: An untrimmed, unprocessed raw frame
-    :return: numpy array, the same shape as a trimmed frame, with values given by the amplifier number
+    Parameters
+    ----------
+    slf : class
+      An instance of the ScienceExposure class
+    fitsdict : dict
+      Contains relevant information from fits header files
+    det : int
+      Detector number, starts at 1
+    scidx : int
+
+    Returns
+    -------
+    fitsdict : dict
+      Updates to the input fitsdict
     """
+
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
     if slf._argflag['run']['spectrograph'] in ['lris_blue']:
         msgs.info("Parsing datasec,oscansec,ampsec from headers")
-        temp, head0, secs = arlris.read_lris(slf._datlines[scidx],det)
+        temp, head0, secs = arlris.read_lris(fitsdict['directory'][scidx]+fitsdict['filename'][scidx], det)
         # Naxis
-        slf._fitsdict['naxis0'][scidx] = temp.shape[0]
-        slf._fitsdict['naxis1'][scidx] = temp.shape[1]
+        fitsdict['naxis0'][scidx] = temp.shape[0]
+        fitsdict['naxis1'][scidx] = temp.shape[1]
         # Loop on amplifiers
         for kk in range(slf._spect['det'][det-1]['numamplifiers']):
             datasec = "datasec{0:02d}".format(kk+1)
@@ -573,8 +585,8 @@ def get_ampsec_trimmed(slf, det, scidx):#naxis0, naxis1):
             ampsec = "ampsec{0:02d}".format(kk+1)
             slf._spect['det'][det-1][ampsec] = arload.load_sections(secs[2][kk])
     # For convenience
-    naxis0, naxis1 = int(slf._fitsdict['naxis0'][scidx]), int(slf._fitsdict['naxis1'][scidx])
-    #
+    naxis0, naxis1 = int(fitsdict['naxis0'][scidx]), int(fitsdict['naxis1'][scidx])
+    # Initialize the returned array
     retarr = np.zeros((naxis0, naxis1))
     for i in xrange(slf._spect['det'][det-1]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
@@ -584,8 +596,8 @@ def get_ampsec_trimmed(slf, det, scidx):#naxis0, naxis1):
         if y0 < 0: y0 += naxis1
         if y1 <= 0: y1 += naxis1
         # Fill in the pixels for this amplifier
-        xv=np.arange(x0, x1)
-        yv=np.arange(y0, y1)
+        xv = np.arange(x0, x1)
+        yv = np.arange(y0, y1)
         w = np.ix_(xv, yv)
         retarr[w] = i+1
         # Save these locations for trimming
@@ -597,7 +609,8 @@ def get_ampsec_trimmed(slf, det, scidx):#naxis0, naxis1):
             yfin = np.unique(np.append(yfin, yv.copy()))
     # Construct and array with the rows and columns to be extracted
     w = np.ix_(xfin, yfin)
-    return retarr[w]
+    slf._ampsec[det-1] = retarr[w]
+    return fitsdict
 
 
 def get_wscale(slf):

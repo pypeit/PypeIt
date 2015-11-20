@@ -3,6 +3,7 @@ import numpy as np
 import pypExp
 import armsgs as msgs
 import arsort
+import arproc
 
 def ARMLSD(argflag, spect, fitsdict):
     """
@@ -28,6 +29,32 @@ def ARMLSD(argflag, spect, fitsdict):
 
     # Create a list of science exposure classes
     sciexp = SetupScience(argflag, spect, fitsdict)
+    numsci = len(sciexp)
+
+    # Start reducing the data
+    for sc in range(numsci):
+        slf = sciexp[sc]
+        scidx = slf._idx_sci[0]
+        msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
+        # Loop on Detectors
+        for kk in xrange(slf._spect['mosaic']['ndet']):
+            det = kk + 1  # Detectors indexed from 1
+            ###############
+            # Get amplifier sections
+            fitsdict = arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
+            ###############
+            # Generate master bias frame
+            slf.MasterBias(sc, det)
+
+
+
+
+
+
+
+    import pdb
+    pdb.set_trace()
+
     return status
 
 
@@ -65,6 +92,5 @@ def SetupScience(argflag, spect, fitsdict):
     # Create the list of science exposures
     numsci = np.size(filesort['science'])
     sciexp = []
-    for i in xrange(numsci):
-        sciexp.append(pypExp.ScienceExposure(i, argflag, spect, fitsdict, filesort))
+    for i in xrange(numsci): sciexp.append(pypExp.ScienceExposure(i, argflag, spect, fitsdict, filesort))
     return sciexp

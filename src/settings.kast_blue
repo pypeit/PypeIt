@@ -112,7 +112,7 @@ keyword cdangle 01.GRTILT_P            # Cross-disperser angle
 keyword echangle 01.GRATNG_O           # Echelle angle
 
 ### Fits properties
-fits timeunit s                     # The unit of keyword+time (s=seconds, m=minutes, h=hours, mjd=MJD, dt=datetime)
+fits timeunit s                     # The unit of keyword+time (s=seconds, m=minutes, h=hours, or any of the astropy Time formats)
 fits calwin 12.0                    # The window of time in hours to search for calibration frames for a science frame
 fits dataext 0                      # Extension number of data
 fits numhead 1                      # How many headers need to be read in for a given file

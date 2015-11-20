@@ -5,6 +5,7 @@ import glob
 import pdb
 import getopt
 import astropy.io.fits as pyfits
+from astropy.time import Time
 import numpy as np
 import armsgs as msgs
 import arproc
@@ -560,15 +561,16 @@ def load_headers(argflag, spect, datlines):
             if kw == 'time':
                 if spect['fits']['timeunit']   == 's'  : value = float(value)/3600.0    # Convert seconds to hours
                 elif spect['fits']['timeunit'] == 'm'  : value = float(value)/60.0      # Convert minutes to hours
-                elif spect['fits']['timeunit'] == 'dt' : # Date+Time
-                    dspT = value.split('T')
-                    dy,dm,dd = np.array(dspT[0].split('-')).astype(np.int)
-                    th,tm,ts = np.array(dspT[1].split(':')).astype(np.float64)
-                    r=(14-dm)/12
-                    s,t=dy+4800-r,dm+12*r-3
-                    jdn = dd + (153*t+2)/5 + 365*s + s/4 - 32083
-                    value = jdn + (12.-th)/24 + tm/1440 + ts/86400 - 2400000.5  # THIS IS THE MJD
-                    value *= 24.0 # Put MJD in hours
+                elif spect['fits']['timeunit'] in Time.FORMATS.keys() : # Astropy time format
+                    tval = Time(value, scale='tt', format=spect['fits']['timeunit'])
+                    # dspT = value.split('T')
+                    # dy,dm,dd = np.array(dspT[0].split('-')).astype(np.int)
+                    # th,tm,ts = np.array(dspT[1].split(':')).astype(np.float64)
+                    # r=(14-dm)/12
+                    # s,t=dy+4800-r,dm+12*r-3
+                    # jdn = dd + (153*t+2)/5 + 365*s + s/4 - 32083
+                    # value = jdn + (12.-th)/24 + tm/1440 + ts/86400 - 2400000.5  # THIS IS THE MJD
+                    value = tval.mjd * 24.0 # Put MJD in hours
                 else:
                     msgs.error('Bad time unit')
             # Put the value in the keyword
@@ -594,6 +596,7 @@ def load_frames(slf, ind, det, frametype='<None>', msbias=None, trim=True, trans
     """
     Load data frames, usually raw.
     Bias subtract (if not msbias!=None) and trim (if True)
+
     Parameters
     ----------
     ind: list or array
