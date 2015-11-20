@@ -305,22 +305,22 @@ def load_input(argflag):
 
     Parameters
     ----------
-    argflag: dict
+    argflag : dict
       Arguments and flags used for reduction
 
     Returns
     -------
-    argflag: dict
+    argflag : dict
       Updated arguments and flags used for reduction
-    parlines: list
+    parlines : list
       Input (uncommented) lines specified by the user.
       parlines is used in this routine to update the
       argflag dictionary
-    datlines: list
+    datlines : list
       Input (uncommented) lines specified by the user.
       datlines contains the full data path to every
       raw exposure listed by the user
-    spclines: list
+    spclines : list
       Input (uncommented) lines specified by the user.
       spclines contains a list of user-specified changes
       that should be made to the default spectrograph
@@ -415,13 +415,13 @@ def load_spect(argflag, spect=None, lines=None):
 
     Parameters
     ----------
-    argflag: dict
+    argflag : dict
       Arguments and flags used for reduction
-    spect: dict
+    spect : dict
       Properties of the spectrograph.
       If None, spect will be created, otherwise spect
       will be updated.
-    lines: list
+    lines : list
       Input (uncommented) lines specified by the user.
       lines contains a list of user-specified changes
       that should be made to the default spectrograph
@@ -429,7 +429,7 @@ def load_spect(argflag, spect=None, lines=None):
 
     Returns
     -------
-    spect: dict
+    spect : dict
       Loaded or updated properties of the spectrograph
     """
     def initialise():
@@ -477,20 +477,20 @@ def load_headers(argflag, spect, datlines):
 
     Parameters
     ----------
-    argflag: dict
+    argflag : dict
       Arguments and flags used for reduction
-    spect: dict
+    spect : dict
       Properties of the spectrograph.
       If None, spect will be created, otherwise spect
       will be updated.
-    datlines: list
+    datlines : list
       Input (uncommented) lines specified by the user.
       datlines contains the full data path to every
       raw exposure listed by the user.
 
     Returns
     -------
-    spect: dict
+    spect : dict
       Loaded or updated properties of the spectrograph
     """
     chks = spect['check'].keys()
@@ -592,21 +592,23 @@ def load_headers(argflag, spect, datlines):
     return fitsdict
 
 
-def load_frames(slf, ind, det, frametype='<None>', msbias=None, trim=True, transpose=False):
+def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None, trim=True, transpose=False):
     """
     Load data frames, usually raw.
     Bias subtract (if not msbias!=None) and trim (if True)
 
     Parameters
     ----------
-    ind: list or array
+    fitsdict : dict
+      Contains relevant information from fits header files
+    ind : list or array
       integers of indices
-    det: int
+    det : int
       Detector number, starts at 1
 
     Returns
     -------
-    frames: ndarray (3 dimensional)
+    frames : ndarray (3 dimensional)
       One image per ind
     """
     def load_indfr(name,ext):
@@ -622,9 +624,9 @@ def load_frames(slf, ind, det, frametype='<None>', msbias=None, trim=True, trans
     for i in range(np.size(ind)):
         # Instrument specific read
         if slf._argflag['run']['spectrograph'] in ['lris_blue']:
-            temp, head0, _ = arlris.read_lris(slf._fitsdict['directory'][ind[i]]+slf._fitsdict['filename'][ind[i]], det)
+            temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det)
         else:
-            temp = pyfits.getdata(slf._fitsdict['directory'][ind[i]]+slf._fitsdict['filename'][ind[i]], slf._spect['fits']['dataext'])
+            temp = pyfits.getdata(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], slf._spect['fits']['dataext'])
         temp = temp.astype(float) # Let us avoid uint16
         if transpose: temp = temp.T
         if msbias is not None:
@@ -646,7 +648,7 @@ def load_frames(slf, ind, det, frametype='<None>', msbias=None, trim=True, trans
 #	pool = mpPool(processes=np.min([slf._argflag['run']['ncpus'],np.size(ind)]))
 #	async_results = []
 #	for i in range(np.size(ind)):
-#		async_results.append(pool.apply_async(pyfits.getdata, (slf._fitsdict['directory'][ind[i]]+slf._fitsdict['filename'][ind[i]], slf._spect['fits']['dataext'])))
+#		async_results.append(pool.apply_async(pyfits.getdata, (fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], slf._spect['fits']['dataext'])))
 #	pool.close()
 #	pool.join()
 #	map(ApplyResult.wait, async_results)
@@ -669,6 +671,7 @@ def load_frames(slf, ind, det, frametype='<None>', msbias=None, trim=True, trans
     else:
         msgs.info("Loaded {0:d} {1:s} frames successfully".format(np.size(ind), frametype))
     return frames
+
 
 def load_extraction(name, frametype='<None>', wave=True):
     msgs.info("Loading a pre-existing {0:s} extraction frame:".format(frametype)+msgs.newline()+name)

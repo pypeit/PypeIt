@@ -1,4 +1,5 @@
 import sys
+import pdb
 import numpy as np
 import pypExp
 import armsgs as msgs
@@ -44,16 +45,28 @@ def ARMLSD(argflag, spect, fitsdict):
             fitsdict = arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
             ###############
             # Generate master bias frame
-            slf.MasterBias(sc, det)
+            update = slf.MasterBias(fitsdict, det)
+            if update: UpdateMasters(sciexp, sc, det, ftype="bias")
+            ###############
+            # Generate a bad pixel mask (should not repeat)
+            update = slf.BadPixelMask(det)
+            if update: UpdateMasters(sciexp, sc, det, ftype="arc")
+            ###############
+            # Estimate gain and readout noise for the amplifiers
+            msgs.work("Estimate Gain and Readout noise from the raw frames...")
+            ###############
+            # Generate a master arc frame
+            update = slf.MasterArc(fitsdict, det)
+            if update: UpdateMasters(sciexp, sc, det, ftype="arc")
+            ###############
+            # Determine the dispersion direction (and transpose if necessary)
+            slf.GetDispersionDirection(fitsdict, det)
+            if (slf._bpix[det-1] is None):
+                slf.SetMasterFrame(np.zeros((slf._nspec[det-1], slf._nspat[det-1])), "badpix", det)
 
 
-
-
-
-
-
-    import pdb
-    pdb.set_trace()
+            msgs.error("UP TO HERE")
+            pdb.set_trace()
 
     return status
 
@@ -70,6 +83,7 @@ def SetupScience(argflag, spect, fitsdict):
       Properties of the spectrograph.
     fitsdict : dict
       Contains relevant information from fits header files
+
     Returns
     -------
     sciexp : list
@@ -94,3 +108,33 @@ def SetupScience(argflag, spect, fitsdict):
     sciexp = []
     for i in xrange(numsci): sciexp.append(pypExp.ScienceExposure(i, argflag, spect, fitsdict, filesort))
     return sciexp
+
+
+def UpdateMasters(sciexp, sc, det, ftype=None):
+    """
+    Update the master calibrations for other science targets, if they
+    will use an identical master frame
+
+    Parameters
+    ----------
+    sciexp : list
+      A list containing all science exposure classes
+    sc : int
+      Index of sciexp for the science exposure currently being reduced
+    det : int
+      detector index (starting from 1)
+    ftype : str
+      Describes the type of Master frame being udpated
+    """
+    numsci = len(sciexp)
+    if ftype == "arc": chkarr = sciexp[sc]._idx_arcs
+    elif ftype == "bias": chkarr = sciexp[sc]._idx_bias
+    else:
+        msgs.bug("I could not update frame of type: {0:s}".format(ftype))
+        return
+    for i in xrange(sc+1,numsci):
+        # Check if an *identical* master frame has already been produced
+        if np.array_equal(chkarr, sciexp[i]._idx_bias):
+            msgs.info("Updating master {0:s} frame for science target {1:d}/{2:d}".format(ftype, i+1, numsci))
+            sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(sciexp[sc], ftype, det), ftype, det)
+    return
