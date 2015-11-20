@@ -22,7 +22,6 @@ import arsave
 import arcomb
 import arproc
 import arqa
-import arsort
 import arspecobj
 import artrace
 import arutils
@@ -64,11 +63,11 @@ def PYPIT(argflag, quick=False):
     user-specified changes are made, and passed to the
     appropriate code for data reduction.
 
-    Parameters:
-    -----------
-    argflag: dict
+    Parameters
+    ----------
+    argflag : dict
       Arguments and flags used for reduction
-    quick: bool
+    quick : bool
       If True, a quick reduction (but possibly less
       accurate) will be performed. This flag is most
       useful for observing at a telescope, but not
@@ -119,10 +118,10 @@ def PYPIT(argflag, quick=False):
         import pypArmed
         status = pypArmed.ARMED(argflag, spect, fitsdict)
     # Check for successful reduction
-    if status==0:
-        msgs.info("Reduction complete")
+    if status == 0:
+        msgs.info("Data reduction complete")
     else:
-        msgs.error("Reduction failed with status ID {0:d}".format(status))
+        msgs.error("Data reduction failed with status ID {0:d}".format(status))
     # Capture the end time and print it to user
     tend = time()
     codetime = tend-tstart
@@ -186,7 +185,7 @@ def ARMLSD(self):
         # Now loop on Detectors
         for kk in xrange(self._spect['mosaic']['ndet']):
             det = kk + 1 # Detectors indexed from 1
-            prefix = "{0:s}{1:s}".format(sciext_name_p,self._spect["det"][kk]["suffix"])
+            prefix = "{0:s}{1:s}".format(sciext_name_p, self._spect["det"][kk]["suffix"])
             ###############
             # Get amplifier sections
             self._ampsec = arproc.get_ampsec_trimmed(self, det, scidx[0])

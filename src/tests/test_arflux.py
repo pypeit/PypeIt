@@ -29,7 +29,7 @@ def test_find_standard():
     std_ra = '05:06:36.6'
     std_dec = '52:52:01.0'
     # Grab
-    std_dict = arflx.find_standard_file(slf,(std_ra,std_dec))
+    std_dict = arflx.find_standard_file(slf._argflag, (std_ra, std_dec))
     # Test
     assert std_dict['name'] == 'G191B2B'
     assert std_dict['file'] == '/data/standards/calspec/g191b2b_mod_005.fits'
@@ -38,8 +38,9 @@ def test_find_standard():
     # near G191b2b
     std_ra = '05:06:36.6'
     std_dec = '52:22:01.0'
-    std_dict = arflx.find_standard_file(slf,(std_ra,std_dec))
+    std_dict = arflx.find_standard_file(slf._argflag, (std_ra,std_dec))
     assert std_dict is None
+
 
 def test_load_extinction():
     # Dummy self
@@ -57,6 +58,7 @@ def test_load_extinction():
     #
     extinct = arflx.load_extinction_data(slf)
     assert extinct is None
+
 
 def test_extinction_correction():
     # Dummy self

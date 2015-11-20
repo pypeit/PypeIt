@@ -18,6 +18,8 @@ Contents
    
    Naming <naming> 
    out_spec1D
+   out_spec2D
+   out_QA
 
 .. _standard-products:
 
@@ -38,10 +40,10 @@ Calibration  calib   Calibration images, fits, meta files, etc.
 QA           qa      Quality assurance figures
 ===========  ======  ===========
 
-.. _outputs-reduction-modes:
+.. _outputs-reduction-mode:
 
-Reduction Modes
-===============
+Reduction Mode
+==============
 
 PYPIT can be run in several modes of reduction, which demark
 the level of sophistication (e.g. quick and dirty vs. MonteCarlo)
@@ -84,7 +86,7 @@ Compact
 
 Write the fewest files possible, generally one per each
 of the :ref:`standard-products`. 
-This is the PYPIT default for all :ref:`outputs-reduction-modes`.
+This is the PYPIT default for all :ref:`outputs-reduction-mode`.
 
 .. _outputs-compactness-explode:
 

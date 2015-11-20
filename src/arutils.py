@@ -114,7 +114,8 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
 
 
 def calc_offset(raA, decA, raB, decB, distance=False):
-    """ Calculate the offset in arcseconds between two sky coordinates
+    """
+    Calculate the offset in arcseconds between two sky coordinates
     All coordinates must be in decimal degrees.
     """
     delRA  = 3600.0*(raA-raB)*np.cos(decA*np.pi/180.0)
@@ -124,8 +125,10 @@ def calc_offset(raA, decA, raB, decB, distance=False):
     else:
         return delRA, delDEC
 
+
 def dummy_self(pypitdir=None):
-    """Generate a dummy self class for testing
+    """
+    Generate a dummy self class for testing
     Parameters:
     -----------
     pypitdir : str, optional
@@ -143,6 +146,7 @@ def dummy_self(pypitdir=None):
     slf._spect['mosaic'] = {}
     #
     return slf
+
 
 def erf_func(x):
     """
@@ -168,8 +172,10 @@ def erf_func(x):
     y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*np.exp(-x*x)
     return sign*y
 
+
 def find_peaks(yval, siglev=10.):
-    '''Find peaks in a input array
+    """
+    Find peaks in a input array
     yerror is calculated from the array itself (RMS of clipped data)
 
     Parameters:
@@ -178,7 +184,7 @@ def find_peaks(yval, siglev=10.):
       Vector of y-values
     siglev: float, optional
       Sigma level for detection
-    '''
+    """
     # Calculate RMS
     yclipped = sig_clip(yval)
     rms = np.std(yclipped)
@@ -190,6 +196,7 @@ def find_peaks(yval, siglev=10.):
     # Return
     return pixt
 
+
 def func_der(coeffs,func,nderive=1):
     if func == "polynomial":
         return np.polynomial.polynomial.polyder(coeffs,m=nderive)
@@ -199,6 +206,7 @@ def func_der(coeffs,func,nderive=1):
         return np.polynomial.chebyshev.chebder(xv,y,deg)
     else:
         msgs.error("Functional derivative '{0:s}' is not implemented yet"+msgs.newline()+"Please choose from 'polynomial', 'legendre', 'chebyshev'")
+
 
 def func_fit(x,y,func,deg,min=None,max=None,w=None,**kwargs):
     if func == "polynomial":
@@ -228,6 +236,7 @@ def func_fit(x,y,func,deg,min=None,max=None,w=None,**kwargs):
     else:
         msgs.error("Fitting function '{0:s}' is not implemented yet"+msgs.newline()+"Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
 
+
 def func_val(c,x,func,min=None,max=None):
     if func == "polynomial":
         return np.polynomial.polynomial.polyval(x,c)
@@ -255,6 +264,7 @@ def func_val(c,x,func,min=None,max=None):
         return interpolate.splev(x, c, ext=1)
     else:
         msgs.error("Fitting function '{0:s}' is not implemented yet"+msgs.newline()+"Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
+
 
 def func_vander(x,func,deg,min=None,max=None):
     if func == "polynomial":

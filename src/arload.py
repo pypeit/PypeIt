@@ -151,6 +151,7 @@ def set_params_wtype(tvalue, svalue, lines="", setstr="", argnum=3):
         msgs.error(setstr + "Settings contains bad line (arg {0:d}):".format(argnum)+msgs.newline()+lines.split('#')[0].strip())
     return tvalue
 
+
 def set_params(lines, indict, setstr=""):
     """
     Adjust settings parameters.
@@ -240,6 +241,7 @@ def set_params(lines, indict, setstr=""):
             msgs.error(setstr + "Settings contains bad line (arg 1):"+msgs.newline()+lines[i].split('#')[0].strip())
     return indict
 
+
 def load_sections(string, strtxt="<not specified>"):
     """
     string is a character string of the form [x1:x2,y1:y2]
@@ -256,8 +258,9 @@ def load_sections(string, strtxt="<not specified>"):
         else: xyarrY = xyrng[1].split(':')
         return [[np.int(xyarrX[0]),np.int(xyarrX[1])],[np.int(xyarrY[0]),np.int(xyarrY[1])]]
     except:
-        msgs.error("keyword value {0:s} must be of the form:".format(strtxt)+msgs.newline()+"[x1:x2,y1:y2]")
+        msgs.error("Keyword value {0:s} must be of the form:".format(strtxt)+msgs.newline()+"[x1:x2,y1:y2]")
     return None
+
 
 def load_settings(fname):
     def initialise():
@@ -299,13 +302,13 @@ def load_input(argflag):
     Load user defined input reduction file. Updates are
     made to the argflag dictionary.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     argflag: dict
       Arguments and flags used for reduction
 
-    Returns:
-    -----------
+    Returns
+    -------
     argflag: dict
       Updated arguments and flags used for reduction
     parlines: list
@@ -409,8 +412,8 @@ def load_spect(argflag, spect=None, lines=None):
     """
     Load spectrograph settings
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     argflag: dict
       Arguments and flags used for reduction
     spect: dict
@@ -422,8 +425,9 @@ def load_spect(argflag, spect=None, lines=None):
       lines contains a list of user-specified changes
       that should be made to the default spectrograph
       settings.
-    Returns:
-    -----------
+
+    Returns
+    -------
     spect: dict
       Loaded or updated properties of the spectrograph
     """
@@ -470,8 +474,8 @@ def load_headers(argflag, spect, datlines):
     """
     Load the header information for each fits file
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     argflag: dict
       Arguments and flags used for reduction
     spect: dict
@@ -482,8 +486,9 @@ def load_headers(argflag, spect, datlines):
       Input (uncommented) lines specified by the user.
       datlines contains the full data path to every
       raw exposure listed by the user.
-    Returns:
-    -----------
+
+    Returns
+    -------
     spect: dict
       Loaded or updated properties of the spectrograph
     """
@@ -562,7 +567,7 @@ def load_headers(argflag, spect, datlines):
                     r=(14-dm)/12
                     s,t=dy+4800-r,dm+12*r-3
                     jdn = dd + (153*t+2)/5 + 365*s + s/4 - 32083
-                    value = jdn + (12.-th)/24 + tm/1440 + ts/86400 - 2400000.5 # THIS IS THE MJD
+                    value = jdn + (12.-th)/24 + tm/1440 + ts/86400 - 2400000.5  # THIS IS THE MJD
                     value *= 24.0 # Put MJD in hours
                 else:
                     msgs.error('Bad time unit')
@@ -584,21 +589,23 @@ def load_headers(argflag, spect, datlines):
     msgs.info("Headers loaded for {0:d} files successfully".format(len(datlines)))
     return fitsdict
 
+
 def load_frames(slf, ind, det, frametype='<None>', msbias=None, trim=True, transpose=False):
-    '''Load data frames, usually raw.
-    Bias subtrac too
-    Parameters:
-    -----------
+    """
+    Load data frames, usually raw.
+    Bias subtract (if not msbias!=None) and trim (if True)
+    Parameters
+    ----------
     ind: list or array
       integers of indices
     det: int
       Detector number, starts at 1
 
-    Returns:
-    ---------
+    Returns
+    -------
     frames: ndarray (3 dimensional)
       One image per ind
-    '''
+    """
     def load_indfr(name,ext):
         msgs.work("Trim and overscan has not been applied")
         temp = pyfits.getdata(name, ext)

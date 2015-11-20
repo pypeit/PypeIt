@@ -23,24 +23,22 @@ def boxcar(slf, sciframe, varframe, skyframe, crmask, scitrace):
     """
     Perform boxcar extraction on the traced objects. 
 
-    Parameters:
-    -----------
-    slf
-    sciframe: ndarray
+    Parameters
+    ----------
+    sciframe : ndarray
       science frame
-    varframe: ndarray
+    varframe : ndarray
       variance image
-    bgframe: ndarray
+    bgframe : ndarray
       sky background frame
-    crmask: int ndarray
+    crmask : int ndarray
         mask of cosmic ray hits
-    scitrace: dict
+    scitrace : dict
       traces, object and background trace images
 
-    Returns:
-    -----------
+    Returns
+    -------
     Nothing.  slf._specobjs.boxcar is updated
-    
     """
     bgfitord = 1  # Polynomial order used to fit the background
     nobj = scitrace['traces'].shape[1]

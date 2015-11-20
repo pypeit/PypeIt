@@ -8,6 +8,7 @@ The following is a list of items that are currently in development
 * Extraction (RJC)
 * In function pypit.PYPIT, change argflag to allow for command line quick reduction (near line 110)
 * In function pypit.PYPIT, check for successful reduction and print reduction status (near line 125)
+* In function pypArmlsd.SetupScience, rethink how Science data will be saved (i.e. with their science name appended?)
 * Force matplotlib RC params of plots to be the default throughout (i.e. don't allow user-specified matplotlib rcparams)
 * Save all QA to a single fits file and/or pdf file (?).
 * Have reduction features be read from instrument settings file

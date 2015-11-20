@@ -9,7 +9,10 @@ from astropy.io import fits
 from astropy import units as u
 from astropy import coordinates as coords
 
-from linetools.spectra.xspectrum1d import XSpectrum1D
+try:
+    from linetools.spectra.xspectrum1d import XSpectrum1D
+except:
+    pass
 
 import armsgs as msgs
 import arcyextract
@@ -26,14 +29,15 @@ except:
     pass
 
 def apply_sensfunc(slf, sc,MAX_EXTRAP=0.05):
-    '''Apply the sensitivity function to the data
+    """
+    Apply the sensitivity function to the data
     We also correct for extinction.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     MAX_EXTRAP : float, optional [0.05]
       Fractional amount to extrapolate sensitivity function
-    '''
+    """
     # Load extinction data
     extinct = load_extinction_data(slf)
     airmass = slf._fitsdict['airmass'][slf._scidx]
@@ -62,25 +66,26 @@ def apply_sensfunc(slf, sc,MAX_EXTRAP=0.05):
 
 
 def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
-    '''Perform a bspline fit to the flux ratio of standard to 
+    """
+    Perform a bspline fit to the flux ratio of standard to
     observed counts.  Used to generate a sensitivity function.
 
-    Parameters:
-    -----------
-    wave: ndarray
-    flux: ndarray
+    Parameters
+    ----------
+    wave : ndarray
+    flux : ndarray
       counts/s as observed
-    invvar: ndarray
+    invvar : ndarray
       inverse variance
-    flux_std: Quantity array
+    flux_std : Quantity array
       standard star true flux (erg/s/cm^2/A)
-    nointer: bool, optional [False]
+    nointer : bool, optional [False]
       Skip interpolation over bad points (not recommended)?
-    **kwargs: keywords for robust_polyfit
+    **kwargs : keywords for robust_polyfit
 
-    Returns:
-    -----------
-    '''
+    Returns
+    -------
+    """
     invvar = (var > 0.)/(var + (var <= 0.))
     nx = wave.size
     pos_error = 1./np.sqrt(np.maximum(invvar,0.) + (invvar == 0))
@@ -145,10 +150,11 @@ def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
     return tck_log1
 
 def extinction_correction(wave, airmass, extinct):
-    '''Derive extinction correction
+    """
+    Derive extinction correction
     Based on algorithm in LowRedux (long_extinct)
 
-    Parameters:
+    Parameters
     ----------
     wave : Quantity array
       Wavelengths for interpolation. Should be sorted
@@ -157,11 +163,11 @@ def extinction_correction(wave, airmass, extinct):
     extinct : Table
       Table of extinction values
 
-    Returns:
-    ----------
-    flux_corr: ndarray
+    Returns
+    -------
+    flux_corr : ndarray
       Flux corrections at the input wavelengths
-    '''
+    """
     # Checks
     if airmass < 1.:
         msgs.error("Bad airmass value in extinction_correction")
@@ -185,19 +191,26 @@ def extinction_correction(wave, airmass, extinct):
     # Return
     return flux_corr
 
-def find_standard_file(slf, radec, toler=20.*u.arcmin):
-    '''Find a match for the input file to one of the archived 
+
+def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
+    """
+    Find a match for the input file to one of the archived
     standard star files (hopefully).  Priority is by order of search.
 
-    Parameters:
+    Parameters
     ----------
+    argflag : dict
+      Arguments and flags used for reduction
     radec : tuple
       ra, dec in string format ('05:06:36.6','52:52:01.0')
     toler : Angle
-      tolerance on matching archived standards to input
+      Tolerance on matching archived standards to input
+    check : bool
+      If True, the routine will only check to see if a
+      standard star exists within the input ra, dec, and toler range.
 
-    Returns:
-    --------
+    Returns
+    -------
     sdict : dict
       'file': str -- Filename
       'fmt': int -- Format flag
@@ -205,10 +218,10 @@ def find_standard_file(slf, radec, toler=20.*u.arcmin):
       'name': str -- Star name
       'ra': str -- RA(2000)
       'dec': str -- DEC(2000)
-    '''
+    """
     # Priority
     std_sets = [load_calspec]
-    std_file_fmt = [1] # 1=Calspec style FITS binary table
+    std_file_fmt = [1]  # 1=Calspec style FITS binary table
 
     # SkyCoord
     obj_coord = SkyCoord(radec[0], radec[1], unit=(u.hourangle, u.deg))
@@ -217,20 +230,22 @@ def find_standard_file(slf, radec, toler=20.*u.arcmin):
     closest = dict(sep=999*u.deg)
     for qq,sset in enumerate(std_sets):
         # Stars
-        path, star_tbl = sset(slf)
+        path, star_tbl = sset(argflag)
         star_coords = SkyCoord(star_tbl['RA_2000'], star_tbl['DEC_2000'], 
             unit=(u.hourangle, u.deg))
         # Match
         idx, d2d, d3d = coords.match_coordinates_sky(obj_coord, star_coords, nthneighbor=1)
         if d2d < toler:
-            # Generate a dict
-            std_dict = dict(file=path+star_tbl[int(idx)]['File'], 
-                name=star_tbl[int(idx)]['Name'], fmt=std_file_fmt[qq],
-                ra=star_tbl[int(idx)]['RA_2000'], 
-                dec=star_tbl[int(idx)]['DEC_2000'])
-            # Return
-            msgs.info("Using standard star {:s}".format(std_dict['name']))
-            return std_dict
+            if check: return True
+            else:
+                # Generate a dict
+                std_dict = dict(file=path+star_tbl[int(idx)]['File'],
+                    name=star_tbl[int(idx)]['Name'], fmt=std_file_fmt[qq],
+                    ra=star_tbl[int(idx)]['RA_2000'],
+                    dec=star_tbl[int(idx)]['DEC_2000'])
+                # Return
+                msgs.info("Using standard star {:s}".format(std_dict['name']))
+                return std_dict
         else: # Save closest, if it is
             imind2d = np.argmin(d2d)
             mind2d = d2d[imind2d]
@@ -239,48 +254,52 @@ def find_standard_file(slf, radec, toler=20.*u.arcmin):
                 closest.update(dict(name=star_tbl[int(idx)]['Name'], 
                     ra=star_tbl[int(idx)]['RA_2000'], 
                     dec=star_tbl[int(idx)]['DEC_2000']))
-    # Failed
-    msgs.warn("No standards star found within the tolerance of {:g}".format(toler))
+    # Standard star not found
+    if check: return False
+    msgs.warn("No standard star was found within a tolerance of {:g}".format(toler))
     msgs.info("Closest standard was {:s} at separation {:g}".format(closest['name'],closest['sep'].to('arcmin')))
     msgs.warn("Flux calibration will not be performed")
     return None
 
-def load_calspec(slf):
-    ''' Load the list of calspec standards
+def load_calspec(argflag):
+    """
+    Load the list of calspec standards
 
-    Parameters:
+    Parameters
     ----------
 
-    Returns:
-    --------
-    calspec_path: str
+    Returns
+    -------
+    calspec_path : str
       Path from pypitdir to calspec standard star files
-    calspec_stds: Table
+    calspec_stds : Table
       astropy Table of the calspec standard stars (file, Name, RA, DEC)
-    '''
+    """
     # Read
     calspec_path = '/data/standards/calspec/'
-    calspec_file = slf._argflag['run']['pypitdir'] + calspec_path + 'calspec_info.txt'
-    calspec_stds = Table.read(calspec_file,comment='#',format='ascii')
+    calspec_file = argflag['run']['pypitdir'] + calspec_path + 'calspec_info.txt'
+    calspec_stds = Table.read(calspec_file, comment='#', format='ascii')
     # Return
     return calspec_path, calspec_stds
 
+
 def load_extinction_data(slf, toler=1.*u.deg):
-    '''Find the best extinction file to use, based on longitude and latitude
+    """
+    Find the best extinction file to use, based on longitude and latitude
     Loads it and returns a Table
 
-    Parameters:
+    Parameters
     ----------
-    slf: 
+    slf : class
       Includes mosaic lon/lat
-    toler: Angle
+    toler : Angle
       Tolerance for matching detector to site (1 deg)
 
-    Returns:
-    ----------
-    ext_file: Table
+    Returns
+    -------
+    ext_file : Table
       astropy Table containing the 'wavelength', 'extinct' data for AM=1.
-    '''
+    """
     # Mosaic coord
     mosaic_coord = SkyCoord(slf._spect['mosaic']['longitude'],
         slf._spect['mosaic']['latitude'], frame='gcrs', unit=u.deg)
@@ -308,21 +327,22 @@ def load_extinction_data(slf, toler=1.*u.deg):
 
 
 def load_standard_file(slf, std_dict):
-    '''Load standard star data
+    """
+    Load standard star data
 
-    Parameters:
+    Parameters
     ----------
-    std_dict: dict
+    std_dict : dict
       Info on standard star indcluding filename in 'file'
       May be compressed
 
-    Returns:
-    --------
-    std_wave: Quantity array
+    Returns
+    -------
+    std_wave : Quantity array
       Wavelengths of standard star array
-    std_flux: Quantity array
+    std_flux : Quantity array
       Flux of standard star
-    '''
+    """
     fil = glob.glob(slf._argflag['run']['pypitdir']+
             std_dict['file']+'*')
     if len(fil) == 0:
@@ -342,10 +362,11 @@ def load_standard_file(slf, std_dict):
     return
 
 def generate_sensfunc(slf, sc, BALM_MASK_WID=5., nresln=20):
-    '''Generate sensitivity function from current standard star
+    """
+    Generate sensitivity function from current standard star
     Currently, we are using a bspline generated by bspline_magfit
 
-    Parameters:
+    Parameters
     ----------
     sc : int
       index for standard  (may not be necessary)
@@ -356,11 +377,11 @@ def generate_sensfunc(slf, sc, BALM_MASK_WID=5., nresln=20):
     nresln : int  
       Number of resolution elements for break-point placement
 
-    Returns:
-    --------
+    Returns
+    -------
     sens_dict : dict
       sensitivity function described by a dict
-    '''
+    """
     # Find brightest object in the exposure
     medfx = []
     for spobj in slf._specobjs:
@@ -378,7 +399,7 @@ def generate_sensfunc(slf, sc, BALM_MASK_WID=5., nresln=20):
     var_corr /= slf._fitsdict['exptime'][slf._scidx]**2
 
     # Grab closest standard within a tolerance
-    std_dict = find_standard_file(slf, (slf._fitsdict['ra'][slf._scidx],slf._fitsdict['dec'][slf._scidx]))
+    std_dict = find_standard_file(slf._argflag, (slf._fitsdict['ra'][slf._scidx],slf._fitsdict['dec'][slf._scidx]))
     # Load standard
     load_standard_file(slf, std_dict)
     # Interpolate onto observed wavelengths
