@@ -7,7 +7,7 @@ run  spectrograph kast          # Default spectrograph data to reduce
 run  masterdir    MasterFrames  # Child Directory name for master calibration frames
 run  scidir       Science       # Child Directory name for extracted science frames
 run  plotsdir     Plots         # Child Directory name for plots
-run  qcontrol     True          # Run quality control in real time? (setting this to False will still produce the checks, but won't display the results during the reduction).
+run  qcontrol     False         # Run quality control in real time? (setting this to False will still produce the checks, but won't display the results during the reduction).
 run  preponly     False         # If True, ARMLSD will prepare the calibration frames and will only reduce the science frames when preponly is set to False
 run  stopcheck    False         # If True, ARMLSD will stop and require a user carriage return at every quality control check
 

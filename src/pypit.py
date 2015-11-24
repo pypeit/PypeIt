@@ -111,12 +111,12 @@ def PYPIT(argflag, quick=False):
     # Send the data away to be reduced
     if spect['mosaic']['reduction']=='ARMLSD':
         msgs.info("Data reduction will be performed using PYPIT-ARMLSD")
-        import pypArmlsd
-        status = pypArmlsd.ARMLSD(argflag, spect, fitsdict)
+        import armlsd
+        status = armlsd.ARMLSD(argflag, spect, fitsdict)
     elif spect['mosaic']['reduction']=='ARMED':
         msgs.info("Data reduction will be performed using PYPIT-ARMED")
-        import pypArmed
-        status = pypArmed.ARMED(argflag, spect, fitsdict)
+        import armed
+        status = armed.ARMED(argflag, spect, fitsdict)
     # Check for successful reduction
     if status == 0:
         msgs.info("Data reduction complete")
@@ -218,7 +218,7 @@ def ARMLSD(self):
             self.GetPixelLocations(det)
             ###############
             # Determine the edges of the spectrum (spatial)
-            self._lordloc, self._rordloc = artrace.trace_orders(self, self._mstrace, ARMLSD=True, prefix=prefix, trcprefix=self._trcprefix)
+            self._lordloc, self._rordloc = artrace.trace_orders(self, self._mstrace, singleSlit=True, prefix=prefix, tracedesc=self._trcprefix)
             arsave.save_ordloc(self, self._mstrace_name)
             arqa.slit_trace_qa(self._mstrace, self._lordloc, self._rordloc, self._mstrace_name)
             # Convert physical trace into a pixel trace

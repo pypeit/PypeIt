@@ -145,23 +145,25 @@ def do_pca(data, cov=False):
 
     return eigva, eigve
 
-def extrapolate(outpar,ords,function='polynomial'):
-    nords = ords.size
-    mask=outpar['x0mask']
-    good = np.where(mask!=0)[0]
 
-    x0ex = arutils.func_val(outpar['x0res'], ords, function,  min=outpar['x0in'][0], max=outpar['x0in'][-1])
+def extrapolate(outpar, ords, function='polynomial'):
+    nords = ords.size
+
+    x0ex = arutils.func_val(outpar['x0res'], ords, function,
+                            min=outpar['x0in'][0], max=outpar['x0in'][-1])
 
     # Order centre
-    high_matr = np.zeros((nords,outpar['npc']))
-    for i in xrange(1,outpar['npc']+1):
+    high_matr = np.zeros((nords, outpar['npc']))
+    for i in xrange(1, outpar['npc']+1):
         if outpar['coeffstr'][i-1][0] == -9.99E9:
             high_matr[:,i-1] = np.ones(nords)*outpar['high_fit'][0,i-1]
             continue
-        high_matr[:,i-1] = arutils.func_val(outpar['coeffstr'][i-1], ords, function, min=outpar['x0in'][0], max=outpar['x0in'][-1])
-    extfit = np.dot(outpar['eigv'],high_matr.T) + np.outer(x0ex,np.ones(outpar['eigv'].shape[0])).T
+        high_matr[:,i-1] = arutils.func_val(outpar['coeffstr'][i-1], ords, function,
+                                            min=outpar['x0in'][0], max=outpar['x0in'][-1])
+    extfit = np.dot(outpar['eigv'], high_matr.T) + np.outer(x0ex, np.ones(outpar['eigv'].shape[0])).T
     outpar['high_matr'] = high_matr
     return extfit, outpar
+
 
 def refine_iter(outpar, orders, mask, irshft, relshift, fitord, function='polynomial'):
     fail = False
@@ -182,6 +184,7 @@ def refine_iter(outpar, orders, mask, irshft, relshift, fitord, function='polyno
     outpar['x0res'] = x0res
     extfit = np.dot(outpar['eigv'],outpar['high_matr'].T) + np.outer(x0fit,np.ones(outpar['eigv'].shape[0])).T
     return extfit, outpar, fail
+
 
 def get_pc(data, k, tol=0.0, maxiter=20, nofix=False, noortho=False):
 
@@ -259,14 +262,6 @@ def image_basis(img, numpc=0):
     score = np.dot(eigvec.T, imgmed)
     return eigvec, eigval, score
 
-"""
-imgmed[np.where(img.mask.T)] = 0.0
-idx=[0]
-eigvecn = eigvec[:,idx]
-score = np.dot(eigvecn.T, imgmed)
-imgpca = np.dot(eigvecn, score).T + img.mean(axis=0).data
-arutils.ds9plot(imgpca.astype(np.float).T)
-"""
 
 def pca2d(img, numpc, mask=None, maskval=-999999.9):
     img = img.T
@@ -285,34 +280,33 @@ def pca2d(img, numpc, mask=None, maskval=-999999.9):
 
 ################################################
 
-def pc_plot(inpar, ofit, plotsdir="Plots", pcatype="<unknown>", maxp=25, prefix="", addOne=True):
+def pc_plot(slf, inpar, ofit, pcatype="<unknown>", maxp=25, pcadesc="", addOne=True):
     """
-    Saves a few output png files of the PCA analysis
+    Saves quality control plots for a PCA analysis
     """
     npc = inpar['npc']+1
-    pages, npp = get_dimen(npc,maxp=maxp)
-    x0=inpar['x0']
-    ordernum=inpar['x0in']
-    x0fit=inpar['x0fit']
-    usetrc=inpar['usetrc']
-    hidden=inpar['hidden']
-    high_fit=inpar['high_fit']
-    nc=np.max(ordernum[usetrc])
-    #nc=x0.size
+    pages, npp = get_dimen(npc, maxp=maxp)
+    x0 = inpar['x0']
+    ordernum = inpar['x0in']
+    x0fit = inpar['x0fit']
+    usetrc = inpar['usetrc']
+    hidden = inpar['hidden']
+    high_fit = inpar['high_fit']
+    nc = np.max(ordernum[usetrc])
     # Loop through all pages and plot the results
-    #ord=np.linspace(1,nc,nc)
-    ndone=0
+    ndone = 0
     for i in xrange(len(pages)):
+        plt.clf()
         f, axes = plt.subplots(pages[i][1], pages[i][0])
         ipx, ipy = 0, 0
         if i == 0:
-            if pages[i][1] == 1: ind = (0)
-            elif pages[i][0] == 1: ind = (0)
+            if pages[i][1] == 1: ind = (0,)
+            elif pages[i][0] == 1: ind = (0,)
             else: ind = (0,0)
-            axes[ind].plot(ordernum[usetrc],x0[usetrc],'bx')
-            axes[ind].plot(ordernum,x0fit,'k-')
+            axes[ind].plot(ordernum[usetrc], x0[usetrc], 'bx')
+            axes[ind].plot(ordernum, x0fit, 'k-')
             amn, amx = np.min(x0fit), np.max(x0fit)
-            diff=x0[usetrc]-x0fit[usetrc]
+            diff = x0[usetrc]-x0fit[usetrc]
             tdiffv = np.median(diff)
             mdiffv = 1.4826*np.median(np.abs(tdiffv-diff))
             amn -= 2.0*mdiffv
@@ -322,29 +316,29 @@ def pc_plot(inpar, ofit, plotsdir="Plots", pcatype="<unknown>", maxp=25, prefix=
             diff = mval + diff*0.20*(amx-amn)/(dmax-dmin)
             wign = np.where(np.abs(diff-np.median(diff))<4.0*1.4826*np.median(np.abs(diff-np.median(diff))))[0]
             dmin, dmax = np.min(diff[wign]), np.max(diff[wign])
-            axes[ind].plot(ordernum[usetrc],diff,'rx')
+            axes[ind].plot(ordernum[usetrc], diff, 'rx')
             if addOne:
-                axes[ind].plot([0,nc+1],[mval,mval],'k-')
-                axes[ind].axis([0,nc+1,dmin-0.5*(dmax-dmin),amx + 0.05*(amx-amn)])
+                axes[ind].plot([0, nc+1], [mval,mval], 'k-')
+                axes[ind].axis([0, nc+1, dmin-0.5*(dmax-dmin), amx + 0.05*(amx-amn)])
             else:
-                axes[ind].plot([0,nc],[mval,mval],'k-')
-                axes[ind].axis([0,nc,dmin-0.5*(dmax-dmin),amx + 0.05*(amx-amn)])
+                axes[ind].plot([0, nc], [mval, mval], 'k-')
+                axes[ind].axis([0, nc, dmin-0.5*(dmax-dmin), amx + 0.05*(amx-amn)])
             axes[ind].set_title("Mean Value")
             ipx += 1
             if ipx == pages[i][0]:
                 ipx = 0
                 ipy += 1
-            npp[0] = npp[0] - 1
+            npp[0] -= 1
         for j in xrange(npp[i]):
-            if pages[i][1] == 1: ind = (ipx)
-            elif pages[i][0] == 1: ind = (ipy)
-            else: ind = (ipy,ipx)
-            axes[ind].plot(ordernum[usetrc],hidden[j+ndone,:],'bx')
-            axes[ind].plot(ordernum,high_fit[:,j+ndone],'k-')
+            if pages[i][1] == 1: ind = (ipx,)
+            elif pages[i][0] == 1: ind = (ipy,)
+            else: ind = (ipy, ipx)
+            axes[ind].plot(ordernum[usetrc], hidden[j+ndone,:], 'bx')
+            axes[ind].plot(ordernum, high_fit[:,j+ndone], 'k-')
             vmin, vmax = np.min(hidden[j+ndone,:]), np.max(hidden[j+ndone,:])
             if ofit[1+j+ndone] != -1:
                 cmn, cmx = np.min(high_fit[:,j+ndone]), np.max(high_fit[:,j+ndone])
-                diff=hidden[j+ndone,:]-high_fit[:,j+ndone][usetrc]
+                diff = hidden[j+ndone,:]-high_fit[:,j+ndone][usetrc]
                 tdiffv = np.median(diff)
                 mdiffv = 1.4826*np.median(np.abs(tdiffv-diff))
                 cmn -= 2.0*mdiffv
@@ -356,17 +350,17 @@ def pc_plot(inpar, ofit, plotsdir="Plots", pcatype="<unknown>", maxp=25, prefix=
                 wign = np.where(np.abs(diff-np.median(diff))<4.0*1.4826*np.median(np.abs(diff-np.median(diff))))[0]
                 dmin, dmax = np.min(diff[wign]), np.max(diff[wign])
                 #vmin, vmax = np.min(hidden[j+ndone,:][wign]), np.max(hidden[j+ndone,:][wign])
-                axes[ind].plot(ordernum[usetrc],diff,'rx')
-                axes[ind].plot([0,1+nc],[mval,mval],'k-')
+                axes[ind].plot(ordernum[usetrc], diff, 'rx')
+                axes[ind].plot([0, 1+nc], [mval, mval], 'k-')
 #				ymin = np.min([(3.0*dmin-dmax)/2.0,vmin-0.1*(vmax-dmin),dmin-0.1*(vmax-dmin)])
 #				ymax = np.max([np.max(high_fit[:,j+ndone]),vmax+0.1*(vmax-dmin),dmax+0.1*(vmax-dmin)])
                 ymin = dmin-0.5*(dmax-dmin)
                 ymax = cmx + 0.05*(cmx-cmn)
-                if addOne: axes[ind].axis([0,nc+1,ymin,ymax])
-                else: axes[ind].axis([0,nc,ymin,ymax])
+                if addOne: axes[ind].axis([0, nc+1, ymin, ymax])
+                else: axes[ind].axis([0, nc, ymin, ymax])
             else:
-                if addOne: axes[ind].axis([0,nc+1,vmin-0.1*(vmax-vmin),vmax+0.1*(vmax-vmin)])
-                else: axes[ind].axis([0,nc,vmin-0.1*(vmax-vmin),vmax+0.1*(vmax-vmin)])
+                if addOne: axes[ind].axis([0, nc+1, vmin-0.1*(vmax-vmin), vmax+0.1*(vmax-vmin)])
+                else: axes[ind].axis([0, nc, vmin-0.1*(vmax-vmin), vmax+0.1*(vmax-vmin)])
             axes[ind].set_title("PC {0:d}".format(j+ndone))
             ipx += 1
             if ipx == pages[i][0]:
@@ -374,10 +368,10 @@ def pc_plot(inpar, ofit, plotsdir="Plots", pcatype="<unknown>", maxp=25, prefix=
                 ipy += 1
         if i == 0: npp[0] = npp[0] + 1
         # Delete the unnecessary axes
-        for j in xrange(npp[i],axes.size):
-            if pages[i][1] == 1: ind = (ipx)
-            elif pages[i][0] == 1: ind = (ipy)
-            else: ind = (ipy,ipx)
+        for j in xrange(npp[i], axes.size):
+            if pages[i][1] == 1: ind = (ipx,)
+            elif pages[i][0] == 1: ind = (ipy,)
+            else: ind = (ipy, ipx)
             f.delaxes(axes[ind])
             if ipx == pages[i][0]:
                 ipx = 0
@@ -388,13 +382,17 @@ def pc_plot(inpar, ofit, plotsdir="Plots", pcatype="<unknown>", maxp=25, prefix=
         else: ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
         f.set_size_inches(11.0, ypngsiz)
         f.tight_layout()
-        if prefix != "":
-            f.savefig("{0:s}/{1:s}_PCA_{2:s}_page-{3:d}.png".format(plotsdir,prefix,pcatype,i+1), dpi=200, orientation='landscape')
-        else:
-            f.savefig("{0:s}/PCA_{1:s}_page-{2:d}.png".format(plotsdir,pcatype,i+1), dpi=200, orientation='landscape')
+        if pcadesc != "":
+            f.title(pcadesc)
+            #f.savefig("{0:s}/{1:s}_PCA_{2:s}_page-{3:d}.png".format(plotsdir,prefix,pcatype,i+1), dpi=200, orientation='landscape')
+        #else:
+        #    f.savefig("{0:s}/PCA_{1:s}_page-{2:d}.png".format(plotsdir,pcatype,i+1), dpi=200, orientation='landscape')
+        slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
+        plt.close()
     f.clf()
     del f
     return
+
 
 def pc_plot_arctilt(tiltang, centval, tilts, plotsdir="Plots", pcatype="<unknown>", maxp=25, prefix=""):
     """
