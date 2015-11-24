@@ -2,7 +2,7 @@ The following is a list of items that are currently in development
 
 ** All items in the code with msgs.work("message") need to be implemented
 
-* Write sorted files to ascii and fits table (let the user pick which method)
+* Write sorted files to fits table (let the user pick which method)
 * Store master calibrations for each master frame (to save recalculating the solutions -- including slit trace, tilts, and wavelength)
 * Flexure correction (TH)
 * Extraction (RJC)
@@ -10,7 +10,6 @@ The following is a list of items that are currently in development
 * In function pypit.PYPIT, check for successful reduction and print reduction status (near line 125)
 * In function pypArmlsd.SetupScience, rethink how Science data will be saved (i.e. with their science name appended?)
 * Force matplotlib RC params of plots to be the default throughout (i.e. don't allow user-specified matplotlib rcparams)
-* Save all QA to a single fits file and/or pdf file (?).
 * Have reduction features be read from instrument settings file
 * Avoid re-making Bias, Arc, etc. frames as an option
 * Organize lamp line lists better (1 file!!)
@@ -22,7 +21,7 @@ The following is a list of items that are currently in development
 * What should we with multiple standard stars?
 * Allow both bias and overscan to be used
 * How much effort for backwards-compatability (e.g. old detectors)?
-* Consolidate QA PDFs??
+* If an error is encountered and the code terminates, be sure to first execute slf._qa.close() on all ScienceExposure classes (i.e. write the QA so the user can diagnose possible problems)
 * Generate tests for adding new instrument
   extinction
   wavelengths

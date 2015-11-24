@@ -393,14 +393,30 @@ def flatfield(slf, sciframe, flatframe, snframe=None):
         return retframe, errframe
 
 
-def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, fname=""):
+def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     """
     Normalize the flat-field frame
-    Parameters:
+
+    Parameters
     ----------
-    det: int
+    slf : class
+      An instance of the Science Exposure class
+    det : int
       Detector number
-    overpix/2 = the number of pixels to extend beyond each side of the order trace
+    msflat : ndarray
+      Flat-field image
+    maskval : float
+      Global floating point mask value used throughout the code
+    overpix : int
+      overpix/2 = the number of pixels to extend beyond each side of the order trace
+    plotdesc : str
+      A title for the plotted QA
+    Returns
+    -------
+    msnormflat : ndarray
+      The normalized flat-field frame
+    msblaze : ndarray
+      A 2d array containing the blaze function for each slit
     """
     msgs.info("Normalizing the master flat field frame")
     # First, determine the relative scale of each amplifier (assume amplifier 1 has a scale of 1.0)
@@ -409,30 +425,28 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, fname=""):
         # Divide the master flat by the relative scale frame
         msflat /= sclframe
     # Determine the blaze
-    polyord_blz = 2 # This probably doesn't need to be a parameter that can be set by the user
-    norders = slf._lordloc.shape[1]
+    polyord_blz = 2  # This probably doesn't need to be a parameter that can be set by the user
+    norders = slf._lordloc[det-1].shape[1]
     # Look at the end corners of the detector to get detector size in the dispersion direction
-    xstr = slf._pixlocn[0,0,slf._dispaxis]-slf._pixlocn[0,0,slf._dispaxis+2]/2.0
-    xfin = slf._pixlocn[-1,-1,slf._dispaxis]+slf._pixlocn[-1,-1,slf._dispaxis+2]/2.0
-    if slf._dispaxis == 0:
-        xint = slf._pixlocn[:,0,0]
-    else:
-        xint = slf._pixlocn[0,:,0]
+    xstr = slf._pixlocn[det-1][0,0,0]-slf._pixlocn[det-1][0,0,2]/2.0
+    xfin = slf._pixlocn[det-1][-1,-1,0]+slf._pixlocn[det-1][-1,-1,2]/2.0
+    xint = slf._pixlocn[det-1][:,0,0]
     # Find which pixels are within the order edges
     msgs.info("Identifying pixels within each order")
-    ordpix = arcyutils.order_pixels(slf._pixlocn, slf._lordloc, slf._rordloc, slf._dispaxis)
+    ordpix = arcyutils.order_pixels(slf._pixlocn[det-1], slf._lordloc[det-1], slf._rordloc[det-1], slf._dispaxis)
     msgs.info("Applying bad pixel mask")
-    ordpix *= (1-slf._bpix.astype(np.int))
+    ordpix *= (1-slf._bpix[det-1].astype(np.int))
     msgs.info("Rectifying the orders to estimate the background locations")
     badorders = np.zeros(norders)
     msnormflat = maskval*np.ones_like(msflat)
-    msblaze = maskval*np.ones((msflat.shape[slf._dispaxis],norders))
+    msblaze = maskval*np.ones((msflat.shape[0],norders))
     msgs.work("Must consider different amplifiers when normalizing and determining the blaze function")
     msgs.work("Multiprocess this step to make it faster")
-    flat_ext1d = maskval*np.ones((msflat.shape[slf._dispaxis],norders))
+    flat_ext1d = maskval*np.ones((msflat.shape[0],norders))
     for o in xrange(norders):
         # Rectify this order
-        recframe = arcyextract.rectify(msflat, ordpix, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o]+overpix, maskval, slf._dispaxis)
+        recframe = arcyextract.rectify(msflat, ordpix, slf._pixcen[det-1][:,o], slf._lordpix[det-1][:,o],
+                                       slf._rordpix[det-1][:,o], slf._pixwid[det-1][o]+overpix, maskval, slf._dispaxis)
         if slf._argflag["reduce"]["FlatMethod"].lower()=="polyscan":
             polyorder = slf._argflag["reduce"]["FlatParams"][0]
             polypoints = slf._argflag["reduce"]["FlatParams"][1]
@@ -461,13 +475,13 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, fname=""):
             # Divide the flat by the fitted flat profile
             finalblaze = np.ones(recframe.shape[0])
             finalblaze[lox:hix] = blaze.copy()
-            blazenrm = finalblaze.reshape((finalblaze.size,1)).repeat(recframe.shape[1],axis=1)
+            blazenrm = finalblaze.reshape((finalblaze.size,1)).repeat(recframe.shape[1], axis=1)
             recframe /= blazenrm
             # Store the blaze for this order
             msblaze[lox:hix,o] = blaze.copy()
             flat_ext1d[:,o] = flatmed.copy()
             # Sort the normalized frames along the dispersion direction
-            recsort = np.sort(recframe,axis=0)
+            recsort = np.sort(recframe, axis=0)
             # Find the mean value, but only consider the "innermost" 50 per cent of pixels (i.e. the pixels closest to 1.0)
             recmean = arcyproc.scale_blaze(recsort, maskval)
             #rows = np.arange(recsort.shape[0]/4,(3*recsort.shape[0])/4,dtype=np.int)
@@ -476,35 +490,53 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, fname=""):
             for i in xrange(recmean.size):
                 recframe[i,:] /= recmean[i]
             # Undo the rectification
-            normflat_unrec = arcyextract.rectify_undo(recframe, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o], maskval, msflat.shape[0], msflat.shape[1], slf._dispaxis)
+            normflat_unrec = arcyextract.rectify_undo(recframe, slf._pixcen[det-1][:,o], slf._lordpix[det-1][:,o],
+                                                      slf._rordpix[det-1][:,o], slf._pixwid[det-1][o], maskval,
+                                                      msflat.shape[0], msflat.shape[1], slf._dispaxis)
             # Apply the normalized flatfield for this order to the master normalized frame
-            msnormflat = arcyproc.combine_nrmflat(msnormflat, normflat_unrec, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o]+overpix, maskval, slf._dispaxis)
+            msnormflat = arcyproc.combine_nrmflat(msnormflat, normflat_unrec, slf._pixcen[det-1][:,o],
+                                                  slf._lordpix[det-1][:,o], slf._rordpix[det-1][:,o],
+                                                  slf._pixwid[det-1][o]+overpix, maskval, slf._dispaxis)
         else:
             msgs.error("Flatfield method {0:s} is not supported".format(slf._argflag["reduce"]["FlatMethod"]))
-    # arutils.ds9plot(msnormflat.astype(np.float))
-    # arutils.ds9plot(sclframe.astype(np.float))
-    # arutils.ds9plot(msblaze.astype(np.float))
     # Send the blaze away to be plotted and saved
     msgs.work("Perform a 2D PCA analysis on echelle blaze fits?")
-    arplot.plot_orderfits(slf, msblaze, flat_ext1d, plotsdir=slf._argflag['run']['plotsdir'], prefix=fname+"_blaze")
+    arplot.plot_orderfits(slf, msblaze, flat_ext1d, plotsdir=slf._argflag['run']['plotsdir'], desc=plotdesc)
     # If there is more than 1 amplifier, apply the scale between amplifiers to the normalized flat
     if slf._spect['det'][det-1]['numamplifiers'] > 1: msnormflat *= sclframe
     return msnormflat, msblaze
 
 
 def get_ampscale(slf, det, msflat):
+    """
+    Normalize the flat-field frame
+
+    Parameters
+    ----------
+    slf : class
+      An instance of the Science Exposure class
+    det : int
+      Detector number
+    msflat : ndarray
+      Flat-field image
+
+    Returns
+    -------
+    sclframe : ndarray
+      A frame to scale all amplifiers to the same counts at the amplifier borders
+    """
     sclframe = np.ones_like(msflat)
     ampdone = np.zeros(slf._spect['det'][det-1]['numamplifiers'], dtype=int) # 1 = amplifiers have been assigned a scale
     ampdone[0]=1
     while np.sum(ampdone) != slf._spect['det'][det-1]['numamplifiers']:
         abst, bbst, nbst, n0bst, n1bst = -1, -1, -1, -1, -1 # Reset the values for the most overlapping amplifier
-        for a in xrange(0,slf._spect['det'][det-1]['numamplifiers']): # amplifier 'a' is always the reference amplifier
-            if ampdone[a]==0: continue
-            for b in xrange(0,slf._spect['det'][det-1]['numamplifiers']):
-                if ampdone[b]==1 or a==b: continue
+        for a in xrange(0, slf._spect['det'][det-1]['numamplifiers']): # amplifier 'a' is always the reference amplifier
+            if ampdone[a] == 0: continue
+            for b in xrange(0, slf._spect['det'][det-1]['numamplifiers']):
+                if ampdone[b] == 1 or a == b: continue
                 tstframe = np.zeros_like(msflat)
-                tstframe[np.where(slf._ampsec==a+1)]=1
-                tstframe[np.where(slf._ampsec==b+1)]=2
+                tstframe[np.where(slf._ampsec[det-1] == a+1)] = 1
+                tstframe[np.where(slf._ampsec[det-1] == b+1)] = 2
                 # Determine the total number of adjacent edges between amplifiers a and b
                 n0 = np.sum(tstframe[1:,:]-tstframe[:-1,:])
                 n1 = np.sum(tstframe[:,1:]-tstframe[:,:-1])
@@ -516,9 +548,9 @@ def get_ampscale(slf, det, msflat):
                     bbst = b
         # Determine the scaling factor for these two amplifiers
         tstframe = np.zeros_like(msflat)
-        tstframe[np.where(slf._ampsec==abst+1)] = 1
-        tstframe[np.where(slf._ampsec==bbst+1)] = 2
-        if (abs(n0bst)>abs(n1bst)):
+        tstframe[np.where(slf._ampsec[det-1] == abst+1)] = 1
+        tstframe[np.where(slf._ampsec[det-1] == bbst+1)] = 2
+        if abs(n0bst) > abs(n1bst):
             # The amplifiers overlap on the zeroth index
             w = np.where(tstframe[1:,:]-tstframe[:-1,:] != 0)
             sclval = np.median(msflat[w[0][0]+1, w[1]])/np.median(msflat[w[0][0], w[1]])
@@ -542,7 +574,7 @@ def get_ampscale(slf, det, msflat):
                 # pixel w[1][0] falls on amplifier b
                 sclval = sclframe[w[0], w[1][0]+1] / sclval
         # Finally, apply the scale factor thwe amplifier b
-        w = np.where(slf._ampsec == bbst+1)
+        w = np.where(slf._ampsec[det-1] == bbst+1)
         sclframe[w] = np.median(sclval)
         ampdone[bbst] = 1
     return sclframe

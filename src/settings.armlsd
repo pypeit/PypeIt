@@ -23,7 +23,7 @@ reduce usearc arc               # What filetype should be used for wavelength ca
 reduce useflat pixflat          # How to flat field the data (pixflat, blzflat), you can also specify a master calibrations file if it exists.
 reduce flatfield True           # Flatfield the data?
 reduce FlatMethod PolyScan      # Method used to flat field the data (PolyScan)
-reduce FlatParams [2,16,3]      # Flat field method parameters (PolyScan: [order,numPixels,repeat])
+reduce FlatParams [3,50,20]     # Flat field method parameters (PolyScan: [order,numPixels,repeat])
 reduce flatmatch -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
 reduce arcmatch -1.0            # Match similar arc frames together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
 reduce calibrate True           # Wavelength calibrate the data?

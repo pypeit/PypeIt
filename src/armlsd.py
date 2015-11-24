@@ -9,7 +9,7 @@ import arproc
 import arqa
 
 
-def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
+def ARMLSD(argflag, spect, fitsdict, reuseMaster=True):
     """
     Automatic Reduction and Modeling of Long Slit Data
 
@@ -71,11 +71,11 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             # Determine the dispersion direction (and transpose if necessary)
             slf.GetDispersionDirection(fitsdict, det)
             if slf._bpix[det-1] is None:
-                slf.SetMasterFrame(np.zeros((slf._nspec[det-1], slf._nspat[det-1])), "badpix", det)
+                slf.SetFrame(slf._bpix, np.zeros((slf._nspec[det-1], slf._nspat[det-1])), det)
             ###############
             # Generate a master trace frame
             update = slf.MasterTrace(fitsdict, det)
-            if update and reuseMaster: UpdateMasters(sciexp, sc, det, ftype="trace")
+            if update and reuseMaster: UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
             ###############
             # Generate an array that provides the physical pixel locations on the detector
             slf.GetPixelLocations(det)
@@ -83,23 +83,28 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             # Determine the edges of the spectrum (spatial)
             lordloc, rordloc, extord = artrace.trace_orders(slf, slf._mstrace[det-1], det, singleSlit=True,
                                                                       pcadesc="PCA trace of the slit edges")
-            slf.SetArray(slf._lordloc, lordloc, det)
-            slf.SetArray(slf._rordloc, rordloc, det)
+            slf.SetFrame(slf._lordloc, lordloc, det)
+            slf.SetFrame(slf._rordloc, rordloc, det)
             # Convert physical trace into a pixel trace
             msgs.info("Converting physical trace locations to nearest pixel")
             pixcen  = artrace.phys_to_pix(0.5*(slf._lordloc[det-1]+slf._rordloc[det-1]), slf._pixlocn[det-1], 1)
             pixwid  = (slf._rordloc[det-1]-slf._lordloc[det-1]).mean(0).astype(np.int)
             lordpix = artrace.phys_to_pix(slf._lordloc[det-1], slf._pixlocn[det-1], 1)
             rordpix = artrace.phys_to_pix(slf._rordloc[det-1], slf._pixlocn[det-1], 1)
-            slf.SetArray(slf._pixcen, pixcen, det)
-            slf.SetArray(slf._pixwid, pixwid, det)
-            slf.SetArray(slf._lordpix, lordpix, det)
-            slf.SetArray(slf._rordpix, rordpix, det)
+            slf.SetFrame(slf._pixcen, pixcen, det)
+            slf.SetFrame(slf._pixwid, pixwid, det)
+            slf.SetFrame(slf._lordpix, lordpix, det)
+            slf.SetFrame(slf._rordpix, rordpix, det)
             # Save QA for slit traces
             arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges")
+            ###############
+            # Prepare the pixel flat field frame
+            update = slf.MasterFlatField(fitsdict, det)
+            if update and reuseMaster: UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixflat")
+
 
             slf._qa.close()
-            msgs.error("UP TO HERE -- REMOVE QA CLOSE")
+            msgs.error("UP TO HERE -- DELETE THE QA PLOT CLOSE HERE!")
             pdb.set_trace()
         # Free up some memory by replacing the reduced ScienceExposure class
         # Close the QA for this object
@@ -147,7 +152,7 @@ def SetupScience(argflag, spect, fitsdict):
     return sciexp
 
 
-def UpdateMasters(sciexp, sc, det, ftype=None):
+def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
     """
     Update the master calibrations for other science targets, if they
     will use an identical master frame
@@ -162,20 +167,46 @@ def UpdateMasters(sciexp, sc, det, ftype=None):
       detector index (starting from 1)
     ftype : str
       Describes the type of Master frame being udpated
+    chktype : str
+      Describes the subtype of Master frame being updated
     """
     numsci = len(sciexp)
     if ftype == "arc": chkarr = sciexp[sc]._idx_arcs
     elif ftype == "bias": chkarr = sciexp[sc]._idx_bias
-    elif ftype == "trace": chkarr = sciexp[sc]._idx_trace
+    elif ftype == "flat":
+        if chktype == "trace": chkarr = sciexp[sc]._idx_trace
+        elif chktype == "pixflat": chkarr = sciexp[sc]._idx_flat
+        else:
+            msgs.bug("I could not update frame of type {0:s} and subtype {1:s}".format(ftype, chktype))
     else:
         msgs.bug("I could not update frame of type: {0:s}".format(ftype))
         return
-    for i in xrange(sc+1,numsci):
-        # Check if an *identical* master frame has already been produced
-        if ftype == "arc": chkfarr = sciexp[i]._idx_arcs
-        elif ftype == "bias": chkfarr = sciexp[i]._idx_bias
-        elif ftype == "trace": chkfarr = sciexp[i]._idx_trace
-        if np.array_equal(chkarr, chkfarr):
-            msgs.info("Updating master {0:s} frame for science target {1:d}/{2:d}".format(ftype, i+1, numsci))
-            sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(ftype, det), ftype, det)
+    if ftype == "flat":
+        # First check flats of the same type
+        for i in xrange(sc+1, numsci):
+            # Check if an *identical* master frame has already been produced
+            if chktype == "trace": chkfarr = sciexp[i]._idx_trace
+            elif chktype == "pixflat": chkfarr = sciexp[i]._idx_flat
+            if np.array_equal(chkarr, chkfarr) and sciexp[i].GetMasterFrame(chktype, det, copy=False) is None:
+                msgs.info("Updating master {0:s} frame for science target {1:d}/{2:d}".format(chktype, i+1, numsci))
+                sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(chktype, det), chktype, det)
+        # Now check flats of a different type
+        origtype = chktype
+        if chktype == "trace": chktype = "pixflat"
+        elif chktype == "pixflat": chktype = "trace"
+        for i in xrange(sc, numsci):
+            # Check if an *identical* master frame has already been produced
+            if chktype == "trace": chkfarr = sciexp[i]._idx_trace
+            elif chktype == "pixflat": chkfarr = sciexp[i]._idx_flat
+            if np.array_equal(chkarr, chkfarr) and sciexp[i].GetMasterFrame(chktype, det, copy=False) is None:
+                msgs.info("Updating master {0:s} frame for science target {1:d}/{2:d}".format(chktype, i+1, numsci))
+                sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(origtype, det), chktype, det)
+    else:
+        for i in xrange(sc+1, numsci):
+            # Check if an *identical* master frame has already been produced
+            if ftype == "arc": chkfarr = sciexp[i]._idx_arcs
+            elif ftype == "bias": chkfarr = sciexp[i]._idx_bias
+            if np.array_equal(chkarr, chkfarr) and sciexp[i].GetMasterFrame(ftype, det, copy=False) is None:
+                msgs.info("Updating master {0:s} frame for science target {1:d}/{2:d}".format(ftype, i+1, numsci))
+                sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(ftype, det), ftype, det)
     return

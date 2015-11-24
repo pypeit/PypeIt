@@ -271,8 +271,8 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
 
     # Traces
     for ii in xrange(ntrc):
-        if extslit[ii] is True: ptyp = '--'
-        else: ptyp = '-'
+        if extslit[ii] is True: ptyp = ':'
+        else: ptyp = '--'
         # Left
         plt.plot(ltrace[:,ii]+0.5, ycen, 'r'+ptyp, alpha=0.7)
         # Right

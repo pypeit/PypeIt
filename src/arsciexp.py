@@ -35,6 +35,9 @@ class ScienceExposure:
         if self._argflag['reduce']['usetrace'] == 'trace': self._idx_trace = self._spect['trace']['index'][snum]
         elif self._argflag['reduce']['usetrace'] == 'blzflat': self._idx_trace = self._spect['blzflat']['index'][snum]
         else: self._idx_trace = []
+        if self._argflag['reduce']['useflat'] == 'pixflat': self._idx_flat = self._spect['pixflat']['index'][snum]
+        elif self._argflag['reduce']['useflat'] == 'blzflat': self._idx_flat = self._spect['blzflat']['index'][snum]
+        else: self._idx_flat = []
 
         # Set the base name and extract other names that will be used for output files
         self._basename = ""
@@ -138,7 +141,7 @@ class ScienceExposure:
         else:
             msgs.info("Not preparing a bad pixel mask")
             return False
-        self.SetMasterFrame(bpix, 'badpix', det)
+        self.SetFrame(self._bpix, bpix, det)
         del bpix
         return True
 
@@ -189,9 +192,9 @@ class ScienceExposure:
             self.SetMasterFrame(self._msarc[det-1].T, 'arc', det)
             # Transpose the bad pixel mask
             if self._bpix[det-1] is not None:
-                self.SetMasterFrame(self._bpix[det-1].T, 'badpix', det)
+                self.SetFrame(self._bpix, self._bpix[det-1].T, det)
             # Transpose the amplifier sections frame
-            self.SetMasterFrame(self._ampsec[det-1].T, 'ampsec', det)
+            self.SetFrame(self._ampsec, self._ampsec[det-1].T, det)
             # Update the keywords of the fits files
             for i in xrange(len(fitsdict['naxis0'])):
                 temp = fitsdict['naxis0'][i]
@@ -227,12 +230,12 @@ class ScienceExposure:
           Index of the detector
         """
         if self._argflag['reduce']['locations'] is None:
-            self.SetArray(self._pixlocn, artrace.gen_pixloc(self, self._mstrace[det-1], det, gen=True), det)
+            self.SetFrame(self._pixlocn, artrace.gen_pixloc(self, self._mstrace[det-1], det, gen=True), det)
         elif self._argflag['reduce']['locations'] in ["mstrace"]:
-            self.SetArray(self._pixlocn, artrace.gen_pixloc(self._spect, self._mstrace[det-1], det, gen=False), det)
+            self.SetFrame(self._pixlocn, artrace.gen_pixloc(self._spect, self._mstrace[det-1], det, gen=False), det)
         else:
             mname = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['locations']
-            self.SetArray(self._pixlocn, arload.load_master(mname, frametype=None), det)
+            self.SetFrame(self._pixlocn, arload.load_master(mname, frametype=None), det)
         return
 
 
@@ -315,7 +318,7 @@ class ScienceExposure:
         """
         # If the master bias is already made, use it
         if self._msbias[det-1] is not None:
-            msgs.info("An identical master {0:s} frame already exists.".format(self._argflag['reduce']['usebias']))
+            msgs.info("An identical master {0:s} frame already exists".format(self._argflag['reduce']['usebias']))
             return False
         if self._argflag['reduce']['usebias'] in ['bias', 'dark']:
             msgs.info("Preparing a master {0:s} frame".format(self._argflag['reduce']['usebias']))
@@ -341,69 +344,68 @@ class ScienceExposure:
         return True
 
 
-    def MasterFlatField(self, sc, det):
+    def MasterFlatField(self, fitsdict, det):
+        """
+        Generate Master Flat-field frame for a given detector
+
+        Parameters
+        ----------
+        fitsdict : dict
+          Contains relevant information from fits header files
+        det : int
+          Index of the detector
+
+        Returns
+        -------
+        boolean : bool
+          Should other ScienceExposure classes be updated?
+        """
         if self._argflag['reduce']['flatfield']: # Only do it if the user wants to flat field
+        # If the master pixflat is already made, use it
+            if self._mspixflat[det-1] is not None:
+                msgs.info("An identical master pixflat frame already exists")
+                return False
             ###############
             # Generate a master pixel flat frame
             if self._argflag['reduce']['useflat'] in ['pixflat', 'blzflat']:
                 msgs.info("Preparing a master pixel flat frame with {0:s}".format(self._argflag['reduce']['useflat']))
-                if self._argflag['reduce']['useflat'] == 'pixflat':
-                    # Get all of the pixel flat frames for this science frame
-                    ind = self._spect['pixflat']['index'][sc]
-                elif self._argflag['reduce']['useflat'] == 'blzflat':
-                    # Get all of the blzflat frames for this science frame
-                    ind = self._spect['blzflat']['index'][sc]
-                # Check if an *identical* master pixel flat frame has already been produced
-                found = False
-                for gb in xrange(len(self._done_flat)):
-                    if np.array_equal(ind, self._done_flat[gb]):
-                        msgs.info("An identical master flat frame already exists")
-                        mspixflat_name = self._name_flat[gb]
-                        mspixflat = arload.load_master(mspixflat_name, frametype='pixel flat')
-                        found = True
-                        break
-                if not found:
-                    # Load the frames for tracing
-                    frames = arload.load_frames(self, ind, frametype='pixel flat', msbias=self._msbias, transpose=self._transpose)
-                    if self._argflag['reduce']['flatmatch'] > 0.0:
-                        sframes = arsort.match_frames(self, frames, self._argflag['reduce']['flatmatch'], frametype='pixel flat', satlevel=self._spect['det'][det-1]['saturation']*self._spect['det'][det-1]['nonlinear'])
-                        subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
-                        numarr = np.array([])
-                        for i in xrange(len(sframes)):
-                            numarr = np.append(numarr,sframes[i].shape[2])
-                            mspixflat = arcomb.comb_frames(sframes[i], spect=self._spect, frametype='pixel flat', **self._argflag['pixflat']['comb'])
-                            mspixflat_name = "{0:s}/{1:s}/sub-msflat{2:s}_{3:03d}_{4:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"][det-1]["suffix"],len(self._done_flat),i)
-                            # Send the data away to be saved
-                            arsave.save_master(self, mspixflat, filename=mspixflat_name, frametype='pixel flat', ind=ind)
-                            subframes[:,:,i]=mspixflat.copy()
-                        del sframes
-                        # Combine all sub-frames
-                        mspixflat = arcomb.comb_frames(subframes, spect=self._spect, frametype='pixel flat', weights=numarr, **self._argflag['pixflat']['comb'])
-                        del subframes
-                    else:
-                        mspixflat = arcomb.comb_frames(frames, spect=self._spect, frametype='pixel flat', **self._argflag['pixflat']['comb'])
-                    del frames
-                    # Derive a suitable name for the master pixel flat frame
-                    mspixflat_name = "{0:s}/{1:s}/msflat{2:s}_{3:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"][det-1]["suffix"],len(self._done_flat))
-                    # Send the data away to be saved
-                    arsave.save_master(self, mspixflat, filename=mspixflat_name, frametype='pixel flat', ind=ind)
-                    # Store the files used and the master bias name in case it can be used during the later reduction processes
-                    self._done_flat.append(ind)
-                    self._name_flat.append(mspixflat_name)
-            else: # It must be the name of a file the user wishes to load
+                # Get all of the pixel flat frames for this science frame
+                ind = self._idx_flat
+                # Load the frames for tracing
+                frames = arload.load_frames(self, fitsdict, ind, det, frametype='pixel flat',
+                                            msbias=self._msbias[det-1], transpose=self._transpose)
+                if self._argflag['reduce']['flatmatch'] > 0.0:
+                    sframes = arsort.match_frames(self, frames, self._argflag['reduce']['flatmatch'], frametype='pixel flat', satlevel=self._spect['det'][det-1]['saturation']*self._spect['det'][det-1]['nonlinear'])
+                    subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
+                    numarr = np.array([])
+                    for i in xrange(len(sframes)):
+                        numarr = np.append(numarr, sframes[i].shape[2])
+                        mspixflat = arcomb.comb_frames(sframes[i], det, spect=self._spect, frametype='pixel flat', **self._argflag['pixflat']['comb'])
+                        subframes[:,:,i] = mspixflat.copy()
+                    del sframes
+                    # Combine all sub-frames
+                    mspixflat = arcomb.comb_frames(subframes, det, spect=self._spect, frametype='pixel flat',
+                                                   weights=numarr, **self._argflag['pixflat']['comb'])
+                    del subframes
+                else:
+                    mspixflat = arcomb.comb_frames(frames, det, spect=self._spect, frametype='pixel flat',
+                                                   **self._argflag['pixflat']['comb'])
+                del frames
+            else:  # It must be the name of a file the user wishes to load
                 mspixflat_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usepixflat']
-                mspixflat=arload.load_master(mspixflat_name, frametype=None)
+                mspixflat = arload.load_master(mspixflat_name, frametype=None)
             # Now that the combined, master flat field frame is loaded...
             # Normalize the flat field
-            mspixflatnrm, msblaze = arproc.flatnorm(self, det, mspixflat, overpix=0, fname=os.path.basename(os.path.splitext(mspixflat_name)[0]))
+            mspixflatnrm, msblaze = arproc.flatnorm(self, det, mspixflat, overpix=0, plotdesc="Blaze function")
+            self.SetFrame(self._msblaze, msblaze, det)
         else:
             msgs.work("Pixel Flat arrays need to be generated when not flat fielding")
             msgs.bug("Blaze is currently undefined")
             mspixflat = np.ones_like(self._msarc)
             mspixflatnrm = np.ones_like(self._msarc)
-            msblaze = None
-            mspixflat_name = None
-        return mspixflat, mspixflatnrm, msblaze, mspixflat_name
+        self.SetMasterFrame(mspixflat, "pixflat", det)
+        self.SetMasterFrame(mspixflatnrm, "normpixflat", det)
+        return True
 
 
     def MasterTrace(self, fitsdict, det):
@@ -430,7 +432,8 @@ class ScienceExposure:
             msgs.info("Preparing a master trace frame with {0:s}".format(self._argflag['reduce']['usetrace']))
             ind = self._idx_trace
             # Load the frames for tracing
-            frames = arload.load_frames(self, fitsdict, ind, det, frametype='trace', msbias=self._msbias[det-1], trim=self._argflag['reduce']['trim'], transpose=self._transpose)
+            frames = arload.load_frames(self, fitsdict, ind, det, frametype='trace', msbias=self._msbias[det-1],
+                                        trim=self._argflag['reduce']['trim'], transpose=self._transpose)
             if self._argflag['reduce']['flatmatch'] > 0.0:
                 sframes = arsort.match_frames(self, frames, self._argflag['reduce']['flatmatch'], frametype='trace', satlevel=self._spect['det'][det-1]['saturation']*self._spect['det'][det-1]['nonlinear'])
                 subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
@@ -474,14 +477,18 @@ class ScienceExposure:
         return
 
     # Setters
+    def SetFrame(self, toarray, value, det, copy=True):
+        if copy: toarray[det-1] = value.copy()
+        else: toarray[det-1] = value
+        return
+
+
     def SetMasterFrame(self, frame, ftype, det, copy=True):
         det -= 1
         if copy: cpf = frame.copy()
         else: cpf = frame
         # Set the frame
-        if ftype == "ampsec": self._ampsec[det] = cpf
-        elif ftype == "arc": self._msarc[det] = cpf
-        elif ftype == "badpix": self._bpix[det] = cpf
+        if ftype == "arc": self._msarc[det] = cpf
         elif ftype == "bias": self._msbias[det] = cpf
         elif ftype == "normpixflat": self._mspixflatnrm[det] = cpf
         elif ftype == "pixflat": self._mspixflat[det] = cpf
@@ -492,19 +499,12 @@ class ScienceExposure:
         return
 
 
-    def SetArray(self, toarray, array, det):
-        toarray[det-1] = array
-        return
-
-
     # Getters
     def GetMasterFrame(self, ftype, det, copy=True):
         det -= 1
         # Get the frame
         if copy:
-            if ftype == "ampsec": return self._ampsec[det].copy()
-            elif ftype == "arc": return self._msarc[det].copy()
-            elif ftype == "badpix": return self._badpix[det].copy()
+            if ftype == "arc": return self._msarc[det].copy()
             elif ftype == "bias": return self._msbias[det].copy()
             elif ftype == "normpixflat": return self._pixflatnrm[det].copy()
             elif ftype == "pixflat": return self._mspixflat[det].copy()
@@ -513,13 +513,11 @@ class ScienceExposure:
                 msgs.bug("I could not get master frame of type: {0:s}".format(ftype))
                 msgs.error("Please contact the authors")
         else:
-            if ftype == "ampsec": return ret
-            elif ftype == "arc": return ret
-            elif ftype == "badpix": return ret
-            elif ftype == "bias": return ret
-            elif ftype == "normpixflat": return ret
-            elif ftype == "pixflat": return ret
-            elif ftype == "trace": return ret
+            if ftype == "arc": return self._msarc[det]
+            elif ftype == "bias": return self._msbias[det]
+            elif ftype == "normpixflat": return self._pixflatnrm[det]
+            elif ftype == "pixflat": return self._mspixflat[det]
+            elif ftype == "trace": return self._mstrace[det]
             else:
                 msgs.bug("I could not get master frame of type: {0:s}".format(ftype))
                 msgs.error("Please contact the authors")

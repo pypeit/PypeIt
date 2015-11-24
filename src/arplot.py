@@ -170,58 +170,50 @@ def zsc_compute_sigma(flat, badpix, npix):
 
     return ngoodpix, mean, sigma
 
-def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, plotsdir="Plots", textplt="Order", maxp=4, prefix="", maskval=-999999.9):
+def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, plotsdir="Plots", textplt="Order", maxp=4, desc="", maskval=-999999.9):
     """
     Given data and a model, the model+fit of each order is saved to a pdf
     """
     npix, nord = ydata.shape
-    pages, npp = get_dimen(nord,maxp=maxp)
+    pages, npp = get_dimen(nord, maxp=maxp)
     if xdata is None: xdata = np.arange(npix).reshape((npix,1)).repeat(nord,axis=1)
     if xmodl is None: xmodl = np.arange(model.shape[0])
     # Loop through all pages and plot the results
-    ndone=0
-    usepdf=True
-    axesIdx=True
-    try:
-        from matplotlib.backends.backend_pdf import PdfPages
-        fn = "{0:s}/{1:s}.pdf".format(plotsdir,prefix)
-        pp = PdfPages(fn)
-    except:
-        # Save to a few png files instead
-        usepdf=False
+    ndone = 0
+    axesIdx = True
     for i in xrange(len(pages)):
         f, axes = plt.subplots(pages[i][1], pages[i][0])
         ipx, ipy = 0, 0
         for j in xrange(npp[i]):
-            if pages[i][0]==1 and pages[i][1]==1: axesIdx=False
-            elif pages[i][1] == 1: ind = (ipx)
-            elif pages[i][0] == 1: ind = (ipy)
-            else: ind = (ipy,ipx)
+            if pages[i][0] == 1 and pages[i][1] == 1: axesIdx = False
+            elif pages[i][1] == 1: ind = (ipx,)
+            elif pages[i][0] == 1: ind = (ipy,)
+            else: ind = (ipy, ipx)
             if axesIdx:
-                axes[ind].plot(xdata[:,ndone+j],ydata[:,ndone+j],'bx',drawstyle='steps')
-                axes[ind].plot(xmodl,model[:,ndone+j],'r-')
+                axes[ind].plot(xdata[:,ndone+j], ydata[:,ndone+j], 'bx', drawstyle='steps')
+                axes[ind].plot(xmodl, model[:,ndone+j],'r-')
             else:
-                axes.plot(xdata[:,ndone+j],ydata[:,ndone+j],'bx',drawstyle='steps')
-                axes.plot(xmodl,model[:,ndone+j],'r-')
+                axes.plot(xdata[:,ndone+j], ydata[:,ndone+j], 'bx', drawstyle='steps')
+                axes.plot(xmodl, model[:,ndone+j],'r-')
             ytmp = ydata[:,ndone+j]
-            ytmp = ytmp[np.where(ytmp!=maskval)]
-            if ytmp.size != 0: amn = min(np.min(ytmp),np.min(model[:,ndone+j]))
+            ytmp = ytmp[np.where(ytmp != maskval)]
+            if ytmp.size != 0: amn = min(np.min(ytmp), np.min(model[:,ndone+j]))
             else: amn = np.min(model[:,ndone+j])
-            if ytmp.size != 0: amx = max(np.max(ytmp),np.max(model[:,ndone+j]))
-            else: amx= np.max(model[:,ndone+j])
+            if ytmp.size != 0: amx = max(np.max(ytmp), np.max(model[:,ndone+j]))
+            else: amx = np.max(model[:,ndone+j])
             xtmp = xdata[:,ndone+j]
-            xtmp = xtmp[np.where(xtmp!=maskval)]
-            if xtmp.size==0:
+            xtmp = xtmp[np.where(xtmp != maskval)]
+            if xtmp.size == 0:
                 xmn = np.min(xmodl)
                 xmx = np.max(xmodl)
             else:
-                xmn = min(np.min(xtmp),np.min(xmodl))
-                xmx = max(np.max(xtmp),np.max(xmodl))
+                xmn = min(np.min(xtmp), np.min(xmodl))
+                xmx = max(np.max(xtmp), np.max(xmodl))
             if axesIdx:
-                axes[ind].axis([xmn,xmx,amn,amx])
+                axes[ind].axis([xmn, xmx, amn, amx])
                 axes[ind].set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
             else:
-                axes.axis([xmn,xmx,amn,amx])
+                axes.axis([xmn, xmx, amn, amx])
                 axes.set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
             ipx += 1
             if ipx == pages[i][0]:
@@ -230,9 +222,9 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, plotsdir="Plots", 
         # Delete the unnecessary axes
         if axesIdx:
             for j in xrange(npp[i],axes.size):
-                if pages[i][1] == 1: ind = (ipx)
-                elif pages[i][0] == 1: ind = (ipy)
-                else: ind = (ipy,ipx)
+                if pages[i][1] == 1: ind = (ipx,)
+                elif pages[i][0] == 1: ind = (ipy,)
+                else: ind = (ipy, ipx)
                 f.delaxes(axes[ind])
                 if ipx == pages[i][0]:
                     ipx = 0
@@ -245,20 +237,9 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, plotsdir="Plots", 
         else: ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
         f.set_size_inches(11.0, ypngsiz)
         f.tight_layout()
-        if usepdf:
-            pp.savefig()
-            plt.close()
-        else:
-            if prefix != "":
-                f.savefig("{0:s}/{1:s}_page-{2:d}.png".format(plotsdir,prefix,i+1), dpi=200, orientation='landscape')
-            else:
-                f.savefig("{0:s}/orderplot_page-{1:d}.png".format(plotsdir,i+1), dpi=200, orientation='landscape')
-    if usepdf:
-        pp.close()
-        msgs.info("Saved a pdf with filename:"+msgs.newline()+fn)
-    else:
-        msgs.info("Saved several png files")
+        plt.title(desc)
+        slf._qa.savefig()
+        plt.close()
     f.clf()
-    #plt.close()
     del f
     return
