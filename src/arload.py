@@ -7,7 +7,6 @@ import getopt
 import astropy.io.fits as pyfits
 from astropy.time import Time
 import numpy as np
-import armsgs as msgs
 import arproc
 import arlris
 from multiprocessing import cpu_count
@@ -20,83 +19,91 @@ try:
 except:
     pass
 
-def cpucheck(ncpu,curcpu=0):
-    cpucnt=cpu_count()
+
+def cpucheck(ncpu, msgs, curcpu=0):
+    cpucnt = cpu_count()
     if ncpu == 'all':
-        ncpu=cpucnt # Use all available cpus
-        if cpucnt != curcpu: msgs.info("Setting %i CPUs" % (ncpu))
-    elif ncpu == None:
-        ncpu=cpucnt-1 # Use all but 1 available cpus
-        if ncpu != curcpu: msgs.info("Setting %i CPUs" % (ncpu))
+        ncpu = cpucnt  # Use all available cpus
+        if cpucnt != curcpu: msgs.info("Setting {0:d} CPUs".format(ncpu))
+    elif ncpu is None:
+        ncpu = cpucnt-1  # Use all but 1 available cpus
+        if ncpu != curcpu:
+            msgs.info("Setting {0:d} CPUs".format(ncpu))
     else:
         try:
             ncpu = int(ncpu)
             if ncpu > cpucnt:
-                msgs.warn("You don't have %i CPUs!" % (ncpu))
+                msgs.warn("You don't have {0:d} CPUs!".format(ncpu))
                 ncpu = cpucnt
             elif ncpu < 0:
                 ncpu += cpucnt
-            if ncpu != curcpu: msgs.info("Setting %i CPUs" % (ncpu))
+            if ncpu != curcpu:
+                msgs.info("Setting {0:d} CPUs".format(ncpu))
         except:
             msgs.error("Incorrect argument given for number of CPUs"+msgs.newline()+"Please choose from -"+msgs.newline()+"all, 1..."+str(cpucnt))
             if cpucnt == 1:
-                if cpucnt != curcpu: msgs.info("Setting 1 CPU")
-                ncpu=1
+                if cpucnt != curcpu:
+                    msgs.info("Setting 1 CPU")
+                ncpu = 1
             else:
-                ncpu=cpu_count()-1
-                if ncpu != curcpu: msgs.info("Setting %i CPUs" % (ncpu))
+                ncpu = cpu_count()-1
+                if ncpu != curcpu:
+                    msgs.info("Setting {0:d} CPUs".format(ncpu))
     return ncpu
 
-def optarg(argv, last_updated):
-    def usage(argflag):
-        print "\n#####################################################################"
-        print msgs.armedheader(argflag['run']['prognm'])
-        print "##  -----------------------------------------------------------------"
-        print "##  Options: (default values in brackets)"
-        print "##   -c or --cpus      : (all) Number of cpu cores to use"
-        print "##   -h or --help      : Print this message"
-        print "##   -v or --verbose   : (2) Level of verbosity (0-2)"
-        print "##  -----------------------------------------------------------------"
-        print "##  %s" % last_updated
-        print "#####################################################################\n"
-        sys.exit()
+
+def optarg(argv, msgs):
+    """
+    Load the command line options and arguments
+
+    Parameters
+    ----------
+    argv : list
+      command line arguments
+    msgs : class
+      Messages class for logging
+
+    Returns
+    -------
+    argflag : dict
+      Arguments and flags used for reduction
+    """
 
     # Load the default settings
     prgn_spl = argv[0].split('/')
     tfname = ""
     for i in range(0,len(prgn_spl)-2): tfname += prgn_spl[i]+"/"
     fname = tfname + prgn_spl[-2] + '/settings.armlsd'
-    argflag = load_settings(fname)
+    argflag = load_settings(fname, msgs)
     argflag['run']['prognm'] = argv[0]
     argflag['run']['pypitdir'] = tfname
     # Load options from command line
     try:
-        opt,arg=getopt.getopt(argv[1:],'hc:v:', ['help',
-                                                 'cpus',
-                                                 'verbose',
-                                                ])
+        opt, arg = getopt.getopt(argv[1:], 'hc:v:', ['help',
+                                                     'cpus',
+                                                     'verbose',
+                                                     ])
     except getopt.GetoptError, err:
         msgs.error(err.msg)
-        usage(argflag)
-    for o,a in opt:
-        if   o in ('-h', '--help')      : usage(argflag)
-        elif o in ('-c', '--cpus')      : argflag['run']['ncpus']     = a
-        elif o in ('-v', '--verbose')   : argflag['out']['verbose']   = int(a)
+        msgs.usage(None)
+    for o, a in opt:
+        if o in ('-h', '--help'): msgs.usage(None)
+        elif o in ('-c', '--cpus'): argflag['run']['ncpus'] = a
+        elif o in ('-v', '--verbose'): argflag['out']['verbose'] = int(a)
 
     #######################
     # Now do some checks: #
     #######################
 
     # Check requested CPUs
-    argflag['run']['ncpus'] = cpucheck(argflag['run']['ncpus'])
+    argflag['run']['ncpus'] = cpucheck(argflag['run']['ncpus'], msgs)
 
     # Assign filelist:
-    if len(argv) < 2: usage(argflag)
-    else:
-        argflag['run']['redname'] = arg[0]
+    argflag['run']['redname'] = arg[0]
     return argflag
 
-def set_params_wtype(tvalue, svalue, lines="", setstr="", argnum=3):
+
+def set_params_wtype(tvalue, svalue, msgs, lines="", setstr="", argnum=3):
     try:
         if type(tvalue) is int:
             tvalue = int(svalue)
@@ -145,7 +152,7 @@ def set_params_wtype(tvalue, svalue, lines="", setstr="", argnum=3):
                 except: tvalue = svalue # Must be a string
         elif type(tvalue) is dict:
             nvalue = lines.split()[argnum]
-            tvalue[svalue] = set_params_wtype(tvalue[svalue], nvalue, argnum=argnum+1)
+            tvalue[svalue] = set_params_wtype(tvalue[svalue], nvalue, msgs, argnum=argnum+1)
         else:
             msgs.bug("Type not found for:"+msgs.newline()+lines.split('#')[0].strip())
     except:
@@ -153,7 +160,7 @@ def set_params_wtype(tvalue, svalue, lines="", setstr="", argnum=3):
     return tvalue
 
 
-def set_params(lines, indict, setstr=""):
+def set_params(lines, indict, msgs, setstr=""):
     """
     Adjust settings parameters.
     lines    : an array of settings with the same format as the default 'settings.armed'
@@ -165,37 +172,36 @@ def set_params(lines, indict, setstr=""):
         if lines[i].strip()[0] == '#': continue
         tline = lines[i].strip().split("#")[0]
         linspl = tline.split()
-        #print(linspl)
         if len(linspl) <= 2:
             msgs.error("Not enough parameters given on line:"+msgs.newline()+lines[i])
         if linspl[0] == 'check':
-            text = str(linspl[2]).strip().replace('_',' ')
-            if ',' in text: # There are multiple possibilities
+            text = str(linspl[2]).strip().replace('_', ' ')
+            if ',' in text:  # There are multiple possibilities
                 indict[linspl[0]][linspl[1]] += text.split(',')
             else:
                 indict[linspl[0]][linspl[1]] = text
         elif linspl[0] in indict.keys():
-            if linspl[1] in ['check','match','combsame']:
-                text = str(linspl[3]).strip().replace('_',' ')
-                if ',' in text and text[0:2] != '%,': # There are multiple possibilities - split the infile
+            if linspl[1] in ['check', 'match', 'combsame']:
+                text = str(linspl[3]).strip().replace('_', ' ')
+                if ',' in text and text[0:2] != '%,':  # There are multiple possibilities - split the infile
                     indict[linspl[0]][linspl[1]][linspl[2]] += text.split(',')
                 else:
                     indict[linspl[0]][linspl[1]][linspl[2]] = text
-            elif linspl[1][:6] == 'ndet': # Mosaic of Detectors
+            elif linspl[1][:6] == 'ndet':  # Mosaic of Detectors
                 indict[linspl[0]][linspl[1]] = int(linspl[2])
                 tmp = []
-                for ii in range(indict['mosaic']['ndet']): # List
+                for ii in range(indict['mosaic']['ndet']):  # List
                     tmpi = copy.deepcopy(indict['det'])
                     tmpi['suffix'] = str(ii)
                     tmp.append(tmpi)
                 indict['det'] = tmp
-            elif linspl[1][:7] == 'headext': # Header Sections
+            elif linspl[1][:7] == 'headext':  # Header Sections
                 try:
                     null = np.int(linspl[1][7:])
                 except ValueError:
                     msgs.error("keyword headext must contain an integer suffix")
                 indict[linspl[0]][linspl[1]] = int(linspl[2])
-            elif linspl[1][:8] == 'lampname': # Lamp names
+            elif linspl[1][:8] == 'lampname':  # Lamp names
                 try:
                     null = np.int(linspl[1][8:])
                 except ValueError:
@@ -208,7 +214,7 @@ def set_params(lines, indict, setstr=""):
                     msgs.error("keyword lampstat must contain an integer suffix")
                 indict[linspl[0]][linspl[1]] = linspl[2]
             elif linspl[1] in indict[linspl[0]].keys():
-                indict[linspl[0]][linspl[1]] = set_params_wtype(indict[linspl[0]][linspl[1]],linspl[2],lines=tline,setstr=setstr)
+                indict[linspl[0]][linspl[1]] = set_params_wtype(indict[linspl[0]][linspl[1]], linspl[2], msgs, lines=tline,setstr=setstr)
             else: 
                 msgs.error(setstr + "Settings contains bad line (arg 2):"+msgs.newline()+lines[i].split('#')[0].strip())
         elif linspl[0][:3] == 'det': # Detector parameters
@@ -237,7 +243,7 @@ def set_params(lines, indict, setstr=""):
                     msgs.error("keyword oscansec must contain an integer suffix")
                 indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], strtxt=linspl[1])
             else:  # Read value
-                indict[linspl[0]][didx][linspl[1]] = set_params_wtype(indict[linspl[0]][didx][linspl[1]],linspl[2],lines=tline,setstr=setstr)
+                indict[linspl[0]][didx][linspl[1]] = set_params_wtype(indict[linspl[0]][didx][linspl[1]], linspl[2], msgs, lines=tline,setstr=setstr)
         else: 
             msgs.error(setstr + "Settings contains bad line (arg 1):"+msgs.newline()+lines[i].split('#')[0].strip())
     return indict
@@ -263,7 +269,7 @@ def load_sections(string, strtxt="<not specified>"):
     return None
 
 
-def load_settings(fname):
+def load_settings(fname, msgs):
     def initialise():
         """
         Initialise the default settings called argflag
@@ -295,10 +301,11 @@ def load_settings(fname):
     argflag = initialise()
     with open(fname, 'r') as infile:
         lines = infile.readlines()
-    argflag = set_params(lines, argflag, setstr="Default ")
+    argflag = set_params(lines, argflag, msgs, setstr="Default ")
     return argflag
 
-def load_input(argflag):
+
+def load_input(argflag, msgs):
     """
     Load user defined input reduction file. Updates are
     made to the argflag dictionary.
@@ -381,16 +388,16 @@ def load_input(argflag):
     elif rddata != 2:
         msgs.error("Missing 'spect end' in "+argflag['run']['redname'])
     # Check there are no duplicate inputs
-    if len(datlines)!=len(set(datlines)):
+    if len(datlines) != len(set(datlines)):
         msgs.error("There are duplicate files in the list of data.")
     # Now update the settings
-    curcpu = argflag['run']['ncpus'] # Store the current number of CPUs
-    argflag = set_params(parlines, argflag, setstr="Input ")
+    curcpu = argflag['run']['ncpus']  # Store the current number of CPUs
+    argflag = set_params(parlines, argflag, msgs, setstr="Input ")
     # Check requested CPUs
-    argflag['run']['ncpus'] = cpucheck(argflag['run']['ncpus'], curcpu=curcpu)
+    argflag['run']['ncpus'] = cpucheck(argflag['run']['ncpus'], msgs, curcpu=curcpu)
     # Perform some checks on the input parameters:
     if argflag['chisq']['fstep'] < 1.0: msgs.error("Setting 'fstep' in family 'chisq' must be >= 1.0")
-    if argflag['out']['verbose'] not in [0,1,2]: msgs.error("Setting 'verbose' in family 'out' must equal 0, 1, or 2.")
+    if argflag['out']['verbose'] not in [0, 1, 2]: msgs.error("Setting 'verbose' in family 'out' must equal 0, 1, or 2.")
     if argflag['reduce']['usebias'].lower() not in ['bias', 'overscan', 'dark', 'none']:
         if not os.path.exists(argflag['run']['masterdir']+'/'+argflag['reduce']['usebias']) and not os.path.exists(argflag['run']['masterdir']+'/'+argflag['reduce']['usebias']+".fits") and not os.path.exists(argflag['run']['masterdir']+'/'+argflag['reduce']['usebias']+".fit"):
             msgs.warn("The following file does not exist:"+msgs.newline()+"{0:s}/{1:s}".format(argflag['run']['masterdir'],argflag['reduce']['usebias']))
@@ -404,12 +411,12 @@ def load_input(argflag):
     if len(osrtspl) != 1:
         if osrtspl[-1] != 'xml': msgs.error("The output format for 'sorted' is .xml, not .{0:s}".format(osrtspl[-1]))
     msgs.info("Input file loaded successfully")
-    if len(datlines)==0: msgs.error("There are no raw data frames"+msgs.newline()+"Perhaps the path to the data is incorrect?")
+    if len(datlines) == 0: msgs.error("There are no raw data frames"+msgs.newline()+"Perhaps the path to the data is incorrect?")
     else: msgs.info("Found {0:d} raw data frames".format(len(datlines)))
     return argflag, parlines, datlines, spclines
 
 
-def load_spect(argflag, spect=None, lines=None):
+def load_spect(argflag, msgs, spect=None, lines=None):
     """
     Load spectrograph settings
 
@@ -417,6 +424,8 @@ def load_spect(argflag, spect=None, lines=None):
     ----------
     argflag : dict
       Arguments and flags used for reduction
+    msgs : class
+      Messages class for logging
     spect : dict
       Properties of the spectrograph.
       If None, spect will be created, otherwise spect
@@ -433,23 +442,23 @@ def load_spect(argflag, spect=None, lines=None):
       Loaded or updated properties of the spectrograph
     """
     def initialise():
-        msc = dict({'ndet':0, 'latitude':0.0, 'longitude':0.0, 'elevation':0.0, 'minexp':0., 'reduction':'ARMLSD'})
+        msc = dict({'ndet': 0, 'latitude': 0.0, 'longitude': 0.0, 'elevation': 0.0, 'minexp': 0., 'reduction': 'ARMLSD'})
         # det starts as a dict but becomes a list of dicts in set_params
-        ddet = dict({'xgap':0.0, 'ygap':0.0, 'ysize':1.0, 'darkcurr':0.0, 'ronoise':1.0, 'gain':1.0, 'saturation':65536.0, 'nonlinear':1.0, 'numamplifiers':1, 'suffix':""})
+        ddet = dict({'xgap': 0.0, 'ygap': 0.0, 'ysize': 1.0, 'darkcurr': 0.0, 'ronoise': 1.0, 'gain': 1.0, 'saturation': 65536.0, 'nonlinear': 1.0, 'numamplifiers': 1, 'suffix': ""})
         #
         chk = dict({})
-        stf = dict({'science':[], 'standard':[], 'bias':[], 'pixflat':[], 'blzflat':[], 'arc':[], 'trace':[], 'dark':[]})
-        kyw = dict({'target':'01.OBJECT', 'idname':'01.OBSTYPE', 'time':'01.MJD', 'date':'', 'equinox':'', 'ra':'', 'dec':'', 'airmass':'', 'naxis0':'01.NAXIS2', 'naxis1':'01.NAXIS1', 'exptime':'01.EXPTIME', 'hatch':'01.TRAPDOOR','filter1':'01.FILTNAME', 'filter2':None, 'lamps':'01.LAMPNAME', 'decker':'01.DECKNAME', 'slitwid':'01.SLITWIDTH', 'slitlen':'01.SLITLENGTH', 'detrot':'01.DETECTORROTATION', 'cdangle':'01.XDISPANGLE', 'echangle':'01.ECHELLEANGLE', 'crossdisp':'01.XDISPERS', 'dichroic':'', 'disperser':'', 'binning':''})
-        fts = dict({'numhead':1, 'numlamps':1, 'dataext':0, 'calwin':12.0, 'timeunit':'mjd'})
-        sci = dict({'index':[], 'check':dict({}), 'idname':'OBJECT', 'canbe':None})
-        std = dict({'index':[], 'check':dict({}), 'match':dict({}), 'number':1, 'idname':'OBJECT', 'canbe':None, 'combsame':dict({})})
-        pfl = dict({'index':[], 'check':dict({}), 'match':dict({}), 'number':5, 'idname':'OBJECT', 'canbe':None, 'combsame':dict({}), 'lscomb':False })
-        bfl = dict({'index':[], 'check':dict({}), 'match':dict({}), 'number':5, 'idname':'OBJECT', 'canbe':None, 'combsame':dict({}), 'lscomb':False })
-        trc = dict({'index':[], 'check':dict({}), 'match':dict({}), 'number':1, 'idname':'OBJECT', 'canbe':None, 'combsame':dict({}), 'lscomb':False })
-        arc = dict({'index':[], 'check':dict({}), 'match':dict({}), 'number':1, 'idname':'OBJECT', 'canbe':None, 'combsame':dict({}), 'lscomb':False })
-        bia = dict({'index':[], 'check':dict({}), 'match':dict({}), 'number':5, 'idname':'OBJECT', 'canbe':None, 'combsame':dict({}) })
-        drk = dict({'index':[], 'check':dict({}), 'match':dict({}), 'number':5, 'idname':'OBJECT', 'canbe':None, 'combsame':dict({}) })
-        spectt = dict({'mosaic': msc, 'det': ddet, 'check':chk, 'set':stf, 'keyword':kyw, 'fits':fts, 'science':sci, 'standard':std, 'pixflat':pfl, 'blzflat':bfl, 'trace':trc, 'arc':arc, 'bias':bia, 'dark':drk})
+        stf = dict({'science': [], 'standard': [], 'bias': [], 'pixflat': [], 'blzflat': [], 'arc': [], 'trace': [], 'dark': []})
+        kyw = dict({'target': '01.OBJECT', 'idname': '01.OBSTYPE', 'time': '01.MJD', 'date': '', 'equinox': '', 'ra': '', 'dec': '', 'airmass': '', 'naxis0': '01.NAXIS2', 'naxis1': '01.NAXIS1', 'exptime': '01.EXPTIME', 'hatch': '01.TRAPDOOR', 'filter1': '01.FILTNAME', 'filter2': None, 'lamps': '01.LAMPNAME', 'decker': '01.DECKNAME', 'slitwid': '01.SLITWIDTH', 'slitlen': '01.SLITLENGTH', 'detrot': '01.DETECTORROTATION', 'cdangle': '01.XDISPANGLE', 'echangle': '01.ECHELLEANGLE', 'crossdisp': '01.XDISPERS', 'dichroic': '', 'disperser': '', 'binning': ''})
+        fts = dict({'numhead': 1, 'numlamps':1, 'dataext':0, 'calwin':12.0, 'timeunit':'mjd'})
+        sci = dict({'index': [], 'check': dict({}), 'idname': 'OBJECT', 'canbe': None})
+        std = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 1, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({})})
+        pfl = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 5, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}), 'lscomb': False})
+        bfl = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 5, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}), 'lscomb': False})
+        trc = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 1, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}), 'lscomb': False})
+        arc = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 1, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}), 'lscomb': False})
+        bia = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 5, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}) })
+        drk = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 5, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}) })
+        spectt = dict({'mosaic': msc, 'det': ddet, 'check': chk, 'set': stf, 'keyword': kyw, 'fits': fts, 'science': sci, 'standard': std, 'pixflat': pfl, 'blzflat': bfl, 'trace': trc, 'arc': arc, 'bias': bia, 'dark': drk})
         return spectt
     # The spectrograph name
     sname = argflag['run']['spectrograph']
@@ -458,20 +467,20 @@ def load_spect(argflag, spect=None, lines=None):
         # Get the software path
         prgn_spl = argflag['run']['prognm'].split('/')
         fname = ""
-        for i in range(0,len(prgn_spl)-1): fname += prgn_spl[i]+"/"
+        for i in range(0, len(prgn_spl)-1): fname += prgn_spl[i]+"/"
         fname += 'settings.'+sname
         msgs.info("Loading the "+sname+" settings")
         spect = initialise()
         with open(fname, 'r') as infile:
             lines = infile.readlines()
-        spect = set_params(lines, spect, setstr="Default "+sname+" ")
+        spect = set_params(lines, spect, msgs, setstr="Default "+sname+" ")
     else:
         if spect is not None:
-            spect = set_params(lines, spect, setstr="Infile "+sname+" ")
+            spect = set_params(lines, spect, msgs, setstr="Infile "+sname+" ")
     return spect
 
 
-def load_headers(argflag, spect, datlines):
+def load_headers(argflag, spect, datlines, msgs):
     """
     Load the header information for each fits file
 
@@ -495,7 +504,7 @@ def load_headers(argflag, spect, datlines):
     """
     chks = spect['check'].keys()
     keys = spect['keyword'].keys()
-    fitsdict = dict({'directory':[], 'filename':[], 'utc':[]})
+    fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
     whddict = dict({})
     for k in keys: fitsdict[k]=[]
     headarr = [None for k in range(spect['fits']['numhead'])]
@@ -518,7 +527,7 @@ def load_headers(argflag, spect, datlines):
                 #print spect['check'][ch], str(headarr[frhd][kchk]).strip()
                 msgs.error("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
         # Now set the key values for each of the required keywords
-        dspl=datlines[i].split('/')
+        dspl = datlines[i].split('/')
         fitsdict['directory'].append('/'.join(dspl[:-1])+'/')
         fitsdict['filename'].append(dspl[-1])
         # Attempt to load a UTC
@@ -542,16 +551,16 @@ def load_headers(argflag, spect, datlines):
         #    arlris.set_det(fitsdict, headarr[k])
         # Now get the rest of the keywords
         for kw in keys:
-            if spect['keyword'][kw] is None: value='None' # This instrument doesn't have/need this keyword
+            if spect['keyword'][kw] is None: value = 'None'  # This instrument doesn't have/need this keyword
             else:
                 ch = spect['keyword'][kw]
                 try:
                     tfrhd = int(ch.split('.')[0])-1
                 except ValueError:
-                    value = ch # Keyword given a value. Only a string allowed for now
+                    value = ch  # Keyword given a value. Only a string allowed for now
                 else:
-                    frhd  = whddict['{0:02d}'.format(tfrhd)]
-                    kchk  = '.'.join(ch.split('.')[1:])
+                    frhd = whddict['{0:02d}'.format(tfrhd)]
+                    kchk = '.'.join(ch.split('.')[1:])
                     try:
                         value = headarr[frhd][kchk]
                     except KeyError: # Keyword not found in header

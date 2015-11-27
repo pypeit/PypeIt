@@ -22,11 +22,11 @@ def parse_nist(slf,ion):
     '''
     # Root (for development only)
     if slf is None:
-        root = '/Users/xavier/local/Python/PYPIT/'
+        root = "/".join(os.path.dirname(msgs.__file__).split("/")[:-1])
     else:
         root = slf._argflag['run']['pypitdir'] 
     # Find file
-    srch_file = root + 'data/arc_lines/NIST/'+ion+'*'
+    srch_file = root + '/data/arc_lines/NIST/'+ion+'*'
     nist_file = glob.glob(srch_file)
     if len(nist_file) != 1:
         msgs.error("Cannot find NIST file {:s}".format(srch_file))
@@ -80,7 +80,7 @@ def load_arcline_list(slf, idx, lines, wvmnx=None):
     parse_dict = load_parse_dict()
     # Read rejection file
     if slf is None:
-        root = os.getenv('PYPIT')
+        root = "/".join(os.path.dirname(msgs.__file__).split("/")[:-1])
     else:
         root = slf._argflag['run']['pypitdir'] 
     with open(root+'/data/arc_lines/rejected_lines.yaml', 'r') as infile:

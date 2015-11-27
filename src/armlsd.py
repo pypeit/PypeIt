@@ -2,14 +2,14 @@ import sys
 import pdb
 import numpy as np
 import arsciexp
+import armasters
 import artrace
-import armsgs as msgs
 import arsort
 import arproc
 import arqa
 
 
-def ARMLSD(argflag, spect, fitsdict, reuseMaster=True):
+def ARMLSD(argflag, spect, fitsdict, msgs, reuseMaster=True):
     """
     Automatic Reduction and Modeling of Long Slit Data
 
@@ -21,6 +21,8 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=True):
       Properties of the spectrograph.
     fitsdict : dict
       Contains relevant information from fits header files
+    msgs : class
+      Messages class used to log data reduction process
     reuseMaster : bool
       If True, a master frame that will be used for another science frame
       will not be regenerated after it is first made.
@@ -40,6 +42,9 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=True):
     # Create a list of science exposure classes
     sciexp = SetupScience(argflag, spect, fitsdict)
     numsci = len(sciexp)
+
+    # Create a list of master calibration frames
+    masters = armasters.MasterFrames(spect['mosaic']['ndet'])
 
     # Start reducing the data
     for sc in range(numsci):
@@ -101,6 +106,11 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=True):
             # Prepare the pixel flat field frame
             update = slf.MasterFlatField(fitsdict, det)
             if update and reuseMaster: UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixflat")
+
+
+
+
+
 
 
             slf._qa.close()

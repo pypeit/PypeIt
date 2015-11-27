@@ -4,22 +4,19 @@
 import os
 import sys
 import getopt
-#import json, io, yaml
 from signal import SIGINT, signal as sigsignal
 from warnings import resetwarnings, simplefilter
 from time import time
 import traceback
 import numpy as np
 from astropy.io import fits
-from astropy import units as u
 # Import PYPIT routines
-import armsgs as msgs
+from armsgs import Messages as Messages
 import ararc
 import arextract
 import arflux
 import arload
 import arsave
-import arcomb
 import arproc
 import arqa
 import arspecobj
@@ -31,33 +28,17 @@ try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
 except:
     pass
-#else:
-#    from astropy import units as u
-
-import pdb
 
 try:
     from xastropy.xutils import xdebug as xdb
 except:
     pass
 
-last_updated = "Last updated 09 November 2015"
-version = 'v0.2'
+last_updated = "26 November 2015"
+version = '0.2'
 
-def usage(prognm):
-    print "\n#####################################################################"
-    print msgs.pypitheader()
-    print "##  -----------------------------------------------------------------"
-    print "##  Options: (default values in brackets)"
-    print "##   -c or --cpus      : (all) Number of cpu cores to use"
-    print "##   -h or --help      : Print this message"
-    print "##   -v or --verbose   : (2) Level of verbosity (0-2)"
-    print "##  -----------------------------------------------------------------"
-    print "##  %s" % last_updated
-    print "#####################################################################\n"
-    sys.exit()
 
-def PYPIT(argflag, quick=False):
+def PYPIT(argflag, msgs, quick=False):
     """
     Main driver of the PYPIT code. Default settings and
     user-specified changes are made, and passed to the
@@ -83,10 +64,10 @@ def PYPIT(argflag, quick=False):
     simplefilter("ignore")
 
     # Record the starting time
-    tstart=time()
+    tstart = time()
 
     # Load the Input file
-    argflag, parlines, datlines, spclines = arload.load_input(argflag)
+    argflag, parlines, datlines, spclines = arload.load_input(argflag, msgs)
 
     # If a quick reduction has been requested, make sure the requested pipeline
     # is the quick implementation (if it exists), otherwise run the standard pipeline.
@@ -95,13 +76,13 @@ def PYPIT(argflag, quick=False):
         msgs.work("TO BE DONE")
 
     # Load the Spectrograph settings
-    spect = arload.load_spect(argflag)
+    spect = arload.load_spect(argflag, msgs)
 
     # Load any changes to the spectrograph settings
-    spect = arload.load_spect(argflag, spect=spect, lines=spclines)
+    spect = arload.load_spect(argflag, msgs, spect=spect, lines=spclines)
 
     # Load the important information from the fits headers
-    fitsdict = arload.load_headers(argflag, spect, datlines)
+    fitsdict = arload.load_headers(argflag, spect, datlines, msgs)
 
     # Reduce the data!
     status = 0
@@ -112,11 +93,11 @@ def PYPIT(argflag, quick=False):
     if spect['mosaic']['reduction']=='ARMLSD':
         msgs.info("Data reduction will be performed using PYPIT-ARMLSD")
         import armlsd
-        status = armlsd.ARMLSD(argflag, spect, fitsdict)
+        status = armlsd.ARMLSD(argflag, spect, fitsdict, msgs)
     elif spect['mosaic']['reduction']=='ARMED':
         msgs.info("Data reduction will be performed using PYPIT-ARMED")
         import armed
-        status = armed.ARMED(argflag, spect, fitsdict)
+        status = armed.ARMED(argflag, spect, fitsdict, msgs)
     # Check for successful reduction
     if status == 0:
         msgs.info("Data reduction complete")
@@ -230,7 +211,7 @@ def ARMLSD(self):
             ###############
             # Prepare the pixel flat field frame
             mspixflatnrm, msblaze = arproc.flatnorm(self, det, self._mstrace.copy(), overpix=0, fname=os.path.basename(os.path.splitext(self._mstrace_name)[0]))
-            self._mspixflat, self._mspixflatnrm, self._msblaze, self._mspixflat_name = self.MasterFlatField(sc,det)
+            self._mspixflat, self._mspixflatnrm, self._msblaze, self._mspixflat_name = self.MasterFlatField(sc, det)
             ###############
             # Derive the spectral tilt
             if self._foundarc:
@@ -447,36 +428,54 @@ def ARMLSD(self):
     return success
 
 if __name__ == "__main__":
+    argflag = dict({})
     prognm = sys.argv[0]
     debug = True
     quick = False
+    cpus = 1
+    verbose = 2
+
+    if len(sys.argv) < 2:
+        msgs = Messages(None, debug, last_updated, version)
+        msgs.usage(None)
 
     # Load options from command line
     try:
-        opt,arg=getopt.getopt(sys.argv[1:],'hqc:v:', ['help',
-                                                      'quick'])
-        argflag = arload.optarg(sys.argv, last_updated)
+        opt, arg = getopt.getopt(sys.argv[1:], 'hqc:v:', ['help',
+                                                          'quick',
+                                                          'cpus',
+                                                          'verbose'])
+        for o, a in opt:
+            if o in ('-h', '--help'):
+                msgs = Messages(None, debug, last_updated, version)
+                msgs.usage(None)
+            elif o in ('-q', '--quick'):
+                quick = True
+            elif o in ('-c', '--cpus'):
+                cpus = int(a)
+            elif o in ('-v', '--verbose'):
+                verbose = int(a)
+        lname = os.path.splitext(arg[0])[0] + ".log"
+        msgs = Messages(lname, debug, last_updated, version)
+        argflag = arload.optarg(sys.argv, msgs)
+        argflag['run']['ncpus'] = cpus
+        argflag['out']['verbose'] = verbose
     except getopt.GetoptError, err:
-        msgs.error(err.msg)
-        usage(prognm)
-    for o,a in opt:
-        if   o in ('-h', '--help')      : usage(argflag)
-        elif o in ('-q', '--quick')     : quick = True
-#		elif o in ('-c', '--cpus')      : argflag['run']['ncpus']     = a
-#		elif o in ('-v', '--verbose')   : argflag['out']['verbose']   = int(a)
+        msgs = Messages(None, debug, last_updated, version)
+        msgs.error(err.msg, usage=True)
 
     if debug:
-        PYPIT(argflag, quick=quick)
+        PYPIT(argflag, msgs, quick=quick)
     else:
         try:
-            PYPIT(argflag, quick=quick)
-        except Exception:
+            PYPIT(argflag, msgs, quick=quick)
+        except:
             # There is a bug in the code, print the file and line number of the error.
             et, ev, tb = sys.exc_info()
             while tb:
                 co = tb.tb_frame.f_code
                 filename = str(co.co_filename)
-                line_no =  str(traceback.tb_lineno(tb))
+                line_no = str(traceback.tb_lineno(tb))
                 tb = tb.tb_next
-            filename=filename.split('/')[-1]
+            filename = filename.split('/')[-1]
             msgs.bug("There appears to be a bug on Line "+line_no+" of "+filename+" with error:"+msgs.newline()+str(ev)+msgs.newline()+"---> please contact the author")

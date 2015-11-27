@@ -88,7 +88,6 @@ class ScienceExposure:
         self._ext_optimal = [None for all in xrange(ndet)]
         return
 
-
     def SetBaseName(self, fitsdict):
         """
         Set the base name that is used for all outputs
@@ -108,7 +107,6 @@ class ScienceExposure:
         tval = datetime.datetime.strptime(tbname, '%Y-%m-%dT%H:%M:%S.%f')
         self._basename = datetime.datetime.strftime(tval, '%Y%b%dT') + tbname.split("T")[1]
         return
-
 
     ###################################
     # Reduction procedures
@@ -144,7 +142,6 @@ class ScienceExposure:
         self.SetFrame(self._bpix, bpix, det)
         del bpix
         return True
-
 
     def GetDispersionDirection(self, fitsdict, det):
         """
@@ -219,7 +216,6 @@ class ScienceExposure:
         self._nspec[det-1], self._nspat[det-1] = self._msarc[det-1].shape
         return fitsdict
 
-
     def GetPixelLocations(self, det):
         """
         Generate or load the physical location of each pixel
@@ -237,7 +233,6 @@ class ScienceExposure:
             mname = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['locations']
             self.SetFrame(self._pixlocn, arload.load_master(mname, frametype=None), det)
         return
-
 
     def MasterArc(self, fitsdict, det):
         """
@@ -299,7 +294,6 @@ class ScienceExposure:
         del msarc
         return True
 
-
     def MasterBias(self, fitsdict, det):
         """
         Generate Master Bias frame for a given detector
@@ -342,7 +336,6 @@ class ScienceExposure:
         self.SetMasterFrame(msbias, "bias", det)
         del msbias
         return True
-
 
     def MasterFlatField(self, fitsdict, det):
         """
@@ -407,7 +400,6 @@ class ScienceExposure:
         self.SetMasterFrame(mspixflatnrm, "normpixflat", det)
         return True
 
-
     def MasterTrace(self, fitsdict, det):
         """
         Generate Master Trace frame for a given detector
@@ -459,7 +451,6 @@ class ScienceExposure:
         del mstrace
         return True
 
-
     def Setup(self):
         # Sort the data
         msgs.bug("Files and folders should not be deleted -- there should be an option to overwrite files automatically if they already exist, or choose to rename them if necessary")
@@ -482,7 +473,6 @@ class ScienceExposure:
         else: toarray[det-1] = value
         return
 
-
     def SetMasterFrame(self, frame, ftype, det, copy=True):
         det -= 1
         if copy: cpf = frame.copy()
@@ -497,7 +487,6 @@ class ScienceExposure:
             msgs.bug("I could not set master frame of type: {0:s}".format(ftype))
             msgs.error("Please contact the authors")
         return
-
 
     # Getters
     def GetMasterFrame(self, ftype, det, copy=True):
