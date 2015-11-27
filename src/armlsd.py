@@ -40,7 +40,7 @@ def ARMLSD(argflag, spect, fitsdict, msgs, reuseMaster=True):
     status = 0
 
     # Create a list of science exposure classes
-    sciexp = SetupScience(argflag, spect, fitsdict)
+    sciexp = SetupScience(argflag, spect, fitsdict, msgs)
     numsci = len(sciexp)
 
     # Create a list of master calibration frames
@@ -56,31 +56,32 @@ def ARMLSD(argflag, spect, fitsdict, msgs, reuseMaster=True):
             det = kk + 1  # Detectors indexed from 1
             ###############
             # Get amplifier sections
-            fitsdict = arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
+            fitsdict = arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx, msgs)
             ###############
             # Generate master bias frame
-            update = slf.MasterBias(fitsdict, det)
-            if update and reuseMaster: UpdateMasters(sciexp, sc, det, ftype="bias")
+            update = slf.MasterBias(fitsdict, det, msgs)
+            if update and reuseMaster: UpdateMasters(sciexp, sc, det, msgs, ftype="bias")
             ###############
             # Generate a bad pixel mask (should not repeat)
-            update = slf.BadPixelMask(det)
-            if update and reuseMaster: UpdateMasters(sciexp, sc, det, ftype="arc")
+            update = slf.BadPixelMask(det, msgs)
+            if update and reuseMaster: UpdateMasters(sciexp, sc, det, msgs, ftype="arc")
             ###############
             # Estimate gain and readout noise for the amplifiers
             msgs.work("Estimate Gain and Readout noise from the raw frames...")
             ###############
             # Generate a master arc frame
-            update = slf.MasterArc(fitsdict, det)
-            if update and reuseMaster: UpdateMasters(sciexp, sc, det, ftype="arc")
+            update = slf.MasterArc(fitsdict, det, msgs)
+            if update and reuseMaster: UpdateMasters(sciexp, sc, det, msgs, ftype="arc")
             ###############
             # Determine the dispersion direction (and transpose if necessary)
-            slf.GetDispersionDirection(fitsdict, det)
+            slf.GetDispersionDirection(fitsdict, det, msgs)
             if slf._bpix[det-1] is None:
                 slf.SetFrame(slf._bpix, np.zeros((slf._nspec[det-1], slf._nspat[det-1])), det)
             ###############
             # Generate a master trace frame
-            update = slf.MasterTrace(fitsdict, det)
-            if update and reuseMaster: UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
+            update = slf.MasterTrace(fitsdict, det, msgs)
+            if update and reuseMaster: UpdateMasters(sciexp, sc, det, msgs, ftype="flat", chktype="trace")
+            msgs.error("UP TO HERE -- recoding msgs")
             ###############
             # Generate an array that provides the physical pixel locations on the detector
             slf.GetPixelLocations(det)
@@ -105,7 +106,7 @@ def ARMLSD(argflag, spect, fitsdict, msgs, reuseMaster=True):
             ###############
             # Prepare the pixel flat field frame
             update = slf.MasterFlatField(fitsdict, det)
-            if update and reuseMaster: UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixflat")
+            if update and reuseMaster: UpdateMasters(sciexp, sc, det, msgs, ftype="flat", chktype="pixflat")
 
 
 
@@ -123,7 +124,7 @@ def ARMLSD(argflag, spect, fitsdict, msgs, reuseMaster=True):
     return status
 
 
-def SetupScience(argflag, spect, fitsdict):
+def SetupScience(argflag, spect, fitsdict, msgs):
     """
     Create an exposure class for every science frame
 
@@ -135,6 +136,8 @@ def SetupScience(argflag, spect, fitsdict):
       Properties of the spectrograph.
     fitsdict : dict
       Contains relevant information from fits header files
+    msgs : class
+      Messages class used to log data reduction process
 
     Returns
     -------
@@ -144,25 +147,27 @@ def SetupScience(argflag, spect, fitsdict):
 
     # Sort the data
     msgs.bug("Files and folders should not be deleted -- there should be an option to overwrite files automatically if they already exist, or choose to rename them if necessary")
-    filesort = arsort.sort_data(argflag, spect, fitsdict)
+    filesort = arsort.sort_data(argflag, spect, fitsdict, msgs)
     # Write out the details of the sorted files
-    if argflag['out']['sorted'] is not None: arsort.sort_write(argflag['out']['sorted'], spect, fitsdict, filesort)
+    if argflag['out']['sorted'] is not None:
+        arsort.sort_write(argflag['out']['sorted'], spect, fitsdict, filesort, msgs)
     # Match calibration frames to science frames
-    spect = arsort.match_science(argflag, spect, fitsdict, filesort)
+    spect = arsort.match_science(argflag, spect, fitsdict, filesort, msgs)
     # If the user is only debugging, then exit now
     if argflag['run']['calcheck']:
         msgs.info("Calibration check complete. Change the 'calcheck' flag to continue with data reduction")
         sys.exit()
     # Make directory structure for different objects
-    sci_targs = arsort.make_dirs(argflag, fitsdict, filesort)
+    sci_targs = arsort.make_dirs(argflag, fitsdict, filesort, msgs)
     # Create the list of science exposures
     numsci = np.size(filesort['science'])
     sciexp = []
-    for i in xrange(numsci): sciexp.append(arsciexp.ScienceExposure(i, argflag, spect, fitsdict, filesort))
+    for i in xrange(numsci):
+        sciexp.append(arsciexp.ScienceExposure(i, argflag, spect, fitsdict))
     return sciexp
 
 
-def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
+def UpdateMasters(sciexp, sc, det, msgs, ftype=None, chktype=None):
     """
     Update the master calibrations for other science targets, if they
     will use an identical master frame
@@ -175,6 +180,8 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
       Index of sciexp for the science exposure currently being reduced
     det : int
       detector index (starting from 1)
+    msgs : class
+      Messages class used to log data reduction process
     ftype : str
       Describes the type of Master frame being udpated
     chktype : str

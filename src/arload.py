@@ -109,7 +109,7 @@ def set_params_wtype(tvalue, svalue, msgs, lines="", setstr="", argnum=3):
             tvalue = int(svalue)
         elif type(tvalue) is str:
             if svalue.lower() == 'none': tvalue = None
-            elif svalue[0] == '[' and svalue[-1] == ']' and ',' in svalue and len(svalue.split(':')) == 3: tvalue=load_sections(svalue, strtxt=setstr)
+            elif svalue[0] == '[' and svalue[-1] == ']' and ',' in svalue and len(svalue.split(':')) == 3: tvalue = load_sections(svalue, msgs, strtxt=setstr)
             else: tvalue = svalue
         elif type(tvalue) is float:
             tvalue = float(svalue)
@@ -229,19 +229,19 @@ def set_params(lines, indict, msgs, setstr=""):
                     null = np.int(linspl[1][6:])
                 except ValueError:
                     msgs.error("keyword ampsec must contain an integer suffix")
-                indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], strtxt=linspl[1])
+                indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], msgs, strtxt=linspl[1])
             elif linspl[1][:7] == 'datasec': # Data Sections
                 try:
                     null = np.int(linspl[1][7:])
                 except ValueError:
                     msgs.error("keyword datasec must contain an integer suffix")
-                indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], strtxt=linspl[1])
+                indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], msgs, strtxt=linspl[1])
             elif linspl[1][:8] == 'oscansec': # Overscan Sections
                 try:
                     null = np.int(linspl[1][8:])
                 except ValueError:
                     msgs.error("keyword oscansec must contain an integer suffix")
-                indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], strtxt=linspl[1])
+                indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], msgs, strtxt=linspl[1])
             else:  # Read value
                 indict[linspl[0]][didx][linspl[1]] = set_params_wtype(indict[linspl[0]][didx][linspl[1]], linspl[2], msgs, lines=tline,setstr=setstr)
         else: 
@@ -249,21 +249,33 @@ def set_params(lines, indict, msgs, setstr=""):
     return indict
 
 
-def load_sections(string, strtxt="<not specified>"):
+def load_sections(string, msgs, strtxt="<not specified>"):
     """
-    string is a character string of the form [x1:x2,y1:y2]
-    x1 = left pixel
-    x2 = right pixel
-    y1 = bottom pixel
-    y2 = top pixel
+    From the input string, return the coordinate sections
+
+    Parameters
+    ----------
+    string : str
+      character string of the form [x1:x2,y1:y2]
+      x1 = left pixel
+      x2 = right pixel
+      y1 = bottom pixel
+      y2 = top pixel
+    msgs : class
+      Messages class used to log data reduction process
+
+    Returns
+    -------
+    sections : list (or None)
+      the detector sections
     """
     try:
         xyrng = string.strip('[]()').split(',')
-        if xyrng[0]==":": xyarrX = [0,0] 
+        if xyrng[0] == ":": xyarrX = [0,0]
         else: xyarrX = xyrng[0].split(':')
-        if xyrng[1]==":": xyarrY = [0,0] 
+        if xyrng[1] == ":": xyarrY = [0,0]
         else: xyarrY = xyrng[1].split(':')
-        return [[np.int(xyarrX[0]),np.int(xyarrX[1])],[np.int(xyarrY[0]),np.int(xyarrY[1])]]
+        return [[np.int(xyarrX[0]), np.int(xyarrX[1])], [np.int(xyarrY[0]), np.int(xyarrY[1])]]
     except:
         msgs.error("Keyword value {0:s} must be of the form:".format(strtxt)+msgs.newline()+"[x1:x2,y1:y2]")
     return None
@@ -601,7 +613,7 @@ def load_headers(argflag, spect, datlines, msgs):
     return fitsdict
 
 
-def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None, trim=True, transpose=False):
+def load_frames(slf, fitsdict, ind, det, msgs, frametype='<None>', msbias=None, trim=True, transpose=False):
     """
     Load data frames, usually raw.
     Bias subtract (if not msbias!=None) and trim (if True)
@@ -614,6 +626,8 @@ def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None, trim=T
       integers of indices
     det : int
       Detector number, starts at 1
+    msgs : class
+      Messages class used to log data reduction process
 
     Returns
     -------
@@ -633,21 +647,21 @@ def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None, trim=T
     for i in range(np.size(ind)):
         # Instrument specific read
         if slf._argflag['run']['spectrograph'] in ['lris_blue']:
-            temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det)
+            temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], msgs, det=det)
         else:
             temp = pyfits.getdata(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], slf._spect['fits']['dataext'])
-        temp = temp.astype(float) # Let us avoid uint16
+        temp = temp.astype(float)  # Let us avoid uint16
         if transpose: temp = temp.T
         if msbias is not None:
             if type(msbias) is np.ndarray:
-                temp -= msbias # Subtract the master bias frame
+                temp -= msbias  # Subtract the master bias frame
             elif type(msbias) is str:
                 if msbias == "overscan":
-                    arproc.sub_overscan(slf, det, temp)
+                    arproc.sub_overscan(slf, det, temp, msgs)
                 else:
                     msgs.error("Could not subtract bias level when loading {0:s} frames".format(frametype))
             if trim: 
-                temp = arproc.trim(slf, temp, det)
+                temp = arproc.trim(slf, temp, det, msgs)
         if i == 0:
             frames = np.zeros((temp.shape[0], temp.shape[1], np.size(ind)))
             frames[:,:,i] = temp.copy()
@@ -718,13 +732,13 @@ def load_extraction(name, frametype='<None>', wave=True):
         except:
             pass
     del infile, hdr, prsav
-    if wave == True:
+    if wave is True:
         return sciext, sciwav, props
     else:
         return sciext, props
 
 
-def load_master(name, frametype='<None>'):
+def load_master(name, msgs, frametype='<None>'):
     """
     Load a pre-existing master calibration frame
 
@@ -732,7 +746,9 @@ def load_master(name, frametype='<None>'):
     ----------
     name : str
       Name of the master calibration file to be loaded
-    frametype: str
+    msgs : class
+      Messages class used to log data reduction process
+    frametype : str, optional
       The type of master calibration frame being loaded.
       This keyword is only used for terminal print out.
 

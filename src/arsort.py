@@ -3,7 +3,6 @@ import re
 import sys
 import shutil
 import numpy as np
-import armsgs as msgs
 import arutils
 import arcyutils
 from arflux import find_standard_file
@@ -29,7 +28,7 @@ def setup(slf):
     return setup
 
 
-def sort_data(argflag, spect, fitsdict):
+def sort_data(argflag, spect, fitsdict, msgs):
     """
     Create an exposure class for every science frame
 
@@ -41,6 +40,8 @@ def sort_data(argflag, spect, fitsdict):
       Properties of the spectrograph.
     fitsdict : dict
       Contains relevant information from fits header files
+    msgs : class
+      Messages class used to log data reduction process
 
     Returns
     -------
@@ -51,17 +52,17 @@ def sort_data(argflag, spect, fitsdict):
     msgs.info("Sorting files")
     numfiles = fitsdict['filename'].size
     # Set the filetype dictionary
-    ftag = dict({'science':np.array([], dtype=np.int),
-                 'standard':np.array([], dtype=np.int),
-                 'bias':np.array([], dtype=np.int),
-                 'pixflat':np.array([], dtype=np.int),
-                 'blzflat':np.array([], dtype=np.int),
-                 'trace':np.array([], dtype=np.int),
-                 'arc':np.array([], dtype=np.int)})
+    ftag = dict({'science': np.array([], dtype=np.int),
+                 'standard': np.array([], dtype=np.int),
+                 'bias': np.array([], dtype=np.int),
+                 'pixflat': np.array([], dtype=np.int),
+                 'blzflat': np.array([], dtype=np.int),
+                 'trace': np.array([], dtype=np.int),
+                 'arc': np.array([], dtype=np.int)})
     fkey = np.array(ftag.keys())
     # Create an array where 1 means it is a certain type of frame and 0 means it isn't.
-    filarr = np.zeros((len(fkey),numfiles), dtype=np.int)
-    setarr = np.zeros((len(fkey),numfiles), dtype=np.int)
+    filarr = np.zeros((len(fkey), numfiles), dtype=np.int)
+    setarr = np.zeros((len(fkey), numfiles), dtype=np.int)
     # Identify the frames:
     for i in xrange(len(fkey)):
         # Self identification
@@ -118,15 +119,15 @@ def sort_data(argflag, spect, fitsdict):
 #			else: msgs.info("Clash permitted")
     # Identify the standard stars
     # Find the nearest standard star to each science frame
-    wscistd = np.where(filarr[np.where(fkey=='standard')[0],:].flatten() == 1)[0]
+    wscistd = np.where(filarr[np.where(fkey == 'standard')[0], :].flatten() == 1)[0]
     for i in xrange(wscistd.size):
         radec = (fitsdict['ra'][wscistd[i]], fitsdict['dec'][wscistd[i]])
         # If an object exists within 20 arcmins of a listed standard, then it is probably a standard star
-        foundstd = find_standard_file(argflag, radec, toler=20.*u.arcmin, check=True)
+        foundstd = find_standard_file(argflag, radec, msgs, toler=20.*u.arcmin, check=True)
         if foundstd:
-            filarr[np.where(fkey=='science')[0], wscistd[i]] = 0
+            filarr[np.where(fkey == 'science')[0], wscistd[i]] = 0
         else:
-            filarr[np.where(fkey=='standard')[0], wscistd[i]] = 0
+            filarr[np.where(fkey == 'standard')[0], wscistd[i]] = 0
     # Check that all files have an identification
     badfiles = np.where(np.sum(filarr, axis=0) == 0)[0]
     if np.size(badfiles) != 0:
@@ -197,7 +198,7 @@ def chk_condition(fitsdict, cond):
     return ntmp
 
 
-def sort_write(sortname, spect, fitsdict, filesort, space=3):
+def sort_write(sortname, spect, fitsdict, filesort, msgs, space=3):
     """
     Write out an xml and ascii file that contains the details of the file sorting.
     By default, the filename is printed first, followed by the filetype.
@@ -214,6 +215,8 @@ def sort_write(sortname, spect, fitsdict, filesort, space=3):
       Contains relevant information from fits header files
     filesort : dict
       Details of the sorted files
+    msgs : class
+      Messages class used to log data reduction process
     space : int
       Keyword to set how many blank spaces to place between keywords
     """
@@ -236,7 +239,7 @@ def sort_write(sortname, spect, fitsdict, filesort, space=3):
             elif typv is float or typv is np.float_:
                 prdtp.append("double")
             else:
-                msgs.bug("I didn't expect useful headers to contain type {0:s}".format(typv).replace('<type ','').replace('>',''))
+                msgs.bug("I didn't expect useful headers to contain type {0:s}".format(typv).replace('<type ', '').replace('>', ''))
     # Open a VOTable for writing
     votable = VOTableFile()
     resource = Resource()
@@ -253,7 +256,7 @@ def sort_write(sortname, spect, fitsdict, filesort, space=3):
     for i in xrange(nfiles):
         values = ()
         for pr in prord:
-            if pr=='frametype':
+            if pr == 'frametype':
                 addval = ""
                 for ft in filtyp:
                     if i in filesort[ft]:
@@ -294,7 +297,7 @@ def sort_write(sortname, spect, fitsdict, filesort, space=3):
     return
 
 
-def match_science(argflag, spect, fitsdict, filesort):
+def match_science(argflag, spect, fitsdict, filesort, msgs):
     """
     For a given set of identified data, match calibration frames to science frames
 
@@ -308,6 +311,8 @@ def match_science(argflag, spect, fitsdict, filesort):
       Contains relevant information from fits header files
     filesort : dict
       Details of the sorted files
+    msgs : class
+      Messages class used to log data reduction process
 
     Returns
     -------
@@ -325,10 +330,10 @@ def match_science(argflag, spect, fitsdict, filesort):
     iBFL = filesort['blzflat']
     iTRC = filesort['trace']
     iARC = filesort['arc']
-    iARR = [iSTD,iBIA,iDRK,iPFL,iBFL,iTRC,iARC]
+    iARR = [iSTD, iBIA, iDRK, iPFL, iBFL, iTRC, iARC]
     nSCI = iSCI.size
-    i=0
-    while i<nSCI:
+    i = 0
+    while i < nSCI:
         msgs.info("Matching calibrations to {0:s}".format(fitsdict['target'][iSCI[i]]))
         spect['science']['index'].append(np.array([iSCI[i]]))
         # Find nearby calibration frames
@@ -349,90 +354,90 @@ def match_science(argflag, spect, fitsdict, filesort):
                     w = np.where(fitsdict[ch] == fitsdict[ch][iSCI[i]])[0]
                 elif tmtch[0] == '=':
                     mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[1:])
-                    w = np.where((fitsdict[ch]).astype(np.float64)==mtch)[0]
+                    w = np.where((fitsdict[ch]).astype(np.float64) == mtch)[0]
                 elif tmtch[0] == '<':
                     if tmtch[1] == '=':
                         mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[2:])
-                        w = np.where((fitsdict[ch]).astype(np.float64)<=mtch)[0]
+                        w = np.where((fitsdict[ch]).astype(np.float64) <= mtch)[0]
                     else:
                         mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[1:])
-                        w = np.where((fitsdict[ch]).astype(np.float64)<mtch)[0]
+                        w = np.where((fitsdict[ch]).astype(np.float64) < mtch)[0]
                 elif tmtch[0] == '>':
                     if tmtch[1] == '=':
                         mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[2:])
-                        w = np.where((fitsdict[ch]).astype(np.float64)>=mtch)[0]
+                        w = np.where((fitsdict[ch]).astype(np.float64) >= mtch)[0]
                     else:
                         mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[1:])
-                        w = np.where((fitsdict[ch]).astype(np.float64)>mtch)[0]
+                        w = np.where((fitsdict[ch]).astype(np.float64) > mtch)[0]
                 elif tmtch[0] == '|':
                     if tmtch[1] == '=':
                         mtch = np.float64(tmtch[2:])
-                        w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]]))==mtch)[0]
+                        w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) == mtch)[0]
                     elif tmtch[1] == '<':
                         if tmtch[2] == '=':
                             mtch = np.float64(tmtch[3:])
-                            w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]]))<=mtch)[0]
+                            w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) <= mtch)[0]
                         else:
                             mtch = np.float64(tmtch[2:])
-                            w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]]))<mtch)[0]
+                            w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) < mtch)[0]
                     elif tmtch[1] == '>':
                         if tmtch[2] == '=':
                             mtch = np.float64(tmtch[3:])
-                            w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]]))>=mtch)[0]
+                            w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) >= mtch)[0]
                         else:
                             mtch = np.float64(tmtch[2:])
-                            w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]]))>mtch)[0]
+                            w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) > mtch)[0]
                 elif tmtch[0:2] == '%,': # Splitting a header keyword
                     splcom = tmtch.split(',')
                     try:
                         spltxt, argtxt, valtxt = splcom[1], np.int(splcom[2]), splcom[3]
-                        tspl=[]
+                        tspl = []
                         for sp in fitsdict[ch]:
                             tspl.append(sp.split(spltxt)[argtxt])
                         tspl = np.array(tspl)
                         if valtxt == "''":
-                            w = np.where(tspl==fitsdict[ch][iSCI[i]].split(spltxt)[argtxt])[0]
+                            w = np.where(tspl == fitsdict[ch][iSCI[i]].split(spltxt)[argtxt])[0]
                         elif valtxt[0] == '=':
                             mtch = np.float64(fitsdict[ch][iSCI[i]].split(spltxt)[argtxt]) + np.float64(valtxt[1:])
-                            w = np.where((tspl).astype(np.float64)==mtch)[0]
+                            w = np.where(tspl.astype(np.float64) == mtch)[0]
                         elif valtxt[0] == '<':
                             if valtxt[1] == '=':
                                 mtch = np.float64(fitsdict[ch][iSCI[i]].split(spltxt)[argtxt]) + np.float64(valtxt[2:])
-                                w = np.where((tspl).astype(np.float64)<=mtch)[0]
+                                w = np.where(tspl.astype(np.float64) <= mtch)[0]
                             else:
                                 mtch = np.float64(fitsdict[ch][iSCI[i]].split(spltxt)[argtxt]) + np.float64(valtxt[1:])
-                                w = np.where((tspl).astype(np.float64)<mtch)[0]
+                                w = np.where(tspl.astype(np.float64) < mtch)[0]
                         elif valtxt[0] == '>':
                             if valtxt[1] == '=':
                                 mtch = np.float64(fitsdict[ch][iSCI[i]].split(spltxt)[argtxt]) + np.float64(valtxt[2:])
-                                w = np.where((tspl).astype(np.float64)>=mtch)[0]
+                                w = np.where(tspl.astype(np.float64) >= mtch)[0]
                             else:
                                 mtch = np.float64(fitsdict[ch][iSCI[i]].split(spltxt)[argtxt]) + np.float64(valtxt[1:])
-                                w = np.where((tspl).astype(np.float64)>mtch)[0]
+                                w = np.where(tspl.astype(np.float64) > mtch)[0]
                     except:
                         msgs.error("Bad form for matching criteria: {0:s}".format(tmtch))
                 else:
                     msgs.bug("Matching criteria {0:s} is not supported".format(tmtch))
-                n = np.intersect1d(n,w) # n corresponds to all frames with matching instrument setup to science frames
+                n = np.intersect1d(n, w)  # n corresponds to all frames with matching instrument setup to science frames
             # Find the time difference between the calibrations and science frames
             if spect['fits']['calwin'] > 0.0:
                 tdiff = np.abs(fitsdict['time'][n].astype(np.float64)-np.float64(fitsdict['time'][iSCI[i]]))
                 w = np.where(tdiff <= spect['fits']['calwin'])[0]
-                n = np.intersect1d(n,w) # n corresponds to all frames with matching instrument setup
+                n = np.intersect1d(n, w)  # n corresponds to all frames with matching instrument setup
             # Now find which of the remaining n are the appropriate calibration frames
-            n = np.intersect1d(n,iARR[ft])
+            n = np.intersect1d(n, iARR[ft])
             # How many frames are required
             numfr = spect[ftag[ft]]['number']
             if argflag['out']['verbose'] == 2:
-                if numfr==1: areis = "is"
+                if numfr == 1: areis = "is"
                 else: areis = "are"
                 if np.size(n) == 1:
-                    msgs.info("  Found {0:d} {1:s} frame for {2:s} ({3:d} {4:s} required)".format(np.size(n),ftag[ft],fitsdict['target'][iSCI[i]],numfr,areis))
+                    msgs.info("  Found {0:d} {1:s} frame for {2:s} ({3:d} {4:s} required)".format(np.size(n), ftag[ft], fitsdict['target'][iSCI[i]], numfr, areis))
                 else:
-                    msgs.info("  Found {0:d} {1:s} frames for {2:s} ({3:d} {4:s} required)".format(np.size(n),ftag[ft],fitsdict['target'][iSCI[i]],numfr,areis))
+                    msgs.info("  Found {0:d} {1:s} frames for {2:s} ({3:d} {4:s} required)".format(np.size(n), ftag[ft], fitsdict['target'][iSCI[i]], numfr, areis))
             # Have we identified enough of these calibration frames to continue?
             if np.size(n) < numfr:
-                msgs.warn("  Only {0:d}/{1:d} {2:s} frames for {3:s}".format(np.size(n),numfr,ftag[ft],fitsdict['target'][iSCI[i]]))
+                msgs.warn("  Only {0:d}/{1:d} {2:s} frames for {3:s}".format(np.size(n), numfr, ftag[ft], fitsdict['target'][iSCI[i]]))
                 # Errors for insufficient BIAS frames
                 if argflag['reduce']['usebias'].lower() == ftag[ft]:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
@@ -461,21 +466,21 @@ def match_science(argflag, spect, fitsdict, filesort):
     return spect
 
 
-def match_frames(slf, frames, criteria, frametype='<None>', satlevel=None):
+def match_frames(frames, criteria, msgs, frametype='<None>', satlevel=None):
     """
     identify frames with a similar appearance (i.e. one frame appears to be a scaled version of another).
     """
-    prob  = arutils.erf(criteria/np.sqrt(2.0))[0]
+    prob = arutils.erf(criteria/np.sqrt(2.0))[0]
     frsh0, frsh1, frsh2 = frames.shape
-    msgs.info("Matching {0:d} {1:s} frames with confidence interval {2:5.3f}%".format(frsh2,frametype,prob*100.0))
-    srtframes = [np.zeros((frsh0,frsh1,1))]
+    msgs.info("Matching {0:d} {1:s} frames with confidence interval {2:5.3f}%".format(frsh2, frametype, prob*100.0))
+    srtframes = [np.zeros((frsh0, frsh1, 1))]
     srtframes[0][:,:,0] = frames[:,:,0]
     tsrta = [frames[frsh0/2,:,0]]
     tsrtb = [frames[:,frsh1/2,0]]
     msgs.bug("Throughout this routine, you should probably search for the mean of the non-saturated pixels")
     tsrta[0] /= np.mean(tsrta[0])
     tsrtb[0] /= np.mean(tsrtb[0])
-    for fr in xrange(1,frames.shape[2]):
+    for fr in xrange(1, frames.shape[2]):
         fm = None
         for st in xrange(len(srtframes)):
             tmata = frames[frsh0/2,:,fr]
@@ -489,25 +494,26 @@ def match_frames(slf, frames, criteria, frametype='<None>', satlevel=None):
                 wa = np.where((tmata>0.0)&(tmata<satlevel))
                 wb = np.where((tmatb>0.0)&(tmatb<satlevel))
             testa, testb = np.mean(tsrta[st][wa]/tmata[wa]), np.mean(tsrtb[st][wb]/tmatb[wb])
-            if np.size(wa[0])==0 or np.size(wb[0])==0:
+            if np.size(wa[0]) == 0 or np.size(wb[0]) == 0:
                 msgs.bug("I didn't expect to find a row of zeros in the middle of the chip!")
                 sys.exit()
-            if (testa>=prob) and (testa<=(2.0-prob)) and (testb>=prob) and (testb<=(2.0-prob)):
+            if (testa >= prob) and (testa <= (2.0-prob)) and (testb >= prob) and (testb <= (2.0-prob)):
                 fm = st
                 break
         if fm is None:
-            srtframes.append(np.zeros((frames.shape[0],frames.shape[1],1)))
+            srtframes.append(np.zeros((frames.shape[0], frames.shape[1], 1)))
             srtframes[-1][:,:,0] = frames[:,:,fr]
             tsrta.append(tmata)
             tsrtb.append(tmatb)
         else:
-            srtframes[fm] = np.append(srtframes[fm],np.zeros((frames.shape[0],frames.shape[1],1)),axis=2)
+            srtframes[fm] = np.append(srtframes[fm],np.zeros((frames.shape[0], frames.shape[1], 1)), axis=2)
             srtframes[fm][:,:,-1] = frames[:,:,fr]
     if len(srtframes) > 1:
-        msgs.info("Found {0:d} different sets of {1:s} frames".format(len(srtframes),frametype))
+        msgs.info("Found {0:d} different sets of {1:s} frames".format(len(srtframes), frametype))
     else:
-        msgs.info("Found {0:d} set of {1:s} frames".format(len(srtframes),frametype))
-    if frames.shape[2] > 1: del tsrta, tsrtb, tmata, tmatb, testa, testb
+        msgs.info("Found {0:d} set of {1:s} frames".format(len(srtframes), frametype))
+    if frames.shape[2] > 1:
+        del tsrta, tsrtb, tmata, tmatb, testa, testb
     return srtframes
 
 
@@ -535,7 +541,7 @@ def match_frames_old(slf, frames, frametype='<None>'):
     return srtframes
 
 
-def make_dirs(argflag, fitsdict, filesort):
+def make_dirs(argflag, fitsdict, filesort, msgs):
     """
     For a given set of identified data, match calibration frames to science frames
 
@@ -547,6 +553,8 @@ def make_dirs(argflag, fitsdict, filesort):
       Contains relevant information from fits header files
     filesort : dict
       Details of the sorted files
+    msgs : class
+      Messages class used to log data reduction process
 
     Returns
     -------
@@ -557,7 +565,7 @@ def make_dirs(argflag, fitsdict, filesort):
     # First, get the current working directory
     currDIR = os.getcwd()
     msgs.info("Creating Science directory")
-    newdir = "{0:s}/{1:s}".format(currDIR,argflag['run']['scidir'])
+    newdir = "{0:s}/{1:s}".format(currDIR, argflag['run']['scidir'])
     if os.path.exists(newdir):
         msgs.info("The following directory already exists:"+msgs.newline()+newdir)
         if not argflag['out']['overwrite']:
@@ -604,7 +612,7 @@ def make_dirs(argflag, fitsdict, filesort):
                 else:
                     shutil.rmtree(newdir)
                     os.mkdir(newdir)
-                    if rmdir == 'a': rmalways=True
+                    if rmdir == 'a': rmalways = True
         else: os.mkdir(newdir)
     # Remove the entries from sci_targs which will not be reduced
     nored = nored.astype(np.int)
@@ -649,4 +657,3 @@ def make_dirs(argflag, fitsdict, filesort):
     else: os.mkdir(newdir)
     # Return the name of the science targets
     return sci_targs
-

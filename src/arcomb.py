@@ -1,9 +1,7 @@
 import numpy as np
-import armsgs as msgs
 import arcycomb
-import time # For Ryan testing --- comment out otherwise
 
-def comb_frames(frames_arr, det, method='weightmean', spect=None, weight=None, frametype='<None>',
+def comb_frames(frames_arr, det, msgs, method='weightmean', spect=None, weight=None, frametype='<None>',
                 rej_cosmicray=-1.0, rej_lowhigh=[0,0], rej_level=[0.0,0.0],
                 sat_pix='ignore', weights=None, set_allrej='median',
                 maskvalue=1048577):
@@ -36,7 +34,7 @@ def comb_frames(frames_arr, det, method='weightmean', spect=None, weight=None, f
         msgs.info("Returning input frame")
         return frames_arr[:,:,0]
     else:
-        msgs.info("Combining {0:d} {1:s} frames".format(num_frames,frametype))
+        msgs.info("Combining {0:d} {1:s} frames".format(num_frames, frametype))
     # Check if the user has allowed the combination of long and short frames (e.g. different exposure times)
     msgs.work("lscomb feature has not been included here yet...")
     # Check that the type of weights to use is given if the uses wishes to apply a weighted average
@@ -45,38 +43,15 @@ def comb_frames(frames_arr, det, method='weightmean', spect=None, weight=None, f
     # Check the user hasn't requested to reject more frames than available
     if rej_lowhigh[0] > 0 and rej_lowhigh[1] > 0 and rej_lowhigh[0]+rej_lowhigh[1] >= num_frames:
         msgs.error("You cannot reject more frames than is available with 'rej_lowhigh'."+msgs.newline()+
-                    "There are {0:d} frames and rej_lowhigh will reject {1:d} low and {2:d} high".format(num_frames,rej_lowhigh[0],rej_lowhigh[1]))
+                    "There are {0:d} frames and rej_lowhigh will reject {1:d} low and {2:d} high".format(num_frames, rej_lowhigh[0], rej_lowhigh[1]))
     # Check that some information on the frames was supplied
     if spect is None:
         msgs.error("When combining the {0:s} frames, spectrograph information".format(frametype)+msgs.newline()+"was not provided")
     # Calculate the values to be used if all frames are rejected in some pixels
-
-
-    #msgs.test("RYAN IS TESTING!!!")
-    #tmSa = time.time()
-    #allrej_arr =
-    #tmEa = time.time()
-    #tmSb = time.time()
-    #test = arcycomb.(frames_arr,0)
-    #tmEb = time.time()
-    #print np.all(allrej_arr==test)
-    #print tmEa-tmSa, tmEb-tmSb
-    #tmSa = time.time()
-    #allrej_arr =
-    #tmEa = time.time()
-    #tmSb = time.time()
-    #test = arcycomb.(frames_arr,1)
-    #tmEb = time.time()
-    #print np.all(allrej_arr==test)
-    #print tmEa-tmSa, tmEb-tmSb
-    #msgs.test("TEST IS COMPLETE!!!")
-
-
-
-    if   set_allrej == 'min':
-        allrej_arr = arcycomb.minmax(frames_arr,0)
+    if set_allrej == 'min':
+        allrej_arr = arcycomb.minmax(frames_arr, 0)
     elif set_allrej == 'max':
-        allrej_arr = arcycomb.minmax(frames_arr,1)
+        allrej_arr = arcycomb.minmax(frames_arr, 1)
     elif set_allrej == 'mean':
         allrej_arr = arcycomb.mean(frames_arr)
     elif set_allrej == 'median':
@@ -96,7 +71,7 @@ def comb_frames(frames_arr, det, method='weightmean', spect=None, weight=None, f
 #		satw = np.zeros_like(frames_arr)
 #		satw[np.where(frames_arr > spect['det']['saturation']*spect['det']['nonlinear'])] = 1.0
 #		satw = np.any(satw,axis=2)
-        setsat = arcycomb.masked_limitget(frames_arr, spect['det'][det-1]['saturation']*spect['det'][det-1]['nonlinear'], 2 )
+        setsat = arcycomb.masked_limitget(frames_arr, spect['det'][det-1]['saturation']*spect['det'][det-1]['nonlinear'], 2)
 #		del satw
     elif sat_pix == 'reject':
         # Ignore saturated pixels in frames if possible
@@ -124,24 +99,24 @@ def comb_frames(frames_arr, det, method='weightmean', spect=None, weight=None, f
     rejlo, rejhi = rej_lowhigh
     if rej_lowhigh[0] > 0 or rej_lowhigh[1] > 0:
         # First reject low pixels
-        frames_arr = np.sort(frames_arr,axis=2)
+        frames_arr = np.sort(frames_arr, axis=2)
         if rej_lowhigh[0] > 0:
             msgs.info("Rejecting {0:d} deviant low pixels".format(rej_lowhigh[0]))
             while rejlo > 0:
-                xi, yi = np.indices(sz_x,sz_y)
-                frames_arr[xi,yi,np.argmin(frames_arr,axis=2)]=maskvalue
+                xi, yi = np.indices(sz_x, sz_y)
+                frames_arr[xi, yi, np.argmin(frames_arr, axis=2)] = maskvalue
                 del xi, yi
                 rejlo -= 1
         # Now reject high pixels
         if rej_lowhigh[1] > 0:
             msgs.info("Rejecting {0:d} deviant high pixels".format(rej_lowhigh[1]))
-            frames_arr[np.where(frames_arr==maskvalue)] *= -1
+            frames_arr[np.where(frames_arr == maskvalue)] *= -1
             while rejhi > 0:
-                xi, yi = np.indices(sz_x,sz_y)
-                frames_arr[xi,yi,np.argmax(frames_arr,axis=2)] = -maskvalue
+                xi, yi = np.indices(sz_x, sz_y)
+                frames_arr[xi, yi, np.argmax(frames_arr, axis=2)] = -maskvalue
                 del xi, yi
                 rejhi -= 1
-            frames_arr[np.where(frames_arr)==-maskvalue] *= -1
+            frames_arr[np.where(frames_arr) == -maskvalue] *= -1
 # The following is an example of *not* masking additional pixels
 #		if rej_lowhigh[1] > 0:
 #			msgs.info("Rejecting {0:d} deviant high pixels".format(rej_lowhigh[1]))
@@ -152,8 +127,8 @@ def comb_frames(frames_arr, det, method='weightmean', spect=None, weight=None, f
     # Deviant Pixels
     if rej_level[0] > 0.0 or rej_level[1] > 0.0:
         msgs.info("Rejecting deviant pixels") # Use a robust statistic
-        medarr = arcycomb.masked_median(frames_arr,maskvalue)
-        stdarr = 1.4826*arcycomb.masked_median(np.abs(frames_arr-medarr[:,:,np.newaxis]),maskvalue) # 1.4826 approximately converts Median Absolute Deviation to a Standard Deviation
+        medarr = arcycomb.masked_median(frames_arr, maskvalue)
+        stdarr = 1.4826*arcycomb.masked_median(np.abs(frames_arr-medarr[:,:,np.newaxis]), maskvalue)  # 1.4826 approximately converts Median Absolute Deviation to a Standard Deviation
         frames_arr = arcycomb.masked_limitsetarr(frames_arr, (medarr + rej_level[0]*stdarr), -2, maskvalue)
         frames_arr = arcycomb.masked_limitsetarr(frames_arr, (medarr + rej_level[1]*stdarr), 2, maskvalue)
         # Delete unecessary arrays
@@ -164,9 +139,9 @@ def comb_frames(frames_arr, det, method='weightmean', spect=None, weight=None, f
     # Combine the arrays
     msgs.info("Combining frames with a {0:s} operation".format(method))
     if method == 'mean':
-        frames_arr = arcycomb.masked_mean(frames_arr,maskvalue)
+        frames_arr = arcycomb.masked_mean(frames_arr, maskvalue)
     elif method == 'median':
-        frames_arr = arcycomb.masked_median(frames_arr,maskvalue)
+        frames_arr = arcycomb.masked_median(frames_arr, maskvalue)
     elif method == 'weightmean':
         frames_arr = arcycomb.masked_weightmean(frames_arr, maskvalue)
     else:
@@ -188,4 +163,3 @@ def comb_frames(frames_arr, det, method='weightmean', spect=None, weight=None, f
     # Make sure the returned array is the correct type
     frames_arr = np.array(frames_arr, dtype=np.float)
     return frames_arr
-

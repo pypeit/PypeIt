@@ -21,12 +21,26 @@ try:
 except:
     pass
 
-def dispdir(msframe, dispwin=None, mode=0):
+def dispdir(msframe, msgs, dispwin=None, mode=0):
     """
-    msframe is a frame to determine the dispersion direction
-    dispwin is a user-specified window to determine the dispersion
-    mode = 0 for longslit data where msframe=msarc
-    mode = 1 for echelle data where msframe=msflat
+    Estimate which axis is predominantly the dispersion direction of the data
+
+    Parameters
+    ----------
+    msframe : ndarray
+      Master calibration frame used to estimate the dispersion direction
+    msgs : class
+      Messages class used to log data reduction process
+    dispwin : list, optional
+      A user-specified window to determine the dispersion (formatted as a section)
+    mode : int
+      mode = 0 for longslit data where msframe=msarc
+      mode = 1 for echelle data where msframe=msflat
+
+    Returns
+    -------
+    dispaxis : int
+      The predominant dispersion axis of the data
     """
     msgs.info("Determining the dispersion direction")
     ds1, ds2 = msframe.shape
@@ -35,7 +49,7 @@ def dispdir(msframe, dispwin=None, mode=0):
         #min2, max2 = ds2/2-10, ds2/2+10
         min1, max1 = ds1/4, 3*(ds1/4)
         min2, max2 = ds2/4, 3*(ds2/4)
-    elif type(dispwin) is list: # User has specified the location of the window (x1:x2,y1:y2)
+    elif type(dispwin) is list:  # User has specified the location of the window (x1:x2,y1:y2)
         min1, max1 = dispwin[0]
         min2, max2 = dispwin[1]
     else: # User has specified the size of the window
@@ -44,8 +58,8 @@ def dispdir(msframe, dispwin=None, mode=0):
     # Generate the two test statistics
     #test1 = np.median(msframe[min1:max1,:],axis=0)
     #test2 = np.median(msframe[:,min2:max2],axis=1)
-    test1 = np.mean(msframe[min1:max1,:],axis=0) # Using mean for LRIS
-    test2 = np.mean(msframe[:,min2:max2],axis=1)
+    test1 = np.mean(msframe[min1:max1,:], axis=0)   # Using mean for LRIS
+    test2 = np.mean(msframe[:,min2:max2], axis=1)
     # Calculate the step difference
     htst1 = test1[1:]-test1[:-1]
     htst2 = test2[1:]-test2[:-1]
@@ -53,14 +67,14 @@ def dispdir(msframe, dispwin=None, mode=0):
     std1, std2 = np.std(htst1), np.std(htst2)
     # Return the dispersion axis
     if std1 > std2:
-        if mode==0:
+        if mode == 0:
             msgs.info("Dispersion axis is predominantly along a column")
             return 1
         else:
             msgs.info("Dispersion axis is predominantly along a row")
             return 0
     else:
-        if mode==0:
+        if mode == 0:
             msgs.info("Dispersion axis is predominantly along a row")
             return 0
         else:

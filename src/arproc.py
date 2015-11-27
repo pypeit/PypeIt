@@ -1,5 +1,4 @@
 import numpy as np
-import armsgs as msgs
 from scipy.signal import savgol_filter
 import scipy.signal as signal
 import scipy.ndimage as ndimage
@@ -212,30 +211,30 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     return sciframe-skybg, skybg
 
 
-def badpix(slf, det, frame, sigdev=10.0):
+def badpix(slf, det, frame, msgs, sigdev=10.0):
     """
     frame is a master bias frame
     sigdev is the number of standard deviations away from the median that a pixel needs to be in order to be classified as a bad pixel
     """
     bpix = np.zeros_like(frame)
-    nbad = 0
+    subfr, tframe, temp = None, None, None
     for i in xrange(slf._spect['det'][det-1]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
         x0, x1, y0, y1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
-        xv=np.arange(x0,x1)
-        yv=np.arange(y0,y1)
+        xv = np.arange(x0, x1)
+        yv = np.arange(y0, y1)
         # Construct an array with the rows and columns to be extracted
         w = np.ix_(xv,yv)
         tframe = frame[w]
         temp = np.abs(np.median(tframe)-tframe)
-        sigval = max(np.median(temp)*1.4826,1.4826)
+        sigval = max(np.median(temp)*1.4826, 1.4826)
         ws = np.where(temp > sigdev*sigval)
         subfr = np.zeros_like(tframe)
         subfr[ws] = 1.0
         bpix[w] = subfr
     del subfr, tframe, temp
     # Finally, trim the bad pixel frame
-    bpix=trim(slf,bpix,det)
+    bpix = trim(slf, bpix, det, msgs)
     msgs.info("Identified {0:d} bad pixels".format(int(np.sum(bpix))))
     return bpix
 
@@ -580,7 +579,7 @@ def get_ampscale(slf, det, msflat):
     return sclframe
 
 
-def get_ampsec_trimmed(slf, fitsdict, det, scidx):
+def get_ampsec_trimmed(slf, fitsdict, det, scidx, msgs):
     """
      Generate a frame that identifies each pixel to an amplifier, and then trim it to the data sections.
      This frame can be used to later identify which trimmed pixels correspond to which amplifier
@@ -594,6 +593,9 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
     det : int
       Detector number, starts at 1
     scidx : int
+      Index of science frame
+    msgs : class
+      Messages class used to log data reduction process
 
     Returns
     -------
@@ -604,18 +606,18 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
     if slf._argflag['run']['spectrograph'] in ['lris_blue']:
         msgs.info("Parsing datasec,oscansec,ampsec from headers")
-        temp, head0, secs = arlris.read_lris(fitsdict['directory'][scidx]+fitsdict['filename'][scidx], det)
+        temp, head0, secs = arlris.read_lris(fitsdict['directory'][scidx]+fitsdict['filename'][scidx], det, msgs)
         # Naxis
         fitsdict['naxis0'][scidx] = temp.shape[0]
         fitsdict['naxis1'][scidx] = temp.shape[1]
         # Loop on amplifiers
         for kk in range(slf._spect['det'][det-1]['numamplifiers']):
             datasec = "datasec{0:02d}".format(kk+1)
-            slf._spect['det'][det-1][datasec] = arload.load_sections(secs[0][kk])
+            slf._spect['det'][det-1][datasec] = arload.load_sections(secs[0][kk], msgs)
             oscansec = "oscansec{0:02d}".format(kk+1)
-            slf._spect['det'][det-1][oscansec] = arload.load_sections(secs[1][kk])
+            slf._spect['det'][det-1][oscansec] = arload.load_sections(secs[1][kk], msgs)
             ampsec = "ampsec{0:02d}".format(kk+1)
-            slf._spect['det'][det-1][ampsec] = arload.load_sections(secs[2][kk])
+            slf._spect['det'][det-1][ampsec] = arload.load_sections(secs[2][kk], msgs)
     # For convenience
     naxis0, naxis1 = int(fitsdict['naxis0'][scidx]), int(fitsdict['naxis1'][scidx])
     # Initialize the returned array
@@ -818,9 +820,10 @@ def lacosmic(slf, det, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
     return crmask
 
 
-def sub_overscan(slf, det, file):
-    '''Subtract overscan
-    '''
+def sub_overscan(slf, det, file, msgs):
+    """
+    Subtract overscan
+    """
     for i in xrange(slf._spect['det'][det-1]['numamplifiers']):
         # Determine the section of the chip that contains the overscan region
         oscansec = "oscansec{0:02d}".format(i+1)
@@ -829,9 +832,9 @@ def sub_overscan(slf, det, file):
         if ox1 <= 0: ox1 += file.shape[0]
         if oy0 < 0: oy0 += file.shape[1]
         if oy1 <= 0: oy1 += file.shape[1]
-        xos=np.arange(ox0,ox1)
-        yos=np.arange(oy0,oy1)
-        w = np.ix_(xos,yos)
+        xos = np.arange(ox0, ox1)
+        yos = np.arange(oy0, oy1)
+        w = np.ix_(xos, yos)
         oscan = file[w]
         # Determine the section of the chip that is read out by the amplifier
         ampsec = "ampsec{0:02d}".format(i+1)
@@ -840,29 +843,29 @@ def sub_overscan(slf, det, file):
         if ax1 <= 0: ax1 += file.shape[0]
         if ay0 < 0: ay0 += file.shape[1]
         if ay1 <= 0: ay1 += file.shape[1]
-        xam=np.arange(ax0,ax1)
-        yam=np.arange(ay0,ay1)
-        wa = np.ix_(xam,yam)
+        xam = np.arange(ax0, ax1)
+        yam = np.arange(ay0, ay1)
+        wa = np.ix_(xam, yam)
         # Make sure the overscan section has at least one side consistent with ampsec (note: ampsec should contain both datasec and oscansec)
-        if (ax1-ax0==ox1-ox0):
-            osfit = np.mean(oscan,axis=1)
+        if ax1-ax0 == ox1-ox0:
+            osfit = np.mean(oscan, axis=1)
             flg_oscan = 1
-        elif (ay1-ay0==oy1-oy0):
-            osfit = np.mean(oscan,axis=0)
+        elif ay1-ay0 == oy1-oy0:
+            osfit = np.mean(oscan, axis=0)
             flg_oscan = 0
         else:
             msgs.error("Overscan sections do not match amplifier sections for amplifier {0:d}".format(i+1))
         # Fit/Model the overscan region
-        if slf._argflag['reduce']['oscanMethod'].lower()=="polynomial":
-            c=np.polyfit(np.arange(osfit.size),osfit,slf._argflag['reduce']['oscanParams'][0])
-            ossub = np.polyval(c,np.arange(osfit.size))#.reshape(osfit.size,1)
-        elif slf._argflag['reduce']['oscanMethod'].lower()=="savgol":
-            ossub = savgol_filter(osfit,slf._argflag['reduce']['oscanParams'][1],slf._argflag['reduce']['oscanParams'][0])
+        if slf._argflag['reduce']['oscanMethod'].lower() == "polynomial":
+            c = np.polyfit(np.arange(osfit.size), osfit, slf._argflag['reduce']['oscanParams'][0])
+            ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
+        elif slf._argflag['reduce']['oscanMethod'].lower() == "savgol":
+            ossub = savgol_filter(osfit, slf._argflag['reduce']['oscanParams'][1], slf._argflag['reduce']['oscanParams'][0])
         else:
             msgs.warn("Overscan subtraction method {0:s} is not implemented".format(slf._argflag['reduce']['oscanMethod']))
             msgs.info("Using a linear fit to the overscan region")
-            c=np.polyfit(np.arange(osfit.size),osfit,1)
-            ossub = np.polyval(c,np.arange(osfit.size))#.reshape(osfit.size,1)
+            c = np.polyfit(np.arange(osfit.size), osfit, 1)
+            ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
         #plt.plot(np.arange(osfit.size),osfit,'k-')
         #plt.plot(np.arange(osfit.size),ossub,'r-')
         #plt.show()
@@ -874,10 +877,10 @@ def sub_overscan(slf, det, file):
         if dx1 <= 0: dx1 += file.shape[0]
         if dy0 < 0: dy0 += file.shape[1]
         if dy1 <= 0: dy1 += file.shape[1]
-        xds=np.arange(dx0,dx1)
-        yds=np.arange(dy0,dy1)
-        wd = np.ix_(xds,yds)
-        ossub = ossub.reshape(osfit.size,1)
+        xds = np.arange(dx0, dx1)
+        yds = np.arange(dy0, dy1)
+        wd = np.ix_(xds, yds)
+        ossub = ossub.reshape(osfit.size, 1)
         if wd[0].shape[0] == ossub.shape[0]:
             file[wd] -= ossub
         elif wd[1].shape[1] == ossub.shape[0]:
@@ -889,7 +892,7 @@ def sub_overscan(slf, det, file):
     return file
 
 
-def trim(slf,file,det):
+def trim(slf, file, det, msgs):
     for i in xrange (slf._spect['det'][det-1]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
         x0, x1, y0, y1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
@@ -897,14 +900,14 @@ def trim(slf,file,det):
         if x1 <= 0: x1 += file.shape[0]
         if y0 < 0: y0 += file.shape[1]
         if y1 <= 0: y1 += file.shape[1]
-        if i==0:
-            xv=np.arange(x0,x1)
-            yv=np.arange(y0,y1)
+        if i == 0:
+            xv = np.arange(x0, x1)
+            yv = np.arange(y0, y1)
         else:
-            xv = np.unique(np.append(xv,np.arange(x0,x1)))
-            yv = np.unique(np.append(yv,np.arange(y0,y1)))
+            xv = np.unique(np.append(xv, np.arange(x0, x1)))
+            yv = np.unique(np.append(yv, np.arange(y0, y1)))
     # Construct and array with the rows and columns to be extracted
-    w = np.ix_(xv,yv)
+    w = np.ix_(xv, yv)
 #	if len(file.shape) == 2:
 #		trimfile = file[w]
 #	elif len(file.shape) == 3:
@@ -916,14 +919,16 @@ def trim(slf,file,det):
     try:
         trim_file = file[w]
     except:
+        msgs.bug("Odds are datasec is set wrong. Maybe due to transpose")
         pdb.set_trace()
-        msgs.error("Odds are datasec is set wrong.  Maybe due to transpose")
+        msgs.error("Cannot trim file")
     return file[w]
 
 
 def variance_frame(slf, det, sciframe, idx, skyframe=None):
-    ''' Calculate the variance image including detector noise
-    '''
+    """
+    Calculate the variance image including detector noise
+    """
     scicopy = sciframe.copy()
     if skyframe is not None:
         msgs.warn("arproc.variance_frame: JXP worries the next line could be biased.")

@@ -14,7 +14,6 @@ try:
 except:
     pass
 
-import armsgs as msgs
 import arcyextract
 import arcyutils
 import arcyproc
@@ -28,7 +27,7 @@ try:
 except:
     pass
 
-def apply_sensfunc(slf, sc,MAX_EXTRAP=0.05):
+def apply_sensfunc(slf, sc, MAX_EXTRAP=0.05):
     """
     Apply the sensitivity function to the data
     We also correct for extinction.
@@ -192,7 +191,7 @@ def extinction_correction(wave, airmass, extinct):
     return flux_corr
 
 
-def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
+def find_standard_file(argflag, radec, msgs, toler=20.*u.arcmin, check=False):
     """
     Find a match for the input file to one of the archived
     standard star files (hopefully).  Priority is by order of search.
@@ -203,6 +202,8 @@ def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
       Arguments and flags used for reduction
     radec : tuple
       ra, dec in string format ('05:06:36.6','52:52:01.0')
+    msgs : class
+      Messages class used to log data reduction process
     toler : Angle
       Tolerance on matching archived standards to input
     check : bool
@@ -260,6 +261,7 @@ def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
     msgs.info("Closest standard was {:s} at separation {:g}".format(closest['name'],closest['sep'].to('arcmin')))
     msgs.warn("Flux calibration will not be performed")
     return None
+
 
 def load_calspec(argflag):
     """
