@@ -11,17 +11,20 @@ The following is a list of items that are currently in development
 * In function pypit.PYPIT, check for successful reduction and print reduction status (near line 125)
 * In function pypArmlsd.SetupScience, rethink how Science data will be saved (i.e. with their science name appended?)
 * Force matplotlib RC params of plots to be the default throughout (i.e. don't allow user-specified matplotlib rcparams)
+* Save all QA to a single fits file and/or pdf file (?).
+<<<<<<< HEAD
 * Have reduction features be read from instrument settings file
 * Avoid re-making Bias, Arc, etc. frames as an option
 * Organize lamp line lists better (1 file!!)
 * Add code to confirm rejected arc lines are in NIST lists (e.g. when the NIST wavelengths change)
+* Quick reduction methods (for use in real time at the telescope)
 * barycentric velocity correction
 * Code to parse settings file into a Web Page, especially image type conditions
 * Flat indexing in "setup", e.g. arspecobj.init_exp
-* What should we do about multiple standard stars?
+* What should we with multiple standard stars?
 * Allow both bias and overscan to be used
-* How much effort for backwards-compatability (e.g. old detectors)?  RJC -> 1 settings file per detector (e.g. detector upgrade -> new settings file)?
-* If an error is encountered and the code terminates, be sure to first execute slf._qa.close() on all ScienceExposure classes (i.e. write the QA so the user can diagnose possible problems)
+* How much effort for backwards-compatability (e.g. old detectors)?
+* Consolidate QA PDFs??
 * Generate tests for adding new instrument
   extinction
   wavelengths

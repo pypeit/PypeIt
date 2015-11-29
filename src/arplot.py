@@ -1,5 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
+import armsgs as msgs
 
 MAX_REJECT = 0.5
 MIN_NPIXELS = 5
@@ -146,9 +147,10 @@ def zsc_fit_line(samples, npix, krej, ngrow, maxiter):
 
 
 def zsc_compute_sigma(flat, badpix):
-
-    # Compute the rms deviation from the mean of a flattened array.
-    # Ignore rejected pixels
+    """
+    Compute the rms deviation from the mean of a flattened array.
+    Ignore rejected pixels
+    """
 
     # Accumulate sum and sum of squares
     goodpixels = np.where(badpix == GOOD_PIXEL)

@@ -357,7 +357,6 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None, rejsigma
         bad = np.isnan(bgframe)
         bgframe[bad] = 0.
     # Plot to make sure that the result is good
-    #pdb.set_trace()
     #arutils.ds9plot(bgframe)
     #arutils.ds9plot(sciframe-bgframe)
     return bgframe

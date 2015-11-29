@@ -202,7 +202,7 @@ def func_der(coeffs, func, msgs, nderive=1):
     elif func == "chebyshev":
         return np.polynomial.chebyshev.chebder(coeffs, m=nderive)
     else:
-        msgs.error("Functional derivative '{0:s}' is not implemented yet"+msgs.newline()+
+        msgs.error("Functional derivative '{0:s}' is not implemented yet"+msgs.newline() +
                    "Please choose from 'polynomial', 'legendre', 'chebyshev'")
 
 
