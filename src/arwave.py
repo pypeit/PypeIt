@@ -6,7 +6,6 @@ from astropy.io import fits
 #from xastropy.utils import xdebug as xdebug
 from astropy import units as u
 
-import armsgs
 import arutils
 
 #testing on my data

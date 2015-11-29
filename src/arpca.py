@@ -1,100 +1,101 @@
 from matplotlib import pyplot as plt
 import numpy as np
-import armsgs as msgs
-import arcyutils
 import arutils
 from arplot import get_dimen as get_dimen
-import pdb
 
-def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, mask=None, function='polynomial', retmask=False):
+
+def basis(xfit, yfit, coeff, npc, pnpc, msgs, weights=None, skipx0=True, x0in=None, mask=None, function='polynomial', retmask=False):
     nrow = xfit.shape[0]
     ntrace = xfit.shape[1]
-    if x0in is None: x0in = np.arange(float(ntrace))
+    if x0in is None:
+        x0in = np.arange(float(ntrace))
 
+    #import pdb
+    #pdb.set_trace()
     # Mask out some orders if they are bad
-    if mask is None or mask.size==0:
-        usetrace=np.arange(ntrace)
-        outmask = np.ones((nrow,ntrace))
+    if mask is None or mask.size == 0:
+        usetrace = np.arange(ntrace)
+        outmask = np.ones((nrow, ntrace))
     else:
-        usetrace=np.where(np.in1d(np.arange(ntrace),mask)==False)[0]
-        outmask = np.ones((nrow,ntrace))
+        usetrace = np.where(np.in1d(np.arange(ntrace), mask) == False)[0]
+        outmask = np.ones((nrow, ntrace))
         outmask[:,mask] = 0.0
 
     # Do the PCA analysis
-    eigc, hidden = get_pc(coeff[1:npc+1,usetrace],npc)
+    eigc, hidden = get_pc(coeff[1:npc+1, usetrace], npc, msgs)
 
-    modl = arutils.func_vander(xfit[:,0],function,npc)
-    eigv = np.dot(modl[:,1:],eigc)
+    modl = arutils.func_vander(xfit[:,0], function, npc, msgs)
+    eigv = np.dot(modl[:,1:], eigc)
 
-    med_hidden = np.median(hidden,axis=1)
+    med_hidden = np.median(hidden, axis=1)
     med_highorder = med_hidden.copy()
     med_highorder[0] = 0
 
-    high_order_matrix = med_highorder.T[np.newaxis,:].repeat(ntrace,axis=0)
+    high_order_matrix = med_highorder.T[np.newaxis,:].repeat(ntrace, axis=0)
 
-#	y = hidden[0,:]
-#	coeff0 = arutils.robust_regression(x0in[usetrace], y, pnpc[1], 0.1, function=function)
+    # y = hidden[0,:]
+    # coeff0 = arutils.robust_regression(x0in[usetrace], y, pnpc[1], 0.1, function=function)
 
-#	y = hidden[1,:]
-#	coeff1 = arutils.robust_regression(x0in[usetrace], y, pnpc[2], 0.1, function=function)
+    # y = hidden[1,:]
+    # coeff1 = arutils.robust_regression(x0in[usetrace], y, pnpc[2], 0.1, function=function)
 
-    coeffstr=[]
-    for i in xrange(1,npc+1):
-#        if pnpc[i] == 0:
-#            coeffstr.append([-9.99E9])
-#            continue
-        #coeff0 = arutils.robust_regression(x0in[usetrace], hidden[i-1,:], pnpc[i], 0.1, function=function, min=x0in[0], max=x0in[-1])
-        if weights is not None: tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1,:], pnpc[i], weights=weights[usetrace], sigma=2.0, function=function, min=x0in[0], max=x0in[-1])
-        else:  tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1,:], pnpc[i], sigma=2.0, function=function, min=x0in[0], max=x0in[-1])
+    coeffstr = []
+    for i in xrange(1, npc+1):
+        # if pnpc[i] == 0:
+        #     coeffstr.append([-9.99E9])
+        #     continue
+        # coeff0 = arutils.robust_regression(x0in[usetrace], hidden[i-1,:], pnpc[i], 0.1, function=function, min=x0in[0], max=x0in[-1])
+        if weights is not None:
+            tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1,:], pnpc[i], msgs,
+                                                   weights=weights[usetrace], sigma=2.0, function=function,
+                                                   minv=x0in[0], maxv=x0in[-1])
+        else:
+            tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1,:], pnpc[i], msgs,
+                                                   sigma=2.0, function=function, minv=x0in[0], maxv=x0in[-1])
         #pdb.set_trace()
         coeffstr.append(coeff0)
-# ordr=5
-# tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1,:], ordr, weights=weights, sigma=2.0, function=function, min=x0in[0], max=x0in[-1])
-# mod = arutils.func_val(coeff0, x0in, function, min=x0in[0], max=x0in[-1])
-# plt.clf()
-# plt.plot(x0in[usetrace], hidden[i-1,:], 'bx')
-# plt.plot(x0in, mod, 'r-')
-# plt.show()
-        high_order_matrix[:,i-1] = arutils.func_val(coeff0, x0in, function, min=x0in[0], max=x0in[-1])
-#	high_order_matrix[:,1] = arutils.func_val(coeff1, x0in, function)
+        high_order_matrix[:,i-1] = arutils.func_val(coeff0, x0in, function, msgs, minv=x0in[0], maxv=x0in[-1])
+    # high_order_matrix[:,1] = arutils.func_val(coeff1, x0in, function)
     high_fit = high_order_matrix.copy()
 
-    high_order_fit = np.dot(eigv,high_order_matrix.T)
+    high_order_fit = np.dot(eigv, high_order_matrix.T)
     sub = (yfit - high_order_fit) * outmask
 
-    numer = np.sum(sub,axis=0)
-    denom = np.sum(outmask,axis=0)
+    numer = np.sum(sub, axis=0)
+    denom = np.sum(outmask, axis=0)
     x0 = np.zeros(float(ntrace))
     fitmask = np.zeros(float(ntrace))
     #fitmask[mask] = 1
     x0fit = np.zeros(float(ntrace))
-    chisqnu  = 0.0
+    chisqnu = 0.0
     chisqold = 0.0
-    robust=True
-    svx0 = numer/(denom+(denom==0).astype(np.int))
+    robust = True
+    #svx0 = numer/(denom+(denom == 0).astype(np.int))
     if not skipx0:
-        fitmask = (np.abs(denom)>10).astype(np.int)
+        fitmask = (np.abs(denom) > 10).astype(np.int)
         if robust:
-            good = np.where(fitmask!=0)[0]
-            bad  = np.where(fitmask==0)[0]
+            good = np.where(fitmask != 0)[0]
+            bad = np.where(fitmask == 0)[0]
             x0[good] = numer[good]/denom[good]
             imask = np.zeros(float(ntrace))
             imask[bad] = 1.0
-            ttmask, x0res = arutils.robust_polyfit(x0in, x0, pnpc[0], weights=weights, sigma=2.0, function=function, min=x0in[0], max=x0in[-1], initialmask=imask)
-            x0fit = arutils.func_val(x0res, x0in, function, min=x0in[0], max=x0in[-1])
-            good = np.where(ttmask==0)[0]
-            xstd = 1.0 # This should represent the dispersion in the fit
+            ttmask, x0res = arutils.robust_polyfit(x0in, x0, pnpc[0], msgs, weights=weights, sigma=2.0,
+                                                   function=function, minv=x0in[0], maxv=x0in[-1], initialmask=imask)
+            x0fit = arutils.func_val(x0res, x0in, function, msgs, minv=x0in[0], maxv=x0in[-1])
+            good = np.where(ttmask == 0)[0]
+            xstd = 1.0  # This should represent the dispersion in the fit
             chisq = ((x0[good]-x0fit[good])/xstd)**2.0
             chisqnu = np.sum(chisq)/np.sum(ttmask)
             fitmask = 1.0-ttmask
             msgs.prindent("  Reduced chi-squared = {0:E}".format(chisqnu))
         else:
-            for i in xrange(1,5):
-                good = np.where(fitmask!=0)[0]
+            for i in xrange(1, 5):
+                good = np.where(fitmask != 0)[0]
                 x0[good] = numer[good]/denom[good]
 #				x0res = arutils.robust_regression(x0in[good],x0[good],pnpc[0],0.2,function=function)
-                x0res = arutils.func_fit(x0in[good], x0[good], function, pnpc[0], weights=weights, min=x0in[0], max=x0in[-1])
-                x0fit = arutils.func_val(x0res, x0in, function, min=x0in[0], max=x0in[-1])
+                x0res = arutils.func_fit(x0in[good], x0[good], function, pnpc[0], msgs,
+                                         weights=weights, minv=x0in[0], maxv=x0in[-1])
+                x0fit = arutils.func_val(x0res, x0in, function, msgs, minv=x0in[0], maxv=x0in[-1])
                 chisq = (x0[good]-x0fit[good])**2.0
                 fitmask[good] *= (chisq < np.sum(chisq)/2.0).astype(np.int)
                 chisqnu = np.sum(chisq)/np.sum(fitmask)
@@ -112,13 +113,15 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
     else:
         x0res = 0.0
     x3fit = np.dot(eigv,high_order_matrix.T) + np.outer(x0fit,np.ones(nrow)).T
-    outpar = dict({'high_fit':high_fit,'x0':x0,'x0in':x0in,'x0fit':x0fit,'x0res':x0res,'x0mask':fitmask,'hidden':hidden,'usetrc':usetrace,'eigv':eigv,'npc':npc,'coeffstr':coeffstr})
+    outpar = dict({'high_fit': high_fit, 'x0': x0, 'x0in': x0in, 'x0fit': x0fit, 'x0res': x0res, 'x0mask': fitmask,
+                   'hidden': hidden, 'usetrc': usetrace, 'eigv': eigv, 'npc': npc, 'coeffstr': coeffstr})
     if retmask:
         return x3fit, outpar, tmask
     else:
         return x3fit, outpar
 
-def do_pca(data, cov=False):
+
+def do_pca(data, msgs, cov=False):
     tolerance = 1.0E-5
     Nobj, Mattr = data.shape
 
@@ -146,11 +149,11 @@ def do_pca(data, cov=False):
     return eigva, eigve
 
 
-def extrapolate(outpar, ords, function='polynomial'):
+def extrapolate(outpar, ords, msgs, function='polynomial'):
     nords = ords.size
 
-    x0ex = arutils.func_val(outpar['x0res'], ords, function,
-                            min=outpar['x0in'][0], max=outpar['x0in'][-1])
+    x0ex = arutils.func_val(outpar['x0res'], ords, function, msgs,
+                            minv=outpar['x0in'][0], maxv=outpar['x0in'][-1])
 
     # Order centre
     high_matr = np.zeros((nords, outpar['npc']))
@@ -158,54 +161,56 @@ def extrapolate(outpar, ords, function='polynomial'):
         if outpar['coeffstr'][i-1][0] == -9.99E9:
             high_matr[:,i-1] = np.ones(nords)*outpar['high_fit'][0,i-1]
             continue
-        high_matr[:,i-1] = arutils.func_val(outpar['coeffstr'][i-1], ords, function,
-                                            min=outpar['x0in'][0], max=outpar['x0in'][-1])
+        high_matr[:,i-1] = arutils.func_val(outpar['coeffstr'][i-1], ords, function, msgs,
+                                            minv=outpar['x0in'][0], maxv=outpar['x0in'][-1])
     extfit = np.dot(outpar['eigv'], high_matr.T) + np.outer(x0ex, np.ones(outpar['eigv'].shape[0])).T
     outpar['high_matr'] = high_matr
     return extfit, outpar
 
 
-def refine_iter(outpar, orders, mask, irshft, relshift, fitord, function='polynomial'):
+def refine_iter(outpar, orders, mask, irshft, relshift, fitord, msgs, function='polynomial'):
     fail = False
-    x0ex = arutils.func_val(outpar['x0res'], orders, function,  min=outpar['x0in'][0], max=outpar['x0in'][-1])
+    x0ex = arutils.func_val(outpar['x0res'], orders, function,  minv=outpar['x0in'][0], maxv=outpar['x0in'][-1])
     # Make the refinement
     x0ex[irshft] += relshift
     # Refit the data to improve the refinement
-    good = np.where(mask!=0.0)[0]
+    good = np.where(mask != 0.0)[0]
 #	x0res = arutils.robust_regression(x0in[good],x0[good],pnpc[0],0.2,function=function)
-    null, x0res = arutils.robust_polyfit(orders[good], x0ex[good], fitord, sigma=2.0, function=function, min=outpar['x0in'][0], max=outpar['x0in'][-1])
+    null, x0res = arutils.robust_polyfit(orders[good], x0ex[good], fitord, sigma=2.0, function=function,
+                                         minv=outpar['x0in'][0], maxv=outpar['x0in'][-1])
     #x0res = arutils.func_fit(orders[good], x0ex[good], function, fitord, min=outpar['x0in'][0], max=outpar['x0in'][-1])
-    x0fit = arutils.func_val(x0res, orders, function, min=outpar['x0in'][0], max=outpar['x0in'][-1])
+    x0fit = arutils.func_val(x0res, orders, function, minv=outpar['x0in'][0], maxv=outpar['x0in'][-1])
     chisq = (x0ex[good]-x0fit[good])**2.0
     chisqnu = np.sum(chisq)/np.sum(mask)
     msgs.prindent("  Reduced chi-squared = {0:E}".format(chisqnu))
-    if chisqnu  > 0.5: # The refinement went wrong, ignore the refinement
+    if chisqnu > 0.5: # The refinement went wrong, ignore the refinement
         fail = True
     outpar['x0res'] = x0res
-    extfit = np.dot(outpar['eigv'],outpar['high_matr'].T) + np.outer(x0fit,np.ones(outpar['eigv'].shape[0])).T
+    extfit = np.dot(outpar['eigv'], outpar['high_matr'].T) + np.outer(x0fit, np.ones(outpar['eigv'].shape[0])).T
     return extfit, outpar, fail
 
 
-def get_pc(data, k, tol=0.0, maxiter=20, nofix=False, noortho=False):
+def get_pc(data, k, msgs, tol=0.0, maxiter=20, nofix=False, noortho=False):
 
     p = data.shape[0]
     if p == 0:
         msgs.error("You need to supply more components in the PCA")
-    n = np.size(data)/p
+    #n = np.size(data)/p
     if k > p:
-        msgs.error("The number of principal components must be less than or equal"+msgs.newline()+"to the order of the fitting function")
+        msgs.error("The number of principal components must be less than or equal" + msgs.newline() +
+                   "to the order of the fitting function")
 
     # Set the initial conditions
-    eigv = np.zeros((p,k))
-    eigv[:k,:k] = np.identity(k)
+    eigv = np.zeros((p, k))
+    eigv[:k, :k] = np.identity(k)
 
     niter = 0
     diff = tol*2.0 + 1.0
 
     while (niter < maxiter) and (diff > tol):
-        hidden = np.dot( np.dot( np.linalg.inv(np.dot(eigv.T,eigv)), eigv.T), data)
+        hidden = np.dot(np.dot(np.linalg.inv(np.dot(eigv.T, eigv)), eigv.T), data)
         oldeigv = eigv.copy()
-        eigv = np.dot(data,np.dot(hidden.T,np.linalg.inv(np.dot(hidden,hidden.T))))
+        eigv = np.dot(data, np.dot(hidden.T, np.linalg.inv(np.dot(hidden, hidden.T))))
         if tol > 0.0:
             diff = 0.0
             for i in xrange(k):
@@ -221,14 +226,14 @@ def get_pc(data, k, tol=0.0, maxiter=20, nofix=False, noortho=False):
                 eigv[:,b] -= dot*eigv[:,bp]
             # Normalize
             dot = np.sum(eigv[:,b]**2)
-            dot=1.0/np.sqrt(dot)
+            dot = 1.0/np.sqrt(dot)
             eigv[:,b] *= dot
         # Project variables onto new coordinates?
         if not nofix:
-            hidden = np.dot(eigv.T,data)
-            eval_hidden, evec_hidden = do_pca(hidden.T, cov=True)
-            eigv = np.dot(eigv,evec_hidden.T)
-        hidden = np.dot(eigv.T,data)
+            hidden = np.dot(eigv.T, data)
+            eval_hidden, evec_hidden = do_pca(hidden.T, msgs, cov=True)
+            eigv = np.dot(eigv, evec_hidden.T)
+        hidden = np.dot(eigv.T, data)
     return eigv, hidden
 
 ################################################
@@ -280,7 +285,7 @@ def pca2d(img, numpc, mask=None, maskval=-999999.9):
 
 ################################################
 
-def pc_plot(slf, inpar, ofit, pcatype="<unknown>", maxp=25, pcadesc="", addOne=True):
+def pc_plot(slf, inpar, ofit, maxp=25, pcadesc="", addOne=True):
     """
     Saves quality control plots for a PCA analysis
     """
@@ -381,15 +386,15 @@ def pc_plot(slf, inpar, ofit, pcatype="<unknown>", maxp=25, pcadesc="", addOne=T
         if pages[i][1] == 1 or pages[i][0] == 1: ypngsiz = 11.0/axes.size
         else: ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
         f.set_size_inches(11.0, ypngsiz)
-        f.tight_layout()
         if pcadesc != "":
-            f.title(pcadesc)
-            #f.savefig("{0:s}/{1:s}_PCA_{2:s}_page-{3:d}.png".format(plotsdir,prefix,pcatype,i+1), dpi=200, orientation='landscape')
-        #else:
-        #    f.savefig("{0:s}/PCA_{1:s}_page-{2:d}.png".format(plotsdir,pcatype,i+1), dpi=200, orientation='landscape')
+            pgtxt = ""
+            if len(pages) != 1:
+                pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
+            f.suptitle(pcadesc + pgtxt, y=1.02, size=16)
+        f.tight_layout()
         slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
         plt.close()
-    f.clf()
+        f.clf()
     del f
     return
 

@@ -1,7 +1,5 @@
 # Module for QA in PYPIT
 import os
-import astropy.io.fits as pyfits
-import armsgs as msgs
 import arutils
 import numpy as np
 from arplot import zscale
@@ -10,42 +8,39 @@ import matplotlib
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
-from matplotlib.backends.backend_pdf import PdfPages
 
 try:
     from xastropy.xutils import xdebug as xdb
 except:
     pass
 
-def arc_fit_qa(fit, arc_spec, outroot=None, outfil=None):
+def arc_fit_qa(slf, fit, arc_spec, outroot=None, outfil=None):
     """
     QA for Arc spectrum
 
     Parameters
     ----------
-    outfil: str, optional
+    outfil : str, optional
       Name of output file
     """
-    import matplotlib.gridspec as gridspec
     if outfil is None:
         if outroot is None:
             outfil = 'Plots/arc_qa.pdf'
         else:
-            outfil = outroot.replace('.fits','_fit.pdf')
+            outfil = outroot.replace('.fits', '_fit.pdf')
             outfil = outfil.replace('MasterFrames', 'Plots')
 
     # Begin
-    pp = PdfPages(outfil)
     plt.figure(figsize=(8, 4.0))
     plt.clf()
-    gs = gridspec.GridSpec(2,2)
+    gs = gridspec.GridSpec(2, 2)
 
     # Simple spectrum plot
     ax_spec = plt.subplot(gs[:,0])
     ax_spec.plot(np.arange(len(arc_spec)), arc_spec)
     ymin, ymax = 0., np.max(arc_spec)
     ysep = ymax*0.03
-    for kk,x in enumerate(fit['xfit']*fit['xnorm']):
+    for kk, x in enumerate(fit['xfit']*fit['xnorm']):
         yline = np.max(arc_spec[int(x)-2:int(x)+2])
         # Tick mark
         ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], 'g-')
@@ -59,7 +54,7 @@ def arc_fit_qa(fit, arc_spec, outroot=None, outfil=None):
     ax_spec.set_ylabel('Flux')
 
     # Arc Fit
-    ax_fit = plt.subplot(gs[0,1])
+    ax_fit = plt.subplot(gs[0, 1])
     # Points
     ax_fit.scatter(fit['xfit']*fit['xnorm'], fit['yfit'], marker='x')
     if len(fit['xrej']) > 0:
@@ -68,7 +63,7 @@ def arc_fit_qa(fit, arc_spec, outroot=None, outfil=None):
     # Solution
     xval = np.arange(len(arc_spec))
     wave = arutils.func_val(fit['fitc'], xval/fit['xnorm'], 'legendre', 
-        min=fit['fmin'], max=fit['fmax'])
+        minv=fit['fmin'], maxv=fit['fmax'])
     ax_fit.plot(xval, wave, 'r-')
     xmin, xmax = 0., len(arc_spec)
     ax_fit.set_xlim(xmin, xmax)
@@ -78,7 +73,7 @@ def arc_fit_qa(fit, arc_spec, outroot=None, outfil=None):
     ax_fit.get_xaxis().set_ticks([]) # Suppress labeling
     # Stats
     wave_fit = arutils.func_val(fit['fitc'], fit['xfit'], 'legendre', 
-        min=fit['fmin'], max=fit['fmax'])
+        minv=fit['fmin'], maxv=fit['fmax'])
     dwv_pix = np.median(np.abs(wave-np.roll(wave,1)))
     rms = np.sqrt(np.sum((fit['yfit']-wave_fit)**2)/len(fit['xfit'])) # Ang
     ax_fit.text(0.1*len(arc_spec), 0.90*ymin+(ymax-ymin),
@@ -96,9 +91,9 @@ def arc_fit_qa(fit, arc_spec, outroot=None, outfil=None):
 
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    pp.savefig(bbox_inches='tight')
-    pp.close()
+    slf._qa.savefig(bbox_inches='tight')
     plt.close()
+    return
 
 
 def obj_trace_qa(frame, ltrace, rtrace, root='trace', outfil=None, normalize=True):
@@ -245,7 +240,6 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
         sclmin, sclmax = zscale(nrm_frame)
 
     # Plot
-    # pp = PdfPages(outfil)
     plt.clf()
     fig = plt.figure(dpi=1200)
     #fig.set_size_inches(10.0,6.5)
@@ -281,7 +275,8 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
         iy = int(frame.shape[0]/2.)
         plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
         plt.text(rtrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='green', ha='center')
-    if desc != "": plt.title(desc)
+    if desc != "":
+        plt.suptitle(desc)
 
     slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
     #pp.savefig()

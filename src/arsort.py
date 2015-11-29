@@ -188,13 +188,15 @@ def chk_condition(fitsdict, cond):
     """
     if "=" in cond:
         tcond = cond.split("=")
-        ntmp = (fitsdict[tcond[0]]==tcond[1])
+        ntmp = (fitsdict[tcond[0]] == tcond[1])
     elif "<" in cond:
         tcond = cond.split("<")
-        ntmp = fitsdict[tcond[0]]<float(tcond[1])
+        ntmp = fitsdict[tcond[0]] < float(tcond[1])
     elif ">" in cond:
         tcond = cond.split(">")
-        ntmp = fitsdict[tcond[0]]>float(tcond[1])
+        ntmp = fitsdict[tcond[0]] > float(tcond[1])
+    else:
+        ntmp = None
     return ntmp
 
 
@@ -272,7 +274,8 @@ def sort_write(sortname, spect, fitsdict, filesort, msgs, space=3):
     else:
         fname = sortname+'.xml'
     votable.to_xml(fname)
-    msgs.info("Successfully written sorted data information file:"+msgs.newline()+"{0:s}".format(fname))
+    msgs.info("Successfully written sorted data information file:"+msgs.newline() +
+              "{0:s}".format(fname))
 
     # ASCII file (JXP)
     jxpord = ['filename', 'date', 'frametype', 'target', 'exptime', 'binning',
@@ -432,12 +435,14 @@ def match_science(argflag, spect, fitsdict, filesort, msgs):
                 if numfr == 1: areis = "is"
                 else: areis = "are"
                 if np.size(n) == 1:
-                    msgs.info("  Found {0:d} {1:s} frame for {2:s} ({3:d} {4:s} required)".format(np.size(n), ftag[ft], fitsdict['target'][iSCI[i]], numfr, areis))
+                    msgs.info("  Found {0:d} {1:s} frame for {2:s} ({3:d} {4:s} required)".format(
+                        np.size(n), ftag[ft], fitsdict['target'][iSCI[i]], numfr, areis))
                 else:
                     msgs.info("  Found {0:d} {1:s} frames for {2:s} ({3:d} {4:s} required)".format(np.size(n), ftag[ft], fitsdict['target'][iSCI[i]], numfr, areis))
             # Have we identified enough of these calibration frames to continue?
             if np.size(n) < numfr:
-                msgs.warn("  Only {0:d}/{1:d} {2:s} frames for {3:s}".format(np.size(n), numfr, ftag[ft], fitsdict['target'][iSCI[i]]))
+                msgs.warn("  Only {0:d}/{1:d} {2:s} frames for {3:s}".format(np.size(n), numfr, ftag[ft],
+                                                                             fitsdict['target'][iSCI[i]]))
                 # Errors for insufficient BIAS frames
                 if argflag['reduce']['usebias'].lower() == ftag[ft]:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))

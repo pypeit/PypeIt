@@ -1,9 +1,7 @@
 # Module for handling extracted spectra
 #  Includes ArSpecObj class
 import numpy as np
-import scipy
 import copy
-import glob
 import pdb
 
 from astropy.table import Table
@@ -12,14 +10,6 @@ from astropy.io import fits
 from astropy import units as u
 from astropy import coordinates as coords
 
-import armsgs as msgs
-import arcyextract
-import arcyutils
-import arcyproc
-import arload
-import artrace
-import arutils
-import arplot
 import arsort
 
 try:

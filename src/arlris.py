@@ -3,13 +3,7 @@ import numpy as np
 import glob
 import astropy.io.fits as pyfits
 
-import arcyextract
-import arcyutils
-import arcyproc
 import arload
-import artrace
-import arutils
-import arplot
 
 try:
     from xastropy.xutils import xdebug as xdb

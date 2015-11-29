@@ -1,6 +1,4 @@
 import numpy as np
-import scipy
-import armsgs as msgs
 from astropy import units as u
 import arcyutils
 from matplotlib import pyplot as plt
@@ -18,6 +16,7 @@ except:
 # 2**5 = Flagged as NAN (from something gone wrong)
 
 mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5)
+
 
 def boxcar(slf, sciframe, varframe, skyframe, crmask, scitrace):
     """

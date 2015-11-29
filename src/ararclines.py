@@ -1,5 +1,4 @@
 import numpy as np
-import armsgs as msgs
 from astropy.table import Table, Column, vstack
 import os, glob, copy
 import yaml

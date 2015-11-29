@@ -6,11 +6,8 @@ from scipy.special import erf
 from scipy import interpolate
 import itertools
 import numpy as np
-import armsgs as msgs
 import arcyutils
 import arcyarc
-#import matplotlib.pyplot as plt
-#import arplot
 
 try:
     from xastropy.xutils import xdebug as xdb
@@ -197,103 +194,107 @@ def find_peaks(yval, siglev=10.):
     return pixt
 
 
-def func_der(coeffs,func,nderive=1):
+def func_der(coeffs, func, msgs, nderive=1):
     if func == "polynomial":
-        return np.polynomial.polynomial.polyder(coeffs,m=nderive)
+        return np.polynomial.polynomial.polyder(coeffs, m=nderive)
     elif func == "legendre":
-        return np.polynomial.legendre.legder(coeffs,m=nderive)
+        return np.polynomial.legendre.legder(coeffs, m=nderive)
     elif func == "chebyshev":
-        return np.polynomial.chebyshev.chebder(xv,y,deg)
+        return np.polynomial.chebyshev.chebder(coeffs, m=nderive)
     else:
-        msgs.error("Functional derivative '{0:s}' is not implemented yet"+msgs.newline()+"Please choose from 'polynomial', 'legendre', 'chebyshev'")
+        msgs.error("Functional derivative '{0:s}' is not implemented yet"+msgs.newline()+
+                   "Please choose from 'polynomial', 'legendre', 'chebyshev'")
 
 
-def func_fit(x,y,func,deg,min=None,max=None,w=None,**kwargs):
+def func_fit(x, y, func, deg, msgs, minv=None, maxv=None, w=None, **kwargs):
     if func == "polynomial":
-        return np.polynomial.polynomial.polyfit(x,y,deg,w=w)
+        return np.polynomial.polynomial.polyfit(x, y, deg, w=w)
     elif func == "legendre":
-        if min is None or max is None:
+        if minv is None or maxv is None:
             if np.size(x) == 1:
                 xmin, xmax = -1.0, 1.0
             else:
                 xmin, xmax = np.min(x), np.max(x)
         else:
-            xmin, xmax = min, max
+            xmin, xmax = minv, maxv
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.legendre.legfit(xv,y,deg,w=w)
+        return np.polynomial.legendre.legfit(xv, y, deg, w=w)
     elif func == "chebyshev":
-        if min is None or max is None:
+        if minv is None or maxv is None:
             if np.size(x) == 1:
                 xmin, xmax = -1.0, 1.0
             else:
                 xmin, xmax = np.min(x), np.max(x)
         else:
-            xmin, xmax = min, max
+            xmin, xmax = minv, maxv
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.chebyshev.chebfit(xv,y,deg,w=w)
+        return np.polynomial.chebyshev.chebfit(xv, y, deg, w=w)
     elif func == "bspline":
-        return bspline_fit(x,y,order=deg,w=w,**kwargs)
+        return bspline_fit(x, y, order=deg, w=w, **kwargs)
     else:
-        msgs.error("Fitting function '{0:s}' is not implemented yet"+msgs.newline()+"Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
+        msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
+                   "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
 
 
-def func_val(c,x,func,min=None,max=None):
+def func_val(c, x, func, msgs, minv=None, maxv=None):
     if func == "polynomial":
-        return np.polynomial.polynomial.polyval(x,c)
+        return np.polynomial.polynomial.polyval(x, c)
     elif func == "legendre":
-        if min is None or max is None:
+        if minv is None or maxv is None:
             if np.size(x) == 1:
                 xmin, xmax = -1.0, 1.0
             else:
                 xmin, xmax = np.min(x), np.max(x)
         else:
-            xmin, xmax = min, max
+            xmin, xmax = minv, maxv
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.legendre.legval(xv,c)
+        return np.polynomial.legendre.legval(xv, c)
     elif func == "chebyshev":
-        if min is None or max is None:
+        if minv is None or maxv is None:
             if np.size(x) == 1:
                 xmin, xmax = -1.0, 1.0
             else:
                 xmin, xmax = np.min(x), np.max(x)
         else:
-            xmin, xmax = min, max
+            xmin, xmax = minv, maxv
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.chebyshev.chebval(xv,c)
+        return np.polynomial.chebyshev.chebval(xv, c)
     elif func == "bspline":
         return interpolate.splev(x, c, ext=1)
     else:
-        msgs.error("Fitting function '{0:s}' is not implemented yet"+msgs.newline()+"Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
+        msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
+                   "Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
 
 
-def func_vander(x,func,deg,min=None,max=None):
+def func_vander(x, func, deg, msgs, minv=None, maxv=None):
     if func == "polynomial":
-        return np.polynomial.polynomial.polyvander(x,deg)
+        return np.polynomial.polynomial.polyvander(x, deg)
     elif func == "legendre":
-        if min is None or max is None:
+        if minv is None or maxv is None:
             if np.size(x) == 1:
                 xmin, xmax = -1.0, 1.0
             else:
                 xmin, xmax = np.min(x), np.max(x)
         else:
-            xmin, xmax = min, max
+            xmin, xmax = minv, maxv
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.legendre.legvander(xv,deg)
+        return np.polynomial.legendre.legvander(xv, deg)
     elif func == "chebyshev":
-        if min is None or max is None:
+        if minv is None or maxv is None:
             if np.size(x) == 1:
                 xmin, xmax = -1.0, 1.0
             else:
                 xmin, xmax = np.min(x), np.max(x)
         else:
-            xmin, xmax = min, max
+            xmin, xmax = minv, maxv
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.chebyshev.chebvander(xv,deg)
+        return np.polynomial.chebyshev.chebvander(xv, deg)
     else:
-        msgs.error("Fitting function '{0:s}' is not implemented yet"+msgs.newline()+"Please choose from 'polynomial', 'legendre', 'chebyshev'")
+        msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
+                   "Please choose from 'polynomial', 'legendre', 'chebyshev'")
 
 
-def get_splknots(xarr,yarr,num,minv=None,maxv=None,maxknots=None):
+def get_splknots(xarr, yarr, num, minv=None, maxv=None, maxknots=None):
     """
     Determine the best location for the knots of the scipy function LSQUnivariateSpline
     :param xarr, yarr: Input (x,y) arrays which are used to highlight were the strongest gradients are in the fitted
@@ -302,8 +303,8 @@ def get_splknots(xarr,yarr,num,minv=None,maxv=None,maxknots=None):
     :param yarr: Input array which is used to highlight were the strongest gradients are in the fitted function.
                     This array should be a reduced (in size) and approximate representation of the data being fitted
     :param num: Number of knot locations to use
-    :param min: The minimum x-value of the knots
-    :param max: The maximum x-value of the knots
+    :param minv: The minimum x-value of the knots
+    :param maxv: The maximum x-value of the knots
     :return: knots
     """
     # First determine the derivative
@@ -364,50 +365,50 @@ def robust_meanstd(array):
 def perturb(covar, bparams, nsim=1000):
     cvsize = covar.shape[0]
     # Generate a new set of starting parameters from the covariance matrix
-    X_covar_fit=np.matrix(np.random.standard_normal((cvsize,nsim)))
-    C_covar_fit=np.matrix(covar)
-    U_covar_fit=np.linalg.cholesky(C_covar_fit)
-    Y_covar_fit=U_covar_fit * X_covar_fit
-    newpar = bparams.reshape(cvsize,1).repeat(nsim,axis=1)
+    X_covar_fit = np.matrix(np.random.standard_normal((cvsize, nsim)))
+    C_covar_fit = np.matrix(covar)
+    U_covar_fit = np.linalg.cholesky(C_covar_fit)
+    Y_covar_fit = U_covar_fit * X_covar_fit
+    newpar = bparams.reshape(cvsize, 1).repeat(nsim, axis=1)
     # Find the new best-fitting model parameters
     newpar += Y_covar_fit
     return newpar
 
 
-def polyfitter2d(data,mask=None,order=2):
-    x, y = np.meshgrid(np.linspace(0.0,1.0,data.shape[1]),np.linspace(0.0,1.0,data.shape[0]))
-    if mask is None or mask.size==0:
+def polyfitter2d(data, mask=None, order=2):
+    x, y = np.meshgrid(np.linspace(0.0, 1.0, data.shape[1]), np.linspace(0.0, 1.0, data.shape[0]))
+    if mask is None or mask.size == 0:
         xf = x.flatten()
         yf = y.flatten()
-        m = polyfit2d(xf,yf,data.T.flatten(),order)
+        m = polyfit2d(xf, yf, data.T.flatten(), order)
     else:
-        mskar = np.ones((data.shape[0],data.shape[1]))
+        mskar = np.ones((data.shape[0], data.shape[1]))
         mskar[mask,:] = 0
-        w = np.where(mskar==1)
+        w = np.where(mskar == 1)
         xf = x[w].flatten()
         yf = y[w].flatten()
-        m = polyfit2d(xf,yf,data[w].T.flatten(),order)
+        m = polyfit2d(xf, yf, data[w].T.flatten(), order)
     # Return the best model
-    return m, polyval2d(x,y,m).T
-    #print m
-    #model = polyval2d(x,y,m)
-    ## Plot it
-    #zmin, zmax = arplot.zscale(data)
-    #plt.subplot(131)
-    #implt = plt.imshow(data,aspect='auto',interpolation='none')
-    #plt.colorbar()
-    #implt.set_clim(zmin, zmax)
-    #plt.subplot(132)
-    #implt = plt.imshow(model,aspect='auto',interpolation='none')
-    #plt.colorbar()
-    #implt.set_clim(zmin, zmax)
-    #plt.subplot(133)
-    #zmin, zmax = arplot.zscale(data-model)
-    #implt = plt.imshow(data-model,aspect='auto',interpolation='none')
-    #plt.colorbar()
-    #implt.set_clim(zmin, zmax)
-    #plt.show()
-    #return m, polyval2d(x,y,m).T
+    return m, polyval2d(x, y, m).T
+    # print m
+    # model = polyval2d(x,y,m)
+    # # Plot it
+    # zmin, zmax = arplot.zscale(data)
+    # plt.subplot(131)
+    # implt = plt.imshow(data,aspect='auto',interpolation='none')
+    # plt.colorbar()
+    # implt.set_clim(zmin, zmax)
+    # plt.subplot(132)
+    # implt = plt.imshow(model,aspect='auto',interpolation='none')
+    # plt.colorbar()
+    # implt.set_clim(zmin, zmax)
+    # plt.subplot(133)
+    # zmin, zmax = arplot.zscale(data-model)
+    # implt = plt.imshow(data-model,aspect='auto',interpolation='none')
+    # plt.colorbar()
+    # implt.set_clim(zmin, zmax)
+    # plt.show()
+    # return m, polyval2d(x,y,m).T
 
 
 def polyfit2d(x, y, z, order=3):
@@ -424,7 +425,7 @@ def polyval2d(x, y, m):
     order = int(np.sqrt(len(m))) - 1
     ij = itertools.product(range(order+1), range(order+1))
     z = np.zeros_like(x)
-    for a, (i,j) in zip(m, ij):
+    for a, (i, j) in zip(m, ij):
         z += a * x**i * y**j
     return z
 
@@ -492,7 +493,7 @@ def poly_to_gauss(coeffs):
     return [ampl, cent, sigm], False
 
 
-def polyfit2d(x, y, z, deg, w=None):
+def polyfit2d_general(x, y, z, deg, msgs, w=None):
     """
     :param x: array of x values
     :param y: array of y values
@@ -522,11 +523,37 @@ def polyfit2d(x, y, z, deg, w=None):
     return c.reshape(deg+1)
 
 
-def polyval2d(c, x, y):
-    msgs.work("Generalize to different polynomial types")
-    xx, yy = np.meshgrid(x,y)
-    surf = np.polynomial.polynomial.polyval2d(xx, yy, c)
-    return surf
+def polyval2d_general(c, x, y, msgs, function="polynomial", minx=None, maxx=None, miny=None, maxy=None):
+    if function == "polynomial":
+        xx, yy = np.meshgrid(x, y)
+        return np.polynomial.polynomial.polyval2d(xx, yy, c)
+    elif function in ["legendre", "chebyshev"]:
+        # Scale x-direction
+        if minx is None or maxx is None:
+            if np.size(x) == 1:
+                xmin, xmax = -1.0, 1.0
+            else:
+                xmin, xmax = np.min(x), np.max(x)
+        else:
+            xmin, xmax = minx, maxx
+        xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
+        # Scale y-direction
+        if miny is None or maxy is None:
+            if np.size(y) == 1:
+                ymin, ymax = -1.0, 1.0
+            else:
+                ymin, ymax = np.min(y), np.max(y)
+        else:
+            ymin, ymax = miny, maxy
+        yv = 2.0 * (y-ymin)/(ymax-ymin) - 1.0
+        xx, yy = np.meshgrid(xv, yv)
+        if function == "legendre":
+            return np.polynomial.legendre.legval2d(xx, yy, c)
+        elif function == "chebyshev":
+            return np.polynomial.chebyshev.chebval2d(xx, yy, c)
+    else:
+        msgs.error("Function {0:s} has not yet been implemented".format(function))
+    return None
 
 
 def polyfit_integral(x, y, dx, deg, rcond=None, full=False, w=None):
@@ -625,7 +652,7 @@ def rebin(frame, newshape):
     return eval(''.join(evList))
 
 
-def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, function="polynomial", initialmask=None, forceimask=False, min=None, max=None, debug=False, **kwargs):
+def robust_polyfit(xarray, yarray, order, msgs, weights=None, maxone=True, sigma=3.0, function="polynomial", initialmask=None, forceimask=False, minv=None, maxv=None, debug=False, **kwargs):
     """
     A robust (equally weighted) polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are masked values
@@ -639,40 +666,39 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
     :param function: which function should be used in the fitting (valid inputs: 'polynomial', 'legendre', 'chebyshev', 'bspline')
     :param initialmask: a mask can be supplied as input, these values will be masked for the first iteration. 1 = value masked
     :param forceimask: if True, the initialmask will be forced for all iterations
-    :param min: minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
-    :param max: maximum value in the array (or the right limit for a legendre/chebyshev polynomial)
+    :param minv: minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
+    :param maxv: maximum value in the array (or the right limit for a legendre/chebyshev polynomial)
     :param debug:
     :return: mask, ct -- mask is an array of the masked values, ct is the coefficients of the robust polyfit.
     """
     # Setup the initial mask
     if initialmask is None:
-        mask = np.zeros(xarray.size,dtype=np.int)
+        mask = np.zeros(xarray.size, dtype=np.int)
         if forceimask:
             msgs.warn("Initial mask cannot be enforced -- no initital mask supplied")
             forceimask = False
     else:
         mask = initialmask.copy()
-    mskcnt=np.sum(mask)
+    mskcnt = np.sum(mask)
     # Iterate, and mask out new values on each iteration
-    wfit = None
     while True:
-        w = np.where(mask==0)
+        w = np.where(mask == 0)
         xfit = xarray[w]
         yfit = yarray[w]
         if weights is not None:
-           wfit = weights[w] 
+            wfit = weights[w]
         else:
-           wfit = None
-        ct = func_fit(xfit,yfit,function,order,w=wfit,min=min,max=max,**kwargs)
-        yrng = func_val(ct,xarray,function,min=min,max=max)
+            wfit = None
+        ct = func_fit(xfit, yfit, function, order, msgs, w=wfit, minv=minv, maxv=maxv, **kwargs)
+        yrng = func_val(ct, xarray, function, msgs, minv=minv, maxv=maxv)
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
         if debug:
             import pdb
             pdb.set_trace()
         if xarray.size-np.sum(mask) <= order+2:
             msgs.warn("More parameters than data points - fit might be undesirable")
-            break # More data was masked than allowed by order
-        if maxone: # Only remove the most deviant point
+            break  # More data was masked than allowed by order
+        if maxone:  # Only remove the most deviant point
             tst = np.abs(yarray[w]-yrng[w])
             m = np.argmax(tst)
             if tst[m] > sigma*sigmed:
@@ -683,21 +709,26 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
             else:
                 w = np.where(np.abs(yarray-yrng) > sigma*sigmed)
             mask[w] = 1
-        if mskcnt == np.sum(mask): break # No new values have been included in the mask
+        if mskcnt == np.sum(mask): break  # No new values have been included in the mask
         mskcnt = np.sum(mask)
-        w = np.where(mask==0)
+        w = np.where(mask == 0)
     # Final fit
     xfit = xarray[w]
     yfit = yarray[w]
     if weights is not None:
-       wfit = weights[w] 
+        wfit = weights[w]
     else:
-       wfit = None
-    ct = func_fit(xfit,yfit,function,order,w=wfit,min=min,max=max, **kwargs)
+        wfit = None
+    ct = func_fit(xfit, yfit, function, order, msgs, w=wfit, minv=minv, maxv=maxv, **kwargs)
     return mask, ct
 
 
-def robust_regression(x,y,ordr,outfrac,maxiter=100,function='polynomial',min=None,max=None):
+def robust_regression(x, y, ordr, outfrac, msgs, maxiter=100, function='polynomial', min=None, max=None):
+    """
+    Deprecated
+    """
+    msgs.bug("PYPIT using deprecated function")
+    msgs.error("Please contact the authors")
     xsize=x.size
     infrac = 1.0-outfrac
     if infrac < 0.5: infrac = 0.5
@@ -745,6 +776,7 @@ def robust_regression(x,y,ordr,outfrac,maxiter=100,function='polynomial',min=Non
         indx[slct+inds] = temp
         i += 1
     return tc
+
 
 def spline_coeffs(a, b, y, alpha=0.0, beta=0.0):
     """

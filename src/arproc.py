@@ -392,7 +392,7 @@ def flatfield(slf, sciframe, flatframe, snframe=None):
         return retframe, errframe
 
 
-def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
+def flatnorm(slf, det, msflat, msgs, maskval=-999999.9, overpix=6, plotdesc=""):
     """
     Normalize the flat-field frame
 
@@ -404,12 +404,15 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
       Detector number
     msflat : ndarray
       Flat-field image
+    msgs : class
+      Messages class used to log data reduction process
     maskval : float
       Global floating point mask value used throughout the code
     overpix : int
       overpix/2 = the number of pixels to extend beyond each side of the order trace
     plotdesc : str
       A title for the plotted QA
+
     Returns
     -------
     msnormflat : ndarray
@@ -427,16 +430,16 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     polyord_blz = 2  # This probably doesn't need to be a parameter that can be set by the user
     norders = slf._lordloc[det-1].shape[1]
     # Look at the end corners of the detector to get detector size in the dispersion direction
-    xstr = slf._pixlocn[det-1][0,0,0]-slf._pixlocn[det-1][0,0,2]/2.0
-    xfin = slf._pixlocn[det-1][-1,-1,0]+slf._pixlocn[det-1][-1,-1,2]/2.0
-    xint = slf._pixlocn[det-1][:,0,0]
+    #xstr = slf._pixlocn[det-1][0,0,0]-slf._pixlocn[det-1][0,0,2]/2.0
+    #xfin = slf._pixlocn[det-1][-1,-1,0]+slf._pixlocn[det-1][-1,-1,2]/2.0
+    #xint = slf._pixlocn[det-1][:,0,0]
     # Find which pixels are within the order edges
     msgs.info("Identifying pixels within each order")
     ordpix = arcyutils.order_pixels(slf._pixlocn[det-1], slf._lordloc[det-1], slf._rordloc[det-1], slf._dispaxis)
     msgs.info("Applying bad pixel mask")
     ordpix *= (1-slf._bpix[det-1].astype(np.int))
     msgs.info("Rectifying the orders to estimate the background locations")
-    badorders = np.zeros(norders)
+    #badorders = np.zeros(norders)
     msnormflat = maskval*np.ones_like(msflat)
     msblaze = maskval*np.ones((msflat.shape[0],norders))
     msgs.work("Must consider different amplifiers when normalizing and determining the blaze function")
@@ -474,7 +477,7 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             # Divide the flat by the fitted flat profile
             finalblaze = np.ones(recframe.shape[0])
             finalblaze[lox:hix] = blaze.copy()
-            blazenrm = finalblaze.reshape((finalblaze.size,1)).repeat(recframe.shape[1], axis=1)
+            blazenrm = finalblaze.reshape((finalblaze.size, 1)).repeat(recframe.shape[1], axis=1)
             recframe /= blazenrm
             # Store the blaze for this order
             msblaze[lox:hix,o] = blaze.copy()
@@ -500,7 +503,7 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             msgs.error("Flatfield method {0:s} is not supported".format(slf._argflag["reduce"]["FlatMethod"]))
     # Send the blaze away to be plotted and saved
     msgs.work("Perform a 2D PCA analysis on echelle blaze fits?")
-    arplot.plot_orderfits(slf, msblaze, flat_ext1d, plotsdir=slf._argflag['run']['plotsdir'], desc=plotdesc)
+    arplot.plot_orderfits(slf, msblaze, flat_ext1d, desc=plotdesc)
     # If there is more than 1 amplifier, apply the scale between amplifiers to the normalized flat
     if slf._spect['det'][det-1]['numamplifiers'] > 1: msnormflat *= sclframe
     return msnormflat, msblaze

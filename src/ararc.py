@@ -3,7 +3,6 @@ import arpca
 import arcyarc
 import arsave
 import arutils
-import armsgs as msgs
 from arplot import get_dimen as get_dimen
 import ararclines
 import arqa
@@ -19,14 +18,48 @@ try:
 except:
     pass
 
-def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
-    '''Extract an arc down the center of the chip and identify
+
+def detect_lines(slf, det, msarc, msgs, censpec=None, MK_SATMASK=False):
+    """
+    Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
-    '''
+
+    Parameters
+    ----------
+    slf : Class instance
+      An instance of the Science Exposure class
+    det : int
+      Index of the detector
+    msarc : ndarray
+      Calibration frame that will be used to identify slit traces (in most cases, the slit edge)
+    msgs : class
+      Messages class used to log data reduction process
+    censpec : ndarray, optional
+      A 1D spectrum to be searched for significant detections
+    MK_SATMASK : bool, optional
+      Generate a mask of arc line saturation streaks? Mostly used for echelle data
+      when saturation in one order can cause bleeding into a neighbouring order.
+
+    Returns
+    -------
+    tampl : ndarray
+      The amplitudes of the line detections
+    tcent : ndarray
+      The centroids of the line detections
+    twid : ndarray
+      The 1sigma Gaussian widths of the line detections
+    w : ndarray
+      An index array indicating which detections are the most reliable.
+    satsnd : ndarray
+      A mask indicating where which pixels contain saturation streaks
+    yprep : ndarray
+      The spectrum used to find detections. This spectrum has
+      had any "continuum" emission subtracted off
+    """
     # Extract a rough spectrum of the arc in each order
     msgs.info("Detecting lines")
     msgs.info("Extracting an approximate arc spectrum at the centre of the chip")
-    ordcen = slf._pixcen.copy()
+    ordcen = slf.GetFrame(slf._pixcen, det)
     if censpec is None:
         #pixcen = np.arange(msarc.shape[slf._dispaxis], dtype=np.int)
         #ordcen = (msarc.shape[1-slf._dispaxis]/2)*np.ones(msarc.shape[slf._dispaxis],dtype=np.int)
@@ -40,11 +73,11 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
         om2 = ordcen-2
         censpec = (msarc[:,ordcen]+msarc[:,op1]+msarc[:,op2]+msarc[:,om1]+msarc[:,om2])/5.0
     # Generate a saturation mask
-    msgs.info("Generating a mask of arc line saturation streaks")
-    ordwid = 0.5*np.abs(slf._lordloc-slf._rordloc)
+    ordwid = 0.5*np.abs(slf._lordloc[det-1] - slf._rordloc[det-1])
     if MK_SATMASK:
-        satmask = arcyarc.saturation_mask(msarc, slf._spect['det'][det-1]['saturation']*slf._spect['det'][det-1]['nonlinear'])
-        satsnd = arcyarc.order_saturation(satmask,ordcen,(ordwid+0.5).astype(np.int),slf._dispaxis)
+        msgs.info("Generating a mask of arc line saturation streaks")
+        satmask = arcyarc.saturation_mask(msarc, slf._nonlinear[det-1])
+        satsnd = arcyarc.order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int), slf._dispaxis)
     else:
         satsnd = np.zeros_like(ordcen)
     # Detect the location of the arc lines
@@ -54,40 +87,44 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
 #   arcdet = arcyarc.detections_allorders(censpec, satsnd)
     #####
     # New algorithm for arc line detection
-    pixels=[]
+    #pixels=[]
     siglev = 2.0*slf._argflag['arc']['calibrate']['detection']
-    bpfit = 5 # order of the polynomial used to fit the background 'continuum'
+    bpfit = 5  # order of the polynomial used to fit the background 'continuum'
     fitp = slf._argflag['arc']['calibrate']['nfitpix']
-    if len(censpec.shape) == 3: detns = censpec[:,0].flatten()
+    if len(censpec.shape) == 3: detns = censpec[:, 0].flatten()
     else: detns = censpec.copy()
     xrng = np.arange(float(detns.size))
-    mask = np.zeros(detns.size,dtype=np.int)
-    mskcnt=0
+    yrng = np.zeros(detns.size)
+    mask = np.zeros(detns.size, dtype=np.int)
+    mskcnt = 0
     while True:
-        w = np.where(mask==0)
+        w = np.where(mask == 0)
         xfit = xrng[w]
         yfit = detns[w]
-        ct = np.polyfit(xfit,yfit,bpfit)
-        yrng = np.polyval(ct,xrng)
+        ct = np.polyfit(xfit, yfit, bpfit)
+        yrng = np.polyval(ct, xrng)
         sigmed = 1.4826*np.median(np.abs(detns[w]-yrng[w]))
-        w = np.where(detns>yrng+1.5*sigmed)
+        w = np.where(detns > yrng+1.5*sigmed)
         mask[w] = 1
-        if mskcnt == np.sum(mask): break # No new values have been included in the mask
+        if mskcnt == np.sum(mask):
+            break  # No new values have been included in the mask
         mskcnt = np.sum(mask)
-    w = np.where(mask==0)
+    w = np.where(mask == 0)
     xfit = xrng[w]
     yprep = detns - yrng
     sfit = 1.4826*np.abs(detns[w]-yrng[w])
-    ct = np.polyfit(xfit,sfit,bpfit)
-    yerr = np.polyval(ct,xrng)
+    ct = np.polyfit(xfit, sfit, bpfit)
+    yerr = np.polyval(ct, xrng)
     myerr = np.median(np.sort(yerr)[:yerr.size/2])
     yerr[np.where(yerr < myerr)] = myerr
     # Find all significant detections
-    tpixt, num = arcyarc.detections_sigma(yprep,yerr,np.zeros(satsnd.shape[0],dtype=np.int),siglev/2.0,siglev) # The last argument is the overall minimum significance level of an arc line detection and the second last argument is the level required by an individual pixel before the neighbourhood of this pixel is searched.
+    # The last argument is the overall minimum significance level of an arc line detection and the second
+    # last argument is the level required by an individual pixel before the neighbourhood of this pixel is searched.
+    tpixt, num = arcyarc.detections_sigma(yprep, yerr, np.zeros(satsnd.shape[0], dtype=np.int), siglev/2.0, siglev)
     pixt = arcyarc.remove_similar(tpixt, num)
-    pixt = pixt[np.where(pixt!=-1)].astype(np.int)
-    tampl, tcent, twid, ngood = arcyarc.fit_arcorder(xrng,yprep,pixt,fitp)
-    w = np.where((np.isnan(twid)==False) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent>0.0) & (tcent<xrng[-1]))
+    pixt = pixt[np.where(pixt != -1)].astype(np.int)
+    tampl, tcent, twid, ngood = arcyarc.fit_arcorder(xrng, yprep, pixt, fitp)
+    w = np.where((np.isnan(twid) == False) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
     # Check the results
     #plt.clf()
     #plt.plot(xrng,yprep,'k-')
@@ -96,7 +133,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     # Return
     return tampl, tcent, twid, w, satsnd, yprep
 
-###
+
 def setup_param(slf, sc):
     '''Setup for arc analysis
     '''
@@ -273,16 +310,16 @@ def simple_calib(slf, det, get_poly=False, debug=False):
         # Fit with rejection
         xfit, yfit = tcent[ifit], all_ids[ifit]
         mask, fit = arutils.robust_polyfit(xfit, yfit, n_order,
-            function=aparm['func'], sigma=aparm['nsig_rej'], min=fmin, max=fmax) 
+            function=aparm['func'], sigma=aparm['nsig_rej'], minv=fmin, maxv=fmax)
         # DEBUG
         if debug:
             xdb.xpcol(xfit,yfit)
             #wave = arutils.func_val(fit, np.arange(slf._msarc.shape[0]), aparm['func'], min=fmin, max=fmax)
             #xdb.xplot(xfit,yfit,scatter=True,xtwo=np.arange(slf._msarc.shape[0]), ytwo=wave)
         # Reject but keep originals (until final fit)
-        ifit = list(ifit[mask==0]) + sv_ifit
+        ifit = list(ifit[mask == 0]) + sv_ifit
         # Find new points (should we allow removal of the originals?)
-        twave = arutils.func_val(fit, tcent, aparm['func'], min=fmin, max=fmax)
+        twave = arutils.func_val(fit, tcent, aparm['func'], minv=fmin, maxv=fmax)
         for ss,iwave in enumerate(twave):
             mn = np.min(np.abs(iwave-llist['wave']))
             if mn/aparm['disp'] < aparm['match_toler']:
@@ -309,7 +346,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
     xfit, yfit = tcent[ifit]/slf._msarc.shape[0], all_ids[ifit]
     mask, fit = arutils.robust_polyfit(xfit, yfit, n_order, 
         function=aparm['func'], sigma=aparm['nsig_rej_final'],
-        min=fmin, max=fmax)#, debug=True)
+        minv=fmin, maxv=fmax)#, debug=True)
     irej = np.where(mask==1)[0]
     if len(irej) > 0:
         xrej = xfit[irej]
@@ -326,7 +363,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
     if debug:
         msarc = slf._msarc
         wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]), 
-            'legendre', min=fmin, max=fmax)
+            'legendre', minv=fmin, maxv=fmax)
         xdb.xplot(xfit,yfit, scatter=True, 
             xtwo=np.arange(msarc.shape[0])/float(msarc.shape[0]),
             ytwo=wave)
@@ -334,7 +371,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
         xdb.set_trace()
 
         wave = arutils.func_val(fit, np.arange(msarc.shape[0]), 'legendre', 
-            min=fmin, max=fmax)
+            minv=fmin, maxv=fmax)
         xdb.xplot(xfit, np.ones(len(xfit)), scatter=True,
             xtwo=np.arange(msarc.shape[0]),ytwo=yprep)
         xdb.xplot(xfit,yfit, scatter=True, xtwo=np.arange(msarc.shape[0]),
@@ -348,7 +385,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
     # 2nd order Poly fit for archival
     #get_poly=True
     if get_poly:
-        poly_fit = arutils.func_fit(yfit,xfit, 'polynomial',2,min=fmin,max=fmax)
+        poly_fit = arutils.func_fit(yfit,xfit, 'polynomial',2, minv=fmin, maxv=fmax)
         print(' Most likely you with to record these values:')
         print(poly_fit)
         import pdb
@@ -1153,8 +1190,9 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
         ww = np.where( (wv>wvmin) & (wv<wvmax) )
         tstwf = wv[ww]
         # The next two lines to get prbpixl
-        maskbadn, coeff = arutils.robust_polyfit(wvcorid[w],pxcorid[w],3,sigma=3.0,function=prelimfitfunc,min=0.0,max=maxpix)
-        prbpixl = arutils.func_val(coeff,tstwf,prelimfitfunc,min=0.0,max=maxpix)
+        maskbadn, coeff = arutils.robust_polyfit(wvcorid[w],pxcorid[w],3,sigma=3.0,function=prelimfitfunc, minv=0.0,
+                                                 maxv=maxpix)
+        prbpixl = arutils.func_val(coeff,tstwf,prelimfitfunc, minv=0.0, maxv=maxpix)
         # Identify the good and bad ids
         prbmtrx = np.zeros(prbpixl.size)
         for j in range(prbpixl.size):
@@ -1169,15 +1207,15 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
 
 
         # Get the coefficients needed to convert pixels into wavelength
-        maskbadp, coeff = arutils.robust_polyfit(prbpixl,tstwf,3,sigma=3.0,function=prelimfitfunc,min=0.0,max=maxpix)
+        maskbadp, coeff = arutils.robust_polyfit(prbpixl,tstwf,3,sigma=3.0,function=prelimfitfunc, minv=0.0, maxv=maxpix)
         # Do the search
-        wvclose = arutils.func_val(coeff,prbpixl,prelimfitfunc,min=0.0,max=maxpix)
+        wvclose = arutils.func_val(coeff,prbpixl,prelimfitfunc, minv=0.0, maxv=maxpix)
         prbpixlp = prbpixl.copy()
         j=0
         while True:
             # Obtain accurate end wave points to include in the search
-            twvmin = arutils.func_val(coeff,strend[i][0],prelimfitfunc,min=0.0,max=maxpix)
-            twvmax = arutils.func_val(coeff,strend[i][1],prelimfitfunc,min=0.0,max=maxpix)
+            twvmin = arutils.func_val(coeff,strend[i][0],prelimfitfunc, minv=0.0, maxv=maxpix)
+            twvmax = arutils.func_val(coeff,strend[i][1],prelimfitfunc, minv=0.0, maxv=maxpix)
             if twvmin < twvmax:
                 wvmin = twvmin# - 0.1*(twvmax-twvmin)
                 wvmax = twvmax# + 0.1*(twvmax-twvmin)
@@ -1194,11 +1232,11 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
             # Set some variables that are needed in the identification routine
             ww = np.where( (wv>wvmin) & (wv<wvmax) )
             msgs.info("Order {0:d} - Refined estimate for wavelength range: {1:f} - {2:f}".format(i+1,wvmin,wvmax))
-            wvsend = arutils.func_val(coeff,pixcenv,prelimfitfunc,min=0.0,max=maxpix)
+            wvsend = arutils.func_val(coeff,pixcenv,prelimfitfunc, minv=0.0, maxv=maxpix)
             # Do the search
             prbpixln = arcyarc.identify_lines(pixcenv, wvsend, wv[ww])
-            maskbadn, coeff = arutils.robust_polyfit(prbpixln,wv[ww],3,sigma=3.0,function=prelimfitfunc,min=0.0,max=maxpix)
-            wvclose = arutils.func_val(coeff,prbpixln,prelimfitfunc,min=0.0,max=maxpix)
+            maskbadn, coeff = arutils.robust_polyfit(prbpixln,wv[ww],3,sigma=3.0,function=prelimfitfunc, minv=0.0, maxv=maxpix)
+            wvclose = arutils.func_val(coeff,prbpixln,prelimfitfunc, minv=0.0, maxv=maxpix)
             # If nothing has changed between now and the previous version, break the loop
             if np.array_equal(maskbadn,maskbadp) and np.array_equal(prbpixln,prbpixlp):
                 break
@@ -1222,11 +1260,11 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
         maskbadp = maskbadn.copy()
         while True:
             wgud = np.where(maskbadn==0)
-            coeffs = arutils.func_fit(prbpixln[wgud],wvuse[wgud],prelimfitfunc,polyordr,min=0.0,max=maxpix)
-            wvclose  = arutils.func_val(coeffs,prbpixln,prelimfitfunc,min=0.0,max=maxpix)
+            coeffs = arutils.func_fit(prbpixln[wgud],wvuse[wgud],prelimfitfunc,polyordr, minv=0.0, maxv=maxpix)
+            wvclose  = arutils.func_val(coeffs,prbpixln,prelimfitfunc, minv=0.0, maxv=maxpix)
             # Calculate the coefficients needed for the angstroms/pixel --- in this case, the derivative of this function
             dcoeff = arutils.func_der(coeffs,prelimfitfunc,nderive=1)
-            dapp   = (2.0/(maxpix-0.0)) * arutils.func_val(dcoeff,prbpixln,prelimfitfunc,min=0.0,max=maxpix) # 2/maxpix is to convert to the pixel scale used (rather than from -1 to +1 used for the legendre series)
+            dapp   = (2.0/(maxpix-0.0)) * arutils.func_val(dcoeff,prbpixln,prelimfitfunc, minv=0.0, maxv=maxpix) # 2/maxpix is to convert to the pixel scale used (rather than from -1 to +1 used for the legendre series)
             wtmp = np.where(np.abs(wvclose-wvuse)/dapp > thresh)
 
 # 			plt.clf()
@@ -1270,7 +1308,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
     #plt.clf()
     #plt.plot(ordrsol,testsol,'bx')
     #plt.show()
-    masksol, cns = arutils.robust_polyfit(ordrsol,testsol,0,sigma=2.0,function="polynomial",min=0.0,max=float(norders))
+    masksol, cns = arutils.robust_polyfit(ordrsol,testsol,0,sigma=2.0,function="polynomial", minv=0.0, maxv=float(norders))
     msgs.info("Standard deviation for the wavelength solution in a single order is {0:5.4f} Angstroms".format(cns[0]))
     nummsk = 0
     omsk = ""
@@ -1296,7 +1334,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
 
     xv = np.arange(maxpix)
     msgs.work("should xv be the pixel location rather than index (I think it shouldn't be...)")
-    waveval = arutils.func_val(pcacoeff,xv,prelimfitfunc,min=0.0,max=maxpix).T
+    waveval = arutils.func_val(pcacoeff,xv,prelimfitfunc, minv=0.0, maxv=maxpix).T
     msgs.bug("May need to do a check here to make sure ofit is reasonable")
     ofit = slf._argflag['arc']['calibrate']['pcapri']
     lnpc = len(ofit)-1
@@ -1340,8 +1378,9 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
         else:
             xfit = pxcorid[w]
             yfit = wvcorid[w] - arutils.spline_interp(xfit,x0,extrap_arcspri[:,ow])
-            tcoeff[:,ow] = arutils.func_fit(xfit,yfit,prelimfitfunc,slf._argflag['arc']['calibrate']['polyordersec'],min=0.0,max=maxpix)
-    waveval = arutils.func_val(tcoeff,xv,prelimfitfunc,min=0.0,max=maxpix).T
+            tcoeff[:,ow] = arutils.func_fit(xfit,yfit,prelimfitfunc,slf._argflag['arc']['calibrate']['polyordersec'],
+                                            minv=0.0, maxv=maxpix)
+    waveval = arutils.func_val(tcoeff,xv,prelimfitfunc, minv=0.0, maxv=maxpix).T
     msgs.work("May need to do a check here to make sure ofit is reasonable")
     maskord.sort()
     ofit = slf._argflag['arc']['calibrate']['pcasec']
@@ -1648,8 +1687,8 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
         if np.size(w[0]) < 10:
             extrap_arcs[:,o] = maskval
             continue
-        c = arutils.func_fit(pxcorid[w],wvcorid[w],"legendre",6,min=0.0,max=maxpix-1.0)
-        extrap_arcs[:,o] = arutils.func_val(c,xsnd,"legendre",min=0.0,max=maxpix-1.0)
+        c = arutils.func_fit(pxcorid[w],wvcorid[w],"legendre",6, minv=0.0, maxv=maxpix-1.0)
+        extrap_arcs[:,o] = arutils.func_val(c,xsnd,"legendre", minv=0.0, maxv=maxpix-1.0)
     # Save the best-fitting residuals into a file
     #msgs.work("Make sure the *final* pixcenv is passed to the plotting algorithm")
     #plot_residuals(extrap_arcs, pxcorid, wvcorid, orcorid, maxp=16, prefix=prefix)

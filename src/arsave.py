@@ -1,6 +1,5 @@
 import os
 import astropy.io.fits as pyfits
-import armsgs as msgs
 import numpy as np
 
 def save_arcids(slf, fname, pixels):
