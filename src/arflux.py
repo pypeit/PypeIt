@@ -9,18 +9,14 @@ from astropy.io import fits
 from astropy import units as u
 from astropy import coordinates as coords
 
+import armsgs
+import arutils
+
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
 except:
     pass
 
-import arcyextract
-import arcyutils
-import arcyproc
-import arload
-import artrace
-import arutils
-import arplot
 
 try:
     from xastropy.xutils import xdebug as xdb
@@ -37,6 +33,9 @@ def apply_sensfunc(slf, sc, MAX_EXTRAP=0.05):
     MAX_EXTRAP : float, optional [0.05]
       Fractional amount to extrapolate sensitivity function
     """
+    # Logging
+    msgs = armsgs.get_logger()
+
     # Load extinction data
     extinct = load_extinction_data(slf)
     airmass = slf._fitsdict['airmass'][slf._scidx]
@@ -167,6 +166,8 @@ def extinction_correction(wave, airmass, extinct):
     flux_corr : ndarray
       Flux corrections at the input wavelengths
     """
+    # Logging
+    msgs = armsgs.get_logger()
     # Checks
     if airmass < 1.:
         msgs.error("Bad airmass value in extinction_correction")
@@ -191,7 +192,7 @@ def extinction_correction(wave, airmass, extinct):
     return flux_corr
 
 
-def find_standard_file(argflag, radec, msgs, toler=20.*u.arcmin, check=False):
+def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
     """
     Find a match for the input file to one of the archived
     standard star files (hopefully).  Priority is by order of search.
@@ -202,8 +203,6 @@ def find_standard_file(argflag, radec, msgs, toler=20.*u.arcmin, check=False):
       Arguments and flags used for reduction
     radec : tuple
       ra, dec in string format ('05:06:36.6','52:52:01.0')
-    msgs : class
-      Messages class used to log data reduction process
     toler : Angle
       Tolerance on matching archived standards to input
     check : bool
@@ -220,6 +219,8 @@ def find_standard_file(argflag, radec, msgs, toler=20.*u.arcmin, check=False):
       'ra': str -- RA(2000)
       'dec': str -- DEC(2000)
     """
+    # Logging
+    msgs = armsgs.get_logger()
     # Priority
     std_sets = [load_calspec]
     std_file_fmt = [1]  # 1=Calspec style FITS binary table
@@ -302,6 +303,8 @@ def load_extinction_data(slf, toler=1.*u.deg):
     ext_file : Table
       astropy Table containing the 'wavelength', 'extinct' data for AM=1.
     """
+    # Logging
+    msgs = armsgs.get_logger()
     # Mosaic coord
     mosaic_coord = SkyCoord(slf._spect['mosaic']['longitude'],
         slf._spect['mosaic']['latitude'], frame='gcrs', unit=u.deg)
@@ -345,6 +348,8 @@ def load_standard_file(slf, std_dict):
     std_flux : Quantity array
       Flux of standard star
     """
+    # Logging
+    msgs = armsgs.get_logger()
     fil = glob.glob(slf._argflag['run']['pypitdir']+
             std_dict['file']+'*')
     if len(fil) == 0:
@@ -384,6 +389,8 @@ def generate_sensfunc(slf, sc, BALM_MASK_WID=5., nresln=20):
     sens_dict : dict
       sensitivity function described by a dict
     """
+    # Logging
+    msgs = armsgs.get_logger()
     # Find brightest object in the exposure
     medfx = []
     for spobj in slf._specobjs:

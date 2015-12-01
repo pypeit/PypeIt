@@ -1,10 +1,11 @@
 import sys
 import numpy as np
+import armsgs
 import arsort
 import arsciexp
 
 
-def SetupScience(argflag, spect, fitsdict, msgs):
+def SetupScience(argflag, spect, fitsdict):
     """
     Create an exposure class for every science frame
 
@@ -16,29 +17,29 @@ def SetupScience(argflag, spect, fitsdict, msgs):
       Properties of the spectrograph.
     fitsdict : dict
       Contains relevant information from fits header files
-    msgs : class
-      Messages class used to log data reduction process
 
     Returns
     -------
     sciexp : list
       A list containing all science exposure classes
     """
+    # Logging
+    msgs = armsgs.get_logger()
 
     # Sort the data
     msgs.bug("Files and folders should not be deleted -- there should be an option to overwrite files automatically if they already exist, or choose to rename them if necessary")
-    filesort = arsort.sort_data(argflag, spect, fitsdict, msgs)
+    filesort = arsort.sort_data(argflag, spect, fitsdict)
     # Write out the details of the sorted files
     if argflag['out']['sorted'] is not None:
-        arsort.sort_write(argflag['out']['sorted'], spect, fitsdict, filesort, msgs)
+        arsort.sort_write(argflag['out']['sorted'], spect, fitsdict, filesort)
     # Match calibration frames to science frames
-    spect = arsort.match_science(argflag, spect, fitsdict, filesort, msgs)
+    spect = arsort.match_science(argflag, spect, fitsdict, filesort)
     # If the user is only debugging, then exit now
     if argflag['run']['calcheck']:
         msgs.info("Calibration check complete. Change the 'calcheck' flag to continue with data reduction")
         sys.exit()
     # Make directory structure for different objects
-    sci_targs = arsort.make_dirs(argflag, fitsdict, filesort, msgs)
+    sci_targs = arsort.make_dirs(argflag, fitsdict, filesort)
     # Create the list of science exposures
     numsci = np.size(filesort['science'])
     sciexp = []
@@ -47,7 +48,7 @@ def SetupScience(argflag, spect, fitsdict, msgs):
     return sciexp
 
 
-def UpdateMasters(sciexp, sc, det, msgs, ftype=None, chktype=None):
+def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
     """
     Update the master calibrations for other science targets, if they
     will use an identical master frame
@@ -60,8 +61,6 @@ def UpdateMasters(sciexp, sc, det, msgs, ftype=None, chktype=None):
       Index of sciexp for the science exposure currently being reduced
     det : int
       detector index (starting from 1)
-    msgs : class
-      Messages class used to log data reduction process
     ftype : str
       Describes the type of Master frame being udpated
     chktype : str
@@ -90,7 +89,7 @@ def UpdateMasters(sciexp, sc, det, msgs, ftype=None, chktype=None):
                 return
             if np.array_equal(chkarr, chkfarr) and sciexp[i].GetMasterFrame(chktype, det, msgs, copy=False) is None:
                 msgs.info("Updating master {0:s} frame for science target {1:d}/{2:d}".format(chktype, i+1, numsci))
-                sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(chktype, det, msgs), chktype, det, msgs)
+                sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(chktype, det), chktype, det)
         # Now check flats of a different type
         origtype = chktype
         if chktype == "trace": chktype = "pixflat"
@@ -102,9 +101,9 @@ def UpdateMasters(sciexp, sc, det, msgs, ftype=None, chktype=None):
             else:
                 msgs.bug("I could not update frame of type {0:s} and subtype {1:s}".format(ftype, chktype))
                 return
-            if np.array_equal(chkarr, chkfarr) and sciexp[i].GetMasterFrame(chktype, det, msgs, copy=False) is None:
+            if np.array_equal(chkarr, chkfarr) and sciexp[i].GetMasterFrame(chktype, det, copy=False) is None:
                 msgs.info("Updating master {0:s} frame for science target {1:d}/{2:d}".format(chktype, i+1, numsci))
-                sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(origtype, det, msgs), chktype, det, msgs)
+                sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(origtype, det), chktype, det)
     else:
         for i in xrange(sc+1, numsci):
             # Check if an *identical* master frame has already been produced
@@ -113,7 +112,7 @@ def UpdateMasters(sciexp, sc, det, msgs, ftype=None, chktype=None):
             else:
                 msgs.bug("I could not update frame of type: {0:s}".format(ftype))
                 return
-            if np.array_equal(chkarr, chkfarr) and sciexp[i].GetMasterFrame(ftype, det, msgs, copy=False) is None:
+            if np.array_equal(chkarr, chkfarr) and sciexp[i].GetMasterFrame(ftype, det, copy=False) is None:
                 msgs.info("Updating master {0:s} frame for science target {1:d}/{2:d}".format(ftype, i+1, numsci))
-                sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(ftype, det, msgs), ftype, det, msgs)
+                sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(ftype, det), ftype, det)
     return

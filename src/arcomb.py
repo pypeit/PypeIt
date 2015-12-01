@@ -1,7 +1,8 @@
 import numpy as np
 import arcycomb
+import armsgs
 
-def comb_frames(frames_arr, det, msgs, method='weightmean', spect=None, weight=None, frametype='<None>',
+def comb_frames(frames_arr, det, method='weightmean', spect=None, weight=None, frametype='<None>',
                 rej_cosmicray=-1.0, rej_lowhigh=[0,0], rej_level=[0.0,0.0],
                 sat_pix='ignore', weights=None, set_allrej='median',
                 maskvalue=1048577):
@@ -20,6 +21,8 @@ def comb_frames(frames_arr, det, msgs, method='weightmean', spect=None, weight=N
     set_allrej: What to do if all pixels are rejected (options are: 'min', 'max', 'mean', 'median', 'weightmean')
     maskvalue: What should the masked values be set to (should be greater than the detector's saturation value -- Default = 1 + 2**20)
     """
+    # Logging
+    msgs = armsgs.get_logger()
     ###########
     # FIRST DO SOME CHECKS ON THE INPUT
     ###########
