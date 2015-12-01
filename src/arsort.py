@@ -16,12 +16,13 @@ try:
 except:
     pass
 
+# Logging
+msgs = armsgs.get_logger()
+
 def setup(slf):
     """
     Returns a unique setup number for the current slf
     """
-    # Logging
-    msgs = armsgs.get_logger()
     msgs.warn("Flat indexing needs to be improved in arsort.setup")
     fidx = slf._name_flat.index(slf._mspixflat_name)  
     if fidx > 9:
@@ -49,8 +50,6 @@ def sort_data(argflag, spect, fitsdict):
     ftag : dict
       A dictionary of filetypes
     """
-    # Logging
-    msgs = armsgs.get_logger()
     msgs.bug("There appears to be a bug with the assignment of arc frames when only one science frame is supplied")
     msgs.info("Sorting files")
     numfiles = fitsdict['filename'].size
@@ -223,8 +222,6 @@ def sort_write(sortname, spect, fitsdict, filesort, space=3):
     space : int
       Keyword to set how many blank spaces to place between keywords
     """
-    # Logging
-    msgs = armsgs.get_logger()
     msgs.info("Preparing to write out the data sorting details")
     nfiles = fitsdict['filename'].size
     # Specify which keywords to print after 'filename' and 'filetype'
@@ -323,8 +320,6 @@ def match_science(argflag, spect, fitsdict, filesort):
     spect : bool array
       A boolean array of all frames that satisfy the input condition
     """
-    # Logging
-    msgs = armsgs.get_logger()
 
     msgs.info("Matching calibrations to Science frames")
     ftag = ['standard', 'bias', 'dark', 'pixflat', 'blzflat', 'trace', 'arc']
@@ -479,8 +474,6 @@ def match_frames(frames, criteria, frametype='<None>', satlevel=None):
     """
     identify frames with a similar appearance (i.e. one frame appears to be a scaled version of another).
     """
-    # Logging
-    msgs = armsgs.get_logger()
 
     prob = arutils.erf(criteria/np.sqrt(2.0))[0]
     frsh0, frsh1, frsh2 = frames.shape
@@ -530,8 +523,6 @@ def match_frames(frames, criteria, frametype='<None>', satlevel=None):
 
 
 def match_frames_old(slf, frames, frametype='<None>'):
-    # Logging
-    msgs = armsgs.get_logger()
     msgs.info("Matching {0:d} {1:s} frames".format(frames.shape[2],frametype))
     srtframes = [np.zeros((frames.shape[0],frames.shape[1],1))]
     srtframes[0][:,:,0] = frames[:,:,0]
@@ -573,8 +564,6 @@ def make_dirs(argflag, fitsdict, filesort):
     sci_targs : str array
       Names of the science targets
     """
-    # Logging
-    msgs = armsgs.get_logger()
 
     # First, get the current working directory
     currDIR = os.getcwd()

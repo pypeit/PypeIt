@@ -11,6 +11,9 @@ import arcyutils
 import arcyarc
 import warnings
 
+# Logging
+msgs = armsgs.get_logger()
+
 try:
     from xastropy.xutils import xdebug as xdb
 except:
@@ -204,7 +207,6 @@ def func_der(coeffs, func, nderive=1):
     elif func == "chebyshev":
         return np.polynomial.chebyshev.chebder(coeffs, m=nderive)
     else:
-        msgs = armsgs.get_logger()
         msgs.error("Functional derivative '{0:s}' is not implemented yet"+msgs.newline() +
                    "Please choose from 'polynomial', 'legendre', 'chebyshev'")
 
@@ -235,8 +237,6 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, **kwargs):
     elif func == "bspline":
         return bspline_fit(x, y, order=deg, w=w, **kwargs)
     else:
-        # Logging
-        msgs = armsgs.get_logger()
         msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                    "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
 
@@ -267,7 +267,6 @@ def func_val(c, x, func, minv=None, maxv=None):
     elif func == "bspline":
         return interpolate.splev(x, c, ext=1)
     else:
-        msgs = armsgs.get_logger()
         msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                    "Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
 
@@ -296,7 +295,6 @@ def func_vander(x, func, deg, minv=None, maxv=None):
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
         return np.polynomial.chebyshev.chebvander(xv, deg)
     else:
-        msgs = armsgs.get_logger()
         msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                    "Please choose from 'polynomial', 'legendre', 'chebyshev'")
 
@@ -314,8 +312,6 @@ def get_splknots(xarr, yarr, num, minv=None, maxv=None, maxknots=None):
     :param maxv: The maximum x-value of the knots
     :return: knots
     """
-    # Logging
-    msgs = armsgs.get_logger()
     # First determine the derivative
     if minv is None: minv = np.min(xarr)
     if maxv is None: maxv = np.max(xarr)
@@ -335,8 +331,6 @@ def get_splknots(xarr, yarr, num, minv=None, maxv=None, maxknots=None):
 
 
 def mask_polyfit(xarray,yarray,order,maxone=True,sigma=3.0):
-    # Logging
-    msgs = armsgs.get_logger()
     mask = np.zeros(xarray.size,dtype=np.int)
     mskcnt=0
     while True:
@@ -504,7 +498,7 @@ def poly_to_gauss(coeffs):
     return [ampl, cent, sigm], False
 
 
-def polyfit2d_general(x, y, z, deg, msgs, w=None):
+def polyfit2d_general(x, y, z, deg, w=None):
     """
     :param x: array of x values
     :param y: array of y values
@@ -513,8 +507,6 @@ def polyfit2d_general(x, y, z, deg, msgs, w=None):
     :param w: weights
     :return: coefficients
     """
-    # Logging
-    msgs = armsgs.get_logger()
     msgs.work("Generalize to different polynomial types")
     x = np.asarray(x)
     y = np.asarray(y)
@@ -536,7 +528,7 @@ def polyfit2d_general(x, y, z, deg, msgs, w=None):
     return c.reshape(deg+1)
 
 
-def polyval2d_general(c, x, y, msgs, function="polynomial", minx=None, maxx=None, miny=None, maxy=None):
+def polyval2d_general(c, x, y, function="polynomial", minx=None, maxx=None, miny=None, maxy=None):
     if function == "polynomial":
         xx, yy = np.meshgrid(x, y)
         return np.polynomial.polynomial.polyval2d(xx, yy, c)
@@ -570,8 +562,6 @@ def polyval2d_general(c, x, y, msgs, function="polynomial", minx=None, maxx=None
 
 
 def polyfit_integral(x, y, dx, deg, rcond=None, full=False, w=None):
-    # Logging
-    msgs = armsgs.get_logger()
     order = int(deg) + 1
     x = np.asarray(x) + 0.0
     y = np.asarray(y) + 0.0
@@ -631,8 +621,6 @@ def polyfit_integral(x, y, dx, deg, rcond=None, full=False, w=None):
 
 
 def poly_iterfit(x,y,ordr,maxrej=5):
-    # Logging
-    msgs = armsgs.get_logger()
     xfit = x.copy()
     yfit = y.copy()
     r = 0
@@ -688,8 +676,6 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
     :param debug:
     :return: mask, ct -- mask is an array of the masked values, ct is the coefficients of the robust polyfit.
     """
-    # Logging
-    msgs = armsgs.get_logger()
     # Setup the initial mask
     if initialmask is None:
         mask = np.zeros(xarray.size, dtype=np.int)
@@ -746,8 +732,6 @@ def robust_regression(x, y, ordr, outfrac, maxiter=100, function='polynomial', m
     """
     Deprecated
     """
-    # Logging
-    msgs = armsgs.get_logger()
     msgs.bug("PYPIT using deprecated function")
     msgs.error("Please contact the authors")
     xsize=x.size

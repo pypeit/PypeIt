@@ -15,6 +15,9 @@ import scipy.interpolate as interp
 import pdb
 import scipy.ndimage as ndimage
 
+# Logging
+msgs = armsgs.get_logger()
+
 try:
     from xastropy.xutils import xdebug as xdb
 except:
@@ -39,8 +42,6 @@ def dispdir(msframe, dispwin=None, mode=0):
     dispaxis : int
       The predominant dispersion axis of the data
     """
-    # Logging
-    msgs = armsgs.get_logger()
     msgs.info("Determining the dispersion direction")
     ds1, ds2 = msframe.shape
     if dispwin is None:
@@ -95,8 +96,6 @@ def trace_object(slf, sciframe, varframe, crmask, trim=2.0, triml=None, trimr=No
     :param order: If data is echelle, this should correspond to the echelle order to be traced.
     :return:
     """
-    # Logging
-    msgs = armsgs.get_logger()
     sigdet = 3.0
     smthby = 7
     rejhilo = 1
@@ -297,8 +296,6 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
-    # Logging
-    msgs = armsgs.get_logger()
     msgs.info("Preparing trace frame for order edge detection")
     # Generate a binned version of the trace frame
     msgs.work("binby=1 makes this slow and ineffective -- increase this to 10, and add as a parameter of choice by the user")
@@ -720,8 +717,6 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
 
 def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders, dispaxis,
                   fitord, locations, function='polynomial'):
-    # Logging
-    msgs = armsgs.get_logger()
     # Refine the orders in the positive direction
     i = extord[1]
     hiord = phys_to_pix(extrap_cent[:,-i-2], locations, 1)
@@ -790,8 +785,6 @@ def model_tilt_test(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False
     """
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
     """
-    # Logging
-    msgs = armsgs.get_logger()
     msgs.work("Detecting lines..")
     tampl, tcent, twid, w, satsnd, detsub = ararc.detect_lines(slf, det, msarc, censpec=censpec)
     satval = slf._spect['det'][det-1]['saturation']*slf._spect['det'][det-1]['nonlinear']
@@ -1135,8 +1128,6 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
     """
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
     """
-    # Logging
-    msgs = armsgs.get_logger()
     msgs.work("Detecting lines..")
     tampl, tcent, twid, w, satsnd, _ = ararc.detect_lines(slf, det, msarc, msgs, censpec=censpec)
     satval = slf._spect['det'][det-1]['saturation']*slf._spect['det'][det-1]['nonlinear']
@@ -1609,8 +1600,6 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
     In other words, tilts = y/x according to the docs/get_locations_orderlength.JPG file.
 
     """
-    # Logging
-    msgs = armsgs.get_logger()
 
     msgs.work("Haven't used physical pixel locations in this routine")
     if slf._argflag['trace']['orders']['tilts'] == 'zero':
@@ -2306,8 +2295,6 @@ def gen_pixloc(slf, frame, det, gen=True):
       A 3D array containing the x center, y center, x width and y width of each pixel.
       The returned array has a shape:   frame.shape + (4,)
     """
-    # Logging
-    msgs = armsgs.get_logger()
     msgs.info("Deriving physical pixel locations on the detector")
     locations = np.zeros((frame.shape[0],frame.shape[1],4))
     if gen:

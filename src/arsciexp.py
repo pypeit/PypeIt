@@ -12,6 +12,9 @@ import arcomb
 import armsgs
 import arproc
 
+# Logging
+msgs = armsgs.get_logger()
+
 class ScienceExposure:
 
     def __init__(self, snum, argflag, spect, fitsdict):
@@ -128,8 +131,6 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-        # Logging
-        msgs = armsgs.get_logger()
         if self._argflag['reduce']['badpix']:
             msgs.info("Preparing a bad pixel mask")
             # Get all of the bias frames for this science frame
@@ -163,8 +164,6 @@ class ScienceExposure:
         fitsdict : dict
           Updates to the input fitsdict
         """
-        # Logging
-        msgs = armsgs.get_logger()
         if self._argflag['trace']['disp']['direction'] is None:
             self._dispaxis = artrace.dispdir(self._msarc[det-1], dispwin=self._argflag['trace']['disp']['window'], mode=0)
         elif self._argflag['trace']['disp']['direction'] in [0, 1]:
@@ -231,8 +230,6 @@ class ScienceExposure:
         det : int
           Index of the detector
         """
-        # Logging
-        msgs = armsgs.get_logger()
         if self._argflag['reduce']['locations'] is None:
             self.SetFrame(self._pixlocn, artrace.gen_pixloc(self, self._mstrace[det-1], det, gen=True), det)
         elif self._argflag['reduce']['locations'] in ["mstrace"]:
@@ -258,8 +255,6 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-        # Logging
-        msgs = armsgs.get_logger()
 
         if self._msarc[det-1] is not None:
             msgs.info("An identical master arc frame already exists")
@@ -321,8 +316,6 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-        # Logging
-        msgs = armsgs.get_logger()
 
         # If the master bias is already made, use it
         if self._msbias[det-1] is not None:
@@ -367,8 +360,6 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-        # Logging
-        msgs = armsgs.get_logger()
 
         if self._argflag['reduce']['flatfield']:  # Only do it if the user wants to flat field
         # If the master pixflat is already made, use it
@@ -442,8 +433,6 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-        # Logging
-        msgs = armsgs.get_logger()
 
         # If the master trace is already made, use it
         if self._mstrace[det-1] is not None:
@@ -481,8 +470,6 @@ class ScienceExposure:
         return True
 
     def Setup(self):
-        # Logging
-        msgs = armsgs.get_logger()
 
         # Sort the data
         msgs.bug("Files and folders should not be deleted -- there should be an option to overwrite files automatically if they already exist, or choose to rename them if necessary")
@@ -533,8 +520,6 @@ class ScienceExposure:
             return getarray[det-1]
 
     def GetMasterFrame(self, ftype, det, copy=True):
-        # Logging
-        msgs = armsgs.get_logger()
 
         det -= 1
         # Get the frame

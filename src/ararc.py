@@ -1,6 +1,7 @@
 import numpy as np
 import arpca
 import arcyarc
+import armsgs
 import arsave
 import arutils
 from arplot import get_dimen as get_dimen
@@ -18,6 +19,8 @@ try:
 except:
     pass
 
+# Logging
+msgs = armsgs.get_logger()
 
 def detect_lines(slf, det, msarc, msgs, censpec=None, MK_SATMASK=False):
     """

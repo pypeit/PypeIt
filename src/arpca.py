@@ -4,10 +4,10 @@ import armsgs
 import arutils
 from arplot import get_dimen as get_dimen
 
+# Logging
+msgs = armsgs.get_logger()
 
 def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, mask=None, function='polynomial', retmask=False):
-    # Logging
-    msgs = armsgs.get_logger()
     nrow = xfit.shape[0]
     ntrace = xfit.shape[1]
     if x0in is None:
@@ -125,8 +125,6 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
 
 
 def do_pca(data, cov=False):
-    # Logging
-    msgs = armsgs.get_logger()
     tolerance = 1.0E-5
     Nobj, Mattr = data.shape
 
@@ -197,8 +195,6 @@ def refine_iter(outpar, orders, mask, irshft, relshift, fitord, function='polyno
 
 def get_pc(data, k, tol=0.0, maxiter=20, nofix=False, noortho=False):
 
-    # Logging
-    msgs = armsgs.get_logger()
     p = data.shape[0]
     if p == 0:
         msgs.error("You need to supply more components in the PCA")
@@ -480,8 +476,6 @@ def pc_plot_extcenwid(tempcen, cenwid, binval, plotsdir="Plots", pcatype="<unkno
     """
     Saves a few output png files of the PCA analysis for the target centroid/width definition
     """
-    # Logging
-    msgs = armsgs.get_logger()
     npc = tempcen.shape[1]
     pages, npp = get_dimen(npc,maxp=maxp)
     x0=binval*np.arange(cenwid.shape[0])

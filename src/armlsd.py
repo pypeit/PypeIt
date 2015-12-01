@@ -14,6 +14,9 @@ try:
 except:
     pass
 
+# Logging
+msgs = armsgs.get_logger()
+
 def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
     """
     Automatic Reduction and Modeling of Long Slit Data
@@ -41,8 +44,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
       1 = ...
     """
     status = 0
-    # Logging
-    msgs = armsgs.get_logger()
 
     # Create a list of science exposure classes
     sciexp = armbase.SetupScience(argflag, spect, fitsdict)

@@ -4,6 +4,8 @@ import armsgs
 import arsort
 import arsciexp
 
+# Logging
+msgs = armsgs.get_logger()
 
 def SetupScience(argflag, spect, fitsdict):
     """
@@ -23,9 +25,6 @@ def SetupScience(argflag, spect, fitsdict):
     sciexp : list
       A list containing all science exposure classes
     """
-    # Logging
-    msgs = armsgs.get_logger()
-
     # Sort the data
     msgs.bug("Files and folders should not be deleted -- there should be an option to overwrite files automatically if they already exist, or choose to rename them if necessary")
     filesort = arsort.sort_data(argflag, spect, fitsdict)

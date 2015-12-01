@@ -23,6 +23,9 @@ try:
 except:
     pass
 
+# Logging
+msgs = armsgs.get_logger()
+
 def apply_sensfunc(slf, sc, MAX_EXTRAP=0.05):
     """
     Apply the sensitivity function to the data
@@ -33,8 +36,6 @@ def apply_sensfunc(slf, sc, MAX_EXTRAP=0.05):
     MAX_EXTRAP : float, optional [0.05]
       Fractional amount to extrapolate sensitivity function
     """
-    # Logging
-    msgs = armsgs.get_logger()
 
     # Load extinction data
     extinct = load_extinction_data(slf)
@@ -166,8 +167,6 @@ def extinction_correction(wave, airmass, extinct):
     flux_corr : ndarray
       Flux corrections at the input wavelengths
     """
-    # Logging
-    msgs = armsgs.get_logger()
     # Checks
     if airmass < 1.:
         msgs.error("Bad airmass value in extinction_correction")
@@ -219,8 +218,6 @@ def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
       'ra': str -- RA(2000)
       'dec': str -- DEC(2000)
     """
-    # Logging
-    msgs = armsgs.get_logger()
     # Priority
     std_sets = [load_calspec]
     std_file_fmt = [1]  # 1=Calspec style FITS binary table
@@ -303,8 +300,6 @@ def load_extinction_data(slf, toler=1.*u.deg):
     ext_file : Table
       astropy Table containing the 'wavelength', 'extinct' data for AM=1.
     """
-    # Logging
-    msgs = armsgs.get_logger()
     # Mosaic coord
     mosaic_coord = SkyCoord(slf._spect['mosaic']['longitude'],
         slf._spect['mosaic']['latitude'], frame='gcrs', unit=u.deg)
@@ -348,8 +343,6 @@ def load_standard_file(slf, std_dict):
     std_flux : Quantity array
       Flux of standard star
     """
-    # Logging
-    msgs = armsgs.get_logger()
     fil = glob.glob(slf._argflag['run']['pypitdir']+
             std_dict['file']+'*')
     if len(fil) == 0:
@@ -389,8 +382,6 @@ def generate_sensfunc(slf, sc, BALM_MASK_WID=5., nresln=20):
     sens_dict : dict
       sensitivity function described by a dict
     """
-    # Logging
-    msgs = armsgs.get_logger()
     # Find brightest object in the exposure
     medfx = []
     for spobj in slf._specobjs:

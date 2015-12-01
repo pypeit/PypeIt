@@ -3,6 +3,7 @@ import numpy as np
 import glob
 import astropy.io.fits as pyfits
 
+import armsgs
 import arload
 
 try:
@@ -10,6 +11,8 @@ try:
 except:
     pass
 
+# Logging
+msgs = armsgs.get_logger()
 
 def read_lris(raw_file, msgs, det=None, TRIM=False):
     """

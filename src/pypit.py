@@ -8,22 +8,18 @@ from signal import SIGINT, signal as sigsignal
 from warnings import resetwarnings, simplefilter
 from time import time
 import traceback
-import numpy as np
-from astropy.io import fits
+
 # Import PYPIT routines
+debug = True
+last_updated = "26 November 2015"
+version = '0.3'
+
+# Init logger
 from armsgs import Messages as Messages
-import ararc
-import arextract
-import arflux
-import arload
 import armsgs
-import arsave
-import arproc
-import arqa
-import arspecobj
-import artrace
-import arutils
-import arvcorr
+msgs = armsgs.get_logger((None, debug, last_updated, version))
+
+import arload
 
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
@@ -35,8 +31,6 @@ try:
 except:
     pass
 
-last_updated = "26 November 2015"
-version = '0.3'
 
 
 def PYPIT(argflag, quick=False):
@@ -132,7 +126,7 @@ if __name__ == "__main__":
     verbose = 2
 
     # Init logger
-    msgs = armsgs.get_logger((None, debug, last_updated, version))
+    #msgs = armsgs.get_logger((None, debug, last_updated, version))
 
     if len(sys.argv) < 2:
         msgs.usage(None)
