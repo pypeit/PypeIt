@@ -294,6 +294,7 @@ class Messages:
         self._black_YL = ""
         self._yellow_BK = ""
 
+
 def get_logger(init=None):
     """ Logger
     Parameters

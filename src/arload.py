@@ -766,8 +766,6 @@ def load_master(name, frametype='<None>'):
 
 
 def load_ordloc(fname):
-    # Logging
-    msgs = armsgs.get_logger()
     # Load the files
     mstrace_bname, mstrace_bext = os.path.splitext(fname)
     lname = mstrace_bname+"_ltrace"+mstrace_bext

@@ -50,9 +50,6 @@ def PYPIT(argflag, quick=False):
       for publication quality results.
     ---------------------------------------------------
     """
-    # Logging
-    msgs = armsgs.get_logger()
-
     # First send all signals to messages to be dealt with (i.e. someone hits ctrl+c)
     sigsignal(SIGINT, msgs.signal_handler)
 
@@ -139,7 +136,6 @@ if __name__ == "__main__":
                                                           'verbose'])
         for o, a in opt:
             if o in ('-h', '--help'):
-                msgs = Messages(None, debug, last_updated, version)
                 msgs.usage(None)
             elif o in ('-q', '--quick'):
                 quick = True
@@ -148,7 +144,6 @@ if __name__ == "__main__":
             elif o in ('-v', '--verbose'):
                 verbose = int(a)
         lname = os.path.splitext(arg[0])[0] + ".log"
-        msgs = Messages(lname, debug, last_updated, version)
         argflag = arload.optarg(sys.argv)
         argflag['run']['ncpus'] = cpus
         argflag['out']['verbose'] = verbose

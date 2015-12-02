@@ -494,9 +494,6 @@ class ScienceExposure:
         return
 
     def SetMasterFrame(self, frame, ftype, det, copy=True):
-        # Logging
-        msgs = armsgs.get_logger()
-
         det -= 1
         if copy: cpf = frame.copy()
         else: cpf = frame

@@ -221,9 +221,6 @@ def badpix(slf, det, frame, sigdev=10.0):
     frame is a master bias frame
     sigdev is the number of standard deviations away from the median that a pixel needs to be in order to be classified as a bad pixel
     """
-    # Logging
-    msgs = armsgs.get_logger()
-
     bpix = np.zeros_like(frame)
     subfr, tframe, temp = None, None, None
     for i in xrange(slf._spect['det'][det-1]['numamplifiers']):
