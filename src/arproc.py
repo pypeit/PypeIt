@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 import arcyextract
 import arcyutils
 import arcyproc
+import armsgs
 import artrace
 import arutils
 import arplot
@@ -19,6 +20,9 @@ try:
     from xastropy.xutils import xdebug as xdb
 except:
     pass
+
+# Logging
+msgs = armsgs.get_logger()
 
 def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-999999.9, nsample=1):
     """
@@ -34,6 +38,7 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
 
     This routine will (probably) work poorly if the order traces overlap (of course)
     """
+
     errframe = np.sqrt(varframe)
     retframe = np.zeros_like(sciframe)
     norders = slf._lordloc.shape[1]
@@ -211,7 +216,7 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     return sciframe-skybg, skybg
 
 
-def badpix(slf, det, frame, msgs, sigdev=10.0):
+def badpix(slf, det, frame, sigdev=10.0):
     """
     frame is a master bias frame
     sigdev is the number of standard deviations away from the median that a pixel needs to be in order to be classified as a bad pixel
@@ -391,7 +396,7 @@ def flatfield(slf, sciframe, flatframe, snframe=None):
         return retframe, errframe
 
 
-def flatnorm(slf, det, msflat, msgs, maskval=-999999.9, overpix=6, plotdesc=""):
+def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     """
     Normalize the flat-field frame
 
@@ -403,8 +408,6 @@ def flatnorm(slf, det, msflat, msgs, maskval=-999999.9, overpix=6, plotdesc=""):
       Detector number
     msflat : ndarray
       Flat-field image
-    msgs : class
-      Messages class used to log data reduction process
     maskval : float
       Global floating point mask value used throughout the code
     overpix : int
@@ -419,6 +422,7 @@ def flatnorm(slf, det, msflat, msgs, maskval=-999999.9, overpix=6, plotdesc=""):
     msblaze : ndarray
       A 2d array containing the blaze function for each slit
     """
+
     msgs.info("Normalizing the master flat field frame")
     # First, determine the relative scale of each amplifier (assume amplifier 1 has a scale of 1.0)
     if slf._spect['det'][det-1]['numamplifiers'] > 1:
@@ -581,7 +585,7 @@ def get_ampscale(slf, det, msflat):
     return sclframe
 
 
-def get_ampsec_trimmed(slf, fitsdict, det, scidx, msgs):
+def get_ampsec_trimmed(slf, fitsdict, det, scidx):
     """
      Generate a frame that identifies each pixel to an amplifier, and then trim it to the data sections.
      This frame can be used to later identify which trimmed pixels correspond to which amplifier
@@ -596,15 +600,12 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx, msgs):
       Detector number, starts at 1
     scidx : int
       Index of science frame
-    msgs : class
-      Messages class used to log data reduction process
 
     Returns
     -------
     fitsdict : dict
       Updates to the input fitsdict
     """
-
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
     if slf._argflag['run']['spectrograph'] in ['lris_blue']:
         msgs.info("Parsing datasec,oscansec,ampsec from headers")
@@ -654,6 +655,7 @@ def get_wscale(slf):
     This routine calculates the wavelength array based on the sampling size (in km/s) of each pixel.
     It conveniently assumes a standard reference wavelength of 911.75348 A
     """
+
     lam0 = 911.75348
     step = 1.0 + slf._argflag['reduce']['pixelsize']/299792.458
     # Determine the number of pixels from lam0 that need to be taken to reach the minimum wavelength of the spectrum
@@ -668,6 +670,7 @@ def get_wscale(slf):
 
 
 def sn_frame(slf, sciframe, idx):
+
     # Dark Current noise
     dnoise = slf._spect['det']['darkcurr'] * float(slf._fitsdict["exptime"][idx])/3600.0
     # The effective read noise
@@ -697,6 +700,7 @@ def lacosmic(slf, det, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
     :param grow: Once CRs are identified, grow each CR detection by all pixels within this radius
     :return: mask of cosmic rays (0=no CR, 1=CR)
     """
+
     msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
     msgs.work("Include these parameters in the settings files to be adjusted by the user")
     sigclip = 5.0
@@ -822,10 +826,11 @@ def lacosmic(slf, det, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
     return crmask
 
 
-def sub_overscan(slf, det, file, msgs):
+def sub_overscan(slf, det, file):
     """
     Subtract overscan
     """
+
     for i in xrange(slf._spect['det'][det-1]['numamplifiers']):
         # Determine the section of the chip that contains the overscan region
         oscansec = "oscansec{0:02d}".format(i+1)
@@ -894,7 +899,7 @@ def sub_overscan(slf, det, file, msgs):
     return file
 
 
-def trim(slf, file, det, msgs):
+def trim(slf, file, det):
     for i in xrange (slf._spect['det'][det-1]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
         x0, x1, y0, y1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]

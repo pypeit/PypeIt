@@ -9,23 +9,22 @@ from astropy.io import fits
 from astropy import units as u
 from astropy import coordinates as coords
 
+import armsgs
+import arutils
+
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
 except:
     pass
 
-import arcyextract
-import arcyutils
-import arcyproc
-import arload
-import artrace
-import arutils
-import arplot
 
 try:
     from xastropy.xutils import xdebug as xdb
 except:
     pass
+
+# Logging
+msgs = armsgs.get_logger()
 
 def apply_sensfunc(slf, sc, MAX_EXTRAP=0.05):
     """
@@ -37,6 +36,7 @@ def apply_sensfunc(slf, sc, MAX_EXTRAP=0.05):
     MAX_EXTRAP : float, optional [0.05]
       Fractional amount to extrapolate sensitivity function
     """
+
     # Load extinction data
     extinct = load_extinction_data(slf)
     airmass = slf._fitsdict['airmass'][slf._scidx]
@@ -191,7 +191,7 @@ def extinction_correction(wave, airmass, extinct):
     return flux_corr
 
 
-def find_standard_file(argflag, radec, msgs, toler=20.*u.arcmin, check=False):
+def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
     """
     Find a match for the input file to one of the archived
     standard star files (hopefully).  Priority is by order of search.
@@ -202,8 +202,6 @@ def find_standard_file(argflag, radec, msgs, toler=20.*u.arcmin, check=False):
       Arguments and flags used for reduction
     radec : tuple
       ra, dec in string format ('05:06:36.6','52:52:01.0')
-    msgs : class
-      Messages class used to log data reduction process
     toler : Angle
       Tolerance on matching archived standards to input
     check : bool

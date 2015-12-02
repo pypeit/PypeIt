@@ -5,10 +5,15 @@ import yaml
 import pdb
 import time
 
+import armsgs
+
 try:
     from xastropy.xutils import xdebug as xdb
 except:
     pass
+
+# Logging
+msgs = armsgs.get_logger()
 
 def parse_nist(slf,ion):
     '''Parse a NIST ASCII table.  Note that the long ---- should have

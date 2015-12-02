@@ -1,7 +1,11 @@
 import numpy as np
 import arcycomb
+import armsgs
 
-def comb_frames(frames_arr, det, msgs, method='weightmean', spect=None, weight=None, frametype='<None>',
+# Logging
+msgs = armsgs.get_logger()
+
+def comb_frames(frames_arr, det, method='weightmean', spect=None, weight=None, frametype='<None>',
                 rej_cosmicray=-1.0, rej_lowhigh=[0,0], rej_level=[0.0,0.0],
                 sat_pix='ignore', weights=None, set_allrej='median',
                 maskvalue=1048577):
