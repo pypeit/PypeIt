@@ -136,13 +136,12 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                 ###############
                 # Extract arc and identify lines
                 wv_calib = ararc.simple_calib(slf, det)
-                slf._qa.close()
-                xdb.set_trace()
-                # Generate Wavelength Image
-                slf._mswvimg = arutils.func_val(slf.wv_calib['fitc'], slf._tilts, slf.wv_calib['function'], minv=slf.wv_calib['fmin'], maxv=slf.wv_calib['fmax'])
-                ind = slf._spect['arc']['index'][sc]
-                slf._mswvimg_name = "{0:s}/{1:s}/mswvimg{2:s}_{3:03d}.fits".format(os.getcwd(),slf._argflag['run']['masterdir'],slf._spect["det"][det-1]["suffix"],len(slf._done_arcs)-1)
-                ind = slf._spect['arc']['index'][sc]
+                slf.SetFrame(slf._wvcalib, wv_calib, det)
+                ###############
+                # Generate a master wave frame
+                update = slf.MasterWave(fitsdict, det)
+                if update and reuseMaster:
+                    armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
 
                 ################################################################
                 # Temporary break until core structure is fixed
