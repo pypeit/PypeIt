@@ -66,18 +66,21 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             ###############
             # Generate master bias frame
             update = slf.MasterBias(fitsdict, det)
-            if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="bias")
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, det, ftype="bias")
             ###############
             # Generate a bad pixel mask (should not repeat)
             update = slf.BadPixelMask(det)
-            if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
             ###############
             # Estimate gain and readout noise for the amplifiers
             msgs.work("Estimate Gain and Readout noise from the raw frames...")
             ###############
             # Generate a master arc frame
             update = slf.MasterArc(fitsdict, det)
-            if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
             ###############
             # Determine the dispersion direction (and transpose if necessary)
             slf.GetDispersionDirection(fitsdict, det)
@@ -86,14 +89,14 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             ###############
             # Generate a master trace frame
             update = slf.MasterTrace(fitsdict, det)
-            if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
             ###############
             # Generate an array that provides the physical pixel locations on the detector
             slf.GetPixelLocations(det)
             ###############
             # Determine the edges of the spectrum (spatial)
-            lordloc, rordloc, extord = artrace.trace_orders(slf, slf._mstrace[det-1], det, singleSlit=True,
-                                                            pcadesc="PCA trace of the slit edges")
+            lordloc, rordloc, extord = artrace.trace_orders(slf, slf._mstrace[det-1], det, singleSlit=True, pcadesc="PCA trace of the slit edges")
             slf.SetFrame(slf._lordloc, lordloc, det)
             slf.SetFrame(slf._rordloc, rordloc, det)
             # Convert physical trace into a pixel trace
@@ -107,8 +110,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             slf.SetFrame(slf._lordpix, lordpix, det)
             slf.SetFrame(slf._rordpix, rordpix, det)
             # Save QA for slit traces
-            arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1],
-                               extord, desc="Trace of the slit edges")
+            arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges")
             ###############
             # Prepare the pixel flat field frame
             update = slf.MasterFlatField(fitsdict, det)
@@ -124,28 +126,28 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                     msgs.info("Iterating on spectral tilts -- Iteration {0:d}/{1:d}".format(tt+1, nitertilts))
                     if tt == nitertilts-1:
                         doQA = True
-                    tilts, satmask = artrace.model_tilt(slf, det, slf._msarc[det-1],
-                                                        guesstilts=tilts, plotQA=doQA)
+                    tilts, satmask = artrace.model_tilt(slf, det, slf._msarc[det-1], guesstilts=tilts, plotQA=doQA)
                 slf.SetFrame(slf._tilts, tilts, det)
                 slf.SetFrame(slf._satmask, tilts, det)
 
-
-                ################################################################
-                # Temporary break until core structure is fixed
-                slf._qa.close()
-                msgs.error("UP TO HERE -- DELETE THE QA PLOT CLOSE HERE!")
-
-
                 # Setup arc parameters (e.g. linelist)
-                slf._arcparam = ararc.setup_param(slf, sc)
+                arcparam = ararc.setup_param(slf, sc, det, fitsdict)
+                slf.SetFrame(slf._arcparam, arcparam, det)
                 ###############
                 # Extract arc and identify lines
-                slf.wv_calib = ararc.simple_calib(slf, det)
+                wv_calib = ararc.simple_calib(slf, det)
+                slf._qa.close()
+                xdb.set_trace()
                 # Generate Wavelength Image
                 slf._mswvimg = arutils.func_val(slf.wv_calib['fitc'], slf._tilts, slf.wv_calib['function'], minv=slf.wv_calib['fmin'], maxv=slf.wv_calib['fmax'])
                 ind = slf._spect['arc']['index'][sc]
                 slf._mswvimg_name = "{0:s}/{1:s}/mswvimg{2:s}_{3:03d}.fits".format(os.getcwd(),slf._argflag['run']['masterdir'],slf._spect["det"][det-1]["suffix"],len(slf._done_arcs)-1)
                 ind = slf._spect['arc']['index'][sc]
+
+                ################################################################
+                # Temporary break until core structure is fixed
+                slf._qa.close()
+                msgs.error("UP TO HERE -- DELETE THE QA PLOT CLOSE HERE!")
 
             ###############
             # Check if the user only wants to prepare the calibrations

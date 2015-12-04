@@ -62,7 +62,7 @@ def parse_nist(slf,ion):
     # Return
     return nist_tbl
 
-def load_arcline_list(slf, idx, lines, wvmnx=None):
+def load_arcline_list(slf, idx, lines, disperser, wvmnx=None):
     '''Loads arc line list from NIST files
     Parses and rejects
 
@@ -74,6 +74,8 @@ def load_arcline_list(slf, idx, lines, wvmnx=None):
       List of ions to load
     wvmnx : list or tuple
       wvmin, wvmax for line list
+    disperser : str
+      Name of the disperser
 
     Returns
     -------
@@ -100,7 +102,7 @@ def load_arcline_list(slf, idx, lines, wvmnx=None):
         # Reject
         if iline in rej_dict.keys():
             msgs.info("Rejecting select {:s} lines".format(iline))
-            tbl = reject_lines(slf,tbl,idx,rej_dict[iline])
+            tbl = reject_lines(slf,tbl,idx,rej_dict[iline],disperser)
         tbls.append(tbl[['Ion','wave','RelInt']])
     # Stack
     alist = vstack(tbls)
@@ -114,7 +116,7 @@ def load_arcline_list(slf, idx, lines, wvmnx=None):
     return alist
 
 
-def reject_lines(slf,tbl,idx,rej_dict):
+def reject_lines(slf, tbl, idx, rej_dict, disperser):
     '''Parses a NIST table using various criteria
     Parameters
     ----------
@@ -124,6 +126,8 @@ def reject_lines(slf,tbl,idx,rej_dict):
       indices of the arc
     rej_dict : dict
       Dict of rejected lines
+    disperser : str
+      Name of the disperser
 
     Returns
     -------
@@ -141,7 +145,7 @@ def reject_lines(slf,tbl,idx,rej_dict):
         elif slf._argflag['run']['spectrograph'] in rej_dict[wave].keys():
             if rej_dict[wave][slf._argflag['run']['spectrograph']] == 'all':
                 msk[close] = False
-            elif slf._fitsdict["disperser"][idx[0]] in rej_dict[wave][slf._argflag['run']['spectrograph']]:
+            elif disperser in rej_dict[wave][slf._argflag['run']['spectrograph']]:
                 msk[close] = False
     # Return
     return tbl[msk]
