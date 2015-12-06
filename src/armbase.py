@@ -67,10 +67,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
     """
     numsci = len(sciexp)
     if ftype == "arc":
-        if chktype == "wave":
-            pass
-        else:
-            chkarr = sciexp[sc]._idx_arcs
+        chkarr = sciexp[sc]._idx_arcs
     elif ftype == "bias": chkarr = sciexp[sc]._idx_bias
     elif ftype == "flat":
         if chktype == "trace": chkarr = sciexp[sc]._idx_trace
@@ -111,12 +108,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
         for i in xrange(sc+1, numsci):
             # Check if an *identical* master frame has already been produced
             if ftype == "arc":
-                if chktype == "wave":
-                    msgs.warn("Not sure what to do here -- JXP")
-                    chkarr = np.zeros(1)
-                    chkfarr = np.zeros(1)
-                else:
-                    chkfarr = sciexp[i]._idx_arcs
+                chkfarr = sciexp[i]._idx_arcs
             elif ftype == "bias": chkfarr = sciexp[i]._idx_bias
             else:
                 msgs.bug("I could not update frame of type: {0:s}".format(ftype))

@@ -561,6 +561,7 @@ class ScienceExposure:
         # Get the frame
         if copy:
             if ftype == "arc": return self._msarc[det].copy()
+            elif ftype == "wave": self._mswave[det].copy()
             elif ftype == "bias": return self._msbias[det].copy()
             elif ftype == "normpixflat": return self._mspixflatnrm[det].copy()
             elif ftype == "pixflat": return self._mspixflat[det].copy()
