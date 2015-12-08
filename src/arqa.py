@@ -14,21 +14,20 @@ try:
 except:
     pass
 
-def arc_fit_qa(slf, fit, arc_spec, outroot=None, outfil=None):
+def arc_fit_qa(slf, fit, arc_spec, outfil=None):
     """
     QA for Arc spectrum
 
     Parameters
     ----------
+    fit : Wavelength fit
+    arc_spec : ndarray
+      Arc spectrum
     outfil : str, optional
       Name of output file
     """
-    if outfil is None:
-        if outroot is None:
-            outfil = 'Plots/arc_qa.pdf'
-        else:
-            outfil = outroot.replace('.fits', '_fit.pdf')
-            outfil = outfil.replace('MasterFrames', 'Plots')
+    if outfil is not None:
+        msgs.error("Not ready for this anymore")
 
     # Begin
     plt.figure(figsize=(8, 4.0))

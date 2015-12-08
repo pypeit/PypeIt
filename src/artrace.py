@@ -1129,7 +1129,7 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
     """
     msgs.work("Detecting lines..")
-    tampl, tcent, twid, w, satsnd, _ = ararc.detect_lines(slf, det, msarc, msgs, censpec=censpec)
+    tampl, tcent, twid, w, satsnd, _ = ararc.detect_lines(slf, det, msarc, censpec=censpec)
     satval = slf._spect['det'][det-1]['saturation']*slf._spect['det'][det-1]['nonlinear']
     fitxy = [slf._argflag['trace']['orders']['tiltorder'], 8]  # order of the polynomials to be used when fitting the tilts.
     arcdet = (tcent[w]+0.5).astype(np.int)

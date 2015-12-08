@@ -66,7 +66,8 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
       Describes the subtype of Master frame being updated
     """
     numsci = len(sciexp)
-    if ftype == "arc": chkarr = sciexp[sc]._idx_arcs
+    if ftype == "arc":
+        chkarr = sciexp[sc]._idx_arcs
     elif ftype == "bias": chkarr = sciexp[sc]._idx_bias
     elif ftype == "flat":
         if chktype == "trace": chkarr = sciexp[sc]._idx_trace
@@ -106,7 +107,8 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
     else:
         for i in xrange(sc+1, numsci):
             # Check if an *identical* master frame has already been produced
-            if ftype == "arc": chkfarr = sciexp[i]._idx_arcs
+            if ftype == "arc":
+                chkfarr = sciexp[i]._idx_arcs
             elif ftype == "bias": chkfarr = sciexp[i]._idx_bias
             else:
                 msgs.bug("I could not update frame of type: {0:s}".format(ftype))

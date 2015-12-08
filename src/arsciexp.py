@@ -11,6 +11,12 @@ import arload
 import arcomb
 import armsgs
 import arproc
+import arutils
+
+try:
+    from xastropy.xutils import xdebug as xdb
+except:
+    pass
 
 # Logging
 msgs = armsgs.get_logger()
@@ -68,12 +74,13 @@ class ScienceExposure:
         self._rordpix  = [None for all in xrange(ndet)]   # Array of slit traces (right side) in apparent pixel coordinates
         self._tilts    = [None for all in xrange(ndet)]   # Array of spectral tilts at each position on the detector
         self._satmask  = [None for all in xrange(ndet)]   # Array of Arc saturation streaks
-        self._arcparam = [None for all in xrange(ndet)]   #
+        self._arcparam = [None for all in xrange(ndet)]   # Dict guiding wavelength calibration
         self._wvcalib  = [None for all in xrange(ndet)]   #
         self._resnarr  = [None for all in xrange(ndet)]   # Resolution array
         # Initialize the Master Calibration frames
         self._bpix = [None for all in xrange(ndet)]          # Bad Pixel Mask
         self._msarc = [None for all in xrange(ndet)]         # Master Arc
+        self._mswave = [None for all in xrange(ndet)]         # Master Wavelength image
         self._msbias = [None for all in xrange(ndet)]        # Master Bias
         self._mstrace = [None for all in xrange(ndet)]       # Master Trace
         self._mspixflat = [None for all in xrange(ndet)]     # Master pixel flat
@@ -469,6 +476,37 @@ class ScienceExposure:
         del mstrace
         return True
 
+    def MasterWave(self, fitsdict, det):
+        """
+        Generate Master Wave frame for a given detector
+
+        Parameters
+        ----------
+        fitsdict : dict
+          Contains relevant information from fits header files
+        det : int
+          Index of the detector
+
+        Returns
+        -------
+        boolean : bool
+          Should other ScienceExposure classes be updated?
+        """
+
+        if self._mswave[det-1] is not None:
+            msgs.info("An identical master arc frame already exists")
+            return False
+        if self._argflag['reduce']['usewave'] in ['wave']:
+            msgs.info("Preparing a master wave frame")
+            mswave = arutils.func_val(self._wvcalib[det-1]['fitc'], self._tilts[det-1], self._wvcalib[det-1]['function'], minv=self._wvcalib[det-1]['fmin'], maxv=self._wvcalib[det-1]['fmax'])
+        else: # It must be the name of a file the user wishes to load
+            mswave_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usewave']
+            mswave = arload.load_master(mswave_name, frametype=None)
+        # Set and then delete the Master Arc frame
+        self.SetMasterFrame(mswave, "wave", det)
+        del mswave
+        return True
+
     def Setup(self):
 
         # Sort the data
@@ -499,6 +537,7 @@ class ScienceExposure:
         else: cpf = frame
         # Set the frame
         if ftype == "arc": self._msarc[det] = cpf
+        elif ftype == "wave": self._mswave[det] = cpf
         elif ftype == "bias": self._msbias[det] = cpf
         elif ftype == "normpixflat": self._mspixflatnrm[det] = cpf
         elif ftype == "pixflat": self._mspixflat[det] = cpf
@@ -522,6 +561,7 @@ class ScienceExposure:
         # Get the frame
         if copy:
             if ftype == "arc": return self._msarc[det].copy()
+            elif ftype == "wave": self._mswave[det].copy()
             elif ftype == "bias": return self._msbias[det].copy()
             elif ftype == "normpixflat": return self._mspixflatnrm[det].copy()
             elif ftype == "pixflat": return self._mspixflat[det].copy()
