@@ -8,33 +8,16 @@ from signal import SIGINT, signal as sigsignal
 from warnings import resetwarnings, simplefilter
 from time import time
 import traceback
-import numpy as np
-from astropy.io import fits
 # Import PYPIT routines
 from armsgs import Messages as Messages
-import ararc
-import arextract
-import arflux
 import arload
-import arsave
-import arproc
-import arqa
-import arspecobj
-import artrace
-import arutils
-import arvcorr
-
-try:
-    from linetools.spectra.xspectrum1d import XSpectrum1D
-except:
-    pass
 
 try:
     from xastropy.xutils import xdebug as xdb
 except:
     pass
 
-last_updated = "26 November 2015"
+last_updated = "28 November 2015"
 version = '0.2'
 
 
