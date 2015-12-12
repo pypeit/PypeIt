@@ -143,10 +143,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                 if update and reuseMaster:
                     armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
 
-                ################################################################
-                # Temporary break until core structure is fixed
-                slf._qa.close()
-                msgs.error("UP TO HERE -- DELETE THE QA PLOT CLOSE HERE!")
 
             ###############
             # Check if the user only wants to prepare the calibrations
@@ -155,114 +151,19 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                 msgs.info("If you would like to continue with the reduction,"+msgs.newline()+"disable the run+preponly command")
                 continue
             ###############
+            # Standard star (is this a calibration, e.g. goes above?)
+            update = slf.MasterStandard(fitsdict, det)
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, det, ftype="standard")
+            ################################################################
+            # Temporary break until core structure is fixed
+            slf._qa.close()
+            msgs.error("UP TO HERE -- DELETE THE QA PLOT CLOSE HERE!")
+            ###############
             # Load the science frame and from this generate a Poisson error frame
             sciframe = arload.load_frames(slf, scidx, det, frametype='science', msbias=slf._msbias, transpose=slf._transpose)
             sciframe = sciframe[:,:,0]
-            # Convert ADUs to electrons
-            sciframe *= slf._spect['det'][det-1]['gain']
-            varframe = arproc.variance_frame(slf, det, sciframe, scidx[0])
-            # Write
-            msvar_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), slf._argflag['run']['masterdir'], slf.target, 0, "var")
-            arsave.save_master(slf, varframe, filename=msvar_name, frametype='variance')
-            ###############
-            # Subtract off the scattered light from the image
-            msgs.work("Scattered light subtraction is not yet implemented...")
-            ###############
-            # Flat field the science frame
-            if slf._argflag['reduce']['flatfield']:
-                msgs.info("Flat fielding the science frame")
-                sciframe = arproc.flatfield(slf, sciframe, mspixflatnrm)
-            else:
-                msgs.info("Not performing a flat field calibration")
-            ###############
-            # Identify cosmic rays
-            msgs.work("Include L.A.Cosmic arguments in the settings files")
-            #if slf._argflag['reduce']['crmask']:
-            if True: crmask = arproc.lacosmic(slf, det, sciframe, grow=1.5)
-            else: crmask = np.zeros(sciframe.shape)
-            #arutils.ds9plot(crmask)
-            #arutils.ds9plot(sciframe*(1.0-crmask))
-            msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
-            ###############
-            # Estimate Sky Background
-            if slf._argflag['reduce']['bgsubtraction']:
-                # Perform an iterative background/science extraction
-                msgs.info("Estimating the sky background")
-                bgframe = arproc.bg_subtraction(slf, det, sciframe, varframe, crmask)
-                #scibgsub, bgframe = arproc.background_subtraction(slf, sciframe, varframe)
-                # Derive a suitable name for the master sky background frame
-                msgs.work("Include an index suffix for each object frame")# e.g. if you have 3 frames of the same object, include a common integer suffix on the filenames
-                msbg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), slf._argflag['run']['masterdir'], slf.target, 0, "sky")
-                # Send the data away to be saved
-                arsave.save_master(slf, bgframe, filename=msbg_name, frametype='sky background')
-                # Derive a suitable name for the sky-subtracted science frame
-                msscibg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), slf._argflag['run']['masterdir'], slf.target, 0, "skysub")
-                # Send the data away to be saved
-                arsave.save_master(slf, sciframe-bgframe, filename=msscibg_name, frametype='sky subtracted science')
-                # Redetermine the variance frame based on the new sky model
-                varframe = arproc.variance_frame(slf, det, sciframe, scidx[0], skyframe=bgframe)
-            ###############
-            # Estimate trace of science objects
-            scitrace = artrace.trace_object(slf, sciframe-bgframe, varframe, crmask)
-            if scitrace is None:
-                msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
-                continue
-            ###############
-            # Finalize the Sky Background image
-            if slf._argflag['reduce']['bgsubtraction']:
-                # Perform an iterative background/science extraction
-                msgs.info("Finalizing the sky background image")
-                trcmask = scitrace['object'].sum(axis=2)
-                trcmask[np.where(trcmask>0.0)] = 1.0
-                bgframe = arproc.bg_subtraction(slf, det, sciframe, varframe, crmask, tracemask=trcmask)
-                # Derive a suitable name for the master sky background frame
-                msgs.work("Include an index suffix for each object frame")# e.g. if you have 3 frames of the same object, include a common integer suffix on the filenames
-                msbg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), slf._argflag['run']['masterdir'], slf.target, 0, "sky")
-                # Send the data away to be saved
-                arsave.save_master(slf, bgframe, filename=msbg_name, frametype='sky background')
-                # Derive a suitable name for the sky-subtracted science frame
-                msscibg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), slf._argflag['run']['masterdir'], slf.target, 0, "skysub")
-                # Send the data away to be saved
-                arsave.save_master(slf, sciframe-bgframe, filename=msscibg_name, frametype='sky subtracted science')
-                # Redetermine the variance frame based on the new sky model
-                varframe = arproc.variance_frame(slf, det, sciframe, scidx[0], skyframe=bgframe)
-            ###############
-            # Determine the final trace of the science objects
-            scitrace = artrace.trace_object(slf, sciframe-bgframe, varframe, crmask)
-            # Write
-            mstrc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), slf._argflag['run']['masterdir'], slf.target, 0, "objtrc")
-            hdutrc = fits.PrimaryHDU(scitrace['traces'])
-            hduobj = fits.ImageHDU(scitrace['object'])
-            hdulist = fits.HDUList([hdutrc, hduobj])
-            hdulist.writeto(mstrc_name,clobber=True)
-            msgs.info("Wrote object trace file: {:s}".format(mstrc_name))
-            # Generate SpecObjExp list
-            slf._specobjs += arspecobj.init_exp(slf,sc,det,trc_img=scitrace, objtype=sctype)
-            ###############
-            # Extract
-            if scitrace is None:
-                msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
-                continue
-            # Boxcar Extraction
-            arextract.boxcar(slf, sciframe-bgframe, varframe, bgframe, crmask, scitrace)
-            #Generate and Write spectra
-            if False:
-                sig = np.sqrt(slf._specobjs[0].boxcar['var'])
-                wave = slf._specobjs[0].boxcar['wave']
-                flux = slf._specobjs[0].boxcar['counts']
-                sky = slf._specobjs[0].boxcar['sky']
-                #
-                xspec = XSpectrum1D.from_tuple( (wave,flux,sig) )
-                spec_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), slf._argflag['run']['masterdir'], slf.target, 0, "boxcar")
-                msgs.info("Writing boxcar spectrum: {:s}".format(spec_name))
-                xspec.write_to_fits(spec_name, clobber=True)
-
-                skyspec = XSpectrum1D.from_tuple( (wave,sky) )
-                skyspec_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), slf._argflag['run']['masterdir'], slf.target, 0, "skybox")
-                msgs.info("Writing sky spectrum: {:s}".format(skyspec_name))
-                skyspec.write_to_fits(skyspec_name, clobber=True)
-
-            ###############
+           ###############
             # If standard, generate a sensitivity function
             if (sctype == 'standard') & (det == slf._spect['mosaic']['ndet']):
                 if sc > 0:
@@ -327,3 +228,128 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         slf._qa.close()
         sciexp[sc] = None
     return status
+
+def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
+    """ Run standard extraction steps on a frame
+    Parameters
+    ----------
+    sciframe : image
+      Bias subtracted image (using arload.load_frame)
+    scidx : int
+      Index of the frame
+    fitsdict : dict
+      Contains relevant information from fits header files
+    det : int
+      Detector index
+    standard : bool, optional
+      Standard star frame?
+    """
+    # Convert ADUs to electrons
+    sciframe *= slf._spect['det'][det-1]['gain']
+    varframe = arproc.variance_frame(slf, det, sciframe, scidx, fitsdict)
+    if not standard:
+        arsave.save_master(slf, varframe, filename=msvar_name, frametype='variance')
+    ###############
+    # Subtract off the scattered light from the image
+    msgs.work("Scattered light subtraction is not yet implemented...")
+    ###############
+    # Flat field the science frame
+    if slf._argflag['reduce']['flatfield']:
+        msgs.info("Flat fielding the science frame")
+        sciframe = arproc.flatfield(slf, sciframe, slf._mspixflatnrm[det-1], det)
+    else:
+        msgs.info("Not performing a flat field calibration")
+    ###############
+    # Identify cosmic rays
+    msgs.work("Include L.A.Cosmic arguments in the settings files")
+    if True: crmask = arproc.lacosmic(slf, fitsdict, det, sciframe, scidx, grow=1.5)
+    else: crmask = np.zeros(sciframe.shape)
+    msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
+    ###############
+    # Estimate Sky Background
+    if slf._argflag['reduce']['bgsubtraction']:
+        # Perform an iterative background/science extraction
+        msgs.info("Estimating the sky background")
+        bgframe = arproc.bg_subtraction(slf, det, sciframe, varframe, crmask)
+        if not standard: # Need to save
+            # Derive a suitable name for the master sky background frame
+            xdb.set_trace()
+            msgs.work("Include an index suffix for each object frame")# e.g. if you have 3 frames of the same object, include a common integer suffix on the filenames
+            msbg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), slf._argflag['run']['masterdir'], slf.target, 0, "sky")
+            # Send the data away to be saved
+            arsave.save_master(slf, bgframe, filename=msbg_name, frametype='sky background')
+            # Derive a suitable name for the sky-subtracted science frame
+            msscibg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), slf._argflag['run']['masterdir'], slf.target, 0, "skysub")
+            # Send the data away to be saved
+            arsave.save_master(slf, sciframe-bgframe, filename=msscibg_name, frametype='sky subtracted science')
+        # Redetermine the variance frame based on the new sky model
+        varframe = arproc.variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
+    ###############
+    # Estimate trace of science objects
+    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask)
+    if scitrace is None:
+        msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
+        pdb.set_trace()
+        #continue
+    ###############
+    # Finalize the Sky Background image
+    if slf._argflag['reduce']['bgsubtraction']:
+        # Perform an iterative background/science extraction
+        msgs.info("Finalizing the sky background image")
+        trcmask = scitrace['object'].sum(axis=2)
+        trcmask[np.where(trcmask>0.0)] = 1.0
+        bgframe = arproc.bg_subtraction(slf, det, sciframe, varframe, crmask, tracemask=trcmask)
+        if not standard: # Need to save
+            # Derive a suitable name for the master sky background frame
+            msgs.work("Include an index suffix for each object frame")# e.g. if you have 3 frames of the same object, include a common integer suffix on the filenames
+            msbg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), slf._argflag['run']['masterdir'], slf.target, 0, "sky")
+            # Send the data away to be saved
+            arsave.save_master(slf, bgframe, filename=msbg_name, frametype='sky background')
+            # Derive a suitable name for the sky-subtracted science frame
+            msscibg_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), slf._argflag['run']['masterdir'], slf.target, 0, "skysub")
+            # Send the data away to be saved
+            arsave.save_master(slf, sciframe-bgframe, filename=msscibg_name, frametype='sky subtracted science')
+        # Redetermine the variance frame based on the new sky model
+        varframe = arproc.variance_frame(slf, det, sciframe, scidx[0], skyframe=bgframe)
+    xdb.set_trace()
+    ###############
+    # Determine the final trace of the science objects
+    scitrace = artrace.trace_object(slf, sciframe-bgframe, varframe, crmask)
+    # Write
+    mstrc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), slf._argflag['run']['masterdir'], slf.target, 0, "objtrc")
+    hdutrc = fits.PrimaryHDU(scitrace['traces'])
+    hduobj = fits.ImageHDU(scitrace['object'])
+    hdulist = fits.HDUList([hdutrc, hduobj])
+    hdulist.writeto(mstrc_name,clobber=True)
+    msgs.info("Wrote object trace file: {:s}".format(mstrc_name))
+    # Generate SpecObjExp list
+    slf._specobjs += arspecobj.init_exp(slf,sc,det,trc_img=scitrace, objtype=sctype)
+    ###############
+    # Extract
+    if scitrace is None:
+        msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
+        pdb.set_trace()
+        #continue
+    # Boxcar Extraction
+    arextract.boxcar(slf, sciframe-bgframe, varframe, bgframe, crmask, scitrace)
+    #Generate and Write spectra
+    if False:
+        sig = np.sqrt(slf._specobjs[0].boxcar['var'])
+        wave = slf._specobjs[0].boxcar['wave']
+        flux = slf._specobjs[0].boxcar['counts']
+        sky = slf._specobjs[0].boxcar['sky']
+        #
+        xspec = XSpectrum1D.from_tuple( (wave,flux,sig) )
+        spec_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), slf._argflag['run']['masterdir'], slf.target, 0, "boxcar")
+        msgs.info("Writing boxcar spectrum: {:s}".format(spec_name))
+        xspec.write_to_fits(spec_name, clobber=True)
+
+        skyspec = XSpectrum1D.from_tuple( (wave,sky) )
+        skyspec_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), slf._argflag['run']['masterdir'], slf.target, 0, "skybox")
+        msgs.info("Writing sky spectrum: {:s}".format(skyspec_name))
+        skyspec.write_to_fits(skyspec_name, clobber=True)
+
+
+
+    # Flatten
+    xdb.set_trace()

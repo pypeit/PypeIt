@@ -244,9 +244,9 @@ def badpix(slf, det, frame, sigdev=10.0):
     return bpix
 
 
-def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None, rejsigma=3.0, maskval=-999999.9):
-    """
-    Extract a science target and background flux
+def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
+                   rejsigma=3.0, maskval=-999999.9):
+    """ Extract a science target and background flux
     :param slf:
     :param sciframe:
     :param varframe:
@@ -257,20 +257,23 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None, rejsigma
     polyorder, repeat = 5, 1
     # Begin the algorithm
     errframe = np.sqrt(varframe)
-    norders = slf._lordloc.shape[1]
+    norders = slf._lordloc[det-1].shape[1]
     # Look at the end corners of the detector to get detector size in the dispersion direction
-    xstr = slf._pixlocn[0,0,slf._dispaxis]-slf._pixlocn[0,0,slf._dispaxis+2]/2.0
-    xfin = slf._pixlocn[-1,-1,slf._dispaxis]+slf._pixlocn[-1,-1,slf._dispaxis+2]/2.0
+    xstr = slf._pixlocn[det-1][0,0,slf._dispaxis]-slf._pixlocn[det-1][0,0,slf._dispaxis+2]/2.0
+    xfin = slf._pixlocn[det-1][-1,-1,slf._dispaxis]+slf._pixlocn[det-1][-1,-1,slf._dispaxis+2]/2.0
     if slf._dispaxis == 0:
-        xint = slf._pixlocn[:,0,0]
+        xint = slf._pixlocn[det-1][:,0,0]
     else:
-        xint = slf._pixlocn[0,:,0]
+        xint = slf._pixlocn[det-1][0,:,0]
     # Find which pixels are within the order edges
     msgs.info("Identifying pixels within each order")
-    ordpix = arcyutils.order_pixels(slf._pixlocn, slf._lordloc*0.95+slf._rordloc*0.05, slf._lordloc*0.05+slf._rordloc*0.95, slf._dispaxis)
+    ordpix = arcyutils.order_pixels(slf._pixlocn[det-1],
+                                    slf._lordloc[det-1]*0.95+slf._rordloc[det-1]*0.05,
+                                    slf._lordloc[det-1]*0.05+slf._rordloc[det-1]*0.95,
+                                    slf._dispaxis)
     allordpix = ordpix.copy()
     msgs.info("Applying bad pixel mask")
-    ordpix *= (1-slf._bpix.astype(np.int)) * (1-crpix.astype(np.int))
+    ordpix *= (1-slf._bpix[det-1].astype(np.int)) * (1-crpix.astype(np.int))
     if tracemask is not None: ordpix *= (1-tracemask.astype(np.int))
     # Construct an array of pixels to be fit with a spline
     #msgs.bug("Tilts are the wrong shape, transposing -- fix this later")
@@ -278,7 +281,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None, rejsigma
     #whord = np.where(ordpix != 0)
     o = 0 # order=1
     whord = np.where(ordpix == o+1)
-    tilts = slf._tilts.copy()
+    tilts = slf._tilts[det-1].copy()
     xvpix  = tilts[whord]
     scipix = sciframe[whord]
     varpix = varframe[whord]
@@ -367,9 +370,9 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None, rejsigma
     return bgframe
 
 
-def error_frame_postext(slf, sciframe, idx):
+def error_frame_postext(slf, sciframe, idx, fitsdict):
     # Dark Current noise
-    dnoise = slf._spect['det']['darkcurr'] * float(slf._fitsdict["exptime"][idx])/3600.0
+    dnoise = slf._spect['det']['darkcurr'] * float(fitsdict["exptime"][idx])/3600.0
     # The effective read noise
     rnoise = slf._spect['det']['ronoise']**2 + (0.5*slf._spect['det']['gain'])**2
     errframe = np.zeros_like(sciframe)
@@ -380,13 +383,29 @@ def error_frame_postext(slf, sciframe, idx):
     return errframe
 
 
-def flatfield(slf, sciframe, flatframe, snframe=None):
+def flatfield(slf, sciframe, flatframe, det, snframe=None):
+    """ Flat field the input image
+    Parameters
+    ----------
+    slf
+    sciframe : 2d image
+    flatframe : 2d image
+    snframe : 2d image, optional
+    det : int
+      Detector index
+
+    Returns
+    -------
+    flat-field image
+    and updated variance if snframe is input
+
+    """
     retframe = np.zeros_like(sciframe)
     w = np.where(flatframe > 0.0)
     retframe[w] = sciframe[w]/flatframe[w]
     if w[0].size != flatframe.size:
         w = np.where(flatframe <= 0.0)
-        slf._bpix[w] = 1.0
+        slf._bpix[det-1][w] = 1.0
     if snframe is None:
         return retframe
     else:
@@ -690,7 +709,7 @@ def sn_frame(slf, sciframe, idx):
 
 
 
-def lacosmic(slf, det, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
+def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-999999.9):
     """
     Identify cosmic rays using the L.A.Cosmic algorithm
     U{http://www.astro.yale.edu/dokkum/lacosmic/}
@@ -735,7 +754,7 @@ def lacosmic(slf, det, sciframe, maxiter=1, grow=1.5, maskval=-999999.9):
         msgs.info("Creating noise model")
         # Build a custom noise map, and compare  this to the laplacian
         m5 = ndimage.filters.median_filter(scicopy, size=5, mode='mirror')
-        noise = np.sqrt(variance_frame(slf, det, m5, slf._scidx))
+        noise = np.sqrt(variance_frame(slf, det, m5, scidx, fitsdict))
         msgs.info("Calculating Laplacian signal to noise ratio")
 
         # Laplacian S/N
@@ -932,9 +951,15 @@ def trim(slf, file, det):
     return file[w]
 
 
-def variance_frame(slf, det, sciframe, idx, skyframe=None):
-    """
-    Calculate the variance image including detector noise
+def variance_frame(slf, det, sciframe, idx, fitsdict, skyframe=None):
+    """ Calculate the variance image including detector noise
+    Parameters
+    ----------
+    fitsdict : dict
+      Contains relevant information from fits header files
+    Returns
+    -------
+    variance image : ndarray
     """
     scicopy = sciframe.copy()
     if skyframe is not None:
@@ -942,7 +967,8 @@ def variance_frame(slf, det, sciframe, idx, skyframe=None):
         wfill = np.where(np.abs(skyframe) > np.abs(scicopy))
         scicopy[wfill] = np.abs(skyframe[wfill])
     # Dark Current noise
-    dnoise = slf._spect['det'][det-1]['darkcurr'] * float(slf._fitsdict["exptime"][idx])/3600.0
+    dnoise = (slf._spect['det'][det-1]['darkcurr'] *
+              float(fitsdict["exptime"][idx])/3600.0)
     # The effective read noise
     rnoise = slf._spect['det'][det-1]['ronoise']**2 + (0.5*slf._spect['det'][det-1]['gain'])**2
     return np.abs(scicopy) + rnoise + dnoise

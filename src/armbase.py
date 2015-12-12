@@ -8,8 +8,8 @@ import arsciexp
 msgs = armsgs.get_logger()
 
 def SetupScience(argflag, spect, fitsdict):
-    """
-    Create an exposure class for every science frame
+    """ Create an exposure class for every science frame
+    Also links to standard star frames
 
     Parameters
     ----------
@@ -75,6 +75,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
         else:
             msgs.bug("I could not update frame of type {0:s} and subtype {1:s}".format(ftype, chktype))
             return
+    elif ftype == "standard": chkarr = sciexp[sc]._idx_std
     else:
         msgs.bug("I could not update frame of type: {0:s}".format(ftype))
         return
@@ -110,6 +111,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
             if ftype == "arc":
                 chkfarr = sciexp[i]._idx_arcs
             elif ftype == "bias": chkfarr = sciexp[i]._idx_bias
+            elif ftype == "standard": chkfarr = sciexp[i]._idx_std
             else:
                 msgs.bug("I could not update frame of type: {0:s}".format(ftype))
                 return

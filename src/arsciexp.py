@@ -1,3 +1,5 @@
+""" Class for book-keeping the reduction process
+"""
 import sys
 import pdb
 import numpy as np
@@ -8,6 +10,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import artrace
 import arsort
 import arload
+import armlsd
 import arcomb
 import armsgs
 import arproc
@@ -22,11 +25,11 @@ except:
 msgs = armsgs.get_logger()
 
 class ScienceExposure:
+    """
+    A Science Exposure class that carries all information for a given science exposure
+    """
 
     def __init__(self, snum, argflag, spect, fitsdict):
-        """
-        A Science Exposure class that carries all information for a given science exposure
-        """
 
         #############################
         # Set some universal parameters
@@ -38,6 +41,7 @@ class ScienceExposure:
         self._idx_sci = spect['science']['index'][snum]
         self._idx_arcs = spect['arc']['index'][snum]
         self._idx_trace = spect['trace']['index'][snum]
+        self._idx_std = spect['standard']['index'][snum]
         if self._argflag['reduce']['usebias'] == 'bias': self._idx_bias = spect['bias']['index'][snum]
         elif self._argflag['reduce']['usebias'] == 'dark':  self._idx_bias = spect['dark']['index'][snum]
         else: self._idx_bias = []
@@ -86,6 +90,7 @@ class ScienceExposure:
         self._mspixflat = [None for all in xrange(ndet)]     # Master pixel flat
         self._mspixflatnrm = [None for all in xrange(ndet)]  # Normalized Master pixel flat
         self._msblaze = [None for all in xrange(ndet)]       # Blaze function
+        self._msstd = [None for all in xrange(ndet)]         # Master Standard image
         # Initialize the Master Calibration frame names
         self._msarc_name = [None for all in xrange(ndet)]      # Master Arc Name
         self._msbias_name = [None for all in xrange(ndet)]     # Master Bias Name
@@ -507,6 +512,47 @@ class ScienceExposure:
         del mswave
         return True
 
+    def MasterStandard(self, fitsdict, det):
+        """
+        Generate Master Standard frame for a given detector
+
+        Parameters
+        ----------
+        fitsdict : dict
+          Contains relevant information from fits header files
+        det : int
+          Index of the detector
+
+        Returns
+        -------
+        boolean : bool
+        """
+
+        if self._msstd[det-1] is not None:
+            msgs.info("An identical master standard frame already exists")
+            return False
+        #
+        msgs.info("Preparing a master standard frame")
+        # Get all of the pixel flat frames for this science frame
+        ind = self._idx_std
+        # Load the frame(s)
+        frame = arload.load_frames(self, fitsdict, ind, det, frametype='standard',
+                               msbias=self._msbias[det-1],
+                               transpose=self._transpose)
+        msgs.warn("Taking only the first standard frame for now")
+        ind = ind[0]
+        sciframe = frame[:, :, 0]
+        #
+        armlsd.reduce_frame(self, sciframe, ind, fitsdict, det, standard=True)
+        #
+        xdb.set_trace()
+        # Reduce and extract and generate sensitivity
+        #mswave = arutils.func_val(self._wvcalib[det-1]['fitc'], self._tilts[det-1], self._wvcalib[det-1]['function'], minv=self._wvcalib[det-1]['fmin'], maxv=self._wvcalib[det-1]['fmax'])
+        # Set and then delete the Master Arc frame
+        self.SetMasterFrame(msstd, "standard", det)
+        del msstd
+        return True
+
     def Setup(self):
 
         # Sort the data
@@ -561,11 +607,12 @@ class ScienceExposure:
         # Get the frame
         if copy:
             if ftype == "arc": return self._msarc[det].copy()
-            elif ftype == "wave": self._mswave[det].copy()
+            elif ftype == "wave": return self._mswave[det].copy()
             elif ftype == "bias": return self._msbias[det].copy()
             elif ftype == "normpixflat": return self._mspixflatnrm[det].copy()
             elif ftype == "pixflat": return self._mspixflat[det].copy()
             elif ftype == "trace": return self._mstrace[det].copy()
+            elif ftype == "standard": return self._msstd[det].copy()
             else:
                 msgs.bug("I could not get master frame of type: {0:s}".format(ftype))
                 msgs.error("Please contact the authors")
@@ -579,3 +626,8 @@ class ScienceExposure:
                 msgs.bug("I could not get master frame of type: {0:s}".format(ftype))
                 msgs.error("Please contact the authors")
         return None
+
+    def __repr__(self):
+        return ('<{:s}: frame={:s} target={:s} index={:d}>'.format(
+                self.__class__.__name__, self._basename, self._target_name,
+                self._idx_sci[0]))
