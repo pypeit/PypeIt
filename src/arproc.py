@@ -655,7 +655,10 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
         xv = np.arange(x0, x1)
         yv = np.arange(y0, y1)
         w = np.ix_(xv, yv)
-        retarr[w] = i+1
+        try:
+            retarr[w] = i+1
+        except IndexError:
+            xdb.set_trace()
         # Save these locations for trimming
         if i == 0:
             xfin = xv.copy()
@@ -861,7 +864,10 @@ def sub_overscan(slf, det, file):
         xos = np.arange(ox0, ox1)
         yos = np.arange(oy0, oy1)
         w = np.ix_(xos, yos)
-        oscan = file[w]
+        try:
+            oscan = file[w]
+        except IndexError:
+            xdb.set_trace()
         # Determine the section of the chip that is read out by the amplifier
         ampsec = "ampsec{0:02d}".format(i+1)
         ax0, ax1, ay0, ay1 = slf._spect['det'][det-1][ampsec][0][0], slf._spect['det'][det-1][ampsec][0][1], slf._spect['det'][det-1][ampsec][1][0], slf._spect['det'][det-1][ampsec][1][1]

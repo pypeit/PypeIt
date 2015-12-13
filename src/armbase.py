@@ -1,11 +1,17 @@
 import sys
 import numpy as np
+from collections import OrderedDict
 import armsgs
 import arsort
 import arsciexp
 
 # Logging
 msgs = armsgs.get_logger()
+
+try:
+    from xastropy.xutils import xdebug as xdb
+except:
+    pass
 
 def SetupScience(argflag, spect, fitsdict):
     """ Create an exposure class for every science frame
@@ -120,3 +126,52 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
                 sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(ftype, det), ftype, det)
     return
 
+
+def instconfig(slf, det, scidx, fitsdict):
+    """ Returns a unique config string for the current slf
+
+    Parameters
+    ----------
+    scidx: int
+       Exposure index (max=9999)
+    """
+    config_dict = OrderedDict()
+    config_dict['S'] = 'slitwid'
+    config_dict['D'] = 'dichroic'
+    config_dict['G'] = 'disperser'
+    config_dict['T'] = 'cdangle'
+    #
+    config = ''
+    for key in config_dict.keys():
+        try:
+            comp = str(fitsdict[config_dict[key]][scidx])
+        except KeyError:
+            comp = '0'
+        #
+        val = ''
+        for s in comp:
+            if s.isdigit():
+                val = val + s
+        config = config + key+'{:s}-'.format(val)
+    # Binning
+    try:
+        binning = slf._spect['det'][det-1]['binning']
+    except KeyError:
+        binning = '1x1'
+    val = ''
+    for s in binning:
+        if s.isdigit():
+            val = val + s
+    config = config + 'B{:s}'.format(val)
+    # Return
+    return config
+
+    """
+    msgs.warn("Flat indexing needs to be improved in arsort.setup")
+    fidx = slf._name_flat.index(slf._mspixflat_name)
+    if fidx > 9:
+        msgs.error("Not ready for that many flats!")
+    aidx = slf._name_flat.index(slf._mspixflat_name)
+    setup = 10*(aidx+1) + fidx
+    return setup
+    """

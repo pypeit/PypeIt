@@ -4,6 +4,10 @@ import numpy as np
 import copy
 import pdb
 
+import armsgs
+
+# Logging
+msgs = armsgs.get_logger()
 
 try:
     from xastropy.xutils import xdebug as xdb
@@ -18,8 +22,8 @@ class SpecObjExp(object):
     ----------
     shape: tuple
        row,col of the frame
-    setup: str
-       Instrument "setup"
+    config: str
+       Instrument configuration
     scidx: int
        Exposure index (max=9999)
     det: int
@@ -46,9 +50,9 @@ class SpecObjExp(object):
     '''
     # Attributes
     # Init
-    def __init__(self, shape, setup, scidx, det, xslit, ypos, xobj, objtype='unknown'):
+    def __init__(self, shape, config, scidx, det, xslit, ypos, xobj, objtype='unknown'):
         self.shape = shape
-        self.setup = setup
+        self.config = config
         self.scidx = copy.deepcopy(scidx)
         self.det = det
         self.xslit = xslit
@@ -64,9 +68,9 @@ class SpecObjExp(object):
         # Generate a unique index for this expsoure
         #self.idx = '{:02d}'.format(self.setup)
         self.idx = '{:03d}'.format(self.objid)
-        self.idx += '{:04d}'.format(self.slitid)
-        self.idx += '{:02d}'.format(self.det)
-        self.idx += '{:04d}'.format(self.scidx)
+        self.idx += '-{:04d}'.format(self.slitid)
+        self.idx += '-{:02d}'.format(self.det)
+        self.idx += '-{:04d}'.format(self.scidx)
 
         # Items that are generally filled
         self.boxcar = {}   # Boxcar extraction 'wave', 'counts', 'var', 'sky', 'mask', 'flam', 'flam_var'
@@ -96,7 +100,8 @@ class SpecObjExp(object):
     # Printing
     def __repr__(self):
         # Generate sets string
-        return '[SpecObjExp: {:s} == Setup {:d} Object at {:g} in Slit at {:g} with det={:d}, scidx={:d} and objtype={:s}]'.format(self.idx, self.setup, self.xobj, self.slitcen, self.det, self.scidx, self.objtype)
+        return ('[SpecObjExp: {:s} == Setup {:s} Object at {:g} in Slit at {:g} with det={:d}, scidx={:d} and objtype={:s}]'.format(
+                self.idx, self.config, self.xobj, self.slitcen, self.det, self.scidx, self.objtype))
 
 def init_exp(slf, scidx, det, fitsdict, trc_img=None, ypos=0.5, **kwargs):
     """Generate a list of SpecObjExp objects for a given exposure
@@ -112,11 +117,11 @@ def init_exp(slf, scidx, det, fitsdict, trc_img=None, ypos=0.5, **kwargs):
     ypos : float, optional [0.5]
        Row on trimmed detector (fractional) to define slit (and object)
     """
-    import armlsd
+    import armbase
 
     # Init
     specobjs = []
-    setup = arlmsd.instconfig(slf, scidx, fitsdict)
+    config = armbase.instconfig(slf, det, scidx, fitsdict)
     yidx = int(np.round(ypos*slf._lordloc[det-1].shape[0]))
     pixl_slits = slf._lordloc[det-1][yidx, :]
     pixr_slits = slf._rordloc[det-1][yidx, :]
@@ -137,7 +142,7 @@ def init_exp(slf, scidx, det, fitsdict, trc_img=None, ypos=0.5, **kwargs):
             # xobj
             xobj = (trc_img['traces'][yidx,qq]-pixl_slit) / (pixr_slit-pixl_slit)
             # Generate 
-            specobj = SpecObjExp((trc_img['object'].shape[:2]), setup, scidx, det, (xl_slit,xr_slit),ypos, xobj, **kwargs)
+            specobj = SpecObjExp((trc_img['object'].shape[:2]), config, scidx, det, (xl_slit,xr_slit),ypos, xobj, **kwargs)
             # Add traces
             specobj.trace = trc_img['traces'][:,qq]
             # Append

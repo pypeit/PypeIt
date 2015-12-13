@@ -1,6 +1,7 @@
 """ Class for book-keeping the reduction process
 """
 import sys
+import copy
 import pdb
 import numpy as np
 # Import PYPIT routines
@@ -8,12 +9,13 @@ from astropy.time import Time
 import datetime
 from matplotlib.backends.backend_pdf import PdfPages
 import artrace
-import arsort
 import arload
 import armlsd
 import arcomb
+import arflux
 import armsgs
 import arproc
+import arsort
 import arutils
 
 try:
@@ -33,8 +35,8 @@ class ScienceExposure:
 
         #############################
         # Set some universal parameters
-        self._argflag = argflag   # Arguments and Flags
-        self._spect = spect       # Spectrograph information
+        self._argflag = copy.deepcopy(argflag)   # Arguments and Flags
+        self._spect = copy.deepcopy(spect)       # Spectrograph information
         self._transpose = False   # Determine if the frames need to be transposed
 
         # Set indices used for frame combination
@@ -90,7 +92,7 @@ class ScienceExposure:
         self._mspixflat = [None for all in xrange(ndet)]     # Master pixel flat
         self._mspixflatnrm = [None for all in xrange(ndet)]  # Normalized Master pixel flat
         self._msblaze = [None for all in xrange(ndet)]       # Blaze function
-        self._msstd = [{} for all in xrange(ndet)]         # Master Standard dicts
+        self._msstd = [{} for all in xrange(ndet)]           # Master Standard dict
         # Initialize the Master Calibration frame names
         self._msarc_name = [None for all in xrange(ndet)]      # Master Arc Name
         self._msbias_name = [None for all in xrange(ndet)]     # Master Bias Name
@@ -99,9 +101,9 @@ class ScienceExposure:
         # Initialize the science, variance, and background frames
         self._sciframe = [None for all in xrange(ndet)]
         self._varframe = [None for all in xrange(ndet)]
-        self._bgframe  = [None for all in xrange(ndet)]
-        # Standard star frames
-        self._stdtrc = [None for all in xrange(ndet)]
+        self._bgframe = [None for all in xrange(ndet)]
+        self._scitrace = [None for all in xrange(ndet)]
+        self._specobjs = [None for all in xrange(ndet)]
         # Initialize some extraction products
         self._ext_boxcar = [None for all in xrange(ndet)]
         self._ext_optimal = [None for all in xrange(ndet)]
@@ -162,9 +164,9 @@ class ScienceExposure:
         del bpix
         return True
 
-    def GetDispersionDirection(self, fitsdict, det):
-        """
-        Set the dispersion axis. If necessary, transpose frames and adjust information as needed
+    def GetDispersionDirection(self, fitsdict, det, scidx):
+        """ Set the dispersion axis.
+        If necessary, transpose frames and adjust information as needed
 
         Parameters
         ----------
@@ -172,6 +174,8 @@ class ScienceExposure:
           Contains relevant information from fits header files
         det : int
           Index of the detector
+        scidx : int
+          Index of frame
 
         Returns
         -------
@@ -212,10 +216,9 @@ class ScienceExposure:
             # Transpose the amplifier sections frame
             self.SetFrame(self._ampsec, self._ampsec[det-1].T, det)
             # Update the keywords of the fits files
-            for i in xrange(len(fitsdict['naxis0'])):
-                temp = fitsdict['naxis0'][i]
-                fitsdict['naxis0'][i] = fitsdict['naxis1'][i]
-                fitsdict['naxis1'][i] = temp
+            temp = fitsdict['naxis0'][scidx]
+            fitsdict['naxis0'][scidx] = fitsdict['naxis1'][scidx]
+            fitsdict['naxis1'][scidx] = temp
             # Change the user-specified (x,y) pixel sizes
             tmp = self._spect['det'][det-1]['xgap']
             self._spect['det'][det-1]['xgap'] = self._spect['det'][det-1]['ygap']
@@ -233,7 +236,7 @@ class ScienceExposure:
             self._dispaxis = 0
         # Set the number of spectral and spatial pixels
         self._nspec[det-1], self._nspat[det-1] = self._msarc[det-1].shape
-        return fitsdict
+        #return fitsdict
 
     def GetPixelLocations(self, det):
         """
@@ -514,7 +517,7 @@ class ScienceExposure:
         del mswave
         return True
 
-    def MasterStandard(self, fitsdict, det):
+    def MasterStandard(self, scidx, fitsdict):
         """
         Generate Master Standard frame for a given detector
 
@@ -522,37 +525,42 @@ class ScienceExposure:
         ----------
         fitsdict : dict
           Contains relevant information from fits header files
-        det : int
-          Index of the detector
 
         Returns
         -------
         boolean : bool
         """
 
-        if len(self._msstd[det-1]) != 0:
-            msgs.info("An identical master standard frame already exists")
+        if len(self._msstd[0]) != 0:
+            msgs.info("Using existing standard frame")
             return False
         #
-        msgs.info("Preparing a master standard frame")
+        msgs.info("Preparing the standard")
         # Get all of the pixel flat frames for this science frame
         ind = self._idx_std
-        # Load the frame(s)
-        frame = arload.load_frames(self, fitsdict, ind, det, frametype='standard',
-                               msbias=self._msbias[det-1],
-                               transpose=self._transpose)
-        msgs.warn("Taking only the first standard frame for now")
-        ind = ind[0]
-        sciframe = frame[:, :, 0]
-        #
-        armlsd.reduce_frame(self, sciframe, ind, fitsdict, det, standard=True)
-        #
-        xdb.set_trace()
-        # Reduce and extract and generate sensitivity
-        #mswave = arutils.func_val(self._wvcalib[det-1]['fitc'], self._tilts[det-1], self._wvcalib[det-1]['function'], minv=self._wvcalib[det-1]['fmin'], maxv=self._wvcalib[det-1]['fmax'])
+        # Extract
+        all_specobj = []
+        for kk in xrange(self._spect['mosaic']['ndet']):
+            det = kk+1
+            # Load the frame(s)
+            frame = arload.load_frames(self, fitsdict, ind, det, frametype='standard',
+                                   msbias=self._msbias[det-1],
+                                   transpose=self._transpose)
+            msgs.warn("Taking only the first standard frame for now")
+            ind = ind[0]
+            sciframe = frame[:, :, 0]
+            # Save RA/DEC
+            if kk == 0:
+                self._msstd[det-1]['RA'] = fitsdict['ra'][ind]
+                self._msstd[det-1]['DEC'] = fitsdict['dec'][ind]
+            armlsd.reduce_frame(self, sciframe, ind, fitsdict, det, standard=True)
+            #
+            all_specobj += self._msstd[det-1]['spobjs']
+        # If standard, generate a sensitivity function
+        sensfunc = arflux.generate_sensfunc(self, scidx, all_specobj,
+                                                  fitsdict)
         # Set and then delete the Master Arc frame
-        self.SetMasterFrame(msstd, "standard", det)
-        del msstd
+        self.SetMasterFrame(sensfunc, "standard", None, copy=False)
         return True
 
     def Setup(self):
@@ -580,7 +588,22 @@ class ScienceExposure:
         return
 
     def SetMasterFrame(self, frame, ftype, det, copy=True):
-        det -= 1
+        """ Set the Master Frame
+        Parameters
+        ----------
+        frame : object
+        ftype : str
+          frame type
+        det : int
+          Detector index
+        copy
+
+        Returns
+        -------
+
+        """
+        if det is not None:
+            det -= 1
         if copy: cpf = frame.copy()
         else: cpf = frame
         # Set the frame
@@ -590,6 +613,7 @@ class ScienceExposure:
         elif ftype == "normpixflat": self._mspixflatnrm[det] = cpf
         elif ftype == "pixflat": self._mspixflat[det] = cpf
         elif ftype == "trace": self._mstrace[det] = cpf
+        elif ftype == "standard": self._sensfunc = cpf
         else:
             msgs.bug("I could not set master frame of type: {0:s}".format(ftype))
             msgs.error("Please contact the authors")

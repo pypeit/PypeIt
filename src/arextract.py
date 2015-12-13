@@ -1,8 +1,11 @@
 import numpy as np
 from astropy import units as u
 import arcyutils
-from matplotlib import pyplot as plt
+import armsgs
 import pdb
+
+# Logging
+msgs = armsgs.get_logger()
 
 try:
     from xastropy.xutils import xdebug as xdb
@@ -18,13 +21,15 @@ except:
 mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5)
 
 
-def boxcar(slf, det, sciframe, varframe, skyframe, crmask, scitrace):
+def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     """ Perform boxcar extraction on the traced objects.
 
     Parameters
     ----------
     det : int
       Detector index
+    specobjs : list
+      list of SpecObj objects
     sciframe : ndarray
       science frame
     varframe : ndarray
@@ -55,7 +60,7 @@ def boxcar(slf, det, sciframe, varframe, skyframe, crmask, scitrace):
         weight = scitrace['object'][:,:,o]
         sumweight = np.sum(weight, axis=1)
         # Generate wavelength array (average over the pixels)
-        wvsum = np.sum(slf._mswvimg[det-1]*weight, axis=1)
+        wvsum = np.sum(slf._mswave[det-1]*weight, axis=1)
         wvsum /= sumweight
         # Generate sky spectrum (flux per pixel)
         skysum = np.sum(skyframe*weight, axis=1)
@@ -69,11 +74,11 @@ def boxcar(slf, det, sciframe, varframe, skyframe, crmask, scitrace):
         # Mask 
         boxmask = np.zeros_like(wvsum, dtype=np.int)
         # Bad detector pixels
-        BPs = np.sum(weight*slf._bpix[det-1],axis=1)
+        BPs = np.sum(weight*slf._bpix[det-1], axis=1)
         bp = BPs > 0.
         boxmask[bp] += mask_flags['bad_pix']
         # CR
-        CRs = np.sum(weight*cr_mask,axis=1)
+        CRs = np.sum(weight*cr_mask, axis=1)
         cr = CRs > 0.
         boxmask[cr] += mask_flags['CR']
         # NAN
@@ -83,16 +88,16 @@ def boxcar(slf, det, sciframe, varframe, skyframe, crmask, scitrace):
             boxmask[NANs] += mask_flags['NANs']
             scisum[NANs] = 0.
             varsum[NANs] = 0.
-            sky[NANs] = 0.
+            skysum[NANs] = 0.
         # Check on specobjs
-        if not slf._specobjs[o].check_trace(scitrace['traces'][:,o]):
+        if not specobjs[o].check_trace(scitrace['traces'][:, o]):
             xdb.set_trace()
             msgs.error("Bad match to specobj in boxcar!")
         # Fill
-        slf._specobjs[o].boxcar['wave'] = wvsum*u.AA # Yes, units enter here
-        slf._specobjs[o].boxcar['counts'] = scisum
-        slf._specobjs[o].boxcar['var'] = varsum
-        slf._specobjs[o].boxcar['sky'] = skysum # per pixel
-        slf._specobjs[o].boxcar['mask'] = boxmask 
+        specobjs[o].boxcar['wave'] = wvsum*u.AA  # Yes, units enter here
+        specobjs[o].boxcar['counts'] = scisum
+        specobjs[o].boxcar['var'] = varsum
+        specobjs[o].boxcar['sky'] = skysum  # per pixel
+        specobjs[o].boxcar['mask'] = boxmask
     # Return
     return None
