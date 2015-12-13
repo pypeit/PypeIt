@@ -18,12 +18,13 @@ except:
 mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5)
 
 
-def boxcar(slf, sciframe, varframe, skyframe, crmask, scitrace):
-    """
-    Perform boxcar extraction on the traced objects. 
+def boxcar(slf, det, sciframe, varframe, skyframe, crmask, scitrace):
+    """ Perform boxcar extraction on the traced objects.
 
     Parameters
     ----------
+    det : int
+      Detector index
     sciframe : ndarray
       science frame
     varframe : ndarray
@@ -54,7 +55,7 @@ def boxcar(slf, sciframe, varframe, skyframe, crmask, scitrace):
         weight = scitrace['object'][:,:,o]
         sumweight = np.sum(weight, axis=1)
         # Generate wavelength array (average over the pixels)
-        wvsum = np.sum(slf._mswvimg*weight, axis=1)
+        wvsum = np.sum(slf._mswvimg[det-1]*weight, axis=1)
         wvsum /= sumweight
         # Generate sky spectrum (flux per pixel)
         skysum = np.sum(skyframe*weight, axis=1)
@@ -68,7 +69,7 @@ def boxcar(slf, sciframe, varframe, skyframe, crmask, scitrace):
         # Mask 
         boxmask = np.zeros_like(wvsum, dtype=np.int)
         # Bad detector pixels
-        BPs = np.sum(weight*slf._bpix,axis=1)
+        BPs = np.sum(weight*slf._bpix[det-1],axis=1)
         bp = BPs > 0.
         boxmask[bp] += mask_flags['bad_pix']
         # CR

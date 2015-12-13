@@ -90,7 +90,7 @@ class ScienceExposure:
         self._mspixflat = [None for all in xrange(ndet)]     # Master pixel flat
         self._mspixflatnrm = [None for all in xrange(ndet)]  # Normalized Master pixel flat
         self._msblaze = [None for all in xrange(ndet)]       # Blaze function
-        self._msstd = [None for all in xrange(ndet)]         # Master Standard image
+        self._msstd = [{} for all in xrange(ndet)]         # Master Standard dicts
         # Initialize the Master Calibration frame names
         self._msarc_name = [None for all in xrange(ndet)]      # Master Arc Name
         self._msbias_name = [None for all in xrange(ndet)]     # Master Bias Name
@@ -100,6 +100,8 @@ class ScienceExposure:
         self._sciframe = [None for all in xrange(ndet)]
         self._varframe = [None for all in xrange(ndet)]
         self._bgframe  = [None for all in xrange(ndet)]
+        # Standard star frames
+        self._stdtrc = [None for all in xrange(ndet)]
         # Initialize some extraction products
         self._ext_boxcar = [None for all in xrange(ndet)]
         self._ext_optimal = [None for all in xrange(ndet)]
@@ -528,7 +530,7 @@ class ScienceExposure:
         boolean : bool
         """
 
-        if self._msstd[det-1] is not None:
+        if len(self._msstd[det-1]) != 0:
             msgs.info("An identical master standard frame already exists")
             return False
         #

@@ -48,9 +48,9 @@ def SetupScience(argflag, spect, fitsdict):
 
 
 def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
-    """
-    Update the master calibrations for other science targets, if they
-    will use an identical master frame
+    """ Update the master calibrations for other science targets
+
+    If they will use an identical master frame
 
     Parameters
     ----------
@@ -119,3 +119,4 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
                 msgs.info("Updating master {0:s} frame for science target {1:d}/{2:d}".format(ftype, i+1, numsci))
                 sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(ftype, det), ftype, det)
     return
+

@@ -1,12 +1,14 @@
 import pdb
 import numpy as np
-import armasters
-import artrace
-import armbase
+import arextract
 import arload
+import armasters
+import armbase
 import armsgs
 import arproc
 import ararc
+import arspecobj
+import artrace
 import arqa
 
 try:
@@ -152,6 +154,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                 continue
             ###############
             # Standard star (is this a calibration, e.g. goes above?)
+            msgs.info("Processing standard star")
             update = slf.MasterStandard(fitsdict, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="standard")
@@ -310,20 +313,26 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
             # Send the data away to be saved
             arsave.save_master(slf, sciframe-bgframe, filename=msscibg_name, frametype='sky subtracted science')
         # Redetermine the variance frame based on the new sky model
-        varframe = arproc.variance_frame(slf, det, sciframe, scidx[0], skyframe=bgframe)
-    xdb.set_trace()
+        varframe = arproc.variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
     ###############
     # Determine the final trace of the science objects
-    scitrace = artrace.trace_object(slf, sciframe-bgframe, varframe, crmask)
-    # Write
-    mstrc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), slf._argflag['run']['masterdir'], slf.target, 0, "objtrc")
-    hdutrc = fits.PrimaryHDU(scitrace['traces'])
-    hduobj = fits.ImageHDU(scitrace['object'])
-    hdulist = fits.HDUList([hdutrc, hduobj])
-    hdulist.writeto(mstrc_name,clobber=True)
-    msgs.info("Wrote object trace file: {:s}".format(mstrc_name))
-    # Generate SpecObjExp list
-    slf._specobjs += arspecobj.init_exp(slf,sc,det,trc_img=scitrace, objtype=sctype)
+    msgs.info("Final trace")
+    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask)
+    if standard:
+        slf._msstd[det-1]['trace'] = scitrace
+        slf._msstd[det-1]['spobjs'] = arspecobj.init_exp(slf, scidx, det, fitsdict,
+                                                         trc_img=scitrace,
+                                                         objtype='standard')
+    else:
+        # Write
+        mstrc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.fits".format(os.getcwd(), slf._argflag['run']['masterdir'], slf.target, 0, "objtrc")
+        hdutrc = fits.PrimaryHDU(scitrace['traces'])
+        hduobj = fits.ImageHDU(scitrace['object'])
+        hdulist = fits.HDUList([hdutrc, hduobj])
+        hdulist.writeto(mstrc_name,clobber=True)
+        msgs.info("Wrote object trace file: {:s}".format(mstrc_name))
+        # Generate SpecObjExp list
+        slf._specobjs += arspecobj.init_exp(slf, scidx, det, trc_img=scitrace, objtype='standard')
     ###############
     # Extract
     if scitrace is None:
@@ -331,7 +340,8 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         pdb.set_trace()
         #continue
     # Boxcar Extraction
-    arextract.boxcar(slf, sciframe-bgframe, varframe, bgframe, crmask, scitrace)
+    xdb.set_trace()
+    arextract.boxcar(slf, det, sciframe-bgframe, varframe, bgframe, crmask, scitrace)
     #Generate and Write spectra
     if False:
         sig = np.sqrt(slf._specobjs[0].boxcar['var'])
@@ -353,3 +363,23 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
 
     # Flatten
     xdb.set_trace()
+
+def instconfig(slf, scidx, fitsdict):
+    """ Returns a unique config string for the current slf
+
+    Parameters
+    ----------
+    scidx: int
+       Exposure index (max=9999)
+    """
+    xdb.set_trace()
+    config = 'S{:d}'
+    """
+    msgs.warn("Flat indexing needs to be improved in arsort.setup")
+    fidx = slf._name_flat.index(slf._mspixflat_name)
+    if fidx > 9:
+        msgs.error("Not ready for that many flats!")
+    aidx = slf._name_flat.index(slf._mspixflat_name)
+    setup = 10*(aidx+1) + fidx
+    return setup
+    """

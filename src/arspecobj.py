@@ -4,13 +4,6 @@ import numpy as np
 import copy
 import pdb
 
-from astropy.table import Table
-from astropy.coordinates import SkyCoord
-from astropy.io import fits
-from astropy import units as u
-from astropy import coordinates as coords
-
-import arsort
 
 try:
     from xastropy.xutils import xdebug as xdb
@@ -25,8 +18,8 @@ class SpecObjExp(object):
     ----------
     shape: tuple
        row,col of the frame
-    setup: int
-       Instrument "setup" (min=10,max=99) 
+    setup: str
+       Instrument "setup"
     scidx: int
        Exposure index (max=9999)
     det: int
@@ -55,12 +48,12 @@ class SpecObjExp(object):
     # Init
     def __init__(self, shape, setup, scidx, det, xslit, ypos, xobj, objtype='unknown'):
         self.shape = shape
-        self.setup=setup # [10*(arcid+1) + pixflatid]
-        self.scidx=copy.deepcopy(scidx)
-        self.det=det
+        self.setup = setup
+        self.scidx = copy.deepcopy(scidx)
+        self.det = det
         self.xslit = xslit
         self.ypos = ypos
-        self.slitcen = np.mean([xslit[0],xslit[1]])
+        self.slitcen = np.mean([xslit[0], xslit[1]])
         self.xobj = xobj
         self.objtype = objtype
 
@@ -69,8 +62,8 @@ class SpecObjExp(object):
         self.objid= int(np.round(xobj*1e3))
 
         # Generate a unique index for this expsoure
-        self.idx = '{:02d}'.format(self.setup)
-        self.idx += '{:03d}'.format(self.objid)
+        #self.idx = '{:02d}'.format(self.setup)
+        self.idx = '{:03d}'.format(self.objid)
         self.idx += '{:04d}'.format(self.slitid)
         self.idx += '{:02d}'.format(self.det)
         self.idx += '{:04d}'.format(self.scidx)
@@ -105,27 +98,28 @@ class SpecObjExp(object):
         # Generate sets string
         return '[SpecObjExp: {:s} == Setup {:d} Object at {:g} in Slit at {:g} with det={:d}, scidx={:d} and objtype={:s}]'.format(self.idx, self.setup, self.xobj, self.slitcen, self.det, self.scidx, self.objtype)
 
-def init_exp(slf, sc, det, trc_img=None, ypos=0.5, **kwargs):    
-    '''Generate a list of SpecObjExp objects for a given exposure
+def init_exp(slf, scidx, det, fitsdict, trc_img=None, ypos=0.5, **kwargs):
+    """Generate a list of SpecObjExp objects for a given exposure
 
-    Parameters:
+    Parameters
     ----------
     self
-       Instrument "setup" (min=10,max=99) 
-    sc: int
-       Science/Standard index
-    det: int
+       Instrument "setup" (min=10,max=99)
+    scidx : int
+       Index of file
+    det : int
        Detector index 
-    ypos: float, optional [0.5]
+    ypos : float, optional [0.5]
        Row on trimmed detector (fractional) to define slit (and object)
-    '''
+    """
+    import armlsd
+
     # Init
     specobjs = []
-    setup = arsort.setup(slf) 
-    yidx = int(np.round(ypos*slf._lordloc.shape[0]))
-    nslit = slf._lordloc.shape[1]
-    pixl_slits = slf._lordloc[yidx,:]
-    pixr_slits = slf._rordloc[yidx,:]
+    setup = arlmsd.instconfig(slf, scidx, fitsdict)
+    yidx = int(np.round(ypos*slf._lordloc[det-1].shape[0]))
+    pixl_slits = slf._lordloc[det-1][yidx, :]
+    pixr_slits = slf._rordloc[det-1][yidx, :]
     #
     if trc_img is not None: # Object traces
         for qq in xrange(trc_img['traces'].shape[1]): # Loop on objects
@@ -143,7 +137,7 @@ def init_exp(slf, sc, det, trc_img=None, ypos=0.5, **kwargs):
             # xobj
             xobj = (trc_img['traces'][yidx,qq]-pixl_slit) / (pixr_slit-pixl_slit)
             # Generate 
-            specobj = SpecObjExp((trc_img['object'].shape[:2]), setup, slf._scidx, det, (xl_slit,xr_slit),ypos, xobj, **kwargs)
+            specobj = SpecObjExp((trc_img['object'].shape[:2]), setup, scidx, det, (xl_slit,xr_slit),ypos, xobj, **kwargs)
             # Add traces
             specobj.trace = trc_img['traces'][:,qq]
             # Append

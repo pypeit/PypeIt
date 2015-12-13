@@ -19,17 +19,7 @@ except:
 # Logging
 msgs = armsgs.get_logger()
 
-def setup(slf):
-    """
-    Returns a unique setup number for the current slf
-    """
-    msgs.warn("Flat indexing needs to be improved in arsort.setup")
-    fidx = slf._name_flat.index(slf._mspixflat_name)  
-    if fidx > 9:
-        msgs.error("Not ready for that many flats!")
-    aidx = slf._name_flat.index(slf._mspixflat_name)  
-    setup = 10*(aidx+1) + fidx 
-    return setup
+
 
 
 def sort_data(argflag, spect, fitsdict):
