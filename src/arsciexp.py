@@ -125,7 +125,10 @@ class ScienceExposure:
             # Not ideal, but convert MJD into a date+time
             timval = Time(fitsdict['time'][scidx]/24.0, scale='tt', format='mjd')
             tbname = timval.isot
-        tval = datetime.datetime.strptime(tbname, '%Y-%m-%dT%H:%M:%S.%f')
+        try:
+            tval = datetime.datetime.strptime(tbname, '%Y-%m-%dT%H:%M:%S.%f')
+        except ValueError:
+            tval = datetime.datetime.strptime(tbname, '%Y-%m-%dT%H:%M:%S')
         self._basename = datetime.datetime.strftime(tval, '%Y%b%dT') + tbname.split("T")[1]
         return
 

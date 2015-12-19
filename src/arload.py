@@ -582,7 +582,11 @@ def load_headers(argflag, spect, datlines):
                 if spect['fits']['timeunit']   == 's'  : value = float(value)/3600.0    # Convert seconds to hours
                 elif spect['fits']['timeunit'] == 'm'  : value = float(value)/60.0      # Convert minutes to hours
                 elif spect['fits']['timeunit'] in Time.FORMATS.keys() : # Astropy time format
-                    tval = Time(value, scale='tt', format=spect['fits']['timeunit'])
+                    if spect['fits']['timeunit'] in ['mjd']:
+                        ival = float(value)
+                    else:
+                        ival = value
+                    tval = Time(ival, scale='tt', format=spect['fits']['timeunit'])
                     # dspT = value.split('T')
                     # dy,dm,dd = np.array(dspT[0].split('-')).astype(np.int)
                     # th,tm,ts = np.array(dspT[1].split(':')).astype(np.float64)

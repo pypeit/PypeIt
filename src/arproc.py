@@ -241,7 +241,7 @@ def badpix(slf, det, frame, sigdev=10.0):
         bpix[w] = subfr
     del subfr, tframe, temp
     # Finally, trim the bad pixel frame
-    bpix = trim(slf, bpix, det, msgs)
+    bpix = trim(slf, bpix, det)
     msgs.info("Identified {0:d} bad pixels".format(int(np.sum(bpix))))
     return bpix
 
@@ -627,7 +627,9 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
     if slf._argflag['run']['spectrograph'] in ['lris_blue']:
         msgs.info("Parsing datasec,oscansec,ampsec from headers")
-        temp, head0, secs = arlris.read_lris(fitsdict['directory'][scidx]+fitsdict['filename'][scidx], det, msgs)
+        temp, head0, secs = arlris.read_lris(fitsdict['directory'][scidx]+
+                                             fitsdict['filename'][scidx],
+                                             det)
         # Naxis
         fitsdict['naxis0'][scidx] = temp.shape[0]
         fitsdict['naxis1'][scidx] = temp.shape[1]
