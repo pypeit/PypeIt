@@ -709,6 +709,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Convert ADUs to electrons
     sciframe *= slf._spect['det'][det-1]['gain']
     # Mask
+    slf._scimask[det-1] = np.zeros_like(sciframe).astype(int)
     slf.update_sci_pixmask(det, slf._bpix[det-1], 'BadPix')
     # Variance
     varframe = variance_frame(slf, det, sciframe, scidx, fitsdict)
