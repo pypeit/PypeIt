@@ -710,8 +710,10 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     sciframe *= slf._spect['det'][det-1]['gain']
     # Mask
     slf._scimask[det-1] = np.zeros_like(sciframe).astype(int)
+    msgs.info("Masking bad pixels")
     slf.update_sci_pixmask(det, slf._bpix[det-1], 'BadPix')
     # Variance
+    msgs.info("Generate variance frame")
     varframe = variance_frame(slf, det, sciframe, scidx, fitsdict)
     if not standard:
         slf._varframe[det-1] = varframe

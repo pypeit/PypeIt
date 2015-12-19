@@ -19,7 +19,7 @@ import arutils
 
 try:
     from xastropy.xutils import xdebug as xdb
-except:
+except ImportError:
     pass
 
 # Logging
@@ -672,15 +672,14 @@ class ScienceExposure:
         if mask_type not in mask_dict.keys():
             msgs.error("Bad pixel mask type")
         # Find pixels to mask
-        mask = np.where(mask_pix > 0)[0]
-        if len(mask) == 0:
+        mask = np.where(mask_pix > 0)
+        if len(mask[0]) == 0:
             return
         # Update those that need it
         prev_val = self._scimask[det-1][mask]
-        upd = np.where((prev_val % 2**(mask_dict[mask_type]+1))
-                       < 2**(mask_dict[mask_type]))[0]
+        upd = np.where((prev_val % 2**(mask_dict[mask_type]+1)) < 2**(mask_dict[mask_type]))[0]
         if len(upd) > 0:
-            self._scimask[det-1][mask[upd]] += mask_dict[mask_type]
+            self._scimask[det-1][mask[0][upd], mask[1][upd]] += 2**mask_dict[mask_type]
         # Return
         return
 
