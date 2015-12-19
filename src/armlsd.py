@@ -2,13 +2,13 @@ import pdb
 import numpy as np
 import arextract
 import arflux
-import ario
 import arload
 import armasters
 import armbase
 import armsgs
 import arproc
 import ararc
+import arsave
 import arspecobj
 import artrace
 import arqa
@@ -173,7 +173,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             sciframe = sciframe[:, :, 0]
             # Extract
             msgs.info("Extracting science frame")
-            reduce_frame(slf, sciframe, scidx, fitsdict, det)
+            arproc.reduce_frame(slf, sciframe, scidx, fitsdict, det)
 
 
             #continue
@@ -203,7 +203,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             arflux.apply_sensfunc(slf, scidx, fitsdict)
 
         # Write
-        ario.write_1d_spectra(slf)
+        arsave.save_1d_spectra(slf)
         # Close the QA for this object
         slf._qa.close()
         # Free up some memory by replacing the reduced ScienceExposure class
@@ -211,98 +211,53 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
     return status
 
 
-def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
-    """ Run standard extraction steps on a frame
+def instconfig(slf, det, scidx, fitsdict):
+    """ Returns a unique config string for the current slf
+
     Parameters
     ----------
-    sciframe : image
-      Bias subtracted image (using arload.load_frame)
-    scidx : int
-      Index of the frame
-    fitsdict : dict
-      Contains relevant information from fits header files
-    det : int
-      Detector index
-    standard : bool, optional
-      Standard star frame?
+    scidx: int
+       Exposure index (max=9999)
     """
-    # Convert ADUs to electrons
-    sciframe *= slf._spect['det'][det-1]['gain']
-    varframe = arproc.variance_frame(slf, det, sciframe, scidx, fitsdict)
-    if not standard:
-        slf._varframe[det-1] = varframe
-    ###############
-    # Subtract off the scattered light from the image
-    msgs.work("Scattered light subtraction is not yet implemented...")
-    ###############
-    # Flat field the science frame
-    if slf._argflag['reduce']['flatfield']:
-        msgs.info("Flat fielding the science frame")
-        sciframe = arproc.flatfield(slf, sciframe, slf._mspixflatnrm[det-1], det)
-    else:
-        msgs.info("Not performing a flat field calibration")
-    if not standard:
-        slf._sciframe[det-1] = sciframe
-    ###############
-    # Identify cosmic rays
-    msgs.work("Include L.A.Cosmic arguments in the settings files")
-    if True: crmask = arproc.lacosmic(slf, fitsdict, det, sciframe, scidx, grow=1.5)
-    else: crmask = np.zeros(sciframe.shape)
-    msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
-    ###############
-    # Estimate Sky Background
-    if slf._argflag['reduce']['bgsubtraction']:
-        # Perform an iterative background/science extraction
-        msgs.info("Estimating the sky background")
-        bgframe = arproc.bg_subtraction(slf, det, sciframe, varframe, crmask)
-        varframe = arproc.variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
-        if not standard: # Need to save
-            slf._varframe[det-1] = varframe
-            slf._bgframe[det-1] = bgframe
-    ###############
-    # Estimate trace of science objects
-    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask)
-    if scitrace is None:
-        msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
-        pdb.set_trace()
-        #continue
-    ###############
-    # Finalize the Sky Background image
-    if slf._argflag['reduce']['bgsubtraction']:
-        # Perform an iterative background/science extraction
-        msgs.info("Finalizing the sky background image")
-        trcmask = scitrace['object'].sum(axis=2)
-        trcmask[np.where(trcmask>0.0)] = 1.0
-        bgframe = arproc.bg_subtraction(slf, det, sciframe, varframe, crmask, tracemask=trcmask)
-        # Redetermine the variance frame based on the new sky model
-        varframe = arproc.variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
-        # Save
-        if not standard:
-            slf._varframe[det-1] = varframe
-            slf._bgframe[det-1] = bgframe
-    ###############
-    # Determine the final trace of the science objects
-    msgs.info("Final trace")
-    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask)
-    if standard:
-        slf._msstd[det-1]['trace'] = scitrace
-        specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict,
-                                                         trc_img=scitrace,
-                                                         objtype='standard')
-        slf._msstd[det-1]['spobjs'] = specobjs
-    else:
-        slf._scitrace[det-1] = scitrace
-        # Generate SpecObjExp list
-        specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict,
-                                      trc_img=scitrace, objtype='science')
-        slf._specobjs[det-1] = specobjs
-    ###############
-    # Extract
-    if scitrace is None:
-        msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
-        pdb.set_trace()
-        #continue
-    # Boxcar
-    arextract.boxcar(slf, det, specobjs, sciframe-bgframe, varframe, bgframe, crmask, scitrace)
+    from collections import OrderedDict
+    config_dict = OrderedDict()
+    config_dict['S'] = 'slitwid'
+    config_dict['D'] = 'dichroic'
+    config_dict['G'] = 'disperser'
+    config_dict['T'] = 'cdangle'
+    #
+    config = ''
+    for key in config_dict.keys():
+        try:
+            comp = str(fitsdict[config_dict[key]][scidx])
+        except KeyError:
+            comp = '0'
+        #
+        val = ''
+        for s in comp:
+            if s.isdigit():
+                val = val + s
+        config = config + key+'{:s}-'.format(val)
+    # Binning
+    try:
+        binning = slf._spect['det'][det-1]['binning']
+    except KeyError:
+        msgs.warn("Assuming 1x1 binning for your detector")
+        binning = '1x1'
+    val = ''
+    for s in binning:
+        if s.isdigit():
+            val = val + s
+    config = config + 'B{:s}'.format(val)
     # Return
-    return True
+    return config
+
+    """
+    msgs.warn("Flat indexing needs to be improved in arsort.setup")
+    fidx = slf._name_flat.index(slf._mspixflat_name)
+    if fidx > 9:
+        msgs.error("Not ready for that many flats!")
+    aidx = slf._name_flat.index(slf._mspixflat_name)
+    setup = 10*(aidx+1) + fidx
+    return setup
+    """

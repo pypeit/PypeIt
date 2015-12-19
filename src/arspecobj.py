@@ -4,6 +4,7 @@ import numpy as np
 import copy
 import pdb
 
+import armlsd
 import armsgs
 
 # Logging
@@ -121,7 +122,7 @@ def init_exp(slf, scidx, det, fitsdict, trc_img=None, ypos=0.5, **kwargs):
 
     # Init
     specobjs = []
-    config = armbase.instconfig(slf, det, scidx, fitsdict)
+    config = armlsd.instconfig(slf, det, scidx, fitsdict)
     yidx = int(np.round(ypos*slf._lordloc[det-1].shape[0]))
     pixl_slits = slf._lordloc[det-1][yidx, :]
     pixr_slits = slf._rordloc[det-1][yidx, :]

@@ -77,8 +77,8 @@ def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
     wave : ndarray
     flux : ndarray
       counts/s as observed
-    invvar : ndarray
-      inverse variance
+    var : ndarray
+      variance
     flux_std : Quantity array
       standard star true flux (erg/s/cm^2/A)
     nointer : bool, optional [False]
@@ -448,7 +448,8 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
     tell = np.any([((wave >= 7580.0*u.AA) & (wave <= 7750.0*u.AA)), ((wave >= 7160.0*u.AA) & (wave <= 7340.0*u.AA)),((wave >= 6860.0*u.AA)  & (wave <= 6930.0*u.AA))],axis=0)
     msk[tell] = False
 
-    # Fit in magntiudes
+    # Fit in magnitudes
+    var_corr[msk == False] = -1.
     mag_tck = bspline_magfit(wave.value, flux_corr, var_corr, flux_true,
                              bkspace=resln.value*nresln)
     sens_dict = dict(c=mag_tck, func='bspline',min=None,max=None, std=std_dict)

@@ -10,7 +10,6 @@ import datetime
 from matplotlib.backends.backend_pdf import PdfPages
 import artrace
 import arload
-import armlsd
 import arcomb
 import arflux
 import armsgs
@@ -102,6 +101,7 @@ class ScienceExposure:
         self._sciframe = [None for all in xrange(ndet)]
         self._varframe = [None for all in xrange(ndet)]
         self._bgframe = [None for all in xrange(ndet)]
+        self._scimask = [None for all in xrange(ndet)]        # Mask (1=Bad pix; 2=CR)
         self._scitrace = [None for all in xrange(ndet)]
         self._specobjs = [None for all in xrange(ndet)]
         # Initialize some extraction products
@@ -553,7 +553,7 @@ class ScienceExposure:
             if kk == 0:
                 self._msstd[det-1]['RA'] = fitsdict['ra'][ind]
                 self._msstd[det-1]['DEC'] = fitsdict['dec'][ind]
-            armlsd.reduce_frame(self, sciframe, ind, fitsdict, det, standard=True)
+            arproc.reduce_frame(self, sciframe, ind, fitsdict, det, standard=True)
             #
             all_specobj += self._msstd[det-1]['spobjs']
         # If standard, generate a sensitivity function
@@ -638,20 +638,52 @@ class ScienceExposure:
             elif ftype == "normpixflat": return self._mspixflatnrm[det].copy()
             elif ftype == "pixflat": return self._mspixflat[det].copy()
             elif ftype == "trace": return self._mstrace[det].copy()
-            elif ftype == "standard": return self._msstd[det].copy()
+            elif ftype == "standard": return copy.copy(self._msstd[det])
             else:
                 msgs.bug("I could not get master frame of type: {0:s}".format(ftype))
                 msgs.error("Please contact the authors")
         else:
             if ftype == "arc": return self._msarc[det]
+            elif ftype == "wave": return self._mswave[det]
             elif ftype == "bias": return self._msbias[det]
             elif ftype == "normpixflat": return self._mspixflatnrm[det]
             elif ftype == "pixflat": return self._mspixflat[det]
             elif ftype == "trace": return self._mstrace[det]
+            elif ftype == "standard": return self._msstd[det]
             else:
                 msgs.bug("I could not get master frame of type: {0:s}".format(ftype))
                 msgs.error("Please contact the authors")
         return None
+
+    def update_sci_pixmask(self, det, mask_pix, mask_type):
+        """ Update the binary pixel mask for a given science frame
+
+        Parameters
+        ----------
+        det : int
+        mask_pix : ndarray
+          Image of pixels to mask (anything >0)
+        mask_type : str
+          Type of masked pixel
+            BadPix = 1
+            CR = 2
+        """
+        mask_dict = dict(BadPix=1, CR=2)
+        if mask_type not in mask_dict.keys():
+            msgs.error("Bad pixel mask type")
+        # Find pixels to mask
+        mask = np.where(mask_pix > 0)[0]
+        if len(mask) == 0:
+            return
+        # Update those that need it
+        prev_val = self._scimask[det-1][mask]
+        upd = np.where((prev_val % 2**(mask_dict[mask_type]+1))
+                       < 2**(mask_dict[mask_type]))[0]
+        if len(upd) > 0:
+            self._scimask[det-1][mask[upd]] += mask_dict[mask_type]
+        # Return
+        return
+
 
     def __repr__(self):
         return ('<{:s}: frame={:s} target={:s} index={:d}>'.format(

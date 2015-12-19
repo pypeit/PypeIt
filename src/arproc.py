@@ -7,12 +7,14 @@ from matplotlib import pyplot as plt
 import arcyextract
 import arcyutils
 import arcyproc
+import arextract
+import arload
+import arlris
 import armsgs
 import artrace
 import arutils
 import arplot
-import arload
-import arlris
+import arspecobj
 from arpca import pca2d
 import pdb
 
@@ -261,10 +263,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     # Look at the end corners of the detector to get detector size in the dispersion direction
     xstr = slf._pixlocn[det-1][0,0,slf._dispaxis]-slf._pixlocn[det-1][0,0,slf._dispaxis+2]/2.0
     xfin = slf._pixlocn[det-1][-1,-1,slf._dispaxis]+slf._pixlocn[det-1][-1,-1,slf._dispaxis+2]/2.0
-    if slf._dispaxis == 0:
-        xint = slf._pixlocn[det-1][:,0,0]
-    else:
-        xint = slf._pixlocn[det-1][0,:,0]
+    xint = slf._pixlocn[det-1][:,0,0]
     # Find which pixels are within the order edges
     msgs.info("Identifying pixels within each order")
     ordpix = arcyutils.order_pixels(slf._pixlocn[det-1],
@@ -691,6 +690,108 @@ def get_wscale(slf):
     return wave
 
 
+def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
+    """ Run standard extraction steps on a frame
+
+    Parameters
+    ----------
+    sciframe : image
+      Bias subtracted image (using arload.load_frame)
+    scidx : int
+      Index of the frame
+    fitsdict : dict
+      Contains relevant information from fits header files
+    det : int
+      Detector index
+    standard : bool, optional
+      Standard star frame?
+    """
+    # Convert ADUs to electrons
+    sciframe *= slf._spect['det'][det-1]['gain']
+    # Mask
+    slf.update_sci_pixmask(det, slf._bpix[det-1], 'BadPix')
+    # Variance
+    varframe = variance_frame(slf, det, sciframe, scidx, fitsdict)
+    if not standard:
+        slf._varframe[det-1] = varframe
+    ###############
+    # Subtract off the scattered light from the image
+    msgs.work("Scattered light subtraction is not yet implemented...")
+    ###############
+    # Flat field the science frame
+    if slf._argflag['reduce']['flatfield']:
+        msgs.info("Flat fielding the science frame")
+        sciframe = flatfield(slf, sciframe, slf._mspixflatnrm[det-1], det)
+    else:
+        msgs.info("Not performing a flat field calibration")
+    if not standard:
+        slf._sciframe[det-1] = sciframe
+    ###############
+    # Identify cosmic rays
+    msgs.work("Include L.A.Cosmic arguments in the settings files")
+    if True: crmask = lacosmic(slf, fitsdict, det, sciframe, scidx, grow=1.5)
+    else: crmask = np.zeros(sciframe.shape)
+    # Mask
+    slf.update_sci_pixmask(det, crmask, 'CR')
+    msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
+    ###############
+    # Estimate Sky Background
+    if slf._argflag['reduce']['bgsubtraction']:
+        # Perform an iterative background/science extraction
+        msgs.info("Estimating the sky background")
+        bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask)
+        varframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
+        if not standard: # Need to save
+            slf._varframe[det-1] = varframe
+            slf._bgframe[det-1] = bgframe
+    ###############
+    # Estimate trace of science objects
+    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask)
+    if scitrace is None:
+        msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
+        pdb.set_trace()
+        #continue
+    ###############
+    # Finalize the Sky Background image
+    if slf._argflag['reduce']['bgsubtraction']:
+        # Perform an iterative background/science extraction
+        msgs.info("Finalizing the sky background image")
+        trcmask = scitrace['object'].sum(axis=2)
+        trcmask[np.where(trcmask>0.0)] = 1.0
+        bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask, tracemask=trcmask)
+        # Redetermine the variance frame based on the new sky model
+        varframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
+        # Save
+        if not standard:
+            slf._varframe[det-1] = varframe
+            slf._bgframe[det-1] = bgframe
+    ###############
+    # Determine the final trace of the science objects
+    msgs.info("Final trace")
+    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask)
+    if standard:
+        slf._msstd[det-1]['trace'] = scitrace
+        specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict,
+                                                         trc_img=scitrace,
+                                                         objtype='standard')
+        slf._msstd[det-1]['spobjs'] = specobjs
+    else:
+        slf._scitrace[det-1] = scitrace
+        # Generate SpecObjExp list
+        specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict,
+                                      trc_img=scitrace, objtype='science')
+        slf._specobjs[det-1] = specobjs
+    ###############
+    # Extract
+    if scitrace is None:
+        msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
+        pdb.set_trace()
+        #continue
+    # Boxcar
+    arextract.boxcar(slf, det, specobjs, sciframe-bgframe, varframe, bgframe, crmask, scitrace)
+    # Return
+    return True
+
 def sn_frame(slf, sciframe, idx):
 
     # Dark Current noise
@@ -955,6 +1056,9 @@ def trim(slf, file, det):
         pdb.set_trace()
         msgs.error("Cannot trim file")
     return file[w]
+
+
+
 
 
 def variance_frame(slf, det, sciframe, idx, fitsdict, skyframe=None):
