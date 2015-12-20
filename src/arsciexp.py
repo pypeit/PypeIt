@@ -562,8 +562,8 @@ class ScienceExposure:
         # If standard, generate a sensitivity function
         sensfunc = arflux.generate_sensfunc(self, scidx, all_specobj,
                                                   fitsdict)
-        # Set and then delete the Master Arc frame
-        self.SetMasterFrame(sensfunc, "standard", None, copy=False)
+        # Set the sensitivity function
+        self.SetMasterFrame(sensfunc, "sensfunc", None, copy=False)
         return True
 
     def Setup(self):
@@ -616,7 +616,8 @@ class ScienceExposure:
         elif ftype == "normpixflat": self._mspixflatnrm[det] = cpf
         elif ftype == "pixflat": self._mspixflat[det] = cpf
         elif ftype == "trace": self._mstrace[det] = cpf
-        elif ftype == "standard": self._sensfunc = cpf
+        elif ftype == "standard": self._msstd[det] = cpf
+        elif ftype == "sensfunc": self._sensfunc = cpf
         else:
             msgs.bug("I could not set master frame of type: {0:s}".format(ftype))
             msgs.error("Please contact the authors")
@@ -642,6 +643,7 @@ class ScienceExposure:
             elif ftype == "pixflat": return self._mspixflat[det].copy()
             elif ftype == "trace": return self._mstrace[det].copy()
             elif ftype == "standard": return copy.copy(self._msstd[det])
+            elif ftype == "sensfunc": return copy.copy(self._sensfunc)
             else:
                 msgs.bug("I could not get master frame of type: {0:s}".format(ftype))
                 msgs.error("Please contact the authors")
@@ -653,6 +655,7 @@ class ScienceExposure:
             elif ftype == "pixflat": return self._mspixflat[det]
             elif ftype == "trace": return self._mstrace[det]
             elif ftype == "standard": return self._msstd[det]
+            elif ftype == "sensfunc": return self._sensfunc
             else:
                 msgs.bug("I could not get master frame of type: {0:s}".format(ftype))
                 msgs.error("Please contact the authors")

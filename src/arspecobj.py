@@ -4,7 +4,6 @@ import numpy as np
 import copy
 import pdb
 
-import armlsd
 import armsgs
 
 # Logging
@@ -68,10 +67,10 @@ class SpecObjExp(object):
 
         # Generate a unique index for this expsoure
         #self.idx = '{:02d}'.format(self.setup)
-        self.idx = '{:03d}'.format(self.objid)
-        self.idx += '-{:04d}'.format(self.slitid)
-        self.idx += '-{:02d}'.format(self.det)
-        self.idx += '-{:04d}'.format(self.scidx)
+        self.idx = 'O{:03d}'.format(self.objid)
+        self.idx += '-S{:04d}'.format(self.slitid)
+        self.idx += '-D{:02d}'.format(self.det)
+        self.idx += '-I{:04d}'.format(self.scidx)
 
         # Items that are generally filled
         self.boxcar = {}   # Boxcar extraction 'wave', 'counts', 'var', 'sky', 'mask', 'flam', 'flam_var'
@@ -118,11 +117,11 @@ def init_exp(slf, scidx, det, fitsdict, trc_img=None, ypos=0.5, **kwargs):
     ypos : float, optional [0.5]
        Row on trimmed detector (fractional) to define slit (and object)
     """
-    import armbase
+    from armlsd import instconfig
 
     # Init
     specobjs = []
-    config = armlsd.instconfig(slf, det, scidx, fitsdict)
+    config = instconfig(slf, det, scidx, fitsdict)
     yidx = int(np.round(ypos*slf._lordloc[det-1].shape[0]))
     pixl_slits = slf._lordloc[det-1][yidx, :]
     pixr_slits = slf._rordloc[det-1][yidx, :]

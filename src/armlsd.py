@@ -172,7 +172,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                                           transpose=slf._transpose)
             sciframe = sciframe[:, :, 0]
             # Extract
-            msgs.info("Extracting science frame")
+            msgs.info("Processing science frame")
             arproc.reduce_frame(slf, sciframe, scidx, fitsdict, det)
 
 
