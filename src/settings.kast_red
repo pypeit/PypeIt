@@ -99,7 +99,7 @@ keyword lampname15 01.LAMPNAMJ         # Name of a lamp
 keyword lampstat15 01.LAMPSTAJ         # Status of a lamp
 keyword lampname16 01.LAMPNAMK         # Name of a lamp
 keyword lampstat16 01.LAMPSTAK         # Status of a lamp
-keyword slitwid None                   # Slit Width
+keyword slitwid 01.SLIT_P              # Slit Width
 keyword slitlen None                   # Slit Length
 keyword detrot None                    # Detector Rotation angle
 keyword dichroic 01.BSPLIT_N           # Dichroic name

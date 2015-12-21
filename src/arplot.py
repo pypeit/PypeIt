@@ -68,7 +68,7 @@ def zscale(image, nsamples=1000, contrast=0.25, bpmask=None, zmask=None):
     return z1, z2
 
 
-def zsc_sample(image, maxpix):
+def zsc_sample(image, maxpix, bpmask=None, zmask=None):
     # Figure out which pixels to use for the zscale algorithm
     # Returns the 1-d array samples
     # Don't worry about the bad pixel mask or zmask for the moment

@@ -7,9 +7,15 @@ import arsciexp
 # Logging
 msgs = armsgs.get_logger()
 
+try:
+    from xastropy.xutils import xdebug as xdb
+except ImportError:
+    pass
+
+
 def SetupScience(argflag, spect, fitsdict):
-    """
-    Create an exposure class for every science frame
+    """ Create an exposure class for every science frame
+    Also links to standard star frames
 
     Parameters
     ----------
@@ -48,9 +54,9 @@ def SetupScience(argflag, spect, fitsdict):
 
 
 def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
-    """
-    Update the master calibrations for other science targets, if they
-    will use an identical master frame
+    """ Update the master calibrations for other science targets
+
+    If they will use an identical master frame
 
     Parameters
     ----------
@@ -75,6 +81,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
         else:
             msgs.bug("I could not update frame of type {0:s} and subtype {1:s}".format(ftype, chktype))
             return
+    elif ftype == "standard": chkarr = sciexp[sc]._idx_std
     else:
         msgs.bug("I could not update frame of type: {0:s}".format(ftype))
         return
@@ -110,6 +117,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
             if ftype == "arc":
                 chkfarr = sciexp[i]._idx_arcs
             elif ftype == "bias": chkfarr = sciexp[i]._idx_bias
+            elif ftype == "standard": chkfarr = sciexp[i]._idx_std
             else:
                 msgs.bug("I could not update frame of type: {0:s}".format(ftype))
                 return
@@ -117,3 +125,4 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
                 msgs.info("Updating master {0:s} frame for science target {1:d}/{2:d}".format(ftype, i+1, numsci))
                 sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(ftype, det), ftype, det)
     return
+

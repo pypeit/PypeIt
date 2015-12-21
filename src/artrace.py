@@ -82,28 +82,33 @@ def dispdir(msframe, dispwin=None, mode=0):
             return 1
 
 
-def trace_object(slf, sciframe, varframe, crmask, trim=2.0, triml=None, trimr=None, sigmin=2.0, bgreg=None, maskval=-999999.9, order=0):
+def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0, triml=None, trimr=None, sigmin=2.0, bgreg=None, maskval=-999999.9, order=0):
+    """ Finds objects, and traces their location on the detector
+    Parameters
+    ----------
+    slf
+    sciframe
+    varframe
+    crmask
+    trim
+    triml
+    trimr
+    sigmin
+    bgreg
+    maskval
+    order
+
+    Returns
+    -------
+
     """
-    Finds objects, and traces their location on the detector
-    :param slf:
-    :param sciframe:
-    :param varframe:
-    :param crmask: mask of cosmic ray identifications (1=CR hit, 0=no hit)
-    :param trim: trim the order edges by this number of pixels (on each side)
-    :param sigmin:
-    :param bgreg: Number of pixels on each side of the object to use for background. If 'None' all pixels on the slit are used.
-    :param maskval:
-    :param order: If data is echelle, this should correspond to the echelle order to be traced.
-    :return:
-    """
-    sigdet = 3.0
     smthby = 7
     rejhilo = 1
     bgreg = 20
     traceorder = 2   # Order of polynomial used to trace the objects
     if triml is None: triml = trim
     if trimr is None: trimr = trim
-    npix = int(slf._pixwid[order] - triml - trimr)
+    npix = int(slf._pixwid[det-1][order] - triml - trimr)
     if bgreg is None: bgreg = npix
     # Interpolate the science array onto a new grid (with constant spatial slit length)
     msgs.info("Rectifying science frame")
@@ -113,8 +118,8 @@ def trace_object(slf, sciframe, varframe, crmask, trim=2.0, triml=None, trimr=No
     varspl = interp.RectBivariateSpline(xint, yint, varframe, bbox=[0.0, 1.0, 0.0, 1.0], kx=1, ky=1, s=0)
     crmspl = interp.RectBivariateSpline(xint, yint, crmask, bbox=[0.0, 1.0, 0.0, 1.0], kx=1, ky=1, s=0)
     xx, yy = np.meshgrid(np.linspace(0.0,1.0,sciframe.shape[0]),np.linspace(0.0,1.0,npix), indexing='ij')
-    ro = (slf._rordloc[:,order]-trimr).reshape((-1,1))/(sciframe.shape[1]-1.0)
-    lo = (slf._lordloc[:,order]+triml).reshape((-1,1))/(sciframe.shape[1]-1.0)
+    ro = (slf._rordloc[det-1][:,order]-trimr).reshape((-1,1))/(sciframe.shape[1]-1.0)
+    lo = (slf._lordloc[det-1][:,order]+triml).reshape((-1,1))/(sciframe.shape[1]-1.0)
     vv = (lo+(ro-lo)*yy).flatten()
     xx = xx.flatten()
     recsh = (sciframe.shape[0],npix)
@@ -196,8 +201,9 @@ def trace_object(slf, sciframe, varframe, crmask, trim=2.0, triml=None, trimr=No
     for o in xrange(nobj): trcfunc[:,o] += cval[o]
     if nobj==1: msgs.info("Converting object trace to detector pixels")
     else: msgs.info("Converting object traces to detector pixels")
-    ofst = slf._lordloc[:,order].reshape((-1,1)).repeat(nobj,axis=1) + triml
-    diff = slf._rordloc[:,order].reshape((-1,1)).repeat(nobj,axis=1) - slf._lordloc[:,order].reshape((-1,1)).repeat(nobj,axis=1)
+    ofst = slf._lordloc[det-1][:,order].reshape((-1,1)).repeat(nobj,axis=1) + triml
+    diff = (slf._rordloc[det-1][:,order].reshape((-1,1)).repeat(nobj,axis=1)
+            - slf._lordloc[det-1][:,order].reshape((-1,1)).repeat(nobj,axis=1))
     #pdb.set_trace()
     # Convert central trace
     traces = ofst + (diff-triml-trimr)*trcfunc
@@ -221,7 +227,7 @@ def trace_object(slf, sciframe, varframe, crmask, trim=2.0, triml=None, trimr=No
         objframe = scitmp.reshape(1,-1).repeat(sciframe.shape[0],axis=0)
         objspl = interp.RectBivariateSpline(xint, yint, objframe, bbox=[0.0, 1.0, yint.min(), yint.max()], kx=1, ky=1, s=0)
         xx, yy = np.meshgrid(np.linspace(0,1.0,sciframe.shape[0]), np.arange(0,sciframe.shape[1]), indexing='ij')
-        lo = (slf._lordloc[:,order]+triml).reshape((-1,1))
+        lo = (slf._lordloc[det-1][:,order]+triml).reshape((-1,1))
         vv = ((yy-lo)/(npix-1.0)).flatten()
         xx = xx.flatten()
         wf = np.where((vv>=yint[0])&(vv<=yint[-1]))
@@ -240,7 +246,7 @@ def trace_object(slf, sciframe, varframe, crmask, trim=2.0, triml=None, trimr=No
         bckframe = backtmp.reshape(1,-1).repeat(sciframe.shape[0],axis=0)
         bckspl = interp.RectBivariateSpline(xint, yint, bckframe, bbox=[0.0, 1.0, yint.min(), yint.max()], kx=1, ky=1, s=0)
         xx, yy = np.meshgrid(np.linspace(0,1.0,sciframe.shape[0]), np.arange(0,sciframe.shape[1]), indexing='ij')
-        lo = (slf._lordloc[:,order]+triml).reshape((-1,1))
+        lo = (slf._lordloc[det-1][:,order]+triml).reshape((-1,1))
         vv = ((yy-lo)/(npix-1.0)).flatten()
         xx = xx.flatten()
         wf = np.where((vv>=yint[0])&(vv<=yint[-1]))
@@ -254,7 +260,7 @@ def trace_object(slf, sciframe, varframe, crmask, trim=2.0, triml=None, trimr=No
         #arutils.ds9plot(rec_img)
     # Save the quality control
     try:
-        arqa.obj_trace_qa(sciframe, trobjl, trobjr, root="object_trace", normalize=False)
+        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, root="object_trace", normalize=False)
     except ValueError:
         pdb.set_trace()
     # Trace dict
