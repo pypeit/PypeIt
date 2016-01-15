@@ -10,6 +10,7 @@ The Python Spectroscopic Data Reduction Pipeline
 * astropy
 * matplotlib
 * GNU Scientific Library
+* PyYAML
 
 # License
 This program is free software: you can redistribute it and/or modify
