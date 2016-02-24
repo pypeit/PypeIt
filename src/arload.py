@@ -7,6 +7,7 @@ import getopt
 import astropy.io.fits as pyfits
 from astropy.time import Time
 import numpy as np
+import armsgs
 import arproc
 import arlris
 from multiprocessing import cpu_count
@@ -19,8 +20,10 @@ try:
 except:
     pass
 
+# Logging
+msgs = armsgs.get_logger()
 
-def cpucheck(ncpu, msgs, curcpu=0):
+def cpucheck(ncpu, curcpu=0):
     cpucnt = cpu_count()
     if ncpu == 'all':
         ncpu = cpucnt  # Use all available cpus
@@ -52,7 +55,7 @@ def cpucheck(ncpu, msgs, curcpu=0):
     return ncpu
 
 
-def optarg(argv, msgs):
+def optarg(argv):
     """
     Load the command line options and arguments
 
@@ -74,7 +77,7 @@ def optarg(argv, msgs):
     tfname = ""
     for i in range(0,len(prgn_spl)-2): tfname += prgn_spl[i]+"/"
     fname = tfname + prgn_spl[-2] + '/settings.armlsd'
-    argflag = load_settings(fname, msgs)
+    argflag = load_settings(fname)
     argflag['run']['prognm'] = argv[0]
     argflag['run']['pypitdir'] = tfname
     # Load options from command line
@@ -96,20 +99,20 @@ def optarg(argv, msgs):
     #######################
 
     # Check requested CPUs
-    argflag['run']['ncpus'] = cpucheck(argflag['run']['ncpus'], msgs)
+    argflag['run']['ncpus'] = cpucheck(argflag['run']['ncpus'])
 
     # Assign filelist:
     argflag['run']['redname'] = arg[0]
     return argflag
 
 
-def set_params_wtype(tvalue, svalue, msgs, lines="", setstr="", argnum=3):
+def set_params_wtype(tvalue, svalue, lines="", setstr="", argnum=3):
     try:
         if type(tvalue) is int:
             tvalue = int(svalue)
         elif type(tvalue) is str:
             if svalue.lower() == 'none': tvalue = None
-            elif svalue[0] == '[' and svalue[-1] == ']' and ',' in svalue and len(svalue.split(':')) == 3: tvalue = load_sections(svalue, msgs, strtxt=setstr)
+            elif svalue[0] == '[' and svalue[-1] == ']' and ',' in svalue and len(svalue.split(':')) == 3: tvalue = load_sections(svalue, strtxt=setstr)
             else: tvalue = svalue
         elif type(tvalue) is float:
             tvalue = float(svalue)
@@ -152,7 +155,7 @@ def set_params_wtype(tvalue, svalue, msgs, lines="", setstr="", argnum=3):
                 except: tvalue = svalue # Must be a string
         elif type(tvalue) is dict:
             nvalue = lines.split()[argnum]
-            tvalue[svalue] = set_params_wtype(tvalue[svalue], nvalue, msgs, argnum=argnum+1)
+            tvalue[svalue] = set_params_wtype(tvalue[svalue], nvalue, argnum=argnum+1)
         else:
             msgs.bug("Type not found for:"+msgs.newline()+lines.split('#')[0].strip())
     except:
@@ -160,7 +163,7 @@ def set_params_wtype(tvalue, svalue, msgs, lines="", setstr="", argnum=3):
     return tvalue
 
 
-def set_params(lines, indict, msgs, setstr=""):
+def set_params(lines, indict, setstr=""):
     """
     Adjust settings parameters.
     lines    : an array of settings with the same format as the default 'settings.armed'
@@ -214,7 +217,7 @@ def set_params(lines, indict, msgs, setstr=""):
                     msgs.error("keyword lampstat must contain an integer suffix")
                 indict[linspl[0]][linspl[1]] = linspl[2]
             elif linspl[1] in indict[linspl[0]].keys():
-                indict[linspl[0]][linspl[1]] = set_params_wtype(indict[linspl[0]][linspl[1]], linspl[2], msgs, lines=tline,setstr=setstr)
+                indict[linspl[0]][linspl[1]] = set_params_wtype(indict[linspl[0]][linspl[1]], linspl[2], lines=tline,setstr=setstr)
             else: 
                 msgs.error(setstr + "Settings contains bad line (arg 2):"+msgs.newline()+lines[i].split('#')[0].strip())
         elif linspl[0][:3] == 'det': # Detector parameters
@@ -229,27 +232,27 @@ def set_params(lines, indict, msgs, setstr=""):
                     null = np.int(linspl[1][6:])
                 except ValueError:
                     msgs.error("keyword ampsec must contain an integer suffix")
-                indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], msgs, strtxt=linspl[1])
+                indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], strtxt=linspl[1])
             elif linspl[1][:7] == 'datasec': # Data Sections
                 try:
                     null = np.int(linspl[1][7:])
                 except ValueError:
                     msgs.error("keyword datasec must contain an integer suffix")
-                indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], msgs, strtxt=linspl[1])
+                indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], strtxt=linspl[1])
             elif linspl[1][:8] == 'oscansec': # Overscan Sections
                 try:
                     null = np.int(linspl[1][8:])
                 except ValueError:
                     msgs.error("keyword oscansec must contain an integer suffix")
-                indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], msgs, strtxt=linspl[1])
+                indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], strtxt=linspl[1])
             else:  # Read value
-                indict[linspl[0]][didx][linspl[1]] = set_params_wtype(indict[linspl[0]][didx][linspl[1]], linspl[2], msgs, lines=tline,setstr=setstr)
+                indict[linspl[0]][didx][linspl[1]] = set_params_wtype(indict[linspl[0]][didx][linspl[1]], linspl[2], lines=tline,setstr=setstr)
         else: 
             msgs.error(setstr + "Settings contains bad line (arg 1):"+msgs.newline()+lines[i].split('#')[0].strip())
     return indict
 
 
-def load_sections(string, msgs, strtxt="<not specified>"):
+def load_sections(string, strtxt="<not specified>"):
     """
     From the input string, return the coordinate sections
 
@@ -261,8 +264,6 @@ def load_sections(string, msgs, strtxt="<not specified>"):
       x2 = right pixel
       y1 = bottom pixel
       y2 = top pixel
-    msgs : class
-      Messages class used to log data reduction process
 
     Returns
     -------
@@ -281,13 +282,13 @@ def load_sections(string, msgs, strtxt="<not specified>"):
     return None
 
 
-def load_settings(fname, msgs):
+def load_settings(fname):
     def initialise():
         """
         Initialise the default settings called argflag
         """
         rna = dict({'prognm':'armed.py', 'redname':'filelist.red', 'spectrograph':'hamspec', 'masterdir':'MasterFrames', 'plotsdir':'Plots', 'scidir':'Science', 'ncpus':-1, 'nsubpix':5, 'calcheck':False, 'qcontrol':True, 'preponly':False, 'stopcheck':False, 'use_idname':False})
-        red = dict({'locations':None, 'nlcorr':False, 'trim':True, 'badpix':True, 'usebias':'bias', 'usetrace':'trace', 'usearc':'arc', 'useflat':'pixflat', 'subdark':False, 'flatfield':True, 'FlatMethod':'SpatialFit', 'FlatParams':[0], 'bgsubtraction':True, 'arcmatch':2.0, 'flatmatch':2.0, 'calibrate':True, 'fluxcalibrate':True, 'extraction':'2D', 'oscanMethod':'polynomial', 'oscanParams':[1], 'heliocorr':True, 'pixelsize':2.5})
+        red = dict({'locations':None, 'nlcorr':False, 'trim':True, 'badpix':True, 'usebias':'bias', 'usetrace':'trace', 'usearc':'arc', 'usewave':'wave', 'useflat':'pixflat', 'subdark':False, 'flatfield':True, 'FlatMethod':'SpatialFit', 'FlatParams':[0], 'bgsubtraction':True, 'arcmatch':2.0, 'flatmatch':2.0, 'calibrate':True, 'fluxcalibrate':True, 'extraction':'2D', 'oscanMethod':'polynomial', 'oscanParams':[1], 'heliocorr':True, 'pixelsize':2.5})
         csq = dict({'atol':1.0E-3, 'xtol':1.0E-10, 'gtol':1.0E-10, 'ftol':1.0E-10, 'fstep':2.0})
         opa = dict({'verbose':2, 'sorted':None, 'plots':True, 'overwrite':False})
         sci = dict({'load':dict({'extracted':False}),
@@ -313,11 +314,11 @@ def load_settings(fname, msgs):
     argflag = initialise()
     with open(fname, 'r') as infile:
         lines = infile.readlines()
-    argflag = set_params(lines, argflag, msgs, setstr="Default ")
+    argflag = set_params(lines, argflag, setstr="Default ")
     return argflag
 
 
-def load_input(argflag, msgs):
+def load_input(argflag):
     """
     Load user defined input reduction file. Updates are
     made to the argflag dictionary.
@@ -404,9 +405,9 @@ def load_input(argflag, msgs):
         msgs.error("There are duplicate files in the list of data.")
     # Now update the settings
     curcpu = argflag['run']['ncpus']  # Store the current number of CPUs
-    argflag = set_params(parlines, argflag, msgs, setstr="Input ")
+    argflag = set_params(parlines, argflag, setstr="Input ")
     # Check requested CPUs
-    argflag['run']['ncpus'] = cpucheck(argflag['run']['ncpus'], msgs, curcpu=curcpu)
+    argflag['run']['ncpus'] = cpucheck(argflag['run']['ncpus'], curcpu=curcpu)
     # Perform some checks on the input parameters:
     if argflag['chisq']['fstep'] < 1.0: msgs.error("Setting 'fstep' in family 'chisq' must be >= 1.0")
     if argflag['out']['verbose'] not in [0, 1, 2]: msgs.error("Setting 'verbose' in family 'out' must equal 0, 1, or 2.")
@@ -428,7 +429,7 @@ def load_input(argflag, msgs):
     return argflag, parlines, datlines, spclines
 
 
-def load_spect(argflag, msgs, spect=None, lines=None):
+def load_spect(argflag, spect=None, lines=None):
     """
     Load spectrograph settings
 
@@ -436,8 +437,6 @@ def load_spect(argflag, msgs, spect=None, lines=None):
     ----------
     argflag : dict
       Arguments and flags used for reduction
-    msgs : class
-      Messages class for logging
     spect : dict
       Properties of the spectrograph.
       If None, spect will be created, otherwise spect
@@ -485,14 +484,14 @@ def load_spect(argflag, msgs, spect=None, lines=None):
         spect = initialise()
         with open(fname, 'r') as infile:
             lines = infile.readlines()
-        spect = set_params(lines, spect, msgs, setstr="Default "+sname+" ")
+        spect = set_params(lines, spect, setstr="Default "+sname+" ")
     else:
         if spect is not None:
-            spect = set_params(lines, spect, msgs, setstr="Infile "+sname+" ")
+            spect = set_params(lines, spect, setstr="Infile "+sname+" ")
     return spect
 
 
-def load_headers(argflag, spect, datlines, msgs):
+def load_headers(argflag, spect, datlines):
     """
     Load the header information for each fits file
 
@@ -583,7 +582,11 @@ def load_headers(argflag, spect, datlines, msgs):
                 if spect['fits']['timeunit']   == 's'  : value = float(value)/3600.0    # Convert seconds to hours
                 elif spect['fits']['timeunit'] == 'm'  : value = float(value)/60.0      # Convert minutes to hours
                 elif spect['fits']['timeunit'] in Time.FORMATS.keys() : # Astropy time format
-                    tval = Time(value, scale='tt', format=spect['fits']['timeunit'])
+                    if spect['fits']['timeunit'] in ['mjd']:
+                        ival = float(value)
+                    else:
+                        ival = value
+                    tval = Time(ival, scale='tt', format=spect['fits']['timeunit'])
                     # dspT = value.split('T')
                     # dy,dm,dd = np.array(dspT[0].split('-')).astype(np.int)
                     # th,tm,ts = np.array(dspT[1].split(':')).astype(np.float64)
@@ -613,7 +616,7 @@ def load_headers(argflag, spect, datlines, msgs):
     return fitsdict
 
 
-def load_frames(slf, fitsdict, ind, det, msgs, frametype='<None>', msbias=None, trim=True, transpose=False):
+def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None, trim=True, transpose=False):
     """
     Load data frames, usually raw.
     Bias subtract (if not msbias!=None) and trim (if True)
@@ -626,8 +629,6 @@ def load_frames(slf, fitsdict, ind, det, msgs, frametype='<None>', msbias=None, 
       integers of indices
     det : int
       Detector number, starts at 1
-    msgs : class
-      Messages class used to log data reduction process
 
     Returns
     -------
@@ -647,7 +648,7 @@ def load_frames(slf, fitsdict, ind, det, msgs, frametype='<None>', msbias=None, 
     for i in range(np.size(ind)):
         # Instrument specific read
         if slf._argflag['run']['spectrograph'] in ['lris_blue']:
-            temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], msgs, det=det)
+            temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         else:
             temp = pyfits.getdata(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], slf._spect['fits']['dataext'])
         temp = temp.astype(float)  # Let us avoid uint16
@@ -657,11 +658,11 @@ def load_frames(slf, fitsdict, ind, det, msgs, frametype='<None>', msbias=None, 
                 temp -= msbias  # Subtract the master bias frame
             elif type(msbias) is str:
                 if msbias == "overscan":
-                    arproc.sub_overscan(slf, det, temp, msgs)
+                    arproc.sub_overscan(slf, det, temp)
                 else:
                     msgs.error("Could not subtract bias level when loading {0:s} frames".format(frametype))
             if trim: 
-                temp = arproc.trim(slf, temp, det, msgs)
+                temp = arproc.trim(slf, temp, det)
         if i == 0:
             frames = np.zeros((temp.shape[0], temp.shape[1], np.size(ind)))
             frames[:,:,i] = temp.copy()
@@ -738,7 +739,7 @@ def load_extraction(name, frametype='<None>', wave=True):
         return sciext, props
 
 
-def load_master(name, msgs, frametype='<None>'):
+def load_master(name, frametype='<None>'):
     """
     Load a pre-existing master calibration frame
 
@@ -746,8 +747,6 @@ def load_master(name, msgs, frametype='<None>'):
     ----------
     name : str
       Name of the master calibration file to be loaded
-    msgs : class
-      Messages class used to log data reduction process
     frametype : str, optional
       The type of master calibration frame being loaded.
       This keyword is only used for terminal print out.

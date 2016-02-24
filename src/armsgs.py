@@ -293,3 +293,23 @@ class Messages:
         self._white_BL = ""
         self._black_YL = ""
         self._yellow_BK = ""
+
+
+def get_logger(init=None):
+    """ Logger
+    Parameters
+    ----------
+    init : tuple
+      For instantiation
+
+    Returns
+    -------
+    msgs : Messages
+    """
+    global pypit_logger
+
+    # Instantiate??
+    if init is not None:
+        pypit_logger = Messages(init[0],init[1],init[2],init[3])
+
+    return pypit_logger

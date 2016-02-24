@@ -9,19 +9,30 @@ from warnings import resetwarnings, simplefilter
 from time import time
 import traceback
 # Import PYPIT routines
+debug = True
+last_updated = "26 November 2015"
+version = '0.3'
+
+# Init logger
 from armsgs import Messages as Messages
+import armsgs
+msgs = armsgs.get_logger((None, debug, last_updated, version))
+
 import arload
+
+try:
+    from linetools.spectra.xspectrum1d import XSpectrum1D
+except:
+    pass
 
 try:
     from xastropy.xutils import xdebug as xdb
 except:
     pass
 
-last_updated = "28 November 2015"
-version = '0.2'
 
 
-def PYPIT(argflag, msgs, quick=False):
+def PYPIT(argflag, quick=False):
     """
     Main driver of the PYPIT code. Default settings and
     user-specified changes are made, and passed to the
@@ -38,7 +49,6 @@ def PYPIT(argflag, msgs, quick=False):
       for publication quality results.
     ---------------------------------------------------
     """
-
     # First send all signals to messages to be dealt with (i.e. someone hits ctrl+c)
     sigsignal(SIGINT, msgs.signal_handler)
 
@@ -50,7 +60,7 @@ def PYPIT(argflag, msgs, quick=False):
     tstart = time()
 
     # Load the Input file
-    argflag, parlines, datlines, spclines = arload.load_input(argflag, msgs)
+    argflag, parlines, datlines, spclines = arload.load_input(argflag)
 
     # If a quick reduction has been requested, make sure the requested pipeline
     # is the quick implementation (if it exists), otherwise run the standard pipeline.
@@ -59,13 +69,13 @@ def PYPIT(argflag, msgs, quick=False):
         msgs.work("TO BE DONE")
 
     # Load the Spectrograph settings
-    spect = arload.load_spect(argflag, msgs)
+    spect = arload.load_spect(argflag)
 
     # Load any changes to the spectrograph settings
-    spect = arload.load_spect(argflag, msgs, spect=spect, lines=spclines)
+    spect = arload.load_spect(argflag, spect=spect, lines=spclines)
 
     # Load the important information from the fits headers
-    fitsdict = arload.load_headers(argflag, spect, datlines, msgs)
+    fitsdict = arload.load_headers(argflag, spect, datlines)
 
     # Reduce the data!
     status = 0
@@ -76,7 +86,7 @@ def PYPIT(argflag, msgs, quick=False):
     if spect['mosaic']['reduction'] == 'ARMLSD':
         msgs.info("Data reduction will be performed using PYPIT-ARMLSD")
         import armlsd
-        status = armlsd.ARMLSD(argflag, spect, fitsdict, msgs)
+        status = armlsd.ARMLSD(argflag, spect, fitsdict)
     elif spect['mosaic']['reduction'] == 'ARMED':
         msgs.info("Data reduction will be performed using PYPIT-ARMED")
         import armed
@@ -111,8 +121,10 @@ if __name__ == "__main__":
     cpus = 1
     verbose = 2
 
+    # Init logger
+    #msgs = armsgs.get_logger((None, debug, last_updated, version))
+
     if len(sys.argv) < 2:
-        msgs = Messages(None, debug, last_updated, version)
         msgs.usage(None)
 
     # Load options from command line
@@ -123,7 +135,6 @@ if __name__ == "__main__":
                                                           'verbose'])
         for o, a in opt:
             if o in ('-h', '--help'):
-                msgs = Messages(None, debug, last_updated, version)
                 msgs.usage(None)
             elif o in ('-q', '--quick'):
                 quick = True
@@ -132,19 +143,17 @@ if __name__ == "__main__":
             elif o in ('-v', '--verbose'):
                 verbose = int(a)
         lname = os.path.splitext(arg[0])[0] + ".log"
-        msgs = Messages(lname, debug, last_updated, version)
-        argflag = arload.optarg(sys.argv, msgs)
+        argflag = arload.optarg(sys.argv)
         argflag['run']['ncpus'] = cpus
         argflag['out']['verbose'] = verbose
     except getopt.GetoptError, err:
-        msgs = Messages(None, debug, last_updated, version)
         msgs.error(err.msg, usage=True)
 
     if debug:
-        PYPIT(argflag, msgs, quick=quick)
+        PYPIT(argflag, quick=quick)
     else:
         try:
-            PYPIT(argflag, msgs, quick=quick)
+            PYPIT(argflag, quick=quick)
         except:
             # There is a bug in the code, print the file and line number of the error.
             et, ev, tb = sys.exc_info()

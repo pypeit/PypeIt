@@ -3,6 +3,7 @@ import re
 import sys
 import shutil
 import numpy as np
+import armsgs
 import arutils
 import arcyutils
 from arflux import find_standard_file
@@ -15,20 +16,13 @@ try:
 except:
     pass
 
-def setup(slf):
-    """
-    Returns a unique setup number for the current slf
-    """
-    msgs.warn("Flat indexing needs to be improved in arsort.setup")
-    fidx = slf._name_flat.index(slf._mspixflat_name)  
-    if fidx > 9:
-        msgs.error("Not ready for that many flats!")
-    aidx = slf._name_flat.index(slf._mspixflat_name)  
-    setup = 10*(aidx+1) + fidx 
-    return setup
+# Logging
+msgs = armsgs.get_logger()
 
 
-def sort_data(argflag, spect, fitsdict, msgs):
+
+
+def sort_data(argflag, spect, fitsdict):
     """
     Create an exposure class for every science frame
 
@@ -40,8 +34,6 @@ def sort_data(argflag, spect, fitsdict, msgs):
       Properties of the spectrograph.
     fitsdict : dict
       Contains relevant information from fits header files
-    msgs : class
-      Messages class used to log data reduction process
 
     Returns
     -------
@@ -72,11 +64,11 @@ def sort_data(argflag, spect, fitsdict, msgs):
         else:
             w = np.arange(numfiles)
         n = np.arange(numfiles)
-        n = np.intersect1d(n,w)
+        n = np.intersect1d(n, w)
         # Perform additional checks in order to make sure this identification is true
         chkk = spect[fkey[i]]['check'].keys()
         for ch in chkk:
-            if ch[0:9]=='condition':
+            if ch[0:9] == 'condition':
                 # Deal with a conditional argument
                 conds = re.split("(\||\&)", spect[fkey[i]]['check'][ch])
                 ntmp = chk_condition(fitsdict, conds[0])
@@ -123,7 +115,7 @@ def sort_data(argflag, spect, fitsdict, msgs):
     for i in xrange(wscistd.size):
         radec = (fitsdict['ra'][wscistd[i]], fitsdict['dec'][wscistd[i]])
         # If an object exists within 20 arcmins of a listed standard, then it is probably a standard star
-        foundstd = find_standard_file(argflag, radec, msgs, toler=20.*u.arcmin, check=True)
+        foundstd = find_standard_file(argflag, radec, toler=20.*u.arcmin, check=True)
         if foundstd:
             filarr[np.where(fkey == 'science')[0], wscistd[i]] = 0
         else:
@@ -200,7 +192,7 @@ def chk_condition(fitsdict, cond):
     return ntmp
 
 
-def sort_write(sortname, spect, fitsdict, filesort, msgs, space=3):
+def sort_write(sortname, spect, fitsdict, filesort, space=3):
     """
     Write out an xml and ascii file that contains the details of the file sorting.
     By default, the filename is printed first, followed by the filetype.
@@ -217,8 +209,6 @@ def sort_write(sortname, spect, fitsdict, filesort, msgs, space=3):
       Contains relevant information from fits header files
     filesort : dict
       Details of the sorted files
-    msgs : class
-      Messages class used to log data reduction process
     space : int
       Keyword to set how many blank spaces to place between keywords
     """
@@ -300,7 +290,7 @@ def sort_write(sortname, spect, fitsdict, filesort, msgs, space=3):
     return
 
 
-def match_science(argflag, spect, fitsdict, filesort, msgs):
+def match_science(argflag, spect, fitsdict, filesort):
     """
     For a given set of identified data, match calibration frames to science frames
 
@@ -314,14 +304,13 @@ def match_science(argflag, spect, fitsdict, filesort, msgs):
       Contains relevant information from fits header files
     filesort : dict
       Details of the sorted files
-    msgs : class
-      Messages class used to log data reduction process
 
     Returns
     -------
     spect : bool array
       A boolean array of all frames that satisfy the input condition
     """
+
     msgs.info("Matching calibrations to Science frames")
     ftag = ['standard', 'bias', 'dark', 'pixflat', 'blzflat', 'trace', 'arc']
     nfiles = fitsdict['filename'].size
@@ -471,10 +460,11 @@ def match_science(argflag, spect, fitsdict, filesort, msgs):
     return spect
 
 
-def match_frames(frames, criteria, msgs, frametype='<None>', satlevel=None):
+def match_frames(frames, criteria, frametype='<None>', satlevel=None):
     """
     identify frames with a similar appearance (i.e. one frame appears to be a scaled version of another).
     """
+
     prob = arutils.erf(criteria/np.sqrt(2.0))[0]
     frsh0, frsh1, frsh2 = frames.shape
     msgs.info("Matching {0:d} {1:s} frames with confidence interval {2:5.3f}%".format(frsh2, frametype, prob*100.0))
@@ -546,7 +536,7 @@ def match_frames_old(slf, frames, frametype='<None>'):
     return srtframes
 
 
-def make_dirs(argflag, fitsdict, filesort, msgs):
+def make_dirs(argflag, fitsdict, filesort):
     """
     For a given set of identified data, match calibration frames to science frames
 
@@ -558,8 +548,6 @@ def make_dirs(argflag, fitsdict, filesort, msgs):
       Contains relevant information from fits header files
     filesort : dict
       Details of the sorted files
-    msgs : class
-      Messages class used to log data reduction process
 
     Returns
     -------

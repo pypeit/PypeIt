@@ -3,6 +3,7 @@ import numpy as np
 import glob
 import astropy.io.fits as pyfits
 
+import armsgs
 import arload
 
 try:
@@ -10,8 +11,10 @@ try:
 except:
     pass
 
+# Logging
+msgs = armsgs.get_logger()
 
-def read_lris(raw_file, msgs, det=None, TRIM=False):
+def read_lris(raw_file, det=None, TRIM=False):
     """
     Read a raw LRIS data frame (one or more detectors)
     Packed in a multi-extension HDU
@@ -21,8 +24,6 @@ def read_lris(raw_file, msgs, det=None, TRIM=False):
     ----------
     raw_file : str
       Filename
-    msgs : class
-      Messages class used to log data reduction process
     det : int, optional
       Detector number; Default = both
     TRIM : bool, optional
@@ -129,7 +130,7 @@ def read_lris(raw_file, msgs, det=None, TRIM=False):
     for kk, i in enumerate(order[det_idx]):
 
         #; grab complete extension...
-        data, predata, postdata, x1, y1 = lris_read_amp(hdu, i+1, msgs)
+        data, predata, postdata, x1, y1 = lris_read_amp(hdu, i+1)
                             #, linebias=linebias, nobias=nobias, $
                             #x1=x1, x2=x2, y1=y1, y2=y2, gaindata=gaindata)
         #; insert components into output array...
@@ -207,7 +208,7 @@ def read_lris(raw_file, msgs, det=None, TRIM=False):
     return array.T, head0, (dsec, osec, asec)
 
 
-def lris_read_amp(inp, ext, msgs):
+def lris_read_amp(inp, ext):
     """
     Read one amplifier of an LRIS multi-extension FITS image
 

@@ -6,8 +6,13 @@ from scipy.special import erf
 from scipy import interpolate
 import itertools
 import numpy as np
+import armsgs
 import arcyutils
 import arcyarc
+import warnings
+
+# Logging
+msgs = armsgs.get_logger()
 
 try:
     from xastropy.xutils import xdebug as xdb
@@ -17,7 +22,7 @@ except:
 try:
     import ds9
 except ImportError:
-    msgs.warn("ds9 module not installed")
+    warnings.warn("ds9 module not installed")
 else:
     def ds9plot(array):
         # Set up a ds9 instance
@@ -194,7 +199,7 @@ def find_peaks(yval, siglev=10.):
     return pixt
 
 
-def func_der(coeffs, func, msgs, nderive=1):
+def func_der(coeffs, func, nderive=1):
     if func == "polynomial":
         return np.polynomial.polynomial.polyder(coeffs, m=nderive)
     elif func == "legendre":
@@ -206,7 +211,7 @@ def func_der(coeffs, func, msgs, nderive=1):
                    "Please choose from 'polynomial', 'legendre', 'chebyshev'")
 
 
-def func_fit(x, y, func, deg, msgs, minv=None, maxv=None, w=None, **kwargs):
+def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, **kwargs):
     if func == "polynomial":
         return np.polynomial.polynomial.polyfit(x, y, deg, w=w)
     elif func == "legendre":
@@ -236,7 +241,7 @@ def func_fit(x, y, func, deg, msgs, minv=None, maxv=None, w=None, **kwargs):
                    "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
 
 
-def func_val(c, x, func, msgs, minv=None, maxv=None):
+def func_val(c, x, func, minv=None, maxv=None):
     if func == "polynomial":
         return np.polynomial.polynomial.polyval(x, c)
     elif func == "legendre":
@@ -266,7 +271,7 @@ def func_val(c, x, func, msgs, minv=None, maxv=None):
                    "Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
 
 
-def func_vander(x, func, deg, msgs, minv=None, maxv=None):
+def func_vander(x, func, deg, minv=None, maxv=None):
     if func == "polynomial":
         return np.polynomial.polynomial.polyvander(x, deg)
     elif func == "legendre":
@@ -493,7 +498,7 @@ def poly_to_gauss(coeffs):
     return [ampl, cent, sigm], False
 
 
-def polyfit2d_general(x, y, z, deg, msgs, w=None):
+def polyfit2d_general(x, y, z, deg, w=None):
     """
     :param x: array of x values
     :param y: array of y values
@@ -523,7 +528,7 @@ def polyfit2d_general(x, y, z, deg, msgs, w=None):
     return c.reshape(deg+1)
 
 
-def polyval2d_general(c, x, y, msgs, function="polynomial", minx=None, maxx=None, miny=None, maxy=None):
+def polyval2d_general(c, x, y, function="polynomial", minx=None, maxx=None, miny=None, maxy=None):
     if function == "polynomial":
         xx, yy = np.meshgrid(x, y)
         return np.polynomial.polynomial.polyval2d(xx, yy, c)
@@ -652,7 +657,7 @@ def rebin(frame, newshape):
     return eval(''.join(evList))
 
 
-def robust_polyfit(xarray, yarray, order, msgs, weights=None, maxone=True, sigma=3.0, function="polynomial", initialmask=None, forceimask=False, minv=None, maxv=None, debug=False, **kwargs):
+def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, function="polynomial", initialmask=None, forceimask=False, minv=None, maxv=None, debug=False, **kwargs):
     """
     A robust (equally weighted) polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are masked values
@@ -689,8 +694,8 @@ def robust_polyfit(xarray, yarray, order, msgs, weights=None, maxone=True, sigma
             wfit = weights[w]
         else:
             wfit = None
-        ct = func_fit(xfit, yfit, function, order, msgs, w=wfit, minv=minv, maxv=maxv, **kwargs)
-        yrng = func_val(ct, xarray, function, msgs, minv=minv, maxv=maxv)
+        ct = func_fit(xfit, yfit, function, order, w=wfit, minv=minv, maxv=maxv, **kwargs)
+        yrng = func_val(ct, xarray, function, minv=minv, maxv=maxv)
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
         if debug:
             import pdb
@@ -719,11 +724,11 @@ def robust_polyfit(xarray, yarray, order, msgs, weights=None, maxone=True, sigma
         wfit = weights[w]
     else:
         wfit = None
-    ct = func_fit(xfit, yfit, function, order, msgs, w=wfit, minv=minv, maxv=maxv, **kwargs)
+    ct = func_fit(xfit, yfit, function, order, w=wfit, minv=minv, maxv=maxv, **kwargs)
     return mask, ct
 
 
-def robust_regression(x, y, ordr, outfrac, msgs, maxiter=100, function='polynomial', min=None, max=None):
+def robust_regression(x, y, ordr, outfrac, maxiter=100, function='polynomial', min=None, max=None):
     """
     Deprecated
     """

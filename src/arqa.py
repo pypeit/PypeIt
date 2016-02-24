@@ -14,21 +14,20 @@ try:
 except:
     pass
 
-def arc_fit_qa(slf, fit, arc_spec, outroot=None, outfil=None):
+def arc_fit_qa(slf, fit, arc_spec, outfil=None):
     """
     QA for Arc spectrum
 
     Parameters
     ----------
+    fit : Wavelength fit
+    arc_spec : ndarray
+      Arc spectrum
     outfil : str, optional
       Name of output file
     """
-    if outfil is None:
-        if outroot is None:
-            outfil = 'Plots/arc_qa.pdf'
-        else:
-            outfil = outroot.replace('.fits', '_fit.pdf')
-            outfil = outfil.replace('MasterFrames', 'Plots')
+    if outfil is not None:
+        msgs.error("Not ready for this anymore")
 
     # Begin
     plt.figure(figsize=(8, 4.0))
@@ -96,23 +95,24 @@ def arc_fit_qa(slf, fit, arc_spec, outroot=None, outfil=None):
     return
 
 
-def obj_trace_qa(frame, ltrace, rtrace, root='trace', outfil=None, normalize=True):
-    ''' Generate a QA plot for the object trace
-    Parameters:
-    ------------
-    frame: ndarray
+def obj_trace_qa(slf, frame, ltrace, rtrace, root='trace', outfil=None, normalize=True):
+    """ Generate a QA plot for the object trace
+
+    Parameters
+    ----------
+    frame : ndarray
       image
-    ltrace: ndarray
+    ltrace : ndarray
       Left edge traces
-    rtrace: ndarray
+    rtrace : ndarray
       Right edge traces
-    root: str, optional
+    root : str, optional
       Root name for generating output file, e.g. msflat_01blue_000.fits
-    outfil: str, optional
+    outfil : str, optional
       Output file
-    normalize: bool, optional
+    normalize : bool, optional
       Normalize the flat?  If not, use zscale for output
-    '''
+    """
     # Outfil
     if outfil is None:
         if 'fits' in root: # Expecting name of msflat FITS file
@@ -135,20 +135,18 @@ def obj_trace_qa(frame, ltrace, rtrace, root='trace', outfil=None, normalize=Tru
             trc = np.median(dumi, axis=1)
             # Find portion of the image and normalize
             for yy in ycen:
-                xi = max(0,int(ltrace[yy,ii])-3)
+                xi = max(0, int(ltrace[yy,ii])-3)
                 xe = min(frame.shape[1],int(rtrace[yy,ii])+3)
                 # Fill + normalize
-                nrm_frame[yy,xi:xe] = frame[yy,xi:xe] / trc[yy]
+                nrm_frame[yy, xi:xe] = frame[yy,xi:xe] / trc[yy]
         sclmin, sclmax = 0.4, 1.1
     else:
         nrm_frame = frame.copy()
         sclmin, sclmax = zscale(nrm_frame)
 
     # Plot
-    pp = PdfPages(outfil)
     plt.clf()
     fig = plt.figure(dpi=1200)
-    #fig.set_size_inches(10.0,6.5)
 
     plt.rcParams['font.family']= 'times new roman'
     ticks_font = matplotlib.font_manager.FontProperties(family='times new roman', 
@@ -178,8 +176,7 @@ def obj_trace_qa(frame, ltrace, rtrace, root='trace', outfil=None, normalize=Tru
         plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
         plt.text(rtrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='green', ha='center')
 
-    pp.savefig(bbox_inches='tight')
-    pp.close()
+    slf._qa.savefig(bbox_inches='tight')
     plt.close()
 
 

@@ -1,6 +1,7 @@
 import numpy as np
 import arpca
 import arcyarc
+import armsgs
 import arsave
 import arutils
 from arplot import get_dimen as get_dimen
@@ -18,8 +19,10 @@ try:
 except:
     pass
 
+# Logging
+msgs = armsgs.get_logger()
 
-def detect_lines(slf, det, msarc, msgs, censpec=None, MK_SATMASK=False):
+def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
@@ -32,8 +35,6 @@ def detect_lines(slf, det, msarc, msgs, censpec=None, MK_SATMASK=False):
       Index of the detector
     msarc : ndarray
       Calibration frame that will be used to identify slit traces (in most cases, the slit edge)
-    msgs : class
-      Messages class used to log data reduction process
     censpec : ndarray, optional
       A 1D spectrum to be searched for significant detections
     MK_SATMASK : bool, optional
@@ -134,9 +135,17 @@ def detect_lines(slf, det, msarc, msgs, censpec=None, MK_SATMASK=False):
     return tampl, tcent, twid, w, satsnd, yprep
 
 
-def setup_param(slf, sc):
-    '''Setup for arc analysis
-    '''
+def setup_param(slf, sc, det, fitsdict):
+    """ Setup for arc analysis
+
+    Parameters
+    ----------
+    det : int
+      detctor index
+    fitsdict : dict
+      Contains relevant information from fits header files
+
+    """
     # Defaults
     arcparam = dict(llist='', 
         disp=1.02,           # Ang (unbinned)
@@ -156,8 +165,8 @@ def setup_param(slf, sc):
     # Instrument/disperser specific
     sname = slf._argflag['run']['spectrograph']
     idx = slf._spect['arc']['index'][sc]
-    disperser = slf._fitsdict["disperser"][idx[0]]
-    if sname=='kast_blue':
+    disperser = fitsdict["disperser"][idx[0]]
+    if sname == 'kast_blue':
         # Could have the following depend on lamps that were turned on
         lamps = ['CdI','HgI','HeI']
         #arcparam['llist'] = slf._argflag['run']['pypitdir'] + 'data/arc_lines/kast_blue.lst'
@@ -170,10 +179,10 @@ def setup_param(slf, sc):
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='kast_red':
         lamps = ['HgI','NeI','ArI']
-        arcparam['llist'] = slf._argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
+        #arcparam['llist'] = slf._argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
         if disperser == '600/7500':
             arcparam['disp']=2.35
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc.shape[0] 
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
             arcparam['wvmnx'][0] = 5000.
             arcparam['n_first']=2 # Should be able to lock on
         else:
@@ -195,20 +204,21 @@ def setup_param(slf, sc):
     for lamp in lamps[1:]:
         slmps=slmps+','+lamp
     msgs.info('Loading line list using {:s} lamps'.format(slmps))
-    arcparam['llist'] = ararclines.load_arcline_list(slf, idx, lamps,
+    arcparam['llist'] = ararclines.load_arcline_list(slf, idx, lamps, disperser,
         wvmnx=arcparam['wvmnx'])
     #llist = ascii.read(aparm['llist'],
     #    format='fixed_width_no_header', comment='#', #data_start=1, 
     #    names=('wave', 'flag', 'ID'),
     #    col_starts=(0,12,14), col_ends=(11,13,24))
     # Binning
-    if slf._fitsdict['binning'][idx[0]] in ['2,2']:
+    if fitsdict['binning'][idx[0]] in ['2,2']:
         arcparam['disp'] *= 2
     # Return
     return arcparam
 
 def simple_calib(slf, det, get_poly=False, debug=False):
-    '''Simple calibration algorithm for longslit wavelengths
+    """Simple calibration algorithm for longslit wavelengths
+
     Uses slf._arcparam to guide the analysis
 
     Parameters
@@ -222,11 +232,11 @@ def simple_calib(slf, det, get_poly=False, debug=False):
     -------
     final_fit : dict
       Dict of fit info
-    '''
+    """
 
     # Extract the arc
     msgs.work("Detecting lines..")
-    tampl, tcent, twid, w, satsnd, yprep = detect_lines(slf,det,slf._msarc)
+    tampl, tcent, twid, w, satsnd, yprep = detect_lines(slf, det, slf._msarc[det-1])
 
     # Cut down to the good ones
     tcent = tcent[w]
@@ -234,7 +244,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
     msgs.info('Detected {:d} lines in the arc spectrum.'.format(len(w[0])))
 
     # Parameters (just for convenience)
-    aparm = slf._arcparam
+    aparm = slf._arcparam[det-1]
 
     # Read Arc linelist
     llist = aparm['llist']
@@ -244,7 +254,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
     dpix_list = np.zeros((nlist,nlist))
     for kk,row in enumerate(llist):
         #dpix_list[kk,:] = (np.array(row['wave'] - llist['wave']))/disp
-        dpix_list[kk,:] = slf._msarc.shape[0]*(aparm['b1']*(np.array(row['wave'] - llist['wave'])) + aparm['b2']*np.array(row['wave']**2 - llist['wave']**2) )
+        dpix_list[kk,:] = slf._msarc[det-1].shape[0]*(aparm['b1']*(np.array(row['wave'] - llist['wave'])) + aparm['b2']*np.array(row['wave']**2 - llist['wave']**2) )
 
     # Lambda pairs for the strongest N lines
     srt = np.argsort(tampl)
@@ -273,11 +283,12 @@ def simple_calib(slf, det, get_poly=False, debug=False):
     # Calculate disp of the strong lines
     disp_str = np.zeros(aparm['Nstrong'])
     for kk in range(aparm['Nstrong']):
-        disp_str[kk] = np.median( (ids[kk]-ids)/
-            (tcent[idx_str[kk]]-tcent[idx_str]) )
+        disp_val = (ids[kk]-ids)/(tcent[idx_str[kk]]-tcent[idx_str])
+        isf = np.isfinite(disp_val)
+        disp_str[kk] = np.median(disp_val[isf])
     # Consider calculating the RMS with clipping
     gd_str = np.where( np.abs(disp_str-aparm['disp'])/aparm['disp'] < aparm['disp_toler'])[0]
-    msgs.info('Found {:d} lines within the disperesion threshold'.format(len(gd_str)))
+    msgs.info('Found {:d} lines within the dispersion threshold'.format(len(gd_str)))
     if len(gd_str) < 5:
         msgs.error('Insufficient lines to auto-fit.')
 
@@ -343,7 +354,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
 
     # Final fit (originals can now be rejected)
     fmin, fmax = 0., 1. 
-    xfit, yfit = tcent[ifit]/slf._msarc.shape[0], all_ids[ifit]
+    xfit, yfit = tcent[ifit]/slf._msarc[det-1].shape[0], all_ids[ifit]
     mask, fit = arutils.robust_polyfit(xfit, yfit, n_order, 
         function=aparm['func'], sigma=aparm['nsig_rej_final'],
         minv=fmin, maxv=fmax)#, debug=True)
@@ -361,7 +372,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
     ions = all_idsion[ifit][mask==0]
     #
     if debug:
-        msarc = slf._msarc
+        msarc = slf._msarc[det-1]
         wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]), 
             'legendre', minv=fmin, maxv=fmax)
         xdb.xplot(xfit,yfit, scatter=True, 
@@ -392,10 +403,10 @@ def simple_calib(slf, det, get_poly=False, debug=False):
         pdb.set_trace()
     # Pack up fit
     final_fit = dict(fitc=fit, function=aparm['func'], xfit=xfit, yfit=yfit,
-        ions=ions, fmin=fmin, fmax=fmax, xnorm=float(slf._msarc.shape[0]),
+        ions=ions, fmin=fmin, fmax=fmax, xnorm=float(slf._msarc[det-1].shape[0]),
         xrej=xrej, yrej=yrej)
     # QA
-    arqa.arc_fit_qa(final_fit, yprep, slf._msarc_name)
+    arqa.arc_fit_qa(slf, final_fit, yprep)
     # Return
     return final_fit
 
