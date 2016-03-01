@@ -10,7 +10,7 @@ class Messages:
     http://ascii-table.com/ansi-escape-sequences.php
     """
 
-    def __init__(self, log, debug, last_updated, version, colors=True):
+    def __init__(self, log, debug, last_updated, version, verbose, colors=True):
         """
         Initialize the Message logging class
 
@@ -24,6 +24,11 @@ class Messages:
           The data of last update
         version : str
           Current version of the code
+        verbose : int (0,1,2)
+          Level of verbosity:
+            0 = No output
+            1 = Minimal output (default - suitable for the average user)
+            2 = All output
         colors : bool
           If true, the screen output will have colors, otherwise
           normal screen output will be displayed
@@ -38,6 +43,7 @@ class Messages:
         self._debug = debug
         self._last_updated = last_updated
         self._version = version
+        self._verbose = verbose
         # Save the version of the code including last update information to the log file
         if self._log:
             self._log.write("------------------------------------------------------\n\n")
@@ -98,7 +104,7 @@ class Messages:
     def debugmessage(self):
         if self._debug:
             info = getouterframes(currentframe())[2]
-            dbgmsg = self._start + self._blue_CL + info[1].split("/")[-1]+" "+str(info[2])+" "+info[3]+"()"+self._end+" - "
+            dbgmsg = self._start+self._blue_CL+info[1].split("/")[-1]+" "+str(info[2])+" "+info[3]+"()"+self._end+" - "
         else:
             dbgmsg = ""
         return dbgmsg
@@ -165,11 +171,12 @@ class Messages:
         """
         Print a test message
         """
-        dbgmsg = self.debugmessage()
-        premsg = self._start + self._white_BL + "[TEST]    ::" + self._end + " "
-        print >>sys.stderr, premsg+dbgmsg+msg
-        if self._log:
-            self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
+        if self._verbose == 2:
+            dbgmsg = self.debugmessage()
+            premsg = self._start + self._white_BL + "[TEST]    ::" + self._end + " "
+            print >>sys.stderr, premsg+dbgmsg+msg
+            if self._log:
+                self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
         return
 
     def warn(self, msg):
@@ -198,12 +205,13 @@ class Messages:
         """
         Print a work in progress message
         """
-        dbgmsg = self.debugmessage()
-        premsgp = self._start + self._black_CL + "[WORK IN ]::" + self._end + "\n"
-        premsgs = self._start + self._yellow_CL + "[PROGRESS]::" + self._end + " "
-        print >>sys.stderr, premsgp+premsgs+dbgmsg+msg
-        if self._log:
-            self._log.write(self.cleancolors(premsgp+premsgs+dbgmsg+msg)+"\n")
+        if self._verbose == 2:
+            dbgmsg = self.debugmessage()
+            premsgp = self._start + self._black_CL + "[WORK IN ]::" + self._end + "\n"
+            premsgs = self._start + self._yellow_CL + "[PROGRESS]::" + self._end + " "
+            print >>sys.stderr, premsgp+premsgs+dbgmsg+msg
+            if self._log:
+                self._log.write(self.cleancolors(premsgp+premsgs+dbgmsg+msg)+"\n")
         return
 
     def prindent(self, msg):
@@ -310,6 +318,6 @@ def get_logger(init=None):
 
     # Instantiate??
     if init is not None:
-        pypit_logger = Messages(init[0],init[1],init[2],init[3])
+        pypit_logger = Messages(init[0], init[1], init[2], init[3], init[4])
 
     return pypit_logger
