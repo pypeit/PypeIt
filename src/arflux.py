@@ -111,6 +111,7 @@ def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
             fi = scipy.interpolate.InterpolatedUnivariateSpline(wave[~bad], logivar[~bad], k=2)
             logivar[bad] = fi(wave[bad])
 
+#    xdb.set_trace()
     #  First iteration
     mask, tck = arutils.robust_polyfit(wave, magfunc, 3, function='bspline', weights=np.sqrt(logivar), **kwargs)
     logfit1 = arutils.func_val(tck,wave,'bspline')
@@ -226,7 +227,10 @@ def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
     std_file_fmt = [1]  # 1=Calspec style FITS binary table
 
     # SkyCoord
-    obj_coord = SkyCoord(radec[0], radec[1], unit=(u.hourangle, u.deg))
+    try:
+        obj_coord = SkyCoord(radec[0], radec[1], unit=(u.hourangle, u.deg))
+    except:
+        xdb.set_trace()
 
     # Loop on standard sets
     closest = dict(sep=999*u.deg)

@@ -11,6 +11,8 @@ import arcyutils
 import arcyarc
 import warnings
 
+from xastropy.xutils import xdebug as xdb
+
 # Logging
 msgs = armsgs.get_logger()
 
@@ -97,8 +99,8 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     # Make the knots
     if knots is None:
         if bkspace is not None: 
-            xrnge = (np.max(x) - np.min(x))
-            startx = np.min(x)
+            xrnge = (np.max(x[gd]) - np.min(x[gd]))
+            startx = np.min(x[gd])
             nbkpts = max(int(xrnge/bkspace) + 1,2)
             tempbkspace = xrnge/(nbkpts-1)
             knots = np.arange(1,nbkpts-1)*tempbkspace + startx
@@ -109,9 +111,9 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
             msgs.error("No method specified to generate knots")
     # Generate spline
     try:
-        tck = interpolate.splrep( x[gd], y[gd], w=weights, k=order, t=knots)
+        tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, t=knots)
     except ValueError: # Knot problem
-        pdb.set_trace()
+        xdb.set_trace()
     return tck
 
 

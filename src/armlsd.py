@@ -103,6 +103,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             lordloc, rordloc, extord = artrace.trace_orders(slf, slf._mstrace[det-1], det, singleSlit=True, pcadesc="PCA trace of the slit edges")
             slf.SetFrame(slf._lordloc, lordloc, det)
             slf.SetFrame(slf._rordloc, rordloc, det)
+
             # Convert physical trace into a pixel trace
             msgs.info("Converting physical trace locations to nearest pixel")
             pixcen = artrace.phys_to_pix(0.5*(slf._lordloc[det-1]+slf._rordloc[det-1]), slf._pixlocn[det-1], 1)
@@ -115,6 +116,8 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             slf.SetFrame(slf._rordpix, rordpix, det)
             # Save QA for slit traces
             arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges")
+#            slf._qa.close()
+#            xdb.set_trace()
             ###############
             # Prepare the pixel flat field frame
             update = slf.MasterFlatField(fitsdict, det)
@@ -141,6 +144,8 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                 # Extract arc and identify lines
                 wv_calib = ararc.simple_calib(slf, det)
                 slf.SetFrame(slf._wvcalib, wv_calib, det)
+#                slf._qa.close()
+#                xdb.set_trace()
                 ###############
                 # Generate a master wave frame
                 update = slf.MasterWave(fitsdict, det)
