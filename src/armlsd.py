@@ -116,8 +116,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             slf.SetFrame(slf._rordpix, rordpix, det)
             # Save QA for slit traces
             arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges")
-#            slf._qa.close()
-#            xdb.set_trace()
+
             ###############
             # Prepare the pixel flat field frame
             update = slf.MasterFlatField(fitsdict, det)
@@ -144,8 +143,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                 # Extract arc and identify lines
                 wv_calib = ararc.simple_calib(slf, det)
                 slf.SetFrame(slf._wvcalib, wv_calib, det)
-#                slf._qa.close()
-#                xdb.set_trace()
+
                 ###############
                 # Generate a master wave frame
                 update = slf.MasterWave(fitsdict, det)

@@ -11,7 +11,7 @@ import arcyutils
 import arcyarc
 import warnings
 
-from xastropy.xutils import xdebug as xdb
+#from xastropy.xutils import xdebug as xdb
 
 # Logging
 msgs = armsgs.get_logger()
@@ -113,7 +113,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     try:
         tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, t=knots)
     except ValueError: # Knot problem
-        xdb.set_trace()
+        pdb.set_trace()
     return tck
 
 

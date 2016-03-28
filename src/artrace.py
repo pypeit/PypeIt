@@ -222,7 +222,6 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0, triml=None, tri
     rec_obj_img = np.zeros((sciframe.shape[0],sciframe.shape[1],nobj))
     for o in range(nobj):
         obj = np.zeros(npix)
-#        obj[objl[0]:objr[0]+1]=1
         obj[objl[o]:objr[o]+1]=1
         scitmp = np.append(0.0,np.append(obj,0.0))
         objframe = scitmp.reshape(1,-1).repeat(sciframe.shape[0],axis=0)
@@ -1171,10 +1170,6 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
             # Get the size of the slit
             sz = int(np.floor(np.abs(slf._rordloc[det-1][arcdet[j],0]-slf._lordloc[det-1][arcdet[j],0])/2.0))-2
             #xtfit = np.arange(-sz,sz+1,1.0) # pixel along the arc line
-#            try:
-#                xtfit = np.zeros(2*sz+1)
-#            except:
-#                xdb.set_trace()
             xtfit = np.zeros(2*sz+1)
             ytfit = np.zeros(2*sz+1) # Fitted centroid
             etfit = np.zeros(2*sz+1) # Fitted centroid error
