@@ -89,7 +89,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     #####
     # New algorithm for arc line detection
     #pixels=[]
-    siglev = 2.0*slf._argflag['arc']['calibrate']['detection']
+    siglev = 6.0*slf._argflag['arc']['calibrate']['detection']
     bpfit = 5  # order of the polynomial used to fit the background 'continuum'
     fitp = slf._argflag['arc']['calibrate']['nfitpix']
     if len(censpec.shape) == 3: detns = censpec[:, 0].flatten()
@@ -148,10 +148,10 @@ def setup_param(slf, sc, det, fitsdict):
     """
     # Defaults
     arcparam = dict(llist='', 
-        disp=1.02,           # Ang (unbinned)
+        disp=0.,             # Ang/unbinned pixel
         b1=0.,               # Pixel fit term (binning independent)
         b2=0.,               # Pixel fit term
-        wvmnx=[2900.,12000.],# Pixel fit term
+        wvmnx=[2900.,12000.],# Guess at wavelength range
         disp_toler=0.1,      # 10% tolerance
         match_toler=3.,      # Matcing tolerance (pixels)
         func='legendre',     # Function for fitting
@@ -182,6 +182,11 @@ def setup_param(slf, sc, det, fitsdict):
         #arcparam['llist'] = slf._argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
         if disperser == '600/7500':
             arcparam['disp']=2.35
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['wvmnx'][0] = 5000.
+            arcparam['n_first']=2 # Should be able to lock on
+        elif disperser == '1200/5000':
+            arcparam['disp']=1.17
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
             arcparam['wvmnx'][0] = 5000.
             arcparam['n_first']=2 # Should be able to lock on
