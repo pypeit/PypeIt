@@ -111,6 +111,7 @@ def sort_data(argflag, spect, fitsdict):
     # Find the nearest standard star to each science frame
     wscistd = np.where(filarr[np.where(fkey == 'standard')[0], :].flatten() == 1)[0]
     for i in xrange(wscistd.size):
+#        xdb.set_trace()
         radec = (fitsdict['ra'][wscistd[i]], fitsdict['dec'][wscistd[i]])
         # If an object exists within 20 arcmins of a listed standard, then it is probably a standard star
         foundstd = find_standard_file(argflag, radec, toler=20.*u.arcmin, check=True)
@@ -118,16 +119,6 @@ def sort_data(argflag, spect, fitsdict):
             filarr[np.where(fkey == 'science')[0], wscistd[i]] = 0
         else:
             filarr[np.where(fkey == 'standard')[0], wscistd[i]] = 0
-    # Check that all files have an identification
-    badfiles = np.where(np.sum(filarr, axis=0) == 0)[0]
-    if np.size(badfiles) != 0:
-        msgs.info("Couldn't identify the following files:")
-        for i in xrange(np.size(badfiles)): print fitsdict['filename'][badfiles[i]]
-        msgs.error("Check these files and your settings.{0:s} file before continuing".format(argflag['run']['spectrograph']))
-    # Now identify the dark frames
-    wdark = np.where((filarr[np.where(fkey=='bias')[0],:]==1).flatten() & 
-        (fitsdict['exptime'].astype(np.float64) > spect['mosaic']['minexp']))[0]
-    ftag['dark'] = wdark
     # Make any forced changes
     msgs.info("Making forced file identification changes")
     skeys = spect['set'].keys()
@@ -138,6 +129,16 @@ def sort_data(argflag, spect, fitsdict):
             setarr[np.where(fkey==sk)[0],w]=1
             del w
     filarr = filarr + setarr
+    # Check that all files have an identification
+    badfiles = np.where(np.sum(filarr, axis=0) == 0)[0]
+    if np.size(badfiles) != 0:
+        msgs.info("Couldn't identify the following files:")
+        for i in xrange(np.size(badfiles)): print fitsdict['filename'][badfiles[i]]
+        msgs.error("Check these files and your settings.{0:s} file before continuing".format(argflag['run']['spectrograph']))
+    # Now identify the dark frames
+    wdark = np.where((filarr[np.where(fkey=='bias')[0],:]==1).flatten() & 
+        (fitsdict['exptime'].astype(np.float64) > spect['mosaic']['minexp']))[0]
+    ftag['dark'] = wdark
     # Store the frames in the ftag array
     for i in xrange(len(fkey)):
         ftag[fkey[i]] = np.where(filarr[i,:]==1)[0]

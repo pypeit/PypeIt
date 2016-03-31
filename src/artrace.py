@@ -222,7 +222,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0, triml=None, tri
     rec_obj_img = np.zeros((sciframe.shape[0],sciframe.shape[1],nobj))
     for o in range(nobj):
         obj = np.zeros(npix)
-        obj[objl[0]:objr[0]+1]=1
+        obj[objl[o]:objr[o]+1]=1
         scitmp = np.append(0.0,np.append(obj,0.0))
         objframe = scitmp.reshape(1,-1).repeat(sciframe.shape[0],axis=0)
         objspl = interp.RectBivariateSpline(xint, yint, objframe, bbox=[0.0, 1.0, yint.min(), yint.max()], kx=1, ky=1, s=0)
@@ -1180,6 +1180,7 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
             tstcc = True # A boolean to tell the loop once a good set of pixels has been found to cross-correlate with
             # Fit up
             pcen = arcdet[j]
+#            xdb.set_trace()
             if (pcen < nspecfit) or (pcen > msarc.shape[0]-(nspecfit+1)): continue # Too close to the end of the spectrum
             offchip = False
             for k in xrange(0, sz+1-nsmth):
@@ -1233,7 +1234,8 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
                 #    params, fail = arutils.poly_to_gauss(arutils.func_fit(xfit, np.log(cc/np.max(cc)), 'polynomial', 2))
                 #except:
                 #    params, fail = [0,0,0], True
-                params, fail = arutils.gauss_fit(xfit, cc, 0.0)
+                params, fail = arutils.gauss_lsqfit(xfit, cc, 0.0)
+#                xdb.set_trace()
                 centv = ccval + pcen - arcdet[j] - params[1]
                 xtfit[k+sz] = ordcen[arcdet[j],0]+k
                 if guesstilts is not None: shfit[k+sz] = guesstilts[arcdet[j],ordcen[arcdet[j],0]+k]*float(msarc.shape[0]-1.0)
@@ -1300,7 +1302,7 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
                 #    params, fail = arutils.poly_to_gauss(arutils.func_fit(xfit, np.log(cc/np.max(cc)), 'polynomial', 2)[::-1])
                 #except:
                 #    params, fail = [0,0,0], True
-                params, fail = arutils.gauss_fit(xfit, cc, 0.0)
+                params, fail = arutils.gauss_lsqfit(xfit, cc, 0.0)
                 centv = ccval + pcen - arcdet[j] - params[1]
                 xtfit[sz-k] = ordcen[arcdet[j],0]-k
                 if guesstilts is not None: shfit[sz-k] = guesstilts[arcdet[j],ordcen[arcdet[j],0]-k]*float(msarc.shape[0]-1.0)
@@ -1323,6 +1325,7 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
 #					tcoeff = np.polynomial.polynomial.polyfit(xtfit[wmask],ytfit[wmask],1,w=1.0/mt)
 #				except:
 #					tcoeff = np.polynomial.polynomial.polyfit(xtfit[wmask],ytfit[wmask],1)
+#            xdb.set_trace()
             if guesstilts is not None: ytfit[wmask] -= np.median(ytfit[wmask])
             wmsk, mcoeff = arutils.robust_polyfit(xtfit[wmask], ytfit[wmask]/(msarc.shape[0]-1.0),
                                                   slf._argflag['trace']['orders']['tiltorder'],

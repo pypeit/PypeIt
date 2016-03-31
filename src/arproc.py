@@ -794,6 +794,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         #continue
     # Boxcar
     arextract.boxcar(slf, det, specobjs, sciframe-bgframe, varframe, bgframe, crmask, scitrace)
+#    xdb.set_trace()
     # Return
     return True
 
