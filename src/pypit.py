@@ -20,9 +20,10 @@ except ImportError:
     pass
 
 try:
-    from xastropy.xutils import xdebug as xdb
+    from xastropy.xutils.xdebug import set_trace
+#    from xastropy.xutils import xdebug as xdb
 except ImportError:
-    pass
+    from pdb import set_trace
 
 
 def PYPIT(redname, progname=__file__, quick=False, ncpus=1, verbose=1, logname=None):

@@ -1,4 +1,3 @@
-import pdb
 import numpy as np
 import arextract
 import arflux
@@ -14,9 +13,10 @@ import artrace
 import arqa
 
 try:
-    from xastropy.xutils import xdebug as xdb
-except:
-    pass
+    from xastropy.xutils.xdebug import set_trace
+#    from xastropy.xutils import xdebug as xdb
+except ImportError:
+    from pdb import set_trace
 
 # Logging
 msgs = armsgs.get_logger()

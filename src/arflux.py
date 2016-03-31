@@ -14,14 +14,13 @@ import arutils
 
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
-except:
+except ImportError:
     pass
-
 
 try:
-    from xastropy.xutils import xdebug as xdb
-except:
-    pass
+    from xastropy.xutils.xdebug import set_trace
+except ImportError:
+    from pdb import set_trace
 
 # Logging
 msgs = armsgs.get_logger()

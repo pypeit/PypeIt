@@ -16,12 +16,12 @@ import arutils
 import arplot
 import arspecobj
 from arpca import pca2d
-import pdb
 
 try:
-    from xastropy.xutils import xdebug as xdb
-except:
-    pass
+    from xastropy.xutils.xdebug import set_trace
+#    from xastropy.xutils import xdebug as xdb
+except ImportError:
+    from pdb import set_trace
 
 # Logging
 msgs = armsgs.get_logger()
@@ -659,7 +659,7 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
         try:
             retarr[w] = i+1
         except IndexError:
-            xdb.set_trace()
+            set_trace()
         # Save these locations for trimming
         if i == 0:
             xfin = xv.copy()
@@ -754,7 +754,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask)
     if scitrace is None:
         msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
-        pdb.set_trace()
+        set_trace()
         #continue
     ###############
     # Finalize the Sky Background image
@@ -790,11 +790,11 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Extract
     if scitrace is None:
         msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
-        pdb.set_trace()
+        set_trace()
         #continue
     # Boxcar
     arextract.boxcar(slf, det, specobjs, sciframe-bgframe, varframe, bgframe, crmask, scitrace)
-#    xdb.set_trace()
+#    set_trace()
     # Return
     return True
 
@@ -855,7 +855,7 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
     for i in xrange(1, maxiter+1):
         msgs.info("Convolving image with Laplacian kernel")
         # Subsample, convolve, clip negative values, and rebin to original size
-        #pdb.set_trace()
+        #set_trace()
         subsam = arutils.subsample(scicopy)
         conved = signal.convolve2d(subsam, laplkernel, mode="same", boundary="symm")
         cliped = conved.clip(min=0.0)
@@ -1056,7 +1056,7 @@ def trim(slf, file, det):
         trim_file = file[w]
     except:
         msgs.bug("Odds are datasec is set wrong. Maybe due to transpose")
-        pdb.set_trace()
+        set_trace()
         msgs.error("Cannot trim file")
     return file[w]
 

@@ -2,7 +2,6 @@ import os
 import sys
 import copy
 import glob
-import pdb
 import getopt
 import astropy.io.fits as pyfits
 from astropy.time import Time
@@ -16,9 +15,10 @@ from multiprocessing import cpu_count
 #import arutils
 
 try:
-    from xastropy.xutils import xdebug as xdb
-except:
-    pass
+    from xastropy.xutils.xdebug import set_trace
+#    from xastropy.xutils import xdebug as xdb
+except ImportError:
+    from pdb import set_trace
 
 # Logging
 msgs = armsgs.get_logger()
@@ -250,7 +250,7 @@ def set_params(lines, indict, setstr=""):
             elif linspl[1] in indict[linspl[0]].keys():
                 indict[linspl[0]][linspl[1]] = set_params_wtype(indict[linspl[0]][linspl[1]], linspl[2], lines=tline, setstr=setstr)
             else:
-                pdb.set_trace()
+                set_trace()
                 msgs.error(setstr + "Settings contains bad line (arg 2):"+msgs.newline()+lines[i].split('#')[0].strip())
         elif linspl[0][:3] == 'det': # Detector parameters
             try:
@@ -542,7 +542,7 @@ def load_headers(argflag, spect, datlines):
             kchk  = '.'.join(ch.split('.')[1:])
             frhd  = whddict['{0:02d}'.format(tfrhd)]
             if spect['check'][ch] != str(headarr[frhd][kchk]).strip():
-                #pdb.set_trace()
+                #set_trace()
                 #print ch, frhd, kchk
                 #print spect['check'][ch], str(headarr[frhd][kchk]).strip()
                 msgs.error("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
@@ -657,7 +657,7 @@ def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None, trim=T
     for i in range(np.size(ind)):
         # Instrument specific read
         if slf._argflag['run']['spectrograph'] in ['lris_blue']:
-#            xdb.set_trace()
+#            set_trace()
             temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         else:
             temp = pyfits.getdata(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], slf._spect['fits']['dataext'])

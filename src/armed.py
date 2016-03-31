@@ -1,10 +1,15 @@
-import pdb
 import numpy as np
 import armasters
 import armbase
 import artrace
 import armsgs
 import arproc
+
+try:
+    from xastropy.xutils.xdebug import set_trace
+#    from xastropy.xutils import xdebug as xdb
+except ImportError:
+    from pdb import set_trace
 
 # Logging
 msgs = armsgs.get_logger()
@@ -90,7 +95,7 @@ def ARMED(argflag, spect, fitsdict, reuseMaster=False):
             slf.GetPixelLocations(det)
             ###############
             # Determine the edges of the spectrum (spatial)
-            pdb.set_trace()
+            set_trace()
             lordloc, rordloc, extord = artrace.trace_orders(slf, slf._mstrace[det-1], det, pcadesc="PCA trace of the slit edges")
             slf.SetFrame(slf._lordloc, lordloc, det)
             slf.SetFrame(slf._rordloc, rordloc, det)

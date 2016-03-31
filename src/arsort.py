@@ -12,9 +12,10 @@ from astropy.table import Table as tTable, Column
 from astropy import units as u
 
 try:
-    from xastropy.xutils import xdebug as xdb
-except:
-    import pdb
+    from xastropy.xutils.xdebug import set_trace
+#    from xastropy.xutils import xdebug as xdb
+except ImportError:
+    from pdb import set_trace
 
 # Logging
 msgs = armsgs.get_logger()
@@ -111,7 +112,7 @@ def sort_data(argflag, spect, fitsdict):
     # Find the nearest standard star to each science frame
     wscistd = np.where(filarr[np.where(fkey == 'standard')[0], :].flatten() == 1)[0]
     for i in xrange(wscistd.size):
-#        xdb.set_trace()
+#        set_trace()
         radec = (fitsdict['ra'][wscistd[i]], fitsdict['dec'][wscistd[i]])
         # If an object exists within 20 arcmins of a listed standard, then it is probably a standard star
         foundstd = find_standard_file(argflag, radec, toler=20.*u.arcmin, check=True)

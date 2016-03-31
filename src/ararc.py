@@ -15,9 +15,10 @@ import os
 import time
 
 try:
+    from xastropy.xutils.xdebug import set_trace
     from xastropy.xutils import xdebug as xdb
-except:
-    pass
+except ImportError:
+    from pdb import set_trace
 
 # Logging
 msgs = armsgs.get_logger()
@@ -305,7 +306,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
         #gd_str = np.array(tmp)
         xdb.xpcol(tcent[idx_str[gd_str]],ids[gd_str])
         #xdb.xplot(tcent[idx_str[gd_str]],ids[gd_str],scatter=True)
-        xdb.set_trace()
+        set_trace()
 
     # Consider a cross-correlation here (as a double-check)
 
@@ -349,7 +350,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
         # Keep unique ones
         ifit = np.unique(np.array(ifit,dtype=int))
         if debug:
-            xdb.set_trace()
+            set_trace()
         # Increment order
         if n_order < aparm['n_final']:
             n_order += 1
@@ -384,7 +385,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
             xtwo=np.arange(msarc.shape[0])/float(msarc.shape[0]),
             ytwo=wave)
         xdb.xpcol(xfit*msarc.shape[0], yfit)
-        xdb.set_trace()
+        set_trace()
 
         wave = arutils.func_val(fit, np.arange(msarc.shape[0]), 'legendre', 
             minv=fmin, maxv=fmax)
@@ -392,11 +393,9 @@ def simple_calib(slf, det, get_poly=False, debug=False):
             xtwo=np.arange(msarc.shape[0]),ytwo=yprep)
         xdb.xplot(xfit,yfit, scatter=True, xtwo=np.arange(msarc.shape[0]),
             ytwo=wave)
-        xdb.set_trace()
-        #from xastropy.xutils import xdebug as xdb
-        #wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]), 
+        set_trace()
+        #wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
         #    'legendre', min=fmin, max=fmax)
-        #xdb.set_trace()
 
     # 2nd order Poly fit for archival
     #get_poly=True
@@ -404,8 +403,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
         poly_fit = arutils.func_fit(yfit,xfit, 'polynomial',2, minv=fmin, maxv=fmax)
         print(' Most likely you with to record these values:')
         print(poly_fit)
-        import pdb
-        pdb.set_trace()
+        set_trace()
     # Pack up fit
     final_fit = dict(fitc=fit, function=aparm['func'], xfit=xfit, yfit=yfit,
         ions=ions, fmin=fmin, fmax=fmax, xnorm=float(slf._msarc[det-1].shape[0]),

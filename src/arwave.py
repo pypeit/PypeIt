@@ -1,9 +1,7 @@
 import numpy as np
 import pylab as plt
-from scipy.optimize import newton
 from linetools.spectra import xspectrum1d
 from astropy.io import fits
-#from xastropy.utils import xdebug as xdebug
 from astropy import units as u
 
 import arutils
@@ -15,6 +13,7 @@ object_wave1=np.arange(0.,2048.,1.)
 object_wave2=3428.12+(1.0196*object_wave1)
 object_flux=object_sky[0].data
 '''
+
 
 def flexure(obj_wave, obj_flux):
     #look for appropriate archived sky file based on latitude and longitude

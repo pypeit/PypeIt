@@ -2,7 +2,6 @@
 """
 import sys
 import copy
-import pdb
 import numpy as np
 # Import PYPIT routines
 from astropy.time import Time
@@ -18,9 +17,10 @@ import arsort
 import arutils
 
 try:
-    from xastropy.xutils import xdebug as xdb
+    from xastropy.xutils.xdebug import set_trace
+#    from xastropy.xutils import xdebug as xdb
 except ImportError:
-    pass
+    from pdb import set_trace
 
 # Logging
 msgs = armsgs.get_logger()
@@ -207,7 +207,7 @@ class ScienceExposure:
             # Flip the transpose switch
             self._transpose = True
             # Transpose the master bias frame
-            #pdb.set_trace()
+            #set_trace()
             if self._msbias[det-1] is not None:
                 if type(self._msbias[det-1]) is str: pass  # Overscan sub - change the oscansec parameters below
                 elif type(self._msbias[det-1]) is np.ndarray: self.SetMasterFrame(self._msbias[det-1].T, 'bias', det)
@@ -546,7 +546,7 @@ class ScienceExposure:
         for kk in xrange(self._spect['mosaic']['ndet']):
             det = kk+1
             # Load the frame(s)
-#            xdb.set_trace()
+#            set_trace()
             frame = arload.load_frames(self, fitsdict, ind, det, frametype='standard',
                                    msbias=self._msbias[det-1],
                                    transpose=self._transpose)
