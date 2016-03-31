@@ -1,6 +1,8 @@
 import sys
+from os.path import dirname, basename
+from textwrap import wrap as wraptext
 from inspect import currentframe, getouterframes
-
+from glob import glob
 
 class Messages:
     """
@@ -67,7 +69,7 @@ class Messages:
         """
         header = "##  "
         header += self._start + self._white_GR + "ARMED : "
-        header += "Automated Reduction and Modelling of Echelle Data v1.0" + self._end + "\n"
+        header += "Automated Reduction and Modelling of Echelle Data v{0:s}".format(self._version) + self._end + "\n"
         header += "##  "
         header += "Usage : "
         header += "python %s [options] filelist".format(prognm)
@@ -79,7 +81,7 @@ class Messages:
         """
         header = "##  "
         header += self._start + self._white_GR + "PYPIT : "
-        header += "The Python Spectroscopic Data Reduction Pipeline v1.0" + self._end + "\n"
+        header += "The Python Spectroscopic Data Reduction Pipeline v{0:s}".format(self._version) + self._end + "\n"
         header += "##  "
         header += "Usage : "
         if prognm is None:
@@ -89,16 +91,32 @@ class Messages:
         return header
 
     def usage(self, prognm):
-        print "\n#####################################################################"
+        stgs_arm = glob(dirname(__file__)+"/settings.arm*")
+        stgs_all = glob(dirname(__file__)+"/settings.*")
+        stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
+        armlist = basename(stgs_arm[0]).split(".")[-1]
+        for i in range(1, len(stgs_arm)):
+            armlist += ", " + basename(stgs_arm[i]).split(".")[-1]
+        spclist = basename(stgs_spc[0]).split(".")[-1]
+        for i in range(1, len(stgs_spc)):
+            spclist += ", " + basename(stgs_spc[i]).split(".")[-1]
+        spcl = wraptext(spclist, width=60)
+        print "\n#################################################################"
         print self.pypitheader(prognm)
-        print "##  -----------------------------------------------------------------"
+        print "##  -------------------------------------------------------------"
         print "##  Options: (default values in brackets)"
         print "##   -c or --cpus      : (all) Number of cpu cores to use"
         print "##   -h or --help      : Print this message"
         print "##   -v or --verbose   : (2) Level of verbosity (0-2)"
-        print "##  -----------------------------------------------------------------"
-        print "##  %s".format(self._last_updated)
-        print "#####################################################################\n"
+        print "##  -------------------------------------------------------------"
+        print "##  Available pipelines include:"
+        print "##   " + armlist
+        print "##  Available spectrographs include:"
+        for i in spcl:
+            print "##   " + i
+        print "##  -------------------------------------------------------------"
+        print "##  Last updated: {0:s}".format(self._last_updated)
+        print "#################################################################\n"
         sys.exit()
 
     def debugmessage(self):
