@@ -89,7 +89,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     #####
     # New algorithm for arc line detection
     #pixels=[]
-    siglev = 2.0*slf._argflag['arc']['calibrate']['detection']
+    siglev = 5.0*slf._argflag['arc']['calibrate']['detection']
     bpfit = 5  # order of the polynomial used to fit the background 'continuum'
     fitp = slf._argflag['arc']['calibrate']['nfitpix']
     if len(censpec.shape) == 3: detns = censpec[:, 0].flatten()

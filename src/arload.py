@@ -248,8 +248,9 @@ def set_params(lines, indict, setstr=""):
                     msgs.error("keyword lampstat must contain an integer suffix")
                 indict[linspl[0]][linspl[1]] = linspl[2]
             elif linspl[1] in indict[linspl[0]].keys():
-                indict[linspl[0]][linspl[1]] = set_params_wtype(indict[linspl[0]][linspl[1]], linspl[2], lines=tline,setstr=setstr)
-            else: 
+                indict[linspl[0]][linspl[1]] = set_params_wtype(indict[linspl[0]][linspl[1]], linspl[2], lines=tline, setstr=setstr)
+            else:
+                pdb.set_trace()
                 msgs.error(setstr + "Settings contains bad line (arg 2):"+msgs.newline()+lines[i].split('#')[0].strip())
         elif linspl[0][:3] == 'det': # Detector parameters
             try:
@@ -437,14 +438,14 @@ def check_argflag(argflag):
     return
 
 
-def load_spect(argflag, specname, spect=None, lines=None):
+def load_spect(progname, specname, spect=None, lines=None):
     """
     Load spectrograph settings
 
     Parameters
     ----------
-    argflag : dict
-      Arguments and flags used for reduction
+    progname : string
+      Name of the program
     specname : string
       Name of spectrograph settings file
     spect : dict
@@ -484,7 +485,7 @@ def load_spect(argflag, specname, spect=None, lines=None):
     if lines is None:
         # Read in the default settings
         # Get the software path
-        prgn_spl = argflag['run']['prognm'].split('/')
+        prgn_spl = progname.split('/')
         fname = ""
         for i in range(0, len(prgn_spl)-1): fname += prgn_spl[i]+"/"
         fname += 'settings.'+specname

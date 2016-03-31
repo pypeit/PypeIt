@@ -11,10 +11,8 @@ import traceback
 
 # Import PYPIT routines
 debug = True
-last_updated = "26 November 2015"
+last_updated = "6 March 2016"
 version = '0.3'
-
-import arload
 
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
@@ -27,7 +25,7 @@ except ImportError:
     pass
 
 
-def PYPIT(redname, quick=False, ncpus=1, verbose=1, logname=None):
+def PYPIT(redname, progname=__file__, quick=False, ncpus=1, verbose=1, logname=None):
     """
     Main driver of the PYPIT code. Default settings and
     user-specified changes are made, and passed to the
@@ -37,6 +35,8 @@ def PYPIT(redname, quick=False, ncpus=1, verbose=1, logname=None):
     ----------
     redname : string
       Input reduction script
+    progname : string
+      Name of the program
     quick : bool
       If True, a quick reduction (but possibly less
       accurate) will be performed. This flag is most
@@ -59,6 +59,7 @@ def PYPIT(redname, quick=False, ncpus=1, verbose=1, logname=None):
     # Init logger
     import armsgs
     msgs = armsgs.get_logger((logname, debug, last_updated, version, verbose))
+    import arload
 
     # First send all signals to messages to be dealt with (i.e. someone hits ctrl+c)
     sigsignal(SIGINT, msgs.signal_handler)
@@ -78,10 +79,11 @@ def PYPIT(redname, quick=False, ncpus=1, verbose=1, logname=None):
     argflag['run']['ncpus'] = ncpus
     argflag['out']['verbose'] = verbose
 
+    # Determine the name of the spectrograph
     specname = None
     for i in range(len(parlines)):
         parspl = parlines[i].split()
-        if len(parspl) != 3:
+        if len(parspl) < 3:
             msgs.error("There appears to be a missing argument on the following input line" + msgs.newline() +
                        parlines[i])
         if (parspl[0] == 'run') and (parspl[1] == 'spectrograph'):
@@ -89,35 +91,35 @@ def PYPIT(redname, quick=False, ncpus=1, verbose=1, logname=None):
     if specname is None:
         msgs.error("Please specify the spectrograph settings to be used with the command" + msgs.newline() +
                    "run spectrograph <name>")
+    msgs.info("Reducing data from the {0:s} spectrograph".format(specname))
 
     # Load the Spectrograph settings
-    spect = arload.load_spect(argflag, specname)
+    spect = arload.load_spect(progname, specname)
 
     # Load default reduction arguments/flags, and set any command line arguments
     #argflag = arload.optarg(argflag, cmdlnarg, spect['mosaic']['reduction'].lower())
     # Load the default settings
-    prgn_spl = cmdlnarg[0].split('/')
+    prgn_spl = progname.split('/')
     tfname = ""
     for i in range(0,len(prgn_spl)-2): tfname += prgn_spl[i]+"/"
     fname = tfname + prgn_spl[-2] + '/settings.' + spect['mosaic']['reduction'].lower()
-    argflag = load_settings(fname, argflag)
-    argflag['run']['prognm'] = argv[0]
+    argflag = arload.load_settings(fname, argflag)
+    argflag['run']['prognm'] = progname
     argflag['run']['pypitdir'] = tfname
 
+    # Now update the settings based on the user input file
+    argflag = arload.set_params(parlines, argflag, setstr="Input ")
     # Check the input file
     arload.check_argflag(argflag)
 
-    # Now update the settings
-    argflag = arload.set_params(parlines, argflag, setstr="Input ")
+    # Load any changes to the spectrograph settings based on the user input file
+    spect = arload.load_spect(progname, specname, spect=spect, lines=spclines)
 
     # If a quick reduction has been requested, make sure the requested pipeline
     # is the quick implementation (if it exists), otherwise run the standard pipeline.
     if quick:
         # Change to a "quick" settings file
         msgs.work("QUICK REDUCTION TO STILL BE DONE")
-
-    # Load any changes to the spectrograph settings
-    spect = arload.load_spect(argflag, spect=spect, lines=spclines)
 
     # Load the important information from the fits headers
     fitsdict = arload.load_headers(argflag, spect, datlines)
@@ -193,18 +195,21 @@ if __name__ == "__main__":
         initmsgs.error(err.msg, usage=True)
 
     # Execute the reduction, and catch any bugs for printout
-    try:
-        PYPIT(red, quick=qck, ncpus=cpu, verbose=vrb, logname=lnm)
-    except:
-        # There is a bug in the code, print the file and line number of the error.
-        et, ev, tb = sys.exc_info()
-        filename, line_no = "<filename>", "<line_no>"
-        while tb:
-            co = tb.tb_frame.f_code
-            filename = str(co.co_filename)
-            line_no = str(traceback.tb_lineno(tb))
-            tb = tb.tb_next
-        filename = filename.split('/')[-1]
-        initmsgs.bug("There appears to be a bug on Line " + line_no + " of " + filename + " with error:" +
-                     initmsgs.newline() + str(ev) + initmsgs.newline() +
-                     "---> please contact the authors")
+    if debug:
+        PYPIT(red, progname=sys.argv[0], quick=qck, ncpus=cpu, verbose=vrb, logname=lnm)
+    else:
+        try:
+            PYPIT(red, progname=sys.argv[0], quick=qck, ncpus=cpu, verbose=vrb, logname=lnm)
+        except:
+            # There is a bug in the code, print the file and line number of the error.
+            et, ev, tb = sys.exc_info()
+            filename, line_no = "<filename>", "<line_no>"
+            while tb:
+                co = tb.tb_frame.f_code
+                filename = str(co.co_filename)
+                line_no = str(traceback.tb_lineno(tb))
+                tb = tb.tb_next
+            filename = filename.split('/')[-1]
+            initmsgs.bug("There appears to be a bug on Line " + line_no + " of " + filename + " with error:" +
+                         initmsgs.newline() + str(ev) + initmsgs.newline() +
+                         "---> please contact the authors")

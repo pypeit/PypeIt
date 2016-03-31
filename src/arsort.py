@@ -14,12 +14,10 @@ from astropy import units as u
 try:
     from xastropy.xutils import xdebug as xdb
 except:
-    pass
+    import pdb
 
 # Logging
 msgs = armsgs.get_logger()
-
-
 
 
 def sort_data(argflag, spect, fitsdict):
@@ -81,7 +79,7 @@ def sort_data(argflag, spect, fitsdict):
                 w = np.where(ntmp)[0]
             else:
                 w = np.where(fitsdict[ch] == spect[fkey[i]]['check'][ch])[0]
-            n = np.intersect1d(n,w)
+            n = np.intersect1d(n, w)
         # Assign these filetypes
         filarr[i,:][n] = 1
         # Check if these files can also be another type
@@ -407,7 +405,7 @@ def match_science(argflag, spect, fitsdict, filesort):
                                 mtch = np.float64(fitsdict[ch][iSCI[i]].split(spltxt)[argtxt]) + np.float64(valtxt[1:])
                                 w = np.where(tspl.astype(np.float64) > mtch)[0]
                     except:
-                        msgs.error("Bad form for matching criteria: {0:s}".format(tmtch))
+                        continue
                 else:
                     msgs.bug("Matching criteria {0:s} is not supported".format(tmtch))
                 n = np.intersect1d(n, w)  # n corresponds to all frames with matching instrument setup to science frames
