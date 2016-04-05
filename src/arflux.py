@@ -19,9 +19,9 @@ except:
 
 
 try:
-    from xastropy.xutils import xdebug as xdb
+    from xastropy.xutils import xdebug as debugger
 except:
-    pass
+    import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()

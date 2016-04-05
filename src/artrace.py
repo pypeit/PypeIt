@@ -19,9 +19,9 @@ import scipy.ndimage as ndimage
 msgs = armsgs.get_logger()
 
 try:
-    from xastropy.xutils import xdebug as xdb
+    from xastropy.xutils import xdebug as debugger
 except:
-    pass
+    import pdb as debugger
 
 def dispdir(msframe, dispwin=None, mode=0):
     """
@@ -1016,7 +1016,7 @@ def model_tilt_test(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False
             zwght = ytfit[wmask]
             if np.max(np.abs(zwght[1:]-zwght[:-1])) != 0.0:
                 wtilt[:wmask.size,j] = 1.0/np.max(np.abs(zwght[1:]-zwght[:-1]))
-        pdb.set_trace()
+#        pdb.set_trace()
         # --\
         tcoeff = np.ones((slf._argflag['trace']['orders']['tiltorder']+1, msarc.shape[1]))
         # --/
@@ -1354,7 +1354,8 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
             dtilt[1,j] = wmask.size        # Record how well the spectral trace has been determined for this line
             #if not np.isnan(1.0/sig): wtilt[:wmask[0].size,j] = ((msarc.shape[0]-1.0)/sig)**2
             zwght = ytfit[wmask]
-            if np.max(np.abs(zwght[1:]-zwght[:-1]))!=0.0: wtilt[:wmask.size,j] = 1.0/np.max(np.abs(zwght[1:]-zwght[:-1]))
+            if np.max(np.abs(zwght[1:]-zwght[:-1]))!=0.0:
+                wtilt[:wmask.size,j] = 1.0/np.max(np.abs(zwght[1:]-zwght[:-1]))
         #pdb.set_trace()
         # --\
         #tcoeff = np.ones((slf._argflag['trace']['orders']['tiltorder']+1,msarc.shape[1]))

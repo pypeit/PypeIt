@@ -19,9 +19,9 @@ from arpca import pca2d
 import pdb
 
 try:
-    from xastropy.xutils import xdebug as xdb
+    from xastropy.xutils import xdebug as debugger
 except:
-    pass
+    import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -659,7 +659,7 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
         try:
             retarr[w] = i+1
         except IndexError:
-            xdb.set_trace()
+            debugger.set_trace()
         # Save these locations for trimming
         if i == 0:
             xfin = xv.copy()
@@ -708,6 +708,9 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     standard : bool, optional
       Standard star frame?
     """
+    # Check inputs
+    if not isinstance(scidx,int):
+        raise IOError("scidx needs to be an int")
     # Convert ADUs to electrons
     sciframe *= slf._spect['det'][det-1]['gain']
     # Mask
@@ -726,6 +729,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Flat field the science frame
     if slf._argflag['reduce']['flatfield']:
         msgs.info("Flat fielding the science frame")
+#        debugger.set_trace()
         sciframe = flatfield(slf, sciframe, slf._mspixflatnrm[det-1], det)
     else:
         msgs.info("Not performing a flat field calibration")
@@ -776,6 +780,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask)
     if standard:
         slf._msstd[det-1]['trace'] = scitrace
+#        debugger.set_trace()
         specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict,
                                                          trc_img=scitrace,
                                                          objtype='standard')

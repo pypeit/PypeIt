@@ -18,9 +18,9 @@ import arsort
 import arutils
 
 try:
-    from xastropy.xutils import xdebug as xdb
+    from xastropy.xutils import xdebug as debugger
 except ImportError:
-    pass
+    import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -523,6 +523,9 @@ class ScienceExposure:
     def MasterStandard(self, scidx, fitsdict):
         """
         Generate Master Standard frame for a given detector
+        and generates a sensitivity function
+        Currently only uses first standard star exposure
+        Currently takes brightest source on the mosaic
 
         Parameters
         ----------
@@ -541,6 +544,8 @@ class ScienceExposure:
         msgs.info("Preparing the standard")
         # Get all of the pixel flat frames for this science frame
         ind = self._idx_std
+        msgs.warn("Taking only the first standard frame for now")
+        ind = [ind[0]]
         # Extract
         all_specobj = []
         for kk in xrange(self._spect['mosaic']['ndet']):
@@ -550,19 +555,21 @@ class ScienceExposure:
             frame = arload.load_frames(self, fitsdict, ind, det, frametype='standard',
                                    msbias=self._msbias[det-1],
                                    transpose=self._transpose)
-            msgs.warn("Taking only the first standard frame for now")
-            ind = ind[0]
+#            msgs.warn("Taking only the first standard frame for now")
+#            ind = ind[0]
             sciframe = frame[:, :, 0]
             # Save RA/DEC
             if kk == 0:
-                self._msstd[det-1]['RA'] = fitsdict['ra'][ind]
-                self._msstd[det-1]['DEC'] = fitsdict['dec'][ind]
-            arproc.reduce_frame(self, sciframe, ind, fitsdict, det, standard=True)
+                self._msstd[det-1]['RA'] = fitsdict['ra'][ind[0]]
+                self._msstd[det-1]['DEC'] = fitsdict['dec'][ind[0]]
+            #debugger.set_trace()
+            arproc.reduce_frame(self, sciframe, ind[0], fitsdict, det, standard=True)
+
             #
             all_specobj += self._msstd[det-1]['spobjs']
+#        debugger.set_trace()
         # If standard, generate a sensitivity function
-        sensfunc = arflux.generate_sensfunc(self, scidx, all_specobj,
-                                                  fitsdict)
+        sensfunc = arflux.generate_sensfunc(self, scidx, all_specobj, fitsdict)
         # Set the sensitivity function
         self.SetMasterFrame(sensfunc, "sensfunc", None, copy=False)
         return True
