@@ -82,7 +82,9 @@ def dispdir(msframe, dispwin=None, mode=0):
             return 1
 
 
-def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0, triml=None, trimr=None, sigmin=2.0, bgreg=None, maskval=-999999.9, order=0):
+def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
+                 triml=None, trimr=None, sigmin=2.0, bgreg=None,
+                 maskval=-999999.9, order=0, doqa=True, debug=False):
     """ Finds objects, and traces their location on the detector
     Parameters
     ----------
@@ -97,6 +99,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0, triml=None, tri
     bgreg
     maskval
     order
+    debug
+    doqa
 
     Returns
     -------
@@ -166,6 +170,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0, triml=None, tri
     #plt.plot(trcxrng[objl[0]:objr[0]+1],trcprof[objl[0]:objr[0]+1],'bx')
     #plt.show()
     nobj = objl.size
+    if debug:
+        nobj = 1
     if nobj==1:
         msgs.info("Found {0:d} object".format(objl.size))
         msgs.info("Tracing {0:d} object".format(objl.size))
@@ -259,10 +265,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0, triml=None, tri
         rec_bg_img[:,:,o] = rec_img.copy()
         #arutils.ds9plot(rec_img)
     # Save the quality control
-    try:
+    if doqa:
         arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, root="object_trace", normalize=False)
-    except ValueError:
-        pdb.set_trace()
     # Trace dict
     tracedict = dict({})
     tracedict['traces'] = traces
@@ -1238,7 +1242,8 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
 #                xdb.set_trace()
                 centv = ccval + pcen - arcdet[j] - params[1]
                 xtfit[k+sz] = ordcen[arcdet[j],0]+k
-                if guesstilts is not None: shfit[k+sz] = guesstilts[arcdet[j],ordcen[arcdet[j],0]+k]*float(msarc.shape[0]-1.0)
+                if guesstilts is not None:
+                    shfit[k+sz] = guesstilts[arcdet[j],ordcen[arcdet[j],0]+k]*float(msarc.shape[0]-1.0)
                 ytfit[k+sz] = centv - shfit[k+sz]
                 etfit[k+sz] = 0.02
                 apfit[k+sz] = params[0]
@@ -1305,7 +1310,8 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
                 params, fail = arutils.gauss_lsqfit(xfit, cc, 0.0)
                 centv = ccval + pcen - arcdet[j] - params[1]
                 xtfit[sz-k] = ordcen[arcdet[j],0]-k
-                if guesstilts is not None: shfit[sz-k] = guesstilts[arcdet[j],ordcen[arcdet[j],0]-k]*float(msarc.shape[0]-1.0)
+                if guesstilts is not None:
+                    shfit[sz-k] = guesstilts[arcdet[j],ordcen[arcdet[j],0]-k]*float(msarc.shape[0]-1.0)
                 ytfit[sz-k] = centv - shfit[sz-k]
                 etfit[sz-k] = 0.02
                 apfit[sz-k] = params[0]
@@ -1326,7 +1332,8 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
 #				except:
 #					tcoeff = np.polynomial.polynomial.polyfit(xtfit[wmask],ytfit[wmask],1)
 #            xdb.set_trace()
-            if guesstilts is not None: ytfit[wmask] -= np.median(ytfit[wmask])
+            if guesstilts is not None:
+                ytfit[wmask] -= np.median(ytfit[wmask])
             wmsk, mcoeff = arutils.robust_polyfit(xtfit[wmask], ytfit[wmask]/(msarc.shape[0]-1.0),
                                                   slf._argflag['trace']['orders']['tiltorder'],
                                                   function=slf._argflag['trace']['orders']['function'],
@@ -1340,7 +1347,8 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
             factr = (msarc.shape[0]-1.0)*arutils.func_val(mcoeff, ordcen[arcdet[j],0],
                                                           slf._argflag['trace']['orders']['function'],
                                                           minv=0.0, maxv=msarc.shape[1]-1.0)
-            if guesstilts is not None: factr += guesstilts[arcdet[j], ordcen[arcdet[j], 0]]*float(msarc.shape[0]-1.0)
+            if guesstilts is not None:
+                factr += guesstilts[arcdet[j], ordcen[arcdet[j], 0]]*float(msarc.shape[0]-1.0)
             idx = int(factr+0.5)
             if (idx > 0) and (idx < msarc.shape[0]):
                 maskrows[idx] = 0     # mcoeff[0] is the centroid of the arc line
