@@ -215,6 +215,8 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
 
         # Write 1D spectra
         arsave.save_1d_spectra(slf)
+        # Write 2D images
+        arsave.save_2d_images(slf)
         # Free up some memory by replacing the reduced ScienceExposure class
         sciexp[sc] = None
     return status

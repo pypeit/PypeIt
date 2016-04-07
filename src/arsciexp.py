@@ -130,7 +130,7 @@ class ScienceExposure:
         except ValueError:
             tval = datetime.datetime.strptime(tbname, '%Y-%m-%dT%H:%M:%S')
         #self._basename = datetime.datetime.strftime(tval, '%Y%b%dT') + tbname.split("T")[1]
-        self._basename = datetime.datetime.strftime(tval, '%Y%b%dT') + tbname.split("T")[1].replace(':','-')
+        self._basename = datetime.datetime.strftime(tval, '%Y%b%dT') + tbname.split("T")[1].replace(':','_')
         return
 
     ###################################
