@@ -18,7 +18,7 @@ from multiprocessing import cpu_count
 try:
     from xastropy.xutils import xdebug as debugger
 except:
-    pass
+    import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()

@@ -8,9 +8,9 @@ import pdb
 msgs = armsgs.get_logger()
 
 try:
-    from xastropy.xutils import xdebug as xdb
+    from xastropy.xutils import xdebug as debugger
 except:
-    pass
+    import pdb as debugger
 
 # MASK VALUES FROM EXTRACTION
 # 0 
@@ -49,6 +49,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     nobj = scitrace['traces'].shape[1]
     cr_mask = 1.0-crmask
     bgfit = np.linspace(0.0, 1.0, sciframe.shape[1])
+    bgcorr = np.zeros_like(cr_mask)
     # Loop on Objects
     for o in range(nobj):
         #pdb.set_trace()
@@ -71,7 +72,11 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
         # Total the variance array
         msgs.info("   Summing variance array")
         varsum = np.sum(varframe*weight, axis=1)
-        # Mask 
+        # Update background correction image
+        tmp = scitrace['background'][:,:,o] + scitrace['object'][:,:,o]
+        gdp = np.where(tmp > 0)
+        bgcorr[gdp] = bgframe[gdp]
+        # Mask
         boxmask = np.zeros_like(wvsum, dtype=np.int)
         # Bad detector pixels
         BPs = np.sum(weight*slf._bpix[det-1], axis=1)
@@ -100,4 +105,4 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
         specobjs[o].boxcar['sky'] = skysum  # per pixel
         specobjs[o].boxcar['mask'] = boxmask
     # Return
-    return None
+    return bgcorr

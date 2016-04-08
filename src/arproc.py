@@ -356,13 +356,15 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     polyorder = 1
     xpix = sxvpix[wbg]
     maxdiff = np.sort(xpix[1:]-xpix[:-1])[xpix.size-sciframe.shape[0]-1] # only include the next pixel in the fit if it is less than 10x the median difference between all pixels
+    #
     msgs.info("Generating sky background image")
     bgscan = arcyutils.polyfit_scan_lim(sxvpix[wbg], sbgpix[wbg].copy(), np.ones(wbg[0].size,dtype=np.float), maskval, polyorder, sciframe.shape[1]/3, repeat, maxdiff)
-    if True:
-        gdscan = bgscan != maskval
-        bgframe = np.interp(tilts.flatten(), sxvpix[wbg[0][gdscan]], bgscan[gdscan]).reshape(tilts.shape)
-    else:
-        bgframe = np.interp(tilts.flatten(), sxvpix[wbg], bgscan).reshape(tilts.shape)
+    # Restrict to good values
+    gdscan = bgscan != maskval
+    if np.sum(~gdscan) > 0:
+        msgs.warn("At least one masked value in bgscan")
+    # Generate
+    bgframe = np.interp(tilts.flatten(), sxvpix[wbg[0][gdscan]], bgscan[gdscan]).reshape(tilts.shape)
     if np.sum(np.isnan(bgframe)) > 0:
         msgs.warn("NAN in bgframe.  Replacing with 0")
         bad = np.isnan(bgframe)
@@ -803,8 +805,10 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         #continue
     # Boxcar
     msgs.info("Extracting")
-    arextract.boxcar(slf, det, specobjs, sciframe-bgframe, varframe, bgframe, crmask, scitrace)
-#    xdb.set_trace()
+    bgcorr_box = arextract.boxcar(slf, det, specobjs, sciframe-bgframe,
+                                  varframe, bgframe, crmask, scitrace)
+    # Final
+    slf._bgframe[det-1] = bgframe + bgcorr_box
     # Return
     return True
 
