@@ -39,7 +39,6 @@ def main() :
     parser.add_argument('lowrdx_file', type = str, default = None,
                         help = 'LowRedux Pixel Flat FITS file')
     parser.add_argument('new_file', type = str, default = None, help = 'PYPIT FITS file')
-    parser.add_argument('--raw_lris', action="store_true")
 
     args = parser.parse_args()
 
