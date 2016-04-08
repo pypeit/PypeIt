@@ -16,7 +16,7 @@ from multiprocessing import cpu_count
 #import arutils
 
 try:
-    from xastropy.xutils import xdebug as xdb
+    from xastropy.xutils import xdebug as debugger
 except:
     pass
 
@@ -616,7 +616,8 @@ def load_headers(argflag, spect, datlines):
     return fitsdict
 
 
-def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None, trim=True, transpose=False):
+def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None,
+                trim=True, transpose=False, debug=False):
     """
     Load data frames, usually raw.
     Bias subtract (if not msbias!=None) and trim (if True)
@@ -648,7 +649,6 @@ def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None, trim=T
     for i in range(np.size(ind)):
         # Instrument specific read
         if slf._argflag['run']['spectrograph'] in ['lris_blue']:
-#            xdb.set_trace()
             temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         else:
             temp = pyfits.getdata(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], slf._spect['fits']['dataext'])
@@ -662,7 +662,7 @@ def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None, trim=T
                     arproc.sub_overscan(slf, det, temp)
                 else:
                     msgs.error("Could not subtract bias level when loading {0:s} frames".format(frametype))
-            if trim: 
+            if trim:
                 temp = arproc.trim(slf, temp, det)
         if i == 0:
             frames = np.zeros((temp.shape[0], temp.shape[1], np.size(ind)))
