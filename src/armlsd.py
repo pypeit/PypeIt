@@ -16,7 +16,7 @@ import arqa
 try:
     from xastropy.xutils import xdebug as debugger
 except:
-    pass
+    import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -63,7 +63,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
         # Loop on Detectors
         for kk in xrange(slf._spect['mosaic']['ndet']):
-#        for kk in xrange(1,slf._spect['mosaic']['ndet']):
+
             det = kk + 1  # Detectors indexed from 1
             ###############
             # Get amplifier sections
@@ -92,11 +92,9 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             if slf._bpix[det-1] is None:
                 slf.SetFrame(slf._bpix, np.zeros((slf._nspec[det-1], slf._nspat[det-1])), det)
 
-#            debugger.set_trace()
             ###############
             # Generate a master trace frame
             update = slf.MasterTrace(fitsdict, det)
-#            debugger.set_trace()
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
             ###############
@@ -147,20 +145,12 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                 # Extract arc and identify lines
                 wv_calib = ararc.simple_calib(slf, det)
                 slf.SetFrame(slf._wvcalib, wv_calib, det)
-                slf._qa.close()
-                xdb.set_trace()
-
-
-
-
-
 
                 ###############
                 # Generate a master wave frame
                 update = slf.MasterWave(fitsdict, det)
                 if update and reuseMaster:
                     armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
-
 
             ###############
             # Check if the user only wants to prepare the calibrations
@@ -203,6 +193,9 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             # Using model sky, calculate a flexure correction
             msgs.warn("Implement flexure correction!!")
 
+        # Close the QA for this object
+        slf._qa.close()
+
         ###############
         # Flux
         ###############
@@ -220,10 +213,10 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
         arflux.apply_sensfunc(slf, scidx, fitsdict)
 
-        # Write
+        # Write 1D spectra
         arsave.save_1d_spectra(slf)
-        # Close the QA for this object
-        slf._qa.close()
+        # Write 2D images
+        arsave.save_2d_images(slf)
         # Free up some memory by replacing the reduced ScienceExposure class
         sciexp[sc] = None
     return status

@@ -14,9 +14,18 @@ import sys, os
 import subprocess
 from astropy.io import fits
 
-sys.path.append(os.path.abspath('/Users/xavier/local/Python/PYPIT/src'))
-import arlris 
+# Setup for PYPIT imports
+this_file = os.path.realpath(__file__)
+this_path = this_file[:this_file.rfind('/')]
+sys.path.append(os.path.abspath(this_path+'/../src'))
 import armsgs as msgs
+
+debug = True
+last_updated = "26 November 2015"
+version = '0.3'
+msgs = msgs.get_logger((None, debug, last_updated, version))
+
+import arlris
 
 def main() :
 
@@ -24,8 +33,23 @@ def main() :
 
     parser.add_argument('file', type = str, default = None, help = 'FITS file')
     parser.add_argument('--raw_lris', action="store_true")
+    parser.add_argument('--exten', type=int, help="FITS extension")
 
     args = parser.parse_args()
+
+    kludge_fil = 'tmp_ginga.fits'
+
+    # Extension
+    if args.exten is not None:
+        hdu = fits.open(args.file)
+        img = hdu[args.exten].data
+        # Write
+        msgs.warn('Writing kludge file to {:s}'.format(kludge_fil))
+        hdunew = fits.PrimaryHDU(img)
+        hdulist = fits.HDUList([hdunew])
+        hdulist.writeto(kludge_fil,clobber=True)
+        #
+        args.file = kludge_fil
 
     # RAW_LRIS??
     if args.raw_lris:
@@ -35,7 +59,6 @@ def main() :
         hdu = fits.PrimaryHDU(img)
         hdulist = fits.HDUList([hdu])
         # Write
-        kludge_fil = 'tmp_ginga.fits'
         msgs.warn('Writing kludge file to {:s}'.format(kludge_fil))
         hdulist.writeto(kludge_fil,clobber=True)
         args.file = kludge_fil

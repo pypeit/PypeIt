@@ -356,9 +356,15 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     polyorder = 1
     xpix = sxvpix[wbg]
     maxdiff = np.sort(xpix[1:]-xpix[:-1])[xpix.size-sciframe.shape[0]-1] # only include the next pixel in the fit if it is less than 10x the median difference between all pixels
+    #
     msgs.info("Generating sky background image")
     bgscan = arcyutils.polyfit_scan_lim(sxvpix[wbg], sbgpix[wbg].copy(), np.ones(wbg[0].size,dtype=np.float), maskval, polyorder, sciframe.shape[1]/3, repeat, maxdiff)
-    bgframe = np.interp(tilts.flatten(), sxvpix[wbg], bgscan).reshape(tilts.shape)
+    # Restrict to good values
+    gdscan = bgscan != maskval
+    if np.sum(~gdscan) > 0:
+        msgs.warn("At least one masked value in bgscan")
+    # Generate
+    bgframe = np.interp(tilts.flatten(), sxvpix[wbg[0][gdscan]], bgscan[gdscan]).reshape(tilts.shape)
     if np.sum(np.isnan(bgframe)) > 0:
         msgs.warn("NAN in bgframe.  Replacing with 0")
         bad = np.isnan(bgframe)
@@ -755,7 +761,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
             slf._bgframe[det-1] = bgframe
     ###############
     # Estimate trace of science objects
-    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask)
+    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask, doqa=(not standard))
     if scitrace is None:
         msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
         pdb.set_trace()
@@ -777,7 +783,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     ###############
     # Determine the final trace of the science objects
     msgs.info("Final trace")
-    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask)
+    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask, doqa=(not standard))
     if standard:
         slf._msstd[det-1]['trace'] = scitrace
 #        debugger.set_trace()
@@ -798,8 +804,11 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         pdb.set_trace()
         #continue
     # Boxcar
-    arextract.boxcar(slf, det, specobjs, sciframe-bgframe, varframe, bgframe, crmask, scitrace)
-#    xdb.set_trace()
+    msgs.info("Extracting")
+    bgcorr_box = arextract.boxcar(slf, det, specobjs, sciframe-bgframe,
+                                  varframe, bgframe, crmask, scitrace)
+    # Final
+    slf._bgframe[det-1] = bgframe + bgcorr_box
     # Return
     return True
 

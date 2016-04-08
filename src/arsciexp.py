@@ -129,7 +129,8 @@ class ScienceExposure:
             tval = datetime.datetime.strptime(tbname, '%Y-%m-%dT%H:%M:%S.%f')
         except ValueError:
             tval = datetime.datetime.strptime(tbname, '%Y-%m-%dT%H:%M:%S')
-        self._basename = datetime.datetime.strftime(tval, '%Y%b%dT') + tbname.split("T")[1]
+        #self._basename = datetime.datetime.strftime(tval, '%Y%b%dT') + tbname.split("T")[1]
+        self._basename = datetime.datetime.strftime(tval, '%Y%b%dT') + tbname.split("T")[1].replace(':','_')
         return
 
     ###################################
@@ -283,7 +284,8 @@ class ScienceExposure:
             msgs.info("Preparing a master arc frame")
             ind = self._idx_arcs
             # Load the arc frames
-            frames = arload.load_frames(self, fitsdict, ind, det, frametype='arc', msbias=self._msbias[det-1])
+            frames = arload.load_frames(self, fitsdict, ind, det, frametype='arc',
+                                        msbias=self._msbias[det-1])
             if self._argflag['reduce']['arcmatch'] > 0.0:
                 sframes = arsort.match_frames(frames, self._argflag['reduce']['arcmatch'], msgs, frametype='arc',
                                               satlevel=self._spect['det']['saturation']*self._spect['det']['nonlinear'])
@@ -421,18 +423,20 @@ class ScienceExposure:
                     mspixflat = arcomb.comb_frames(frames, det, spect=self._spect, frametype='pixel flat',
                                                    **self._argflag['pixflat']['comb'])
                 del frames
+                # Normalize the flat field
+                mspixflatnrm, msblaze = arproc.flatnorm(self, det, mspixflat, overpix=0, plotdesc="Blaze function")
+                self.SetFrame(self._msblaze, msblaze, det)
             else:  # It must be the name of a file the user wishes to load
-                mspixflat_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usepixflat']
-                mspixflat = arload.load_master(mspixflat_name, msgs, frametype=None)
+                mspixflat_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['useflat']
+                mspixflatnrm = arload.load_master(mspixflat_name, det, frametype=None)
+                mspixflat = mspixflatnrm
             # Now that the combined, master flat field frame is loaded...
-            # Normalize the flat field
-            mspixflatnrm, msblaze = arproc.flatnorm(self, det, mspixflat, overpix=0, plotdesc="Blaze function")
-            self.SetFrame(self._msblaze, msblaze, det)
         else:
             msgs.work("Pixel Flat arrays need to be generated when not flat fielding")
             msgs.bug("Blaze is currently undefined")
             mspixflat = np.ones_like(self._msarc)
             mspixflatnrm = np.ones_like(self._msarc)
+        # Set Master Frames
         self.SetMasterFrame(mspixflat, "pixflat", det)
         self.SetMasterFrame(mspixflatnrm, "normpixflat", det)
         return True

@@ -16,9 +16,9 @@ from multiprocessing import cpu_count
 #import arutils
 
 try:
-    from xastropy.xutils import xdebug as xdb
+    from xastropy.xutils import xdebug as debugger
 except:
-    pass
+    import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -617,7 +617,8 @@ def load_headers(argflag, spect, datlines):
     return fitsdict
 
 
-def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None, trim=True, transpose=False):
+def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None,
+                trim=True, transpose=False, debug=False):
     """
     Load data frames, usually raw.
     Bias subtract (if not msbias!=None) and trim (if True)
@@ -649,7 +650,6 @@ def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None, trim=T
     for i in range(np.size(ind)):
         # Instrument specific read
         if slf._argflag['run']['spectrograph'] in ['lris_blue']:
-#            xdb.set_trace()
             temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         else:
             temp = pyfits.getdata(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], slf._spect['fits']['dataext'])
@@ -663,7 +663,7 @@ def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None, trim=T
                     arproc.sub_overscan(slf, det, temp)
                 else:
                     msgs.error("Could not subtract bias level when loading {0:s} frames".format(frametype))
-            if trim: 
+            if trim:
                 temp = arproc.trim(slf, temp, det)
         if i == 0:
             frames = np.zeros((temp.shape[0], temp.shape[1], np.size(ind)))
@@ -741,7 +741,7 @@ def load_extraction(name, frametype='<None>', wave=True):
         return sciext, props
 
 
-def load_master(name, frametype='<None>'):
+def load_master(name, det, frametype='<None>'):
     """
     Load a pre-existing master calibration frame
 
@@ -749,6 +749,7 @@ def load_master(name, frametype='<None>'):
     ----------
     name : str
       Name of the master calibration file to be loaded
+    det : int
     frametype : str, optional
       The type of master calibration frame being loaded.
       This keyword is only used for terminal print out.
@@ -761,14 +762,20 @@ def load_master(name, frametype='<None>'):
     if frametype is None:
         msgs.info("Loading a pre-existing master calibration frame")
         try:
-            infile = pyfits.open(name)
+            hdu = pyfits.open(name)
         except:
             msgs.error("Master calibration file does not exist:"+msgs.newline()+name)
-        msgs.info("Master {0:s} frame loaded successfully:".format(infile[0].header['FRAMETYP'])+msgs.newline()+name)
-        return np.array(infile[0].data, dtype=np.float)
+        msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
+        data = hdu[det].data.astype(np.float)
+        return data
+        #return np.array(infile[0].data, dtype=np.float)
     else:
         msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
-        return np.array(pyfits.getdata(name, 0), dtype=np.float)
+        # Load
+        hdu = pyfits.open(name)
+        data = hdu[det].data.astype(np.float)
+        return data
+        #return np.array(pyfits.getdata(name, 0), dtype=np.float)
 
 
 def load_ordloc(fname):
