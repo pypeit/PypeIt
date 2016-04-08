@@ -342,6 +342,7 @@ def convert_lowredux_pixflat(infil, outfil):
     #
     prihdu = pyfits.PrimaryHDU()
     hdus = [prihdu]
+    prihdu.header['FRAMETYP'] = 'pixflat'
 
     # Detector 1
     img1 = data[:,:data.shape[1]/2]

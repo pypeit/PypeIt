@@ -428,7 +428,7 @@ class ScienceExposure:
                 self.SetFrame(self._msblaze, msblaze, det)
             else:  # It must be the name of a file the user wishes to load
                 mspixflat_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['useflat']
-                mspixflatnrm = arload.load_master(mspixflat_name, msgs, frametype=None)
+                mspixflatnrm = arload.load_master(mspixflat_name, det, frametype=None)
                 mspixflat = mspixflatnrm
             # Now that the combined, master flat field frame is loaded...
         else:
