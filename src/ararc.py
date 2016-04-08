@@ -199,8 +199,24 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['disp']=0.63 # Ang per pixel (unbinned)
             arcparam['b1']= 4.54698031e-04 
             arcparam['b2']= -6.86414978e-09
-            #arcparam['b1']= 1./arcparam['disp']/slf._msarc.shape[0] 
             arcparam['wvmnx'][1] = 6000.
+    elif sname=='lris_red':
+        lamps = ['ArI','NeI','XeI','KrI']
+        if disperser == '600/7500':
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=0.80 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+#            arcparam['b2']= -6.86414978e-09
+            arcparam['wvmnx'][1] = 7500.
+        elif disperser == '900/5500':
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=0.53 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+#            arcparam['b2']= -6.86414978e-09
+            arcparam['wvmnx'][1] = 5500.
+
+
+
     else:
         msgs.error('ararc.setup_param: Not ready for this instrument {:s}!'.format(sname))
 

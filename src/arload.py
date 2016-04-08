@@ -517,7 +517,8 @@ def load_headers(argflag, spect, datlines):
     keys = spect['keyword'].keys()
     fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
     whddict = dict({})
-    for k in keys: fitsdict[k]=[]
+    for k in keys:
+        fitsdict[k]=[]
     headarr = [None for k in range(spect['fits']['numhead'])]
     for i in range(len(datlines)):
         # Try to open the fits file

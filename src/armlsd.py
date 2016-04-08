@@ -64,7 +64,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         # Loop on Detectors
         for kk in xrange(slf._spect['mosaic']['ndet']):
 #        for kk in xrange(1,slf._spect['mosaic']['ndet']):
-
             det = kk + 1  # Detectors indexed from 1
             ###############
             # Get amplifier sections
@@ -148,6 +147,13 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                 # Extract arc and identify lines
                 wv_calib = ararc.simple_calib(slf, det)
                 slf.SetFrame(slf._wvcalib, wv_calib, det)
+                slf._qa.close()
+                xdb.set_trace()
+
+
+
+
+
 
                 ###############
                 # Generate a master wave frame
