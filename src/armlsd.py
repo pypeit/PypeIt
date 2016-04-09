@@ -134,9 +134,11 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                     msgs.info("Iterating on spectral tilts -- Iteration {0:d}/{1:d}".format(tt+1, nitertilts))
                     if tt == nitertilts-1:
                         doQA = True
-                    tilts, satmask = artrace.model_tilt(slf, det, slf._msarc[det-1], guesstilts=tilts, plotQA=doQA)
+                    tilts, satmask, outpar = artrace.model_tilt(slf, det, slf._msarc[det-1],
+                                                                guesstilts=tilts, plotQA=doQA)
                 slf.SetFrame(slf._tilts, tilts, det)
-                slf.SetFrame(slf._satmask, tilts, det)
+                slf.SetFrame(slf._satmask, satmask, det)
+                slf.SetFrame(slf._tiltpar, outpar, det)
 
                 # Setup arc parameters (e.g. linelist)
                 arcparam = ararc.setup_param(slf, sc, det, fitsdict)

@@ -1429,6 +1429,7 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
                     #pdb.set_trace()
                     #arpca.pc_plot_arctilt(tiltang, centval, tilts, plotsdir=slf._argflag['run']['plotsdir'], pcatype="tilts", prefix=prefix)
             else:
+                outpar = {}
                 msgs.warn("Could not perform a PCA when tracing the spectral tilt"+msgs.newline()+"Not enough well-traced arc lines")
                 msgs.info("Attempting to fit tilts by assuming the tilt is independent along the dispersion direction")
                 xtiltfit = np.array([])
@@ -1512,7 +1513,7 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
     #     # Fit each arc line the same as the blaze fitting algorithm, but only consider the brightest lines
     #     # Linearly interpolate over the result. In between the best lines, take an average of the PCA and the interpolated tilts (based on the brightest lines)
     #     pdb.set_trace()
-    return tilts, satsnd
+    return tilts, satsnd, outpar
 
 
 def trace_fweight(fimage, xinit, invvar=None, radius=3.):
@@ -1955,7 +1956,7 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
             msgs.info("Performing a PCA on the order edges")
             ordsnd = np.arange(tiltang.shape[1])+1.0
             xcen = xv[:,np.newaxis].repeat(tiltang.shape[1],axis=1)
-            fitted, outpar = arpca.basis(xcen,tiltval,tcoeff,lnpc,ofit,x0in=ordsnd,mask=maskord,skipx0=True,function=slf._argflag['trace']['orders']['function'])
+            #fitted, outpar = arpca.basis(xcen,tiltval,tcoeff,lnpc,ofit,x0in=ordsnd,mask=maskord,skipx0=True,function=slf._argflag['trace']['orders']['function'])
             # If the PCA worked OK, do the following
             msgs.work("Should something be done here inbetween the two basis calls?")
             fitted, outpar = arpca.basis(xcen,tiltval,tcoeff,lnpc,ofit,x0in=ordsnd,mask=maskord,skipx0=False,function=slf._argflag['trace']['orders']['function'])

@@ -4,6 +4,11 @@ import armsgs
 import arutils
 from arplot import get_dimen as get_dimen
 
+try:
+    from xastropy.xutils import xdebug as debugger
+except:
+    import pdb as debugger
+
 # Logging
 msgs = armsgs.get_logger()
 

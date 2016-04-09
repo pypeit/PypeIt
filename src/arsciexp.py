@@ -78,6 +78,7 @@ class ScienceExposure:
         self._lordpix  = [None for all in xrange(ndet)]   # Array of slit traces (left side) in apparent pixel coordinates
         self._rordpix  = [None for all in xrange(ndet)]   # Array of slit traces (right side) in apparent pixel coordinates
         self._tilts    = [None for all in xrange(ndet)]   # Array of spectral tilts at each position on the detector
+        self._tiltpar  = [None for all in xrange(ndet)]   # Dict parameters for tilt fitting
         self._satmask  = [None for all in xrange(ndet)]   # Array of Arc saturation streaks
         self._arcparam = [None for all in xrange(ndet)]   # Dict guiding wavelength calibration
         self._wvcalib  = [None for all in xrange(ndet)]   #

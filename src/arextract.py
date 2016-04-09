@@ -1,6 +1,7 @@
 import numpy as np
 from astropy import units as u
 import arcyutils
+import arutils
 import armsgs
 import pdb
 
@@ -108,7 +109,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     return bgcorr
 
 def obj_profiles(slf, det, specobjs, sciframe, varframe, crmask, scitrace,
-                 COUNT_LIM=15.):
+                 COUNT_LIM=15., pickle_file=None):
     """ Derive spatial profiles for each object
 
     Parameters
@@ -126,20 +127,64 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, crmask, scitrace,
     -------
 
     """
+    tilts = slf._tilts[det-1]
+    if False:
+        import pickle
+        args = [det, specobjs, sciframe, varframe, crmask, scitrace, tilts]
+        msgs.warn("Pickling in the profile code")
+        with open("trc_pickle.p",'wb') as f:
+            pickle.dump(args,f)
+    if pickle_file is not None:
+        f = open(pickle_file,'rb')
+        args = pickle.load(f)
+        f.close()
+        det, specobjs, sciframe, varframe, crmask, scitrace, tilts = args
+    #
+    ximg = np.outer(np.ones(sciframe.shape[0]), np.arange(sciframe.shape[1]))
+    dypix = 1./sciframe.shape[0]
+    # Loop
     nobj = scitrace['traces'].shape[1]
     for o in range(nobj):
+        # Calculate tilts for the object trace
+        # Using closest pixe for now
+        msgs.work("Use 2D spline to evaluate tilts")
+        xtrc = np.round(scitrace['traces'][:,o]).astype(int)
+        trc_tilt = tilts[np.arange(tilts.shape[0]),xtrc]
+        trc_tilt_img = np.outer(trc_tilt, np.ones(sciframe.shape[1]))
+        # Slit image  (should worry about changing plate scale)
+        dy = (tilts - trc_tilt_img)/dypix  # Pixels
+        dx = ximg - np.outer(scitrace['traces'][:,o],np.ones(sciframe.shape[1]))
+        slit_img = np.sqrt(dx**2 - dy**2)
+        neg = dx < 0.
+        slit_img[neg] *= -1
+        # Object pixels
         weight = scitrace['object'][:,:,o]
-        slit_val = []
-        prof_val = []
         # Identify good rows
         gdrow = np.where(specobjs[o].boxcar['counts'] > COUNT_LIM)[0]
         # Normalized image
         norm_img = sciframe / np.outer(specobjs[o].boxcar['counts'], np.ones(sciframe.shape[1]))
-        if len(gdrow) > 50:  # Good S/N
-            gdobj = np.where(weight[gdrow,:] > 0)
-            for irow, gdy in enumerate(gdobj[0]):
+        # Slit image
+        # Eliminate rows with CRs (wipes out boxcar)
+        crspec = np.sum(crmask*weight,axis=1)
+        cr_rows = np.where(crspec > 0)[0]
+        for row in cr_rows:
+            weight[row,:] = 0.
+        #
+        if len(gdrow) > 100:  # Good S/N regime
+            msgs.info("Good S/N for profile")
+            # Eliminate low count regions
+            badrow = np.where(specobjs[o].boxcar['counts'] < COUNT_LIM)[0]
+            for row in badrow:
+                weight[row,:] = 0.
+            # Extract profile
+            gdprof = weight > 0
+            slit_val = slit_img[gdprof]
+            flux_val = norm_img[gdprof]
+            # Fit Gaussian
+            gauss, flag = arutils.gauss_fit(slit_val, flux_val, 0.)
 
             debugger.set_trace()
+            debugger.xplot(slit_val, flux_val, scatter=True)
         elif len(gdrow) > 10:  #
             debugger.set_trace()
 
