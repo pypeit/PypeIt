@@ -2,7 +2,6 @@ import numpy as np
 from astropy import units as u
 import arcyutils
 import armsgs
-import pdb
 
 # Logging
 msgs = armsgs.get_logger()
@@ -106,33 +105,3 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
         specobjs[o].boxcar['mask'] = boxmask
     # Return
     return bgcorr
-
-def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace,
-                 COUNT_LIM=15.):
-    """ Derive spatial profiles for each object
-
-    Parameters
-    ----------
-    slf
-    det
-    specobjs
-    sciframe
-    varframe
-    skyframe
-    crmask
-    scitrace
-
-    Returns
-    -------
-
-    """
-    nobj = scitrace['traces'].shape[1]
-    for o in range(nobj):
-        # Identify good rows
-        gdrow = np.where(specobjs[o].boxcar['counts'] > COUNT_LIM)[0]
-        if len(gdrow) > 50:  # Good S/N
-            debugger.set_trace()
-        elif len(gdrow) > 10:  # Good S/N
-            debugger.set_trace()
-
-

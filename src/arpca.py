@@ -13,8 +13,6 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
     if x0in is None:
         x0in = np.arange(float(ntrace))
 
-    #import pdb
-    #pdb.set_trace()
     # Mask out some orders if they are bad
     if mask is None or mask.size == 0:
         usetrace = np.arange(ntrace)
@@ -55,7 +53,6 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
         else:
             tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1,:], pnpc[i],
                                                    sigma=2.0, function=function, minv=x0in[0], maxv=x0in[-1])
-        #pdb.set_trace()
         coeffstr.append(coeff0)
         high_order_matrix[:,i-1] = arutils.func_val(coeff0, x0in, function, minv=x0in[0], maxv=x0in[-1])
     # high_order_matrix[:,1] = arutils.func_val(coeff1, x0in, function)
@@ -261,8 +258,6 @@ def image_basis(img, numpc=0):
     eigvec = eigvec[:, idx]
     eigval = eigval[idx]
     # Select the first few principal components
-    import pdb
-    pdb.set_trace()
     if (numpc < p) and (numpc >= 0):
         eigvec = eigvec[:,range(numpc)]
     # Project the data

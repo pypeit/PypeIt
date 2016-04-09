@@ -1,4 +1,3 @@
-import pdb
 import numpy as np
 import arextract
 import arflux
@@ -63,7 +62,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
         # Loop on Detectors
         for kk in xrange(slf._spect['mosaic']['ndet']):
-
             det = kk + 1  # Detectors indexed from 1
             ###############
             # Get amplifier sections
@@ -91,7 +89,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             slf.GetDispersionDirection(fitsdict, det, scidx)
             if slf._bpix[det-1] is None:
                 slf.SetFrame(slf._bpix, np.zeros((slf._nspec[det-1], slf._nspat[det-1])), det)
-
             ###############
             # Generate a master trace frame
             update = slf.MasterTrace(fitsdict, det)

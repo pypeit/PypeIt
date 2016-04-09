@@ -1,6 +1,8 @@
 import sys
+from os.path import dirname, basename
+from textwrap import wrap as wraptext
 from inspect import currentframe, getouterframes
-
+from glob import glob
 
 class Messages:
     """
@@ -10,7 +12,7 @@ class Messages:
     http://ascii-table.com/ansi-escape-sequences.php
     """
 
-    def __init__(self, log, debug, last_updated, version, colors=True):
+    def __init__(self, log, debug, last_updated, version, verbose, colors=True):
         """
         Initialize the Message logging class
 
@@ -24,6 +26,11 @@ class Messages:
           The data of last update
         version : str
           Current version of the code
+        verbose : int (0,1,2)
+          Level of verbosity:
+            0 = No output
+            1 = Minimal output (default - suitable for the average user)
+            2 = All output
         colors : bool
           If true, the screen output will have colors, otherwise
           normal screen output will be displayed
@@ -38,6 +45,7 @@ class Messages:
         self._debug = debug
         self._last_updated = last_updated
         self._version = version
+        self._verbose = verbose
         # Save the version of the code including last update information to the log file
         if self._log:
             self._log.write("------------------------------------------------------\n\n")
@@ -61,7 +69,7 @@ class Messages:
         """
         header = "##  "
         header += self._start + self._white_GR + "ARMED : "
-        header += "Automated Reduction and Modelling of Echelle Data v1.0" + self._end + "\n"
+        header += "Automated Reduction and Modelling of Echelle Data v{0:s}".format(self._version) + self._end + "\n"
         header += "##  "
         header += "Usage : "
         header += "python %s [options] filelist".format(prognm)
@@ -73,7 +81,7 @@ class Messages:
         """
         header = "##  "
         header += self._start + self._white_GR + "PYPIT : "
-        header += "The Python Spectroscopic Data Reduction Pipeline v1.0" + self._end + "\n"
+        header += "The Python Spectroscopic Data Reduction Pipeline v{0:s}".format(self._version) + self._end + "\n"
         header += "##  "
         header += "Usage : "
         if prognm is None:
@@ -83,22 +91,38 @@ class Messages:
         return header
 
     def usage(self, prognm):
-        print "\n#####################################################################"
+        stgs_arm = glob(dirname(__file__)+"/settings.arm*")
+        stgs_all = glob(dirname(__file__)+"/settings.*")
+        stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
+        armlist = basename(stgs_arm[0]).split(".")[-1]
+        for i in xrange(1, len(stgs_arm)):
+            armlist += ", " + basename(stgs_arm[i]).split(".")[-1]
+        spclist = basename(stgs_spc[0]).split(".")[-1]
+        for i in xrange(1, len(stgs_spc)):
+            spclist += ", " + basename(stgs_spc[i]).split(".")[-1]
+        spcl = wraptext(spclist, width=60)
+        print "\n#################################################################"
         print self.pypitheader(prognm)
-        print "##  -----------------------------------------------------------------"
+        print "##  -------------------------------------------------------------"
         print "##  Options: (default values in brackets)"
         print "##   -c or --cpus      : (all) Number of cpu cores to use"
         print "##   -h or --help      : Print this message"
         print "##   -v or --verbose   : (2) Level of verbosity (0-2)"
-        print "##  -----------------------------------------------------------------"
-        print "##  %s".format(self._last_updated)
-        print "#####################################################################\n"
+        print "##  -------------------------------------------------------------"
+        print "##  Available pipelines include:"
+        print "##   " + armlist
+        print "##  Available spectrographs include:"
+        for i in spcl:
+            print "##   " + i
+        print "##  -------------------------------------------------------------"
+        print "##  Last updated: {0:s}".format(self._last_updated)
+        print "#################################################################\n"
         sys.exit()
 
     def debugmessage(self):
         if self._debug:
             info = getouterframes(currentframe())[2]
-            dbgmsg = self._start + self._blue_CL + info[1].split("/")[-1]+" "+str(info[2])+" "+info[3]+"()"+self._end+" - "
+            dbgmsg = self._start+self._blue_CL+info[1].split("/")[-1]+" "+str(info[2])+" "+info[3]+"()"+self._end+" - "
         else:
             dbgmsg = ""
         return dbgmsg
@@ -165,11 +189,12 @@ class Messages:
         """
         Print a test message
         """
-        dbgmsg = self.debugmessage()
-        premsg = self._start + self._white_BL + "[TEST]    ::" + self._end + " "
-        print >>sys.stderr, premsg+dbgmsg+msg
-        if self._log:
-            self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
+        if self._verbose == 2:
+            dbgmsg = self.debugmessage()
+            premsg = self._start + self._white_BL + "[TEST]    ::" + self._end + " "
+            print >>sys.stderr, premsg+dbgmsg+msg
+            if self._log:
+                self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
         return
 
     def warn(self, msg):
@@ -198,12 +223,13 @@ class Messages:
         """
         Print a work in progress message
         """
-        dbgmsg = self.debugmessage()
-        premsgp = self._start + self._black_CL + "[WORK IN ]::" + self._end + "\n"
-        premsgs = self._start + self._yellow_CL + "[PROGRESS]::" + self._end + " "
-        print >>sys.stderr, premsgp+premsgs+dbgmsg+msg
-        if self._log:
-            self._log.write(self.cleancolors(premsgp+premsgs+dbgmsg+msg)+"\n")
+        if self._verbose == 2:
+            dbgmsg = self.debugmessage()
+            premsgp = self._start + self._black_CL + "[WORK IN ]::" + self._end + "\n"
+            premsgs = self._start + self._yellow_CL + "[PROGRESS]::" + self._end + " "
+            print >>sys.stderr, premsgp+premsgs+dbgmsg+msg
+            if self._log:
+                self._log.write(self.cleancolors(premsgp+premsgs+dbgmsg+msg)+"\n")
         return
 
     def prindent(self, msg):
@@ -310,6 +336,6 @@ def get_logger(init=None):
 
     # Instantiate??
     if init is not None:
-        pypit_logger = Messages(init[0],init[1],init[2],init[3])
+        pypit_logger = Messages(init[0], init[1], init[2], init[3], init[4])
 
     return pypit_logger

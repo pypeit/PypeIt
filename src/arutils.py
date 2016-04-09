@@ -17,9 +17,10 @@ import warnings
 msgs = armsgs.get_logger()
 
 try:
-    from xastropy.xutils import xdebug as xdb
-except:
-    pass
+    from xastropy.xutils.xdebug import set_trace
+#    from xastropy.xutils import xdebug as xdb
+except ImportError:
+    from pdb import set_trace
 
 try:
     import ds9
@@ -113,7 +114,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     try:
         tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, t=knots)
     except ValueError: # Knot problem
-        pdb.set_trace()
+        set_trace()
     return tck
 
 
@@ -700,8 +701,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
         yrng = func_val(ct, xarray, function, minv=minv, maxv=maxv)
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
         if debug:
-            import pdb
-            pdb.set_trace()
+            set_trace()
         if xarray.size-np.sum(mask) <= order+2:
             msgs.warn("More parameters than data points - fit might be undesirable")
             break  # More data was masked than allowed by order

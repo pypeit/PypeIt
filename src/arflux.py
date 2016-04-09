@@ -14,7 +14,7 @@ import arutils
 
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
-except:
+except ImportError:
     pass
 
 
@@ -250,7 +250,9 @@ def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
             mind2d = d2d[imind2d]
             if mind2d < closest['sep']:
                 closest['sep'] = mind2d
-                closest.update(dict(name=star_tbl[int(idx)]['Name'], ra=star_tbl[int(idx)]['RA_2000'], dec=star_tbl[int(idx)]['DEC_2000']))
+                closest.update(dict(name=star_tbl[int(idx)]['Name'], 
+                    ra=star_tbl[int(idx)]['RA_2000'], 
+                    dec=star_tbl[int(idx)]['DEC_2000']))
     # Standard star not found
     if check: return False
     msgs.warn("No standard star was found within a tolerance of {:g}".format(toler))

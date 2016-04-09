@@ -12,7 +12,6 @@ import arpca
 import arplot
 import matplotlib.pyplot as plt
 import scipy.interpolate as interp
-import pdb
 import scipy.ndimage as ndimage
 
 # Logging
@@ -210,7 +209,6 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     ofst = slf._lordloc[det-1][:,order].reshape((-1,1)).repeat(nobj,axis=1) + triml
     diff = (slf._rordloc[det-1][:,order].reshape((-1,1)).repeat(nobj,axis=1)
             - slf._lordloc[det-1][:,order].reshape((-1,1)).repeat(nobj,axis=1))
-    #pdb.set_trace()
     # Convert central trace
     traces = ofst + (diff-triml-trimr)*trcfunc
     # Convert left object trace
@@ -872,7 +870,6 @@ def model_tilt_test(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False
                 if wgd[0].size != 0: continue
                 #xfit = xfit[wgd]
                 #yfit = yfit[wgd]
-                #pdb.set_trace()
                 # try:
                 #     #cof = arutils.func_fit(xfit, yfit, 'polynomial', 3)
                 #     #cof = arutils.polyfit_integral(xfit, yfit, np.ones_like(xfit), 3, w=None)[::-1]
@@ -980,12 +977,10 @@ def model_tilt_test(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False
             # Don't use lines that go off the chip (could lead to a bad trace)
             if offchip: continue
             wmask = np.where(mtfit == 0.0)
-            #pdb.set_trace()
 #            if True and guesstilts is not None:
 #                plt.clf()
 #                plt.plot(xtfit[wmask], ytfit[wmask], 'bx')
 #                plt.show()
-                #pdb.set_trace()
                 # try:
                 #     tcoeff = np.polynomial.polynomial.polyfit(xtfit[wmask],ytfit[wmask],1,w=1.0/mt)
                 # except:
@@ -1046,7 +1041,6 @@ def model_tilt_test(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False
             #     print i, mcoeff, np.sum(wmsk), i/(msarc.shape[1]-1.0)
             # maskrows = maskcols.copy()
             # --/
-            #pdb.set_trace()
             # Do a PCA on the coefficients
             maskrw = np.where(maskrows == 1)[0]
             maskrw.sort()
@@ -1081,7 +1075,6 @@ def model_tilt_test(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False
                     extrap_tilt, outpar = arpca.extrapolate(outpar, orders,
                                                             function=slf._argflag['trace']['orders']['function'])
                     tilts = extrap_tilt
-                    #pdb.set_trace()
                     #arpca.pc_plot_arctilt(tiltang, centval, tilts, plotsdir=slf._argflag['run']['plotsdir'], pcatype="tilts", prefix=prefix)
             else:
                 msgs.warn("Could not perform a PCA when tracing the spectral tilt"+msgs.newline()+"Not enough well-traced arc lines")
@@ -1125,7 +1118,6 @@ def model_tilt_test(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False
             if fitcns > 1.0:
                 msgs.warn("The tilt of Arc Line {0:d} might be poorly traced".format(i+1))
             tiltsplot[:, i] += fitcns
-    # pdb.set_trace()
     xdat = xtilt.copy()
     # xdat[np.where(xdat!=maskval)] *= (msarc.shape[1]-1.0)
     if plotQA:
@@ -1184,7 +1176,6 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
             tstcc = True # A boolean to tell the loop once a good set of pixels has been found to cross-correlate with
             # Fit up
             pcen = arcdet[j]
-#            xdb.set_trace()
             if (pcen < nspecfit) or (pcen > msarc.shape[0]-(nspecfit+1)): continue # Too close to the end of the spectrum
             offchip = False
             for k in xrange(0, sz+1-nsmth):
@@ -1214,7 +1205,6 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
                 if wgd[0].size != 0: continue
                 #xfit = xfit[wgd]
                 #yfit = yfit[wgd]
-                #pdb.set_trace()
                 # try:
                 #     #cof = arutils.func_fit(xfit, yfit, 'polynomial', 3)
                 #     #cof = arutils.polyfit_integral(xfit, yfit, np.ones_like(xfit), 3, w=None)[::-1]
@@ -1239,7 +1229,6 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
                 #except:
                 #    params, fail = [0,0,0], True
                 params, fail = arutils.gauss_lsqfit(xfit, cc, 0.0)
-#                xdb.set_trace()
                 centv = ccval + pcen - arcdet[j] - params[1]
                 xtfit[k+sz] = ordcen[arcdet[j],0]+k
                 if guesstilts is not None:
@@ -1321,19 +1310,15 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
                     mtfit[sz-k] = 0.0
             if offchip: continue # Don't use lines that go off the chip (could lead to a bad trace)
             wmask = np.where(mtfit==0.0)
-            #pdb.set_trace()
 #            if True and guesstilts is not None:
 #                plt.clf()
 #                plt.plot(xtfit[wmask], ytfit[wmask], 'bx')
 #                plt.show()
-                #pdb.set_trace()
-#				try:
-#					tcoeff = np.polynomial.polynomial.polyfit(xtfit[wmask],ytfit[wmask],1,w=1.0/mt)
-#				except:
-#					tcoeff = np.polynomial.polynomial.polyfit(xtfit[wmask],ytfit[wmask],1)
-#            xdb.set_trace()
-            if guesstilts is not None:
-                ytfit[wmask] -= np.median(ytfit[wmask])
+#               try:
+#                   tcoeff = np.polynomial.polynomial.polyfit(xtfit[wmask],ytfit[wmask],1,w=1.0/mt)
+#               except:
+#                   tcoeff = np.polynomial.polynomial.polyfit(xtfit[wmask],ytfit[wmask],1)
+            if guesstilts is not None: ytfit[wmask] -= np.median(ytfit[wmask])
             wmsk, mcoeff = arutils.robust_polyfit(xtfit[wmask], ytfit[wmask]/(msarc.shape[0]-1.0),
                                                   slf._argflag['trace']['orders']['tiltorder'],
                                                   function=slf._argflag['trace']['orders']['function'],
@@ -1364,7 +1349,6 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
             zwght = ytfit[wmask]
             if np.max(np.abs(zwght[1:]-zwght[:-1]))!=0.0:
                 wtilt[:wmask.size,j] = 1.0/np.max(np.abs(zwght[1:]-zwght[:-1]))
-        #pdb.set_trace()
         # --\
         #tcoeff = np.ones((slf._argflag['trace']['orders']['tiltorder']+1,msarc.shape[1]))
         # --/
@@ -1385,7 +1369,6 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
             #     tcoeff[:,i] = mcoeff.copy()
             # maskrows = maskcols.copy()
             # --/
-            #pdb.set_trace()
             # Do a PCA on the coefficients
             maskrw = np.where(maskrows == 1)[0]
             maskrw.sort()
@@ -1412,7 +1395,6 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
                     # ordsnd = np.linspace(0.0, 1.0, msarc.shape[1])
                     # xcen = xv[:,np.newaxis].repeat(msarc.shape[1], axis=1)
                     # --/
-                    #pdb.set_trace()
                     fitted, outpar = arpca.basis(xcen, tiltval, tcoeff, lnpc, ofit, weights=None,
                                                  x0in=ordsnd, mask=maskrw, skipx0=True,
                                                  function=slf._argflag['trace']['orders']['function'])
@@ -1426,7 +1408,6 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
                     orders = np.linspace(0.0, 1.0, msarc.shape[0])
                     extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=slf._argflag['trace']['orders']['function'])
                     tilts = extrap_tilt.T
-                    #pdb.set_trace()
                     #arpca.pc_plot_arctilt(tiltang, centval, tilts, plotsdir=slf._argflag['run']['plotsdir'], pcatype="tilts", prefix=prefix)
             else:
                 msgs.warn("Could not perform a PCA when tracing the spectral tilt"+msgs.newline()+"Not enough well-traced arc lines")
@@ -1449,7 +1430,6 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
                     msgs.info("Assuming there is no tilt")
                     tilts = np.zeros_like(slf._lordloc)
         if guesstilts is not None:
-#            pdb.set_trace()
 #            wfit = np.where(wtilt!=maskval)
 #            coeff = arutils.polyfit2d(xtilt[wfit], ytilt[wfit], ztilt[wfit], fitxy)#, w=wtilt[wfit]/np.max(wtilt[wfit]))
 #            tilts = arutils.polyval2d(coeff, np.arange(msarc.shape[1])/(msarc.shape[1]-1.0), np.arange(msarc.shape[0])/(msarc.shape[0]-1.0))
@@ -1465,7 +1445,6 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
     #coeff = arutils.polyfit2d(xx, yy, tilts, [8,8])
     #tilts = arutils.polyval2d(coeff, np.arange(msarc.shape[1])/(msarc.shape[1]-1.0), np.arange(msarc.shape[0])/(msarc.shape[0]-1.0))
     # Plot the model tilts
-    #pdb.set_trace()
 
 #guesstilts[arcdet[j],ordcen[arcdet[j],0]-k]*float(msarc.shape[0]-1.0)
 
@@ -1487,12 +1466,10 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
     xdat = xtilt.copy()
     xdat[np.where(xdat != maskval)] *= (msarc.shape[1]-1.0)
 
-#    pdb.set_trace()
     if plotQA:
         arplot.plot_orderfits(slf, tiltsplot, ztilt, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
                               textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
     #arutils.ds9plot(tilts)
-    #pdb.set_trace()
     # if refine_tilts:
     #     w = np.where(dtilt[0,:]!= maskval)
     #     tst = np.arange(dtilt.shape[1])[w]
@@ -1511,7 +1488,6 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
     #     plt.show()
     #     # Fit each arc line the same as the blaze fitting algorithm, but only consider the brightest lines
     #     # Linearly interpolate over the result. In between the best lines, take an average of the PCA and the interpolated tilts (based on the brightest lines)
-    #     pdb.set_trace()
     return tilts, satsnd
 
 

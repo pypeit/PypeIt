@@ -2,7 +2,6 @@ import os
 import astropy.io.fits as pyfits
 from astropy.units import Quantity
 import numpy as np
-from xastropy.xutils import xdebug as xdb
 
 import armsgs
 
@@ -280,7 +279,7 @@ def save_1d_spectra(slf, clobber=True):
             # Add header keyword
             keywd = 'EXT{:04d}'.format(ext)
             prihdu.header[keywd] = specobj.idx
-#            xdb.set_trace()
+#            set_trace()
             # Add Spectrum Table
             cols = []
             for key in specobj.boxcar.keys():
