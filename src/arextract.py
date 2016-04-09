@@ -107,7 +107,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     # Return
     return bgcorr
 
-def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace,
+def obj_profiles(slf, det, specobjs, sciframe, varframe, crmask, scitrace,
                  COUNT_LIM=15.):
     """ Derive spatial profiles for each object
 
@@ -128,11 +128,19 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitr
     """
     nobj = scitrace['traces'].shape[1]
     for o in range(nobj):
+        weight = scitrace['object'][:,:,o]
+        slit_val = []
+        prof_val = []
         # Identify good rows
         gdrow = np.where(specobjs[o].boxcar['counts'] > COUNT_LIM)[0]
+        # Normalized image
+        norm_img = sciframe / np.outer(specobjs[o].boxcar['counts'], np.ones(sciframe.shape[1]))
         if len(gdrow) > 50:  # Good S/N
+            gdobj = np.where(weight[gdrow,:] > 0)
+            for irow, gdy in enumerate(gdobj[0]):
+
             debugger.set_trace()
-        elif len(gdrow) > 10:  # Good S/N
+        elif len(gdrow) > 10:  #
             debugger.set_trace()
 
 

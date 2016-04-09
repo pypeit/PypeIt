@@ -809,7 +809,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     bgcorr_box = arextract.boxcar(slf, det, specobjs, sciframe-bgframe,
                                   varframe, bgframe, crmask, scitrace)
     # Profile
-    if False:
+    if True:
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
                                       varframe, crmask, scitrace)
     # Final
