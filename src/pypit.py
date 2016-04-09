@@ -11,7 +11,7 @@ import traceback
 
 # Import PYPIT routines
 debug = True
-last_updated = "6 March 2016"
+last_updated = "8 April 2016"
 version = '0.3'
 
 try:
