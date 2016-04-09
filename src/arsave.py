@@ -294,7 +294,7 @@ def save_1d_spectra(slf, clobber=True):
             hdus += [tbhdu]
     # Finish
     hdulist = pyfits.HDUList(hdus)
-    hdulist.writeto(slf._argflag['run']['scidir']+'/spec1d_{:s}.fits'.format(slf._target_name+str("_")+slf._basename.replace(":","_")), clobber=clobber)
+    hdulist.writeto(slf._argflag['run']['scidir']+'/spec1d_{:s}.fits'.format(slf._basename), clobber=clobber)
 
 #def write_sensitivity():
     #sensfunc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.yaml".format(os.getcwd(), slf._argflag['run']['masterdir'], slf._fitsdict['target'][scidx[0]], 0, "sensfunc")
@@ -341,4 +341,4 @@ def save_2d_images(slf, clobber=True):
 
     # Finish
     hdulist = pyfits.HDUList(hdus)
-    hdulist.writeto(slf._argflag['run']['scidir']+'/spec2d_{:s}.fits'.format(slf._target_name+str("_")+slf._basename.replace(":","_")), clobber=clobber)
+    hdulist.writeto(slf._argflag['run']['scidir']+'/spec2d_{:s}.fits'.format(slf._basename), clobber=clobber)
