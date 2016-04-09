@@ -83,9 +83,9 @@ science check condition1 lampstat01=Off&lampstat02=Off&lampstat03=Off&lampstat04
 ### Bias/Dark frames
 bias number 0                       # Number of bias frames to use
 bias canbe None                     # If there are frames that will be bias ***in addition to other frame types***, include the other frame types here.
+bias check condition1 exptime<=1    # Check the exposure time is less than 1 second
 bias match naxis0 =0                # Match the row binning of bias and science frames
 bias match naxis1 =0                # Match the column binning of bias and science frames
-bias check exptime <=1              # Check the exposure time is less than 1 second
 
 ### Pixel Flat frames
 pixflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
@@ -93,9 +93,10 @@ pixflat number 5                    # Number of flat frames to use
 pixflat canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
 pixflat lscomb False                # Combine a long and short flat
 pixflat check condition1 lampstat01=On|lampstat02=On
-pixflat check target WideFlat       # Check that the target name is a WideFlat
+pixflat check condition2 decker!=Pinhole   # Check that the decker name is not set to Pinhole
 pixflat match naxis0 =0             # Match the row binning of flats with science
 pixflat match naxis1 =0             # Match the column binning of flats with science
+blzflat match slitlen %,:),1,>=0    # Make sure the slit length for blaze flats and science frames
 pixflat combsame decker ''          # When combining pixel flat frames, make sure all frames have the same decker
 
 ### Blaze Flat frames
@@ -104,10 +105,10 @@ blzflat number 5                    # Number of flat frames to use
 blzflat canbe None                  # If there are frames that will be blzflat ***in addition to other frame types***, include the other frame types here.
 blzflat lscomb False                # Combine a long and short flat
 blzflat check condition1 lampstat01=On|lampstat02=On
-blzflat check target WideFlat       # Check that the target name is a WideFlat
+blzflat check condition2 decker!=Pinhole   # Check that the decker name is not set to Pinhole
 blzflat match naxis0 =0             # Match the row binning of flats with science
 blzflat match naxis1 =0             # Match the column binning of flats with science
-blzflat match slitlen %,:),1,=0     # Match the Decker for blaze flats and science frames
+blzflat match slitlen %,:),1,=0     # Match the slit length for blaze flats and science frames
 blzflat combsame decker ''          # When combining blaze flat frames, make sure all frames have the same decker
 
 ### Trace frames
@@ -116,7 +117,7 @@ trace number 2                    # Number of flat frames to use
 trace canbe None                  # If there are frames that will be blzflat ***in addition to other frame types***, include the other frame types here.
 trace lscomb False                # Combine a long and short flat
 trace check condition1 lampstat01=On|lampstat02=On
-trace check target NarrowFlat     # Check that the target name is a NarrowFlat
+trace check decker Pinhole        # Check that the decker name is set to Pinhole
 trace match naxis0 =0             # Match the row binning of flats with science
 trace match naxis1 =0             # Match the column binning of flats with science
 #trace match slitlen %,:),1,=0    # Match the Decker for trace flats and science frames
