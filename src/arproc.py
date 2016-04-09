@@ -803,12 +803,18 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
         pdb.set_trace()
         #continue
+
     # Boxcar
     msgs.info("Extracting")
     bgcorr_box = arextract.boxcar(slf, det, specobjs, sciframe-bgframe,
                                   varframe, bgframe, crmask, scitrace)
+    # Profile
+    if False:
+        arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
+                                      varframe, crmask, scitrace)
     # Final
-    slf._bgframe[det-1] = bgframe + bgcorr_box
+    if not standard:
+        slf._bgframe[det-1] += bgcorr_box
     # Return
     return True
 

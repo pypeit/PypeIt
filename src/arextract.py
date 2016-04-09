@@ -96,7 +96,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
             skysum[NANs] = 0.
         # Check on specobjs
         if not specobjs[o].check_trace(scitrace['traces'][:, o]):
-            xdb.set_trace()
+            debugger.set_trace()
             msgs.error("Bad match to specobj in boxcar!")
         # Fill
         specobjs[o].boxcar['wave'] = wvsum*u.AA  # Yes, units enter here
@@ -106,3 +106,33 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
         specobjs[o].boxcar['mask'] = boxmask
     # Return
     return bgcorr
+
+def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace,
+                 COUNT_LIM=15.):
+    """ Derive spatial profiles for each object
+
+    Parameters
+    ----------
+    slf
+    det
+    specobjs
+    sciframe
+    varframe
+    skyframe
+    crmask
+    scitrace
+
+    Returns
+    -------
+
+    """
+    nobj = scitrace['traces'].shape[1]
+    for o in range(nobj):
+        # Identify good rows
+        gdrow = np.where(specobjs[o].boxcar['counts'] > COUNT_LIM)[0]
+        if len(gdrow) > 50:  # Good S/N
+            debugger.set_trace()
+        elif len(gdrow) > 10:  # Good S/N
+            debugger.set_trace()
+
+
