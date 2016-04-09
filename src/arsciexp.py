@@ -53,7 +53,6 @@ class ScienceExposure:
         else: self._idx_flat = []
 
         # Set the base name and extract other names that will be used for output files
-        self._basename = ""
         self.SetBaseName(fitsdict)
 
         # Initialize the QA for this science exposure
@@ -127,7 +126,6 @@ class ScienceExposure:
             tval = datetime.datetime.strptime(tbname, '%Y-%m-%dT%H:%M:%S.%f')
         except ValueError:
             tval = datetime.datetime.strptime(tbname, '%Y-%m-%dT%H:%M:%S')
-        #self._basename = datetime.datetime.strftime(tval, '%Y%b%dT') + tbname.split("T")[1]
         self._inst_name = arsort.set_instr_name(self._argflag['run']['spectrograph'].strip())
         self._target_name = fitsdict['target'][self._idx_sci[0]].replace(" ", "")
         self._basename = self._target_name+'_'+self._inst_name+'_'+ \
