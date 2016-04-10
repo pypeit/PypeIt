@@ -51,7 +51,6 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     bgcorr = np.zeros_like(cr_mask)
     # Loop on Objects
     for o in range(nobj):
-        #pdb.set_trace()
         msgs.info("Performing boxcar extraction on object {0:d}/{1:d}".format(o+1,nobj))
         # Fit the background
         msgs.info("   Fitting the background")

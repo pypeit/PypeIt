@@ -463,7 +463,7 @@ def load_spect(progname, specname, spect=None, lines=None):
       Loaded or updated properties of the spectrograph
     """
     def initialise():
-        msc = dict({'ndet': 0, 'latitude': 0.0, 'longitude': 0.0, 'elevation': 0.0, 'minexp': 0., 'reduction': 'ARMLSD'})
+        msc = dict({'ndet': 0, 'latitude': 0.0, 'longitude': 0.0, 'elevation': 0.0, 'minexp': 0., 'reduction': 'ARMLSD', 'camera': 'UNKNWN'})
         # det starts as a dict but becomes a list of dicts in set_params
         ddet = dict({'xgap': 0.0, 'ygap': 0.0, 'ysize': 1.0, 'darkcurr': 0.0, 'ronoise': 1.0, 'gain': 1.0, 'saturation': 65536.0, 'nonlinear': 1.0, 'numamplifiers': 1, 'suffix': ""})
         #

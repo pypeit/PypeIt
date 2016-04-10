@@ -20,8 +20,9 @@ class Messages:
         ----------
         log : str
           Name of saved log file (no log will be saved if log=="")
-        debug : bool
-          Used for debugging. Should be set to False in all other cases
+        debug : list
+          list used for debugging.
+          'LOAD', 'BIAS', 'ARC', 'TRACE'
         last_updated : str
           The data of last update
         version : str

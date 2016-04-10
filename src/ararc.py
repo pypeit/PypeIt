@@ -15,10 +15,9 @@ import os
 import time
 
 try:
-    from xastropy.xutils.xdebug import set_trace
-    from xastropy.xutils import xdebug as xdb
-except ImportError:
-    from pdb import set_trace
+    from xastropy.xutils import xdebug as debugger
+except:
+    import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -238,7 +237,7 @@ def setup_param(slf, sc, det, fitsdict):
     # Return
     return arcparam
 
-def simple_calib(slf, det, get_poly=False, debug=False):
+def simple_calib(slf, det, get_poly=False):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
@@ -247,8 +246,6 @@ def simple_calib(slf, det, get_poly=False, debug=False):
     ----------
     get_poly : bool, optional
       Pause to record the polynomial pix = b0 + b1*lambda + b2*lambda**2
-    debug : bool, optional
-      Debug
 
     Returns
     -------
@@ -345,7 +342,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
         mask, fit = arutils.robust_polyfit(xfit, yfit, n_order,
             function=aparm['func'], sigma=aparm['nsig_rej'], minv=fmin, maxv=fmax)
         # DEBUG
-        if debug:
+        if 'ARC' in msgs._debug:
             xdb.xpcol(xfit,yfit)
             #wave = arutils.func_val(fit, np.arange(slf._msarc.shape[0]), aparm['func'], min=fmin, max=fmax)
             #xdb.xplot(xfit,yfit,scatter=True,xtwo=np.arange(slf._msarc.shape[0]), ytwo=wave)
@@ -357,7 +354,7 @@ def simple_calib(slf, det, get_poly=False, debug=False):
             mn = np.min(np.abs(iwave-llist['wave']))
             if mn/aparm['disp'] < aparm['match_toler']:
                 imn = np.argmin(np.abs(iwave-llist['wave']))
-                if debug:
+                if 'ARC' in msgs._debug:
                     print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
                 # Update and append
                 all_ids[ss] = llist['wave'][imn]
@@ -365,8 +362,8 @@ def simple_calib(slf, det, get_poly=False, debug=False):
                 ifit.append(ss)
         # Keep unique ones
         ifit = np.unique(np.array(ifit,dtype=int))
-        if debug:
-            set_trace()
+        if 'ARC' in msgs._debug:
+            debugger.set_trace()
         # Increment order
         if n_order < aparm['n_final']:
             n_order += 1

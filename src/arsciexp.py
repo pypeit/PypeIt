@@ -126,7 +126,7 @@ class ScienceExposure:
             tval = datetime.datetime.strptime(tbname, '%Y-%m-%dT%H:%M:%S.%f')
         except ValueError:
             tval = datetime.datetime.strptime(tbname, '%Y-%m-%dT%H:%M:%S')
-        self._inst_name = arsort.set_instr_name(self._argflag['run']['spectrograph'].strip())
+        self._inst_name = self._spect['mosaic']['camera']
         self._target_name = fitsdict['target'][self._idx_sci[0]].replace(" ", "")
         self._basename = self._target_name+'_'+self._inst_name+'_'+ \
                          datetime.datetime.strftime(tval, '%Y%b%dT') + \
@@ -208,7 +208,6 @@ class ScienceExposure:
             # Flip the transpose switch
             self._transpose = True
             # Transpose the master bias frame
-            #pdb.set_trace()
             if self._msbias[det-1] is not None:
                 if type(self._msbias[det-1]) is str: pass  # Overscan sub - change the oscansec parameters below
                 elif type(self._msbias[det-1]) is np.ndarray: self.SetMasterFrame(self._msbias[det-1].T, 'bias', det)

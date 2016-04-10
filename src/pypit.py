@@ -10,7 +10,7 @@ from time import time
 import traceback
 
 # Import PYPIT routines
-debug = True
+debug = []
 last_updated = "8 April 2016"
 version = '0.3'
 
@@ -20,10 +20,9 @@ except ImportError:
     pass
 
 try:
-    from xastropy.xutils.xdebug import set_trace
-#    from xastropy.xutils import xdebug as xdb
+    from xastropy.xutils import xdebug as debugger
 except ImportError:
-    from pdb import set_trace
+    import pdb as debugger
 
 
 def PYPIT(redname, progname=__file__, quick=False, ncpus=1, verbose=1, logname=None):
@@ -196,7 +195,7 @@ if __name__ == "__main__":
         initmsgs.error(err.msg, usage=True)
 
     # Execute the reduction, and catch any bugs for printout
-    if debug:
+    if len(debug) > 0:
         PYPIT(red, progname=sys.argv[0], quick=qck, ncpus=cpu, verbose=vrb, logname=lnm)
     else:
         try:

@@ -33,6 +33,7 @@ mosaic latitude 19.82833              # Latitude of the telescope
 mosaic elevation 4160.0               # Elevation of the telescope (in m)
 mosaic minexp 1.0                     # Minimum exposure time (s)
 mosaic reduction ARMLSD               # Which reduction pipeline should be used for this instrument
+mosaic camera LRISb                   # Camera name
 
 det01 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
 det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)

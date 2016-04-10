@@ -83,7 +83,7 @@ def dispdir(msframe, dispwin=None, mode=0):
 
 def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
                  triml=None, trimr=None, sigmin=2.0, bgreg=None,
-                 maskval=-999999.9, order=0, doqa=True, debug=False):
+                 maskval=-999999.9, order=0, doqa=True):
     """ Finds objects, and traces their location on the detector
     Parameters
     ----------
@@ -98,7 +98,6 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     bgreg
     maskval
     order
-    debug
     doqa
 
     Returns
@@ -169,7 +168,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     #plt.plot(trcxrng[objl[0]:objr[0]+1],trcprof[objl[0]:objr[0]+1],'bx')
     #plt.show()
     nobj = objl.size
-    if debug:
+    if 'TRACE' in msgs._debug:
         nobj = 1
     if nobj==1:
         msgs.info("Found {0:d} object".format(objl.size))
@@ -1015,7 +1014,6 @@ def model_tilt_test(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False
             zwght = ytfit[wmask]
             if np.max(np.abs(zwght[1:]-zwght[:-1])) != 0.0:
                 wtilt[:wmask.size,j] = 1.0/np.max(np.abs(zwght[1:]-zwght[:-1]))
-#        pdb.set_trace()
         # --\
         tcoeff = np.ones((slf._argflag['trace']['orders']['tiltorder']+1, msarc.shape[1]))
         # --/
@@ -1439,7 +1437,7 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
 
     # Perform a high order 2D polynomial fit to the best PCA tilts, then interpolate
 #    if refine_tilts:
-#        pdb.set_trace()
+#        debugger.set_trace()
 
     #xx, yy = np.meshgrid(np.arange(msarc.shape[1])/(msarc.shape[1]-1.0), np.arange(msarc.shape[0])/(msarc.shape[0]-1.0))
     #coeff = arutils.polyfit2d(xx, yy, tilts, [8,8])
