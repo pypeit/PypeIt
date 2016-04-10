@@ -74,6 +74,7 @@ class SpecObjExp(object):
 
         # Items that are generally filled
         self.boxcar = {}   # Boxcar extraction 'wave', 'counts', 'var', 'sky', 'mask', 'flam', 'flam_var'
+        self.optimal = {}  # Optimal extraction 'wave', 'counts', 'var', 'sky', 'mask', 'flam', 'flam_var'
         #
     def check_trace(self, trace, toler=1.):
         '''Check that the input trace matches the defined specobjexp

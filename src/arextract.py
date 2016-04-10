@@ -1,6 +1,7 @@
 import numpy as np
 from astropy import units as u
 import arcyutils
+import artrace
 import arutils
 import armsgs
 import pdb
@@ -108,7 +109,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     # Return
     return bgcorr
 
-def obj_profiles(slf, det, specobjs, sciframe, varframe, crmask, scitrace,
+def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace,
                  COUNT_LIM=15., pickle_file=None):
     """ Derive spatial profiles for each object
 
@@ -127,43 +128,37 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, crmask, scitrace,
     -------
 
     """
-    tilts = slf._tilts[det-1]
+    import pickle
     if False:
-        import pickle
-        args = [det, specobjs, sciframe, varframe, crmask, scitrace, tilts]
+        tilts = slf._tilts[det-1]
+        args = [det, specobjs, sciframe, varframe, skyframe, crmask, scitrace, tilts]
         msgs.warn("Pickling in the profile code")
         with open("trc_pickle.p",'wb') as f:
             pickle.dump(args,f)
+        debugger.set_trace()
     if pickle_file is not None:
         f = open(pickle_file,'r')
         args = pickle.load(f)
         f.close()
-        det, specobjs, sciframe, varframe, crmask, scitrace, tilts = args
+        det, specobjs, sciframe, varframe, skyframe, crmask, scitrace, tilts = args
+        slf = None
+    else:
+        tilts = slf._tilts[det-1]
     #
-    ximg = np.outer(np.ones(sciframe.shape[0]), np.arange(sciframe.shape[1]))
-    dypix = 1./sciframe.shape[0]
+    sigframe = np.sqrt(varframe)
     # Loop
     nobj = scitrace['traces'].shape[1]
+    scitrace['opt_profile'] = []
     for o in range(nobj):
         # Calculate tilts for the object trace
-        # Using closest pixe for now
-        msgs.work("Use 2D spline to evaluate tilts")
-        xtrc = np.round(scitrace['traces'][:,o]).astype(int)
-        trc_tilt = tilts[np.arange(tilts.shape[0]),xtrc]
-        trc_tilt_img = np.outer(trc_tilt, np.ones(sciframe.shape[1]))
-        # Slit image  (should worry about changing plate scale)
-        dy = (tilts - trc_tilt_img)/dypix  # Pixels
-        dx = ximg - np.outer(scitrace['traces'][:,o],np.ones(sciframe.shape[1]))
-        slit_img = np.sqrt(dx**2 - dy**2)
-        neg = dx < 0.
-        slit_img[neg] *= -1
+        # Using closest pixel for now
+        slit_img = artrace.slit_image(slf, det, scitrace, o, tilts=tilts)
         # Object pixels
         weight = scitrace['object'][:,:,o]
         # Identify good rows
         gdrow = np.where(specobjs[o].boxcar['counts'] > COUNT_LIM)[0]
         # Normalized image
         norm_img = sciframe / np.outer(specobjs[o].boxcar['counts'], np.ones(sciframe.shape[1]))
-        # Slit image
         # Eliminate rows with CRs (wipes out boxcar)
         crspec = np.sum(crmask*weight,axis=1)
         cr_rows = np.where(crspec > 0)[0]
@@ -180,14 +175,102 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, crmask, scitrace,
             gdprof = weight > 0
             slit_val = slit_img[gdprof]
             flux_val = norm_img[gdprof]
+            weight_val = sciframe[gdprof]/sigframe[gdprof]  # S/N
             # Fit Gaussian
-            #gauss, flag = arutils.gauss_fit(slit_val, flux_val, 0.)
-            gfit = arutils.robust_polyfit(slit_val, flux_val, 3,
-                                          weights=None, function='gaussian')
-
-            debugger.set_trace()
-            debugger.xplot(slit_val, flux_val, scatter=True)
+            fdict = dict(func='gaussian', deg=3)
+            mask, gfit = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'],
+                                                function=fdict['func'],
+                                                weights=weight_val, maxone=False)
+            msgs.work("Consider flagging CRs here")
+            # Record
+            fdict['param'] = gfit
+            fdict['mask'] = mask
+            scitrace['opt_profile'].append(fdict)
+            # Plot?
+            if False:
+                gdp = mask == 0
+                mn = np.min(slit_val[gdp])
+                mx = np.max(slit_val[gdp])
+                xval = np.linspace(mn,mx,1000)
+                gauss = arutils.func_val(gfit, xval, fdict['func'])
+                debugger.xplot(slit_val[gdp], flux_val[gdp], xtwo=xval, ytwo=gauss, scatter=True)
+                debugger.set_trace()
         elif len(gdrow) > 10:  #
             debugger.set_trace()
+    return scitrace['opt_profile']
 
 
+def optimal_extract(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace,
+                 pickle_file=None, profiles=None):
+    """ Preform optimal extraction
+    Standard Horne approach
+
+    Parameters
+    ----------
+    slf
+    det
+    specobjs
+    sciframe
+    varframe
+    crmask
+    scitrace
+    COUNT_LIM
+    pickle_file
+
+    Returns
+    -------
+
+    """
+    import pickle
+    if pickle_file is not None:
+        f = open(pickle_file,'r')
+        args = pickle.load(f)
+        f.close()
+        det, specobjs, sciframe, varframe, skyframe, crmask, scitrace, tilts = args
+        slf = None
+        scitrace['opt_profile'] = profiles
+    else:
+        tilts = None
+    # Setup
+    ivar = np.zeros_like(skyframe)
+    cr_mask = 1.0-crmask
+    msgs.warn("Should include RN too?")
+    gdv = skyframe > 0.
+    ivar[gdv] = 1./skyframe[gdv]
+    # Loop
+    nobj = scitrace['traces'].shape[1]
+    for o in range(nobj):
+        # Fit dict
+        fit_dict = scitrace['opt_profile'][o]
+        # Slit image
+        slit_img = artrace.slit_image(slf, det, scitrace, o, tilts=tilts)
+        msgs.warn("Turn off tilts")
+        # Object pixels (avoiding CRs)
+        weight = scitrace['object'][:,:,o] * cr_mask
+        gdo = (weight > 0) & (ivar > 0)
+        # Profile image
+        prof_img = np.zeros_like(weight)
+        prof_img[gdo] = arutils.func_val(fit_dict['param'], slit_img[gdo],
+                                         fit_dict['func'])
+        # Normalize
+        norm_prof = np.sum(prof_img, axis=1)
+        prof_img /= np.outer(norm_prof, np.ones(prof_img.shape[1]))
+        # Mask
+        mask = np.zeros_like(prof_img)
+        mask[gdo] = 1.
+        # Optimal flux
+        opt_num = np.sum(mask * sciframe * ivar * prof_img, axis=1)
+        opt_den = np.sum(mask * ivar * prof_img**2, axis=1)
+        opt_flux = opt_num / opt_den
+        # Optimal wave
+        opt_num = np.sum(mask * slf._mswave[det-1] * ivar * prof_img**2, axis=1)
+        opt_wave = opt_num / opt_den
+        # Optimal variance
+
+        # Save
+        specobjs[o].optimal['wave'] = opt_wave*u.AA  # Yes, units enter here
+        specobjs[o].optimal['counts'] = opt_flux
+        #specobjs[o].boxcar['var'] = varsum
+        #specobjs[o].boxcar['sky'] = skysum  # per pixel
+
+        debugger.set_trace()

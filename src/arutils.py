@@ -17,9 +17,9 @@ import warnings
 msgs = armsgs.get_logger()
 
 try:
-    from xastropy.xutils import xdebug as xdb
+    from xastropy.xutils import xdebug as debugger
 except:
-    pass
+    import pdb as debugger
 
 try:
     import ds9
@@ -238,6 +238,23 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, **kwargs):
         return np.polynomial.chebyshev.chebfit(xv, y, deg, w=w)
     elif func == "bspline":
         return bspline_fit(x, y, order=deg, w=w, **kwargs)
+    elif func == "gaussian":
+        # Guesses
+        mx = np.max(y)  # Could take simple stats near center
+        cent = np.sum(y*x)/np.sum(y)
+        sigma = np.sqrt(np.abs(np.sum((x-cent)**2*y)/np.sum(y))) # From scipy doc
+        # Error
+        if w is not None:
+            sig_y = 1./w
+        else:
+            sig_y = None
+        if deg == 3:  # Standard 3 parameters
+            popt, pcov = curve_fit(gauss_3deg, x, y, p0=[mx, cent, sigma],
+                                   sigma=sig_y)
+        else:
+            msgs.error("Not prepared for deg={:d} for Gaussian fit".format(deg))
+        # Return
+        return popt
     else:
         msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                    "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
@@ -268,6 +285,9 @@ def func_val(c, x, func, minv=None, maxv=None):
         return np.polynomial.chebyshev.chebval(xv, c)
     elif func == "bspline":
         return interpolate.splev(x, c, ext=1)
+    elif func == "gaussian":
+        if len(c) == 3:
+            return gauss_3deg(x, c[0], c[1], c[2])
     else:
         msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                    "Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
@@ -436,6 +456,8 @@ def polyval2d(x, y, m):
         z += a * x**i * y**j
     return z
 
+def gauss_3deg(x,ampl,cent,sigm):
+    return ampl*np.exp(-1*(cent-x)**2/2/sigm**2)
 
 def gauss_lsqfit(x,y,pcen):
     """
@@ -445,12 +467,12 @@ def gauss_lsqfit(x,y,pcen):
     :param pcen: An estimate of the Gaussian mean
     :return:
     """
-    def gfunc(x,ampl,cent,sigm,cons,tilt):
+    def gfunc(x,ampl,cent,sigma,cons,tilt):
         df = (x[1:]-x[:-1])/2.0
         df = np.append(df,df[-1])
         dff = (x[1:]**2 - x[:-1]**2)/2.0
         dff = np.append(dff,dff[-1])
-        sqt = sigm*np.sqrt(2.0)
+        sqt = sigma*np.sqrt(2.0)
         return cons*df*2.0 + tilt*dff + ampl*0.5*np.sqrt(np.pi)*sqt*(erf((x+df-cent)/sqt) - erf((x-df-cent)/sqt))
         #return cons + ampl*np.exp(-0.5*((x-cent)/sigm)**2)
 
@@ -688,7 +710,9 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
         mask = initialmask.copy()
     mskcnt = np.sum(mask)
     # Iterate, and mask out new values on each iteration
+    niter = 0
     while True:
+        niter += 1
         w = np.where(mask == 0)
         xfit = xarray[w]
         yfit = yarray[w]
@@ -718,8 +742,8 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
             mask[w] = 1
         if mskcnt == np.sum(mask): break  # No new values have been included in the mask
         mskcnt = np.sum(mask)
-        w = np.where(mask == 0)
     # Final fit
+    w = np.where(mask == 0)
     xfit = xarray[w]
     yfit = yarray[w]
     if weights is not None:

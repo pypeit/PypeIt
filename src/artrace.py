@@ -2381,3 +2381,37 @@ def phys_to_pix(array, pixlocn, axis):
     else:
         pixarr = arcytrace.phys_to_pix(array, diff)
     return pixarr
+
+def slit_image(slf, det, scitrace, obj, tilts=None):
+    """ Generate slit image for a given object
+
+    Parameters
+    ----------
+    slf
+    det
+    scitrace
+    obj
+
+    Returns
+    -------
+    slit_img : ndarray
+
+    """
+    # Setup
+    if tilts is None:
+        tilts = slf._tilts[det-1]
+    ximg = np.outer(np.ones(tilts.shape[0]), np.arange(tilts.shape[1]))
+    dypix = 1./tilts.shape[0]
+    #  Trace
+    xtrc = np.round(scitrace['traces'][:,obj]).astype(int)
+    msgs.work("Use 2D spline to evaluate tilts")
+    trc_tilt = tilts[np.arange(tilts.shape[0]), xtrc]
+    trc_tilt_img = np.outer(trc_tilt, np.ones(tilts.shape[1]))
+    # Slit image  (should worry about changing plate scale)
+    dy = (tilts - trc_tilt_img)/dypix  # Pixels
+    dx = ximg - np.outer(scitrace['traces'][:,obj],np.ones(tilts.shape[1]))
+    slit_img = np.sqrt(dx**2 - dy**2)
+    neg = dx < 0.
+    slit_img[neg] *= -1
+    # Return
+    return slit_img
