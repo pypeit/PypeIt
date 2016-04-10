@@ -458,7 +458,7 @@ def load_spect(argflag, spect=None, lines=None):
         ddet = dict({'xgap': 0.0, 'ygap': 0.0, 'ysize': 1.0, 'darkcurr': 0.0, 'ronoise': 1.0, 'gain': 1.0, 'saturation': 65536.0, 'nonlinear': 1.0, 'numamplifiers': 1, 'suffix': ""})
         #
         chk = dict({})
-        stf = dict({'science': [], 'standard': [], 'bias': [], 'pixflat': [], 'blzflat': [], 'arc': [], 'trace': [], 'dark': []})
+        stf = dict({'science': [], 'standard': [], 'bias': [], 'pixflat': [], 'blzflat': [], 'arc': [], 'trace': [], 'dark': [], 'readnoise': []})
         kyw = dict({'target': '01.OBJECT', 'idname': '01.OBSTYPE', 'time': '01.MJD', 'date': '', 'equinox': '', 'ra': '', 'dec': '', 'airmass': '', 'naxis0': '01.NAXIS2', 'naxis1': '01.NAXIS1', 'exptime': '01.EXPTIME', 'hatch': '01.TRAPDOOR', 'filter1': '01.FILTNAME', 'filter2': None, 'lamps': '01.LAMPNAME', 'decker': '01.DECKNAME', 'slitwid': '01.SLITWIDTH', 'slitlen': '01.SLITLENGTH', 'detrot': '01.DETECTORROTATION', 'cdangle': '01.XDISPANGLE', 'echangle': '01.ECHELLEANGLE', 'crossdisp': '01.XDISPERS', 'dichroic': '', 'disperser': '', 'binning': ''})
         fts = dict({'numhead': 1, 'numlamps':1, 'dataext':0, 'calwin':12.0, 'timeunit':'mjd'})
         sci = dict({'index': [], 'check': dict({}), 'idname': 'OBJECT', 'canbe': None})
@@ -468,8 +468,9 @@ def load_spect(argflag, spect=None, lines=None):
         trc = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 1, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}), 'lscomb': False})
         arc = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 1, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}), 'lscomb': False})
         bia = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 5, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}) })
+        rn = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 1, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}) })
         drk = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 5, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}) })
-        spectt = dict({'mosaic': msc, 'det': ddet, 'check': chk, 'set': stf, 'keyword': kyw, 'fits': fts, 'science': sci, 'standard': std, 'pixflat': pfl, 'blzflat': bfl, 'trace': trc, 'arc': arc, 'bias': bia, 'dark': drk})
+        spectt = dict({'mosaic': msc, 'det': ddet, 'check': chk, 'set': stf, 'keyword': kyw, 'fits': fts, 'science': sci, 'standard': std, 'pixflat': pfl, 'blzflat': bfl, 'trace': trc, 'arc': arc, 'bias': bia, 'dark': drk, 'readnoise': rn})
         return spectt
     # The spectrograph name
     sname = argflag['run']['spectrograph']

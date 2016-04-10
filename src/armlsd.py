@@ -79,9 +79,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
             ###############
-            # Estimate gain and readout noise for the amplifiers
-            msgs.work("Estimate Gain and Readout noise from the raw frames...")
-            ###############
             # Generate a master arc frame
             update = slf.MasterArc(fitsdict, det)
             if update and reuseMaster:
@@ -91,7 +88,12 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             slf.GetDispersionDirection(fitsdict, det, scidx)
             if slf._bpix[det-1] is None:
                 slf.SetFrame(slf._bpix, np.zeros((slf._nspec[det-1], slf._nspat[det-1])), det)
-
+            ###############
+            # Estimate gain and readout noise for the amplifiers
+            msgs.work("Estimate Gain and Readout noise from the raw frames...")
+            update = slf.MasterRN(fitsdict, det)
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, det, ftype="readnoise")
             ###############
             # Generate a master trace frame
             update = slf.MasterTrace(fitsdict, det)

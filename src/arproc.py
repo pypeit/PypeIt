@@ -809,11 +809,11 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     bgcorr_box = arextract.boxcar(slf, det, specobjs, sciframe-bgframe,
                                   varframe, bgframe, crmask, scitrace)
     # Optimal
-    if True:
-        arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                               varframe, bgframe+bgcorr_box, crmask, scitrace)
-        arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                               varframe, bgframe+bgcorr_box, crmask, scitrace)
+    msgs.info("Optimal extraction with Gaussian profile")
+    arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
+                           varframe, bgframe+bgcorr_box, crmask, scitrace)
+    arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
+                           varframe, bgframe+bgcorr_box, crmask, scitrace)
     # Final
     if not standard:
         slf._bgframe[det-1] += bgcorr_box

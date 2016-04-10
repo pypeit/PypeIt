@@ -75,6 +75,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
     if ftype == "arc":
         chkarr = sciexp[sc]._idx_arcs
     elif ftype == "bias": chkarr = sciexp[sc]._idx_bias
+    elif ftype == "readnoise": chkarr = sciexp[sc]._idx_rn
     elif ftype == "flat":
         if chktype == "trace": chkarr = sciexp[sc]._idx_trace
         elif chktype == "pixflat": chkarr = sciexp[sc]._idx_flat

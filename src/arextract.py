@@ -128,6 +128,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitr
     -------
 
     """
+    '''  FOR DEVELOPING
     import pickle
     if False:
         tilts = slf._tilts[det-1]
@@ -144,6 +145,8 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitr
         slf = None
     else:
         tilts = slf._tilts[det-1]
+    '''
+    tilts = slf._tilts[det-1]
     #
     sigframe = np.sqrt(varframe)
     # Loop
@@ -221,6 +224,7 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe, skyframe, crmask, sc
     -------
 
     """
+    '''
     import pickle
     if pickle_file is not None:
         f = open(pickle_file,'r')
@@ -231,46 +235,59 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe, skyframe, crmask, sc
         scitrace['opt_profile'] = profiles
     else:
         tilts = None
+    '''
     # Setup
-    ivar = np.zeros_like(skyframe)
+    model_var = np.abs(skyframe + sciframe - np.sqrt(2)*slf._msrn[det-1]) + \
+                 slf._msrn[det-1]**2  # sqrt 2 term deals with negative flux/sky
+    model_ivar = 1./model_var
+    msgs.work("Consider making a model of the object for model_ivar")
     cr_mask = 1.0-crmask
-    msgs.warn("Should include RN too?")
-    gdv = skyframe > 0.
-    ivar[gdv] = 1./skyframe[gdv]
     # Loop
     nobj = scitrace['traces'].shape[1]
     for o in range(nobj):
         # Fit dict
         fit_dict = scitrace['opt_profile'][o]
         # Slit image
-        slit_img = artrace.slit_image(slf, det, scitrace, o, tilts=tilts)
-        msgs.warn("Turn off tilts")
-        # Object pixels (avoiding CRs)
-        weight = scitrace['object'][:,:,o] * cr_mask
-        gdo = (weight > 0) & (ivar > 0)
+        slit_img = artrace.slit_image(slf, det, scitrace, o)#, tilts=tilts)
+        #msgs.warn("Turn off tilts")
+        # Object pixels
+        weight = scitrace['object'][:,:,o]
+        gdo = (weight > 0) & (model_ivar > 0)
         # Profile image
         prof_img = np.zeros_like(weight)
         prof_img[gdo] = arutils.func_val(fit_dict['param'], slit_img[gdo],
                                          fit_dict['func'])
         # Normalize
         norm_prof = np.sum(prof_img, axis=1)
-        prof_img /= np.outer(norm_prof, np.ones(prof_img.shape[1]))
-        # Mask
+        prof_img /= np.outer(norm_prof + (norm_prof == 0.), np.ones(prof_img.shape[1]))
+        # Mask (1=good)
         mask = np.zeros_like(prof_img)
         mask[gdo] = 1.
+        mask *= cr_mask
+
         # Optimal flux
-        opt_num = np.sum(mask * sciframe * ivar * prof_img, axis=1)
-        opt_den = np.sum(mask * ivar * prof_img**2, axis=1)
-        opt_flux = opt_num / opt_den
+        opt_num = np.sum(mask * sciframe * model_ivar * prof_img, axis=1)
+        opt_den = np.sum(mask * model_ivar * prof_img**2, axis=1)
+        opt_flux = opt_num / (opt_den + (opt_den == 0.))
         # Optimal wave
-        opt_num = np.sum(mask * slf._mswave[det-1] * ivar * prof_img**2, axis=1)
-        opt_wave = opt_num / opt_den
-        # Optimal variance
+        opt_num = np.sum(mask * slf._mswave[det-1] * model_ivar * prof_img**2, axis=1)
+        opt_wave = opt_num / (opt_den + (opt_den == 0.))
+        # Optimal ivar
+        opt_num = np.sum(mask * model_ivar * prof_img**2, axis=1)
+        ivar_den = np.sum(mask * prof_img, axis=1)
+        opt_ivar = opt_num / (ivar_den + (ivar_den==0.))
 
         # Save
         specobjs[o].optimal['wave'] = opt_wave*u.AA  # Yes, units enter here
         specobjs[o].optimal['counts'] = opt_flux
-        #specobjs[o].boxcar['var'] = varsum
+        gdiv = opt_ivar > 0.
+        opt_var = np.zeros_like(opt_ivar)
+        opt_var[gdiv] = 1./opt_ivar[gdiv]
+        specobjs[o].optimal['var'] = opt_var
         #specobjs[o].boxcar['sky'] = skysum  # per pixel
 
-        debugger.set_trace()
+        '''
+        if 'OPTIMAL' in msgs._debug:
+            debugger.set_trace()
+            debugger.xplot(opt_wave, opt_flux, np.sqrt(opt_var))
+        '''

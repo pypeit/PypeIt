@@ -46,6 +46,7 @@ class ScienceExposure:
         if self._argflag['reduce']['usebias'] == 'bias': self._idx_bias = spect['bias']['index'][snum]
         elif self._argflag['reduce']['usebias'] == 'dark':  self._idx_bias = spect['dark']['index'][snum]
         else: self._idx_bias = []
+        #
         if self._argflag['reduce']['usetrace'] == 'trace': self._idx_trace = self._spect['trace']['index'][snum]
         elif self._argflag['reduce']['usetrace'] == 'blzflat': self._idx_trace = self._spect['blzflat']['index'][snum]
         else: self._idx_trace = []
@@ -88,6 +89,7 @@ class ScienceExposure:
         self._msarc = [None for all in xrange(ndet)]         # Master Arc
         self._mswave = [None for all in xrange(ndet)]         # Master Wavelength image
         self._msbias = [None for all in xrange(ndet)]        # Master Bias
+        self._msrn = [None for all in xrange(ndet)]          # Master ReadNoise image
         self._mstrace = [None for all in xrange(ndet)]       # Master Trace
         self._mspixflat = [None for all in xrange(ndet)]     # Master pixel flat
         self._mspixflatnrm = [None for all in xrange(ndet)]  # Normalized Master pixel flat
@@ -367,6 +369,39 @@ class ScienceExposure:
         del msbias
         return True
 
+    def MasterRN(self, fitsdict, det):
+        """
+        Generate Master ReadNoise frame for a given detector
+
+        Parameters
+        ----------
+        fitsdict : dict
+          Contains relevant information from fits header files
+        det : int
+          Index of the detector
+
+        Returns
+        -------
+        boolean : bool
+          Should other ScienceExposure classes be updated?
+        """
+
+        # If the master bias is already made, use it
+        if self._msrn[det-1] is not None:
+            msgs.info("An identical master ReadNoise frame already exists")
+            return False
+        msrn = np.zeros((self._nspec[det-1], self._nspat[det-1]))
+        # Systems with multiple amps will need help here
+        if self._spect['det'][det-1]['numamplifiers'] > 1:
+            msgs.warn("Readnoise needs to be updated for multiple amps")
+        # Set
+        rnoise = self._spect['det'][det-1]['ronoise'] #+ (0.5*self._spect['det'][det-1]['gain'])**2
+        msrn[:] = rnoise
+        # Save
+        self.SetMasterFrame(msrn, "readnoise", det)
+        del msrn
+        return True
+
     def MasterFlatField(self, fitsdict, det):
         """
         Generate Master Flat-field frame for a given detector
@@ -626,6 +661,7 @@ class ScienceExposure:
         if ftype == "arc": self._msarc[det] = cpf
         elif ftype == "wave": self._mswave[det] = cpf
         elif ftype == "bias": self._msbias[det] = cpf
+        elif ftype == "readnoise": self._msrn[det] = cpf
         elif ftype == "normpixflat": self._mspixflatnrm[det] = cpf
         elif ftype == "pixflat": self._mspixflat[det] = cpf
         elif ftype == "trace": self._mstrace[det] = cpf
@@ -652,6 +688,7 @@ class ScienceExposure:
             if ftype == "arc": return self._msarc[det].copy()
             elif ftype == "wave": return self._mswave[det].copy()
             elif ftype == "bias": return self._msbias[det].copy()
+            elif ftype == "readnoise": return self._msrn[det].copy()
             elif ftype == "normpixflat": return self._mspixflatnrm[det].copy()
             elif ftype == "pixflat": return self._mspixflat[det].copy()
             elif ftype == "trace": return self._mstrace[det].copy()
@@ -664,6 +701,7 @@ class ScienceExposure:
             if ftype == "arc": return self._msarc[det]
             elif ftype == "wave": return self._mswave[det]
             elif ftype == "bias": return self._msbias[det]
+            elif ftype == "readnoise": return self._msrn[det]
             elif ftype == "normpixflat": return self._mspixflatnrm[det]
             elif ftype == "pixflat": return self._mspixflat[det]
             elif ftype == "trace": return self._mstrace[det]

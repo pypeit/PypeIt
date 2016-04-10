@@ -38,8 +38,8 @@ det01 xgap 0.0                        # Gap between the square detector pixels (
 det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
 det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)
 det01 darkcurr 0.0                    # Dark current (e-/hour)
-det01 ronoise 12.5                    # Read-out noise (e-)
-det01 gain 3.0                        # Inverse gain (e-/ADU)
+det01 ronoise 3.7                     # Read-out noise (e-)
+det01 gain 1.2                        # Inverse gain (e-/ADU)
 det01 saturation 65535.0              # The detector Saturation level
 det01 nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det01 numamplifiers 2                 # Number of amplifiers
