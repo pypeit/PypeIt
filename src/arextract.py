@@ -181,7 +181,9 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, crmask, scitrace,
             slit_val = slit_img[gdprof]
             flux_val = norm_img[gdprof]
             # Fit Gaussian
-            gauss, flag = arutils.gauss_fit(slit_val, flux_val, 0.)
+            #gauss, flag = arutils.gauss_fit(slit_val, flux_val, 0.)
+            gfit = arutils.robust_polyfit(slit_val, flux_val, 3,
+                                          weights=None, function='gaussian')
 
             debugger.set_trace()
             debugger.xplot(slit_val, flux_val, scatter=True)
