@@ -135,7 +135,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, crmask, scitrace,
         with open("trc_pickle.p",'wb') as f:
             pickle.dump(args,f)
     if pickle_file is not None:
-        f = open(pickle_file,'rb')
+        f = open(pickle_file,'r')
         args = pickle.load(f)
         f.close()
         det, specobjs, sciframe, varframe, crmask, scitrace, tilts = args
