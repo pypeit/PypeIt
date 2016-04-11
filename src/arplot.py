@@ -1,6 +1,5 @@
 import numpy as np
 from matplotlib import pyplot as plt
-import armsgs as msgs
 
 MAX_REJECT = 0.5
 MIN_NPIXELS = 5

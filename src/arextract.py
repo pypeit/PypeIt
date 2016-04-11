@@ -2,7 +2,6 @@ import numpy as np
 from astropy import units as u
 import arcyutils
 import armsgs
-import pdb
 
 # Logging
 msgs = armsgs.get_logger()
@@ -52,7 +51,6 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     bgcorr = np.zeros_like(cr_mask)
     # Loop on Objects
     for o in range(nobj):
-        #pdb.set_trace()
         msgs.info("Performing boxcar extraction on object {0:d}/{1:d}".format(o+1,nobj))
         # Fit the background
         msgs.info("   Fitting the background")
@@ -96,7 +94,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
             skysum[NANs] = 0.
         # Check on specobjs
         if not specobjs[o].check_trace(scitrace['traces'][:, o]):
-            xdb.set_trace()
+            debugger.set_trace()
             msgs.error("Bad match to specobj in boxcar!")
         # Fill
         specobjs[o].boxcar['wave'] = wvsum*u.AA  # Yes, units enter here

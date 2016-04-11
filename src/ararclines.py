@@ -1,16 +1,15 @@
 import numpy as np
 from astropy.table import Table, Column, vstack
-import os, glob, copy
+import glob, copy
 import yaml
-import pdb
-import time
 
 import armsgs
 
 try:
-    from xastropy.xutils import xdebug as xdb
-except:
-    pass
+    from xastropy.xutils.xdebug import set_trace
+#    from xastropy.xutils import xdebug as xdb
+except ImportError:
+    from pdb import set_trace
 
 # Logging
 msgs = armsgs.get_logger()

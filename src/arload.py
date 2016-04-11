@@ -2,7 +2,6 @@ import os
 import sys
 import copy
 import glob
-import pdb
 import getopt
 import astropy.io.fits as pyfits
 from astropy.time import Time
@@ -22,6 +21,34 @@ except:
 
 # Logging
 msgs = armsgs.get_logger()
+
+
+def argflag_init():
+    """
+    Initialise the default settings called argflag
+    """
+    rna = dict({'prognm':'pypit.py', 'redname':'filelist.red', 'spectrograph':'hamspec', 'masterdir':'MasterFrames', 'plotsdir':'Plots', 'scidir':'Science', 'ncpus':-1, 'nsubpix':5, 'calcheck':False, 'qcontrol':True, 'preponly':False, 'stopcheck':False, 'use_idname':False})
+    red = dict({'locations':None, 'nlcorr':False, 'trim':True, 'badpix':True, 'usebias':'bias', 'usetrace':'trace', 'usearc':'arc', 'usewave':'wave', 'useflat':'pixflat', 'subdark':False, 'flatfield':True, 'FlatMethod':'SpatialFit', 'FlatParams':[0], 'bgsubtraction':True, 'arcmatch':2.0, 'flatmatch':2.0, 'calibrate':True, 'fluxcalibrate':True, 'extraction':'2D', 'oscanMethod':'polynomial', 'oscanParams':[1], 'heliocorr':True, 'pixelsize':2.5})
+    csq = dict({'atol':1.0E-3, 'xtol':1.0E-10, 'gtol':1.0E-10, 'ftol':1.0E-10, 'fstep':2.0})
+    opa = dict({'verbose':2, 'sorted':None, 'plots':True, 'overwrite':False})
+    sci = dict({'load':dict({'extracted':False}),
+                'extraction':dict({'method':'2D', 'profile':'gaussian', 'centorder':1, 'widthorder':1, 'function':'legendre', 'pcacent':[1,0], 'pcawidth':[1,0], 'bintrace':10})
+                })
+    pfl = dict({'comb':dict({'method':None, 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}) })
+    bfl = dict({'comb':dict({'method':None, 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}) })
+    trc = dict({'comb':dict({'method':'weightmean', 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'maxnonsat'}),
+                'disp':dict({'window':None, 'direction':None}),
+                'orders':dict({'tilts':'trace', 'pcatilt':[2,1,0], 'tiltorder':1, 'tiltdisporder':2, 'function':'polynomial', 'polyorder':2, 'diffpolyorder':2, 'fracignore':0.6, 'sigdetect':3.0, 'pca':[3,2,1,0,0,0], 'pcxpos':3, 'pcxneg':3}) })
+    arc = dict({'comb':dict({'method':'weightmean', 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'maxnonsat'}),
+                'extract':dict({'binby':1.0}),
+                'load':dict({'extracted':False, 'calibrated':False}),
+                'calibrate':dict({'cwpolyorder':2, 'threshold':3.0, 'polyorderpri':4, 'polyordersec':8, 'pcapri':[4,2,2,0], 'pcasec':[5,4,3,2,1,1], 'detection':6.0, 'method':'simple', 'nfitpix':7, 'idfile':'wave_ThAr_3100-11000.npy', 'linelist':'arclist.ThAr', 'numsearch':20, 'sigmacut':2.0}),
+                })
+    bia = dict({'comb':dict({'method':'mean', 'rej_cosmicray':20.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}) })
+    drk = dict({})
+    argflag = dict({'run':rna, 'reduce':red, 'science':sci, 'pixflat':pfl, 'blzflat':bfl, 'trace':trc, 'arc':arc, 'bias':bia, 'dark':drk, 'chisq':csq, 'out':opa})
+    return argflag
+
 
 def cpucheck(ncpu, curcpu=0):
     cpucnt = cpu_count()
@@ -55,16 +82,18 @@ def cpucheck(ncpu, curcpu=0):
     return ncpu
 
 
-def optarg(argv):
+def optarg(argflag, argv, pypname):
     """
     Load the command line options and arguments
 
     Parameters
     ----------
+    argflag : dict
+      Arguments and flags used for reduction
     argv : list
       command line arguments
-    msgs : class
-      Messages class for logging
+    pypname : string
+      Name of the pipeline settings to be loaded
 
     Returns
     -------
@@ -76,11 +105,12 @@ def optarg(argv):
     prgn_spl = argv[0].split('/')
     tfname = ""
     for i in range(0,len(prgn_spl)-2): tfname += prgn_spl[i]+"/"
-    fname = tfname + prgn_spl[-2] + '/settings.armlsd'
-    argflag = load_settings(fname)
+    fname = tfname + prgn_spl[-2] + '/settings.' + pypname
+    argflag = load_settings(fname, argflag)
     argflag['run']['prognm'] = argv[0]
     argflag['run']['pypitdir'] = tfname
     # Load options from command line
+    opt, arg = None, None
     try:
         opt, arg = getopt.getopt(argv[1:], 'hc:v:', ['help',
                                                      'cpus',
@@ -217,8 +247,9 @@ def set_params(lines, indict, setstr=""):
                     msgs.error("keyword lampstat must contain an integer suffix")
                 indict[linspl[0]][linspl[1]] = linspl[2]
             elif linspl[1] in indict[linspl[0]].keys():
-                indict[linspl[0]][linspl[1]] = set_params_wtype(indict[linspl[0]][linspl[1]], linspl[2], lines=tline,setstr=setstr)
-            else: 
+                indict[linspl[0]][linspl[1]] = set_params_wtype(indict[linspl[0]][linspl[1]], linspl[2], lines=tline, setstr=setstr)
+            else:
+                debugger.set_trace()
                 msgs.error(setstr + "Settings contains bad line (arg 2):"+msgs.newline()+lines[i].split('#')[0].strip())
         elif linspl[0][:3] == 'det': # Detector parameters
             try:
@@ -282,56 +313,27 @@ def load_sections(string, strtxt="<not specified>"):
     return None
 
 
-def load_settings(fname):
-    def initialise():
-        """
-        Initialise the default settings called argflag
-        """
-        rna = dict({'prognm':'armed.py', 'redname':'filelist.red', 'spectrograph':'hamspec', 'masterdir':'MasterFrames', 'plotsdir':'Plots', 'scidir':'Science', 'ncpus':-1, 'nsubpix':5, 'calcheck':False, 'qcontrol':True, 'preponly':False, 'stopcheck':False, 'use_idname':False})
-        red = dict({'locations':None, 'nlcorr':False, 'trim':True, 'badpix':True, 'usebias':'bias', 'usetrace':'trace', 'usearc':'arc', 'usewave':'wave', 'useflat':'pixflat', 'subdark':False, 'flatfield':True, 'FlatMethod':'SpatialFit', 'FlatParams':[0], 'bgsubtraction':True, 'arcmatch':2.0, 'flatmatch':2.0, 'calibrate':True, 'fluxcalibrate':True, 'extraction':'2D', 'oscanMethod':'polynomial', 'oscanParams':[1], 'heliocorr':True, 'pixelsize':2.5})
-        csq = dict({'atol':1.0E-3, 'xtol':1.0E-10, 'gtol':1.0E-10, 'ftol':1.0E-10, 'fstep':2.0})
-        opa = dict({'verbose':2, 'sorted':None, 'plots':True, 'overwrite':False})
-        sci = dict({'load':dict({'extracted':False}),
-                    'extraction':dict({'method':'2D', 'profile':'gaussian', 'centorder':1, 'widthorder':1, 'function':'legendre', 'pcacent':[1,0], 'pcawidth':[1,0], 'bintrace':10})
-                    })
-        pfl = dict({'comb':dict({'method':None, 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}) })
-        bfl = dict({'comb':dict({'method':None, 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}) })
-        trc = dict({'comb':dict({'method':'weightmean', 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'maxnonsat'}),
-                    'disp':dict({'window':None, 'direction':None}),
-                    'orders':dict({'tilts':'trace', 'pcatilt':[2,1,0], 'tiltorder':1, 'tiltdisporder':2, 'function':'polynomial', 'polyorder':2, 'diffpolyorder':2, 'fracignore':0.6, 'sigdetect':3.0, 'pca':[3,2,1,0,0,0], 'pcxpos':3, 'pcxneg':3}) })
-        arc = dict({'comb':dict({'method':'weightmean', 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'maxnonsat'}),
-                    'extract':dict({'binby':1.0}),
-                    'load':dict({'extracted':False, 'calibrated':False}),
-                    'calibrate':dict({'cwpolyorder':2, 'threshold':3.0, 'polyorderpri':4, 'polyordersec':8, 'pcapri':[4,2,2,0], 'pcasec':[5,4,3,2,1,1], 'detection':6.0, 'method':'simple', 'nfitpix':7, 'idfile':'wave_ThAr_3100-11000.npy', 'linelist':'arclist.ThAr', 'numsearch':20, 'sigmacut':2.0}),
-                    })
-        bia = dict({'comb':dict({'method':'mean', 'rej_cosmicray':20.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}) })
-        drk = dict({})
-        argflag = dict({'run':rna, 'reduce':red, 'science':sci, 'pixflat':pfl, 'blzflat':bfl, 'trace':trc, 'arc':arc, 'bias':bia, 'dark':drk, 'chisq':csq, 'out':opa})
-        return argflag
-
+def load_settings(fname, argflag):
     # Read in the default settings
     msgs.info("Loading the default settings")
-    argflag = initialise()
     with open(fname, 'r') as infile:
         lines = infile.readlines()
     argflag = set_params(lines, argflag, setstr="Default ")
     return argflag
 
 
-def load_input(argflag):
+def load_input(redname):
     """
     Load user defined input reduction file. Updates are
     made to the argflag dictionary.
 
     Parameters
     ----------
-    argflag : dict
-      Arguments and flags used for reduction
+    redname : string
+      Name of reduction script
 
     Returns
     -------
-    argflag : dict
-      Updated arguments and flags used for reduction
     parlines : list
       Input (uncommented) lines specified by the user.
       parlines is used in this routine to update the
@@ -349,9 +351,9 @@ def load_input(argflag):
     # Read in the model file
     msgs.info("Loading the input file")
     try:
-        infile = open(argflag['run']['redname'], 'r')
+        infile = open(redname, 'r')
     except IOError:
-        msgs.error("The filename does not exist -"+msgs.newline()+argflag['run']['redname'])
+        msgs.error("The filename does not exist -"+msgs.newline()+redname)
         sys.exit()
     lines = infile.readlines()
     parlines = []
@@ -395,17 +397,23 @@ def load_input(argflag):
     if rddata == 0:
         msgs.error("You haven't specified any data!")
     elif rddata == 1:
-        msgs.error("Missing 'data end' in "+argflag['run']['redname'])
+        msgs.error("Missing 'data end' in "+redname)
     if rddata == 0:
         msgs.info("Using Default spectrograph parameters")
     elif rddata != 2:
-        msgs.error("Missing 'spect end' in "+argflag['run']['redname'])
+        msgs.error("Missing 'spect end' in "+redname)
     # Check there are no duplicate inputs
     if len(datlines) != len(set(datlines)):
         msgs.error("There are duplicate files in the list of data.")
-    # Now update the settings
+    if len(datlines) == 0: msgs.error("There are no raw data frames" + msgs.newline() +
+                                      "Perhaps the path to the data is incorrect?")
+    else: msgs.info("Found {0:d} raw data frames".format(len(datlines)))
+    msgs.info("Input file loaded successfully")
+    return parlines, datlines, spclines
+
+
+def check_argflag(argflag):
     curcpu = argflag['run']['ncpus']  # Store the current number of CPUs
-    argflag = set_params(parlines, argflag, setstr="Input ")
     # Check requested CPUs
     argflag['run']['ncpus'] = cpucheck(argflag['run']['ncpus'], curcpu=curcpu)
     # Perform some checks on the input parameters:
@@ -417,26 +425,28 @@ def load_input(argflag):
             msgs.error("Setting 'usebias' in family 'reduce' must be one of:"+msgs.newline()+"'bias', 'overscan', 'dark', 'none'"+msgs.newline()+"or the name of a fits file.")
     if argflag['reduce']['usetrace'].lower() not in ['trace', 'blzflat', 'science']:
         if not os.path.exists(argflag['run']['masterdir']+'/'+argflag['reduce']['usetrace']) and not os.path.exists(argflag['run']['masterdir']+'/'+argflag['reduce']['usetrace']+".fits") and not os.path.exists(argflag['run']['masterdir']+'/'+argflag['reduce']['usetrace']+".fit"):
-            msgs.warn("The following file does not exist:"+msgs.newline()+"{0:s}/{1:s}".format(argflag['run']['masterdir'],argflag['reduce']['usetrace']))
-            msgs.error("Setting 'usetrace' in family 'reduce' must be one of:"+msgs.newline()+"'trace', 'blzflat', 'science'"+msgs.newline()+"or the name of a fits file.")
+            msgs.warn("The following file does not exist:" + msgs.newline() +
+                      "{0:s}/{1:s}".format(argflag['run']['masterdir'], argflag['reduce']['usetrace']))
+            msgs.error("Setting 'usetrace' in family 'reduce' must be one of:" + msgs.newline() +
+                       "'trace', 'blzflat', 'science'" + msgs.newline() +
+                       "or the name of a fits file.")
     # Check that the sorted data will be output in VOTable format:
     osrtspl = argflag['out']['sorted'].split('.')
     if len(osrtspl) != 1:
         if osrtspl[-1] != 'xml': msgs.error("The output format for 'sorted' is .xml, not .{0:s}".format(osrtspl[-1]))
-    msgs.info("Input file loaded successfully")
-    if len(datlines) == 0: msgs.error("There are no raw data frames"+msgs.newline()+"Perhaps the path to the data is incorrect?")
-    else: msgs.info("Found {0:d} raw data frames".format(len(datlines)))
-    return argflag, parlines, datlines, spclines
+    return
 
 
-def load_spect(argflag, spect=None, lines=None):
+def load_spect(progname, specname, spect=None, lines=None):
     """
     Load spectrograph settings
 
     Parameters
     ----------
-    argflag : dict
-      Arguments and flags used for reduction
+    progname : string
+      Name of the program
+    specname : string
+      Name of spectrograph settings file
     spect : dict
       Properties of the spectrograph.
       If None, spect will be created, otherwise spect
@@ -453,7 +463,7 @@ def load_spect(argflag, spect=None, lines=None):
       Loaded or updated properties of the spectrograph
     """
     def initialise():
-        msc = dict({'ndet': 0, 'latitude': 0.0, 'longitude': 0.0, 'elevation': 0.0, 'minexp': 0., 'reduction': 'ARMLSD'})
+        msc = dict({'ndet': 0, 'latitude': 0.0, 'longitude': 0.0, 'elevation': 0.0, 'minexp': 0., 'reduction': 'ARMLSD', 'camera': 'UNKNWN'})
         # det starts as a dict but becomes a list of dicts in set_params
         ddet = dict({'xgap': 0.0, 'ygap': 0.0, 'ysize': 1.0, 'darkcurr': 0.0, 'ronoise': 1.0, 'gain': 1.0, 'saturation': 65536.0, 'nonlinear': 1.0, 'numamplifiers': 1, 'suffix': ""})
         #
@@ -471,23 +481,21 @@ def load_spect(argflag, spect=None, lines=None):
         drk = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 5, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}) })
         spectt = dict({'mosaic': msc, 'det': ddet, 'check': chk, 'set': stf, 'keyword': kyw, 'fits': fts, 'science': sci, 'standard': std, 'pixflat': pfl, 'blzflat': bfl, 'trace': trc, 'arc': arc, 'bias': bia, 'dark': drk})
         return spectt
-    # The spectrograph name
-    sname = argflag['run']['spectrograph']
     if lines is None:
         # Read in the default settings
         # Get the software path
-        prgn_spl = argflag['run']['prognm'].split('/')
+        prgn_spl = progname.split('/')
         fname = ""
         for i in range(0, len(prgn_spl)-1): fname += prgn_spl[i]+"/"
-        fname += 'settings.'+sname
-        msgs.info("Loading the "+sname+" settings")
+        fname += 'settings.'+specname
+        msgs.info("Loading the "+specname+" settings")
         spect = initialise()
         with open(fname, 'r') as infile:
             lines = infile.readlines()
-        spect = set_params(lines, spect, setstr="Default "+sname+" ")
+        spect = set_params(lines, spect, setstr="Default "+specname+" ")
     else:
         if spect is not None:
-            spect = set_params(lines, spect, setstr="Infile "+sname+" ")
+            spect = set_params(lines, spect, setstr="Infile "+specname+" ")
     return spect
 
 
@@ -534,7 +542,7 @@ def load_headers(argflag, spect, datlines):
             kchk  = '.'.join(ch.split('.')[1:])
             frhd  = whddict['{0:02d}'.format(tfrhd)]
             if spect['check'][ch] != str(headarr[frhd][kchk]).strip():
-                #pdb.set_trace()
+                #set_trace()
                 #print ch, frhd, kchk
                 #print spect['check'][ch], str(headarr[frhd][kchk]).strip()
                 msgs.error("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
@@ -618,7 +626,7 @@ def load_headers(argflag, spect, datlines):
 
 
 def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None,
-                trim=True, transpose=False, debug=False):
+                trim=True, transpose=False):
     """
     Load data frames, usually raw.
     Bias subtract (if not msbias!=None) and trim (if True)

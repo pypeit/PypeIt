@@ -1,5 +1,4 @@
 # Module for QA in PYPIT
-import os
 import arutils
 import numpy as np
 from arplot import zscale
@@ -10,9 +9,10 @@ import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
 
 try:
-    from xastropy.xutils import xdebug as xdb
-except:
-    pass
+    from xastropy.xutils.xdebug import set_trace
+#    from xastropy.xutils import xdebug as xdb
+except ImportError:
+    from pdb import set_trace
 
 def arc_fit_qa(slf, fit, arc_spec, outfil=None):
     """

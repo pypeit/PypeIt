@@ -2,17 +2,12 @@
 #  Includes ArSpecObj class
 import numpy as np
 import copy
-import pdb
 
 import armsgs
 
 # Logging
 msgs = armsgs.get_logger()
 
-try:
-    from xastropy.xutils import xdebug as xdb
-except:
-    pass
 
 class SpecObjExp(object):
     '''Class to handle object spectra from a single exposure 
