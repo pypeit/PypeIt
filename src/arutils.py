@@ -113,7 +113,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     try:
         tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, t=knots)
     except ValueError: # Knot problem
-        pdb.set_trace()
+        debugger.set_trace()
     return tck
 
 
@@ -467,12 +467,12 @@ def gauss_lsqfit(x,y,pcen):
     :param pcen: An estimate of the Gaussian mean
     :return:
     """
-    def gfunc(x,ampl,cent,sigma,cons,tilt):
+    def gfunc(x,ampl,cent,sigm,cons,tilt):
         df = (x[1:]-x[:-1])/2.0
         df = np.append(df,df[-1])
         dff = (x[1:]**2 - x[:-1]**2)/2.0
         dff = np.append(dff,dff[-1])
-        sqt = sigma*np.sqrt(2.0)
+        sqt = sigm*np.sqrt(2.0)
         return cons*df*2.0 + tilt*dff + ampl*0.5*np.sqrt(np.pi)*sqt*(erf((x+df-cent)/sqt) - erf((x-df-cent)/sqt))
         #return cons + ampl*np.exp(-0.5*((x-cent)/sigm)**2)
 
@@ -724,8 +724,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
         yrng = func_val(ct, xarray, function, minv=minv, maxv=maxv)
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
         if debug:
-            import pdb
-            pdb.set_trace()
+            debugger.set_trace()
         if xarray.size-np.sum(mask) <= order+2:
             msgs.warn("More parameters than data points - fit might be undesirable")
             break  # More data was masked than allowed by order

@@ -23,8 +23,6 @@ except:
 msgs = armsgs.get_logger()
 
 
-
-
 def sort_data(argflag, spect, fitsdict):
     """
     Create an exposure class for every science frame
@@ -77,21 +75,25 @@ def sort_data(argflag, spect, fitsdict):
                 ntmp = chk_condition(fitsdict, conds[0])
                 # And more
                 for cn in xrange((len(conds)-1)/2):
-                    if conds[2*cn+1]=="|":
+                    if conds[2*cn+1] == "|":
                         ntmp = ntmp | chk_condition(fitsdict, conds[2*cn+2])
-                    elif conds[2*cn+1]=="&":
+                    elif conds[2*cn+1] == "&":
                         ntmp = ntmp & chk_condition(fitsdict, conds[2*cn+2])
                 w = np.where(ntmp)[0]
             else:
-                w = np.where(fitsdict[ch] == spect[fkey[i]]['check'][ch])[0]
-            n = np.intersect1d(n,w)
+                if fitsdict[ch].dtype.char == 'S':  # Numpy string array
+                    # Strip numpy string array of all whitespace
+                    w = np.where(np.char.strip(fitsdict[ch]) == spect[fkey[i]]['check'][ch])[0]
+                else:
+                    w = np.where(fitsdict[ch] == spect[fkey[i]]['check'][ch])[0]
+            n = np.intersect1d(n, w)
         # Assign these filetypes
         filarr[i,:][n] = 1
         # Check if these files can also be another type
         if spect[fkey[i]]['canbe'] is not None:
             for cb in spect[fkey[i]]['canbe']:
                 # Assign these filetypes
-                fa = np.where(fkey==cb)[0]
+                fa = np.where(fkey == cb)[0]
                 if np.size(fa) == 1: filarr[fa[0],:][n] = 1
                 else: msgs.error("Unknown type for argument 'canbe': {0:s}".format(cb))
 #		# Check for filetype clashes
@@ -116,7 +118,7 @@ def sort_data(argflag, spect, fitsdict):
     # Find the nearest standard star to each science frame
     wscistd = np.where(filarr[np.where(fkey == 'standard')[0], :].flatten() == 1)[0]
     for i in xrange(wscistd.size):
-#        xdb.set_trace()
+#        set_trace()
         radec = (fitsdict['ra'][wscistd[i]], fitsdict['dec'][wscistd[i]])
         # If an object exists within 20 arcmins of a listed standard, then it is probably a standard star
         foundstd = find_standard_file(argflag, radec, toler=20.*u.arcmin, check=True)
@@ -141,17 +143,17 @@ def sort_data(argflag, spect, fitsdict):
         for i in xrange(np.size(badfiles)): print fitsdict['filename'][badfiles[i]]
         msgs.error("Check these files and your settings.{0:s} file before continuing".format(argflag['run']['spectrograph']))
     # Now identify the dark frames
-    wdark = np.where((filarr[np.where(fkey=='bias')[0],:]==1).flatten() & 
+    wdark = np.where((filarr[np.where(fkey == 'bias')[0],:] == 1).flatten() &
         (fitsdict['exptime'].astype(np.float64) > spect['mosaic']['minexp']))[0]
     ftag['dark'] = wdark
     # Store the frames in the ftag array
     for i in xrange(len(fkey)):
-        ftag[fkey[i]] = np.where(filarr[i,:]==1)[0]
+        ftag[fkey[i]] = np.where(filarr[i,:] == 1)[0]
     # Finally check there are no duplicates (the arrays will automatically sort with np.unique)
     msgs.info("Finalising frame sorting, and removing duplicates")
     for key in ftag.keys():
         ftag[key] = np.unique(ftag[key])
-        if np.size(ftag[key])==1:
+        if np.size(ftag[key]) == 1:
             msgs.info("Found {0:d} {1:s} frame".format(np.size(ftag[key]),key))
         else:
             msgs.info("Found {0:d} {1:s} frames".format(np.size(ftag[key]),key))
@@ -182,15 +184,24 @@ def chk_condition(fitsdict, cond):
     ntmp: bool array
       A boolean array of all frames that satisfy the input condition
     """
-    if "=" in cond:
-        tcond = cond.split("=")
-        ntmp = (fitsdict[tcond[0]] == tcond[1])
+    if "<=" in cond:
+        tcond = cond.split("<=")
+        ntmp = fitsdict[tcond[0]] <= float(tcond[1])
+    elif ">=" in cond:
+        tcond = cond.split(">=")
+        ntmp = fitsdict[tcond[0]] >= float(tcond[1])
+    elif "!=" in cond:
+        tcond = cond.split("!=")
+        ntmp = fitsdict[tcond[0]] != tcond[1]
     elif "<" in cond:
         tcond = cond.split("<")
         ntmp = fitsdict[tcond[0]] < float(tcond[1])
     elif ">" in cond:
         tcond = cond.split(">")
         ntmp = fitsdict[tcond[0]] > float(tcond[1])
+    elif "=" in cond:
+        tcond = cond.split("=")
+        ntmp = (fitsdict[tcond[0]] == tcond[1])
     else:
         ntmp = None
     return ntmp
@@ -411,7 +422,7 @@ def match_science(argflag, spect, fitsdict, filesort):
                                 mtch = np.float64(fitsdict[ch][iSCI[i]].split(spltxt)[argtxt]) + np.float64(valtxt[1:])
                                 w = np.where(tspl.astype(np.float64) > mtch)[0]
                     except:
-                        msgs.error("Bad form for matching criteria: {0:s}".format(tmtch))
+                        continue
                 else:
                     msgs.bug("Matching criteria {0:s} is not supported".format(tmtch))
                 n = np.intersect1d(n, w)  # n corresponds to all frames with matching instrument setup to science frames
@@ -471,7 +482,7 @@ def match_frames(frames, criteria, frametype='<None>', satlevel=None):
 
     prob = arutils.erf(criteria/np.sqrt(2.0))[0]
     frsh0, frsh1, frsh2 = frames.shape
-    msgs.info("Matching {0:d} {1:s} frames with confidence interval {2:5.3f}%".format(frsh2, frametype, prob*100.0))
+    msgs.info("Matching {:d} {:s} frames with confidence interval {:5.3%}".format(frsh2, frametype, prob))
     srtframes = [np.zeros((frsh0, frsh1, 1))]
     srtframes[0][:,:,0] = frames[:,:,0]
     tsrta = [frames[frsh0/2,:,0]]

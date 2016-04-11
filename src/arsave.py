@@ -2,7 +2,6 @@ import os
 import astropy.io.fits as pyfits
 from astropy.units import Quantity
 import numpy as np
-from xastropy.xutils import xdebug as xdb
 
 import armsgs
 
@@ -306,7 +305,7 @@ def save_1d_spectra(slf, clobber=True):
             # Add header keyword
             keywd = 'EXT{:04d}'.format(ext)
             prihdu.header[keywd] = specobj.idx
-#            xdb.set_trace()
+#            set_trace()
             # Add Spectrum Table
             cols = []
             # Boxcar
@@ -331,7 +330,7 @@ def save_1d_spectra(slf, clobber=True):
             hdus += [tbhdu]
     # Finish
     hdulist = pyfits.HDUList(hdus)
-    hdulist.writeto(slf._argflag['run']['scidir']+'/spec1d_{:s}.fits'.format(slf._target_name+str("_")+slf._basename.replace(":","_")), clobber=clobber)
+    hdulist.writeto(slf._argflag['run']['scidir']+'/spec1d_{:s}.fits'.format(slf._basename), clobber=clobber)
 
 #def write_sensitivity():
     #sensfunc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.yaml".format(os.getcwd(), slf._argflag['run']['masterdir'], slf._fitsdict['target'][scidx[0]], 0, "sensfunc")
@@ -378,4 +377,4 @@ def save_2d_images(slf, clobber=True):
 
     # Finish
     hdulist = pyfits.HDUList(hdus)
-    hdulist.writeto(slf._argflag['run']['scidir']+'/spec2d_{:s}.fits'.format(slf._target_name+str("_")+slf._basename.replace(":","_")), clobber=clobber)
+    hdulist.writeto(slf._argflag['run']['scidir']+'/spec2d_{:s}.fits'.format(slf._basename), clobber=clobber)

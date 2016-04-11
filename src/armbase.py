@@ -8,9 +8,10 @@ import arsciexp
 msgs = armsgs.get_logger()
 
 try:
-    from xastropy.xutils import xdebug as xdb
+    from xastropy.xutils.xdebug import set_trace
+#    from xastropy.xutils import xdebug as xdb
 except ImportError:
-    pass
+    from pdb import set_trace
 
 
 def SetupScience(argflag, spect, fitsdict):

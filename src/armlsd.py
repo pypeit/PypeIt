@@ -1,4 +1,3 @@
-import pdb
 import numpy as np
 import arextract
 import arflux
@@ -76,7 +75,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
         # Loop on Detectors
         for kk in xrange(slf._spect['mosaic']['ndet']):
-
             det = kk + 1  # Detectors indexed from 1
             ###############
             # Get amplifier sections
@@ -230,10 +228,8 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         slf._qa.close()
 
         ###############
-        # Write calibration frames
-
-        ###############
         # Flux
+        ###############
         # Standard star (is this a calibration, e.g. goes above?)
         msgs.info("Processing standard star")
         msgs.warn("Assuming one star per detector mosaic")

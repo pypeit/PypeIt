@@ -1,16 +1,15 @@
-## This file is designed to set the default parameters for ARMLSD
+## This file is designed to set the default parameters for ARMED
 ##
-# RUNNING ARMLSD
-run  ncpus        -1			# Number of CPUs to use (-1 means all bar one CPU, -2 means all bar two CPUs)
+# RUNNING ARMED
+run  ncpus        -1			# Number of CPUs to use (-1 means all but one CPU, -2 means all but two CPUs)
 run  calcheck     False         # Doesn't reduce the data, just checks to make sure all calibration data are present
-run  spectrograph kast          # Default spectrograph data to reduce
+run  spectrograph levy          # Default spectrograph data to reduce
 run  masterdir    MasterFrames  # Child Directory name for master calibration frames
 run  scidir       Science       # Child Directory name for extracted science frames
 run  plotsdir     Plots         # Child Directory name for plots
 run  qcontrol     False         # Run quality control in real time? (setting this to False will still produce the checks, but won't display the results during the reduction).
-run  preponly     False         # If True, ARMLSD will prepare the calibration frames and will only reduce the science frames when preponly is set to False
-run  stopcheck    False         # If True, ARMLSD will stop and require a user carriage return at every quality control check
-run  use_idname   False         # If True, file sorting will ensure that the idname is made
+run  preponly     False         # If True, ARMED will prepare the calibration frames and will only reduce the science frames when preponly is set to False
+run  stopcheck    False         # If True, ARMED will stop and require a user carriage return at every quality control check
 
 # REDUCTION RULES
 reduce locations None           # If desired, a fits file can be specified (of the appropriate form) to specify the locations of the pixels on the detector
@@ -20,18 +19,16 @@ reduce oscanMethod SavGol       # Method used to fit the overscan (polynomial, s
 reduce oscanParams [5,65]       # Parameters used for the overscan method (for polynomial use [#] where # is replaced by the polynomial order, for savgol use [#,$] where # is the order and $ is the window size (should be odd)
 reduce badpix True              # Make a bad pixel mask? (This step requires bias frames)
 reduce trim True                # Trim the frame to isolate the data
+reduce usetrace trace           # How to trace orders (trace, object, blzflat), you can also specify a master calibrations file if it exists.
 reduce usearc arc               # What filetype should be used for wavelength calibration (arc), you can also specify a master calibrations file if it exists.
 reduce useflat pixflat          # How to flat field the data (pixflat, blzflat), you can also specify a master calibrations file if it exists.
 reduce flatfield True           # Flatfield the data?
-reduce FlatMethod PolyScan      # Method used to flat field the data (PolyScan)
-reduce FlatParams [3,50,20]     # Flat field method parameters (PolyScan: [order,numPixels,repeat])
 reduce flatmatch -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
 reduce arcmatch -1.0            # Match similar arc frames together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
 reduce calibrate True           # Wavelength calibrate the data?
 reduce heliocorr True           # Perform a heliocentric correction?
-reduce pixelsize 2.5            # The size of the extracted pixels (as an scaled number of Arc FWHM), -1 will not resample
+reduce pixelsize 2.5            # The size of the extracted pixels in km/s
 reduce bgsubtraction True       # Subtract the sky background from the data?
-reduce fluxcalibrate True       # Perform a flux calibration
 
 # ARC FRAMES
 arc comb method weightmean           # How should the bias frames be combined (mean, median, weightmean)
@@ -43,11 +40,13 @@ arc comb set_allrej    maxnonsat     # What to do if all pixels are rejected (op
 arc extract binby      1.0           # Binning factor to use when extracting 1D arc spectrum (does not need to be integer, but should be >1.0)
 arc load extracted     False         # If the master arc has previously been extracted and saved, load the 1D extractions
 arc load calibrated    False         # If the extracted arc have previously been calibrated and saved, load the calibration files
+#arc calibrate window   100          # Pixel window to fit arc lines
+#arc calibrate overlap  15           # Pixel window overlap
 arc calibrate nfitpix  5             # Number of pixels to fit when deriving the centroid of the arc lines (an odd number is best)
 arc calibrate idfile wave_ThAr_3100-11000.npy  # Name of arc identification file. The default is for a ThAr arc line identification
 arc calibrate linelist arclist.ThAr # name of the file containing a list of all arc lines to be identified
 arc calibrate method simple          # What method should be used to fit the individual arc lines (options are: fit, simple); fit is perhaps the most accurate; simple uses a polynomial fit (to the log of a gaussian), is the fastest and is reliable
-arc calibrate detection 6.0         # How significant should the arc line detections be (in units of a standard deviation)
+arc calibrate detection 6.0          # How significant should the arc line detections be (in units of a standard deviation)
 arc calibrate numsearch 20           # Number of brightest arc lines to search for preliminary identification
 #arc calibrate sigmacut 2.0          # Significance level
 arc calibrate cwpolyorder 2          # Polynomial order to fit central wavelength solution
@@ -75,7 +74,7 @@ trace comb set_allrej   maxnonsat     # What to do if all pixels are rejected (o
 trace disp window       None          # Window used to obtain dispersion direction
 trace disp direction    None          # Manually specify the dispersion direction (0 for row, 1 for column)
 trace orders function   legendre      # What function should be used to trace each order? (polynomial, legendre, chebyshev)
-trace orders polyorder  3             # What is the order of the function that should be used?
+trace orders polyorder  7             # What is the order of the function that should be used?
 trace orders diffpolyorder  2         # What is the order of the 2D function that should be used to fit the 2d solution for the spatial size of all orders?
 trace orders sigdetect  5.0           # Sigma detection threshold for edge detection
 trace orders fracignore 0.6           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
@@ -83,8 +82,9 @@ trace orders pca [3,2,1,0,0,0]        # What order polynomials should be used to
 trace orders pcxpos     3             # How many extra orders to predict in the positive direction
 trace orders pcxneg     3             # How many extra orders to predict in the negative direction
 trace orders tilts      fit1D         # What method should be used to trace the tilt of the slit along an order (trace, fit1D, fit2D, perp, zero)
-trace orders pcatilt    [1,1,0]       # What order polynomials should be used to fit the tilt principle components
-trace orders tiltorder  2             # What is the order of the function to be used for tilts in a given order
+trace orders pcatilt    [1,0]         # What order polynomials should be used to fit the tilt principle components
+trace orders tiltorder  1             # What is the order of the polynomial function to be used for the tilt of an individual arc line
+trace orders tiltdisporder  1         # What is the order of the polynomial function to be used to fit the tilts along the dispersion direction
 
 # PIXEL FLAT FRAMES
 pixflat comb method weightmean          # How should the pixel flat frames be combined (mean, median, weightmean)
@@ -117,4 +117,3 @@ out  verbose      2				# Level of screen output (0 is No screen output, 1 is low
 out  sorted       None          # A filename given to output the details of the sorted files. If None, no output is created.
 out  plots        True          # Output a set of plots that can be used to check the data is doing what it is supposed to be doing
 out  overwrite    False         # Overwrite any existing output files?
-

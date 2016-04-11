@@ -15,7 +15,6 @@ import arutils
 import arplot
 import arspecobj
 from arpca import pca2d
-import pdb
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -731,7 +730,6 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Flat field the science frame
     if slf._argflag['reduce']['flatfield']:
         msgs.info("Flat fielding the science frame")
-#        debugger.set_trace()
         sciframe = flatfield(slf, sciframe, slf._mspixflatnrm[det-1], det)
     else:
         msgs.info("Not performing a flat field calibration")
@@ -767,7 +765,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask, doqa=(not standard))
     if scitrace is None:
         msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
-        pdb.set_trace()
+        debugger.set_trace()
         #continue
     ###############
     # Finalize the Sky Background image
@@ -790,7 +788,6 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask, doqa=(not standard))
     if standard:
         slf._msstd[det-1]['trace'] = scitrace
-#        debugger.set_trace()
         specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict,
                                                          trc_img=scitrace,
                                                          objtype='standard')
@@ -805,7 +802,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Extract
     if scitrace is None:
         msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
-        pdb.set_trace()
+        debugger.set_trace()
         #continue
 
     # Boxcar
@@ -882,7 +879,7 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
     for i in xrange(1, maxiter+1):
         msgs.info("Convolving image with Laplacian kernel")
         # Subsample, convolve, clip negative values, and rebin to original size
-        #pdb.set_trace()
+        #set_trace()
         subsam = arutils.subsample(scicopy)
         conved = signal.convolve2d(subsam, laplkernel, mode="same", boundary="symm")
         cliped = conved.clip(min=0.0)
@@ -1087,7 +1084,7 @@ def trim(slf, file, det):
         trim_file = file[w]
     except:
         msgs.bug("Odds are datasec is set wrong. Maybe due to transpose")
-        pdb.set_trace()
+        debugger.set_trace()
         msgs.error("Cannot trim file")
     return file[w]
 
