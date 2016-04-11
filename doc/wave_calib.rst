@@ -52,7 +52,7 @@ And the following lines should be added:
 
 Now in armlsd.py, put a stop after wavelength calibration
 to check that the arc lines were correctly identified for
-this new disperser. In method ARMLSD, find:
+this new disperser. To do this, in method ARMLSD, find:
 
                 # Extract arc and identify lines
                 wv_calib = ararc.simple_calib(slf, det)

@@ -54,7 +54,7 @@ def main() :
     # RAW_LRIS??
     if args.raw_lris:
         # 
-        img, head = arlris.read_lris(args.file)
+        img, head, _ = arlris.read_lris(args.file)
         # Generate hdu
         hdu = fits.PrimaryHDU(img)
         hdulist = fits.HDUList([hdu])
