@@ -20,8 +20,9 @@ class Messages:
         ----------
         log : str
           Name of saved log file (no log will be saved if log=="")
-        debug : bool
-          Used for debugging. Should be set to False in all other cases
+        debug : dict
+          dict used for debugging.
+          'LOAD', 'BIAS', 'ARC', 'TRACE'
         last_updated : str
           The data of last update
         version : str
@@ -120,7 +121,7 @@ class Messages:
         sys.exit()
 
     def debugmessage(self):
-        if self._debug:
+        if self._debug['develop']:
             info = getouterframes(currentframe())[2]
             dbgmsg = self._start+self._blue_CL+info[1].split("/")[-1]+" "+str(info[2])+" "+info[3]+"()"+self._end+" - "
         else:

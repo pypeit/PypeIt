@@ -17,10 +17,11 @@ try:
 except ImportError:
     pass
 
+
 try:
-    from xastropy.xutils.xdebug import set_trace
-except ImportError:
-    from pdb import set_trace
+    from xastropy.xutils import xdebug as debugger
+except:
+    import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -226,7 +227,6 @@ def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
 
     # SkyCoord
     obj_coord = SkyCoord(radec[0], radec[1], unit=(u.hourangle, u.deg))
-
     # Loop on standard sets
     closest = dict(sep=999*u.deg)
     for qq,sset in enumerate(std_sets):
@@ -237,13 +237,11 @@ def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
         # Match
         idx, d2d, d3d = coords.match_coordinates_sky(obj_coord, star_coords, nthneighbor=1)
         if d2d < toler:
-            if check: return True
+            if check:
+                return True
             else:
                 # Generate a dict
-                std_dict = dict(file=path+star_tbl[int(idx)]['File'],
-                    name=star_tbl[int(idx)]['Name'], fmt=std_file_fmt[qq],
-                    ra=star_tbl[int(idx)]['RA_2000'],
-                    dec=star_tbl[int(idx)]['DEC_2000'])
+                std_dict = dict(file=path+star_tbl[int(idx)]['File'], name=star_tbl[int(idx)]['Name'], fmt=std_file_fmt[qq], ra=star_tbl[int(idx)]['RA_2000'], dec=star_tbl[int(idx)]['DEC_2000'])
                 # Return
                 msgs.info("Using standard star {:s}".format(std_dict['name']))
                 return std_dict

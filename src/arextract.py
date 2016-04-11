@@ -7,9 +7,9 @@ import armsgs
 msgs = armsgs.get_logger()
 
 try:
-    from xastropy.xutils.xdebug import set_trace
-except ImportError:
-    from pdb import set_trace
+    from xastropy.xutils import xdebug as debugger
+except:
+    import pdb as debugger
 
 # MASK VALUES FROM EXTRACTION
 # 0 
@@ -48,9 +48,9 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     nobj = scitrace['traces'].shape[1]
     cr_mask = 1.0-crmask
     bgfit = np.linspace(0.0, 1.0, sciframe.shape[1])
+    bgcorr = np.zeros_like(cr_mask)
     # Loop on Objects
     for o in range(nobj):
-        #set_trace()
         msgs.info("Performing boxcar extraction on object {0:d}/{1:d}".format(o+1,nobj))
         # Fit the background
         msgs.info("   Fitting the background")
@@ -70,7 +70,11 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
         # Total the variance array
         msgs.info("   Summing variance array")
         varsum = np.sum(varframe*weight, axis=1)
-        # Mask 
+        # Update background correction image
+        tmp = scitrace['background'][:,:,o] + scitrace['object'][:,:,o]
+        gdp = np.where(tmp > 0)
+        bgcorr[gdp] = bgframe[gdp]
+        # Mask
         boxmask = np.zeros_like(wvsum, dtype=np.int)
         # Bad detector pixels
         BPs = np.sum(weight*slf._bpix[det-1], axis=1)
@@ -90,7 +94,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
             skysum[NANs] = 0.
         # Check on specobjs
         if not specobjs[o].check_trace(scitrace['traces'][:, o]):
-            set_trace()
+            debugger.set_trace()
             msgs.error("Bad match to specobj in boxcar!")
         # Fill
         specobjs[o].boxcar['wave'] = wvsum*u.AA  # Yes, units enter here
@@ -99,4 +103,4 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
         specobjs[o].boxcar['sky'] = skysum  # per pixel
         specobjs[o].boxcar['mask'] = boxmask
     # Return
-    return None
+    return bgcorr

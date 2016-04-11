@@ -294,8 +294,7 @@ def save_1d_spectra(slf, clobber=True):
             hdus += [tbhdu]
     # Finish
     hdulist = pyfits.HDUList(hdus)
-#    hdulist.writeto(slf._argflag['run']['scidir']+'/spec1d_{:s}.fits'.format(slf._basename), clobber=clobber)
-    hdulist.writeto(slf._argflag['run']['scidir']+'/spec1d_{:s}.fits'.format(slf._target_name+str("_")+slf._basename.replace(":","_")), clobber=clobber)
+    hdulist.writeto(slf._argflag['run']['scidir']+'/spec1d_{:s}.fits'.format(slf._basename), clobber=clobber)
 
 #def write_sensitivity():
     #sensfunc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.yaml".format(os.getcwd(), slf._argflag['run']['masterdir'], slf._fitsdict['target'][scidx[0]], 0, "sensfunc")
@@ -304,3 +303,42 @@ def save_1d_spectra(slf, clobber=True):
     #    yamlf.write( yaml.dump(slf._sensfunc))
     #with io.open(sensfunc_name, 'w', encoding='utf-8') as f:
     #    f.write(unicode(json.dumps(slf._sensfunc, sort_keys=True, indent=4, separators=(',', ': '))))
+
+def save_2d_images(slf, clobber=True):
+    """ Write 2D images to the hard drive
+    Parameters
+    ----------
+    slf
+    clobber
+
+    Returns
+    -------
+
+    """
+    # Primary header
+    prihdu = pyfits.PrimaryHDU()
+    hdus = [prihdu]
+
+    ext = 0
+    for kk in xrange(slf._spect['mosaic']['ndet']):
+        det = kk+1
+
+        # Processed frame
+        ext += 1
+        keywd = 'EXT{:04d}'.format(ext)
+        prihdu.header[keywd] = 'DET{:d}-Processed'.format(det)
+        hdu = pyfits.ImageHDU(slf._sciframe[det-1])
+        hdu.name = prihdu.header[keywd]
+        hdus.append(hdu)
+
+        # Background subtracted
+        ext += 1
+        keywd = 'EXT{:04d}'.format(ext)
+        prihdu.header[keywd] = 'DET{:d}-Skysub'.format(det)
+        hdu = pyfits.ImageHDU(slf._sciframe[det-1]-slf._bgframe[det-1])
+        hdu.name = prihdu.header[keywd]
+        hdus.append(hdu)
+
+    # Finish
+    hdulist = pyfits.HDUList(hdus)
+    hdulist.writeto(slf._argflag['run']['scidir']+'/spec2d_{:s}.fits'.format(slf._basename), clobber=clobber)

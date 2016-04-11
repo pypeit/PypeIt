@@ -7,10 +7,9 @@ import armsgs
 import arload
 
 try:
-    from xastropy.xutils.xdebug import set_trace
-#    from xastropy.xutils import xdebug as xdb
-except ImportError:
-    from pdb import set_trace
+    from xastropy.xutils import xdebug as debugger
+except:
+    import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -330,3 +329,36 @@ def lris_read_amp(inp, ext):
 
     return data, predata, postdata, x1, y1
 
+def convert_lowredux_pixflat(infil, outfil):
+    """ Convert LowRedux pixflat to PYPIT format
+    Returns
+    -------
+
+    """
+    # Read
+    hdu = pyfits.open(infil)
+    data = hdu[0].data
+
+    #
+    prihdu = pyfits.PrimaryHDU()
+    hdus = [prihdu]
+    prihdu.header['FRAMETYP'] = 'pixflat'
+
+    # Detector 1
+    img1 = data[:,:data.shape[1]/2]
+    hdu = pyfits.ImageHDU(img1)
+    hdu.name = 'DET1'
+    prihdu.header['EXT0001'] = 'DET1-Pixflat'
+    hdus.append(hdu)
+
+    # Detector 2
+    img2 = data[:,data.shape[1]/2:]
+    hdu = pyfits.ImageHDU(img2)
+    hdu.name = 'DET2'
+    prihdu.header['EXT0002'] = 'DET2-Pixflat'
+    hdus.append(hdu)
+
+    # Finish
+    hdulist = pyfits.HDUList(hdus)
+    hdulist.writeto(outfil, clobber=True)
+    print('Wrote {:s}'.format(outfil))

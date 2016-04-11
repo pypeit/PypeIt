@@ -17,10 +17,9 @@ import arsort
 import arutils
 
 try:
-    from xastropy.xutils.xdebug import set_trace
-#    from xastropy.xutils import xdebug as xdb
+    from xastropy.xutils import xdebug as debugger
 except ImportError:
-    from pdb import set_trace
+    import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -54,9 +53,7 @@ class ScienceExposure:
         else: self._idx_flat = []
 
         # Set the base name and extract other names that will be used for output files
-        self._basename = ""
         self.SetBaseName(fitsdict)
-        self._target_name = fitsdict['target'][self._idx_sci[0]].replace(" ", "")
 
         # Initialize the QA for this science exposure
         qafn = "{0:s}/QA_{1:s}.pdf".format(self._argflag['run']['plotsdir'], self._basename)
@@ -129,7 +126,11 @@ class ScienceExposure:
             tval = datetime.datetime.strptime(tbname, '%Y-%m-%dT%H:%M:%S.%f')
         except ValueError:
             tval = datetime.datetime.strptime(tbname, '%Y-%m-%dT%H:%M:%S')
-        self._basename = datetime.datetime.strftime(tval, '%Y%b%dT') + tbname.split("T")[1]
+        self._inst_name = self._spect['mosaic']['camera']
+        self._target_name = fitsdict['target'][self._idx_sci[0]].replace(" ", "")
+        self._basename = self._target_name+'_'+self._inst_name+'_'+ \
+                         datetime.datetime.strftime(tval, '%Y%b%dT') + \
+                         tbname.split("T")[1].replace(':','')
         return
 
     ###################################
@@ -207,7 +208,6 @@ class ScienceExposure:
             # Flip the transpose switch
             self._transpose = True
             # Transpose the master bias frame
-            #set_trace()
             if self._msbias[det-1] is not None:
                 if type(self._msbias[det-1]) is str: pass  # Overscan sub - change the oscansec parameters below
                 elif type(self._msbias[det-1]) is np.ndarray: self.SetMasterFrame(self._msbias[det-1].T, 'bias', det)
@@ -283,7 +283,8 @@ class ScienceExposure:
             msgs.info("Preparing a master arc frame")
             ind = self._idx_arcs
             # Load the arc frames
-            frames = arload.load_frames(self, fitsdict, ind, det, frametype='arc', msbias=self._msbias[det-1])
+            frames = arload.load_frames(self, fitsdict, ind, det, frametype='arc',
+                                        msbias=self._msbias[det-1])
             if self._argflag['reduce']['arcmatch'] > 0.0:
                 sframes = arsort.match_frames(frames, self._argflag['reduce']['arcmatch'], msgs, frametype='arc',
                                               satlevel=self._spect['det']['saturation']*self._spect['det']['nonlinear'])
@@ -421,18 +422,20 @@ class ScienceExposure:
                     mspixflat = arcomb.comb_frames(frames, det, spect=self._spect, frametype='pixel flat',
                                                    **self._argflag['pixflat']['comb'])
                 del frames
+                # Normalize the flat field
+                mspixflatnrm, msblaze = arproc.flatnorm(self, det, mspixflat, overpix=0, plotdesc="Blaze function")
+                self.SetFrame(self._msblaze, msblaze, det)
             else:  # It must be the name of a file the user wishes to load
-                mspixflat_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usepixflat']
-                mspixflat = arload.load_master(mspixflat_name, msgs, frametype=None)
+                mspixflat_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['useflat']
+                mspixflatnrm = arload.load_master(mspixflat_name, det, frametype=None)
+                mspixflat = mspixflatnrm
             # Now that the combined, master flat field frame is loaded...
-            # Normalize the flat field
-            mspixflatnrm, msblaze = arproc.flatnorm(self, det, mspixflat, overpix=0, plotdesc="Blaze function")
-            self.SetFrame(self._msblaze, msblaze, det)
         else:
             msgs.work("Pixel Flat arrays need to be generated when not flat fielding")
             msgs.bug("Blaze is currently undefined")
             mspixflat = np.ones_like(self._msarc)
             mspixflatnrm = np.ones_like(self._msarc)
+        # Set Master Frames
         self.SetMasterFrame(mspixflat, "pixflat", det)
         self.SetMasterFrame(mspixflatnrm, "normpixflat", det)
         return True
@@ -523,6 +526,9 @@ class ScienceExposure:
     def MasterStandard(self, scidx, fitsdict):
         """
         Generate Master Standard frame for a given detector
+        and generates a sensitivity function
+        Currently only uses first standard star exposure
+        Currently takes brightest source on the mosaic
 
         Parameters
         ----------
@@ -541,6 +547,8 @@ class ScienceExposure:
         msgs.info("Preparing the standard")
         # Get all of the pixel flat frames for this science frame
         ind = self._idx_std
+        msgs.warn("Taking only the first standard frame for now")
+        ind = [ind[0]]
         # Extract
         all_specobj = []
         for kk in xrange(self._spect['mosaic']['ndet']):
@@ -550,19 +558,21 @@ class ScienceExposure:
             frame = arload.load_frames(self, fitsdict, ind, det, frametype='standard',
                                    msbias=self._msbias[det-1],
                                    transpose=self._transpose)
-            msgs.warn("Taking only the first standard frame for now")
-            ind = ind[0]
+#            msgs.warn("Taking only the first standard frame for now")
+#            ind = ind[0]
             sciframe = frame[:, :, 0]
             # Save RA/DEC
             if kk == 0:
-                self._msstd[det-1]['RA'] = fitsdict['ra'][ind]
-                self._msstd[det-1]['DEC'] = fitsdict['dec'][ind]
-            arproc.reduce_frame(self, sciframe, ind, fitsdict, det, standard=True)
+                self._msstd[det-1]['RA'] = fitsdict['ra'][ind[0]]
+                self._msstd[det-1]['DEC'] = fitsdict['dec'][ind[0]]
+            #debugger.set_trace()
+            arproc.reduce_frame(self, sciframe, ind[0], fitsdict, det, standard=True)
+
             #
             all_specobj += self._msstd[det-1]['spobjs']
+#        debugger.set_trace()
         # If standard, generate a sensitivity function
-        sensfunc = arflux.generate_sensfunc(self, scidx, all_specobj,
-                                                  fitsdict)
+        sensfunc = arflux.generate_sensfunc(self, scidx, all_specobj, fitsdict)
         # Set the sensitivity function
         self.SetMasterFrame(sensfunc, "sensfunc", None, copy=False)
         return True

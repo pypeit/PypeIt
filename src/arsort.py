@@ -12,10 +12,9 @@ from astropy.table import Table as tTable, Column
 from astropy import units as u
 
 try:
-    from xastropy.xutils.xdebug import set_trace
-#    from xastropy.xutils import xdebug as xdb
-except ImportError:
-    from pdb import set_trace
+    from xastropy.xutils import xdebug as debugger
+except:
+    import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -663,3 +662,4 @@ def make_dirs(argflag, fitsdict, filesort):
     else: os.mkdir(newdir)
     # Return the name of the science targets
     return sci_targs
+

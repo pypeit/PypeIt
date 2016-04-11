@@ -18,10 +18,9 @@ import arspecobj
 from arpca import pca2d
 
 try:
-    from xastropy.xutils.xdebug import set_trace
-#    from xastropy.xutils import xdebug as xdb
-except ImportError:
-    from pdb import set_trace
+    from xastropy.xutils import xdebug as debugger
+except:
+    import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -356,9 +355,15 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     polyorder = 1
     xpix = sxvpix[wbg]
     maxdiff = np.sort(xpix[1:]-xpix[:-1])[xpix.size-sciframe.shape[0]-1] # only include the next pixel in the fit if it is less than 10x the median difference between all pixels
+    #
     msgs.info("Generating sky background image")
     bgscan = arcyutils.polyfit_scan_lim(sxvpix[wbg], sbgpix[wbg].copy(), np.ones(wbg[0].size,dtype=np.float), maskval, polyorder, sciframe.shape[1]/3, repeat, maxdiff)
-    bgframe = np.interp(tilts.flatten(), sxvpix[wbg], bgscan).reshape(tilts.shape)
+    # Restrict to good values
+    gdscan = bgscan != maskval
+    if np.sum(~gdscan) > 0:
+        msgs.warn("At least one masked value in bgscan")
+    # Generate
+    bgframe = np.interp(tilts.flatten(), sxvpix[wbg[0][gdscan]], bgscan[gdscan]).reshape(tilts.shape)
     if np.sum(np.isnan(bgframe)) > 0:
         msgs.warn("NAN in bgframe.  Replacing with 0")
         bad = np.isnan(bgframe)
@@ -625,7 +630,7 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
       Updates to the input fitsdict
     """
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
-    if slf._argflag['run']['spectrograph'] in ['lris_blue']:
+    if slf._argflag['run']['spectrograph'] in ['lris_blue', 'lris_red']:
         msgs.info("Parsing datasec,oscansec,ampsec from headers")
         temp, head0, secs = arlris.read_lris(fitsdict['directory'][scidx]+
                                              fitsdict['filename'][scidx],
@@ -659,7 +664,7 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
         try:
             retarr[w] = i+1
         except IndexError:
-            set_trace()
+            debugger.set_trace()
         # Save these locations for trimming
         if i == 0:
             xfin = xv.copy()
@@ -708,6 +713,9 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     standard : bool, optional
       Standard star frame?
     """
+    # Check inputs
+    if not isinstance(scidx,int):
+        raise IOError("scidx needs to be an int")
     # Convert ADUs to electrons
     sciframe *= slf._spect['det'][det-1]['gain']
     # Mask
@@ -751,10 +759,10 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
             slf._bgframe[det-1] = bgframe
     ###############
     # Estimate trace of science objects
-    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask)
+    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask, doqa=(not standard))
     if scitrace is None:
         msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
-        set_trace()
+        debugger.set_trace()
         #continue
     ###############
     # Finalize the Sky Background image
@@ -773,7 +781,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     ###############
     # Determine the final trace of the science objects
     msgs.info("Final trace")
-    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask)
+    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask, doqa=(not standard))
     if standard:
         slf._msstd[det-1]['trace'] = scitrace
         specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict,
@@ -790,11 +798,20 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Extract
     if scitrace is None:
         msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
-        set_trace()
+        debugger.set_trace()
         #continue
+
     # Boxcar
-    arextract.boxcar(slf, det, specobjs, sciframe-bgframe, varframe, bgframe, crmask, scitrace)
-#    set_trace()
+    msgs.info("Extracting")
+    bgcorr_box = arextract.boxcar(slf, det, specobjs, sciframe-bgframe,
+                                  varframe, bgframe, crmask, scitrace)
+    # Profile
+    if False:
+        arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
+                                      varframe, crmask, scitrace)
+    # Final
+    if not standard:
+        slf._bgframe[det-1] += bgcorr_box
     # Return
     return True
 
@@ -1032,10 +1049,14 @@ def trim(slf, file, det):
     for i in xrange (slf._spect['det'][det-1]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
         x0, x1, y0, y1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
-        if x0 < 0: x0 += file.shape[0]
-        if x1 <= 0: x1 += file.shape[0]
-        if y0 < 0: y0 += file.shape[1]
-        if y1 <= 0: y1 += file.shape[1]
+        if x0 < 0:
+            x0 += file.shape[0]
+        if x1 <= 0:
+            x1 += file.shape[0]
+        if y0 < 0:
+            y0 += file.shape[1]
+        if y1 <= 0:
+            y1 += file.shape[1]
         if i == 0:
             xv = np.arange(x0, x1)
             yv = np.arange(y0, y1)
@@ -1056,7 +1077,7 @@ def trim(slf, file, det):
         trim_file = file[w]
     except:
         msgs.bug("Odds are datasec is set wrong. Maybe due to transpose")
-        set_trace()
+        debugger.set_trace()
         msgs.error("Cannot trim file")
     return file[w]
 

@@ -15,10 +15,9 @@ from multiprocessing import cpu_count
 #import arutils
 
 try:
-    from xastropy.xutils.xdebug import set_trace
-#    from xastropy.xutils import xdebug as xdb
-except ImportError:
-    from pdb import set_trace
+    from xastropy.xutils import xdebug as debugger
+except:
+    import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -250,7 +249,7 @@ def set_params(lines, indict, setstr=""):
             elif linspl[1] in indict[linspl[0]].keys():
                 indict[linspl[0]][linspl[1]] = set_params_wtype(indict[linspl[0]][linspl[1]], linspl[2], lines=tline, setstr=setstr)
             else:
-                set_trace()
+                debugger.set_trace()
                 msgs.error(setstr + "Settings contains bad line (arg 2):"+msgs.newline()+lines[i].split('#')[0].strip())
         elif linspl[0][:3] == 'det': # Detector parameters
             try:
@@ -464,7 +463,7 @@ def load_spect(progname, specname, spect=None, lines=None):
       Loaded or updated properties of the spectrograph
     """
     def initialise():
-        msc = dict({'ndet': 0, 'latitude': 0.0, 'longitude': 0.0, 'elevation': 0.0, 'minexp': 0., 'reduction': 'ARMLSD'})
+        msc = dict({'ndet': 0, 'latitude': 0.0, 'longitude': 0.0, 'elevation': 0.0, 'minexp': 0., 'reduction': 'ARMLSD', 'camera': 'UNKNWN'})
         # det starts as a dict but becomes a list of dicts in set_params
         ddet = dict({'xgap': 0.0, 'ygap': 0.0, 'ysize': 1.0, 'darkcurr': 0.0, 'ronoise': 1.0, 'gain': 1.0, 'saturation': 65536.0, 'nonlinear': 1.0, 'numamplifiers': 1, 'suffix': ""})
         #
@@ -526,7 +525,8 @@ def load_headers(argflag, spect, datlines):
     keys = spect['keyword'].keys()
     fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
     whddict = dict({})
-    for k in keys: fitsdict[k]=[]
+    for k in keys:
+        fitsdict[k]=[]
     headarr = [None for k in range(spect['fits']['numhead'])]
     for i in range(len(datlines)):
         # Try to open the fits file
@@ -625,7 +625,8 @@ def load_headers(argflag, spect, datlines):
     return fitsdict
 
 
-def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None, trim=True, transpose=False):
+def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None,
+                trim=True, transpose=False):
     """
     Load data frames, usually raw.
     Bias subtract (if not msbias!=None) and trim (if True)
@@ -657,7 +658,6 @@ def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None, trim=T
     for i in range(np.size(ind)):
         # Instrument specific read
         if slf._argflag['run']['spectrograph'] in ['lris_blue']:
-#            set_trace()
             temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         else:
             temp = pyfits.getdata(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], slf._spect['fits']['dataext'])
@@ -671,7 +671,7 @@ def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None, trim=T
                     arproc.sub_overscan(slf, det, temp)
                 else:
                     msgs.error("Could not subtract bias level when loading {0:s} frames".format(frametype))
-            if trim: 
+            if trim:
                 temp = arproc.trim(slf, temp, det)
         if i == 0:
             frames = np.zeros((temp.shape[0], temp.shape[1], np.size(ind)))
@@ -749,7 +749,7 @@ def load_extraction(name, frametype='<None>', wave=True):
         return sciext, props
 
 
-def load_master(name, frametype='<None>'):
+def load_master(name, det, frametype='<None>'):
     """
     Load a pre-existing master calibration frame
 
@@ -757,6 +757,7 @@ def load_master(name, frametype='<None>'):
     ----------
     name : str
       Name of the master calibration file to be loaded
+    det : int
     frametype : str, optional
       The type of master calibration frame being loaded.
       This keyword is only used for terminal print out.
@@ -769,14 +770,20 @@ def load_master(name, frametype='<None>'):
     if frametype is None:
         msgs.info("Loading a pre-existing master calibration frame")
         try:
-            infile = pyfits.open(name)
+            hdu = pyfits.open(name)
         except:
             msgs.error("Master calibration file does not exist:"+msgs.newline()+name)
-        msgs.info("Master {0:s} frame loaded successfully:".format(infile[0].header['FRAMETYP'])+msgs.newline()+name)
-        return np.array(infile[0].data, dtype=np.float)
+        msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
+        data = hdu[det].data.astype(np.float)
+        return data
+        #return np.array(infile[0].data, dtype=np.float)
     else:
         msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
-        return np.array(pyfits.getdata(name, 0), dtype=np.float)
+        # Load
+        hdu = pyfits.open(name)
+        data = hdu[det].data.astype(np.float)
+        return data
+        #return np.array(pyfits.getdata(name, 0), dtype=np.float)
 
 
 def load_ordloc(fname):

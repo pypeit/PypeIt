@@ -1,4 +1,5 @@
-3000 2.37  # This is bogus (by hand by JXP) :: CFHT Bulletin http://www.gemini.edu/?q=node/10790
+# The first value is bogus (by hand by JXP) :: CFHT Bulletin http://www.gemini.edu/?q=node/10790
+3000 2.37  
 3100 1.37
 3200 0.82
 3300 0.57
