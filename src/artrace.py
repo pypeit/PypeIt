@@ -168,7 +168,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     #plt.plot(trcxrng[objl[0]:objr[0]+1],trcprof[objl[0]:objr[0]+1],'bx')
     #plt.show()
     nobj = objl.size
-    if 'TRACE' in msgs._debug:
+    if msgs._debug['trace_obj']:
         nobj = 1
     if nobj==1:
         msgs.info("Found {0:d} object".format(objl.size))

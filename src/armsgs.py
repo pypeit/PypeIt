@@ -20,8 +20,8 @@ class Messages:
         ----------
         log : str
           Name of saved log file (no log will be saved if log=="")
-        debug : list
-          list used for debugging.
+        debug : dict
+          dict used for debugging.
           'LOAD', 'BIAS', 'ARC', 'TRACE'
         last_updated : str
           The data of last update

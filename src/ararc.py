@@ -313,13 +313,13 @@ def simple_calib(slf, det, get_poly=False):
 
     # Debug
     #debug=True
-    if debug:
+    if msgs._debug['arc']:
         #tmp = list(gd_str)
         #tmp.pop(1)
         #gd_str = np.array(tmp)
-        xdb.xpcol(tcent[idx_str[gd_str]],ids[gd_str])
+        #xdb.xpcol(tcent[idx_str[gd_str]],ids[gd_str])
         #xdb.xplot(tcent[idx_str[gd_str]],ids[gd_str],scatter=True)
-        set_trace()
+        debugger.set_trace()
 
     # Consider a cross-correlation here (as a double-check)
 
@@ -342,8 +342,8 @@ def simple_calib(slf, det, get_poly=False):
         mask, fit = arutils.robust_polyfit(xfit, yfit, n_order,
             function=aparm['func'], sigma=aparm['nsig_rej'], minv=fmin, maxv=fmax)
         # DEBUG
-        if 'ARC' in msgs._debug:
-            xdb.xpcol(xfit,yfit)
+        if msgs._debug['arc']:
+            debugger.xpcol(xfit,yfit)
             #wave = arutils.func_val(fit, np.arange(slf._msarc.shape[0]), aparm['func'], min=fmin, max=fmax)
             #xdb.xplot(xfit,yfit,scatter=True,xtwo=np.arange(slf._msarc.shape[0]), ytwo=wave)
         # Reject but keep originals (until final fit)
@@ -354,7 +354,7 @@ def simple_calib(slf, det, get_poly=False):
             mn = np.min(np.abs(iwave-llist['wave']))
             if mn/aparm['disp'] < aparm['match_toler']:
                 imn = np.argmin(np.abs(iwave-llist['wave']))
-                if 'ARC' in msgs._debug:
+                if msgs._debug['arc']:
                     print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
                 # Update and append
                 all_ids[ss] = llist['wave'][imn]
@@ -362,7 +362,7 @@ def simple_calib(slf, det, get_poly=False):
                 ifit.append(ss)
         # Keep unique ones
         ifit = np.unique(np.array(ifit,dtype=int))
-        if 'ARC' in msgs._debug:
+        if msgs._debug['arc']:
             debugger.set_trace()
         # Increment order
         if n_order < aparm['n_final']:
@@ -390,23 +390,23 @@ def simple_calib(slf, det, get_poly=False):
     yfit = yfit[mask==0]
     ions = all_idsion[ifit][mask==0]
     #
-    if debug:
+    if msgs._debug['arc']:
         msarc = slf._msarc[det-1]
         wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]), 
             'legendre', minv=fmin, maxv=fmax)
-        xdb.xplot(xfit,yfit, scatter=True, 
+        debugger.xplot(xfit,yfit, scatter=True,
             xtwo=np.arange(msarc.shape[0])/float(msarc.shape[0]),
             ytwo=wave)
-        xdb.xpcol(xfit*msarc.shape[0], yfit)
-        set_trace()
+        debugger.xpcol(xfit*msarc.shape[0], yfit)
+        debugger.set_trace()
 
         wave = arutils.func_val(fit, np.arange(msarc.shape[0]), 'legendre', 
             minv=fmin, maxv=fmax)
-        xdb.xplot(xfit, np.ones(len(xfit)), scatter=True,
+        debugger.xplot(xfit, np.ones(len(xfit)), scatter=True,
             xtwo=np.arange(msarc.shape[0]),ytwo=yprep)
-        xdb.xplot(xfit,yfit, scatter=True, xtwo=np.arange(msarc.shape[0]),
+        debugger.xplot(xfit,yfit, scatter=True, xtwo=np.arange(msarc.shape[0]),
             ytwo=wave)
-        set_trace()
+        debugger.set_trace()
         #wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
         #    'legendre', min=fmin, max=fmax)
 
@@ -416,7 +416,7 @@ def simple_calib(slf, det, get_poly=False):
         poly_fit = arutils.func_fit(yfit,xfit, 'polynomial',2, minv=fmin, maxv=fmax)
         print(' Most likely you with to record these values:')
         print(poly_fit)
-        set_trace()
+        debugger.set_trace()
     # Pack up fit
     final_fit = dict(fitc=fit, function=aparm['func'], xfit=xfit, yfit=yfit,
         ions=ions, fmin=fmin, fmax=fmax, xnorm=float(slf._msarc[det-1].shape[0]),

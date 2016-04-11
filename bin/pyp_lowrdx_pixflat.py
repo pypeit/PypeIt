@@ -20,9 +20,10 @@ this_path = this_file[:this_file.rfind('/')]
 sys.path.append(os.path.abspath(this_path+'/../src'))
 import armsgs as msgs
 
-debug = []
-last_updated = "26 November 2015"
-version = '0.3'
+import ardebug
+debug = ardebug.init()
+last_updated = "11 April 2016"
+version = '0.1'
 msgs = msgs.get_logger((None, debug, last_updated, version))
 
 import arlris

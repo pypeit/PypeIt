@@ -626,7 +626,7 @@ def load_headers(argflag, spect, datlines):
 
 
 def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None,
-                trim=True, transpose=False, debug=False):
+                trim=True, transpose=False):
     """
     Load data frames, usually raw.
     Bias subtract (if not msbias!=None) and trim (if True)

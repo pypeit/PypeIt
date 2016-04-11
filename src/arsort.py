@@ -663,23 +663,3 @@ def make_dirs(argflag, fitsdict, filesort):
     # Return the name of the science targets
     return sci_targs
 
-
-def set_instr_name(inst_name):
-    """ Converts long instrument name into a short one
-    Returns
-    -------
-    inst_short : str
-
-    """
-    if inst_name == 'lris_blue':
-        inst_short = 'LRISb'
-    elif inst_name == 'lris_red':
-        inst_short = 'LRISr'
-    elif inst_name == 'kast_blue':
-        inst_short = 'KASTb'
-    elif inst_name == 'kast_red':
-        inst_short = 'KASTr'
-    else:
-        inst_short = 'UNKWN'
-    # Return
-    return inst_short
