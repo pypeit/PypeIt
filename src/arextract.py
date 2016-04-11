@@ -111,7 +111,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     return bgcorr
 
 def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace,
-                 COUNT_LIM=15., pickle_file=None):
+                 COUNT_LIM=25., pickle_file=None):
     """ Derive spatial profiles for each object
 
     Parameters
@@ -153,6 +153,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitr
     # Loop
     nobj = scitrace['traces'].shape[1]
     scitrace['opt_profile'] = []
+    msgs.work("Should probably loop on S/N")
     for o in range(nobj):
         # Calculate slit image
         slit_img = artrace.slit_image(slf, det, scitrace, o)#, tilts=tilts)
@@ -179,11 +180,16 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitr
             slit_val = slit_img[gdprof]
             flux_val = norm_img[gdprof]
             weight_val = sciframe[gdprof]/sigframe[gdprof]  # S/N
-            # Fit Gaussian
+            # Fit
             fdict = dict(func='gaussian', deg=3)
-            mask, gfit = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'],
-                                                function=fdict['func'],
-                                                weights=weight_val, maxone=False)
+            try:
+                mask, gfit = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'],
+                                                    function=fdict['func'],
+                                                    weights=weight_val, maxone=False)
+            except RuntimeError:
+                msgs.warn("Bad Profile fit for object={:s}.  Skipping Optimal".format(specobjs[o].idx))
+                scitrace['opt_profile'].append(fdict)
+                continue
             msgs.work("Consider flagging CRs here")
             # Record
             fdict['param'] = gfit
@@ -200,7 +206,9 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitr
                 debugger.xplot(slit_val[gdp], flux_val[gdp], xtwo=xval, ytwo=gauss, scatter=True)
                 debugger.set_trace()
         elif len(gdrow) > 10:  #
-            debugger.set_trace()
+            msgs.warn("Low extracted flux for obj={:s}.  Not ready for Optimal".format(specobjs[o].idx))
+            scitrace['opt_profile'].append({})
+            continue
     # QA
     arqa.obj_profile_qa(slf, specobjs, scitrace)
     return scitrace['opt_profile']
@@ -250,6 +258,8 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe, skyframe, crmask, sc
     for o in range(nobj):
         # Fit dict
         fit_dict = scitrace['opt_profile'][o]
+        if 'param' not in fit_dict.keys():
+            continue
         # Slit image
         slit_img = artrace.slit_image(slf, det, scitrace, o)#, tilts=tilts)
         #msgs.warn("Turn off tilts")

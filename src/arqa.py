@@ -202,6 +202,8 @@ def obj_profile_qa(slf, specobjs, scitrace):
     # Plot
     for o in range(nobj):
         fdict = scitrace['opt_profile'][o]
+        if 'param' not in fdict.keys():  # Not optimally extracted
+            continue
         ax = plt.subplot(gs[o//ncol,o%ncol])
 
         # Data

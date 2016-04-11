@@ -166,7 +166,7 @@ class ScienceExposure:
                     msgs.warn("No MasterBadPix frame found {:s}".format(bpix_name))
                 else:
                     self._argflag['masters']['loaded'].append('badpix'+self._argflag['masters']['setup'])
-            else:
+            if 'badpix'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
                 msgs.info("Preparing a bad pixel mask")
                 # Get all of the bias frames for this science frame
                 if len(self._idx_bias) == 0:

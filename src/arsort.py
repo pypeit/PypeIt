@@ -726,7 +726,7 @@ def calib_setup(sciexp, sc, det, fitsdict, calib_dict,
             if write is False:
                 return ''
             maxs = max(calib_dict.keys())
-            setup = string.uppercase[string.uppercase.index(maxs)]
+            setup = string.uppercase[string.uppercase.index(maxs)+1]
             calib_dict[setup] = cdict
 
     # Write
