@@ -9,10 +9,14 @@ from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
 
+plt.rcParams['font.family']= 'times new roman'
+ticks_font = matplotlib.font_manager.FontProperties(family='times new roman',
+                                                    style='normal', size=16, weight='normal', stretch='normal')
+
 try:
-    from xastropy.xutils import xdebug as xdb
+    from xastropy.xutils import xdebug as debugger
 except:
-    pass
+    import pdb as debugger
 
 def arc_fit_qa(slf, fit, arc_spec, outfil=None):
     """
@@ -180,6 +184,47 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, root='trace', outfil=None, normaliz
     plt.close()
 
 
+def obj_profile_qa(slf, specobjs, scitrace):
+    """ Generate a QA plot for the object spatial profile
+
+    Parameters
+    ----------
+    """
+    # Setup
+    nobj = scitrace['traces'].shape[1]
+    ncol = min(3,nobj)
+    nrow = nobj // ncol + ((nobj%ncol) > 0)
+    # Plot
+    plt.figure(figsize=(8, 5.0))
+    plt.clf()
+    gs = gridspec.GridSpec(nrow, ncol)
+
+    # Plot
+    for o in range(nobj):
+        fdict = scitrace['opt_profile'][o]
+        ax = plt.subplot(gs[o//ncol,o%ncol])
+
+        # Data
+        gdp = fdict['mask'] == 0
+        ax.scatter(fdict['slit_val'][gdp], fdict['flux_val'][gdp], marker='.',
+                   s=0.5, edgecolor='none')
+
+        # Fit
+        mn = np.min(fdict['slit_val'][gdp])
+        mx = np.max(fdict['slit_val'][gdp])
+        xval = np.linspace(mn,mx,1000)
+        fit = arutils.func_val(fdict['param'], xval, fdict['func'])
+        ax.plot(xval, fit, 'r')
+        # Axes
+        ax.set_xlim(mn,mx)
+        # Label
+        ax.text(0.02, 0.90, 'Obj={:s}'.format(specobjs[o].idx),
+                transform=ax.transAxes, size='large', ha='left')
+
+    slf._qa.savefig(bbox_inches='tight')
+    plt.close()
+
+
 def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', outfil=None, normalize=True):
     """
     Generate a QA plot for the traces
@@ -240,15 +285,9 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
     plt.clf()
     fig = plt.figure(dpi=1200)
     #fig.set_size_inches(10.0,6.5)
-
-    plt.rcParams['font.family'] = 'times new roman'
-    ticks_font = matplotlib.font_manager.FontProperties(family='times new roman', style='normal',
-                                                        size=16, weight='normal', stretch='normal')
     ax = plt.gca()
-    for label in ax.get_yticklabels() :
-        label.set_fontproperties(ticks_font)
-    for label in ax.get_xticklabels() :
-        label.set_fontproperties(ticks_font)
+    set_fonts(ax)
+
     cmm = cm.Greys_r
     mplt = plt.imshow(nrm_frame, origin='lower', cmap=cmm, interpolation=None,
                       extent=(0., frame.shape[1], 0., frame.shape[0]))
@@ -276,6 +315,19 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
         plt.suptitle(desc)
 
     slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
-    #pp.savefig()
-    #pp.close()
     plt.close()
+
+def set_fonts(ax):
+    """ Set axes fonts
+    Parameters
+    ----------
+    plt
+
+    Returns
+    -------
+
+    """
+    for label in ax.get_yticklabels():
+        label.set_fontproperties(ticks_font)
+    for label in ax.get_xticklabels():
+        label.set_fontproperties(ticks_font)

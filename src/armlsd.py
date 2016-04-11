@@ -157,6 +157,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                     except IOError:
                         pass
                     else:
+                        slf.SetFrame(slf._tilts, tilts, det)
                         slf._argflag['masters']['loaded'].append('tilts'+slf._argflag['masters']['setup'])
                 if 'tilts'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
                     # First time tilts are derived for this arc frame --> derive the order tilts
@@ -192,7 +193,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
 
             # Write MasterFrames (currently per detector)
             armasters.save_masters(slf, det, setup)
-            debugger.set_trace()
 
             ###############
             # Load the science frame and from this generate a Poisson error frame

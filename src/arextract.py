@@ -4,6 +4,7 @@ import arcyutils
 import artrace
 import arutils
 import armsgs
+import arqa
 import pdb
 
 # Logging
@@ -146,16 +147,15 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitr
     else:
         tilts = slf._tilts[det-1]
     '''
-    tilts = slf._tilts[det-1]
+    # Init QA
     #
     sigframe = np.sqrt(varframe)
     # Loop
     nobj = scitrace['traces'].shape[1]
     scitrace['opt_profile'] = []
     for o in range(nobj):
-        # Calculate tilts for the object trace
-        # Using closest pixel for now
-        slit_img = artrace.slit_image(slf, det, scitrace, o, tilts=tilts)
+        # Calculate slit image
+        slit_img = artrace.slit_image(slf, det, scitrace, o)#, tilts=tilts)
         # Object pixels
         weight = scitrace['object'][:,:,o]
         # Identify good rows
@@ -188,8 +188,9 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitr
             # Record
             fdict['param'] = gfit
             fdict['mask'] = mask
+            fdict['slit_val'] = slit_val
+            fdict['flux_val'] = flux_val
             scitrace['opt_profile'].append(fdict)
-            # Plot?
             if False:
                 gdp = mask == 0
                 mn = np.min(slit_val[gdp])
@@ -200,6 +201,8 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitr
                 debugger.set_trace()
         elif len(gdrow) > 10:  #
             debugger.set_trace()
+    # QA
+    arqa.obj_profile_qa(slf, specobjs, scitrace)
     return scitrace['opt_profile']
 
 
