@@ -47,7 +47,7 @@ def argflag_init():
                 })
     bia = dict({'comb':dict({'method':'mean', 'rej_cosmicray':20.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}) })
     drk = dict({})
-    argflag = dict({'run':rna, 'reduce':red, 'masters': mas, science':sci, 'pixflat':pfl, 'blzflat':bfl, 'trace':trc, 'arc':arc, 'bias':bia, 'dark':drk, 'chisq':csq, 'out':opa})
+    argflag = dict({'run':rna, 'reduce':red, 'masters': mas, 'science':sci, 'pixflat':pfl, 'blzflat':bfl, 'trace':trc, 'arc':arc, 'bias':bia, 'dark':drk, 'chisq':csq, 'out':opa})
     return argflag
 
 

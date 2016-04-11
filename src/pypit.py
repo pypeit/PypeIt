@@ -27,7 +27,8 @@ except ImportError:
     import pdb as debugger
 
 
-def PYPIT(redname, progname=__file__, quick=False, ncpus=1, verbose=1, logname=None):
+def PYPIT(redname, progname=__file__, quick=False, ncpus=1, verbose=1,
+          logname=None, use_masters=False):
     """
     Main driver of the PYPIT code. Default settings and
     user-specified changes are made, and passed to the
@@ -116,6 +117,10 @@ def PYPIT(redname, progname=__file__, quick=False, ncpus=1, verbose=1, logname=N
     # Load any changes to the spectrograph settings based on the user input file
     spect = arload.load_spect(progname, specname, spect=spect, lines=spclines)
 
+    # Command line arguments
+    if use_masters:
+        argflag['masters']['use'] = True
+
     # If a quick reduction has been requested, make sure the requested pipeline
     # is the quick implementation (if it exists), otherwise run the standard pipeline.
     if quick:
@@ -171,6 +176,7 @@ if __name__ == "__main__":
     qck = False
     cpu = 1
     vrb = 2
+    use_masters = False
 
     if len(sys.argv) < 2:
         initmsgs.usage(None)
@@ -180,17 +186,20 @@ if __name__ == "__main__":
         opt, arg = getopt.getopt(sys.argv[1:], 'hqc:v:', ['help',
                                                           'quick',
                                                           'cpus',
-                                                          'use_master',
+                                                          'use_masters',
                                                           'verbose'])
         for o, a in opt:
             if o in ('-h', '--help'):
                 initmsgs.usage(None)
-            elif o in ('-q', '--quick'):
+            elif o in ('-q', '--quick'):  # I don't think this is working right
                 qck = True
             elif o in ('-c', '--cpus'):
                 cpu = int(a)
             elif o in ('-v', '--verbose'):
                 vrb = int(a)
+        for a in arg[1:]:
+            if a in ('--use_masters'):
+                use_masters = True
         lnm = os.path.splitext(arg[0])[0] + ".log"
         red = arg[0]
     except getopt.GetoptError, err:
@@ -198,10 +207,12 @@ if __name__ == "__main__":
 
     # Execute the reduction, and catch any bugs for printout
     if debug['develop']:
-        PYPIT(red, progname=sys.argv[0], quick=qck, ncpus=cpu, verbose=vrb, logname=lnm)
+        PYPIT(red, progname=sys.argv[0], quick=qck, ncpus=cpu, verbose=vrb, logname=lnm,
+              use_masters=use_masters)
     else:
         try:
-            PYPIT(red, progname=sys.argv[0], quick=qck, ncpus=cpu, verbose=vrb, logname=lnm)
+            PYPIT(red, progname=sys.argv[0], quick=qck, ncpus=cpu, verbose=vrb, logname=lnm,
+                  use_masters=use_masters)
         except:
             # There is a bug in the code, print the file and line number of the error.
             et, ev, tb = sys.exc_info()
