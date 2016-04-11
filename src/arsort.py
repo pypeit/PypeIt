@@ -3,6 +3,7 @@ import re
 import sys
 import shutil
 import numpy as np
+import string
 import armsgs
 import arutils
 import arcyutils
@@ -10,6 +11,8 @@ from arflux import find_standard_file
 from astropy.io.votable.tree import VOTableFile, Resource, Table, Field
 from astropy.table import Table as tTable, Column
 from astropy import units as u
+
+from linetools import utils as ltu
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -651,3 +654,88 @@ def make_dirs(argflag, fitsdict, filesort):
     else: os.mkdir(newdir)
     # Return the name of the science targets
     return sci_targs
+
+
+def calib_setup(sciexp, sc, det, fitsdict, calib_dict,
+                write=False):
+    """ Define calibration setup
+
+    Parameters
+    ----------
+    sciexp
+    calib_dict
+
+    Returns
+    -------
+
+    """
+    import json, io
+    # Arc
+    idx = sciexp._spect['arc']['index'][sc]
+    disp_name = fitsdict["disperser"][idx[0]]
+    disp_angle = fitsdict["cdangle"][idx[0]]
+    # Common
+    dichroic = fitsdict["dichroic"][idx[0]]
+    decker = fitsdict["decker"][idx[0]]
+    slitwid = fitsdict["slitwid"][idx[0]]
+    slitlen = fitsdict["slitlen"][idx[0]]
+    # Detector
+    binning = fitsdict["binning"][idx[0]]
+    naxis0 = fitsdict["naxis0"][idx[0]]
+    naxis1 = fitsdict["naxis1"][idx[0]]
+
+    # Generate
+    # Don't nest deeper than 1
+    cdict = dict(disperser={'name': disp_name,
+                            'angle': disp_angle},
+                 dichroic=dichroic,
+                 slit={'decker': decker,
+                       'slitwid': slitwid,
+                       'slitlen': slitlen},
+                 detector={'binning': binning,
+                           'det': det,
+                           'naxis0': naxis0,
+                           'naxis1': naxis1},
+                 )
+
+    if len(calib_dict) == 0: # Generate
+        setup = 'A'
+        # Finish
+        calib_dict['A'] = cdict
+    else:
+        # Search for a match
+        setup = None
+        for ckey in calib_dict.keys():
+            mtch = True
+            for key in calib_dict[ckey].keys():
+                # Dict?
+                if isinstance(calib_dict[ckey][key], dict):
+                    for ikey in calib_dict[ckey][key].keys():
+                        mtch &= calib_dict[ckey][key][ikey] == cdict[key][ikey]
+                        #if mtch is False:
+                        #    debugger.set_trace()
+                else:
+                    mtch &= calib_dict[ckey][key] == cdict[key]
+                    #if mtch is False:
+                    #    debugger.set_trace()
+            if mtch:
+                setup = ckey
+                break
+        # Augment calib_dict?
+        if setup is None:
+            if write is False:
+                return ''
+            maxs = max(calib_dict.keys())
+            setup = string.uppercase[string.uppercase.index(maxs)]
+            calib_dict[setup] = cdict
+
+    # Write
+    if write:
+        gddict = ltu.jsonify(calib_dict)
+        setup_file = sciexp._argflag['out']['sorted'].replace('xml','setup')
+        sciexp._argflag['masters']['setup_file'] = setup_file
+        with io.open(setup_file, 'w', encoding='utf-8') as f:
+            f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4,
+                                       separators=(',', ': '))))
+
+    return setup

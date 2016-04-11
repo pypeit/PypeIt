@@ -85,6 +85,7 @@ def optarg(argv):
         opt, arg = getopt.getopt(argv[1:], 'hc:v:', ['help',
                                                      'cpus',
                                                      'verbose',
+                                                     'use_masters',
                                                      ])
     except getopt.GetoptError, err:
         msgs.error(err.msg)
@@ -93,6 +94,8 @@ def optarg(argv):
         if o in ('-h', '--help'): msgs.usage(None)
         elif o in ('-c', '--cpus'): argflag['run']['ncpus'] = a
         elif o in ('-v', '--verbose'): argflag['out']['verbose'] = int(a)
+    for a in arg:
+        if a in ('--use_masters'): argflag['masters']['use'] = True
 
     #######################
     # Now do some checks: #
@@ -289,6 +292,7 @@ def load_settings(fname):
         """
         rna = dict({'prognm':'armed.py', 'redname':'filelist.red', 'spectrograph':'hamspec', 'masterdir':'MasterFrames', 'plotsdir':'Plots', 'scidir':'Science', 'ncpus':-1, 'nsubpix':5, 'calcheck':False, 'qcontrol':True, 'preponly':False, 'stopcheck':False, 'use_idname':False})
         red = dict({'locations':None, 'nlcorr':False, 'trim':True, 'badpix':True, 'usebias':'bias', 'usetrace':'trace', 'usearc':'arc', 'usewave':'wave', 'useflat':'pixflat', 'subdark':False, 'flatfield':True, 'FlatMethod':'SpatialFit', 'FlatParams':[0], 'bgsubtraction':True, 'arcmatch':2.0, 'flatmatch':2.0, 'calibrate':True, 'fluxcalibrate':True, 'extraction':'2D', 'oscanMethod':'polynomial', 'oscanParams':[1], 'heliocorr':True, 'pixelsize':2.5})
+        mas = dict({'use': False, 'setup': '', 'loaded': [], 'setup_file': ''})
         csq = dict({'atol':1.0E-3, 'xtol':1.0E-10, 'gtol':1.0E-10, 'ftol':1.0E-10, 'fstep':2.0})
         opa = dict({'verbose':2, 'sorted':None, 'plots':True, 'overwrite':False})
         sci = dict({'load':dict({'extracted':False}),
@@ -306,7 +310,7 @@ def load_settings(fname):
                     })
         bia = dict({'comb':dict({'method':'mean', 'rej_cosmicray':20.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}) })
         drk = dict({})
-        argflag = dict({'run':rna, 'reduce':red, 'science':sci, 'pixflat':pfl, 'blzflat':bfl, 'trace':trc, 'arc':arc, 'bias':bia, 'dark':drk, 'chisq':csq, 'out':opa})
+        argflag = dict({'run':rna, 'reduce':red, 'science':sci, 'pixflat':pfl, 'blzflat':bfl, 'trace':trc, 'arc':arc, 'bias':bia, 'dark':drk, 'chisq':csq, 'masters': mas, 'out':opa})
         return argflag
 
     # Read in the default settings
@@ -742,7 +746,7 @@ def load_extraction(name, frametype='<None>', wave=True):
         return sciext, props
 
 
-def load_master(name, det, frametype='<None>'):
+def load_master(name, exten=0, frametype='<None>'):
     """
     Load a pre-existing master calibration frame
 
@@ -750,7 +754,7 @@ def load_master(name, det, frametype='<None>'):
     ----------
     name : str
       Name of the master calibration file to be loaded
-    det : int
+    exten : int, optional
     frametype : str, optional
       The type of master calibration frame being loaded.
       This keyword is only used for terminal print out.
@@ -759,6 +763,7 @@ def load_master(name, det, frametype='<None>'):
     -------
     frame : ndarray
       The data from the master calibration frame
+    head : fits header (dict-like)
     """
     if frametype is None:
         msgs.info("Loading a pre-existing master calibration frame")
@@ -767,16 +772,18 @@ def load_master(name, det, frametype='<None>'):
         except:
             msgs.error("Master calibration file does not exist:"+msgs.newline()+name)
         msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
-        data = hdu[det].data.astype(np.float)
-        return data
+        head = hdu[0].header
+        data = hdu[exten].data.astype(np.float)
+        return data, head
         #return np.array(infile[0].data, dtype=np.float)
     else:
         msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
         # Load
         hdu = pyfits.open(name)
-        data = hdu[det].data.astype(np.float)
-        return data
-        #return np.array(pyfits.getdata(name, 0), dtype=np.float)
+        data = hdu[exten].data.astype(np.float)
+        head = hdu[0].header
+        #
+        return data, head
 
 
 def load_ordloc(fname):

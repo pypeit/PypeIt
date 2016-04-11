@@ -27,9 +27,9 @@ except:
     pass
 
 try:
-    from xastropy.xutils import xdebug as xdb
+    from xastropy.xutils import xdebug as debugger
 except:
-    pass
+    import pdb as debugger
 
 
 
@@ -133,6 +133,7 @@ if __name__ == "__main__":
         opt, arg = getopt.getopt(sys.argv[1:], 'hqc:v:', ['help',
                                                           'quick',
                                                           'cpus',
+                                                          'load_master',
                                                           'verbose'])
         for o, a in opt:
             if o in ('-h', '--help'):
@@ -143,6 +144,8 @@ if __name__ == "__main__":
                 cpus = int(a)
             elif o in ('-v', '--verbose'):
                 verbose = int(a)
+            elif o in ('--load_master'):
+                verbose = str(a)
         lname = os.path.splitext(arg[0])[0] + ".log"
         argflag = arload.optarg(sys.argv)
         argflag['run']['ncpus'] = cpus

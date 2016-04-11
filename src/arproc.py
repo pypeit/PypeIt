@@ -627,8 +627,6 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
 
     Returns
     -------
-    fitsdict : dict
-      Updates to the input fitsdict
     """
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
     if slf._argflag['run']['spectrograph'] in ['lris_blue', 'lris_red']:
@@ -676,7 +674,6 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
     # Construct and array with the rows and columns to be extracted
     w = np.ix_(xfin, yfin)
     slf._ampsec[det-1] = retarr[w]
-    return fitsdict
 
 
 def get_wscale(slf):
