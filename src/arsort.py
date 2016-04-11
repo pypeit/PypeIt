@@ -479,7 +479,7 @@ def match_frames(frames, criteria, frametype='<None>', satlevel=None):
 
     prob = arutils.erf(criteria/np.sqrt(2.0))[0]
     frsh0, frsh1, frsh2 = frames.shape
-    msgs.info("Matching {0:d} {1:s} frames with confidence interval {2:5.3f}%".format(frsh2, frametype, prob*100.0))
+    msgs.info("Matching {:d} {:s} frames with confidence interval {:5.3%}".format(frsh2, frametype, prob))
     srtframes = [np.zeros((frsh0, frsh1, 1))]
     srtframes[0][:,:,0] = frames[:,:,0]
     tsrta = [frames[frsh0/2,:,0]]
