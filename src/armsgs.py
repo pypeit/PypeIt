@@ -121,7 +121,7 @@ class Messages:
         sys.exit()
 
     def debugmessage(self):
-        if self._debug:
+        if self._debug['develop']:
             info = getouterframes(currentframe())[2]
             dbgmsg = self._start+self._blue_CL+info[1].split("/")[-1]+" "+str(info[2])+" "+info[3]+"()"+self._end+" - "
         else:

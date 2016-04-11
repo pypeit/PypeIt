@@ -10,6 +10,9 @@ from time import time
 import traceback
 
 # Import PYPIT routines
+import ardebug
+debug = ardebug.init()
+#debug['develop'] = True
 last_updated = "8 April 2016"
 version = '0.3'
 
@@ -54,9 +57,6 @@ def PYPIT(redname, progname=__file__, quick=False, ncpus=1, verbose=1, logname=N
       save the output details of the reduction
     ---------------------------------------------------
     """
-    # Debugging
-    import ardebug
-    debug = ardebug.init()
     # Init logger
     import armsgs
     msgs = armsgs.get_logger((logname, debug, last_updated, version, verbose))
@@ -164,8 +164,6 @@ def PYPIT(redname, progname=__file__, quick=False, ncpus=1, verbose=1, logname=N
 if __name__ == "__main__":
     # Initiate logging for bugs and comand line help
     # These messages will not be saved to a log file
-    import ardebug
-    debug = ardebug.init()
     from armsgs import Messages as Initmsg
     initmsgs = Initmsg(None, debug, last_updated, version, 1)
     # Set the default variables
