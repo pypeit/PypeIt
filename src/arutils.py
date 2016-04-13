@@ -457,7 +457,7 @@ def polyval2d(x, y, m):
     return z
 
 def gauss_3deg(x,ampl,cent,sigm):
-    return ampl*np.exp(-1*(cent-x)**2/2/sigm**2)
+    return ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
 
 def gauss_lsqfit(x,y,pcen):
     """
@@ -681,7 +681,9 @@ def rebin(frame, newshape):
     return eval(''.join(evList))
 
 
-def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, function="polynomial", initialmask=None, forceimask=False, minv=None, maxv=None, debug=False, **kwargs):
+def robust_polyfit(xarray, yarray, order, weights=None, maxone=True,
+                   sigma=3.0, function="polynomial", initialmask=None,
+                   forceimask=False, minv=None, maxv=None, **kwargs):
     """
     A robust (equally weighted) polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are masked values
@@ -723,8 +725,6 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
         ct = func_fit(xfit, yfit, function, order, w=wfit, minv=minv, maxv=maxv, **kwargs)
         yrng = func_val(ct, xarray, function, minv=minv, maxv=maxv)
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
-        if debug:
-            debugger.set_trace()
         if xarray.size-np.sum(mask) <= order+2:
             msgs.warn("More parameters than data points - fit might be undesirable")
             break  # More data was masked than allowed by order

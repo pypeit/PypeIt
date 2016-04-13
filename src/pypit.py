@@ -53,6 +53,8 @@ def PYPIT(redname, progname=__file__, quick=False, ncpus=1, verbose=1,
         0 = No output
         1 = Minimal output (default - suitable for the average user)
         2 = All output
+    use_masters : bool
+      Load calibration files from MasterFrames directory, if they exist
     logname : string
       The name of an ascii log file which is used to
       save the output details of the reduction
@@ -183,10 +185,10 @@ if __name__ == "__main__":
 
     # Load options from command line
     try:
-        opt, arg = getopt.getopt(sys.argv[1:], 'hqc:v:', ['help',
+        opt, arg = getopt.getopt(sys.argv[1:], 'hmqc:v:', ['help',
+                                                          'use_masters',
                                                           'quick',
                                                           'cpus',
-                                                          'use_masters',
                                                           'verbose'])
         for o, a in opt:
             if o in ('-h', '--help'):
@@ -198,7 +200,7 @@ if __name__ == "__main__":
             elif o in ('-v', '--verbose'):
                 vrb = int(a)
         for a in arg[1:]:
-            if a in ('--use_masters'):
+            if a in ('-m', '--use_masters'):
                 use_masters = True
         lnm = os.path.splitext(arg[0])[0] + ".log"
         red = arg[0]

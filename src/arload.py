@@ -113,10 +113,10 @@ def optarg(argflag, argv, pypname):
     # Load options from command line
     opt, arg = None, None
     try:
-        opt, arg = getopt.getopt(argv[1:], 'hc:v:', ['help',
+        opt, arg = getopt.getopt(argv[1:], 'hmc:v:', ['help',
+                                                     'use_masters',
                                                      'cpus',
                                                      'verbose',
-                                                     'use_masters',
                                                      ])
     except getopt.GetoptError, err:
         msgs.error(err.msg)

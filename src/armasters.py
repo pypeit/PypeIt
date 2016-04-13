@@ -70,9 +70,20 @@ def master_name(mdir, ftype, setup):
                      )
     return name_dict[ftype]
 
+'''
 def load_masters(slf, det, setup):
-    """ Save Master Frames
+    """ Load master frames
+    Parameters
+    ----------
+    slf
+    det
+    setup
+
+    Returns
+    -------
+
     """
+
     def load_master(file, exten=0):
         hdu = pyfits.open(file)
         data = hdu[exten].data
@@ -95,6 +106,7 @@ def load_masters(slf, det, setup):
     slf._mswave[det-1] = load_master(master_name('wave', setup))
     # Tilts
     slf._tilts[det-1] = load_master(master_name('tilts', setup))
+'''
 
 def save_masters(slf, det, setup):
     """ Save Master Frames

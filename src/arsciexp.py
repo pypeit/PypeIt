@@ -438,7 +438,7 @@ class ScienceExposure:
         msrn = np.zeros((self._nspec[det-1], self._nspat[det-1]))
         # Systems with multiple amps will need help here
         if self._spect['det'][det-1]['numamplifiers'] > 1:
-            msgs.warn("Readnoise needs to be updated for multiple amps")
+            msgs.work("Readnoise needs to be updated for multiple amps")
         # Set
         rnoise = self._spect['det'][det-1]['ronoise'] #+ (0.5*self._spect['det'][det-1]['gain'])**2
         msrn[:] = rnoise
@@ -563,7 +563,7 @@ class ScienceExposure:
                 try:
                     mstrace, head = arload.load_master(mstrace_name, frametype="trace")
                 except IOError:
-                    msgs.warn("No MasterTrac3 frame found {:s}".format(mstrace_name))
+                    msgs.warn("No MasterTrace frame found {:s}".format(mstrace_name))
                 else:
                     # Extras
                     lordloc, _ = arload.load_master(mstrace_name, frametype="trace", exten=1)

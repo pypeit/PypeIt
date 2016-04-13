@@ -2358,6 +2358,11 @@ def phys_to_pix(array, pixlocn, axis):
 
 def slit_image(slf, det, scitrace, obj, tilts=None):
     """ Generate slit image for a given object
+    Ignores changing plate scale (for now)
+    The slit is approximated as a straight line in this calculation
+    which should be reasonably accurate.  Better, the object profile
+    generated from this approximation is applied in the same fashion
+    so that the 'error' is compensated for.
 
     Parameters
     ----------
@@ -2381,7 +2386,8 @@ def slit_image(slf, det, scitrace, obj, tilts=None):
     msgs.work("Use 2D spline to evaluate tilts")
     trc_tilt = tilts[np.arange(tilts.shape[0]), xtrc]
     trc_tilt_img = np.outer(trc_tilt, np.ones(tilts.shape[1]))
-    # Slit image  (should worry about changing plate scale)
+    # Slit image
+    msgs.work("Should worry about changing plate scale")
     dy = (tilts - trc_tilt_img)/dypix  # Pixels
     dx = ximg - np.outer(scitrace['traces'][:,obj],np.ones(tilts.shape[1]))
     slit_img = np.sqrt(dx**2 - dy**2)
