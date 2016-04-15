@@ -256,6 +256,8 @@ class ScienceExposure:
             msgs.work("Transpose gain and readnoise frames")
             # Set the new dispersion axis
             self._dispaxis = 0
+        else:
+            msgs.info("Not transposing")
         # Set the number of spectral and spatial pixels
         self._nspec[det-1], self._nspat[det-1] = self._msarc[det-1].shape
         #return fitsdict
@@ -411,6 +413,7 @@ class ScienceExposure:
             self._argflag['masters']['loaded'].append('bias')
         # Set and then delete the Master Bias frame
         self.SetMasterFrame(msbias, "bias", det)
+
         del msbias
         return True
 

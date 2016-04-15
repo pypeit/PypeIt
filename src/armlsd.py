@@ -73,6 +73,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         slf = sciexp[sc]
         scidx = slf._idx_sci[0]
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
+        msgs.sciexp = slf
         # Loop on Detectors
         for kk in xrange(slf._spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
@@ -95,6 +96,8 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             update = slf.BadPixelMask(det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
+            if slf._bpix[det-1] is None:
+                slf.SetFrame(slf._bpix, np.zeros((slf._nspec[det-1], slf._nspat[det-1])), det)
             ###############
             # Generate a master arc frame
             update = slf.MasterArc(fitsdict, det)
@@ -103,9 +106,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             ###############
             # Determine the dispersion direction (and transpose if necessary)
             slf.GetDispersionDirection(fitsdict, det, scidx)
-            if slf._bpix[det-1] is None:
-                slf.SetFrame(slf._bpix, np.zeros((slf._nspec[det-1], slf._nspat[det-1])), det)
-            ###############
             # Estimate gain and readout noise for the amplifiers
             msgs.work("Estimate Gain and Readout noise from the raw frames...")
             update = slf.MasterRN(fitsdict, det)
@@ -172,6 +172,12 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
 
+                """
+                # Write setup
+                setup = arsort.calib_setup(slf, sc, det, fitsdict, calib_dict, write=True)
+                # Write MasterFrames (currently per detector)
+                armasters.save_masters(slf, det, setup)
+                """
                 ###############
                 # Generate/load a master wave frame
                 update = slf.MasterWave(fitsdict, sc, det)
@@ -188,7 +194,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
 
             # Write setup
             setup = arsort.calib_setup(slf, sc, det, fitsdict, calib_dict, write=True)
-
             # Write MasterFrames (currently per detector)
             armasters.save_masters(slf, det, setup)
 

@@ -157,6 +157,7 @@ def setup_param(slf, sc, det, fitsdict):
         func='legendre',     # Function for fitting
         n_first=1,           # Order of polynomial for first fit
         n_final=4,           # Order of polynomial for final fit
+        saturated=1e9,       # Saturation limit
         nsig_rej=2.,         # Number of sigma for rejection
         nsig_rej_final=3.0,  # Number of sigma for rejection (final fit)
         Nstrong=13)          # Number of lines for auto-analysis
@@ -201,13 +202,16 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['b2']= -6.86414978e-09
             arcparam['wvmnx'][1] = 6000.
     elif sname=='lris_red':
-        lamps = ['ArI','NeI','XeI','KrI']
+        lamps = ['HgI','ArI','NeI','XeI','KrI']
+        #lamps = ['HgI','NeI','ArI']
         if disperser == '600/7500':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
 #            arcparam['b2']= -6.86414978e-09
-            arcparam['wvmnx'][1] = 7500.
+            arcparam['wvmnx'][0] = 5600.
+            arcparam['wvmnx'][1] = 8500.
+            arcparam['saturated']=60000. # Saturation limit
         elif disperser == '900/5500':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.53 # Ang per pixel (unbinned)
@@ -231,9 +235,10 @@ def setup_param(slf, sc, det, fitsdict):
     #    format='fixed_width_no_header', comment='#', #data_start=1, 
     #    names=('wave', 'flag', 'ID'),
     #    col_starts=(0,12,14), col_ends=(11,13,24))
+
     # Binning
-    if fitsdict['binning'][idx[0]] in ['2,2']:
-        arcparam['disp'] *= 2
+    #if fitsdict['binning'][idx[0]] in ['2,2']:
+    #    arcparam['disp'] *= 2
     # Return
     return arcparam
 
@@ -252,6 +257,8 @@ def simple_calib(slf, det, get_poly=False):
     final_fit : dict
       Dict of fit info
     """
+    # Parameters (just for convenience)
+    aparm = slf._arcparam[det-1]
 
     # Extract the arc
     msgs.work("Detecting lines..")
@@ -261,9 +268,10 @@ def simple_calib(slf, det, get_poly=False):
     tcent = tcent[w]
     tampl = tampl[w]
     msgs.info('Detected {:d} lines in the arc spectrum.'.format(len(w[0])))
-
-    # Parameters (just for convenience)
-    aparm = slf._arcparam[det-1]
+    unsat = tampl < aparm['saturated']
+    tcent = tcent[unsat]
+    tampl = tampl[unsat]
+    msgs.info('{:d} unsaturated lines in the arc spectrum.'.format(np.sum(unsat)))
 
     # Read Arc linelist
     llist = aparm['llist']
@@ -309,17 +317,19 @@ def simple_calib(slf, det, get_poly=False):
     gd_str = np.where( np.abs(disp_str-aparm['disp'])/aparm['disp'] < aparm['disp_toler'])[0]
     msgs.info('Found {:d} lines within the dispersion threshold'.format(len(gd_str)))
     if len(gd_str) < 5:
+        print(disp_str, aparm['disp'])
+        debugger.set_trace()
         msgs.error('Insufficient lines to auto-fit.')
 
     # Debug
     #debug=True
     if msgs._debug['arc']:
-        #tmp = list(gd_str)
-        #tmp.pop(1)
-        #gd_str = np.array(tmp)
-        #xdb.xpcol(tcent[idx_str[gd_str]],ids[gd_str])
-        #xdb.xplot(tcent[idx_str[gd_str]],ids[gd_str],scatter=True)
+        tmp = list(gd_str)
+        tmp.pop(1)
+        gd_str = np.array(tmp)
         debugger.set_trace()
+        debugger.xpcol(tcent[idx_str[gd_str]],ids[gd_str])
+        debugger.xplot(tcent[idx_str[gd_str]],ids[gd_str],scatter=True)
 
     # Consider a cross-correlation here (as a double-check)
 

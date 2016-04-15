@@ -156,6 +156,9 @@ class Messages:
         if self._log:
             self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
         self.close()
+        # Close PDFs
+        self.sciexp._qa.close()
+        #
         if usage:
             self.usage(None)
         sys.exit()
