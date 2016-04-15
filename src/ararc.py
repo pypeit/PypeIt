@@ -237,8 +237,8 @@ def setup_param(slf, sc, det, fitsdict):
     #    col_starts=(0,12,14), col_ends=(11,13,24))
 
     # Binning
-    #if fitsdict['binning'][idx[0]] in ['2,2']:
-    #    arcparam['disp'] *= 2
+    if fitsdict['binning'][idx[0]] in ['2,2']:
+        arcparam['disp'] *= 2
     # Return
     return arcparam
 
