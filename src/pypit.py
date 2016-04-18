@@ -12,7 +12,8 @@ import traceback
 # Import PYPIT routines
 import ardebug
 debug = ardebug.init()
-#debug['develop'] = True
+debug['develop'] = True
+#debug['arc'] = True
 last_updated = "8 April 2016"
 version = '0.3'
 

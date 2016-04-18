@@ -268,51 +268,68 @@ def simple_calib(slf, det, get_poly=False):
     # Read Arc linelist
     llist = aparm['llist']
 
-    # Generate dpix pairs
-    nlist = len(llist)
-    dpix_list = np.zeros((nlist,nlist))
-    for kk,row in enumerate(llist):
-        #dpix_list[kk,:] = (np.array(row['wave'] - llist['wave']))/disp
-        dpix_list[kk,:] = slf._msarc[det-1].shape[0]*(aparm['b1']*(np.array(row['wave'] - llist['wave'])) + aparm['b2']*np.array(row['wave']**2 - llist['wave']**2) )
+    # IDs were input by hand (minimum of 5)
+    if slf._argflag['arc']['id_pix'][0] > 0.:
+        nid = len(slf._argflag['arc']['id_pix'])
+        idx_str = np.ones(nid).astype(int)
+        ids = np.zeros(nid)
+        gd_str = np.arange(nid).astype(int)
+        for jj,pix in enumerate(slf._argflag['arc']['id_pix']):
+            diff = np.abs(tcent-pix)
+            if np.min(diff) > 1.:
+                raise ValueError("No match!")
+            else:
+                imn = np.argmin(diff)
+            # Set
+            idx_str[jj] = imn
+            ids[jj] = slf._argflag['arc']['id_wave'][jj]
+        idsion = np.array(['     ']*nid)
+    else:
+        # Generate dpix pairs
+        nlist = len(llist)
+        dpix_list = np.zeros((nlist,nlist))
+        for kk,row in enumerate(llist):
+            #dpix_list[kk,:] = (np.array(row['wave'] - llist['wave']))/disp
+            dpix_list[kk,:] = slf._msarc[det-1].shape[0]*(aparm['b1']*(np.array(row['wave'] - llist['wave'])) + aparm['b2']*np.array(row['wave']**2 - llist['wave']**2) )
 
-    # Lambda pairs for the strongest N lines
-    srt = np.argsort(tampl)
-    idx_str = srt[-aparm['Nstrong']:]
-    idx_str.sort()
-    dpix_obs = np.zeros((aparm['Nstrong'],aparm['Nstrong']))
-    for kk,idx in enumerate(idx_str):
-        dpix_obs[kk,:] = np.array(tcent[idx] - tcent[idx_str])
+        # Lambda pairs for the strongest N lines
+        srt = np.argsort(tampl)
+        idx_str = srt[-aparm['Nstrong']:]
+        idx_str.sort()
+        dpix_obs = np.zeros((aparm['Nstrong'],aparm['Nstrong']))
+        for kk,idx in enumerate(idx_str):
+            dpix_obs[kk,:] = np.array(tcent[idx] - tcent[idx_str])
 
-    # Match up (ugly loops)
-    ids = np.zeros(aparm['Nstrong'])
-    idsion = np.array(['     ']*aparm['Nstrong'])
-    for kk in range(aparm['Nstrong']):
-        med_off = np.zeros(nlist)
-        for ss in range(nlist):
-            dpix = dpix_list[ss]
-            min_off = []
-            for jj in range(aparm['Nstrong']):
-                min_off.append(np.min(np.abs(dpix_obs[kk,jj]-dpix)))
-            med_off[ss] = np.median(min_off)
-        # Set by minimum
-        idm = np.argmin(med_off)
-        ids[kk] = llist['wave'][idm]
-        idsion[kk] = llist['Ion'][idm]
+        # Match up (ugly loops)
+        ids = np.zeros(aparm['Nstrong'])
+        idsion = np.array(['     ']*aparm['Nstrong'])
+        for kk in range(aparm['Nstrong']):
+            med_off = np.zeros(nlist)
+            for ss in range(nlist):
+                dpix = dpix_list[ss]
+                min_off = []
+                for jj in range(aparm['Nstrong']):
+                    min_off.append(np.min(np.abs(dpix_obs[kk,jj]-dpix)))
+                med_off[ss] = np.median(min_off)
+            # Set by minimum
+            idm = np.argmin(med_off)
+            ids[kk] = llist['wave'][idm]
+            idsion[kk] = llist['Ion'][idm]
 
-    # Calculate disp of the strong lines
-    disp_str = np.zeros(aparm['Nstrong'])
-    for kk in range(aparm['Nstrong']):
-        disp_val = (ids[kk]-ids)/(tcent[idx_str[kk]]-tcent[idx_str])
-        isf = np.isfinite(disp_val)
-        disp_str[kk] = np.median(disp_val[isf])
-    # Consider calculating the RMS with clipping
-    gd_str = np.where( np.abs(disp_str-aparm['disp'])/aparm['disp'] < aparm['disp_toler'])[0]
-#    slf._qa.close()
-#    debugger.set_trace()
-    msgs.info('Found {:d} lines within the dispersion threshold'.format(len(gd_str)))
-    if len(gd_str) < 5:
-        msgs.error('Insufficient lines to auto-fit.')
-#        slf._qa.close()
+        # Calculate disp of the strong lines
+        disp_str = np.zeros(aparm['Nstrong'])
+        for kk in range(aparm['Nstrong']):
+            disp_val = (ids[kk]-ids)/(tcent[idx_str[kk]]-tcent[idx_str])
+            isf = np.isfinite(disp_val)
+            disp_str[kk] = np.median(disp_val[isf])
+        # Consider calculating the RMS with clipping
+        gd_str = np.where( np.abs(disp_str-aparm['disp'])/aparm['disp'] < aparm['disp_toler'])[0]
+    #    slf._qa.close()
+    #    debugger.set_trace()
+        msgs.info('Found {:d} lines within the dispersion threshold'.format(len(gd_str)))
+        if len(gd_str) < 5:
+            msgs.error('Insufficient lines to auto-fit.')
+    #        slf._qa.close()
 
     # Debug
     #debug=True
@@ -342,8 +359,7 @@ def simple_calib(slf, det, get_poly=False):
         #msgs.info('n_order={:d}'.format(n_order))
         # Fit with rejection
         xfit, yfit = tcent[ifit], all_ids[ifit]
-        mask, fit = arutils.robust_polyfit(xfit, yfit, n_order,
-            function=aparm['func'], sigma=aparm['nsig_rej'], minv=fmin, maxv=fmax)
+        mask, fit = arutils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej'], minv=fmin, maxv=fmax)
         # DEBUG
         if msgs._debug['arc']:
             debugger.xpcol(xfit,yfit)
@@ -377,9 +393,7 @@ def simple_calib(slf, det, get_poly=False):
     # Final fit (originals can now be rejected)
     fmin, fmax = 0., 1. 
     xfit, yfit = tcent[ifit]/slf._msarc[det-1].shape[0], all_ids[ifit]
-    mask, fit = arutils.robust_polyfit(xfit, yfit, n_order, 
-        function=aparm['func'], sigma=aparm['nsig_rej_final'],
-        minv=fmin, maxv=fmax)#, debug=True)
+    mask, fit = arutils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej_final'], minv=fmin, maxv=fmax)#, debug=True)
     irej = np.where(mask==1)[0]
     if len(irej) > 0:
         xrej = xfit[irej]
@@ -403,8 +417,6 @@ def simple_calib(slf, det, get_poly=False):
         debugger.xpcol(xfit*msarc.shape[0], yfit)
         debugger.set_trace()
 
-        wave = arutils.func_val(fit, np.arange(msarc.shape[0]), 'legendre', 
-            minv=fmin, maxv=fmax)
         debugger.xplot(xfit, np.ones(len(xfit)), scatter=True,
             xtwo=np.arange(msarc.shape[0]),ytwo=yprep)
         debugger.xplot(xfit,yfit, scatter=True, xtwo=np.arange(msarc.shape[0]),
