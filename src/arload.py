@@ -660,7 +660,7 @@ def load_frames(slf, fitsdict, ind, det, frametype='<None>', msbias=None,
     msgs.work("Implement multiprocessing here (better -- at the moment it's slower than not) to speed up data reading")
     for i in range(np.size(ind)):
         # Instrument specific read
-        if slf._argflag['run']['spectrograph'] in ['lris_blue','lris_red']:
+        if slf._argflag['run']['spectrograph'] in ['lris_blue', 'lris_red']:
             temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         else:
             temp = pyfits.getdata(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], slf._spect['fits']['dataext'])

@@ -217,7 +217,7 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['disp']=0.53 # Ang per pixel (unbinned)
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
 #            arcparam['b2']= -6.86414978e-09
-            arcparam['wvmnx'][1] = 5500.
+            arcparam['wvmnx'][1] = 7000.
 
 
 
@@ -315,11 +315,14 @@ def simple_calib(slf, det, get_poly=False):
         disp_str[kk] = np.median(disp_val[isf])
     # Consider calculating the RMS with clipping
     gd_str = np.where( np.abs(disp_str-aparm['disp'])/aparm['disp'] < aparm['disp_toler'])[0]
+#    slf._qa.close()
+#    debugger.set_trace()
     msgs.info('Found {:d} lines within the dispersion threshold'.format(len(gd_str)))
     if len(gd_str) < 5:
         print(disp_str, aparm['disp'])
         debugger.set_trace()
         msgs.error('Insufficient lines to auto-fit.')
+#        slf._qa.close()
 
     # Debug
     #debug=True
