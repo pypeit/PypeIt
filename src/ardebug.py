@@ -12,6 +12,7 @@ def init():
         default debug dict
     """
     debug = dict(develop=False,
+                 new_instrument=False,
                  arc=False,
                  trace=False,
                  wave=False,

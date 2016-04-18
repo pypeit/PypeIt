@@ -8,9 +8,12 @@ import armsgs
 import arproc
 import ararc
 import arsave
+import arsort
 import arspecobj
 import artrace
 import arqa
+
+from linetools import utils as ltu
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -55,18 +58,35 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
     # Create a list of master calibration frames
     masters = armasters.MasterFrames(spect['mosaic']['ndet'])
 
+    # Use Masters?  Requires setup file
+    setup_file = argflag['out']['sorted'].replace('xml','setup')
+    try:
+        calib_dict = ltu.loadjson(setup_file)
+    except:
+        msgs.info("No setup file {:s} for MasterFrames".format(setup_file))
+        calib_dict = {}
+    else:
+        argflag['masters']['setup_file'] = setup_file
+
     # Start reducing the data
     for sc in range(numsci):
         slf = sciexp[sc]
         scidx = slf._idx_sci[0]
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
+        msgs.sciexp = slf
         # Loop on Detectors
         for kk in xrange(slf._spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             ###############
             # Get amplifier sections
-            fitsdict = arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
+            arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
+
+            # Setup
+            setup = arsort.calib_setup(slf, sc, det, fitsdict, calib_dict, write=False)
+            slf._argflag['masters']['setup'] = setup
+
             ###############
+            # CALIBS
             # Generate master bias frame
             update = slf.MasterBias(fitsdict, det)
             if update and reuseMaster:
@@ -76,9 +96,8 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             update = slf.BadPixelMask(det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
-            ###############
-            # Estimate gain and readout noise for the amplifiers
-            msgs.work("Estimate Gain and Readout noise from the raw frames...")
+            if slf._bpix[det-1] is None:
+                slf.SetFrame(slf._bpix, np.zeros((slf._nspec[det-1], slf._nspat[det-1])), det)
             ###############
             # Generate a master arc frame
             update = slf.MasterArc(fitsdict, det)
@@ -87,8 +106,11 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             ###############
             # Determine the dispersion direction (and transpose if necessary)
             slf.GetDispersionDirection(fitsdict, det, scidx)
-            if slf._bpix[det-1] is None:
-                slf.SetFrame(slf._bpix, np.zeros((slf._nspec[det-1], slf._nspat[det-1])), det)
+            # Estimate gain and readout noise for the amplifiers
+            msgs.work("Estimate Gain and Readout noise from the raw frames...")
+            update = slf.MasterRN(fitsdict, det)
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, det, ftype="readnoise")
             ###############
             # Generate a master trace frame
             update = slf.MasterTrace(fitsdict, det)
@@ -97,24 +119,25 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             ###############
             # Generate an array that provides the physical pixel locations on the detector
             slf.GetPixelLocations(det)
-            ###############
-            # Determine the edges of the spectrum (spatial)
-            lordloc, rordloc, extord = artrace.trace_orders(slf, slf._mstrace[det-1], det, singleSlit=True, pcadesc="PCA trace of the slit edges")
-            slf.SetFrame(slf._lordloc, lordloc, det)
-            slf.SetFrame(slf._rordloc, rordloc, det)
+            if 'trace'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
+                ###############
+                # Determine the edges of the spectrum (spatial)
+                lordloc, rordloc, extord = artrace.trace_orders(slf, slf._mstrace[det-1], det, singleSlit=True, pcadesc="PCA trace of the slit edges")
+                slf.SetFrame(slf._lordloc, lordloc, det)
+                slf.SetFrame(slf._rordloc, rordloc, det)
 
-            # Convert physical trace into a pixel trace
-            msgs.info("Converting physical trace locations to nearest pixel")
-            pixcen = artrace.phys_to_pix(0.5*(slf._lordloc[det-1]+slf._rordloc[det-1]), slf._pixlocn[det-1], 1)
-            pixwid = (slf._rordloc[det-1]-slf._lordloc[det-1]).mean(0).astype(np.int)
-            lordpix = artrace.phys_to_pix(slf._lordloc[det-1], slf._pixlocn[det-1], 1)
-            rordpix = artrace.phys_to_pix(slf._rordloc[det-1], slf._pixlocn[det-1], 1)
-            slf.SetFrame(slf._pixcen, pixcen, det)
-            slf.SetFrame(slf._pixwid, pixwid, det)
-            slf.SetFrame(slf._lordpix, lordpix, det)
-            slf.SetFrame(slf._rordpix, rordpix, det)
-            # Save QA for slit traces
-            arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges")
+                # Convert physical trace into a pixel trace
+                msgs.info("Converting physical trace locations to nearest pixel")
+                pixcen = artrace.phys_to_pix(0.5*(slf._lordloc[det-1]+slf._rordloc[det-1]), slf._pixlocn[det-1], 1)
+                pixwid = (slf._rordloc[det-1]-slf._lordloc[det-1]).mean(0).astype(np.int)
+                lordpix = artrace.phys_to_pix(slf._lordloc[det-1], slf._pixlocn[det-1], 1)
+                rordpix = artrace.phys_to_pix(slf._rordloc[det-1], slf._pixlocn[det-1], 1)
+                slf.SetFrame(slf._pixcen, pixcen, det)
+                slf.SetFrame(slf._pixwid, pixwid, det)
+                slf.SetFrame(slf._lordpix, lordpix, det)
+                slf.SetFrame(slf._rordpix, rordpix, det)
+                # Save QA for slit traces
+                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges")
 
             ###############
             # Prepare the pixel flat field frame
@@ -122,30 +145,42 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixflat")
             ###############
             # Derive the spectral tilt
+            msgs.work("Should have a MasterTilts frame")
             if slf._tilts[det-1] is None:
-                # First time tilts are derived for this arc frame --> derive the order tilts
-                tilts = None
-                nitertilts = 2
-                doQA = False
-                for tt in range(nitertilts):
-                    msgs.info("Iterating on spectral tilts -- Iteration {0:d}/{1:d}".format(tt+1, nitertilts))
-                    if tt == nitertilts-1:
-                        doQA = True
-                    tilts, satmask = artrace.model_tilt(slf, det, slf._msarc[det-1], guesstilts=tilts, plotQA=doQA)
-                slf.SetFrame(slf._tilts, tilts, det)
-                slf.SetFrame(slf._satmask, tilts, det)
+                if slf._argflag['masters']['use']:
+                    mstilt_name = armasters.master_name(slf._argflag['run']['masterdir'],
+                                                        'tilts', slf._argflag['masters']['setup'])
+                    try:
+                        tilts, head = arload.load_master(mstilt_name, frametype="tilts")
+                    except IOError:
+                        pass
+                    else:
+                        slf.SetFrame(slf._tilts, tilts, det)
+                        slf._argflag['masters']['loaded'].append('tilts'+slf._argflag['masters']['setup'])
+                if 'tilts'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
+                    # First time tilts are derived for this arc frame --> derive the order tilts
+                    tilts = None
+                    nitertilts = 2
+                    doQA = False
+                    for tt in range(nitertilts):
+                        msgs.info("Iterating on spectral tilts -- Iteration {0:d}/{1:d}".format(tt+1, nitertilts))
+                        if tt == nitertilts-1:
+                            doQA = True
+                        tilts, satmask, outpar = artrace.model_tilt(slf, det, slf._msarc[det-1],
+                                                                    guesstilts=tilts, plotQA=doQA)
+                    slf.SetFrame(slf._tilts, tilts, det)
+                    slf.SetFrame(slf._satmask, satmask, det)
+                    slf.SetFrame(slf._tiltpar, outpar, det)
 
-                # Setup arc parameters (e.g. linelist)
-                arcparam = ararc.setup_param(slf, sc, det, fitsdict)
-                slf.SetFrame(slf._arcparam, arcparam, det)
+                """
+                # Write setup
+                setup = arsort.calib_setup(slf, sc, det, fitsdict, calib_dict, write=True)
+                # Write MasterFrames (currently per detector)
+                armasters.save_masters(slf, det, setup)
+                """
                 ###############
-                # Extract arc and identify lines
-                wv_calib = ararc.simple_calib(slf, det)
-                slf.SetFrame(slf._wvcalib, wv_calib, det)
-
-                ###############
-                # Generate a master wave frame
-                update = slf.MasterWave(fitsdict, det)
+                # Generate/load a master wave frame
+                update = slf.MasterWave(fitsdict, sc, det)
                 if update and reuseMaster:
                     armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
 
@@ -157,6 +192,10 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                           +msgs.newline()+"disable the run+preponly command")
                 continue
 
+            # Write setup
+            setup = arsort.calib_setup(slf, sc, det, fitsdict, calib_dict, write=True)
+            # Write MasterFrames (currently per detector)
+            armasters.save_masters(slf, det, setup)
 
             ###############
             # Load the science frame and from this generate a Poisson error frame
@@ -212,7 +251,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
 
         # Write 1D spectra
         arsave.save_1d_spectra(slf)
-        # Write 2D images
+        # Write 2D images for the Science spectra
         arsave.save_2d_images(slf)
         # Free up some memory by replacing the reduced ScienceExposure class
         sciexp[sc] = None

@@ -105,15 +105,41 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
     return
 
 
-def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[]):
+def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
+                extensions=None, keywds=None):
+    """ Write a MasterFrame
+    Parameters
+    ----------
+    slf
+    data
+    filename
+    frametype
+    ind
+    extensions : list of additional data images
+    keywds : Additional keywords for the Header
+
+    Returns
+    -------
+
+    """
     msgs.info("Saving master {0:s} frame as:".format(frametype)+msgs.newline()+filename)
     hdu = pyfits.PrimaryHDU(data)
-    hdulist = pyfits.HDUList([hdu])
+    # Extensions
+    hlist = [hdu]
+    if extensions is not None:
+        for exten in extensions:
+            hlist.append(pyfits.ImageHDU(exten))
+    # HDU list
+    hdulist = pyfits.HDUList(hlist)
+    # Header
     msgs.info("Writing header information")
     for i in xrange(len(ind)):
         hdrname = "FRAME{0:03d}".format(i+1)
         hdulist[0].header[hdrname] = (slf._fitsdict['filename'][ind[i]], 'PYPIT: File used to generate Master {0:s}'.format(frametype))
     hdulist[0].header["FRAMETYP"] = (frametype, 'PYPIT: Master calibration frame type')
+    if keywds is not None:
+        for key in keywds.keys():
+            hdulist[0].header[key] = keywds[key]
     # Write the file to disk
     if os.path.exists(filename):
         if slf._argflag['out']['overwrite'] == True:
@@ -282,13 +308,23 @@ def save_1d_spectra(slf, clobber=True):
 #            set_trace()
             # Add Spectrum Table
             cols = []
+            # Boxcar
             for key in specobj.boxcar.keys():
                 if isinstance(specobj.boxcar[key], Quantity):
                     cols += [pyfits.Column(array=specobj.boxcar[key].value,
-                                         name=key, format=specobj.boxcar[key].value.dtype)]
+                                         name='box_'+key, format=specobj.boxcar[key].value.dtype)]
                 else:
                     cols += [pyfits.Column(array=specobj.boxcar[key],
-                                         name=key, format=specobj.boxcar[key].dtype)]
+                                         name='box_'+key, format=specobj.boxcar[key].dtype)]
+            # Optimal
+            for key in specobj.optimal.keys():
+                if isinstance(specobj.optimal[key], Quantity):
+                    cols += [pyfits.Column(array=specobj.optimal[key].value,
+                                           name='opt_'+key, format=specobj.optimal[key].value.dtype)]
+                else:
+                    cols += [pyfits.Column(array=specobj.optimal[key],
+                                           name='opt_'+key, format=specobj.optimal[key].dtype)]
+            # Finish
             coldefs = pyfits.ColDefs(cols)
             tbhdu = pyfits.BinTableHDU.from_columns(coldefs)
             hdus += [tbhdu]

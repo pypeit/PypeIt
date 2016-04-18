@@ -1408,6 +1408,7 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
                     tilts = extrap_tilt.T
                     #arpca.pc_plot_arctilt(tiltang, centval, tilts, plotsdir=slf._argflag['run']['plotsdir'], pcatype="tilts", prefix=prefix)
             else:
+                outpar = {}
                 msgs.warn("Could not perform a PCA when tracing the spectral tilt"+msgs.newline()+"Not enough well-traced arc lines")
                 msgs.info("Attempting to fit tilts by assuming the tilt is independent along the dispersion direction")
                 xtiltfit = np.array([])
@@ -1486,7 +1487,7 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
     #     plt.show()
     #     # Fit each arc line the same as the blaze fitting algorithm, but only consider the brightest lines
     #     # Linearly interpolate over the result. In between the best lines, take an average of the PCA and the interpolated tilts (based on the brightest lines)
-    return tilts, satsnd
+    return tilts, satsnd, outpar
 
 
 def trace_fweight(fimage, xinit, invvar=None, radius=3.):
@@ -1929,7 +1930,7 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
             msgs.info("Performing a PCA on the order edges")
             ordsnd = np.arange(tiltang.shape[1])+1.0
             xcen = xv[:,np.newaxis].repeat(tiltang.shape[1],axis=1)
-            fitted, outpar = arpca.basis(xcen,tiltval,tcoeff,lnpc,ofit,x0in=ordsnd,mask=maskord,skipx0=True,function=slf._argflag['trace']['orders']['function'])
+            #fitted, outpar = arpca.basis(xcen,tiltval,tcoeff,lnpc,ofit,x0in=ordsnd,mask=maskord,skipx0=True,function=slf._argflag['trace']['orders']['function'])
             # If the PCA worked OK, do the following
             msgs.work("Should something be done here inbetween the two basis calls?")
             fitted, outpar = arpca.basis(xcen,tiltval,tcoeff,lnpc,ofit,x0in=ordsnd,mask=maskord,skipx0=False,function=slf._argflag['trace']['orders']['function'])
@@ -2354,3 +2355,43 @@ def phys_to_pix(array, pixlocn, axis):
     else:
         pixarr = arcytrace.phys_to_pix(array, diff)
     return pixarr
+
+def slit_image(slf, det, scitrace, obj, tilts=None):
+    """ Generate slit image for a given object
+    Ignores changing plate scale (for now)
+    The slit is approximated as a straight line in this calculation
+    which should be reasonably accurate.  Better, the object profile
+    generated from this approximation is applied in the same fashion
+    so that the 'error' is compensated for.
+
+    Parameters
+    ----------
+    slf
+    det
+    scitrace
+    obj
+
+    Returns
+    -------
+    slit_img : ndarray
+
+    """
+    # Setup
+    if tilts is None:
+        tilts = slf._tilts[det-1]
+    ximg = np.outer(np.ones(tilts.shape[0]), np.arange(tilts.shape[1]))
+    dypix = 1./tilts.shape[0]
+    #  Trace
+    xtrc = np.round(scitrace['traces'][:,obj]).astype(int)
+    msgs.work("Use 2D spline to evaluate tilts")
+    trc_tilt = tilts[np.arange(tilts.shape[0]), xtrc]
+    trc_tilt_img = np.outer(trc_tilt, np.ones(tilts.shape[1]))
+    # Slit image
+    msgs.work("Should worry about changing plate scale")
+    dy = (tilts - trc_tilt_img)/dypix  # Pixels
+    dx = ximg - np.outer(scitrace['traces'][:,obj],np.ones(tilts.shape[1]))
+    slit_img = np.sqrt(dx**2 - dy**2)
+    neg = dx < 0.
+    slit_img[neg] *= -1
+    # Return
+    return slit_img

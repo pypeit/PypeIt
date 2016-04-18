@@ -109,6 +109,7 @@ class Messages:
         print "##   -c or --cpus      : (all) Number of cpu cores to use"
         print "##   -h or --help      : Print this message"
         print "##   -v or --verbose   : (2) Level of verbosity (0-2)"
+        print "##   -m or --use_masters : Use files in MasterFrames for reduction"
         print "##  -------------------------------------------------------------"
         print "##  Available pipelines include:"
         print "##   " + armlist
@@ -155,6 +156,12 @@ class Messages:
         if self._log:
             self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
         self.close()
+        # Close PDFs
+        try:
+            self.sciexp._qa.close()
+        except AttributeError:
+            pass
+        #
         if usage:
             self.usage(None)
         sys.exit()

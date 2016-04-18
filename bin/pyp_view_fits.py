@@ -24,7 +24,8 @@ import ardebug
 debug = ardebug.init()
 last_updated = "26 November 2015"
 version = '0.3'
-msgs = msgs.get_logger((None, debug, last_updated, version))
+verbose = False
+msgs = msgs.get_logger((None, debug, last_updated, version, verbose))
 
 import arlris
 

@@ -28,6 +28,7 @@ def argflag_init():
     Initialise the default settings called argflag
     """
     rna = dict({'prognm':'pypit.py', 'redname':'filelist.red', 'spectrograph':'hamspec', 'masterdir':'MasterFrames', 'plotsdir':'Plots', 'scidir':'Science', 'ncpus':-1, 'nsubpix':5, 'calcheck':False, 'qcontrol':True, 'preponly':False, 'stopcheck':False, 'use_idname':False})
+    mas = dict({'use': False, 'setup': '', 'loaded': [], 'setup_file': ''})
     red = dict({'locations':None, 'nlcorr':False, 'trim':True, 'badpix':True, 'usebias':'bias', 'usetrace':'trace', 'usearc':'arc', 'usewave':'wave', 'useflat':'pixflat', 'subdark':False, 'flatfield':True, 'FlatMethod':'SpatialFit', 'FlatParams':[0], 'bgsubtraction':True, 'arcmatch':2.0, 'flatmatch':2.0, 'calibrate':True, 'fluxcalibrate':True, 'extraction':'2D', 'oscanMethod':'polynomial', 'oscanParams':[1], 'heliocorr':True, 'pixelsize':2.5})
     csq = dict({'atol':1.0E-3, 'xtol':1.0E-10, 'gtol':1.0E-10, 'ftol':1.0E-10, 'fstep':2.0})
     opa = dict({'verbose':2, 'sorted':None, 'plots':True, 'overwrite':False})
@@ -46,7 +47,7 @@ def argflag_init():
                 })
     bia = dict({'comb':dict({'method':'mean', 'rej_cosmicray':20.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}) })
     drk = dict({})
-    argflag = dict({'run':rna, 'reduce':red, 'science':sci, 'pixflat':pfl, 'blzflat':bfl, 'trace':trc, 'arc':arc, 'bias':bia, 'dark':drk, 'chisq':csq, 'out':opa})
+    argflag = dict({'run':rna, 'reduce':red, 'masters': mas, 'science':sci, 'pixflat':pfl, 'blzflat':bfl, 'trace':trc, 'arc':arc, 'bias':bia, 'dark':drk, 'chisq':csq, 'out':opa})
     return argflag
 
 
@@ -112,7 +113,8 @@ def optarg(argflag, argv, pypname):
     # Load options from command line
     opt, arg = None, None
     try:
-        opt, arg = getopt.getopt(argv[1:], 'hc:v:', ['help',
+        opt, arg = getopt.getopt(argv[1:], 'hmc:v:', ['help',
+                                                     'use_masters',
                                                      'cpus',
                                                      'verbose',
                                                      ])
@@ -123,6 +125,7 @@ def optarg(argflag, argv, pypname):
         if o in ('-h', '--help'): msgs.usage(None)
         elif o in ('-c', '--cpus'): argflag['run']['ncpus'] = a
         elif o in ('-v', '--verbose'): argflag['out']['verbose'] = int(a)
+        elif o in ('-m', '--use_masters'): argflag['masters']['use'] = True
 
     #######################
     # Now do some checks: #
@@ -468,7 +471,7 @@ def load_spect(progname, specname, spect=None, lines=None):
         ddet = dict({'xgap': 0.0, 'ygap': 0.0, 'ysize': 1.0, 'darkcurr': 0.0, 'ronoise': 1.0, 'gain': 1.0, 'saturation': 65536.0, 'nonlinear': 1.0, 'numamplifiers': 1, 'suffix': ""})
         #
         chk = dict({})
-        stf = dict({'science': [], 'standard': [], 'bias': [], 'pixflat': [], 'blzflat': [], 'arc': [], 'trace': [], 'dark': []})
+        stf = dict({'science': [], 'standard': [], 'bias': [], 'pixflat': [], 'blzflat': [], 'arc': [], 'trace': [], 'dark': [], 'readnoise': []})
         kyw = dict({'target': '01.OBJECT', 'idname': '01.OBSTYPE', 'time': '01.MJD', 'date': '', 'equinox': '', 'ra': '', 'dec': '', 'airmass': '', 'naxis0': '01.NAXIS2', 'naxis1': '01.NAXIS1', 'exptime': '01.EXPTIME', 'hatch': '01.TRAPDOOR', 'filter1': '01.FILTNAME', 'filter2': None, 'lamps': '01.LAMPNAME', 'decker': '01.DECKNAME', 'slitwid': '01.SLITWIDTH', 'slitlen': '01.SLITLENGTH', 'detrot': '01.DETECTORROTATION', 'cdangle': '01.XDISPANGLE', 'echangle': '01.ECHELLEANGLE', 'crossdisp': '01.XDISPERS', 'dichroic': '', 'disperser': '', 'binning': ''})
         fts = dict({'numhead': 1, 'numlamps':1, 'dataext':0, 'calwin':12.0, 'timeunit':'mjd'})
         sci = dict({'index': [], 'check': dict({}), 'idname': 'OBJECT', 'canbe': None})
@@ -478,8 +481,9 @@ def load_spect(progname, specname, spect=None, lines=None):
         trc = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 1, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}), 'lscomb': False})
         arc = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 1, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}), 'lscomb': False})
         bia = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 5, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}) })
+        rn = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 1, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}) })
         drk = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 5, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}) })
-        spectt = dict({'mosaic': msc, 'det': ddet, 'check': chk, 'set': stf, 'keyword': kyw, 'fits': fts, 'science': sci, 'standard': std, 'pixflat': pfl, 'blzflat': bfl, 'trace': trc, 'arc': arc, 'bias': bia, 'dark': drk})
+        spectt = dict({'mosaic': msc, 'det': ddet, 'check': chk, 'set': stf, 'keyword': kyw, 'fits': fts, 'science': sci, 'standard': std, 'pixflat': pfl, 'blzflat': bfl, 'trace': trc, 'arc': arc, 'bias': bia, 'dark': drk, 'readnoise': rn})
         return spectt
     if lines is None:
         # Read in the default settings
@@ -542,7 +546,6 @@ def load_headers(argflag, spect, datlines):
             kchk  = '.'.join(ch.split('.')[1:])
             frhd  = whddict['{0:02d}'.format(tfrhd)]
             if spect['check'][ch] != str(headarr[frhd][kchk]).strip():
-                #set_trace()
                 #print ch, frhd, kchk
                 #print spect['check'][ch], str(headarr[frhd][kchk]).strip()
                 msgs.error("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
@@ -749,7 +752,7 @@ def load_extraction(name, frametype='<None>', wave=True):
         return sciext, props
 
 
-def load_master(name, det, frametype='<None>'):
+def load_master(name, exten=0, frametype='<None>'):
     """
     Load a pre-existing master calibration frame
 
@@ -757,7 +760,7 @@ def load_master(name, det, frametype='<None>'):
     ----------
     name : str
       Name of the master calibration file to be loaded
-    det : int
+    exten : int, optional
     frametype : str, optional
       The type of master calibration frame being loaded.
       This keyword is only used for terminal print out.
@@ -766,6 +769,7 @@ def load_master(name, det, frametype='<None>'):
     -------
     frame : ndarray
       The data from the master calibration frame
+    head : fits header (dict-like)
     """
     if frametype is None:
         msgs.info("Loading a pre-existing master calibration frame")
@@ -774,16 +778,18 @@ def load_master(name, det, frametype='<None>'):
         except:
             msgs.error("Master calibration file does not exist:"+msgs.newline()+name)
         msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
-        data = hdu[det].data.astype(np.float)
-        return data
+        head = hdu[0].header
+        data = hdu[exten].data.astype(np.float)
+        return data, head
         #return np.array(infile[0].data, dtype=np.float)
     else:
         msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
         # Load
         hdu = pyfits.open(name)
-        data = hdu[det].data.astype(np.float)
-        return data
-        #return np.array(pyfits.getdata(name, 0), dtype=np.float)
+        data = hdu[exten].data.astype(np.float)
+        head = hdu[0].header
+        #
+        return data, head
 
 
 def load_ordloc(fname):
