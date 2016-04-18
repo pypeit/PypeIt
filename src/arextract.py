@@ -195,7 +195,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitr
             fdict['slit_val'] = slit_val
             fdict['flux_val'] = flux_val
             scitrace['opt_profile'].append(fdict)
-            if False:
+            if False: #
                 gdp = mask == 0
                 mn = np.min(slit_val[gdp])
                 mx = np.max(slit_val[gdp])

@@ -200,8 +200,7 @@ if __name__ == "__main__":
                 cpu = int(a)
             elif o in ('-v', '--verbose'):
                 vrb = int(a)
-        for a in arg[1:]:
-            if a in ('-m', '--use_masters'):
+            elif o in ('-m', '--use_masters'):
                 use_masters = True
         lnm = os.path.splitext(arg[0])[0] + ".log"
         red = arg[0]

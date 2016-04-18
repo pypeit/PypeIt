@@ -238,7 +238,7 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, **kwargs):
         return np.polynomial.chebyshev.chebfit(xv, y, deg, w=w)
     elif func == "bspline":
         return bspline_fit(x, y, order=deg, w=w, **kwargs)
-    elif func == "gaussian":
+    elif func in ["gaussian", "xgfunc"]:
         # Guesses
         mx = np.max(y)  # Could take simple stats near center
         cent = np.sum(y*x)/np.sum(y)
@@ -250,6 +250,9 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, **kwargs):
             sig_y = None
         if deg == 3:  # Standard 3 parameters
             popt, pcov = curve_fit(gauss_3deg, x, y, p0=[mx, cent, sigma],
+                                   sigma=sig_y)
+        elif deg == 99:  # xgfunc
+            popt, pcov = curve_fit(xgfunc, x, y, p0=[mx, cent, sigma],
                                    sigma=sig_y)
         else:
             msgs.error("Not prepared for deg={:d} for Gaussian fit".format(deg))
@@ -288,6 +291,9 @@ def func_val(c, x, func, minv=None, maxv=None):
     elif func == "gaussian":
         if len(c) == 3:
             return gauss_3deg(x, c[0], c[1], c[2])
+    elif func == "xgfunc":
+        if len(c) == 3:
+            return xgfunc(x, c[0], c[1], c[2])
     else:
         msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                    "Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
@@ -458,6 +464,20 @@ def polyval2d(x, y, m):
 
 def gauss_3deg(x,ampl,cent,sigm):
     return ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
+
+'''
+def xgfunc(x,ampl,cent,sigm):#,cons,tilt):
+    """ Would need to deal with pixel size to use in optimal
+    Would need something greater than curve_fit
+    """
+    df = (x[1:]-x[:-1])/2.0
+    df = np.append(df,df[-1])
+    dff = (x[1:]**2 - x[:-1]**2)/2.0
+    dff = np.append(dff,dff[-1])
+    sqt = sigm*np.sqrt(2.0)
+    return ampl*0.5*np.sqrt(np.pi)*sqt*(erf((x+df-cent)/sqt) - erf((x-df-cent)/sqt))
+    #return cons*df*2.0 + tilt*dff + ampl*0.5*np.sqrt(np.pi)*sqt*(erf((x+df-cent)/sqt) - erf((x-df-cent)/sqt))
+'''
 
 def gauss_lsqfit(x,y,pcen):
     """

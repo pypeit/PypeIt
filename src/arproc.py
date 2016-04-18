@@ -746,11 +746,12 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
     ###############
     # Estimate Sky Background
-    debug_objprof = False
+    debug_objprof = True
     if slf._argflag['reduce']['bgsubtraction']:
         # Perform an iterative background/science extraction
         msgs.info("Estimating the sky background")
         if debug_objprof:
+            msgs.warn("Reading background from 2D image on disk")
             from astropy.io import fits
             datfil = slf._argflag['run']['scidir']+'/spec2d_{:s}.fits'.format(slf._target_name+str("_")+slf._basename.replace(":","_"))
             hdu = fits.open(datfil)

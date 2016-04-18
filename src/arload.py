@@ -125,8 +125,7 @@ def optarg(argflag, argv, pypname):
         if o in ('-h', '--help'): msgs.usage(None)
         elif o in ('-c', '--cpus'): argflag['run']['ncpus'] = a
         elif o in ('-v', '--verbose'): argflag['out']['verbose'] = int(a)
-    for a in arg:
-        if a in ('--use_masters'): argflag['masters']['use'] = True
+        elif o in ('-m', '--use_masters'): argflag['masters']['use'] = True
 
     #######################
     # Now do some checks: #
