@@ -151,7 +151,7 @@ pixflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on
 pixflat match naxis0 =0             # Match the shape of flats with science
 pixflat match naxis1 =0             # Match the shape of flats with science
 pixflat match decker ''             # Check the same decker as the science frame was used
-pixflat match cdangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
+#pixflat match cdangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
 
 ### Blaze Flat frames
 blzflat idname None                   # Header key value of trace frame for header keyword keyword+idname
@@ -170,7 +170,7 @@ trace check condition2 exptime>0  # Required for bias
 trace match naxis0 =0             # Match the shape of flats with science
 trace match naxis1 =0             # Match the shape of flats with science
 trace match decker ''             # Check the same decker as the science frame was used
-trace match cdangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+#trace match cdangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
 
 ### Arc frames
 arc idname OBJECT                   # Header key value of arc frame for header keyword keyword+idname
@@ -180,4 +180,4 @@ arc lscomb False                    # Combine a long and short arc
 arc check condition1 lampstat06=on|lampstat07=on|lampstat08=on|lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on|lampstat13=on|lampstat14=on|lampstat15=on|lampstat16=on
 arc match naxis0 =0                 # Match the shape of arcs with science
 arc match naxis1 =0                 # Match the shape of arcs with science
-arc match cdangle |<=5              # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+#arc match cdangle |<=5              # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)

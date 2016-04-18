@@ -201,19 +201,19 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['b2']= -6.86414978e-09
             arcparam['wvmnx'][1] = 6000.
     elif sname=='lris_red':
-        lamps = ['ArI','NeI','XeI','KrI']
+        lamps = ['ArI','NeI','HgI']#,'KrI']
         if disperser == '600/7500':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
 #            arcparam['b2']= -6.86414978e-09
-            arcparam['wvmnx'][1] = 7500.
+            arcparam['wvmnx'][1] = 9000.
         elif disperser == '900/5500':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.53 # Ang per pixel (unbinned)
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
 #            arcparam['b2']= -6.86414978e-09
-            arcparam['wvmnx'][1] = 5500.
+            arcparam['wvmnx'][1] = 7000.
 
 
 
@@ -307,9 +307,12 @@ def simple_calib(slf, det, get_poly=False):
         disp_str[kk] = np.median(disp_val[isf])
     # Consider calculating the RMS with clipping
     gd_str = np.where( np.abs(disp_str-aparm['disp'])/aparm['disp'] < aparm['disp_toler'])[0]
+#    slf._qa.close()
+#    debugger.set_trace()
     msgs.info('Found {:d} lines within the dispersion threshold'.format(len(gd_str)))
     if len(gd_str) < 5:
         msgs.error('Insufficient lines to auto-fit.')
+#        slf._qa.close()
 
     # Debug
     #debug=True
