@@ -514,7 +514,9 @@ class ScienceExposure:
             return False
         if self._argflag['reduce']['usewave'] in ['wave']:
             msgs.info("Preparing a master wave frame")
-            mswave = arutils.func_val(self._wvcalib[det-1]['fitc'], self._tilts[det-1], self._wvcalib[det-1]['function'], minv=self._wvcalib[det-1]['fmin'], maxv=self._wvcalib[det-1]['fmax'])
+            mswave = arutils.func_val(self._wvcalib[det-1]['fitc'], self._tilts[det-1],
+                                      self._wvcalib[det-1]['function'], minv=self._wvcalib[det-1]['fmin'],
+                                      maxv=self._wvcalib[det-1]['fmax'])
         else: # It must be the name of a file the user wishes to load
             mswave_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usewave']
             mswave = arload.load_master(mswave_name, frametype=None)

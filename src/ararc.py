@@ -268,8 +268,15 @@ def simple_calib(slf, det, get_poly=False):
     # Read Arc linelist
     llist = aparm['llist']
 
-    # IDs were input by hand (minimum of 5)
+    # IDs were input by hand
     if slf._argflag['arc']['id_pix'][0] > 0.:
+        # Check that there are at least 5 values
+        pixels = np.array(slf._argflag['arc']['id_pix'])
+        if np.sum(pixels > 0.) < 5:
+            msgs.error("Need to give at least 5 pixel values!")
+        #
+        msgs.info("Using input lines to seed the wavelength solution")
+        # Match input lines to observed spectrum
         nid = len(slf._argflag['arc']['id_pix'])
         idx_str = np.ones(nid).astype(int)
         ids = np.zeros(nid)
@@ -277,15 +284,17 @@ def simple_calib(slf, det, get_poly=False):
         for jj,pix in enumerate(slf._argflag['arc']['id_pix']):
             diff = np.abs(tcent-pix)
             if np.min(diff) > 1.:
-                raise ValueError("No match!")
+                msgs.error("No match with input pixel {:g}!".format(pix))
             else:
                 imn = np.argmin(diff)
             # Set
             idx_str[jj] = imn
+            # Take wavelength from linelist instead of input value?
             ids[jj] = slf._argflag['arc']['id_wave'][jj]
         idsion = np.array(['     ']*nid)
     else:
         # Generate dpix pairs
+        msgs.info("Using pair algorithm for wavelength solution")
         nlist = len(llist)
         dpix_list = np.zeros((nlist,nlist))
         for kk,row in enumerate(llist):
@@ -435,7 +444,7 @@ def simple_calib(slf, det, get_poly=False):
     # Pack up fit
     final_fit = dict(fitc=fit, function=aparm['func'], xfit=xfit, yfit=yfit,
         ions=ions, fmin=fmin, fmax=fmax, xnorm=float(slf._msarc[det-1].shape[0]),
-        xrej=xrej, yrej=yrej)
+        xrej=xrej, yrej=yrej, mask=mask)
     # QA
     arqa.arc_fit_qa(slf, final_fit, yprep)
     # Return

@@ -7,6 +7,10 @@ out verbose 2
 out overwrite True
 out sorted kast_red_600_7500_d55.xml
 
+# Reduce
+#arc id_pix 220.63808792,417.17122925,562.95948074,669.07189712,884.38191292
+#arc id_wave 5868.4165,6334.4276,6678.2766,6929.4672,7438.8981
+
 # Read in the data
 data read
  ~/Dropbox/PYPIT/TEST_SUITES/Kast_red/600_7500_d55/r1*.fits.gz
