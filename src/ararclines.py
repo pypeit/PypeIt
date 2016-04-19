@@ -15,24 +15,26 @@ except ImportError:
 msgs = armsgs.get_logger()
 
 def parse_nist(slf,ion):
-    '''Parse a NIST ASCII table.  Note that the long ---- should have
+    """Parse a NIST ASCII table.  Note that the long ---- should have
     been commented out and also the few lines at the start.
 
     Parameters
     ----------
     ion : str
       Name of ion
-    '''
+    """
     # Root (for development only)
     if slf is None:
         root = '/Users/xavier/local/Python/PYPIT/'
     else:
         root = slf._argflag['run']['pypitdir'] 
     # Find file
-    srch_file = root + '/data/arc_lines/NIST/'+ion+'*'
+    srch_file = root + '/data/arc_lines/NIST/'+ion+'.ascii'
     nist_file = glob.glob(srch_file)
-    if len(nist_file) != 1:
+    if len(nist_file) == 0:
         msgs.error("Cannot find NIST file {:s}".format(srch_file))
+    elif len(nist_file) != 1:
+        msgs.error("Multiple NIST files for {:s}".format(srch_file))
     # Read
     nist_tbl = Table.read(nist_file[0], format='ascii.fixed_width')
     gdrow = nist_tbl['Observed'] > 0.  # Eliminate dummy lines
@@ -173,9 +175,9 @@ def parse_nist_tbl(tbl,parse_dict):
     return tbl[allgd]
 
 def load_parse_dict():
-    '''Dicts for parsing Arc line lists from NIST
+    """Dicts for parsing Arc line lists from NIST
     Rejected lines are in the rejected_lines.yaml file
-    '''
+    """
     dict_parse = dict(min_intensity=0., min_Aki=0., min_wave=0.)
     arcline_parse = {} 
     # ArI
@@ -196,6 +198,12 @@ def load_parse_dict():
     # ZnI
     arcline_parse['ZnI'] = copy.deepcopy(dict_parse)
     arcline_parse['ZnI']['min_intensity'] = 50.
+    # KrI
+    arcline_parse['KrI'] = copy.deepcopy(dict_parse)
+    arcline_parse['KrI']['min_Aki'] = 1.  # MAY NOT BE GOOD FOR DEIMOS, DESI, far red of LRISr
+    # XeI
+    arcline_parse['XeI'] = copy.deepcopy(dict_parse)
+    arcline_parse['XeI']['min_intensity'] = 1000.
     #
     return arcline_parse
 
