@@ -751,6 +751,14 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Estimate Sky Background
     if slf._argflag['reduce']['bgsubtraction']:
         # Perform an iterative background/science extraction
+        if msgs._debug['obj_prof']:
+            msgs.warn("Reading background from 2D image on disk")
+            from astropy.io import fits
+            datfil = slf._argflag['run']['scidir']+'/spec2d_{:s}.fits'.format(slf._target_name+str("_")+slf._basename.replace(":","_"))
+            hdu = fits.open(datfil)
+            bgframe = hdu[1].data - hdu[2].data
+        else:
+            bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask)
         msgs.info("Estimating the sky background")
         bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask)
         varframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
@@ -771,7 +779,8 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         msgs.info("Finalizing the sky background image")
         trcmask = scitrace['object'].sum(axis=2)
         trcmask[np.where(trcmask>0.0)] = 1.0
-        bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask, tracemask=trcmask)
+        if not msgs._debug['obj_prof']:
+            bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask, tracemask=trcmask)
         # Redetermine the variance frame based on the new sky model
         varframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
         # Save
@@ -805,10 +814,15 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     msgs.info("Extracting")
     bgcorr_box = arextract.boxcar(slf, det, specobjs, sciframe-bgframe,
                                   varframe, bgframe, crmask, scitrace)
-    # Profile
-    if False:
+
+    # Optimal
+    if not standard:
+        msgs.info("Optimal extraction with Gaussian profile")
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                                      varframe, crmask, scitrace)
+                               varframe, bgframe+bgcorr_box, crmask, scitrace)
+        arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
+                               varframe, bgframe+bgcorr_box, crmask, scitrace)
+
     # Final
     if not standard:
         slf._bgframe[det-1] += bgcorr_box

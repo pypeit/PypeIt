@@ -13,8 +13,9 @@ def init():
     """
     debug = dict(develop=False,
                  arc=False,
+                 obj_profile=False,
                  trace=False,
-                 wave=False,
                  trace_obj=False,
+                 wave=False,
                  )
     return debug

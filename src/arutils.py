@@ -17,10 +17,9 @@ import warnings
 msgs = armsgs.get_logger()
 
 try:
-    from xastropy.xutils.xdebug import set_trace
-#    from xastropy.xutils import xdebug as xdb
-except ImportError:
-    from pdb import set_trace
+    from xastropy.xutils import xdebug as debugger
+except:
+    import pdb as debugger
 
 try:
     import ds9
@@ -114,7 +113,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     try:
         tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, t=knots)
     except ValueError: # Knot problem
-        set_trace()
+        debugger.set_trace()
     return tck
 
 
@@ -239,6 +238,23 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, **kwargs):
         return np.polynomial.chebyshev.chebfit(xv, y, deg, w=w)
     elif func == "bspline":
         return bspline_fit(x, y, order=deg, w=w, **kwargs)
+    elif func in ["gaussian"]:
+        # Guesses
+        mx = np.max(y)  # Could take simple stats near center
+        cent = np.sum(y*x)/np.sum(y)
+        sigma = np.sqrt(np.abs(np.sum((x-cent)**2*y)/np.sum(y))) # From scipy doc
+        # Error
+        if w is not None:
+            sig_y = 1./w
+        else:
+            sig_y = None
+        if deg == 3:  # Standard 3 parameters
+            popt, pcov = curve_fit(gauss_3deg, x, y, p0=[mx, cent, sigma],
+                                   sigma=sig_y)
+        else:
+            msgs.error("Not prepared for deg={:d} for Gaussian fit".format(deg))
+        # Return
+        return popt
     else:
         msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                    "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
@@ -269,6 +285,9 @@ def func_val(c, x, func, minv=None, maxv=None):
         return np.polynomial.chebyshev.chebval(xv, c)
     elif func == "bspline":
         return interpolate.splev(x, c, ext=1)
+    elif func == "gaussian":
+        if len(c) == 3:
+            return gauss_3deg(x, c[0], c[1], c[2])
     else:
         msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                    "Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
@@ -437,6 +456,20 @@ def polyval2d(x, y, m):
         z += a * x**i * y**j
     return z
 
+def gauss_3deg(x,ampl,cent,sigm):
+    """  Simple 3 parameter Gaussian
+    Parameters
+    ----------
+    x
+    ampl
+    cent
+    sigm
+
+    Returns
+    -------
+    Evaluated Gausssian
+    """
+    return ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
 
 def gauss_lsqfit(x,y,pcen):
     """
@@ -660,7 +693,9 @@ def rebin(frame, newshape):
     return eval(''.join(evList))
 
 
-def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, function="polynomial", initialmask=None, forceimask=False, minv=None, maxv=None, debug=False, **kwargs):
+def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
+                   function="polynomial", initialmask=None, forceimask=False,
+                   minv=None, maxv=None, **kwargs):
     """
     A robust (equally weighted) polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are masked values
@@ -676,7 +711,6 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
     :param forceimask: if True, the initialmask will be forced for all iterations
     :param minv: minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
     :param maxv: maximum value in the array (or the right limit for a legendre/chebyshev polynomial)
-    :param debug:
     :return: mask, ct -- mask is an array of the masked values, ct is the coefficients of the robust polyfit.
     """
     # Setup the initial mask
@@ -700,8 +734,6 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
         ct = func_fit(xfit, yfit, function, order, w=wfit, minv=minv, maxv=maxv, **kwargs)
         yrng = func_val(ct, xarray, function, minv=minv, maxv=maxv)
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
-        if debug:
-            set_trace()
         if xarray.size-np.sum(mask) <= order+2:
             msgs.warn("More parameters than data points - fit might be undesirable")
             break  # More data was masked than allowed by order
@@ -718,8 +750,8 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
             mask[w] = 1
         if mskcnt == np.sum(mask): break  # No new values have been included in the mask
         mskcnt = np.sum(mask)
-        w = np.where(mask == 0)
     # Final fit
+    w = np.where(mask == 0)
     xfit = xarray[w]
     yfit = yarray[w]
     if weights is not None:

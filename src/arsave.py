@@ -279,16 +279,25 @@ def save_1d_spectra(slf, clobber=True):
             # Add header keyword
             keywd = 'EXT{:04d}'.format(ext)
             prihdu.header[keywd] = specobj.idx
-#            set_trace()
             # Add Spectrum Table
             cols = []
+            # Boxcar
             for key in specobj.boxcar.keys():
                 if isinstance(specobj.boxcar[key], Quantity):
                     cols += [pyfits.Column(array=specobj.boxcar[key].value,
-                                         name=key, format=specobj.boxcar[key].value.dtype)]
+                                         name='box_'+key, format=specobj.boxcar[key].value.dtype)]
                 else:
                     cols += [pyfits.Column(array=specobj.boxcar[key],
-                                         name=key, format=specobj.boxcar[key].dtype)]
+                                         name='box_'+key, format=specobj.boxcar[key].dtype)]
+            # Optimal
+            for key in specobj.optimal.keys():
+                if isinstance(specobj.optimal[key], Quantity):
+                    cols += [pyfits.Column(array=specobj.optimal[key].value,
+                                           name='opt_'+key, format=specobj.optimal[key].value.dtype)]
+                else:
+                    cols += [pyfits.Column(array=specobj.optimal[key],
+                                           name='opt_'+key, format=specobj.optimal[key].dtype)]
+            # Finish
             coldefs = pyfits.ColDefs(cols)
             tbhdu = pyfits.BinTableHDU.from_columns(coldefs)
             hdus += [tbhdu]
