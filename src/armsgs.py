@@ -155,6 +155,12 @@ class Messages:
         if self._log:
             self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
         self.close()
+        # Close PDFs
+        try:
+            self.sciexp._qa.close()
+        except AttributeError:
+            pass
+        #
         if usage:
             self.usage(None)
         sys.exit()
