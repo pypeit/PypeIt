@@ -205,9 +205,6 @@ if __name__ == "__main__":
             PYPIT(red, progname=sys.argv[0], quick=qck, ncpus=cpu, verbose=vrb, logname=lnm)
         except:
             # There is a bug in the code, print the file and line number of the error.
-            import armsgs
-            tmsgs = armsgs.get_logger()  # Grab sciexp (and whatever else)
-            #
             et, ev, tb = sys.exc_info()
             filename, line_no = "<filename>", "<line_no>"
             while tb:
@@ -218,4 +215,4 @@ if __name__ == "__main__":
             filename = filename.split('/')[-1]
             initmsgs.bug("There appears to be a bug on Line " + line_no + " of " + filename + " with error:" +
                          initmsgs.newline() + str(ev) + initmsgs.newline() +
-                         "---> please contact the authors", close_pdf=tmsgs)
+                         "---> please contact the authors", close_pdf=True)

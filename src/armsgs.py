@@ -215,14 +215,15 @@ class Messages:
             self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
         return
 
-    def bug(self, msg, close_pdf=None):
+    def bug(self, msg, close_pdf=False):
         """
         Print a bug message
         """
         # Close PDF?
-        if close_pdf is not None:
+        if close_pdf:
+            tmsgs = get_logger()
             try:
-                close_pdf.sciexp._qa.close()
+                tmsgs.sciexp._qa.close()
             except AttributeError:
                 pass
         #
