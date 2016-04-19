@@ -8,9 +8,12 @@ import armsgs
 import arproc
 import ararc
 import arsave
+import arsort
 import arspecobj
 import artrace
 import arqa
+
+from linetools import utils as ltu
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -54,6 +57,16 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
 
     # Create a list of master calibration frames
     masters = armasters.MasterFrames(spect['mosaic']['ndet'])
+
+    # Use Masters?  Requires setup file
+    setup_file = argflag['out']['sorted'].replace('xml','setup')
+    try:
+        calib_dict = ltu.loadjson(setup_file)
+    except:
+        msgs.info("No setup file {:s} for MasterFrames".format(setup_file))
+        calib_dict = {}
+    else:
+        argflag['masters']['setup_file'] = setup_file
 
     # Start reducing the data
     for sc in range(numsci):
