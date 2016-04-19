@@ -177,6 +177,7 @@ def parse_nist_tbl(tbl,parse_dict):
 def load_parse_dict():
     """Dicts for parsing Arc line lists from NIST
     Rejected lines are in the rejected_lines.yaml file
+
     """
     dict_parse = dict(min_intensity=0., min_Aki=0., min_wave=0.)
     arcline_parse = {} 
