@@ -438,7 +438,7 @@ def polyval2d(x, y, m):
     return z
 
 
-def gauss_lsqfit(x,y,pcen):
+def gauss_lsqfit(x, y, pcen):
     """
 
     :param x:
