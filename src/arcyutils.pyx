@@ -1168,6 +1168,145 @@ def polyfit_scan_lim(np.ndarray[DTYPE_t, ndim=1] xarr not None,
 
 
 #@cython.boundscheck(False)
+def polyfit_scan_intext(np.ndarray[DTYPE_t, ndim=1] xarr not None,
+                        np.ndarray[DTYPE_t, ndim=1] yarr not None,
+                        np.ndarray[DTYPE_t, ndim=1] warr not None,
+                        np.ndarray[ITYPE_t, ndim=1] mask not None,
+                        int polyorder, int polypoints, int repeat):
+    """
+    A scanning polynomial that will interpolate/extrapolate over
+    values where:
+    mask[i] = 1
+    """
+
+    cdef int x, sz_x, i, j, r, cnt, num
+    cdef int degree = polyorder + 1
+    cdef double mval, chisq
+    cdef int sz_p = polypoints/2
+    cdef int sz_pp = 2*sz_p + 1
+    cdef int stend
+
+    sz_x = xarr.shape[0]
+
+    cdef np.ndarray[DTYPE_t, ndim=1] model = np.zeros(sz_x, dtype=DTYPE)
+    cdef np.ndarray[DTYPE_t, ndim=1] ycopy = np.zeros(sz_x, dtype=DTYPE)
+
+    cdef gsl_multifit_linear_workspace *ws
+    cdef gsl_matrix *cov
+    cdef gsl_matrix *xmat
+
+    cdef gsl_vector *yvec
+    cdef gsl_vector *wgt
+    cdef gsl_vector *c
+
+    xmat = gsl_matrix_alloc(sz_pp, degree)
+    wgt  = gsl_vector_alloc(sz_pp)
+    yvec = gsl_vector_alloc(sz_pp)
+    c    = gsl_vector_alloc(degree)
+    cov  = gsl_matrix_alloc(degree, degree)
+    ws = gsl_multifit_linear_alloc(sz_pp, degree)
+
+    # Make a copy of yarr
+    for x in range(0, sz_x):
+        ycopy[x] = yarr[x]
+
+    for r in range(repeat):
+        stend = 0
+        for x in range(0,sz_x):
+            cnt = 0
+            if stend == 0:
+                if mask[x] == 0:
+                    # We've reached the first non-masked value
+                    stend = 1
+                else:
+                    continue
+            # Set the central value
+            if mask[x] == 1:
+                gsl_vector_set(wgt, sz_p, 0.0)
+            else:
+                gsl_matrix_set(xmat, sz_p, 0, 1.0)
+                for j in range(1,degree):
+                    gsl_matrix_set(xmat, sz_p, j, cpow(xarr[x], j))
+                gsl_vector_set(yvec, sz_p, ycopy[x])
+                gsl_vector_set(wgt, sz_p, warr[x])
+                cnt += 1
+            # Step backwards until sz_p unmasked pixels have been included in the fit
+            num = sz_p-1
+            for i in range(1, x+1):
+                if (mask[x-i] == 1):
+                    continue
+                else:
+                    gsl_matrix_set(xmat, num, 0, 1.0)
+                    for j in range(1,degree):
+                        gsl_matrix_set(xmat, num, j, cpow(xarr[x-i], j))
+                    gsl_vector_set(yvec, num, ycopy[x-i])
+                    gsl_vector_set(wgt, num, warr[x-i])
+                    cnt += 1
+                    num -= 1
+                if num < 0:
+                    break
+            if num > 0:
+                # Not enough pixels backwards to include in the fit -> mask those values
+                for i in range(0, num):
+                    gsl_vector_set(wgt, sz_p, 0.0)
+            # Step forwards until sz_p unmasked pixels have been included in the fit
+            num = sz_p+1
+            for i in range(1, sz_x-x):
+                if (mask[x+i] == 1):
+                    continue
+                else:
+                    gsl_matrix_set(xmat, num, 0, 1.0)
+                    for j in range(1,degree):
+                        gsl_matrix_set(xmat, num, j, cpow(xarr[x+i], j))
+                    gsl_vector_set(yvec, num, ycopy[x+i])
+                    gsl_vector_set(wgt, num, warr[x+i])
+                    cnt += 1
+                    num += 1
+                if num >= sz_pp:
+                    break
+            if num > 0:
+                # Not enough pixels backwards to include in the fit -> mask those values
+                for i in range(0, num):
+                    gsl_vector_set(wgt, sz_p, 0.0)
+            # Fit the data
+            if (cnt < degree*3) and (stend == 1):
+                stend = 0
+                continue
+            elif (cnt < degree*3):
+                # Obtain the model value using the previous set of coefficients
+                mval = 0.0
+                for i in range(0,degree): mval += gsl_vector_get(c, i) * cpow(xarr[x], i)
+                model[x] = mval
+            else:
+                # Fit with a polynomial
+                gsl_multifit_wlinear(xmat, wgt, yvec, c, cov, &chisq, ws)
+                # Obtain the model value at this location
+                mval = 0.0
+                for i in range(0,degree): mval += gsl_vector_get(c, i) * cpow(xarr[x], i)
+                model[x] = mval
+            # Step backwards if we we've reached the first unmasked value
+            if stend == 1:
+                for i in range(0, x):
+                    # Obtain the model value at this location
+                    mval = 0.0
+                    for j in range(0,degree): mval += gsl_vector_get(c, j) * cpow(xarr[i], j)
+                    model[i] = mval
+                stend = 2
+        if r != repeat-1:
+            # Update ycopy for the next loop
+            for x in range(sz_x): ycopy[x] = model[x]
+
+    # Free some of these arrays from memory
+    gsl_multifit_linear_free(ws)
+    gsl_matrix_free(xmat)
+    gsl_matrix_free(cov)
+    gsl_vector_free(yvec)
+    gsl_vector_free(c)
+
+    return model
+
+
+#@cython.boundscheck(False)
 def prepare_bsplfit(np.ndarray[DTYPE_t, ndim=2] arcfr not None,
                     np.ndarray[DTYPE_t, ndim=3] pixmap not None,
                     np.ndarray[DTYPE_t, ndim=1] tilts not None,
