@@ -47,7 +47,7 @@ And the following lines should be added:
         elif disperser == '1200/5000':
             arcparam['disp']=1.17 # This information is on the instrument's website
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
-            arcparam['wvmnx'][0] = 5000. # This is a guess at min wavelength covered
+            arcparam['wvmnx'][1] = 5000. # This is a guess at max wavelength covered
             arcparam['n_first']=2 # Should be able to lock on
 
 Now in armlsd.py, put a stop after wavelength calibration
