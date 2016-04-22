@@ -201,7 +201,7 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['b2']= -6.86414978e-09
             arcparam['wvmnx'][1] = 6000.
     elif sname=='lris_red':
-        lamps = ['ArI','NeI','HgI']#,'KrI']
+        lamps = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
         if disperser == '600/7500':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)

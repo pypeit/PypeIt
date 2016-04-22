@@ -155,6 +155,12 @@ class Messages:
         if self._log:
             self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
         self.close()
+        # Close PDFs
+        try:
+            self.sciexp._qa.close()
+        except AttributeError:
+            pass
+        #
         if usage:
             self.usage(None)
         sys.exit()
@@ -209,10 +215,18 @@ class Messages:
             self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
         return
 
-    def bug(self, msg):
+    def bug(self, msg, close_pdf=False):
         """
         Print a bug message
         """
+        # Close PDF?
+        if close_pdf:
+            tmsgs = get_logger()
+            try:
+                tmsgs.sciexp._qa.close()
+            except AttributeError:
+                pass
+        #
         dbgmsg = self.debugmessage()
         premsg = self._start + self._white_BK + "[BUG]     ::" + self._end + " "
         print >>sys.stderr, premsg+dbgmsg+msg
