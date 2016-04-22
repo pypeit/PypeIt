@@ -269,19 +269,19 @@ def simple_calib(slf, det, get_poly=False):
     llist = aparm['llist']
 
     # IDs were input by hand
-    if slf._argflag['arc']['id_pix'][0] > 0.:
+    if slf._argflag['arc']['calibrate']['id_pix'][0] > 0.:
         # Check that there are at least 5 values
-        pixels = np.array(slf._argflag['arc']['id_pix'])
+        pixels = np.array(slf._argflag['arc']['calibrate']['id_pix'])
         if np.sum(pixels > 0.) < 5:
             msgs.error("Need to give at least 5 pixel values!")
         #
         msgs.info("Using input lines to seed the wavelength solution")
         # Match input lines to observed spectrum
-        nid = len(slf._argflag['arc']['id_pix'])
+        nid = len(slf._argflag['arc']['calibrate']['id_pix'])
         idx_str = np.ones(nid).astype(int)
         ids = np.zeros(nid)
         gd_str = np.arange(nid).astype(int)
-        for jj,pix in enumerate(slf._argflag['arc']['id_pix']):
+        for jj,pix in enumerate(slf._argflag['arc']['calibrate']['id_pix']):
             diff = np.abs(tcent-pix)
             if np.min(diff) > 1.:
                 msgs.error("No match with input pixel {:g}!".format(pix))
@@ -290,7 +290,7 @@ def simple_calib(slf, det, get_poly=False):
             # Set
             idx_str[jj] = imn
             # Take wavelength from linelist instead of input value?
-            ids[jj] = slf._argflag['arc']['id_wave'][jj]
+            ids[jj] = slf._argflag['arc']['calibrate']['id_wave'][jj]
         idsion = np.array(['     ']*nid)
     else:
         # Generate dpix pairs
