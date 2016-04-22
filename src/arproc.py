@@ -751,7 +751,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Estimate Sky Background
     if slf._argflag['reduce']['bgsubtraction']:
         # Perform an iterative background/science extraction
-        if msgs._debug['obj_prof']:
+        if msgs._debug['obj_profile']:
             msgs.warn("Reading background from 2D image on disk")
             from astropy.io import fits
             datfil = slf._argflag['run']['scidir']+'/spec2d_{:s}.fits'.format(slf._target_name+str("_")+slf._basename.replace(":","_"))
@@ -779,7 +779,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         msgs.info("Finalizing the sky background image")
         trcmask = scitrace['object'].sum(axis=2)
         trcmask[np.where(trcmask>0.0)] = 1.0
-        if not msgs._debug['obj_prof']:
+        if not msgs._debug['obj_profile']:
             bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask, tracemask=trcmask)
         # Redetermine the variance frame based on the new sky model
         varframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
