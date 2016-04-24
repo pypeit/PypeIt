@@ -246,7 +246,6 @@ def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
                     dec=star_tbl[int(idx)]['DEC_2000'])
                 # Return
                 msgs.info("Using standard star {:s}".format(std_dict['name']))
-                debugger.set_trace()
                 return std_dict
         else: # Save closest, if it is
             imind2d = np.argmin(d2d)
