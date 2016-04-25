@@ -799,39 +799,50 @@ def model_tilt_test(slf, det, msarc, censpec=None, plotQA=False, refine_tilts=Fa
     if np.size(w[0]) > totnum:
         totnum = np.size(w[0])
 
+    trthrsh = 1000.0
+    ncont = 15
+    aduse = np.zeros(arcdet.size, dtype=np.bool)  # Which lines should be used to trace the tilts
+    w = np.where(tampl >= trthrsh)
+    aduse[w] = 1
+    # Remove lines that are within ncont pixels
+    nuse = np.sum(aduse)
+    detuse = arcdet[aduse]
+    idxuse = np.arange(arcdet.size)[aduse]
+    print arcdet[aduse]
+    olduse = aduse.copy()
+    for s in xrange(nuse):
+        w = np.where((np.abs(arcdet-detuse[s]) <= ncont) & (np.abs(arcdet-detuse[s]) >= 1.0))[0]
+        for u in xrange(w.size):
+            if tampl[w[u]] > tampl[olduse][s]:
+                aduse[idxuse[s]] = 0
+                break
+
     # Divide the detector into Nseg segments,
     # and find the brightest lines in each segment.
     # The total number of lines used to trace the tilts will be  = Nseg*Nuse + Nadd
-    Nseg = 4
-    Nuse = 2
-    Nadd = 8
-    segsz = msarc.shape[0]/float(Nseg)
-    aduse = np.zeros(arcdet.size, dtype=np.bool)  # Which lines should be used to trace the tilts
-    for s in xrange(Nseg):
-        w = np.where((arcdet > s*segsz) & (arcdet <= (s+1)*segsz))[0]
-        segampl = tampl[w]
-        asrt = np.argsort(segampl)[::-1]
-        for u in xrange(Nuse):
-            aduse[w[asrt[u]]] = True
-    # Now include some additional bright lines
-    asrt = np.argsort(tampl)[::-1]
-    s, u = 0, 0
-    while u < Nadd:
-        if not aduse[asrt[s]]:
-            aduse[asrt[s]] = True
-            u += 1
-        s += 1
+    # Nseg = 4
+    # Nuse = 2
+    # Nadd = 8
+    # segsz = msarc.shape[0]/float(Nseg)
+    # aduse = np.zeros(arcdet.size, dtype=np.bool)  # Which lines should be used to trace the tilts
+    # for s in xrange(Nseg):
+    #     w = np.where((arcdet > s*segsz) & (arcdet <= (s+1)*segsz))[0]
+    #     segampl = tampl[w]
+    #     asrt = np.argsort(segampl)[::-1]
+    #     for u in xrange(Nuse):
+    #         aduse[w[asrt[u]]] = True
+    # # Now include some additional bright lines
+    # asrt = np.argsort(tampl)[::-1]
+    # s, u = 0, 0
+    # while u < Nadd:
+    #     if not aduse[asrt[s]]:
+    #         aduse[asrt[s]] = True
+    #         u += 1
+    #     s += 1
 
-    #print arcdet[aduse]
-    #mc = msarc.shape[1]/2
-    #censpec = (msarc[:,mc]+msarc[:,mc+1]+msarc[:,mc+2]+msarc[:,mc-1]+msarc[:,mc-2])/5.0
-    #plt.clf()
-    #plt.plot(np.arange(censpec.size),censpec,'k-')
-    #plt.show()
     ordcen = slf._pixcen[det-1].copy()
     # Trace the tilts
-    plt.clf()
-    print arcdet[np.where(aduse)]
+    msgs.info("Modelling arc line tilts with {0:d} arc lines".format(np.sum(aduse)))
     if slf._argflag['trace']['orders']['tilts'] == 'fit1D':
         # Go along each order and fit the tilts in 1D
         tiltang = -999999.9*np.ones(arcdet.size)
@@ -971,11 +982,16 @@ def model_tilt_test(slf, det, msarc, censpec=None, plotQA=False, refine_tilts=Fa
             for k in range(sz+1-nsmth, sz+1):
                 xtfit[sz-k] = ordcen[arcdet[j], 0]-k
 
-            wmask = np.where(mtfit == 0)
-
             # Perform a scanning polynomial fit to the tilts
             #debugger.set_trace()
-            model = arcyutils.polyfit_scan_intext(xtfit, ytfit, np.ones(ytfit.size, dtype=np.float), mtfit, 2, 41, 1)
+            model = arcyutils.polyfit_scan_intext(xtfit, ytfit, np.ones(ytfit.size, dtype=np.float), mtfit,
+                                                  2, 41, 1, maskval)
+            if maskval in model:
+                # Model contains masked values
+                aduse[j] = False
+                badlines += 1
+                continue
+
             # if True:
             #     #debugger.set_trace()
             #     plt.clf()
@@ -1014,7 +1030,7 @@ def model_tilt_test(slf, det, msarc, censpec=None, plotQA=False, refine_tilts=Fa
         zspl[:, 0] = zspl[:, 1] + polytilts[0, :] - polytilts[arcdet[np.where(aduse)[0][0]], :]
         zspl[:, -1] = zspl[:, -2] + polytilts[-1, :] - polytilts[arcdet[np.where(aduse)[0][-1]], :]
 
-        tiltspl = interp.RectBivariateSpline(xspl, yspl, zspl, kx=1, ky=1)
+        tiltspl = interp.RectBivariateSpline(xspl, yspl, zspl, kx=3, ky=3)
         yval = np.linspace(0.0, 1.0, msarc.shape[0])
         tilts = tiltspl(xspl, yval, grid=True).T
 
