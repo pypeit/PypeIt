@@ -1167,12 +1167,13 @@ def polyfit_scan_lim(np.ndarray[DTYPE_t, ndim=1] xarr not None,
     return model
 
 
-#@cython.boundscheck(False)
+@cython.boundscheck(False)
 def polyfit_scan_intext(np.ndarray[DTYPE_t, ndim=1] xarr not None,
                         np.ndarray[DTYPE_t, ndim=1] yarr not None,
                         np.ndarray[DTYPE_t, ndim=1] warr not None,
                         np.ndarray[ITYPE_t, ndim=1] mask not None,
-                        int polyorder, int polypoints, int repeat):
+                        int polyorder, int polypoints, int repeat,
+                        double maskval):
     """
     A scanning polynomial that will interpolate/extrapolate over
     values where:
@@ -1219,6 +1220,7 @@ def polyfit_scan_intext(np.ndarray[DTYPE_t, ndim=1] xarr not None,
                     # We've reached the first non-masked value
                     stend = 1
                 else:
+                    model[x] = maskval
                     continue
             # Set the central value
             if mask[x] == 1:
@@ -1237,7 +1239,7 @@ def polyfit_scan_intext(np.ndarray[DTYPE_t, ndim=1] xarr not None,
                     continue
                 else:
                     gsl_matrix_set(xmat, num, 0, 1.0)
-                    for j in range(1,degree):
+                    for j in range(1, degree):
                         gsl_matrix_set(xmat, num, j, cpow(xarr[x-i], j))
                     gsl_vector_set(yvec, num, ycopy[x-i])
                     gsl_vector_set(wgt, num, warr[x-i])
@@ -1256,7 +1258,7 @@ def polyfit_scan_intext(np.ndarray[DTYPE_t, ndim=1] xarr not None,
                     continue
                 else:
                     gsl_matrix_set(xmat, num, 0, 1.0)
-                    for j in range(1,degree):
+                    for j in range(1, degree):
                         gsl_matrix_set(xmat, num, j, cpow(xarr[x+i], j))
                     gsl_vector_set(yvec, num, ycopy[x+i])
                     gsl_vector_set(wgt, num, warr[x+i])
@@ -1271,6 +1273,7 @@ def polyfit_scan_intext(np.ndarray[DTYPE_t, ndim=1] xarr not None,
             # Fit the data
             if (cnt < degree*3) and (stend == 1):
                 stend = 0
+                model[x] = maskval
                 continue
             elif (cnt < degree*3):
                 # Obtain the model value using the previous set of coefficients
