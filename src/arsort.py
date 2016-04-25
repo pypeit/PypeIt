@@ -2,7 +2,6 @@ import os
 import re
 import sys
 import shutil
-import string
 import numpy as np
 import armsgs
 import arutils
@@ -216,7 +215,7 @@ def sort_write(sortname, spect, fitsdict, filesort, space=3):
 
     Parameters
     ----------
-    sortname : string
+    sortname : str
       The filename to be used to save the list of sorted files
     spect : dict
       Properties of the spectrograph.
@@ -273,11 +272,11 @@ def sort_write(sortname, spect, fitsdict, filesort, space=3):
             else: addval = (fitsdict[pr][i],)
             values = values + addval
         table.array[i] = values
-    osspl = sortname.split('.')
-    if len(osspl) > 1:
-        fname = sortname
-    else:
-        fname = sortname+'.xml'
+    #osspl = sortname.split('.')
+    #if len(osspl) > 1:
+    #    fname = sortname
+    #else:
+    fname = sortname+'.xml'
     votable.to_xml(fname)
     msgs.info("Successfully written sorted data information file:"+msgs.newline() +
               "{0:s}".format(fname))
@@ -678,6 +677,7 @@ def calib_setup(sciexp, sc, det, fitsdict, calib_dict,
     -------
     """
     import json, io
+    setup_str = [str('{:02d}'.format(i+1)) for i in range(99)]
     # Arc
     idx = sciexp._spect['arc']['index'][sc]
     disp_name = fitsdict["disperser"][idx[0]]
@@ -707,9 +707,9 @@ def calib_setup(sciexp, sc, det, fitsdict, calib_dict,
                  )
 
     if len(calib_dict) == 0: # Generate
-        setup = 'A'
+        setup = str('01')
         # Finish
-        calib_dict['A'] = cdict
+        calib_dict[setup] = cdict
     else:
         # Search for a match
         setup = None
@@ -734,13 +734,13 @@ def calib_setup(sciexp, sc, det, fitsdict, calib_dict,
             if write is False:
                 return ''
             maxs = max(calib_dict.keys())
-            setup = string.uppercase[string.uppercase.index(maxs)+1]
+            setup = setup_str[setup_str.index(maxs)+1]
             calib_dict[setup] = cdict
 
     # Write
     if write:
         gddict = ltu.jsonify(calib_dict)
-        setup_file = sciexp._argflag['out']['sorted'].replace('xml','setup')
+        setup_file = sciexp._argflag['out']['sorted']+'.setup'
         sciexp._argflag['masters']['setup_file'] = setup_file
         with io.open(setup_file, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4,

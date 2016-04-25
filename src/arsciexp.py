@@ -792,7 +792,6 @@ class ScienceExposure:
             if ftype == "arc": return self._msarc[det].copy()
             elif ftype == "wave": return self._mswave[det].copy()
             elif ftype == "bias": return self._msbias[det].copy()
-            elif ftype == "readnoise": return self._msrn[det].copy()
             elif ftype == "normpixflat": return self._mspixflatnrm[det].copy()
             elif ftype == "pixflat": return self._mspixflat[det].copy()
             elif ftype == "trace": return self._mstrace[det].copy()
@@ -805,7 +804,6 @@ class ScienceExposure:
             if ftype == "arc": return self._msarc[det]
             elif ftype == "wave": return self._mswave[det]
             elif ftype == "bias": return self._msbias[det]
-            elif ftype == "readnoise": return self._msrn[det]
             elif ftype == "normpixflat": return self._mspixflatnrm[det]
             elif ftype == "pixflat": return self._mspixflat[det]
             elif ftype == "trace": return self._mstrace[det]

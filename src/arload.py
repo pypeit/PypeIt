@@ -435,9 +435,8 @@ def check_argflag(argflag):
                        "'trace', 'blzflat', 'science'" + msgs.newline() +
                        "or the name of a fits file.")
     # Check that the sorted data will be output in VOTable format:
-    osrtspl = argflag['out']['sorted'].split('.')
-    if len(osrtspl) != 1:
-        if osrtspl[-1] != 'xml': msgs.error("The output format for 'sorted' is .xml, not .{0:s}".format(osrtspl[-1]))
+    if argflag['out']['sorted'].find('.') > 0:
+        msgs.error("The output format for 'sorted' is extensionless")
     return
 
 
