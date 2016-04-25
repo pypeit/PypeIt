@@ -43,7 +43,8 @@ def argflag_init():
     arc = dict({'comb':dict({'method':'weightmean', 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'maxnonsat'}),
                 'extract':dict({'binby':1.0}),
                 'load':dict({'extracted':False, 'calibrated':False}),
-                'calibrate':dict({'cwpolyorder':2, 'threshold':3.0, 'polyorderpri':4, 'polyordersec':8, 'pcapri':[4,2,2,0], 'pcasec':[5,4,3,2,1,1], 'detection':6.0, 'method':'simple', 'nfitpix':7, 'idfile':'wave_ThAr_3100-11000.npy', 'linelist':'arclist.ThAr', 'numsearch':20, 'sigmacut':2.0}),
+                'calibrate': dict({'cwpolyorder':2, 'threshold':3.0, 'polyorderpri':4, 'polyordersec':8, 'pcapri':[4,2,2,0], 'pcasec':[5,4,3,2,1,1], 'detection':6.0, 'method':'simple', 'nfitpix':7, 'idfile':'wave_ThAr_3100-11000.npy', 'linelist':'arclist.ThAr', 'numsearch':20, 'sigmacut':2.0,
+                    'id_pix': [0., 0., 0., 0., 0.], 'id_wave': [0., 0., 0., 0., 0.]}),
                 })
     bia = dict({'comb':dict({'method':'mean', 'rej_cosmicray':20.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}) })
     drk = dict({})

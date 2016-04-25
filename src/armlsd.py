@@ -73,6 +73,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         slf = sciexp[sc]
         scidx = slf._idx_sci[0]
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
+        msgs.sciexp = slf  # For QA writing on exit, if nothing else.  Could write Masters too
         # Loop on Detectors
         for kk in xrange(slf._spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1

@@ -12,7 +12,8 @@ import traceback
 # Import PYPIT routines
 import ardebug
 debug = ardebug.init()
-debug['develop'] = True
+#debug['develop'] = True
+#debug['arc'] = True
 last_updated = "8 April 2016"
 version = '0.3'
 
@@ -226,4 +227,4 @@ if __name__ == "__main__":
             filename = filename.split('/')[-1]
             initmsgs.bug("There appears to be a bug on Line " + line_no + " of " + filename + " with error:" +
                          initmsgs.newline() + str(ev) + initmsgs.newline() +
-                         "---> please contact the authors")
+                         "---> please contact the authors", close_pdf=True)
