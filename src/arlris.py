@@ -268,7 +268,6 @@ def lris_read_amp(inp, ext):
 
     #; parse the DATASEC keyword to determine the size of the science region
     datasec = header['DATASEC']
-    print(datasec)
     xdata1, xdata2, ydata1, ydata2 = np.array(arload.load_sections(datasec, msgs)).flatten()
 
     #; grab the components...
