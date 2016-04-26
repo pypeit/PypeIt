@@ -152,13 +152,16 @@ def read_lris(raw_file, det=None, TRIM=False):
             #; insert data...
             buf = data.shape
             nxdata = buf[0]
+            nydata = buf[1]
             xs = n_ext*precol + kk*nxdata #(x1-xmin)/xbin
-            xe = xs + nxdata 
-            section = '[:,{:d}:{:d}]'.format(xs, xe)
+            xe = xs + nxdata
+            # Data section
+            section = '[{:d}:{:d},{:d}:{:d}]'.format(preline,nydata-postline, xs, xe)  # Eliminate lines
             dsec.append(section)
+            section = '[:,{:d}:{:d}]'.format(xs, xe)  # Amp section
             asec.append(section)
             #print('data',xs,xe)
-            array[xs:xe, :] = data
+            array[xs:xe, :] = data   # Include postlines
 
             #; insert postdata...
             buf = postdata.shape
@@ -196,7 +199,6 @@ def read_lris(raw_file, det=None, TRIM=False):
                          ' data     in '+section, /info
             endif 
             '''
-           
             array[xs:xe, ys:ye] = data[:, yin1:yin2]
 
     #; make sure BZERO is a valid integer for IRAF
@@ -274,7 +276,8 @@ def lris_read_amp(inp, ext):
     # based. This is only true in the image header extensions
     # not true in the main header.
     #data     = temp[xdata1-1:xdata2-1,*]
-    data = temp[xdata1:xdata2+1, :]
+    #data = temp[xdata1:xdata2+1, :]
+    data = temp[xdata1:xdata2, :]
     postdata = temp[nxt-postpix:nxt, :]
 
     #; flip in X as needed...
@@ -328,6 +331,33 @@ def lris_read_amp(inp, ext):
     '''
 
     return data, predata, postdata, x1, y1
+
+def bpm(slf, camera, fitsdict, det):
+    """ Generate a BPM
+    Parameters
+    ----------
+    slf
+    camera
+    det
+
+    Returns
+    -------
+
+    """
+    sidx = slf._idx_sci[0]
+    # Binning
+    xbin, ybin = [int(ii) for ii in fitsdict['binning'][sidx].split(',')]
+    xshp = 2048 // xbin
+    yshp = 4096 // ybin
+    bpm = np.zeros((yshp,xshp))
+    # Hard-code bad column in LRISr
+    if camera == 'red':
+        if det == 2:
+            msgs.info("Using hard-coded BPM for det=2 on LRISr")
+            badc = 16 // xbin
+            bpm[:,0:badc] = 1.
+    # Return
+    return bpm
 
 def convert_lowredux_pixflat(infil, outfil):
     """ Convert LowRedux pixflat to PYPIT format

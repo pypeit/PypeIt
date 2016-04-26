@@ -11,6 +11,7 @@ import artrace
 import arload
 import arcomb
 import arflux
+import arlris
 import armasters
 import armsgs
 import arproc
@@ -140,12 +141,14 @@ class ScienceExposure:
     # Reduction procedures
     ###################################
 
-    def BadPixelMask(self, det):
+    def BadPixelMask(self, fitsdict, det):
         """
         Generate Bad Pixel Mask for a given detector
 
         Parameters
         ----------
+        fitsdict : dict
+          Contains relevant information from fits header files
         det : int
           Index of the detector
 
@@ -154,7 +157,7 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-        if self._argflag['reduce']['badpix']:
+        if self._argflag['reduce']['badpix'] == 'bias':
             if self._argflag['masters']['use']:
                 # Attempt to load the Master Frame
                 bpix_name = armasters.master_name(self._argflag['run']['masterdir'],
@@ -176,8 +179,12 @@ class ScienceExposure:
                 # Load the Bias frames
                 bpix = arproc.badpix(self, det, self.GetMasterFrame('bias', det))
         else:
-            msgs.info("Not preparing a bad pixel mask")
-            return False
+            # Instrument dependent
+            if self._argflag['run']['spectrograph'] in ['lris_red']:
+                bpix = arlris.bpm(self, 'red', fitsdict, det)
+            else:
+                msgs.info("Not preparing a bad pixel mask")
+                return False
         self.SetFrame(self._bpix, bpix, det)
         del bpix
         return True

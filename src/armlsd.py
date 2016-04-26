@@ -90,7 +90,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                 armbase.UpdateMasters(sciexp, sc, det, ftype="bias")
             ###############
             # Generate a bad pixel mask (should not repeat)
-            update = slf.BadPixelMask(det)
+            update = slf.BadPixelMask(fitsdict, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
             ###############
