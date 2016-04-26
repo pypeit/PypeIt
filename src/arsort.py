@@ -11,6 +11,8 @@ from astropy.io.votable.tree import VOTableFile, Resource, Table, Field
 from astropy.table import Table as tTable, Column
 from astropy import units as u
 
+from linetools import utils as ltu
+
 try:
     from xastropy.xutils import xdebug as debugger
 except:
@@ -213,7 +215,7 @@ def sort_write(sortname, spect, fitsdict, filesort, space=3):
 
     Parameters
     ----------
-    sortname : string
+    sortname : str
       The filename to be used to save the list of sorted files
     spect : dict
       Properties of the spectrograph.
@@ -270,11 +272,11 @@ def sort_write(sortname, spect, fitsdict, filesort, space=3):
             else: addval = (fitsdict[pr][i],)
             values = values + addval
         table.array[i] = values
-    osspl = sortname.split('.')
-    if len(osspl) > 1:
-        fname = sortname
-    else:
-        fname = sortname+'.xml'
+    #osspl = sortname.split('.')
+    #if len(osspl) > 1:
+    #    fname = sortname
+    #else:
+    fname = sortname+'.xml'
     votable.to_xml(fname)
     msgs.info("Successfully written sorted data information file:"+msgs.newline() +
               "{0:s}".format(fname))
@@ -663,3 +665,85 @@ def make_dirs(argflag, fitsdict, filesort):
     # Return the name of the science targets
     return sci_targs
 
+
+def calib_setup(sciexp, sc, det, fitsdict, calib_dict,
+                write=False):
+    """ Define calibration setup
+    Parameters
+    ----------
+    sciexp
+    calib_dict
+    Returns
+    -------
+    """
+    import json, io
+    setup_str = [str('{:02d}'.format(i+1)) for i in range(99)]
+    # Arc
+    idx = sciexp._spect['arc']['index'][sc]
+    disp_name = fitsdict["disperser"][idx[0]]
+    disp_angle = fitsdict["cdangle"][idx[0]]
+    # Common
+    dichroic = fitsdict["dichroic"][idx[0]]
+    decker = fitsdict["decker"][idx[0]]
+    slitwid = fitsdict["slitwid"][idx[0]]
+    slitlen = fitsdict["slitlen"][idx[0]]
+    # Detector
+    binning = fitsdict["binning"][idx[0]]
+    naxis0 = fitsdict["naxis0"][idx[0]]
+    naxis1 = fitsdict["naxis1"][idx[0]]
+
+    # Generate
+    # Don't nest deeper than 1
+    cdict = dict(disperser={'name': disp_name,
+                            'angle': disp_angle},
+                 dichroic=dichroic,
+                 slit={'decker': decker,
+                       'slitwid': slitwid,
+                       'slitlen': slitlen},
+                 detector={'binning': binning,
+                           'det': det,
+                           'naxis0': naxis0,
+                           'naxis1': naxis1},
+                 )
+
+    if len(calib_dict) == 0: # Generate
+        setup = str('01')
+        # Finish
+        calib_dict[setup] = cdict
+    else:
+        # Search for a match
+        setup = None
+        for ckey in calib_dict.keys():
+            mtch = True
+            for key in calib_dict[ckey].keys():
+                # Dict?
+                if isinstance(calib_dict[ckey][key], dict):
+                    for ikey in calib_dict[ckey][key].keys():
+                        mtch &= calib_dict[ckey][key][ikey] == cdict[key][ikey]
+                        #if mtch is False:
+                        #    debugger.set_trace()
+                else:
+                    mtch &= calib_dict[ckey][key] == cdict[key]
+                    #if mtch is False:
+                    #    debugger.set_trace()
+            if mtch:
+                setup = ckey
+                break
+        # Augment calib_dict?
+        if setup is None:
+            if write is False:
+                return ''
+            maxs = max(calib_dict.keys())
+            setup = setup_str[setup_str.index(maxs)+1]
+            calib_dict[setup] = cdict
+
+    # Write
+    if write:
+        gddict = ltu.jsonify(calib_dict)
+        setup_file = sciexp._argflag['out']['sorted']+'.setup'
+        sciexp._argflag['masters']['setup_file'] = setup_file
+        with io.open(setup_file, 'w', encoding='utf-8') as f:
+            f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4,
+                                       separators=(',', ': '))))
+
+    return setup

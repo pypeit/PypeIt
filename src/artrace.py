@@ -1408,6 +1408,7 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
                     tilts = extrap_tilt.T
                     #arpca.pc_plot_arctilt(tiltang, centval, tilts, plotsdir=slf._argflag['run']['plotsdir'], pcatype="tilts", prefix=prefix)
             else:
+                outpar = {}
                 msgs.warn("Could not perform a PCA when tracing the spectral tilt"+msgs.newline()+"Not enough well-traced arc lines")
                 msgs.info("Attempting to fit tilts by assuming the tilt is independent along the dispersion direction")
                 xtiltfit = np.array([])
@@ -1486,7 +1487,7 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
     #     plt.show()
     #     # Fit each arc line the same as the blaze fitting algorithm, but only consider the brightest lines
     #     # Linearly interpolate over the result. In between the best lines, take an average of the PCA and the interpolated tilts (based on the brightest lines)
-    return tilts, satsnd
+    return tilts, satsnd, outpar
 
 
 def trace_fweight(fimage, xinit, invvar=None, radius=3.):
