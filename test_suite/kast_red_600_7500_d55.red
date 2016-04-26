@@ -5,7 +5,7 @@ run ncpus 1
 run spectrograph kast_red
 out verbose 2
 out overwrite True
-out sorted kast_red_600_7500_d55.xml
+out sorted kast_red_600_7500_d55
 
 # Reduce
 #arc calibrate id_pix 220.63808792,417.17122925,562.95948074,669.07189712,884.38191292
