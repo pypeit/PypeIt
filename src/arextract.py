@@ -108,8 +108,9 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     # Return
     return bgcorr
 
-def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace,
-                 COUNT_LIM=25., pickle_file=None):
+
+def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
+                 scitrace, COUNT_LIM=25., pickle_file=None):
     """ Derive spatial profiles for each object
     Parameters
     ----------
@@ -176,7 +177,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitr
             flux_val = norm_img[gdprof]
             weight_val = sciframe[gdprof]/sigframe[gdprof]  # S/N
             # Fit
-            fdict = dict(func='gaussian', deg=3)
+            fdict = dict(func=slf._argflag['science']['extraction']['profile'], deg=3)
             try:
                 mask, gfit = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'],
                                                     function=fdict['func'],
@@ -192,13 +193,24 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitr
             fdict['slit_val'] = slit_val
             fdict['flux_val'] = flux_val
             scitrace['opt_profile'].append(fdict)
-            if False: #
+            if msgs._debug['obj_profile']: #
                 gdp = mask == 0
                 mn = np.min(slit_val[gdp])
                 mx = np.max(slit_val[gdp])
                 xval = np.linspace(mn,mx,1000)
-                gauss = arutils.func_val(gfit, xval, fdict['func'])
-                debugger.xplot(slit_val[gdp], flux_val[gdp], xtwo=xval, ytwo=gauss, scatter=True)
+                model = arutils.func_val(gfit, xval, fdict['func'])
+                import matplotlib.pyplot as plt
+                plt.clf()
+                ax = plt.gca()
+                ax.scatter(slit_val[gdp], flux_val[gdp], marker='.', s=0.7, edgecolor='none', facecolor='black')
+                ax.plot(xval, model, 'b')
+                # Gaussian too?
+                if False:
+                    fdictg = dict(func='gaussian', deg=3)
+                    maskg, gfitg = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdictg['func'], weights=weight_val, maxone=False)
+                    modelg = arutils.func_val(gfitg, xval, fdictg['func'])
+                    ax.plot(xval, modelg, 'r')
+                plt.show()
                 debugger.set_trace()
         elif len(gdrow) > 10:  #
             msgs.warn("Low extracted flux for obj={:s}.  Not ready for Optimal".format(specobjs[o].idx))

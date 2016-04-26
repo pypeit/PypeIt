@@ -1420,7 +1420,10 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
                     arpca.pc_plot(slf, outpar, ofit, pcadesc="Spectral Tilts PCA", addOne=False)
                     # Extrapolate the remaining orders requested
                     orders = np.linspace(0.0, 1.0, msarc.shape[0])
-                    extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=slf._argflag['trace']['orders']['function'])
+                    extrap_tilt, outpar = arpca.extrapolate(outpar, orders,
+                                                            function=slf._argflag['trace']['orders']['function'])
+                    if msgs._debug['trace']:
+                        debugger.set_trace()
                     tilts = extrap_tilt.T
                     #arpca.pc_plot_arctilt(tiltang, centval, tilts, plotsdir=slf._argflag['run']['plotsdir'], pcatype="tilts", prefix=prefix)
             else:

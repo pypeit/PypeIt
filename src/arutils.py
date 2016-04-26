@@ -213,7 +213,27 @@ def func_der(coeffs, func, nderive=1):
                    "Please choose from 'polynomial', 'legendre', 'chebyshev'")
 
 
-def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, **kwargs):
+def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
+             **kwargs):
+    """ General routine to fit a function to a given set of x,y points
+
+    Parameters
+    ----------
+    x
+    y
+    func : str
+      polynomial, legendre, chebyshev, bspline, gauss
+    deg
+    minv
+    maxv
+    w
+    guesses
+    kwargs
+
+    Returns
+    -------
+
+    """
     if func == "polynomial":
         return np.polynomial.polynomial.polyfit(x, y, deg, w=w)
     elif func == "legendre":
@@ -240,9 +260,12 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, **kwargs):
         return bspline_fit(x, y, order=deg, w=w, **kwargs)
     elif func in ["gaussian"]:
         # Guesses
-        mx = np.max(y)  # Could take simple stats near center
-        cent = np.sum(y*x)/np.sum(y)
-        sigma = np.sqrt(np.abs(np.sum((x-cent)**2*y)/np.sum(y))) # From scipy doc
+        if guesses is None:
+            mx = np.max(y)  # Could take simple stats near center
+            cent = np.sum(y*x)/np.sum(y)
+            sigma = np.sqrt(np.abs(np.sum((x-cent)**2*y)/np.sum(y))) # From scipy doc
+        else:
+            mx, cent, sigma  = guesses
         # Error
         if w is not None:
             sig_y = 1./w
@@ -255,12 +278,49 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, **kwargs):
             msgs.error("Not prepared for deg={:d} for Gaussian fit".format(deg))
         # Return
         return popt
+    elif func in ["moffat"]:
+        # Guesses
+        if guesses is None:
+            p0 = np.max(y)  # Could take simple stats near center
+            cent = np.sum(y*x)/np.sum(y)
+            sigma = np.sqrt(np.abs(np.sum((x-cent)**2*y)/np.sum(y))) # From scipy doc
+            p2 = 3. # Standard guess
+            p1 = (2.355*sigma)/(2*np.sqrt(2**(1./p2)-1))
+        else:
+            p0,p1,p2 = guesses
+        # Error
+        if w is not None:
+            sig_y = 1./w
+        else:
+            sig_y = None
+        if deg == 3:  # Standard 3 parameters
+            popt, pcov = curve_fit(moffat, x, y, p0=[p0,p1,p2], sigma=sig_y)
+        else:
+            msgs.error("Not prepared for deg={:d} for Moffat fit".format(deg))
+        # Return
+        return popt
     else:
         msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                    "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
 
 
 def func_val(c, x, func, minv=None, maxv=None):
+    """ Generic routine to return an evaluated function
+    Functional forms include:
+      polynomial, legendre, chebyshev, bspline, gauss
+
+    Parameters
+    ----------
+    c
+    x
+    func
+    minv
+    maxv
+
+    Returns
+    -------
+
+    """
     if func == "polynomial":
         return np.polynomial.polynomial.polyval(x, c)
     elif func == "legendre":
@@ -288,6 +348,13 @@ def func_val(c, x, func, minv=None, maxv=None):
     elif func == "gaussian":
         if len(c) == 3:
             return gauss_3deg(x, c[0], c[1], c[2])
+        else:
+            msgs.error("Not ready for this type of gaussian")
+    elif func == "moffat":
+        if len(c) == 3:
+            return moffat(x, c[0], c[1], c[2])
+        else:
+            msgs.error("Not ready for this type of Moffat")
     else:
         msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                    "Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
@@ -456,6 +523,26 @@ def polyval2d(x, y, m):
         z += a * x**i * y**j
     return z
 
+
+def moffat(x,p0,p1,p2):
+    """  Moffat profile
+    This 3 parameter formulation assumes the trace is known
+    Parameters
+    ----------
+    x
+    p0 : float
+      Amplitude
+    p1 : float
+      Width scaling
+    p2 : float
+
+    Returns
+    -------
+    Evaluated Moffat
+    """
+    return p0 / (1+(x/p1)**2)**p2
+
+
 def gauss_3deg(x,ampl,cent,sigm):
     """  Simple 3 parameter Gaussian
     Parameters
@@ -470,6 +557,7 @@ def gauss_3deg(x,ampl,cent,sigm):
     Evaluated Gausssian
     """
     return ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
+
 
 def gauss_lsqfit(x,y,pcen):
     """
@@ -723,6 +811,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
         mask = initialmask.copy()
     mskcnt = np.sum(mask)
     # Iterate, and mask out new values on each iteration
+    ct = None
     while True:
         w = np.where(mask == 0)
         xfit = xarray[w]
@@ -731,7 +820,8 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
             wfit = weights[w]
         else:
             wfit = None
-        ct = func_fit(xfit, yfit, function, order, w=wfit, minv=minv, maxv=maxv, **kwargs)
+        ct = func_fit(xfit, yfit, function, order, w=wfit,
+                      guesses=ct, minv=minv, maxv=maxv, **kwargs)
         yrng = func_val(ct, xarray, function, minv=minv, maxv=maxv)
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
         if xarray.size-np.sum(mask) <= order+2:

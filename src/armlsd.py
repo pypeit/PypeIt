@@ -167,6 +167,8 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                             doQA = True
                         tilts, satmask, outpar = artrace.model_tilt(slf, det, slf._msarc[det-1],
                                                                     guesstilts=tilts, plotQA=doQA)
+                    if msgs._debug['trace']:
+                        debugger.set_trace()
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)

@@ -368,6 +368,8 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
         msgs.warn("NAN in bgframe.  Replacing with 0")
         bad = np.isnan(bgframe)
         bgframe[bad] = 0.
+    if msgs._debug['sky_sub']:
+        debugger.set_trace()
     # Plot to make sure that the result is good
     #arutils.ds9plot(bgframe)
     #arutils.ds9plot(sciframe-bgframe)
@@ -753,13 +755,13 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         if msgs._debug['obj_profile']:
             msgs.warn("Reading background from 2D image on disk")
             from astropy.io import fits
-            datfil = slf._argflag['run']['scidir']+'/spec2d_{:s}.fits'.format(slf._target_name+str("_")+slf._basename.replace(":","_"))
+            datfil = slf._argflag['run']['scidir']+'/spec2d_{:s}.fits'.format(slf._basename.replace(":","_"))
             hdu = fits.open(datfil)
             bgframe = hdu[1].data - hdu[2].data
         else:
+            msgs.info("Estimating the sky background")
             bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask)
-        msgs.info("Estimating the sky background")
-        bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask)
+        #bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask)
         varframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
         if not standard: # Need to save
             slf._varframe[det-1] = varframe
