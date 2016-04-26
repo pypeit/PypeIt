@@ -675,7 +675,6 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
     # Construct and array with the rows and columns to be extracted
     w = np.ix_(xfin, yfin)
     slf._ampsec[det-1] = retarr[w]
-    return fitsdict
 
 
 def get_wscale(slf):

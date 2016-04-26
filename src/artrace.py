@@ -312,6 +312,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     plxbin = arcyutils.bin_x(slf._pixlocn[det-1][:,:,0], binby, 1)
     plybin = arcyutils.bin_x(slf._pixlocn[det-1][:,:,1], binby, 1)
     msgs.info("Detecting order edges")
+    #debugger.set_trace()
     if singleSlit:
         msgs.info("Detecting slit edges")
         filt = ndimage.sobel(binarr, axis=1, mode='constant')
@@ -407,14 +408,29 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         lcnt = 1
     msgs.info("Assigning orders")
     #arutils.ds9plot(edgearr)
-    lmin, lmax, rmin, rmax = arcytrace.assign_orders(edgearr, slf._dispaxis, lcnt, rcnt)
-    msgs.info("Ignoring orders that span < {0:3.2f}x{1:d} pixels on the detector".format(slf._argflag['trace']['orders']['fracignore'],int(edgearr.shape[slf._dispaxis]*binby)))
-    fracpix = int(slf._argflag['trace']['orders']['fracignore']*edgearr.shape[slf._dispaxis])
-    lnc, lxc, rnc, rxc, ldarr, rdarr = arcytrace.ignore_orders(edgearr, slf._dispaxis, fracpix, lmin, lmax, rmin, rmax)
-    lmin += lnc
-    rmin += rnc
-    lmax -= lxc
-    rmax -= rxc
+    iterate = True
+    while iterate:
+        lmin, lmax, rmin, rmax = arcytrace.assign_orders(edgearr, slf._dispaxis, lcnt, rcnt)
+        msgs.info("Ignoring orders that span < {0:3.2f}x{1:d} pixels on the detector".format(slf._argflag['trace']['orders']['fracignore'],int(edgearr.shape[slf._dispaxis]*binby)))
+        fracpix = int(slf._argflag['trace']['orders']['fracignore']*edgearr.shape[slf._dispaxis])
+        lnc, lxc, rnc, rxc, ldarr, rdarr = arcytrace.ignore_orders(edgearr, slf._dispaxis, fracpix, lmin, lmax, rmin, rmax)
+        lmin += lnc
+        rmin += rnc
+        lmax -= lxc
+        rmax -= rxc
+        iterate = False
+        if singleSlit: # Another check on slits for singleSlit
+            if lmax < lmin:
+                msgs.warn("Unable to find a left edge. Adding one in.")
+                iterate = True
+                edgearr[:,0] = -1000
+                lcnt = 1
+            if rmax < rmin:
+                msgs.warn("Unable to find a right edge. Adding one in.")
+                iterate = True
+                edgearr[:,-1] = 1000
+                rcnt = 1
+    # Left order traces
     msgs.info("Fitting left order traces")
     lcoeff = np.zeros((1+slf._argflag['trace']['orders']['polyorder'],lmax-lmin+1))
 #	lfail = np.array([])
@@ -1408,6 +1424,7 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
                     tilts = extrap_tilt.T
                     #arpca.pc_plot_arctilt(tiltang, centval, tilts, plotsdir=slf._argflag['run']['plotsdir'], pcatype="tilts", prefix=prefix)
             else:
+                outpar = {}
                 msgs.warn("Could not perform a PCA when tracing the spectral tilt"+msgs.newline()+"Not enough well-traced arc lines")
                 msgs.info("Attempting to fit tilts by assuming the tilt is independent along the dispersion direction")
                 xtiltfit = np.array([])
@@ -1486,7 +1503,7 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
     #     plt.show()
     #     # Fit each arc line the same as the blaze fitting algorithm, but only consider the brightest lines
     #     # Linearly interpolate over the result. In between the best lines, take an average of the PCA and the interpolated tilts (based on the brightest lines)
-    return tilts, satsnd
+    return tilts, satsnd, outpar
 
 
 def trace_fweight(fimage, xinit, invvar=None, radius=3.):
