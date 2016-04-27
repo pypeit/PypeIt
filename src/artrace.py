@@ -785,35 +785,41 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders, disp
     return extfit, outpar
 
 
-def model_tilt_test(slf, det, msarc, censpec=None, plotQA=False, refine_tilts=False, maskval=-999999.9):
+def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9):
     """
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
     """
     msgs.work("Detecting lines..")
     tampl, tcent, twid, w, satsnd, _ = ararc.detect_lines(slf, det, msarc, censpec=censpec)
     satval = slf._spect['det'][det-1]['saturation']*slf._spect['det'][det-1]['nonlinear']
-    fitxy = [slf._argflag['trace']['orders']['tiltorder'], 8]  # order of the polynomials to be used when fitting the tilts.
+    if slf._argflag['trace']['orders']['tilts'].lower() == "zero":
+        # Assuming there is no spectral tilt
+        tilts = np.outer(np.linspace(0.0, 1.0, msarc.shape[0]), np.ones(msarc.shape[1]))
+        return tilts, satsnd
+    # Order of the polynomials to be used when fitting the tilts.
+    fitxy = [slf._argflag['trace']['orders']['tiltorder'], 1]
     arcdet = (tcent[w]+0.5).astype(np.int)
+    ampl = tampl[w]
     maskrows = np.ones(msarc.shape[0], dtype=np.int) # Start by masking every row, then later unmask the rows with usable arc lines
     totnum = 0
     if np.size(w[0]) > totnum:
         totnum = np.size(w[0])
 
+    # Determine the best lines to use to trace the tilts
     trthrsh = 1000.0
     ncont = 15
     aduse = np.zeros(arcdet.size, dtype=np.bool)  # Which lines should be used to trace the tilts
-    w = np.where(tampl >= trthrsh)
+    w = np.where(ampl >= trthrsh)
     aduse[w] = 1
     # Remove lines that are within ncont pixels
     nuse = np.sum(aduse)
     detuse = arcdet[aduse]
     idxuse = np.arange(arcdet.size)[aduse]
-    print arcdet[aduse]
     olduse = aduse.copy()
     for s in xrange(nuse):
         w = np.where((np.abs(arcdet-detuse[s]) <= ncont) & (np.abs(arcdet-detuse[s]) >= 1.0))[0]
         for u in xrange(w.size):
-            if tampl[w[u]] > tampl[olduse][s]:
+            if ampl[w[u]] > ampl[olduse][s]:
                 aduse[idxuse[s]] = 0
                 break
 
@@ -840,13 +846,17 @@ def model_tilt_test(slf, det, msarc, censpec=None, plotQA=False, refine_tilts=Fa
     #         u += 1
     #     s += 1
 
+    if slf._argflag['trace']['orders']['tilts'].lower() == "pca":
+        nitertilts = 2
+    else:
+        nitertilts = 1
     ordcen = slf._pixcen[det-1].copy()
-    # Trace the tilts
+    guesstilts = None
     msgs.info("Modelling arc line tilts with {0:d} arc lines".format(np.sum(aduse)))
-    if slf._argflag['trace']['orders']['tilts'] == 'fit1D':
-        # Go along each order and fit the tilts in 1D
-        tiltang = -999999.9*np.ones(arcdet.size)
-        centval = -999999.9*np.ones(arcdet.size)
+    # Go along each order and trace the tilts
+    for tt in xrange(nitertilts):
+        if nitertilts > 1:
+            msgs.info("Iterating on spectral tilts -- Iteration {0:d}/{1:d}".format(tt+1, nitertilts))
         tcoeff = np.ones((slf._argflag['trace']['orders']['tiltorder']+1, msarc.shape[0]))
         weights = np.zeros(msarc.shape[0])
         msgs.work("This next step could be multiprocessed to speed up the reduction")
@@ -855,24 +865,28 @@ def model_tilt_test(slf, det, msarc, censpec=None, plotQA=False, refine_tilts=Fa
         xtilt = maskval*np.ones((msarc.shape[1], arcdet.size))
         ytilt = maskval*np.ones((msarc.shape[1], arcdet.size))
         ztilt = maskval*np.ones((msarc.shape[1], arcdet.size))
+        stilt = maskval*np.ones((msarc.shape[1], arcdet.size))
         mtilt = maskval*np.ones((msarc.shape[1], arcdet.size))
+        wtilt = maskval*np.ones((msarc.shape[1], arcdet.size))
+        dtilt = maskval*np.ones((2, arcdet.size))
         badlines = 0
-        for j in xrange(arcdet.size): # For each detection in this order
+        for j in xrange(arcdet.size):
+            # For each detection in this order
             msgs.info("Tracing tilt of arc line {0:d}/{1:d}".format(j+1, arcdet.size))
             # Check if this is a saturated line
-            ysat = msarc[arcdet[j]-nspecfit:arcdet[j]+nspecfit+1, ordcen[arcdet[j],0]-nsmth:ordcen[arcdet[j],0]+nsmth+1]
+            ysat = msarc[arcdet[j]-nspecfit:arcdet[j]+nspecfit+1, ordcen[arcdet[j], 0]-nsmth:ordcen[arcdet[j], 0]+nsmth+1]
             if np.where(ysat > satval)[0].size != 0:
                 aduse[j] = False
                 badlines += 1
                 continue
             # Get the size of the slit
-            sz = int(np.floor(np.abs(slf._rordloc[det-1][arcdet[j],0]-slf._lordloc[det-1][arcdet[j],0])/2.0))-2
-            #xtfit = np.arange(-sz,sz+1,1.0) # pixel along the arc line
+            sz = int(np.floor(np.abs(slf._rordloc[det-1][arcdet[j], 0]-slf._lordloc[det-1][arcdet[j], 0])/2.0)) - 2
             xtfit = np.zeros(2*sz+1)
             ytfit = maskval*np.ones(2*sz+1)  # Fitted centroid
             etfit = np.zeros(2*sz+1)  # Fitted centroid error
             mtfit = np.ones(2*sz+1, dtype=np.int)   # Mask of bad fits
             apfit = np.zeros(2*sz+1)  # Fitted Amplitude
+            shfit = np.zeros(2*sz+1)  # Shift applied
             xfit = np.arange(-nspecfit, nspecfit+1, 1.0)
             tstcc = True  # A boolean to tell the loop once a good set of pixels has been found to cross-correlate with
             # Fit up
@@ -915,14 +929,16 @@ def model_tilt_test(slf, det, msarc, censpec=None, plotQA=False, refine_tilts=Fa
                 cc = np.correlate(ccyfit, yfit, mode='same')
                 params, fail = arutils.gauss_lsqfit(xfit, cc, 0.0)
                 centv = ccval + pcen - arcdet[j] - params[1]
+                if guesstilts is not None:
+                    shfit[k+sz] = guesstilts[arcdet[j], ordcen[arcdet[j], 0]+k]*float(msarc.shape[0]-1.0)
                 xtfit[k+sz] = ordcen[arcdet[j], 0] + k
-                ytfit[k+sz] = centv
+                ytfit[k+sz] = centv - shfit[k+sz]
                 etfit[k+sz] = 0.02
                 apfit[k+sz] = params[0]
                 if fail:
                     mtfit[k+sz] = 1
                 else:
-                    pcen = int(0.5+centv)
+                    pcen = int(0.5 + centv)
                     mtfit[k+sz] = 0
             if offchip:
                 # Don't use lines that go off the chip (could lead to a bad trace)
@@ -965,14 +981,16 @@ def model_tilt_test(slf, det, msarc, censpec=None, plotQA=False, refine_tilts=Fa
                 cc = np.correlate(ccyfit, yfit, mode='same')
                 params, fail = arutils.gauss_lsqfit(xfit, cc, 0.0)
                 centv = ccval + pcen - arcdet[j] - params[1]
+                if guesstilts is not None:
+                    shfit[sz-k] = guesstilts[arcdet[j], ordcen[arcdet[j], 0]-k]*float(msarc.shape[0]-1.0)
                 xtfit[sz-k] = ordcen[arcdet[j], 0] - k
-                ytfit[sz-k] = centv
+                ytfit[sz-k] = centv - shfit[sz-k]
                 etfit[sz-k] = 0.02
                 apfit[sz-k] = params[0]
                 if fail:
                     mtfit[sz-k] = 1
                 else:
-                    pcen = int(0.5+centv)
+                    pcen = int(0.5 + centv)
                     mtfit[sz-k] = 0
             if offchip:
                 # Don't use lines that go off the chip (could lead to a bad trace)
@@ -982,15 +1000,41 @@ def model_tilt_test(slf, det, msarc, censpec=None, plotQA=False, refine_tilts=Fa
             for k in range(sz+1-nsmth, sz+1):
                 xtfit[sz-k] = ordcen[arcdet[j], 0]-k
 
+            wmask = np.where(mtfit == 0)
+            if guesstilts is not None:
+                ytfit[wmask] -= np.median(ytfit[wmask])
+
             # Perform a scanning polynomial fit to the tilts
-            #debugger.set_trace()
             model = arcyutils.polyfit_scan_intext(xtfit, ytfit, np.ones(ytfit.size, dtype=np.float), mtfit,
-                                                  2, 41, 1, maskval)
+                                                  2, sz/6, 3, maskval)
+
             if maskval in model:
                 # Model contains masked values
                 aduse[j] = False
                 badlines += 1
                 continue
+
+            # Perform a robust polynomial fit to the traces
+            wmsk, mcoeff = arutils.robust_polyfit(xtfit[wmask], ytfit[wmask]/(msarc.shape[0]-1.0),
+                                                  slf._argflag['trace']['orders']['tiltorder'],
+                                                  function=slf._argflag['trace']['orders']['function'],
+                                                  sigma=2.0, minv=0.0, maxv=msarc.shape[1]-1.0)
+            wmask = wmask[0][np.where(wmsk==0)]
+            # Calculate the dispersion among the points
+            ytst = (ytfit[wmask][1:]-ytfit[wmask][:-1])
+            sig = 1.4826*np.median(np.abs(ytst-np.median(ytst)))/np.sqrt(2.0)
+
+            # Save the tilt angle, and unmask the row
+            factr = (msarc.shape[0]-1.0)*arutils.func_val(mcoeff, ordcen[arcdet[j],0],
+                                                          slf._argflag['trace']['orders']['function'],
+                                                          minv=0.0, maxv=msarc.shape[1]-1.0)
+            if guesstilts is not None:
+                factr += guesstilts[arcdet[j], ordcen[arcdet[j], 0]]*float(msarc.shape[0]-1.0)
+            idx = int(factr+0.5)
+            if (idx > 0) and (idx < msarc.shape[0]):
+                maskrows[idx] = 0     # mcoeff[0] is the centroid of the arc line
+                tcoeff[:, idx] = mcoeff.copy()
+                weights[idx] = (np.abs(np.median(apfit[wmask])))**0.25
 
             # if True:
             #     #debugger.set_trace()
@@ -1004,43 +1048,96 @@ def model_tilt_test(slf, det, msarc, censpec=None, plotQA=False, refine_tilts=Fa
             xtilt[xint:xint+2*sz+1, j] = xtfit/(msarc.shape[1]-1.0)
             ytilt[xint:xint+2*sz+1, j] = arcdet[j]/(msarc.shape[0]-1.0)
             ztilt[xint:xint+2*sz+1, j] = ytfit/(msarc.shape[0]-1.0)
-            mtilt[xint:xint+2*sz+1, j] = model/(msarc.shape[0]-1.0)
+            stilt[xint:xint+2*sz+1, j] = shfit
+            #mtilt[xint:xint+2*sz+1, j] = model/(msarc.shape[0]-1.0)
+            mtilt[xint:xint+2*sz+1, j] = (2.0*model[sz]-model)/(msarc.shape[0]-1.0)
             wbad = np.where(ytfit == maskval)[0]
             ztilt[xint+wbad, j] = maskval
+
+            dtilt[0,j] = sig/(np.max(ytfit[wmask])-np.min(ytfit[wmask]))  # Record how well the spectral trace has been determined for this line
+            dtilt[1,j] = wmask.size        # Record how well the spectral trace has been determined for this line
+            zwght = ytfit[wmask]
+            if np.max(np.abs(zwght[1:]-zwght[:-1])) != 0.0:
+                wtilt[xint:xint+2*sz+1, j] = 1.0/np.max(np.abs(zwght[1:]-zwght[:-1]))
+
             # Extrapolate off the chip
+            nfit = 6  # Number of pixels to fit a linear function to at the end of each trace
+            xlof, xhif = np.arange(xint, xint+nfit), np.arange(xint+2*sz+1-nfit, xint+2*sz+1)
             xlo, xhi = np.arange(xint), np.arange(xint+2*sz+1, msarc.shape[1])
-            glo = mtilt[xint+1, j]-mtilt[xint, j]
-            ghi = mtilt[xint+2*sz, j]-mtilt[xint+2*sz-1, j]
-            mtilt[0:xint, j] = glo*(xlo-xint) + mtilt[xint, j]
-            mtilt[xint+2*sz+1:, j] = ghi*(xhi-xint-2*sz) + mtilt[xint+2*sz, j]
+            glon = np.mean(xlof*mtilt[xint:xint+nfit, j]) - np.mean(xlof)*np.mean(mtilt[xint:xint+nfit, j])
+            glod = np.mean(xlof**2) - np.mean(xlof)**2
+            clo = np.mean(mtilt[xint:xint+nfit, j]) - (glon/glod)*np.mean(xlof)
+            yhi = mtilt[xint+2*sz+1-nfit:xint+2*sz+1, j]
+            ghin = np.mean(xhif*yhi) - np.mean(xhif)*np.mean(yhi)
+            ghid = np.mean(xhif**2) - np.mean(xhif)**2
+            chi = np.mean(yhi) - (ghin/ghid)*np.mean(xhif)
+            mtilt[0:xint, j] = (glon/glod)*xlo + clo
+            mtilt[xint+2*sz+1:, j] = (ghin/ghid)*xhi + chi
         if badlines != 0:
             msgs.warn("There were {0:d} additional arc lines that should have been traced".format(badlines) +
-                      msgs.newline() + "Check the spectral tilt solution")
-        # Fit the model with a 2D polynomial
-        wgd = np.where(xtilt != maskval)
-        coeff = arutils.polyfit2d_general(xtilt[wgd], ytilt[wgd], mtilt[wgd], [1, 1])
-        polytilts = arutils.polyval2d_general(coeff, np.linspace(0.0, 1.0, msarc.shape[1]),
-                                              np.linspace(0.0, 1.0, msarc.shape[0]))
+                      msgs.newline() + "(perhaps lines were saturated?). Check the spectral tilt solution")
 
-        xspl = np.linspace(0.0, 1.0, msarc.shape[1])
-        yspl = np.append(0.0, np.append(arcdet[np.where(aduse)]/(msarc.shape[0]-1.0), 1.0))
-        #yspl = arcdet[np.where(aduse)]/(msarc.shape[0]-1.0)
-        zspl = np.zeros((msarc.shape[1], np.sum(aduse)+2))
-        zspl[:, 1:-1] = mtilt[:, np.where(aduse)[0]]
-        zspl[:, 0] = zspl[:, 1] + polytilts[0, :] - polytilts[arcdet[np.where(aduse)[0][0]], :]
-        zspl[:, -1] = zspl[:, -2] + polytilts[-1, :] - polytilts[arcdet[np.where(aduse)[0][-1]], :]
+        weights /= np.max(weights)
+        maskrw = np.where(maskrows == 1)[0]
+        maskrw.sort()
+        extrap_row = maskrows.copy()
+        xv = np.arange(msarc.shape[1])
+        tiltval = arutils.func_val(tcoeff, xv, slf._argflag['trace']['orders']['function'],
+                                   minv=0.0, maxv=msarc.shape[1]-1.0).T
+        msgs.work("May need to do a check here to make sure ofit is reasonable")
+        ofit = slf._argflag['trace']['orders']['pcatilt']
+        lnpc = len(ofit)-1
+        # Only do a PCA if there are enough good orders
+        if np.sum(1.0-extrap_row) > ofit[0]+1:
+            # Perform a PCA on the tilts
+            msgs.info("Performing a PCA on the tilts")
+            ordsnd = np.linspace(0.0, 1.0, msarc.shape[0])
+            xcen = xv[:, np.newaxis].repeat(msarc.shape[0], axis=1)
+            fitted, outpar = arpca.basis(xcen, tiltval, tcoeff, lnpc, ofit, weights=None,
+                                         x0in=ordsnd, mask=maskrw, skipx0=False,
+                                         function=slf._argflag['trace']['orders']['function'])
+            arpca.pc_plot(slf, outpar, ofit, pcadesc="Spectral Tilts PCA", addOne=False)
+            # Extrapolate the remaining orders requested
+            orders = np.linspace(0.0, 1.0, msarc.shape[0])
+            extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=slf._argflag['trace']['orders']['function'])
+            polytilts = extrap_tilt.T
+        else:
+            # Fit the model with a 2D polynomial
+            msgs.warn("Could not perform a PCA when tracing the spectral tilt" + msgs.newline() +
+                      "Not enough well-traced arc lines")
+            msgs.info("Fitting tilts with a low order 2D polynomial")
+            wgd = np.where(xtilt != maskval)
+            coeff = arutils.polyfit2d_general(xtilt[wgd], ytilt[wgd], mtilt[wgd], fitxy)
+            polytilts = arutils.polyval2d_general(coeff, np.linspace(0.0, 1.0, msarc.shape[1]),
+                                                  np.linspace(0.0, 1.0, msarc.shape[0]))
+        if guesstilts is not None:
+            polytilts += guesstilts
 
-        tiltspl = interp.RectBivariateSpline(xspl, yspl, zspl, kx=3, ky=3)
-        yval = np.linspace(0.0, 1.0, msarc.shape[0])
-        tilts = tiltspl(xspl, yval, grid=True).T
+        if slf._argflag['trace']['orders']['tilts'].lower() == "spline":
+            xspl = np.linspace(0.0, 1.0, msarc.shape[1])
+            yspl = np.append(0.0, np.append(arcdet[np.where(aduse)]/(msarc.shape[0]-1.0), 1.0))
+            zspl = np.zeros((msarc.shape[1], np.sum(aduse)+2))
+            zspl[:, 1:-1] = mtilt[:, np.where(aduse)[0]]
+            zspl[:, 0] = zspl[:, 1] + polytilts[0, :] - polytilts[arcdet[np.where(aduse)[0][0]], :]
+            zspl[:, -1] = zspl[:, -2] + polytilts[-1, :] - polytilts[arcdet[np.where(aduse)[0][-1]], :]
 
-    #debugger.set_trace()
+            tiltspl = interp.RectBivariateSpline(xspl, yspl, zspl, kx=3, ky=3)
+            yval = np.linspace(0.0, 1.0, msarc.shape[0])
+            tilts = tiltspl(xspl, yval, grid=True).T
+        elif slf._argflag['trace']['orders']['tilts'].lower() == "pca":
+            tilts = polytilts.copy()
+        if tt < nitertilts-1:
+            # Provide a starting guess of the tilts for the next iteration
+            guesstilts = tilts.copy()
+
     # Now do the QA
     tiltsplot = tilts[arcdet, :].T
     tiltsplot *= (msarc.shape[0]-1.0)
     ztilt[np.where(ztilt != maskval)] *= (msarc.shape[0]-1.0)
     for i in xrange(arcdet.size):
         w = np.where(ztilt[:, i] != maskval)
+        if guesstilts is not None:
+            ztilt[w[0], i] += stilt[w[0], i]
         if w[0].size != 0:
             twa = (xtilt[w[0], i]*(msarc.shape[1]-1.0)+0.5).astype(np.int)
             #fitcns = np.polyfit(w[0], ztilt[w[0], i] - tiltsplot[twa, i], 0)[0]
@@ -1052,13 +1149,12 @@ def model_tilt_test(slf, det, msarc, censpec=None, plotQA=False, refine_tilts=Fa
     xdat = xtilt.copy()
     xdat[np.where(xdat != maskval)] *= (msarc.shape[1]-1.0)
 
-    if plotQA:
-        arplot.plot_orderfits(slf, tiltsplot, ztilt, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
-                              textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
+    arplot.plot_orderfits(slf, tiltsplot, ztilt, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
+                          textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
     return tilts, satsnd
 
 
-def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, refine_tilts=False, maskval=-999999.9):
+def model_tilt_old(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, refine_tilts=False, maskval=-999999.9):
     """
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
     """
@@ -1077,8 +1173,8 @@ def model_tilt(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False, ref
     plt.clf()
     if slf._argflag['trace']['orders']['tilts'] == 'fit1D':
         # Go along each order and fit the tilts in 1D
-        tiltang = -999999.9*np.ones(arcdet.size)
-        centval = -999999.9*np.ones(arcdet.size)
+        tiltang = maskval*np.ones(arcdet.size)
+        centval = maskval*np.ones(arcdet.size)
         tcoeff = np.ones((slf._argflag['trace']['orders']['tiltorder']+1, msarc.shape[0]))
         weights = np.zeros(msarc.shape[0])
         msgs.work("This next step could be multiprocessed to speed up the reduction")

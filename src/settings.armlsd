@@ -82,7 +82,7 @@ trace orders fracignore 0.6           # If an order spans less than this fractio
 trace orders pca [3,2,1,0,0,0]        # What order polynomials should be used to fit the principle components
 trace orders pcxpos     3             # How many extra orders to predict in the positive direction
 trace orders pcxneg     3             # How many extra orders to predict in the negative direction
-trace orders tilts      fit1D         # What method should be used to trace the tilt of the slit along an order (trace, fit1D, fit2D, perp, zero)
+trace orders tilts      pca        # What method should be used to trace the tilt of the slit along an order (PCA, spline, perp, zero)
 trace orders pcatilt    [1,1,0]       # What order polynomials should be used to fit the tilt principle components
 trace orders tiltorder  2             # What is the order of the function to be used for tilts in a given order
 

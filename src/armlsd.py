@@ -124,16 +124,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             ###############
             # Derive the spectral tilt
             if slf._tilts[det-1] is None:
-                tilts, satmask = artrace.model_tilt_test(slf, det, slf._msarc[det-1], plotQA=True)
-                # First time tilts are derived for this arc frame --> derive the order tilts
-#                tilts = None
-#                nitertilts = 2
-#                doQA = False
-#                for tt in range(nitertilts):
-#                    msgs.info("Iterating on spectral tilts -- Iteration {0:d}/{1:d}".format(tt+1, nitertilts))
-#                    if tt == nitertilts-1:
-#                        doQA = True
-#                    tilts, satmask = artrace.model_tilt(slf, det, slf._msarc[det-1], guesstilts=tilts, plotQA=doQA)
+                tilts, satmask = artrace.model_tilt(slf, det, slf._msarc[det-1])
                 slf.SetFrame(slf._tilts, tilts, det)
                 slf.SetFrame(slf._satmask, tilts, det)
 
@@ -150,7 +141,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                 update = slf.MasterWave(fitsdict, det)
                 if update and reuseMaster:
                     armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
-
 
             ###############
             # Check if the user only wants to prepare the calibrations
@@ -178,7 +168,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             # Extract
             msgs.info("Processing science frame")
             arproc.reduce_frame(slf, sciframe, scidx, fitsdict, det)
-
 
             #continue
             #msgs.error("UP TO HERE")
