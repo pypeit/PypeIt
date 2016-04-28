@@ -186,7 +186,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
                 msgs.warn("Bad Profile fit for object={:s}.  Skipping Optimal".format(specobjs[o].idx))
                 scitrace['opt_profile'].append(fdict)
                 continue
-            msgs.work("Consider flagging CRs here")
+            msgs.work("Consider flagging/removing CRs here")
             # Record
             fdict['param'] = gfit
             fdict['mask'] = mask
