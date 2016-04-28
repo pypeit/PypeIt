@@ -777,8 +777,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     if standard:
         slf._msstd[det-1]['trace'] = scitrace
         specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict,
-                                                         trc_img=scitrace,
-                                                         objtype='standard')
+                                      trc_img=scitrace, objtype='standard')
         slf._msstd[det-1]['spobjs'] = specobjs
     else:
         slf._scitrace[det-1] = scitrace
@@ -794,9 +793,9 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         #continue
     # Boxcar
     arextract.boxcar(slf, det, specobjs, sciframe-bgframe, varframe, bgframe, crmask, scitrace)
-#    set_trace()
     # Return
     return True
+
 
 def sn_frame(slf, sciframe, idx):
 

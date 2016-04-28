@@ -13,10 +13,9 @@ import artrace
 import arqa
 
 try:
-    from xastropy.xutils.xdebug import set_trace
-#    from xastropy.xutils import xdebug as xdb
-except ImportError:
-    from pdb import set_trace
+    from xastropy.xutils import xdebug as debugger
+except:
+    import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -127,7 +126,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                 tilts, satmask = artrace.model_tilt(slf, det, slf._msarc[det-1])
                 slf.SetFrame(slf._tilts, tilts, det)
                 slf.SetFrame(slf._satmask, tilts, det)
-
                 # Setup arc parameters (e.g. linelist)
                 arcparam = ararc.setup_param(slf, sc, det, fitsdict)
                 slf.SetFrame(slf._arcparam, arcparam, det)
