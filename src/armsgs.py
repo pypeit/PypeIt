@@ -133,6 +133,12 @@ class Messages:
         """
         Close the log file before the code exits
         """
+        # Close PDFs
+        try:
+            self.sciexp._qa.close()
+        except AttributeError:
+            pass
+        # Close log
         if self._log:
             self._log.close()
 
