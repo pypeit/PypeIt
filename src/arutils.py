@@ -718,8 +718,8 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
             mask[w] = 1
         if mskcnt == np.sum(mask): break  # No new values have been included in the mask
         mskcnt = np.sum(mask)
-        w = np.where(mask == 0)
     # Final fit
+    w = np.where(mask == 0)
     xfit = xarray[w]
     yfit = yarray[w]
     if weights is not None:

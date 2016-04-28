@@ -20,8 +20,9 @@ class Messages:
         ----------
         log : str
           Name of saved log file (no log will be saved if log=="")
-        debug : bool
-          Used for debugging. Should be set to False in all other cases
+        debug : dict
+          dict used for debugging.
+          'LOAD', 'BIAS', 'ARC', 'TRACE'
         last_updated : str
           The data of last update
         version : str
@@ -108,6 +109,7 @@ class Messages:
         print "##   -c or --cpus      : (all) Number of cpu cores to use"
         print "##   -h or --help      : Print this message"
         print "##   -v or --verbose   : (2) Level of verbosity (0-2)"
+        print "##   -m or --use_masters : Use files in MasterFrames for reduction"
         print "##  -------------------------------------------------------------"
         print "##  Available pipelines include:"
         print "##   " + armlist
@@ -120,7 +122,7 @@ class Messages:
         sys.exit()
 
     def debugmessage(self):
-        if self._debug:
+        if self._debug['develop']:
             info = getouterframes(currentframe())[2]
             dbgmsg = self._start+self._blue_CL+info[1].split("/")[-1]+" "+str(info[2])+" "+info[3]+"()"+self._end+" - "
         else:
@@ -154,6 +156,12 @@ class Messages:
         if self._log:
             self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
         self.close()
+        # Close PDFs
+        try:
+            self.sciexp._qa.close()
+        except AttributeError:
+            pass
+        #
         if usage:
             self.usage(None)
         sys.exit()
@@ -208,10 +216,18 @@ class Messages:
             self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
         return
 
-    def bug(self, msg):
+    def bug(self, msg, close_pdf=False):
         """
         Print a bug message
         """
+        # Close PDF?
+        if close_pdf:
+            tmsgs = get_logger()
+            try:
+                tmsgs.sciexp._qa.close()
+            except AttributeError:
+                pass
+        #
         dbgmsg = self.debugmessage()
         premsg = self._start + self._white_BK + "[BUG]     ::" + self._end + " "
         print >>sys.stderr, premsg+dbgmsg+msg

@@ -210,10 +210,12 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Order", m
                 xmn = np.min(xmodl)
                 xmx = np.max(xmodl)
             else:
-                xmn = min(np.min(xtmp), np.min(xmodl))
-                xmx = max(np.max(xtmp), np.max(xmodl))
+                xmn = np.min(xtmp)
+                xmx = np.max(xtmp)
+                #xmn = min(np.min(xtmp), np.min(xmodl))
+                #xmx = max(np.max(xtmp), np.max(xmodl))
             if axesIdx:
-                axes[ind].axis([xmn, xmx, amn, amx])
+                axes[ind].axis([xmn, xmx, amn-1, amx+1])
                 axes[ind].set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
             else:
                 axes.axis([xmn, xmx, amn, amx])

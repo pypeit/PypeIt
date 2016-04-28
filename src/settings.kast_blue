@@ -28,18 +28,19 @@
 #    
 ### Mosaic properties
 mosaic ndet 1                         # Number of detectors in the mosaic
-mosaic latitude 37.3413889             # Latitude of the telescope
-mosaic longitude +121.6428             # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
-mosaic elevation 1283.0                # Elevation of the telescope (in m)
-mosaic reduction ARMLSD                # Which reduction pipeline should be used for this instrument
+mosaic latitude 37.3413889            # Latitude of the telescope
+mosaic longitude +121.6428            # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+mosaic elevation 1283.0               # Elevation of the telescope (in m)
+mosaic reduction ARMLSD               # Which reduction pipeline should be used for this instrument
+mosaic camera KASTb                   # Which reduction pipeline should be used for this instrument
 
 ### Detector properties
 det01 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
 det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
 det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)
 det01 darkcurr 0.0                    # Dark current (e-/hour)
-det01 ronoise 12.5                    # Read-out noise (e-)
-det01 gain 3.0                        # Inverse gain (e-/ADU)
+det01 ronoise 3.7                     # Read-out noise (e-)
+det01 gain 1.2                        # Inverse gain (e-/ADU)
 det01 saturation 65535.0              # The detector Saturation level
 det01 nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det01 numamplifiers 2                 # Number of amplifiers
@@ -150,7 +151,7 @@ pixflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on
 pixflat match naxis0 =0             # Match the shape of flats with science
 pixflat match naxis1 =0             # Match the shape of flats with science
 pixflat match decker ''             # Check the same decker as the science frame was used
-pixflat match cdangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
+#pixflat match cdangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
 
 ### Blaze Flat frames
 blzflat idname None                   # Header key value of trace frame for header keyword keyword+idname
@@ -165,10 +166,11 @@ trace number 0                    # Number of flat frames to use
 trace canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
 trace lscomb False                # Combine a long and short flat
 trace check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
+trace check condition2 exptime>0  # Required for bias
 trace match naxis0 =0             # Match the shape of flats with science
 trace match naxis1 =0             # Match the shape of flats with science
 trace match decker ''             # Check the same decker as the science frame was used
-trace match cdangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+#trace match cdangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
 
 ### Arc frames
 arc idname OBJECT                   # Header key value of arc frame for header keyword keyword+idname
@@ -178,4 +180,4 @@ arc lscomb False                    # Combine a long and short arc
 arc check condition1 lampstat06=on|lampstat07=on|lampstat08=on|lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on|lampstat13=on|lampstat14=on|lampstat15=on|lampstat16=on
 arc match naxis0 =0                 # Match the shape of arcs with science
 arc match naxis1 =0                 # Match the shape of arcs with science
-arc match cdangle |<=5              # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+#arc match cdangle |<=5              # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)

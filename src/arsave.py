@@ -105,15 +105,39 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
     return
 
 
-def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[]):
+def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
+                extensions=None, keywds=None):
+    """ Write a MasterFrame
+    Parameters
+    ----------
+    slf
+    data
+    filename
+    frametype
+    ind
+    extensions : list of additional data images
+    keywds : Additional keywords for the Header
+    Returns
+    -------
+    """
     msgs.info("Saving master {0:s} frame as:".format(frametype)+msgs.newline()+filename)
     hdu = pyfits.PrimaryHDU(data)
-    hdulist = pyfits.HDUList([hdu])
+    # Extensions
+    hlist = [hdu]
+    if extensions is not None:
+        for exten in extensions:
+            hlist.append(pyfits.ImageHDU(exten))
+    # HDU list
+    hdulist = pyfits.HDUList(hlist)
+    # Header
     msgs.info("Writing header information")
     for i in xrange(len(ind)):
         hdrname = "FRAME{0:03d}".format(i+1)
         hdulist[0].header[hdrname] = (slf._fitsdict['filename'][ind[i]], 'PYPIT: File used to generate Master {0:s}'.format(frametype))
     hdulist[0].header["FRAMETYP"] = (frametype, 'PYPIT: Master calibration frame type')
+    if keywds is not None:
+        for key in keywds.keys():
+            hdulist[0].header[key] = keywds[key]
     # Write the file to disk
     if os.path.exists(filename):
         if slf._argflag['out']['overwrite'] == True:
@@ -137,7 +161,6 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[]):
         hdulist.writeto(filename)
         msgs.info("Master {0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
     return
-
 
 def save_ordloc(slf, fname):
     # Derive a suitable name
@@ -294,8 +317,7 @@ def save_1d_spectra(slf, clobber=True):
             hdus += [tbhdu]
     # Finish
     hdulist = pyfits.HDUList(hdus)
-#    hdulist.writeto(slf._argflag['run']['scidir']+'/spec1d_{:s}.fits'.format(slf._basename), clobber=clobber)
-    hdulist.writeto(slf._argflag['run']['scidir']+'/spec1d_{:s}.fits'.format(slf._target_name+str("_")+slf._basename.replace(":","_")), clobber=clobber)
+    hdulist.writeto(slf._argflag['run']['scidir']+'/spec1d_{:s}.fits'.format(slf._basename), clobber=clobber)
 
 #def write_sensitivity():
     #sensfunc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.yaml".format(os.getcwd(), slf._argflag['run']['masterdir'], slf._fitsdict['target'][scidx[0]], 0, "sensfunc")
@@ -304,3 +326,42 @@ def save_1d_spectra(slf, clobber=True):
     #    yamlf.write( yaml.dump(slf._sensfunc))
     #with io.open(sensfunc_name, 'w', encoding='utf-8') as f:
     #    f.write(unicode(json.dumps(slf._sensfunc, sort_keys=True, indent=4, separators=(',', ': '))))
+
+def save_2d_images(slf, clobber=True):
+    """ Write 2D images to the hard drive
+    Parameters
+    ----------
+    slf
+    clobber
+
+    Returns
+    -------
+
+    """
+    # Primary header
+    prihdu = pyfits.PrimaryHDU()
+    hdus = [prihdu]
+
+    ext = 0
+    for kk in xrange(slf._spect['mosaic']['ndet']):
+        det = kk+1
+
+        # Processed frame
+        ext += 1
+        keywd = 'EXT{:04d}'.format(ext)
+        prihdu.header[keywd] = 'DET{:d}-Processed'.format(det)
+        hdu = pyfits.ImageHDU(slf._sciframe[det-1])
+        hdu.name = prihdu.header[keywd]
+        hdus.append(hdu)
+
+        # Background subtracted
+        ext += 1
+        keywd = 'EXT{:04d}'.format(ext)
+        prihdu.header[keywd] = 'DET{:d}-Skysub'.format(det)
+        hdu = pyfits.ImageHDU(slf._sciframe[det-1]-slf._bgframe[det-1])
+        hdu.name = prihdu.header[keywd]
+        hdus.append(hdu)
+
+    # Finish
+    hdulist = pyfits.HDUList(hdus)
+    hdulist.writeto(slf._argflag['run']['scidir']+'/spec2d_{:s}.fits'.format(slf._basename), clobber=clobber)

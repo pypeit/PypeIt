@@ -22,6 +22,7 @@ try:
 except:
     import pdb as debugger
 
+
 def dispdir(msframe, dispwin=None, mode=0):
     """
     Estimate which axis is predominantly the dispersion direction of the data
@@ -81,7 +82,9 @@ def dispdir(msframe, dispwin=None, mode=0):
             return 1
 
 
-def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0, triml=None, trimr=None, sigmin=2.0, bgreg=None, maskval=-999999.9, order=0):
+def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
+                 triml=None, trimr=None, sigmin=2.0, bgreg=None,
+                 maskval=-999999.9, order=0, doqa=True):
     """ Finds objects, and traces their location on the detector
     Parameters
     ----------
@@ -96,6 +99,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0, triml=None, tri
     bgreg
     maskval
     order
+    doqa
 
     Returns
     -------
@@ -165,6 +169,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0, triml=None, tri
     #plt.plot(trcxrng[objl[0]:objr[0]+1],trcprof[objl[0]:objr[0]+1],'bx')
     #plt.show()
     nobj = objl.size
+    if msgs._debug['trace_obj']:
+        nobj = 1
     if nobj==1:
         msgs.info("Found {0:d} object".format(objl.size))
         msgs.info("Tracing {0:d} object".format(objl.size))
@@ -257,10 +263,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0, triml=None, tri
         rec_bg_img[:,:,o] = rec_img.copy()
         #arutils.ds9plot(rec_img)
     # Save the quality control
-    try:
+    if doqa:
         arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, root="object_trace", normalize=False)
-    except ValueError:
-        set_trace()
     # Trace dict
     tracedict = dict({})
     tracedict['traces'] = traces
@@ -309,6 +313,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     plxbin = arcyutils.bin_x(slf._pixlocn[det-1][:,:,0], binby, 1)
     plybin = arcyutils.bin_x(slf._pixlocn[det-1][:,:,1], binby, 1)
     msgs.info("Detecting order edges")
+    #debugger.set_trace()
     if singleSlit:
         msgs.info("Detecting slit edges")
         filt = ndimage.sobel(binarr, axis=1, mode='constant')
@@ -404,14 +409,29 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         lcnt = 1
     msgs.info("Assigning orders")
     #arutils.ds9plot(edgearr)
-    lmin, lmax, rmin, rmax = arcytrace.assign_orders(edgearr, slf._dispaxis, lcnt, rcnt)
-    msgs.info("Ignoring orders that span < {0:3.2f}x{1:d} pixels on the detector".format(slf._argflag['trace']['orders']['fracignore'],int(edgearr.shape[slf._dispaxis]*binby)))
-    fracpix = int(slf._argflag['trace']['orders']['fracignore']*edgearr.shape[slf._dispaxis])
-    lnc, lxc, rnc, rxc, ldarr, rdarr = arcytrace.ignore_orders(edgearr, slf._dispaxis, fracpix, lmin, lmax, rmin, rmax)
-    lmin += lnc
-    rmin += rnc
-    lmax -= lxc
-    rmax -= rxc
+    iterate = True
+    while iterate:
+        lmin, lmax, rmin, rmax = arcytrace.assign_orders(edgearr, slf._dispaxis, lcnt, rcnt)
+        msgs.info("Ignoring orders that span < {0:3.2f}x{1:d} pixels on the detector".format(slf._argflag['trace']['orders']['fracignore'],int(edgearr.shape[slf._dispaxis]*binby)))
+        fracpix = int(slf._argflag['trace']['orders']['fracignore']*edgearr.shape[slf._dispaxis])
+        lnc, lxc, rnc, rxc, ldarr, rdarr = arcytrace.ignore_orders(edgearr, slf._dispaxis, fracpix, lmin, lmax, rmin, rmax)
+        lmin += lnc
+        rmin += rnc
+        lmax -= lxc
+        rmax -= rxc
+        iterate = False
+        if singleSlit: # Another check on slits for singleSlit
+            if lmax < lmin:
+                msgs.warn("Unable to find a left edge. Adding one in.")
+                iterate = True
+                edgearr[:,0] = -1000
+                lcnt = 1
+            if rmax < rmin:
+                msgs.warn("Unable to find a right edge. Adding one in.")
+                iterate = True
+                edgearr[:,-1] = 1000
+                rcnt = 1
+    # Left order traces
     msgs.info("Fitting left order traces")
     lcoeff = np.zeros((1+slf._argflag['trace']['orders']['polyorder'],lmax-lmin+1))
 #	lfail = np.array([])
@@ -1264,7 +1284,8 @@ def model_tilt_old(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False,
                 params, fail = arutils.gauss_lsqfit(xfit, cc, 0.0)
                 centv = ccval + pcen - arcdet[j] - params[1]
                 xtfit[k+sz] = ordcen[arcdet[j],0]+k
-                if guesstilts is not None: shfit[k+sz] = guesstilts[arcdet[j],ordcen[arcdet[j],0]+k]*float(msarc.shape[0]-1.0)
+                if guesstilts is not None:
+                    shfit[k+sz] = guesstilts[arcdet[j],ordcen[arcdet[j],0]+k]*float(msarc.shape[0]-1.0)
                 ytfit[k+sz] = centv - shfit[k+sz]
                 etfit[k+sz] = 0.02
                 apfit[k+sz] = params[0]
@@ -1331,7 +1352,8 @@ def model_tilt_old(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False,
                 params, fail = arutils.gauss_lsqfit(xfit, cc, 0.0)
                 centv = ccval + pcen - arcdet[j] - params[1]
                 xtfit[sz-k] = ordcen[arcdet[j],0]-k
-                if guesstilts is not None: shfit[sz-k] = guesstilts[arcdet[j],ordcen[arcdet[j],0]-k]*float(msarc.shape[0]-1.0)
+                if guesstilts is not None:
+                    shfit[sz-k] = guesstilts[arcdet[j],ordcen[arcdet[j],0]-k]*float(msarc.shape[0]-1.0)
                 ytfit[sz-k] = centv - shfit[sz-k]
                 etfit[sz-k] = 0.02
                 apfit[sz-k] = params[0]
@@ -1363,7 +1385,8 @@ def model_tilt_old(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False,
             factr = (msarc.shape[0]-1.0)*arutils.func_val(mcoeff, ordcen[arcdet[j],0],
                                                           slf._argflag['trace']['orders']['function'],
                                                           minv=0.0, maxv=msarc.shape[1]-1.0)
-            if guesstilts is not None: factr += guesstilts[arcdet[j], ordcen[arcdet[j], 0]]*float(msarc.shape[0]-1.0)
+            if guesstilts is not None:
+                factr += guesstilts[arcdet[j], ordcen[arcdet[j], 0]]*float(msarc.shape[0]-1.0)
             idx = int(factr+0.5)
             if (idx > 0) and (idx < msarc.shape[0]):
                 maskrows[idx] = 0     # mcoeff[0] is the centroid of the arc line
@@ -1377,7 +1400,8 @@ def model_tilt_old(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False,
             dtilt[1,j] = wmask.size        # Record how well the spectral trace has been determined for this line
             #if not np.isnan(1.0/sig): wtilt[:wmask[0].size,j] = ((msarc.shape[0]-1.0)/sig)**2
             zwght = ytfit[wmask]
-            if np.max(np.abs(zwght[1:]-zwght[:-1]))!=0.0: wtilt[:wmask.size,j] = 1.0/np.max(np.abs(zwght[1:]-zwght[:-1]))
+            if np.max(np.abs(zwght[1:]-zwght[:-1]))!=0.0:
+                wtilt[:wmask.size,j] = 1.0/np.max(np.abs(zwght[1:]-zwght[:-1]))
         # --\
         #tcoeff = np.ones((slf._argflag['trace']['orders']['tiltorder']+1,msarc.shape[1]))
         # --/
@@ -1439,6 +1463,7 @@ def model_tilt_old(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False,
                     tilts = extrap_tilt.T
                     #arpca.pc_plot_arctilt(tiltang, centval, tilts, plotsdir=slf._argflag['run']['plotsdir'], pcatype="tilts", prefix=prefix)
             else:
+                outpar = {}
                 msgs.warn("Could not perform a PCA when tracing the spectral tilt"+msgs.newline()+"Not enough well-traced arc lines")
                 msgs.info("Attempting to fit tilts by assuming the tilt is independent along the dispersion direction")
                 xtiltfit = np.array([])
@@ -1468,7 +1493,7 @@ def model_tilt_old(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False,
 
     # Perform a high order 2D polynomial fit to the best PCA tilts, then interpolate
 #    if refine_tilts:
-#        set_trace()
+#        debugger.set_trace()
 
     #xx, yy = np.meshgrid(np.arange(msarc.shape[1])/(msarc.shape[1]-1.0), np.arange(msarc.shape[0])/(msarc.shape[0]-1.0))
     #coeff = arutils.polyfit2d(xx, yy, tilts, [8,8])
@@ -1517,7 +1542,7 @@ def model_tilt_old(slf, det, msarc, guesstilts=None, censpec=None, plotQA=False,
     #     plt.show()
     #     # Fit each arc line the same as the blaze fitting algorithm, but only consider the brightest lines
     #     # Linearly interpolate over the result. In between the best lines, take an average of the PCA and the interpolated tilts (based on the brightest lines)
-    return tilts, satsnd
+    return tilts, satsnd, outpar
 
 
 def trace_fweight(fimage, xinit, invvar=None, radius=3.):
