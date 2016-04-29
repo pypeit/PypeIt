@@ -14,6 +14,7 @@ import ardebug
 debug = ardebug.init()
 #debug['develop'] = True
 #debug['arc'] = True
+#debug['sky_sub'] = True
 last_updated = "27 April 2016"
 version = '0.3'
 

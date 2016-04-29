@@ -351,14 +351,33 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     bgpix = bgmodel[whord]
     sbgpix = bgpix[xargsrt]
     wbg = np.where(sbgpix != maskval)
+    if msgs._debug['sky_sub']:
+        gdp = scifrcp != maskval
+        debugger.xplot(tilts[gdp]*tilts.shape[0], scifrcp[gdp], scatter=True)
+        debugger.xplot(tilts[gdp]*tilts.shape[0], bgmodel[gdp], scatter=True)
+        plt.clf()
+        ax = plt.gca()
+        ax.scatter(tilts[1749,:], scifrcp[1749,:], color='green')
+        ax.scatter(tilts[1750,:], scifrcp[1750,:], color='blue')
+        ax.scatter(tilts[1751,:], scifrcp[1751,:], color='red')
+        ax.scatter(tilts[1752,:], scifrcp[1752,:], color='orange')
+        ax.set_ylim(0., 3000)
+        plt.show()
+        debugger.set_trace()
     # Smooth this spectrum
     polyorder = 1
     xpix = sxvpix[wbg]
     maxdiff = np.sort(xpix[1:]-xpix[:-1])[xpix.size-sciframe.shape[0]-1] # only include the next pixel in the fit if it is less than 10x the median difference between all pixels
     msgs.info("Generating sky background image")
+    if msgs._debug['sky_sub']:
+        debugger.set_trace()
+        debugger.xplot(sxvpix[wbg]*tilts.shape[0], sbgpix[wbg], scatter=True)
     bgscan = arcyutils.polyfit_scan_lim(sxvpix[wbg], sbgpix[wbg].copy(), np.ones(wbg[0].size,dtype=np.float), maskval, polyorder, sciframe.shape[1]/3, repeat, maxdiff)
     # Restrict to good values
     gdscan = bgscan != maskval
+    if msgs._debug['sky_sub']:
+        debugger.set_trace()
+        debugger.xplot(sxvpix[wbg[0][gdscan]]*tilts.shape[0], sbgpix[wbg[0][gdscan]], scatter=True)
     if np.sum(~gdscan) > 0:
         msgs.warn("At least one masked value in bgscan")
     # Generate
