@@ -1071,8 +1071,12 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9):
             ytilt[xint:xint+2*sz+1, j] = arcdet[j]/(msarc.shape[0]-1.0)
             ztilt[xint:xint+2*sz+1, j] = ytfit/(msarc.shape[0]-1.0)
             stilt[xint:xint+2*sz+1, j] = shfit
-            #mtilt[xint:xint+2*sz+1, j] = model/(msarc.shape[0]-1.0)
-            mtilt[xint:xint+2*sz+1, j] = (2.0*model[sz]-model)/(msarc.shape[0]-1.0)
+            if slf._argflag['trace']['orders']['tilts'].lower() == "spline":
+                mtilt[xint:xint+2*sz+1, j] = model/(msarc.shape[0]-1.0)
+            elif slf._argflag['trace']['orders']['tilts'].lower() == "interp":
+                mtilt[xint:xint+2*sz+1, j] = (2.0*model[sz]-model)/(msarc.shape[0]-1.0)
+            else:
+                mtilt[xint:xint+2*sz+1, j] = (2.0*model[sz]-model)/(msarc.shape[0]-1.0)
             wbad = np.where(ytfit == maskval)[0]
             ztilt[xint+wbad, j] = maskval
 
@@ -1137,19 +1141,24 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9):
         if guesstilts is not None:
             polytilts += guesstilts
 
-        if slf._argflag['trace']['orders']['tilts'].lower() == "spline":
+        if slf._argflag['trace']['orders']['tilts'].lower() in ["spline", "interp"]:
             xspl = np.linspace(0.0, 1.0, msarc.shape[1])
             yspl = np.append(0.0, np.append(arcdet[np.where(aduse)]/(msarc.shape[0]-1.0), 1.0))
             zspl = np.zeros((msarc.shape[1], np.sum(aduse)+2))
             zspl[:, 1:-1] = mtilt[:, np.where(aduse)[0]]
             zspl[:, 0] = zspl[:, 1] + polytilts[0, :] - polytilts[arcdet[np.where(aduse)[0][0]], :]
             zspl[:, -1] = zspl[:, -2] + polytilts[-1, :] - polytilts[arcdet[np.where(aduse)[0][-1]], :]
-
+            # Make sure the endpoints are set to 0.0 and 1.0
+            zspl[:, 0] -= zspl[ordcen[0, 0], 0]
+            zspl[:, -1] = zspl[:, -1] - zspl[ordcen[-1, 0], -1] + 1.0
+            # Prepare the spline variables
             xsbs = np.outer(xspl, np.ones(yspl.size)).flatten()
             ysbs = np.outer(np.ones(xspl.size), yspl).flatten()
             zsbs = zspl.flatten()
-            tiltspl = interp.SmoothBivariateSpline(xsbs, ysbs, zsbs, kx=3, ky=3, s=xsbs.size)
-#            tiltspl = interp.RectBivariateSpline(xspl, yspl, zspl, kx=3, ky=3)
+            if slf._argflag['trace']['orders']['tilts'].lower() == "spline":
+                tiltspl = interp.SmoothBivariateSpline(xsbs, zsbs, ysbs, kx=3, ky=3, s=xsbs.size)
+            elif slf._argflag['trace']['orders']['tilts'].lower() == "interp":
+                tiltspl = interp.RectBivariateSpline(xspl, yspl, zspl, kx=3, ky=3)
             yval = np.linspace(0.0, 1.0, msarc.shape[0])
             tilts = tiltspl(xspl, yval, grid=True).T
         elif slf._argflag['trace']['orders']['tilts'].lower() == "pca":
