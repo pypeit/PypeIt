@@ -836,7 +836,7 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9):
         w = np.where((np.abs(arcdet-detuse[s]) <= ncont) & (np.abs(arcdet-detuse[s]) >= 1.0))[0]
         for u in xrange(w.size):
             if ampl[w[u]] > ampl[olduse][s]:
-                aduse[idxuse[s]] = 0
+                aduse[idxuse[s]] = False
                 break
 
     # Divide the detector into Nseg segments,
@@ -1082,7 +1082,7 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9):
             if np.max(np.abs(zwght[1:]-zwght[:-1])) != 0.0:
                 wtilt[xint:xint+2*sz+1, j] = 1.0/np.max(np.abs(zwght[1:]-zwght[:-1]))
 
-            # Extrapolate off the chip
+            # Extrapolate off the slit to the edges of the chip
             nfit = 6  # Number of pixels to fit a linear function to at the end of each trace
             xlof, xhif = np.arange(xint, xint+nfit), np.arange(xint+2*sz+1-nfit, xint+2*sz+1)
             xlo, xhi = np.arange(xint), np.arange(xint+2*sz+1, msarc.shape[1])
@@ -1145,7 +1145,11 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9):
             zspl[:, 0] = zspl[:, 1] + polytilts[0, :] - polytilts[arcdet[np.where(aduse)[0][0]], :]
             zspl[:, -1] = zspl[:, -2] + polytilts[-1, :] - polytilts[arcdet[np.where(aduse)[0][-1]], :]
 
-            tiltspl = interp.RectBivariateSpline(xspl, yspl, zspl, kx=3, ky=3)
+            xsbs = np.outer(xspl, np.ones(yspl.size)).flatten()
+            ysbs = np.outer(np.ones(xspl.size), yspl).flatten()
+            zsbs = zspl.flatten()
+            tiltspl = interp.SmoothBivariateSpline(xsbs, ysbs, zsbs, kx=3, ky=3, s=xsbs.size)
+#            tiltspl = interp.RectBivariateSpline(xspl, yspl, zspl, kx=3, ky=3)
             yval = np.linspace(0.0, 1.0, msarc.shape[0])
             tilts = tiltspl(xspl, yval, grid=True).T
         elif slf._argflag['trace']['orders']['tilts'].lower() == "pca":
