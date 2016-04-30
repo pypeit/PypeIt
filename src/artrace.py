@@ -1083,10 +1083,8 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
                 mtilt[xint:xint+2*sz+1, j] = (2.0*model[sz]-model)/(msarc.shape[0]-1.0)
             wbad = np.where(ytfit == maskval)[0]
             ztilt[xint+wbad, j] = maskval
-
-            zwght = ytfit[wmask]
-            if np.max(np.abs(zwght[1:]-zwght[:-1])) != 0.0:
-                wtilt[xint:xint+2*sz+1, j] = 1.0/np.max(np.abs(zwght[1:]-zwght[:-1]))
+            if wmask.size != 0:
+                wtilt[xint:xint+2*sz+1, j] = np.sqrt(2.0) / (1.4826 * np.median(np.abs(ytfit-model)[wmask]))
 
             # Extrapolate off the slit to the edges of the chip
             nfit = 6  # Number of pixels to fit a linear function to at the end of each trace
@@ -1172,13 +1170,11 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
             yval = np.linspace(0.0, 1.0, msarc.shape[0])
             tilts = tiltspl(xspl, yval, grid=True).T
         elif slf._argflag['trace']['orders']['tilts'].lower() == "spline":
-            msgs.work('Consider adding weights to SmoothBivariate')
-            xspl = np.linspace(0.0, 1.0, msarc.shape[1])
-            #yspl = np.append(0.0, np.append(arcdet/(msarc.shape[0]-1.0), 1.0))
             wgd = np.where((ytilt != maskval) & (ztilt != maskval))
             txsbs = xtilt[wgd]
             tysbs = ytilt[wgd]
             tzsbs = ztilt[wgd]
+            twsbs = wtilt[wgd]
             # Append the end points
             wlo = np.where((ytilt == np.min(tysbs)) & (ytilt != maskval) & (ztilt != maskval))
             whi = np.where((ytilt == np.max(tysbs)) & (ytilt != maskval) & (ztilt != maskval))
@@ -1189,19 +1185,22 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
             zlo = ztilt[wlo] + polytilts[0, xlo] - polytilts[arcdet[np.where(aduse)[0][0]], xlo]
             zhi = ztilt[whi] + polytilts[-1, xhi] - polytilts[arcdet[np.where(aduse)[0][-1]], xhi]
             zsbs = np.append(zlo, np.append(tzsbs, zhi))
+            wsbs = np.append(wtilt[wlo], np.append(twsbs, wtilt[whi]))
             # Generate the spline curve
-            tiltspl = interp.SmoothBivariateSpline(xsbs, zsbs, ysbs, kx=3, ky=3, s=xsbs.size,
+            tiltspl = interp.SmoothBivariateSpline(xsbs, zsbs, ysbs, w=wsbs, kx=3, ky=3, s=xsbs.size,
                                                    bbox=[0.0, 1.0, min(zsbs.min(), 0.0), max(zsbs.max(), 1.0)])
-            yval = np.linspace(0.0, 1.0, msarc.shape[0])
-            tilts = tiltspl(xspl, yval, grid=True).T
+            xspl = np.linspace(0.0, 1.0, msarc.shape[1])
+            yspl = np.linspace(0.0, 1.0, msarc.shape[0])
+            tilts = tiltspl(xspl, yspl, grid=True).T
             # QA
             if False:
                 tiltqa = tiltspl(xsbs, zsbs, grid=False)
                 plt.clf()
-                #plt.imshow((zsbs-tiltqa)/zsbs, origin='lower')
-                #plt.imshow((ysbs-tiltqa)/ysbs, origin='lower')
+                # plt.imshow((zsbs-tiltqa)/zsbs, origin='lower')
+                # plt.imshow((ysbs-tiltqa)/ysbs, origin='lower')
                 plt.plot(xsbs, (ysbs-tiltqa)/ysbs, 'bx')
-                #plt.colorbar()
+                plt.plot(xsbs, 1.0/(wsbs*ysbs), 'r-')
+                # plt.colorbar()
                 plt.show()
                 debugger.set_trace()
         elif slf._argflag['trace']['orders']['tilts'].lower() == "pca":
@@ -1225,14 +1224,12 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
     ztilto[np.where(ztilto != maskval)] *= (msarc.shape[0]-1.0)
     for i in xrange(arcdet.size):
         w = np.where(ztilto[:, i] != maskval)
-#        if guesstilts is not None:
-#            ztilt[w[0], i] += stilt[w[0], i]
         if w[0].size != 0:
             twa = (xtilt[w[0], i]*(msarc.shape[1]-1.0)+0.5).astype(np.int)
             # fitcns = np.polyfit(w[0], ztilt[w[0], i] - tiltsplot[twa, i], 0)[0]
             fitcns = np.median(ztilto[w[0], i] - tiltsplot[twa, i])
-            if abs(fitcns) > 1.0:
-                msgs.warn("The tilt of Arc Line {0:d} might be poorly traced".format(i+1))
+            # if abs(fitcns) > 1.0:
+            #     msgs.warn("The tilt of Arc Line {0:d} might be poorly traced".format(i+1))
             tiltsplot[:, i] += fitcns
 
     xdat = xtilt.copy()
