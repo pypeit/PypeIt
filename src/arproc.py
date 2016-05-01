@@ -344,44 +344,66 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     scifrcp = scimask.copy()
     scifrcp[whord] += (maskval*maskpix)[rxargsrt]
     scifrcp[np.where(ordpix == 0)] = maskval
-    msgs.info("Fitting sky background spectrum")
-    polypoints = 5
-    nsmth = 15
-    bgmodel = arcyproc.polyscan_fitsky(tilts.copy(), scifrcp.copy(), 1.0/errframe, maskval, polyorder, polypoints, nsmth, repeat)
-    bgpix = bgmodel[whord]
-    sbgpix = bgpix[xargsrt]
-    wbg = np.where(sbgpix != maskval)
-    if msgs._debug['sky_sub']:
+    # Check tilts?
+    if msgs._debug['tilts']:
         gdp = scifrcp != maskval
         debugger.xplot(tilts[gdp]*tilts.shape[0], scifrcp[gdp], scatter=True)
-        debugger.xplot(tilts[gdp]*tilts.shape[0], bgmodel[gdp], scatter=True)
-        plt.clf()
-        ax = plt.gca()
-        ax.scatter(tilts[1749,:], scifrcp[1749,:], color='green')
-        ax.scatter(tilts[1750,:], scifrcp[1750,:], color='blue')
-        ax.scatter(tilts[1751,:], scifrcp[1751,:], color='red')
-        ax.scatter(tilts[1752,:], scifrcp[1752,:], color='orange')
-        ax.set_ylim(0., 3000)
-        plt.show()
+        if False:
+            plt.clf()
+            ax = plt.gca()
+            ax.scatter(tilts[1749,:], scifrcp[1749,:], color='green')
+            ax.scatter(tilts[1750,:], scifrcp[1750,:], color='blue')
+            ax.scatter(tilts[1751,:], scifrcp[1751,:], color='red')
+            ax.scatter(tilts[1752,:], scifrcp[1752,:], color='orange')
+            ax.set_ylim(0., 3000)
+            plt.show()
         debugger.set_trace()
-    # Smooth this spectrum
-    polyorder = 1
-    xpix = sxvpix[wbg]
-    maxdiff = np.sort(xpix[1:]-xpix[:-1])[xpix.size-sciframe.shape[0]-1] # only include the next pixel in the fit if it is less than 10x the median difference between all pixels
-    msgs.info("Generating sky background image")
-    if msgs._debug['sky_sub']:
-        debugger.set_trace()
-        debugger.xplot(sxvpix[wbg]*tilts.shape[0], sbgpix[wbg], scatter=True)
-    bgscan = arcyutils.polyfit_scan_lim(sxvpix[wbg], sbgpix[wbg].copy(), np.ones(wbg[0].size,dtype=np.float), maskval, polyorder, sciframe.shape[1]/3, repeat, maxdiff)
-    # Restrict to good values
-    gdscan = bgscan != maskval
-    if msgs._debug['sky_sub']:
-        debugger.set_trace()
-        debugger.xplot(sxvpix[wbg[0][gdscan]]*tilts.shape[0], sbgpix[wbg[0][gdscan]], scatter=True)
-    if np.sum(~gdscan) > 0:
-        msgs.warn("At least one masked value in bgscan")
-    # Generate
-    bgframe = np.interp(tilts.flatten(), sxvpix[wbg[0][gdscan]], bgscan[gdscan]).reshape(tilts.shape)
+    #
+    msgs.info("Fitting sky background spectrum")
+    if slf._argflag['reduce']['bgsubtraction']['method'].lower() == 'polyscan':
+        polypoints = 5
+        nsmth = 15
+        bgmodel = arcyproc.polyscan_fitsky(tilts.copy(), scifrcp.copy(), 1.0/errframe, maskval, polyorder, polypoints, nsmth, repeat)
+        bgpix = bgmodel[whord]
+        sbgpix = bgpix[xargsrt]
+        wbg = np.where(sbgpix != maskval)
+        # Smooth this spectrum
+        polyorder = 1
+        xpix = sxvpix[wbg]
+        maxdiff = np.sort(xpix[1:]-xpix[:-1])[xpix.size-sciframe.shape[0]-1] # only include the next pixel in the fit if it is less than 10x the median difference between all pixels
+        msgs.info("Generating sky background image")
+        if msgs._debug['sky_sub']:
+            debugger.set_trace()
+            debugger.xplot(sxvpix[wbg]*tilts.shape[0], sbgpix[wbg], scatter=True)
+        bgscan = arcyutils.polyfit_scan_lim(sxvpix[wbg], sbgpix[wbg].copy(), np.ones(wbg[0].size,dtype=np.float), maskval, polyorder, sciframe.shape[1]/3, repeat, maxdiff)
+        # Restrict to good values
+        gdscan = bgscan != maskval
+        if msgs._debug['sky_sub']:
+            debugger.set_trace()
+            debugger.xplot(sxvpix[wbg[0][gdscan]]*tilts.shape[0], sbgpix[wbg[0][gdscan]], scatter=True)
+        if np.sum(~gdscan) > 0:
+            msgs.warn("At least one masked value in bgscan")
+        # Generate
+        bgframe = np.interp(tilts.flatten(), sxvpix[wbg[0][gdscan]], bgscan[gdscan]).reshape(tilts.shape)
+    elif slf._argflag['reduce']['bgsubtraction']['method'].lower() == 'bspline':
+        gdp = scifrcp != maskval
+        srt = np.argsort(tilts[gdp])
+        bspl = arutils.func_fit(tilts[gdp][srt], scifrcp[gdp][srt], 'bspline', 3,
+                                **slf._argflag['reduce']['bgsubtraction']['bspline_keywds'])
+        bgf_flat = arutils.func_val(bspl, tilts.flatten(), 'bspline')
+        bgframe = bgf_flat.reshape(tilts.shape)
+        if msgs._debug['sky_sub']:
+            gdp = scifrcp != maskval
+            srt = np.argsort(tilts.flatten())
+            plt.clf()
+            ax = plt.gca()
+            ax.scatter(tilts[gdp]*tilts.shape[0], scifrcp[gdp], marker='o')
+            ax.plot(tilts.flatten()[srt]*tilts.shape[0], bgf_flat[srt], 'r-')
+            plt.show()
+            debugger.set_trace()
+    else:
+        msgs.error('Not ready for this method for bgsubtraction {:s}'.format(
+                slf._argflag['reduce']['bgsubtraction']['method'].lower()))
     if np.sum(np.isnan(bgframe)) > 0:
         msgs.warn("NAN in bgframe.  Replacing with 0")
         bad = np.isnan(bgframe)
@@ -535,8 +557,9 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             #rows = np.arange(recsort.shape[0]/4,(3*recsort.shape[0])/4,dtype=np.int)
             #w = np.ix_(rows,np.arange(recframe.shape[1]))
             #recmean = np.mean(recsort[w],axis=0)
-            for i in xrange(recmean.size):
-                recframe[i,:] /= recmean[i]
+            if slf._argflag['pixflat']['norm']['recnorm']:
+                for i in xrange(recmean.size):
+                    recframe[i,:] /= recmean[i]
             # Undo the rectification
             normflat_unrec = arcyextract.rectify_undo(recframe, slf._pixcen[det-1][:,o], slf._lordpix[det-1][:,o],
                                                       slf._rordpix[det-1][:,o], slf._pixwid[det-1][o], maskval,
