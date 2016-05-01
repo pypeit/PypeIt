@@ -323,6 +323,7 @@ def save_1d_spectra(slf, clobber=True):
             # Finish
             coldefs = pyfits.ColDefs(cols)
             tbhdu = pyfits.BinTableHDU.from_columns(coldefs)
+            tbhdu.name = specobj.idx
             hdus += [tbhdu]
     # Finish
     hdulist = pyfits.HDUList(hdus)
@@ -360,6 +361,14 @@ def save_2d_images(slf, clobber=True):
         keywd = 'EXT{:04d}'.format(ext)
         prihdu.header[keywd] = 'DET{:d}-Processed'.format(det)
         hdu = pyfits.ImageHDU(slf._sciframe[det-1])
+        hdu.name = prihdu.header[keywd]
+        hdus.append(hdu)
+
+        # Variance
+        ext += 1
+        keywd = 'EXT{:04d}'.format(ext)
+        prihdu.header[keywd] = 'DET{:d}-Var'.format(det)
+        hdu = pyfits.ImageHDU(slf._varframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
 

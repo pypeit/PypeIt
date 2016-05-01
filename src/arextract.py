@@ -180,15 +180,10 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
             msgs.work("Weight by S/N in boxcar extraction? [avoid CRs; smooth?]")
             # Fit
             fdict = dict(func=slf._argflag['science']['extraction']['profile'], deg=3)
-            # Guess
+            msgs.work("Should give our own guess here instead of using default")
             guess = None
-            if msgs._debug['obj_profile']: #
-                #if (np.abs(specobjs[o].objid-225) < 20) and (det==2):
-                    #debugger.set_trace()
-                guess = [0.1, 0., 2.2]
             try:
                 mask, gfit = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdict['func'], weights=weight_val, maxone=False, guesses=guess)
-                #mask, gfit = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdict['func'], maxone=False, guesses=guess)
             except RuntimeError:
                 msgs.warn("Bad Profile fit for object={:s}.  Skipping Optimal".format(specobjs[o].idx))
                 scitrace['opt_profile'].append(fdict)
