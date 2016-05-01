@@ -825,7 +825,6 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
     # Determine the best lines to use to trace the tilts
     ncont = 15
     aduse = np.zeros(arcdet.size, dtype=np.bool)  # Which lines should be used to trace the tilts
-    cenline = np.zeros_like(arcdet)
     w = np.where(ampl >= trthrsh)
     aduse[w] = 1
     # Remove lines that are within ncont pixels
@@ -882,12 +881,12 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
         msgs.work("This next step could be multiprocessed to speed up the reduction")
         nspecfit = 7
         nsmth = 3  # Number of pixels +/- in the spatial direction to include in the fit (0=no smoothing, 1=3 pixels, 2=5 pixels...)
-        xtilt = maskval*np.ones((msarc.shape[1], arcdet.size))
-        ytilt = maskval*np.ones((msarc.shape[1], arcdet.size))
-        ztilt = maskval*np.ones((msarc.shape[1], arcdet.size))
-        stilt = maskval*np.ones((msarc.shape[1], arcdet.size))
-        mtilt = maskval*np.ones((msarc.shape[1], arcdet.size))
-        wtilt = maskval*np.ones((msarc.shape[1], arcdet.size))
+        xtilt = np.ones((msarc.shape[1], arcdet.size))*maskval
+        ytilt = np.ones((msarc.shape[1], arcdet.size))*maskval
+        ztilt = np.ones((msarc.shape[1], arcdet.size))*maskval
+        stilt = np.ones((msarc.shape[1], arcdet.size))*maskval
+        mtilt = np.ones((msarc.shape[1], arcdet.size))*maskval
+        wtilt = np.ones((msarc.shape[1], arcdet.size))*maskval
         badlines = 0
         for j in xrange(arcdet.size):
             # For each detection in this order
@@ -901,7 +900,7 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
             # Get the size of the slit
             sz = int(np.floor(np.abs(slf._rordloc[det-1][arcdet[j], 0]-slf._lordloc[det-1][arcdet[j], 0])/2.0)) - 2
             xtfit = np.zeros(2*sz+1)
-            ytfit = maskval*np.ones(2*sz+1)  # Fitted centroid
+            ytfit = np.ones(2*sz+1)*maskval  # Fitted centroid
             etfit = np.zeros(2*sz+1)  # Fitted centroid error
             mtfit = np.ones(2*sz+1, dtype=np.int)   # Mask of bad fits
             apfit = np.zeros(2*sz+1)  # Fitted Amplitude
@@ -978,7 +977,7 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
                 # Get a copy of the array that will be used to cross-correlate
                 # (testcc is probably already False from the Fit Up part of the loop, but it's best to be sure)
                 if tstcc:
-                    #ccyfit = msarc[arcdet[j]-nspecfit:arcdet[j]+nspecfit+1,ordcen[arcdet[j],0]-k]
+                    # ccyfit = msarc[arcdet[j]-nspecfit:arcdet[j]+nspecfit+1,ordcen[arcdet[j],0]-k]
                     ccyfit = msarc[arcdet[j]-nspecfit:arcdet[j]+nspecfit+1,ordcen[arcdet[j],0]-k-nsmth:ordcen[arcdet[j],0]-k+nsmth+1]
                     if len(ccyfit.shape) == 2:
                         ccyfit = np.median(ccyfit, axis=1)
@@ -986,8 +985,8 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
                     if wgd[0].size != 0:
                         continue
                     ccval = arcdet[j] + np.sum(xfit*ccyfit)/np.sum(ccyfit)
-                    tstcc = False # Once we have an array, there's no need to keep looking
-                #yfit = msarc[pcen-nspecfit:pcen+nspecfit+1,ordcen[arcdet[j],0]-k]
+                    tstcc = False  # Once we have an array, there's no need to keep looking
+                # yfit = msarc[pcen-nspecfit:pcen+nspecfit+1,ordcen[arcdet[j],0]-k]
                 yfit = msarc[pcen-nspecfit:pcen+nspecfit+1, ordcen[arcdet[j], 0]-k-nsmth:ordcen[arcdet[j], 0]-k+nsmth+1]
                 if len(yfit.shape) == 2:
                     yfit = np.median(yfit, axis=1)
@@ -1026,10 +1025,10 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
             # Perform a scanning polynomial fit to the tilts
             model = arcyutils.polyfit_scan_intext(xtfit, ytfit, np.ones(ytfit.size, dtype=np.float), mtfit,
                                                   2, sz/6, 3, maskval)
-            #if np.sum(np.isnan(model)) > 0:
-            #    debugger.set_trace()
-            #if len(np.where(np.abs(model) > 1e10)[0]):
-            #    debugger.set_trace()
+            # if np.sum(np.isnan(model)) > 0:
+            #     debugger.set_trace()
+            # if len(np.where(np.abs(model) > 1e10)[0]):
+            #     debugger.set_trace()
 
             if maskval in model:
                 # Model contains masked values
@@ -1037,7 +1036,6 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
                 badlines += 1
                 continue
 
-            #ytfit = (2.0*model[sz]-ytfit)
             ytfit[np.where(mtfit == 1)] = maskval
 
             # Perform a robust polynomial fit to the traces
@@ -1045,10 +1043,8 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
                                                   slf._argflag['trace']['orders']['tiltorder'],
                                                   function=slf._argflag['trace']['orders']['function'],
                                                   sigma=2.0, minv=0.0, maxv=msarc.shape[1]-1.0)
+            # Update the mask
             wmask = wmask[0][np.where(wmsk == 0)]
-            # Calculate the dispersion among the points
-            ytst = ytfit[wmask][1:] - ytfit[wmask][:-1]
-            sig = 1.4826*np.median(np.abs(ytst-np.median(ytst)))/np.sqrt(2.0)
 
             # Save the tilt angle, and unmask the row
             factr = (msarc.shape[0]-1.0)*arutils.func_val(mcoeff, ordcen[arcdet[j],0],
@@ -1142,14 +1138,15 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
             polytilts += guesstilts
 
         if slf._argflag['trace']['orders']['tilts'].lower() == "interp":
+            msgs.info("Interpolating and Extrapolating the tilts")
             xspl = np.linspace(0.0, 1.0, msarc.shape[1])
-            #yspl = np.append(0.0, np.append(arcdet[np.where(aduse)]/(msarc.shape[0]-1.0), 1.0))
-            #yspl = np.append(0.0, np.append(polytilts[arcdet[np.where(aduse)], msarc.shape[1]/2], 1.0))
+            # yspl = np.append(0.0, np.append(arcdet[np.where(aduse)]/(msarc.shape[0]-1.0), 1.0))
+            # yspl = np.append(0.0, np.append(polytilts[arcdet[np.where(aduse)], msarc.shape[1]/2], 1.0))
             ycen = np.diag(polytilts[arcdet[np.where(aduse)], ordcen[arcdet[np.where(aduse)]]])
             yspl = np.append(0.0, np.append(ycen, 1.0))
             zspl = np.zeros((msarc.shape[1], np.sum(aduse)+2))
             zspl[:, 1:-1] = mtilt[:, np.where(aduse)[0]]
-            #zspl[:, 1:-1] = polytilts[arcdet[np.where(aduse)[0]], :].T
+            # zspl[:, 1:-1] = polytilts[arcdet[np.where(aduse)[0]], :].T
             zspl[:, 0] = zspl[:, 1] + polytilts[0, :] - polytilts[arcdet[np.where(aduse)[0][0]], :]
             zspl[:, -1] = zspl[:, -2] + polytilts[-1, :] - polytilts[arcdet[np.where(aduse)[0][-1]], :]
             # Make sure the endpoints are set to 0.0 and 1.0
@@ -1170,6 +1167,7 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
             yval = np.linspace(0.0, 1.0, msarc.shape[0])
             tilts = tiltspl(xspl, yval, grid=True).T
         elif slf._argflag['trace']['orders']['tilts'].lower() == "spline":
+            msgs.info("Performing a spline fit to the tilts")
             wgd = np.where((ytilt != maskval) & (ztilt != maskval))
             txsbs = xtilt[wgd]
             tysbs = ytilt[wgd]
