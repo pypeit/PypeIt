@@ -557,7 +557,7 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             #recmean = np.mean(recsort[w],axis=0)
             if slf._argflag['pixflat']['norm']['recnorm']:
                 for i in xrange(recmean.size):
-                    recframe[i,:] /= recmean[i]
+                    recframe[:, i] /= recmean[i]
             # Undo the rectification
             normflat_unrec = arcyextract.rectify_undo(recframe, slf._pixcen[det-1][:,o], slf._lordpix[det-1][:,o],
                                                       slf._rordpix[det-1][:,o], slf._pixwid[det-1][o], maskval,
