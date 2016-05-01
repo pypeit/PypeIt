@@ -276,7 +276,7 @@ def load_calspec(argflag):
       astropy Table of the calspec standard stars (file, Name, RA, DEC)
     """
     # Read
-    calspec_path = '/data/standards/calspec/'
+    calspec_path = 'data/standards/calspec/'
     calspec_file = argflag['run']['pypitdir'] + calspec_path + 'calspec_info.txt'
     calspec_stds = Table.read(calspec_file, comment='#', format='ascii')
     # Return

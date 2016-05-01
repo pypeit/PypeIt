@@ -158,15 +158,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                         slf._argflag['masters']['loaded'].append('tilts'+slf._argflag['masters']['setup'])
                 if 'tilts'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
                     # First time tilts are derived for this arc frame --> derive the order tilts
-                    tilts = None
-                    nitertilts = 2
-                    doQA = False
-                    for tt in range(nitertilts):
-                        msgs.info("Iterating on spectral tilts -- Iteration {0:d}/{1:d}".format(tt+1, nitertilts))
-                        if tt == nitertilts-1:
-                            doQA = True
-                        tilts, satmask, outpar = artrace.model_tilt(slf, det, slf._msarc[det-1],
-                                                                    guesstilts=tilts, plotQA=doQA)
+                    tilts, satmask, outpar = artrace.model_tilt(slf, det, slf._msarc[det-1])
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
@@ -201,7 +193,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             # Extract
             msgs.info("Processing science frame")
             arproc.reduce_frame(slf, sciframe, scidx, fitsdict, det)
-
 
             #continue
             #msgs.error("UP TO HERE")
