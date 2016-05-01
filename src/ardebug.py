@@ -9,6 +9,7 @@ def init():
                  arc=False,
                  trace=False,
                  wave=False,
+                 tilts=False,
                  sky_sub=False,
                  trace_obj=False,
                  )
