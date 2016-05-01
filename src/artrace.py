@@ -1195,7 +1195,7 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
             yspl = np.linspace(0.0, 1.0, msarc.shape[0])
             tilts = tiltspl(xspl, yspl, grid=True).T
             # QA
-            if False:
+            if msgs._debug['tilts']:
                 tiltqa = tiltspl(xsbs, zsbs, grid=False)
                 plt.clf()
                 # plt.imshow((zsbs-tiltqa)/zsbs, origin='lower')
@@ -1235,7 +1235,7 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
              # Finish
              yval = np.linspace(0.0, 1.0, msarc.shape[0])
              tilts = tiltspl(xspl, yval, grid=True).T
-             if False:
+             if msgs._debug['tilts']:
                  tiltqa = tiltspl(xsbs.flatten(), zsbs.flatten(), grid=False).reshape( xsbs.shape)
                  plt.clf()
                  #plt.imshow((zsbs-tiltqa)/zsbs, origin='lower')
