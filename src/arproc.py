@@ -386,6 +386,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
         # Generate
         bgframe = np.interp(tilts.flatten(), sxvpix[wbg[0][gdscan]], bgscan[gdscan]).reshape(tilts.shape)
     elif slf._argflag['reduce']['bgsubtraction']['method'].lower() == 'bspline':
+        msgs.info("Using bspline sky subtraction")
         gdp = scifrcp != maskval
         srt = np.argsort(tilts[gdp])
         bspl = arutils.func_fit(tilts[gdp][srt], scifrcp[gdp][srt], 'bspline', 3,
@@ -792,9 +793,9 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
     ###############
     # Estimate Sky Background
-    if slf._argflag['reduce']['bgsubtraction']:
+    if slf._argflag['reduce']['bgsubtraction']['perform']:
         # Perform an iterative background/science extraction
-        if msgs._debug['obj_profile']:
+        if msgs._debug['obj_profile'] and False:
             msgs.warn("Reading background from 2D image on disk")
             from astropy.io import fits
             datfil = slf._argflag['run']['scidir']+'/spec2d_{:s}.fits'.format(slf._basename.replace(":","_"))
@@ -817,7 +818,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         #continue
     ###############
     # Finalize the Sky Background image
-    if slf._argflag['reduce']['bgsubtraction']:
+    if slf._argflag['reduce']['bgsubtraction']['perform']:
         # Perform an iterative background/science extraction
         msgs.info("Finalizing the sky background image")
         trcmask = scitrace['object'].sum(axis=2)

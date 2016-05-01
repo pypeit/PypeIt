@@ -172,16 +172,23 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
             for row in badrow:
                 weight[row,:] = 0.
             # Extract profile
-            gdprof = weight > 0
+            gdprof = (weight > 0) & (sigframe > 0.)
             slit_val = slit_img[gdprof]
             flux_val = norm_img[gdprof]
-            weight_val = sciframe[gdprof]/sigframe[gdprof]  # S/N
+            #weight_val = sciframe[gdprof]/sigframe[gdprof]  # S/N
+            weight_val = 1./sigframe[gdprof]  # 1/N
+            msgs.work("Weight by S/N in boxcar extraction? [avoid CRs; smooth?]")
             # Fit
             fdict = dict(func=slf._argflag['science']['extraction']['profile'], deg=3)
+            # Guess
+            guess = None
+            if msgs._debug['obj_profile']: #
+                #if (np.abs(specobjs[o].objid-225) < 20) and (det==2):
+                    #debugger.set_trace()
+                guess = [0.1, 0., 2.2]
             try:
-                mask, gfit = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'],
-                                                    function=fdict['func'],
-                                                    weights=weight_val, maxone=False)
+                mask, gfit = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdict['func'], weights=weight_val, maxone=False, guesses=guess)
+                #mask, gfit = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdict['func'], maxone=False, guesses=guess)
             except RuntimeError:
                 msgs.warn("Bad Profile fit for object={:s}.  Skipping Optimal".format(specobjs[o].idx))
                 scitrace['opt_profile'].append(fdict)

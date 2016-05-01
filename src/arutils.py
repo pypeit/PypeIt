@@ -783,7 +783,7 @@ def rebin(frame, newshape):
 
 def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
                    function="polynomial", initialmask=None, forceimask=False,
-                   minv=None, maxv=None, **kwargs):
+                   minv=None, maxv=None, guesses=None, **kwargs):
     """
     A robust (equally weighted) polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are masked values
@@ -811,7 +811,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
         mask = initialmask.copy()
     mskcnt = np.sum(mask)
     # Iterate, and mask out new values on each iteration
-    ct = None
+    ct = guesses
     while True:
         w = np.where(mask == 0)
         xfit = xarray[w]
