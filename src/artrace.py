@@ -422,12 +422,12 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         iterate = False
         if singleSlit: # Another check on slits for singleSlit
             if lmax < lmin:
-                msgs.warn("Unable to find a left edge. Adding one in.")
+                msgs.warn("Unable to find a left edge2. Adding one in.")
                 iterate = True
                 edgearr[:,0] = -1000
                 lcnt = 1
             if rmax < rmin:
-                msgs.warn("Unable to find a right edge. Adding one in.")
+                msgs.warn("Unable to find a right edge2. Adding one in.")
                 iterate = True
                 edgearr[:,-1] = 1000
                 rcnt = 1
@@ -1039,7 +1039,11 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
             ytfit[np.where(mtfit == 1)] = maskval
 
             # Perform a robust polynomial fit to the traces
-            wmsk, mcoeff = arutils.robust_polyfit(xtfit[wmask], (2.0*model[sz]-ytfit[wmask])/(msarc.shape[0]-1.0),
+            if slf._argflag['trace']['orders']['tilts'].lower() == "spca":
+                yfit = ytfit[wmask]/(msarc.shape[0]-1.0)
+            else:
+                yfit = (2.0*model[sz]-ytfit[wmask])/(msarc.shape[0]-1.0)
+            wmsk, mcoeff = arutils.robust_polyfit(xtfit[wmask], yfit,
                                                   slf._argflag['trace']['orders']['tiltorder'],
                                                   function=slf._argflag['trace']['orders']['function'],
                                                   sigma=2.0, minv=0.0, maxv=msarc.shape[1]-1.0)
@@ -1198,9 +1202,47 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
                 # plt.imshow((ysbs-tiltqa)/ysbs, origin='lower')
                 plt.plot(xsbs, (ysbs-tiltqa)/ysbs, 'bx')
                 plt.plot(xsbs, 1.0/(wsbs*ysbs), 'r-')
+                plt.ylim(-5e-2, 5e-2)
                 # plt.colorbar()
                 plt.show()
                 debugger.set_trace()
+        elif slf._argflag['trace']['orders']['tilts'].lower() == "spca":
+             xspl = np.linspace(0.0, 1.0, msarc.shape[1])
+             #yspl = np.append(0.0, np.append(arcdet[np.where(aduse)]/(msarc.shape[0]-1.0), 1.0))
+             yspl = np.append(0.0, np.append(polytilts[arcdet[np.where(aduse)],msarc.shape[1]/2],1.0))
+             zspl = np.zeros((msarc.shape[1], np.sum(aduse)+2))
+             zspl[:, 1:-1] = polytilts[arcdet[np.where(aduse)[0]], :].T
+             zspl[:, 0] = zspl[:, 1] + polytilts[0, :] - polytilts[arcdet[np.where(aduse)[0][0]], :]
+             zspl[:, -1] = zspl[:, -2] + polytilts[-1, :] - polytilts[arcdet[np.where(aduse)[0][-1]], :]
+             # Make sure the endpoints are set to 0.0 and 1.0
+             zspl[:, 0] -= zspl[ordcen[0, 0], 0]
+             zspl[:, -1] = zspl[:, -1] - zspl[ordcen[-1, 0], -1] + 1.0
+             # Prepare the spline variables
+             if False:
+                pmin = 0
+                pmax = -1
+             else:
+                pmin = int(max(0, np.min(slf._lordloc[det-1])))
+                pmax = int(min(msarc.shape[1], np.max(slf._rordloc[det-1])))
+                xsbs = np.outer(xspl, np.ones(yspl.size))[pmin:pmax,:]
+                ysbs = np.outer(np.ones(xspl.size), yspl)[pmin:pmax,:]
+                zsbs = zspl[pmin:pmax,:]
+             # Spline
+             msgs.work('Consider adding weights to SmoothBivariate')
+             tiltspl = interp.SmoothBivariateSpline(xsbs.flatten(),
+                                                     zsbs.flatten(),
+                                                     ysbs.flatten(), kx=3, ky=3, s=xsbs.size)
+             # Finish
+             yval = np.linspace(0.0, 1.0, msarc.shape[0])
+             tilts = tiltspl(xspl, yval, grid=True).T
+             if False:
+                 tiltqa = tiltspl(xsbs.flatten(), zsbs.flatten(), grid=False).reshape( xsbs.shape)
+                 plt.clf()
+                 #plt.imshow((zsbs-tiltqa)/zsbs, origin='lower')
+                 plt.imshow((ysbs-tiltqa)/ysbs, origin='lower')
+                 plt.colorbar()
+                 plt.show()
+                 debugger.set_trace()
         elif slf._argflag['trace']['orders']['tilts'].lower() == "pca":
             tilts = polytilts.copy()
         if tt == 0:

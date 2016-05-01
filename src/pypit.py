@@ -15,8 +15,8 @@ debug = ardebug.init()
 #debug['develop'] = True
 #debug['arc'] = True
 #debug['sky_sub'] = True
-last_updated = "27 April 2016"
-version = '0.3'
+last_updated = "1 May 2016"
+version = '0.4'
 
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
