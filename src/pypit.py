@@ -227,6 +227,10 @@ if __name__ == "__main__":
                 line_no = str(traceback.tb_lineno(tb))
                 tb = tb.tb_next
             filename = filename.split('/')[-1]
-            initmsgs.bug("There appears to be a bug on Line " + line_no + " of " + filename + " with error:" +
-                         initmsgs.newline() + str(ev) + initmsgs.newline() +
-                         "---> please contact the authors", close_pdf=True)
+            if str(ev) != "":
+                initmsgs.bug("There appears to be a bug on Line " + line_no + " of " + filename + " with error:" +
+                             initmsgs.newline() + str(ev) + initmsgs.newline() +
+                             "---> please contact the authors")
+            # Get armsgs instance to terminate
+            from armsgs import get_logger
+            get_logger().close()

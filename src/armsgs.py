@@ -4,6 +4,7 @@ from textwrap import wrap as wraptext
 from inspect import currentframe, getouterframes
 from glob import glob
 
+
 class Messages:
     """
     Create coloured text for messages printed to screen.
@@ -47,6 +48,7 @@ class Messages:
         self._last_updated = last_updated
         self._version = version
         self._verbose = verbose
+        self.sciexp = None
         # Save the version of the code including last update information to the log file
         if self._log:
             self._log.write("------------------------------------------------------\n\n")
@@ -131,7 +133,7 @@ class Messages:
 
     def close(self):
         """
-        Close the log file before the code exits
+        Close the log file and QA PDFs before the code exits
         """
         # Close PDFs
         try:
@@ -161,13 +163,9 @@ class Messages:
         print >>sys.stderr, premsg+dbgmsg+msg
         if self._log:
             self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
+        # Close PDFs and log file
         self.close()
-        # Close PDFs
-        try:
-            self.sciexp._qa.close()
-        except AttributeError:
-            pass
-        #
+        # Print command line usage
         if usage:
             self.usage(None)
         sys.exit()
@@ -222,18 +220,10 @@ class Messages:
             self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
         return
 
-    def bug(self, msg, close_pdf=False):
+    def bug(self, msg):
         """
         Print a bug message
         """
-        # Close PDF?
-        if close_pdf:
-            tmsgs = get_logger()
-            try:
-                tmsgs.sciexp._qa.close()
-            except AttributeError:
-                pass
-        #
         dbgmsg = self.debugmessage()
         premsg = self._start + self._white_BK + "[BUG]     ::" + self._end + " "
         print >>sys.stderr, premsg+dbgmsg+msg
