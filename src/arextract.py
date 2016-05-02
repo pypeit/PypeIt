@@ -5,6 +5,7 @@ import armsgs
 import artrace
 import arutils
 import arqa
+import arproc
 
 # Logging
 msgs = armsgs.get_logger()
@@ -254,8 +255,8 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe, skyframe, crmask, sc
         tilts = None
     '''
     # Setup
-    model_var = np.abs(skyframe + sciframe - np.sqrt(2)*slf._msrn[det-1]) + \
-                 slf._msrn[det-1]**2  # sqrt 2 term deals with negative flux/sky
+    rnimg = arproc.rn_frame(slf,det)
+    model_var = np.abs(skyframe + sciframe - np.sqrt(2)*rnimg + rnimg**2)  # sqrt 2 term deals with negative flux/sky
     model_ivar = 1./model_var
     msgs.work("Consider making a model of the object for model_ivar")
     cr_mask = 1.0-crmask

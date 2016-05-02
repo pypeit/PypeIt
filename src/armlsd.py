@@ -223,18 +223,19 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         # Flux
         ###############
         # Standard star (is this a calibration, e.g. goes above?)
-        msgs.info("Processing standard star")
-        msgs.warn("Assuming one star per detector mosaic")
-        msgs.warn("Waited until last detector to process")
+        if False:
+            msgs.info("Processing standard star")
+            msgs.warn("Assuming one star per detector mosaic")
+            msgs.warn("Waited until last detector to process")
 
-        update = slf.MasterStandard(scidx, fitsdict)
-        if update and reuseMaster:
-            armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
-        #
-        msgs.work("Need to check for existing sensfunc")
-        msgs.work("Consider using archived sensitivity if not found")
-        msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
-        arflux.apply_sensfunc(slf, scidx, fitsdict)
+            update = slf.MasterStandard(scidx, fitsdict)
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
+            #
+            msgs.work("Need to check for existing sensfunc")
+            msgs.work("Consider using archived sensitivity if not found")
+            msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
+            arflux.apply_sensfunc(slf, scidx, fitsdict)
 
         # Write 1D spectra
         arsave.save_1d_spectra(slf)

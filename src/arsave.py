@@ -304,6 +304,7 @@ def save_1d_spectra(slf, clobber=True):
             prihdu.header[keywd] = specobj.idx
             # Add Spectrum Table
             cols = []
+            # Trace
             # Boxcar
             for key in specobj.boxcar.keys():
                 if isinstance(specobj.boxcar[key], Quantity):
