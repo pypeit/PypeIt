@@ -39,13 +39,15 @@ det01 xgap 0.0                        # Gap between the square detector pixels (
 det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
 det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)
 det01 darkcurr 0.0                    # Dark current (e-/hour)
-det01 ronoise 4.64                    # Average of values on 4 detectors; Read-out noise (e-)
-det01 gain 1.0                        # Gain (e-/ADU) values input in arlris.py (instead of arproc.py where they are usually read in)
 det01 saturation 65535.0              # The detector Saturation level
 det01 nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
-## PULL THE FOLLOWING FROM THE HEADER WHEN POSSIBLE (FOR BINNING ESPECIALLY)##
 det01 numamplifiers 2                 # Number of amplifiers
+det01 gain 1.255,1.18                 # Gain (e-/ADU) values for the 2 amplifers
+det01 ronoise 4.64,4.76               # RN (e-) for the 2 amplifers
+## PULL THE FOLLOWING FROM THE HEADER WHEN POSSIBLE (FOR BINNING ESPECIALLY)##
 det02 numamplifiers 2                 # Number of amplifiers
+det02 gain 1.191,1.162                # Gain (e-/ADU) values for the 2 amplifers
+det02 ronoise 4.54,4.62               # RN (e-) for the 2 amplifers
 det01 suffix _01red                   # Suffix to be appended to all saved calibration and extraction frames
 det02 suffix _02red                   # Suffix to be appended to all saved calibration and extraction frames
 
@@ -58,6 +60,7 @@ check 04.NAXIS 2                       # THIS IS A MUST! It performs a standard 
 check 05.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
 check 02.CCDGEOM LBNL_Thick_High-Resistivity   # Check the CCD name (replace any spaces with underscores)
 check 02.CCDNAME 19-3                  # Check the CCD name (replace any spaces with underscores)
+check 04.CCDNAME 19-2                  # Check the CCD name (replace any spaces with underscores)
 
 ### Keyword Identifiers
 keyword target 01.TARGNAME             # Header keyword for the name given by the observer to a given frame

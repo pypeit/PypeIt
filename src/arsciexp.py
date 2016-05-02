@@ -422,6 +422,7 @@ class ScienceExposure:
         del msbias
         return True
 
+    '''
     def MasterRN(self, fitsdict, det):
         """
         Generate Master ReadNoise frame for a given detector
@@ -452,7 +453,7 @@ class ScienceExposure:
         self.SetMasterFrame(msrn, "readnoise", det)
         del msrn
         return True
-
+    '''
 
     def MasterFlatField(self, fitsdict, det):
         """
