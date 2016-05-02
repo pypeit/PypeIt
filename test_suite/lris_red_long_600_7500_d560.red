@@ -21,7 +21,7 @@ pixflat norm recnorm False
 
 # Read in the data
 data read
- /Users/xavier/Dropbox/PYPIT/LRIS_red_xmps_test/LR*.fits
+ ~/Dropbox/PYPIT/LRIS_red_xmps_test/LR*.fits
 data end
 
 spect read
