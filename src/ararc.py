@@ -346,6 +346,7 @@ def simple_calib(slf, det, get_poly=False):
             if msgs._debug['arc']:
                 msgs.warn('You should probably try your best to ID lines now.')
                 debugger.set_trace()
+                debugger.xplot(yprep)
             else:
                 msgs.error('Insufficient lines to auto-fit.')
 
