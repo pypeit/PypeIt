@@ -283,9 +283,13 @@ def set_params(lines, indict, setstr=""):
                 except ValueError:
                     msgs.error("keyword oscansec must contain an integer suffix")
                 indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], strtxt=linspl[1])
+            elif linspl[1][:6] == 'numamp':
+                indict[linspl[0]][didx]['numamplifiers'] = int(linspl[2])
+                indict[linspl[0]][didx]['gain'] = [indict['det'][didx]['gain'][0]]*int(linspl[2])
+                indict[linspl[0]][didx]['ronoise'] = [indict['det'][didx]['ronoise'][0]]*int(linspl[2])
             else:  # Read value
                 indict[linspl[0]][didx][linspl[1]] = set_params_wtype(indict[linspl[0]][didx][linspl[1]], linspl[2], lines=tline,setstr=setstr)
-        else: 
+        else:
             msgs.error(setstr + "Settings contains bad line (arg 1):"+msgs.newline()+lines[i].split('#')[0].strip())
     return indict
 
@@ -471,7 +475,7 @@ def load_spect(progname, specname, spect=None, lines=None):
     def initialise():
         msc = dict({'ndet': 0, 'latitude': 0.0, 'longitude': 0.0, 'elevation': 0.0, 'minexp': 0., 'reduction': 'ARMLSD', 'camera': 'UNKNWN'})
         # det starts as a dict but becomes a list of dicts in set_params
-        ddet = dict({'xgap': 0.0, 'ygap': 0.0, 'ysize': 1.0, 'darkcurr': 0.0, 'ronoise': 1.0, 'gain': 1.0, 'saturation': 65536.0, 'nonlinear': 1.0, 'numamplifiers': 1, 'suffix': ""})
+        ddet = dict({'xgap': 0.0, 'ygap': 0.0, 'ysize': 1.0, 'darkcurr': 0.0, 'ronoise': [1.0], 'gain': [1.0], 'saturation': 65536.0, 'nonlinear': 1.0, 'numamplifiers': 1, 'suffix': ""})
         #
         chk = dict({})
         stf = dict({'science': [], 'standard': [], 'bias': [], 'pixflat': [], 'blzflat': [], 'arc': [], 'trace': [], 'dark': [], 'readnoise': []})
