@@ -5,7 +5,7 @@ run ncpus 1
 run spectrograph kast_blue
 out verbose 2
 out overwrite True
-out sorted kast_blue_600_4310_d55.xml
+out sorted kast_blue_600_4310_d55
 
 # Read in the data
 data read

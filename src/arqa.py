@@ -2,11 +2,15 @@
 import arutils
 import numpy as np
 from arplot import zscale
+import armsgs
 
 import matplotlib
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
+from matplotlib.backends.backend_pdf import PdfPages
+
+msgs = armsgs.get_logger()
 
 try:
     from xastropy.xutils.xdebug import set_trace
@@ -14,7 +18,7 @@ try:
 except ImportError:
     from pdb import set_trace
 
-def arc_fit_qa(slf, fit, arc_spec, outfil=None):
+def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
     """
     QA for Arc spectrum
 
@@ -26,13 +30,21 @@ def arc_fit_qa(slf, fit, arc_spec, outfil=None):
     outfil : str, optional
       Name of output file
     """
+    arc_spec = fit['spec']
     if outfil is not None:
-        msgs.error("Not ready for this anymore")
+        pp = PdfPages(outfil)
 
     # Begin
-    plt.figure(figsize=(8, 4.0))
-    plt.clf()
-    gs = gridspec.GridSpec(2, 2)
+    if not ids_only:
+        plt.figure(figsize=(8, 4.0))
+        plt.clf()
+        gs = gridspec.GridSpec(2, 2)
+        idfont = 'xx-small'
+    else:
+        plt.figure(figsize=(11, 8.5))
+        plt.clf()
+        gs = gridspec.GridSpec(1, 1)
+        idfont = 'small'
 
     # Simple spectrum plot
     ax_spec = plt.subplot(gs[:,0])
@@ -46,11 +58,21 @@ def arc_fit_qa(slf, fit, arc_spec, outfil=None):
         # label
         ax_spec.text(x, yline+ysep*1.3, 
             '{:s} {:g}'.format(fit['ions'][kk], fit['yfit'][kk]), ha='center', va='bottom',
-            size='xx-small', rotation=90., color='green')
+            size=idfont, rotation=90., color='green')
     ax_spec.set_xlim(0., len(arc_spec))
     ax_spec.set_ylim(ymin, ymax*1.2)
     ax_spec.set_xlabel('Pixel')
     ax_spec.set_ylabel('Flux')
+    if title is not None:
+        ax_spec.text(0.04, 0.93, title, transform=ax_spec.transAxes,
+                     size='x-large', ha='left')#, bbox={'facecolor':'white'})
+    if ids_only:
+        plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+        if outfil is not None:
+            pp.savefig(bbox_inches='tight')
+            pp.close()
+        plt.close()
+        return
 
     # Arc Fit
     ax_fit = plt.subplot(gs[0, 1])
