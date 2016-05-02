@@ -16,7 +16,7 @@ def main(*args, **kwargs):
     parser = argparse.ArgumentParser(description='Parse')
     parser.add_argument("file", type=str, help="Spectral file")
     parser.add_argument("--exten", type=int, help="FITS extension")
-    parser.add_argument("--optim", default=False,
+    parser.add_argument("--optimal", default=False,
                         help="Show Optimal? Default is boxcar", action="store_true")
 
     pargs = parser.parse_args()
@@ -29,7 +29,7 @@ def main(*args, **kwargs):
 
     # Read spec keywords
     rsp_kwargs = {}
-    if pargs.optim:
+    if pargs.optimal:
         rsp_kwargs['wave_tag'] = 'opt_wave'
         rsp_kwargs['flux_tag'] = 'opt_counts'
         rsp_kwargs['var_tag'] = 'opt_var'

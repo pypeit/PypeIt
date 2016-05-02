@@ -26,6 +26,7 @@ mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5)
 
 def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     """ Perform boxcar extraction on the traced objects.
+    Also perform a local sky subtraction
 
     Parameters
     ----------
@@ -46,7 +47,8 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
 
     Returns
     -------
-    Nothing.  slf._specobjs.boxcar is updated
+    bgcorr : ndarray
+      Correction to the sky background in the object window
     """
     bgfitord = 1  # Polynomial order used to fit the background
     nobj = scitrace['traces'].shape[1]
