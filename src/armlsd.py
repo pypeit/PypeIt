@@ -79,7 +79,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         for kk in xrange(slf._spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             ###############
-            # Get amplifier sections
+            # Get amplifier sections, RN, gain
             arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
             # Setup
             setup = arsort.calib_setup(slf, sc, det, fitsdict, calib_dict, write=False)
