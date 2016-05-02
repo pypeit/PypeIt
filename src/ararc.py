@@ -360,7 +360,7 @@ def simple_calib(slf, det, get_poly=False):
         #xdb.xplot(tcent[idx_str[gd_str]],ids[gd_str],scatter=True)
         debugger.set_trace()
 
-    # Consider a cross-correlation here (as a double-check)
+    msgs.work('Cross correlate here?')
 
     # Setup for fitting
     ifit = idx_str[gd_str]
