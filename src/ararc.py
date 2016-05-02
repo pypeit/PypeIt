@@ -280,6 +280,7 @@ def simple_calib(slf, det, get_poly=False):
         nid = len(slf._argflag['arc']['calibrate']['id_pix'])
         idx_str = np.ones(nid).astype(int)
         ids = np.zeros(nid)
+        idsion = np.array(['     ']*nid)
         gd_str = np.arange(nid).astype(int)
         for jj,pix in enumerate(slf._argflag['arc']['calibrate']['id_pix']):
             diff = np.abs(tcent-pix)
@@ -289,9 +290,16 @@ def simple_calib(slf, det, get_poly=False):
                 imn = np.argmin(diff)
             # Set
             idx_str[jj] = imn
-            # Take wavelength from linelist instead of input value?
-            ids[jj] = slf._argflag['arc']['calibrate']['id_wave'][jj]
-        idsion = np.array(['     ']*nid)
+            # Take wavelength from linelist instead of input value
+            wdiff = np.abs(llist['wave']-slf._argflag['arc']['calibrate']['id_wave'][jj])
+            imnw = np.argmin(wdiff)
+            if wdiff[imnw] > 0.01:  # Arbitrary tolerance
+                msgs.error("Input id_wave={:g} is not in the linelist.  Fix".format(
+                        slf._argflag['arc']['calibrate']['id_wave'][jj]))
+            else:
+                ids[jj] = llist['wave'][imnw]
+                idsion[jj] = llist['Ion'][imnw]
+                msgs.info("Identifying arc line: {:s} {:g}".format(idsion[jj],ids[jj]))
     else:
         # Generate dpix pairs
         msgs.info("Using pair algorithm for wavelength solution")

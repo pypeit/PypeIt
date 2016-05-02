@@ -18,8 +18,8 @@ debug = ardebug.init()
 #debug['trace'] = True
 #debug['obj_profile'] = True
 #debug['tilts'] = True
-last_updated = "1 May 2016"
-version = '0.5'
+last_updated = "2 May 2016"
+version = '0.6'
 
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
