@@ -293,7 +293,7 @@ def simple_calib(slf, det, get_poly=False):
             # Take wavelength from linelist instead of input value
             wdiff = np.abs(llist['wave']-slf._argflag['arc']['calibrate']['id_wave'][jj])
             imnw = np.argmin(wdiff)
-            if wdiff[imnw] > 0.01:  # Arbitrary tolerance
+            if wdiff[imnw] > 0.015:  # Arbitrary tolerance
                 msgs.error("Input id_wave={:g} is not in the linelist.  Fix".format(
                         slf._argflag['arc']['calibrate']['id_wave'][jj]))
             else:
