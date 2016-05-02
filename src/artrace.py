@@ -324,7 +324,14 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         edgearr = np.zeros(binarr.shape, dtype=np.int)
         edgearr[np.arange(edgearr.shape[0]), amin] = +1
         edgearr[np.arange(edgearr.shape[0]), amax] = -1
+        if msgs._debug['trace']:
+            debugger.set_trace()
         # Even better would be to fit the filt/sqrt(abs(binarr)) array with a Gaussian near the maximum in each column
+        light = np.where(binarr > 1000.)
+        filt = np.zeros_like(binarr)
+        filt[light] = 10.
+        amin = np.argmin(-1*filt, axis=1)
+        amax = np.argmax(filt, axis=1)
     else:
         ######
         # Old detection algorithm

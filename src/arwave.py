@@ -146,7 +146,7 @@ def airtovac(wave):
     return new_wave
 
 def vactoair(wave):
-    '''Convert to air-based wavelengths from vacuum
+    """Convert to air-based wavelengths from vacuum
 
     Parameters:
     ----------
@@ -157,7 +157,7 @@ def vactoair(wave):
     ----------
     wave: Quantity array
       Wavelength array corrected to air
-    '''
+    """
     # Convert to AA
     wave = wave.to(u.AA)
     wavelength = wave.value
