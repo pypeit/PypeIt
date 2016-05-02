@@ -341,12 +341,13 @@ def simple_calib(slf, det, get_poly=False):
             disp_str[kk] = np.median(disp_val[isf])
         # Consider calculating the RMS with clipping
         gd_str = np.where( np.abs(disp_str-aparm['disp'])/aparm['disp'] < aparm['disp_toler'])[0]
-    #    slf._qa.close()
-    #    debugger.set_trace()
         msgs.info('Found {:d} lines within the dispersion threshold'.format(len(gd_str)))
         if len(gd_str) < 5:
-            msgs.error('Insufficient lines to auto-fit.')
-    #        slf._qa.close()
+            if msgs._debug['arc']:
+                msgs.warn('You should probably try your best to ID lines now.')
+                debugger.set_trace()
+            else:
+                msgs.error('Insufficient lines to auto-fit.')
 
     # Debug
     #debug=True
