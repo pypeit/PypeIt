@@ -5,6 +5,11 @@ import numpy as np
 
 import armsgs
 
+try:
+    from xastropy.xutils import xdebug as debugger
+except:
+    import pdb as debugger
+
 # Logging
 msgs = armsgs.get_logger()
 
@@ -305,6 +310,7 @@ def save_1d_spectra(slf, clobber=True):
             # Add Spectrum Table
             cols = []
             # Trace
+            cols += [pyfits.Column(array=specobj.trace, name='obj_trace', format=specobj.trace.dtype)]
             # Boxcar
             for key in specobj.boxcar.keys():
                 if isinstance(specobj.boxcar[key], Quantity):
