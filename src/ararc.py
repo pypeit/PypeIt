@@ -444,9 +444,9 @@ def simple_calib(slf, det, get_poly=False):
     # Pack up fit
     final_fit = dict(fitc=fit, function=aparm['func'], xfit=xfit, yfit=yfit,
         ions=ions, fmin=fmin, fmax=fmax, xnorm=float(slf._msarc[det-1].shape[0]),
-        xrej=xrej, yrej=yrej, mask=mask)
+        xrej=xrej, yrej=yrej, mask=mask, spec=yprep)
     # QA
-    arqa.arc_fit_qa(slf, final_fit, yprep)
+    arqa.arc_fit_qa(slf, final_fit)
     # Return
     return final_fit
 
