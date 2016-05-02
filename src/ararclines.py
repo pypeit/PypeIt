@@ -29,7 +29,7 @@ def parse_nist(slf,ion):
     else:
         root = slf._argflag['run']['pypitdir'] 
     # Find file
-    srch_file = root + '/data/arc_lines/NIST/'+ion+'.ascii'
+    srch_file = root + '/data/arc_lines/NIST/'+ion+'_vacuum.ascii'
     nist_file = glob.glob(srch_file)
     if len(nist_file) == 0:
         msgs.error("Cannot find NIST file {:s}".format(srch_file))
