@@ -412,7 +412,7 @@ def simple_calib(slf, det, get_poly=False):
 
     # Final fit (originals can now be rejected)
     fmin, fmax = 0., 1. 
-    xfit, yfit = tcent[ifit]/slf._msarc[det-1].shape[0], all_ids[ifit]
+    xfit, yfit = tcent[ifit]/(slf._msarc[det-1].shape[0]-1), all_ids[ifit]
     mask, fit = arutils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej_final'], minv=fmin, maxv=fmax)#, debug=True)
     irej = np.where(mask==1)[0]
     if len(irej) > 0:
