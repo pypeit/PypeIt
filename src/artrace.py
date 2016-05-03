@@ -1209,7 +1209,13 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
         elif slf._argflag['trace']['orders']['tilts'].lower() == "spca":
              xspl = np.linspace(0.0, 1.0, msarc.shape[1])
              #yspl = np.append(0.0, np.append(arcdet[np.where(aduse)]/(msarc.shape[0]-1.0), 1.0))
-             yspl = np.append(0.0, np.append(polytilts[arcdet[np.where(aduse)],msarc.shape[1]/2],1.0))
+             adu = np.where(aduse)[0]
+             yspl = np.zeros(len(adu)+2)
+             yspl[-1] = 1.
+             for kk,iadu in enumerate(adu):
+                 yspl[kk+1] = polytilts[arcdet[iadu],ordcen[iadu]]
+             #yspl = np.append(0.0, np.append(polytilts[arcdet[np.where(aduse)],msarc.shape[1]/2],1.0))
+             #
              zspl = np.zeros((msarc.shape[1], np.sum(aduse)+2))
              zspl[:, 1:-1] = polytilts[arcdet[np.where(aduse)[0]], :].T
              zspl[:, 0] = zspl[:, 1] + polytilts[0, :] - polytilts[arcdet[np.where(aduse)[0][0]], :]
