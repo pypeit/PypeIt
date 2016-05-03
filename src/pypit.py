@@ -17,7 +17,7 @@ debug = ardebug.init()
 #debug['sky_sub'] = True
 #debug['trace'] = True
 #debug['obj_profile'] = True
-debug['tilts'] = True
+#debug['tilts'] = True
 last_updated = "2 May 2016"
 version = '0.6'
 
