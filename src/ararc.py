@@ -60,7 +60,8 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     # Extract a rough spectrum of the arc in each order
     msgs.info("Detecting lines")
     msgs.info("Extracting an approximate arc spectrum at the centre of the chip")
-    ordcen = slf.GetFrame(slf._pixcen, det)
+    #ordcen = slf.GetFrame(slf._pixcen, det)
+    ordcen = slf._pixcen
     if censpec is None:
         #pixcen = np.arange(msarc.shape[slf._dispaxis], dtype=np.int)
         #ordcen = (msarc.shape[1-slf._dispaxis]/2)*np.ones(msarc.shape[slf._dispaxis],dtype=np.int)
@@ -74,8 +75,8 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
         om2 = ordcen-2
         censpec = (msarc[:,ordcen]+msarc[:,op1]+msarc[:,op2]+msarc[:,om1]+msarc[:,om2])/5.0
     # Generate a saturation mask
-    ordwid = 0.5*np.abs(slf._lordloc[det-1] - slf._rordloc[det-1])
     if MK_SATMASK:
+        ordwid = 0.5*np.abs(slf._lordloc[det-1] - slf._rordloc[det-1])
         msgs.info("Generating a mask of arc line saturation streaks")
         satmask = arcyarc.saturation_mask(msarc, slf._nonlinear[det-1])
         satsnd = arcyarc.order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int), slf._dispaxis)

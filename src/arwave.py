@@ -1,19 +1,29 @@
 import numpy as np
-import pylab as plt
+from scipy import ndimage
+
 from linetools.spectra import xspectrum1d
 from astropy.io import fits
 from astropy import units as u
 
+import ararc as aarc
+import armsgs
 import arutils
 
+# Logging
+msgs = armsgs.get_logger()
 
-def flexure(slf, det, obj_wave, obj_flux):
-    '''Correct for flexure
+try:
+    from xastropy.xutils import xdebug as debugger
+except:
+    import pdb as debugger
+
+def flexure(slf, det, sky_wave, sky_flux):
+    """Correct for flexure
 
     Parameters:
     ----------
-    obj_wave: Quantity array
-    obj_flux: Quantity array
+    sky_wave: ndarray
+    sky_flux: ndarray
       Wavelength and flux
 
     Returns:
@@ -21,7 +31,8 @@ def flexure(slf, det, obj_wave, obj_flux):
     shift: Float
       Pixel shift to be applied to object
 
-    '''
+    """
+    reload(aarc)
 
     #Search for appropriate archived sky spectrum based on latitude, longitude
     #****loop over latitude and longitudes in column indices 1, 2 and find appropriate archived sky spectrum
@@ -39,37 +50,42 @@ def flexure(slf, det, obj_wave, obj_flux):
  #   archive_wave = archive_sky[0].data
  #   archive_flux = archive_sky[1].data
 
-    #using object as fake archived with known shift..see if shift returns the correct value
-    archive_sky=fits.open("/Users/tiffanyhsyu/Dropbox/DropboxData/05192015_Lick/blue_side/combined_frames/extract/kast_sky_blue_fluxed.fits")
-    archive_wave1=np.arange(1.5, 2049.5, 1.)
-    archive_wave=3428.12+(1.0196*archive_wave1)
-    archive_flux=archive_sky[0].data
-
     #****eventually will need this instead since input is Quantity array
- #   obj_wave = obj_wave.to(u.AA)
+ #   sky_wave = sky_wave.to(u.AA)
  #   arx_sky = xspectrum1d.XSpectrum1D.from_tuple((archive_wave.value, archive_flux.value))
- #   obj_sky = xspectrum1d.XSpectrum1D.from_tuple((obj_wave.value, obj_flux.value))
+ #   obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave.value, obj_flux.value))
 
+    # Read archived sky
+    #root = slf._argflag['run']['pypitdir']
+    root = '/Users/xavier/local/Python/PYPIT'
+    skyspec_fil = root+'/data/sky_spec/sky_LRISr_600_7500_5460_7950.fits'
+    hdu = fits.open(skyspec_fil)
+    archive_wave = hdu[0].data
+    archive_flux = hdu[1].data
     arx_sky = xspectrum1d.XSpectrum1D.from_tuple((archive_wave, archive_flux))
-    obj_sky = xspectrum1d.XSpectrum1D.from_tuple((obj_wave, obj_flux))
+
+    # Generate 1D spectrum for object
+    obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave, sky_flux))
 
     #Determine the brightest emission lines
-    arx_amp, arx_cent, arx_wid, arx_w, arx_satsnd, arx_yprep = ararc.detect_lines(slf, det, msarc=None, censpec=arx_sky.flux.value, MK_SATMASK=False)
-    obj_amp, obj_cent, obj_wid, obj_w, obj_satsnd, obj_yprep = ararc.detect_lines(slf, det, msarc=None, censpec=obj_sky.flux.value, MK_SATMASK=False)
+    arx_amp, arx_cent, arx_wid, arx_w, arx_satsnd, arx_yprep = aarc.detect_lines(slf, det, msarc=None, censpec=arx_sky.flux.value, MK_SATMASK=False)
+    obj_amp, obj_cent, obj_wid, obj_w, obj_satsnd, obj_yprep = aarc.detect_lines(slf, det, msarc=None, censpec=obj_sky.flux.value, MK_SATMASK=False)
 
     #Keep only 5 brightest amplitude lines (xxx_keep is array of indices within arx_w of the 5 brightest)
     arx_keep = np.argsort(arx_amp[arx_w])[-5:]
     obj_keep = np.argsort(obj_amp[obj_w])[-5:]
 
-    #Calculate dispersion (Angstrom per pixel)
-    arx_disp = (np.amax(arx_sky.dispersion.value)-np.amin(arx_sky.dispersion.value))/arx_sky.dispersion.size
-    obj_disp = (np.amax(obj_sky.dispersion.value)-np.amin(obj_sky.dispersion.value))/obj_sky.dispersion.size
+    #Calculate wavelength (Angstrom per pixel)
+    arx_disp = (np.amax(arx_sky.wavelength.value)-np.amin(arx_sky.wavelength.value))/arx_sky.wavelength.size
+    obj_disp = (np.amax(obj_sky.wavelength.value)-np.amin(obj_sky.wavelength.value))/obj_sky.wavelength.size
 
     #Calculate resolution (lambda/delta lambda_FWHM)..maybe don't need this? can just use sigmas
-    arx_res = (arx_sky.dispersion.value[0]+(arx_disp*arx_cent[arx_w][arx_keep]))/(arx_disp*(2*np.sqrt(2*np.log(2)))*arx_wid[arx_w][arx_keep])
-    obj_res = (obj_sky.dispersion.value[0]+(obj_disp*obj_cent[obj_w][obj_keep]))/(obj_disp*(2*np.sqrt(2*np.log(2)))*obj_wid[obj_w][obj_keep])
+    arx_res = (arx_sky.wavelength.value[0]+(arx_disp*arx_cent[arx_w][arx_keep]))/(
+        arx_disp*(2*np.sqrt(2*np.log(2)))*arx_wid[arx_w][arx_keep])
+    obj_res = (obj_sky.wavelength.value[0]+(obj_disp*obj_cent[obj_w][obj_keep]))/(
+        obj_disp*(2*np.sqrt(2*np.log(2)))*obj_wid[obj_w][obj_keep])
 
-    #Determine sigma of gaussian for smoothing <-- Do I need to convert these to wavelengths?
+    #Determine sigma of gaussian for smoothing
     arx_sig = (arx_disp*arx_wid[arx_w][arx_keep])**2.
     obj_sig = (obj_disp*obj_wid[obj_w][obj_keep])**2.
 
@@ -78,35 +94,44 @@ def flexure(slf, det, obj_wave, obj_flux):
 
     if arx_med_sig >= obj_med_sig:
         smooth_sig = np.sqrt(arx_med_sig-obj_med_sig)
-
     else:
+        msgs.warn("Prefer archival sky spectrum to have higher resolution")
         smooth_sig = np.sqrt(obj_med_sig-arx_med_sig)
 
     #Determine region of wavelength overlap
-    min_wave = max(np.amin(arx_sky.dispersion.value), np.amin(obj_sky.dispersion.value))
-    max_wave = min(np.amax(arx_sky.dispersion.value), np.amax(obj_sky.dispersion.value))
+    min_wave = max(np.amin(arx_sky.wavelength.value), np.amin(obj_sky.wavelength.value))
+    max_wave = min(np.amax(arx_sky.wavelength.value), np.amax(obj_sky.wavelength.value))
 
     #Smooth higher resolution spectrum by smooth_sig (flux is conserved!)
     if np.median(obj_res) >= np.median(arx_res):
-        obj_sky_newflux = ndimage.gaussian_filter(obj_sky.flux, smooth_sig)
-#       keep_wave = [i for i in arx_sky.dispersion.value if i>=min_wave if i<=max_wave]
-
+        msgs.warn("New Sky has higher resolution than Archive.  Not smoothing")
+        #obj_sky_newflux = ndimage.gaussian_filter(obj_sky.flux, smooth_sig)
     else:
         arx_sky.flux = ndimage.gaussian_filter(arx_sky.flux, smooth_sig)
 
-    keep_wave = [i for i in obj_sky.dispersion.value if i>=min_wave if i<=max_wave]
+    # Define wavelengths of overlapping spectra
+    keep_idx = np.where((obj_sky.wavelength.value>=min_wave) &
+                         (obj_sky.wavelength.value<=max_wave))[0]
+    #keep_wave = [i for i in obj_sky.wavelength.value if i>=min_wave if i<=max_wave]
 
 #    xdb.set_trace() can plot smoothed spectrum over unsmoothed here with:
 #    xdb.xplot(obj_sky.flux, xtwo=np.arange(0.,2048.,1.), ytwo=obj_sky_newflux)
 
     #Rebin both spectra onto overlapped wavelength range
-    if len(keep_wave) <= 50:
+    if len(keep_idx) <= 50:
         msgs.error("Not enough overlap between sky spectra")
 
     else: #rebin onto object ALWAYS
-        arx_sky = arx_sky.rebin(keep_wave*u.AA)
-        obj_sky = obj_sky.rebin(keep_wave*u.AA)
+        keep_wave = obj_sky.wavelength[keep_idx]
+        arx_sky = arx_sky.rebin(keep_wave)
+        obj_sky = obj_sky.rebin(keep_wave)
 
+    '''
+    if msgs._debug['flexure']:
+        debugger.xplot(arx_sky.wavelength, arx_sky.flux, xtwo=obj_sky.wavelength, ytwo=obj_sky.flux)
+        debugger.xplot(arx_sky.wavelength, arx_sky.flux, xtwo=np.roll(obj_sky.wavelength.value,9), ytwo=obj_sky.flux*100)
+        debugger.set_trace()
+    '''
     #deal with bad pixels
     msgs.work("Need to mask bad pixels")
 
@@ -128,7 +153,8 @@ def flexure(slf, det, obj_wave, obj_flux):
 
     #Calculate and apply shift in wavelength
     shift = max_fit-(corr.size/2)
-    model = (fit[2]*(subpix_grid**2.))+(fit[1]*subpix_grid)+fit[0]
+    #model = (fit[2]*(subpix_grid**2.))+(fit[1]*subpix_grid)+fit[0]
+    debugger.set_trace()
 
 #    finer_subpix_grid = np.linspace(max_corr-4,max_corr+4,90.)
 #    model2 = (fit[2]*(finer_subpix_grid**2.))+(fit[1]*finer_subpix_grid)+fit[0]

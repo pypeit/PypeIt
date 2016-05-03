@@ -306,6 +306,7 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe, skyframe, crmask, sc
         opt_var = np.zeros_like(opt_ivar)
         opt_var[gdiv] = 1./opt_ivar[gdiv]
         specobjs[o].optimal['var'] = opt_var
+        msgs.work("Generate an optimal sky spectrum?")
         #specobjs[o].boxcar['sky'] = skysum  # per pixel
 
         '''
