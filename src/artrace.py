@@ -315,23 +315,25 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     msgs.info("Detecting order edges")
     #debugger.set_trace()
     if singleSlit:
-        msgs.info("Detecting slit edges")
-        filt = ndimage.sobel(binarr, axis=1, mode='constant')
-        msgs.info("Applying bad pixel mask")
-        filt *= (1.0-binbpx)  # Apply to the old detection algorithm
-        amin = np.argmin(filt, axis=1)
-        amax = np.argmax(filt, axis=1)
         edgearr = np.zeros(binarr.shape, dtype=np.int)
-        edgearr[np.arange(edgearr.shape[0]), amin] = +1
-        edgearr[np.arange(edgearr.shape[0]), amax] = -1
-        if msgs._debug['trace']:
-            debugger.set_trace()
+        detect = True
+        if len(slf._argflag['trace']['orders']['sng_slit']) > 0:
+            redge = (det-1)*2+1
+            if slf._argflag['trace']['orders']['sng_slit'][redge] > 0:
+                msgs.warn("Using input slit edges. Better know what you are doing..")
+                edgearr[:, slf._argflag['trace']['orders']['sng_slit'][(det-1)*2]] = -1
+                edgearr[:, slf._argflag['trace']['orders']['sng_slit'][(det-1)*2+1]] = +1
+                detect = False
+        if detect:
+            msgs.info("Detecting slit edges")
+            filt = ndimage.sobel(binarr, axis=1, mode='constant')
+            msgs.info("Applying bad pixel mask")
+            filt *= (1.0-binbpx)  # Apply to the old detection algorithm
+            amin = np.argmin(filt, axis=1)
+            amax = np.argmax(filt, axis=1)
+            edgearr[np.arange(edgearr.shape[0]), amin] = +1
+            edgearr[np.arange(edgearr.shape[0]), amax] = -1
         # Even better would be to fit the filt/sqrt(abs(binarr)) array with a Gaussian near the maximum in each column
-        light = np.where(binarr > 1000.)
-        filt = np.zeros_like(binarr)
-        filt[light] = 10.
-        amin = np.argmin(-1*filt, axis=1)
-        amax = np.argmax(filt, axis=1)
     else:
         ######
         # Old detection algorithm
