@@ -11,6 +11,7 @@ def init():
                  wave=False,
                  tilts=False,
                  sky_sub=False,
+                 flexure=False,
                  trace_obj=False,
                  )
     return debug
