@@ -4,13 +4,25 @@
 Wavelength Calibration
 **********************
 
-This document will describe how to add a new
-wavelength solution for a new instrument and/or
-grating.
 
+Basic Algorithms
+================
+
+These notes will describe the algorithms used to perform
+wavelength calibration with PYPIT.
+
+Validation
+==========
+
+See the iPython Notebook under test_suite for a comparison of the
+wavelength solution for PYPIT vs. LowRedux.
 
 Adding a new grating to existing instrument
 ===========================================
+This section describes how to add a new
+wavelength solution for a new instrument and/or
+grating.
+
 Open ararc.py to add information to an already
 existing instrument.
 
