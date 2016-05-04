@@ -315,15 +315,34 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     msgs.info("Detecting order edges")
     #debugger.set_trace()
     if singleSlit:
-        msgs.info("Detecting slit edges")
-        filt = ndimage.sobel(binarr, axis=1, mode='constant')
-        msgs.info("Applying bad pixel mask")
-        filt *= (1.0-binbpx)  # Apply to the old detection algorithm
-        amin = np.argmin(filt, axis=1)
-        amax = np.argmax(filt, axis=1)
         edgearr = np.zeros(binarr.shape, dtype=np.int)
-        edgearr[np.arange(edgearr.shape[0]), amin] = +1
-        edgearr[np.arange(edgearr.shape[0]), amax] = -1
+        detect = True
+        # Add a user-defined slit?
+        # Syntax is a list of values, 2 per detector that define the slit
+        # according to column values.  The 2nd value (for the right edge)
+        # must be >0 to be applied.  Example for LRISr [-1, -1, 7, 295]
+        # which means the code skips user-definition for the first detector
+        # but adds one for the 2nd.
+        if len(slf._argflag['trace']['orders']['sng_slit']) > 0:
+            ledge, redge = (det-1)*2, (det-1)*2+1
+            if slf._argflag['trace']['orders']['sng_slit'][redge] > 0:
+                msgs.warn("Using input slit edges on detector {:d}: [{:g},{:g}]".format(
+                        det,
+                        slf._argflag['trace']['orders']['sng_slit'][ledge],
+                        slf._argflag['trace']['orders']['sng_slit'][redge]))
+                msgs.warn("Better know what you are doing!")
+                edgearr[:, slf._argflag['trace']['orders']['sng_slit'][ledge]] = -1
+                edgearr[:, slf._argflag['trace']['orders']['sng_slit'][redge]] = +1
+                detect = False
+        if detect:
+            msgs.info("Detecting slit edges")
+            filt = ndimage.sobel(binarr, axis=1, mode='constant')
+            msgs.info("Applying bad pixel mask")
+            filt *= (1.0-binbpx)  # Apply to the old detection algorithm
+            amin = np.argmin(filt, axis=1)
+            amax = np.argmax(filt, axis=1)
+            edgearr[np.arange(edgearr.shape[0]), amin] = +1
+            edgearr[np.arange(edgearr.shape[0]), amax] = -1
         # Even better would be to fit the filt/sqrt(abs(binarr)) array with a Gaussian near the maximum in each column
     else:
         ######
