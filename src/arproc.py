@@ -853,6 +853,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Flexure correction
     if (slf._argflag['reduce']['flexure'] is not None) and (not standard):
         flex_dict = arwave.flexure(slf, det)
+        arqa.flexure(slf, det, flex_dict)
 
     # Final
     if not standard:

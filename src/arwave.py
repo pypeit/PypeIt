@@ -56,7 +56,7 @@ def flexure(slf, det):
 
     # Loop on objects
     flex_dict = dict(polyfit=[], roots=[], shift=[], subpix=[], corr=[],
-                     spec_file=skyspec_fil)
+                     spec_file=skyspec_fil, smooth=[])
 
     for specobj in slf._specobjs[det-1]:  # for convenience
 
@@ -175,13 +175,12 @@ def flexure(slf, det):
                 getattr(specobj, attr)['wave'] = f(x+shift/(npix-1))
 
         # Update dict
-        flex_dict = dict(polyfit=[], roots=[], shift=[], subpix=[], corr=[],
-                     spec_file=skyspec_fil)
         flex_dict['polyfit'].append(fit)
         flex_dict['roots'].append(roots)
         flex_dict['shift'].append(shift)
         flex_dict['subpix'].append(subpix_grid)
         flex_dict['corr'].append(corr[subpix_grid.astype(np.int)])
+        flex_dict['smooth'].append(smooth_sig)
 
     return flex_dict
 

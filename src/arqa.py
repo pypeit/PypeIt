@@ -117,6 +117,27 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
     return
 
 
+def flexure(slf, det, flex_dict):
+    """ QA on flexure measurement
+
+    Parameters
+    ----------
+    slf
+    det
+    flex_dict
+
+    Returns
+    -------
+
+    """
+    nobj = len(slf._specobjs[det-1])
+
+
+    plt.figure(figsize=(8, 4.0))
+    plt.clf()
+    gs = gridspec.GridSpec(2, 2)
+
+
 def obj_trace_qa(slf, frame, ltrace, rtrace, root='trace', outfil=None, normalize=True):
     """ Generate a QA plot for the object trace
 
