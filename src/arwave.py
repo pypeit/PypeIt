@@ -185,8 +185,10 @@ def flexure(slf, det):
                 continue
             if 'wave' in getattr(specobj, attr).keys():
                 msgs.info("Applying flexure correction to {:s} extraction for object {:s}".format(
-                    attr, str(specobj)))
-                f = interpolate.interp1d(x, specobj.boxcar['wave'], bounds_error=False, fill_value="extrapolate")
+                    attr, specobj.idx))
+                f = interpolate.interp1d(x, getattr(specobj, attr)['wave'], bounds_error=False, fill_value="extrapolate")
+                if (msgs._debug['flexure']) and (attr == 'optimal'):
+                    debugger.set_trace()
                 getattr(specobj, attr)['wave'] = f(x+shift/(npix-1))
         # Shift sky spec too
         x = np.linspace(0., 1., obj_sky.npix)

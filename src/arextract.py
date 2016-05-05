@@ -157,7 +157,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
         # Calculate slit image
         slit_img = artrace.slit_image(slf, det, scitrace, o)#, tilts=tilts)
         # Object pixels
-        weight = scitrace['object'][:,:,o]
+        weight = scitrace['object'][:,:,o].copy()
         # Identify good rows
         gdrow = np.where(specobjs[o].boxcar['counts'] > COUNT_LIM)[0]
         # Normalized image
@@ -292,8 +292,11 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe, skyframe, crmask, sc
         opt_den = np.sum(mask * model_ivar * prof_img**2, axis=1)
         opt_flux = opt_num / (opt_den + (opt_den == 0.))
         # Optimal wave
-        opt_num = np.sum(mask * slf._mswave[det-1] * model_ivar * prof_img**2, axis=1)
+        opt_num = np.sum(slf._mswave[det-1] * model_ivar * prof_img**2, axis=1)
+        opt_den = np.sum(model_ivar * prof_img**2, axis=1)
         opt_wave = opt_num / (opt_den + (opt_den == 0.))
+        if np.sum(opt_wave < 1.) > 0:
+            msgs.error("Zero value in wavelength array. Uh-oh")
         # Optimal ivar
         opt_num = np.sum(mask * model_ivar * prof_img**2, axis=1)
         ivar_den = np.sum(mask * prof_img, axis=1)
