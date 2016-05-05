@@ -10,8 +10,8 @@ def init():
                  obj_profile=False,
                  sky_sub=False,
                  trace=False,
-                 tilts=False,
                  wave=False,
+                 tilts=False,
                  flexure=False,
                  trace_obj=False,
                  )

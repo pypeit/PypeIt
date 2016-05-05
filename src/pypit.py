@@ -18,6 +18,7 @@ debug = ardebug.init()
 #debug['trace'] = True
 #debug['obj_profile'] = True
 #debug['tilts'] = True
+#debug['flexure'] = True
 last_updated = "2 May 2016"
 version = '0.6'
 

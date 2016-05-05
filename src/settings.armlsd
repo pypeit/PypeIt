@@ -32,6 +32,8 @@ reduce heliocorr True           # Perform a heliocentric correction?
 reduce pixelsize 2.5            # The size of the extracted pixels (as an scaled number of Arc FWHM), -1 will not resample
 reduce bgsubtraction perform True       # Subtract the sky background from the data?
 reduce fluxcalibrate True       # Perform a flux calibration
+reduce flexure spec boxcar      # Use boxcar extraction in flexure calculation
+reduce flexure max_shift 20     # Maximum shift from 0 allowed (int)
 
 # ARC FRAMES
 arc comb method weightmean           # How should the bias frames be combined (mean, median, weightmean)

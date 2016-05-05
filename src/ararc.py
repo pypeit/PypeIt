@@ -60,8 +60,10 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     # Extract a rough spectrum of the arc in each order
     msgs.info("Detecting lines")
     msgs.info("Extracting an approximate arc spectrum at the centre of the chip")
-    ordcen = slf.GetFrame(slf._pixcen, det)
-    #ordcen = slf._pixcen
+    if msgs._debug['flexure']:
+        ordcen = slf._pixcen
+    else:
+        ordcen = slf.GetFrame(slf._pixcen, det)
     if censpec is None:
         #pixcen = np.arange(msarc.shape[slf._dispaxis], dtype=np.int)
         #ordcen = (msarc.shape[1-slf._dispaxis]/2)*np.ones(msarc.shape[slf._dispaxis],dtype=np.int)

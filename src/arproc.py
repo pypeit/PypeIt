@@ -15,6 +15,8 @@ import artrace
 import arutils
 import arplot
 import arspecobj
+import arqa
+import arwave
 from arpca import pca2d
 
 try:
@@ -865,6 +867,11 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
                                varframe, bgframe+bgcorr_box, crmask, scitrace)
         arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
                                varframe, bgframe+bgcorr_box, crmask, scitrace)
+
+    # Flexure correction
+    if (slf._argflag['reduce']['flexure']['spec'] is not None) and (not standard):
+        flex_dict = arwave.flexure(slf, det)
+        arqa.flexure(slf, det, flex_dict)
 
     # Final
     if not standard:

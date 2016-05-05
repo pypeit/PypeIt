@@ -214,7 +214,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
 
             ###############
             # Using model sky, calculate a flexure correction
-            msgs.warn("Implement flexure correction!!")
 
         # Close the QA for this object
         slf._qa.close()
