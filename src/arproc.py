@@ -15,6 +15,7 @@ import artrace
 import arutils
 import arplot
 import arspecobj
+import arwave
 from arpca import pca2d
 
 try:
@@ -849,6 +850,10 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     if False:
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
                                       varframe, crmask, scitrace)
+    # Flexure correction
+    if (slf._argflag['reduce']['flexure'] is not None) and (not standard):
+        flex_dict = arwave.flexure(slf, det)
+
     # Final
     if not standard:
         slf._bgframe[det-1] += bgcorr_box
