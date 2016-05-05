@@ -15,6 +15,7 @@ import artrace
 import arutils
 import arplot
 import arspecobj
+import arqa
 import arwave
 from arpca import pca2d
 

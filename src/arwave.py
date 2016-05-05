@@ -42,6 +42,7 @@ def flexure(slf, det):
  #   sky_files = Table.read(~/PYPIT/data/sky_files/sky_spectra_table, format='ascii')
  #   archive_wave =
  #   archive_flux =
+    msgs.work("Consider doing 2 passes in flexure as in LowRedux")
 
     # Read archived sky
     root = slf._argflag['run']['pypitdir']
@@ -56,7 +57,8 @@ def flexure(slf, det):
 
     # Loop on objects
     flex_dict = dict(polyfit=[], roots=[], shift=[], subpix=[], corr=[],
-                     spec_file=skyspec_fil, smooth=[])
+                     corr_cen=[], spec_file=skyspec_fil, smooth=[],
+                     arx_spec=[], sky_spec=[])
 
     for specobj in slf._specobjs[det-1]:  # for convenience
 
@@ -173,6 +175,11 @@ def flexure(slf, det):
                     attr, str(specobj)))
                 f = interpolate.interp1d(x, specobj.boxcar['wave'], bounds_error=False, fill_value="extrapolate")
                 getattr(specobj, attr)['wave'] = f(x+shift/(npix-1))
+        # Shift sky spec too
+        x = np.linspace(0., 1., obj_sky.npix)
+        f = interpolate.interp1d(x, obj_sky.wavelength.value, bounds_error=False, fill_value="extrapolate")
+        twave = f(x+shift/(obj_sky.npix-1))
+        new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, obj_sky.flux))
 
         # Update dict
         flex_dict['polyfit'].append(fit)
@@ -180,7 +187,10 @@ def flexure(slf, det):
         flex_dict['shift'].append(shift)
         flex_dict['subpix'].append(subpix_grid)
         flex_dict['corr'].append(corr[subpix_grid.astype(np.int)])
+        flex_dict['corr_cen'].append(corr.size/2)
         flex_dict['smooth'].append(smooth_sig)
+        flex_dict['arx_spec'].append(arx_sky)
+        flex_dict['sky_spec'].append(new_sky)
 
     return flex_dict
 
