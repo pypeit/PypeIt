@@ -852,7 +852,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
                                       varframe, crmask, scitrace)
     # Flexure correction
-    if (slf._argflag['reduce']['flexure'] is not None) and (not standard):
+    if (slf._argflag['reduce']['flexure']['spec'] is not None) and (not standard):
         flex_dict = arwave.flexure(slf, det)
         arqa.flexure(slf, det, flex_dict)
 

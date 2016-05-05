@@ -16,6 +16,7 @@ debug = ardebug.init()
 #debug['arc'] = True
 #debug['sky_sub'] = True
 #debug['tilts'] = True
+#debug['flexure'] = True
 last_updated = "2 May 2016"
 version = '0.6'
 

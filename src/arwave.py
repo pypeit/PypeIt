@@ -48,7 +48,14 @@ def flexure(slf, det):
     root = slf._argflag['run']['pypitdir']
     #root = '/Users/xavier/local/Python/PYPIT'
     #skyspec_fil = 'sky_LRISr_600_7500_5460_7950.fits'
-    skyspec_fil = 'paranal_sky.fits'
+    if slf._argflag['reduce']['flexure']['archive_spec'] is None:
+        # Red or blue?
+        if slf._argflag['run']['spectrograph'] in ['kast_blue', 'lris_blue']:
+            skyspec_fil = 'sky_kastb_600.fits'
+        else:
+            skyspec_fil = 'paranal_sky.fits'
+    else:
+        skyspec_fil = slf._argflag['reduce']['flexure']['archive_spec']
     msgs.info("Using {:s} file for Sky spectrum".format(skyspec_fil))
     hdu = fits.open(root+'/data/sky_spec/'+skyspec_fil)
     archive_wave = hdu[0].data
@@ -63,7 +70,7 @@ def flexure(slf, det):
     for specobj in slf._specobjs[det-1]:  # for convenience
 
         # Using boxcar
-        if slf._argflag['reduce']['flexure'] == 'boxcar':
+        if slf._argflag['reduce']['flexure']['spec'] == 'boxcar':
             sky_wave = specobj.boxcar['wave'].to('AA').value
             sky_flux = specobj.boxcar['sky']
         else:
@@ -95,18 +102,19 @@ def flexure(slf, det):
             np.median(arx_res), np.median(obj_res)))
 
         #Determine sigma of gaussian for smoothing
-        arx_sig = (arx_disp*arx_wid[arx_w][arx_keep])**2.
-        obj_sig = (obj_disp*obj_wid[obj_w][obj_keep])**2.
+        arx_sig2 = (arx_disp*arx_wid[arx_w][arx_keep])**2.
+        obj_sig2 = (obj_disp*obj_wid[obj_w][obj_keep])**2.
 
-        arx_med_sig = np.median(arx_sig)
-        obj_med_sig = np.median(obj_sig)
+        arx_med_sig2 = np.median(arx_sig2)
+        obj_med_sig2 = np.median(obj_sig2)
 
-        if obj_med_sig >= arx_med_sig:
-            smooth_sig = np.sqrt(obj_med_sig-arx_med_sig)
+        if obj_med_sig2 >= arx_med_sig2:
+            smooth_sig = np.sqrt(obj_med_sig2-arx_med_sig2)  # Ang
+            smooth_sig_pix = smooth_sig / arx_disp
         else:
             msgs.warn("Prefer archival sky spectrum to have higher resolution")
-            smooth_sig = 0.
-            #smooth_sig = np.sqrt(arx_med_sig-obj_med_sig)
+            smooth_sig_pix = 0.
+            #smooth_sig = np.sqrt(arx_med_sig**2-obj_med_sig**2)
 
         #Determine region of wavelength overlap
         min_wave = max(np.amin(arx_sky.wavelength.value), np.amin(obj_sky.wavelength.value))
@@ -117,7 +125,9 @@ def flexure(slf, det):
             msgs.warn("New Sky has higher resolution than Archive.  Not smoothing")
             #obj_sky_newflux = ndimage.gaussian_filter(obj_sky.flux, smooth_sig)
         else:
-            arx_sky.flux = ndimage.gaussian_filter(arx_sky.flux, smooth_sig)
+            #tmp = ndimage.gaussian_filter(arx_sky.flux, smooth_sig)
+            arx_sky = arx_sky.gauss_smooth(smooth_sig_pix*2.355)
+            #arx_sky.flux = ndimage.gaussian_filter(arx_sky.flux, smooth_sig)
 
         # Define wavelengths of overlapping spectra
         keep_idx = np.where((obj_sky.wavelength.value>=min_wave) &
@@ -133,12 +143,7 @@ def flexure(slf, det):
             arx_sky = arx_sky.rebin(keep_wave)
             obj_sky = obj_sky.rebin(keep_wave)
 
-        '''
-        if msgs._debug['flexure']:
-            debugger.xplot(arx_sky.wavelength, arx_sky.flux, xtwo=obj_sky.wavelength, ytwo=obj_sky.flux)
-            debugger.xplot(arx_sky.wavelength, arx_sky.flux, xtwo=np.roll(obj_sky.wavelength.value,9), ytwo=obj_sky.flux*100)
-            debugger.set_trace()
-        '''
+
         #deal with bad pixels
         msgs.work("Need to mask bad pixels")
 
@@ -149,7 +154,10 @@ def flexure(slf, det):
         corr = np.correlate(arx_sky.flux, obj_sky.flux, "same")
 
         #Create array around the max of the correlation function for fitting for subpixel max
-        max_corr = np.argmax(corr)
+        # Restrict to pixels within max_shift of zero lag
+        lag0 = corr.size/2
+        mxshft = slf._argflag['reduce']['flexure']['max_shift']
+        max_corr = np.argmax(corr[lag0-mxshft:lag0+mxshft]) + lag0-mxshft
         subpix_grid = np.linspace(max_corr-3., max_corr+3., 7.)
 
         #Fit a 2-degree polynomial to peak of correlation function
@@ -159,9 +167,14 @@ def flexure(slf, det):
         #   fit, other = arutils.gauss_lsqfit(subpix_grid, corr[subpix_grid.astype(np.int)], max_corr)
 
         #Calculate and apply shift in wavelength
-        shift = max_fit-(corr.size/2)
+        shift = float(max_fit)-lag0
         msgs.info("Flexure correction of {:g} pixels".format(shift))
         #model = (fit[2]*(subpix_grid**2.))+(fit[1]*subpix_grid)+fit[0]
+
+        if msgs._debug['flexure']:
+            debugger.xplot(arx_sky.wavelength, arx_sky.flux, xtwo=obj_sky.wavelength, ytwo=obj_sky.flux)
+            #debugger.xplot(arx_sky.wavelength, arx_sky.flux, xtwo=np.roll(obj_sky.wavelength.value,9), ytwo=obj_sky.flux*100)
+            debugger.set_trace()
 
         # Simple interpolation
         npix = len(sky_wave)
@@ -188,7 +201,7 @@ def flexure(slf, det):
         flex_dict['subpix'].append(subpix_grid)
         flex_dict['corr'].append(corr[subpix_grid.astype(np.int)])
         flex_dict['corr_cen'].append(corr.size/2)
-        flex_dict['smooth'].append(smooth_sig)
+        flex_dict['smooth'].append(smooth_sig_pix)
         flex_dict['arx_spec'].append(arx_sky)
         flex_dict['sky_spec'].append(new_sky)
 
