@@ -6,7 +6,7 @@ from linetools.spectra import xspectrum1d
 from astropy.io import fits
 from astropy import units as u
 
-import ararc as aarc
+import ararc
 import armsgs
 import arutils
 
@@ -82,35 +82,43 @@ def flexure(slf, det):
 
         #Determine the brightest emission lines
         msgs.warn("If we use Paranal, cut down on wavelength early on")
-        arx_amp, arx_cent, arx_wid, arx_w, arx_satsnd, arx_yprep = aarc.detect_lines(slf, det, msarc=None, censpec=arx_sky.flux.value, MK_SATMASK=False)
-        obj_amp, obj_cent, obj_wid, obj_w, obj_satsnd, obj_yprep = aarc.detect_lines(slf, det, msarc=None, censpec=obj_sky.flux.value, MK_SATMASK=False)
+        arx_amp, arx_cent, arx_wid, arx_w, arx_satsnd, arx_yprep = ararc.detect_lines(slf, det, msarc=None, censpec=arx_sky.flux.value, MK_SATMASK=False)
+        obj_amp, obj_cent, obj_wid, obj_w, obj_satsnd, obj_yprep = ararc.detect_lines(slf, det, msarc=None, censpec=obj_sky.flux.value, MK_SATMASK=False)
 
         #Keep only 5 brightest amplitude lines (xxx_keep is array of indices within arx_w of the 5 brightest)
         arx_keep = np.argsort(arx_amp[arx_w])[-5:]
         obj_keep = np.argsort(obj_amp[obj_w])[-5:]
 
         #Calculate wavelength (Angstrom per pixel)
-        arx_disp = (np.amax(arx_sky.wavelength.value)-np.amin(arx_sky.wavelength.value))/arx_sky.wavelength.size
-        obj_disp = (np.amax(obj_sky.wavelength.value)-np.amin(obj_sky.wavelength.value))/obj_sky.wavelength.size
+        arx_disp = np.append(arx_sky.wavelength.value[1]-arx_sky.wavelength.value[0],
+                             arx_sky.wavelength.value[1:]-arx_sky.wavelength.value[:-1])
+        #arx_disp = (np.amax(arx_sky.wavelength.value)-np.amin(arx_sky.wavelength.value))/arx_sky.wavelength.size
+        obj_disp = np.append(obj_sky.wavelength.value[1]-obj_sky.wavelength.value[0],
+                             obj_sky.wavelength.value[1:]-obj_sky.wavelength.value[:-1])
+        #obj_disp = (np.amax(obj_sky.wavelength.value)-np.amin(obj_sky.wavelength.value))/obj_sky.wavelength.size
 
         #Calculate resolution (lambda/delta lambda_FWHM)..maybe don't need this? can just use sigmas
-        arx_res = (arx_sky.wavelength.value[0]+(arx_disp*arx_cent[arx_w][arx_keep]))/(
-            arx_disp*(2*np.sqrt(2*np.log(2)))*arx_wid[arx_w][arx_keep])
-        obj_res = (obj_sky.wavelength.value[0]+(obj_disp*obj_cent[obj_w][obj_keep]))/(
-            obj_disp*(2*np.sqrt(2*np.log(2)))*obj_wid[obj_w][obj_keep])
+        arx_idx = (arx_cent+0.5).astype(np.int)[arx_w][arx_keep]   # The +0.5 is for rounding
+        arx_res = arx_sky.wavelength.value[arx_idx]/\
+                  (arx_disp[arx_idx]*(2*np.sqrt(2*np.log(2)))*arx_wid[arx_w][arx_keep])
+        obj_idx = (obj_cent+0.5).astype(np.int)[obj_w][obj_keep]   # The +0.5 is for rounding
+        obj_res = obj_sky.wavelength.value[obj_idx]/ \
+                  (obj_disp[obj_idx]*(2*np.sqrt(2*np.log(2)))*obj_wid[obj_w][obj_keep])
+        #obj_res = (obj_sky.wavelength.value[0]+(obj_disp*obj_cent[obj_w][obj_keep]))/(
+        #    obj_disp*(2*np.sqrt(2*np.log(2)))*obj_wid[obj_w][obj_keep])
         msgs.info("Resolution of Archive={:g} and Observation={:g}".format(
             np.median(arx_res), np.median(obj_res)))
 
         #Determine sigma of gaussian for smoothing
-        arx_sig2 = (arx_disp*arx_wid[arx_w][arx_keep])**2.
-        obj_sig2 = (obj_disp*obj_wid[obj_w][obj_keep])**2.
+        arx_sig2 = (arx_disp[arx_idx]*arx_wid[arx_w][arx_keep])**2.
+        obj_sig2 = (obj_disp[obj_idx]*obj_wid[obj_w][obj_keep])**2.
 
         arx_med_sig2 = np.median(arx_sig2)
         obj_med_sig2 = np.median(obj_sig2)
 
         if obj_med_sig2 >= arx_med_sig2:
             smooth_sig = np.sqrt(obj_med_sig2-arx_med_sig2)  # Ang
-            smooth_sig_pix = smooth_sig / arx_disp
+            smooth_sig_pix = smooth_sig / np.median(arx_disp[arx_idx])
         else:
             msgs.warn("Prefer archival sky spectrum to have higher resolution")
             smooth_sig_pix = 0.
@@ -126,7 +134,7 @@ def flexure(slf, det):
             #obj_sky_newflux = ndimage.gaussian_filter(obj_sky.flux, smooth_sig)
         else:
             #tmp = ndimage.gaussian_filter(arx_sky.flux, smooth_sig)
-            arx_sky = arx_sky.gauss_smooth(smooth_sig_pix*2.355)
+            arx_sky = arx_sky.gauss_smooth(smooth_sig_pix*2*np.sqrt(2*np.log(2)))
             #arx_sky.flux = ndimage.gaussian_filter(arx_sky.flux, smooth_sig)
 
         # Define wavelengths of overlapping spectra
@@ -161,10 +169,8 @@ def flexure(slf, det):
         subpix_grid = np.linspace(max_corr-3., max_corr+3., 7.)
 
         #Fit a 2-degree polynomial to peak of correlation function
-        fit = np.polynomial.polynomial.polyfit(subpix_grid, corr[subpix_grid.astype(np.int)], 2)
-        roots = np.roots([fit[2], fit[1], fit[0]])
-        max_fit = (roots[0]+roots[1])/2.
-        #   fit, other = arutils.gauss_lsqfit(subpix_grid, corr[subpix_grid.astype(np.int)], max_corr)
+        fit = arutils.func_fit(subpix_grid, corr[subpix_grid.astype(np.int)], 'polynomial', 2)
+        max_fit = -0.5*fit[1]/fit[2]
 
         #Calculate and apply shift in wavelength
         shift = float(max_fit)-lag0
@@ -186,7 +192,7 @@ def flexure(slf, det):
             if 'wave' in getattr(specobj, attr).keys():
                 msgs.info("Applying flexure correction to {:s} extraction for object {:s}".format(
                     attr, str(specobj)))
-                f = interpolate.interp1d(x, specobj.boxcar['wave'], bounds_error=False, fill_value="extrapolate")
+                f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
                 getattr(specobj, attr)['wave'] = f(x+shift/(npix-1))
         # Shift sky spec too
         x = np.linspace(0., 1., obj_sky.npix)
@@ -196,7 +202,6 @@ def flexure(slf, det):
 
         # Update dict
         flex_dict['polyfit'].append(fit)
-        flex_dict['roots'].append(roots)
         flex_dict['shift'].append(shift)
         flex_dict['subpix'].append(subpix_grid)
         flex_dict['corr'].append(corr[subpix_grid.astype(np.int)])

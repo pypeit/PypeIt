@@ -33,7 +33,7 @@ reduce pixelsize 2.5            # The size of the extracted pixels (as an scaled
 reduce bgsubtraction perform True       # Subtract the sky background from the data?
 reduce fluxcalibrate True       # Perform a flux calibration
 reduce flexure spec boxcar      # Use boxcar extraction in flexure calculation
-reduce flexure max_shift 20     # Maximum shift from 0 allowed (int)
+reduce flexure max_shift 20     # Maximum allowed flexure shift in pixels (int)
 
 # ARC FRAMES
 arc comb method weightmean           # How should the bias frames be combined (mean, median, weightmean)

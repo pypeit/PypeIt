@@ -148,10 +148,11 @@ def flexure(slf, det, flex_dict):
         ax = plt.subplot(gs[o//ncol, o%ncol])
         # Fit
         fit = flex_dict['polyfit'][o]
-        xval = np.linspace(-10., 10, 100) + flex_dict['corr_cen'][o] + flex_dict['shift'][o]
-        model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
+        xval = np.linspace(-10., 10, 100) + flex_dict['corr_cen'][o] #+ flex_dict['shift'][o]
+        #model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
+        model = arutils.func_val(fit, xval, 'polynomial')
         mxmod = np.max(model)
-        ylim = [np.min(model/mxmod), 1.5]
+        ylim = [np.min(model/mxmod), 1.3]
         ax.plot(xval-flex_dict['corr_cen'][o], model/mxmod, 'k-')
         # Measurements
         ax.scatter(flex_dict['subpix'][o]-flex_dict['corr_cen'][o],
@@ -159,9 +160,9 @@ def flexure(slf, det, flex_dict):
         # Final shift
         ax.plot([flex_dict['shift'][o]]*2, ylim, 'g:')
         # Label
-        ax.text(0.04, 0.25, '{:s}'.format(specobj.idx), transform=ax.transAxes, size='large', ha='left')
-        ax.text(0.04, 0.15, 'flex_shift = {:g}'.format(flex_dict['shift'][o]),
-                transform=ax.transAxes, size='large', ha='left')#, bbox={'facecolor':'white'})
+        ax.text(0.5, 0.25, '{:s}'.format(specobj.idx), transform=ax.transAxes, size='large', ha='center')
+        ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(flex_dict['shift'][o]),
+                transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
         # Axes
         ax.set_ylim(ylim)
         ax.set_xlabel('Lag')
@@ -195,7 +196,7 @@ def flexure(slf, det, flex_dict):
     plt.clf()
     nrow, ncol = 2, 3
     gs = gridspec.GridSpec(nrow, ncol)
-    plt.suptitle('Sky Comparison for {:s}'.format(specobj.idx))
+    plt.suptitle('Sky Comparison for {:s}'.format(specobj.idx),y=1.05)
 
     for ii,igdsky in enumerate(gdsky):
         skyline = sky_lines[igdsky]
@@ -206,15 +207,19 @@ def flexure(slf, det, flex_dict):
         f2 = np.sum(arx_spec.flux[pix])
         norm = f1/f2
         # Plot
-        ax.plot(sky_spec.wavelength[pix], sky_spec.flux[pix], 'k-', label='obj',
+        ax.plot(sky_spec.wavelength[pix], sky_spec.flux[pix], 'k-', label='Obj',
                 drawstyle='steps-mid')
         pix2 = np.where(np.abs(arx_spec.wavelength-skyline) < dwv)[0]
-        ax.plot(arx_spec.wavelength[pix2], arx_spec.flux[pix2]*norm, 'r-', label='arx',
+        ax.plot(arx_spec.wavelength[pix2], arx_spec.flux[pix2]*norm, 'r-', label='Arx',
                 drawstyle='steps-mid')
         # Axes
         ax.xaxis.set_major_locator(plt.MultipleLocator(dwv.value))
         ax.set_xlabel('Wavelength')
         ax.set_ylabel('Counts')
+
+    # Legend
+    legend = plt.legend(loc='upper left', scatterpoints=1, borderpad=0.3,
+                        handletextpad=0.3, fontsize='small', numpoints=1)
 
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
