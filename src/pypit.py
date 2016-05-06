@@ -13,7 +13,7 @@ import traceback
 import ardebug
 debug = ardebug.init()
 #debug['develop'] = True
-#debug['arc'] = True
+debug['arc'] = True
 #debug['sky_sub'] = True
 #debug['trace'] = True
 #debug['obj_profile'] = True

@@ -15,11 +15,20 @@ def main(*args, **kwargs):
 
     parser = argparse.ArgumentParser(description='Parse')
     parser.add_argument("file", type=str, help="Spectral file")
+    parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
     parser.add_argument("--exten", type=int, help="FITS extension")
     parser.add_argument("--optimal", default=False,
                         help="Show Optimal? Default is boxcar", action="store_true")
 
     pargs = parser.parse_args()
+
+
+    # List?
+    if pargs.list:
+        from astropy.io import fits
+        hdu = fits.open(pargs.file)
+        print(hdu.info())
+        return
 
     from PyQt4 import QtGui
     from linetools.guis.xspecgui import XSpecGui

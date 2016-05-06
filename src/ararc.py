@@ -203,6 +203,15 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['b1']= 4.54698031e-04 
             arcparam['b2']= -6.86414978e-09
             arcparam['wvmnx'][1] = 6000.
+        elif disperser == '400/3400':
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=1.02
+            #arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['b1']= 2.72694493e-04
+            arcparam['b2']= -5.30717321e-09
+            arcparam['wvmnx'][1] = 6000.
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='lris_red':
         lamps = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
         if disperser == '600/7500':
@@ -395,16 +404,16 @@ def simple_calib(slf, det, get_poly=False):
             mn = np.min(np.abs(iwave-llist['wave']))
             if mn/aparm['disp'] < aparm['match_toler']:
                 imn = np.argmin(np.abs(iwave-llist['wave']))
-                if msgs._debug['arc']:
-                    print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
+                #if msgs._debug['arc']:
+                #    print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
                 # Update and append
                 all_ids[ss] = llist['wave'][imn]
                 all_idsion[ss] = llist['Ion'][imn]
                 ifit.append(ss)
         # Keep unique ones
         ifit = np.unique(np.array(ifit,dtype=int))
-        if msgs._debug['arc']:
-            debugger.set_trace()
+        #if msgs._debug['arc']:
+        #    debugger.set_trace()
         # Increment order
         if n_order < aparm['n_final']:
             n_order += 1
