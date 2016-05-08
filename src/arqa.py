@@ -118,7 +118,7 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
     return
 
 
-def flexure(slf, det, flex_dict):
+def flexure(slf, det, flex_dict, slit_cen=False):
     """ QA on flexure measurement
 
     Parameters
@@ -126,16 +126,23 @@ def flexure(slf, det, flex_dict):
     slf
     det
     flex_dict
+    slit_cen : bool, optional
+      QA on slit center instead of objects
 
     Returns
     -------
 
     """
     # Setup
-    nobj = len(slf._specobjs[det-1])
-    if nobj == 0:
-        return
-    ncol = min(3,nobj)
+    if slit_cen:
+        nobj = 1
+        ncol = 1
+    else:
+        nobj = len(slf._specobjs[det-1])
+        if nobj == 0:
+            return
+        ncol = min(3,nobj)
+    #
     nrow = nobj // ncol + ((nobj%ncol) > 0)
 
 
@@ -144,7 +151,7 @@ def flexure(slf, det, flex_dict):
     gs = gridspec.GridSpec(nrow, ncol)
 
     # Correlation QA
-    for o,specobj in enumerate(slf._specobjs[det-1]):
+    for o in range(nobj):
         ax = plt.subplot(gs[o//ncol, o%ncol])
         # Fit
         fit = flex_dict['polyfit'][o]
@@ -160,7 +167,10 @@ def flexure(slf, det, flex_dict):
         # Final shift
         ax.plot([flex_dict['shift'][o]]*2, ylim, 'g:')
         # Label
-        ax.text(0.5, 0.25, '{:s}'.format(specobj.idx), transform=ax.transAxes, size='large', ha='center')
+        if slit_cen:
+            ax.text(0.5, 0.25, 'Slit Center', transform=ax.transAxes, size='large', ha='center')
+        else:
+            ax.text(0.5, 0.25, '{:s}'.format(slf._specobjs[det-1][o].idx), transform=ax.transAxes, size='large', ha='center')
         ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(flex_dict['shift'][o]),
                 transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
         # Axes
@@ -173,8 +183,11 @@ def flexure(slf, det, flex_dict):
     plt.close()
 
     # Sky line QA (just one object)
-    o=0
-    specobj = slf._specobjs[det-1][o]
+    if slit_cen:
+        o=0
+    else:
+        o=0
+        specobj = slf._specobjs[det-1][o]
     sky_spec = flex_dict['sky_spec'][o]
     arx_spec = flex_dict['arx_spec'][o]
 
@@ -196,7 +209,10 @@ def flexure(slf, det, flex_dict):
     plt.clf()
     nrow, ncol = 2, 3
     gs = gridspec.GridSpec(nrow, ncol)
-    plt.suptitle('Sky Comparison for {:s}'.format(specobj.idx),y=1.05)
+    if slit_cen:
+        plt.suptitle('Sky Comparison for Slit Center',y=1.05)
+    else:
+        plt.suptitle('Sky Comparison for {:s}'.format(specobj.idx),y=1.05)
 
     for ii,igdsky in enumerate(gdsky):
         skyline = sky_lines[igdsky]
