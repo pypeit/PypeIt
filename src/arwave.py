@@ -22,6 +22,7 @@ except:
 
 def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     """ Calculate shift between object sky spectrum and archive sky spectrum
+    
     Parameters
     ----------
     slf
