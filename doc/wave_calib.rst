@@ -78,6 +78,21 @@ Run PYPIT, and check in the QA plots that the arc lines
 identified by PYPIT are consistent with a pre-existing
 arc line mapping, and you're done!
 
+Flexure
+=======
+
+By default, the code will calculate a flexure shift based on the
+extracted sky spectrum (boxcar).  A cross-correlation between this
+sky spectrum and an archived spectrum is performed to calculate
+a single, pixel shift.  This is then imposed on the wavelength solution
+with simple linear interpolation.
+
+An alternate algorithm (reduce flexure spec slit_cen) measures the
+flexure from a sky spectrum extracted down the center of the slit.
+This is then imposed on the wavelength image so that any extractions
+that follow have a flexure correction already applied.  Thus far, this
+algorithm has given poorer results than the default.
+
 
 Settings File
 =============

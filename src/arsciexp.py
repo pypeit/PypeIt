@@ -653,6 +653,9 @@ class ScienceExposure:
                     msgs.warn("No MasterWave frame found {:s}".format(mswave_name))
                 else:
                     self._argflag['masters']['loaded'].append('wave'+self._argflag['masters']['setup'])
+                    mswv_soln_name = armasters.master_name(self._argflag['run']['masterdir'],
+                                                    'wave_soln', self._argflag['masters']['setup'])
+                    wv_calib = arload.load_master(mswv_soln_name, frametype="wv_calib")
             if 'wave'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
                 # Setup arc parameters (e.g. linelist)
                 arcparam = ararc.setup_param(self, sc, det, fitsdict)
@@ -660,15 +663,16 @@ class ScienceExposure:
                 ###############
                 # Extract arc and identify lines
                 wv_calib = ararc.simple_calib(self, det)
-                self.SetFrame(self._wvcalib, wv_calib, det)
                 #
                 msgs.info("Preparing a master wave frame")
-                mswave = arutils.func_val(self._wvcalib[det-1]['fitc'], self._tilts[det-1], self._wvcalib[det-1]['function'], minv=self._wvcalib[det-1]['fmin'], maxv=self._wvcalib[det-1]['fmax'])
+                mswave = arutils.func_val(wv_calib['fitc'], self._tilts[det-1], wv_calib['function'], minv=wv_calib['fmin'], maxv=wv_calib['fmax'])
         else: # It must be the name of a file the user wishes to load
             mswave_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usewave']
             mswave, head = arload.load_master(mswave_name, frametype=None)
         # Set and then delete the Master Arc frame
         self.SetMasterFrame(mswave, "wave", det)
+        if wv_calib is not None:
+            self.SetFrame(self._wvcalib, wv_calib, det)
         del mswave
         return True
 
