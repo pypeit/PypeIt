@@ -872,7 +872,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     if not standard:
         msgs.info("Optimal extraction with Gaussian profile")
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                                      varframe, crmask, scitrace)
+                                      varframe, bgframe+bgcorr_box, crmask, scitrace)
         arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
                                varframe, bgframe+bgcorr_box, crmask, scitrace)
 

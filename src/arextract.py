@@ -112,7 +112,8 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     return bgcorr
 
 
-def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
+def obj_profiles(slf, det, specobjs, sciframe, varframe,
+                 skyframe, crmask,
                  scitrace, COUNT_LIM=25., pickle_file=None):
     """ Derive spatial profiles for each object
     Parameters
@@ -226,7 +227,8 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
     return scitrace['opt_profile']
 
 
-def optimal_extract(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace,
+def optimal_extract(slf, det, specobjs, sciframe, varframe,
+                    skyframe, crmask, scitrace,
                  pickle_file=None, profiles=None):
     """ Preform optimal extraction
     Standard Horne approach
