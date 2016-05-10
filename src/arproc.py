@@ -15,6 +15,8 @@ import artrace
 import arutils
 import arplot
 import arspecobj
+import arqa
+import arwave
 from arpca import pca2d
 
 try:
@@ -819,6 +821,13 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         if not standard:
             slf._varframe[det-1] = varframe
             slf._bgframe[det-1] = bgframe
+
+    ###############
+    # Flexure down the slit? -- Not currently recommended
+    if slf._argflag['reduce']['flexure']['spec'] == 'slit_cen':
+        flex_dict = arwave.flexure_slit(slf, det)
+        arqa.flexure(slf, det, flex_dict, slit_cen=True)
+
     ###############
     # Determine the final trace of the science objects
     msgs.info("Final trace")
@@ -834,6 +843,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict,
                                       trc_img=scitrace, objtype='science')
         slf._specobjs[det-1] = specobjs
+
     ###############
     # Extract
     if scitrace is None:
@@ -849,6 +859,11 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     if False:
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
                                       varframe, crmask, scitrace)
+    # Flexure correction?
+    if (slf._argflag['reduce']['flexure']['spec'] is not None) and (not standard):
+        flex_dict = arwave.flexure_obj(slf, det)
+        arqa.flexure(slf, det, flex_dict)
+
     # Final
     if not standard:
         slf._bgframe[det-1] += bgcorr_box

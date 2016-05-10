@@ -60,7 +60,10 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     # Extract a rough spectrum of the arc in each order
     msgs.info("Detecting lines")
     msgs.info("Extracting an approximate arc spectrum at the centre of the chip")
-    ordcen = slf.GetFrame(slf._pixcen, det)
+    if msgs._debug['flexure']:
+        ordcen = slf._pixcen
+    else:
+        ordcen = slf.GetFrame(slf._pixcen, det)
     if censpec is None:
         #pixcen = np.arange(msarc.shape[slf._dispaxis], dtype=np.int)
         #ordcen = (msarc.shape[1-slf._dispaxis]/2)*np.ones(msarc.shape[slf._dispaxis],dtype=np.int)
@@ -74,8 +77,8 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
         om2 = ordcen-2
         censpec = (msarc[:,ordcen]+msarc[:,op1]+msarc[:,op2]+msarc[:,om1]+msarc[:,om2])/5.0
     # Generate a saturation mask
-    ordwid = 0.5*np.abs(slf._lordloc[det-1] - slf._rordloc[det-1])
     if MK_SATMASK:
+        ordwid = 0.5*np.abs(slf._lordloc[det-1] - slf._rordloc[det-1])
         msgs.info("Generating a mask of arc line saturation streaks")
         satmask = arcyarc.saturation_mask(msarc, slf._nonlinear[det-1])
         satsnd = arcyarc.order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int), slf._dispaxis)
@@ -280,6 +283,7 @@ def simple_calib(slf, det, get_poly=False):
         nid = len(slf._argflag['arc']['calibrate']['id_pix'])
         idx_str = np.ones(nid).astype(int)
         ids = np.zeros(nid)
+        idsion = np.array(['     ']*nid)
         gd_str = np.arange(nid).astype(int)
         for jj,pix in enumerate(slf._argflag['arc']['calibrate']['id_pix']):
             diff = np.abs(tcent-pix)
@@ -289,9 +293,16 @@ def simple_calib(slf, det, get_poly=False):
                 imn = np.argmin(diff)
             # Set
             idx_str[jj] = imn
-            # Take wavelength from linelist instead of input value?
-            ids[jj] = slf._argflag['arc']['calibrate']['id_wave'][jj]
-        idsion = np.array(['     ']*nid)
+            # Take wavelength from linelist instead of input value
+            wdiff = np.abs(llist['wave']-slf._argflag['arc']['calibrate']['id_wave'][jj])
+            imnw = np.argmin(wdiff)
+            if wdiff[imnw] > 0.01:  # Arbitrary tolerance
+                msgs.error("Input id_wave={:g} is not in the linelist.  Fix".format(
+                        slf._argflag['arc']['calibrate']['id_wave'][jj]))
+            else:
+                ids[jj] = llist['wave'][imnw]
+                idsion[jj] = llist['Ion'][imnw]
+                msgs.info("Identifying arc line: {:s} {:g}".format(idsion[jj],ids[jj]))
     else:
         # Generate dpix pairs
         msgs.info("Using pair algorithm for wavelength solution")
@@ -350,7 +361,7 @@ def simple_calib(slf, det, get_poly=False):
         #xdb.xplot(tcent[idx_str[gd_str]],ids[gd_str],scatter=True)
         debugger.set_trace()
 
-    # Consider a cross-correlation here (as a double-check)
+    msgs.work('Cross correlate here?')
 
     # Setup for fitting
     ifit = idx_str[gd_str]
@@ -401,7 +412,7 @@ def simple_calib(slf, det, get_poly=False):
 
     # Final fit (originals can now be rejected)
     fmin, fmax = 0., 1. 
-    xfit, yfit = tcent[ifit]/slf._msarc[det-1].shape[0], all_ids[ifit]
+    xfit, yfit = tcent[ifit]/(slf._msarc[det-1].shape[0]-1), all_ids[ifit]
     mask, fit = arutils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej_final'], minv=fmin, maxv=fmax)#, debug=True)
     irej = np.where(mask==1)[0]
     if len(irej) > 0:
@@ -444,9 +455,10 @@ def simple_calib(slf, det, get_poly=False):
     # Pack up fit
     final_fit = dict(fitc=fit, function=aparm['func'], xfit=xfit, yfit=yfit,
         ions=ions, fmin=fmin, fmax=fmax, xnorm=float(slf._msarc[det-1].shape[0]),
-        xrej=xrej, yrej=yrej, mask=mask)
+        xrej=xrej, yrej=yrej, mask=mask, spec=yprep, nrej=aparm['nsig_rej_final'],
+                     shift=0.)
     # QA
-    arqa.arc_fit_qa(slf, final_fit, yprep)
+    arqa.arc_fit_qa(slf, final_fit)
     # Return
     return final_fit
 

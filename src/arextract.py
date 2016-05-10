@@ -104,3 +104,31 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
         specobjs[o].boxcar['mask'] = boxmask
     # Return
     return bgcorr
+
+
+def boxcar_cen(slf, det, img):
+    """ Simple boxcar down center of the slit
+
+    Parameters
+    ----------
+    slf
+    det
+    img
+
+    Returns
+    -------
+    spec : ndarray
+
+    """
+    # Extract a slit down the center (as in ararc, or should be!)
+    ordcen = slf.GetFrame(slf._pixcen, det)
+    op1 = ordcen+1
+    op2 = ordcen+2
+    om1 = ordcen-1
+    om2 = ordcen-2
+    # Extract
+    censpec = (img[:,ordcen]+img[:,op1]+img[:,op2]+img[:,om1]+img[:,om2])/5.0
+    if len(censpec.shape) == 3:
+        censpec = censpec[:, 0].flatten()
+    # Return
+    return censpec

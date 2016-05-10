@@ -12,6 +12,7 @@ import arsort
 import arspecobj
 import artrace
 import arqa
+import arwave
 
 from linetools import utils as ltu
 
@@ -171,8 +172,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                 if update and reuseMaster:
                     armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
 
-            ###############
-            # Check if the user only wants to prepare the calibrations
+            # Check if the user only wants to prepare the calibrations only
             msgs.info("All calibration frames have been prepared")
             if slf._argflag['run']['preponly']:
                 msgs.info("If you would like to continue with the reduction,"
@@ -213,7 +213,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
 
             ###############
             # Using model sky, calculate a flexure correction
-            msgs.warn("Implement flexure correction!!")
 
         # Close the QA for this object
         slf._qa.close()

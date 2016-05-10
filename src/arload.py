@@ -31,7 +31,8 @@ def argflag_init():
     mas = dict({'use': False, 'setup': '', 'loaded': [], 'setup_file': ''})
     red = dict({'locations':None, 'nlcorr':False, 'trim':True, 'badpix':True, 'usebias':'bias', 'usetrace':'trace', 'usearc':'arc', 'usewave':'wave', 'useflat':'pixflat', 'subdark':False, 'flatfield':True, 'FlatMethod':'SpatialFit', 'FlatParams':[0],
                 'bgsubtraction': {'perform': True, 'method': 'polyscan', 'bspline_keywds': {'everyn': 30}},
-                'arcmatch':2.0, 'flatmatch':2.0, 'calibrate':True, 'fluxcalibrate':True, 'extraction':'2D', 'oscanMethod':'polynomial', 'oscanParams':[1], 'heliocorr':True, 'pixelsize':2.5})
+                'arcmatch':2.0, 'flatmatch':2.0, 'calibrate':True, 'fluxcalibrate':True, 'extraction':'2D', 'oscanMethod':'polynomial', 'oscanParams':[1], 'heliocorr':True, 'pixelsize':2.5,
+                'flexure': {'spec': None, 'max_shift': 20, 'archive_spec': None}})
     csq = dict({'atol':1.0E-3, 'xtol':1.0E-10, 'gtol':1.0E-10, 'ftol':1.0E-10, 'fstep':2.0})
     opa = dict({'verbose':2, 'sorted':None, 'plots':True, 'overwrite':False})
     sci = dict({'load':dict({'extracted':False}),
@@ -42,7 +43,8 @@ def argflag_init():
     bfl = dict({'comb':dict({'method':None, 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}) })
     trc = dict({'comb':dict({'method':'weightmean', 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'maxnonsat'}),
                 'disp':dict({'window':None, 'direction':None}),
-                'orders':dict({'tilts':'trace', 'pcatilt':[2,1,0], 'tiltorder':1, 'tiltdisporder':2, 'function':'polynomial', 'polyorder':2, 'diffpolyorder':2, 'fracignore':0.6, 'sigdetect':3.0, 'pca':[3,2,1,0,0,0], 'pcxpos':3, 'pcxneg':3}) })
+                'orders': dict({'tilts':'trace', 'pcatilt':[2,1,0], 'tiltorder':1, 'tiltdisporder':2, 'function':'polynomial', 'polyorder':2, 'diffpolyorder':2, 'fracignore':0.6, 'sigdetect':3.0, 'pca':[3,2,1,0,0,0], 'pcxpos':3, 'pcxneg':3,
+                                'sng_slit': []}) })
     arc = dict({'comb':dict({'method':'weightmean', 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'maxnonsat'}),
                 'extract':dict({'binby':1.0}),
                 'load':dict({'extracted':False, 'calibrated':False}),
@@ -790,12 +792,17 @@ def load_master(name, exten=0, frametype='<None>'):
         return data, head
         #return np.array(infile[0].data, dtype=np.float)
     else:
+        from linetools import utils as ltu
         msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
-        # Load
-        hdu = pyfits.open(name)
-        head = hdu[0].header
-        data = hdu[exten].data.astype(np.float)
-        return data, head
+        if frametype == 'wv_calib':
+            ldict = ltu.loadjson(name)
+            return ldict
+        else:
+            # Load
+            hdu = pyfits.open(name)
+            head = hdu[0].header
+            data = hdu[exten].data.astype(np.float)
+            return data, head
         #return np.array(pyfits.getdata(name, 0), dtype=np.float)
 
 
