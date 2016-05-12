@@ -1,13 +1,19 @@
 # Module for QA in PYPIT
+from astropy import units as u
+
 import os
 import arutils
 import numpy as np
 from arplot import zscale
+import armsgs
 
 import matplotlib
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
+from matplotlib.backends.backend_pdf import PdfPages
+
+msgs = armsgs.get_logger()
 
 plt.rcParams['font.family']= 'times new roman'
 ticks_font = matplotlib.font_manager.FontProperties(family='times new roman',
@@ -18,7 +24,7 @@ try:
 except:
     import pdb as debugger
 
-def arc_fit_qa(slf, fit, arc_spec, outfil=None):
+def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
     """
     QA for Arc spectrum
 
@@ -30,13 +36,21 @@ def arc_fit_qa(slf, fit, arc_spec, outfil=None):
     outfil : str, optional
       Name of output file
     """
+    arc_spec = fit['spec']
     if outfil is not None:
-        msgs.error("Not ready for this anymore")
+        pp = PdfPages(outfil)
 
     # Begin
-    plt.figure(figsize=(8, 4.0))
-    plt.clf()
-    gs = gridspec.GridSpec(2, 2)
+    if not ids_only:
+        plt.figure(figsize=(8, 4.0))
+        plt.clf()
+        gs = gridspec.GridSpec(2, 2)
+        idfont = 'xx-small'
+    else:
+        plt.figure(figsize=(11, 8.5))
+        plt.clf()
+        gs = gridspec.GridSpec(1, 1)
+        idfont = 'small'
 
     # Simple spectrum plot
     ax_spec = plt.subplot(gs[:,0])
@@ -50,11 +64,21 @@ def arc_fit_qa(slf, fit, arc_spec, outfil=None):
         # label
         ax_spec.text(x, yline+ysep*1.3, 
             '{:s} {:g}'.format(fit['ions'][kk], fit['yfit'][kk]), ha='center', va='bottom',
-            size='xx-small', rotation=90., color='green')
+            size=idfont, rotation=90., color='green')
     ax_spec.set_xlim(0., len(arc_spec))
     ax_spec.set_ylim(ymin, ymax*1.2)
     ax_spec.set_xlabel('Pixel')
     ax_spec.set_ylabel('Flux')
+    if title is not None:
+        ax_spec.text(0.04, 0.93, title, transform=ax_spec.transAxes,
+                     size='x-large', ha='left')#, bbox={'facecolor':'white'})
+    if ids_only:
+        plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+        if outfil is not None:
+            pp.savefig(bbox_inches='tight')
+            pp.close()
+        plt.close()
+        return
 
     # Arc Fit
     ax_fit = plt.subplot(gs[0, 1])
@@ -96,6 +120,133 @@ def arc_fit_qa(slf, fit, arc_spec, outfil=None):
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
     slf._qa.savefig(bbox_inches='tight')
     plt.close()
+    return
+
+
+def flexure(slf, det, flex_dict, slit_cen=False):
+    """ QA on flexure measurement
+
+    Parameters
+    ----------
+    slf
+    det
+    flex_dict
+    slit_cen : bool, optional
+      QA on slit center instead of objects
+
+    Returns
+    -------
+
+    """
+    # Setup
+    if slit_cen:
+        nobj = 1
+        ncol = 1
+    else:
+        nobj = len(slf._specobjs[det-1])
+        if nobj == 0:
+            return
+        ncol = min(3,nobj)
+    #
+    nrow = nobj // ncol + ((nobj%ncol) > 0)
+
+
+    plt.figure(figsize=(8, 5.0))
+    plt.clf()
+    gs = gridspec.GridSpec(nrow, ncol)
+
+    # Correlation QA
+    for o in range(nobj):
+        ax = plt.subplot(gs[o//ncol, o%ncol])
+        # Fit
+        fit = flex_dict['polyfit'][o]
+        xval = np.linspace(-10., 10, 100) + flex_dict['corr_cen'][o] #+ flex_dict['shift'][o]
+        #model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
+        model = arutils.func_val(fit, xval, 'polynomial')
+        mxmod = np.max(model)
+        ylim = [np.min(model/mxmod), 1.3]
+        ax.plot(xval-flex_dict['corr_cen'][o], model/mxmod, 'k-')
+        # Measurements
+        ax.scatter(flex_dict['subpix'][o]-flex_dict['corr_cen'][o],
+                   flex_dict['corr'][o]/mxmod, marker='o')
+        # Final shift
+        ax.plot([flex_dict['shift'][o]]*2, ylim, 'g:')
+        # Label
+        if slit_cen:
+            ax.text(0.5, 0.25, 'Slit Center', transform=ax.transAxes, size='large', ha='center')
+        else:
+            ax.text(0.5, 0.25, '{:s}'.format(slf._specobjs[det-1][o].idx), transform=ax.transAxes, size='large', ha='center')
+        ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(flex_dict['shift'][o]),
+                transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
+        # Axes
+        ax.set_ylim(ylim)
+        ax.set_xlabel('Lag')
+
+    # Finish
+    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+    slf._qa.savefig(bbox_inches='tight')
+    plt.close()
+
+    # Sky line QA (just one object)
+    if slit_cen:
+        o=0
+    else:
+        o=0
+        specobj = slf._specobjs[det-1][o]
+    sky_spec = flex_dict['sky_spec'][o]
+    arx_spec = flex_dict['arx_spec'][o]
+
+    # Sky lines
+    sky_lines = np.array([3370.0, 3914.0, 4046.56, 4358.34, 5577.338, 6300.304,
+              7340.885, 7993.332, 8430.174, 8919.610, 9439.660,
+              10013.99, 10372.88])*u.AA
+    dwv = 20.*u.AA
+    gdsky = np.where((sky_lines>sky_spec.wvmin) & (sky_lines < sky_spec.wvmax))[0]
+    if len(gdsky) == 0:
+        msgs.warn("No sky lines for Flexure QA")
+        return
+    if len(gdsky) > 6:
+        idx = np.array([0,1,len(gdsky)/2,len(gdsky)/2+1,-2,-1])
+        gdsky = gdsky[idx]
+
+    # Figure
+    plt.figure(figsize=(8, 5.0))
+    plt.clf()
+    nrow, ncol = 2, 3
+    gs = gridspec.GridSpec(nrow, ncol)
+    if slit_cen:
+        plt.suptitle('Sky Comparison for Slit Center',y=1.05)
+    else:
+        plt.suptitle('Sky Comparison for {:s}'.format(specobj.idx),y=1.05)
+
+    for ii,igdsky in enumerate(gdsky):
+        skyline = sky_lines[igdsky]
+        ax = plt.subplot(gs[ii//ncol, ii%ncol])
+        # Norm
+        pix = np.where(np.abs(sky_spec.wavelength-skyline) < dwv)[0]
+        f1 = np.sum(sky_spec.flux[pix])
+        f2 = np.sum(arx_spec.flux[pix])
+        norm = f1/f2
+        # Plot
+        ax.plot(sky_spec.wavelength[pix], sky_spec.flux[pix], 'k-', label='Obj',
+                drawstyle='steps-mid')
+        pix2 = np.where(np.abs(arx_spec.wavelength-skyline) < dwv)[0]
+        ax.plot(arx_spec.wavelength[pix2], arx_spec.flux[pix2]*norm, 'r-', label='Arx',
+                drawstyle='steps-mid')
+        # Axes
+        ax.xaxis.set_major_locator(plt.MultipleLocator(dwv.value))
+        ax.set_xlabel('Wavelength')
+        ax.set_ylabel('Counts')
+
+    # Legend
+    legend = plt.legend(loc='upper left', scatterpoints=1, borderpad=0.3,
+                        handletextpad=0.3, fontsize='small', numpoints=1)
+
+    # Finish
+    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+    slf._qa.savefig(bbox_inches='tight')
+    plt.close()
+
     return
 
 

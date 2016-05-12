@@ -15,6 +15,8 @@ import artrace
 import arutils
 import arplot
 import arspecobj
+import arqa
+import arwave
 from arpca import pca2d
 
 try:
@@ -560,7 +562,7 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             #recmean = np.mean(recsort[w],axis=0)
             if slf._argflag['pixflat']['norm']['recnorm']:
                 for i in xrange(recmean.size):
-                    recframe[i,:] /= recmean[i]
+                    recframe[:, i] /= recmean[i]
             # Undo the rectification
             normflat_unrec = arcyextract.rectify_undo(recframe, slf._pixcen[det-1][:,o], slf._lordpix[det-1][:,o],
                                                       slf._rordpix[det-1][:,o], slf._pixwid[det-1][o], maskval,
@@ -761,7 +763,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     if not isinstance(scidx,int):
         raise IOError("scidx needs to be an int")
     # Convert ADUs to electrons
-    sciframe *= slf._spect['det'][det-1]['gain']
+    sciframe *= gain_frame(slf,det) #slf._spect['det'][det-1]['gain']
     # Mask
     slf._scimask[det-1] = np.zeros_like(sciframe).astype(int)
     msgs.info("Masking bad pixels")
@@ -831,6 +833,13 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         if not standard:
             slf._varframe[det-1] = varframe
             slf._bgframe[det-1] = bgframe
+
+    ###############
+    # Flexure down the slit? -- Not currently recommended
+    if slf._argflag['reduce']['flexure']['spec'] == 'slit_cen':
+        flex_dict = arwave.flexure_slit(slf, det)
+        arqa.flexure(slf, det, flex_dict, slit_cen=True)
+
     ###############
     # Determine the final trace of the science objects
     msgs.info("Final trace")
@@ -846,6 +855,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict,
                                       trc_img=scitrace, objtype='science')
         slf._specobjs[det-1] = specobjs
+
     ###############
     # Extract
     if scitrace is None:
@@ -864,7 +874,12 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
                                varframe, bgframe+bgcorr_box, crmask, scitrace)
         arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                               varframe, bgframe+bgcorr_box, crmask, scitrace)
+                                  varframe, bgframe+bgcorr_box, crmask, scitrace)
+
+    # Flexure correction?
+    if (slf._argflag['reduce']['flexure']['spec'] is not None) and (not standard):
+        flex_dict = arwave.flexure_obj(slf, det)
+        arqa.flexure(slf, det, flex_dict)
 
     # Final
     if not standard:
@@ -1030,6 +1045,53 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
     return crmask
 
 
+def gain_frame(slf, det):
+    """ Generate a gain image from the spect dict
+
+    Parameters
+    ----------
+    slf
+    det
+
+    Returns
+    -------
+    gain_img : ndarray
+
+    """
+    # Loop on amplifiers
+    gain_img = np.zeros_like(slf._ampsec[det-1])
+    for ii in range(slf._spect['det'][det-1]['numamplifiers']):
+        amp = ii+1
+        amppix = slf._ampsec[det-1] == amp
+        gain_img[amppix] = slf._spect['det'][det-1]['gain'][amp-1]
+    # Return
+    return gain_img
+
+
+def rn_frame(slf, det):
+    """ Generate a RN image
+
+    Parameters
+    ----------
+    slf
+    det
+
+    Returns
+    -------
+    rn_img : ndarray
+
+    """
+    # Loop on amplifiers
+    rnimg = np.zeros_like(slf._ampsec[det-1])
+    for ii in range(slf._spect['det'][det-1]['numamplifiers']):
+        amp = ii+1
+        amppix = slf._ampsec[det-1] == amp
+        rnimg[amppix] = (slf._spect['det'][det-1]['ronoise'][ii]**2 +
+                         (0.5*slf._spect['det'][det-1]['gain'][ii])**2)
+    # Return
+    return rnimg
+
+
 def sub_overscan(slf, det, file):
     """
     Subtract overscan
@@ -1162,5 +1224,5 @@ def variance_frame(slf, det, sciframe, idx, fitsdict, skyframe=None):
     dnoise = (slf._spect['det'][det-1]['darkcurr'] *
               float(fitsdict["exptime"][idx])/3600.0)
     # The effective read noise
-    rnoise = slf._spect['det'][det-1]['ronoise']**2 + (0.5*slf._spect['det'][det-1]['gain'])**2
+    rnoise = rn_frame(slf,det)
     return np.abs(scicopy) + rnoise + dnoise
