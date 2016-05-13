@@ -1,18 +1,14 @@
 import numpy as np
-import arextract
 import arflux
 import arload
 import armasters
 import armbase
 import armsgs
 import arproc
-import ararc
 import arsave
 import arsort
-import arspecobj
 import artrace
 import arqa
-import arwave
 
 from linetools import utils as ltu
 
@@ -77,10 +73,9 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         msgs.sciexp = slf  # For QA writing on exit, if nothing else.  Could write Masters too
         # Loop on Detectors
         for kk in xrange(slf._spect['mosaic']['ndet']):
-        #for kk in xrange(1,slf._spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             ###############
-            # Get amplifier sections, RN, gain
+            # Get amplifier sections
             arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
             # Setup
             setup = arsort.calib_setup(slf, sc, det, fitsdict, calib_dict, write=False)
@@ -222,19 +217,18 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         # Flux
         ###############
         # Standard star (is this a calibration, e.g. goes above?)
-        if False:
-            msgs.info("Processing standard star")
-            msgs.warn("Assuming one star per detector mosaic")
-            msgs.warn("Waited until last detector to process")
+        msgs.info("Processing standard star")
+        msgs.warn("Assuming one star per detector mosaic")
+        msgs.warn("Waited until last detector to process")
 
-            update = slf.MasterStandard(scidx, fitsdict)
-            if update and reuseMaster:
-                armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
-            #
-            msgs.work("Need to check for existing sensfunc")
-            msgs.work("Consider using archived sensitivity if not found")
-            msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
-            arflux.apply_sensfunc(slf, scidx, fitsdict)
+        update = slf.MasterStandard(scidx, fitsdict)
+        if update and reuseMaster:
+            armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
+        #
+        msgs.work("Need to check for existing sensfunc")
+        msgs.work("Consider using archived sensitivity if not found")
+        msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
+        arflux.apply_sensfunc(slf, scidx, fitsdict)
 
         # Write 1D spectra
         arsave.save_1d_spectra(slf)
