@@ -72,7 +72,7 @@ class SpecObjExp(object):
         self.optimal = {}  # Optimal extraction 'wave', 'counts', 'var', 'sky', 'mask', 'flam', 'flam_var'
         #
     def check_trace(self, trace, toler=1.):
-        '''Check that the input trace matches the defined specobjexp
+        """Check that the input trace matches the defined specobjexp
 
         Parameters:
         ----------
@@ -80,7 +80,7 @@ class SpecObjExp(object):
           Trace of the object
         toler: float, optional
           Tolerance for matching, in pixels
-        '''
+        """
         # Trace
         yidx = int(np.round(self.ypos*trace.size))
         obj_trc = trace[yidx]

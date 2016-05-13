@@ -2,10 +2,10 @@ import numpy as np
 from astropy import units as u
 import arcyutils
 import armsgs
-import arproc
 import artrace
 import arutils
 import arqa
+import arproc
 
 # Logging
 msgs = armsgs.get_logger()
@@ -26,6 +26,7 @@ mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5)
 
 def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     """ Perform boxcar extraction on the traced objects.
+    Also perform a local sky subtraction
 
     Parameters
     ----------
@@ -46,7 +47,8 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
 
     Returns
     -------
-    Nothing.  slf._specobjs.boxcar is updated
+    bgcorr : ndarray
+      Correction to the sky background in the object window
     """
     bgfitord = 1  # Polynomial order used to fit the background
     nobj = scitrace['traces'].shape[1]
@@ -155,7 +157,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
         # Calculate slit image
         slit_img = artrace.slit_image(slf, det, scitrace, o)#, tilts=tilts)
         # Object pixels
-        weight = scitrace['object'][:,:,o]
+        weight = scitrace['object'][:,:,o].copy()
         # Identify good rows
         gdrow = np.where(specobjs[o].boxcar['counts'] > COUNT_LIM)[0]
         # Normalized image
@@ -228,7 +230,8 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
     return scitrace['opt_profile']
 
 
-def optimal_extract(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace,
+def optimal_extract(slf, det, specobjs, sciframe, varframe,
+                    skyframe, crmask, scitrace,
                  pickle_file=None, profiles=None):
     """ Preform optimal extraction
     Standard Horne approach
@@ -294,8 +297,11 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe, skyframe, crmask, sc
         opt_den = np.sum(mask * model_ivar * prof_img**2, axis=1)
         opt_flux = opt_num / (opt_den + (opt_den == 0.))
         # Optimal wave
-        opt_num = np.sum(mask * slf._mswave[det-1] * model_ivar * prof_img**2, axis=1)
+        opt_num = np.sum(slf._mswave[det-1] * model_ivar * prof_img**2, axis=1)
+        opt_den = np.sum(model_ivar * prof_img**2, axis=1)
         opt_wave = opt_num / (opt_den + (opt_den == 0.))
+        if np.sum(opt_wave < 1.) > 0:
+            msgs.error("Zero value in wavelength array. Uh-oh")
         # Optimal ivar
         opt_num = np.sum(mask * model_ivar * prof_img**2, axis=1)
         ivar_den = np.sum(mask * prof_img, axis=1)

@@ -1,18 +1,14 @@
 import numpy as np
-import arextract
 import arflux
 import arload
 import armasters
 import armbase
 import armsgs
 import arproc
-import ararc
 import arsave
 import arsort
-import arspecobj
 import artrace
 import arqa
-import arwave
 
 from linetools import utils as ltu
 
@@ -76,7 +72,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
         msgs.sciexp = slf  # For QA writing on exit, if nothing else.  Could write Masters too
         # Loop on Detectors
-        #for kk in xrange(1,slf._spect['mosaic']['ndet']):
         for kk in xrange(slf._spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             ###############

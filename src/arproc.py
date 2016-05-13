@@ -1225,4 +1225,5 @@ def variance_frame(slf, det, sciframe, idx, fitsdict, skyframe=None):
               float(fitsdict["exptime"][idx])/3600.0)
     # The effective read noise
     rnoise = rn_frame(slf,det)
+    # Return
     return np.abs(scicopy) + rnoise + dnoise
