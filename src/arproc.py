@@ -388,6 +388,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
         # Generate
         bgframe = np.interp(tilts.flatten(), sxvpix[wbg[0][gdscan]], bgscan[gdscan]).reshape(tilts.shape)
     elif slf._argflag['reduce']['bgsubtraction']['method'].lower() == 'bspline':
+        msgs.info("Using bspline sky subtraction")
         gdp = scifrcp != maskval
         srt = np.argsort(tilts[gdp])
         bspl = arutils.func_fit(tilts[gdp][srt], scifrcp[gdp][srt], 'bspline', 3,
@@ -410,6 +411,8 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
         msgs.warn("NAN in bgframe.  Replacing with 0")
         bad = np.isnan(bgframe)
         bgframe[bad] = 0.
+    if msgs._debug['sky_sub']:
+        debugger.set_trace()
     # Plot to make sure that the result is good
     #arutils.ds9plot(bgframe)
     #arutils.ds9plot(sciframe-bgframe)
@@ -792,10 +795,18 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
     ###############
     # Estimate Sky Background
-    if slf._argflag['reduce']['bgsubtraction']:
+    if slf._argflag['reduce']['bgsubtraction']['perform']:
         # Perform an iterative background/science extraction
-        msgs.info("Estimating the sky background")
-        bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask)
+        if msgs._debug['obj_profile'] and False:
+            msgs.warn("Reading background from 2D image on disk")
+            from astropy.io import fits
+            datfil = slf._argflag['run']['scidir']+'/spec2d_{:s}.fits'.format(slf._basename.replace(":","_"))
+            hdu = fits.open(datfil)
+            bgframe = hdu[1].data - hdu[2].data
+        else:
+            msgs.info("Estimating the sky background")
+            bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask)
+        #bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask)
         varframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
         if not standard: # Need to save
             slf._varframe[det-1] = varframe
@@ -809,12 +820,13 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         #continue
     ###############
     # Finalize the Sky Background image
-    if slf._argflag['reduce']['bgsubtraction']:
+    if slf._argflag['reduce']['bgsubtraction']['perform']:
         # Perform an iterative background/science extraction
         msgs.info("Finalizing the sky background image")
         trcmask = scitrace['object'].sum(axis=2)
         trcmask[np.where(trcmask>0.0)] = 1.0
-        bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask, tracemask=trcmask)
+        if not msgs._debug['obj_profile']:
+            bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask, tracemask=trcmask)
         # Redetermine the variance frame based on the new sky model
         varframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
         # Save
@@ -855,10 +867,15 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     msgs.info("Extracting")
     bgcorr_box = arextract.boxcar(slf, det, specobjs, sciframe-bgframe,
                                   varframe, bgframe, crmask, scitrace)
-    # Profile
-    if False:
+
+    # Optimal
+    if not standard:
+        msgs.info("Optimal extraction with Gaussian profile")
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                                      varframe, crmask, scitrace)
+                               varframe, bgframe+bgcorr_box, crmask, scitrace)
+        arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
+                                  varframe, bgframe+bgcorr_box, crmask, scitrace)
+
     # Flexure correction?
     if (slf._argflag['reduce']['flexure']['spec'] is not None) and (not standard):
         flex_dict = arwave.flexure_obj(slf, det)
