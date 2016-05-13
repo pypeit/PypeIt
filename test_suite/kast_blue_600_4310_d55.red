@@ -7,6 +7,13 @@ out verbose 2
 out overwrite True
 out sorted kast_blue_600_4310_d55
 
+# reduce
+trace orders tilts spca
+reduce bgsubtraction method bspline
+pixflat comb method median
+pixflat comb rej_level [10.0,10.0]
+pixflat norm recnorm False
+
 # Read in the data
 data read
  /Users/xavier/PYPIT/Kast_blue/05192015/b*.fits.gz

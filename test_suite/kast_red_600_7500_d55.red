@@ -11,6 +11,7 @@ out sorted kast_red_600_7500_d55
 #arc calibrate id_pix 220.63808792,417.17122925,562.95948074,669.07189712,884.38191292
 #arc calibrate id_wave 5868.4165,6334.4276,6678.2766,6929.4672,7438.8981
 trace orders pcatilt 1,1,1
+trace orders tilts spca
 
 # Read in the data
 data read
