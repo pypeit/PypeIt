@@ -1,7 +1,7 @@
 # Module for QA in PYPIT
-import os
 from astropy import units as u
 
+import os
 import arutils
 import numpy as np
 from arplot import zscale

@@ -103,17 +103,16 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
             debugger.set_trace()
             msgs.error("Bad match to specobj in boxcar!")
         # Fill
-        specobjs[o].boxcar['wave'] = wvsum*u.AA  # Yes, units enter here
-        specobjs[o].boxcar['counts'] = scisum
-        specobjs[o].boxcar['var'] = varsum
-        specobjs[o].boxcar['sky'] = skysum  # per pixel
-        specobjs[o].boxcar['mask'] = boxmask
+        specobjs[o].boxcar['wave'] = wvsum.copy()*u.AA  # Yes, units enter here
+        specobjs[o].boxcar['counts'] = scisum.copy()
+        specobjs[o].boxcar['var'] = varsum.copy()
+        specobjs[o].boxcar['sky'] = skysum.copy()  # per pixel
+        specobjs[o].boxcar['mask'] = boxmask.copy()
     # Return
     return bgcorr
 
 
-def obj_profiles(slf, det, specobjs, sciframe, varframe,
-                 skyframe, crmask,
+def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
                  scitrace, COUNT_LIM=25., pickle_file=None):
     """ Derive spatial profiles for each object
     Parameters
@@ -166,15 +165,13 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe,
         # Eliminate rows with CRs (wipes out boxcar)
         crspec = np.sum(crmask*weight,axis=1)
         cr_rows = np.where(crspec > 0)[0]
-        for row in cr_rows:
-            weight[row,:] = 0.
+        weight[cr_rows,:] = 0.
         #
         if len(gdrow) > 100:  # Good S/N regime
             msgs.info("Good S/N for profile")
             # Eliminate low count regions
             badrow = np.where(specobjs[o].boxcar['counts'] < COUNT_LIM)[0]
-            for row in badrow:
-                weight[row,:] = 0.
+            weight[badrow,:] = 0.
             # Extract profile
             gdprof = (weight > 0) & (sigframe > 0.)
             slit_val = slit_img[gdprof]
@@ -184,7 +181,13 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe,
             msgs.work("Weight by S/N in boxcar extraction? [avoid CRs; smooth?]")
             # Fit
             fdict = dict(func=slf._argflag['science']['extraction']['profile'], deg=3)
-            msgs.work("Should give our own guess here instead of using default")
+            if fdict['func'] == 'gaussian':
+                fdict['deg'] = 2
+            elif fdict['func'] == 'moffat':
+                fdict['deg'] = 3
+            else:
+                msgs.error("Not ready for this type of object profile")
+            msgs.work("Might give our own guess here instead of using default")
             guess = None
             try:
                 mask, gfit = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdict['func'], weights=weight_val, maxone=False, guesses=guess)
@@ -212,7 +215,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe,
                 ax.plot(xval, model, 'b')
                 # Gaussian too?
                 if False:
-                    fdictg = dict(func='gaussian', deg=3)
+                    fdictg = dict(func='gaussian', deg=2)
                     maskg, gfitg = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdictg['func'], weights=weight_val, maxone=False)
                     modelg = arutils.func_val(gfitg, xval, fdictg['func'])
                     ax.plot(xval, modelg, 'r')
@@ -305,13 +308,12 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
         opt_ivar = opt_num / (ivar_den + (ivar_den==0.))
 
         # Save
-        specobjs[o].optimal['wave'] = opt_wave*u.AA  # Yes, units enter here
-        specobjs[o].optimal['counts'] = opt_flux
-        gdiv = opt_ivar > 0.
+        specobjs[o].optimal['wave'] = opt_wave.copy()*u.AA  # Yes, units enter here
+        specobjs[o].optimal['counts'] = opt_flux.copy()
+        gdiv = (opt_ivar > 0.) & (ivar_den > 0.)
         opt_var = np.zeros_like(opt_ivar)
         opt_var[gdiv] = 1./opt_ivar[gdiv]
-        specobjs[o].optimal['var'] = opt_var
-        msgs.work("Generate an optimal sky spectrum?")
+        specobjs[o].optimal['var'] = opt_var.copy()
         #specobjs[o].boxcar['sky'] = skysum  # per pixel
 
         '''

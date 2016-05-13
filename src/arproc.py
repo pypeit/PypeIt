@@ -872,11 +872,11 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     if not standard:
         msgs.info("Optimal extraction with Gaussian profile")
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                                      varframe, bgframe+bgcorr_box, crmask, scitrace)
-        arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
                                varframe, bgframe+bgcorr_box, crmask, scitrace)
+        arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
+                                  varframe, bgframe+bgcorr_box, crmask, scitrace)
 
-    # Flexure correction
+    # Flexure correction?
     if (slf._argflag['reduce']['flexure']['spec'] is not None) and (not standard):
         flex_dict = arwave.flexure_obj(slf, det)
         arqa.flexure(slf, det, flex_dict)
