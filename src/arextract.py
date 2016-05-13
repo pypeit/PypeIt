@@ -101,11 +101,11 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
             debugger.set_trace()
             msgs.error("Bad match to specobj in boxcar!")
         # Fill
-        specobjs[o].boxcar['wave'] = wvsum*u.AA  # Yes, units enter here
-        specobjs[o].boxcar['counts'] = scisum
-        specobjs[o].boxcar['var'] = varsum
-        specobjs[o].boxcar['sky'] = skysum  # per pixel
-        specobjs[o].boxcar['mask'] = boxmask
+        specobjs[o].boxcar['wave'] = wvsum.copy()*u.AA  # Yes, units enter here
+        specobjs[o].boxcar['counts'] = scisum.copy()
+        specobjs[o].boxcar['var'] = varsum.copy()
+        specobjs[o].boxcar['sky'] = skysum.copy()  # per pixel
+        specobjs[o].boxcar['mask'] = boxmask.copy()
     # Return
     return bgcorr
 
@@ -302,12 +302,12 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe, skyframe, crmask, sc
         opt_ivar = opt_num / (ivar_den + (ivar_den==0.))
 
         # Save
-        specobjs[o].optimal['wave'] = opt_wave*u.AA  # Yes, units enter here
-        specobjs[o].optimal['counts'] = opt_flux
-        gdiv = opt_ivar > 0.
+        specobjs[o].optimal['wave'] = opt_wave.copy()*u.AA  # Yes, units enter here
+        specobjs[o].optimal['counts'] = opt_flux.copy()
+        gdiv = (opt_ivar > 0.) & (ivar_den > 0.)
         opt_var = np.zeros_like(opt_ivar)
         opt_var[gdiv] = 1./opt_ivar[gdiv]
-        specobjs[o].optimal['var'] = opt_var
+        specobjs[o].optimal['var'] = opt_var.copy()
         #specobjs[o].boxcar['sky'] = skysum  # per pixel
 
         '''
