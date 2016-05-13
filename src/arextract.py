@@ -2,6 +2,7 @@ import numpy as np
 from astropy import units as u
 import arcyutils
 import armsgs
+import arproc
 import artrace
 import arutils
 import arqa
@@ -162,15 +163,13 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
         # Eliminate rows with CRs (wipes out boxcar)
         crspec = np.sum(crmask*weight,axis=1)
         cr_rows = np.where(crspec > 0)[0]
-        for row in cr_rows:
-            weight[row,:] = 0.
+        weight[cr_rows,:] = 0.
         #
         if len(gdrow) > 100:  # Good S/N regime
             msgs.info("Good S/N for profile")
             # Eliminate low count regions
             badrow = np.where(specobjs[o].boxcar['counts'] < COUNT_LIM)[0]
-            for row in badrow:
-                weight[row,:] = 0.
+            weight[badrow,:] = 0.
             # Extract profile
             gdprof = (weight > 0) & (sigframe > 0.)
             slit_val = slit_img[gdprof]
@@ -180,7 +179,13 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
             msgs.work("Weight by S/N in boxcar extraction? [avoid CRs; smooth?]")
             # Fit
             fdict = dict(func=slf._argflag['science']['extraction']['profile'], deg=3)
-            msgs.work("Should give our own guess here instead of using default")
+            if fdict['func'] == 'gaussian':
+                fdict['deg'] = 2
+            elif fdict['func'] == 'moffat':
+                fdict['deg'] = 3
+            else:
+                msgs.error("Not ready for this type of object profile")
+            msgs.work("Might give our own guess here instead of using default")
             guess = None
             try:
                 mask, gfit = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdict['func'], weights=weight_val, maxone=False, guesses=guess)
@@ -208,7 +213,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
                 ax.plot(xval, model, 'b')
                 # Gaussian too?
                 if False:
-                    fdictg = dict(func='gaussian', deg=3)
+                    fdictg = dict(func='gaussian', deg=2)
                     maskg, gfitg = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdictg['func'], weights=weight_val, maxone=False)
                     modelg = arutils.func_val(gfitg, xval, fdictg['func'])
                     ax.plot(xval, modelg, 'r')
@@ -254,8 +259,8 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe, skyframe, crmask, sc
         tilts = None
     '''
     # Setup
-    model_var = np.abs(skyframe + sciframe - np.sqrt(2)*slf._msrn[det-1]) + \
-                 slf._msrn[det-1]**2  # sqrt 2 term deals with negative flux/sky
+    rnimg = arproc.rn_frame(slf,det)
+    model_var = np.abs(skyframe + sciframe - np.sqrt(2)*rnimg + rnimg**2)  # sqrt 2 term deals with negative flux/sky
     model_ivar = 1./model_var
     msgs.work("Consider making a model of the object for model_ivar")
     cr_mask = 1.0-crmask

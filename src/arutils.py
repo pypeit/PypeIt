@@ -261,17 +261,20 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
     elif func in ["gaussian"]:
         # Guesses
         if guesses is None:
-            mx = np.max(y)  # Could take simple stats near center
-            cent = np.sum(y*x)/np.sum(y)
-            sigma = np.sqrt(np.abs(np.sum((x-cent)**2*y)/np.sum(y))) # From scipy doc
+            mx, cent, sigma = guess_gauss(x, y)
         else:
-            mx, cent, sigma  = guesses
+            if deg == 2:
+                mx, sigma = guesses
+            elif deg == 3:
+                mx, cent, sigma = guesses
         # Error
         if w is not None:
             sig_y = 1./w
         else:
             sig_y = None
-        if deg == 3:  # Standard 3 parameters
+        if deg == 2:  # 2 parameter fit
+            popt, pcov = curve_fit(gauss_2deg, x, y, p0=[mx, sigma], sigma=sig_y)
+        elif deg == 3:  # Standard 3 parameters
             popt, pcov = curve_fit(gauss_3deg, x, y, p0=[mx, cent, sigma],
                                    sigma=sig_y)
         else:
@@ -281,9 +284,8 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
     elif func in ["moffat"]:
         # Guesses
         if guesses is None:
-            p0 = np.max(y)  # Could take simple stats near center
-            cent = np.sum(y*x)/np.sum(y)
-            sigma = np.sqrt(np.abs(np.sum((x-cent)**2*y)/np.sum(y))) # From scipy doc
+            mx, cent, sigma = guess_gauss(x, y)
+            p0 = mx
             p2 = 3. # Standard guess
             p1 = (2.355*sigma)/(2*np.sqrt(2**(1./p2)-1))
         else:
@@ -346,7 +348,9 @@ def func_val(c, x, func, minv=None, maxv=None):
     elif func == "bspline":
         return interpolate.splev(x, c, ext=1)
     elif func == "gaussian":
-        if len(c) == 3:
+        if len(c) == 2:
+            return gauss_2deg(x, c[0], c[1])
+        elif len(c) == 3:
             return gauss_3deg(x, c[0], c[1], c[2])
         else:
             msgs.error("Not ready for this type of gaussian")
@@ -542,6 +546,20 @@ def moffat(x,p0,p1,p2):
     """
     return p0 / (1+(x/p1)**2)**p2
 
+def gauss_2deg(x,ampl,sigm):
+    """  Simple 2 parameter Gaussian (amplitude, sigma)
+    Parameters
+    ----------
+    x
+    ampl
+    sigm
+
+    Returns
+    -------
+    Evaluated Gausssian
+    """
+    return ampl*np.exp(-1.*x**2/2./sigm**2)
+
 
 def gauss_3deg(x,ampl,cent,sigm):
     """  Simple 3 parameter Gaussian
@@ -557,6 +575,26 @@ def gauss_3deg(x,ampl,cent,sigm):
     Evaluated Gausssian
     """
     return ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
+
+def guess_gauss(x,y):
+    """ Guesses Gaussian parameters with basic stats
+
+    Parameters
+    ----------
+    x
+    y
+
+    Returns
+    -------
+
+    """
+    cent = np.sum(y*x)/np.sum(y)
+    sigma = np.sqrt(np.abs(np.sum((x-cent)**2*y)/np.sum(y))) # From scipy doc
+    # Calculate mx from pixels within +/- sigma/2
+    cen_pix = np.where(np.abs(x-cent)<sigma/2)
+    mx = np.median(y[cen_pix])
+    # Return
+    return mx, cent, sigma
 
 
 def gauss_lsqfit(x,y,pcen):
