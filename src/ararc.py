@@ -203,6 +203,15 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['b1']= 4.54698031e-04 
             arcparam['b2']= -6.86414978e-09
             arcparam['wvmnx'][1] = 6000.
+        elif disperser == '400/3400':
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=1.02
+            #arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['b1']= 2.72694493e-04
+            arcparam['b2']= -5.30717321e-09
+            arcparam['wvmnx'][1] = 6000.
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='lris_red':
         lamps = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
         if disperser == '600/7500':
@@ -296,7 +305,7 @@ def simple_calib(slf, det, get_poly=False):
             # Take wavelength from linelist instead of input value
             wdiff = np.abs(llist['wave']-slf._argflag['arc']['calibrate']['id_wave'][jj])
             imnw = np.argmin(wdiff)
-            if wdiff[imnw] > 0.01:  # Arbitrary tolerance
+            if wdiff[imnw] > 0.015:  # Arbitrary tolerance
                 msgs.error("Input id_wave={:g} is not in the linelist.  Fix".format(
                         slf._argflag['arc']['calibrate']['id_wave'][jj]))
             else:
@@ -344,12 +353,14 @@ def simple_calib(slf, det, get_poly=False):
             disp_str[kk] = np.median(disp_val[isf])
         # Consider calculating the RMS with clipping
         gd_str = np.where( np.abs(disp_str-aparm['disp'])/aparm['disp'] < aparm['disp_toler'])[0]
-    #    slf._qa.close()
-    #    debugger.set_trace()
         msgs.info('Found {:d} lines within the dispersion threshold'.format(len(gd_str)))
         if len(gd_str) < 5:
-            msgs.error('Insufficient lines to auto-fit.')
-    #        slf._qa.close()
+            if msgs._debug['arc']:
+                msgs.warn('You should probably try your best to ID lines now.')
+                debugger.set_trace()
+                debugger.xplot(yprep)
+            else:
+                msgs.error('Insufficient lines to auto-fit.')
 
     # Debug
     #debug=True
@@ -393,16 +404,16 @@ def simple_calib(slf, det, get_poly=False):
             mn = np.min(np.abs(iwave-llist['wave']))
             if mn/aparm['disp'] < aparm['match_toler']:
                 imn = np.argmin(np.abs(iwave-llist['wave']))
-                if msgs._debug['arc']:
-                    print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
+                #if msgs._debug['arc']:
+                #    print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
                 # Update and append
                 all_ids[ss] = llist['wave'][imn]
                 all_idsion[ss] = llist['Ion'][imn]
                 ifit.append(ss)
         # Keep unique ones
         ifit = np.unique(np.array(ifit,dtype=int))
-        if msgs._debug['arc']:
-            debugger.set_trace()
+        #if msgs._debug['arc']:
+        #    debugger.set_trace()
         # Increment order
         if n_order < aparm['n_final']:
             n_order += 1

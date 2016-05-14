@@ -5,6 +5,11 @@ import numpy as np
 
 import armsgs
 
+try:
+    from xastropy.xutils import xdebug as debugger
+except:
+    import pdb as debugger
+
 # Logging
 msgs = armsgs.get_logger()
 
@@ -302,18 +307,30 @@ def save_1d_spectra(slf, clobber=True):
             # Add header keyword
             keywd = 'EXT{:04d}'.format(ext)
             prihdu.header[keywd] = specobj.idx
-#            set_trace()
             # Add Spectrum Table
             cols = []
+            # Trace
+            cols += [pyfits.Column(array=specobj.trace, name='obj_trace', format=specobj.trace.dtype)]
+            # Boxcar
             for key in specobj.boxcar.keys():
                 if isinstance(specobj.boxcar[key], Quantity):
                     cols += [pyfits.Column(array=specobj.boxcar[key].value,
-                                         name=key, format=specobj.boxcar[key].value.dtype)]
+                                         name='box_'+key, format=specobj.boxcar[key].value.dtype)]
                 else:
                     cols += [pyfits.Column(array=specobj.boxcar[key],
-                                         name=key, format=specobj.boxcar[key].dtype)]
+                                         name='box_'+key, format=specobj.boxcar[key].dtype)]
+            # Optimal
+            for key in specobj.optimal.keys():
+                if isinstance(specobj.optimal[key], Quantity):
+                    cols += [pyfits.Column(array=specobj.optimal[key].value,
+                                           name='opt_'+key, format=specobj.optimal[key].value.dtype)]
+                else:
+                    cols += [pyfits.Column(array=specobj.optimal[key],
+                                           name='opt_'+key, format=specobj.optimal[key].dtype)]
+            # Finish
             coldefs = pyfits.ColDefs(cols)
             tbhdu = pyfits.BinTableHDU.from_columns(coldefs)
+            tbhdu.name = specobj.idx
             hdus += [tbhdu]
     # Finish
     hdulist = pyfits.HDUList(hdus)
@@ -351,6 +368,14 @@ def save_2d_images(slf, clobber=True):
         keywd = 'EXT{:04d}'.format(ext)
         prihdu.header[keywd] = 'DET{:d}-Processed'.format(det)
         hdu = pyfits.ImageHDU(slf._sciframe[det-1])
+        hdu.name = prihdu.header[keywd]
+        hdus.append(hdu)
+
+        # Variance
+        ext += 1
+        keywd = 'EXT{:04d}'.format(ext)
+        prihdu.header[keywd] = 'DET{:d}-Var'.format(det)
+        hdu = pyfits.ImageHDU(slf._varframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
 

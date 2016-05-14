@@ -17,10 +17,9 @@ import warnings
 msgs = armsgs.get_logger()
 
 try:
-    from xastropy.xutils.xdebug import set_trace
-#    from xastropy.xutils import xdebug as xdb
-except ImportError:
-    from pdb import set_trace
+    from xastropy.xutils import xdebug as debugger
+except:
+    import pdb as debugger
 
 try:
     import ds9
@@ -114,7 +113,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     try:
         tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, t=knots)
     except ValueError: # Knot problem
-        set_trace()
+        debugger.set_trace()
     return tck
 
 
@@ -214,7 +213,27 @@ def func_der(coeffs, func, nderive=1):
                    "Please choose from 'polynomial', 'legendre', 'chebyshev'")
 
 
-def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, **kwargs):
+def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
+             **kwargs):
+    """ General routine to fit a function to a given set of x,y points
+
+    Parameters
+    ----------
+    x
+    y
+    func : str
+      polynomial, legendre, chebyshev, bspline, gauss
+    deg
+    minv
+    maxv
+    w
+    guesses
+    kwargs
+
+    Returns
+    -------
+
+    """
     if func == "polynomial":
         return np.polynomial.polynomial.polyfit(x, y, deg, w=w)
     elif func == "legendre":
@@ -239,12 +258,71 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, **kwargs):
         return np.polynomial.chebyshev.chebfit(xv, y, deg, w=w)
     elif func == "bspline":
         return bspline_fit(x, y, order=deg, w=w, **kwargs)
+    elif func in ["gaussian"]:
+        # Guesses
+        if guesses is None:
+            mx, cent, sigma = guess_gauss(x, y)
+        else:
+            if deg == 2:
+                mx, sigma = guesses
+            elif deg == 3:
+                mx, cent, sigma = guesses
+        # Error
+        if w is not None:
+            sig_y = 1./w
+        else:
+            sig_y = None
+        if deg == 2:  # 2 parameter fit
+            popt, pcov = curve_fit(gauss_2deg, x, y, p0=[mx, sigma], sigma=sig_y)
+        elif deg == 3:  # Standard 3 parameters
+            popt, pcov = curve_fit(gauss_3deg, x, y, p0=[mx, cent, sigma],
+                                   sigma=sig_y)
+        else:
+            msgs.error("Not prepared for deg={:d} for Gaussian fit".format(deg))
+        # Return
+        return popt
+    elif func in ["moffat"]:
+        # Guesses
+        if guesses is None:
+            mx, cent, sigma = guess_gauss(x, y)
+            p0 = mx
+            p2 = 3. # Standard guess
+            p1 = (2.355*sigma)/(2*np.sqrt(2**(1./p2)-1))
+        else:
+            p0,p1,p2 = guesses
+        # Error
+        if w is not None:
+            sig_y = 1./w
+        else:
+            sig_y = None
+        if deg == 3:  # Standard 3 parameters
+            popt, pcov = curve_fit(moffat, x, y, p0=[p0,p1,p2], sigma=sig_y)
+        else:
+            msgs.error("Not prepared for deg={:d} for Moffat fit".format(deg))
+        # Return
+        return popt
     else:
         msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                    "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
 
 
 def func_val(c, x, func, minv=None, maxv=None):
+    """ Generic routine to return an evaluated function
+    Functional forms include:
+      polynomial, legendre, chebyshev, bspline, gauss
+
+    Parameters
+    ----------
+    c
+    x
+    func
+    minv
+    maxv
+
+    Returns
+    -------
+
+    """
     if func == "polynomial":
         return np.polynomial.polynomial.polyval(x, c)
     elif func == "legendre":
@@ -269,6 +347,18 @@ def func_val(c, x, func, minv=None, maxv=None):
         return np.polynomial.chebyshev.chebval(xv, c)
     elif func == "bspline":
         return interpolate.splev(x, c, ext=1)
+    elif func == "gaussian":
+        if len(c) == 2:
+            return gauss_2deg(x, c[0], c[1])
+        elif len(c) == 3:
+            return gauss_3deg(x, c[0], c[1], c[2])
+        else:
+            msgs.error("Not ready for this type of gaussian")
+    elif func == "moffat":
+        if len(c) == 3:
+            return moffat(x, c[0], c[1], c[2])
+        else:
+            msgs.error("Not ready for this type of Moffat")
     else:
         msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                    "Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
@@ -438,7 +528,76 @@ def polyval2d(x, y, m):
     return z
 
 
-def gauss_lsqfit(x, y, pcen):
+def moffat(x,p0,p1,p2):
+    """  Moffat profile
+    This 3 parameter formulation assumes the trace is known
+    Parameters
+    ----------
+    x
+    p0 : float
+      Amplitude
+    p1 : float
+      Width scaling
+    p2 : float
+
+    Returns
+    -------
+    Evaluated Moffat
+    """
+    return p0 / (1+(x/p1)**2)**p2
+
+def gauss_2deg(x,ampl,sigm):
+    """  Simple 2 parameter Gaussian (amplitude, sigma)
+    Parameters
+    ----------
+    x
+    ampl
+    sigm
+
+    Returns
+    -------
+    Evaluated Gausssian
+    """
+    return ampl*np.exp(-1.*x**2/2./sigm**2)
+
+
+def gauss_3deg(x,ampl,cent,sigm):
+    """  Simple 3 parameter Gaussian
+    Parameters
+    ----------
+    x
+    ampl
+    cent
+    sigm
+
+    Returns
+    -------
+    Evaluated Gausssian
+    """
+    return ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
+
+def guess_gauss(x,y):
+    """ Guesses Gaussian parameters with basic stats
+
+    Parameters
+    ----------
+    x
+    y
+
+    Returns
+    -------
+
+    """
+    cent = np.sum(y*x)/np.sum(y)
+    sigma = np.sqrt(np.abs(np.sum((x-cent)**2*y)/np.sum(y))) # From scipy doc
+    # Calculate mx from pixels within +/- sigma/2
+    cen_pix = np.where(np.abs(x-cent)<sigma/2)
+    mx = np.median(y[cen_pix])
+    # Return
+    return mx, cent, sigma
+
+
+def gauss_lsqfit(x,y,pcen):
     """
 
     :param x:
@@ -660,7 +819,9 @@ def rebin(frame, newshape):
     return eval(''.join(evList))
 
 
-def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, function="polynomial", initialmask=None, forceimask=False, minv=None, maxv=None, debug=False, **kwargs):
+def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
+                   function="polynomial", initialmask=None, forceimask=False,
+                   minv=None, maxv=None, guesses=None, **kwargs):
     """
     A robust (equally weighted) polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are masked values
@@ -676,7 +837,6 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
     :param forceimask: if True, the initialmask will be forced for all iterations
     :param minv: minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
     :param maxv: maximum value in the array (or the right limit for a legendre/chebyshev polynomial)
-    :param debug:
     :return: mask, ct -- mask is an array of the masked values, ct is the coefficients of the robust polyfit.
     """
     # Setup the initial mask
@@ -689,6 +849,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
         mask = initialmask.copy()
     mskcnt = np.sum(mask)
     # Iterate, and mask out new values on each iteration
+    ct = guesses
     while True:
         w = np.where(mask == 0)
         xfit = xarray[w]
@@ -697,11 +858,10 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0, 
             wfit = weights[w]
         else:
             wfit = None
-        ct = func_fit(xfit, yfit, function, order, w=wfit, minv=minv, maxv=maxv, **kwargs)
+        ct = func_fit(xfit, yfit, function, order, w=wfit,
+                      guesses=ct, minv=minv, maxv=maxv, **kwargs)
         yrng = func_val(ct, xarray, function, minv=minv, maxv=maxv)
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
-        if debug:
-            set_trace()
         if xarray.size-np.sum(mask) <= order+2:
             msgs.warn("More parameters than data points - fit might be undesirable")
             break  # More data was masked than allowed by order

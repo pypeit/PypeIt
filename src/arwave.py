@@ -137,6 +137,7 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
 
     flex_dict = dict(polyfit=fit, shift=shift, subpix=subpix_grid,
                      corr=corr[subpix_grid.astype(np.int)],
+                     sky_spec=obj_skyspec,
                      arx_spec=arx_skyspec,
                      corr_cen=corr.size/2, smooth=smooth_sig_pix)
     # Return
@@ -276,10 +277,11 @@ def flexure_obj(slf, det):
                 f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
                 getattr(specobj, attr)['wave'] = f(x+fdict['shift']/(npix-1))
         # Shift sky spec too
-        x = np.linspace(0., 1., obj_sky.npix)
-        f = interpolate.interp1d(x, obj_sky.wavelength.value, bounds_error=False, fill_value="extrapolate")
-        twave = f(x+fdict['shift']/(obj_sky.npix-1))
-        new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, obj_sky.flux))
+        cut_sky = fdict['sky_spec']
+        x = np.linspace(0., 1., cut_sky.npix)
+        f = interpolate.interp1d(x, cut_sky.wavelength.value, bounds_error=False, fill_value="extrapolate")
+        twave = f(x+fdict['shift']/(cut_sky.npix-1))
+        new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, cut_sky.flux))
 
         # Update dict
         for key in ['polyfit','shift','subpix','corr','corr_cen', 'smooth', 'arx_spec']:
