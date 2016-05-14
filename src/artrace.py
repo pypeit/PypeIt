@@ -1226,21 +1226,21 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
                 plt.show()
                 debugger.set_trace()
         elif slf._argflag['trace']['orders']['tilts'].lower() == "spca":
-             # Slit position
-             xspl = np.linspace(0.0, 1.0, msarc.shape[1])
-             # Trace positions down center of the order
-             ycen = np.diag(polytilts[arcdet[np.where(aduse)], ordcen[arcdet[np.where(aduse)]]])
-             yspl = np.append(0.0, np.append(ycen, 1.0))
-             # Trace positions as measured+modeled
-             zspl = np.zeros((msarc.shape[1], np.sum(aduse)+2))
-             zspl[:, 1:-1] = polytilts[arcdet[np.where(aduse)[0]], :].T
-             zspl[:, 0] = zspl[:, 1] + polytilts[0, :] - polytilts[arcdet[np.where(aduse)[0][0]], :]
-             zspl[:, -1] = zspl[:, -2] + polytilts[-1, :] - polytilts[arcdet[np.where(aduse)[0][-1]], :]
-             # Make sure the endpoints are set to 0.0 and 1.0
-             zspl[:, 0] -= zspl[ordcen[0, 0], 0]
-             zspl[:, -1] = zspl[:, -1] - zspl[ordcen[-1, 0], -1] + 1.0
-             # Prepare the spline variables
-             if False:
+            # Slit position
+            xspl = np.linspace(0.0, 1.0, msarc.shape[1])
+            # Trace positions down center of the order
+            ycen = np.diag(polytilts[arcdet[np.where(aduse)], ordcen[arcdet[np.where(aduse)]]])
+            yspl = np.append(0.0, np.append(ycen, 1.0))
+            # Trace positions as measured+modeled
+            zspl = np.zeros((msarc.shape[1], np.sum(aduse)+2))
+            zspl[:, 1:-1] = polytilts[arcdet[np.where(aduse)[0]], :].T
+            zspl[:, 0] = zspl[:, 1] + polytilts[0, :] - polytilts[arcdet[np.where(aduse)[0][0]], :]
+            zspl[:, -1] = zspl[:, -2] + polytilts[-1, :] - polytilts[arcdet[np.where(aduse)[0][-1]], :]
+            # Make sure the endpoints are set to 0.0 and 1.0
+            zspl[:, 0] -= zspl[ordcen[0, 0], 0]
+            zspl[:, -1] = zspl[:, -1] - zspl[ordcen[-1, 0], -1] + 1.0
+            # Prepare the spline variables
+            if False:
                 pmin = 0
                 pmax = -1
             else:
