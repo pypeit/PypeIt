@@ -1,18 +1,14 @@
 import numpy as np
-import arextract
 import arflux
 import arload
 import armasters
 import armbase
 import armsgs
 import arproc
-import ararc
 import arsave
 import arsort
-import arspecobj
 import artrace
 import arqa
-import arwave
 
 from linetools import utils as ltu
 
@@ -60,7 +56,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
     masters = armasters.MasterFrames(spect['mosaic']['ndet'])
 
     # Use Masters?  Requires setup file
-    setup_file = argflag['out']['sorted'].replace('xml','setup')
+    setup_file = argflag['out']['sorted']+'.setup'
     try:
         calib_dict = ltu.loadjson(setup_file)
     except:

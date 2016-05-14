@@ -1214,7 +1214,7 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
             yspl = np.linspace(0.0, 1.0, msarc.shape[0])
             tilts = tiltspl(xspl, yspl, grid=True).T
             # QA
-            if False:
+            if msgs._debug['tilts']:
                 tiltqa = tiltspl(xsbs, zsbs, grid=False)
                 plt.clf()
                 # plt.imshow((zsbs-tiltqa)/zsbs, origin='lower')
@@ -2167,3 +2167,41 @@ def phys_to_pix(array, pixlocn, axis):
     else:
         pixarr = arcytrace.phys_to_pix(array, diff)
     return pixarr
+
+
+def slit_image(slf, det, scitrace, obj, tilts=None):
+    """ Generate slit image for a given object
+    Ignores changing plate scale (for now)
+    The slit is approximated as a straight line in this calculation
+    which should be reasonably accurate.  Better, the object profile
+    generated from this approximation is applied in the same fashion
+    so that the 'error' is compensated for.
+    Parameters
+    ----------
+    slf
+    det
+    scitrace
+    obj
+    Returns
+    -------
+    slit_img : ndarray
+    """
+    # Setup
+    if tilts is None:
+        tilts = slf._tilts[det-1]
+    ximg = np.outer(np.ones(tilts.shape[0]), np.arange(tilts.shape[1]))
+    dypix = 1./tilts.shape[0]
+    #  Trace
+    xtrc = np.round(scitrace['traces'][:,obj]).astype(int)
+    msgs.work("Use 2D spline to evaluate tilts")
+    trc_tilt = tilts[np.arange(tilts.shape[0]), xtrc]
+    trc_tilt_img = np.outer(trc_tilt, np.ones(tilts.shape[1]))
+    # Slit image
+    msgs.work("Should worry about changing plate scale")
+    dy = (tilts - trc_tilt_img)/dypix  # Pixels
+    dx = ximg - np.outer(scitrace['traces'][:,obj],np.ones(tilts.shape[1]))
+    slit_img = np.sqrt(dx**2 - dy**2)
+    neg = dx < 0.
+    slit_img[neg] *= -1
+    # Return
+    return slit_img
