@@ -1103,8 +1103,8 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
             wbad = np.where(ytfit == maskval)[0]
             ztilt[xint+wbad, j] = maskval
             if wmask.size != 0:
-                wtilt[xint:xint+2*sz+1, j] = np.sqrt(2.0) / (1.4826 * np.median(np.abs(ytfit-model)[wmask]))
-
+                sigg = max(1.4826 * np.median(np.abs(ytfit-model)[wmask])/np.sqrt(2.0), 1.0)
+                wtilt[xint:xint+2*sz+1, j] = 1.0 / sigg
             # Extrapolate off the slit to the edges of the chip
             nfit = 6  # Number of pixels to fit a linear function to at the end of each trace
             xlof, xhif = np.arange(xint, xint+nfit), np.arange(xint+2*sz+1-nfit, xint+2*sz+1)
@@ -1226,45 +1226,45 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
                 plt.show()
                 debugger.set_trace()
         elif slf._argflag['trace']['orders']['tilts'].lower() == "spca":
-             # Slit position
-             xspl = np.linspace(0.0, 1.0, msarc.shape[1])
-             # Trace positions down center of the order
-             ycen = np.diag(polytilts[arcdet[np.where(aduse)], ordcen[arcdet[np.where(aduse)]]])
-             yspl = np.append(0.0, np.append(ycen, 1.0))
-             # Trace positions as measured+modeled
-             zspl = np.zeros((msarc.shape[1], np.sum(aduse)+2))
-             zspl[:, 1:-1] = polytilts[arcdet[np.where(aduse)[0]], :].T
-             zspl[:, 0] = zspl[:, 1] + polytilts[0, :] - polytilts[arcdet[np.where(aduse)[0][0]], :]
-             zspl[:, -1] = zspl[:, -2] + polytilts[-1, :] - polytilts[arcdet[np.where(aduse)[0][-1]], :]
-             # Make sure the endpoints are set to 0.0 and 1.0
-             zspl[:, 0] -= zspl[ordcen[0, 0], 0]
-             zspl[:, -1] = zspl[:, -1] - zspl[ordcen[-1, 0], -1] + 1.0
-             # Prepare the spline variables
-             if False:
+            # Slit position
+            xspl = np.linspace(0.0, 1.0, msarc.shape[1])
+            # Trace positions down center of the order
+            ycen = np.diag(polytilts[arcdet[np.where(aduse)], ordcen[arcdet[np.where(aduse)]]])
+            yspl = np.append(0.0, np.append(ycen, 1.0))
+            # Trace positions as measured+modeled
+            zspl = np.zeros((msarc.shape[1], np.sum(aduse)+2))
+            zspl[:, 1:-1] = polytilts[arcdet[np.where(aduse)[0]], :].T
+            zspl[:, 0] = zspl[:, 1] + polytilts[0, :] - polytilts[arcdet[np.where(aduse)[0][0]], :]
+            zspl[:, -1] = zspl[:, -2] + polytilts[-1, :] - polytilts[arcdet[np.where(aduse)[0][-1]], :]
+            # Make sure the endpoints are set to 0.0 and 1.0
+            zspl[:, 0] -= zspl[ordcen[0, 0], 0]
+            zspl[:, -1] = zspl[:, -1] - zspl[ordcen[-1, 0], -1] + 1.0
+            # Prepare the spline variables
+            if False:
                 pmin = 0
                 pmax = -1
-             else:
+            else:
                 pmin = int(max(0, np.min(slf._lordloc[det-1])))
                 pmax = int(min(msarc.shape[1], np.max(slf._rordloc[det-1])))
-                xsbs = np.outer(xspl, np.ones(yspl.size))[pmin:pmax,:]
-                ysbs = np.outer(np.ones(xspl.size), yspl)[pmin:pmax,:]
-                zsbs = zspl[pmin:pmax,:]
-             # Spline
-             msgs.work('Consider adding weights to SmoothBivariate')
-             tiltspl = interp.SmoothBivariateSpline(xsbs.flatten(),
-                                                     zsbs.flatten(),
-                                                     ysbs.flatten(), kx=3, ky=3, s=xsbs.size)
-             # Finish
-             yval = np.linspace(0.0, 1.0, msarc.shape[0])
-             tilts = tiltspl(xspl, yval, grid=True).T
-             if msgs._debug['tilts']:
-                 tiltqa = tiltspl(xsbs.flatten(), zsbs.flatten(), grid=False).reshape( xsbs.shape)
-                 plt.clf()
-                 #plt.imshow((zsbs-tiltqa)/zsbs, origin='lower')
-                 plt.imshow((ysbs-tiltqa)/ysbs, origin='lower')
-                 plt.colorbar()
-                 plt.show()
-                 debugger.set_trace()
+            xsbs = np.outer(xspl, np.ones(yspl.size))[pmin:pmax, :]
+            ysbs = np.outer(np.ones(xspl.size), yspl)[pmin:pmax, :]
+            zsbs = zspl[pmin:pmax, :]
+            # Spline
+            msgs.work('Consider adding weights to SmoothBivariate in spca')
+            tiltspl = interp.SmoothBivariateSpline(xsbs.flatten(),
+                                                   zsbs.flatten(),
+                                                   ysbs.flatten(), kx=3, ky=3, s=xsbs.size)
+            # Finish
+            yval = np.linspace(0.0, 1.0, msarc.shape[0])
+            tilts = tiltspl(xspl, yval, grid=True).T
+            if False:
+                tiltqa = tiltspl(xsbs.flatten(), zsbs.flatten(), grid=False).reshape( xsbs.shape)
+                plt.clf()
+                #plt.imshow((zsbs-tiltqa)/zsbs, origin='lower')
+                plt.imshow((ysbs-tiltqa)/ysbs, origin='lower')
+                plt.colorbar()
+                plt.show()
+                debugger.set_trace()
         elif slf._argflag['trace']['orders']['tilts'].lower() == "pca":
             tilts = polytilts.copy()
         if tt == 0:
@@ -1275,7 +1275,6 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
 
     # Now do the QA
     msgs.info("Preparing arc tilt QA data")
-    # tiltsplot = polytilts[arcdet, :].T
     tiltsplot = tilts[arcdet, :].T
     tiltsplot *= (msarc.shape[0]-1.0)
     # Shift the plotted tilts about the centre of the slit
