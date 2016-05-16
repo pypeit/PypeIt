@@ -815,7 +815,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Estimate trace of science objects
     scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask, doqa=(not standard))
     if scitrace is None:
-        msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
+        msgs.info("Not performing extraction for science frame"+msgs.newline()+fitsdict['filename'][scidx[0]])
         debugger.set_trace()
         #continue
     ###############
@@ -859,7 +859,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     ###############
     # Extract
     if scitrace['nobj'] == 0:
-        msgs.warn("No objects to extract for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
+        msgs.warn("No objects to extract for science frame"+msgs.newline()+fitsdict['filename'][scidx])
         return True
 
     # Boxcar
