@@ -13,6 +13,7 @@ reduce usebias bias      # How to subtract the detector bias (bias, overscan, da
 trace orders tilts spca
 trace orders pcatilt 1,1,1
 reduce bgsubtraction method bspline
+reduce useflat dummy/PYPIT_LRISb_pixflat_B400_2x2_15apr2015.fits.gz
 
 # Read in the data
 data read
