@@ -22,9 +22,9 @@ import armsgs as msgs
 
 import ardebug
 debug = ardebug.init()
-last_updated = "11 April 2016"
+last_updated = "15 May 2016"
 version = '0.1'
-msgs = msgs.get_logger((None, debug, last_updated, version))
+msgs = msgs.get_logger((None, debug, last_updated, version, 1))
 
 import arlris
 
