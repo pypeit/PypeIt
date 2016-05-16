@@ -22,8 +22,8 @@ pwd = os.getcwd()
 
 # Loop on instruments
 for instr in instruments:
-    if instr in ['Kast_blue','Kast_red']:  # For testing
-        continue
+    #if instr in ['Kast_blue','Kast_red']:  # For testing
+    #    continue
     # Setups
     setups = next(os.walk(instr))[1]
     for setup in setups:
