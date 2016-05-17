@@ -375,7 +375,7 @@ def save_2d_images(slf, clobber=True):
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
         prihdu.header[keywd] = 'DET{:d}-Var'.format(det)
-        hdu = pyfits.ImageHDU(slf._varframe[det-1])
+        hdu = pyfits.ImageHDU(slf._modelvarframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
 

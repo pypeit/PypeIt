@@ -432,7 +432,8 @@ def error_frame_postext(slf, sciframe, idx, fitsdict):
     return errframe
 
 
-def flatfield(slf, sciframe, flatframe, det, snframe=None):
+def flatfield(slf, sciframe, flatframe, det, snframe=None,
+              varframe=None):
     """ Flat field the input image
     Parameters
     ----------
@@ -446,15 +447,25 @@ def flatfield(slf, sciframe, flatframe, det, snframe=None):
     Returns
     -------
     flat-field image
-    and updated variance if snframe is input
+    and updated sigma array if snframe is input
+    or updated variance array if varframe is input
 
     """
+    if (varframe is not None) & (snframe is not None):
+        msgs.error("Cannot set both varframe and snframe")
+    # New image
     retframe = np.zeros_like(sciframe)
     w = np.where(flatframe > 0.0)
     retframe[w] = sciframe[w]/flatframe[w]
     if w[0].size != flatframe.size:
         w = np.where(flatframe <= 0.0)
         slf._bpix[det-1][w] = 1.0
+    # Variance?
+    if varframe is not None:
+        retvar = np.zeros_like(sciframe)
+        retvar[w] = varframe[w]/flatframe[w]**2
+        return retframe, retvar
+    # Error image
     if snframe is None:
         return retframe
     else:
@@ -767,22 +778,22 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     msgs.info("Masking bad pixels")
     slf.update_sci_pixmask(det, slf._bpix[det-1], 'BadPix')
     # Variance
-    msgs.info("Generate variance frame")
-    varframe = variance_frame(slf, det, sciframe, scidx, fitsdict)
-    if not standard:
-        slf._varframe[det-1] = varframe
+    msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
+    rawvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict)
     ###############
     # Subtract off the scattered light from the image
     msgs.work("Scattered light subtraction is not yet implemented...")
     ###############
-    # Flat field the science frame
+    # Flat field the science frame (and variance)
     if slf._argflag['reduce']['flatfield']:
         msgs.info("Flat fielding the science frame")
-        sciframe = flatfield(slf, sciframe, slf._mspixflatnrm[det-1], det)
+        sciframe, rawvarframe = flatfield(slf, sciframe, slf._mspixflatnrm[det-1], det,
+                             varframe=rawvarframe)
     else:
         msgs.info("Not performing a flat field calibration")
     if not standard:
         slf._sciframe[det-1] = sciframe
+        slf._rawvarframe[det-1] = rawvarframe
     ###############
     # Identify cosmic rays
     msgs.work("Include L.A.Cosmic arguments in the settings files")
@@ -802,16 +813,16 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
             hdu = fits.open(datfil)
             bgframe = hdu[1].data - hdu[2].data
         else:
-            msgs.info("Estimating the sky background")
-            bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask)
+            msgs.info("First estimate of the sky background")
+            bgframe = bg_subtraction(slf, det, sciframe, rawvarframe, crmask)
         #bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask)
-        varframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
+        modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
         if not standard: # Need to save
-            slf._varframe[det-1] = varframe
+            slf._modelvarframe[det-1] = modelvarframe
             slf._bgframe[det-1] = bgframe
     ###############
     # Estimate trace of science objects
-    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask, doqa=(not standard))
+    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask, doqa=(not standard))
     if scitrace is None:
         msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
         debugger.set_trace()
@@ -824,12 +835,12 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         trcmask = scitrace['object'].sum(axis=2)
         trcmask[np.where(trcmask>0.0)] = 1.0
         if not msgs._debug['obj_profile']:
-            bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask, tracemask=trcmask)
+            bgframe = bg_subtraction(slf, det, sciframe, modelvarframe, crmask, tracemask=trcmask)
         # Redetermine the variance frame based on the new sky model
-        varframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
+        modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
         # Save
         if not standard:
-            slf._varframe[det-1] = varframe
+            slf._modelvarframe[det-1] = modelvarframe
             slf._bgframe[det-1] = bgframe
 
     ###############
@@ -841,7 +852,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     ###############
     # Determine the final trace of the science objects
     msgs.info("Final trace")
-    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, varframe, crmask, doqa=(not standard))
+    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask, doqa=(not standard))
     if standard:
         slf._msstd[det-1]['trace'] = scitrace
         specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict,
@@ -864,16 +875,22 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Boxcar
     msgs.info("Extracting")
     bgcorr_box = arextract.boxcar(slf, det, specobjs, sciframe-bgframe,
-                                  varframe, bgframe, crmask, scitrace)
+                                  rawvarframe, bgframe, crmask, scitrace)
 
     # Optimal
     if not standard:
         msgs.info("Attempting optimal extraction with model profile")
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                               varframe, bgframe+bgcorr_box, crmask, scitrace)
-        arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                                  varframe, bgframe+bgcorr_box, crmask, scitrace)
-        msgs.work("Should update variance image and trace and repeat")
+                               modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
+        newvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
+                                  modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
+        msgs.work("Should update variance image (and trace?) and repeat")
+        #
+        arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
+                               newvar, bgframe+bgcorr_box, crmask, scitrace)
+        finalvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
+                                           newvar, bgframe+bgcorr_box, crmask, scitrace)
+        slf._modelvarframe[det-1] = finalvar.copy()
 
     # Flexure correction?
     if (slf._argflag['reduce']['flexure']['spec'] is not None) and (not standard):
@@ -1209,11 +1226,11 @@ def trim(slf, file, det):
     return file[w]
 
 
-def variance_frame(slf, det, sciframe, idx, fitsdict, skyframe=None, objframe=None):
+def variance_frame(slf, det, sciframe, idx, fitsdict=None, skyframe=None, objframe=None):
     """ Calculate the variance image including detector noise
     Parameters
     ----------
-    fitsdict : dict
+    fitsdict : dict, optional
       Contains relevant information from fits header files
     objframe : ndarray, optional
       Model of object counts
@@ -1224,11 +1241,6 @@ def variance_frame(slf, det, sciframe, idx, fitsdict, skyframe=None, objframe=No
     # The effective read noise (variance image)
     rnoise = rn_frame(slf,det)
     if skyframe is not None:
-        '''
-        msgs.warn("arproc.variance_frame: JXP worries the next line could be biased.")
-        wfill = np.where(np.abs(skyframe) > np.abs(scicopy))
-        scicopy[wfill] = np.abs(skyframe[wfill])
-        '''
         if objframe is None:
             objframe = np.zeros_like(skyframe)
         varframe = np.abs(skyframe + objframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise
