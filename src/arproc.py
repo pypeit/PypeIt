@@ -1085,10 +1085,8 @@ def rn_frame(slf, det):
     for ii in range(slf._spect['det'][det-1]['numamplifiers']):
         amp = ii+1
         amppix = slf._ampsec[det-1] == amp
-        #rnimg[amppix] = (slf._spect['det'][det-1]['ronoise'][ii]**2 +
-        #                 (0.5*slf._spect['det'][det-1]['gain'][ii])**2)
-        # Assumes readnoise is given in e- not counts
-        rnimg[amppix] = slf._spect['det'][det-1]['ronoise'][ii]**2
+        rnimg[amppix] = (slf._spect['det'][det-1]['ronoise'][ii]**2 +
+                         (0.5*slf._spect['det'][det-1]['gain'][ii])**2)
     # Return
     return rnimg
 
