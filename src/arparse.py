@@ -25,7 +25,37 @@ class BaseArgFlag:
 
     def run_ncpus(self, v):
         # Check that v is allowed
-
+        curcpu = self._argflag['run']['ncpus']
+        cpucnt = cpu_count()
+        if v == 'all':
+            v = cpucnt  # Use all available cpus
+            if v != curcpu: msgs.info("Setting {0:d} CPUs".format(v))
+        elif v is None:
+            v = cpucnt-1  # Use all but 1 available cpus
+            if v != curcpu:
+                msgs.info("Setting {0:d} CPUs".format(v))
+        else:
+            try:
+                v = int(v)
+                if v > cpucnt:
+                    msgs.warn("You don't have {0:d} CPUs!".format(v))
+                    v = cpucnt
+                elif v < 0:
+                    v += cpucnt
+                if v != curcpu:
+                    msgs.info("Setting {0:d} CPUs".format(v))
+            except:
+                msgs.error("Incorrect argument given for number of CPUs" + msgs.newline() +
+                           "Please choose from -" + msgs.newline() +
+                           "all, 1..."+str(cpucnt))
+                if cpucnt == 1:
+                    if cpucnt != curcpu:
+                        msgs.info("Setting 1 CPU")
+                    v = 1
+                else:
+                    v = cpu_count()-1
+                    if v != curcpu:
+                        msgs.info("Setting {0:d} CPUs".format(v))
         # Update argument
         self.update(v)
 
