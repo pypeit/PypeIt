@@ -458,8 +458,8 @@ def flatfield(slf, sciframe, flatframe, det, snframe=None,
     w = np.where(flatframe > 0.0)
     retframe[w] = sciframe[w]/flatframe[w]
     if w[0].size != flatframe.size:
-        w = np.where(flatframe <= 0.0)
-        slf._bpix[det-1][w] = 1.0
+        ww = np.where(flatframe <= 0.0)
+        slf._bpix[det-1][ww] = 1.0
     # Variance?
     if varframe is not None:
         retvar = np.zeros_like(sciframe)

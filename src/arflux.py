@@ -26,9 +26,8 @@ except:
 # Logging
 msgs = armsgs.get_logger()
 
-def apply_sensfunc(slf, scidx, fitsdict, MAX_EXTRAP=0.05):
-    """
-    Apply the sensitivity function to the data
+def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
+    """ Apply the sensitivity function to the data
     We also correct for extinction.
 
     Parameters
@@ -41,7 +40,7 @@ def apply_sensfunc(slf, scidx, fitsdict, MAX_EXTRAP=0.05):
     extinct = load_extinction_data(slf)
     airmass = fitsdict['airmass'][scidx]
     # Loop on objects
-    for spobj in slf._specobjs:
+    for spobj in slf._specobjs[det-1]:
         # Loop on extraction modes
         for extract_type in ['boxcar']:
             try:

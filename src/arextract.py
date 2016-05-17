@@ -106,6 +106,8 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
         specobjs[o].boxcar['wave'] = wvsum.copy()*u.AA  # Yes, units enter here
         specobjs[o].boxcar['counts'] = scisum.copy()
         specobjs[o].boxcar['var'] = varsum.copy()
+        if np.sum(specobjs[o].boxcar['var']) == 0.:
+            debugger.set_trace()
         specobjs[o].boxcar['sky'] = skysum.copy()  # per pixel
         specobjs[o].boxcar['mask'] = boxmask.copy()
     # Return
