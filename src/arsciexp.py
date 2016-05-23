@@ -100,7 +100,8 @@ class ScienceExposure:
         self._mspixflat_name = [None for all in xrange(ndet)]  # Master Pixel Flat Name
         # Initialize the science, variance, and background frames
         self._sciframe = [None for all in xrange(ndet)]
-        self._varframe = [None for all in xrange(ndet)]
+        self._rawvarframe = [None for all in xrange(ndet)]    # Variance based on detected counts + RN
+        self._modelvarframe = [None for all in xrange(ndet)]  # Variance from sky and object models
         self._bgframe = [None for all in xrange(ndet)]
         self._scimask = [None for all in xrange(ndet)]        # Mask (1=Bad pix; 2=CR)
         self._scitrace = [None for all in xrange(ndet)]

@@ -275,12 +275,12 @@ def flexure_obj(slf, det):
                 msgs.info("Applying flexure correction to {:s} extraction for object {:s}".format(
                     attr, str(specobj)))
                 f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
-                getattr(specobj, attr)['wave'] = f(x+fdict['shift']/(npix-1))
+                getattr(specobj, attr)['wave'] = f(x+fdict['shift']/(npix-1))*u.AA
         # Shift sky spec too
         cut_sky = fdict['sky_spec']
         x = np.linspace(0., 1., cut_sky.npix)
         f = interpolate.interp1d(x, cut_sky.wavelength.value, bounds_error=False, fill_value="extrapolate")
-        twave = f(x+fdict['shift']/(cut_sky.npix-1))
+        twave = f(x+fdict['shift']/(cut_sky.npix-1))*u.AA
         new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, cut_sky.flux))
 
         # Update dict

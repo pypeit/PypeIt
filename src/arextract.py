@@ -106,6 +106,8 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
         specobjs[o].boxcar['wave'] = wvsum.copy()*u.AA  # Yes, units enter here
         specobjs[o].boxcar['counts'] = scisum.copy()
         specobjs[o].boxcar['var'] = varsum.copy()
+        if np.sum(specobjs[o].boxcar['var']) == 0.:
+            debugger.set_trace()
         specobjs[o].boxcar['sky'] = skysum.copy()  # per pixel
         specobjs[o].boxcar['mask'] = boxmask.copy()
     # Return
@@ -237,6 +239,7 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
                  pickle_file=None, profiles=None):
     """ Preform optimal extraction
     Standard Horne approach
+
     Parameters
     ----------
     slf
@@ -248,27 +251,23 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
     scitrace
     COUNT_LIM
     pickle_file
+
     Returns
     -------
+    newvar : ndarray
+      Updated variance array that includes object model
     """
-    '''
-    import pickle
-    if pickle_file is not None:
-        f = open(pickle_file,'r')
-        args = pickle.load(f)
-        f.close()
-        det, specobjs, sciframe, varframe, skyframe, crmask, scitrace, tilts = args
-        slf = None
-        scitrace['opt_profile'] = profiles
-    else:
-        tilts = None
-    '''
     # Setup
-    rnimg = arproc.rn_frame(slf,det)
-    model_var = np.abs(skyframe + sciframe - np.sqrt(2)*rnimg + rnimg**2)  # sqrt 2 term deals with negative flux/sky
-    model_ivar = 1./model_var
-    msgs.work("Consider making a model of the object for model_ivar")
+    #rnimg = arproc.rn_frame(slf,det)
+    #model_var = np.abs(skyframe + sciframe - np.sqrt(2)*rnimg + rnimg**2)  # sqrt 2 term deals with negative flux/sky
+    #model_ivar = 1./model_var
+    # Inverse variance
+    model_ivar = np.zeros_like(varframe)
+    gdvar = varframe > 0.
+    model_ivar[gdvar] = 1./varframe[gdvar]
     cr_mask = 1.0-crmask
+    # Object model image
+    obj_model = np.zeros_like(varframe)
     # Loop
     nobj = scitrace['traces'].shape[1]
     for o in range(nobj):
@@ -318,11 +317,19 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
         specobjs[o].optimal['var'] = opt_var.copy()
         #specobjs[o].boxcar['sky'] = skysum  # per pixel
 
+        # Update object model
+        counts_image = np.outer(opt_flux, np.ones(prof_img.shape[1]))
+        obj_model += prof_img * counts_image
         '''
         if 'OPTIMAL' in msgs._debug:
             debugger.set_trace()
             debugger.xplot(opt_wave, opt_flux, np.sqrt(opt_var))
         '''
+    # Generate new variance image
+    newvar = arproc.variance_frame(slf, det, sciframe, -1,
+                                   skyframe=skyframe, objframe=obj_model)
+    # Return
+    return newvar
 
 
 def boxcar_cen(slf, det, img):

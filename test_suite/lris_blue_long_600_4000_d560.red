@@ -8,7 +8,6 @@ out overwrite True
 out sorted lris_blue_long_600_4000_d560
 
 # Reduce
-reduce usebias bias      # How to subtract the detector bias (bias, overscan, dark, none), you can also specify a master calibrations file if it exists.
 #trace disp direction 0   # Manually specify the dispersion direction (0 for row, 1 for column)
 trace orders tilts spca
 trace orders pcatilt 1,1,1
