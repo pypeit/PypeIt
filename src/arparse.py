@@ -13,6 +13,13 @@ import armsgs
 msgs = armsgs.get_logger((None, debug, "now", "0.0", 1))
 
 
+"""
+run  use_idname   False
+"""
+
+
+
+
 class NestedDict(dict):
     """
     A class to generate nested dicts
@@ -68,6 +75,12 @@ class BaseArgFlag:
         # Update argument
         self.update(v)
 
+    def run_masterdir(self, v):
+        # Check that v is allowed
+
+        # Update argument
+        self.update(v)
+
     def run_ncpus(self, v):
         # Check that v is allowed
         curcpu = self._argflag['run']['ncpus']
@@ -105,6 +118,40 @@ class BaseArgFlag:
         # Update argument
         self.update(v)
 
+    def run_plotsdir(self, v):
+        # Check that v is allowed
+
+        # Update argument
+        self.update(v)
+
+    def run_preponly(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument 'run preponly' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+
+    def run_qcontrol(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument 'run qcontrol' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+
+    def run_scidir(self, v):
+        # Check that v is allowed
+
+        # Update argument
+        self.update(v)
+
     def run_spectrograph(self, v):
         # Check that v is allowed
         stgs_arm = glob(dirname(__file__)+"/settings.arm*")
@@ -122,6 +169,28 @@ class BaseArgFlag:
             msgs.error("Settings do not exist for the {0:s} spectrograph".format(v.lower()) + msgs.newline() +
                        "Please use one of the following spectrograph settings:" + msgs.newline() +
                        wraptext(", ".join(spclist), width=60))
+        # Update argument
+        self.update(v)
+
+    def run_stopcheck(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument 'run stopcheck' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+
+    def run_useIDname(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument 'run useIDname' can only be 'True' or 'False'")
         # Update argument
         self.update(v)
 
