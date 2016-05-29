@@ -1,6 +1,9 @@
 import collections
 import inspect
 from multiprocessing import cpu_count
+from os.path import dirname, basename
+from textwrap import wrap as wraptext
+from glob import glob
 import pdb
 
 # Logging
@@ -51,7 +54,19 @@ class BaseArgFlag:
             elif ll.strip()[0] == '#':
                 # A comment line
                 continue
+            self.set_flag(ll.strip().split())
         return
+
+    def run_calcheck(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument 'run calcheck' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
 
     def run_ncpus(self, v):
         # Check that v is allowed
@@ -75,7 +90,7 @@ class BaseArgFlag:
                     v += cpucnt
                 if v != curcpu:
                     msgs.info("Setting {0:d} CPUs".format(v))
-            except:
+            except ValueError:
                 msgs.error("Incorrect argument given for number of CPUs" + msgs.newline() +
                            "Please choose from -" + msgs.newline() +
                            "all, 1..."+str(cpucnt))
@@ -87,6 +102,26 @@ class BaseArgFlag:
                     v = cpu_count()-1
                     if v != curcpu:
                         msgs.info("Setting {0:d} CPUs".format(v))
+        # Update argument
+        self.update(v)
+
+    def run_spectrograph(self, v):
+        # Check that v is allowed
+        stgs_arm = glob(dirname(__file__)+"/settings.arm*")
+        stgs_all = glob(dirname(__file__)+"/settings.*")
+        stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
+        spclist = [basename(stgs_spc[0]).split(".")[-1].lower()]
+        for i in xrange(1, len(stgs_spc)):
+            spclist += [basename(stgs_spc[i]).split(".")[-1].lower()]
+        # Check there are no duplicate names
+        if len(spclist) != len(set(spclist)):
+            msgs.bug("Duplicate settings files found")
+            msgs.error("Cannot continue with an ambiguous settings file")
+        # Check the settings file exists
+        if v.lower() not in spclist:
+            msgs.error("Settings do not exist for the {0:s} spectrograph".format(v.lower()) + msgs.newline() +
+                       "Please use one of the following spectrograph settings:" + msgs.newline() +
+                       wraptext(", ".join(spclist), width=60))
         # Update argument
         self.update(v)
 
