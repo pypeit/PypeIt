@@ -14,7 +14,7 @@ run  use_idname   False         # If True, file sorting will ensure that the idn
 
 # REDUCTION RULES
 reduce locations None           # If desired, a fits file can be specified (of the appropriate form) to specify the locations of the pixels on the detector
-reduce nlcorr False             # Perform a non-linear correction
+reduce nonlinear False          # Perform a non-linear correction
 reduce usebias overscan         # How to subtract the detector bias (bias, overscan, dark, none), you can also specify a master calibrations file if it exists.
 reduce oscanMethod SavGol       # Method used to fit the overscan (polynomial, savgol)
 reduce oscanParams [5,65]       # Parameters used for the overscan method (for polynomial use [#] where # is replaced by the polynomial order, for savgol use [#,$] where # is the order and $ is the window size (should be odd)

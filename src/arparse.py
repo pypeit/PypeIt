@@ -14,7 +14,15 @@ msgs = armsgs.get_logger((None, debug, "now", "0.0", 1))
 
 
 """
-run  use_idname   False
+reduce locations None           # If desired, a fits file can be specified (of the appropriate form) to specify the locations of the pixels on the detector
+reduce usearc arc               # What filetype should be used for wavelength calibration (arc), you can also specify a master calibrations file if it exists.
+reduce flatmatch -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
+reduce arcmatch -1.0            # Match similar arc frames together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
+reduce pixelsize 2.5            # The size of the extracted pixels (as an scaled number of Arc FWHM), -1 will not resample
+reduce bgsubtraction perform True       # Subtract the sky background from the data?
+reduce fluxcalibrate True       # Perform a flux calibration
+reduce flexure spec boxcar      # Perform flexure correction on objects using boxcar extraction.  Options are: None, boxcar, slit_cen [this performs flexure correction before extraction of objects]
+reduce flexure max_shift 20     # Maximum allowed flexure shift in pixels (int)
 """
 
 
@@ -64,6 +72,116 @@ class BaseArgFlag:
             self.set_flag(ll.strip().split())
         return
 
+    def reduce_badpix(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument 'reduce badpix' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+
+    def reduce_calibrate(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument 'reduce calibrate' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+
+    def reduce_flatfield_method(self, v):
+        # Check that v is allowed
+        v = v.lower()
+        if v not in ["polyscan"]:
+            msgs.error("The argument 'reduce flatfield method' must be one of" + msgs.newline() +
+                       "'polyscan'")
+        # Update argument
+        self.update(v)
+
+    def reduce_flatfield_params(self, v):
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+
+    def reduce_flatfield_perform(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument 'reduce flatfield perform' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+
+    def reduce_flatfield_useframe(self, v):
+        # Check that v is allowed
+        v = v.lower()
+        # Update argument
+        self.update(v)
+
+    def reduce_nonlinear(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument 'reduce nonlinear' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+
+    def reduce_overscan_method(self, v):
+        # Check that v is allowed
+        v = v.lower()
+        if v not in ['polynomial', 'savgol']:
+            msgs.error("The argument 'reduce overscan method' must be one of:" + msgs.newline() +
+                       "'polynomial', 'savgol'")
+        # Update argument
+        self.update(v)
+
+    def reduce_overscan_params(self, v):
+        """
+        For polynomial use [#] where # is replaced by the polynomial order
+        For savgol use [#,$] where # is the order and $ is the window size (should be odd)
+        """
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+
+    def reduce_refframe(self, v):
+        # Check that v is allowed
+        if v.lower() not in ['geocentric', 'heliocentric', 'barycentric']:
+            msgs.error("The argument 'reduce refframe' must be one of:" + msgs.newline() +
+                       "'geocentric', 'heliocentric', 'barycentric'")
+        # Update argument
+        self.update(v)
+
+    def reduce_trim(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument 'reduce trim' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+
+    def reduce_usebias(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        # Update argument
+        self.update(v)
+
     def run_calcheck(self, v):
         # Check that v is allowed
         if v.lower() == "true":
@@ -75,7 +193,19 @@ class BaseArgFlag:
         # Update argument
         self.update(v)
 
-    def run_masterdir(self, v):
+    def run_directory_master(self, v):
+        # Check that v is allowed
+
+        # Update argument
+        self.update(v)
+
+    def run_directory_plots(self, v):
+        # Check that v is allowed
+
+        # Update argument
+        self.update(v)
+
+    def run_directory_science(self, v):
         # Check that v is allowed
 
         # Update argument
@@ -118,12 +248,6 @@ class BaseArgFlag:
         # Update argument
         self.update(v)
 
-    def run_plotsdir(self, v):
-        # Check that v is allowed
-
-        # Update argument
-        self.update(v)
-
     def run_preponly(self, v):
         # Check that v is allowed
         if v.lower() == "true":
@@ -143,12 +267,6 @@ class BaseArgFlag:
             v = False
         else:
             msgs.error("The argument 'run qcontrol' can only be 'True' or 'False'")
-        # Update argument
-        self.update(v)
-
-    def run_scidir(self, v):
-        # Check that v is allowed
-
         # Update argument
         self.update(v)
 
@@ -318,6 +436,38 @@ def get_spect(init=None):
             pypit_spect = ARMLSD_spect()
 
     return pypit_spect
+
+
+def load_list(strlist):
+    temp = strlist.lstrip('([').rstrip(')]').split(',')
+    addarr = []
+    # Find the type of the array elements
+    for i in temp:
+        if i.lower() == 'none':
+            # None type
+            addarr += [None]
+        elif i.lower() == 'true' or i.lower() == 'false':
+            # bool type
+            addarr += [i.lower() in ['true']]
+        elif ',' in i:
+            # a list
+            addarr += i.lstrip('([').rstrip('])').split(',')
+            msgs.bug("nested lists could cause trouble if elements are not strings!")
+        elif '.' in i:
+            try:
+                # Might be a float
+                addarr += [float(i)]
+            except ValueError:
+                # Must be a string
+                addarr += [i]
+        else:
+            try:
+                # Could be an integer
+                addarr += [int(i)]
+            except ValueError:
+                # Must be a string
+                addarr += [i]
+    return addarr
 
 """
 af = get_argflag("ARMLSD")
