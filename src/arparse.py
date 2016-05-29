@@ -13,21 +13,6 @@ import armsgs
 msgs = armsgs.get_logger((None, debug, "now", "0.0", 1))
 
 
-"""
-reduce locations None           # If desired, a fits file can be specified (of the appropriate form) to specify the locations of the pixels on the detector
-reduce usearc arc               # What filetype should be used for wavelength calibration (arc), you can also specify a master calibrations file if it exists.
-reduce flatmatch -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
-reduce arcmatch -1.0            # Match similar arc frames together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
-reduce pixelsize 2.5            # The size of the extracted pixels (as an scaled number of Arc FWHM), -1 will not resample
-reduce bgsubtraction perform True       # Subtract the sky background from the data?
-reduce fluxcalibrate True       # Perform a flux calibration
-reduce flexure spec boxcar      # Perform flexure correction on objects using boxcar extraction.  Options are: None, boxcar, slit_cen [this performs flexure correction before extraction of objects]
-reduce flexure max_shift 20     # Maximum allowed flexure shift in pixels (int)
-"""
-
-
-
-
 class NestedDict(dict):
     """
     A class to generate nested dicts
@@ -71,6 +56,15 @@ class BaseArgFlag:
                 continue
             self.set_flag(ll.strip().split())
         return
+
+    def arc_comb_match(self, v):
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument 'arc comb match' must be of type float")
+        # Update argument
+        self.update(v)
 
     def reduce_badpix(self, v):
         # Check that v is allowed
@@ -147,20 +141,49 @@ class BaseArgFlag:
         self.update(v)
 
     def reduce_overscan_params(self, v):
-        """
-        For polynomial use [#] where # is replaced by the polynomial order
-        For savgol use [#,$] where # is the order and $ is the window size (should be odd)
-        """
         # Check that v is allowed
         v = load_list(v)
+        # Update argument
+        self.update(v)
+
+    def reduce_pixellocations(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        elif v.split(".")[-1] == "fits":
+            pass
+        elif v.split(".")[-2] == "fits" and v.split(".")[-1] == "gz":
+            pass
+        else:
+            msgs.error("The argument of 'reduce pixellocations' must be 'None' or a fits file")
+        # Update argument
+        self.update(v)
+
+    def reduce_pixelsize(self, v):
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of 'reduce pixelsize' must be of type float")
         # Update argument
         self.update(v)
 
     def reduce_refframe(self, v):
         # Check that v is allowed
         if v.lower() not in ['geocentric', 'heliocentric', 'barycentric']:
-            msgs.error("The argument 'reduce refframe' must be one of:" + msgs.newline() +
+            msgs.error("The argument of 'reduce refframe' must be one of:" + msgs.newline() +
                        "'geocentric', 'heliocentric', 'barycentric'")
+        # Update argument
+        self.update(v)
+
+    def reduce_skysub_perform(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument 'reduce skysub perform' can only be 'True' or 'False'")
         # Update argument
         self.update(v)
 
@@ -391,8 +414,39 @@ class BaseSpect:
 
 
 class ARMLSD(BaseArgFlag):
-    def does_nothing(self):
-        return
+    def reduce_flexure_maxshift(self, v):
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of 'reduce flexure maxshift' must be of type int")
+        # Update argument
+        self.update(v)
+
+    def reduce_flexure_spec(self, v):
+        # Check that v is allowed
+        v = v.lower()
+        if v == "none":
+            v = None
+        elif v in ['boxcar', 'slit_cen']:
+            pass
+        else:
+            msgs.error("The argument of 'reduce flexure spec' must be one of:" + msgs.newline() +
+                       "'boxcar', 'slit_cen'")
+        # Update argument
+        self.update(v)
+
+    def reduce_fluxcal_perform(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of 'reduce fluxcal perform' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+
 
 def get_argflag(init=None):
     """
