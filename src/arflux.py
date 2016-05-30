@@ -26,9 +26,8 @@ except:
 # Logging
 msgs = armsgs.get_logger()
 
-def apply_sensfunc(slf, scidx, fitsdict, MAX_EXTRAP=0.05):
-    """
-    Apply the sensitivity function to the data
+def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
+    """ Apply the sensitivity function to the data
     We also correct for extinction.
 
     Parameters
@@ -41,15 +40,15 @@ def apply_sensfunc(slf, scidx, fitsdict, MAX_EXTRAP=0.05):
     extinct = load_extinction_data(slf)
     airmass = fitsdict['airmass'][scidx]
     # Loop on objects
-    for spobj in slf._specobjs:
+    for spobj in slf._specobjs[det-1]:
         # Loop on extraction modes
         for extract_type in ['boxcar']:
             try:
                 extract = getattr(spobj,extract_type)
             except AttributeError:
                 continue
-            msgs.info("Fluxing {:s} extraction".format(extract_type))
-            wave = extract['wave'] # for convenience
+            msgs.info("Fluxing {:s} extraction for {}".format(extract_type, spobj))
+            wave = extract['wave']  # for convenience
             scale = np.zeros(wave.size)
             # Allow for some extrapolation 
             dwv = slf._sensfunc['wave_max']-slf._sensfunc['wave_min']
@@ -62,9 +61,9 @@ def apply_sensfunc(slf, scidx, fitsdict, MAX_EXTRAP=0.05):
             ext_corr = extinction_correction(wave[inds],airmass,extinct)
             scale[inds] = sens*ext_corr
             # Fill
-            extract['flam'] = extract['counts']*scale/slf._fitsdict['exptime'][scidx]
+            extract['flam'] = extract['counts']*scale/fitsdict['exptime'][scidx]
             extract['flam_var'] = (extract['var']*
-                                   (scale/slf._fitsdict['exptime'][scidx])**2)
+                                   (scale/fitsdict['exptime'][scidx])**2)
 
 
 def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):

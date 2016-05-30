@@ -85,7 +85,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     else:
         satsnd = np.zeros_like(ordcen)
     # Detect the location of the arc lines
-    msgs.info("Detecting the strongest, nonsaturated arc lines")
+    msgs.info("Detecting the strongest, nonsaturated lines")
     #####
     # Old algorithm for arc line detection
 #   arcdet = arcyarc.detections_allorders(censpec, satsnd)
