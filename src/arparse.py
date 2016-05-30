@@ -56,361 +56,7 @@ class BaseArgFlag:
             self.set_flag(ll.strip().split())
         return
 
-    def arc_comb_match(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of 'arc comb match' must be of type float")
-        # Update argument
-        self.update(v)
 
-    def bias_comb_method(self, v):
-        # Check that v is allowed
-        v = v.lower()
-        if v not in ['mean', 'median', 'weightmean']:
-            msgs.error("The argument of 'bias comb method' must be one of" + msgs.newline() +
-                       "'mean', 'median', 'weightmean'")
-        # Update argument
-        self.update(v)
-
-    def bias_comb_reject_cosmics(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of 'bias comb reject cosmics' must be of type float")
-        # Update argument
-        self.update(v)
-
-    def bias_comb_reject_replace(self, v):
-        # Check that v is allowed
-        v = v.lower()
-        if v not in ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']:
-            msgs.error("The argument of 'bias comb reject replace' must be one of" + msgs.newline() +
-                       "'min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat'")
-        # Update argument
-        self.update(v)
-
-    def bias_comb_reject_lowhigh(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
-        self.update(v)
-
-    def bias_comb_reject_level(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
-        self.update(v)
-
-    def bias_comb_satpix(self, v):
-        # Check that v is allowed
-        v = v.lower()
-        if v not in ['reject', 'force', 'nothing']:
-            msgs.error("The argument of 'bias comb satpix' must be one of" + msgs.newline() +
-                       "'reject', 'force', 'nothing'")
-        # Update argument
-        self.update(v)
-
-    def out_verbose(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of 'out verbose' must be of type int")
-        if (v < 0) or (v > 2):
-            msgs.error("The verbosity can only take values between 0 (minimum) and 2 (maximum)" + msgs.newline() +
-                       "Please change the argument of 'out verbose'")
-        # Update argument
-        self.update(v)
-
-    def out_sorted(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        # Update argument
-        self.update(v)
-
-    def out_overwrite(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of 'out overwrite' can only be 'True' or 'False'")
-        # Update argument
-        self.update(v)
-
-    def reduce_badpix(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of 'reduce badpix' can only be 'True' or 'False'")
-        # Update argument
-        self.update(v)
-
-    def reduce_calibrate(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of 'reduce calibrate' can only be 'True' or 'False'")
-        # Update argument
-        self.update(v)
-
-    def reduce_flatfield_method(self, v):
-        # Check that v is allowed
-        v = v.lower()
-        if v not in ["polyscan"]:
-            msgs.error("The argument of 'reduce flatfield method' must be one of" + msgs.newline() +
-                       "'polyscan'")
-        # Update argument
-        self.update(v)
-
-    def reduce_flatfield_params(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
-        self.update(v)
-
-    def reduce_flatfield_perform(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of 'reduce flatfield perform' can only be 'True' or 'False'")
-        # Update argument
-        self.update(v)
-
-    def reduce_flatfield_useframe(self, v):
-        # Check that v is allowed
-        v = v.lower()
-        # Update argument
-        self.update(v)
-
-    def reduce_nonlinear(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of 'reduce nonlinear' can only be 'True' or 'False'")
-        # Update argument
-        self.update(v)
-
-    def reduce_overscan_method(self, v):
-        # Check that v is allowed
-        v = v.lower()
-        if v not in ['polynomial', 'savgol']:
-            msgs.error("The argument of 'reduce overscan method' must be one of:" + msgs.newline() +
-                       "'polynomial', 'savgol'")
-        # Update argument
-        self.update(v)
-
-    def reduce_overscan_params(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
-        self.update(v)
-
-    def reduce_pixellocations(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        elif v.split(".")[-1] == "fits":
-            pass
-        elif v.split(".")[-2] == "fits" and v.split(".")[-1] == "gz":
-            pass
-        else:
-            msgs.error("The argument of 'reduce pixellocations' must be 'None' or a fits file")
-        # Update argument
-        self.update(v)
-
-    def reduce_pixelsize(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of 'reduce pixelsize' must be of type float")
-        # Update argument
-        self.update(v)
-
-    def reduce_refframe(self, v):
-        # Check that v is allowed
-        if v.lower() not in ['geocentric', 'heliocentric', 'barycentric']:
-            msgs.error("The argument of 'reduce refframe' must be one of:" + msgs.newline() +
-                       "'geocentric', 'heliocentric', 'barycentric'")
-        # Update argument
-        self.update(v)
-
-    def reduce_skysub_perform(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of 'reduce skysub perform' can only be 'True' or 'False'")
-        # Update argument
-        self.update(v)
-
-    def reduce_trim(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of 'reduce trim' can only be 'True' or 'False'")
-        # Update argument
-        self.update(v)
-
-    def reduce_usebias(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        # Update argument
-        self.update(v)
-
-    def run_calcheck(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of 'run calcheck' can only be 'True' or 'False'")
-        # Update argument
-        self.update(v)
-
-    def run_directory_master(self, v):
-        # Check that v is allowed
-
-        # Update argument
-        self.update(v)
-
-    def run_directory_plots(self, v):
-        # Check that v is allowed
-
-        # Update argument
-        self.update(v)
-
-    def run_directory_science(self, v):
-        # Check that v is allowed
-
-        # Update argument
-        self.update(v)
-
-    def run_ncpus(self, v):
-        # Check that v is allowed
-        curcpu = self._argflag['run']['ncpus']
-        cpucnt = cpu_count()
-        if v == 'all':
-            v = cpucnt  # Use all available cpus
-            if v != curcpu:
-                msgs.info("Setting {0:d} CPUs".format(v))
-        elif v is None:
-            v = cpucnt-1  # Use all but 1 available cpus
-            if v != curcpu:
-                msgs.info("Setting {0:d} CPUs".format(v))
-        else:
-            try:
-                v = int(v)
-                if v > cpucnt:
-                    msgs.warn("You don't have {0:d} CPUs!".format(v))
-                    v = cpucnt
-                elif v < 0:
-                    v += cpucnt
-                if v != curcpu:
-                    msgs.info("Setting {0:d} CPUs".format(v))
-            except ValueError:
-                msgs.error("Incorrect argument given for number of CPUs" + msgs.newline() +
-                           "Please choose from -" + msgs.newline() +
-                           "all, 1..."+str(cpucnt))
-                if cpucnt == 1:
-                    if cpucnt != curcpu:
-                        msgs.info("Setting 1 CPU")
-                    v = 1
-                else:
-                    v = cpu_count()-1
-                    if v != curcpu:
-                        msgs.info("Setting {0:d} CPUs".format(v))
-        # Update argument
-        self.update(v)
-
-    def run_preponly(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of 'run preponly' can only be 'True' or 'False'")
-        # Update argument
-        self.update(v)
-
-    def run_qcontrol(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of 'run qcontrol' can only be 'True' or 'False'")
-        # Update argument
-        self.update(v)
-
-    def run_spectrograph(self, v):
-        # Check that v is allowed
-        stgs_arm = glob(dirname(__file__)+"/settings.arm*")
-        stgs_all = glob(dirname(__file__)+"/settings.*")
-        stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
-        spclist = [basename(stgs_spc[0]).split(".")[-1].lower()]
-        for i in xrange(1, len(stgs_spc)):
-            spclist += [basename(stgs_spc[i]).split(".")[-1].lower()]
-        # Check there are no duplicate names
-        if len(spclist) != len(set(spclist)):
-            msgs.bug("Duplicate settings files found")
-            msgs.error("Cannot continue with an ambiguous settings file")
-        # Check the settings file exists
-        if v.lower() not in spclist:
-            msgs.error("Settings do not exist for the {0:s} spectrograph".format(v.lower()) + msgs.newline() +
-                       "Please use one of the following spectrograph settings:" + msgs.newline() +
-                       wraptext(", ".join(spclist), width=60))
-        # Update argument
-        self.update(v)
-
-    def run_stopcheck(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of 'run stopcheck' can only be 'True' or 'False'")
-        # Update argument
-        self.update(v)
-
-    def run_useIDname(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of 'run useIDname' can only be 'True' or 'False'")
-        # Update argument
-        self.update(v)
 
     def save(self):
         """
@@ -472,6 +118,480 @@ class BaseArgFlag:
             udct = dict({ll[-ii-1]: udct.copy()})
         # Update the master dictionary
         self._argflag = ingest(dstr, udct).copy()
+        return
+
+    def arc_comb_match(self, v):
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of 'arc comb match' must be of type float")
+        # Update argument
+        self.update(v)
+        return
+
+    def bias_comb_method(self, v):
+        # Check that v is allowed
+        v = v.lower()
+        if v not in ['mean', 'median', 'weightmean']:
+            msgs.error("The argument of 'bias comb method' must be one of" + msgs.newline() +
+                       "'mean', 'median', 'weightmean'")
+        # Update argument
+        self.update(v)
+        return
+
+    def bias_comb_reject_cosmics(self, v):
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of 'bias comb reject cosmics' must be of type float")
+        # Update argument
+        self.update(v)
+        return
+
+    def bias_comb_reject_replace(self, v):
+        # Check that v is allowed
+        v = v.lower()
+        if v not in ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']:
+            msgs.error("The argument of 'bias comb reject replace' must be one of" + msgs.newline() +
+                       "'min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat'")
+        # Update argument
+        self.update(v)
+        return
+
+    def bias_comb_reject_lowhigh(self, v):
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+    def bias_comb_reject_level(self, v):
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+    def bias_comb_satpix(self, v):
+        # Check that v is allowed
+        v = v.lower()
+        if v not in ['reject', 'force', 'nothing']:
+            msgs.error("The argument of 'bias comb satpix' must be one of" + msgs.newline() +
+                       "'reject', 'force', 'nothing'")
+        # Update argument
+        self.update(v)
+        return
+
+    def out_verbose(self, v):
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of 'out verbose' must be of type int")
+        if (v < 0) or (v > 2):
+            msgs.error("The verbosity can only take values between 0 (minimum) and 2 (maximum)" + msgs.newline() +
+                       "Please change the argument of 'out verbose'")
+        # Update argument
+        self.update(v)
+        return
+
+    def out_sorted(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        # Update argument
+        self.update(v)
+        return
+
+    def out_overwrite(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of 'out overwrite' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_badpix(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of 'reduce badpix' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_calibrate(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of 'reduce calibrate' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_flatfield_method(self, v):
+        # Check that v is allowed
+        v = v.lower()
+        if v not in ["polyscan"]:
+            msgs.error("The argument of 'reduce flatfield method' must be one of" + msgs.newline() +
+                       "'polyscan'")
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_flatfield_params(self, v):
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_flatfield_perform(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of 'reduce flatfield perform' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_flatfield_useframe(self, v):
+        # Check that v is allowed
+        v = v.lower()
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_nonlinear(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of 'reduce nonlinear' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_overscan_method(self, v):
+        # Check that v is allowed
+        v = v.lower()
+        if v not in ['polynomial', 'savgol']:
+            msgs.error("The argument of 'reduce overscan method' must be one of:" + msgs.newline() +
+                       "'polynomial', 'savgol'")
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_overscan_params(self, v):
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_pixellocations(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        elif v.split(".")[-1] == "fits":
+            pass
+        elif v.split(".")[-2] == "fits" and v.split(".")[-1] == "gz":
+            pass
+        else:
+            msgs.error("The argument of 'reduce pixellocations' must be 'None' or a fits file")
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_pixelsize(self, v):
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of 'reduce pixelsize' must be of type float")
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_refframe(self, v):
+        # Check that v is allowed
+        if v.lower() not in ['geocentric', 'heliocentric', 'barycentric']:
+            msgs.error("The argument of 'reduce refframe' must be one of:" + msgs.newline() +
+                       "'geocentric', 'heliocentric', 'barycentric'")
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_skysub_perform(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of 'reduce skysub perform' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_trim(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of 'reduce trim' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_usebias(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        # Update argument
+        self.update(v)
+        return
+
+    def run_calcheck(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of 'run calcheck' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+        return
+
+    def run_directory_master(self, v):
+        # Check that v is allowed
+
+        # Update argument
+        self.update(v)
+        return
+
+    def run_directory_plots(self, v):
+        # Check that v is allowed
+
+        # Update argument
+        self.update(v)
+        return
+
+    def run_directory_science(self, v):
+        # Check that v is allowed
+
+        # Update argument
+        self.update(v)
+        return
+
+    def run_ncpus(self, v):
+        # Check that v is allowed
+        curcpu = self._argflag['run']['ncpus']
+        cpucnt = cpu_count()
+        if v == 'all':
+            v = cpucnt  # Use all available cpus
+            if v != curcpu:
+                msgs.info("Setting {0:d} CPUs".format(v))
+        elif v is None:
+            v = cpucnt-1  # Use all but 1 available cpus
+            if v != curcpu:
+                msgs.info("Setting {0:d} CPUs".format(v))
+        else:
+            try:
+                v = int(v)
+                if v > cpucnt:
+                    msgs.warn("You don't have {0:d} CPUs!".format(v))
+                    v = cpucnt
+                elif v < 0:
+                    v += cpucnt
+                if v != curcpu:
+                    msgs.info("Setting {0:d} CPUs".format(v))
+            except ValueError:
+                msgs.error("Incorrect argument given for number of CPUs" + msgs.newline() +
+                           "Please choose from -" + msgs.newline() +
+                           "all, 1..."+str(cpucnt))
+                if cpucnt == 1:
+                    if cpucnt != curcpu:
+                        msgs.info("Setting 1 CPU")
+                    v = 1
+                else:
+                    v = cpu_count()-1
+                    if v != curcpu:
+                        msgs.info("Setting {0:d} CPUs".format(v))
+        # Update argument
+        self.update(v)
+        return
+
+    def run_preponly(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of 'run preponly' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+        return
+
+    def run_qcontrol(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of 'run qcontrol' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+        return
+
+    def run_spectrograph(self, v):
+        # Check that v is allowed
+        stgs_arm = glob(dirname(__file__)+"/settings.arm*")
+        stgs_all = glob(dirname(__file__)+"/settings.*")
+        stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
+        spclist = [basename(stgs_spc[0]).split(".")[-1].lower()]
+        for i in xrange(1, len(stgs_spc)):
+            spclist += [basename(stgs_spc[i]).split(".")[-1].lower()]
+        # Check there are no duplicate names
+        if len(spclist) != len(set(spclist)):
+            msgs.bug("Duplicate settings files found")
+            msgs.error("Cannot continue with an ambiguous settings file")
+        # Check the settings file exists
+        if v.lower() not in spclist:
+            msgs.error("Settings do not exist for the {0:s} spectrograph".format(v.lower()) + msgs.newline() +
+                       "Please use one of the following spectrograph settings:" + msgs.newline() +
+                       wraptext(", ".join(spclist), width=60))
+        # Update argument
+        self.update(v)
+        return
+
+    def run_stopcheck(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of 'run stopcheck' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+        return
+
+    def run_useIDname(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of 'run useIDname' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+        return
+
+    def science_load_extracted(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of 'science load extracted' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+        return
+
+    def science_extraction_method(self, v):
+        # Check that v is allowed
+        if v.lower() not in ['2d', 'mean']:
+            msgs.error("The argument of 'science extraction method' must be one of:" + msgs.newline() +
+                       "'2D', 'mean'")
+        # Update argument
+        self.update(v)
+        return
+
+    def science_extraction_profile(self, v):
+        # Check that v is allowed
+        if v.lower() not in ['gaussian', 'gaussfunc', 'moffat', 'moffatfunc']:
+            msgs.error("The argument of 'science extraction profile' must be one of:" + msgs.newline() +
+                       "'gaussian', 'gaussfunc', 'moffat', 'moffatfunc'")
+        # Update argument
+        self.update(v)
+        return
+
+    def science_extraction_centorder(self, v):
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of 'science extraction centorder' must be of type int")
+        # Update argument
+        self.update(v)
+        return
+
+    def science_extraction_widthorder(self, v):
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of 'science extraction widthorder' must be of type int")
+        # Update argument
+        self.update(v)
+        return
+
+    def science_extraction_function(self, v):
+        # Check that v is allowed
+        if v.lower() not in ['polynomial', 'legendre', 'chebyshev']:
+            msgs.error("The argument of 'science extraction function' must be one of:" + msgs.newline() +
+                       "'polynomial', 'legendre', 'chebyshev'")
+        # Update argument
+        self.update(v)
+        return
+
+    def science_extraction_pcacent(self, v):
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+    def science_extraction_pcawidth(self, v):
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+    def science_extraction_bintrace(self, v):
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of 'science extraction bintrace' must be of type int")
+        # Update argument
+        self.update(v)
         return
 
 
