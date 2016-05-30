@@ -113,6 +113,36 @@ class BaseArgFlag:
         # Update argument
         self.update(v)
 
+    def out_verbose(self, v):
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of 'out verbose' must be of type int")
+        if (v < 0) or (v > 2):
+            msgs.error("The verbosity can only take values between 0 (minimum) and 2 (maximum)" + msgs.newline() +
+                       "Please change the argument of 'out verbose'")
+        # Update argument
+        self.update(v)
+
+    def out_sorted(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        # Update argument
+        self.update(v)
+
+    def out_overwrite(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of 'out overwrite' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+
     def reduce_badpix(self, v):
         # Check that v is allowed
         if v.lower() == "true":
