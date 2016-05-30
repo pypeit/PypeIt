@@ -266,7 +266,7 @@ def lris_read_amp(inp, ext):
     detsec = header['DETSEC']
     x1, x2, y1, y2 = np.array(arload.load_sections(detsec, msgs)).flatten()
 
-    #; parse the DATASEC keyword to determine the size of the science region
+    #; parse the DATASEC keyword to determine the size of the science region (unbinned)
     datasec = header['DATASEC']
     xdata1, xdata2, ydata1, ydata2 = np.array(arload.load_sections(datasec, msgs)).flatten()
 
@@ -274,10 +274,16 @@ def lris_read_amp(inp, ext):
     predata = temp[0:precol, :]
     # datasec appears to have the x value for the keywords that are zero
     # based. This is only true in the image header extensions
-    # not true in the main header.
+    # not true in the main header.  They also appear inconsistent between
+    # LRISr and LRISb!
     #data     = temp[xdata1-1:xdata2-1,*]
     #data = temp[xdata1:xdata2+1, :]
-    data = temp[xdata1:xdata2, :]
+    if (xdata1-1) != precol:
+        msgs.error("Something wrong in LRIS datasec or precol")
+    xshape = 1024 / xbin
+    if (xshape+precol+postpix) != temp.shape[0]:
+        msgs.error("Wrong size for in LRIS detector somewhere.  Funny binning?")
+    data = temp[precol:precol+xshape,:]
     postdata = temp[nxt-postpix:nxt, :]
 
     #; flip in X as needed...

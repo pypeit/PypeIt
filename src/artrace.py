@@ -197,6 +197,10 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
         if w[0].size!=0:
             allxfit = np.append(allxfit, specfit[w])
             allsfit = np.append(allsfit, centfit[w]-cval[o])
+    if nobj == 0:
+        msgs.warn("No objects detected in slit")
+        return dict(nobj=0, traces=None, object=None, background=None)
+    # Tracing
     msgs.info("Performing global trace to all objects")
     mskbad, coeffs = arutils.robust_polyfit(allxfit,allsfit,traceorder,function="legendre", minv=-1.0, maxv=1.0)
     trcfunc = arutils.func_val(coeffs, np.linspace(-1.0, 1.0, sciframe.shape[0]), "legendre", minv=-1.0, maxv=1.0)
@@ -267,6 +271,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
         arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, root="object_trace", normalize=False)
     # Trace dict
     tracedict = dict({})
+    tracedict['nobj'] = nobj
     tracedict['traces'] = traces
     tracedict['object'] = rec_obj_img
     tracedict['background'] = rec_bg_img
@@ -857,6 +862,14 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
             if ampl[w[u]] > ampl[olduse][s]:
                 aduse[idxuse[s]] = False
                 break
+    # Restricted to ID lines? [avoid ghosts]
+    if slf._argflag['trace']['orders']['use_ids_only']:
+        ids_pix = np.round(np.array(slf._wvcalib[det-1]['xfit'])*(msarc.shape[0]-1))
+        idxuse = np.arange(arcdet.size)[aduse]
+        for s in idxuse:
+            if np.min(np.abs(arcdet[s]-ids_pix)) > 2:
+                msgs.info("Ignoring line at row={:d}".format(arcdet[s]))
+                aduse[s] = False
 
     # Divide the detector into Nseg segments,
     # and find the brightest lines in each segment.
@@ -1080,6 +1093,10 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
                 maskrows[idx] = 0
                 tcoeff[:, idx] = mcoeff.copy()
                 weights[idx] = (np.abs(np.median(apfit[wmask])))**0.25
+            # Restrict to good IDs?
+            if slf._argflag['trace']['orders']['use_ids_only']:
+                if not aduse[j]:
+                    maskrows[idx] = 1
 
             # if True:
             #     #debugger.set_trace()
@@ -1122,11 +1139,13 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
             msgs.warn("There were {0:d} additional arc lines that should have been traced".format(badlines) +
                       msgs.newline() + "(perhaps lines were saturated?). Check the spectral tilt solution")
 
+        # Masking
         weights /= np.max(weights)
         maskrw = np.where(maskrows == 1)[0]
         maskrw.sort()
         extrap_row = maskrows.copy()
         xv = np.arange(msarc.shape[1])
+        # Tilt values
         tiltval = arutils.func_val(tcoeff, xv, slf._argflag['trace']['orders']['function'],
                                    minv=0.0, maxv=msarc.shape[1]-1.0).T
         msgs.work("May need to do a check here to make sure ofit is reasonable")

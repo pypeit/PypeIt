@@ -180,7 +180,7 @@ if __name__ == "__main__":
     from armsgs import Messages as Initmsg
     initmsgs = Initmsg(None, debug, last_updated, version, 1)
     # Set the default variables
-    red = "script.red"
+    red = "script.pypit"
     qck = False
     cpu = 1
     vrb = 2
@@ -207,7 +207,10 @@ if __name__ == "__main__":
                 vrb = int(a)
             elif o in ('-m', '--use_masters'):
                 use_masters=True
-        lnm = os.path.splitext(arg[0])[0] + ".log"
+        splitnm = os.path.splitext(arg[0])
+        if splitnm[1] != '.pypit':
+            initmsgs.error("Bad extension for PYPIT reduction file."+initmsgs.newline()+".pypit is required")
+        lnm = splitnm[0] + ".log"
         red = arg[0]
     except getopt.GetoptError, err:
         initmsgs.error(err.msg, usage=True)

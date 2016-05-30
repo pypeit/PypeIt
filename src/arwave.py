@@ -168,10 +168,11 @@ def flexure_archive(slf, det):
         skyspec_fil = slf._argflag['reduce']['flexure']['archive_spec']
     #
     msgs.info("Using {:s} file for Sky spectrum".format(skyspec_fil))
-    hdu = fits.open(root+'/data/sky_spec/'+skyspec_fil)
-    archive_wave = hdu[0].data
-    archive_flux = hdu[1].data
-    arx_sky = xspectrum1d.XSpectrum1D.from_tuple((archive_wave, archive_flux))
+    arx_sky = xspectrum1d.XSpectrum1D.from_file(root+'/data/sky_spec/'+skyspec_fil)
+    #hdu = fits.open(root+'/data/sky_spec/'+skyspec_fil)
+    #archive_wave = hdu[0].data
+    #archive_flux = hdu[1].data
+    #arx_sky = xspectrum1d.XSpectrum1D.from_tuple((archive_wave, archive_flux))
     # Return
     return skyspec_fil, arx_sky
 

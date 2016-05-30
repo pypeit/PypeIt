@@ -116,7 +116,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             ###############
             # Generate an array that provides the physical pixel locations on the detector
             slf.GetPixelLocations(det)
-            ###############
             # Determine the edges of the spectrum (spatial)
             if 'trace'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
                 ###############
@@ -143,6 +142,11 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             update = slf.MasterFlatField(fitsdict, det)
             if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixflat")
             ###############
+            # Generate the 1D wavelength solution
+            update = slf.MasterWaveCalib(fitsdict, sc, det)
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
+            ###############
             # Derive the spectral tilt
             if slf._tilts[det-1] is None:
                 if slf._argflag['masters']['use']:
@@ -162,11 +166,11 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
 
-                ###############
-                # Generate/load a master wave frame
-                update = slf.MasterWave(fitsdict, sc, det)
-                if update and reuseMaster:
-                    armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
+            ###############
+            # Generate/load a master wave frame
+            update = slf.MasterWave(fitsdict, sc, det)
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
 
             # Check if the user only wants to prepare the calibrations only
             msgs.info("All calibration frames have been prepared")

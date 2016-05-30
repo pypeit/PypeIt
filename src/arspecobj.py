@@ -122,7 +122,7 @@ def init_exp(slf, scidx, det, fitsdict, trc_img=None, ypos=0.5, **kwargs):
     pixl_slits = slf._lordloc[det-1][yidx, :]
     pixr_slits = slf._rordloc[det-1][yidx, :]
     #
-    if trc_img is not None: # Object traces
+    if trc_img['nobj'] != 0: # Object traces
         for qq in xrange(trc_img['traces'].shape[1]): # Loop on objects
             # Find the slit
             gds = np.where( (trc_img['traces'][yidx,qq]>pixl_slits) & 
@@ -144,7 +144,7 @@ def init_exp(slf, scidx, det, fitsdict, trc_img=None, ypos=0.5, **kwargs):
             # Append
             specobjs.append(specobj)
     else:
-        msgs.error("No way given to generate the list of SpecObjExp")
+        msgs.warn("No objects for specobjs")
     # Return
     return specobjs
 

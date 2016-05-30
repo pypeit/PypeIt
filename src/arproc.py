@@ -824,12 +824,12 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Estimate trace of science objects
     scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask, doqa=(not standard))
     if scitrace is None:
-        msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
+        msgs.info("Not performing extraction for science frame"+msgs.newline()+fitsdict['filename'][scidx[0]])
         debugger.set_trace()
         #continue
     ###############
     # Finalize the Sky Background image
-    if slf._argflag['reduce']['bgsubtraction']['perform']:
+    if slf._argflag['reduce']['bgsubtraction']['perform'] & (scitrace['nobj']>0):
         # Perform an iterative background/science extraction
         msgs.info("Finalizing the sky background image")
         trcmask = scitrace['object'].sum(axis=2)
@@ -867,10 +867,9 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
 
     ###############
     # Extract
-    if scitrace is None:
-        msgs.info("Not performing extraction for science frame"+msgs.newline()+slf._fitsdict['filename'][scidx[0]])
-        debugger.set_trace()
-        #continue
+    if scitrace['nobj'] == 0:
+        msgs.warn("No objects to extract for science frame"+msgs.newline()+fitsdict['filename'][scidx])
+        return True
 
     # Boxcar
     msgs.info("Extracting")
