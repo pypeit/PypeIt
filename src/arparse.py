@@ -4,7 +4,6 @@ from multiprocessing import cpu_count
 from os.path import dirname, basename
 from textwrap import wrap as wraptext
 from glob import glob
-import pdb
 
 # Logging
 import ardebug
@@ -62,7 +61,55 @@ class BaseArgFlag:
         try:
             v = float(v)
         except ValueError:
-            msgs.error("The argument 'arc comb match' must be of type float")
+            msgs.error("The argument of 'arc comb match' must be of type float")
+        # Update argument
+        self.update(v)
+
+    def bias_comb_method(self, v):
+        # Check that v is allowed
+        v = v.lower()
+        if v not in ['mean', 'median', 'weightmean']:
+            msgs.error("The argument of 'bias comb method' must be one of" + msgs.newline() +
+                       "'mean', 'median', 'weightmean'")
+        # Update argument
+        self.update(v)
+
+    def bias_comb_reject_cosmics(self, v):
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of 'bias comb reject cosmics' must be of type float")
+        # Update argument
+        self.update(v)
+
+    def bias_comb_reject_replace(self, v):
+        # Check that v is allowed
+        v = v.lower()
+        if v not in ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']:
+            msgs.error("The argument of 'bias comb reject replace' must be one of" + msgs.newline() +
+                       "'min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat'")
+        # Update argument
+        self.update(v)
+
+    def bias_comb_reject_lowhigh(self, v):
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+
+    def bias_comb_reject_level(self, v):
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+
+    def bias_comb_satpix(self, v):
+        # Check that v is allowed
+        v = v.lower()
+        if v not in ['reject', 'force', 'nothing']:
+            msgs.error("The argument of 'bias comb satpix' must be one of" + msgs.newline() +
+                       "'reject', 'force', 'nothing'")
         # Update argument
         self.update(v)
 
@@ -73,7 +120,7 @@ class BaseArgFlag:
         elif v.lower() == "false":
             v = False
         else:
-            msgs.error("The argument 'reduce badpix' can only be 'True' or 'False'")
+            msgs.error("The argument of 'reduce badpix' can only be 'True' or 'False'")
         # Update argument
         self.update(v)
 
@@ -84,7 +131,7 @@ class BaseArgFlag:
         elif v.lower() == "false":
             v = False
         else:
-            msgs.error("The argument 'reduce calibrate' can only be 'True' or 'False'")
+            msgs.error("The argument of 'reduce calibrate' can only be 'True' or 'False'")
         # Update argument
         self.update(v)
 
@@ -92,7 +139,7 @@ class BaseArgFlag:
         # Check that v is allowed
         v = v.lower()
         if v not in ["polyscan"]:
-            msgs.error("The argument 'reduce flatfield method' must be one of" + msgs.newline() +
+            msgs.error("The argument of 'reduce flatfield method' must be one of" + msgs.newline() +
                        "'polyscan'")
         # Update argument
         self.update(v)
@@ -110,7 +157,7 @@ class BaseArgFlag:
         elif v.lower() == "false":
             v = False
         else:
-            msgs.error("The argument 'reduce flatfield perform' can only be 'True' or 'False'")
+            msgs.error("The argument of 'reduce flatfield perform' can only be 'True' or 'False'")
         # Update argument
         self.update(v)
 
@@ -127,7 +174,7 @@ class BaseArgFlag:
         elif v.lower() == "false":
             v = False
         else:
-            msgs.error("The argument 'reduce nonlinear' can only be 'True' or 'False'")
+            msgs.error("The argument of 'reduce nonlinear' can only be 'True' or 'False'")
         # Update argument
         self.update(v)
 
@@ -135,7 +182,7 @@ class BaseArgFlag:
         # Check that v is allowed
         v = v.lower()
         if v not in ['polynomial', 'savgol']:
-            msgs.error("The argument 'reduce overscan method' must be one of:" + msgs.newline() +
+            msgs.error("The argument of 'reduce overscan method' must be one of:" + msgs.newline() +
                        "'polynomial', 'savgol'")
         # Update argument
         self.update(v)
@@ -183,7 +230,7 @@ class BaseArgFlag:
         elif v.lower() == "false":
             v = False
         else:
-            msgs.error("The argument 'reduce skysub perform' can only be 'True' or 'False'")
+            msgs.error("The argument of 'reduce skysub perform' can only be 'True' or 'False'")
         # Update argument
         self.update(v)
 
@@ -194,7 +241,7 @@ class BaseArgFlag:
         elif v.lower() == "false":
             v = False
         else:
-            msgs.error("The argument 'reduce trim' can only be 'True' or 'False'")
+            msgs.error("The argument of 'reduce trim' can only be 'True' or 'False'")
         # Update argument
         self.update(v)
 
@@ -212,7 +259,7 @@ class BaseArgFlag:
         elif v.lower() == "false":
             v = False
         else:
-            msgs.error("The argument 'run calcheck' can only be 'True' or 'False'")
+            msgs.error("The argument of 'run calcheck' can only be 'True' or 'False'")
         # Update argument
         self.update(v)
 
@@ -278,7 +325,7 @@ class BaseArgFlag:
         elif v.lower() == "false":
             v = False
         else:
-            msgs.error("The argument 'run preponly' can only be 'True' or 'False'")
+            msgs.error("The argument of 'run preponly' can only be 'True' or 'False'")
         # Update argument
         self.update(v)
 
@@ -289,7 +336,7 @@ class BaseArgFlag:
         elif v.lower() == "false":
             v = False
         else:
-            msgs.error("The argument 'run qcontrol' can only be 'True' or 'False'")
+            msgs.error("The argument of 'run qcontrol' can only be 'True' or 'False'")
         # Update argument
         self.update(v)
 
@@ -320,7 +367,7 @@ class BaseArgFlag:
         elif v.lower() == "false":
             v = False
         else:
-            msgs.error("The argument 'run stopcheck' can only be 'True' or 'False'")
+            msgs.error("The argument of 'run stopcheck' can only be 'True' or 'False'")
         # Update argument
         self.update(v)
 
@@ -331,7 +378,7 @@ class BaseArgFlag:
         elif v.lower() == "false":
             v = False
         else:
-            msgs.error("The argument 'run useIDname' can only be 'True' or 'False'")
+            msgs.error("The argument of 'run useIDname' can only be 'True' or 'False'")
         # Update argument
         self.update(v)
 
@@ -353,16 +400,16 @@ class BaseArgFlag:
     def set_flag(self, lst):
         cnt = 1
         func = None
+        succeed = False
         while cnt < len(lst):
             try:
                 func = "self." + "_".join(lst[:-cnt]) + "({0:s})".format(" ".join(lst[-cnt:]))
-                break
+                eval(func)
+                succeed = True
             except:
                 cnt += 1
                 continue
-        if func is not None:
-            eval(func)
-        else:
+        if not succeed:
             msgs.error("There appears to be an error on the following input line:" + msgs.newline() +
                        " ".join(lst))
         return
