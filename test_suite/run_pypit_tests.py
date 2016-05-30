@@ -3,6 +3,8 @@
 '''
 This needs to be run in the TEST_SUITES directory.
 Usually found in a Dropbox.
+
+See the README file for more
 '''
 import sys, os, os.path
 import pdb
