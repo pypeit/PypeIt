@@ -116,7 +116,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             ###############
             # Generate an array that provides the physical pixel locations on the detector
             slf.GetPixelLocations(det)
-            ###############
             # Determine the edges of the spectrum (spatial)
             if 'trace'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
                 ###############
@@ -143,6 +142,11 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             update = slf.MasterFlatField(fitsdict, det)
             if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixflat")
             ###############
+            # Generate the 1D wavelength solution
+            update = slf.MasterWaveCalib(fitsdict, sc, det)
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
+            ###############
             # Derive the spectral tilt
             if slf._tilts[det-1] is None:
                 if slf._argflag['masters']['use']:
@@ -162,11 +166,11 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
 
-                ###############
-                # Generate/load a master wave frame
-                update = slf.MasterWave(fitsdict, sc, det)
-                if update and reuseMaster:
-                    armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
+            ###############
+            # Generate/load a master wave frame
+            update = slf.MasterWave(fitsdict, sc, det)
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
 
             # Check if the user only wants to prepare the calibrations only
             msgs.info("All calibration frames have been prepared")
@@ -218,17 +222,19 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         ###############
         # Standard star (is this a calibration, e.g. goes above?)
         msgs.info("Processing standard star")
-        msgs.warn("Assuming one star per detector mosaic")
-        msgs.warn("Waited until last detector to process")
+        msgs.info("Assuming one star per detector mosaic")
+        msgs.info("Waited until last detector to process")
 
+        msgs.work("Need to check for existing sensfunc")
         update = slf.MasterStandard(scidx, fitsdict)
         if update and reuseMaster:
             armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
         #
-        msgs.work("Need to check for existing sensfunc")
         msgs.work("Consider using archived sensitivity if not found")
         msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
-        arflux.apply_sensfunc(slf, scidx, fitsdict)
+        for kk in xrange(slf._spect['mosaic']['ndet']):
+            det = kk + 1  # Detectors indexed from 1
+            arflux.apply_sensfunc(slf, det, scidx, fitsdict)
 
         # Write 1D spectra
         arsave.save_1d_spectra(slf)

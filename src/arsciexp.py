@@ -100,7 +100,8 @@ class ScienceExposure:
         self._mspixflat_name = [None for all in xrange(ndet)]  # Master Pixel Flat Name
         # Initialize the science, variance, and background frames
         self._sciframe = [None for all in xrange(ndet)]
-        self._varframe = [None for all in xrange(ndet)]
+        self._rawvarframe = [None for all in xrange(ndet)]    # Variance based on detected counts + RN
+        self._modelvarframe = [None for all in xrange(ndet)]  # Variance from sky and object models
         self._bgframe = [None for all in xrange(ndet)]
         self._scimask = [None for all in xrange(ndet)]        # Mask (1=Bad pix; 2=CR)
         self._scitrace = [None for all in xrange(ndet)]
@@ -524,11 +525,14 @@ class ScienceExposure:
                         mspixflat = arcomb.comb_frames(frames, det, spect=self._spect, frametype='pixel flat',
                                                        **self._argflag['pixflat']['comb'])
                     del frames
+                    # Apply gain (instead of ampsec scale)
+                    mspixflat *= arproc.gain_frame(self, det)
                     # Normalize the flat field
                     mspixflatnrm, msblaze = arproc.flatnorm(self, det, mspixflat, overpix=0, plotdesc="Blaze function")
                     self.SetFrame(self._msblaze, msblaze, det)
             else:  # It must be the name of a file the user wishes to load
-                mspixflat_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['useflat']
+                mspixflat_name = armasters.user_master_name(self._argflag['run']['masterdir'],
+                                                            self._argflag['reduce']['useflat'])
                 mspixflatnrm, head = arload.load_master(mspixflat_name, exten=det, frametype=None)
                 mspixflat = mspixflatnrm
             # Now that the combined, master flat field frame is loaded...
@@ -620,7 +624,6 @@ class ScienceExposure:
         del mstrace
         return True
 
-
     def MasterWave(self, fitsdict, sc, det):
         """
         Generate Master Wave frame for a given detector
@@ -637,8 +640,6 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-        import ararc
-
         if self._mswave[det-1] is not None:
             msgs.info("An identical master arc frame already exists")
             return False
@@ -653,10 +654,52 @@ class ScienceExposure:
                     msgs.warn("No MasterWave frame found {:s}".format(mswave_name))
                 else:
                     self._argflag['masters']['loaded'].append('wave'+self._argflag['masters']['setup'])
-                    mswv_soln_name = armasters.master_name(self._argflag['run']['masterdir'],
-                                                    'wave_soln', self._argflag['masters']['setup'])
-                    wv_calib = arload.load_master(mswv_soln_name, frametype="wv_calib")
             if 'wave'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
+                msgs.info("Preparing a master wave frame")
+                wv_calib = self._wvcalib[det-1]
+                mswave = arutils.func_val(wv_calib['fitc'], self._tilts[det-1], wv_calib['function'], minv=wv_calib['fmin'], maxv=wv_calib['fmax'])
+        else: # It must be the name of a file the user wishes to load
+            msgs.error("Not prepared to read a user-specified wave file")
+            #mswave_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usewave']
+            #mswave, head = arload.load_master(mswave_name, frametype=None)
+        # Set and then delete the Master Arc frame
+        self.SetMasterFrame(mswave, "wave", det)
+        del mswave
+        return True
+
+    def MasterWaveCalib(self, fitsdict, sc, det):
+        """
+        Generate Master 1D Wave Solution (down slit center)
+
+        Parameters
+        ----------
+        fitsdict : dict
+          Contains relevant information from fits header files
+        det : int
+          Index of the detector
+
+        Returns
+        -------
+        boolean : bool
+          Should other ScienceExposure classes be updated?
+        """
+        import ararc
+
+        if self._wvcalib[det-1] is not None:
+            msgs.info("An identical master wave calib frame already exists")
+            return False
+        if self._argflag['reduce']['usewave'] in ['wave']:
+            # Attempt to load the Master Frame
+            if self._argflag['masters']['use']:
+                mswv_calib_name = armasters.master_name(self._argflag['run']['masterdir'],
+                                                       'wave_calib', self._argflag['masters']['setup'])
+                try:
+                    wv_calib = arload.load_master(mswv_calib_name, frametype="wv_calib")
+                except IOError:
+                    msgs.warn("No MasterWave1D data found {:s}".format(mswv_calib_name))
+                else:
+                    self._argflag['masters']['loaded'].append('wave_calib'+self._argflag['masters']['setup'])
+            if 'wave_calib'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
                 # Setup arc parameters (e.g. linelist)
                 arcparam = ararc.setup_param(self, sc, det, fitsdict)
                 self.SetFrame(self._arcparam, arcparam, det)
@@ -664,16 +707,14 @@ class ScienceExposure:
                 # Extract arc and identify lines
                 wv_calib = ararc.simple_calib(self, det)
                 #
-                msgs.info("Preparing a master wave frame")
-                mswave = arutils.func_val(wv_calib['fitc'], self._tilts[det-1], wv_calib['function'], minv=wv_calib['fmin'], maxv=wv_calib['fmax'])
         else: # It must be the name of a file the user wishes to load
-            mswave_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usewave']
-            mswave, head = arload.load_master(mswave_name, frametype=None)
-        # Set and then delete the Master Arc frame
-        self.SetMasterFrame(mswave, "wave", det)
+            msgs.error("Not prepared to read a user-specified wave file")
+            #mswv_calib_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usewavecalib']
+            #wv_calib = arload.load_master(mswv_calib_name, frametype="wv_calib")
+        # Set
         if wv_calib is not None:
             self.SetFrame(self._wvcalib, wv_calib, det)
-        del mswave
+        del wv_calib
         return True
 
     def MasterStandard(self, scidx, fitsdict):

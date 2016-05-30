@@ -7,11 +7,14 @@ pointing to it, e.g.
 
 setenv TST_PYPIT /Users/xavier/PYPIT/TEST_SUITES/
 
-You also need an environmental variable pointing to the
-PYPIT code:
+You also need an environmental variable pointing to the PYPIT code:
 
 setenv PYPIT /Users/xavier/local/Python/PYPIT/
 
+You may also need an environmental variable pointing to the PYPIT CALIBS:
+
+setenv PYPIT_CALIBS /Users/xavier/Dropbox//PYPIT/CALIBS
+
 Then let it rip.
 
-./run_pypit_tests
+./run_pypit_tests.py

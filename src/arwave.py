@@ -168,10 +168,11 @@ def flexure_archive(slf, det):
         skyspec_fil = slf._argflag['reduce']['flexure']['archive_spec']
     #
     msgs.info("Using {:s} file for Sky spectrum".format(skyspec_fil))
-    hdu = fits.open(root+'/data/sky_spec/'+skyspec_fil)
-    archive_wave = hdu[0].data
-    archive_flux = hdu[1].data
-    arx_sky = xspectrum1d.XSpectrum1D.from_tuple((archive_wave, archive_flux))
+    arx_sky = xspectrum1d.XSpectrum1D.from_file(root+'/data/sky_spec/'+skyspec_fil)
+    #hdu = fits.open(root+'/data/sky_spec/'+skyspec_fil)
+    #archive_wave = hdu[0].data
+    #archive_flux = hdu[1].data
+    #arx_sky = xspectrum1d.XSpectrum1D.from_tuple((archive_wave, archive_flux))
     # Return
     return skyspec_fil, arx_sky
 
@@ -275,12 +276,12 @@ def flexure_obj(slf, det):
                 msgs.info("Applying flexure correction to {:s} extraction for object {:s}".format(
                     attr, str(specobj)))
                 f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
-                getattr(specobj, attr)['wave'] = f(x+fdict['shift']/(npix-1))
+                getattr(specobj, attr)['wave'] = f(x+fdict['shift']/(npix-1))*u.AA
         # Shift sky spec too
         cut_sky = fdict['sky_spec']
         x = np.linspace(0., 1., cut_sky.npix)
         f = interpolate.interp1d(x, cut_sky.wavelength.value, bounds_error=False, fill_value="extrapolate")
-        twave = f(x+fdict['shift']/(cut_sky.npix-1))
+        twave = f(x+fdict['shift']/(cut_sky.npix-1))*u.AA
         new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, cut_sky.flux))
 
         # Update dict

@@ -65,7 +65,7 @@ def master_name(mdir, ftype, setup):
                      normpixflat='{:s}/MasterFlatField_{:s}.fits'.format(mdir,setup),
                      arc='{:s}/MasterArc_{:s}.fits'.format(mdir,setup),
                      wave='{:s}/MasterWave_{:s}.fits'.format(mdir,setup),
-                     wave_soln='{:s}/MasterWaveSoln_{:s}.json'.format(mdir,setup),
+                     wave_calib='{:s}/MasterWaveCalib_{:s}.json'.format(mdir,setup),
                      tilts='{:s}/MasterTilts_{:s}.fits'.format(mdir,setup),
                      )
     return name_dict[ftype]
@@ -154,7 +154,7 @@ def save_masters(slf, det, setup):
                            frametype='wave')
         # Wavelength fit
         gddict = ltu.jsonify(slf._wvcalib[det-1])
-        json_file=master_name(mdir, 'wave_soln', setup)
+        json_file=master_name(mdir, 'wave_calib', setup)
         with io.open(json_file, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4,
                                        separators=(',', ': '))))
@@ -162,3 +162,25 @@ def save_masters(slf, det, setup):
         arsave.save_master(slf, slf._tilts[det-1],
                            filename=master_name(mdir, 'tilts', setup),
                            frametype='tilts')
+
+def user_master_name(mdir, input_name):
+    """ Convert user-input filename for master into full name
+    Mainly used to append MasterFrame directory
+
+    Parameters
+    ----------
+    mdir : str
+    input_name : str
+
+    Returns
+    -------
+    full_name : str
+
+    """
+    islash = input_name.find('/')
+    if islash >= 0:
+        full_name = input_name
+    else:
+        full_name = mdir+'/'+input_name
+    # Return
+    return full_name
