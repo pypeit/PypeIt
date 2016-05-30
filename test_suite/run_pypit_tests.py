@@ -1,11 +1,13 @@
 #!/usr/bin/env python
-#
-'''
+"""
 This needs to be run in the TEST_SUITES directory.
 Usually found in a Dropbox.
 
-See the README file for more
-'''
+IMPORTANT: Output will be written to TST_PYPIT env variable
+IMPORTANT: Path to PYPIT_CALIBS must be set
+
+See README for more
+"""
 import sys, os, os.path
 import pdb
 import subprocess
@@ -22,13 +24,13 @@ pwd = os.getcwd()
 
 # Loop on instruments
 for instr in instruments:
-    #if instr in ['Kast_blue','Kast_red']: # For testing
+    #if instr in ['Kast_blue','Kast_red']:  # For testing
     #    continue
     # Setups
     setups = next(os.walk(instr))[1]
     for setup in setups:
         # Look for redux file in PYPIT
-        redfile = os.getenv('PYPIT')+'/test_suite/'+instr.lower()+'_'+setup.lower()+'.red'
+        redfile = os.getenv('PYPIT')+'/test_suite/'+instr.lower()+'_'+setup.lower()+'.pypit'
         if not os.path.exists(redfile):
             warnings.warn('No redux file: {:s}'.format(redfile))
             warnings.warn('Not testing..')
@@ -42,6 +44,11 @@ for instr in instruments:
                 i0 = dpth.rfind('/')
                 newdpth = ' '+pwd+'/'+instr+'/'+setup+dpth[i0:]
                 lines[kk+1] = newdpth
+            elif 'reduce useflat' in iline:
+                cpth = lines[kk]
+                i0 = cpth.rfind('/')
+                newcpth = os.getenv('PYPIT_CALIBS')+'/'+cpth[i0:]
+                lines[kk] = 'reduce useflat '+newcpth
         # Generate folder as need be
         idir = os.getenv('TST_PYPIT')+'/'+instr
         if not os.path.exists(idir):
@@ -50,7 +57,7 @@ for instr in instruments:
         if not os.path.exists(wdir):
             os.makedirs(wdir)
         # Write to TST_PYPIT
-        outfile = wdir+'/'+instr.lower()+'_'+setup.lower()+'.red'
+        outfile = wdir+'/'+instr.lower()+'_'+setup.lower()+'.pypit'
         with open(outfile, 'w') as ofile:
             for iline in lines:
                 ofile.writelines(iline)
