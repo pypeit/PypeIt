@@ -130,6 +130,193 @@ class BaseArgFlag:
         self.update(v)
         return
 
+    def arc_comb_method(self, v):
+        # Check that v is allowed
+        v = v.lower()
+        if v not in ['mean', 'median', 'weightmean']:
+            msgs.error("The argument of 'arc comb method' must be one of" + msgs.newline() +
+                       "'mean', 'median', 'weightmean'")
+        # Update argument
+        self.update(v)
+        return
+
+    def arc_comb_reject_cosmics(self, v):
+        """
+        arc comb rej_cosmicray
+        """
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of 'arc comb reject cosmics' must be of type float")
+        # Update argument
+        self.update(v)
+        return
+
+    def arc_comb_reject_lowhigh(self, v):
+        """
+        arc comb rej_lowhigh
+        """
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+    def arc_comb_reject_level(self, v):
+        """
+        arc comb rej_level
+        """
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+    def arc_comb_reject_replace(self, v):
+        """
+        arc comb set_allrej
+        """
+        # Check that v is allowed
+        allowed = ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']
+        v = v.lower()
+        if v not in allowed:
+            msgs.error("The argument of 'arc comb reject replace' must be one of" + msgs.newline() +
+                       ", ".join(allowed))
+        # Update argument
+        self.update(v)
+        return
+
+    def arc_comb_satpix(self, v):
+        """
+        arc comb sat_pix
+        """
+        # Check that v is allowed
+        allowed = ['reject', 'force', 'nothing']
+        v = v.lower()
+        if v not in allowed:
+            msgs.error("The argument of 'arc comb satpix' must be one of" + msgs.newline() +
+                       ", ".join(allowed))
+        # Update argument
+        self.update(v)
+        return
+
+    def arc_extract_binby(self, v):
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of 'arc extract binby' must be of type float")
+        if v < 1.0:
+            msgs.error("The argument of 'arc extract binby' must be >= 1.0")
+        # Update argument
+        self.update(v)
+        return
+
+    def arc_load_extracted(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of 'arc load extracted' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+        return
+
+    def arc_load_calibrated(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of 'arc load calibrated' can only be 'True' or 'False'")
+        # Update argument
+        self.update(v)
+        return
+
+    def arc_calibrate_lamps(self, v):
+        """
+        arc calibrate linelist
+        """
+        # Check that v is allowed
+        allowed = ['ArI', 'CdI', 'HgI', 'HeI', 'KrI', 'NeI', 'XeI', 'ZnI', 'ThAr']
+        v = load_list(v)
+        for ll in v:
+            if ll not in allowed:
+                msgs.error("The current list of arc lines does not include: {0:s}".format(ll) + msgs.newline() +
+                           "Please choose one of the following:" + msgs.newline() +
+                           ", ".join(allowed))
+        # Update argument
+        self.update(v)
+        return
+
+    def arc_calibrate_method(self, v):
+        # Check that v is allowed
+        allowed = ['fit', 'simple']
+        v = v.lower()
+        if v not in allowed:
+            msgs.error("The argument of 'arc calibrate method' must be one of" + msgs.newline() +
+                       ", ".join(allowed))
+        # Update argument
+        self.update(v)
+        return
+
+    def arc_calibrate_detection(self, v):
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of 'arc calibrate detection' must be of type float")
+        # Update argument
+        self.update(v)
+        return
+
+    def arc_calibrate_numsearch(self, v)
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of 'arc calibrate numsearch' must be of type int")
+        # Update argument
+        self.update(v)
+        return
+
+    def arc_calibrate_nfitpix(self, v):
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of 'arc calibrate nfitpix' must be of type int")
+        if v % 2 == 0:
+            msgs.warn("An odd integer is recommended for the argument of 'arc calibrate nfitpix'")
+        # Update argument
+        self.update(v)
+        return
+
+
+
+    def arc_useframe(self, v):
+        """
+        reduce usearc
+        """
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        # Update argument
+        self.update(v)
+        return
+
+
+
+
+
+
+
+
+
     def bias_comb_method(self, v):
         # Check that v is allowed
         v = v.lower()
@@ -141,6 +328,9 @@ class BaseArgFlag:
         return
 
     def bias_comb_reject_cosmics(self, v):
+        """
+        bias comb rej_cosmicray
+        """
         # Check that v is allowed
         try:
             v = float(v)
@@ -150,7 +340,30 @@ class BaseArgFlag:
         self.update(v)
         return
 
+    def bias_comb_reject_lowhigh(self, v):
+        """
+        bias comb rej_lowhigh
+        """
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+    def bias_comb_reject_level(self, v):
+        """
+        bias comb rej_level
+        """
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
     def bias_comb_reject_replace(self, v):
+        """
+        bias comb set_allrej
+        """
         # Check that v is allowed
         v = v.lower()
         if v not in ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']:
@@ -160,21 +373,10 @@ class BaseArgFlag:
         self.update(v)
         return
 
-    def bias_comb_reject_lowhigh(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
-        self.update(v)
-        return
-
-    def bias_comb_reject_level(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
-        self.update(v)
-        return
-
     def bias_comb_satpix(self, v):
+        """
+        bias comb sat_pix
+        """
         # Check that v is allowed
         v = v.lower()
         if v not in ['reject', 'force', 'nothing']:
@@ -184,7 +386,21 @@ class BaseArgFlag:
         self.update(v)
         return
 
-    def out_verbose(self, v):
+    def bias_useframe(self, v):
+        """
+        reduce usebias
+        """
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        # Update argument
+        self.update(v)
+        return
+
+    def output_verbose(self, v):
+        """
+        out verbose
+        """
         # Check that v is allowed
         try:
             v = int(v)
@@ -197,7 +413,10 @@ class BaseArgFlag:
         self.update(v)
         return
 
-    def out_sorted(self, v):
+    def output_sorted(self, v):
+        """
+        out sorted
+        """
         # Check that v is allowed
         if v.lower() == "none":
             v = None
@@ -205,7 +424,10 @@ class BaseArgFlag:
         self.update(v)
         return
 
-    def out_overwrite(self, v):
+    def output_overwrite(self, v):
+        """
+        out overwrite
+        """
         # Check that v is allowed
         if v.lower() == "true":
             v = True
@@ -242,6 +464,9 @@ class BaseArgFlag:
         return
 
     def reduce_flatfield_method(self, v):
+        """
+        reduce FlatMethod
+        """
         # Check that v is allowed
         v = v.lower()
         if v not in ["polyscan"]:
@@ -252,6 +477,9 @@ class BaseArgFlag:
         return
 
     def reduce_flatfield_params(self, v):
+        """
+        reduce FlatParams
+        """
         # Check that v is allowed
         v = load_list(v)
         # Update argument
@@ -259,6 +487,9 @@ class BaseArgFlag:
         return
 
     def reduce_flatfield_perform(self, v):
+        """
+        reduce flatfield
+        """
         # Check that v is allowed
         if v.lower() == "true":
             v = True
@@ -271,6 +502,9 @@ class BaseArgFlag:
         return
 
     def reduce_flatfield_useframe(self, v):
+        """
+        reduce useflat
+        """
         # Check that v is allowed
         v = v.lower()
         # Update argument
@@ -290,6 +524,9 @@ class BaseArgFlag:
         return
 
     def reduce_overscan_method(self, v):
+        """
+        reduce oscanMethod
+        """
         # Check that v is allowed
         v = v.lower()
         if v not in ['polynomial', 'savgol']:
@@ -300,6 +537,9 @@ class BaseArgFlag:
         return
 
     def reduce_overscan_params(self, v):
+        """
+        reduce oscanParams
+        """
         # Check that v is allowed
         v = load_list(v)
         # Update argument
@@ -307,6 +547,9 @@ class BaseArgFlag:
         return
 
     def reduce_pixellocations(self, v):
+        """
+        reduce locations
+        """
         # Check that v is allowed
         if v.lower() == "none":
             v = None
@@ -331,6 +574,9 @@ class BaseArgFlag:
         return
 
     def reduce_refframe(self, v):
+        """
+        reduce heliocorr
+        """
         # Check that v is allowed
         if v.lower() not in ['geocentric', 'heliocentric', 'barycentric']:
             msgs.error("The argument of 'reduce refframe' must be one of:" + msgs.newline() +
@@ -340,6 +586,9 @@ class BaseArgFlag:
         return
 
     def reduce_skysub_perform(self, v):
+        """
+        reduce bgsubtraction perform
+        """
         # Check that v is allowed
         if v.lower() == "true":
             v = True
@@ -363,14 +612,6 @@ class BaseArgFlag:
         self.update(v)
         return
 
-    def reduce_usebias(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        # Update argument
-        self.update(v)
-        return
-
     def run_calcheck(self, v):
         # Check that v is allowed
         if v.lower() == "true":
@@ -384,13 +625,19 @@ class BaseArgFlag:
         return
 
     def run_directory_master(self, v):
+        """
+        run  masterdir
+        """
         # Check that v is allowed
 
         # Update argument
         self.update(v)
         return
 
-    def run_directory_plots(self, v):
+    def run_directory_qa(self, v):
+        """
+        run  plotsdir
+        """
         # Check that v is allowed
 
         # Update argument
@@ -398,6 +645,9 @@ class BaseArgFlag:
         return
 
     def run_directory_science(self, v):
+        """
+        run  scidir
+        """
         # Check that v is allowed
 
         # Update argument
@@ -454,7 +704,10 @@ class BaseArgFlag:
         self.update(v)
         return
 
-    def run_qcontrol(self, v):
+    def run_qa(self, v):
+        """
+        run qcontrol
+        """
         # Check that v is allowed
         if v.lower() == "true":
             v = True
@@ -500,6 +753,9 @@ class BaseArgFlag:
         return
 
     def run_useIDname(self, v):
+        """
+        run use_idname
+        """
         # Check that v is allowed
         if v.lower() == "true":
             v = True
@@ -601,7 +857,10 @@ class BaseSpect:
 
     def mosaic_ndet(self, v):
         # Check that v is allowed
-
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of 'mosaic ndet' must be of type int")
         # Update argument
         self.update(v)
 
@@ -612,6 +871,9 @@ class BaseSpect:
 
 class ARMLSD(BaseArgFlag):
     def reduce_flexure_maxshift(self, v):
+        """
+        reduce flexure max_shift
+        """
         # Check that v is allowed
         try:
             v = int(v)
@@ -629,11 +891,14 @@ class ARMLSD(BaseArgFlag):
             pass
         else:
             msgs.error("The argument of 'reduce flexure spec' must be one of:" + msgs.newline() +
-                       "'boxcar', 'slit_cen'")
+                       "'boxcar', 'slit_cen', 'none'")
         # Update argument
         self.update(v)
 
     def reduce_fluxcal_perform(self, v):
+        """
+        reduce fluxcalibrate
+        """
         # Check that v is allowed
         if v.lower() == "true":
             v = True
