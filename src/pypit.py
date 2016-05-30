@@ -12,7 +12,7 @@ import traceback
 # Import PYPIT routines
 import ardebug
 debug = ardebug.init()
-debug['develop'] = True
+#debug['develop'] = True
 #debug['arc'] = True
 #debug['sky_sub'] = True
 #debug['trace'] = True
@@ -209,7 +209,7 @@ if __name__ == "__main__":
                 use_masters=True
         splitnm = os.path.splitext(arg[0])
         if splitnm[1] != '.pypit':
-            initmsgs.error("Bad extension for PYPIT reduction file.  .pypit is required")
+            initmsgs.error("Bad extension for PYPIT reduction file."+initmsgs.newline()+".pypit is required")
         lnm = splitnm[0] + ".log"
         red = arg[0]
     except getopt.GetoptError, err:

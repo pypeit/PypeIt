@@ -5,14 +5,12 @@
 # -*- coding: utf-8 -*-
 
 """
-This script pushes a FITS file to ginga
+This script generates a sky spectrum from a LowRedux IDL save file
 """
 
 import argparse
 from scipy.io.idl import readsav
 from linetools.spectra.xspectrum1d import XSpectrum1D
-
-# Setup for PYPIT imports
 
 try:
     from xastropy.xutils import xdebug as debugger

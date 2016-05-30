@@ -5,6 +5,8 @@ Usually found in a Dropbox.
 
 IMPORTANT: Output will be written to TST_PYPIT env variable
 IMPORTANT: Path to PYPIT_CALIBS must be set
+
+See README for more
 """
 import sys, os, os.path
 import pdb
