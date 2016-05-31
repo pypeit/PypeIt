@@ -4,6 +4,7 @@ from multiprocessing import cpu_count
 from os.path import dirname, basename
 from textwrap import wrap as wraptext
 from glob import glob
+import pdb
 
 # Logging
 import ardebug
@@ -29,13 +30,6 @@ class BaseArgFlag:
         self._argflag = NestedDict()
         self._defname = defname
         self._afout = open(savname, 'w')
-        # self._argflag["run"]["ncpus"] = 1
-        # self._argflag["a"]["b"]["c"]["d"]["e"] = 5
-        # self._argflag["a"]["b"]["c"]["d"]["f"] = 6
-        # self._argflag["a"]["b"]["c"]["next"] = 3
-        # self._argflag["a"]["b"]["c"]["s"] = "zing"
-        # self._argflag["a"]["b"]["g"]["d"]["e"] = "foo"
-        # self._argflag["a"]["h"]["c"]["d"]["e"] = "bar"
         # Load the default settings
         self.load()
 
@@ -47,13 +41,16 @@ class BaseArgFlag:
 
     def load_lines(self, lines):
         for ll in lines:
+            ll = ll.replace("\t", " ").replace("\n", " ")
             if len(ll.strip()) == 0:
                 # Nothing on a line
                 continue
             elif ll.strip()[0] == '#':
                 # A comment line
                 continue
-            self.set_flag(ll.strip().split())
+            # Remove comments
+            ll = ll.split("#")[0].strip()
+            self.set_flag(ll.split())
         return
 
     def save(self):
@@ -73,16 +70,18 @@ class BaseArgFlag:
 
     def set_flag(self, lst):
         cnt = 1
-        func = None
         succeed = False
+        members = [x for x, y in inspect.getmembers(self, predicate=inspect.ismethod)]
         while cnt < len(lst):
-            try:
-                func = "self." + "_".join(lst[:-cnt]) + "({0:s})".format(" ".join(lst[-cnt:]))
+            func = "_".join(lst[:-cnt])
+            if func in members:
+                func = "self." + func + "('{0:s}')".format(" ".join(lst[-cnt:]))
+                print func
                 eval(func)
                 succeed = True
-            except:
+                break
+            else:
                 cnt += 1
-                continue
         if not succeed:
             msgs.error("There appears to be an error on the following input line:" + msgs.newline() +
                        " ".join(lst))
@@ -399,10 +398,12 @@ class BaseArgFlag:
             v = load_list(v)
             if "none" in v:
                 msgs.error("'none' cannot be a list element for the argument of {0:s}".format(get_current_name()))
+            if ("bias" in v) and ("dark" in v):
+                msgs.error("'bias' and 'dark' cannot both be a list elements of {0:s}".format(get_current_name()))
             for ll in v:
                 if ll not in allowed:
                     msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                               ", ".join(allowed))
+                               ", ".join(allowed) + " or a list containing these options")
         elif v.lower() == "none":
             v = None
         elif v.lower() not in allowed:
@@ -450,6 +451,19 @@ class BaseArgFlag:
             v = False
         else:
             msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def pixflat_combine_match(self, v):
+        """
+        reduce flatmatch
+        """
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
         # Update argument
         self.update(v)
         return
@@ -724,7 +738,7 @@ class BaseArgFlag:
         elif v.lower() == "false":
             v = False
         else:
-            msgs.error("The argument of 'run calcheck' can only be 'True' or 'False'")
+            msgs.error("The argument of {0:s} can only be 'True' or 'False'").format(get_current_name())
         # Update argument
         self.update(v)
         return
@@ -804,7 +818,7 @@ class BaseArgFlag:
         elif v.lower() == "false":
             v = False
         else:
-            msgs.error("The argument of 'run preponly' can only be 'True' or 'False'")
+            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
         # Update argument
         self.update(v)
         return
@@ -819,7 +833,7 @@ class BaseArgFlag:
         elif v.lower() == "false":
             v = False
         else:
-            msgs.error("The argument of 'run qcontrol' can only be 'True' or 'False'")
+            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
         # Update argument
         self.update(v)
         return
@@ -852,7 +866,7 @@ class BaseArgFlag:
         elif v.lower() == "false":
             v = False
         else:
-            msgs.error("The argument of 'run stopcheck' can only be 'True' or 'False'")
+            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
         # Update argument
         self.update(v)
         return
@@ -867,7 +881,7 @@ class BaseArgFlag:
         elif v.lower() == "false":
             v = False
         else:
-            msgs.error("The argument of 'run useIDname' can only be 'True' or 'False'")
+            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
         # Update argument
         self.update(v)
         return
@@ -879,25 +893,27 @@ class BaseArgFlag:
         elif v.lower() == "false":
             v = False
         else:
-            msgs.error("The argument of 'science load extracted' can only be 'True' or 'False'")
+            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
         # Update argument
         self.update(v)
         return
 
     def science_extraction_method(self, v):
         # Check that v is allowed
-        if v.lower() not in ['2d', 'mean']:
-            msgs.error("The argument of 'science extraction method' must be one of:" + msgs.newline() +
-                       "'2D', 'mean'")
+        allowed = ['2D', 'mean']
+        if v not in allowed:
+            msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
         # Update argument
         self.update(v)
         return
 
     def science_extraction_profile(self, v):
         # Check that v is allowed
-        if v.lower() not in ['gaussian', 'gaussfunc', 'moffat', 'moffatfunc']:
-            msgs.error("The argument of 'science extraction profile' must be one of:" + msgs.newline() +
-                       "'gaussian', 'gaussfunc', 'moffat', 'moffatfunc'")
+        allowed = ['gaussian', 'gaussfunc', 'moffat', 'moffatfunc']
+        if v.lower() not in allowed:
+            msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
         # Update argument
         self.update(v)
         return
@@ -907,7 +923,7 @@ class BaseArgFlag:
         try:
             v = int(v)
         except ValueError:
-            msgs.error("The argument of 'science extraction centorder' must be of type int")
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
         # Update argument
         self.update(v)
         return
@@ -917,16 +933,17 @@ class BaseArgFlag:
         try:
             v = int(v)
         except ValueError:
-            msgs.error("The argument of 'science extraction widthorder' must be of type int")
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
         # Update argument
         self.update(v)
         return
 
     def science_extraction_function(self, v):
         # Check that v is allowed
-        if v.lower() not in ['polynomial', 'legendre', 'chebyshev']:
-            msgs.error("The argument of 'science extraction function' must be one of:" + msgs.newline() +
-                       "'polynomial', 'legendre', 'chebyshev'")
+        allowed = ['polynomial', 'legendre', 'chebyshev']
+        if v.lower() not in allowed:
+            msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
         # Update argument
         self.update(v)
         return
@@ -950,7 +967,7 @@ class BaseArgFlag:
         try:
             v = int(v)
         except ValueError:
-            msgs.error("The argument of 'science extraction bintrace' must be of type int")
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
         # Update argument
         self.update(v)
         return
@@ -965,7 +982,7 @@ class BaseSpect:
         try:
             v = int(v)
         except ValueError:
-            msgs.error("The argument of 'mosaic ndet' must be of type int")
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
         # Update argument
         self.update(v)
 
@@ -975,6 +992,7 @@ class BaseSpect:
 
 
 class ARMLSD(BaseArgFlag):
+
     def reduce_flexure_maxshift(self, v):
         """
         reduce flexure max_shift
@@ -983,20 +1001,21 @@ class ARMLSD(BaseArgFlag):
         try:
             v = int(v)
         except ValueError:
-            msgs.error("The argument of 'reduce flexure maxshift' must be of type int")
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
         # Update argument
         self.update(v)
 
     def reduce_flexure_spec(self, v):
         # Check that v is allowed
+        allowed = ['boxcar', 'slit_cen', 'none']
         v = v.lower()
         if v == "none":
             v = None
-        elif v in ['boxcar', 'slit_cen']:
+        elif v in allowed:
             pass
         else:
-            msgs.error("The argument of 'reduce flexure spec' must be one of:" + msgs.newline() +
-                       "'boxcar', 'slit_cen', 'none'")
+            msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
         # Update argument
         self.update(v)
 
@@ -1010,7 +1029,7 @@ class ARMLSD(BaseArgFlag):
         elif v.lower() == "false":
             v = False
         else:
-            msgs.error("The argument of 'reduce fluxcal perform' can only be 'True' or 'False'")
+            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
         # Update argument
         self.update(v)
 
@@ -1031,7 +1050,8 @@ def get_argflag(init=None):
     # Instantiate??
     if init is not None:
         try:
-            pypit_argflag = eval(init+"()")
+            defname = glob(dirname(__file__))[0] + "/settings." + init[0].lower()
+            pypit_argflag = eval(init[0]+"(defname='{0:s}', savname='{1:s}.settings')".format(defname, init[1]))
         except RuntimeError:
             msgs.error("Reduction type '{0:s}' is not allowed".format(init))
 
@@ -1098,6 +1118,7 @@ def load_list(strlist):
 """
 af = get_argflag("ARMLSD")
 af.set_flag(["run", "ncpus", "5"])
-af.set_flag(["a", "b", "c", "d", "e", "47"])
+af.set_flag(["run", "qa", "5"])
+import pdb
 pdb.set_trace()
 """
