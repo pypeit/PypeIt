@@ -119,7 +119,7 @@ class BaseArgFlag:
 
     def arc_combine_match(self, v):
         """
-        arc comb match
+        reduce arcmatch
         """
         # Check that v is allowed
         try:
@@ -973,6 +973,157 @@ class BaseArgFlag:
         return
 
 
+
+    def trace_combine_match(self, v):
+        """
+        reduce flatmatch
+        """
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_combine_method(self, v):
+        """
+        trace comb method
+        """
+        # Check that v is allowed
+        allowed = ['mean', 'median', 'weightmean']
+        v = v.lower()
+        if v not in allowed:
+            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_combine_reject_cosmics(self, v):
+        """
+        trace comb rej_cosmicray
+        """
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_combine_reject_lowhigh(self, v):
+        """
+        trace comb rej_lowhigh
+        """
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_combine_reject_level(self, v):
+        """
+        trace comb rej_level
+        """
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_combine_reject_replace(self, v):
+        """
+        trace comb set_allrej
+        """
+        # Check that v is allowed
+        allowed = ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']
+        v = v.lower()
+        if v not in allowed:
+            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_combine_satpix(self, v):
+        """
+        trace comb sat_pix
+        """
+        # Check that v is allowed
+        allowed = ['reject', 'force', 'nothing']
+        v = v.lower()
+        if v not in allowed:
+            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_dispersion_window(self, v):
+        """
+        trace disp window
+        """
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                v = load_sections(v)
+            except ValueError:
+                msgs.error("The argument of {0:s} must be a 2D region of the form:".format(get_current_name()) +
+                msgs.newline() + "[x1:x2,y1:y2]")
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_dispersion_direction(self, v):
+        """
+        trace disp direction
+        """
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                v = int(v)
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+            if v != 0 and v != 1:
+                msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
+                           "0 or 1 (if the dispersion axis is along a row or column respectively)")
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_slits_function(self, v):
+        """
+        trace orders function
+        """
+        # Check that v is allowed
+        allowed = ['polynomial', 'legendre', 'chebyshev']
+        v = v.lower()
+        if v not in allowed:
+            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
+        # Update argument
+        self.update(v)
+        return
+
+trace orders polyorder  3             # What is the order of the function that should be used?
+trace orders diffpolyorder  2         # What is the order of the 2D function that should be used to fit the 2d solution for the spatial size of all orders?
+trace orders sigdetect  5.0           # Sigma detection threshold for edge detection
+trace orders fracignore 0.6           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
+trace orders pca [3,2,1,0,0,0]        # What order polynomials should be used to fit the principle components
+trace orders pcxpos     3             # How many extra orders to predict in the positive direction
+trace orders pcxneg     3             # How many extra orders to predict in the negative direction
+trace orders tilts      spline        # What method should be used to trace the tilt of the slit along an order (PCA, spline, interp, perp, zero)
+trace orders pcatilt    [1,1,0]       # What order polynomials should be used to fit the tilt principle components
+trace orders tiltorder  2             # What is the order of the function to be used for tilts in a given order
+
+
 class BaseSpect:
     def __init__(self):
         self._spect = NestedDict()
@@ -1114,6 +1265,36 @@ def load_list(strlist):
                 # Must be a string
                 addarr += [i]
     return addarr
+
+def load_sections(string):
+    """
+    From the input string, return the coordinate sections
+
+    Parameters
+    ----------
+    string : str
+      character string of the form [x1:x2,y1:y2]
+      x1 = left pixel
+      x2 = right pixel
+      y1 = bottom pixel
+      y2 = top pixel
+
+    Returns
+    -------
+    sections : list (or None)
+      the detector sections
+    """
+    xyrng = string.strip('[]()').split(',')
+    if xyrng[0] == ":":
+        xyarrx = [0,0]
+    else:
+        xyarrx = xyrng[0].split(':')
+    if xyrng[1] == ":":
+        xyarry = [0,0]
+    else:
+        xyarry = xyrng[1].split(':')
+    return [[int(xyarrx[0]), int(xyarrx[1])], [int(xyarry[0]), int(xyarry[1])]]
+
 
 """
 af = get_argflag("ARMLSD")
