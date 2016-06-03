@@ -1,7 +1,7 @@
 import collections
 import inspect
 from multiprocessing import cpu_count
-from os.path import dirname, basename
+from os.path import dirname, basename, isfile
 from textwrap import wrap as wraptext
 from glob import glob
 import pdb
@@ -773,6 +773,28 @@ class BaseArgFlag:
         self.update(v)
         return
 
+    def run_load_settings(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        elif not isfile(v):
+                msgs.error("The argument of {0:s} must be a PYPIT settings file".format(get_current_name()) +
+                           msgs.newline() + "or 'None'. The following file does not exist:" + msgs.newline() + v)
+        # Update argument
+        self.update(v)
+        return
+
+    def run_load_spect(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        elif not isfile(v):
+                msgs.error("The argument of {0:s} must be a PYPIT spectrograph settings".format(get_current_name()) +
+                           msgs.newline() + "file or 'None'. The following file does not exist:" + msgs.newline() + v)
+        # Update argument
+        self.update(v)
+        return
+
     def run_ncpus(self, v):
         # Check that v is allowed
         curcpu = self._argflag['run']['ncpus']
@@ -1108,6 +1130,23 @@ class BaseArgFlag:
         if v not in allowed:
             msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
                        ", ".join(allowed))
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_slits_nslits(self, v):
+        # Check that v is allowed
+        if v.lower() == "auto":
+            v = -1
+        else:
+            try:
+                v = int(v)
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of type int, or set to 'auto'".format(get_current_name()))
+            if v == 0 or v == -1:
+            elif v < -1:
+                msgs.error("The argument of {0:s} must be >= 1 to manually set the number of slits,".format(get_current_name()) + msgs.newline() +
+                           "or can be set to -1 (or 'auto') if you wish PYPIT to find slits automatically.")
         # Update argument
         self.update(v)
         return

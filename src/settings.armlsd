@@ -2,6 +2,8 @@
 ##
 # RUNNING ARMLSD
 run  ncpus        -1			# Number of CPUs to use (-1 means all bar one CPU, -2 means all bar two CPUs)
+run load settings None        # Load a reduction settings file (Note: this command overwrites all default settings)
+run load spect None           # Load a spectrograph settings file (Note: this command overwrites all default settings)
 run  calcheck     False         # Doesn't reduce the data, just checks to make sure all calibration data are present
 run  spectrograph kast_red      # Default spectrograph data to reduce
 run  directory master   MasterFrames  # Child Directory name for master calibration frames
@@ -77,7 +79,8 @@ trace comb sat_pix      reject        # What to do with saturated pixels (option
 trace comb set_allrej   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
 trace disp window       None          # Window used to obtain dispersion direction
 trace disp direction    None          # Manually specify the dispersion direction (0 for row, 1 for column)
-trace orders function   legendre      # What function should be used to trace each order? (polynomial, legendre, chebyshev)
+trace slits function    legendre      # What function should be used to trace each order? (polynomial, legendre, chebyshev)
+trace slits nslits      auto          # Manually set the number of slits to identify (>=1). 'auto' or -1 will automatically identify the number of slits.
 trace orders polyorder  3             # What is the order of the function that should be used?
 trace orders diffpolyorder  2         # What is the order of the 2D function that should be used to fit the 2d solution for the spatial size of all orders?
 trace orders sigdetect  5.0           # Sigma detection threshold for edge detection
