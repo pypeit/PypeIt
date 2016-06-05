@@ -994,8 +994,6 @@ class BaseArgFlag:
         self.update(v)
         return
 
-
-
     def trace_combine_match(self, v):
         """
         reduce flatmatch
@@ -1042,6 +1040,10 @@ class BaseArgFlag:
         """
         # Check that v is allowed
         v = load_list(v)
+        if len(v) != 2:
+            msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
+        if v[0] <= 0.0 or v[1] <= 0.0:
+            msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
         # Update argument
         self.update(v)
         return
@@ -1052,6 +1054,10 @@ class BaseArgFlag:
         """
         # Check that v is allowed
         v = load_list(v)
+        if len(v) != 2:
+            msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
+        if v[0] <= 0.0 or v[1] <= 0.0:
+            msgs.error("The list values of argument {0:s} must be > 0.0".format(get_current_name()))
         # Update argument
         self.update(v)
         return
@@ -1144,6 +1150,7 @@ class BaseArgFlag:
             except ValueError:
                 msgs.error("The argument of {0:s} must be of type int, or set to 'auto'".format(get_current_name()))
             if v == 0 or v == -1:
+                v = -1
             elif v < -1:
                 msgs.error("The argument of {0:s} must be >= 1 to manually set the number of slits,".format(get_current_name()) + msgs.newline() +
                            "or can be set to -1 (or 'auto') if you wish PYPIT to find slits automatically.")
@@ -1151,16 +1158,144 @@ class BaseArgFlag:
         self.update(v)
         return
 
-trace orders polyorder  3             # What is the order of the function that should be used?
-trace orders diffpolyorder  2         # What is the order of the 2D function that should be used to fit the 2d solution for the spatial size of all orders?
-trace orders sigdetect  5.0           # Sigma detection threshold for edge detection
-trace orders fracignore 0.6           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
-trace orders pca [3,2,1,0,0,0]        # What order polynomials should be used to fit the principle components
-trace orders pcxpos     3             # How many extra orders to predict in the positive direction
-trace orders pcxneg     3             # How many extra orders to predict in the negative direction
-trace orders tilts      spline        # What method should be used to trace the tilt of the slit along an order (PCA, spline, interp, perp, zero)
-trace orders pcatilt    [1,1,0]       # What order polynomials should be used to fit the tilt principle components
-trace orders tiltorder  2             # What is the order of the function to be used for tilts in a given order
+    def trace_slits_polyorder(self, v):
+        """
+        trace orders polyorder  3
+        """
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_slits_diffpolyorder(self, v):
+        """
+        trace orders diffpolyorder  3
+        """
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_slits_sigdetect(self, v):
+        """
+        trace orders sigdetect
+        """
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
+        if v <= 0.0:
+            msgs.error("The argument of {0:s} must be > 0".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_slits_fracignore(self, v):
+        """
+        trace orders fracignore
+        """
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
+        if v < 0.0 or v > 1.0:
+            msgs.error("The argument of {0:s} must be between 0 and 1".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_slits_pca_form(self, v):
+        """
+        trace orders pca
+        """
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+
+    def trace_slits_pca_extrapolate_pos(self, v):
+        """
+        trace orders pcxpos
+        """
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_slits_pca_extrapolate_neg(self, v):
+        """
+        trace orders pcxneg
+        """
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_slits_tilts_method(self, v):
+        """
+        trace orders tilts
+        """
+        # Check that v is allowed
+        allowed = ['PCA', 'spline', 'interp', 'perp', 'zero']
+        if v not in allowed:
+            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_slits_tilts_pcaform(self, v):
+        """
+        trace orders pcatilt
+        """
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_slits_tilts_order(self, v):
+        """
+        trace orders tiltorder
+        """
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
 
 
 class BaseSpect:

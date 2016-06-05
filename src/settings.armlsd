@@ -71,18 +71,18 @@ bias combine satpix      reject        # What to do with saturated pixels (optio
 
 # TRACE FRAMES
 trace combine match -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
-trace comb method weightmean          # How should the trace frames be combined (mean, median, weightmean)
-trace comb rej_cosmicray 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
-trace comb rej_lowhigh  [0,0]         # Number of low/high pixels to reject, [low,high]
-trace comb rej_level    [3.0,3.0]     # Rejection level (in standard deviations), where <= 0.0 means no rejection [low,high]
-trace comb sat_pix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
-trace comb set_allrej   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
-trace disp window       None          # Window used to obtain dispersion direction
-trace disp direction    None          # Manually specify the dispersion direction (0 for row, 1 for column)
+trace combine method weightmean          # How should the trace frames be combined (mean, median, weightmean)
+trace combine reject cosmics 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
+trace combine reject lowhigh  [0,0]         # Number of low/high pixels to reject, [low,high]
+trace combine reject level    [3.0,3.0]     # Rejection level (in standard deviations), where <= 0.0 means no rejection [low,high]
+trace combine reject replace   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
+trace combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
+trace dispersion window       None          # Window used to obtain dispersion direction
+trace dispersion direction    None          # Manually specify the dispersion direction (0 for row, 1 for column)
 trace slits function    legendre      # What function should be used to trace each order? (polynomial, legendre, chebyshev)
 trace slits nslits      auto          # Manually set the number of slits to identify (>=1). 'auto' or -1 will automatically identify the number of slits.
-trace orders polyorder  3             # What is the order of the function that should be used?
-trace orders diffpolyorder  2         # What is the order of the 2D function that should be used to fit the 2d solution for the spatial size of all orders?
+trace slits polyorder  3             # What is the order of the function that should be used?
+trace slits diffpolyorder  2         # What is the order of the 2D function that should be used to fit the 2d solution for the spatial size of all orders?
 trace orders sigdetect  5.0           # Sigma detection threshold for edge detection
 trace orders fracignore 0.6           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
 trace orders pca [3,2,1,0,0,0]        # What order polynomials should be used to fit the principle components
