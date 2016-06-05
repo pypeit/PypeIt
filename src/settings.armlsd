@@ -83,14 +83,14 @@ trace slits function    legendre      # What function should be used to trace ea
 trace slits nslits      auto          # Manually set the number of slits to identify (>=1). 'auto' or -1 will automatically identify the number of slits.
 trace slits polyorder  3             # What is the order of the function that should be used?
 trace slits diffpolyorder  2         # What is the order of the 2D function that should be used to fit the 2d solution for the spatial size of all orders?
-trace orders sigdetect  5.0           # Sigma detection threshold for edge detection
-trace orders fracignore 0.6           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
-trace orders pca [3,2,1,0,0,0]        # What order polynomials should be used to fit the principle components
-trace orders pcxpos     3             # How many extra orders to predict in the positive direction
-trace orders pcxneg     3             # How many extra orders to predict in the negative direction
-trace orders tilts      spline        # What method should be used to trace the tilt of the slit along an order (PCA, spline, interp, perp, zero)
-trace orders pcatilt    [1,1,0]       # What order polynomials should be used to fit the tilt principle components
-trace orders tiltorder  2             # What is the order of the function to be used for tilts in a given order
+trace slits sigdetect  5.0           # Sigma detection threshold for edge detection
+trace slits fracignore 0.6           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
+trace slits pca form [3,2,1,0,0,0]        # What order polynomials should be used to fit the principle components
+trace slits pca extrapolate pos     3             # How many extra orders to predict in the positive direction
+trace slits pca extrapolate neg     3             # How many extra orders to predict in the negative direction
+trace slits tilts method      spline        # What method should be used to trace the tilt of the slit along an order (PCA, spline, interp, perp, zero)
+trace slits tilts pcaform    [1,1,0]       # What order polynomials should be used to fit the tilt principle components
+trace slits tilts order  2             # What is the order of the function to be used for tilts in a given order
 
 # PIXEL FLAT FRAMES
 pixflat combine match -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
