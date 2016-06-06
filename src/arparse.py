@@ -1042,7 +1042,7 @@ class BaseArgFlag:
         v = load_list(v)
         if len(v) != 2:
             msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
-        if v[0] <= 0.0 or v[1] <= 0.0:
+        if v[0] < 0 or v[1] < 0:
             msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
         # Update argument
         self.update(v)
