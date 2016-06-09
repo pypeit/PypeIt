@@ -4,7 +4,9 @@ from __future__ import absolute_import, division, print_function
 #
 # Standard imports
 #
-import glob, os
+import glob
+import numpy, os
+from Cython.Distutils import build_ext
 from distutils.extension import Extension
 #
 # setuptools' sdist command ignores MANIFEST.in
@@ -58,6 +60,26 @@ setup_keywords['packages'] = ['pypit'] #find_packages('pypit')
 #setup_keywords['cmdclass'] = {'version': DesiVersion, 'test': DesiTest, 'sdist': DistutilsSdist}
 setup_keywords['test_suite']='{name}.test.{name}_test_suite.{name}_test_suite'.format(**setup_keywords)
 
+# Cython
+
+include_gsl_dir = os.getenv('GSL_PATH')+'/include/'
+lib_gsl_dir = os.getenv('GSL_PATH')+'/lib/'
+pyx_files = glob.glob('pypit/*.pyx')
+setup_keywords['ext_modules']=[]
+for pyx_file in pyx_files:
+    pyx_split = pyx_file.split('.')
+    # Generate Extension
+    ext = Extension(pyx_split[0], [pyx_file],
+        include_dirs=[numpy.get_include(),
+                    include_gsl_dir],
+        library_dirs=[lib_gsl_dir],
+        libraries=["gsl","gslcblas"]
+    )
+    # Append
+    setup_keywords['ext_modules'].append(ext)
+setup_keywords['cmdclass']={'build_ext': build_ext}
+# python setup.py build_ext --inplace
+#
 # Autogenerate command-line scripts.
 #
 # setup_keywords['entry_points'] = {'console_scripts':['desiInstall = desiutil.install.main:main']}
