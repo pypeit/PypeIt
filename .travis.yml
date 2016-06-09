@@ -9,6 +9,7 @@ addons:
             - graphviz
             - texlive-latex-extra
             - dvipng
+            - libgsl0-dev
 
 python:
     - 2.7
