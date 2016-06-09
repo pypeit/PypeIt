@@ -19,6 +19,10 @@ try:
     from xastropy.xutils import xdebug as debugger
 except:
     import pdb as debugger
+try:
+    basestring
+except NameError:
+    basestring = str
 
 # Logging
 msgs = armsgs.get_logger()
@@ -75,7 +79,7 @@ def sort_data(argflag, spect, fitsdict):
                 conds = re.split("(\||\&)", spect[fkey[i]]['check'][ch])
                 ntmp = chk_condition(fitsdict, conds[0])
                 # And more
-                for cn in xrange((len(conds)-1)/2):
+                for cn in xrange((len(conds)-1)//2):
                     if conds[2*cn+1] == "|":
                         ntmp = ntmp | chk_condition(fitsdict, conds[2*cn+2])
                     elif conds[2*cn+1] == "&":
@@ -243,7 +247,7 @@ def sort_write(sortname, spect, fitsdict, filesort, space=3):
             typv = type(fitsdict[i][0])
             if typv is int or typv is np.int_:
                 prdtp.append("int")
-            elif typv is str or typv is np.string_:
+            elif isinstance(fitsdict[i][0], basestring) or typv is np.string_:
                 prdtp.append("char")
             elif typv is float or typv is np.float_:
                 prdtp.append("double")
@@ -258,7 +262,8 @@ def sort_write(sortname, spect, fitsdict, filesort, space=3):
     # Define VOTable fields
     tabarr=[]
     # Insert the filename and filetype first
-    for i in xrange(len(prord)): tabarr.append(Field(votable, name=prord[i], datatype=prdtp[i], arraysize="*"))
+    for i in xrange(len(prord)):
+        tabarr.append(Field(votable, name=prord[i], datatype=prdtp[i], arraysize="*"))
     table.fields.extend(tabarr)
     table.create_arrays(nfiles)
     filtyp = filesort.keys()

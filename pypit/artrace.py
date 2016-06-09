@@ -152,7 +152,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     trcxrng = np.arange(npix)/(npix-1.0)
     msgs.info("Identifying objects that are significantly detected")
     # Find significantly detected objects
-    mskpix, coeff = arutils.robust_polyfit(trcxrng, trcprof, 1+npix/40, function='legendre', sigma=2.0, minv=0.0, maxv=1.0)
+    mskpix, coeff = arutils.robust_polyfit(trcxrng, trcprof, 1+npix//40, function='legendre', sigma=2.0, minv=0.0, maxv=1.0)
     backg = arutils.func_val(coeff, trcxrng, 'legendre', minv=0.0, maxv=1.0)
     trcprof -= backg
     wm = np.where(mskpix==0)

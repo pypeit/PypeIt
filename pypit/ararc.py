@@ -1,18 +1,15 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import numpy as np
-import arpca
-import arcyarc
-import armsgs
-import arsave
-import arutils
-from arplot import get_dimen as get_dimen
-import ararclines
-import arqa
-#import arfitbase
+from pypit import arpca
+from pypit import armsgs
+from pypit import arsave
+from pypit import arutils
+from pypit.arplot import get_dimen as get_dimen
+from pypit import ararclines
+from pypit import arqa
 from matplotlib import pyplot as plt
-import scipy.interpolate as interpolate
-from astropy.io import ascii
 import os
-import time
 
 
 try:
@@ -59,6 +56,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
       The spectrum used to find detections. This spectrum has
       had any "continuum" emission subtracted off
     """
+    from pypit import arcyarc
     # Extract a rough spectrum of the arc in each order
     msgs.info("Detecting lines")
     msgs.info("Extracting an approximate arc spectrum at the centre of the chip")
@@ -485,6 +483,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
     similar angstroms/pixel. If so, store these identifications, and later check how the central
     wavelengths and angstroms/pixel compare to the other orders.
     """
+    from pypit import arcyarc
     msgs.work("Automatic wavelength calibration")
     msgs.work("Asymmetry of Arc lines?")
     msgs.warn("READ THIS IDEA!!!")
