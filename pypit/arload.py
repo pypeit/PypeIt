@@ -17,6 +17,11 @@ from multiprocessing import cpu_count
 #import arutils
 
 try:
+    basestring
+except NameError:
+    basestring = str
+
+try:
     from xastropy.xutils import xdebug as debugger
 except:
     import pdb as debugger
@@ -38,7 +43,7 @@ def argflag_init():
     csq = dict({'atol':1.0E-3, 'xtol':1.0E-10, 'gtol':1.0E-10, 'ftol':1.0E-10, 'fstep':2.0})
     opa = dict({'verbose':2, 'sorted':None, 'plots':True, 'overwrite':False})
     sci = dict({'load':dict({'extracted':False}),
-                'extraction':dict({'method':'2D', 'profile': 'gaussian', 'centorder':1, 'widthorder':1, 'function':'legendre', 'pcacent':[1,0], 'pcawidth':[1,0], 'bintrace':10})
+                'extraction':dict({'method':'2D', 'profile': 'gaussian', 'centorder':1, 'widthorder':1, 'function':'legendre', 'pcacent':[1,0], 'pcawidth':[1,0], 'bintrace':10, 'max_nobj': 9999})
                 })
     pfl = dict({'comb':dict({'method':None, 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}),
                 'norm':dict({'recnorm': True})},)
@@ -151,7 +156,8 @@ def set_params_wtype(tvalue, svalue, lines="", setstr="", argnum=3):
     try:
         if type(tvalue) is int:
             tvalue = int(svalue)
-        elif type(tvalue) is str:
+        #elif type(tvalue) is str:
+        elif isinstance(tvalue, basestring):
             if svalue.lower() == 'none': tvalue = None
             elif svalue[0] == '[' and svalue[-1] == ']' and ',' in svalue and len(svalue.split(':')) == 3: tvalue = load_sections(svalue, strtxt=setstr)
             else: tvalue = svalue

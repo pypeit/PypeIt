@@ -6,9 +6,6 @@ import scipy.signal as signal
 import scipy.ndimage as ndimage
 import scipy.interpolate as inter
 from matplotlib import pyplot as plt
-from pypit import arcyextract
-from pypit import arcyutils
-from pypit import arcyproc
 from pypit import arextract
 from pypit import arlris
 from pypit import armsgs
@@ -41,7 +38,9 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
 
     This routine will (probably) work poorly if the order traces overlap (of course)
     """
-
+    from pypit import arcyextract
+    from pypit import arcyutils
+    from pypit import arcyproc
     errframe = np.sqrt(varframe)
     retframe = np.zeros_like(sciframe)
     norders = slf._lordloc.shape[1]
@@ -208,11 +207,11 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     for o in xrange(norders):
         xpix, ypix = np.where(ordpix==1+o)
         msgs.info("Preparing sky pixels in order {0:d}/{1:d} for a b-spline fit".format(o+1,norders))
-        xbarr, ybarr = cybspline.prepare_bsplfit(arc, pixmap, tilts, xmod, ycen, xpix, ypix, dispaxis)
+        #xbarr, ybarr = cybspline.prepare_bsplfit(arc, pixmap, tilts, xmod, ycen, xpix, ypix, dispaxis)
         msgs.info("Performing b-spline fir to oversampled sky background in order {0:d}/{1:d}".format(o+1,norders))
-        ncoeff, k = flt.shape[dispaxis], 1
+        #ncoeff, k = flt.shape[dispaxis], 1
         #mod_yarr = cybspline.bspline_fit(xmod, xbarr, ybarr, ebarr, min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k)
-        skybg += cybspline.bspline_fitmod(xbarr, ybarr, ebarr, min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k, pixmap, tilts, xmod, ycen, xpix, ypix, slf._dispaxis)
+        #skybg += cybspline.bspline_fitmod(xbarr, ybarr, ebarr, min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k, pixmap, tilts, xmod, ycen, xpix, ypix, slf._dispaxis)
 
     # Subtract the background
     msgs.info("Subtracting the sky background from the science frame")
@@ -255,6 +254,8 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     :param varframe:
     :return:
     """
+    from pypit import arcyutils
+    from pypit import arcyproc
     # Set some starting parameters (maybe make these available to the user)
     msgs.work("Should these parameters be made available to the user?")
     polyorder, repeat = 5, 1
@@ -500,6 +501,9 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     msblaze : ndarray
       A 2d array containing the blaze function for each slit
     """
+    from pypit import arcyutils
+    from pypit import arcyextract
+    from pypit import arcyproc
     msgs.info("Normalizing the master flat field frame")
     norders = slf._lordloc[det-1].shape[1]
     # First, determine the relative scale of each amplifier (assume amplifier 1 has a scale of 1.0)
@@ -935,6 +939,8 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
     :param grow: Once CRs are identified, grow each CR detection by all pixels within this radius
     :return: mask of cosmic rays (0=no CR, 1=CR)
     """
+    from pypit import arcyutils
+    from pypit import arcyproc
 
     msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
     msgs.work("Include these parameters in the settings files to be adjusted by the user")
