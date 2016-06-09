@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
+#  conda install -c https://conda.anaconda.org/asmeurer gsl
 from __future__ import absolute_import, division, print_function
 #
 # Standard imports
