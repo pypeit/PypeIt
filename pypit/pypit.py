@@ -111,8 +111,9 @@ def PYPIT(redname, progname=__file__, quick=False, ncpus=1, verbose=1,
     # Load the default settings
     prgn_spl = progname.split('/')
     tfname = ""
-    for i in range(0,len(prgn_spl)-2): tfname += prgn_spl[i]+"/"
-    fname = tfname + prgn_spl[-2] + '/settings.' + spect['mosaic']['reduction'].lower()
+    for i in range(0,len(prgn_spl)-1): tfname += prgn_spl[i]+"/"
+    #fname = tfname + prgn_spl[-2] + '/settings.' + spect['mosaic']['reduction'].lower()
+    fname = tfname + '/settings.' + spect['mosaic']['reduction'].lower()
     argflag = arload.load_settings(fname, argflag)
     argflag['run']['prognm'] = progname
     argflag['run']['pypitdir'] = tfname
