@@ -5,10 +5,10 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 from astropy import units as u
 
 import os
-import arutils
 import numpy as np
 from pypit.arplot import zscale
 from pypit import armsgs
+from pypit import arutils
 
 import matplotlib
 from matplotlib import pyplot as plt
