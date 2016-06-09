@@ -9,7 +9,7 @@ from astropy.io import fits
 from astropy import units as u
 from astropy import coordinates as coords
 
-import arutils
+from pypit import arutils
 
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D

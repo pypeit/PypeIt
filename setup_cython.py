@@ -2,6 +2,7 @@
 #
 # python setup_cython.py build_ext --inplace
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
+# conda install -c https://conda.anaconda.org/asmeurer gsl
 from __future__ import absolute_import, division, print_function
 #
 # Standard imports
@@ -60,7 +61,7 @@ setup_keywords['use_2to3'] = True
 setup_keywords['packages'] = ['pypit'] #find_packages('pypit')
 #setup_keywords['package_dir'] = {'':''}
 #setup_keywords['cmdclass'] = {'version': DesiVersion, 'test': DesiTest, 'sdist': DistutilsSdist}
-setup_keywords['test_suite']='{name}.test.{name}_test_suite.{name}_test_suite'.format(**setup_keywords)
+#setup_keywords['test_suite']='{name}.test.{name}_test_suite.{name}_test_suite'.format(**setup_keywords)
 
 # Cython
 
@@ -80,6 +81,8 @@ for pyx_file in pyx_files:
     # Append
     setup_keywords['ext_modules'].append(ext)
 setup_keywords['cmdclass']={'build_ext': build_ext}
+import pdb
+pdb.set_trace()
 #
 # Autogenerate command-line scripts.
 #
