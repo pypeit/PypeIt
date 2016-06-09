@@ -114,11 +114,11 @@ science extraction pcawidth [1,0]     # What order polynomials should be used to
 science extraction bintrace 16        # When deriving the target profile centroid and width, how many pixels should be averaged to speed up the process (1 = no binning, but is *very* slow)
 
 # CHI-SQUARED PROPERTIES
-chisq  atol      1.0E-3
-chisq  xtol      1.0E-10
-chisq  ftol      1.0E-10
-chisq  gtol      1.0E-10
-chisq  fstep     2.0
+#chisq  atol      1.0E-3
+#chisq  xtol      1.0E-10
+#chisq  ftol      1.0E-10
+#chisq  gtol      1.0E-10
+#chisq  fstep     2.0
 
 # OUTPUT
 output  verbosity      2				# Level of screen output (0 is No screen output, 1 is low level output, 2 is output everything)

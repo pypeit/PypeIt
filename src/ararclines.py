@@ -25,7 +25,7 @@ def parse_nist(slf,ion):
     """
     # Root (for development only)
     if slf is None:
-        root = '/Users/xavier/local/Python/PYPIT/'
+        root = '/Users/rcooke/software/PYPIT/'
     else:
         root = slf._argflag['run']['pypitdir'] 
     # Find file
@@ -87,7 +87,7 @@ def load_arcline_list(slf, idx, lines, disperser, wvmnx=None):
     parse_dict = load_parse_dict()
     # Read rejection file
     if slf is None:
-        root = '/Users/xavier/local/Python/PYPIT'
+        root = '/Users/rcooke/software/PYPIT'
     else:
         root = slf._argflag['run']['pypitdir'] 
     with open(root+'/data/arc_lines/rejected_lines.yaml', 'r') as infile:

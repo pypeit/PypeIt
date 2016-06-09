@@ -1440,6 +1440,7 @@ def load_list(strlist):
                 addarr += [i]
     return addarr
 
+
 def load_sections(string):
     """
     From the input string, return the coordinate sections

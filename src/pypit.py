@@ -8,6 +8,7 @@ from signal import SIGINT, signal as sigsignal
 from warnings import resetwarnings, simplefilter
 from time import time
 import traceback
+import arparse
 
 # Import PYPIT routines
 import ardebug
@@ -98,16 +99,35 @@ def PYPIT(redname, progname=__file__, quick=False, ncpus=1, verbose=1,
                        parlines[i])
         if (parspl[0] == 'run') and (parspl[1] == 'spectrograph'):
             specname = parspl[2]
+            break
     if specname is None:
         msgs.error("Please specify the spectrograph settings to be used with the command" + msgs.newline() +
                    "run spectrograph <name>")
     msgs.info("Reducing data from the {0:s} spectrograph".format(specname))
 
-    # Load the Spectrograph settings
-    spect = arload.load_spect(progname, specname)
+    # Determine the type of reduction used for this spectrograph
+    redtype = None
+    # Get the software path
+    prgn_spl = progname.split('/')
+    fname = "/".join(prgn_spl[:-1])
+    fname += '/settings.'+specname
+    spl = open(fname, 'r').readlines()
+    for i in range(len(spl)):
+        parspl = spl[i].split()
+        if len(parspl) < 3:
+            continue
+        if (parspl[0] == 'mosaic') and (parspl[1] == 'reduction'):
+            redtype = parspl[2]
+            break
+    if redtype is None:
+        msgs.bug("The {0:s} instrument settings file must contain the reduction type".format(specname))
+        msgs.error("Please specify the reduction type with the command" + msgs.newline() +
+                   "mosaic reduction <type>")
 
     # Load default reduction arguments/flags, and set any command line arguments
-    #argflag = arload.optarg(argflag, cmdlnarg, spect['mosaic']['reduction'].lower())
+    arparse.get_argflag((redtype.upper(), ".".join(redname.split(".")[:-1])))
+    assert(False)
+
     # Load the default settings
     prgn_spl = progname.split('/')
     tfname = ""
@@ -119,8 +139,9 @@ def PYPIT(redname, progname=__file__, quick=False, ncpus=1, verbose=1,
 
     # Now update the settings based on the user input file
     argflag = arload.set_params(parlines, argflag, setstr="Input ")
-    # Check the input file
-    arload.check_argflag(argflag)
+
+    # Load the Spectrograph settings
+    spect = arload.load_spect(progname, specname)
 
     # Load any changes to the spectrograph settings based on the user input file
     spect = arload.load_spect(progname, specname, spect=spect, lines=spclines)
