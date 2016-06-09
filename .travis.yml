@@ -128,6 +128,11 @@ install:
     #- if [[ $SETUP_CMD == 'test --coverage' ]]; then $PIP_INSTALL coverage coveralls; fi
     - if [[ $SETUP_CMD == 'test --coverage' ]]; then $PIP_INSTALL coverage==3.7.1 coveralls; fi
 
+before_script:
+  - export SYSTEM_GSL=yes
+  - pkg-config --exists gsl
+  - pkg-config --modversion gsl
+
 script:
    - python setup.py $SETUP_CMD
 
