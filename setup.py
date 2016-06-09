@@ -60,7 +60,6 @@ setup_keywords['packages'] = ['pypit'] #find_packages('pypit')
 setup_keywords['setup_requires']=['pytest-runner']
 setup_keywords['tests_require']=['pytest']
 
-'''
 # Cython
 import numpy, os
 from Cython.Distutils import build_ext
@@ -82,7 +81,6 @@ for pyx_file in pyx_files:
     # Append
     setup_keywords['ext_modules'].append(ext)
 setup_keywords['cmdclass']={'build_ext': build_ext}
-'''
 
 # Autogenerate command-line scripts.
 #

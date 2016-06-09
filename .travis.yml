@@ -34,8 +34,8 @@ matrix:
     include:
 
         # Do a coverage test in Python 2.
-        - python: 2.7
-          env: SETUP_CMD='test --coverage'
+        #- python: 2.7
+        #  env: SETUP_CMD='test --coverage'
 
         # Check for sphinx doc build warnings - we do this first because it
         # may run for a long time. Add -w flag to fail on any warning.
@@ -83,6 +83,7 @@ before_install:
     - chmod +x miniconda.sh
     - ./miniconda.sh -b -p $HOME/miniconda
     - export PATH=$HOME/miniconda/bin:$PATH
+    - export GSL_PATH=$HOME/miniconda
     - hash -r
     - conda config --set always_yes yes --set changeps1 no
     - conda update --yes conda
