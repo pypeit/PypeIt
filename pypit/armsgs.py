@@ -143,6 +143,10 @@ class Messages:
             self.sciexp._qa.close()
         except AttributeError:
             pass
+        else:
+            from pypit import armasters
+            armasters.save_masters(self.sciexp, self.sciexp.det,
+                                   self.sciexp._argflag['masters']['setup'])
         # Close log
         if self._log:
             self._log.close()

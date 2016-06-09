@@ -146,10 +146,12 @@ def dummy_self(pypitdir=None):
     # Dummy Class
     slf = type('Dummy', (object,), {"_argflag": {}, "_spect": {}})
     slf._argflag['run'] = {}
-    if pypitdir is not None:
+    if pypitdir is None:
+        pypitdir = __file__[0:__file__.rfind('/')]
         slf._argflag['run']['pypitdir'] = pypitdir
     #
     slf._spect['mosaic'] = {}
+    slf._spect['det'] = [{'binning':'1x1'}]
     #
     return slf
 
