@@ -5,13 +5,14 @@ from __future__ import absolute_import, division, print_function
 # Standard imports
 #
 import glob
-import os
-import sys
+import numpy, os
+from Cython.Distutils import build_ext
+from distutils.extension import Extension
 #
 # setuptools' sdist command ignores MANIFEST.in
 #
-from distutils.command.sdist import sdist as DistutilsSdist
-from setuptools import setup, find_packages
+#from distutils.command.sdist import sdist as DistutilsSdist
+from setuptools import setup
 #
 # DESI support code.
 #
@@ -60,9 +61,6 @@ setup_keywords['packages'] = ['pypit'] #find_packages('pypit')
 setup_keywords['test_suite']='{name}.test.{name}_test_suite.{name}_test_suite'.format(**setup_keywords)
 
 # Cython
-import numpy, os
-from Cython.Distutils import build_ext
-from distutils.extension import Extension
 
 include_gsl_dir = os.getenv('GSL_PATH')+'/include/'
 lib_gsl_dir = os.getenv('GSL_PATH')+'/lib/'

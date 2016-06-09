@@ -100,6 +100,7 @@ install:
     - source activate test
 
     # CORE DEPENDENCIES
+    - conda install numpy=$NUMPY_VERSION
     - if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION pytest pip Cython jinja2; fi
     - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL pytest-xdist; fi
 
