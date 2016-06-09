@@ -3,11 +3,12 @@
 from __future__ import (print_function, absolute_import, division,
                         unicode_literals)
 
-import os, re
+import re
 from os.path import realpath, join
 
 this_file = realpath(__file__)
 this_path = this_file[:this_file.rfind('/')]
+
 
 def get_version():
     """Get the value of ``__version__`` without having to import the module.
@@ -32,3 +33,19 @@ def get_version():
             if lu:
                 upd = lu.group(1)
     return ver, upd
+
+
+def get_dummy_logger():
+    """ Useful for testing
+
+    Returns
+    -------
+
+    """
+    from pypit import ardebug
+    from pypit import armsgs as pyparm
+    debug = ardebug.init()
+
+    version, last_updated = get_version()
+    pyparm.pypit_logger = pyparm.Messages(None, debug, last_updated, version, 1)
+    return pyparm.pypit_logger

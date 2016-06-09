@@ -9,9 +9,11 @@ import pytest
 
 from astropy import units as u
 
-sys.path.append(os.getenv('PYPIT')+'/src/')
-import arflux as arflx
-import arutils as arut
+from pypit import arutils as arut
+from pypit import pyputils
+import pypit
+msgs = pyputils.get_dummy_logger()
+from pypit import arflux as arflx
 
 #from xastropy.xutils import afits as xafits
 #from xastropy.xutils import xdebug as xdb
@@ -20,7 +22,7 @@ import arutils as arut
 #    data_dir = os.path.join(os.path.dirname(__file__), 'files')
 #    return os.path.join(data_dir, filename)
 
-pypitdir=os.getenv('PYPIT')
+pypitdir = pypit.__path__[0]
 
 def test_find_standard():
     # Dummy self

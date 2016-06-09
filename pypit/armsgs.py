@@ -352,3 +352,5 @@ def get_logger(init=None):
         pypit_logger = Messages(init[0], init[1], init[2], init[3], init[4])
 
     return pypit_logger
+
+

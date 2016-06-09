@@ -9,7 +9,6 @@ from astropy.io import fits
 from astropy import units as u
 from astropy import coordinates as coords
 
-import armsgs
 import arutils
 
 try:
@@ -24,7 +23,9 @@ except:
     import pdb as debugger
 
 # Logging
-msgs = armsgs.get_logger()
+#from pypit import armsgs
+from armsgs import get_logger
+msgs = get_logger()
 
 def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
     """ Apply the sensitivity function to the data
@@ -35,7 +36,6 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
     MAX_EXTRAP : float, optional [0.05]
       Fractional amount to extrapolate sensitivity function
     """
-
     # Load extinction data
     extinct = load_extinction_data(slf)
     airmass = fitsdict['airmass'][scidx]
@@ -231,7 +231,7 @@ def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
     for qq,sset in enumerate(std_sets):
         # Stars
         path, star_tbl = sset(argflag)
-        star_coords = SkyCoord(star_tbl['RA_2000'], star_tbl['DEC_2000'], 
+        star_coords = SkyCoord(star_tbl['RA_2000'], star_tbl['DEC_2000'],
             unit=(u.hourangle, u.deg))
         # Match
         idx, d2d, d3d = coords.match_coordinates_sky(obj_coord, star_coords, nthneighbor=1)
@@ -275,7 +275,7 @@ def load_calspec(argflag):
       astropy Table of the calspec standard stars (file, Name, RA, DEC)
     """
     # Read
-    calspec_path = 'data/standards/calspec/'
+    calspec_path = '/data/standards/calspec/'
     calspec_file = argflag['run']['pypitdir'] + calspec_path + 'calspec_info.txt'
     calspec_stds = Table.read(calspec_file, comment='#', format='ascii')
     # Return
