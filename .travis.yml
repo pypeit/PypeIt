@@ -133,6 +133,7 @@ before_script:
   - export SYSTEM_GSL=yes
   - pkg-config --exists gsl
   - pkg-config --modversion gsl
+  - pkg-config --libs gsl
 
 script:
    - python setup.py $SETUP_CMD
