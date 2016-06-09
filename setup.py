@@ -56,7 +56,9 @@ setup_keywords['use_2to3'] = True
 setup_keywords['packages'] = ['pypit'] #find_packages('pypit')
 #setup_keywords['package_dir'] = {'':''}
 #setup_keywords['cmdclass'] = {'version': DesiVersion, 'test': DesiTest, 'sdist': DistutilsSdist}
-setup_keywords['test_suite']='{name}.test.{name}_test_suite.{name}_test_suite'.format(**setup_keywords)
+#setup_keywords['test_suite']='{name}.tests.{name}_test_suite.{name}_test_suite'.format(**setup_keywords)
+setup_keywords['setup_requires']=['pytest-runner']
+setup_keywords['tests_require']=['pytest']
 
 # Autogenerate command-line scripts.
 #
