@@ -4,6 +4,7 @@ from textwrap import wrap as wraptext
 from inspect import currentframe, getouterframes
 from glob import glob
 
+pypit_logger = None
 
 class Messages:
     """
