@@ -1,3 +1,5 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import os
 import sys
 import copy
@@ -6,9 +8,9 @@ import getopt
 import astropy.io.fits as pyfits
 from astropy.time import Time
 import numpy as np
-import armsgs
-import arproc
-import arlris
+from pypit import armsgs
+from pypit import arproc
+from pypit import arlris
 from multiprocessing import cpu_count
 #from multiprocessing import Pool as mpPool
 #from multiprocessing.pool import ApplyResult

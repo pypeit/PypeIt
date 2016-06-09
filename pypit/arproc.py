@@ -1,23 +1,24 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import numpy as np
 from scipy.signal import savgol_filter
 import scipy.signal as signal
 import scipy.ndimage as ndimage
 import scipy.interpolate as inter
 from matplotlib import pyplot as plt
-import arcyextract
-import arcyutils
-import arcyproc
-import arextract
-import arload
-import arlris
-import armsgs
-import artrace
-import arutils
-import arplot
-import arspecobj
-import arqa
-import arwave
-from arpca import pca2d
+from pypit import arcyextract
+from pypit import arcyutils
+from pypit import arcyproc
+from pypit import arextract
+from pypit import arload
+from pypit import arlris
+from pypit import armsgs
+from pypit import artrace
+from pypit import arutils
+from pypit import arplot
+from pypit import arspecobj
+from pypit import arqa
+from pypit import arwave
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -158,12 +159,12 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     for o in xrange(norders):
         #if o < 3 or o > norders-5: continue
         xpix, ypix = np.where(ordpix==o+1)
-        print "Preparing", o+1
+        print("Preparing", o+1)
         xbarr, ybarr = arcyutils.prepare_bsplfit(sciframe, slf._pixlocn, slf._tilts[:,o], xmod, ycen[:,o], xpix, ypix, slf._dispaxis)
         xapix, yapix = np.where(allordpix==o+1)
         xball = arcyproc.prepare_bgmodel(sciframe, slf._pixlocn, slf._tilts[:,o], xmod, ycen[:,o], xapix, yapix, slf._dispaxis)
         ebarr = np.ones_like(xbarr)
-        print "Fitting", o+1, xbarr.size
+        print("Fitting", o+1, xbarr.size)
         argsrt = np.argsort(xbarr,kind='mergesort')
         polypoints = 3*slf._pixwid[o]
         fitfunc = arcyutils.polyfit_scan(xbarr[argsrt], ybarr[argsrt], ebarr, maskval, polyorder, polypoints, repeat)

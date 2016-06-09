@@ -1,8 +1,10 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import sys
 import numpy as np
-import armsgs
-import arsort
-import arsciexp
+from pypit import armsgs
+from pypit import arsort
+from pypit import arsciexp
 
 # Logging
 msgs = armsgs.get_logger()

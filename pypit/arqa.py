@@ -1,11 +1,14 @@
-# Module for QA in PYPIT
+""" Module for QA in PYPIT
+"""
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 from astropy import units as u
 
 import os
 import arutils
 import numpy as np
-from arplot import zscale
-import armsgs
+from pypit.arplot import zscale
+from pypit import armsgs
 
 import matplotlib
 from matplotlib import pyplot as plt

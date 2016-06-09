@@ -1,15 +1,17 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import numpy as np
 import os
 import copy
-import arqa
-import ararc
-import arcyarc
-import arcytrace
-import arcyutils
-import armsgs
-import arutils
-import arpca
-import arplot
+from pypit import arqa
+from pypit import ararc
+from pypit import arcyarc
+from pypit import arcytrace
+from pypit import arcyutils
+from pypit import armsgs
+from pypit import arutils
+from pypit import arpca
+from pypit import arplot
 import matplotlib.pyplot as plt
 import scipy.interpolate as interp
 import scipy.ndimage as ndimage

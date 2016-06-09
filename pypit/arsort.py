@@ -1,12 +1,14 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import os
 import re
 import sys
 import shutil
 import numpy as np
-import armsgs
-import arutils
-import arcyutils
-from arflux import find_standard_file
+from pypit import armsgs
+from pypit import arutils
+from pypit import arcyutils
+from pypit.arflux import find_standard_file
 from astropy.io.votable.tree import VOTableFile, Resource, Table, Field
 from astropy.table import Table as tTable, Column
 from astropy import units as u
@@ -139,7 +141,8 @@ def sort_data(argflag, spect, fitsdict):
     badfiles = np.where(np.sum(filarr, axis=0) == 0)[0]
     if np.size(badfiles) != 0:
         msgs.info("Couldn't identify the following files:")
-        for i in xrange(np.size(badfiles)): print fitsdict['filename'][badfiles[i]]
+        for i in xrange(np.size(badfiles)):
+            msgs.info(fitsdict['filename'][badfiles[i]])
         msgs.error("Check these files and your settings.{0:s} file before continuing".format(argflag['run']['spectrograph']))
     # Now identify the dark frames
     wdark = np.where((filarr[np.where(fkey == 'bias')[0],:] == 1).flatten() &
