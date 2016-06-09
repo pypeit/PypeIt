@@ -23,7 +23,7 @@ except:
 
 # Logging
 #from pypit import armsgs
-from armsgs import get_logger
+from .armsgs import get_logger
 msgs = get_logger()
 
 def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
