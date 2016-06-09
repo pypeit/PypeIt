@@ -9,12 +9,8 @@ from scipy import interpolate
 import itertools
 import numpy as np
 from pypit import armsgs
-try:
-    import arcyutils
-except ImportError:  # Travis testing only (Cython)
-    pass
-else:
-    import arcyarc
+from pypit import arcyutils
+from pypit import arcyarc
 import warnings
 
 #from xastropy.xutils import xdebug as xdb
