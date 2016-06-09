@@ -12,7 +12,7 @@ import traceback
 # Import PYPIT routines
 import ardebug
 debug = ardebug.init()
-debug['develop'] = True
+#debug['develop'] = True
 #debug['arc'] = True
 #debug['sky_sub'] = True
 #debug['trace'] = True
