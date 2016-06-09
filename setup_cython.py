@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+#
+# python setup_cython.py build_ext --inplace
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 from __future__ import absolute_import, division, print_function
 #
@@ -78,7 +80,6 @@ for pyx_file in pyx_files:
     # Append
     setup_keywords['ext_modules'].append(ext)
 setup_keywords['cmdclass']={'build_ext': build_ext}
-# python setup.py build_ext --inplace
 #
 # Autogenerate command-line scripts.
 #

@@ -1,3 +1,5 @@
+from __future__ import absolute_import, division, print_function
+
 import os
 import astropy.io.fits as pyfits
 from astropy.stats import sigma_clip as sigma_clip
@@ -6,7 +8,7 @@ from scipy.special import erf
 from scipy import interpolate
 import itertools
 import numpy as np
-import armsgs
+from pypit import armsgs
 try:
     import arcyutils
 except ImportError:  # Travis testing only (Cython)
@@ -194,15 +196,16 @@ def find_peaks(yval, siglev=10.):
       Sigma level for detection
     """
     # Calculate RMS
-    yclipped = sig_clip(yval)
+    yclipped = sigma_clip(yval)
     rms = np.std(yclipped)
     #
-    tpixt, num = arcyarc.detections_sigma(yval,np.array([rms]*mid_row.shape[0]),np.zeros(yval.shape[0],dtype=np.int),siglev/2.0,siglev) 
+    #tpixt, num = arcyarc.detections_sigma(yval,np.array([rms]*mid_row.shape[0]),np.zeros(yval.shape[0],dtype=np.int),siglev/2.0,siglev)
+    debugger.set_trace()  # FIX THE ROW ABOVE
     # Remove similar
-    pixt = arcyarc.remove_similar(tpixt, num)
-    pixt = pixt[np.where(pixt!=-1)].astype(np.int)
+    #pixt = arcyarc.remove_similar(tpixt, num)
+    #pixt = pixt[np.where(pixt!=-1)].astype(np.int)
     # Return
-    return pixt
+    #return pixt
 
 
 def func_der(coeffs, func, nderive=1):
@@ -421,7 +424,7 @@ def get_splknots(xarr, yarr, num, minv=None, maxv=None, maxknots=None):
     drv = np.ceil(drv).astype(np.int)
     drv[np.where(drv<2)] = 2
     if maxknots is not None: drv[np.where(drv>maxknots)] = maxknots
-    print drv
+    print(drv)
     knots = arcyutils.get_splknots(xarr, drv, minv, maxv, np.sum(drv))
     msgs.info("Generated {0:d} knots".format(knots.size))
     return knots
