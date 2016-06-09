@@ -1,15 +1,10 @@
 #!/usr/bin/env python
-#
-# python setup_cython.py build_ext --inplace
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
-# conda install -c https://conda.anaconda.org/asmeurer gsl
 from __future__ import absolute_import, division, print_function
 #
 # Standard imports
 #
-import glob
-import numpy, os
-from Cython.Distutils import build_ext
+import glob, os
 from distutils.extension import Extension
 #
 # setuptools' sdist command ignores MANIFEST.in
@@ -61,9 +56,14 @@ setup_keywords['use_2to3'] = True
 setup_keywords['packages'] = ['pypit'] #find_packages('pypit')
 #setup_keywords['package_dir'] = {'':''}
 #setup_keywords['cmdclass'] = {'version': DesiVersion, 'test': DesiTest, 'sdist': DistutilsSdist}
-#setup_keywords['test_suite']='{name}.test.{name}_test_suite.{name}_test_suite'.format(**setup_keywords)
+#setup_keywords['test_suite']='{name}.tests.{name}_test_suite.{name}_test_suite'.format(**setup_keywords)
+setup_keywords['setup_requires']=['pytest-runner']
+setup_keywords['tests_require']=['pytest']
 
 # Cython
+import numpy, os
+from Cython.Distutils import build_ext
+from distutils.extension import Extension
 
 include_gsl_dir = os.getenv('GSL_PATH')+'/include/'
 lib_gsl_dir = os.getenv('GSL_PATH')+'/lib/'
@@ -81,9 +81,7 @@ for pyx_file in pyx_files:
     # Append
     setup_keywords['ext_modules'].append(ext)
 setup_keywords['cmdclass']={'build_ext': build_ext}
-import pdb
-pdb.set_trace()
-#
+
 # Autogenerate command-line scripts.
 #
 # setup_keywords['entry_points'] = {'console_scripts':['desiInstall = desiutil.install.main:main']}

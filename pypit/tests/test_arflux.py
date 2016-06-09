@@ -9,11 +9,9 @@ import pytest
 
 from astropy import units as u
 
-from pypit import arutils as arut
 from pypit import pyputils
 import pypit
 msgs = pyputils.get_dummy_logger()
-from pypit import arflux as arflx
 
 #from xastropy.xutils import afits as xafits
 #from xastropy.xutils import xdebug as xdb
@@ -25,6 +23,8 @@ from pypit import arflux as arflx
 pypitdir = pypit.__path__[0]
 
 def test_find_standard():
+    from pypit import arutils as arut
+    from pypit import arflux as arflx
     # Dummy self
     slf = arut.dummy_self(pypitdir=pypitdir)
     # G191b2b
@@ -45,6 +45,8 @@ def test_find_standard():
 
 
 def test_load_extinction():
+    from pypit import arflux as arflx
+    from pypit import arutils as arut
     # Dummy self
     slf = arut.dummy_self(pypitdir=pypitdir)
     slf._spect['mosaic']['latitude'] = 37.3413889
@@ -63,6 +65,8 @@ def test_load_extinction():
 
 
 def test_extinction_correction():
+    from pypit import arflux as arflx
+    from pypit import arutils as arut
     # Dummy self
     slf = arut.dummy_self(pypitdir=pypitdir)
     slf._spect['mosaic']['latitude'] = 37.3413889
