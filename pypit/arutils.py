@@ -610,6 +610,7 @@ def gauss_lsqfit(x,y,pcen):
     :param pcen: An estimate of the Gaussian mean
     :return:
     """
+    from pypit import arcyarc
     def gfunc(x,ampl,cent,sigm,cons,tilt):
         df = (x[1:]-x[:-1])/2.0
         df = np.append(df,df[-1])
@@ -641,6 +642,7 @@ def gauss_fit(x, y, pcen):
     # dx = np.ones(x.size)*np.mean(x[1:]-x[:-1])
     # coeffs = polyfit_integral(x, y, dx, 2)
     # return poly_to_gauss(coeffs)
+    from pypit import arcyarc
     try:
         if np.any(y<0.0):
             return [0.0, 0.0, 0.0], True

@@ -1,4 +1,7 @@
-# Module for fluxing routines
+""" Module for fluxing routines
+"""
+from __future__ import (print_function, absolute_import, division,
+                        unicode_literals)
 import numpy as np
 import scipy
 import glob
@@ -9,12 +12,10 @@ from astropy.io import fits
 from astropy import units as u
 from astropy import coordinates as coords
 
-
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
 except ImportError:
     pass
-
 
 try:
     from xastropy.xutils import xdebug as debugger
