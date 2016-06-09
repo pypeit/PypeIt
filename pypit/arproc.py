@@ -10,7 +10,6 @@ from pypit import arcyextract
 from pypit import arcyutils
 from pypit import arcyproc
 from pypit import arextract
-from pypit import arload
 from pypit import arlris
 from pypit import armsgs
 from pypit import artrace
@@ -685,6 +684,7 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
     fitsdict : dict
       Updates to the input fitsdict
     """
+    from pypit import arload
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
     if slf._argflag['run']['spectrograph'] in ['lris_blue', 'lris_red']:
         msgs.info("Parsing datasec,oscansec,ampsec from headers")
