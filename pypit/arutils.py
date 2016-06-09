@@ -9,8 +9,8 @@ from scipy import interpolate
 import itertools
 import numpy as np
 from pypit import armsgs
-from pypit import arcyutils
-from pypit import arcyarc
+#from pypit import arcyutils
+#from pypit import arcyarc
 import warnings
 
 #from xastropy.xutils import xdebug as xdb
@@ -192,6 +192,7 @@ def find_peaks(yval, siglev=10.):
       Sigma level for detection
     """
     # Calculate RMS
+    from pypit import arcyarc
     yclipped = sigma_clip(yval)
     rms = np.std(yclipped)
     #
@@ -408,6 +409,7 @@ def get_splknots(xarr, yarr, num, minv=None, maxv=None, maxknots=None):
     :param maxv: The maximum x-value of the knots
     :return: knots
     """
+    from pypit import arcyutils
     # First determine the derivative
     if minv is None: minv = np.min(xarr)
     if maxv is None: maxv = np.max(xarr)
@@ -964,6 +966,7 @@ def spline_coeffs(a, b, y, alpha=0.0, beta=0.0):
     beta : float
         Second-order derivative at b. Default is 0.
     """
+    from pypit import arcyutils
     n = y.shape[0] - 1
     h = (b - a)/n
 
@@ -988,6 +991,7 @@ def spline_coeffs(a, b, y, alpha=0.0, beta=0.0):
 
 
 def spline_interp(xnew,xold,yold):
+    from pypit import arcyutils
     # Calculate the coefficients
     c = spline_coeffs(xold[0], xold[-1], yold)
     ynew = arcyutils.spline_interpolate(xnew, c, xold[0], xold[-1])
