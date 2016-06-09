@@ -705,28 +705,33 @@ def polyval2d_general(c, x, y, function="polynomial", minx=None, maxx=None, miny
 
 def polyfit_integral(x, y, dx, deg, rcond=None, full=False, w=None):
     order = int(deg) + 1
-    x = np.asarray(x) + 0.0
-    y = np.asarray(y) + 0.0
+    x = np.asarray(x)
+    y = np.asarray(y)
 
     # check arguments.
-    if deg < 0 :
-        raise ValueError("expected deg >= 0")
+    if deg < 0:
+        msgs.bug("Expected deg >= 0")
+        msgs.error("Input of function arutils.polyfit_integral is incorrect")
     if x.ndim != 1:
-        raise TypeError("expected 1D vector for x")
+        msgs.bug("Expected 1D vector for x")
+        msgs.error("Input of function arutils.polyfit_integral is incorrect")
     if x.size == 0:
-        raise TypeError("expected non-empty vector for x")
-    if y.ndim < 1 or y.ndim > 2 :
-        raise TypeError("expected 1D or 2D array for y")
+        msgs.bug("Expected non-empty vector for x")
+        msgs.error("Input of function arutils.polyfit_integral is incorrect")
+    if y.ndim < 1 or y.ndim > 2:
+        msgs.bug("Expected 1D or 2D array for y")
+        msgs.error("Input of function arutils.polyfit_integral is incorrect")
     if len(x) != len(y):
-        raise TypeError("expected x and y to have same length")
+        msgs.bug("Expected x and y to have same length")
+        msgs.error("Input of function arutils.polyfit_integral is incorrect")
 
     # set up the least squares matrices in transposed form
     lhst = np.polynomial.polynomial.polyvander(x+dx/2.0, deg+1) - np.polynomial.polynomial.polyvander(x-dx/2.0, deg+1)
-    div = np.arange(1.,deg+2.).reshape(1,deg+1).repeat(x.size,axis=0)
-    lhs = (lhst[:,1:]/(dx.reshape(dx.size,1).repeat(deg+1,axis=1)*div)).T
+    div = np.arange(1., deg+2.).reshape(1, deg+1).repeat(x.size, axis=0)
+    lhs = (lhst[:, 1:]/(dx.reshape(dx.size, 1).repeat(deg+1, axis=1)*div)).T
     rhs = y.T
     if w is not None:
-        w = np.asarray(w) + 0.0
+        w = np.asarray(w)
         if w.ndim != 1:
             msgs.bug("Expected 1D vector for weights in arutils.polyfit2d")
         if len(x) != len(w):
@@ -737,7 +742,7 @@ def polyfit_integral(x, y, dx, deg, rcond=None, full=False, w=None):
         rhs = rhs * w
 
     # set rcond
-    if rcond is None :
+    if rcond is None:
         rcond = len(x)*np.finfo(x.dtype).eps
 
     # Determine the norms of the design matrix columns.
@@ -753,12 +758,11 @@ def polyfit_integral(x, y, dx, deg, rcond=None, full=False, w=None):
 
     # warn on rank reduction
     if rank != order and not full:
-        msg = "The fit may be poorly conditioned"
-        warnings.warn(msg, pu.RankWarning)
+        msgs.warn("The fit result of the function arutils.polyfit_integral may be poorly conditioned")
 
-    if full :
+    if full:
         return c, [resids, rank, s, rcond]
-    else :
+    else:
         return c
 
 
