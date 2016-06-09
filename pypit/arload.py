@@ -592,7 +592,8 @@ def load_headers(argflag, spect, datlines):
         #    arlris.set_det(fitsdict, headarr[k])
         # Now get the rest of the keywords
         for kw in keys:
-            if spect['keyword'][kw] is None: value = 'None'  # This instrument doesn't have/need this keyword
+            if spect['keyword'][kw] is None:
+                value = str('None')  # This instrument doesn't have/need this keyword
             else:
                 ch = spect['keyword'][kw]
                 try:
@@ -606,7 +607,7 @@ def load_headers(argflag, spect, datlines):
                         value = headarr[frhd][kchk]
                     except KeyError: # Keyword not found in header
                         msgs.warn("{:s} keyword not in header. Setting to None".format(kchk))
-                        value='None'
+                        value=str('None')
             # Convert the input time into hours
             if kw == 'time':
                 if spect['fits']['timeunit']   == 's'  : value = float(value)/3600.0    # Convert seconds to hours
@@ -633,9 +634,10 @@ def load_headers(argflag, spect, datlines):
                 fitsdict[kw].append(value)
             elif typv is float or typv is np.float_:
                 fitsdict[kw].append(value)
-            elif typv is str or typv is np.string_:
+            elif isinstance(value, basestring) or typv is np.string_:
                 fitsdict[kw].append(value.strip())
             else:
+                debugger.set_trace()
                 msgs.bug("I didn't expect useful headers to contain type {0:s}".format(typv).replace('<type ','').replace('>',''))
 
         if argflag['out']['verbose'] == 2: msgs.info("Successfully loaded headers for file:"+msgs.newline()+datlines[i])
