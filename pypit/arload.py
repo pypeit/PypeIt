@@ -124,7 +124,7 @@ def optarg(argflag, argv, pypname):
                                                       'cpus',
                                                       'verbose',
                                                      ])
-    except getopt.GetoptError, err:
+    except getopt.GetoptError as err:  # Python 3
         msgs.error(err.msg)
         msgs.usage(None)
     for o, a in opt:
