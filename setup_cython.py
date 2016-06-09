@@ -74,8 +74,8 @@ for pyx_file in pyx_files:
     pyx_split = pyx_file.split('.')
     pyx_split2 = pyx_split[0].split('/')
     # Generate Extension
-    #ext = Extension(pyx_split[0], [pyx_file],
-    ext = Extension(pyx_split2[1], [pyx_file],
+    #ext = Extension(pyx_split2[1], [pyx_file],
+    ext = Extension(pyx_split[0], [pyx_file],
         include_dirs=[numpy.get_include(),
                     include_gsl_dir],
         library_dirs=[lib_gsl_dir],

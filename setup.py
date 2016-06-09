@@ -63,6 +63,7 @@ setup_keywords['tests_require']=['pytest']
 # Cython
 import numpy, os
 from Cython.Distutils import build_ext
+from Cython.Build import cythonize
 from distutils.extension import Extension
 
 include_gsl_dir = os.getenv('GSL_PATH')+'/include/'
@@ -73,8 +74,8 @@ for pyx_file in pyx_files:
     pyx_split = pyx_file.split('.')
     pyx_split2 = pyx_split[0].split('/')
     # Generate Extension
-    #ext = Extension(pyx_split[0], [pyx_file],
-    ext = Extension(pyx_split2[1], [pyx_file],
+    #ext = Extension(pyx_split2[1], [pyx_file],
+    ext = Extension('pypit.'+pyx_split2[1], [pyx_file],
         include_dirs=[numpy.get_include(),
                     include_gsl_dir],
         library_dirs=[lib_gsl_dir],
@@ -82,6 +83,11 @@ for pyx_file in pyx_files:
     )
     # Append
     setup_keywords['ext_modules'].append(ext)
+#for pyx_file in pyx_files:
+#    pyx_split = pyx_file.split('/')
+#    ext = cythonize(pyx_split[1])
+#    setup_keywords['ext_modules'].append(ext)
+
 setup_keywords['cmdclass']={'build_ext': build_ext}
 
 # Autogenerate command-line scripts.
