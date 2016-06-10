@@ -1,8 +1,10 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 from matplotlib import pyplot as plt
 import numpy as np
-import armsgs
-import arutils
-from arplot import get_dimen as get_dimen
+from pypit import armsgs
+from pypit import arutils
+from pypit.arplot import get_dimen as get_dimen
 
 # Logging
 msgs = armsgs.get_logger()

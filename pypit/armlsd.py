@@ -1,14 +1,18 @@
+""" Primary module for guiding the reduction of long slit data
+"""
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import numpy as np
-import arflux
-import arload
-import armasters
-import armbase
-import armsgs
-import arproc
-import arsave
-import arsort
-import artrace
-import arqa
+from pypit import arflux
+from pypit import arload
+from pypit import armasters
+from pypit import armbase
+from pypit import armsgs
+from pypit import arproc
+from pypit import arsave
+from pypit import arsort
+from pypit import artrace
+from pypit import arqa
 
 from linetools import utils as ltu
 
@@ -74,6 +78,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         # Loop on Detectors
         for kk in xrange(slf._spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
+            slf.det = det
             ###############
             # Get amplifier sections
             arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
@@ -250,8 +255,10 @@ def instconfig(slf, det, scidx, fitsdict):
 
     Parameters
     ----------
-    scidx: int
+    det : int
+    scidx : int
        Exposure index (max=9999)
+    fitsdict : dict
     """
     from collections import OrderedDict
     config_dict = OrderedDict()

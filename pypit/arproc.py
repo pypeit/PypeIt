@@ -1,23 +1,20 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import numpy as np
 from scipy.signal import savgol_filter
 import scipy.signal as signal
 import scipy.ndimage as ndimage
 import scipy.interpolate as inter
 from matplotlib import pyplot as plt
-import arcyextract
-import arcyutils
-import arcyproc
-import arextract
-import arload
-import arlris
-import armsgs
-import artrace
-import arutils
-import arplot
-import arspecobj
-import arqa
-import arwave
-from arpca import pca2d
+from pypit import arextract
+from pypit import arlris
+from pypit import armsgs
+from pypit import artrace
+from pypit import arutils
+from pypit import arplot
+from pypit import arspecobj
+from pypit import arqa
+from pypit import arwave
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -41,7 +38,9 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
 
     This routine will (probably) work poorly if the order traces overlap (of course)
     """
-
+    from pypit import arcyextract
+    from pypit import arcyutils
+    from pypit import arcyproc
     errframe = np.sqrt(varframe)
     retframe = np.zeros_like(sciframe)
     norders = slf._lordloc.shape[1]
@@ -158,12 +157,12 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     for o in xrange(norders):
         #if o < 3 or o > norders-5: continue
         xpix, ypix = np.where(ordpix==o+1)
-        print "Preparing", o+1
+        print("Preparing", o+1)
         xbarr, ybarr = arcyutils.prepare_bsplfit(sciframe, slf._pixlocn, slf._tilts[:,o], xmod, ycen[:,o], xpix, ypix, slf._dispaxis)
         xapix, yapix = np.where(allordpix==o+1)
         xball = arcyproc.prepare_bgmodel(sciframe, slf._pixlocn, slf._tilts[:,o], xmod, ycen[:,o], xapix, yapix, slf._dispaxis)
         ebarr = np.ones_like(xbarr)
-        print "Fitting", o+1, xbarr.size
+        print("Fitting", o+1, xbarr.size)
         argsrt = np.argsort(xbarr,kind='mergesort')
         polypoints = 3*slf._pixwid[o]
         fitfunc = arcyutils.polyfit_scan(xbarr[argsrt], ybarr[argsrt], ebarr, maskval, polyorder, polypoints, repeat)
@@ -208,11 +207,11 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     for o in xrange(norders):
         xpix, ypix = np.where(ordpix==1+o)
         msgs.info("Preparing sky pixels in order {0:d}/{1:d} for a b-spline fit".format(o+1,norders))
-        xbarr, ybarr = cybspline.prepare_bsplfit(arc, pixmap, tilts, xmod, ycen, xpix, ypix, dispaxis)
+        #xbarr, ybarr = cybspline.prepare_bsplfit(arc, pixmap, tilts, xmod, ycen, xpix, ypix, dispaxis)
         msgs.info("Performing b-spline fir to oversampled sky background in order {0:d}/{1:d}".format(o+1,norders))
-        ncoeff, k = flt.shape[dispaxis], 1
+        #ncoeff, k = flt.shape[dispaxis], 1
         #mod_yarr = cybspline.bspline_fit(xmod, xbarr, ybarr, ebarr, min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k)
-        skybg += cybspline.bspline_fitmod(xbarr, ybarr, ebarr, min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k, pixmap, tilts, xmod, ycen, xpix, ypix, slf._dispaxis)
+        #skybg += cybspline.bspline_fitmod(xbarr, ybarr, ebarr, min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k, pixmap, tilts, xmod, ycen, xpix, ypix, slf._dispaxis)
 
     # Subtract the background
     msgs.info("Subtracting the sky background from the science frame")
@@ -255,6 +254,8 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     :param varframe:
     :return:
     """
+    from pypit import arcyutils
+    from pypit import arcyproc
     # Set some starting parameters (maybe make these available to the user)
     msgs.work("Should these parameters be made available to the user?")
     polyorder, repeat = 5, 1
@@ -500,6 +501,9 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     msblaze : ndarray
       A 2d array containing the blaze function for each slit
     """
+    from pypit import arcyutils
+    from pypit import arcyextract
+    from pypit import arcyproc
     msgs.info("Normalizing the master flat field frame")
     norders = slf._lordloc[det-1].shape[1]
     # First, determine the relative scale of each amplifier (assume amplifier 1 has a scale of 1.0)
@@ -684,6 +688,7 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
     fitsdict : dict
       Updates to the input fitsdict
     """
+    from pypit import arload
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
     if slf._argflag['run']['spectrograph'] in ['lris_blue', 'lris_red']:
         msgs.info("Parsing datasec,oscansec,ampsec from headers")
@@ -934,6 +939,8 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
     :param grow: Once CRs are identified, grow each CR detection by all pixels within this radius
     :return: mask of cosmic rays (0=no CR, 1=CR)
     """
+    from pypit import arcyutils
+    from pypit import arcyproc
 
     msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
     msgs.work("Include these parameters in the settings files to be adjusted by the user")

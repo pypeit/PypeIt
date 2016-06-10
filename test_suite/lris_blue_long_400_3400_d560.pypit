@@ -9,7 +9,7 @@ out sorted lris_blue_long_400_3400_d560
 
 # Reduce
 reduce usebias overscan    # How to subtract the detector bias (bias, overscan, dark, none), you can also specify a master calibrations file if it exists.
-reduce useflat /Users/xavier/Dropbox/PYPIT/CALIBS/PYPIT_LRISb_pixflat_B400_2x2_15apr2015.fits.gz
+reduce useflat ~/Dropbox/PYPIT/CALIBS/PYPIT_LRISb_pixflat_B400_2x2_15apr2015.fits.gz
 trace orders tilts spca
 trace orders pcatilt 1,1,1
 trace orders use_ids_only True
@@ -20,7 +20,7 @@ reduce flexure archive_spec sky_LRISb_400.fits
 
 # Read in the data
 data read
- /Users/xavier/Dropbox/PYPIT/TEST_SUITES/LRIS_blue/long_400_3400_d560/LB*.fits.gz
+ ~/Dropbox/PYPIT/TEST_SUITES/LRIS_Blue/long_400_3400_d560/LB*.fits.gz
 data end
 
 spect read

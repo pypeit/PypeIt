@@ -1,12 +1,13 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import os
 import re
 import sys
 import shutil
 import numpy as np
-import armsgs
-import arutils
-import arcyutils
-from arflux import find_standard_file
+from pypit import armsgs
+from pypit import arutils
+from pypit.arflux import find_standard_file
 from astropy.io.votable.tree import VOTableFile, Resource, Table, Field
 from astropy.table import Table as tTable, Column
 from astropy import units as u
@@ -17,6 +18,10 @@ try:
     from xastropy.xutils import xdebug as debugger
 except:
     import pdb as debugger
+try:
+    basestring
+except NameError:
+    basestring = str
 
 # Logging
 msgs = armsgs.get_logger()
@@ -73,7 +78,7 @@ def sort_data(argflag, spect, fitsdict):
                 conds = re.split("(\||\&)", spect[fkey[i]]['check'][ch])
                 ntmp = chk_condition(fitsdict, conds[0])
                 # And more
-                for cn in xrange((len(conds)-1)/2):
+                for cn in xrange((len(conds)-1)//2):
                     if conds[2*cn+1] == "|":
                         ntmp = ntmp | chk_condition(fitsdict, conds[2*cn+2])
                     elif conds[2*cn+1] == "&":
@@ -139,7 +144,8 @@ def sort_data(argflag, spect, fitsdict):
     badfiles = np.where(np.sum(filarr, axis=0) == 0)[0]
     if np.size(badfiles) != 0:
         msgs.info("Couldn't identify the following files:")
-        for i in xrange(np.size(badfiles)): print fitsdict['filename'][badfiles[i]]
+        for i in xrange(np.size(badfiles)):
+            msgs.info(fitsdict['filename'][badfiles[i]])
         msgs.error("Check these files and your settings.{0:s} file before continuing".format(argflag['run']['spectrograph']))
     # Now identify the dark frames
     wdark = np.where((filarr[np.where(fkey == 'bias')[0],:] == 1).flatten() &
@@ -240,7 +246,7 @@ def sort_write(sortname, spect, fitsdict, filesort, space=3):
             typv = type(fitsdict[i][0])
             if typv is int or typv is np.int_:
                 prdtp.append("int")
-            elif typv is str or typv is np.string_:
+            elif isinstance(fitsdict[i][0], basestring) or typv is np.string_:
                 prdtp.append("char")
             elif typv is float or typv is np.float_:
                 prdtp.append("double")
@@ -255,7 +261,8 @@ def sort_write(sortname, spect, fitsdict, filesort, space=3):
     # Define VOTable fields
     tabarr=[]
     # Insert the filename and filetype first
-    for i in xrange(len(prord)): tabarr.append(Field(votable, name=prord[i], datatype=prdtp[i], arraysize="*"))
+    for i in xrange(len(prord)):
+        tabarr.append(Field(votable, name=prord[i], datatype=prdtp[i], arraysize="*"))
     table.fields.extend(tabarr)
     table.create_arrays(nfiles)
     filtyp = filesort.keys()
@@ -527,6 +534,18 @@ def match_frames(frames, criteria, frametype='<None>', satlevel=None):
 
 
 def match_frames_old(slf, frames, frametype='<None>'):
+    """
+    Parameters
+    ----------
+    slf
+    frames
+    frametype
+
+    Returns
+    -------
+
+    """
+    from pypit import arcyutils
     msgs.info("Matching {0:d} {1:s} frames".format(frames.shape[2],frametype))
     srtframes = [np.zeros((frames.shape[0],frames.shape[1],1))]
     srtframes[0][:,:,0] = frames[:,:,0]

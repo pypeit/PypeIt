@@ -1,7 +1,6 @@
 """ Module for fluxing routines
 """
-from __future__ import (print_function, absolute_import, division,
-                        unicode_literals)
+from __future__ import (print_function, absolute_import, division, unicode_literals)
 import numpy as np
 import scipy
 import glob
@@ -22,9 +21,10 @@ try:
 except:
     import pdb as debugger
 
+import arutils
 # Logging
 #from pypit import armsgs
-from .armsgs import get_logger
+from armsgs import get_logger
 msgs = get_logger()
 
 def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
@@ -36,7 +36,7 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
     MAX_EXTRAP : float, optional [0.05]
       Fractional amount to extrapolate sensitivity function
     """
-    from pypit import arutils
+
     # Load extinction data
     extinct = load_extinction_data(slf)
     airmass = fitsdict['airmass'][scidx]
@@ -88,7 +88,6 @@ def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
     Returns
     -------
     """
-    from pypit import arutils
     invvar = (var > 0.)/(var + (var <= 0.))
     nx = wave.size
     pos_error = 1./np.sqrt(np.maximum(invvar,0.) + (invvar == 0))
@@ -356,7 +355,7 @@ def load_standard_file(slf, std_dict):
     if std_dict['fmt'] == 1:
         std_spec = fits.open(fil)[1].data
         # Load
-        std_dict['wave'] = std_spec['WAVELENGTH']*u.AA 
+        std_dict['wave'] = std_spec['WAVELENGTH']*u.AA
         std_dict['flux'] = 1e17*std_spec['FLUX']*u.erg/u.s/u.cm**2/u.AA
     else:
         msgs.error("Bad Standard Star Format")

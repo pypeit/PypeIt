@@ -65,7 +65,7 @@ for instr in instruments:
         logfile = wdir+'/'+instr.lower()+'_'+setup.lower()+'.log'
         print('Running pypit on {:s} --- '.format(outfile))
         with open(logfile,'w') as f:
-            subprocess.call(['python', os.getenv('PYPIT')+'/src/pypit.py', outfile], stderr=f, cwd=wdir)#, shell=True)
+            subprocess.call(['python', os.getenv('PYPIT')+'/pypit/pypit.py', outfile], stderr=f, cwd=wdir)#, shell=True)
         print('Done running pypit on {:s} --- '.format(outfile))
         subprocess.call(['tail', logfile])
         # Need some merit of success..
