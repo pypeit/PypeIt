@@ -355,6 +355,7 @@ def load_standard_file(slf, std_dict):
     if std_dict['fmt'] == 1:
         std_spec = fits.open(fil)[1].data
         # Load
+        debugger.set_trace()
         std_dict['wave'] = std_spec['WAVELENGTH']*u.AA 
         std_dict['flux'] = 1e17*std_spec['FLUX']*u.erg/u.s/u.cm**2/u.AA
     else:
