@@ -144,8 +144,9 @@ class Messages:
         except AttributeError:
             pass
         else:
-            from pypit import armasters
-            armasters.save_masters(self.sciexp, self.sciexp.det,
+            if self._debug['develop']:
+                from pypit import armasters
+                armasters.save_masters(self.sciexp, self.sciexp.det,
                                    self.sciexp._argflag['masters']['setup'])
         # Close log
         if self._log:

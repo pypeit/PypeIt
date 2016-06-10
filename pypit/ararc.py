@@ -370,6 +370,7 @@ def simple_calib(slf, det, get_poly=False):
         #gd_str = np.array(tmp)
         #xdb.xpcol(tcent[idx_str[gd_str]],ids[gd_str])
         #xdb.xplot(tcent[idx_str[gd_str]],ids[gd_str],scatter=True)
+        # debugger.xplot(yprep)
         debugger.set_trace()
 
     msgs.work('Cross correlate here?')
