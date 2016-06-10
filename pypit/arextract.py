@@ -1,11 +1,11 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import numpy as np
 from astropy import units as u
-import arcyutils
-import armsgs
-import artrace
-import arutils
-import arqa
-import arproc
+from pypit import armsgs
+from pypit import artrace
+from pypit import arutils
+from pypit import arqa
 
 # Logging
 msgs = armsgs.get_logger()
@@ -50,6 +50,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     bgcorr : ndarray
       Correction to the sky background in the object window
     """
+    from pypit import arcyutils
     bgfitord = 1  # Polynomial order used to fit the background
     nobj = scitrace['traces'].shape[1]
     cr_mask = 1.0-crmask
@@ -257,6 +258,7 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
     newvar : ndarray
       Updated variance array that includes object model
     """
+    from pypit import arproc
     # Setup
     #rnimg = arproc.rn_frame(slf,det)
     #model_var = np.abs(skyframe + sciframe - np.sqrt(2)*rnimg + rnimg**2)  # sqrt 2 term deals with negative flux/sky

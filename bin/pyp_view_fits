@@ -36,19 +36,10 @@ def main() :
     # Setup for PYPIT imports
     import subprocess
     from astropy.io import fits
-    this_file = os.path.realpath(__file__)
-    this_path = this_file[:this_file.rfind('/')]
-    sys.path.append(os.path.abspath(this_path+'/../src'))
-    import armsgs as msgs
+    from pypit import pyputils
+    msgs = pyputils.get_dummy_logger()
 
-    import ardebug
-    debug = ardebug.init()
-    last_updated = "26 November 2015"
-    version = '0.3'
-    verbose = False
-    msgs = msgs.get_logger((None, debug, last_updated, version, verbose))
-
-    import arlris
+    from pypit import arlris
 
     # Extension
     if pargs.exten is not None:

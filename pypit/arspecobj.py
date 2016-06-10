@@ -1,9 +1,11 @@
 # Module for handling extracted spectra
 #  Includes ArSpecObj class
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import copy
 
-import armsgs
+from pypit import armsgs
 
 # Logging
 msgs = armsgs.get_logger()
@@ -113,7 +115,7 @@ def init_exp(slf, scidx, det, fitsdict, trc_img=None, ypos=0.5, **kwargs):
     ypos : float, optional [0.5]
        Row on trimmed detector (fractional) to define slit (and object)
     """
-    from armlsd import instconfig
+    from pypit.armlsd import instconfig
 
     # Init
     specobjs = []

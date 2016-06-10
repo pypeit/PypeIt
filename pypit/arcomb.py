@@ -1,6 +1,7 @@
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
-import arcycomb
-import armsgs
+from pypit import armsgs
 
 # Logging
 msgs = armsgs.get_logger()
@@ -24,6 +25,7 @@ def comb_frames(frames_arr, det, method='weightmean', spect=None, weight=None, f
     set_allrej: What to do if all pixels are rejected (options are: 'min', 'max', 'mean', 'median', 'weightmean')
     maskvalue: What should the masked values be set to (should be greater than the detector's saturation value -- Default = 1 + 2**20)
     """
+    from pypit import arcycomb
     ###########
     # FIRST DO SOME CHECKS ON THE INPUT
     ###########

@@ -1,5 +1,7 @@
 """ Class for book-keeping the reduction process
 """
+from __future__ import absolute_import, division, print_function
+
 import sys
 import copy
 import numpy as np
@@ -7,16 +9,16 @@ import numpy as np
 from astropy.time import Time
 import datetime
 from matplotlib.backends.backend_pdf import PdfPages
-import artrace
-import arload
-import arcomb
-import arflux
-import arlris
-import armasters
-import armsgs
-import arproc
-import arsort
-import arutils
+from pypit import artrace
+from pypit import arload
+from pypit import arcomb
+from pypit import arflux
+from pypit import arlris
+from pypit import armasters
+from pypit import armsgs
+from pypit import arproc
+from pypit import arsort
+from pypit import arutils
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -683,7 +685,7 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-        import ararc
+        from pypit import ararc
 
         if self._wvcalib[det-1] is not None:
             msgs.info("An identical master wave calib frame already exists")
