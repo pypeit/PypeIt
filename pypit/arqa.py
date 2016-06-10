@@ -209,7 +209,7 @@ def flexure(slf, det, flex_dict, slit_cen=False):
         msgs.warn("No sky lines for Flexure QA")
         return
     if len(gdsky) > 6:
-        idx = np.array([0,1,len(gdsky)/2,len(gdsky)/2+1,-2,-1])
+        idx = np.array([0,1,len(gdsky)//2,len(gdsky)//2+1,-2,-1])
         gdsky = gdsky[idx]
 
     # Figure
