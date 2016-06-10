@@ -8,7 +8,8 @@ from scipy.special import erf
 from scipy import interpolate
 import itertools
 import numpy as np
-from pypit import armsgs
+
+import armsgs
 #from pypit import arcyutils
 #from pypit import arcyarc
 import warnings
@@ -383,7 +384,7 @@ def get_splknots(xarr, yarr, num, minv=None, maxv=None, maxknots=None):
     :param maxv: The maximum x-value of the knots
     :return: knots
     """
-    from pypit import arcyutils
+    import arcyutils
     # First determine the derivative
     if minv is None: minv = np.min(xarr)
     if maxv is None: maxv = np.max(xarr)
@@ -583,7 +584,7 @@ def gauss_lsqfit(x,y,pcen):
     :param pcen: An estimate of the Gaussian mean
     :return:
     """
-    from pypit import arcyarc
+    import arcyarc
     def gfunc(x,ampl,cent,sigm,cons,tilt):
         df = (x[1:]-x[:-1])/2.0
         df = np.append(df,df[-1])
@@ -615,7 +616,7 @@ def gauss_fit(x, y, pcen):
     # dx = np.ones(x.size)*np.mean(x[1:]-x[:-1])
     # coeffs = polyfit_integral(x, y, dx, 2)
     # return poly_to_gauss(coeffs)
-    from pypit import arcyarc
+    import arcyarc
     try:
         if np.any(y<0.0):
             return [0.0, 0.0, 0.0], True
@@ -945,7 +946,7 @@ def spline_coeffs(a, b, y, alpha=0.0, beta=0.0):
     beta : float
         Second-order derivative at b. Default is 0.
     """
-    from pypit import arcyutils
+    import arcyutils
     n = y.shape[0] - 1
     h = (b - a)/n
 
@@ -970,7 +971,7 @@ def spline_coeffs(a, b, y, alpha=0.0, beta=0.0):
 
 
 def spline_interp(xnew,xold,yold):
-    from pypit import arcyutils
+    import arcyutils
     # Calculate the coefficients
     c = spline_coeffs(xold[0], xold[-1], yold)
     ynew = arcyutils.spline_interpolate(xnew, c, xold[0], xold[-1])

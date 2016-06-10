@@ -22,9 +22,10 @@ try:
 except:
     import pdb as debugger
 
+import arutils
 # Logging
 #from pypit import armsgs
-from .armsgs import get_logger
+from armsgs import get_logger
 msgs = get_logger()
 
 def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
@@ -36,7 +37,7 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
     MAX_EXTRAP : float, optional [0.05]
       Fractional amount to extrapolate sensitivity function
     """
-    from pypit import arutils
+
     # Load extinction data
     extinct = load_extinction_data(slf)
     airmass = fitsdict['airmass'][scidx]
@@ -88,7 +89,6 @@ def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
     Returns
     -------
     """
-    from pypit import arutils
     invvar = (var > 0.)/(var + (var <= 0.))
     nx = wave.size
     pos_error = 1./np.sqrt(np.maximum(invvar,0.) + (invvar == 0))

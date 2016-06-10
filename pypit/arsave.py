@@ -7,7 +7,7 @@ import astropy.io.fits as pyfits
 from astropy.units import Quantity
 import numpy as np
 
-from pypit import armsgs
+import armsgs
 
 try:
     from xastropy.xutils import xdebug as debugger

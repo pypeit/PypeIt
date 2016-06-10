@@ -175,3 +175,69 @@ def PYPIT(redname, progname=__file__, quick=False, ncpus=1, verbose=1,
     return
 
 
+if __name__ == "__main__":
+    # Initiate logging for bugs and comand line help
+    # These messages will not be saved to a log file
+    from armsgs import Messages as Initmsg
+    initmsgs = Initmsg(None, debug, last_updated, version, 1)
+    # Set the default variables
+    red = "script.pypit"
+    qck = False
+    cpu = 1
+    vrb = 2
+    use_masters = False
+
+    if len(sys.argv) < 2:
+        initmsgs.usage(None)
+
+    # Load options from command line
+    try:
+        opt, arg = getopt.getopt(sys.argv[1:], 'hmqc:v:', ['help',
+                                                           'use_masters',
+                                                          'quick',
+                                                          'cpus',
+                                                          'verbose'])
+        for o, a in opt:
+            if o in ('-h', '--help'):
+                initmsgs.usage(None)
+            elif o in ('-q', '--quick'):
+                qck = True
+            elif o in ('-c', '--cpus'):
+                cpu = int(a)
+            elif o in ('-v', '--verbose'):
+                vrb = int(a)
+            elif o in ('-m', '--use_masters'):
+                use_masters=True
+        splitnm = os.path.splitext(arg[0])
+        if splitnm[1] != '.pypit':
+            initmsgs.error("Bad extension for PYPIT reduction file."+initmsgs.newline()+".pypit is required")
+        lnm = splitnm[0] + ".log"
+        red = arg[0]
+    except getopt.GetoptError, err:
+        initmsgs.error(err.msg, usage=True)
+
+    # Execute the reduction, and catch any bugs for printout
+    if debug['develop']:
+        PYPIT(red, progname=sys.argv[0], quick=qck, ncpus=cpu, verbose=vrb,
+              logname=lnm, use_masters=use_masters)
+    else:
+        try:
+            PYPIT(red, progname=sys.argv[0], quick=qck, ncpus=cpu, verbose=vrb,
+                  logname=lnm, use_masters=use_masters)
+        except:
+            # There is a bug in the code, print the file and line number of the error.
+            et, ev, tb = sys.exc_info()
+            filename, line_no = "<filename>", "<line_no>"
+            while tb:
+                co = tb.tb_frame.f_code
+                filename = str(co.co_filename)
+                line_no = str(traceback.tb_lineno(tb))
+                tb = tb.tb_next
+            filename = filename.split('/')[-1]
+            if str(ev) != "":
+                initmsgs.bug("There appears to be a bug on Line " + line_no + " of " + filename + " with error:" +
+                             initmsgs.newline() + str(ev) + initmsgs.newline() +
+                             "---> please contact the authors")
+            # Get armsgs instance to terminate
+            from armsgs import get_logger
+            get_logger().close()

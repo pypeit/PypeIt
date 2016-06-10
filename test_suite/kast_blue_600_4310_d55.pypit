@@ -16,7 +16,7 @@ pixflat norm recnorm False
 
 # Read in the data
 data read
- /Users/xavier/PYPIT/Kast_blue/05192015/b*.fits.gz
+ ~/Dropbox/PYPIT/Kast_Blue/600_4310_d55/b*.fits.gz
 data end
 
 spect read

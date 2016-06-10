@@ -42,8 +42,8 @@ def get_dummy_logger():
     -------
 
     """
-    from pypit import ardebug
-    from pypit import armsgs as pyparm
+    import ardebug
+    import armsgs as pyparm
     debug = ardebug.init()
 
     version, last_updated = get_version()
