@@ -35,25 +35,112 @@ mosaic minexp 1.0                     # Minimum exposure time (s)
 mosaic reduction ARMLSD               # Which reduction pipeline should be used for this instrument
 mosaic camera DEIMOS                  # Camera name
 
-# up to here is good so far, below are defaults from LRIS_blue
+# See DEIMOS specs here:
+# http://www2.keck.hawaii.edu/inst/deimos/deimos_detector_data.html
+# http://www2.keck.hawaii.edu/inst/deimos/deimos_ccd_mosaic.html
+# Values for gain, read noise, and dark current are good as of 2015-Dec-30
+# Suffixes are taken to be the CCDLOC, from DEIMOS engineering drawing D0307
+# 1-4 are blue end, 5-8 are red end.
+# nonlinearity is currently unknown, using the default from LRIS
+# Default DEIMOS fits images are spatial in x-axis and dispersion in y-axis.
 
-det01 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
-det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
-det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)
-det01 darkcurr 0.0                    # Dark current (e-/hour)
-det01 ronoise 3.5                     # Read-out noise (e-)
-det01 gain 1.0                        # Gain (e-/ADU) values input in arlris.py (instead of arproc.py where they are usually read in)det01 gain 3.0                        # Inverse gain (e-/ADU)
+#########################################
+# Begin detector detector specifications.
+#########################################
+
+det01 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
+det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
+det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
+det01 darkcurr 4.19                   # Dark current (e-/hour)
+det01 ronoise 2.570                   # Read-out noise (e-)
+det01 gain 1.226                      # Gain (e-/ADU) values
 det01 saturation 65535.0              # The detector Saturation level
 det01 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
-det01 numamplifiers 2                 # Number of amplifiers
-det01 gain 1.55,1.56                  # Gain (e-/ADU) values for the 2 amplifiers
-det01 ronoise 3.9,4.2                 # RN (e-) for the 2 amplifiers
-det02 numamplifiers 2                 # Number of amplifiers
-det02 gain 1.63,1.70                  # Gain (e-/ADU) values for the 2 amplifiers
-det02 ronoise 3.6,3.6                 # RN (e-) for the 2 amplifiers
-det01 suffix _01blue                  # Suffix to be appended to all saved calibration and extraction frames
-det02 suffix _02blue                  # Suffix to be appended to all saved calibration and extraction frames
+det01 numamplifiers 1                 # Number of amplifiers
+det01 suffix _01
 
+det02 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
+det02 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
+det02 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
+det02 darkcurr 3.46                   # Dark current (e-/hour)
+det02 ronoise 2.491                   # Read-out noise (e-)
+det02 gain 1.188                      # Gain (e-/ADU) values
+det02 saturation 65535.0              # The detector Saturation level
+det02 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det02 numamplifiers 1                 # Number of amplifiers
+det02 suffix _02
+
+det03 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
+det03 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
+det03 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
+det03 darkcurr 4.03                   # Dark current (e-/hour)
+det03 ronoise 2.618                   # Read-out noise (e-)
+det03 gain 1.248                      # Gain (e-/ADU) values
+det03 saturation 65535.0              # The detector Saturation level
+det03 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det03 numamplifiers 1                 # Number of amplifiers
+det03 suffix _03
+
+det04 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
+det04 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
+det04 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
+det04 darkcurr 3.80                   # Dark current (e-/hour)
+det04 ronoise 2.557                   # Read-out noise (e-)
+det04 gain 1.220                      # Gain (e-/ADU) values
+det04 saturation 65535.0              # The detector Saturation level
+det04 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det04 numamplifiers 1                 # Number of amplifiers
+det04 suffix _04
+
+det05 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
+det05 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
+det05 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
+det05 darkcurr 4.71                   # Dark current (e-/hour)
+det05 ronoise 2.482                   # Read-out noise (e-)
+det05 gain 1.184                      # Gain (e-/ADU) values
+det05 saturation 65535.0              # The detector Saturation level
+det05 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det05 numamplifiers 1                 # Number of amplifiers
+det05 suffix _05
+
+det06 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
+det06 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
+det06 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
+det06 darkcurr 4.28                   # Dark current (e-/hour)
+det06 ronoise 2.469                   # Read-out noise (e-)
+det06 gain 1.177                      # Gain (e-/ADU) values
+det06 saturation 65535.0              # The detector Saturation level
+det06 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det06 numamplifiers 1                 # Number of amplifiers
+det06 suffix _06
+
+det07 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
+det07 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
+det07 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
+det07 darkcurr 3.33                   # Dark current (e-/hour)
+det07 ronoise 2.518                   # Read-out noise (e-)
+det07 gain 1.201                      # Gain (e-/ADU) values
+det07 saturation 65535.0              # The detector Saturation level
+det07 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det07 numamplifiers 1                 # Number of amplifiers
+det07 suffix _07
+
+det08 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
+det08 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
+det08 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
+det08 darkcurr 3.69                   # Dark current (e-/hour)
+det08 ronoise 2.580                   # Read-out noise (e-)
+det08 gain 1.230                      # Gain (e-/ADU) values
+det08 saturation 65535.0              # The detector Saturation level
+det08 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det08 numamplifiers 1                 # Number of amplifiers
+det08 suffix _08
+
+#######################################
+# End detector detector specifications.
+#######################################
+
+# lines below are still from the LRIS_blue defaults
 
 ### Checks to perform
 check 01.INSTRUME LRISBLUE             # THIS IS A MUST! It checks the instrument
