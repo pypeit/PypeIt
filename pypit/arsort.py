@@ -7,7 +7,6 @@ import shutil
 import numpy as np
 from pypit import armsgs
 from pypit import arutils
-from pypit import arcyutils
 from pypit.arflux import find_standard_file
 from astropy.io.votable.tree import VOTableFile, Resource, Table, Field
 from astropy.table import Table as tTable, Column
@@ -535,6 +534,18 @@ def match_frames(frames, criteria, frametype='<None>', satlevel=None):
 
 
 def match_frames_old(slf, frames, frametype='<None>'):
+    """
+    Parameters
+    ----------
+    slf
+    frames
+    frametype
+
+    Returns
+    -------
+
+    """
+    from pypit import arcyutils
     msgs.info("Matching {0:d} {1:s} frames".format(frames.shape[2],frametype))
     srtframes = [np.zeros((frames.shape[0],frames.shape[1],1))]
     srtframes[0][:,:,0] = frames[:,:,0]

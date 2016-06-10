@@ -685,7 +685,7 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-        import ararc
+        from pypit import ararc
 
         if self._wvcalib[det-1] is not None:
             msgs.info("An identical master wave calib frame already exists")
