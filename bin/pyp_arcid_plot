@@ -10,22 +10,6 @@ This script generates an ArcID plot from a Master WaveSoln file
 
 import argparse
 import numpy as np
-import sys, os
-import json
-
-# Setup for PYPIT imports
-this_file = os.path.realpath(__file__)
-this_path = this_file[:this_file.rfind('/')]
-sys.path.append(os.path.abspath(this_path+'/../src'))
-import armsgs
-
-import ardebug
-debug = ardebug.init()
-last_updated = "2 May 2016"
-version = '0.1'
-msgs = armsgs.get_logger((None, debug, last_updated, version, 1))
-
-import arqa
 
 from linetools.utils import loadjson
 
@@ -44,6 +28,10 @@ def main() :
     parser.add_argument('outfile', type = str, default = None, help = 'Output PDF file')
 
     pargs = parser.parse_args()
+
+    from pypit import pyputils
+    msgs = pyputils.get_dummy_logger()
+    from pypit import arqa
 
     # Read JSON
     fdict = loadjson(pargs.wave_soln)
