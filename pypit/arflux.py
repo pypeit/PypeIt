@@ -1,4 +1,7 @@
-# Module for fluxing routines
+""" Module for fluxing routines
+"""
+from __future__ import (print_function, absolute_import, division,
+                        unicode_literals)
 import numpy as np
 import scipy
 import glob
@@ -9,14 +12,10 @@ from astropy.io import fits
 from astropy import units as u
 from astropy import coordinates as coords
 
-import armsgs
-import arutils
-
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
 except ImportError:
     pass
-
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -24,7 +23,9 @@ except:
     import pdb as debugger
 
 # Logging
-msgs = armsgs.get_logger()
+#from pypit import armsgs
+from .armsgs import get_logger
+msgs = get_logger()
 
 def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
     """ Apply the sensitivity function to the data
@@ -35,7 +36,7 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
     MAX_EXTRAP : float, optional [0.05]
       Fractional amount to extrapolate sensitivity function
     """
-
+    from pypit import arutils
     # Load extinction data
     extinct = load_extinction_data(slf)
     airmass = fitsdict['airmass'][scidx]
@@ -87,6 +88,7 @@ def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
     Returns
     -------
     """
+    from pypit import arutils
     invvar = (var > 0.)/(var + (var <= 0.))
     nx = wave.size
     pos_error = 1./np.sqrt(np.maximum(invvar,0.) + (invvar == 0))
@@ -231,7 +233,7 @@ def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
     for qq,sset in enumerate(std_sets):
         # Stars
         path, star_tbl = sset(argflag)
-        star_coords = SkyCoord(star_tbl['RA_2000'], star_tbl['DEC_2000'], 
+        star_coords = SkyCoord(star_tbl['RA_2000'], star_tbl['DEC_2000'],
             unit=(u.hourangle, u.deg))
         # Match
         idx, d2d, d3d = coords.match_coordinates_sky(obj_coord, star_coords, nthneighbor=1)
@@ -275,7 +277,7 @@ def load_calspec(argflag):
       astropy Table of the calspec standard stars (file, Name, RA, DEC)
     """
     # Read
-    calspec_path = 'data/standards/calspec/'
+    calspec_path = '/data/standards/calspec/'
     calspec_file = argflag['run']['pypitdir'] + calspec_path + 'calspec_info.txt'
     calspec_stds = Table.read(calspec_file, comment='#', format='ascii')
     # Return
