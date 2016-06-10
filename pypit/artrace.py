@@ -181,7 +181,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
         msgs.info("Tracing {0:d} objects".format(objl.size))
     # Max obj
     if nobj > slf._argflag['science']['extraction']['max_nobj']:
-        debugger.set_trace()
+        nobj = slf._argflag['science']['extraction']['max_nobj']
+        msgs.warn("Restricting to the brightest {:d} objects found".format(nobj))
     # Trace objects
     cval = np.zeros(nobj)
     allsfit = np.array([])
