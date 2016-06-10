@@ -407,7 +407,6 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
     load_standard_file(slf, std_dict)
     # Interpolate onto observed wavelengths
     std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
-    debugger.set_trace()
     xspec = std_xspec.rebin(wave) # Conserves flambda
     #flux_interp = scipy.interpolate.interp1d(std_dict['wave'],
     #    std_dict['flux'], bounds_error=False, fill_value=0.)

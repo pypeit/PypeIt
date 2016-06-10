@@ -5,9 +5,6 @@ import os
 import copy
 from pypit import arqa
 from pypit import ararc
-from pypit import arcyarc
-from pypit import arcytrace
-from pypit import arcyutils
 from pypit import armsgs
 from pypit import arutils
 from pypit import arpca
@@ -107,6 +104,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     -------
 
     """
+    from pypit import arcytrace
+    from pypit import arcyutils
     smthby = 7
     rejhilo = 1
     bgreg = 20
@@ -315,6 +314,8 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
+    from pypit import arcytrace
+    from pypit import arcyutils
     msgs.info("Preparing trace frame for order edge detection")
     # Generate a binned version of the trace frame
     msgs.work("binby=1 makes this slow and ineffective -- increase this to 10, and add as a parameter of choice by the user")
@@ -771,6 +772,25 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
 
 def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders, dispaxis,
                   fitord, locations, function='polynomial'):
+    """
+    Parameters
+    ----------
+    binarr
+    outpar
+    extrap_cent
+    extrap_diff
+    extord
+    orders
+    dispaxis
+    fitord
+    locations
+    function
+
+    Returns
+    -------
+
+    """
+    from pypit import arcytrace
     # Refine the orders in the positive direction
     i = extord[1]
     hiord = phys_to_pix(extrap_cent[:,-i-2], locations, 1)
@@ -840,6 +860,8 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
     """
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
     """
+    from pypit import arcyutils
+
     msgs.work("Detecting lines")
     tampl, tcent, twid, w, satsnd, _ = ararc.detect_lines(slf, det, msarc, censpec=censpec)
     satval = slf._spect['det'][det-1]['saturation']*slf._spect['det'][det-1]['nonlinear']
@@ -1430,6 +1452,7 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
     In other words, tilts = y/x according to the docs/get_locations_orderlength.JPG file.
 
     """
+    from pypit import arcyarc
 
     msgs.work("Haven't used physical pixel locations in this routine")
     if slf._argflag['trace']['orders']['tilts'] == 'zero':
@@ -2172,6 +2195,7 @@ def phys_to_pix(array, pixlocn, axis):
     pixarr : ndarray
       The pixel locations of the input array (as seen on a computer screen)
     """
+    from pypit import arcytrace
 
     if axis == 0:
         diff = pixlocn[:,0,0]

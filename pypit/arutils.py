@@ -115,6 +115,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     try:
         tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, t=knots)
     except ValueError: # Knot problem
+        msgs.warning("Problem in the bspline knot")
         debugger.set_trace()
     return tck
 
