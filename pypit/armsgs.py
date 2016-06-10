@@ -1,9 +1,12 @@
+from __future__ import absolute_import, division, print_function
+
 import sys
 from os.path import dirname, basename
 from textwrap import wrap as wraptext
 from inspect import currentframe, getouterframes
 from glob import glob
 
+pypit_logger = None
 
 class Messages:
     """
@@ -104,23 +107,23 @@ class Messages:
         for i in xrange(1, len(stgs_spc)):
             spclist += ", " + basename(stgs_spc[i]).split(".")[-1]
         spcl = wraptext(spclist, width=60)
-        print "\n#################################################################"
-        print self.pypitheader(prognm)
-        print "##  -------------------------------------------------------------"
-        print "##  Options: (default values in brackets)"
-        print "##   -c or --cpus      : (all) Number of cpu cores to use"
-        print "##   -h or --help      : Print this message"
-        print "##   -v or --verbose   : (2) Level of verbosity (0-2)"
-        print "##   -m or --use_masters : Use files in MasterFrames for reduction"
-        print "##  -------------------------------------------------------------"
-        print "##  Available pipelines include:"
-        print "##   " + armlist
-        print "##  Available spectrographs include:"
+        print("\n#################################################################")
+        print(self.pypitheader(prognm))
+        print("##  -------------------------------------------------------------")
+        print("##  Options: (default values in brackets)")
+        print("##   -c or --cpus      : (all) Number of cpu cores to use")
+        print("##   -h or --help      : Print this message")
+        print("##   -v or --verbose   : (2) Level of verbosity (0-2)")
+        print("##   -m or --use_masters : Use files in MasterFrames for reduction")
+        print("##  -------------------------------------------------------------")
+        print("##  Available pipelines include:")
+        print("##   " + armlist)
+        print("##  Available spectrographs include:")
         for i in spcl:
-            print "##   " + i
-        print "##  -------------------------------------------------------------"
-        print "##  Last updated: {0:s}".format(self._last_updated)
-        print "#################################################################\n"
+            print("##   " + i)
+        print("##  -------------------------------------------------------------")
+        print("##  Last updated: {0:s}".format(self._last_updated))
+        print("#################################################################\n")
         sys.exit()
 
     def debugmessage(self):
@@ -160,7 +163,7 @@ class Messages:
         """
         dbgmsg = self.debugmessage()
         premsg = "\n"+self._start + self._white_RD + "[ERROR]   ::" + self._end + " "
-        print >>sys.stderr, premsg+dbgmsg+msg
+        print(premsg+dbgmsg+msg, file=sys.stderr)
         if self._log:
             self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
         # Close PDFs and log file
@@ -176,7 +179,7 @@ class Messages:
         """
         dbgmsg = self.debugmessage()
         premsg = self._start + self._green_CL + "[INFO]    ::" + self._end + " "
-        print >>sys.stderr, premsg+dbgmsg+msg
+        print(premsg+dbgmsg+msg, file=sys.stderr)
         if self._log:
             self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
         return
@@ -188,11 +191,11 @@ class Messages:
         dbgmsg = self.debugmessage()
         premsg = "\r" + self._start + self._green_CL + "[INFO]    ::" + self._end + " "
         if last:
-            print >>sys.stderr, premsg+dbgmsg+msg
+            print(premsg+dbgmsg+msg, file=sys.stderr)
             if self._log:
                 self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
         else:
-            print >>sys.stderr, premsg+dbgmsg+msg,
+            print(premsg+dbgmsg+msg, file=sys.stderr)
             if self._log:
                 self._log.write(self.cleancolors(premsg+dbgmsg+msg))
         return
@@ -204,7 +207,7 @@ class Messages:
         if self._verbose == 2:
             dbgmsg = self.debugmessage()
             premsg = self._start + self._white_BL + "[TEST]    ::" + self._end + " "
-            print >>sys.stderr, premsg+dbgmsg+msg
+            print(premsg+dbgmsg+msg, file=sys.stderr)
             if self._log:
                 self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
         return
@@ -215,7 +218,7 @@ class Messages:
         """
         dbgmsg = self.debugmessage()
         premsg = self._start + self._red_CL + "[WARNING] ::" + self._end + " "
-        print >>sys.stderr, premsg+dbgmsg+msg
+        print(premsg+dbgmsg+msg, file=sys.stderr)
         if self._log:
             self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
         return
@@ -226,7 +229,7 @@ class Messages:
         """
         dbgmsg = self.debugmessage()
         premsg = self._start + self._white_BK + "[BUG]     ::" + self._end + " "
-        print >>sys.stderr, premsg+dbgmsg+msg
+        print(premsg+dbgmsg+msg, file=sys.stderr)
         if self._log:
             self._log.write(self.cleancolors(premsg+dbgmsg+msg))
         return
@@ -239,7 +242,7 @@ class Messages:
             dbgmsg = self.debugmessage()
             premsgp = self._start + self._black_CL + "[WORK IN ]::" + self._end + "\n"
             premsgs = self._start + self._yellow_CL + "[PROGRESS]::" + self._end + " "
-            print >>sys.stderr, premsgp+premsgs+dbgmsg+msg
+            print(premsgp+premsgs+dbgmsg+msg, file=sys.stderr)
             if self._log:
                 self._log.write(self.cleancolors(premsgp+premsgs+dbgmsg+msg)+"\n")
         return
@@ -249,7 +252,7 @@ class Messages:
         Print an indent
         """
         premsg = "             "
-        print >>sys.stderr, premsg+msg
+        print(premsg+msg, file=sys.stderr)
         if self._log:
             self._log.write(self.cleancolors(premsg+msg)+"\n")
         return
@@ -351,3 +354,5 @@ def get_logger(init=None):
         pypit_logger = Messages(init[0], init[1], init[2], init[3], init[4])
 
     return pypit_logger
+
+

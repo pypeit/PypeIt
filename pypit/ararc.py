@@ -14,6 +14,7 @@ from astropy.io import ascii
 import os
 import time
 
+
 try:
     from xastropy.xutils import xdebug as debugger
 except:
@@ -21,6 +22,7 @@ except:
 
 # Logging
 msgs = armsgs.get_logger()
+
 
 def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     """

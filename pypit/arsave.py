@@ -1,9 +1,13 @@
+""" Output for PYPIT
+"""
+from __future__ import (print_function, absolute_import, division,
+                        unicode_literals)
 import os
 import astropy.io.fits as pyfits
 from astropy.units import Quantity
 import numpy as np
 
-import armsgs
+from pypit import armsgs
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -12,6 +16,7 @@ except:
 
 # Logging
 msgs = armsgs.get_logger()
+
 
 def save_arcids(slf, fname, pixels):
     # Setup the HDU
@@ -33,6 +38,7 @@ def save_arcids(slf, fname, pixels):
         msgs.info("Arc IDs saved successfully to file:"+msgs.newline()+fname)
         hdulist.writeto(fname)
     return
+
 
 def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frametype='Extraction', wave=None, sky=None, skyerr=None, extprops=None):
     msgs.info("Saving {0:s} frame as:".format(frametype)+msgs.newline()+filename)
@@ -166,6 +172,7 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
         hdulist.writeto(filename)
         msgs.info("Master {0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
     return
+
 
 def save_ordloc(slf, fname):
     # Derive a suitable name
@@ -310,23 +317,23 @@ def save_1d_spectra(slf, clobber=True):
             # Add Spectrum Table
             cols = []
             # Trace
-            cols += [pyfits.Column(array=specobj.trace, name='obj_trace', format=specobj.trace.dtype)]
+            cols += [pyfits.Column(array=specobj.trace, name=str('obj_trace'), format=specobj.trace.dtype)]
             # Boxcar
             for key in specobj.boxcar.keys():
                 if isinstance(specobj.boxcar[key], Quantity):
                     cols += [pyfits.Column(array=specobj.boxcar[key].value,
-                                         name='box_'+key, format=specobj.boxcar[key].value.dtype)]
+                                         name=str('box_'+key), format=specobj.boxcar[key].value.dtype)]
                 else:
                     cols += [pyfits.Column(array=specobj.boxcar[key],
-                                         name='box_'+key, format=specobj.boxcar[key].dtype)]
+                                         name=str('box_'+key), format=specobj.boxcar[key].dtype)]
             # Optimal
             for key in specobj.optimal.keys():
                 if isinstance(specobj.optimal[key], Quantity):
                     cols += [pyfits.Column(array=specobj.optimal[key].value,
-                                           name='opt_'+key, format=specobj.optimal[key].value.dtype)]
+                                           name=str('opt_'+key), format=specobj.optimal[key].value.dtype)]
                 else:
                     cols += [pyfits.Column(array=specobj.optimal[key],
-                                           name='opt_'+key, format=specobj.optimal[key].dtype)]
+                                           name=str('opt_'+key), format=specobj.optimal[key].dtype)]
             # Finish
             coldefs = pyfits.ColDefs(cols)
             tbhdu = pyfits.BinTableHDU.from_columns(coldefs)

@@ -1,3 +1,5 @@
+from __future__ import absolute_import, division, print_function
+
 import os
 import astropy.io.fits as pyfits
 from astropy.stats import sigma_clip as sigma_clip
@@ -6,9 +8,9 @@ from scipy.special import erf
 from scipy import interpolate
 import itertools
 import numpy as np
-import armsgs
-import arcyutils
-import arcyarc
+from pypit import armsgs
+#from pypit import arcyutils
+#from pypit import arcyarc
 import warnings
 
 #from xastropy.xutils import xdebug as xdb
@@ -175,30 +177,6 @@ def erf_func(x):
     t = 1.0/(1.0 + p*x)
     y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*np.exp(-x*x)
     return sign*y
-
-
-def find_peaks(yval, siglev=10.):
-    """
-    Find peaks in a input array
-    yerror is calculated from the array itself (RMS of clipped data)
-
-    Parameters:
-    -------------
-    yval: ndarray
-      Vector of y-values
-    siglev: float, optional
-      Sigma level for detection
-    """
-    # Calculate RMS
-    yclipped = sig_clip(yval)
-    rms = np.std(yclipped)
-    #
-    tpixt, num = arcyarc.detections_sigma(yval,np.array([rms]*mid_row.shape[0]),np.zeros(yval.shape[0],dtype=np.int),siglev/2.0,siglev) 
-    # Remove similar
-    pixt = arcyarc.remove_similar(tpixt, num)
-    pixt = pixt[np.where(pixt!=-1)].astype(np.int)
-    # Return
-    return pixt
 
 
 def func_der(coeffs, func, nderive=1):
@@ -405,6 +383,7 @@ def get_splknots(xarr, yarr, num, minv=None, maxv=None, maxknots=None):
     :param maxv: The maximum x-value of the knots
     :return: knots
     """
+    from pypit import arcyutils
     # First determine the derivative
     if minv is None: minv = np.min(xarr)
     if maxv is None: maxv = np.max(xarr)
@@ -417,7 +396,6 @@ def get_splknots(xarr, yarr, num, minv=None, maxv=None, maxknots=None):
     drv = np.ceil(drv).astype(np.int)
     drv[np.where(drv<2)] = 2
     if maxknots is not None: drv[np.where(drv>maxknots)] = maxknots
-    print drv
     knots = arcyutils.get_splknots(xarr, drv, minv, maxv, np.sum(drv))
     msgs.info("Generated {0:d} knots".format(knots.size))
     return knots
@@ -605,6 +583,7 @@ def gauss_lsqfit(x,y,pcen):
     :param pcen: An estimate of the Gaussian mean
     :return:
     """
+    from pypit import arcyarc
     def gfunc(x,ampl,cent,sigm,cons,tilt):
         df = (x[1:]-x[:-1])/2.0
         df = np.append(df,df[-1])
@@ -636,6 +615,7 @@ def gauss_fit(x, y, pcen):
     # dx = np.ones(x.size)*np.mean(x[1:]-x[:-1])
     # coeffs = polyfit_integral(x, y, dx, 2)
     # return poly_to_gauss(coeffs)
+    from pypit import arcyarc
     try:
         if np.any(y<0.0):
             return [0.0, 0.0, 0.0], True
@@ -725,28 +705,33 @@ def polyval2d_general(c, x, y, function="polynomial", minx=None, maxx=None, miny
 
 def polyfit_integral(x, y, dx, deg, rcond=None, full=False, w=None):
     order = int(deg) + 1
-    x = np.asarray(x) + 0.0
-    y = np.asarray(y) + 0.0
+    x = np.asarray(x)
+    y = np.asarray(y)
 
     # check arguments.
-    if deg < 0 :
-        raise ValueError("expected deg >= 0")
+    if deg < 0:
+        msgs.bug("Expected deg >= 0")
+        msgs.error("Input of function arutils.polyfit_integral is incorrect")
     if x.ndim != 1:
-        raise TypeError("expected 1D vector for x")
+        msgs.bug("Expected 1D vector for x")
+        msgs.error("Input of function arutils.polyfit_integral is incorrect")
     if x.size == 0:
-        raise TypeError("expected non-empty vector for x")
-    if y.ndim < 1 or y.ndim > 2 :
-        raise TypeError("expected 1D or 2D array for y")
+        msgs.bug("Expected non-empty vector for x")
+        msgs.error("Input of function arutils.polyfit_integral is incorrect")
+    if y.ndim < 1 or y.ndim > 2:
+        msgs.bug("Expected 1D or 2D array for y")
+        msgs.error("Input of function arutils.polyfit_integral is incorrect")
     if len(x) != len(y):
-        raise TypeError("expected x and y to have same length")
+        msgs.bug("Expected x and y to have same length")
+        msgs.error("Input of function arutils.polyfit_integral is incorrect")
 
     # set up the least squares matrices in transposed form
     lhst = np.polynomial.polynomial.polyvander(x+dx/2.0, deg+1) - np.polynomial.polynomial.polyvander(x-dx/2.0, deg+1)
-    div = np.arange(1.,deg+2.).reshape(1,deg+1).repeat(x.size,axis=0)
-    lhs = (lhst[:,1:]/(dx.reshape(dx.size,1).repeat(deg+1,axis=1)*div)).T
+    div = np.arange(1., deg+2.).reshape(1, deg+1).repeat(x.size, axis=0)
+    lhs = (lhst[:, 1:]/(dx.reshape(dx.size, 1).repeat(deg+1, axis=1)*div)).T
     rhs = y.T
     if w is not None:
-        w = np.asarray(w) + 0.0
+        w = np.asarray(w)
         if w.ndim != 1:
             msgs.bug("Expected 1D vector for weights in arutils.polyfit2d")
         if len(x) != len(w):
@@ -757,7 +742,7 @@ def polyfit_integral(x, y, dx, deg, rcond=None, full=False, w=None):
         rhs = rhs * w
 
     # set rcond
-    if rcond is None :
+    if rcond is None:
         rcond = len(x)*np.finfo(x.dtype).eps
 
     # Determine the norms of the design matrix columns.
@@ -773,12 +758,11 @@ def polyfit_integral(x, y, dx, deg, rcond=None, full=False, w=None):
 
     # warn on rank reduction
     if rank != order and not full:
-        msg = "The fit may be poorly conditioned"
-        warnings.warn(msg, pu.RankWarning)
+        msgs.warn("The fit result of the function arutils.polyfit_integral may be poorly conditioned")
 
-    if full :
+    if full:
         return c, [resids, rank, s, rcond]
-    else :
+    else:
         return c
 
 
@@ -961,6 +945,7 @@ def spline_coeffs(a, b, y, alpha=0.0, beta=0.0):
     beta : float
         Second-order derivative at b. Default is 0.
     """
+    from pypit import arcyutils
     n = y.shape[0] - 1
     h = (b - a)/n
 
@@ -985,6 +970,7 @@ def spline_coeffs(a, b, y, alpha=0.0, beta=0.0):
 
 
 def spline_interp(xnew,xold,yold):
+    from pypit import arcyutils
     # Calculate the coefficients
     c = spline_coeffs(xold[0], xold[-1], yold)
     ynew = arcyutils.spline_interpolate(xnew, c, xold[0], xold[-1])
