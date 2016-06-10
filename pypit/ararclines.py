@@ -1,9 +1,11 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import numpy as np
 from astropy.table import Table, Column, vstack
 import glob, copy
 import yaml
 
-import armsgs
+from pypit import armsgs
 
 try:
     from xastropy.xutils.xdebug import set_trace
@@ -13,6 +15,7 @@ except ImportError:
 
 # Logging
 msgs = armsgs.get_logger()
+
 
 def parse_nist(slf,ion):
     """Parse a NIST ASCII table.  Note that the long ---- should have

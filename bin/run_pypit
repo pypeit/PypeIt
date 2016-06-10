@@ -4,6 +4,7 @@
 #
 # -*- coding: utf-8 -*-
 
+
 """
 This script pushes a FITS file to ginga
 """
@@ -16,6 +17,7 @@ def main() :
     import sys
     import getopt
     import traceback
+    from pypit.armsgs import Messages as Initmsg
 
     # Import PYPIT routines
     from pypit import ardebug
@@ -42,7 +44,6 @@ def main() :
 
     # Initiate logging for bugs and comand line help
     # These messages will not be saved to a log file
-    from pypit.armsgs import Messages as Initmsg
     version, last_updated = pyputils.get_version()
     initmsgs = Initmsg(None, debug, last_updated, version, 1)
     # Set the default variables
@@ -57,10 +58,11 @@ def main() :
 
     # Load options from command line
     try:
-        opt, arg = getopt.getopt(sys.argv[1:], 'hmqc:v:', ['help',
+        opt, arg = getopt.getopt(sys.argv[1:], 'hmqcd:v:', ['help',
                                                            'use_masters',
                                                           'quick',
                                                           'cpus',
+                                                            'develop',
                                                           'verbose'])
         for o, a in opt:
             if o in ('-h', '--help'):
@@ -73,6 +75,9 @@ def main() :
                 vrb = int(a)
             elif o in ('-m', '--use_masters'):
                 use_masters=True
+            elif o in ('-d', '--develop'):
+                initmsgs._debug['develop'] = True
+                debug['develop'] = True
         splitnm = os.path.splitext(arg[0])
         if splitnm[1] != '.pypit':
             initmsgs.error("Bad extension for PYPIT reduction file."+initmsgs.newline()+".pypit is required")
@@ -83,11 +88,11 @@ def main() :
 
     # Execute the reduction, and catch any bugs for printout
     if debug['develop']:
-        pypit.PYPIT(red, progname=pypit.__file__, quick=qck, ncpus=cpu, verbose=vrb,
+        pypit.PYPIT(red, initmsgs, progname=pypit.__file__, quick=qck, ncpus=cpu, verbose=vrb,
               logname=lnm, use_masters=use_masters)
     else:
         try:
-            pypit.PYPIT(red, progname=pypit.__file__, quick=qck, ncpus=cpu, verbose=vrb,
+            pypit.PYPIT(red, initmsgs, progname=pypit.__file__, quick=qck, ncpus=cpu, verbose=vrb,
                   logname=lnm, use_masters=use_masters)
         except:
             # There is a bug in the code, print the file and line number of the error.

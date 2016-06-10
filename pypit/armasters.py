@@ -1,7 +1,9 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import astropy.io.fits as pyfits
 
-import armsgs
-import arsave
+from pypit import armsgs
+from pypit import arsave
 
 
 # Logging

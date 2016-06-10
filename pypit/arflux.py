@@ -1,7 +1,6 @@
 """ Module for fluxing routines
 """
-from __future__ import (print_function, absolute_import, division,
-                        unicode_literals)
+from __future__ import (print_function, absolute_import, division, unicode_literals)
 import numpy as np
 import scipy
 import glob
@@ -356,7 +355,7 @@ def load_standard_file(slf, std_dict):
     if std_dict['fmt'] == 1:
         std_spec = fits.open(fil)[1].data
         # Load
-        std_dict['wave'] = std_spec['WAVELENGTH']*u.AA 
+        std_dict['wave'] = std_spec['WAVELENGTH']*u.AA
         std_dict['flux'] = 1e17*std_spec['FLUX']*u.erg/u.s/u.cm**2/u.AA
     else:
         msgs.error("Bad Standard Star Format")
