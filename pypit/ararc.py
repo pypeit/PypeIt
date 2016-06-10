@@ -229,6 +229,8 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['disp']=0.53 # Ang per pixel (unbinned)
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
             arcparam['wvmnx'][1] = 7000.
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
 
 
@@ -299,7 +301,8 @@ def simple_calib(slf, det, get_poly=False):
         gd_str = np.arange(nid).astype(int)
         for jj,pix in enumerate(slf._argflag['arc']['calibrate']['id_pix']):
             diff = np.abs(tcent-pix)
-            if np.min(diff) > 1.:
+            if np.min(diff) > 2.:
+                debugger.set_trace()
                 msgs.error("No match with input pixel {:g}!".format(pix))
             else:
                 imn = np.argmin(diff)
