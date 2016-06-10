@@ -1,10 +1,11 @@
 # Module for LRIS spectific codes
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import glob
 import astropy.io.fits as pyfits
 
-import armsgs
-import arload
+from pypit import armsgs
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -37,6 +38,7 @@ def read_lris(raw_file, det=None, TRIM=False):
     sections : list
       List of datasec, oscansec, ampsec sections
     """
+    from pypit import arload
 
     # Check for file; allow for extra .gz, etc. suffix
     fil = glob.glob(raw_file+'*') 
@@ -237,6 +239,7 @@ def lris_read_amp(inp, ext):
     ; Read one amp from LRIS mHDU image
     ;------------------------------------------------------------------------
     """
+    from pypit import arload
 
     # Parse input
     if isinstance(inp, basestring):
