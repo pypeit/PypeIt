@@ -1,9 +1,12 @@
+.. _wavecalib:
+
 .. highlight:: rest
 
 **********************
 Wavelength Calibration
 **********************
 
+.. index:: wave_calib
 
 Basic Algorithms
 ================
@@ -19,6 +22,7 @@ wavelength solution for PYPIT vs. LowRedux.
 
 Adding a new grating to existing instrument
 ===========================================
+
 This section describes how to add a new
 wavelength solution for a new instrument and/or
 grating.
@@ -78,35 +82,11 @@ Run PYPIT, and check in the QA plots that the arc lines
 identified by PYPIT are consistent with a pre-existing
 arc line mapping, and you're done!
 
-Flexure
-=======
+Flexure Correction
+==================
 
 By default, the code will calculate a flexure shift based on the
-extracted sky spectrum (boxcar).  A cross-correlation between this
-sky spectrum and an archived spectrum is performed to calculate
-a single, pixel shift.  This is then imposed on the wavelength solution
-with simple linear interpolation.
-
-An alternate algorithm (reduce flexure spec slit_cen) measures the
-flexure from a sky spectrum extracted down the center of the slit.
-This is then imposed on the wavelength image so that any extractions
-that follow have a flexure correction already applied.  Thus far, this
-algorithm has given poorer results than the default.
-
-Blue Spectra
-++++++++++++
-
-Presently, we are finding that the sky spectrum at Mauna Kea (measured
-with LRIS) is sufficiently variable that a robust solution is challenging.
-Fair results are achieved by using the instrument-specific sky spectra
-in the LowRedux package.  There is a script pyp_compare_sky.py that
-allows the user to plot their extracted sky spectrum against any of
-the ones in the PYPIT archive (in data/sky_spec).  Best practice
-currently is to use the one that best matches as an optional parameter
-in the .pypit reduction file, e.g.::
-
-    reduce flexure archive_spec sky_LRISb_400.fits
+extracted sky spectrum (boxcar). See :doc:`flexure` for
+further details.
 
 
-Settings File
-=============
