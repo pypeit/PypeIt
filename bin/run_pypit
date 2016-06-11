@@ -30,7 +30,6 @@ def main() :
     #debug['tilts'] = True
     #debug['flexure'] = True
     from pypit import pypit
-    from pypit import pyputils
 
     try:
         from linetools.spectra.xspectrum1d import XSpectrum1D
@@ -44,8 +43,7 @@ def main() :
 
     # Initiate logging for bugs and comand line help
     # These messages will not be saved to a log file
-    version, last_updated = pyputils.get_version()
-    initmsgs = Initmsg(None, debug, last_updated, version, 1)
+    initmsgs = Initmsg(None, debug, 1)
     # Set the default variables
     red = "script.pypit"
     qck = False
@@ -76,24 +74,23 @@ def main() :
             elif o in ('-m', '--use_masters'):
                 use_masters=True
             elif o in ('-d', '--develop'):
-                initmsgs._debug['develop'] = True
                 debug['develop'] = True
         splitnm = os.path.splitext(arg[0])
         if splitnm[1] != '.pypit':
             initmsgs.error("Bad extension for PYPIT reduction file."+initmsgs.newline()+".pypit is required")
-        lnm = splitnm[0] + ".log"
+        logname = splitnm[0] + ".log"
         red = arg[0]
     except getopt.GetoptError, err:
         initmsgs.error(err.msg, usage=True)
 
     # Execute the reduction, and catch any bugs for printout
     if debug['develop']:
-        pypit.PYPIT(red, initmsgs, progname=pypit.__file__, quick=qck, ncpus=cpu, verbose=vrb,
-              logname=lnm, use_masters=use_masters)
+        pypit.PYPIT(red, progname=pypit.__file__, quick=qck, ncpus=cpu, verbose=vrb,
+              use_masters=use_masters, logname=logname, debug=debug)
     else:
         try:
-            pypit.PYPIT(red, initmsgs, progname=pypit.__file__, quick=qck, ncpus=cpu, verbose=vrb,
-                  logname=lnm, use_masters=use_masters)
+            pypit.PYPIT(red, progname=pypit.__file__, quick=qck, ncpus=cpu, verbose=vrb,
+                  use_masters=use_masters, logname=logname, debug=debug)
         except:
             # There is a bug in the code, print the file and line number of the error.
             et, ev, tb = sys.exc_info()
