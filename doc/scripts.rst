@@ -55,7 +55,7 @@ pypit_view_fits
 
 This is a wrapper to the Ginga image viewer.  It is a bit of a kludge
 in that it writes a dummy tmp.fits file to the harddrive and sends
-that into Ginga.::
+that into Ginga.  The dummy file is deleted afterwards.::
 
     unix> pyp_view_fits -h
     usage: pyp_view_fits [-h] [--list] [--raw_lris] [--exten EXTEN] file

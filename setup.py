@@ -98,8 +98,10 @@ setup_keywords['cmdclass']={'build_ext': build_ext}
 # Add internal data directories.
 #
 setup_keywords['package_data'] = {'pypit': ['data/extinction/*',
-                                            'data/arc_lines/*',
-                                            'data/standards/*',
+                                            'data/arc_lines/NIST/*',
+                                            'data/arc_lines/*.yaml',
+                                            'data/arc_lines/*.py',
+                                            'data/standards/calspec/*',
                                             'data/sky_spec/*',]}
 #
 # Run setup command.
