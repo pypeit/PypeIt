@@ -1,18 +1,15 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import numpy as np
-import arpca
-import arcyarc
-import armsgs
-import arsave
-import arutils
-from arplot import get_dimen as get_dimen
-import ararclines
-import arqa
-#import arfitbase
+from pypit import arpca
+from pypit import armsgs
+from pypit import arsave
+from pypit import arutils
+from pypit.arplot import get_dimen as get_dimen
+from pypit import ararclines
+from pypit import arqa
 from matplotlib import pyplot as plt
-import scipy.interpolate as interpolate
-from astropy.io import ascii
 import os
-import time
 
 
 try:
@@ -59,6 +56,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
       The spectrum used to find detections. This spectrum has
       had any "continuum" emission subtracted off
     """
+    from pypit import arcyarc
     # Extract a rough spectrum of the arc in each order
     msgs.info("Detecting lines")
     msgs.info("Extracting an approximate arc spectrum at the centre of the chip")
@@ -220,14 +218,19 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
-#            arcparam['b2']= -6.86414978e-09
             arcparam['wvmnx'][1] = 9000.
+        elif disperser == '400/8500':
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=1.16 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['wvmnx'][1] = 11000.
         elif disperser == '900/5500':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.53 # Ang per pixel (unbinned)
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
-#            arcparam['b2']= -6.86414978e-09
             arcparam['wvmnx'][1] = 7000.
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
 
 
@@ -298,7 +301,8 @@ def simple_calib(slf, det, get_poly=False):
         gd_str = np.arange(nid).astype(int)
         for jj,pix in enumerate(slf._argflag['arc']['calibrate']['id_pix']):
             diff = np.abs(tcent-pix)
-            if np.min(diff) > 1.:
+            if np.min(diff) > 2.:
+                debugger.set_trace()
                 msgs.error("No match with input pixel {:g}!".format(pix))
             else:
                 imn = np.argmin(diff)
@@ -372,6 +376,7 @@ def simple_calib(slf, det, get_poly=False):
         #gd_str = np.array(tmp)
         #xdb.xpcol(tcent[idx_str[gd_str]],ids[gd_str])
         #xdb.xplot(tcent[idx_str[gd_str]],ids[gd_str],scatter=True)
+        # debugger.xplot(yprep)
         debugger.set_trace()
 
     msgs.work('Cross correlate here?')
@@ -485,6 +490,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
     similar angstroms/pixel. If so, store these identifications, and later check how the central
     wavelengths and angstroms/pixel compare to the other orders.
     """
+    from pypit import arcyarc
     msgs.work("Automatic wavelength calibration")
     msgs.work("Asymmetry of Arc lines?")
     msgs.warn("READ THIS IDEA!!!")

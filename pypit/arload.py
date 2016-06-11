@@ -1,3 +1,5 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import os
 import sys
 import copy
@@ -6,13 +8,18 @@ import getopt
 import astropy.io.fits as pyfits
 from astropy.time import Time
 import numpy as np
-import armsgs
-import arproc
-import arlris
+from pypit import armsgs
+from pypit import arproc
+from pypit import arlris
 from multiprocessing import cpu_count
 #from multiprocessing import Pool as mpPool
 #from multiprocessing.pool import ApplyResult
 #import arutils
+
+try:
+    basestring
+except NameError:
+    basestring = str
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -36,7 +43,7 @@ def argflag_init():
     csq = dict({'atol':1.0E-3, 'xtol':1.0E-10, 'gtol':1.0E-10, 'ftol':1.0E-10, 'fstep':2.0})
     opa = dict({'verbose':2, 'sorted':None, 'plots':True, 'overwrite':False})
     sci = dict({'load':dict({'extracted':False}),
-                'extraction':dict({'method':'2D', 'profile': 'gaussian', 'centorder':1, 'widthorder':1, 'function':'legendre', 'pcacent':[1,0], 'pcawidth':[1,0], 'bintrace':10})
+                'extraction':dict({'method':'2D', 'profile': 'gaussian', 'centorder':1, 'widthorder':1, 'function':'legendre', 'pcacent':[1,0], 'pcawidth':[1,0], 'bintrace':10, 'max_nobj': 9999})
                 })
     pfl = dict({'comb':dict({'method':None, 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}),
                 'norm':dict({'recnorm': True})},)
@@ -124,7 +131,7 @@ def optarg(argflag, argv, pypname):
                                                       'cpus',
                                                       'verbose',
                                                      ])
-    except getopt.GetoptError, err:
+    except getopt.GetoptError as err:  # Python 3
         msgs.error(err.msg)
         msgs.usage(None)
     for o, a in opt:
@@ -149,7 +156,8 @@ def set_params_wtype(tvalue, svalue, lines="", setstr="", argnum=3):
     try:
         if type(tvalue) is int:
             tvalue = int(svalue)
-        elif type(tvalue) is str:
+        #elif type(tvalue) is str:
+        elif isinstance(tvalue, basestring):
             if svalue.lower() == 'none': tvalue = None
             elif svalue[0] == '[' and svalue[-1] == ']' and ',' in svalue and len(svalue.split(':')) == 3: tvalue = load_sections(svalue, strtxt=setstr)
             else: tvalue = svalue
@@ -584,7 +592,8 @@ def load_headers(argflag, spect, datlines):
         #    arlris.set_det(fitsdict, headarr[k])
         # Now get the rest of the keywords
         for kw in keys:
-            if spect['keyword'][kw] is None: value = 'None'  # This instrument doesn't have/need this keyword
+            if spect['keyword'][kw] is None:
+                value = str('None')  # This instrument doesn't have/need this keyword
             else:
                 ch = spect['keyword'][kw]
                 try:
@@ -598,7 +607,7 @@ def load_headers(argflag, spect, datlines):
                         value = headarr[frhd][kchk]
                     except KeyError: # Keyword not found in header
                         msgs.warn("{:s} keyword not in header. Setting to None".format(kchk))
-                        value='None'
+                        value=str('None')
             # Convert the input time into hours
             if kw == 'time':
                 if spect['fits']['timeunit']   == 's'  : value = float(value)/3600.0    # Convert seconds to hours
@@ -625,9 +634,10 @@ def load_headers(argflag, spect, datlines):
                 fitsdict[kw].append(value)
             elif typv is float or typv is np.float_:
                 fitsdict[kw].append(value)
-            elif typv is str or typv is np.string_:
+            elif isinstance(value, basestring) or typv is np.string_:
                 fitsdict[kw].append(value.strip())
             else:
+                debugger.set_trace()
                 msgs.bug("I didn't expect useful headers to contain type {0:s}".format(typv).replace('<type ','').replace('>',''))
 
         if argflag['out']['verbose'] == 2: msgs.info("Successfully loaded headers for file:"+msgs.newline()+datlines[i])

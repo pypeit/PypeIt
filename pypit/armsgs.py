@@ -16,21 +16,17 @@ class Messages:
     http://ascii-table.com/ansi-escape-sequences.php
     """
 
-    def __init__(self, log, debug, last_updated, version, verbose, colors=True):
+    def __init__(self, log, debug, verbose, colors=True):
         """
         Initialize the Message logging class
 
         Parameters
         ----------
-        log : str
+        log : str or None
           Name of saved log file (no log will be saved if log=="")
         debug : dict
           dict used for debugging.
           'LOAD', 'BIAS', 'ARC', 'TRACE'
-        last_updated : str
-          The data of last update
-        version : str
-          Current version of the code
         verbose : int (0,1,2)
           Level of verbosity:
             0 = No output
@@ -40,13 +36,16 @@ class Messages:
           If true, the screen output will have colors, otherwise
           normal screen output will be displayed
         """
+        # Version
+        from pypit import pyputils
+        version, last_updated = pyputils.get_version()
         # Import for version
         import scipy
         import numpy
         import astropy
 
         # Initialize the log
-        if log:
+        if log is not None:
             self._log = open(log, 'w')
         else:
             self._log = log
@@ -122,6 +121,7 @@ class Messages:
         print("##   -h or --help      : Print this message")
         print("##   -v or --verbose   : (2) Level of verbosity (0-2)")
         print("##   -m or --use_masters : Use files in MasterFrames for reduction")
+        print("##   -d or --develop   : Turn develop debugging on")
         print("##  -------------------------------------------------------------")
         print("##  Available pipelines include:")
         print("##   " + armlist)
@@ -150,6 +150,11 @@ class Messages:
             self.sciexp._qa.close()
         except AttributeError:
             pass
+        else:
+            if self._debug['develop']:
+                from pypit import armasters
+                armasters.save_masters(self.sciexp, self.sciexp.det,
+                                   self.sciexp._argflag['masters']['setup'])
         # Close log
         if self._log:
             self._log.close()
@@ -349,6 +354,7 @@ def get_logger(init=None):
     ----------
     init : tuple
       For instantiation
+      (log, debug, verbose)
 
     Returns
     -------
@@ -358,7 +364,7 @@ def get_logger(init=None):
 
     # Instantiate??
     if init is not None:
-        pypit_logger = Messages(init[0], init[1], init[2], init[3], init[4])
+        pypit_logger = Messages(init[0], init[1], init[2])
 
     return pypit_logger
 
