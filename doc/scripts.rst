@@ -13,6 +13,22 @@ run_pypit
 This is the main executable for PYPIT.  See XX for extensive
 documentation on it.
 
+pypit_arcid_plot
+================
+
+Generate a PDF plot from a MasterFrame_WaveCalib.json file::
+
+    unix> pypit_arcid_plot -h
+    usage: pypit_arcid_plot [-h] wave_soln title outfile
+
+    positional arguments:
+      wave_soln   MasterWaveSoln file [JSON]
+      title       Title for the plot
+      outfile     Output PDF file
+
+    optional arguments:
+      -h, --help  show this help message and exit
+
 pypit_view_fits
 ===============
 
@@ -33,5 +49,18 @@ that into Ginga.::
       --exten EXTEN  FITS extension (default: None)
 
 
-Cython
-======
+pypit_lowrfdx_pixflat
+=====================
+
+Convert a LowRedux pixel flat into a PYPIT ready file::
+
+    wolverine.ucolick.org> pypit_lowrdx_pixflat -h
+    usage: pypit_lowrdx_pixflat [-h] lowrdx_file new_file
+
+    positional arguments:
+      lowrdx_file  LowRedux Pixel Flat FITS file
+      new_file     PYPIT FITS file
+
+    optional arguments:
+      -h, --help   show this help message and exit
+

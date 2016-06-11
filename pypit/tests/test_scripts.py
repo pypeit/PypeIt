@@ -5,10 +5,15 @@ matplotlib.use('Agg')  # For Travis
 
 # TEST_UNICODE_LITERALS
 
-import os
+import sys, os
 import pytest
 
-from pypit.scripts import arcid_plot
+from pypit.scripts import arcid_plot, show_1dspec
+from pypit import pyputils
+msgs = pyputils.get_dummy_logger()
+
+from PyQt4 import QtGui
+app = QtGui.QApplication(sys.argv)
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -16,8 +21,14 @@ def data_path(filename):
 
 
 def test_arcid_plot():
-    options = data_path('LRISb_600_WaveCalib_01.json')
-    pargs = arcid_plot.parser([options, 'LRISb', 'tmp.pdf'])
+    json_file = data_path('LRISb_600_WaveCalib_01.json')
+    pargs = arcid_plot.parser([json_file, 'LRISb', 'tmp.pdf'])
     # Run
     arcid_plot.main(pargs)
 
+
+def test_show_1dspec():
+    spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
+    pargs = show_1dspec.parser([spec_file])
+    # Run
+    show_1dspec.main(pargs, unit_test=True)

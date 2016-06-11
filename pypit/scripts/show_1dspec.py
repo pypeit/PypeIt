@@ -1,16 +1,12 @@
 #!/usr/bin/env python
 
 """
-Plot a spectrum with an interactive QT GUI
+Wrapper to the linetools XSpecGUI
 """
-import pdb
-import sys
 
 
-# Script to run XSpec from the command line or ipython
-def main(*args, **kwargs):
-    """ Runs the XSpecGui on an input file
-    """
+def parser(options=None):
+
     import argparse
 
     parser = argparse.ArgumentParser(description='Parse')
@@ -20,13 +16,22 @@ def main(*args, **kwargs):
     parser.add_argument("--optimal", default=False,
                         help="Show Optimal? Default is boxcar", action="store_true")
 
-    pargs = parser.parse_args()
+    if options is None:
+        args = parser.parse_args()
+    else:
+        args = parser.parse_args(options)
+    return args
 
 
-    # List?
-    if pargs.list:
+def main(args, unit_test=False):
+    """ Runs the XSpecGui on an input file
+    """
+    import sys
+
+    # List only?
+    if args.list:
         from astropy.io import fits
-        hdu = fits.open(pargs.file)
+        hdu = fits.open(args.file)
         print(hdu.info())
         return
 
@@ -34,11 +39,11 @@ def main(*args, **kwargs):
     from linetools.guis.xspecgui import XSpecGui
 
     # Extension
-    exten = (pargs.exten if hasattr(pargs, 'exten') else 0)
+    exten = (args.exten if hasattr(args, 'exten') else 0)
 
     # Read spec keywords
     rsp_kwargs = {}
-    if pargs.optimal:
+    if args.optimal:
         rsp_kwargs['wave_tag'] = 'opt_wave'
         rsp_kwargs['flux_tag'] = 'opt_counts'
         rsp_kwargs['var_tag'] = 'opt_var'
@@ -47,11 +52,10 @@ def main(*args, **kwargs):
         rsp_kwargs['flux_tag'] = 'box_counts'
         rsp_kwargs['var_tag'] = 'box_var'
 
-    app = QtGui.QApplication(sys.argv)
+    if unit_test is False:
+        app = QtGui.QApplication(sys.argv)
 
-    gui = XSpecGui(pargs.file, exten=exten, rsp_kwargs=rsp_kwargs)
-    gui.show()
-    app.exec_()
-
-if __name__ == '__main__':
-    main()
+    gui = XSpecGui(args.file, exten=exten, rsp_kwargs=rsp_kwargs, unit_test=unit_test)
+    if unit_test is False:
+        gui.show()
+        app.exec_()
