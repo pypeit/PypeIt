@@ -18,9 +18,8 @@ def test_log_write():
     from pypit import armsgs as pyparm
     debug = ardebug.init()
 
-    version, last_updated = pyputils.get_version()
     outfil = 'tst.log'
-    msgs = pyparm.Messages(outfil, debug, last_updated, version, 1)
+    msgs = pyparm.Messages(outfil, debug, 1)
     msgs.close()
     # Insure scipy, numpy, astropy are being version
     with open(outfil, 'r') as f:
@@ -39,8 +38,7 @@ def test_msgs():
     from pypit import armsgs as pyparm
     debug = ardebug.init()
 
-    version, last_updated = pyputils.get_version()
-    msgs = pyparm.Messages(None, debug, last_updated, version, 1)
+    msgs = pyparm.Messages(None, debug, 1)
     msgs.info("test 123")
     msgs.warn("test 123")
     msgs.bug("test 123")
