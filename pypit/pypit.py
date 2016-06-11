@@ -1,31 +1,11 @@
 from __future__ import absolute_import, division, print_function
 
-#import matplotlib
-#matplotlib.use('Agg')  # For Travis
-
-import os
-import sys
-import getopt
 from signal import SIGINT, signal as sigsignal
 from warnings import resetwarnings, simplefilter
 from time import time
-import traceback
 from pypit import armsgs
 
 # Import PYPIT routines
-'''
-import ardebug
-debug = ardebug.init()
-debug['develop'] = True
-debug['arc'] = True
-#debug['sky_sub'] = True
-#debug['trace'] = True
-#debug['obj_profile'] = True
-#debug['tilts'] = True
-#debug['flexure'] = True
-last_updated = "2 May 2016"
-version = '0.6'
-'''
 
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
@@ -38,8 +18,8 @@ except ImportError:
     import pdb as debugger
 
 
-def PYPIT(redname, imsgs, progname=__file__, quick=False, ncpus=1, verbose=1,
-          logname=None, use_masters=False):
+def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=1,
+          use_masters=False, logname=None):
     """
     Main driver of the PYPIT code. Default settings and
     user-specified changes are made, and passed to the
@@ -49,6 +29,8 @@ def PYPIT(redname, imsgs, progname=__file__, quick=False, ncpus=1, verbose=1,
     ----------
     redname : string
       Input reduction script
+    debug : dict, optional
+      Debug dict
     progname : string
       Name of the program
     quick : bool
@@ -66,16 +48,21 @@ def PYPIT(redname, imsgs, progname=__file__, quick=False, ncpus=1, verbose=1,
         2 = All output
     use_masters : bool, optional
       Load calibration files from MasterFrames directory, if they exist
-    logname : string
-      The name of an ascii log file which is used to
-      save the output details of the reduction
+    logname : str or None
+          The name of an ascii log file which is used to
+          save the output details of the reduction
+        debug : dict
+          A PYPIT debug dict (from ardebug.init)
+        version : str
+        last_updated : str
     ---------------------------------------------------
     """
+    from pypit import ardebug
     # Init logger
-    msgs = armsgs.get_logger((logname, imsgs._debug, imsgs._last_updated,
-                              imsgs._version, verbose))
-    #
-    from pypit import arload # This needs to be after msgs is defined!
+    if debug is None:
+        debug=ardebug.init()
+    msgs = armsgs.get_logger((logname, debug, verbose))
+    from pypit import arload  # This needs to be after msgs is defined!
 
     # First send all signals to messages to be dealt with (i.e. someone hits ctrl+c)
     sigsignal(SIGINT, msgs.signal_handler)

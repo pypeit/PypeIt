@@ -325,7 +325,6 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     plxbin = arcyutils.bin_x(slf._pixlocn[det-1][:,:,0], binby, 1)
     plybin = arcyutils.bin_x(slf._pixlocn[det-1][:,:,1], binby, 1)
     msgs.info("Detecting order edges")
-    #debugger.set_trace()
     if singleSlit:
         edgearr = np.zeros(binarr.shape, dtype=np.int)
         detect = True
@@ -474,8 +473,12 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
             continue
         tlfitx = plxbin[w]
         tlfity = plybin[w]
-        lcoeff[:, i-lmin] = arutils.func_fit(tlfitx, tlfity, slf._argflag['trace']['orders']['function'],
-                                             slf._argflag['trace']['orders']['polyorder'], minv=minvf, maxv=maxvf)
+        #lcoeff[:, i-lmin] = arutils.func_fit(tlfitx, tlfity, slf._argflag['trace']['orders']['function'],
+        #                                     slf._argflag['trace']['orders']['polyorder'], minv=minvf, maxv=maxvf)
+        msk, lcoeff[:,i-lmin] = arutils.robust_polyfit(tlfitx, tlfity,
+                                             slf._argflag['trace']['orders']['polyorder'],
+                                             function=slf._argflag['trace']['orders']['function'],
+                                             minv=minvf, maxv=maxvf)
 #		xv=np.linspace(0,edgearr.shape[slf._dispaxis-0])
 #		yv=np.polyval(coeffl[i-lmin,:],xv)
 #		plt.plot(w[slf._dispaxis-0],w[1-slf._dispaxis],'ro')
@@ -492,8 +495,12 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
             continue
         tlfitx = plxbin[w]
         tlfity = plybin[w]
-        rcoeff[:, i-rmin] = arutils.func_fit(tlfitx, tlfity, slf._argflag['trace']['orders']['function'],
-                                             slf._argflag['trace']['orders']['polyorder'], minv=minvf, maxv=maxvf)
+        #rcoeff[:, i-rmin] = arutils.func_fit(tlfitx, tlfity, slf._argflag['trace']['orders']['function'],
+        #                                     slf._argflag['trace']['orders']['polyorder'], minv=minvf, maxv=maxvf)
+        msk, rcoeff[:,i-lmin] = arutils.robust_polyfit(tlfitx, tlfity,
+                                                       slf._argflag['trace']['orders']['polyorder'],
+                                                       function=slf._argflag['trace']['orders']['function'],
+                                                       minv=minvf, maxv=maxvf)
     # Check if no further work is needed (i.e. there only exists one order)
     if (lmax+1-lmin == 1) and (rmax+1-rmin == 1):
         # Just a single order has been identified (i.e. probably longslit)
