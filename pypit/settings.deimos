@@ -25,8 +25,12 @@
 #    a given frame and a frame type. If you would like a one-to-many
 #    relationship (i.e. a given frame can be both a pixel and a blaze
 #    flat, use the canbe option).
-#    
-### Detector properties
+#
+
+############################
+# Detector mosaic properties
+############################
+
 mosaic ndet 8                         # Number of detectors in the mosaic
 mosaic longitude 155.47833            # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
 mosaic latitude 19.82833              # Latitude of the telescope
@@ -44,9 +48,9 @@ mosaic camera DEIMOS                  # Camera name
 # nonlinearity is currently unknown, using the default from LRIS
 # Default DEIMOS fits images are spatial in x-axis and dispersion in y-axis.
 
-#########################################
-# Begin detector detector specifications.
-#########################################
+####################################
+# Individual detector specifications
+####################################
 
 det01 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
 det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
@@ -136,20 +140,70 @@ det08 nonlinear 0.86                  # Percentage of detector range which is li
 det08 numamplifiers 1                 # Number of amplifiers
 det08 suffix _08
 
-#######################################
-# End detector detector specifications.
-#######################################
+###########################
+# Fits header sanity checks
+###########################
 
-# lines below are still from the LRIS_blue defaults
+check 01.INSTRUME DEIMOS:_real_science_mosaic_CCD_subsystem_with_PowerPC_in_VME_crate
 
-### Checks to perform
-check 01.INSTRUME LRISBLUE             # THIS IS A MUST! It checks the instrument
-check 02.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
-check 03.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
-check 04.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
-check 05.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
-check 02.CCDGEOM e2v_(Marconi)_CCD44-82 # Check the CCD name (replace any spaces with underscores)
-check 02.CCDNAME 00151-14-1            # Check the CCD name (replace any spaces with underscores)
+# verify that all eight HDUs past the mosaic HDU have 2D images
+check 02.NAXIS 2
+check 03.NAXIS 2
+check 04.NAXIS 2
+check 05.NAXIS 2
+check 06.NAXIS 2
+check 07.NAXIS 2
+check 08.NAXIS 2
+check 09.NAXIS 2
+
+# verify the CCD names
+check 02.CCDGEOM MIT/LL_2k*4k
+check 03.CCDGEOM MIT/LL_2k*4k
+check 04.CCDGEOM MIT/LL_2k*4k
+check 05.CCDGEOM MIT/LL_2k*4k
+check 06.CCDGEOM MIT/LL_2k*4k
+check 07.CCDGEOM MIT/LL_2k*4k
+check 08.CCDGEOM MIT/LL_2k*4k
+check 09.CCDGEOM MIT/LL_2k*4k
+check 02.CCDNAME 14-2-6
+check 03.CCDNAME 14-12-3
+check 04.CCDNAME 14-10-6
+check 05.CCDNAME 14-10-5
+check 06.CCDNAME 14-4-1
+check 07.CCDNAME 14-4-3
+check 08.CCDNAME 14-4-2
+check 09.CCDNAME 14-5-2
+
+#####################
+# Keyword identifiers
+#####################
+
+# these shouldn't change too much from instrument to instrument
+keyword target 01.TARGNAME             # Header keyword for the name given by the observer to a given frame
+keyword idname 01.OBSTYPE              # The keyword that identifies the frame type (i.e. bias, flat, etc.)
+keyword time 01.MJD-OBS                # The time stamp of the observation (i.e. decimal MJD)
+keyword date 01.DATE                   # The date of the observation (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
+keyword equinox 01.EQUINOX             # The equinox to use
+keyword ra 01.RA                       # Right Ascension of the target
+keyword dec 01.DEC                     # Declination of the target
+keyword airmass 01.AIRMASS             # Airmass at start of observation
+keyword binning 01.BINNING             # Binning
+keyword exptime 01.ELAPTIME            # Exposure time keyword
+
+# these will be highly instrument-specific
+keyword filter 01.DWFILNAM             # Order-blocking filter name
+keyword grating 01.GRATENAM	       # Grating name
+keyword gratpos 01.GRATEPOS	       # Position of grating
+keyword g3tltwav 01.G3TLTWAV	       # Central wavelength for position 3
+keyword g3tltstat 01.G3TLTSTA	       # Status of grating in position 3
+keyword g4tltwav 01.G4TLTWAV	       # Central wavelength for position 4
+keyword g4tltstat 01.G4TLTSTA	       # Status of grating in position 4
+keyword slitmask 01.SLMSKNAM	       # Slitmask name
+keyword lamps 01.LAMPS		       # [On/Off] state of lamps, e.g, 'Off' if no lamps, 'Kr Xe Ar Ne' if those lamps are on
+keyword detrot 01.ROTATVAL	       # Rotator angle
+
+
+# lines below are LRIS_blue defaults
 
 ### Keyword Identifiers
 keyword target 01.TARGNAME             # Header keyword for the name given by the observer to a given frame
