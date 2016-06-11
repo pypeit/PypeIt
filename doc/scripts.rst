@@ -16,7 +16,8 @@ documentation on it.
 pypit_arcid_plot
 ================
 
-Generate a PDF plot from a MasterFrame_WaveCalib.json file::
+Generate a PDF plot from a MasterFrame_WaveCalib.json file.
+This may be useful to ID lines in other data.::
 
     unix> pypit_arcid_plot -h
     usage: pypit_arcid_plot [-h] wave_soln title outfile
