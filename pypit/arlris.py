@@ -1,10 +1,11 @@
 # Module for LRIS spectific codes
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import glob
 import astropy.io.fits as pyfits
 
-import armsgs
-import arload
+from pypit import armsgs
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -37,6 +38,7 @@ def read_lris(raw_file, det=None, TRIM=False):
     sections : list
       List of datasec, oscansec, ampsec sections
     """
+    from pypit import arload
 
     # Check for file; allow for extra .gz, etc. suffix
     fil = glob.glob(raw_file+'*') 
@@ -97,22 +99,22 @@ def read_lris(raw_file, det=None, TRIM=False):
     ny = ymax - ymin + 1
 
     #; change size for binning...
-    nx = nx / xbin
-    ny = ny / ybin
+    nx = nx // xbin
+    ny = ny // ybin
 
     #; Update PRECOL and POSTPIX
-    precol = precol / xbin
-    postpix = postpix / xbin
+    precol = precol // xbin
+    postpix = postpix // xbin
 
     # Deal with detectors
     if det in [1,2]:
-        nx = nx / 2
-        n_ext = n_ext / 2
-        det_idx = np.arange(n_ext) + (det-1)*n_ext
+        nx = nx // 2
+        n_ext = n_ext // 2
+        det_idx = np.arange(n_ext, dtype=np.int) + (det-1)*n_ext
         ndet = 1
     elif det is None:
         ndet = 2
-        det_idx = np.arange(n_ext) 
+        det_idx = np.arange(n_ext).astype(int)
     else:
         raise ValueError('Bad value for det')
 
@@ -183,9 +185,9 @@ def read_lris(raw_file, det=None, TRIM=False):
             nxdata = buf[0]
             nydata = buf[1]
 
-            xs = (x1-xmin)/xbin
+            xs = (x1-xmin)//xbin
             xe = xs + nxdata 
-            ys = (y1-ymin)/ybin
+            ys = (y1-ymin)//ybin
             ye = ys + nydata - postline
 
             yin1 = preline
@@ -237,6 +239,7 @@ def lris_read_amp(inp, ext):
     ; Read one amp from LRIS mHDU image
     ;------------------------------------------------------------------------
     """
+    from pypit import arload
 
     # Parse input
     if isinstance(inp, basestring):
@@ -253,8 +256,8 @@ def lris_read_amp(inp, ext):
     #; Deal with binning
     binning = head0['BINNING']
     xbin, ybin = [int(ibin) for ibin in binning.split(',')]
-    precol = precol/xbin
-    postpix = postpix/xbin
+    precol = precol//xbin
+    postpix = postpix//xbin
 
     #; get entire extension...
     temp = hdu[ext].data.transpose() # Silly Python nrow,ncol formatting
@@ -280,7 +283,7 @@ def lris_read_amp(inp, ext):
     #data = temp[xdata1:xdata2+1, :]
     if (xdata1-1) != precol:
         msgs.error("Something wrong in LRIS datasec or precol")
-    xshape = 1024 / xbin
+    xshape = 1024 // xbin
     if (xshape+precol+postpix) != temp.shape[0]:
         msgs.error("Wrong size for in LRIS detector somewhere.  Funny binning?")
     data = temp[precol:precol+xshape,:]
@@ -381,14 +384,14 @@ def convert_lowredux_pixflat(infil, outfil):
     prihdu.header['FRAMETYP'] = 'pixflat'
 
     # Detector 1
-    img1 = data[:,:data.shape[1]/2]
+    img1 = data[:,:data.shape[1]//2]
     hdu = pyfits.ImageHDU(img1)
     hdu.name = 'DET1'
     prihdu.header['EXT0001'] = 'DET1-Pixflat'
     hdus.append(hdu)
 
     # Detector 2
-    img2 = data[:,data.shape[1]/2:]
+    img2 = data[:,data.shape[1]//2:]
     hdu = pyfits.ImageHDU(img2)
     hdu.name = 'DET2'
     prihdu.header['EXT0002'] = 'DET2-Pixflat'
