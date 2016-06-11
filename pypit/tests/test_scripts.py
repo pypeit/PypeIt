@@ -1,14 +1,12 @@
 # Module to run tests on scripts
 
-import matplotlib
-matplotlib.use('Agg')  # For Travis
+#import matplotlib
+#matplotlib.use('Agg')  # For Travis
 
 # TEST_UNICODE_LITERALS
 
 import sys, os
 import pytest
-
-skip = pytest.mark.skip
 
 from pypit.scripts import arcid_plot, show_1dspec, view_fits
 from pypit import pyputils
@@ -29,14 +27,11 @@ def test_arcid_plot():
     arcid_plot.main(pargs)
 
 
-"""
-@skip
 def test_show_1dspec():
     spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
-    pargs = show_1dspec.parser([spec_file])
+    pargs = show_1dspec.parser([spec_file, '--list'])
     # Run
     show_1dspec.main(pargs, unit_test=True)
-"""
 
 def test_view_fits():
     """ Only test the list option
