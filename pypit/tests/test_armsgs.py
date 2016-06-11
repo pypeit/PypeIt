@@ -19,9 +19,20 @@ def test_log_write():
     debug = ardebug.init()
 
     version, last_updated = pyputils.get_version()
-    msgs = pyparm.Messages('tst.log', debug, last_updated, version, 1)
+    outfil = 'tst.log'
+    msgs = pyparm.Messages(outfil, debug, last_updated, version, 1)
+    msgs.close()
     # Insure scipy, numpy, astropy are being version
-    pytest.set_trace()
+    with open(outfil, 'r') as f:
+        lines = f.readlines()
+    pckgs = ['scipy', 'numpy', 'astropy']
+    flgs = [False]*len(pckgs)
+    for line in lines:
+        for jj,pckg in enumerate(pckgs):
+            if pckg in line:
+                flgs[jj] = True
+    for flg in flgs:
+        assert flg is True
 
 def test_msgs():
     from pypit import ardebug
@@ -30,5 +41,9 @@ def test_msgs():
 
     version, last_updated = pyputils.get_version()
     msgs = pyparm.Messages(None, debug, last_updated, version, 1)
-    pytest.set_trace()
+    msgs.info("test 123")
+    msgs.warn("test 123")
+    msgs.bug("test 123")
+    msgs.work("test 123")
+    msgs.close()
 
