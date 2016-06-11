@@ -23,9 +23,6 @@ def parser(options=None) :
     parser.add_argument('title', type = str, default = None, help = 'Title for the plot')
     parser.add_argument('outfile', type = str, default = None, help = 'Output PDF file')
 
-    pargs = parser.parse_args()
-
-    args = None
     if options is None:
         args = parser.parse_args()
     else:
@@ -33,7 +30,16 @@ def parser(options=None) :
     return args
 
 
-def main(args) :
+def main(args):
+    """
+    Parameters
+    ----------
+    args
+
+    Returns
+    -------
+
+    """
 
     import numpy as np
     from pypit import pyputils
