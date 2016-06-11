@@ -8,7 +8,7 @@
 import sys, os
 import pytest
 
-from pypit.scripts import arcid_plot, show_1dspec, view_fits
+#from pypit.scripts import arcid_plot, view_fits
 from pypit import pyputils
 msgs = pyputils.get_dummy_logger()
 
