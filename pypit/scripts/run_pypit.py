@@ -27,7 +27,6 @@ def parser(options=None):
     parser.add_argument("-d", "--develop", default=False, help="Turn develop debugging on", action="store_true")
     #parser.add_argument("-q", "--quick", default=False, help="Quick reduction", action="store_true")
     #parser.add_argument("-c", "--cpus", default=False, help="Number of CPUs for parallel processing", action="store_true")
-    debugger.set_trace()
 
     if options is None:
         args = parser.parse_args()
@@ -35,39 +34,11 @@ def parser(options=None):
         args = parser.parse_args(options)
     return args
 
-        try:
-        opt, arg = getopt.getopt(sys.argv[1:], 'hmqcd:v:', ['help',
-                                                           'use_masters',
-                                                          'quick',
-                                                          'cpus',
-                                                            'develop',
-                                                          'verbose'])
-        for o, a in opt:
-            if o in ('-h', '--help'):
-                initmsgs.usage(None)
-            elif o in ('-q', '--quick'):
-                qck = True
-            elif o in ('-c', '--cpus'):
-                cpu = int(a)
-            elif o in ('-v', '--verbose'):
-                vrb = int(a)
-            elif o in ('-m', '--use_masters'):
-                use_masters=True
-            elif o in ('-d', '--develop'):
-                debug['develop'] = True
-        splitnm = os.path.splitext(arg[0])
-        if splitnm[1] != '.pypit':
-            initmsgs.error("Bad extension for PYPIT reduction file."+initmsgs.newline()+".pypit is required")
-        logname = splitnm[0] + ".log"
-        red = arg[0]
-    except getopt.GetoptError, err:
-        initmsgs.error(err.msg, usage=True)
 
-def main():
+def main(args):
 
-    import os
-    import sys
-    import getopt
+    import sys, os
+    from pypit import pypit
     import traceback
     from pypit.armsgs import Messages as Initmsg
 
@@ -81,42 +52,50 @@ def main():
     #debug['obj_profile'] = True
     #debug['tilts'] = True
     #debug['flexure'] = True
-    from pypit import pypit
 
-    try:
-        from linetools.spectra.xspectrum1d import XSpectrum1D
-    except ImportError:
-        pass
-
-    try:
-        from xastropy.xutils import xdebug as debugger
-    except ImportError:
-        import pdb as debugger
-
-    # Initiate logging for bugs and comand line help
+    # Initiate logging for bugs and command line help
     # These messages will not be saved to a log file
     initmsgs = Initmsg(None, debug, 1)
     # Set the default variables
-    red = "script.pypit"
     qck = False
     cpu = 1
-    vrb = 2
-    use_masters = False
+    #vrb = 2
+    #use_masters = False
 
-    if len(sys.argv) < 2:
-        initmsgs.usage(None)
+    #if len(sys.argv) < 2:
+    #    initmsgs.usage(None)
 
     # Load options from command line
-
+    """
+        for o, a in opt:
+            elif o in ('-q', '--quick'):
+                qck = True
+            elif o in ('-c', '--cpus'):
+                cpu = int(a)
+            elif o in ('-v', '--verbose'):
+                vrb = int(a)
+            elif o in ('-m', '--use_masters'):
+                use_masters=True
+            elif o in ('-d', '--develop'):
+                debug['develop'] = True
+        red = arg[0]
+    except getopt.GetoptError, err:
+        initmsgs.error(err.msg, usage=True)
+    """
+    debug['develop'] = debug['develop'] or args.develop
+    splitnm = os.path.splitext(args.pypit_file)
+    if splitnm[1] != '.pypit':
+        initmsgs.error("Bad extension for PYPIT reduction file."+initmsgs.newline()+".pypit is required")
+    logname = splitnm[0] + ".log"
 
     # Execute the reduction, and catch any bugs for printout
     if debug['develop']:
-        pypit.PYPIT(red, progname=pypit.__file__, quick=qck, ncpus=cpu, verbose=vrb,
-              use_masters=use_masters, logname=logname, debug=debug)
+        pypit.PYPIT(args.pypit_file, progname=pypit.__file__, quick=qck, ncpus=cpu, verbose=args.verbose,
+              use_masters=args.use_masters, logname=logname, debug=debug)
     else:
         try:
-            pypit.PYPIT(red, progname=pypit.__file__, quick=qck, ncpus=cpu, verbose=vrb,
-                  use_masters=use_masters, logname=logname, debug=debug)
+            pypit.PYPIT(args.pypit_file, progname=pypit.__file__, quick=qck, ncpus=cpu, verbose=args.verbose,
+                  use_masters=args.use_masters, logname=logname, debug=debug)
         except:
             # There is a bug in the code, print the file and line number of the error.
             et, ev, tb = sys.exc_info()
@@ -134,7 +113,3 @@ def main():
             # Get armsgs instance to terminate
             from pypit.armsgs import get_logger
             get_logger().close()
-
-
-if __name__ == '__main__':
-    main()

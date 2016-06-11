@@ -1,7 +1,7 @@
 # Module to run tests on scripts
 
-#import matplotlib
-#matplotlib.use('Agg')  # For Travis
+import matplotlib
+matplotlib.use('agg')  # For Travis
 
 # TEST_UNICODE_LITERALS
 
