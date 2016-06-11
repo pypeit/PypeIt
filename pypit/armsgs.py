@@ -39,6 +39,10 @@ class Messages:
         # Version
         from pypit import pyputils
         version, last_updated = pyputils.get_version()
+        # Import for version
+        import scipy
+        import numpy
+        import astropy
 
         # Initialize the log
         if log is not None:
@@ -56,6 +60,9 @@ class Messages:
             self._log.write("------------------------------------------------------\n\n")
             self._log.write("PYPIT was last updated {0:s}\n".format(last_updated))
             self._log.write("This log was generated with version {0:s} of PYPIT\n\n".format(version))
+            self._log.write("You are using scipy version={:s}\n".format(scipy.__version__))
+            self._log.write("You are using numpy version={:s}\n".format(numpy.__version__))
+            self._log.write("You are using astropy version={:s}\n\n".format(astropy.__version__))
             self._log.write("------------------------------------------------------\n\n")
         # Use colors?
         self._start, self._end = "", ""
