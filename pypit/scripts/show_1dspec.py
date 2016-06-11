@@ -35,7 +35,6 @@ def main(args, unit_test=False):
         print(hdu.info())
         return
 
-    from PyQt4 import QtGui
     from linetools.guis.xspecgui import XSpecGui
 
     # Extension
@@ -53,6 +52,7 @@ def main(args, unit_test=False):
         rsp_kwargs['var_tag'] = 'box_var'
 
     if unit_test is False:
+        from PyQt4 import QtGui
         app = QtGui.QApplication(sys.argv)
 
     gui = XSpecGui(args.file, exten=exten, rsp_kwargs=rsp_kwargs, unit_test=unit_test)

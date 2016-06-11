@@ -12,8 +12,8 @@ import pytest
 from pypit import pyputils
 msgs = pyputils.get_dummy_logger()
 
-from PyQt4 import QtGui
-app = QtGui.QApplication(sys.argv)
+#from PyQt4 import QtGui
+#app = QtGui.QApplication(sys.argv)
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
