@@ -8,18 +8,14 @@
 This script generates an ArcID plot from a Master WaveSoln file
 """
 
-import argparse
-import numpy as np
-
-from linetools.utils import loadjson
-
 try:
     from xastropy.xutils import xdebug as debugger
 except:
     import pdb as debugger
 
-def main() :
+def parser(options=None) :
 
+    import argparse
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('wave_soln', type = str, default = None,
@@ -29,21 +25,30 @@ def main() :
 
     pargs = parser.parse_args()
 
+    args = None
+    if options is None:
+        args = parser.parse_args()
+    else:
+        args = parser.parse_args(options)
+    return args
+
+
+def main(args) :
+
+    import numpy as np
     from pypit import pyputils
     msgs = pyputils.get_dummy_logger()
     from pypit import arqa
+    from linetools.utils import loadjson
 
     # Read JSON
-    fdict = loadjson(pargs.wave_soln)
+    fdict = loadjson(args.wave_soln)
     for key in fdict.keys():
         if isinstance(fdict[key], list):
             fdict[key] = np.array(fdict[key])
 
     # Generate QA
-    arqa.arc_fit_qa(None, fdict, outfil=pargs.outfile, ids_only=True,
-                    title=pargs.title)
-    print("Wrote {:s}".format(pargs.outfile))
+    arqa.arc_fit_qa(None, fdict, outfil=args.outfile, ids_only=True,
+                    title=args.title)
+    print("Wrote {:s}".format(args.outfile))
 
-
-if __name__ == '__main__':
-    main()

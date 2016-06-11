@@ -13,8 +13,8 @@ run_pypit
 This is the main executable for PYPIT.  See XX for extensive
 documentation on it.
 
-pyp_view_fits
-=============
+pypit_view_fits
+===============
 
 This is a wrapper to the Ginga image viewer.  It is a bit of a kludge
 in that it writes a dummy tmp.fits file to the harddrive and sends
