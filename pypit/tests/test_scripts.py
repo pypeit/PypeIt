@@ -20,6 +20,7 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
+'''
 def test_arcid_plot():
     json_file = data_path('LRISb_600_WaveCalib_01.json')
     pargs = arcid_plot.parser([json_file, 'LRISb', 'tmp.pdf'])
@@ -38,3 +39,4 @@ def test_view_fits():
     """
     spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
     pargs = view_fits.parser([spec_file, '--list'])
+'''
