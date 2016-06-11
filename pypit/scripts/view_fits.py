@@ -5,15 +5,11 @@
 # -*- coding: utf-8 -*-
 
 """
-This script pushes a FITS file to ginga
+This script enables the viewing of a FITS file
 """
 
-import argparse
-import sys, os
-
-
-
-def main() :
+def parser(options=None):
+    import argparse
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -22,12 +18,19 @@ def main() :
     parser.add_argument('--raw_lris', action="store_true")
     parser.add_argument('--exten', type=int, help="FITS extension")
 
-    pargs = parser.parse_args()
+    if options is None:
+        args = parser.parse_args()
+    else:
+        args = parser.parse_args(options)
+    return args
 
-    # List?
-    if pargs.list:
-        from astropy.io import fits
-        hdu = fits.open(pargs.file)
+
+def main(args):
+
+    # List only?
+    from astropy.io import fits
+    if args.list:
+        hdu = fits.open(args.file)
         print(hdu.info())
         return
 
@@ -35,42 +38,40 @@ def main() :
 
     # Setup for PYPIT imports
     import subprocess
-    from astropy.io import fits
     from pypit import pyputils
     msgs = pyputils.get_dummy_logger()
 
     from pypit import arlris
 
     # Extension
-    if pargs.exten is not None:
-        hdu = fits.open(pargs.file)
-        img = hdu[pargs.exten].data
+    if args.exten is not None:
+        hdu = fits.open(args.file)
+        img = hdu[args.exten].data
         # Write
         msgs.warn('Writing kludge file to {:s}'.format(kludge_fil))
         hdunew = fits.PrimaryHDU(img)
         hdulist = fits.HDUList([hdunew])
         hdulist.writeto(kludge_fil,clobber=True)
         #
-        pargs.file = kludge_fil
+        args.file = kludge_fil
 
     # RAW_LRIS??
-    if pargs.raw_lris:
+    if args.raw_lris:
         # 
-        img, head, _ = arlris.read_lris(pargs.file)
+        img, head, _ = arlris.read_lris(args.file)
         # Generate hdu
         hdu = fits.PrimaryHDU(img)
         hdulist = fits.HDUList([hdu])
         # Write
         msgs.warn('Writing kludge file to {:s}'.format(kludge_fil))
         hdulist.writeto(kludge_fil,clobber=True)
-        pargs.file = kludge_fil
+        args.file = kludge_fil
 
     # Spawn ginga
-    subprocess.call(["ginga", pargs.file])
+    subprocess.call(["ginga", args.file])
 
-    if pargs.raw_lris:
+    if args.raw_lris:
         msgs.warn('Removing kludge file {:s}'.format(kludge_fil))
-        subprocess.call(["rm", pargs.file])
+        subprocess.call(["rm", args.file])
 
-if __name__ == '__main__':
-    main()
+
