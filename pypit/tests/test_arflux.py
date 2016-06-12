@@ -20,13 +20,12 @@ msgs = pyputils.get_dummy_logger()
 #    data_dir = os.path.join(os.path.dirname(__file__), 'files')
 #    return os.path.join(data_dir, filename)
 
-pypitdir = pypit.__path__[0]
 
 def test_find_standard():
     from pypit import arutils as arut
     from pypit import arflux as arflx
     # Dummy self
-    slf = arut.dummy_self(pypitdir=pypitdir)
+    slf = arut.dummy_self()
     # G191b2b
     std_ra = '05:06:36.6'
     std_dec = '52:52:01.0'
@@ -48,7 +47,7 @@ def test_load_extinction():
     from pypit import arflux as arflx
     from pypit import arutils as arut
     # Dummy self
-    slf = arut.dummy_self(pypitdir=pypitdir)
+    slf = arut.dummy_self()
     slf._spect['mosaic']['latitude'] = 37.3413889
     slf._spect['mosaic']['longitude'] = 121.6428
     # Load
@@ -68,7 +67,7 @@ def test_extinction_correction():
     from pypit import arflux as arflx
     from pypit import arutils as arut
     # Dummy self
-    slf = arut.dummy_self(pypitdir=pypitdir)
+    slf = arut.dummy_self()
     slf._spect['mosaic']['latitude'] = 37.3413889
     slf._spect['mosaic']['longitude'] = 121.6428
     # Load

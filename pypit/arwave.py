@@ -1,3 +1,5 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import numpy as np
 from scipy import ndimage
 from scipy import interpolate
@@ -6,10 +8,10 @@ from linetools.spectra import xspectrum1d
 from astropy.io import fits
 from astropy import units as u
 
-import ararc
-import arextract
-import armsgs
-import arutils
+from pypit import ararc
+from pypit import arextract
+from pypit import armsgs
+from pypit import arutils
 
 # Logging
 msgs = armsgs.get_logger()

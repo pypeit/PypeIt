@@ -115,6 +115,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     try:
         tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, t=knots)
     except ValueError: # Knot problem
+        msgs.warn("Problem in the bspline knot")
         debugger.set_trace()
     return tck
 
@@ -146,10 +147,12 @@ def dummy_self(pypitdir=None):
     # Dummy Class
     slf = type('Dummy', (object,), {"_argflag": {}, "_spect": {}})
     slf._argflag['run'] = {}
-    if pypitdir is not None:
-        slf._argflag['run']['pypitdir'] = pypitdir
+    if pypitdir is None:
+        pypitdir = __file__[0:__file__.rfind('/')]
+    slf._argflag['run']['pypitdir'] = pypitdir
     #
     slf._spect['mosaic'] = {}
+    slf._spect['det'] = [{'binning':'1x1'}]
     #
     return slf
 
