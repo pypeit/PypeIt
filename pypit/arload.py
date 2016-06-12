@@ -119,7 +119,7 @@ def optarg(argflag, argv, pypname):
     prgn_spl = argv[0].split('/')
     tfname = ""
     for i in range(0,len(prgn_spl)-2): tfname += prgn_spl[i]+"/"
-    fname = tfname + prgn_spl[-2] + '/settings.' + pypname
+    fname = tfname + prgn_spl[-2] + '/settings/settings.' + pypname
     argflag = load_settings(fname, argflag)
     argflag['run']['prognm'] = argv[0]
     argflag['run']['pypitdir'] = tfname
@@ -508,7 +508,7 @@ def load_spect(progname, specname, spect=None, lines=None):
         prgn_spl = progname.split('/')
         fname = ""
         for i in range(0, len(prgn_spl)-1): fname += prgn_spl[i]+"/"
-        fname += 'settings.'+specname
+        fname += 'settings/settings.'+specname
         msgs.info("Loading the "+specname+" settings")
         spect = initialise()
         with open(fname, 'r') as infile:
