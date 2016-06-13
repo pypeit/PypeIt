@@ -129,8 +129,14 @@ This is a last resort solution and we do not recommend it due to security concer
 
 **3) Install GSL with Homebrew instead of Anaconda**
 
-Since Homebrew installs programs in /usr/local , which is not SIP protected, this should work without additional hacks. 
-ASHER CAN YOU WRITE UP SOME INSTRUCTIONS FOR THE HOMEBREW INSTALLATION OF GSL?
+
+Since `Homebrew <http://brew.sh/>`_ installs programs in /usr/local , which is not SIP protected, this should work without additional hacks.::
+
+  brew install gsl
+
+in which case the ``GSL_PATH`` variable should be set to ``/usr/local/Cellar/gsl/1.16/``, where ``1.16`` might have to
+be replaced with whatever version number you have installed.
+
 
 
 Installing PYPIT
@@ -153,6 +159,16 @@ or::
 
 This should compile all the necessary Cython files, etc.
 
+
+In some cases (depending on how python is installed on your system), you may need super user privileges to install, e.g.::
+
+  sudo python setup.py develop
+
+This may fail given that ``GSL_PATH`` is no longer defined.  To pass your environment variables through sudo, use::
+
+  sudo -E python setup.py develop
+
+  
 Tests
 =====
 In order to assess whether PYPIT has been properly installed, we suggest you run the following tests:
