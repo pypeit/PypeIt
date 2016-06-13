@@ -202,32 +202,68 @@ keyword slitmask 01.SLMSKNAM	       # Slitmask name
 keyword lamps 01.LAMPS		       # [On/Off] state of lamps, e.g, 'Off' if no lamps, 'Kr Xe Ar Ne' if those lamps are on
 keyword detrot 01.ROTATVAL	       # Rotator angle
 
-#################
-# Fits properties
-#################
 
+# lines below are LRIS_blue defaults
+
+### Keyword Identifiers
+keyword target 01.TARGNAME             # Header keyword for the name given by the observer to a given frame
+keyword idname 01.OBSTYPE              # The keyword that identifies the frame type (i.e. bias, flat, etc.)
+keyword time 01.MJD-OBS                # The time stamp of the observation (i.e. decimal MJD)
+keyword date 01.DATE                   # The date of the observation (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
+keyword equinox None                   # The equinox to use
+keyword ra 01.RA                       # Right Ascension of the target
+keyword dec 01.DEC                     # Declination of the target
+keyword airmass 01.AIRMASS             # Airmass at start of observation
+#keyword naxis0 01.NAXIS2               # Number of pixels along the zeroth axis
+#keyword naxis1 01.NAXIS1               # Number of pixels along the first axis
+keyword binning 01.BINNING             # Binning
+keyword exptime 01.ELAPTIME            # Exposure time keyword
+keyword filter1 01.BLUFILT             # Filter 1
+keyword filter2 None                   # Filter 2
+keyword decker 01.SLITNAME             # Which decker/slit/mask is being used
+keyword lamps None                     # Lamps being used
+keyword lampname01 MERCURY             # Name of a lamp
+keyword lampstat01 01.MERCURY          # Status of a lamp
+keyword lampname02 NEON                # Name of a lamp
+keyword lampstat02 01.NEON             # Status of a lamp
+keyword lampname03 ARGON               # Name of a lamp
+keyword lampstat03 01.ARGON            # Status of a lamp
+keyword lampname04 CADMIUM             # Name of a lamp
+keyword lampstat04 01.CADMIUM          # Status of a lamp
+keyword lampname05 ZINC                # Name of a lamp
+keyword lampstat05 01.ZINC             # Status of a lamp
+keyword lampname06 KRYPTON             # Name of a lamp
+keyword lampstat06 01.KRYPTON          # Status of a lamp
+keyword lampname07 XENON               # Name of a lamp
+keyword lampstat07 01.XENON            # Status of a lamp
+keyword lampname08 FEARGON             # Name of a lamp
+keyword lampstat08 01.FEARGON          # Status of a lamp
+keyword lampname09 DEUTERIUM           # Name of a lamp
+keyword lampstat09 01.DEUTERI          # Status of a lamp
+keyword lampname10 FLAMP1              # Name of a lamp
+keyword lampstat10 01.FLAMP1           # Status of a lamp
+keyword lampname11 FLAMP2              # Name of a lamp
+keyword lampstat11 01.FLAMP2           # Status of a lamp
+keyword lampname12 HALOGEN             # Name of a lamp
+keyword lampstat12 01.HALOGEN          # Status of a lamp
+keyword slitwid None                   # Slit Width
+keyword slitlen None                   # Slit Length
+keyword detrot None                    # Detector Rotation angle
+keyword dichroic 01.DICHNAME           # Dichroic name
+keyword disperser 01.GRISNAME          # Grism name
+#keyword dangle 01.GRTILT_P            # Tilt
+
+### Fits properties
 fits timeunit mjd                   # The unit of keyword+time (s=seconds, m=minutes, h=hours, or any of the astropy Time formats)
 fits calwin 12.0                    # The window of time in hours to search for calibration frames for a science frame
 fits dataext 0                      # Extension number of data
-fits numhead 9                      # How many headers need to be read in for a given file
+fits numhead 5                      # How many headers need to be read in for a given file
 fits headext01 0                    # Extension number of header (one for each headnum, starting with 01)
 fits headext02 1                    # Extension number of header (one for each headnum, starting with 01)
 fits headext03 2                    # Extension number of header (one for each headnum, starting with 01)
 fits headext04 3                    # Extension number of header (one for each headnum, starting with 01)
 fits headext05 4                    # Extension number of header (one for each headnum, starting with 01)
-fits headext06 5                    # Extension number of header (one for each headnum, starting with 01)
-fits headext07 6                    # Extension number of header (one for each headnum, starting with 01)
-fits headext08 7                    # Extension number of header (one for each headnum, starting with 01)
-fits headext09 8                    # Extension number of header (one for each headnum, starting with 01)
-# need to figure out status of lamps from 'lamps' keyword
-# fits numlamps 16                    # How many lamps are there listed in the header
-
-# lines below are LRIS_blue defaults
-
-################
-# Science frames
-################
-
+fits numlamps 16                    # How many lamps are there listed in the header
 
 ### Science frames
 science idname OBJECT               # Header key value of science frame for header keyword keyword+idname
