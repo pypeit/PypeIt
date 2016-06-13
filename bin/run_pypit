@@ -6,7 +6,7 @@
 
 
 """
-This script pushes a FITS file to ginga
+This script runs PYPIT
 """
 
 import pypit.scripts.run_pypit as run_pypit

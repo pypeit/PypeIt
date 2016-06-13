@@ -16,17 +16,27 @@ try:
 except:
     import pdb as debugger
 
+# Global
+from pypit import ardebug
+debug = ardebug.init()
+from pypit.armsgs import Messages as Initmsg
+initmsgs = Initmsg(None, debug, 1)
+
+
 def parser(options=None):
     import argparse
 
-    parser = argparse.ArgumentParser(description='Parse')
-    parser.add_argument("pypit_file", type=str, help="PYPIT reduction file")
+    #parser = argparse.ArgumentParser(description=initmsgs.usage('PYPIT'))
+    parser = argparse.ArgumentParser(description=initmsgs.usage('PYPIT'),
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("pypit_file", type=str, help="PYPIT reduction file (must have .pypit extension)")
     parser.add_argument("-v", "--verbose", default=2, action="store_true",
                         help="(2) Level of verbosity (0-2)")
     parser.add_argument("-m", "--use_masters", default=False, help="Load previously generated MasterFrames", action="store_true")
     parser.add_argument("-d", "--develop", default=False, help="Turn develop debugging on", action="store_true")
     #parser.add_argument("-q", "--quick", default=False, help="Quick reduction", action="store_true")
     #parser.add_argument("-c", "--cpus", default=False, help="Number of CPUs for parallel processing", action="store_true")
+    #parser.print_help()
 
     if options is None:
         args = parser.parse_args()
@@ -40,11 +50,8 @@ def main(args):
     import sys, os
     from pypit import pypit
     import traceback
-    from pypit.armsgs import Messages as Initmsg
 
     # Import PYPIT routines
-    from pypit import ardebug
-    debug = ardebug.init()
     #debug['develop'] = True
     #debug['arc'] = True
     #debug['sky_sub'] = True
@@ -55,7 +62,6 @@ def main(args):
 
     # Initiate logging for bugs and command line help
     # These messages will not be saved to a log file
-    initmsgs = Initmsg(None, debug, 1)
     # Set the default variables
     qck = False
     cpu = 1
