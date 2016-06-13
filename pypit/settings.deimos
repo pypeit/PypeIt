@@ -62,6 +62,9 @@ det01 gain 1.226                      # Gain (e-/ADU) values
 det01 saturation 65535.0              # The detector Saturation level
 det01 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det01 numamplifiers 1                 # Number of amplifiers
+det01 datasec01 [:,12:2060]           
+# det01 ampsec01 [:,12:2060]
+# det01 oscansec01 [:,0:12]
 det01 suffix _01
 
 det02 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
@@ -73,6 +76,9 @@ det02 gain 1.188                      # Gain (e-/ADU) values
 det02 saturation 65535.0              # The detector Saturation level
 det02 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det02 numamplifiers 1                 # Number of amplifiers
+det02 datasec01 [:,12:2060]           
+# det02 ampsec01 [:,12:2060]
+# det02 oscansec01 [:,0:12]
 det02 suffix _02
 
 det03 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
@@ -84,6 +90,9 @@ det03 gain 1.248                      # Gain (e-/ADU) values
 det03 saturation 65535.0              # The detector Saturation level
 det03 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det03 numamplifiers 1                 # Number of amplifiers
+det03 datasec01 [:,12:2060]           
+# det03 ampsec01 [:,12:2060]
+# det03 oscansec01 [:,0:12]
 det03 suffix _03
 
 det04 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
@@ -95,6 +104,9 @@ det04 gain 1.220                      # Gain (e-/ADU) values
 det04 saturation 65535.0              # The detector Saturation level
 det04 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det04 numamplifiers 1                 # Number of amplifiers
+det04 datasec01 [:,12:2060]           
+# det04 ampsec01 [:,12:2060]
+# det04 oscansec01 [:,0:12]
 det04 suffix _04
 
 det05 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
@@ -106,6 +118,9 @@ det05 gain 1.184                      # Gain (e-/ADU) values
 det05 saturation 65535.0              # The detector Saturation level
 det05 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det05 numamplifiers 1                 # Number of amplifiers
+det05 datasec01 [:,12:2060]           
+# det05 ampsec01 [:,12:2060]
+# det05 oscansec01 [:,0:12]
 det05 suffix _05
 
 det06 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
@@ -117,6 +132,9 @@ det06 gain 1.177                      # Gain (e-/ADU) values
 det06 saturation 65535.0              # The detector Saturation level
 det06 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det06 numamplifiers 1                 # Number of amplifiers
+det06 datasec01 [:,12:2060]           
+# det06 ampsec01 [:,12:2060]
+# det06 oscansec01 [:,0:12]
 det06 suffix _06
 
 det07 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
@@ -128,6 +146,9 @@ det07 gain 1.201                      # Gain (e-/ADU) values
 det07 saturation 65535.0              # The detector Saturation level
 det07 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det07 numamplifiers 1                 # Number of amplifiers
+det07 datasec01 [:,12:2060]           
+# det07 ampsec01 [:,12:2060]
+# det07 oscansec01 [:,0:12]
 det07 suffix _07
 
 det08 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
@@ -139,6 +160,9 @@ det08 gain 1.230                      # Gain (e-/ADU) values
 det08 saturation 65535.0              # The detector Saturation level
 det08 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det08 numamplifiers 1                 # Number of amplifiers
+det08 datasec01 [:,12:2060]           
+# det08 ampsec01 [:,12:2060]
+# det08 oscansec01 [:,0:12]
 det08 suffix _08
 
 ###########################
@@ -195,6 +219,11 @@ keyword decker 01.SLMSKNAM             # Slitmask name
 keyword hatch 01.HATCHPOS	       # [open/closed] state of hatch
 keyword detrot 01.ROTATVAL	       # Rotator angle
 keyword lamps 01.LAMPS		       # [On/Off] state of lamps, e.g, 'Off' if no lamps, 'Kr Xe Ar Ne' if those lamps are on
+
+# This is a crude hack until we have a general way of dealing with reading in multiple chips.
+# It assumes that the sizes of all the chips are the same.
+keyword naxis0 02.NAXIS2               # Number of pixels along the zeroth axis
+keyword naxis1 02.NAXIS1               # Number of pixels along the first axis
 
 # need to figure out how to represent these DEIMOS specific-header keys
 # keyword grating 01.GRATENAM	       # Grating name
@@ -296,7 +325,7 @@ blzflat match filter1 ''
 
 trace idname Object               # Header key value of flat frame for header keyword keyword+idname
 trace number 0                    # Number of flat frames to use
-trace canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
+trace canbe pixflat                 # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
 trace lscomb False                # Combine a long and short flat
 trace check condition1 hatch=open # Required for trace flats 
 trace check condition2 exptime<30 # Calibration
