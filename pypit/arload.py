@@ -286,7 +286,6 @@ def set_params(lines, indict, setstr=""):
                     null = np.int(linspl[1][7:])
                 except ValueError:
                     msgs.error("keyword datasec must contain an integer suffix")
-                debugger.set_trace()
                 indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], strtxt=linspl[1])
             elif linspl[1][:8] == 'oscansec': # Overscan Sections
                 try:
@@ -305,33 +304,45 @@ def set_params(lines, indict, setstr=""):
     return indict
 
 
-def load_sections(string, strtxt="<not specified>"):
+def load_sections(input, strtxt="<not specified>", header=None):
     """
     From the input string, return the coordinate sections
 
     Parameters
     ----------
-    string : str
+    input : str
       character string of the form [x1:x2,y1:y2]
-      x1 = left pixel
-      x2 = right pixel
-      y1 = bottom pixel
-      y2 = top pixel
+        x1 = left pixel
+        x2 = right pixel
+        y1 = bottom pixel
+        y2 = top pixel
+      If the first character is not '[' or '(', the input is returned
+        on the assumption that a Keyword is desired
 
     Returns
     -------
     sections : list (or None)
       the detector sections
     """
-    try:
-        xyrng = string.strip('[]()').split(',')
+    secoptions = ['TRIMSEC', 'DATASEC', 'AMPSEC', 'BIASSEC']
+    #
+    if input[0] in ['[', '(']:
+        xyrng = input.strip('[]()').split(',')
         if xyrng[0] == ":": xyarrX = [0,0]
         else: xyarrX = xyrng[0].split(':')
         if xyrng[1] == ":": xyarrY = [0,0]
         else: xyarrY = xyrng[1].split(':')
         return [[np.int(xyarrX[0]), np.int(xyarrX[1])], [np.int(xyarrY[0]), np.int(xyarrY[1])]]
-    except:
+    else:
         msgs.error("Keyword value {0:s} must be of the form:".format(strtxt)+msgs.newline()+"[x1:x2,y1:y2]")
+        # Code in development (worth saving)
+        if input not in secoptions:
+            msgs.error("Keyword value {0:s} must be of the form:".format(strtxt)+msgs.newline()+"[x1:x2,y1:y2] or in {}".format(secoptions))
+        if header is None:
+            return input
+        else:
+            sec = load_sections(header[input])
+            return sec
     return None
 
 
@@ -559,15 +570,19 @@ def load_headers(argflag, spect, datlines):
         except:
             msgs.error("Error reading header from extension {0:d} of file:".format(spect['fits']['headext{0:02d}'.format(k+1)])+msgs.newline()+datlines[i])
         # Perform checks on each fits files, as specified in the settings.instrument file.
+        skip = False
         for ch in chks:
             tfrhd = int(ch.split('.')[0])-1
             kchk  = '.'.join(ch.split('.')[1:])
             frhd  = whddict['{0:02d}'.format(tfrhd)]
-            if spect['check'][ch] != str(headarr[frhd][kchk]).strip():
-                #set_trace()
+            if spect['check'][ch] != str(headarr[frhd][kchk]).strip().replace(" ",""):
                 #print ch, frhd, kchk
                 #print spect['check'][ch], str(headarr[frhd][kchk]).strip()
-                msgs.error("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
+                msgs.warn("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
+                msgs.warn("Skipping the file..")
+                skip = True
+        if skip:
+            continue
         # Now set the key values for each of the required keywords
         dspl = datlines[i].split('/')
         fitsdict['directory'].append('/'.join(dspl[:-1])+'/')

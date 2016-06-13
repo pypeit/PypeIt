@@ -15,7 +15,8 @@ Here is a quick cookbook of the steps involved:
 * Update Mosaic properties (e.g. lon, lat)
 * Update Detector properties
   * RN, GAIN are hard-coded to match detector
-* Update CCD name
+* Update checks  (note: white spaces are removed in this check)
+  * CCD name
 * Update Keyword identifiers
 
 keyword target 01.OBJECT               # Header keyword for the name given by the observer to a given frame
@@ -40,6 +41,8 @@ keyword disperser 01.ISIGRAT           # Grism name
 keyword cdangle 01.CENWAVE             # Cross-disperser angle
 keyword lamps 01.CAGLAMPS              # Lamps being used
 
-* Update FITS propeties
+* Update FITS properties
+  * timeunit refers to the format of the time KEYWORD (e.g. mjd)
+  * We should give a few examples here
 * Fiddle with rules for Image type ID
   * NEED TO EXPLAIN SOME OF THESE

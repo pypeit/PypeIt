@@ -85,8 +85,13 @@ def main() :
 
     # Execute the reduction, and catch any bugs for printout
     if debug['develop']:
-        pypit.PYPIT(red, progname=pypit.__file__, quick=qck, ncpus=cpu, verbose=vrb,
-              use_masters=use_masters, logname=logname, debug=debug)
+        try:
+            pypit.PYPIT(red, progname=pypit.__file__, quick=qck, ncpus=cpu, verbose=vrb,
+                  use_masters=use_masters, logname=logname, debug=debug)
+        except:  # Dump into pdb
+            et, ev, tb = sys.exc_info()
+            traceback.print_exc()
+            debugger.post_mortem(tb)
     else:
         try:
             pypit.PYPIT(red, progname=pypit.__file__, quick=qck, ncpus=cpu, verbose=vrb,
