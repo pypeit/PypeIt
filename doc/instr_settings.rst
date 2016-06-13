@@ -14,6 +14,7 @@ Here is a quick cookbook of the steps involved:
 
 * Update Mosaic properties (e.g. lon, lat)
 * Update Detector properties
+  * RN, GAIN are hard-coded to match detector
 * Update CCD name
 * Update Keyword identifiers
 

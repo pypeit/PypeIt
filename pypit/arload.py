@@ -286,6 +286,7 @@ def set_params(lines, indict, setstr=""):
                     null = np.int(linspl[1][7:])
                 except ValueError:
                     msgs.error("keyword datasec must contain an integer suffix")
+                debugger.set_trace()
                 indict[linspl[0]][didx][linspl[1]] = load_sections(linspl[2], strtxt=linspl[1])
             elif linspl[1][:8] == 'oscansec': # Overscan Sections
                 try:
