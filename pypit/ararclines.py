@@ -28,9 +28,10 @@ def parse_nist(slf,ion):
     """
     # Root (for development only)
     if slf is None:
-        root = '/Users/xavier/local/Python/PYPIT/'
-    else:
-        root = slf._argflag['run']['pypitdir'] 
+        from pypit import arutils as arut
+        msgs.warn("Using arutils.dummy_self.  Better know what you are doing.")
+        slf = arut.dummy_self()
+    root = slf._argflag['run']['pypitdir']
     # Find file
     srch_file = root + '/data/arc_lines/NIST/'+ion+'_vacuum.ascii'
     nist_file = glob.glob(srch_file)

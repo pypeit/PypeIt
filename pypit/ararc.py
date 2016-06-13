@@ -231,9 +231,18 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['wvmnx'][1] = 7000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-
-
-
+    elif sname=='isis_blue':
+        lamps=['Cu','Ne','Ar']
+        if fitsdict["dichroic"][idx[0]].strip() == '5300':
+            arcparam['wvmnx'][1] = 5500.
+        else:
+            msgs.error('Not ready for this dichroic {:s}!'.format(disperser))
+        if disperser == 'R300B':
+            arcparam['n_first']=1  #
+            arcparam['disp']=0.80  # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     else:
         msgs.error('ararc.setup_param: Not ready for this instrument {:s}!'.format(sname))
 

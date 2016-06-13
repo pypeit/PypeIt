@@ -46,3 +46,7 @@ keyword lamps 01.CAGLAMPS              # Lamps being used
   * We should give a few examples here
 * Fiddle with rules for Image type ID
   * NEED TO EXPLAIN SOME OF THESE
+
+* Run
+* Add arc solution
+  * set debug['arc'] = True in run_pypit
