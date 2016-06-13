@@ -436,7 +436,7 @@ def match_science(argflag, spect, fitsdict, filesort):
             if spect['fits']['calwin'] > 0.0:
                 tdiff = np.abs(fitsdict['time'][n].astype(np.float64)-np.float64(fitsdict['time'][iSCI[i]]))
                 w = np.where(tdiff <= spect['fits']['calwin'])[0]
-                n = np.intersect1d(n, w)  # n corresponds to all frames with matching instrument setup
+                n = n[w] # n corresponds to all frames within a set time difference of the science target frame
             # Now find which of the remaining n are the appropriate calibration frames
             n = np.intersect1d(n, iARR[ft])
             # How many frames are required
