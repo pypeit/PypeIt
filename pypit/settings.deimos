@@ -47,6 +47,7 @@ mosaic camera DEIMOS                  # Camera name
 # 1-4 are blue end, 5-8 are red end.
 # nonlinearity is currently unknown, using the default from LRIS
 # Default DEIMOS fits images are spatial in x-axis and dispersion in y-axis.
+#
 
 ####################################
 # Individual detector specifications
