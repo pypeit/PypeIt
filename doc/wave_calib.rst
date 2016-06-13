@@ -23,6 +23,7 @@ Here are the available lamps:
 Lamp    Range (A)   Last updated
 ======  ==========  =============
 ArI     3000-10000  21 April 2016
+CdI     3000-10000  21 April 2016
 ======  ==========  =============
 
 
