@@ -11,6 +11,21 @@ Basic Algorithms
 These notes will describe the algorithms used to perform
 wavelength calibration with PYPIT.
 
+Line Lists
+==========
+
+Without exception, arc line wavelengths are taken from
+the `NIST database <http://physics.nist.gov/PhysRefData`_,
+in vacuum. These data are stored as ASCII tables in data/arc_lines/NIST.
+Here are the available lamps:
+
+======  ==========  =============
+Lamp    Range (A)   Last updated
+======  ==========  =============
+ArI     3000-10000  21 April 2016
+======  ==========  =============
+
+
 Validation
 ==========
 

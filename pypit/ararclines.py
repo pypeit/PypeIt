@@ -91,9 +91,10 @@ def load_arcline_list(slf, idx, lines, disperser, wvmnx=None):
     parse_dict = load_parse_dict()
     # Read rejection file
     if slf is None:
-        root = '/Users/xavier/local/Python/PYPIT'
-    else:
-        root = slf._argflag['run']['pypitdir'] 
+        from pypit import arutils as arut
+        msgs.warn("Using arutils.dummy_self.  Better know what you are doing.")
+        slf = arut.dummy_self()
+    root = slf._argflag['run']['pypitdir']
     with open(root+'/data/arc_lines/rejected_lines.yaml', 'r') as infile:
         rej_dict = yaml.load(infile)
     # Loop through the NIST Tables
