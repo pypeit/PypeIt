@@ -27,6 +27,7 @@ Contents
    setup 
    running
    outputs
+   scripts
    api
 
 

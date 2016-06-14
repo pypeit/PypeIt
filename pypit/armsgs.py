@@ -95,11 +95,11 @@ class Messages:
         header += self._start + self._white_GR + "PYPIT : "
         header += "The Python Spectroscopic Data Reduction Pipeline v{0:s}".format(self._version) + self._end + "\n"
         header += "##  "
-        header += "Usage : "
-        if prognm is None:
-            header += "pypit [options] filename.red"
-        else:
-            header += "python %s [options] filename.red".format(prognm)
+        #header += "Usage : "
+        #if prognm is None:
+        #    header += "pypit [options] filename.red"
+        #else:
+        #    header += "python %s [options] filename.red".format(prognm)
         return header
 
     def usage(self, prognm):
@@ -113,25 +113,31 @@ class Messages:
         for i in xrange(1, len(stgs_spc)):
             spclist += ", " + basename(stgs_spc[i]).split(".")[-1]
         spcl = wraptext(spclist, width=60)
-        print("\n#################################################################")
-        print(self.pypitheader(prognm))
-        print("##  -------------------------------------------------------------")
-        print("##  Options: (default values in brackets)")
-        print("##   -c or --cpus      : (all) Number of cpu cores to use")
-        print("##   -h or --help      : Print this message")
-        print("##   -v or --verbose   : (2) Level of verbosity (0-2)")
-        print("##   -m or --use_masters : Use files in MasterFrames for reduction")
-        print("##   -d or --develop   : Turn develop debugging on")
-        print("##  -------------------------------------------------------------")
-        print("##  Available pipelines include:")
-        print("##   " + armlist)
-        print("##  Available spectrographs include:")
+        #print("\n#################################################################")
+        #print(self.pypitheader(prognm))
+        descs = self.pypitheader(prognm)
+        #print("##  -------------------------------------------------------------")
+        #print("##  Options: (default values in brackets)")
+        #print("##   -c or --cpus      : (all) Number of cpu cores to use")
+        #print("##   -h or --help      : Print this message")
+        #print("##   -v or --verbose   : (2) Level of verbosity (0-2)")
+        #print("##   -m or --use_masters : Use files in MasterFrames for reduction")
+        #print("##   -d or --develop   : Turn develop debugging on")
+        #print("##  -------------------------------------------------------------")
+        descs += "\n##  Available pipelines include:"
+        #print("##  Available pipelines include:")
+        descs += "\n##   " + armlist
+        #print("##  Available spectrographs include:")
+        descs += "\n##  Available spectrographs include:"
         for i in spcl:
-            print("##   " + i)
-        print("##  -------------------------------------------------------------")
-        print("##  Last updated: {0:s}".format(self._last_updated))
-        print("#################################################################\n")
-        sys.exit()
+            descs += "\n##   " + i
+            #print("##   " + i)
+        #print("##  -------------------------------------------------------------")
+        #print("##  Last updated: {0:s}".format(self._last_updated))
+        descs += "\n##  Last updated: {0:s}".format(self._last_updated)
+        #print("#################################################################\n")
+        #sys.exit()
+        return descs
 
     def debugmessage(self):
         if self._debug['develop']:
