@@ -30,19 +30,18 @@ def parser(options=None):
     parser = argparse.ArgumentParser(description=initmsgs.usage('PYPIT'),
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("pypit_file", type=str, help="PYPIT reduction file (must have .pypit extension)")
-    parser.add_argument("-v", "--verbose", default=2, action="store_true",
-                        help="(2) Level of verbosity (0-2)")
-    parser.add_argument("-m", "--use_masters", default=False, help="Load previously generated MasterFrames", action="store_true")
-    parser.add_argument("-d", "--develop", default=False, help="Turn develop debugging on", action="store_true")
+    parser.add_argument("-v", "--verbose", type=int, default=2, help="(2) Level of verbosity (0-2)")
+    parser.add_argument("-m", "--use_masters", action='store_false', help="Load previously generated MasterFrames")
+    parser.add_argument("-d", "--develop", action='store_false', help="Turn develop debugging on")
     #parser.add_argument("-q", "--quick", default=False, help="Quick reduction", action="store_true")
     #parser.add_argument("-c", "--cpus", default=False, help="Number of CPUs for parallel processing", action="store_true")
     #parser.print_help()
 
     if options is None:
-        args = parser.parse_args()
+        pargs = parser.parse_args()
     else:
-        args = parser.parse_args(options)
-    return args
+        pargs = parser.parse_args(options)
+    return pargs
 
 
 def main(args):
