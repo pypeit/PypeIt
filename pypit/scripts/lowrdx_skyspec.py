@@ -8,16 +8,9 @@
 This script generates a sky spectrum from a LowRedux IDL save file
 """
 
-import argparse
-from scipy.io.idl import readsav
-from linetools.spectra.xspectrum1d import XSpectrum1D
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except:
-    import pdb as debugger
-
-def main() :
+def parser(options=None):
+    import argparse
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -25,7 +18,16 @@ def main() :
                         help = 'LowRedux Sky Spectrum (IDL save file)')
     parser.add_argument('new_file', type = str, default = None, help = 'PYPIT FITS sky spectrum')
 
-    args = parser.parse_args()
+    if options is None:
+        args = parser.parse_args()
+    else:
+        args = parser.parse_args(options)
+    return args
+
+
+def main(args):
+    from scipy.io.idl import readsav
+    from linetools.spectra.xspectrum1d import XSpectrum1D
 
     # Read
     lrdx_sky = readsav(args.lowrdx_sky)
@@ -34,6 +36,3 @@ def main() :
     # Write
     xspec.write_to_fits(args.new_file)
 
-
-if __name__ == '__main__':
-    main()
