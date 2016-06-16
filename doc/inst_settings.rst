@@ -50,3 +50,9 @@ keyword lamps 01.CAGLAMPS              # Lamps being used
 * Run
 * Add arc solution
   * set debug['arc'] = True in run_pypit
+
+* Add extinction file if a new observatory
+  * Add file in data/extinction
+  * Edit README
+
+* Add test suite
