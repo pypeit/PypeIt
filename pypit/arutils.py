@@ -168,7 +168,7 @@ def dummy_self(pypitdir=None, inum=0, fitsdict=None):
     from pypit import arsciexp
     from pypit import arload
     # Dummy dicts
-    spect = arload.load_spect(pypit.__file__, 'Kast_blue')
+    spect = arload.load_spect(pypit.__file__, 'kast_blue')
     for jj,key in enumerate(spect.keys()):
         if key in ['det']:
             continue

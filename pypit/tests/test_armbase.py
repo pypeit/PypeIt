@@ -15,7 +15,6 @@ from pypit import armbase as armb
 #    return os.path.join(data_dir, filename)
 
 
-
 def test_update_masters():
     # Dummy self
     slf1 = arut.dummy_self()
