@@ -158,6 +158,7 @@ def reject_lines(slf, tbl, idx, rej_dict, disperser):
     # Return
     return tbl[msk]
 
+
 def parse_nist_tbl(tbl,parse_dict):
     '''Parses a NIST table using various criteria
     Parameters
@@ -180,6 +181,7 @@ def parse_nist_tbl(tbl,parse_dict):
     allgd = gdI & gdA & gdw
     # Return
     return tbl[allgd]
+
 
 def load_parse_dict(modify_dict=None):
     """Dicts for parsing Arc line lists from NIST
