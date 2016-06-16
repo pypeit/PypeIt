@@ -24,6 +24,6 @@ def test_load_linelist():
     alist = alines.load_arcline_list(None,None,['CuI','ArI','NeI'],None,
                                  modify_parse_dict=dict(NeI={'min_wave': 3000.},ArI={'min_intensity': 399.}))
     # Min NeI
-    np.testing.assert_allclose(np.min(alist['wave'][alist['Ion'] == 'NeI']),
-                               3455.1837999999998)
+    NeI = alist['Ion'] == 'NeI'
+    np.testing.assert_allclose(np.min(alist['wave'][NeI]), 3455.1837999999998)
 
