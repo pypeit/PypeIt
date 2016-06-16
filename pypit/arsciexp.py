@@ -33,7 +33,7 @@ class ScienceExposure:
     A Science Exposure class that carries all information for a given science exposure
     """
 
-    def __init__(self, snum, argflag, spect, fitsdict):
+    def __init__(self, snum, argflag, spect, fitsdict, do_qa=True):
 
         #############################
         # Set some universal parameters
@@ -61,7 +61,8 @@ class ScienceExposure:
 
         # Initialize the QA for this science exposure
         qafn = "{0:s}/QA_{1:s}.pdf".format(self._argflag['run']['plotsdir'], self._basename)
-        self._qa = PdfPages(qafn)
+        if do_qa:
+            self._qa = PdfPages(qafn)
 
         # Initialize Variables
         ndet = spect['mosaic']['ndet']
