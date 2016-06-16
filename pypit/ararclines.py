@@ -204,7 +204,7 @@ def load_parse_dict(modify_dict=None):
     # NeI
     arcline_parse['NeI'] = copy.deepcopy(dict_parse)
     arcline_parse['NeI']['min_intensity'] = 500.
-    arcline_parse['NeI']['min_Aki']  = 1. # NOT GOOD FOR DEIMOS, DESI
+    arcline_parse['NeI']['min_Aki']  = 1. # NOT GOOD FOR DEIMOS, DESI, ISIS
     #arcline_parse['NeI']['min_wave'] = 5700. 
     arcline_parse['NeI']['min_wave'] = 5850. # NOT GOOD FOR DEIMOS and others
     # ZnI

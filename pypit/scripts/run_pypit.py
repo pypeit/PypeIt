@@ -16,9 +16,17 @@ try:
 except:
     import pdb as debugger
 
-# Global
+# Globals
 from pypit import ardebug
 debug = ardebug.init()
+#debug['develop'] = True
+#debug['arc'] = True
+#debug['sky_sub'] = True
+#debug['trace'] = True
+#debug['obj_profile'] = True
+#debug['tilts'] = True
+#debug['flexure'] = True
+
 from pypit.armsgs import Messages as Initmsg
 initmsgs = Initmsg(None, debug, 1)
 
@@ -31,8 +39,8 @@ def parser(options=None):
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("pypit_file", type=str, help="PYPIT reduction file (must have .pypit extension)")
     parser.add_argument("-v", "--verbose", type=int, default=2, help="(2) Level of verbosity (0-2)")
-    parser.add_argument("-m", "--use_masters", action='store_false', help="Load previously generated MasterFrames")
-    parser.add_argument("-d", "--develop", action='store_false', help="Turn develop debugging on")
+    parser.add_argument("-m", "--use_masters", default=False, action='store_true', help="Load previously generated MasterFrames")
+    parser.add_argument("-d", "--develop", default=False, action='store_true', help="Turn develop debugging on")
     #parser.add_argument("-q", "--quick", default=False, help="Quick reduction", action="store_true")
     #parser.add_argument("-c", "--cpus", default=False, help="Number of CPUs for parallel processing", action="store_true")
     #parser.print_help()
@@ -41,6 +49,7 @@ def parser(options=None):
         pargs = parser.parse_args()
     else:
         pargs = parser.parse_args(options)
+    #
     return pargs
 
 
@@ -51,13 +60,7 @@ def main(args):
     import traceback
 
     # Import PYPIT routines
-    #debug['develop'] = True
-    #debug['arc'] = True
-    #debug['sky_sub'] = True
-    #debug['trace'] = True
-    #debug['obj_profile'] = True
-    #debug['tilts'] = True
-    #debug['flexure'] = True
+
 
     # Initiate logging for bugs and command line help
     # These messages will not be saved to a log file

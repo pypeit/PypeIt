@@ -13,8 +13,7 @@ def parser(options=None):
     parser.add_argument("file", type=str, help="Spectral file")
     parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
     parser.add_argument("--exten", type=int, help="FITS extension")
-    parser.add_argument("--optimal", default=False,
-                        help="Show Optimal? Default is boxcar", action="store_true")
+    parser.add_argument("--optimal", default=False, help="Show Optimal? Default is boxcar", action="store_true")
 
     if options is None:
         args = parser.parse_args()

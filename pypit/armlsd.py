@@ -97,6 +97,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
             ###############
             # Generate a master arc frame
+            debugger.set_trace()
             update = slf.MasterArc(fitsdict, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
