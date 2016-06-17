@@ -165,6 +165,7 @@ def setup_param(slf, sc, det, fitsdict):
         Nstrong=13)          # Number of lines for auto-analysis
 
 
+    modify_dict = None
     # Instrument/disperser specific
     sname = slf._argflag['run']['spectrograph']
     idx = slf._spect['arc']['index'][sc]
@@ -231,9 +232,20 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['wvmnx'][1] = 7000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-
-
-
+    elif sname=='isis_blue':
+        modify_dict = dict(NeI={'min_wave': 3000.,'min_intensity': 299,
+                                'min_Aki': 0.},ArI={'min_intensity': 399.})
+        lamps=['CuI','NeI','ArI']
+        if fitsdict["dichroic"][idx[0]].strip() == '5300':
+            arcparam['wvmnx'][1] = 6000.
+        else:
+            msgs.error('Not ready for this dichroic {:s}!'.format(disperser))
+        if disperser == 'R300B':
+            arcparam['n_first']=1  #
+            arcparam['disp']=0.80  # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     else:
         msgs.error('ararc.setup_param: Not ready for this instrument {:s}!'.format(sname))
 
@@ -243,7 +255,7 @@ def setup_param(slf, sc, det, fitsdict):
         slmps=slmps+','+lamp
     msgs.info('Loading line list using {:s} lamps'.format(slmps))
     arcparam['llist'] = ararclines.load_arcline_list(slf, idx, lamps, disperser,
-        wvmnx=arcparam['wvmnx'])
+        wvmnx=arcparam['wvmnx'], modify_parse_dict=modify_dict)
     #llist = ascii.read(aparm['llist'],
     #    format='fixed_width_no_header', comment='#', #data_start=1, 
     #    names=('wave', 'flag', 'ID'),
@@ -455,11 +467,11 @@ def simple_calib(slf, det, get_poly=False):
         debugger.xpcol(xfit*msarc.shape[0], yfit)
         debugger.set_trace()
 
-        debugger.xplot(xfit, np.ones(len(xfit)), scatter=True,
-            xtwo=np.arange(msarc.shape[0]),ytwo=yprep)
-        debugger.xplot(xfit,yfit, scatter=True, xtwo=np.arange(msarc.shape[0]),
-            ytwo=wave)
-        debugger.set_trace()
+        #debugger.xplot(xfit, np.ones(len(xfit)), scatter=True,
+        #    xtwo=np.arange(msarc.shape[0]),ytwo=yprep)
+        #debugger.xplot(xfit,yfit, scatter=True, xtwo=np.arange(msarc.shape[0]),
+        #    ytwo=wave)
+        #debugger.set_trace()
         #wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
         #    'legendre', min=fmin, max=fmax)
 
