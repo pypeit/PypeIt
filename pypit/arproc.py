@@ -1142,16 +1142,13 @@ def sub_overscan(slf, det, file, use_datasec=False):
         if ay1 <= 0: ay1 += file.shape[1]
         xam = np.arange(ax0, ax1)
         yam = np.arange(ay0, ay1)
-        wa = np.ix_(xam, yam)
         # Make sure the overscan section has at least one side consistent with ampsec (note: ampsec should contain both datasec and oscansec)
         if ax1-ax0 == ox1-ox0:
-            #osfit = np.mean(oscan, axis=1)
             osfit = np.median(oscan, axis=1)  # Mean was hit by CRs
-            flg_oscan = 1
         elif ay1-ay0 == oy1-oy0:
-            #osfit = np.mean(oscan, axis=0)   # Mean was hit by CRs
             osfit = np.median(oscan, axis=0)
-            flg_oscan = 0
+        elif slf._argflag['reduce']['oscanMethod'].lower() == "median":
+            osfit = np.median(oscan)
         else:
             msgs.error("Overscan sections do not match amplifier sections for amplifier {0:d}".format(i+1))
         # Fit/Model the overscan region
@@ -1160,6 +1157,8 @@ def sub_overscan(slf, det, file, use_datasec=False):
             ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
         elif slf._argflag['reduce']['oscanMethod'].lower() == "savgol":
             ossub = savgol_filter(osfit, slf._argflag['reduce']['oscanParams'][1], slf._argflag['reduce']['oscanParams'][0])
+        elif slf._argflag['reduce']['oscanMethod'].lower() == "median":  # One simple value
+            ossub = osfit * np.ones(1)
         else:
             msgs.warn("Overscan subtraction method {0:s} is not implemented".format(slf._argflag['reduce']['oscanMethod']))
             msgs.info("Using a linear fit to the overscan region")
@@ -1188,6 +1187,8 @@ def sub_overscan(slf, det, file, use_datasec=False):
             file[wd] -= ossub
         elif wd[1].shape[1] == ossub.shape[0]:
             file[wd] -= ossub.T
+        elif slf._argflag['reduce']['oscanMethod'].lower() == "median":
+            file[wd] -= osfit
         else:
             msgs.error("Could not subtract bias from overscan region --"+msgs.newline()+"size of extracted regions does not match")
     # Return

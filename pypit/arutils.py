@@ -150,6 +150,7 @@ def dummy_self(pypitdir=None):
     if pypitdir is None:
         pypitdir = __file__[0:__file__.rfind('/')]
     slf._argflag['run']['pypitdir'] = pypitdir
+    slf._argflag['run']['spectrograph'] = 'dummy'
     #
     slf._spect['mosaic'] = {}
     slf._spect['det'] = [{'binning':'1x1'}]
