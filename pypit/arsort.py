@@ -94,12 +94,25 @@ def sort_data(argflag, spect, fitsdict):
         # Assign these filetypes
         filarr[i,:][n] = 1
         # Check if these files can also be another type
-        if spect[fkey[i]]['canbe'] is not None:
-            for cb in spect[fkey[i]]['canbe']:
+        canbe = spect[fkey[i]]['canbe']
+        if canbe is not None:
+            if isinstance(canbe, list):
+                for cb in canbe:
+                    # Assign these filetypes
+                    fa = np.where(fkey == cb)[0]
+                    if np.size(fa) == 1:
+                        filarr[fa[0],:][n] = 1
+                    else:
+                        msgs.error("Unknown type for argument 'canbe': {0:s}".format(cb))
+            else:
+                # assuming canbe is a single string
+                cb = canbe
                 # Assign these filetypes
                 fa = np.where(fkey == cb)[0]
-                if np.size(fa) == 1: filarr[fa[0],:][n] = 1
-                else: msgs.error("Unknown type for argument 'canbe': {0:s}".format(cb))
+                if np.size(fa) == 1:
+                    filarr[fa[0],:][n] = 1
+                else:
+                    msgs.error("Unknown type for argument 'canbe': {0:s}".format(cb))
 #		# Check for filetype clashes
 #		bdf=np.where(np.sum(filarr,axis=0)[n] != 0)[0]
 #		if np.size(bdf) != 0:
