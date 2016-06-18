@@ -36,8 +36,9 @@ ZnI     2900-8000   2 May 2016
 By-Hand Calibration
 ===================
 
-If the automatic algorithm is faililng (heaven forbid), you
-can input a set of pixel, wavelength values as a crutch in
+If the automatic algorithm is failing (heaven forbid; and you should
+probably raise an Issue on PYPIT if you are sure it isn't your fault),
+you can input a set of pixel, wavelength values as a crutch in
 your .pypit setup file.  Here is the recommended approach:
 
 #. Run PYPIT with --debug_arc on. This will force the code to stop inside ararc.py
