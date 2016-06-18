@@ -33,6 +33,29 @@ XeI     4000-12000  14 April 2016
 ZnI     2900-8000   2 May 2016
 ======  ==========  =============
 
+By-Hand Calibration
+===================
+
+If the automatic algorithm is failing (heaven forbid; and you should
+probably raise an Issue on PYPIT if you are sure it isn't your fault),
+you can input a set of pixel, wavelength values as a crutch in
+your .pypit setup file.  Here is the recommended approach:
+
+#. Run PYPIT with --debug_arc on. This will force the code to stop inside ararc.py
+#. Print the pixel values to the screen
+
+   *  (Pdb) tcent
+
+#. Plot the arc spectrum.
+
+   *  (Pdb) plt.plot(yprep)
+   *  (Pdb) plt.show()
+
+#. Compare that spectrum with a known one and ID a few lines.  Write down.  Better be using vacuum wavelengths
+#. Add pixel values and wavelengths to your .pypit file, e.g.
+
+   * arc calibrate id_pix 872.062,902.7719,1931.0048,2452.620,3365.25658,3887.125
+   * arc calibrate id_wave 3248.4769,3274.905,4159.763,4610.656,5402.0634,5854.110
 
 Validation
 ==========

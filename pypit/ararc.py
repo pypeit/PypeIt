@@ -305,6 +305,12 @@ def simple_calib(slf, det, get_poly=False):
             msgs.error("Need to give at least 5 pixel values!")
         #
         msgs.info("Using input lines to seed the wavelength solution")
+        # Calculate median offset
+        mdiff = [np.min(np.abs(tcent-pix)) for pix in
+                 slf._argflag['arc']['calibrate']['id_pix']]
+        med_poff = np.median(np.array(mdiff))
+        msgs.info("Will apply a median offset of {:g} pixels".format(med_poff))
+
         # Match input lines to observed spectrum
         nid = len(slf._argflag['arc']['calibrate']['id_pix'])
         idx_str = np.ones(nid).astype(int)
@@ -312,7 +318,7 @@ def simple_calib(slf, det, get_poly=False):
         idsion = np.array(['     ']*nid)
         gd_str = np.arange(nid).astype(int)
         for jj,pix in enumerate(slf._argflag['arc']['calibrate']['id_pix']):
-            diff = np.abs(tcent-pix)
+            diff = np.abs(tcent-pix-med_poff)
             if np.min(diff) > 2.:
                 debugger.set_trace()
                 msgs.error("No match with input pixel {:g}!".format(pix))
