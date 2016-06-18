@@ -575,7 +575,7 @@ def load_headers(argflag, spect, datlines):
             tfrhd = int(ch.split('.')[0])-1
             kchk  = '.'.join(ch.split('.')[1:])
             frhd  = whddict['{0:02d}'.format(tfrhd)]
-            if spect['check'][ch] != str(headarr[frhd][kchk]).strip().replace(" ",""):
+            if spect['check'][ch] != str(headarr[frhd][kchk]).strip():
                 #print ch, frhd, kchk
                 #print spect['check'][ch], str(headarr[frhd][kchk]).strip()
                 msgs.warn("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
