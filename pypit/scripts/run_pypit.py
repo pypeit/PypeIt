@@ -41,6 +41,7 @@ def parser(options=None):
     parser.add_argument("-v", "--verbose", type=int, default=2, help="(2) Level of verbosity (0-2)")
     parser.add_argument("-m", "--use_masters", default=False, action='store_true', help="Load previously generated MasterFrames")
     parser.add_argument("-d", "--develop", default=False, action='store_true', help="Turn develop debugging on")
+    parser.add_argument("--debug_arc", default=False, action='store_true', help="Turn wavelength/arc debugging on")
     #parser.add_argument("-q", "--quick", default=False, help="Quick reduction", action="store_true")
     #parser.add_argument("-c", "--cpus", default=False, help="Number of CPUs for parallel processing", action="store_true")
     #parser.print_help()
@@ -68,29 +69,10 @@ def main(args):
     qck = False
     cpu = 1
     #vrb = 2
-    #use_masters = False
-
-    #if len(sys.argv) < 2:
-    #    initmsgs.usage(None)
 
     # Load options from command line
-    """
-        for o, a in opt:
-            elif o in ('-q', '--quick'):
-                qck = True
-            elif o in ('-c', '--cpus'):
-                cpu = int(a)
-            elif o in ('-v', '--verbose'):
-                vrb = int(a)
-            elif o in ('-m', '--use_masters'):
-                use_masters=True
-            elif o in ('-d', '--develop'):
-                debug['develop'] = True
-        red = arg[0]
-    except getopt.GetoptError, err:
-        initmsgs.error(err.msg, usage=True)
-    """
     debug['develop'] = debug['develop'] or args.develop
+    debug['arc'] = debug['arc'] or args.debug_arc
     splitnm = os.path.splitext(args.pypit_file)
     if splitnm[1] != '.pypit':
         initmsgs.error("Bad extension for PYPIT reduction file."+initmsgs.newline()+".pypit is required")
