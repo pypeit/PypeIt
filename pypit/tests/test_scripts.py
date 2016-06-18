@@ -18,12 +18,13 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
+"""
 def test_arcid_plot():
     json_file = data_path('LRISb_600_WaveCalib_01.json')
     pargs = arcid_plot.parser([json_file, 'LRISb', 'tmp.pdf'])
     # Run
     arcid_plot.main(pargs)
-
+"""
 
 '''
 def test_show_1dspec():
