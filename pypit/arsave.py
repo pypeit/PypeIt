@@ -22,7 +22,7 @@ def save_arcids(slf, fname, pixels):
     # Setup the HDU
     hdu = pyfits.PrimaryHDU()
     hdulist = pyfits.HDUList([hdu]) # Insert the primary HDU (input model)
-    for o in xrange(len(pixels)):
+    for o in range(len(pixels)):
         hdulist.append(pyfits.ImageHDU(pixels[o])) # Add a new Image HDU
     ans = 'y'
     if os.path.exists(fname):
@@ -72,7 +72,7 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
     hdulist[0].header["PIXSIZE"] = (slf._argflag['reduce']['pixelsize'], 'ARMED: The size of each sampled pixel (km/s)')
     # Loop through all orders and write the wavelength into the header
     if wave is not None:
-        for i in xrange(sciext.shape[1]):
+        for i in range(sciext.shape[1]):
             hdrname = "CDELT{0:03d}".format(i+1)
             hdulist[0].header[hdrname] = (np.log10(1.0 + slf._argflag['reduce']['pixelsize']/299792.458), 'ARMED: log10(1+pixsize/c)'.format(frametype))
             hdrname = "CRVAL{0:03d}".format(i+1)
@@ -85,10 +85,10 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
             hdulist[0].header[hdrname] = (np.size(np.where(wave[:,i]!=-999999.9)[0]), 'ARMED: Offset=0.0'.format(frametype))
     if extprops is not None:
         kys = extprops.keys()
-        for j in xrange(len(kys)):
+        for j in range(len(kys)):
             hkey = kys[j][:5].upper()
             if np.ndim(extprops[kys[j]])==1 and np.size(extprops[kys[j]]==sciext.shape[1]):
-                for i in xrange(sciext.shape[1]):
+                for i in range(sciext.shape[1]):
                     hdrname = "{0:s}{1:03d}".format(hkey,i+1)
                     hdulist[0].header[hdrname] = (extprops[kys[j]][i], 'ARMED: {0:s} for order {1:d}'.format(kys[j],i+1))
     # Write the file to disk
@@ -142,7 +142,7 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
     hdulist = pyfits.HDUList(hlist)
     # Header
     msgs.info("Writing header information")
-    for i in xrange(len(ind)):
+    for i in range(len(ind)):
         hdrname = "FRAME{0:03d}".format(i+1)
         hdulist[0].header[hdrname] = (slf._fitsdict['filename'][ind[i]], 'PYPIT: File used to generate Master {0:s}'.format(frametype))
     hdulist[0].header["FRAMETYP"] = (frametype, 'PYPIT: Master calibration frame type')
@@ -306,7 +306,7 @@ def save_1d_spectra(slf, clobber=True):
 
     # Loop on spectra
     ext = 0
-    for kk in xrange(slf._spect['mosaic']['ndet']):
+    for kk in range(slf._spect['mosaic']['ndet']):
         det = kk+1
         # Loop on spectra
         for specobj in slf._specobjs[det-1]:
@@ -367,7 +367,7 @@ def save_2d_images(slf, clobber=True):
     hdus = [prihdu]
 
     ext = 0
-    for kk in xrange(slf._spect['mosaic']['ndet']):
+    for kk in range(slf._spect['mosaic']['ndet']):
         det = kk+1
 
         # Processed frame

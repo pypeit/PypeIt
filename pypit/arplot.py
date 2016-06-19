@@ -94,7 +94,7 @@ def zsc_fit_line(samples, npix, krej, ngrow, maxiter):
     badpix = np.zeros(npix, dtype="int32")
 
     #Iterate
-    for niter in xrange(maxiter):
+    for niter in range(maxiter):
 
         if (ngoodpix >= last_ngoodpix) or (ngoodpix < minpix):
             break
@@ -184,10 +184,10 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Order", m
     # Loop through all pages and plot the results
     ndone = 0
     axesIdx = True
-    for i in xrange(len(pages)):
+    for i in range(len(pages)):
         f, axes = plt.subplots(pages[i][1], pages[i][0])
         ipx, ipy = 0, 0
-        for j in xrange(npp[i]):
+        for j in range(npp[i]):
             if pages[i][0] == 1 and pages[i][1] == 1: axesIdx = False
             elif pages[i][1] == 1: ind = (ipx,)
             elif pages[i][0] == 1: ind = (ipy,)
@@ -226,7 +226,7 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Order", m
                 ipy += 1
         # Delete the unnecessary axes
         if axesIdx:
-            for j in xrange(npp[i], axes.size):
+            for j in range(npp[i], axes.size):
                 if pages[i][1] == 1: ind = (ipx,)
                 elif pages[i][0] == 1: ind = (ipy,)
                 else: ind = (ipy, ipx)

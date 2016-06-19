@@ -74,7 +74,7 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     msgs.work("Multiprocess this step to make it faster")
     badorders = np.zeros(norders)
     ordpixnew = np.zeros_like(ordpix)
-    for o in xrange(norders):
+    for o in range(norders):
         # Rectify this order
         recframe = arcyextract.rectify(sciframe, ordpix, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o], maskval, slf._dispaxis)
         recerror = arcyextract.rectify(errframe, ordpix, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o], maskval, slf._dispaxis)
@@ -154,7 +154,7 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     """
     bgmod = np.zeros_like(sciframe)
     polyorder, repeat = 9, 1
-    for o in xrange(norders):
+    for o in range(norders):
         #if o < 3 or o > norders-5: continue
         xpix, ypix = np.where(ordpix==o+1)
         print("Preparing", o+1)
@@ -194,7 +194,7 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
 # 	print ordwid
 # 	test_rect = arcyextract.rectify_fast(sciframe, cord_pix, ordwid, -999999.9, slf._dispaxis)
 # 	arutils.ds9plot(test_rect)
-# 	for o in xrange(norders):
+# 	for o in range(norders):
 # 		pass
 
 
@@ -204,7 +204,7 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     # Prepare and fit the sky background pixels in every order
     msgs.work("Multiprocess this step to make it faster")
     skybg = np.zeros_like(sciframe)
-    for o in xrange(norders):
+    for o in range(norders):
         xpix, ypix = np.where(ordpix==1+o)
         msgs.info("Preparing sky pixels in order {0:d}/{1:d} for a b-spline fit".format(o+1,norders))
         #xbarr, ybarr = cybspline.prepare_bsplfit(arc, pixmap, tilts, xmod, ycen, xpix, ypix, dispaxis)
@@ -225,7 +225,7 @@ def badpix(slf, det, frame, sigdev=10.0):
     """
     bpix = np.zeros_like(frame)
     subfr, tframe, temp = None, None, None
-    for i in xrange(slf._spect['det'][det-1]['numamplifiers']):
+    for i in range(slf._spect['det'][det-1]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
         x0, x1, y0, y1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
         xv = np.arange(x0, x1)
@@ -298,7 +298,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
         maskpix = np.zeros(sxvpix.size)
         msgs.info("Identifying pixels containing the science target")
         msgs.work("Speed up this step in cython")
-        for i in xrange(sciframe.shape[0]-1):
+        for i in range(sciframe.shape[0]-1):
             wpix = np.where((sxvpix>=edges[i]) & (sxvpix<=edges[i+1]))
             if (wpix[0].size>5):
                 txpix = sxvpix[wpix]
@@ -315,7 +315,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
                     fitcls[i] = cf[0]
     else:
         msgs.work("Speed up this step in cython")
-        for i in xrange(sciframe.shape[0]-1):
+        for i in range(sciframe.shape[0]-1):
             wpix = np.where((sxvpix>=edges[i]) & (sxvpix<=edges[i+1]))
             typix = sscipix[wpix]
             szt = typix.size
@@ -529,7 +529,7 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     msgs.work("Must consider different amplifiers when normalizing and determining the blaze function")
     msgs.work("Multiprocess this step to make it faster")
     flat_ext1d = maskval*np.ones((msflat.shape[0],norders))
-    for o in xrange(norders):
+    for o in range(norders):
         # Rectify this order
         recframe = arcyextract.rectify(msflat, ordpix, slf._pixcen[det-1][:,o], slf._lordpix[det-1][:,o],
                                        slf._rordpix[det-1][:,o], slf._pixwid[det-1][o]+overpix, maskval, slf._dispaxis)
@@ -574,7 +574,7 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             #w = np.ix_(rows,np.arange(recframe.shape[1]))
             #recmean = np.mean(recsort[w],axis=0)
             if slf._argflag['pixflat']['norm']['recnorm']:
-                for i in xrange(recmean.size):
+                for i in range(recmean.size):
                     recframe[:, i] /= recmean[i]
             # Undo the rectification
             normflat_unrec = arcyextract.rectify_undo(recframe, slf._pixcen[det-1][:,o], slf._lordpix[det-1][:,o],
@@ -617,9 +617,9 @@ def get_ampscale(slf, det, msflat):
     ampdone[0]=1
     while np.sum(ampdone) != slf._spect['det'][det-1]['numamplifiers']:
         abst, bbst, nbst, n0bst, n1bst = -1, -1, -1, -1, -1 # Reset the values for the most overlapping amplifier
-        for a in xrange(0, slf._spect['det'][det-1]['numamplifiers']): # amplifier 'a' is always the reference amplifier
+        for a in range(0, slf._spect['det'][det-1]['numamplifiers']): # amplifier 'a' is always the reference amplifier
             if ampdone[a] == 0: continue
-            for b in xrange(0, slf._spect['det'][det-1]['numamplifiers']):
+            for b in range(0, slf._spect['det'][det-1]['numamplifiers']):
                 if ampdone[b] == 1 or a == b: continue
                 tstframe = np.zeros_like(msflat)
                 tstframe[np.where(slf._ampsec[det-1] == a+1)] = 1
@@ -710,7 +710,7 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
     naxis0, naxis1 = int(fitsdict['naxis0'][scidx]), int(fitsdict['naxis1'][scidx])
     # Initialize the returned array
     retarr = np.zeros((naxis0, naxis1))
-    for i in xrange(slf._spect['det'][det-1]['numamplifiers']):
+    for i in range(slf._spect['det'][det-1]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
         x0, x1, y0, y1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
         if x0 < 0: x0 += naxis0
@@ -964,7 +964,7 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
     # Define the kernels
     laplkernel = np.array([[0.0, -1.0, 0.0], [-1.0, 4.0, -1.0], [0.0, -1.0, 0.0]])  # Laplacian kernal
     growkernel = np.ones((3,3))
-    for i in xrange(1, maxiter+1):
+    for i in range(1, maxiter+1):
         msgs.info("Convolving image with Laplacian kernel")
         # Subsample, convolve, clip negative values, and rebin to original size
         #set_trace()
@@ -1121,7 +1121,7 @@ def sub_overscan(slf, det, file, use_datasec=False):
       Overscan region is limited to datasec, not ampsec
     """
 
-    for i in xrange(slf._spect['det'][det-1]['numamplifiers']):
+    for i in range(slf._spect['det'][det-1]['numamplifiers']):
         # Determine the section of the chip that contains the overscan region
         oscansec = "oscansec{0:02d}".format(i+1)
         ox0, ox1, oy0, oy1 = slf._spect['det'][det-1][oscansec][0][0], slf._spect['det'][det-1][oscansec][0][1], slf._spect['det'][det-1][oscansec][1][0], slf._spect['det'][det-1][oscansec][1][1]
@@ -1197,7 +1197,7 @@ def sub_overscan(slf, det, file, use_datasec=False):
 
 
 def trim(slf, file, det):
-    for i in xrange (slf._spect['det'][det-1]['numamplifiers']):
+    for i in range (slf._spect['det'][det-1]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
         x0, x1, y0, y1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
         if x0 < 0:
@@ -1220,7 +1220,7 @@ def trim(slf, file, det):
 #		trimfile = file[w]
 #	elif len(file.shape) == 3:
 #		trimfile = np.zeros((w[0].shape[0],w[1].shape[1],file.shape[2]))
-#		for f in xrange(file.shape[2]):
+#		for f in range(file.shape[2]):
 #			trimfile[:,:,f] = file[:,:,f][w]
 #	else:
 #		msgs.error("Cannot trim {0:d}D frame".format(int(len(file.shape))))

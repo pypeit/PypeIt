@@ -51,7 +51,7 @@ def SetupScience(argflag, spect, fitsdict):
     # Create the list of science exposures
     numsci = np.size(filesort['science'])
     sciexp = []
-    for i in xrange(numsci):
+    for i in range(numsci):
         sciexp.append(arsciexp.ScienceExposure(i, argflag, spect, fitsdict))
     return sciexp
 
@@ -91,7 +91,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
         return
     if ftype == "flat":
         # First check flats of the same type
-        for i in xrange(sc+1, numsci):
+        for i in range(sc+1, numsci):
             # Check if an *identical* master frame has already been produced
             if chktype == "trace": chkfarr = sciexp[i]._idx_trace
             elif chktype == "pixflat": chkfarr = sciexp[i]._idx_flat
@@ -105,7 +105,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
         origtype = chktype
         if chktype == "trace": chktype = "pixflat"
         elif chktype == "pixflat": chktype = "trace"
-        for i in xrange(sc, numsci):
+        for i in range(sc, numsci):
             # Check if an *identical* master frame has already been produced
             if chktype == "trace": chkfarr = sciexp[i]._idx_trace
             elif chktype == "pixflat": chkfarr = sciexp[i]._idx_flat
@@ -116,7 +116,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
                 msgs.info("Updating master {0:s} frame for science target {1:d}/{2:d}".format(chktype, i+1, numsci))
                 sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(origtype, det), chktype, det)
     else:
-        for i in xrange(sc+1, numsci):
+        for i in range(sc+1, numsci):
             # Check if an *identical* master frame has already been produced
             if ftype == "arc":
                 chkfarr = sciexp[i]._idx_arcs

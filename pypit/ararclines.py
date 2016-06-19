@@ -61,7 +61,8 @@ def parse_nist(slf,ion):
     nist_tbl.remove_column('Rel.')
     nist_tbl.remove_column('Ritz')
     nist_tbl.add_column(Column(agdrel,name='RelInt'))
-    nist_tbl.add_column(Column([ion]*len(nist_tbl), name='Ion', dtype='S5'))
+    #nist_tbl.add_column(Column([ion]*len(nist_tbl), name='Ion', dtype='S5'))
+    nist_tbl.add_column(Column([ion]*len(nist_tbl), name='Ion', dtype='U5'))
     nist_tbl.rename_column('Observed','wave')
     # Return
     return nist_tbl
