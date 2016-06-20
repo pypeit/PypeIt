@@ -310,11 +310,12 @@ pixflat match filter1 ''
 # Blaze flat frames
 ###################
 
-blzflat idname None                   # Header key value of trace frame for header keyword keyword+idname
+blzflat idname IntFlat                   # Header key value of trace frame for header keyword keyword+idname
 blzflat number 0                      # Number of trace frames to use
-blzflat check condition1 hatch=open   # Required for blaze flats 
+blzflat check condition1 hatch=closed   # Required for blaze flats 
 blzflat check condition2 exptime<30   # Avoid stars
-blzflat canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
+blzflat check condition3 lamps=Qz
+blzflat canbe pixflat                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
 blzflat match binning ''             		# Match the shape of standard and science frames
 blzflat match decker ''           # Check the same decker as the science frame was used
 blzflat match filter1 ''
@@ -323,12 +324,13 @@ blzflat match filter1 ''
 # Trace frames
 ##############
 
-trace idname Object               # Header key value of flat frame for header keyword keyword+idname
+trace idname IntFlat               # Header key value of flat frame for header keyword keyword+idname
 trace number 0                    # Number of flat frames to use
 trace canbe pixflat                 # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
 trace lscomb False                # Combine a long and short flat
-trace check condition1 hatch=open # Required for trace flats 
+trace check condition1 hatch=closed # Required for trace flats
 trace check condition2 exptime<30 # Calibration
+trace check condition3 lamps=Qz
 trace match binning ''                 # Match the shape of trace with science
 trace match decker ''           # Check the same decker as the science frame was used
 trace match filter1 ''
