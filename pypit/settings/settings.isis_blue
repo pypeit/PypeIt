@@ -55,7 +55,7 @@ det01 suffix _blue                    # Suffix to be appended to all saved calib
 ### Checks to perform  (white space is removed)
 check 02.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
 check 01.DETECTOR EEV12                # Check the CCD name (replace any spaces with underscores)
-check 01.ISIARM Bluearm                # Check the camera
+check 01.ISIARM Blue_arm                # Check the camera
 
 ### Keyword Identifiers
 keyword target 01.OBJECT               # Header keyword for the name given by the observer to a given frame
