@@ -66,51 +66,51 @@ class ScienceExposure:
         # Initialize Variables
         ndet = spect['mosaic']['ndet']
         self._nonlinear = [self._spect['det'][det-1]['saturation']*self._spect['det'][det-1]['nonlinear']
-                           for det in xrange(ndet)]
+                           for det in range(ndet)]
         self._dispaxis = None  # Which direction is the predominant spectral (dispersion) axis
-        self._nspec    = [None for all in xrange(ndet)]   # Number of spectral pixels
-        self._nspat    = [None for all in xrange(ndet)]   # Number of spatial pixels
-        self._ampsec   = [None for all in xrange(ndet)]   # Locations of the amplifiers on each detector
-        self._pixlocn  = [None for all in xrange(ndet)]   # Physical locations of each pixel on the detector
-        self._lordloc  = [None for all in xrange(ndet)]   # Array of slit traces (left side) in physical pixel coordinates
-        self._rordloc  = [None for all in xrange(ndet)]   # Array of slit traces (left side) in physical pixel coordinates
-        self._pixcen   = [None for all in xrange(ndet)]   # Central slit traces in apparent pixel coordinates
-        self._pixwid   = [None for all in xrange(ndet)]   # Width of slit (at each row) in apparent pixel coordinates
-        self._lordpix  = [None for all in xrange(ndet)]   # Array of slit traces (left side) in apparent pixel coordinates
-        self._rordpix  = [None for all in xrange(ndet)]   # Array of slit traces (right side) in apparent pixel coordinates
-        self._tilts    = [None for all in xrange(ndet)]   # Array of spectral tilts at each position on the detector
-        self._tiltpar  = [None for all in xrange(ndet)]   # Dict parameters for tilt fitting
-        self._satmask  = [None for all in xrange(ndet)]   # Array of Arc saturation streaks
-        self._arcparam = [None for all in xrange(ndet)]   # Dict guiding wavelength calibration
-        self._wvcalib  = [None for all in xrange(ndet)]   #
-        self._resnarr  = [None for all in xrange(ndet)]   # Resolution array
+        self._nspec    = [None for all in range(ndet)]   # Number of spectral pixels
+        self._nspat    = [None for all in range(ndet)]   # Number of spatial pixels
+        self._ampsec   = [None for all in range(ndet)]   # Locations of the amplifiers on each detector
+        self._pixlocn  = [None for all in range(ndet)]   # Physical locations of each pixel on the detector
+        self._lordloc  = [None for all in range(ndet)]   # Array of slit traces (left side) in physical pixel coordinates
+        self._rordloc  = [None for all in range(ndet)]   # Array of slit traces (left side) in physical pixel coordinates
+        self._pixcen   = [None for all in range(ndet)]   # Central slit traces in apparent pixel coordinates
+        self._pixwid   = [None for all in range(ndet)]   # Width of slit (at each row) in apparent pixel coordinates
+        self._lordpix  = [None for all in range(ndet)]   # Array of slit traces (left side) in apparent pixel coordinates
+        self._rordpix  = [None for all in range(ndet)]   # Array of slit traces (right side) in apparent pixel coordinates
+        self._tilts    = [None for all in range(ndet)]   # Array of spectral tilts at each position on the detector
+        self._tiltpar  = [None for all in range(ndet)]   # Dict parameters for tilt fitting
+        self._satmask  = [None for all in range(ndet)]   # Array of Arc saturation streaks
+        self._arcparam = [None for all in range(ndet)]   # Dict guiding wavelength calibration
+        self._wvcalib  = [None for all in range(ndet)]   #
+        self._resnarr  = [None for all in range(ndet)]   # Resolution array
         # Initialize the Master Calibration frames
-        self._bpix = [None for all in xrange(ndet)]          # Bad Pixel Mask
-        self._msarc = [None for all in xrange(ndet)]         # Master Arc
-        self._mswave = [None for all in xrange(ndet)]         # Master Wavelength image
-        self._msbias = [None for all in xrange(ndet)]        # Master Bias
-        self._msrn = [None for all in xrange(ndet)]          # Master ReadNoise image
-        self._mstrace = [None for all in xrange(ndet)]       # Master Trace
-        self._mspixflat = [None for all in xrange(ndet)]     # Master pixel flat
-        self._mspixflatnrm = [None for all in xrange(ndet)]  # Normalized Master pixel flat
-        self._msblaze = [None for all in xrange(ndet)]       # Blaze function
-        self._msstd = [{} for all in xrange(ndet)]           # Master Standard dict
+        self._bpix = [None for all in range(ndet)]          # Bad Pixel Mask
+        self._msarc = [None for all in range(ndet)]         # Master Arc
+        self._mswave = [None for all in range(ndet)]         # Master Wavelength image
+        self._msbias = [None for all in range(ndet)]        # Master Bias
+        self._msrn = [None for all in range(ndet)]          # Master ReadNoise image
+        self._mstrace = [None for all in range(ndet)]       # Master Trace
+        self._mspixflat = [None for all in range(ndet)]     # Master pixel flat
+        self._mspixflatnrm = [None for all in range(ndet)]  # Normalized Master pixel flat
+        self._msblaze = [None for all in range(ndet)]       # Blaze function
+        self._msstd = [{} for all in range(ndet)]           # Master Standard dict
         # Initialize the Master Calibration frame names
-        self._msarc_name = [None for all in xrange(ndet)]      # Master Arc Name
-        self._msbias_name = [None for all in xrange(ndet)]     # Master Bias Name
-        self._mstrace_name = [None for all in xrange(ndet)]    # Master Trace Name
-        self._mspixflat_name = [None for all in xrange(ndet)]  # Master Pixel Flat Name
+        self._msarc_name = [None for all in range(ndet)]      # Master Arc Name
+        self._msbias_name = [None for all in range(ndet)]     # Master Bias Name
+        self._mstrace_name = [None for all in range(ndet)]    # Master Trace Name
+        self._mspixflat_name = [None for all in range(ndet)]  # Master Pixel Flat Name
         # Initialize the science, variance, and background frames
-        self._sciframe = [None for all in xrange(ndet)]
-        self._rawvarframe = [None for all in xrange(ndet)]    # Variance based on detected counts + RN
-        self._modelvarframe = [None for all in xrange(ndet)]  # Variance from sky and object models
-        self._bgframe = [None for all in xrange(ndet)]
-        self._scimask = [None for all in xrange(ndet)]        # Mask (1=Bad pix; 2=CR)
-        self._scitrace = [None for all in xrange(ndet)]
-        self._specobjs = [None for all in xrange(ndet)]
+        self._sciframe = [None for all in range(ndet)]
+        self._rawvarframe = [None for all in range(ndet)]    # Variance based on detected counts + RN
+        self._modelvarframe = [None for all in range(ndet)]  # Variance from sky and object models
+        self._bgframe = [None for all in range(ndet)]
+        self._scimask = [None for all in range(ndet)]        # Mask (1=Bad pix; 2=CR)
+        self._scitrace = [None for all in range(ndet)]
+        self._specobjs = [None for all in range(ndet)]
         # Initialize some extraction products
-        self._ext_boxcar = [None for all in xrange(ndet)]
-        self._ext_optimal = [None for all in xrange(ndet)]
+        self._ext_boxcar = [None for all in range(ndet)]
+        self._ext_optimal = [None for all in range(ndet)]
         return
 
     def SetBaseName(self, fitsdict):
@@ -256,7 +256,7 @@ class ScienceExposure:
             self._spect['det'][det-1]['ygap'] = tmp
             self._spect['det'][det-1]['ysize'] = 1.0/self._spect['det'][det-1]['ysize']
             # Update the amplifier/data/overscan sections
-            for i in xrange(self._spect['det'][det-1]['numamplifiers']):
+            for i in range(self._spect['det'][det-1]['numamplifiers']):
                 # Flip the order of the sections
                 self._spect['det'][det-1]['ampsec{0:02d}'.format(i+1)] = self._spect['det'][det-1]['ampsec{0:02d}'.format(i+1)][::-1]
                 self._spect['det'][det-1]['datasec{0:02d}'.format(i+1)] = self._spect['det'][det-1]['datasec{0:02d}'.format(i+1)][::-1]
@@ -336,7 +336,7 @@ class ScienceExposure:
                                                   satlevel=self._spect['det']['saturation']*self._spect['det']['nonlinear'])
                     subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
                     numarr = np.array([])
-                    for i in xrange(len(sframes)):
+                    for i in range(len(sframes)):
                         numarr = np.append(numarr, sframes[i].shape[2])
                         msarc = arcomb.comb_frames(sframes[i], det, spect=self._spect,
                                                    frametype='arc', **self._argflag['arc']['comb'])
@@ -513,7 +513,7 @@ class ScienceExposure:
                                                       frametype='pixel flat', satlevel=self._nonlinear)
                         subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
                         numarr = np.array([])
-                        for i in xrange(len(sframes)):
+                        for i in range(len(sframes)):
                             numarr = np.append(numarr, sframes[i].shape[2])
                             mspixflat = arcomb.comb_frames(sframes[i], det, spect=self._spect, frametype='pixel flat',
                                                            **self._argflag['pixflat']['comb'])
@@ -604,7 +604,7 @@ class ScienceExposure:
                     sframes = arsort.match_frames(frames, self._argflag['reduce']['flatmatch'], msgs, frametype='trace', satlevel=self._spect['det'][det-1]['saturation']*self._spect['det'][det-1]['nonlinear'])
                     subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
                     numarr = np.array([])
-                    for i in xrange(len(sframes)):
+                    for i in range(len(sframes)):
                         numarr = np.append(numarr, sframes[i].shape[2])
                         mstrace = arcomb.comb_frames(sframes[i], det, spect=self._spect, frametype='trace', **self._argflag['trace']['comb'])
                         subframes[:,:,i] = mstrace.copy()
@@ -747,7 +747,7 @@ class ScienceExposure:
         ind = [ind[0]]
         # Extract
         all_specobj = []
-        for kk in xrange(self._spect['mosaic']['ndet']):
+        for kk in range(self._spect['mosaic']['ndet']):
             det = kk+1
             # Load the frame(s)
 #            set_trace()

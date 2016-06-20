@@ -283,12 +283,12 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, root='trace', outfil=None, normaliz
     # Normalize flux in the traces
     if normalize:
         nrm_frame = np.zeros_like(frame)
-        for ii in xrange(ntrc):
+        for ii in range(ntrc):
             xtrc = (ltrace[:,ii] + rtrace[:,ii])/2.
             ixtrc = np.round(xtrc).astype(int)
             # Simple 'extraction'
             dumi = np.zeros( (frame.shape[0],3) )
-            for jj in xrange(3):
+            for jj in range(3):
                 dumi[:,jj] = frame[ycen,ixtrc-1+jj]
             trc = np.median(dumi, axis=1)
             # Find portion of the image and normalize
@@ -324,7 +324,7 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, root='trace', outfil=None, normaliz
     plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
 
     # Traces
-    for ii in xrange(ntrc):
+    for ii in range(ntrc):
         # Left
         plt.plot(ltrace[:,ii]+0.5, ycen, 'r--',alpha=0.7)
         # Right
@@ -415,12 +415,12 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
     # Normalize flux in the traces
     if normalize:
         nrm_frame = np.zeros_like(frame)
-        for ii in xrange(ntrc):
+        for ii in range(ntrc):
             xtrc = (ltrace[:,ii] + rtrace[:,ii])/2.
             ixtrc = np.round(xtrc).astype(int)
             # Simple 'extraction'
             dumi = np.zeros( (frame.shape[0],3) )
-            for jj in xrange(3):
+            for jj in range(3):
                 dumi[:,jj] = frame[ycen,ixtrc-1+jj]
             trc = np.median(dumi, axis=1)
             # Find portion of the image and normalize
@@ -457,7 +457,7 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
                     labelbottom='off', labelleft='off')
 
     # Traces
-    for ii in xrange(ntrc):
+    for ii in range(ntrc):
         if extslit[ii] is True: ptyp = ':'
         else: ptyp = '--'
         # Left

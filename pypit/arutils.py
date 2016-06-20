@@ -779,7 +779,7 @@ def poly_iterfit(x,y,ordr,maxrej=5):
         chisqp = chisqn
         wrng = np.arange(xfit.size)
         chisq = np.zeros(xfit.size)
-        for i in xrange(xfit.size):
+        for i in range(xfit.size):
             sel = np.delete(wrng,i)
             c=np.polyfit(xfit[sel],yfit[sel],ordr)
             m=np.polyval(c,xfit[sel])
@@ -801,9 +801,9 @@ def rebin(frame, newshape):
     lenShape = len(shape)
     factor = np.asarray(shape)/np.asarray(newshape)
     evList = ['frame.reshape('] + \
-             ['newshape[%d],factor[%d],'%(i,i) for i in xrange(lenShape)] + \
-             [')'] + ['.sum(%d)'%(i+1) for i in xrange(lenShape)] + \
-             ['/factor[%d]'%i for i in xrange(lenShape)]
+             ['newshape[%d],factor[%d],'%(i,i) for i in range(lenShape)] + \
+             [')'] + ['.sum(%d)'%(i+1) for i in range(lenShape)] + \
+             ['/factor[%d]'%i for i in range(lenShape)]
     return eval(''.join(evList))
 
 
@@ -913,7 +913,7 @@ def robust_regression(x, y, ordr, outfrac, maxiter=100, function='polynomial', m
         mad = np.median(diff)
         w=np.argsort(diff)
         inds=-1
-        for j in xrange(0,xsize-slct):
+        for j in range(0,xsize-slct):
             temp = ind[w[-1]]
             ind[w[-1]] = indx[slct+j]
             indx[slct+j] = temp
