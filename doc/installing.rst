@@ -168,7 +168,19 @@ This may fail given that ``GSL_PATH`` is no longer defined.  To pass your enviro
 
   sudo -E python setup.py develop
 
-  
+You should then ensure that PYPIT is on the PATH, and your PYTHONPATH, by adding the following lines to your .bashrc, .tcshrc, or .cshrc file.
+If you are using bash::
+
+	export PATH=$PATH:'/Users/USERNAME/software/PYPIT/bin'
+	export PYTHONPATH=$PYTHONPATH:'/Users/USERNAME/software/PYPIT/pypit'
+
+If instead you are using tcsh or csh::
+
+	setenv PATH ${PATH}:"/Users/USERNAME/software/PYPIT/bin"
+	setenv PYTHONPATH ${PYTHONPATH}:"/Users/USERNAME/software/PYPIT/pypit"
+
+
+
 Tests
 =====
 In order to assess whether PYPIT has been properly installed, we suggest you run the following tests:
