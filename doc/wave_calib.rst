@@ -33,7 +33,7 @@ existing instrument.
 In the method setup_param, add the new disperser to the
 list, under the appropriate instrument. In setup_param,
 all the defaults for all instruments and gratings are listed
-first:
+first::
 
     # Defaults
     arcparam = dict(llist='',
@@ -52,13 +52,13 @@ first:
 
 Find the instrument you'd like to add a grating to. For
 example, to add the 1200/5000 grating to KAST red, the
-section of interest would be:
+section of interest would be::
 
     elif sname=='kast_red':
         lamps = ['HgI','NeI','ArI']
         #arcparam['llist'] = slf._argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
 
-And the following lines should be added:
+And the following lines should be added::
 
         elif disperser == '1200/5000':
             arcparam['disp']=1.17 # This information is on the instrument's website
@@ -68,7 +68,7 @@ And the following lines should be added:
 
 Now in armlsd.py, put a stop after wavelength calibration
 to check that the arc lines were correctly identified for
-this new disperser. To do this, in method ARMLSD, find:
+this new disperser. To do this, in method ARMLSD, find::
 
                 # Extract arc and identify lines
                 wv_calib = ararc.simple_calib(slf, det)
