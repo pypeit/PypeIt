@@ -24,6 +24,7 @@ def test_arcid_plot():
     pargs = arcid_plot.parser([json_file, 'LRISb', 'tmp.pdf'])
     # Run
     arcid_plot.main(pargs)
+"""
 
 
 '''
