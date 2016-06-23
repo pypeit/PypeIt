@@ -169,13 +169,13 @@ def dummy_self(pypitdir=None, inum=0, fitsdict=None, nfile=10):
     from pypit import arload
     # Dummy dicts
     spect = arload.load_spect(pypit.__file__, 'kast_blue')
+    kk = 0
     for jj,key in enumerate(spect.keys()):
         if key in ['det']:
             continue
-        try:
-            spect[key]['index'] = [[jj]*nfile]
-        except KeyError:
-            pass
+        if 'index' in spect[key].keys():
+            spect[key]['index'] = [[kk]*nfile]
+            kk += 1
     argflag = arload.argflag_init()
     if fitsdict is None:
         fitsdict = dummy_fitsdict(nfile=nfile)

@@ -124,6 +124,10 @@ class ScienceExposure:
           Contains relevant information from fits header files
         """
         scidx = self._idx_sci[0]
+        try:
+            "T" in fitsdict['date'][scidx]
+        except IndexError:
+            debugger.set_trace()
         if "T" in fitsdict['date'][scidx]:
             tbname = fitsdict['date'][scidx]
         else:
