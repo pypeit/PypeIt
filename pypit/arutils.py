@@ -151,7 +151,7 @@ def dummy_fitsdict(nfile=10):
     return fitsdict
 
 
-def dummy_self(pypitdir=None, inum=0, fitsdict=None):
+def dummy_self(pypitdir=None, inum=0, fitsdict=None, nfile=10):
     """
     Generate a dummy self class for testing
     Parameters:
@@ -173,12 +173,12 @@ def dummy_self(pypitdir=None, inum=0, fitsdict=None):
         if key in ['det']:
             continue
         try:
-            spect[key]['index'] = [[jj]*10]
+            spect[key]['index'] = [[jj]*nfile]
         except KeyError:
             pass
     argflag = arload.argflag_init()
     if fitsdict is None:
-        fitsdict = dummy_fitsdict()
+        fitsdict = dummy_fitsdict(nfile=nfile)
     # Dummy Class
     slf = arsciexp.ScienceExposure(inum, argflag, spect, fitsdict, do_qa=False)
     #
