@@ -103,14 +103,14 @@ class Messages:
         return header
 
     def usage(self, prognm):
-        stgs_arm = glob(dirname(__file__)+"/settings.arm*")
-        stgs_all = glob(dirname(__file__)+"/settings.*")
+        stgs_arm = glob(dirname(__file__)+"/settings/settings.arm*")
+        stgs_all = glob(dirname(__file__)+"/settings/settings.*")
         stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
         armlist = basename(stgs_arm[0]).split(".")[-1]
-        for i in xrange(1, len(stgs_arm)):
+        for i in range(1, len(stgs_arm)):
             armlist += ", " + basename(stgs_arm[i]).split(".")[-1]
         spclist = basename(stgs_spc[0]).split(".")[-1]
-        for i in xrange(1, len(stgs_spc)):
+        for i in range(1, len(stgs_spc)):
             spclist += ", " + basename(stgs_spc[i]).split(".")[-1]
         spcl = wraptext(spclist, width=60)
         #print("\n#################################################################")

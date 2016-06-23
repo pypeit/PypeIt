@@ -125,7 +125,7 @@ def init_exp(slf, scidx, det, fitsdict, trc_img=None, ypos=0.5, **kwargs):
     pixr_slits = slf._rordloc[det-1][yidx, :]
     #
     if trc_img['nobj'] != 0: # Object traces
-        for qq in xrange(trc_img['traces'].shape[1]): # Loop on objects
+        for qq in range(trc_img['traces'].shape[1]): # Loop on objects
             # Find the slit
             gds = np.where( (trc_img['traces'][yidx,qq]>pixl_slits) & 
                 (trc_img['traces'][yidx,qq]<pixr_slits))[0]

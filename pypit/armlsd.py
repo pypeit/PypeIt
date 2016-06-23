@@ -78,7 +78,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
         if reloadMaster and (sc > 0):
             slf._argflag['masters']['use'] = True
         # Loop on Detectors
-        for kk in xrange(slf._spect['mosaic']['ndet']):
+        for kk in range(slf._spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             slf.det = det
             ###############
@@ -241,7 +241,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
         #
         msgs.work("Consider using archived sensitivity if not found")
         msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
-        for kk in xrange(slf._spect['mosaic']['ndet']):
+        for kk in range(slf._spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             arflux.apply_sensfunc(slf, det, scidx, fitsdict)
 
