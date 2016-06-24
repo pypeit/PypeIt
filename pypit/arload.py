@@ -479,11 +479,11 @@ def load_spect(progname, specname, spect=None, lines=None):
       Name of the program
     specname : string
       Name of spectrograph settings file
-    spect : dict
+    spect : dict, optional
       Properties of the spectrograph.
       If None, spect will be created, otherwise spect
       will be updated.
-    lines : list
+    lines : list, optional
       Input (uncommented) lines specified by the user.
       lines contains a list of user-specified changes
       that should be made to the default spectrograph
