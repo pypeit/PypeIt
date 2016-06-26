@@ -10,6 +10,7 @@
 \usepackage{multicol}
 \usepackage{enumitem}
 %\usepackage{setspace}
+\usepackage[parfill]{parskip}
 
 \pretolerance=10000
 \textwidth=6.4in
@@ -21,7 +22,7 @@
 \headsep=0.20in
 \oddsidemargin=0in
 \evensidemargin=0in
-\parindent=2em
+\parindent=0em
 \parskip=0.25ex
  
 %\input{defs_xavier}
@@ -87,7 +88,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \vskip 0.2in
 
-\noindent 
+{}
+\noindent
 \uline{Brief Introduction:} \\
 PYPIT is a public, Python-based data reduction pipeline
 (DRP) package for astronomical optical spectroscopy.
@@ -97,12 +99,13 @@ Its governing philosophy is to apply modern data reduction
 techniques to a set of raw data files to produce
 science-grade, calibrated spectra (1D spectra; 2D spectral
 images) with minimal user interaction\footnote{The code
-does generate quality assurance (QA output to assess
+does generate quality assurance (QA) output to assess
 performance.}.  Our efforts with PYPIT are primarily driven by 
 our scientific interests and needs, but these
 are broad and involve nearly every optical/IR spectrometer
 on large aperture telescopes.
 
+\parindent=2em
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \vskip 0.2in
@@ -169,18 +172,19 @@ funded in part by UCO (DEIMOS, APF).
   \begin{my_enumerate}
   \item Bias frames
   \item Flat field images
+  \item Sky spectra
   \end{my_enumerate}
 \item Source deblending
-\item Calibraton archiving
 \item Testing 
   \begin{my_enumerate}
   \item Additional unit tests ($>90\%$ coverage)
   \item Additional test suites
   \end{my_enumerate}
 \item Web-based QA
-\item Quick look software 
+\item Quick reduce software at the telescope
   \begin{my_enumerate}
-  \item For `immediate' S/N feedback
+  \item S/N and spectrum plots `immediately' after a science exposure
+  \item Without user knowledge of PYPIT!
   \end{my_enumerate}
 \item Manage code architecture
 \end{my_enumerate}
@@ -223,7 +227,7 @@ funded in part by UCO (DEIMOS, APF).
     \begin{my_itemize}
     \item Low-dispersion
     \end{my_itemize}
-  \item Lick/SHARCS?
+  \item Lick/Hamilton Spectrograph
   \end{my_itemize}
 \item Year 2
   \begin{my_itemize}
