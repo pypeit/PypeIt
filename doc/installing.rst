@@ -49,7 +49,7 @@ If any of the packages are out of date, they can be updated with a command like:
 
 Installing Linetools
 --------------------
-The latest version of `Linetools <https://github.com/linetools/linetools/>`_ is
+The latest version of `linetools <https://github.com/linetools/linetools/>`_ is
 also required for PYPIT.
 Linetools is a package designed for the analysis of 1-D spectra.
 The installation steps for linetools are provided
@@ -154,16 +154,6 @@ or::
 	python setup.py install
 
 This should compile all the necessary Cython files, etc.
-
-
-In some cases (depending on how python is installed on your system), you may need super user privileges to install, e.g.::
-
-  sudo python setup.py develop
-
-This may fail given that ``GSL_PATH`` is no longer defined.  To pass your environment variables through sudo, use::
-
-  sudo -E python setup.py develop
-
 
 Tests
 =====

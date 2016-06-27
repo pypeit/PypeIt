@@ -27,7 +27,6 @@ Contents
    setup 
    running
    outputs
-   wave_calib
    scripts
    wave_calib
    api
