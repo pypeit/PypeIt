@@ -123,7 +123,6 @@ found `here <https://www.quora.com/How-do-I-turn-off-the-rootless-in-OS-X-El-Cap
 
 **3) Install GSL with Homebrew instead of Anaconda**
 
-
 Since `Homebrew <http://brew.sh/>`_ installs programs in /usr/local , which is not SIP protected, this should work without additional hacks.::
 
   brew install gsl
