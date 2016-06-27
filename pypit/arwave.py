@@ -75,9 +75,11 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     if obj_med_sig2 >= arx_med_sig2:
         smooth_sig = np.sqrt(obj_med_sig2-arx_med_sig2)  # Ang
         smooth_sig_pix = smooth_sig / np.median(arx_disp[arx_idx])
+        arx_skyspec = arx_skyspec.gauss_smooth(smooth_sig_pix*2*np.sqrt(2*np.log(2)))
     else:
         msgs.warn("Prefer archival sky spectrum to have higher resolution")
         smooth_sig_pix = 0.
+        msgs.warn("New Sky has higher resolution than Archive.  Not smoothing")
         #smooth_sig = np.sqrt(arx_med_sig**2-obj_med_sig**2)
 
     #Determine region of wavelength overlap
@@ -85,12 +87,12 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     max_wave = min(np.amax(arx_skyspec.wavelength.value), np.amax(obj_skyspec.wavelength.value))
 
     #Smooth higher resolution spectrum by smooth_sig (flux is conserved!)
-    if np.median(obj_res) >= np.median(arx_res):
-        msgs.warn("New Sky has higher resolution than Archive.  Not smoothing")
+#    if np.median(obj_res) >= np.median(arx_res):
+#        msgs.warn("New Sky has higher resolution than Archive.  Not smoothing")
         #obj_sky_newflux = ndimage.gaussian_filter(obj_sky.flux, smooth_sig)
-    else:
+#    else:
         #tmp = ndimage.gaussian_filter(arx_sky.flux, smooth_sig)
-        arx_skyspec = arx_skyspec.gauss_smooth(smooth_sig_pix*2*np.sqrt(2*np.log(2)))
+#        arx_skyspec = arx_skyspec.gauss_smooth(smooth_sig_pix*2*np.sqrt(2*np.log(2)))
         #arx_sky.flux = ndimage.gaussian_filter(arx_sky.flux, smooth_sig)
 
     # Define wavelengths of overlapping spectra
