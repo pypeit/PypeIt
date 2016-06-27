@@ -324,6 +324,7 @@ def airtovac(wave):
 
     return new_wave
 
+
 def vactoair(wave):
     """Convert to air-based wavelengths from vacuum
 

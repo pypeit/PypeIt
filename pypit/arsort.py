@@ -61,7 +61,7 @@ def sort_data(argflag, spect, fitsdict):
     filarr = np.zeros((len(fkey), numfiles), dtype=np.int)
     setarr = np.zeros((len(fkey), numfiles), dtype=np.int)
     # Identify the frames:
-    for i in xrange(len(fkey)):
+    for i in range(len(fkey)):
         # Self identification
         if argflag['run']['use_idname']:
             w = np.where(fitsdict['idname'] == spect[fkey[i]]['idname'])[0]
@@ -78,7 +78,7 @@ def sort_data(argflag, spect, fitsdict):
                 conds = re.split("(\||\&)", spect[fkey[i]]['check'][ch])
                 ntmp = chk_condition(fitsdict, conds[0])
                 # And more
-                for cn in xrange((len(conds)-1)//2):
+                for cn in range((len(conds)-1)//2):
                     if conds[2*cn+1] == "|":
                         ntmp = ntmp | chk_condition(fitsdict, conds[2*cn+2])
                     elif conds[2*cn+1] == "&":
@@ -106,7 +106,7 @@ def sort_data(argflag, spect, fitsdict):
 #			msgs.info("Clash with file identifications when assigning frames as type {0:s}:".format(fkey[i]))
 #			# Check if this clash is allowed:
 #			clashfound=False
-#			for b in xrange(np.size(bdf)):
+#			for b in range(np.size(bdf)):
 #				# For each file with a clash, get all frames that have been assigned to it
 #				tarr = np.where(filarr[:,n[bdf[b]]]==1)[0]
 #				for a in tarr:
@@ -121,7 +121,7 @@ def sort_data(argflag, spect, fitsdict):
     # Identify the standard stars
     # Find the nearest standard star to each science frame
     wscistd = np.where(filarr[np.where(fkey == 'standard')[0], :].flatten() == 1)[0]
-    for i in xrange(wscistd.size):
+    for i in range(wscistd.size):
 #        set_trace()
         radec = (fitsdict['ra'][wscistd[i]], fitsdict['dec'][wscistd[i]])
         # If an object exists within 20 arcmins of a listed standard, then it is probably a standard star
@@ -144,7 +144,7 @@ def sort_data(argflag, spect, fitsdict):
     badfiles = np.where(np.sum(filarr, axis=0) == 0)[0]
     if np.size(badfiles) != 0:
         msgs.info("Couldn't identify the following files:")
-        for i in xrange(np.size(badfiles)):
+        for i in range(np.size(badfiles)):
             msgs.info(fitsdict['filename'][badfiles[i]])
         msgs.error("Check these files and your settings.{0:s} file before continuing".format(argflag['run']['spectrograph']))
     # Now identify the dark frames
@@ -152,7 +152,7 @@ def sort_data(argflag, spect, fitsdict):
         (fitsdict['exptime'].astype(np.float64) > spect['mosaic']['minexp']))[0]
     ftag['dark'] = wdark
     # Store the frames in the ftag array
-    for i in xrange(len(fkey)):
+    for i in range(len(fkey)):
         ftag[fkey[i]] = np.where(filarr[i,:] == 1)[0]
     # Finally check there are no duplicates (the arrays will automatically sort with np.unique)
     msgs.info("Finalising frame sorting, and removing duplicates")
@@ -261,12 +261,12 @@ def sort_write(sortname, spect, fitsdict, filesort, space=3):
     # Define VOTable fields
     tabarr=[]
     # Insert the filename and filetype first
-    for i in xrange(len(prord)):
+    for i in range(len(prord)):
         tabarr.append(Field(votable, name=prord[i], datatype=prdtp[i], arraysize="*"))
     table.fields.extend(tabarr)
     table.create_arrays(nfiles)
     filtyp = filesort.keys()
-    for i in xrange(nfiles):
+    for i in range(nfiles):
         values = ()
         for pr in prord:
             if pr == 'frametype':
@@ -300,7 +300,7 @@ def sort_write(sortname, spect, fitsdict, filesort, space=3):
             msgs.warn('{:s} keyword not used'.format(pr))
         else:
             clm = []
-            for i in xrange(nfiles):
+            for i in range(nfiles):
                 clm.append(table.array[i][lidx])
             clms.append(Column(clm, name=pr))
     # Create Table
@@ -350,7 +350,7 @@ def match_science(argflag, spect, fitsdict, filesort):
         msgs.info("Matching calibrations to {0:s}".format(fitsdict['target'][iSCI[i]]))
         spect['science']['index'].append(np.array([iSCI[i]]))
         # Find nearby calibration frames
-        for ft in xrange(len(ftag)):
+        for ft in range(len(ftag)):
             # Some checks first to make sure we need to find matching frames
             if ftag[ft] == 'dark' and argflag['reduce']['usebias'] != 'dark':
                 msgs.info("  Dark frames not required")
@@ -496,9 +496,9 @@ def match_frames(frames, criteria, frametype='<None>', satlevel=None):
     msgs.bug("Throughout this routine, you should probably search for the mean of the non-saturated pixels")
     tsrta[0] /= np.mean(tsrta[0])
     tsrtb[0] /= np.mean(tsrtb[0])
-    for fr in xrange(1, frames.shape[2]):
+    for fr in range(1, frames.shape[2]):
         fm = None
-        for st in xrange(len(srtframes)):
+        for st in range(len(srtframes)):
             tmata = frames[frsh0/2,:,fr]
             tmatb = frames[:,frsh1/2,fr]
             tmata /= np.mean(tmata)
@@ -552,9 +552,9 @@ def match_frames_old(slf, frames, frametype='<None>'):
     prob  = arutils.erf(slf._argflag['reduce']['flatmatch']/np.sqrt(2.0))[0]
 #	chisqv = chisq.ppf(prob,frames.shape[0]*frames.shape[1])
     chisqv = frames.shape[0]*frames.shape[1]
-    for fr in xrange(1,frames.shape[2]):
+    for fr in range(1,frames.shape[2]):
         fm = None
-        for st in xrange(len(srtframes)):
+        for st in range(len(srtframes)):
             chisqc = arcyutils.checkmatch(srtframes[st][:,:,0],frames[:,:,fr],1048577.0)
             if chisqc < chisqv*10.0:
                 fm = st
@@ -619,7 +619,7 @@ def make_dirs(argflag, fitsdict, filesort):
     nored = np.array([])
     # Create directories
     rmalways = False
-    for i in xrange(sci_targs.size):
+    for i in range(sci_targs.size):
         sci_targs[i] = sci_targs[i].replace(' ', '_')
         newdir = "{0:s}/{1:s}/{2:s}".format(currDIR, argflag['run']['scidir'], sci_targs[i])
         if os.path.exists(newdir):

@@ -283,7 +283,7 @@ def load_calspec(argflag):
     return calspec_path, calspec_stds
 
 
-def load_extinction_data(slf, toler=1.*u.deg):
+def load_extinction_data(slf, toler=5.*u.deg):
     """
     Find the best extinction file to use, based on longitude and latitude
     Loads it and returns a Table
@@ -292,8 +292,8 @@ def load_extinction_data(slf, toler=1.*u.deg):
     ----------
     slf : class
       Includes mosaic lon/lat
-    toler : Angle
-      Tolerance for matching detector to site (1 deg)
+    toler : Angle, optional
+      Tolerance for matching detector to site (5 deg)
 
     Returns
     -------

@@ -57,7 +57,7 @@ def ARMED(argflag, spect, fitsdict, reuseMaster=False):
         scidx = slf._idx_sci[0]
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
         # Loop on Detectors
-        for kk in xrange(slf._spect['mosaic']['ndet']):
+        for kk in range(slf._spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             ###############
             # Get amplifier sections

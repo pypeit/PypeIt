@@ -1,6 +1,13 @@
 # PYPIT
 The Python Spectroscopic Data Reduction Pipeline
 
+# Instruments Served
+* Keck/LRIS 
+* Lick/Kast 
+* WHT/ISIS
+* Keck/DEIMOS (coming soon)
+* Lick/APF (planned)
+
 # Requirements
 * python
 * numpy

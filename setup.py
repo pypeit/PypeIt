@@ -107,7 +107,7 @@ for path, directories, files in data_generator:
         data_path = '/'.join(path.split('/')[1:])
         data_files.append(data_path + '/' + f)
 # add pipeline and spectrograph settings
-settings = glob.glob('pypit/settings.*')
+settings = glob.glob('pypit/settings/settings.*')
 settings = ['/'.join(path.split('/')[1:]) for path in settings]
 data_files.extend(settings)
 setup_keywords['package_data'] = {'pypit': data_files,
