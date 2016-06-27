@@ -28,6 +28,8 @@ Contents
    running
    outputs
    wave_calib
+   scripts
+   wave_calib
    api
 
 
