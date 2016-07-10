@@ -156,27 +156,29 @@ def set_params_wtype(tvalue, svalue, lines="", setstr="", argnum=3):
         elif type(tvalue) is float:
             tvalue = float(svalue)
         elif type(tvalue) is list:
-            if ',' in svalue:
-                temp = svalue.lstrip('([').rstrip(')]').split(',')
-                addarr = []
-                # Find the type of the array elements
-                for i in temp:
-                    if i.lower() == 'none': # None type
-                        addarr += [None]
-                    elif i.lower() == 'true' or i.lower() == 'false': # bool type
-                        addarr += [i.lower() in ['true']]
-                    elif ',' in i: # a list
-                        addarr += i.lstrip('([').rstrip('])').split(',')
-                        msgs.bug("list in a list could cause trouble if elements are not strings!")
-                    elif '.' in i: # Might be a float
-                        try: addarr += [float(i)]
-                        except: addarr += [i] # Must be a string
-                    else:
-                        try: addarr += [int(i)] # Could be an integer
-                        except: addarr += [i] # Must be a string
-                tvalue = addarr
+            if svalue.lower() == 'none': tvalue = None
             else:
-                tvalue.append(svalue)
+                if ',' in svalue:
+                    temp = svalue.lstrip('([').rstrip(')]').split(',')
+                    addarr = []
+                    # Find the type of the array elements
+                    for i in temp:
+                        if i.lower() == 'none': # None type
+                            addarr += [None]
+                        elif i.lower() == 'true' or i.lower() == 'false': # bool type
+                            addarr += [i.lower() in ['true']]
+                        elif ',' in i: # a list
+                            addarr += i.lstrip('([').rstrip('])').split(',')
+                            msgs.bug("list in a list could cause trouble if elements are not strings!")
+                        elif '.' in i: # Might be a float
+                            try: addarr += [float(i)]
+                            except: addarr += [i] # Must be a string
+                        else:
+                            try: addarr += [int(i)] # Could be an integer
+                            except: addarr += [i] # Must be a string
+                    tvalue = addarr
+                else:
+                    tvalue.append(svalue)
         elif type(tvalue) is bool:
             tvalue = svalue.lower() in ['true']
         elif tvalue is None: # If it was None, it may not be anymore. We now need to find the new type
