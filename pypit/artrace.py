@@ -311,14 +311,18 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     """
     msgs.info("Preparing trace frame for order edge detection")
     # Generate a binned version of the trace frame
-    msgs.work("binby=1 makes this slow and ineffective -- increase this to 10, and add as a parameter of choice by the user")
-    binby = 5
-    binarr = arcyutils.bin_x(mstrace, binby, 0)
-    binbpx = arcyutils.bin_x(slf._bpix[det-1], binby, 0)
-    plxbin = arcyutils.bin_x(slf._pixlocn[det-1][:,:,0], binby, 1)
-    plybin = arcyutils.bin_x(slf._pixlocn[det-1][:,:,1], binby, 1)
+    binarr = mstrace.copy()
+    binbpx = slf._bpix[det-1].copy()
+    plxbin = slf._pixlocn[det-1][:, :, 0].copy()
+    plybin = slf._pixlocn[det-1][:, :, 1].copy()
+#    msgs.work("binby=1 makes this slow and ineffective -- increase this to 10, and add as a parameter of choice by the user")
+#    binby = 5
+#    binarr = arcyutils.bin_x(mstrace, binby, 0)
+#    binbpx = arcyutils.bin_x(slf._bpix[det-1], binby, 0)
+#    plxbin = arcyutils.bin_x(slf._pixlocn[det-1][:,:,0], binby, 1)
+#    plybin = arcyutils.bin_x(slf._pixlocn[det-1][:,:,1], binby, 1)
     msgs.info("Detecting order edges")
-    #debugger.set_trace()
+    medrep = 3  # How many times to repeat the median filter
     if singleSlit:
         edgearr = np.zeros(binarr.shape, dtype=np.int)
         detect = True
@@ -341,7 +345,10 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
                 detect = False
         if detect:
             msgs.info("Detecting slit edges")
-            filt = ndimage.sobel(binarr, axis=1, mode='constant')
+            sqmstrace = np.sqrt(np.abs(binarr))
+            for ii in range(medrep):
+                sqmstrace = ndimage.median_filter(sqmstrace, size=(3, 5))
+            filt = ndimage.sobel(sqmstrace, axis=1, mode='constant')
             msgs.info("Applying bad pixel mask")
             filt *= (1.0-binbpx)  # Apply to the old detection algorithm
             amin = np.argmin(filt, axis=1)
@@ -352,10 +359,15 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     else:
         ######
         # Old detection algorithm
-        tedgear = arcytrace.detect_edges(binarr, slf._dispaxis)
-        #arutils.ds9plot(tedgear)
+#        tedgear = arcytrace.detect_edges(binarr, slf._dispaxis)
         ######
-        # New detection algorithm
+        msgs.info("Detecting slit edges")
+        sqmstrace = np.sqrt(np.abs(binarr))
+        for ii in range(medrep):
+            sqmstrace = ndimage.median_filter(sqmstrace, size=(3, 5))
+        filt = ndimage.sobel(sqmstrace, axis=1, mode='constant')
+        siglev = np.sign(filt)*(filt**2)/sqmstrace
+
         # First do left edges
         troll = np.roll(binarr, 1, axis=1-slf._dispaxis)
         if slf._dispaxis == 0:
