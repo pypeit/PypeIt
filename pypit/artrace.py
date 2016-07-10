@@ -311,8 +311,21 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     """
     msgs.info("Preparing trace frame for order edge detection")
     # Generate a binned version of the trace frame
-    binarr = mstrace.copy()
-    binbpx = slf._bpix[det-1].copy()
+    if False:
+        binarr = mstrace.copy()
+        binbpx = slf._bpix[det-1].copy()
+    else:
+        filename = "/Users/rcooke/Desktop/edge_detect/"
+        filename += "MasterTrace_01_Asher_DEIMOS_CHIP1.fits"
+        #filename += "MasterTrace_01_APFLevy.fits"
+        #filename += "MasterTrace_01_Nicolas_MOS_LRIS.fits"
+        #filename += "MasterTrace_01_Camille.fits"
+        #filename += "MasterTrace_01_Zheng_LRISb_MOS.fits"
+        # Open up the data
+        import astropy.io.fits as pyfits
+        binarr = pyfits.open(filename)[0].data.astype(np.float)
+        binbpx = np.zeros(binarr.shape, dtype=np.int)
+
     plxbin = slf._pixlocn[det-1][:, :, 0].copy()
     plybin = slf._pixlocn[det-1][:, :, 1].copy()
 #    msgs.work("binby=1 makes this slow and ineffective -- increase this to 10, and add as a parameter of choice by the user")
@@ -321,8 +334,8 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
 #    binbpx = arcyutils.bin_x(slf._bpix[det-1], binby, 0)
 #    plxbin = arcyutils.bin_x(slf._pixlocn[det-1][:,:,0], binby, 1)
 #    plybin = arcyutils.bin_x(slf._pixlocn[det-1][:,:,1], binby, 1)
-    msgs.info("Detecting order edges")
     medrep = 3  # How many times to repeat the median filter
+    singleSlit = False
     if singleSlit:
         edgearr = np.zeros(binarr.shape, dtype=np.int)
         detect = True
@@ -367,33 +380,12 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
             sqmstrace = ndimage.median_filter(sqmstrace, size=(3, 5))
         filt = ndimage.sobel(sqmstrace, axis=1, mode='constant')
         siglev = np.sign(filt)*(filt**2)/sqmstrace
-
-        # First do left edges
-        troll = np.roll(binarr, 1, axis=1-slf._dispaxis)
-        if slf._dispaxis == 0:
-            troll[:,0] = troll[:,1]
-        else:
-            troll[0,:] = troll[1,:]
-        # First test for an edge
-        diff = np.zeros_like(binarr)
-        w = np.where(troll != 0.0)
-        diff[w] = (troll[w]-binarr[w])/binarr[w]
-        siglev = 1.4826*np.median(np.abs(diff))
-        ttedges = np.zeros_like(binarr)
-        wr = np.where(diff > +6.0*siglev)
-        wl = np.where(diff < -6.0*siglev)
-        ttedges[wr] = +1.0
-        ttedges[wl] = -1.0
-        # Second test for an edge
-        diff = (troll-binarr)
-        siglev = 1.4826*np.median(np.abs(diff))
-        tedges = np.zeros_like(binarr)
-        wr = np.where((diff > +6.0*siglev) & (ttedges == +1))
-        wl = np.where((diff < -6.0*siglev) & (ttedges == -1))
+        tedges = np.zeros(binarr.shape, dtype=np.float)
+        wr = np.where(siglev > +10.0)
+        wl = np.where(siglev < -10.0)
         tedges[wr] = +1.0
         tedges[wl] = -1.0
-        nedgear = arcytrace.clean_edges(diff, tedges, slf._dispaxis)
-        #arutils.ds9plot(nedgear)
+        nedgear = arcytrace.clean_edges(siglev, tedges)
         if maskBadRows:
             msgs.info("Searching for bad pixel rows")
             edgsum = np.sum(nedgear, axis=0)
@@ -403,28 +395,34 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
             maskcols = np.unique(np.append(w,np.append(w+1, w-1)))
             msgs.info("Masking {0:d} bad pixel rows".format(maskcols.size))
             for i in xrange(maskcols.size):
-                if maskcols[i] < 0 or maskcols[i] >= nedgear.shape[1]: continue
+                if maskcols[i] < 0 or maskcols[i] >= nedgear.shape[1]:
+                    continue
                 nedgear[:, maskcols[i]] = 0
         ######
         msgs.info("Applying bad pixel mask")
-        tedgear *= (1.0-binbpx)  # Apply to the old detection algorithm
-        nedgear *= (1.0-binbpx)  # Apply to the new detection algorithm
-        eroll = np.roll(binbpx, 1, axis=1)
-        eroll[:,0] = eroll[:,1]
-        nedgear *= (1.0-eroll)  # Apply to the new detection algorithm (with shift)
+        # tedgear *= (1.0-binbpx)  # Apply to the old detection algorithm
+        nedgear *= (1-binbpx)  # Apply to the new detection algorithm
+        # eroll = np.roll(binbpx, 1, axis=1)
+        # eroll[:,0] = eroll[:,1]
+        # nedgear *= (1.0-eroll)  # Apply to the new detection algorithm (with shift)
         # Now roll back
-        nedgear = np.roll(nedgear, -1, axis=1)
-        edgearr = np.zeros_like(nedgear)
-        edgearr[np.where((nedgear == +1) | (tedgear == +1))] = +1
-        edgearr[np.where((nedgear == -1) | (tedgear == -1))] = -1
-    #arutils.ds9plot(edgearr)
+        # nedgear = np.roll(nedgear, -1, axis=1)
+        # edgearr = np.zeros_like(nedgear)
+        # edgearr[np.where((nedgear == +1) | (tedgear == +1))] = +1
+        # edgearr[np.where((nedgear == -1) | (tedgear == -1))] = -1
+        edgearr = np.copy(nedgear)
+    arutils.ds9plot(edgearr)
     # Assign a number to each of the edges
-    msgs.info("Matching order edges")
+    msgs.info("Matching slit edges")
     lcnt, rcnt = arcytrace.match_edges(edgearr, 0)
-    if lcnt == 1: letxt = "edge"
-    else: letxt = "edges"
-    if rcnt == 1: retxt = "edge"
-    else: retxt = "edges"
+    if lcnt == 1:
+        letxt = "edge"
+    else:
+        letxt = "edges"
+    if rcnt == 1:
+        retxt = "edge"
+    else:
+        retxt = "edges"
     msgs.info("{0:d} left {1:s} and {2:d} right {3:s} were found in the trace".format(lcnt, letxt, rcnt, retxt))
     if (lcnt == 0) & (rcnt == 0):
         if np.median(binarr) > 500:
@@ -448,7 +446,8 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     iterate = True
     while iterate:
         lmin, lmax, rmin, rmax = arcytrace.assign_orders(edgearr, slf._dispaxis, lcnt, rcnt)
-        msgs.info("Ignoring orders that span < {0:3.2f}x{1:d} pixels on the detector".format(slf._argflag['trace']['orders']['fracignore'],int(edgearr.shape[slf._dispaxis]*binby)))
+        #msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(slf._argflag['trace']['orders']['fracignore'], int(edgearr.shape[slf._dispaxis]*binby)))
+        msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(slf._argflag['trace']['orders']['fracignore'], int(edgearr.shape[slf._dispaxis])))
         fracpix = int(slf._argflag['trace']['orders']['fracignore']*edgearr.shape[slf._dispaxis])
         lnc, lxc, rnc, rxc, ldarr, rdarr = arcytrace.ignore_orders(edgearr, slf._dispaxis, fracpix, lmin, lmax, rmin, rmax)
         lmin += lnc

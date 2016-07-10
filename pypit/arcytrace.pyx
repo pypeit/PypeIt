@@ -466,75 +466,47 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
 
 @cython.boundscheck(False)
 def clean_edges(np.ndarray[DTYPE_t, ndim=2] diff not None,
-                np.ndarray[DTYPE_t, ndim=2] tedges not None,
-                int dispdir):
+                np.ndarray[DTYPE_t, ndim=2] tedges not None):
     cdef int sz_x, sz_y
     cdef int x, y
     cdef int ldct, rdct, ymax
     cdef double lmax, rmax
 
-    sz_x = tedges.shape[dispdir]
-    sz_y = tedges.shape[1-dispdir]
+    sz_x = tedges.shape[0]
+    sz_y = tedges.shape[1]
 
     # Set up the array which marks the edge detections
-    cdef np.ndarray[ITYPE_t, ndim=2] edgdet = np.zeros((tedges.shape[0],tedges.shape[1]), dtype=ITYPE)
+    cdef np.ndarray[ITYPE_t, ndim=2] edgdet = np.zeros((sz_x, sz_y), dtype=ITYPE)
 
     for x in range(sz_x):
         ldct = 0
         rdct = 0
         for y in range(sz_y):
-            if dispdir == 0:
-                if tedges[x,y] == -1.0:
-                    if ldct == 1:
-                        if diff[x,y] < lmax: # Recall, diff is very negative for significant left edge detections
-                            lmax = diff[x,y]
-                            ymax = y
-                    else:
-                        lmax = diff[x,y]
+            if tedges[x, y] == -1.0:
+                if ldct == 1:
+                    if diff[x, y] < lmax: # Recall, diff is very negative for significant left edge detections
+                        lmax = diff[x, y]
                         ymax = y
-                        ldct = 1
-                elif tedges[x,y] == 1.0:
-                    if rdct == 1:
-                        if diff[x,y] > rmax:
-                            rmax = diff[x,y]
-                            ymax = y
-                    else:
-                        rmax = diff[x,y]
-                        ymax = y
-                        rdct = 1
                 else:
-                    if ldct == 1:
-                        edgdet[x,ymax] = -1
-                        ldct = 0
-                    elif rdct == 1:
-                        edgdet[x,ymax] = +1
-                        rdct = 0
+                    lmax = diff[x, y]
+                    ymax = y
+                    ldct = 1
+            elif tedges[x, y] == 1.0:
+                if rdct == 1:
+                    if diff[x, y] > rmax:
+                        rmax = diff[x, y]
+                        ymax = y
+                else:
+                    rmax = diff[x, y]
+                    ymax = y
+                    rdct = 1
             else:
-                if tedges[y,x] == -1.0:
-                    if ldct == 1:
-                        if diff[y,x] < lmax:
-                            lmax = diff[y,x]
-                            ymax = y
-                    else:
-                        lmax = diff[y,x]
-                        ymax = y
-                        ldct = 1
-                elif tedges[y,x] == 1.0:
-                    if rdct == 1:
-                        if diff[y,x] > rmax:
-                            rmax = diff[y,x]
-                            ymax = y
-                    else:
-                        rmax = diff[y,x]
-                        ymax = y
-                        rdct = 1
-                else:
-                    if ldct == 1:
-                        edgdet[ymax,x] = -1
-                        ldct = 0
-                    elif rdct == 1:
-                        edgdet[ymax,x] = +1
-                        rdct = 0
+                if ldct == 1:
+                    edgdet[x, ymax] = -1
+                    ldct = 0
+                elif rdct == 1:
+                    edgdet[x, ymax] = +1
+                    rdct = 0
     return edgdet
 
 
