@@ -38,15 +38,15 @@ cdef extern from "gsl/gsl_multifit.h":
 
 @cython.boundscheck(False)
 def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
-                int dispdir, int lcnt, int rcnt):
+                int lcnt, int rcnt):
     cdef int sz_x, sz_y, x, y, i, ni
     cdef int coml, comr, cntl, cntr
     cdef int nl, nr, tolp, tolm, tf, ymn, ymx
     cdef int idnum, nc
     cdef int rmin, rmax, lmin, lmax
 
-    sz_x = edgdet.shape[dispdir]
-    sz_y = edgdet.shape[1-dispdir]
+    sz_x = edgdet.shape[0]
+    sz_y = edgdet.shape[1]
 
     cdef np.ndarray[ITYPE_t, ndim=1] larr = np.zeros((lcnt), dtype=ITYPE)
     cdef np.ndarray[ITYPE_t, ndim=1] rarr = np.zeros((rcnt), dtype=ITYPE)
@@ -54,18 +54,11 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     # Find which id is the most common
     for x in range(sz_x):
         for y in range(sz_y):
-            if dispdir == 0:
-                if edgdet[x,y] == 0: continue
-                elif edgdet[x,y] < 0:
-                    larr[-1000-edgdet[x,y]] += 1
-                elif edgdet[x,y] > 0:
-                    rarr[edgdet[x,y]-1000] += 1
-            else:
-                if edgdet[y,x] == 0: continue
-                elif edgdet[y,x] < 0:
-                    larr[-1000-edgdet[y,x]] += 1
-                elif edgdet[y,x] > 0:
-                    rarr[edgdet[y,x]-1000] += 1
+            if edgdet[x,y] == 0: continue
+            elif edgdet[x,y] < 0:
+                larr[-1000-edgdet[x,y]] += 1
+            elif edgdet[x,y] > 0:
+                rarr[edgdet[x,y]-1000] += 1
     coml = 0
     cntl = larr[0]
     for x in range(1,lcnt):
@@ -86,26 +79,16 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     nr = 0
     for x in range(sz_x):
         for y in range(sz_y):
-            if dispdir == 0:
-                if edgdet[x,y] == -1000-coml:
-                    lcarr[nl,0] = x
-                    lcarr[nl,1] = y
-                    nl += 1
-                elif edgdet[x,y] == 1000+comr:
-                    rcarr[nr,0] = x
-                    rcarr[nr,1] = y
-                    nr += 1
-                else: continue
+            if edgdet[x,y] == -1000-coml:
+                lcarr[nl,0] = x
+                lcarr[nl,1] = y
+                nl += 1
+            elif edgdet[x,y] == 1000+comr:
+                rcarr[nr,0] = x
+                rcarr[nr,1] = y
+                nr += 1
             else:
-                if edgdet[y,x] == -1000-coml:
-                    lcarr[nl,0] = y
-                    lcarr[nl,1] = x
-                    nl += 1
-                elif edgdet[y,x] == 1000+comr:
-                    rcarr[nr,0] = y
-                    rcarr[nr,1] = x
-                    nr += 1
-                else: continue
+                continue
 
     # Label this edge
     for x in range(nl):
@@ -123,50 +106,73 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     llab[coml] = 500 # Label the most common as order 1
     rlab[comr] = 500 # Label the most common as order 1
     for x in range(nl):
-        if dispdir == 0:
-            for y in range(lcarr[x,1]+1,sz_y):
-                if edgdet[lcarr[x,0],y] < -999:
-                    ldiffp[x] = <double>(y - lcarr[x,1])
-                    break
-            for y in range(0,lcarr[x,1]):
-                if edgdet[lcarr[x,0],lcarr[x,1]-y-1] < 0:
-                    ldiffm[x] = <double>(y+1)
-                    break
-        else:
-            for y in range(lcarr[x,0]+1,sz_y):
-                if edgdet[y,lcarr[x,1]] < -999:
-                    ldiffp[x] = <double>(y - lcarr[x,0])
-                    break
-            for y in range(0,lcarr[x,0]):
-                if edgdet[lcarr[x,0]-y-1,lcarr[x,1]] < 0:
-                    ldiffm[x] = <double>(y+1)
-                    break
+        for y in range(lcarr[x,1]+1,sz_y):
+            if edgdet[lcarr[x,0],y] < -999:
+                ldiffp[x] = <double>(y - lcarr[x,1])
+                break
+        for y in range(0,lcarr[x,1]):
+            if edgdet[lcarr[x,0],lcarr[x,1]-y-1] < 0:
+                ldiffm[x] = <double>(y+1)
+                break
     for x in range(nr):
-        if dispdir == 0:
-            for y in range(rcarr[x,1]+1,sz_y):
-                if edgdet[rcarr[x,0],y] > 999:
-                    rdiffp[x] = <double>(y - rcarr[x,1])
-                    break
-            for y in range(0,rcarr[x,1]):
-                if edgdet[rcarr[x,0],rcarr[x,1]-y-1] > 0:
-                    rdiffm[x] = <double>(y+1)
-                    break
-        else:
-            for y in range(rcarr[x,0]+1,sz_y):
-                if edgdet[y,rcarr[x,1]] > 999:
-                    rdiffp[x] = <double>(y - rcarr[x,0])
-                    break
-            for y in range(0,rcarr[x,0]):
-                if edgdet[rcarr[x,0]-y-1,rcarr[x,1]] > 0:
-                    rdiffm[x] = <double>(y+1)
-                    break
+        for y in range(rcarr[x,1]+1,sz_y):
+            if edgdet[rcarr[x,0],y] > 999:
+                rdiffp[x] = <double>(y - rcarr[x,1])
+                break
+        for y in range(0,rcarr[x,1]):
+            if edgdet[rcarr[x,0],rcarr[x,1]-y-1] > 0:
+                rdiffm[x] = <double>(y+1)
+                break
     # Calculate the median difference between the nearest identifications
     tolp = <int>(median(ldiffp))
     tolm = <int>(median(ldiffm))
     tf = 5
     ni = 2
     for x in range(nl):
-        if dispdir == 0:
+        for i in range(1,ni+1):
+            ymn = lcarr[x,1]+i*tolp-tolp/tf
+            ymx = lcarr[x,1]+i*tolp+tolp/tf+1
+            if ymn < 0: ymn = 0
+            if ymx > sz_y: ymx = sz_y
+            for y in range(ymn,ymx):
+                if edgdet[lcarr[x,0],y] < -999:
+                    llab[-1000-edgdet[lcarr[x,0],y]] = 500+i
+                    edgdet[lcarr[x,0],y] = -(500+i)
+            ymn = lcarr[x,1]-i*tolm-tolm/tf
+            ymx = lcarr[x,1]-i*tolm+tolm/tf+1
+            if ymn < 0: ymn = 0
+            if ymx > sz_y: ymx = sz_y
+            for y in range(ymn,ymx):
+                if edgdet[lcarr[x,0],y] < -999:
+                    llab[-1000-edgdet[lcarr[x,0],y]] = 500-i
+                    edgdet[lcarr[x,0],y] = -(500-i)
+    tolp = <int>(median(rdiffp))
+    tolm = <int>(median(rdiffm))
+    for x in range(nr):
+        for i in range(1,ni+1):
+            ymn = rcarr[x,1]+i*tolp-tolp/tf
+            ymx = rcarr[x,1]+i*tolp+tolp/tf+1
+            if ymn < 0: ymn = 0
+            if ymx > sz_y: ymx = sz_y
+            for y in range(ymn,ymx):
+                if edgdet[rcarr[x,0],y] > 999:
+                    rlab[edgdet[rcarr[x,0],y]-1000] = 500+i
+                    edgdet[rcarr[x,0],y] = 500+i
+            ymn = rcarr[x,1]-i*tolm-tolm/tf
+            ymx = rcarr[x,1]-i*tolm+tolm/tf+1
+            if ymn < 0: ymn = 0
+            if ymx > sz_y: ymx = sz_y
+            for y in range(ymn,ymx):
+                if edgdet[rcarr[x,0],y] > 999:
+                    rlab[edgdet[rcarr[x,0],y]-1000] = 500-i
+                    edgdet[rcarr[x,0],y] = 500-i
+    # Iterate through and label all of the left edges
+    idnum = -501
+    while True:
+        nc, tolp, tolm = get_xy(edgdet, lcarr, idnum, -1) # -1 specifies the direction to move in
+        if nc == 0: break
+        if tolp == 0 and tolm == 0: break
+        for x in range(nc):
             for i in range(1,ni+1):
                 ymn = lcarr[x,1]+i*tolp-tolp/tf
                 ymx = lcarr[x,1]+i*tolp+tolp/tf+1
@@ -174,38 +180,54 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 if ymx > sz_y: ymx = sz_y
                 for y in range(ymn,ymx):
                     if edgdet[lcarr[x,0],y] < -999:
-                        llab[-1000-edgdet[lcarr[x,0],y]] = 500+i
-                        edgdet[lcarr[x,0],y] = -(500+i)
+                        llab[-1000-edgdet[lcarr[x,0],y]] = -(idnum-i)
+                        edgdet[lcarr[x,0],y] = idnum-i
                 ymn = lcarr[x,1]-i*tolm-tolm/tf
                 ymx = lcarr[x,1]-i*tolm+tolm/tf+1
                 if ymn < 0: ymn = 0
                 if ymx > sz_y: ymx = sz_y
                 for y in range(ymn,ymx):
                     if edgdet[lcarr[x,0],y] < -999:
-                        llab[-1000-edgdet[lcarr[x,0],y]] = 500-i
-                        edgdet[lcarr[x,0],y] = -(500-i)
-        else:
+                        llab[-1000-edgdet[lcarr[x,0],y]] = -(idnum+i)
+                        edgdet[lcarr[x,0],y] = idnum+i
+        # Update the labels
+        update_labels(edgdet,llab,idnum,ni,-1)
+        idnum -= 1
+    #
+    # Now search and label the left edges, except now search backwards from order '500'
+    idnum = -499
+    while True:
+        nc, tolp, tolm = get_xy(edgdet, lcarr, idnum, +1) # +1 specifies the direction to move in
+        if nc == 0: break
+        if tolp == 0 and tolm == 0: break
+        for x in range(nc):
             for i in range(1,ni+1):
-                ymn = lcarr[x,0]+i*tolp-tolp/tf
-                ymx = lcarr[x,0]+i*tolp+tolp/tf+1
+                ymn = lcarr[x,1]+i*tolp-tolp/tf
+                ymx = lcarr[x,1]+i*tolp+tolp/tf+1
                 if ymn < 0: ymn = 0
                 if ymx > sz_y: ymx = sz_y
                 for y in range(ymn,ymx):
-                    if edgdet[y,lcarr[x,1]] < -999:
-                        llab[-1000-edgdet[y,lcarr[x,1]]] = 500+i
-                        edgdet[y,lcarr[x,1]] = -(500+i)
-                ymn = lcarr[x,0]-i*tolm-tolm/tf
-                ymx = lcarr[x,0]-i*tolm+tolm/tf+1
+                    if edgdet[lcarr[x,0],y] < -999:
+                        llab[-1000-edgdet[lcarr[x,0],y]] = -(idnum-i)
+                        edgdet[lcarr[x,0],y] = idnum-i
+                ymn = lcarr[x,1]-i*tolm-tolm/tf
+                ymx = lcarr[x,1]-i*tolm+tolm/tf+1
                 if ymn < 0: ymn = 0
                 if ymx > sz_y: ymx = sz_y
                 for y in range(ymn,ymx):
-                    if edgdet[y,lcarr[x,1]] < -999:
-                        llab[-1000-edgdet[y,lcarr[x,1]]] = 500-i
-                        edgdet[y,lcarr[x,1]] = -(500-i)
-    tolp = <int>(median(rdiffp))
-    tolm = <int>(median(rdiffm))
-    for x in range(nr):
-        if dispdir == 0:
+                    if edgdet[lcarr[x,0],y] < -999:
+                        llab[-1000-edgdet[lcarr[x,0],y]] = -(idnum+i)
+                        edgdet[lcarr[x,0],y] = idnum+i
+        update_labels(edgdet,llab,idnum,ni,-1)
+        idnum += 1
+    #
+    # Now iterate through and label all of the right edges
+    idnum = 501
+    while True:
+        nc, tolp, tolm = get_xy(edgdet, rcarr, idnum, +1) # +1 specifies the direction to move in
+        if nc == 0: break
+        if tolp == 0 and tolm == 0: break
+        for x in range(nc):
             for i in range(1,ni+1):
                 ymn = rcarr[x,1]+i*tolp-tolp/tf
                 ymx = rcarr[x,1]+i*tolp+tolp/tf+1
@@ -213,217 +235,44 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 if ymx > sz_y: ymx = sz_y
                 for y in range(ymn,ymx):
                     if edgdet[rcarr[x,0],y] > 999:
-                        rlab[edgdet[rcarr[x,0],y]-1000] = 500+i
-                        edgdet[rcarr[x,0],y] = 500+i
+                        rlab[edgdet[rcarr[x,0],y]-1000] = idnum+i
+                        edgdet[rcarr[x,0],y] = idnum+i
                 ymn = rcarr[x,1]-i*tolm-tolm/tf
                 ymx = rcarr[x,1]-i*tolm+tolm/tf+1
                 if ymn < 0: ymn = 0
                 if ymx > sz_y: ymx = sz_y
                 for y in range(ymn,ymx):
                     if edgdet[rcarr[x,0],y] > 999:
-                        rlab[edgdet[rcarr[x,0],y]-1000] = 500-i
-                        edgdet[rcarr[x,0],y] = 500-i
-        else:
-            for i in range(1,ni+1):
-                ymn = rcarr[x,0]+i*tolp-tolp/tf
-                ymx = rcarr[x,0]+i*tolp+tolp/tf+1
-                if ymn < 0: ymn = 0
-                if ymx > sz_y: ymx = sz_y
-                for y in range(ymn,ymx):
-                    if edgdet[y,rcarr[x,1]] > 999:
-                        rlab[edgdet[y,rcarr[x,1]]-1000] = 500+i
-                        edgdet[y,rcarr[x,1]] = 500+i
-                ymn = rcarr[x,0]-i*tolm-tolm/tf
-                ymx = rcarr[x,0]-i*tolm+tolm/tf+1
-                if ymn < 0: ymn = 0
-                if ymx > sz_y: ymx = sz_y
-                for y in range(ymn,ymx):
-                    if edgdet[y,rcarr[x,1]] > 999:
-                        rlab[edgdet[y,rcarr[x,1]]-1000] = 500-i
-                        edgdet[y,rcarr[x,1]] = 500-i
-    # Iterate through and label all of the left edges
-    idnum = -501
-    while True:
-        nc, tolp, tolm = get_xy(edgdet, lcarr, idnum, dispdir, -1) # -1 specifies the direction to move in
-        if nc == 0: break
-        if tolp == 0 and tolm == 0: break
-        for x in range(nc):
-            if dispdir == 0:
-                for i in range(1,ni+1):
-                    ymn = lcarr[x,1]+i*tolp-tolp/tf
-                    ymx = lcarr[x,1]+i*tolp+tolp/tf+1
-                    if ymn < 0: ymn = 0
-                    if ymx > sz_y: ymx = sz_y
-                    for y in range(ymn,ymx):
-                        if edgdet[lcarr[x,0],y] < -999:
-                            llab[-1000-edgdet[lcarr[x,0],y]] = -(idnum-i)
-                            edgdet[lcarr[x,0],y] = idnum-i
-                    ymn = lcarr[x,1]-i*tolm-tolm/tf
-                    ymx = lcarr[x,1]-i*tolm+tolm/tf+1
-                    if ymn < 0: ymn = 0
-                    if ymx > sz_y: ymx = sz_y
-                    for y in range(ymn,ymx):
-                        if edgdet[lcarr[x,0],y] < -999:
-                            llab[-1000-edgdet[lcarr[x,0],y]] = -(idnum+i)
-                            edgdet[lcarr[x,0],y] = idnum+i
-            else:
-                for i in range(1,ni+1):
-                    ymn = lcarr[x,0]+i*tolp-tolp/tf
-                    ymx = lcarr[x,0]+i*tolp+tolp/tf+1
-                    if ymn < 0: ymn = 0
-                    if ymx > sz_y: ymx = sz_y
-                    for y in range(ymn,ymx):
-                        if edgdet[y,lcarr[x,1]] < -999:
-                            llab[-1000-edgdet[y,lcarr[x,1]]] = -(idnum-i)
-                            edgdet[y,lcarr[x,1]] = idnum-i
-                    ymn = lcarr[x,0]-i*tolm-tolm/tf
-                    ymx = lcarr[x,0]-i*tolm+tolm/tf+1
-                    if ymn < 0: ymn = 0
-                    if ymx > sz_y: ymx = sz_y
-                    for y in range(ymn,ymx):
-                        if edgdet[y,lcarr[x,1]] < -999:
-                            llab[-1000-edgdet[y,lcarr[x,1]]] = -(idnum+i)
-                            edgdet[y,lcarr[x,1]] = idnum+i
-        # Update the labels
-        update_labels(edgdet,llab,dispdir,idnum,ni,-1)
-        idnum -= 1
-    #
-    # Now search and label the left edges, except now search backwards from order '500'
-    idnum = -499
-    while True:
-        nc, tolp, tolm = get_xy(edgdet, lcarr, idnum, dispdir, +1) # +1 specifies the direction to move in
-        if nc == 0: break
-        if tolp == 0 and tolm == 0: break
-        for x in range(nc):
-            if dispdir == 0:
-                for i in range(1,ni+1):
-                    ymn = lcarr[x,1]+i*tolp-tolp/tf
-                    ymx = lcarr[x,1]+i*tolp+tolp/tf+1
-                    if ymn < 0: ymn = 0
-                    if ymx > sz_y: ymx = sz_y
-                    for y in range(ymn,ymx):
-                        if edgdet[lcarr[x,0],y] < -999:
-                            llab[-1000-edgdet[lcarr[x,0],y]] = -(idnum-i)
-                            edgdet[lcarr[x,0],y] = idnum-i
-                    ymn = lcarr[x,1]-i*tolm-tolm/tf
-                    ymx = lcarr[x,1]-i*tolm+tolm/tf+1
-                    if ymn < 0: ymn = 0
-                    if ymx > sz_y: ymx = sz_y
-                    for y in range(ymn,ymx):
-                        if edgdet[lcarr[x,0],y] < -999:
-                            llab[-1000-edgdet[lcarr[x,0],y]] = -(idnum+i)
-                            edgdet[lcarr[x,0],y] = idnum+i
-            else:
-                for i in range(1,ni+1):
-                    ymn = lcarr[x,0]+i*tolp-tolp/tf
-                    ymx = lcarr[x,0]+i*tolp+tolp/tf+1
-                    if ymn < 0: ymn = 0
-                    if ymx > sz_y: ymx = sz_y
-                    for y in range(ymn,ymx):
-                        if edgdet[y,lcarr[x,1]] < -999:
-                            llab[-1000-edgdet[y,lcarr[x,1]]] = -(idnum-i)
-                            edgdet[y,lcarr[x,1]] = idnum-i
-                    ymn = lcarr[x,0]-i*tolm-tolm/tf
-                    ymx = lcarr[x,0]-i*tolm+tolm/tf+1
-                    if ymn < 0: ymn = 0
-                    if ymx > sz_y: ymx = sz_y
-                    for y in range(ymn,ymx):
-                        if edgdet[y,lcarr[x,1]] < -999:
-                            llab[-1000-edgdet[y,lcarr[x,1]]] = -(idnum+i)
-                            edgdet[y,lcarr[x,1]] = idnum+i
-        update_labels(edgdet,llab,dispdir,idnum,ni,-1)
-        idnum += 1
-    #
-    # Now iterate through and label all of the right edges
-    idnum = 501
-    while True:
-        nc, tolp, tolm = get_xy(edgdet, rcarr, idnum, dispdir, +1) # +1 specifies the direction to move in
-        if nc == 0: break
-        if tolp == 0 and tolm == 0: break
-        for x in range(nc):
-            if dispdir == 0:
-                for i in range(1,ni+1):
-                    ymn = rcarr[x,1]+i*tolp-tolp/tf
-                    ymx = rcarr[x,1]+i*tolp+tolp/tf+1
-                    if ymn < 0: ymn = 0
-                    if ymx > sz_y: ymx = sz_y
-                    for y in range(ymn,ymx):
-                        if edgdet[rcarr[x,0],y] > 999:
-                            rlab[edgdet[rcarr[x,0],y]-1000] = idnum+i
-                            edgdet[rcarr[x,0],y] = idnum+i
-                    ymn = rcarr[x,1]-i*tolm-tolm/tf
-                    ymx = rcarr[x,1]-i*tolm+tolm/tf+1
-                    if ymn < 0: ymn = 0
-                    if ymx > sz_y: ymx = sz_y
-                    for y in range(ymn,ymx):
-                        if edgdet[rcarr[x,0],y] > 999:
-                            rlab[edgdet[rcarr[x,0],y]-1000] = idnum-i
-                            edgdet[rcarr[x,0],y] = idnum-i
-            else:
-                for i in range(1,ni+1):
-                    ymn = rcarr[x,0]+i*tolp-tolp/tf
-                    ymx = rcarr[x,0]+i*tolp+tolp/tf+1
-                    if ymn < 0: ymn = 0
-                    if ymx > sz_y: ymx = sz_y
-                    for y in range(ymn,ymx):
-                        if edgdet[y,rcarr[x,1]] > 999:
-                            rlab[edgdet[y,rcarr[x,1]]-1000] = idnum+i
-                            edgdet[y,rcarr[x,1]] = idnum+i
-                    ymn = rcarr[x,0]-i*tolm-tolm/tf
-                    ymx = rcarr[x,0]-i*tolm+tolm/tf+1
-                    if ymn < 0: ymn = 0
-                    if ymx > sz_y: ymx = sz_y
-                    for y in range(ymn,ymx):
-                        if edgdet[y,rcarr[x,1]] > 999:
-                            rlab[edgdet[y,rcarr[x,1]]-1000] = idnum-i
-                            edgdet[y,rcarr[x,1]] = idnum-i
-        update_labels(edgdet,rlab,dispdir,idnum,ni,+1)
+                        rlab[edgdet[rcarr[x,0],y]-1000] = idnum-i
+                        edgdet[rcarr[x,0],y] = idnum-i
+        update_labels(edgdet, rlab, idnum, ni, +1)
         idnum += 1
     #
     # Now search and label the right edges, except now search backwards from order '500'
     idnum = 499
     while True:
-        nc, tolp, tolm = get_xy(edgdet, rcarr, idnum, dispdir, -1) # -1 specifies the direction to move in
+        nc, tolp, tolm = get_xy(edgdet, rcarr, idnum, -1) # -1 specifies the direction to move in
         if nc == 0: break
         if tolp == 0 and tolm == 0: break
         for x in range(nc):
-            if dispdir == 0:
-                for i in range(1,ni+1):
-                    ymn = rcarr[x,1]+i*tolp-tolp/tf
-                    ymx = rcarr[x,1]+i*tolp+tolp/tf+1
-                    if ymn < 0: ymn = 0
-                    if ymx > sz_y: ymx = sz_y
-                    for y in range(ymn,ymx):
-                        if edgdet[rcarr[x,0],y] > 999:
-                            rlab[edgdet[rcarr[x,0],y]-1000] = idnum+i
-                            edgdet[rcarr[x,0],y] = idnum+i
-                    ymn = rcarr[x,1]-i*tolm-tolm/tf
-                    ymx = rcarr[x,1]-i*tolm+tolm/tf+1
-                    if ymn < 0: ymn = 0
-                    if ymx > sz_y: ymx = sz_y
-                    for y in range(ymn,ymx):
-                        if edgdet[rcarr[x,0],y] > 999:
-                            rlab[edgdet[rcarr[x,0],y]-1000] = idnum-i
-                            edgdet[rcarr[x,0],y] = idnum-i
-            else:
-                for i in range(1,ni+1):
-                    ymn = rcarr[x,0]+i*tolp-tolp/tf
-                    ymx = rcarr[x,0]+i*tolp+tolp/tf+1
-                    if ymn < 0: ymn = 0
-                    if ymx > sz_y: ymx = sz_y
-                    for y in range(ymn,ymx):
-                        if edgdet[y,rcarr[x,1]] > 999:
-                            rlab[edgdet[y,rcarr[x,1]]-1000] = idnum+i
-                            edgdet[y,rcarr[x,1]] = idnum+i
-                    ymn = rcarr[x,0]-i*tolm-tolm/tf
-                    ymx = rcarr[x,0]-i*tolm+tolm/tf+1
-                    if ymn < 0: ymn = 0
-                    if ymx > sz_y: ymx = sz_y
-                    for y in range(ymn,ymx):
-                        if edgdet[y,rcarr[x,1]] > 999:
-                            rlab[edgdet[y,rcarr[x,1]]-1000] = idnum-i
-                            edgdet[y,rcarr[x,1]] = idnum-i
-        update_labels(edgdet,rlab,dispdir,idnum,ni,+1)
+            for i in range(1,ni+1):
+                ymn = rcarr[x,1]+i*tolp-tolp/tf
+                ymx = rcarr[x,1]+i*tolp+tolp/tf+1
+                if ymn < 0: ymn = 0
+                if ymx > sz_y: ymx = sz_y
+                for y in range(ymn,ymx):
+                    if edgdet[rcarr[x,0],y] > 999:
+                        rlab[edgdet[rcarr[x,0],y]-1000] = idnum+i
+                        edgdet[rcarr[x,0],y] = idnum+i
+                ymn = rcarr[x,1]-i*tolm-tolm/tf
+                ymx = rcarr[x,1]-i*tolm+tolm/tf+1
+                if ymn < 0: ymn = 0
+                if ymx > sz_y: ymx = sz_y
+                for y in range(ymn,ymx):
+                    if edgdet[rcarr[x,0],y] > 999:
+                        rlab[edgdet[rcarr[x,0],y]-1000] = idnum-i
+                        edgdet[rcarr[x,0],y] = idnum-i
+        update_labels(edgdet, rlab, idnum, ni, +1)
         idnum -= 1
     #
     # Search through edgdet and remove any unidentified (spurious) identifications
@@ -433,26 +282,15 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     lmax = 500
     for x in range(sz_x):
         for y in range(sz_y):
-            if dispdir == 0:
-                if edgdet[x,y] < -999: edgdet[x,y] = 0
-                elif edgdet[x,y] > 999: edgdet[x,y] = 0
-                else:
-                    if edgdet[x,y] < 0:
-                        if -edgdet[x,y] < lmin: lmin = -edgdet[x,y]
-                        elif -edgdet[x,y] > lmax: lmax = -edgdet[x,y]
-                    elif edgdet[x,y] > 0:
-                        if edgdet[x,y] < rmin: rmin = edgdet[x,y]
-                        elif edgdet[x,y] > rmax: rmax = edgdet[x,y]
+            if edgdet[x,y] < -999: edgdet[x,y] = 0
+            elif edgdet[x,y] > 999: edgdet[x,y] = 0
             else:
-                if edgdet[y,x] < -999: edgdet[y,x] = 0
-                elif edgdet[y,x] > 999: edgdet[y,x] = 0
-                else:
-                    if edgdet[y,x] < 0:
-                        if -edgdet[y,x] < lmin: lmin = -edgdet[y,x]
-                        elif -edgdet[y,x] > lmax: lmax = -edgdet[y,x]
-                    elif edgdet[y,x] > 0:
-                        if edgdet[y,x] < rmin: rmin = edgdet[y,x]
-                        elif edgdet[y,x] > rmax: rmax = edgdet[y,x]
+                if edgdet[x,y] < 0:
+                    if -edgdet[x,y] < lmin: lmin = -edgdet[x,y]
+                    elif -edgdet[x,y] > lmax: lmax = -edgdet[x,y]
+                elif edgdet[x,y] > 0:
+                    if edgdet[x,y] < rmin: rmin = edgdet[x,y]
+                    elif edgdet[x,y] > rmax: rmax = edgdet[x,y]
     return lmin, lmax, rmin, rmax
 
 #######
@@ -1509,13 +1347,13 @@ def get_edges(np.ndarray[DTYPE_t, ndim=2] array not None,
 @cython.boundscheck(False)
 def get_xy(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
             np.ndarray[ITYPE_t, ndim=2] coords not None,
-            int idnum, int dispdir, int mvdir):
+            int idnum, int mvdir):
     # Obtain the (x,y) values for idnum
     cdef int x, y, sz_x, sz_y
     cdef int nc, fcm, fcp, tolp, tolm, flgp, flgm, yvm, yv
 
-    sz_x = edgdet.shape[dispdir]
-    sz_y = edgdet.shape[1-dispdir]
+    sz_x = edgdet.shape[0]
+    sz_y = edgdet.shape[1]
 
     cdef np.ndarray[DTYPE_t, ndim=1] medarrp = np.zeros(coords.shape[0], dtype=DTYPE)
     cdef np.ndarray[DTYPE_t, ndim=1] medarrm = np.zeros(coords.shape[0], dtype=DTYPE)
@@ -1527,34 +1365,19 @@ def get_xy(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
         flgm = 0
         flgp = 0
         for y in range(sz_y):
-            if dispdir == 0:
-                if edgdet[x,y] == idnum+mvdir:
-                    yvp = y
-                    flgp += 1
-                elif edgdet[x,y] == idnum-mvdir:
-                    yvm = y
-                    flgm += 1
-                elif edgdet[x,y] == idnum:
-                    coords[nc,0] = x
-                    coords[nc,1] = y
-                    yv = y
-                    flgp += 1
-                    flgm += 1
-                    nc += 1
-            else:
-                if edgdet[y,x] == idnum+mvdir:
-                    yvp = y
-                    flgp += 1
-                elif edgdet[y,x] == idnum-mvdir:
-                    yvm = y
-                    flgm += 1
-                elif edgdet[y,x] == idnum:
-                    coords[nc,0] = y
-                    coords[nc,1] = x
-                    yv = y
-                    flgp += 1
-                    flgm += 1
-                    nc += 1
+            if edgdet[x,y] == idnum+mvdir:
+                yvp = y
+                flgp += 1
+            elif edgdet[x,y] == idnum-mvdir:
+                yvm = y
+                flgm += 1
+            elif edgdet[x,y] == idnum:
+                coords[nc,0] = x
+                coords[nc,1] = y
+                yv = y
+                flgp += 1
+                flgm += 1
+                nc += 1
         if flgp == 2:
             medarrp[fcp] = <double>(yvp-yv)
             if medarrp[fcp] < 0.0: medarrp[fcp] *= -1.0
@@ -2786,12 +2609,12 @@ def trace_tilts(np.ndarray[DTYPE_t, ndim=2] msarc not None,
 @cython.boundscheck(False)
 def update_labels(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 np.ndarray[ITYPE_t, ndim=1] labels not None,
-                int dispdir, int idnum, int ni, int sn):
+                int idnum, int ni, int sn):
     cdef int sz_x, sz_y, sz_l
     cdef int x, y, l, nc
 
-    sz_x = edgdet.shape[dispdir]
-    sz_y = edgdet.shape[1-dispdir]
+    sz_x = edgdet.shape[0]
+    sz_y = edgdet.shape[1]
     sz_l = labels.shape[0]
 
     cdef np.ndarray[ITYPE_t, ndim=1] indx = np.zeros(sz_l, dtype=ITYPE)
@@ -2807,18 +2630,11 @@ def update_labels(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
             nc += 1
 
     # Now loop through and update the array
-    if dispdir == 0:
-        for x in range(sz_x):
-            for y in range(sz_y):
-                for l in range(nc):
-                    if edgdet[x,y] == indx[l]:
-                        edgdet[x,y] = indl[l]
-    else:
-        for x in range(sz_x):
-            for y in range(sz_y):
-                for l in range(nc):
-                    if edgdet[y,x] == indx[l]:
-                        edgdet[y,x] = indl[l]
+    for x in range(sz_x):
+        for y in range(sz_y):
+            for l in range(nc):
+                if edgdet[x,y] == indx[l]:
+                    edgdet[x,y] = indl[l]
     return
 
 
