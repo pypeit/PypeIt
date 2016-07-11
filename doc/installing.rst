@@ -49,7 +49,7 @@ If any of the packages are out of date, they can be updated with a command like:
 
 Installing Linetools
 --------------------
-The latest version of `Linetools <https://github.com/linetools/linetools/>`_ is
+The latest version of `linetools <https://github.com/linetools/linetools/>`_ is
 also required for PYPIT.
 Linetools is a package designed for the analysis of 1-D spectra.
 The installation steps for linetools are provided
@@ -122,6 +122,13 @@ found `here <https://www.quora.com/How-do-I-turn-off-the-rootless-in-OS-X-El-Cap
 
 
 **3) Install GSL with Homebrew instead of Anaconda**
+
+Since `Homebrew <http://brew.sh/>`_ installs programs in /usr/local , which is not SIP protected, this should work without additional hacks.::
+
+  brew install gsl
+
+in which case the ``GSL_PATH`` variable should be set to ``/usr/local/Cellar/gsl/1.16/``, where ``1.16`` might have to
+be replaced with whatever version number you have installed.
 
 Since Homebrew installs programs in /usr/local , which is not
 SIP protected, this should work without additional hacks.

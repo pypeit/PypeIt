@@ -1,6 +1,13 @@
 # PYPIT
 The Python Spectroscopic Data Reduction Pipeline
 
+# Instruments Served
+* Keck/LRIS 
+* Lick/Kast 
+* WHT/ISIS
+* Keck/DEIMOS (coming soon)
+* Lick/APF (planned)
+
 # Requirements
 * python
 * numpy
@@ -11,6 +18,7 @@ The Python Spectroscopic Data Reduction Pipeline
 * matplotlib
 * GNU Scientific Library
 * PyYAML
+* linetools
 
 # License
 This program is free software: you can redistribute it and/or modify
