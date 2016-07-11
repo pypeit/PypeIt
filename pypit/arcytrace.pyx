@@ -51,7 +51,7 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     cdef np.ndarray[ITYPE_t, ndim=1] larr = np.zeros((lcnt), dtype=ITYPE)
     cdef np.ndarray[ITYPE_t, ndim=1] rarr = np.zeros((rcnt), dtype=ITYPE)
 
-    # Find which id is the most common
+    # Find which slit edge id is the most common
     for x in range(sz_x):
         for y in range(sz_y):
             if edgdet[x,y] == 0: continue
@@ -72,7 +72,8 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
             cntr = rarr[x]
             comr = x
 
-    # Obtain the (x,y) values for the most common order id
+    print "-->", coml, comr
+    # Obtain the (x,y) values for the most common slit edge id
     cdef np.ndarray[ITYPE_t, ndim=2] lcarr = np.zeros((cntl,2), dtype=ITYPE)
     cdef np.ndarray[ITYPE_t, ndim=2] rcarr = np.zeros((cntr,2), dtype=ITYPE)
     nl = 0
@@ -90,21 +91,21 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
             else:
                 continue
 
-    # Label this edge
+    # Label this slit edge
     for x in range(nl):
         edgdet[lcarr[x,0],lcarr[x,1]] = -500
     for x in range(nr):
         edgdet[rcarr[x,0],rcarr[x,1]] = 500
 
-    # Find the closest set of points above and below this order
+    # Find the closest set of points above and below this slit
     cdef np.ndarray[ITYPE_t, ndim=1] llab = np.zeros((lcnt), dtype=ITYPE)
     cdef np.ndarray[ITYPE_t, ndim=1] rlab = np.zeros((rcnt), dtype=ITYPE)
     cdef np.ndarray[DTYPE_t, ndim=1] ldiffp = np.zeros((nl), dtype=DTYPE)
     cdef np.ndarray[DTYPE_t, ndim=1] ldiffm = np.zeros((nl), dtype=DTYPE)
     cdef np.ndarray[DTYPE_t, ndim=1] rdiffp = np.zeros((nr), dtype=DTYPE)
     cdef np.ndarray[DTYPE_t, ndim=1] rdiffm = np.zeros((nr), dtype=DTYPE)
-    llab[coml] = 500 # Label the most common as order 1
-    rlab[comr] = 500 # Label the most common as order 1
+    llab[coml] = 500 # Label the most common slit edge as 500
+    rlab[comr] = 500 # Label the most common slit edge as 500
     for x in range(nl):
         for y in range(lcarr[x,1]+1,sz_y):
             if edgdet[lcarr[x,0],y] < -999:
@@ -166,6 +167,7 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 if edgdet[rcarr[x,0],y] > 999:
                     rlab[edgdet[rcarr[x,0],y]-1000] = 500-i
                     edgdet[rcarr[x,0],y] = 500-i
+
     # Iterate through and label all of the left edges
     idnum = -501
     while True:
@@ -487,6 +489,18 @@ def detect_edges(np.ndarray[DTYPE_t, ndim=2] array not None,
 #######
 #  E  #
 #######
+
+@cython.boundscheck(False)
+def edge_sum(np.ndarray[ITYPE_t, ndim=1] edghist not None,
+            np.ndarray[ITYPE_t, ndim=1] sumarr not None):
+    cdef int s, sz_s
+
+    sz_s = sumarr.shape[0]
+
+    # Find which slit edge id is the most common
+    for s in range(sz_s):
+        edghist[sumarr[s]] += 1
+    return edghist
 
 
 #######
@@ -1350,7 +1364,7 @@ def get_xy(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
             int idnum, int mvdir):
     # Obtain the (x,y) values for idnum
     cdef int x, y, sz_x, sz_y
-    cdef int nc, fcm, fcp, tolp, tolm, flgp, flgm, yvm, yv
+    cdef int nc, fcm, fcp, tolp, tolm, flgp, flgm, yvm, yvp, yv
 
     sz_x = edgdet.shape[0]
     sz_y = edgdet.shape[1]
@@ -1371,7 +1385,7 @@ def get_xy(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
             elif edgdet[x,y] == idnum-mvdir:
                 yvm = y
                 flgm += 1
-            elif edgdet[x,y] == idnum:
+            elif edgdet[x,y] == idnum and flgp==0 and flgm==0:
                 coords[nc,0] = x
                 coords[nc,1] = y
                 yv = y
