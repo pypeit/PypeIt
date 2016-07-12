@@ -455,23 +455,23 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         cl = Counter(edg for edg in edgearrcp[wl])
         comml = cl.most_common(1)
         ww = np.where(edgearrcp == comml[0][0])
-        if firstpass:
+        if not firstpass:
             if (cmnold[0] == comml[0][0]) and (cmnold[1] == comml[0][1]):
                 # Nothing has changed since the previous iteration, so end the loop
                 break
         cmnold = comml[0]
-        if firstpass:
-            # Add these into edgehist
-            edgehist[offs] = ww[0].size
-            # And a fudge to give this edge detection some width (for peak finding, below)
-            edgehist[offs-1] = 1 + ww[0].size/2
-            edgehist[offs+1] = 1 + ww[0].size/2
         # Calculate the offset
         if firstpass:
             offs = binarr.shape[1]
         else:
             wof = np.where(slitlabls == comml[0][0])[0]
             offs = slitlctns[wof]
+        if firstpass:
+            # Add these into edgehist
+            edgehist[offs] = ww[0].size
+            # And a fudge to give this edge detection some width (for peak finding, below)
+            edgehist[offs-1] = 1 + ww[0].size/2
+            edgehist[offs+1] = 1 + ww[0].size/2
         # Extract just these elements
         tedgearr = edgearrcp[ww[0], :]
         www = np.where(tedgearr <= -1000)
@@ -479,7 +479,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         shft += offs  # Apply the offset to the edgehist arr
         arcytrace.edge_sum(edgehist, shft)
         # Smooth the histogram with a Gaussian of standard deviation 1 pixel to reduce noise
-        smedgehist = ndimage.gaussian_filter1d(edgehist, 1)
+        smedgehist = ndimage.gaussian_filter1d(edgehist, 2)
         # Identify peaks (which indicate the locations of the left slit edges)
         arrlfr = smedgehist[0:-4]
         arrlft = smedgehist[1:-3]
@@ -522,23 +522,23 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         cl = Counter(edg for edg in edgearrcp[wl])
         comml = cl.most_common(1)
         ww = np.where(edgearrcp == comml[0][0])
-        if firstpass:
+        if not firstpass:
             if (cmnold[0] == comml[0][0]) and (cmnold[1] == comml[0][1]):
                 # Nothing has changed since the previous iteration, so end the loop
                 break
         cmnold = comml[0]
-        if firstpass:
-            # Add these into edgehist
-            edgehist[offs] = ww[0].size
-            # And a fudge to give this edge detection some width (for peak finding, below)
-            edgehist[offs-1] = 1 + ww[0].size/2
-            edgehist[offs+1] = 1 + ww[0].size/2
         # Calculate the offset
         if firstpass:
             offs = binarr.shape[1]
         else:
             wof = np.where(slitlabls == comml[0][0])[0]
             offs = slitlctns[wof[0]]
+        if firstpass:
+            # Add these into edgehist
+            edgehist[offs] = ww[0].size
+            # And a fudge to give this edge detection some width (for peak finding, below)
+            edgehist[offs-1] = 1 + ww[0].size/2
+            edgehist[offs+1] = 1 + ww[0].size/2
         # Extract just these elements
         tedgearr = edgearrcp[ww[0], :]
         www = np.where(tedgearr >= 1000)
@@ -546,7 +546,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         shft += offs  # Apply the offset to the edgehist arr
         arcytrace.edge_sum(edgehist, shft)
         # Smooth the histogram with a Gaussian of standard deviation 1 pixel to reduce noise
-        smedgehist = ndimage.gaussian_filter1d(edgehist, 1)
+        smedgehist = ndimage.gaussian_filter1d(edgehist, 2)
         # Identify peaks (which indicate the locations of the left slit edges)
         arrlfr = smedgehist[0:-4]
         arrlft = smedgehist[1:-3]
@@ -565,7 +565,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         pks = wpk[0]+2  # Shifted by 2 because of the peak finding algorithm
         pkshft = np.arange(pks.size)-np.argmin(np.abs(pks-binarr.shape[1]))
         slitlctns = pks.copy()
-        slitlabls = 500+pkshft.copy()
+        slitlabls = 500-pkshft.copy()
         # Label all edge ids (in the original edgearr) that are located in each peak with the same number
         for ii in range(pks.size):
             wp = np.where((shft >= pks[ii]-2) & (shft <= pks[ii]+2))
@@ -578,33 +578,19 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         firstpass = False
     # Ignore any order detections that weren't identified in the loop
     edgearrcp[np.where(edgearrcp >= 1000)] = 0
-    # Find the locations of the peaks
-    print "this is it"
-    debugger.set_trace()
-    plt.plot(edgehist[:,0],drawstyle='steps')
-    plt.show()
-    siglev = 3.0
-    xrng = np.arange(edgehist.shape[0], dtype=np.float)
-    edgerr = np.mean(edgehist[:,0])*np.ones(edgehist.shape[0], dtype=np.float)
-    mskout = np.zeros(edgehist.shape[0], dtype=np.int)
-    tpixt, num = arcyarc.detections_sigma(edgehist[:, 0].astype(np.float), edgerr, mskout, siglev/2.0, siglev)
-    pixt = arcyarc.remove_similar(tpixt, num)
-    pixt = pixt[np.where(pixt != -1)].astype(np.int)
-    tampl, tcent, twid, ngood = arcyarc.fit_arcorder(xrng, edgehist[:, 0], pixt, 5)
-    w = np.where((np.isnan(twid) == False) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
-
-    tampl, tcent, twid, w, satsnd, _ = ararc.detect_lines(slf, det, None, censpec=edgehist[:, 0])
-    #arutils.ds9plot(edgearr)
+    # Update edgearr
+    edgearr = edgearrcp.copy()
     iterate = True
     while iterate:
-        edgearrcp = edgearr.copy()
-        lmin, lmax, rmin, rmax = arcytrace.assign_orders(edgearr, lcnt, rcnt)
-        debugger.set_trace()
-        arutils.ds9plot(edgearr)
+        # Calculate the minimum and maximum left/right edges
+        ww = np.where(edgearr < 0)
+        lmin, lmax = -np.max(edgearr[ww]), -np.min(edgearr[ww])  # min/max are switched because of the negative signs
+        ww = np.where(edgearr > 0)
+        rmin, rmax = np.min(edgearr[ww]), np.max(edgearr[ww])  # min/max are switched because of the negative signs
         #msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(slf._argflag['trace']['orders']['fracignore'], int(edgearr.shape[slf._dispaxis]*binby)))
-        msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(slf._argflag['trace']['orders']['fracignore'], int(edgearr.shape[slf._dispaxis])))
-        fracpix = int(slf._argflag['trace']['orders']['fracignore']*edgearr.shape[slf._dispaxis])
-        lnc, lxc, rnc, rxc, ldarr, rdarr = arcytrace.ignore_orders(edgearr, slf._dispaxis, fracpix, lmin, lmax, rmin, rmax)
+        msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(slf._argflag['trace']['orders']['fracignore'], int(edgearr.shape[0])))
+        fracpix = int(slf._argflag['trace']['orders']['fracignore']*edgearr.shape[0])
+        lnc, lxc, rnc, rxc, ldarr, rdarr = arcytrace.ignore_orders(edgearr, fracpix, lmin, lmax, rmin, rmax)
         lmin += lnc
         rmin += rnc
         lmax -= lxc
@@ -621,17 +607,17 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
                 iterate = True
                 edgearr[:,-1] = 1000
                 rcnt = 1
-    print "check it out"
+    debugger.set_trace()
     arutils.ds9plot(edgearr)
     # Left order traces
     msgs.info("Fitting left order traces")
-    lcoeff = np.zeros((1+slf._argflag['trace']['orders']['polyorder'],lmax-lmin+1))
-#	lfail = np.array([])
-    minvf, maxvf = slf._pixlocn[det-1][0,0,0], slf._pixlocn[det-1][-1,0,0]
+    lcoeff = np.zeros((1+slf._argflag['trace']['orders']['polyorder'], lmax-lmin+1))
+#   lfail = np.array([])
+    minvf, maxvf = slf._pixlocn[det-1][0, 0, 0], slf._pixlocn[det-1][-1, 0, 0]
     for i in xrange(lmin, lmax+1):
         w = np.where(edgearr == -i)
         if np.size(w[0]) <= slf._argflag['trace']['orders']['polyorder']+2:
-#			lfail = np.append(lfail,i-lmin)
+#           lfail = np.append(lfail,i-lmin)
             continue
         tlfitx = plxbin[w]
         tlfity = plybin[w]
@@ -659,21 +645,21 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     if (lmax+1-lmin == 1) and (rmax+1-rmin == 1):
         # Just a single order has been identified (i.e. probably longslit)
         msgs.info("Only one order was identified.  Should be a longslit.")
-        xint = slf._pixlocn[det-1][:,0,0]
+        xint = slf._pixlocn[det-1][:, 0, 0]
         lcenint = np.zeros((mstrace.shape[0], 1))
         rcenint = np.zeros((mstrace.shape[0], 1))
-        lcenint[:,0] = arutils.func_val(lcoeff[:,0], xint, slf._argflag['trace']['orders']['function'],
+        lcenint[:, 0] = arutils.func_val(lcoeff[:, 0], xint, slf._argflag['trace']['orders']['function'],
                                         minv=minvf, maxv=maxvf)
-        rcenint[:,0] = arutils.func_val(rcoeff[:,0], xint, slf._argflag['trace']['orders']['function'],
+        rcenint[:, 0] = arutils.func_val(rcoeff[:, 0], xint, slf._argflag['trace']['orders']['function'],
                                         minv=minvf, maxv=maxvf)
         return lcenint, rcenint, np.zeros(1, dtype=np.bool)
     msgs.info("Synchronizing left and right order traces")
     # Define the array of pixel values along the dispersion direction
-    xv = plxbin[:,0]
+    xv = plxbin[:, 0]
     #midval = np.mean(xv)
     num = (lmax-lmin)/2
     lval = lmin + num  # Pick an order, somewhere in between lmin and lmax
-    lv = (arutils.func_val(lcoeff[:,lval-lmin], xv, slf._argflag['trace']['orders']['function'],
+    lv = (arutils.func_val(lcoeff[:, lval-lmin], xv, slf._argflag['trace']['orders']['function'],
                            minv=minvf, maxv=maxvf)+0.5).astype(np.int)
     mnvalp = np.median(binarr[:, lv+1])  # Go one row above and one row below an order edge,
     mnvalm = np.median(binarr[:, lv-1])  # then see which mean value is greater.

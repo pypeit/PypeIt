@@ -1418,13 +1418,13 @@ def get_xy(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
 
 @cython.boundscheck(False)
 def ignore_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
-                int dispdir, int fracpix, int lmin, int lmax, int rmin, int rmax):
+                int fracpix, int lmin, int lmax, int rmin, int rmax):
     cdef int sz_x, sz_y
     cdef int x, y
     cdef int lnc, lxc, rnc, rxc
 
-    sz_x = edgdet.shape[dispdir]
-    sz_y = edgdet.shape[1-dispdir]
+    sz_x = edgdet.shape[0]
+    sz_y = edgdet.shape[1]
 
     cdef np.ndarray[ITYPE_t, ndim=2] larr = np.zeros((2,lmax-lmin+1), dtype=ITYPE)
     cdef np.ndarray[ITYPE_t, ndim=2] rarr = np.zeros((2,rmax-rmin+1), dtype=ITYPE)
@@ -1434,69 +1434,54 @@ def ignore_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     for x in range(rmax-rmin+1):
         rarr[0,x] = sz_x
 
-    if dispdir == 0:
-        for x in range(sz_x):
-            for y in range(sz_y):
-                if edgdet[x,y] < 0:
-                    if x < larr[0,-edgdet[x,y]-lmin]:
-                        larr[0,-edgdet[x,y]-lmin] = x
-                    elif x > larr[1,-edgdet[x,y]-lmin]:
-                        larr[1,-edgdet[x,y]-lmin] = x
-                elif edgdet[x,y] > 0:
-                    if x < rarr[0,edgdet[x,y]-rmin]:
-                        rarr[0,edgdet[x,y]-rmin] = x
-                    elif x > rarr[1,edgdet[x,y]-rmin]:
-                        rarr[1,edgdet[x,y]-rmin] = x
-    else:
-        for x in range(sz_x):
-            for y in range(sz_y):
-                if edgdet[y,x] < 0:
-                    if x < larr[0,-edgdet[y,x]-lmin]:
-                        larr[0,-edgdet[y,x]-lmin] = x
-                    elif x > larr[1,-edgdet[y,x]-lmin]:
-                        larr[1,-edgdet[y,x]-lmin] = x
-                elif edgdet[y,x] > 0:
-                    if x < rarr[0,edgdet[y,x]-rmin]:
-                        rarr[0,edgdet[y,x]-rmin] = x
-                    elif x > rarr[1,edgdet[y,x]-rmin]:
-                        rarr[1,edgdet[y,x]-rmin] = x
+    for x in range(sz_x):
+        for y in range(sz_y):
+            if edgdet[x,y] < 0:
+                if x < larr[0,-edgdet[x,y]-lmin]:
+                    larr[0,-edgdet[x,y]-lmin] = x
+                elif x > larr[1,-edgdet[x,y]-lmin]:
+                    larr[1,-edgdet[x,y]-lmin] = x
+            elif edgdet[x,y] > 0:
+                if x < rarr[0,edgdet[x,y]-rmin]:
+                    rarr[0,edgdet[x,y]-rmin] = x
+                elif x > rarr[1,edgdet[x,y]-rmin]:
+                    rarr[1,edgdet[x,y]-rmin] = x
+
     # Go through the array once more to remove pixels that do not cover fracpix
-    if dispdir == 0:
-        for x in range(sz_x):
-            for y in range(sz_y):
-                if edgdet[x,y] < 0:
-                    if larr[1,-edgdet[x,y]-lmin]-larr[0,-edgdet[x,y]-lmin] < fracpix:
-                        edgdet[x,y]=0
-                elif edgdet[x,y] > 0:
-                    if rarr[1,edgdet[x,y]-rmin]-rarr[0,edgdet[x,y]-rmin] < fracpix:
-                        edgdet[x,y]=0
-    else:
-        for x in range(sz_x):
-            for y in range(sz_y):
-                if edgdet[y,x] < 0:
-                    if larr[1,-edgdet[y,x]-lmin]-larr[0,-edgdet[y,x]-lmin] < fracpix:
-                        edgdet[y,x]=0
-                elif edgdet[y,x] > 0:
-                    if rarr[1,edgdet[y,x]-rmin]-rarr[0,edgdet[y,x]-rmin] < fracpix:
-                        edgdet[y,x]=0
+    for x in range(sz_x):
+        for y in range(sz_y):
+            if edgdet[x,y] < 0:
+                if larr[1,-edgdet[x,y]-lmin]-larr[0,-edgdet[x,y]-lmin] < fracpix:
+                    edgdet[x,y]=0
+            elif edgdet[x,y] > 0:
+                if rarr[1,edgdet[x,y]-rmin]-rarr[0,edgdet[x,y]-rmin] < fracpix:
+                    edgdet[x,y]=0
 
     # Check if lmin, lmax, rmin, and rmax need to be changed
     lnc = 0
     while True:
-        if larr[1,lnc]-larr[0,lnc] < fracpix: lnc += 1
-        else: break
+        if larr[1,lnc]-larr[0,lnc] < fracpix:
+            lnc += 1
+        else:
+            break
     lxc = 0
     while True:
-        if larr[1,lmax-lmin-lxc]-larr[0,lmax-lmin-lxc] < fracpix: lxc += 1
-        else: break
+        if larr[1,lmax-lmin-lxc]-larr[0,lmax-lmin-lxc] < fracpix:
+            lxc += 1
+        else:
+            break
     rnc = 0
     while True:
-        if rarr[1,rnc]-rarr[0,rnc] < fracpix: rnc += 1
-        else: break
+        if rarr[1,rnc]-rarr[0,rnc] < fracpix:
+            rnc += 1
+        else:
+            break
     rxc = 0
     while True:
-        if rarr[1,rmax-rmin-rxc]-rarr[0,rmax-rmin-rxc] < fracpix: rxc += 1
-        else: break
+        if rarr[1,rmax-rmin-rxc]-rarr[0,rmax-rmin-rxc] < fracpix:
+            rxc += 1
+        else:
+            break
     return lnc, lxc, rnc, rxc, larr, rarr
 
 
