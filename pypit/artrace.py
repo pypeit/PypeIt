@@ -443,73 +443,141 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         lcnt = 1
     msgs.info("Assigning slit edge traces")
     # Find the most common set of edges
-    ncomm = 5
-    edgehist = np.zeros(binarr.shape[1]*2, dtype=np.int)
-    offs = binarr.shape[1]
     edgearrcp = edgearr.copy()
     # Assign left edges
     msgs.info("Assigning left slit edges")
-    # Locate edges relative to the most common edge
-    wl = np.where(edgearrcp < 0)
-    cl = Counter(edg for edg in edgearrcp[wl])
-    comml = cl.most_common(1)
-    ww = np.where(edgearrcp == comml[0][0])
-    # Add these into edgehist
-    edgehist[offs] = ww[0].size
-    edgehist[offs-1] = 1 + ww[0].size/2  # A fudge to give this edge detection some width (for peak finding, below)
-    edgehist[offs+1] = 1 + ww[0].size/2  # A fudge to give this edge detection some width (for peak finding, below)
-    # Extrace just these elements
-    tedgearr = edgearrcp[ww[0], :]
-    wmsk = np.where(tedgearr == comml[0][0])
-    www = np.where(tedgearr < -999)
-    shft = ww[1][www[0]] - www[1]  # Calculate the shift between left edges
-    shft += offs  # Apply an offset for the edgehist arr
-    arcytrace.edge_sum(edgehist, shft)
-    # Smooth the histogram with a Gaussian of standard deviation 1 pixel to reduce noise
-    smedgehist = ndimage.gaussian_filter1d(edgehist, 1)
-    # Identify peaks (which indicate the locations of the left slit edges)
-    arrlfr = smedgehist[0:-4]
-    arrlft = smedgehist[1:-3]
-    arrcen = smedgehist[2:-2]
-    arrrgt = smedgehist[3:-1]
-    arrrfr = smedgehist[4:]
-    wpk = np.where((arrcen > arrlft) & (arrcen > arrrgt) &
-                   (arrlft > arrlfr) & (arrrgt > arrrfr) &
-                   (arrcen > np.mean(arrcen)))
-    if msgs._debug['trace']:
-        debugger.set_trace()
-        plt.plot(arrcen, drawstyle='steps')
-        plt.plot(wpk[0], np.zeros(wpk[0].size), 'ro')
-        plt.show()
-    # Store the labels
-    pks = wpk[0]+2  # Shifted by 2 because of the peak finding algorithm
-    pkshft = np.arange(pks.size)-np.argmin(np.abs(pks-offs))
-    slitlctns = pks.copy()
-    slitlabls = -500+pkshft.copy()
-    # Label all edge ids (in the original edgearr) that are located in each peak with the same number
-    for ii in range(pks.size):
-        wp = np.where((shft >= pks[ii]-2) & (shft <= pks[ii]+2))
-        vals = np.unique(tedgearr[(www[0][wp], www[1][wp])])
-        for vv in vals:
-            if vv == 0:
-                continue
-            slbl = np.where(slitlctns == pks[ii])[0][0]
-            edgearrcp[np.where(edgearr == vv)] = slitlabls[slbl]
-        # Mask out these identifications within the scanned region
-        debugger.set_trace()
-
+    edgehist = np.zeros(binarr.shape[1]*2, dtype=np.int)
+    cmnold = None
+    firstpass = True
+    while True:
+        # Locate edges relative to the most common edge
+        wl = np.where(edgearrcp < 0)
+        cl = Counter(edg for edg in edgearrcp[wl])
+        comml = cl.most_common(1)
+        ww = np.where(edgearrcp == comml[0][0])
+        if firstpass:
+            if (cmnold[0] == comml[0][0]) and (cmnold[1] == comml[0][1]):
+                # Nothing has changed since the previous iteration, so end the loop
+                break
+        cmnold = comml[0]
+        if firstpass:
+            # Add these into edgehist
+            edgehist[offs] = ww[0].size
+            # And a fudge to give this edge detection some width (for peak finding, below)
+            edgehist[offs-1] = 1 + ww[0].size/2
+            edgehist[offs+1] = 1 + ww[0].size/2
+        # Calculate the offset
+        if firstpass:
+            offs = binarr.shape[1]
+        else:
+            wof = np.where(slitlabls == comml[0][0])[0]
+            offs = slitlctns[wof]
+        # Extract just these elements
+        tedgearr = edgearrcp[ww[0], :]
+        www = np.where(tedgearr <= -1000)
+        shft = ww[1][www[0]] - www[1]  # Calculate the shift between left edges
+        shft += offs  # Apply the offset to the edgehist arr
+        arcytrace.edge_sum(edgehist, shft)
+        # Smooth the histogram with a Gaussian of standard deviation 1 pixel to reduce noise
+        smedgehist = ndimage.gaussian_filter1d(edgehist, 1)
+        # Identify peaks (which indicate the locations of the left slit edges)
+        arrlfr = smedgehist[0:-4]
+        arrlft = smedgehist[1:-3]
+        arrcen = smedgehist[2:-2]
+        arrrgt = smedgehist[3:-1]
+        arrrfr = smedgehist[4:]
+        wpk = np.where((arrcen > arrlft) & (arrcen > arrrgt) &
+                       (arrlft > arrlfr) & (arrrgt > arrrfr) &
+                       (arrcen > np.mean(arrcen)))
+        if msgs._debug['trace']:
+            debugger.set_trace()
+            plt.plot(arrcen, drawstyle='steps')
+            plt.plot(wpk[0], np.zeros(wpk[0].size), 'ro')
+            plt.show()
+        # Store the labels
+        pks = wpk[0]+2  # Shifted by 2 because of the peak finding algorithm
+        pkshft = np.arange(pks.size)-np.argmin(np.abs(pks-binarr.shape[1]))
+        slitlctns = pks.copy()
+        slitlabls = -500+pkshft.copy()
+        # Label all edge ids (in the original edgearr) that are located in each peak with the same number
+        for ii in range(pks.size):
+            wp = np.where((shft >= pks[ii]-2) & (shft <= pks[ii]+2))
+            vals = np.unique(tedgearr[(www[0][wp], www[1][wp])])
+            for vv in vals:
+                if vv == 0:
+                    continue
+                slbl = np.where(slitlctns == pks[ii])[0][0]
+                edgearrcp[np.where(edgearr == vv)] = slitlabls[slbl]
+        firstpass = False
+    # Ignore any order detections that weren't identified in the loop
+    edgearrcp[np.where(edgearrcp <= -1000)] = 0
     # Assign right edges
     msgs.info("Assigning right slit edges")
-    wr = np.where(edgearr > 0)
-    cr = Counter(edg for edg in edgearr[wl])
-    commr = cr.most_common(ncomm)
-    if False:
-        # Do right edges
-        www = np.where(tedgearr > 999)
+    edgehist = np.zeros(binarr.shape[1]*2, dtype=np.int)
+    cmnold = None
+    firstpass = True
+    while True:
+        # Locate edges relative to the most common edge
+        wl = np.where(edgearrcp > 0)
+        cl = Counter(edg for edg in edgearrcp[wl])
+        comml = cl.most_common(1)
+        ww = np.where(edgearrcp == comml[0][0])
+        if firstpass:
+            if (cmnold[0] == comml[0][0]) and (cmnold[1] == comml[0][1]):
+                # Nothing has changed since the previous iteration, so end the loop
+                break
+        cmnold = comml[0]
+        if firstpass:
+            # Add these into edgehist
+            edgehist[offs] = ww[0].size
+            # And a fudge to give this edge detection some width (for peak finding, below)
+            edgehist[offs-1] = 1 + ww[0].size/2
+            edgehist[offs+1] = 1 + ww[0].size/2
+        # Calculate the offset
+        if firstpass:
+            offs = binarr.shape[1]
+        else:
+            wof = np.where(slitlabls == comml[0][0])[0]
+            offs = slitlctns[wof[0]]
+        # Extract just these elements
+        tedgearr = edgearrcp[ww[0], :]
+        www = np.where(tedgearr >= 1000)
         shft = ww[1][www[0]] - www[1]  # Calculate the shift between left edges
-        shft += offs  # Apply an offset for the edgehist arr
-        arcytrace.edge_sum(edgehist, shft, 1)
-        edgehist[offs, 1] = ww[0].size
+        shft += offs  # Apply the offset to the edgehist arr
+        arcytrace.edge_sum(edgehist, shft)
+        # Smooth the histogram with a Gaussian of standard deviation 1 pixel to reduce noise
+        smedgehist = ndimage.gaussian_filter1d(edgehist, 1)
+        # Identify peaks (which indicate the locations of the left slit edges)
+        arrlfr = smedgehist[0:-4]
+        arrlft = smedgehist[1:-3]
+        arrcen = smedgehist[2:-2]
+        arrrgt = smedgehist[3:-1]
+        arrrfr = smedgehist[4:]
+        wpk = np.where((arrcen > arrlft) & (arrcen > arrrgt) &
+                       (arrlft > arrlfr) & (arrrgt > arrrfr) &
+                       (arrcen > np.mean(arrcen)))
+        if msgs._debug['trace']:
+            debugger.set_trace()
+            plt.plot(arrcen, drawstyle='steps')
+            plt.plot(wpk[0], np.zeros(wpk[0].size), 'ro')
+            plt.show()
+        # Store the labels
+        pks = wpk[0]+2  # Shifted by 2 because of the peak finding algorithm
+        pkshft = np.arange(pks.size)-np.argmin(np.abs(pks-binarr.shape[1]))
+        slitlctns = pks.copy()
+        slitlabls = 500+pkshft.copy()
+        # Label all edge ids (in the original edgearr) that are located in each peak with the same number
+        for ii in range(pks.size):
+            wp = np.where((shft >= pks[ii]-2) & (shft <= pks[ii]+2))
+            vals = np.unique(tedgearr[(www[0][wp], www[1][wp])])
+            for vv in vals:
+                if vv == 0:
+                    continue
+                slbl = np.where(slitlctns == pks[ii])[0][0]
+                edgearrcp[np.where(edgearr == vv)] = slitlabls[slbl]
+        firstpass = False
+    # Ignore any order detections that weren't identified in the loop
+    edgearrcp[np.where(edgearrcp >= 1000)] = 0
     # Find the locations of the peaks
     print "this is it"
     debugger.set_trace()
