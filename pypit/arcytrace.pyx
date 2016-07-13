@@ -1695,8 +1695,7 @@ def mad(np.ndarray[DTYPE_t, ndim=1] madarr not None):
 
 
 @cython.boundscheck(False)
-def match_edges(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
-                int dispdir):
+def match_edges(np.ndarray[ITYPE_t, ndim=2] edgdet not None):
     cdef int sz_x, sz_y
     cdef int x, y, yn, yx, xr, xs, yt, s, t
     cdef int lcnt, rcnt, suc, anyt
@@ -1705,248 +1704,136 @@ def match_edges(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     cdef np.ndarray[ITYPE_t, ndim=1] mrxarr = np.zeros(mr, dtype=ITYPE)
     cdef np.ndarray[ITYPE_t, ndim=1] mryarr = np.zeros(mr, dtype=ITYPE)
 
-    sz_x = edgdet.shape[dispdir]
-    sz_y = edgdet.shape[1-dispdir]
+    sz_x = edgdet.shape[0]
+    sz_y = edgdet.shape[1]
 
     lcnt = 1000
     rcnt = 1000
     for y in range(sz_y):
         for x in range(sz_x):
             anyt = 0
-            if dispdir == 0:
-                if edgdet[x,y] == -1:
-                    # Search upwards from x,y
-                    xs = x+1
-                    yt = y
-                    while xs <= sz_x-1:
-                        xr = 10
-                        yn, yx = limit_yval(yt,sz_y)
-                        if xs+xr >= sz_x: xr = sz_x-xs-1
+            if edgdet[x, y] == -1:
+                # Search upwards from x,y
+                xs = x + 1
+                yt = y
+                while xs <= sz_x-1:
+                    xr = 10
+                    yn, yx = limit_yval(yt, sz_y)
+                    if xs + xr >= sz_x:
+                        xr = sz_x - xs - 1
+                    suc = 0
+                    for s in range(xs, xs+xr):
                         suc = 0
-                        for s in range(xs,xs+xr):
-                            suc = 0
-                            for t in range(yt+yn,yt+yx):
-                                if edgdet[s,t] == -1:
-                                    edgdet[s,t] = -lcnt
-                                    suc = 1
-                                    if anyt < mr:
-                                        mrxarr[anyt] = s
-                                        mryarr[anyt] = t
-                                    anyt += 1
-                                    yt = t
-                                    break
-                            if suc == 1:
-                                xs = s + 1
+                        for t in range(yt + yn, yt + yx):
+                            if edgdet[s, t] == -1:
+                                edgdet[s, t] = -lcnt
+                                suc = 1
+                                if anyt < mr:
+                                    mrxarr[anyt] = s
+                                    mryarr[anyt] = t
+                                anyt += 1
+                                yt = t
                                 break
-                        if suc == 0: # The trace is lost!
+                        if suc == 1:
+                            xs = s + 1
                             break
-                    # Search downwards from x,y
-                    xs = x-1
-                    yt = y
-                    while xs >= 0:
-                        xr = 10
-                        yn, yx = limit_yval(yt,sz_y)
-                        if xs-xr < 0: xr = xs
+                    if suc == 0: # The trace is lost!
+                        break
+                # Search downwards from x,y
+                xs = x - 1
+                yt = y
+                while xs >= 0:
+                    xr = 10
+                    yn, yx = limit_yval(yt, sz_y)
+                    if xs-xr < 0:
+                        xr = xs
+                    suc = 0
+                    for s in range(0, xr):
                         suc = 0
-                        for s in range(0,xr):
-                            suc = 0
-                            for t in range(yt+yn,yt+yx):
-                                if edgdet[xs-s,t] == -1:
-                                    edgdet[xs-s,t] = -lcnt
-                                    suc = 1
-                                    if anyt < mr:
-                                        mrxarr[anyt] = xs-s
-                                        mryarr[anyt] = t
-                                    anyt += 1
-                                    yt = t
-                                    break
-                            if suc == 1:
-                                xs = xs - s - 1
+                        for t in range(yt+yn, yt+yx):
+                            if edgdet[xs-s, t] == -1:
+                                edgdet[xs-s, t] = -lcnt
+                                suc = 1
+                                if anyt < mr:
+                                    mrxarr[anyt] = xs-s
+                                    mryarr[anyt] = t
+                                anyt += 1
+                                yt = t
                                 break
-                        if suc == 0: # The trace is lost!
+                        if suc == 1:
+                            xs = xs - s - 1
                             break
-                    if anyt > mr:
-                        edgdet[x,y] = -lcnt
-                        lcnt = lcnt + 1
-                    else:
-                        edgdet[x,y] = 0
-                        for s in range(anyt):
-                            if mrxarr[s] != 0 and mryarr[s] != 0: edgdet[mrxarr[s],mryarr[s]] = 0
-                elif edgdet[x,y] == 1:
-                    # Search upwards from x,y
-                    xs = x+1
-                    yt = y
-                    while xs <= sz_x-1:
-                        xr = 10
-                        yn, yx = limit_yval(yt,sz_y)
-                        if xs+xr >= sz_x: xr = sz_x-xs-1
+                    if suc == 0: # The trace is lost!
+                        break
+                if anyt > mr:
+                    edgdet[x, y] = -lcnt
+                    lcnt = lcnt + 1
+                else:
+                    edgdet[x, y] = 0
+                    for s in range(anyt):
+                        if mrxarr[s] != 0 and mryarr[s] != 0:
+                            edgdet[mrxarr[s], mryarr[s]] = 0
+            elif edgdet[x, y] == 1:
+                # Search upwards from x,y
+                xs = x+1
+                yt = y
+                while xs <= sz_x-1:
+                    xr = 10
+                    yn, yx = limit_yval(yt, sz_y)
+                    if xs+xr >= sz_x:
+                        xr = sz_x-xs-1
+                    suc = 0
+                    for s in range(xs, xs+xr):
                         suc = 0
-                        for s in range(xs,xs+xr):
-                            suc = 0
-                            for t in range(yt+yn,yt+yx):
-                                if edgdet[s,t] == 1:
-                                    edgdet[s,t] = rcnt
-                                    suc = 1
-                                    if anyt < mr:
-                                        mrxarr[anyt] = s
-                                        mryarr[anyt] = t
-                                    anyt += 1
-                                    yt = t
-                                    break
-                            if suc == 1:
-                                xs = s + 1
+                        for t in range(yt+yn, yt+yx):
+                            if edgdet[s, t] == 1:
+                                edgdet[s, t] = rcnt
+                                suc = 1
+                                if anyt < mr:
+                                    mrxarr[anyt] = s
+                                    mryarr[anyt] = t
+                                anyt += 1
+                                yt = t
                                 break
-                        if suc == 0: # The trace is lost!
+                        if suc == 1:
+                            xs = s + 1
                             break
-                    # Search downwards from x,y
-                    xs = x-1
-                    yt = y
-                    while xs >= 0:
-                        xr = 10
-                        yn, yx = limit_yval(yt,sz_y)
-                        if xs-xr < 0: xr = xs
+                    if suc == 0: # The trace is lost!
+                        break
+                # Search downwards from x,y
+                xs = x-1
+                yt = y
+                while xs >= 0:
+                    xr = 10
+                    yn, yx = limit_yval(yt, sz_y)
+                    if xs-xr < 0:
+                        xr = xs
+                    suc = 0
+                    for s in range(0, xr):
                         suc = 0
-                        for s in range(0,xr):
-                            suc = 0
-                            for t in range(yt+yn,yt+yx):
-                                if edgdet[xs-s,t] == 1:
-                                    edgdet[xs-s,t] = rcnt
-                                    suc = 1
-                                    if anyt < mr:
-                                        mrxarr[anyt] = xs-s
-                                        mryarr[anyt] = t
-                                    anyt += 1
-                                    yt = t
-                                    break
-                            if suc == 1:
-                                xs = xs - s - 1
+                        for t in range(yt+yn, yt+yx):
+                            if edgdet[xs-s, t] == 1:
+                                edgdet[xs-s, t] = rcnt
+                                suc = 1
+                                if anyt < mr:
+                                    mrxarr[anyt] = xs-s
+                                    mryarr[anyt] = t
+                                anyt += 1
+                                yt = t
                                 break
-                        if suc == 0: # The trace is lost!
+                        if suc == 1:
+                            xs = xs - s - 1
                             break
-                    if anyt > mr:
-                        edgdet[x,y] = rcnt
-                        rcnt = rcnt + 1
-                    else:
-                        edgdet[x,y] = 0
-                        for s in range(anyt):
-                            if mrxarr[s] != 0 and mryarr[s] != 0: edgdet[mrxarr[s],mryarr[s]] = 0
-            else: # dispdir == 1
-                if edgdet[y,x] == -1:
-                    # Search upwards from x,y
-                    xs = x+1
-                    yt = y
-                    while xs <= sz_x-1:
-                        xr = 10
-                        yn, yx = limit_yval(yt,sz_y)
-                        if xs+xr >= sz_x: xr = sz_x-xs-1
-                        suc = 0
-                        for s in range(xs,xs+xr):
-                            suc = 0
-                            for t in range(yt+yn,yt+yx):
-                                if edgdet[t,s] == -1:
-                                    edgdet[t,s] = -lcnt
-                                    suc = 1
-                                    if anyt < mr:
-                                        mrxarr[anyt] = t
-                                        mryarr[anyt] = s
-                                    anyt += 1
-                                    yt = t
-                                    break
-                            if suc == 1:
-                                xs = s + 1
-                                break
-                        if suc == 0: # The trace is lost!
-                            break
-                    # Search downwards from x,y
-                    xs = x-1
-                    yt = y
-                    while xs >= 0:
-                        xr = 10
-                        yn, yx = limit_yval(yt,sz_y)
-                        if xs-xr < 0: xr = xs
-                        suc = 0
-                        for s in range(0,xr):
-                            suc = 0
-                            for t in range(yt+yn,yt+yx):
-                                if edgdet[t,xs-s] == -1:
-                                    edgdet[t,xs-s] = -lcnt
-                                    suc = 1
-                                    if anyt < mr:
-                                        mrxarr[anyt] = t
-                                        mryarr[anyt] = xs-s
-                                    anyt += 1
-                                    yt = t
-                                    break
-                            if suc == 1:
-                                xs = xs - s - 1
-                                break
-                        if suc == 0: # The trace is lost!
-                            break
-                    if anyt > mr:
-                        edgdet[y,x] = -lcnt
-                        lcnt = lcnt + 1
-                    else:
-                        edgdet[y,x] = 0
-                        for s in range(anyt):
-                            if mrxarr[s] != 0 and mryarr[s] != 0: edgdet[mrxarr[s],mryarr[s]] = 0
-                elif edgdet[y,x] == 1:
-                    # Search upwards from x,y
-                    xs = x+1
-                    yt = y
-                    while xs <= sz_x-1:
-                        xr = 10
-                        yn, yx = limit_yval(yt,sz_y)
-                        if xs+xr >= sz_x: xr = sz_x-xs-1
-                        suc = 0
-                        for s in range(xs,xs+xr):
-                            suc = 0
-                            for t in range(yt+yn,yt+yx):
-                                if edgdet[t,s] == 1:
-                                    edgdet[t,s] = rcnt
-                                    suc = 1
-                                    if anyt < mr:
-                                        mrxarr[anyt] = t
-                                        mryarr[anyt] = s
-                                    anyt += 1
-                                    yt = t
-                                    break
-                            if suc == 1:
-                                xs = s + 1
-                                break
-                        if suc == 0: # The trace is lost!
-                            break
-                    # Search downwards from x,y
-                    xs = x-1
-                    yt = y
-                    while xs >= 0:
-                        xr = 10
-                        yn, yx = limit_yval(yt,sz_y)
-                        if xs-xr < 0: xr = xs
-                        suc = 0
-                        for s in range(0,xr):
-                            suc = 0
-                            for t in range(yt+yn,yt+yx):
-                                if edgdet[t,xs-s] == 1:
-                                    edgdet[t,xs-s] = rcnt
-                                    suc = 1
-                                    if anyt < mr:
-                                        mrxarr[anyt] = t
-                                        mryarr[anyt] = xs-s
-                                    anyt += 1
-                                    yt = t
-                                    break
-                            if suc == 1:
-                                xs = xs - s - 1
-                                break
-                        if suc == 0: # The trace is lost!
-                            break
-                    if anyt > mr:
-                        edgdet[y,x] = rcnt
-                        rcnt = rcnt + 1
-                    else:
-                        edgdet[y,x] = 0
-                        for s in range(anyt):
-                            if mrxarr[s] != 0 and mryarr[s] != 0: edgdet[mrxarr[s],mryarr[s]] = 0
+                    if suc == 0: # The trace is lost!
+                        break
+                if anyt > mr:
+                    edgdet[x, y] = rcnt
+                    rcnt = rcnt + 1
+                else:
+                    edgdet[x, y] = 0
+                    for s in range(anyt):
+                        if mrxarr[s] != 0 and mryarr[s] != 0:
+                            edgdet[mrxarr[s], mryarr[s]] = 0
     return lcnt-1000, rcnt-1000
 
 
