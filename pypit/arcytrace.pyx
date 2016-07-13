@@ -324,7 +324,7 @@ def clean_edges(np.ndarray[DTYPE_t, ndim=2] diff not None,
         for y in range(sz_y):
             if tedges[x, y] == -1.0:
                 if ldct == 1:
-                    if diff[x, y] < lmax: # Recall, diff is very negative for significant left edge detections
+                    if diff[x, y] > lmax:  # Recall, diff is very positive for significant left edge detections
                         lmax = diff[x, y]
                         ymax = y
                 else:
@@ -333,7 +333,7 @@ def clean_edges(np.ndarray[DTYPE_t, ndim=2] diff not None,
                     ldct = 1
             elif tedges[x, y] == 1.0:
                 if rdct == 1:
-                    if diff[x, y] > rmax:
+                    if diff[x, y] < rmax:  # Recall, diff is very negative for significant right edge detections
                         rmax = diff[x, y]
                         ymax = y
                 else:
