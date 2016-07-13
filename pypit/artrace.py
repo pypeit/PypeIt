@@ -380,10 +380,10 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         filt = ndimage.sobel(sqmstrace, axis=1, mode='nearest')
         siglev = np.sign(filt)*(filt**2)/sqmstrace
         tedges = np.zeros(binarr.shape, dtype=np.float)
-        wr = np.where(siglev > +10.0)
-        wl = np.where(siglev < -10.0)
-        tedges[wr] = +1.0
+        wl = np.where(siglev > +10.0)  # A positive gradient is a left edge
+        wr = np.where(siglev < -10.0)  # A negative gradient is a right edge
         tedges[wl] = -1.0
+        tedges[wr] = +1.0
         nedgear = arcytrace.clean_edges(siglev, tedges)
         if maskBadRows:
             msgs.info("Searching for bad pixel rows")
@@ -391,7 +391,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
             sigma = 1.4826*np.median(np.abs(edgsum-np.median(edgsum)))
             w = np.where(np.abs(edgsum) >= 1.5*sigma)[0]
         #   maskcols = np.unique(np.append(w,np.append(np.append(w+2,w+1),np.append(w-2,w-1))))
-            maskcols = np.unique(np.append(w,np.append(w+1, w-1)))
+            maskcols = np.unique(np.append(w, np.append(w+1, w-1)))
             msgs.info("Masking {0:d} bad pixel rows".format(maskcols.size))
             for i in xrange(maskcols.size):
                 if maskcols[i] < 0 or maskcols[i] >= nedgear.shape[1]:
@@ -410,10 +410,9 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         # edgearr[np.where((nedgear == +1) | (tedgear == +1))] = +1
         # edgearr[np.where((nedgear == -1) | (tedgear == -1))] = -1
         edgearr = np.copy(nedgear)
-    #arutils.ds9plot(edgearr)
     # Assign a number to each of the edges
     msgs.info("Matching slit edges")
-    lcnt, rcnt = arcytrace.match_edges(edgearr, 0)
+    lcnt, rcnt = arcytrace.match_edges(edgearr)
     #arutils.ds9plot(edgearr)
     if lcnt == 1:
         letxt = "edge"
@@ -427,19 +426,19 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     if (lcnt == 0) & (rcnt == 0):
         if np.median(binarr) > 500:
             msgs.warn("Found flux but no edges.  Assuming they go to the edge of the detector.")
-            edgearr[:,-1] = 1000
+            edgearr[:, -1] = 1000
             rcnt = 1
-            edgearr[:,0] = -1000
+            edgearr[:, 0] = -1000
             lcnt = 1
         else:
             msgs.error("Unable to trace any edges"+msgs.newline()+"try a different method to trace the order edges")
     elif (rcnt == 0) & (lcnt == 1):
         msgs.warn("Unable to find a right edge. Adding one in.")
-        edgearr[:,-1] = 1000
+        edgearr[:, -1] = 1000
         rcnt = 1
     elif (lcnt == 0) & (rcnt == 1):
         msgs.warn("Unable to find a left edge. Adding one in.")
-        edgearr[:,0] = -1000
+        edgearr[:, 0] = -1000
         lcnt = 1
     msgs.info("Assigning slit edge traces")
     # Find the most common set of edges
@@ -449,7 +448,11 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     edgehist = np.zeros(binarr.shape[1]*2, dtype=np.int)
     cmnold = None
     firstpass = True
-    while True:
+    changesmade = True
+    itnm = 0
+    while changesmade:
+        itnm += 1
+        print "iteration", itnm
         # Locate edges relative to the most common edge
         wl = np.where(edgearrcp < 0)
         cl = Counter(edg for edg in edgearrcp[wl])
@@ -459,13 +462,25 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
             if (cmnold[0] == comml[0][0]) and (cmnold[1] == comml[0][1]):
                 # Nothing has changed since the previous iteration, so end the loop
                 break
+            if comml[0][1] < binarr.shape[0]/100.0:
+                # An edge that spans less than 1 per cent of the detector is insignificant
+                break
         cmnold = comml[0]
         # Calculate the offset
         if firstpass:
             offs = binarr.shape[1]
         else:
+            #arutils.ds9plot(edgearrcp)
+            debugger.set_trace()
+            tedgearr = edgearrcp[ww[0], :]
+            www = np.where(tedgearr <= -1000)
+            shft = ww[1][www[0]] - www[1]  # Calculate the shift between left edges
+
+
             wof = np.where(slitlabls == comml[0][0])[0]
-            offs = slitlctns[wof]
+            slitlctns[wof]
+            diff = difference
+            offs = binarr.shape[1] + diff
         if firstpass:
             # Add these into edgehist
             edgehist[offs] = ww[0].size
@@ -488,9 +503,9 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         arrrfr = smedgehist[4:]
         wpk = np.where((arrcen > arrlft) & (arrcen > arrrgt) &
                        (arrlft > arrlfr) & (arrrgt > arrrfr) &
-                       (arrcen > np.mean(arrcen)))
-        if msgs._debug['trace']:
-            debugger.set_trace()
+                       (arrcen > binarr.shape[0]/100))
+        if True:#msgs._debug['trace']:
+            #debugger.set_trace()
             plt.plot(arrcen, drawstyle='steps')
             plt.plot(wpk[0], np.zeros(wpk[0].size), 'ro')
             plt.show()
@@ -500,14 +515,26 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         slitlctns = pks.copy()
         slitlabls = -500+pkshft.copy()
         # Label all edge ids (in the original edgearr) that are located in each peak with the same number
+        changesmade = False
         for ii in range(pks.size):
             wp = np.where((shft >= pks[ii]-2) & (shft <= pks[ii]+2))
-            vals = np.unique(tedgearr[(www[0][wp], www[1][wp])])
-            for vv in vals:
-                if vv == 0:
-                    continue
+            vals = tedgearr[(www[0][wp], www[1][wp])]
+            wv = vals[np.where(vals <= -1000)]
+            if wv.size != 0:
+                cr = Counter(edg for edg in wv)
+                vv = cr.most_common(1)[0][0]
                 slbl = np.where(slitlctns == pks[ii])[0][0]
                 edgearrcp[np.where(edgearr == vv)] = slitlabls[slbl]
+                changesmade = True
+        # for ii in range(pks.size):
+        #     wp = np.where((shft >= pks[ii]-2) & (shft <= pks[ii]+2))
+        #     vals = np.unique(tedgearr[(www[0][wp], www[1][wp])])
+        #     for vv in vals:
+        #         if vv > -1000:
+        #             continue
+        #         changesmade = True
+        #         slbl = np.where(slitlctns == pks[ii])[0][0]
+        #         edgearrcp[np.where(edgearr == vv)] = slitlabls[slbl]
         firstpass = False
     # Ignore any order detections that weren't identified in the loop
     edgearrcp[np.where(edgearrcp <= -1000)] = 0
@@ -516,7 +543,8 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     edgehist = np.zeros(binarr.shape[1]*2, dtype=np.int)
     cmnold = None
     firstpass = True
-    while True:
+    changesmade = True
+    while changesmade:
         # Locate edges relative to the most common edge
         wl = np.where(edgearrcp > 0)
         cl = Counter(edg for edg in edgearrcp[wl])
@@ -555,7 +583,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         arrrfr = smedgehist[4:]
         wpk = np.where((arrcen > arrlft) & (arrcen > arrrgt) &
                        (arrlft > arrlfr) & (arrrgt > arrrfr) &
-                       (arrcen > np.mean(arrcen)))
+                       (arrcen > binarr.shape[0]/100))
         if msgs._debug['trace']:
             debugger.set_trace()
             plt.plot(arrcen, drawstyle='steps')
@@ -567,14 +595,17 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         slitlctns = pks.copy()
         slitlabls = 500-pkshft.copy()
         # Label all edge ids (in the original edgearr) that are located in each peak with the same number
+        changesmade = False
         for ii in range(pks.size):
             wp = np.where((shft >= pks[ii]-2) & (shft <= pks[ii]+2))
-            vals = np.unique(tedgearr[(www[0][wp], www[1][wp])])
-            for vv in vals:
-                if vv == 0:
-                    continue
+            vals = tedgearr[(www[0][wp], www[1][wp])]
+            wv = vals[np.where(vals >= 1000)]
+            if wv.size != 0:
+                cr = Counter(edg for edg in wv)
+                vv = cr.most_common(1)[0][0]
                 slbl = np.where(slitlctns == pks[ii])[0][0]
                 edgearrcp[np.where(edgearr == vv)] = slitlabls[slbl]
+                changesmade = True
         firstpass = False
     # Ignore any order detections that weren't identified in the loop
     edgearrcp[np.where(edgearrcp >= 1000)] = 0
@@ -607,8 +638,6 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
                 iterate = True
                 edgearr[:,-1] = 1000
                 rcnt = 1
-    debugger.set_trace()
-    arutils.ds9plot(edgearr)
     # Left order traces
     msgs.info("Fitting left order traces")
     lcoeff = np.zeros((1+slf._argflag['trace']['orders']['polyorder'], lmax-lmin+1))
@@ -751,7 +780,8 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     wr = np.where(edgearr > 0)
     edgearr[wl] += esub
     edgearr[wr] -= (esub+rsub)
-
+    debugger.set_trace()
+    arutils.ds9plot(edgearr)
     # Insert new rows into coefficients arrays if rsub != 0 (if orders were not labelled correctly, there will be a mismatch for the lcoeff and rcoeff)
     almin, almax = -np.max(edgearr[wl]), -np.min(edgearr[wl]) # min and max switched because left edges have negative values
     armin, armax = np.min(edgearr[wr]), np.max(edgearr[wr])
