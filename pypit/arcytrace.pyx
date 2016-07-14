@@ -2253,6 +2253,40 @@ def polyfit_xy(np.ndarray[DTYPE_t, ndim=2] xy not None,
     return coeffs
 
 
+@cython.boundscheck(False)
+def prune_peaks(np.ndarray[ITYPE_t, ndim=1] hist not None,
+                np.ndarray[ITYPE_t, ndim=1] pks not None):
+    """
+    Use only well defined peaks
+    """
+
+    cdef int ii, jj, sz_i, cnt, lgd
+
+    sz_i = pks.shape[0]
+
+    cdef np.ndarray[ITYPE_t, ndim=1] msk = np.zeros(sz_i, dtype=ITYPE)
+
+    lgd = 1
+    for ii in range(0, sz_i-1):
+        cnt = 0
+        for jj in range(pks[ii], pks[ii+1]):
+            if hist[jj] == 0:
+                cnt += 1
+        if cnt < (pks[ii+1] - pks[ii])/2:
+            # If the difference is unacceptable, both peaks are bad
+            msk[ii] = 0
+            msk[ii+1] = 0
+            lgd = 0
+        else:
+            # If the difference is acceptable, the right peak is acceptable,
+            # the left peak is acceptable if it was not previously labelled as unacceptable
+            if lgd == 1:
+                msk[ii] = 1
+            msk[ii+1] = 1
+            lgd = 1
+    return msk
+
+
 #######
 #  Q  #
 #######
