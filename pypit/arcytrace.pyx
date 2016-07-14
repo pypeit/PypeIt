@@ -508,6 +508,44 @@ def edge_sum(np.ndarray[ITYPE_t, ndim=1] edghist not None,
 #######
 
 @cython.boundscheck(False)
+def find_peak_limits(np.ndarray[ITYPE_t, ndim=1] hist not None,
+                    np.ndarray[ITYPE_t, ndim=1] pks not None):
+    """
+    Find all values between the zeros of hist
+    """
+
+    cdef int ii, jj, sz_i, sz_h, lim
+
+    sz_i = pks.shape[0]
+    sz_h = hist.shape[0]
+
+    cdef np.ndarray[ITYPE_t, ndim=2] edges = np.zeros((sz_i,2), dtype=ITYPE)
+
+    for ii in range(0, sz_i):
+        # Search below the peak
+        lim = pks[ii]
+        while True:
+            if lim < 0:
+                break
+            if hist[lim] == 0:
+                break
+            lim -= 1
+        # Store the limit
+        edges[ii,0] = lim
+        # Search above the peak
+        lim= pks[ii]
+        while True:
+            if lim > sz_h-1:
+                break
+            if hist[lim] == 0:
+                break
+            lim += 1
+        # Store the limit
+        edges[ii,1] = lim
+    return edges
+
+
+@cython.boundscheck(False)
 def find_between(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 np.ndarray[ITYPE_t, ndim=1] ledgem not None,
                 np.ndarray[ITYPE_t, ndim=1] ledgep not None,
