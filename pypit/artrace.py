@@ -450,47 +450,58 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     firstpass = True
     changesmade = True
     itnm = 0
+    slitlctns, slitlabls = np.array([], dtype=np.int), np.array([], dtype=np.int)
     while changesmade:
+        edgehist = np.zeros(binarr.shape[1]*2, dtype=np.int)
         itnm += 1
-        print "iteration", itnm
+        msgs.prindent("  Iteration {0:d}".format(itnm))
         # Locate edges relative to the most common edge
-        wl = np.where(edgearrcp < 0)
+        wl = np.where(edgearrcp < -1000)
         cl = Counter(edg for edg in edgearrcp[wl])
         comml = cl.most_common(1)
         ww = np.where(edgearrcp == comml[0][0])
         if not firstpass:
             if (cmnold[0] == comml[0][0]) and (cmnold[1] == comml[0][1]):
                 # Nothing has changed since the previous iteration, so end the loop
+                debugger.set_trace()
                 break
             if comml[0][1] < binarr.shape[0]/100.0:
-                # An edge that spans less than 1 per cent of the detector is insignificant
+                # Now considering an edge that spans less than 1 per cent of the detector ---> insignificant
+                debugger.set_trace()
                 break
         cmnold = comml[0]
+        # Extract just these elements
+        tedgearr = edgearrcp[ww[0], :]
         # Calculate the offset
         if firstpass:
             offs = binarr.shape[1]
+            labcen = -500
         else:
-            #arutils.ds9plot(edgearrcp)
             debugger.set_trace()
-            tedgearr = edgearrcp[ww[0], :]
-            www = np.where(tedgearr <= -1000)
-            shft = ww[1][www[0]] - www[1]  # Calculate the shift between left edges
-
-
-            wof = np.where(slitlabls == comml[0][0])[0]
-            slitlctns[wof]
-            diff = difference
-            offs = binarr.shape[1] + diff
-        if firstpass:
-            # Add these into edgehist
-            edgehist[offs] = ww[0].size
-            # And a fudge to give this edge detection some width (for peak finding, below)
-            edgehist[offs-1] = 1 + ww[0].size/2
-            edgehist[offs+1] = 1 + ww[0].size/2
-        # Extract just these elements
-        tedgearr = edgearrcp[ww[0], :]
+            www = np.where((tedgearr > -1000) & (tedgearr < 0))
+            # Calculate the shift between known edges and the new edge
+            shft = www[1] - ww[1][www[0]]  # Calculate the shift between left edges
+            # Find the closest known edge to the new edge
+            shmin = np.argmin(np.abs(shft))
+            knedge = tedgearr[www[0][shmin], www[1][shmin]]
+            wof = np.where(slitlabls == knedge)[0][0]
+            offs = slitlctns[wof] - shft[shmin]
+            labcen = slitlabls[wof]
+            if shft[shmin] > 0:
+                labcen += 1
+            else:
+                labcen -= 1
+        # Add these into edgehist
+        edgehist[offs] = ww[0].size
+        # And a fudge to give this edge detection some width (for peak finding, below)
+        edgehist[offs-1] = 1 + ww[0].size/2
+        edgehist[offs+1] = 1 + ww[0].size/2
+        # Find the difference between unknown edges
         www = np.where(tedgearr <= -1000)
-        shft = ww[1][www[0]] - www[1]  # Calculate the shift between left edges
+        if www[0].size == 0:
+            debugger.set_trace()
+            break
+        shft = www[1] - ww[1][www[0]]  # Calculate the shift between left edges
         shft += offs  # Apply the offset to the edgehist arr
         arcytrace.edge_sum(edgehist, shft)
         # Smooth the histogram with a Gaussian of standard deviation 1 pixel to reduce noise
@@ -501,40 +512,54 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         arrcen = smedgehist[2:-2]
         arrrgt = smedgehist[3:-1]
         arrrfr = smedgehist[4:]
+        wpk = np.where((arrcen > arrlft) & (arrcen > arrrgt) & (arrlft > arrlfr) & (arrrgt > arrrfr) & (arrcen > binarr.shape[0]/100))[0]  # At least 1% of pixels in the spectral direction at the peak
         wpk = np.where((arrcen > arrlft) & (arrcen > arrrgt) &
                        (arrlft > arrlfr) & (arrrgt > arrrfr) &
-                       (arrcen > binarr.shape[0]/100))
-        if True:#msgs._debug['trace']:
-            #debugger.set_trace()
-            plt.plot(arrcen, drawstyle='steps')
-            plt.plot(wpk[0], np.zeros(wpk[0].size), 'ro')
+                       (arrcen > binarr.shape[0]/100))[0]  # At least 1% of pixels in the spectral direction at the peak
+        wpkmsk = arcytrace.prune_peaks(edgehist, wpk)
+        wpk = wpk[np.where(wpkmsk == 1)]
+        if wpk.size == 0:
+            # No more peaks
+            debugger.set_trace()
+            break
+        pks = wpk+2  # Shifted by 2 because of the peak finding algorithm
+        pedges = arcytrace.find_peak_limits(edgehist, pks)
+        if np.all(pedges[:, 1]-pedges[:, 0] == 0):
+            # Remaining peaks have no width
+            debugger.set_trace()
+            break
+        if msgs._debug['trace']:
+            debugger.set_trace()
+            plt.plot(arrcen, 'k-', drawstyle='steps')
+            plt.plot(wpk, np.zeros(wpk.size), 'ro')
             plt.show()
         # Store the labels
-        pks = wpk[0]+2  # Shifted by 2 because of the peak finding algorithm
         pkshft = np.arange(pks.size)-np.argmin(np.abs(pks-binarr.shape[1]))
-        slitlctns = pks.copy()
-        slitlabls = -500+pkshft.copy()
+        slitlctns = np.append(slitlctns, pks.copy())
+        slitlabls = np.append(slitlabls, labcen - pkshft.copy())
+        # resort
+        asrt = np.argsort(slitlctns)
+        slitlctns = slitlctns[asrt]
+        slitlabls = slitlabls[asrt]
         # Label all edge ids (in the original edgearr) that are located in each peak with the same number
         changesmade = False
         for ii in range(pks.size):
-            wp = np.where((shft >= pks[ii]-2) & (shft <= pks[ii]+2))
-            vals = tedgearr[(www[0][wp], www[1][wp])]
-            wv = vals[np.where(vals <= -1000)]
-            if wv.size != 0:
-                cr = Counter(edg for edg in wv)
-                vv = cr.most_common(1)[0][0]
+            wp = np.where((shft >= pedges[ii, 0]) & (shft <= pedges[ii, 1]))
+            # vals = tedgearr[(www[0][wp], www[1][wp])]
+            # wv = vals[np.where(vals <= -1000)]
+            # if wv.size != 0:
+            #     cr = Counter(edg for edg in wv)
+            #     vv = cr.most_common(1)[0][0]
+            #     slbl = np.where(slitlctns == pks[ii])[0][0]
+            #     edgearrcp[np.where(edgearr == vv)] = slitlabls[slbl]
+            #     changesmade = True
+            vals = np.unique(tedgearr[(www[0][wp], www[1][wp])])
+            for vv in vals:
+                if vv > -1000:
+                    continue
                 slbl = np.where(slitlctns == pks[ii])[0][0]
                 edgearrcp[np.where(edgearr == vv)] = slitlabls[slbl]
                 changesmade = True
-        # for ii in range(pks.size):
-        #     wp = np.where((shft >= pks[ii]-2) & (shft <= pks[ii]+2))
-        #     vals = np.unique(tedgearr[(www[0][wp], www[1][wp])])
-        #     for vv in vals:
-        #         if vv > -1000:
-        #             continue
-        #         changesmade = True
-        #         slbl = np.where(slitlctns == pks[ii])[0][0]
-        #         edgearrcp[np.where(edgearr == vv)] = slitlabls[slbl]
         firstpass = False
     # Ignore any order detections that weren't identified in the loop
     edgearrcp[np.where(edgearrcp <= -1000)] = 0

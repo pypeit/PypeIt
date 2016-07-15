@@ -514,7 +514,7 @@ def find_peak_limits(np.ndarray[ITYPE_t, ndim=1] hist not None,
     Find all values between the zeros of hist
     """
 
-    cdef int ii, jj, sz_i, sz_h, lim
+    cdef int ii, sz_i, sz_h, lim
 
     sz_i = pks.shape[0]
     sz_h = hist.shape[0]
@@ -531,9 +531,9 @@ def find_peak_limits(np.ndarray[ITYPE_t, ndim=1] hist not None,
                 break
             lim -= 1
         # Store the limit
-        edges[ii,0] = lim
+        edges[ii, 0] = lim
         # Search above the peak
-        lim= pks[ii]
+        lim = pks[ii]
         while True:
             if lim > sz_h-1:
                 break
@@ -541,7 +541,7 @@ def find_peak_limits(np.ndarray[ITYPE_t, ndim=1] hist not None,
                 break
             lim += 1
         # Store the limit
-        edges[ii,1] = lim
+        edges[ii, 1] = lim
     return edges
 
 
@@ -2295,17 +2295,19 @@ def polyfit_xy(np.ndarray[DTYPE_t, ndim=2] xy not None,
 def prune_peaks(np.ndarray[ITYPE_t, ndim=1] hist not None,
                 np.ndarray[ITYPE_t, ndim=1] pks not None):
     """
-    Use only well defined peaks
+    Identify the most well defined peaks
     """
 
-    cdef int ii, jj, sz_i, cnt, lgd
+    cdef int ii, jj, sz_i, cnt, lgd, fgd
 
     sz_i = pks.shape[0]
 
     cdef np.ndarray[ITYPE_t, ndim=1] msk = np.zeros(sz_i, dtype=ITYPE)
 
-    lgd = 1
+    fgd = 0  # Found at least one good peak?
+    lgd = 1  # Was the previously inspected peak a good one?
     for ii in range(0, sz_i-1):
+        print ii, sz_i-1, fgd
         cnt = 0
         for jj in range(pks[ii], pks[ii+1]):
             if hist[jj] == 0:
@@ -2315,6 +2317,9 @@ def prune_peaks(np.ndarray[ITYPE_t, ndim=1] hist not None,
             msk[ii] = 0
             msk[ii+1] = 0
             lgd = 0
+            if fgd == 1:
+                # A break between good peaks has been found, ignore the remaining peaks.
+                break
         else:
             # If the difference is acceptable, the right peak is acceptable,
             # the left peak is acceptable if it was not previously labelled as unacceptable
@@ -2322,6 +2327,7 @@ def prune_peaks(np.ndarray[ITYPE_t, ndim=1] hist not None,
                 msk[ii] = 1
             msk[ii+1] = 1
             lgd = 1
+            fgd = 1
     return msk
 
 
