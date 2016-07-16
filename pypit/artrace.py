@@ -279,7 +279,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     return tracedict
 
 
-def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=False):
+def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, close_slits=False, singleSlit=False):
     """
     This routine will traces the locations of the slit edges
 
@@ -300,6 +300,9 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     singleSlit : bool, optional
       If True, only the most significant slit edge identified will be returned
       Set singleSlit=True for longslit data.
+    close_slits : bool, optional
+      If True, the user has specified that the slits are very close together,
+      making edge identification difficult. Minimal filtering will be applied
 
     Returns
     -------
@@ -333,7 +336,12 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
 #    binbpx = arcyutils.bin_x(slf._bpix[det-1], binby, 0)
 #    plxbin = arcyutils.bin_x(slf._pixlocn[det-1][:,:,0], binby, 1)
 #    plybin = arcyutils.bin_x(slf._pixlocn[det-1][:,:,1], binby, 1)
-    medrep = 3  # How many times to repeat the median filter
+
+    # Specify how many times to repeat the median filter
+    if close_slits:
+        medrep = 0
+    else:
+        medrep = 3
     singleSlit = False
     if singleSlit:
         edgearr = np.zeros(binarr.shape, dtype=np.int)
@@ -456,6 +464,8 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         itnm += 1
         # Locate edges relative to the most common edge
         wl = np.where(edgearrcp < -1000)
+        if wl[0].size == 0:
+            break
         cl = Counter(edg for edg in edgearrcp[wl])
         comml = cl.most_common(1)
         ww = np.where(edgearrcp == comml[0][0])
@@ -565,6 +575,8 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         itnm += 1
         # Locate edges relative to the most common edge
         wl = np.where(edgearrcp > 1000)
+        if wl[0].size == 0:
+            break
         cl = Counter(edg for edg in edgearrcp[wl])
         comml = cl.most_common(1)
         ww = np.where(edgearrcp == comml[0][0])
@@ -661,6 +673,8 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         firstpass = False
     # Ignore any order detections that weren't identified in the loop
     edgearrcp[np.where(edgearrcp >= 1000)] = 0
+    debugger.set_trace()
+    arutils.ds9plot(edgearrcp)
     # Update edgearr
     edgearr = edgearrcp.copy()
     iterate = True
@@ -730,14 +744,13 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         lcenint = np.zeros((mstrace.shape[0], 1))
         rcenint = np.zeros((mstrace.shape[0], 1))
         lcenint[:, 0] = arutils.func_val(lcoeff[:, 0], xint, slf._argflag['trace']['orders']['function'],
-                                        minv=minvf, maxv=maxvf)
+                                         minv=minvf, maxv=maxvf)
         rcenint[:, 0] = arutils.func_val(rcoeff[:, 0], xint, slf._argflag['trace']['orders']['function'],
-                                        minv=minvf, maxv=maxvf)
+                                         minv=minvf, maxv=maxvf)
         return lcenint, rcenint, np.zeros(1, dtype=np.bool)
     msgs.info("Synchronizing left and right slit traces")
     # Define the array of pixel values along the dispersion direction
     xv = plxbin[:, 0]
-    #midval = np.mean(xv)
     num = (lmax-lmin)/2
     lval = lmin + num  # Pick an order, somewhere in between lmin and lmax
     lv = (arutils.func_val(lcoeff[:, lval-lmin], xv, slf._argflag['trace']['orders']['function'],
@@ -761,7 +774,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         rsub = edgbtwn[1]-(lval)
     """
     if mnvalp > mnvalm:
-        lvp = (arutils.func_val(lcoeff[:,lval+1-lmin], xv, slf._argflag['trace']['orders']['function'],
+        lvp = (arutils.func_val(lcoeff[:, lval+1-lmin], xv, slf._argflag['trace']['orders']['function'],
                                 minv=minvf, maxv=maxvf)+0.5).astype(np.int)
         edgbtwn = arcytrace.find_between(edgearr, lv, lvp, slf._dispaxis, 1)
         # edgbtwn is a 3 element array that determines what is between two adjacent left edges
@@ -775,7 +788,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         else:  # There's an order overlap
             rsub = edgbtwn[1]-lval
     else:
-        lvp = (arutils.func_val(lcoeff[:,lval-1-lmin], xv, slf._argflag['trace']['orders']['function'],
+        lvp = (arutils.func_val(lcoeff[:, lval-1-lmin], xv, slf._argflag['trace']['orders']['function'],
                                 minv=minvf, maxv=maxvf)+0.5).astype(np.int)
         edgbtwn = arcytrace.find_between(edgearr, lvp, lv, slf._dispaxis, -1)
         if edgbtwn[0] == -1 and edgbtwn[1] == -1:
@@ -824,7 +837,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
 #			rva = rvb
     msgs.info("Relabelling slit edges")
     if lmin < rmin-rsub:
-        esub = (lmin) - (slf._argflag['trace']['orders']['pcxneg']+1)
+        esub = lmin - (slf._argflag['trace']['orders']['pcxneg']+1)
     else:
         esub = (rmin-rsub) - (slf._argflag['trace']['orders']['pcxneg']+1)
 
@@ -838,14 +851,14 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     nmord = slf._argflag['trace']['orders']['polyorder']+1
     if armin != almin:
         if armin < almin:
-            lcoeff = np.append(np.zeros((nmord,almin-armin)),lcoeff,axis=1)
+            lcoeff = np.append(np.zeros((nmord, almin-armin)), lcoeff, axis=1)
         else:
-            rcoeff = np.append(np.zeros((nmord,armin-almin)),rcoeff,axis=1)
+            rcoeff = np.append(np.zeros((nmord, armin-almin)), rcoeff, axis=1)
     if armax != almax:
         if armax < almax:
-            rcoeff = np.append(rcoeff,np.zeros((nmord,almax-armax)),axis=1)
+            rcoeff = np.append(rcoeff, np.zeros((nmord, almax-armax)), axis=1)
         else:
-            lcoeff = np.append(lcoeff,np.zeros((nmord,armax-almax)),axis=1)
+            lcoeff = np.append(lcoeff, np.zeros((nmord, armax-almax)), axis=1)
 
     # Now consider traces where both the left and right edges are detected
     ordunq = np.unique(edgearr)
@@ -860,7 +873,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     rg = np.where(np.in1d(runq, gord))[0]
     lgm = np.where(np.in1d(-lunq, gord, invert=True))[0]
     rgm = np.where(np.in1d(runq, gord, invert=True))[0]
-    maxord = np.max(np.append(gord,np.append(-lunq[lgm],runq[rgm])))
+    maxord = np.max(np.append(gord, np.append(-lunq[lgm], runq[rgm])))
     #addnbad = maxord-np.max(gord)
     lcent = arutils.func_val(lcoeff[:,-lunq[lg][::-1]-1-slf._argflag['trace']['orders']['pcxneg']], xv,
                              slf._argflag['trace']['orders']['function'], minv=minvf, maxv=maxvf)
@@ -947,9 +960,9 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         #lcen = extrap_cent - 0.5*extrap_diff
         #rcen = extrap_cent + 0.5*extrap_diff
     else:
-        extrapord = None
-        lcen = lcent.copy()
-        rcen = rcent.copy()
+        lcen = lcent.T.copy()
+        rcen = rcent.T.copy()
+        extrapord = np.zeros(lcen.shape[1], dtype=np.bool)
     # Interpolate the best solutions for all orders with a cubic spline
     #msgs.info("Interpolating the best solutions for all orders with a cubic spline")
     # zmin, zmax = arplot.zscale(binarr)
