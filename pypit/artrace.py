@@ -477,7 +477,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
             offs = binarr.shape[1]
             labcen = -500
         else:
-            debugger.set_trace()
+            #debugger.set_trace()
             www = np.where((tedgearr > -1000) & (tedgearr < 0))
             # Calculate the shift between known edges and the new edge
             shft = www[1] - ww[1][www[0]]  # Calculate the shift between left edges
@@ -512,11 +512,10 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         arrcen = smedgehist[2:-2]
         arrrgt = smedgehist[3:-1]
         arrrfr = smedgehist[4:]
-        wpk = np.where((arrcen > arrlft) & (arrcen > arrrgt) & (arrlft > arrlfr) & (arrrgt > arrrfr) & (arrcen > binarr.shape[0]/100))[0]  # At least 1% of pixels in the spectral direction at the peak
         wpk = np.where((arrcen > arrlft) & (arrcen > arrrgt) &
                        (arrlft > arrlfr) & (arrrgt > arrrfr) &
                        (arrcen > binarr.shape[0]/100))[0]  # At least 1% of pixels in the spectral direction at the peak
-        wpkmsk = arcytrace.prune_peaks(edgehist, wpk)
+        wpkmsk = arcytrace.prune_peaks(edgehist, wpk, np.where(wpk+2 == offs)[0][0])
         wpk = wpk[np.where(wpkmsk == 1)]
         if wpk.size == 0:
             # No more peaks
@@ -537,7 +536,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         pkshft = np.arange(pks.size)-np.argmin(np.abs(pks-binarr.shape[1]))
         slitlctns = np.append(slitlctns, pks.copy())
         slitlabls = np.append(slitlabls, labcen - pkshft.copy())
-        # resort
+        # sort
         asrt = np.argsort(slitlctns)
         slitlctns = slitlctns[asrt]
         slitlabls = slitlabls[asrt]

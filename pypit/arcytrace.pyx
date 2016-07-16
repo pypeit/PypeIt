@@ -2293,21 +2293,20 @@ def polyfit_xy(np.ndarray[DTYPE_t, ndim=2] xy not None,
 
 @cython.boundscheck(False)
 def prune_peaks(np.ndarray[ITYPE_t, ndim=1] hist not None,
-                np.ndarray[ITYPE_t, ndim=1] pks not None):
+                np.ndarray[ITYPE_t, ndim=1] pks not None,
+                int pkidx):
     """
     Identify the most well defined peaks
     """
 
-    cdef int ii, jj, sz_i, cnt, lgd, fgd
+    cdef int ii, jj, sz_i, cnt, lgd
 
     sz_i = pks.shape[0]
 
     cdef np.ndarray[ITYPE_t, ndim=1] msk = np.zeros(sz_i, dtype=ITYPE)
 
-    fgd = 0  # Found at least one good peak?
     lgd = 1  # Was the previously inspected peak a good one?
     for ii in range(0, sz_i-1):
-        print ii, sz_i-1, fgd
         cnt = 0
         for jj in range(pks[ii], pks[ii+1]):
             if hist[jj] == 0:
@@ -2317,9 +2316,6 @@ def prune_peaks(np.ndarray[ITYPE_t, ndim=1] hist not None,
             msk[ii] = 0
             msk[ii+1] = 0
             lgd = 0
-            if fgd == 1:
-                # A break between good peaks has been found, ignore the remaining peaks.
-                break
         else:
             # If the difference is acceptable, the right peak is acceptable,
             # the left peak is acceptable if it was not previously labelled as unacceptable
@@ -2327,7 +2323,19 @@ def prune_peaks(np.ndarray[ITYPE_t, ndim=1] hist not None,
                 msk[ii] = 1
             msk[ii+1] = 1
             lgd = 1
-            fgd = 1
+    # Now only consider the peaks closest to the highest peak
+    lgd = 1
+    for ii in range(pkidx, sz_i):
+        if msk[ii] == 0:
+            lgd = 0
+        elif lgd == 0:
+            msk[ii] = 0
+    lgd = 1
+    for ii in range(0, pkidx):
+        if msk[pkidx-ii] == 0:
+            lgd = 0
+        elif lgd == 0:
+            msk[pkidx-ii] = 0
     return msk
 
 
