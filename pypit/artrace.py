@@ -450,6 +450,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     changesmade = True
     itnm = 0
     slitlctns, slitlabls = np.array([], dtype=np.int), np.array([], dtype=np.int)
+    nslit = 0
     while changesmade:
         edgehist = np.zeros(binarr.shape[1]*2, dtype=np.int)
         itnm += 1
@@ -499,14 +500,14 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         shft += offs  # Apply the offset to the edgehist arr
         arcytrace.edge_sum(edgehist, shft)
         # Smooth the histogram with a Gaussian of standard deviation 1 pixel to reduce noise
-        smedgehist = ndimage.gaussian_filter1d(edgehist, 2)
+        smedgehist = ndimage.gaussian_filter1d(edgehist, 3)
         # Identify peaks (which indicate the locations of the left slit edges)
         arrlfr = smedgehist[0:-4]
         arrlft = smedgehist[1:-3]
         arrcen = smedgehist[2:-2]
         arrrgt = smedgehist[3:-1]
         arrrfr = smedgehist[4:]
-        wpk = np.where((arrcen > arrlft) & (arrcen > arrrgt) &
+        wpk = np.where((arrcen >= arrlft) & (arrcen > arrrgt) &  # Exactly one of these should be >=
                        (arrlft > arrlfr) & (arrrgt > arrrfr) &
                        (arrcen > binarr.shape[0]/100))[0]  # At least 1% of pixels in the spectral direction at the peak
         if wpk.size == 0:
@@ -546,7 +547,8 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
                 slbl = np.where(slitlctns == pks[ii])[0][0]
                 edgearrcp[np.where(edgearr == vv)] = slitlabls[slbl]
                 changesmade = True
-        msgs.prindent("  Iteration {0:d}, {1:d} left edges assigned".format(itnm, pks.size))
+        nslit += pks.size
+        msgs.prindent("  Iteration {0:d}, {1:d} left edges assigned ({2:d} total)".format(itnm, pks.size, nslit))
         firstpass = False
     # Ignore any order detections that weren't identified in the loop
     edgearrcp[np.where(edgearrcp <= -1000)] = 0
@@ -557,6 +559,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     changesmade = True
     itnm = 0
     slitlctns, slitlabls = np.array([], dtype=np.int), np.array([], dtype=np.int)
+    nslit = 0
     while changesmade:
         edgehist = np.zeros(binarr.shape[1]*2, dtype=np.int)
         itnm += 1
@@ -580,7 +583,6 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
             offs = binarr.shape[1]
             labcen = 500
         else:
-            debugger.set_trace()
             www = np.where((tedgearr < 1000) & (tedgearr > 0))
             # Calculate the shift between known edges and the new edge
             shft = www[1] - ww[1][www[0]]  # Calculate the shift between right edges
@@ -614,7 +616,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         arrcen = smedgehist[2:-2]
         arrrgt = smedgehist[3:-1]
         arrrfr = smedgehist[4:]
-        wpk = np.where((arrcen > arrlft) & (arrcen > arrrgt) &
+        wpk = np.where((arrcen >= arrlft) & (arrcen > arrrgt) &  # Exactly one of these should be >=
                        (arrlft > arrlfr) & (arrrgt > arrrfr) &
                        (arrcen > binarr.shape[0]/100))[0]  # At least 1% of pixels in the spectral direction at the peak
         if wpk.size == 0:
@@ -654,7 +656,8 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
                 slbl = np.where(slitlctns == pks[ii])[0][0]
                 edgearrcp[np.where(edgearr == vv)] = slitlabls[slbl]
                 changesmade = True
-        msgs.prindent("  Iteration {0:d}, {1:d} right edges assigned".format(itnm, pks.size))
+        nslit += pks.size
+        msgs.prindent("  Iteration {0:d}, {1:d} right edges assigned ({2:d} total)".format(itnm, pks.size, nslit))
         firstpass = False
     # Ignore any order detections that weren't identified in the loop
     edgearrcp[np.where(edgearrcp >= 1000)] = 0
@@ -688,7 +691,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
                 edgearr[:,-1] = 1000
                 rcnt = 1
     # Left order traces
-    msgs.info("Fitting left order traces")
+    msgs.info("Fitting left slit traces")
     lcoeff = np.zeros((1+slf._argflag['trace']['orders']['polyorder'], lmax-lmin+1))
 #   lfail = np.array([])
     minvf, maxvf = slf._pixlocn[det-1][0, 0, 0], slf._pixlocn[det-1][-1, 0, 0]
@@ -707,7 +710,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
 #		plt.plot(xv,yv,'r-')
 #		plt.show()
 #		plt.clf()
-    msgs.info("Fitting right order traces")
+    msgs.info("Fitting right slit traces")
     rcoeff = np.zeros((1+slf._argflag['trace']['orders']['polyorder'], rmax-rmin+1))
 #	rfail = np.array([])
     for i in xrange(rmin, rmax+1):
@@ -722,7 +725,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     # Check if no further work is needed (i.e. there only exists one order)
     if (lmax+1-lmin == 1) and (rmax+1-rmin == 1):
         # Just a single order has been identified (i.e. probably longslit)
-        msgs.info("Only one order was identified.  Should be a longslit.")
+        msgs.info("Only one slit was identified. Should be a longslit.")
         xint = slf._pixlocn[det-1][:, 0, 0]
         lcenint = np.zeros((mstrace.shape[0], 1))
         rcenint = np.zeros((mstrace.shape[0], 1))
@@ -731,7 +734,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         rcenint[:, 0] = arutils.func_val(rcoeff[:, 0], xint, slf._argflag['trace']['orders']['function'],
                                         minv=minvf, maxv=maxvf)
         return lcenint, rcenint, np.zeros(1, dtype=np.bool)
-    msgs.info("Synchronizing left and right order traces")
+    msgs.info("Synchronizing left and right slit traces")
     # Define the array of pixel values along the dispersion direction
     xv = plxbin[:, 0]
     #midval = np.mean(xv)
@@ -819,7 +822,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
 #			break
 #		else:
 #			rva = rvb
-    msgs.info("Relabelling order edges")
+    msgs.info("Relabelling slit edges")
     if lmin < rmin-rsub:
         esub = (lmin) - (slf._argflag['trace']['orders']['pcxneg']+1)
     else:
@@ -829,8 +832,6 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     wr = np.where(edgearr > 0)
     edgearr[wl] += esub
     edgearr[wr] -= (esub+rsub)
-    debugger.set_trace()
-    arutils.ds9plot(edgearr)
     # Insert new rows into coefficients arrays if rsub != 0 (if orders were not labelled correctly, there will be a mismatch for the lcoeff and rcoeff)
     almin, almax = -np.max(edgearr[wl]), -np.min(edgearr[wl]) # min and max switched because left edges have negative values
     armin, armax = np.min(edgearr[wr]), np.max(edgearr[wr])
@@ -865,7 +866,6 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
                              slf._argflag['trace']['orders']['function'], minv=minvf, maxv=maxvf)
     rcent = arutils.func_val(rcoeff[:,runq[rg]-1-slf._argflag['trace']['orders']['pcxneg']], xv,
                              slf._argflag['trace']['orders']['function'], minv=minvf, maxv=maxvf)
-    debugger.set_trace()
     slitcen = 0.5*(lcent+rcent).T
     ##############
     # zmin, zmax = arplot.zscale(binarr)
