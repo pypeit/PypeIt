@@ -279,7 +279,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     return tracedict
 
 
-def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, close_slits=False, singleSlit=False):
+def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=False):
     """
     This routine will traces the locations of the slit edges
 
@@ -300,9 +300,6 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, close_slits=F
     singleSlit : bool, optional
       If True, only the most significant slit edge identified will be returned
       Set singleSlit=True for longslit data.
-    close_slits : bool, optional
-      If True, the user has specified that the slits are very close together,
-      making edge identification difficult. Minimal filtering will be applied
 
     Returns
     -------
@@ -338,11 +335,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, close_slits=F
 #    plybin = arcyutils.bin_x(slf._pixlocn[det-1][:,:,1], binby, 1)
 
     # Specify how many times to repeat the median filter
-    if close_slits:
-        medrep = 0
-    else:
-        medrep = 3
-    singleSlit = False
+    medrep = 3
     if singleSlit:
         edgearr = np.zeros(binarr.shape, dtype=np.int)
         detect = True
