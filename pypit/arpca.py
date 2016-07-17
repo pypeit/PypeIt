@@ -1,8 +1,10 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 from matplotlib import pyplot as plt
 import numpy as np
-import armsgs
-import arutils
-from arplot import get_dimen as get_dimen
+from pypit import armsgs
+from pypit import arutils
+from pypit.arplot import get_dimen as get_dimen
 
 # Logging
 msgs = armsgs.get_logger()
@@ -41,7 +43,7 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
     # coeff1 = arutils.robust_regression(x0in[usetrace], y, pnpc[2], 0.1, function=function)
 
     coeffstr = []
-    for i in xrange(1, npc+1):
+    for i in range(1, npc+1):
         # if pnpc[i] == 0:
         #     coeffstr.append([-9.99E9])
         #     continue
@@ -89,7 +91,7 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
             fitmask = 1.0-ttmask
             msgs.prindent("  Reduced chi-squared = {0:E}".format(chisqnu))
         else:
-            for i in xrange(1, 5):
+            for i in range(1, 5):
                 good = np.where(fitmask != 0)[0]
                 x0[good] = numer[good]/denom[good]
 #				x0res = arutils.robust_regression(x0in[good],x0[good],pnpc[0],0.2,function=function)
@@ -157,7 +159,7 @@ def extrapolate(outpar, ords, function='polynomial'):
 
     # Order centre
     high_matr = np.zeros((nords, outpar['npc']))
-    for i in xrange(1, outpar['npc']+1):
+    for i in range(1, outpar['npc']+1):
         if outpar['coeffstr'][i-1][0] == -9.99E9:
             high_matr[:,i-1] = np.ones(nords)*outpar['high_fit'][0,i-1]
             continue
@@ -213,15 +215,15 @@ def get_pc(data, k, tol=0.0, maxiter=20, nofix=False, noortho=False):
         eigv = np.dot(data, np.dot(hidden.T, np.linalg.inv(np.dot(hidden, hidden.T))))
         if tol > 0.0:
             diff = 0.0
-            for i in xrange(k):
+            for i in range(k):
                 diff += np.abs( 1.0 - np.sum(oldeigv[:,i]*eigv[:,i])/np.sqrt(np.sum(oldeigv[:,i]**2)*np.sum(eigv[:,i]**2)) )
         niter += 1
 
     # Orthonormalize?
     if not noortho:
-        for b in xrange(k):
+        for b in range(k):
             # Orthogonalize
-            for bp in xrange(b):
+            for bp in range(b):
                 dot = np.sum(eigv[:,b]*eigv[:,bp])
                 eigv[:,b] -= dot*eigv[:,bp]
             # Normalize
@@ -298,7 +300,7 @@ def pc_plot(slf, inpar, ofit, maxp=25, pcadesc="", addOne=True):
     nc = np.max(ordernum[usetrc])
     # Loop through all pages and plot the results
     ndone = 0
-    for i in xrange(len(pages)):
+    for i in range(len(pages)):
         plt.clf()
         f, axes = plt.subplots(pages[i][1], pages[i][0])
         ipx, ipy = 0, 0
@@ -332,7 +334,7 @@ def pc_plot(slf, inpar, ofit, maxp=25, pcadesc="", addOne=True):
                 ipx = 0
                 ipy += 1
             npp[0] -= 1
-        for j in xrange(npp[i]):
+        for j in range(npp[i]):
             if pages[i][1] == 1: ind = (ipx,)
             elif pages[i][0] == 1: ind = (ipy,)
             else: ind = (ipy, ipx)
@@ -371,7 +373,7 @@ def pc_plot(slf, inpar, ofit, maxp=25, pcadesc="", addOne=True):
                 ipy += 1
         if i == 0: npp[0] = npp[0] + 1
         # Delete the unnecessary axes
-        for j in xrange(npp[i], axes.size):
+        for j in range(npp[i], axes.size):
             if pages[i][1] == 1: ind = (ipx,)
             elif pages[i][0] == 1: ind = (ipy,)
             else: ind = (ipy, ipx)
@@ -406,7 +408,7 @@ def pc_plot_arctilt(tiltang, centval, tilts, plotsdir="Plots", pcatype="<unknown
     x0=np.arange(tilts.shape[0])
     # First calculate the min and max values for the plotting axes, to make sure they are all the same
     ymin, ymax = None, None
-    for i in xrange(npc):
+    for i in range(npc):
         w = np.where(tiltang[:,i]!=-999999.9)
         if np.size(w[0]) == 0: continue
         medv = np.median(tiltang[:,i][w])
@@ -426,10 +428,10 @@ def pc_plot_arctilt(tiltang, centval, tilts, plotsdir="Plots", pcatype="<unknown
         return
     # Generate the plots
     ndone=0
-    for i in xrange(len(pages)):
+    for i in range(len(pages)):
         f, axes = plt.subplots(pages[i][1], pages[i][0])
         ipx, ipy = 0, 0
-        for j in xrange(npp[i]):
+        for j in range(npp[i]):
             if pages[i][1] == 1: ind = (ipx)
             elif pages[i][0] == 1: ind = (ipy)
             else: ind = (ipy,ipx)
@@ -445,7 +447,7 @@ def pc_plot_arctilt(tiltang, centval, tilts, plotsdir="Plots", pcatype="<unknown
                 ipy += 1
             ndone += 1
         # Delete the unnecessary axes
-        for j in xrange(npp[i],axes.size):
+        for j in range(npp[i],axes.size):
             if pages[i][1] == 1: ind = (ipx)
             elif pages[i][0] == 1: ind = (ipy)
             else: ind = (ipy,ipx)
@@ -477,7 +479,7 @@ def pc_plot_extcenwid(tempcen, cenwid, binval, plotsdir="Plots", pcatype="<unkno
     # First calculate the min and max values for the plotting axes, to make sure they are all the same
     ymin, ymax = None, None
     """
-    for i in xrange(npc):
+    for i in range(npc):
         w = np.where(tempcen[:,i]!=-999999.9)
         if np.size(w[0]) == 0: continue
         medv = np.median(tempcen[:,i][w])
@@ -512,10 +514,10 @@ def pc_plot_extcenwid(tempcen, cenwid, binval, plotsdir="Plots", pcatype="<unkno
         return
     # Generate the plots
     ndone=0
-    for i in xrange(len(pages)):
+    for i in range(len(pages)):
         f, axes = plt.subplots(pages[i][1], pages[i][0])
         ipx, ipy = 0, 0
-        for j in xrange(npp[i]):
+        for j in range(npp[i]):
             if pages[i][1] == 1: ind = (ipx)
             elif pages[i][0] == 1: ind = (ipy)
             else: ind = (ipy,ipx)
@@ -532,7 +534,7 @@ def pc_plot_extcenwid(tempcen, cenwid, binval, plotsdir="Plots", pcatype="<unkno
                 ipy += 1
             ndone += 1
         # Delete the unnecessary axes
-        for j in xrange(npp[i],axes.size):
+        for j in range(npp[i],axes.size):
             if pages[i][1] == 1: ind = (ipx)
             elif pages[i][0] == 1: ind = (ipy)
             else: ind = (ipy,ipx)

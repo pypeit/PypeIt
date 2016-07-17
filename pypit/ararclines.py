@@ -1,18 +1,20 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import numpy as np
 from astropy.table import Table, Column, vstack
 import glob, copy
 import yaml
 
-import armsgs
+from pypit import armsgs
 
 try:
-    from xastropy.xutils.xdebug import set_trace
-#    from xastropy.xutils import xdebug as xdb
-except ImportError:
-    from pdb import set_trace
+    from xastropy.xutils import xdebug as debugger
+except:
+    import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()
+
 
 def parse_nist(slf,ion):
     """Parse a NIST ASCII table.  Note that the long ---- should have
@@ -25,9 +27,10 @@ def parse_nist(slf,ion):
     """
     # Root (for development only)
     if slf is None:
-        root = '/Users/xavier/local/Python/PYPIT/'
-    else:
-        root = slf._argflag['run']['pypitdir'] 
+        from pypit import arutils as arut
+        msgs.warn("Using arutils.dummy_self.  Better know what you are doing.")
+        slf = arut.dummy_self()
+    root = slf._argflag['run']['pypitdir']
     # Find file
     srch_file = root + '/data/arc_lines/NIST/'+ion+'_vacuum.ascii'
     nist_file = glob.glob(srch_file)
@@ -58,13 +61,15 @@ def parse_nist(slf,ion):
     nist_tbl.remove_column('Rel.')
     nist_tbl.remove_column('Ritz')
     nist_tbl.add_column(Column(agdrel,name='RelInt'))
-    nist_tbl.add_column(Column([ion]*len(nist_tbl), name='Ion', dtype='S5'))
+    #nist_tbl.add_column(Column([ion]*len(nist_tbl), name='Ion', dtype='S5'))
+    nist_tbl.add_column(Column([ion]*len(nist_tbl), name='Ion', dtype='U5'))
     nist_tbl.rename_column('Observed','wave')
     # Return
     return nist_tbl
 
-def load_arcline_list(slf, idx, lines, disperser, wvmnx=None):
-    '''Loads arc line list from NIST files
+
+def load_arcline_list(slf, idx, lines, disperser, wvmnx=None, modify_parse_dict=None):
+    """Loads arc line list from NIST files
     Parses and rejects
 
     Parameters
@@ -77,19 +82,22 @@ def load_arcline_list(slf, idx, lines, disperser, wvmnx=None):
       wvmin, wvmax for line list
     disperser : str
       Name of the disperser
+    modify_parse_dict : dict, optional
+      Used to over-ride default settings of parse_dict
 
     Returns
     -------
     alist : Table
       Table of arc lines
-    '''
+    """
     # Get the parse dict
-    parse_dict = load_parse_dict()
+    parse_dict = load_parse_dict(modify_dict=modify_parse_dict)
     # Read rejection file
     if slf is None:
-        root = '/Users/xavier/local/Python/PYPIT'
-    else:
-        root = slf._argflag['run']['pypitdir'] 
+        from pypit import arutils as arut
+        msgs.warn("Using arutils.dummy_self.  Better know what you are doing.")
+        slf = arut.dummy_self()
+    root = slf._argflag['run']['pypitdir']
     with open(root+'/data/arc_lines/rejected_lines.yaml', 'r') as infile:
         rej_dict = yaml.load(infile)
     # Loop through the NIST Tables
@@ -151,6 +159,7 @@ def reject_lines(slf, tbl, idx, rej_dict, disperser):
     # Return
     return tbl[msk]
 
+
 def parse_nist_tbl(tbl,parse_dict):
     '''Parses a NIST table using various criteria
     Parameters
@@ -174,9 +183,14 @@ def parse_nist_tbl(tbl,parse_dict):
     # Return
     return tbl[allgd]
 
-def load_parse_dict():
+
+def load_parse_dict(modify_dict=None):
     """Dicts for parsing Arc line lists from NIST
     Rejected lines are in the rejected_lines.yaml file
+
+    Parameters:
+    modify_dict : dict, optional
+      Allows
 
     """
     dict_parse = dict(min_intensity=0., min_Aki=0., min_wave=0.)
@@ -193,9 +207,9 @@ def load_parse_dict():
     # NeI
     arcline_parse['NeI'] = copy.deepcopy(dict_parse)
     arcline_parse['NeI']['min_intensity'] = 500.
-    arcline_parse['NeI']['min_Aki']  = 1. # NOT GOOD FOR DEIMOS, DESI
+    arcline_parse['NeI']['min_Aki']  = 1. # NOT GOOD FOR DEIMOS, DESI, ISIS
     #arcline_parse['NeI']['min_wave'] = 5700. 
-    arcline_parse['NeI']['min_wave'] = 5850. # NOT GOOD FOR DEIMOS?
+    arcline_parse['NeI']['min_wave'] = 5850. # NOT GOOD FOR DEIMOS and others
     # ZnI
     arcline_parse['ZnI'] = copy.deepcopy(dict_parse)
     arcline_parse['ZnI']['min_intensity'] = 50.
@@ -206,6 +220,10 @@ def load_parse_dict():
     arcline_parse['XeI'] = copy.deepcopy(dict_parse)
     arcline_parse['XeI']['min_intensity'] = 1000.
     #
+    if modify_dict is not None:
+        for key in modify_dict.keys():  # dict.update doesn't nest
+            for ikey in modify_dict[key].keys():
+                arcline_parse[key].update(modify_dict[key])
     return arcline_parse
 
 

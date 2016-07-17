@@ -97,10 +97,23 @@ setup_keywords['cmdclass']={'build_ext': build_ext}
 #
 # Add internal data directories.
 #
-setup_keywords['package_data'] = {'pypit': ['data/extinction/*',
-                                            'data/arc_lines/*',
-                                            'data/standards/*',
-                                            'data/sky_spec/*',]}
+
+data_files = []
+
+# walk through the data directory, adding all files
+data_generator = os.walk('pypit/data')
+for path, directories, files in data_generator:
+    for f in files:
+        data_path = '/'.join(path.split('/')[1:])
+        data_files.append(data_path + '/' + f)
+# add pipeline and spectrograph settings
+settings = glob.glob('pypit/settings/settings.*')
+settings = ['/'.join(path.split('/')[1:]) for path in settings]
+data_files.extend(settings)
+setup_keywords['package_data'] = {'pypit': data_files,
+                                  '': ['*.rst', '*.txt']}
+setup_keywords['include_package_data'] = True
+
 #
 # Run setup command.
 #

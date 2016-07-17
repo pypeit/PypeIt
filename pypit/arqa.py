@@ -1,11 +1,14 @@
-# Module for QA in PYPIT
+""" Module for QA in PYPIT
+"""
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 from astropy import units as u
 
 import os
-import arutils
 import numpy as np
-from arplot import zscale
-import armsgs
+from pypit.arplot import zscale
+from pypit import armsgs
+from pypit import arutils
 
 import matplotlib
 from matplotlib import pyplot as plt
@@ -206,7 +209,7 @@ def flexure(slf, det, flex_dict, slit_cen=False):
         msgs.warn("No sky lines for Flexure QA")
         return
     if len(gdsky) > 6:
-        idx = np.array([0,1,len(gdsky)/2,len(gdsky)/2+1,-2,-1])
+        idx = np.array([0,1,len(gdsky)//2,len(gdsky)//2+1,-2,-1])
         gdsky = gdsky[idx]
 
     # Figure
@@ -280,12 +283,12 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, root='trace', outfil=None, normaliz
     # Normalize flux in the traces
     if normalize:
         nrm_frame = np.zeros_like(frame)
-        for ii in xrange(ntrc):
+        for ii in range(ntrc):
             xtrc = (ltrace[:,ii] + rtrace[:,ii])/2.
             ixtrc = np.round(xtrc).astype(int)
             # Simple 'extraction'
             dumi = np.zeros( (frame.shape[0],3) )
-            for jj in xrange(3):
+            for jj in range(3):
                 dumi[:,jj] = frame[ycen,ixtrc-1+jj]
             trc = np.median(dumi, axis=1)
             # Find portion of the image and normalize
@@ -321,7 +324,7 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, root='trace', outfil=None, normaliz
     plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
 
     # Traces
-    for ii in xrange(ntrc):
+    for ii in range(ntrc):
         # Left
         plt.plot(ltrace[:,ii]+0.5, ycen, 'r--',alpha=0.7)
         # Right
@@ -453,11 +456,9 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
                     labelbottom='off', labelleft='off')
 
     # Traces
-    for ii in xrange(ntrc):
-        if extslit[ii] is True:
-            ptyp = ':'
-        else:
-            ptyp = '--'
+    for ii in range(ntrc):
+        if extslit[ii] is True: ptyp = ':'
+        else: ptyp = '--'
         # Left
         plt.plot(ltrace[:, ii]+0.5, ycen, 'r'+ptyp, alpha=0.7)
         # Right

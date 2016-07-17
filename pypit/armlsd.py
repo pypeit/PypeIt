@@ -1,14 +1,18 @@
+""" Primary module for guiding the reduction of long slit data
+"""
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import numpy as np
-import arflux
-import arload
-import armasters
-import armbase
-import armsgs
-import arproc
-import arsave
-import arsort
-import artrace
-import arqa
+from pypit import arflux
+from pypit import arload
+from pypit import armasters
+from pypit import armbase
+from pypit import armsgs
+from pypit import arproc
+from pypit import arsave
+from pypit import arsort
+from pypit import artrace
+from pypit import arqa
 
 from linetools import utils as ltu
 
@@ -20,7 +24,7 @@ except:
 # Logging
 msgs = armsgs.get_logger()
 
-def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
+def ARMLSD(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
     """
     Automatic Reduction and Modeling of Long Slit Data
 
@@ -71,9 +75,12 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         scidx = slf._idx_sci[0]
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
         msgs.sciexp = slf  # For QA writing on exit, if nothing else.  Could write Masters too
+        if reloadMaster and (sc > 0):
+            slf._argflag['masters']['use'] = True
         # Loop on Detectors
-        for kk in xrange(slf._spect['mosaic']['ndet']):
+        for kk in range(slf._spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
+            slf.det = det
             ###############
             # Get amplifier sections
             arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
@@ -117,7 +124,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             # Generate an array that provides the physical pixel locations on the detector
             slf.GetPixelLocations(det)
             # Determine the edges of the spectrum (spatial)
-            if 'trace'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
+            if ('trace'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']):
                 ###############
                 # Determine the edges of the spectrum (spatial)
                 #filename = "/Users/rcooke/Desktop/edge_detect/"
@@ -147,6 +154,8 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                 # Save QA for slit traces
                 #arqa.slit_trace_qa(slf, mstrace, lordloc, rordloc, extord, normalize=False, desc="Trace of the slit edges")
                 arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges")
+                #
+                armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
             ###############
             # Prepare the pixel flat field frame
@@ -243,7 +252,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         #
         msgs.work("Consider using archived sensitivity if not found")
         msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
-        for kk in xrange(slf._spect['mosaic']['ndet']):
+        for kk in range(slf._spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             arflux.apply_sensfunc(slf, det, scidx, fitsdict)
 
@@ -261,8 +270,10 @@ def instconfig(slf, det, scidx, fitsdict):
 
     Parameters
     ----------
-    scidx: int
+    det : int
+    scidx : int
        Exposure index (max=9999)
+    fitsdict : dict
     """
     from collections import OrderedDict
     config_dict = OrderedDict()

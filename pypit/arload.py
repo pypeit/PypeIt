@@ -1,3 +1,5 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import os
 import sys
 import copy
@@ -6,13 +8,18 @@ import getopt
 import astropy.io.fits as pyfits
 from astropy.time import Time
 import numpy as np
-import armsgs
-import arproc
-import arlris
+from pypit import armsgs
+from pypit import arproc
+from pypit import arlris
 from multiprocessing import cpu_count
 #from multiprocessing import Pool as mpPool
 #from multiprocessing.pool import ApplyResult
 #import arutils
+
+try:
+    basestring
+except NameError:
+    basestring = str
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -36,7 +43,7 @@ def argflag_init():
     csq = dict({'atol':1.0E-3, 'xtol':1.0E-10, 'gtol':1.0E-10, 'ftol':1.0E-10, 'fstep':2.0})
     opa = dict({'verbose':2, 'sorted':None, 'plots':True, 'overwrite':False})
     sci = dict({'load':dict({'extracted':False}),
-                'extraction':dict({'method':'2D', 'profile': 'gaussian', 'centorder':1, 'widthorder':1, 'function':'legendre', 'pcacent':[1,0], 'pcawidth':[1,0], 'bintrace':10})
+                'extraction':dict({'method':'2D', 'profile': 'gaussian', 'centorder':1, 'widthorder':1, 'function':'legendre', 'pcacent':[1,0], 'pcawidth':[1,0], 'bintrace':10, 'max_nobj': 9999})
                 })
     pfl = dict({'comb':dict({'method':None, 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}),
                 'norm':dict({'recnorm': True})},)
@@ -112,7 +119,7 @@ def optarg(argflag, argv, pypname):
     prgn_spl = argv[0].split('/')
     tfname = ""
     for i in range(0,len(prgn_spl)-2): tfname += prgn_spl[i]+"/"
-    fname = tfname + prgn_spl[-2] + '/settings.' + pypname
+    fname = tfname + prgn_spl[-2] + '/settings/settings.' + pypname
     argflag = load_settings(fname, argflag)
     argflag['run']['prognm'] = argv[0]
     argflag['run']['pypitdir'] = tfname
@@ -124,7 +131,7 @@ def optarg(argflag, argv, pypname):
                                                       'cpus',
                                                       'verbose',
                                                      ])
-    except getopt.GetoptError, err:
+    except getopt.GetoptError as err:  # Python 3
         msgs.error(err.msg)
         msgs.usage(None)
     for o, a in opt:
@@ -149,7 +156,8 @@ def set_params_wtype(tvalue, svalue, lines="", setstr="", argnum=3):
     try:
         if type(tvalue) is int:
             tvalue = int(svalue)
-        elif type(tvalue) is str:
+        #elif type(tvalue) is str:
+        elif isinstance(tvalue, basestring):
             if svalue.lower() == 'none': tvalue = None
             elif svalue[0] == '[' and svalue[-1] == ']' and ',' in svalue and len(svalue.split(':')) == 3: tvalue = load_sections(svalue, strtxt=setstr)
             else: tvalue = svalue
@@ -298,33 +306,45 @@ def set_params(lines, indict, setstr=""):
     return indict
 
 
-def load_sections(string, strtxt="<not specified>"):
+def load_sections(input, strtxt="<not specified>", header=None):
     """
     From the input string, return the coordinate sections
 
     Parameters
     ----------
-    string : str
+    input : str
       character string of the form [x1:x2,y1:y2]
-      x1 = left pixel
-      x2 = right pixel
-      y1 = bottom pixel
-      y2 = top pixel
+        x1 = left pixel
+        x2 = right pixel
+        y1 = bottom pixel
+        y2 = top pixel
+      If the first character is not '[' or '(', the input is returned
+        on the assumption that a Keyword is desired
 
     Returns
     -------
     sections : list (or None)
       the detector sections
     """
-    try:
-        xyrng = string.strip('[]()').split(',')
+    secoptions = ['TRIMSEC', 'DATASEC', 'AMPSEC', 'BIASSEC']
+    #
+    if input[0] in ['[', '(']:
+        xyrng = input.strip('[]()').split(',')
         if xyrng[0] == ":": xyarrX = [0,0]
         else: xyarrX = xyrng[0].split(':')
         if xyrng[1] == ":": xyarrY = [0,0]
         else: xyarrY = xyrng[1].split(':')
         return [[np.int(xyarrX[0]), np.int(xyarrX[1])], [np.int(xyarrY[0]), np.int(xyarrY[1])]]
-    except:
+    else:
         msgs.error("Keyword value {0:s} must be of the form:".format(strtxt)+msgs.newline()+"[x1:x2,y1:y2]")
+        # Code in development (worth saving)
+        if input not in secoptions:
+            msgs.error("Keyword value {0:s} must be of the form:".format(strtxt)+msgs.newline()+"[x1:x2,y1:y2] or in {}".format(secoptions))
+        if header is None:
+            return input
+        else:
+            sec = load_sections(header[input])
+            return sec
     return None
 
 
@@ -461,11 +481,11 @@ def load_spect(progname, specname, spect=None, lines=None):
       Name of the program
     specname : string
       Name of spectrograph settings file
-    spect : dict
+    spect : dict, optional
       Properties of the spectrograph.
       If None, spect will be created, otherwise spect
       will be updated.
-    lines : list
+    lines : list, optional
       Input (uncommented) lines specified by the user.
       lines contains a list of user-specified changes
       that should be made to the default spectrograph
@@ -502,7 +522,7 @@ def load_spect(progname, specname, spect=None, lines=None):
         prgn_spl = progname.split('/')
         fname = ""
         for i in range(0, len(prgn_spl)-1): fname += prgn_spl[i]+"/"
-        fname += 'settings.'+specname
+        fname += 'settings/settings.'+specname
         msgs.info("Loading the "+specname+" settings")
         spect = initialise()
         with open(fname, 'r') as infile:
@@ -552,15 +572,19 @@ def load_headers(argflag, spect, datlines):
         except:
             msgs.error("Error reading header from extension {0:d} of file:".format(spect['fits']['headext{0:02d}'.format(k+1)])+msgs.newline()+datlines[i])
         # Perform checks on each fits files, as specified in the settings.instrument file.
+        skip = False
         for ch in chks:
             tfrhd = int(ch.split('.')[0])-1
             kchk  = '.'.join(ch.split('.')[1:])
             frhd  = whddict['{0:02d}'.format(tfrhd)]
             if spect['check'][ch] != str(headarr[frhd][kchk]).strip():
-                #set_trace()
                 #print ch, frhd, kchk
                 #print spect['check'][ch], str(headarr[frhd][kchk]).strip()
-                msgs.error("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
+                msgs.warn("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
+                msgs.warn("Skipping the file..")
+                skip = True
+        if skip:
+            continue
         # Now set the key values for each of the required keywords
         dspl = datlines[i].split('/')
         fitsdict['directory'].append('/'.join(dspl[:-1])+'/')
@@ -586,7 +610,8 @@ def load_headers(argflag, spect, datlines):
         #    arlris.set_det(fitsdict, headarr[k])
         # Now get the rest of the keywords
         for kw in keys:
-            if spect['keyword'][kw] is None: value = 'None'  # This instrument doesn't have/need this keyword
+            if spect['keyword'][kw] is None:
+                value = str('None')  # This instrument doesn't have/need this keyword
             else:
                 ch = spect['keyword'][kw]
                 try:
@@ -600,7 +625,7 @@ def load_headers(argflag, spect, datlines):
                         value = headarr[frhd][kchk]
                     except KeyError: # Keyword not found in header
                         msgs.warn("{:s} keyword not in header. Setting to None".format(kchk))
-                        value='None'
+                        value=str('None')
             # Convert the input time into hours
             if kw == 'time':
                 if spect['fits']['timeunit']   == 's'  : value = float(value)/3600.0    # Convert seconds to hours
@@ -627,9 +652,10 @@ def load_headers(argflag, spect, datlines):
                 fitsdict[kw].append(value)
             elif typv is float or typv is np.float_:
                 fitsdict[kw].append(value)
-            elif typv is str or typv is np.string_:
+            elif isinstance(value, basestring) or typv is np.string_:
                 fitsdict[kw].append(value.strip())
             else:
+                debugger.set_trace()
                 msgs.bug("I didn't expect useful headers to contain type {0:s}".format(typv).replace('<type ','').replace('>',''))
 
         if argflag['out']['verbose'] == 2: msgs.info("Successfully loaded headers for file:"+msgs.newline()+datlines[i])

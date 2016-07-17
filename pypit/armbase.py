@@ -1,17 +1,18 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import sys
 import numpy as np
-import armsgs
-import arsort
-import arsciexp
+from pypit import armsgs
+from pypit import arsort
+from pypit import arsciexp
 
 # Logging
 msgs = armsgs.get_logger()
 
 try:
-    from xastropy.xutils.xdebug import set_trace
-#    from xastropy.xutils import xdebug as xdb
+    from xastropy.xutils import xdebug as debugger
 except ImportError:
-    from pdb import set_trace
+    import pdb as debugger
 
 
 def SetupScience(argflag, spect, fitsdict):
@@ -49,7 +50,7 @@ def SetupScience(argflag, spect, fitsdict):
     # Create the list of science exposures
     numsci = np.size(filesort['science'])
     sciexp = []
-    for i in xrange(numsci):
+    for i in range(numsci):
         sciexp.append(arsciexp.ScienceExposure(i, argflag, spect, fitsdict))
     return sciexp
 
@@ -89,21 +90,21 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
         return
     if ftype == "flat":
         # First check flats of the same type
-        for i in xrange(sc+1, numsci):
+        for i in range(sc+1, numsci):
             # Check if an *identical* master frame has already been produced
             if chktype == "trace": chkfarr = sciexp[i]._idx_trace
             elif chktype == "pixflat": chkfarr = sciexp[i]._idx_flat
             else:
                 msgs.bug("I could not update frame of type {0:s} and subtype {1:s}".format(ftype, chktype))
                 return
-            if np.array_equal(chkarr, chkfarr) and sciexp[i].GetMasterFrame(chktype, det, msgs, copy=False) is None:
+            if np.array_equal(chkarr, chkfarr) and sciexp[i].GetMasterFrame(chktype, det, copy=False) is None:
                 msgs.info("Updating master {0:s} frame for science target {1:d}/{2:d}".format(chktype, i+1, numsci))
                 sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(chktype, det), chktype, det)
         # Now check flats of a different type
         origtype = chktype
         if chktype == "trace": chktype = "pixflat"
         elif chktype == "pixflat": chktype = "trace"
-        for i in xrange(sc, numsci):
+        for i in range(sc, numsci):
             # Check if an *identical* master frame has already been produced
             if chktype == "trace": chkfarr = sciexp[i]._idx_trace
             elif chktype == "pixflat": chkfarr = sciexp[i]._idx_flat
@@ -114,7 +115,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
                 msgs.info("Updating master {0:s} frame for science target {1:d}/{2:d}".format(chktype, i+1, numsci))
                 sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(origtype, det), chktype, det)
     else:
-        for i in xrange(sc+1, numsci):
+        for i in range(sc+1, numsci):
             # Check if an *identical* master frame has already been produced
             if ftype == "arc":
                 chkfarr = sciexp[i]._idx_arcs

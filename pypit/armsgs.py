@@ -16,21 +16,17 @@ class Messages:
     http://ascii-table.com/ansi-escape-sequences.php
     """
 
-    def __init__(self, log, debug, last_updated, version, verbose, colors=True):
+    def __init__(self, log, debug, verbose, colors=True):
         """
         Initialize the Message logging class
 
         Parameters
         ----------
-        log : str
+        log : str or None
           Name of saved log file (no log will be saved if log=="")
         debug : dict
           dict used for debugging.
           'LOAD', 'BIAS', 'ARC', 'TRACE'
-        last_updated : str
-          The data of last update
-        version : str
-          Current version of the code
         verbose : int (0,1,2)
           Level of verbosity:
             0 = No output
@@ -40,9 +36,16 @@ class Messages:
           If true, the screen output will have colors, otherwise
           normal screen output will be displayed
         """
+        # Version
+        from pypit import pyputils
+        version, last_updated = pyputils.get_version()
+        # Import for version
+        import scipy
+        import numpy
+        import astropy
 
         # Initialize the log
-        if log:
+        if log is not None:
             self._log = open(log, 'w')
         else:
             self._log = log
@@ -57,6 +60,9 @@ class Messages:
             self._log.write("------------------------------------------------------\n\n")
             self._log.write("PYPIT was last updated {0:s}\n".format(last_updated))
             self._log.write("This log was generated with version {0:s} of PYPIT\n\n".format(version))
+            self._log.write("You are using scipy version={:s}\n".format(scipy.__version__))
+            self._log.write("You are using numpy version={:s}\n".format(numpy.__version__))
+            self._log.write("You are using astropy version={:s}\n\n".format(astropy.__version__))
             self._log.write("------------------------------------------------------\n\n")
         # Use colors?
         self._start, self._end = "", ""
@@ -89,42 +95,49 @@ class Messages:
         header += self._start + self._white_GR + "PYPIT : "
         header += "The Python Spectroscopic Data Reduction Pipeline v{0:s}".format(self._version) + self._end + "\n"
         header += "##  "
-        header += "Usage : "
-        if prognm is None:
-            header += "pypit [options] filename.red"
-        else:
-            header += "python %s [options] filename.red".format(prognm)
+        #header += "Usage : "
+        #if prognm is None:
+        #    header += "pypit [options] filename.red"
+        #else:
+        #    header += "python %s [options] filename.red".format(prognm)
         return header
 
     def usage(self, prognm):
-        stgs_arm = glob(dirname(__file__)+"/settings.arm*")
-        stgs_all = glob(dirname(__file__)+"/settings.*")
+        stgs_arm = glob(dirname(__file__)+"/settings/settings.arm*")
+        stgs_all = glob(dirname(__file__)+"/settings/settings.*")
         stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
         armlist = basename(stgs_arm[0]).split(".")[-1]
-        for i in xrange(1, len(stgs_arm)):
+        for i in range(1, len(stgs_arm)):
             armlist += ", " + basename(stgs_arm[i]).split(".")[-1]
         spclist = basename(stgs_spc[0]).split(".")[-1]
-        for i in xrange(1, len(stgs_spc)):
+        for i in range(1, len(stgs_spc)):
             spclist += ", " + basename(stgs_spc[i]).split(".")[-1]
         spcl = wraptext(spclist, width=60)
-        print("\n#################################################################")
-        print(self.pypitheader(prognm))
-        print("##  -------------------------------------------------------------")
-        print("##  Options: (default values in brackets)")
-        print("##   -c or --cpus      : (all) Number of cpu cores to use")
-        print("##   -h or --help      : Print this message")
-        print("##   -v or --verbose   : (2) Level of verbosity (0-2)")
-        print("##   -m or --use_masters : Use files in MasterFrames for reduction")
-        print("##  -------------------------------------------------------------")
-        print("##  Available pipelines include:")
-        print("##   " + armlist)
-        print("##  Available spectrographs include:")
+        #print("\n#################################################################")
+        #print(self.pypitheader(prognm))
+        descs = self.pypitheader(prognm)
+        #print("##  -------------------------------------------------------------")
+        #print("##  Options: (default values in brackets)")
+        #print("##   -c or --cpus      : (all) Number of cpu cores to use")
+        #print("##   -h or --help      : Print this message")
+        #print("##   -v or --verbose   : (2) Level of verbosity (0-2)")
+        #print("##   -m or --use_masters : Use files in MasterFrames for reduction")
+        #print("##   -d or --develop   : Turn develop debugging on")
+        #print("##  -------------------------------------------------------------")
+        descs += "\n##  Available pipelines include:"
+        #print("##  Available pipelines include:")
+        descs += "\n##   " + armlist
+        #print("##  Available spectrographs include:")
+        descs += "\n##  Available spectrographs include:"
         for i in spcl:
-            print("##   " + i)
-        print("##  -------------------------------------------------------------")
-        print("##  Last updated: {0:s}".format(self._last_updated))
-        print("#################################################################\n")
-        sys.exit()
+            descs += "\n##   " + i
+            #print("##   " + i)
+        #print("##  -------------------------------------------------------------")
+        #print("##  Last updated: {0:s}".format(self._last_updated))
+        descs += "\n##  Last updated: {0:s}".format(self._last_updated)
+        #print("#################################################################\n")
+        #sys.exit()
+        return descs
 
     def debugmessage(self):
         if self._debug['develop']:
@@ -143,6 +156,11 @@ class Messages:
             self.sciexp._qa.close()
         except AttributeError:
             pass
+        else:
+            if self._debug['develop']:
+                from pypit import armasters
+                armasters.save_masters(self.sciexp, self.sciexp.det,
+                                   self.sciexp._argflag['masters']['setup'])
         # Close log
         if self._log:
             self._log.close()
@@ -342,6 +360,7 @@ def get_logger(init=None):
     ----------
     init : tuple
       For instantiation
+      (log, debug, verbose)
 
     Returns
     -------
@@ -351,7 +370,7 @@ def get_logger(init=None):
 
     # Instantiate??
     if init is not None:
-        pypit_logger = Messages(init[0], init[1], init[2], init[3], init[4])
+        pypit_logger = Messages(init[0], init[1], init[2])
 
     return pypit_logger
 

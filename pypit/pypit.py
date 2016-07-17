@@ -1,26 +1,11 @@
-#import matplotlib
-#matplotlib.use('Agg')  # For Travis
+from __future__ import absolute_import, division, print_function
 
-import os
-import sys
-import getopt
 from signal import SIGINT, signal as sigsignal
 from warnings import resetwarnings, simplefilter
 from time import time
-import traceback
+from pypit import armsgs
 
 # Import PYPIT routines
-import ardebug
-debug = ardebug.init()
-#debug['develop'] = True
-#debug['arc'] = True
-#debug['sky_sub'] = True
-#debug['trace'] = True
-#debug['obj_profile'] = True
-#debug['tilts'] = True
-#debug['flexure'] = True
-last_updated = "2 May 2016"
-version = '0.6'
 
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
@@ -33,8 +18,8 @@ except ImportError:
     import pdb as debugger
 
 
-def PYPIT(redname, progname=__file__, quick=False, ncpus=1, verbose=1,
-          logname=None, use_masters=False):
+def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=1,
+          use_masters=False, logname=None):
     """
     Main driver of the PYPIT code. Default settings and
     user-specified changes are made, and passed to the
@@ -44,6 +29,8 @@ def PYPIT(redname, progname=__file__, quick=False, ncpus=1, verbose=1,
     ----------
     redname : string
       Input reduction script
+    debug : dict, optional
+      Debug dict
     progname : string
       Name of the program
     quick : bool
@@ -61,15 +48,21 @@ def PYPIT(redname, progname=__file__, quick=False, ncpus=1, verbose=1,
         2 = All output
     use_masters : bool, optional
       Load calibration files from MasterFrames directory, if they exist
-    logname : string
-      The name of an ascii log file which is used to
-      save the output details of the reduction
+    logname : str or None
+          The name of an ascii log file which is used to
+          save the output details of the reduction
+        debug : dict
+          A PYPIT debug dict (from ardebug.init)
+        version : str
+        last_updated : str
     ---------------------------------------------------
     """
+    from pypit import ardebug
     # Init logger
-    import armsgs
-    msgs = armsgs.get_logger((logname, debug, last_updated, version, verbose))
-    import arload
+    if debug is None:
+        debug=ardebug.init()
+    msgs = armsgs.get_logger((logname, debug, verbose))
+    from pypit import arload  # This needs to be after msgs is defined!
 
     # First send all signals to messages to be dealt with (i.e. someone hits ctrl+c)
     sigsignal(SIGINT, msgs.signal_handler)
@@ -113,7 +106,7 @@ def PYPIT(redname, progname=__file__, quick=False, ncpus=1, verbose=1,
     tfname = ""
     for i in range(0,len(prgn_spl)-1): tfname += prgn_spl[i]+"/"
     #fname = tfname + prgn_spl[-2] + '/settings.' + spect['mosaic']['reduction'].lower()
-    fname = tfname + '/settings.' + spect['mosaic']['reduction'].lower()
+    fname = tfname + 'settings/settings.' + spect['mosaic']['reduction'].lower()
     argflag = arload.load_settings(fname, argflag)
     argflag['run']['prognm'] = progname
     argflag['run']['pypitdir'] = tfname
@@ -147,11 +140,11 @@ def PYPIT(redname, progname=__file__, quick=False, ncpus=1, verbose=1,
     # Send the data away to be reduced
     if spect['mosaic']['reduction'] == 'ARMLSD':
         msgs.info("Data reduction will be performed using PYPIT-ARMLSD")
-        import armlsd
+        from pypit import armlsd
         status = armlsd.ARMLSD(argflag, spect, fitsdict)
     elif spect['mosaic']['reduction'] == 'ARMED':
         msgs.info("Data reduction will be performed using PYPIT-ARMED")
-        import armed
+        from pypit import armed
         status = armed.ARMED(argflag, spect, fitsdict)
     # Check for successful reduction
     if status == 0:

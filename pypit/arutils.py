@@ -115,6 +115,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     try:
         tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, t=knots)
     except ValueError: # Knot problem
+        msgs.warn("Problem in the bspline knot")
         debugger.set_trace()
     return tck
 
@@ -132,24 +133,62 @@ def calc_offset(raA, decA, raB, decB, distance=False):
         return delRA, delDEC
 
 
-def dummy_self(pypitdir=None):
+def dummy_fitsdict(nfile=10):
+    """
+    Parameters
+    ----------
+    nfile : int
+      Number of files to mimic
+
+    Returns
+    -------
+
+    """
+    fitsdict = {}
+    fitsdict['date'] = ['2015-01-23T00:54:17.04']*nfile
+    fitsdict['target'] = ['Dummy']*nfile
+    #
+    return fitsdict
+
+
+def dummy_self(pypitdir=None, inum=0, fitsdict=None, nfile=10):
     """
     Generate a dummy self class for testing
     Parameters:
     -----------
     pypitdir : str, optional
       Path to the PYPIT main directory
+    inum : int, optional
+      Index in sciexp
     Returns:
     --------
     slf
     """
+    import pypit
+    from pypit import arsciexp
+    from pypit import arload
+    # Dummy dicts
+    spect = arload.load_spect(pypit.__file__, 'kast_blue')
+    kk = 0
+    for jj,key in enumerate(spect.keys()):
+        if key in ['det']:
+            continue
+        if 'index' in spect[key].keys():
+            spect[key]['index'] = [[kk]*nfile]
+            kk += 1
+    argflag = arload.argflag_init()
+    if fitsdict is None:
+        fitsdict = dummy_fitsdict(nfile=nfile)
     # Dummy Class
-    slf = type('Dummy', (object,), {"_argflag": {}, "_spect": {}})
-    slf._argflag['run'] = {}
-    if pypitdir is not None:
-        slf._argflag['run']['pypitdir'] = pypitdir
+    slf = arsciexp.ScienceExposure(inum, argflag, spect, fitsdict, do_qa=False)
+    #
+    if pypitdir is None:
+        pypitdir = __file__[0:__file__.rfind('/')]
+    slf._argflag['run']['pypitdir'] = pypitdir
+    slf._argflag['run']['spectrograph'] = 'dummy'
     #
     slf._spect['mosaic'] = {}
+    slf._spect['det'] = [{'binning':'1x1'}]
     #
     return slf
 
@@ -705,28 +744,33 @@ def polyval2d_general(c, x, y, function="polynomial", minx=None, maxx=None, miny
 
 def polyfit_integral(x, y, dx, deg, rcond=None, full=False, w=None):
     order = int(deg) + 1
-    x = np.asarray(x) + 0.0
-    y = np.asarray(y) + 0.0
+    x = np.asarray(x)
+    y = np.asarray(y)
 
     # check arguments.
-    if deg < 0 :
-        raise ValueError("expected deg >= 0")
+    if deg < 0:
+        msgs.bug("Expected deg >= 0")
+        msgs.error("Input of function arutils.polyfit_integral is incorrect")
     if x.ndim != 1:
-        raise TypeError("expected 1D vector for x")
+        msgs.bug("Expected 1D vector for x")
+        msgs.error("Input of function arutils.polyfit_integral is incorrect")
     if x.size == 0:
-        raise TypeError("expected non-empty vector for x")
-    if y.ndim < 1 or y.ndim > 2 :
-        raise TypeError("expected 1D or 2D array for y")
+        msgs.bug("Expected non-empty vector for x")
+        msgs.error("Input of function arutils.polyfit_integral is incorrect")
+    if y.ndim < 1 or y.ndim > 2:
+        msgs.bug("Expected 1D or 2D array for y")
+        msgs.error("Input of function arutils.polyfit_integral is incorrect")
     if len(x) != len(y):
-        raise TypeError("expected x and y to have same length")
+        msgs.bug("Expected x and y to have same length")
+        msgs.error("Input of function arutils.polyfit_integral is incorrect")
 
     # set up the least squares matrices in transposed form
     lhst = np.polynomial.polynomial.polyvander(x+dx/2.0, deg+1) - np.polynomial.polynomial.polyvander(x-dx/2.0, deg+1)
-    div = np.arange(1.,deg+2.).reshape(1,deg+1).repeat(x.size,axis=0)
-    lhs = (lhst[:,1:]/(dx.reshape(dx.size,1).repeat(deg+1,axis=1)*div)).T
+    div = np.arange(1., deg+2.).reshape(1, deg+1).repeat(x.size, axis=0)
+    lhs = (lhst[:, 1:]/(dx.reshape(dx.size, 1).repeat(deg+1, axis=1)*div)).T
     rhs = y.T
     if w is not None:
-        w = np.asarray(w) + 0.0
+        w = np.asarray(w)
         if w.ndim != 1:
             msgs.bug("Expected 1D vector for weights in arutils.polyfit2d")
         if len(x) != len(w):
@@ -737,7 +781,7 @@ def polyfit_integral(x, y, dx, deg, rcond=None, full=False, w=None):
         rhs = rhs * w
 
     # set rcond
-    if rcond is None :
+    if rcond is None:
         rcond = len(x)*np.finfo(x.dtype).eps
 
     # Determine the norms of the design matrix columns.
@@ -753,12 +797,11 @@ def polyfit_integral(x, y, dx, deg, rcond=None, full=False, w=None):
 
     # warn on rank reduction
     if rank != order and not full:
-        msg = "The fit may be poorly conditioned"
-        warnings.warn(msg, pu.RankWarning)
+        msgs.warn("The fit result of the function arutils.polyfit_integral may be poorly conditioned")
 
-    if full :
+    if full:
         return c, [resids, rank, s, rcond]
-    else :
+    else:
         return c
 
 
@@ -771,7 +814,7 @@ def poly_iterfit(x,y,ordr,maxrej=5):
         chisqp = chisqn
         wrng = np.arange(xfit.size)
         chisq = np.zeros(xfit.size)
-        for i in xrange(xfit.size):
+        for i in range(xfit.size):
             sel = np.delete(wrng,i)
             c=np.polyfit(xfit[sel],yfit[sel],ordr)
             m=np.polyval(c,xfit[sel])
@@ -793,9 +836,9 @@ def rebin(frame, newshape):
     lenShape = len(shape)
     factor = np.asarray(shape)/np.asarray(newshape)
     evList = ['frame.reshape('] + \
-             ['newshape[%d],factor[%d],'%(i,i) for i in xrange(lenShape)] + \
-             [')'] + ['.sum(%d)'%(i+1) for i in xrange(lenShape)] + \
-             ['/factor[%d]'%i for i in xrange(lenShape)]
+             ['newshape[%d],factor[%d],'%(i,i) for i in range(lenShape)] + \
+             [')'] + ['.sum(%d)'%(i+1) for i in range(lenShape)] + \
+             ['/factor[%d]'%i for i in range(lenShape)]
     return eval(''.join(evList))
 
 
@@ -905,7 +948,7 @@ def robust_regression(x, y, ordr, outfrac, maxiter=100, function='polynomial', m
         mad = np.median(diff)
         w=np.argsort(diff)
         inds=-1
-        for j in xrange(0,xsize-slct):
+        for j in range(0,xsize-slct):
             temp = ind[w[-1]]
             ind[w[-1]] = indx[slct+j]
             indx[slct+j] = temp
