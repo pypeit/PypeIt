@@ -415,11 +415,11 @@ class ScienceExposure:
                 msbias = arcomb.comb_frames(frames, det, spect=self._spect, frametype=self._argflag['reduce']['usebias'], **self._argflag['bias']['comb'])
                 del frames
         elif self._argflag['reduce']['usebias'] == 'overscan':
-            self.SetMasterFrame('overscan', "bias", det, copy=False)
+            self.SetMasterFrame('overscan', "bias", det, mkcopy=False)
             return False
         elif self._argflag['reduce']['usebias'] == 'none':
             msgs.info("Not performing a bias/dark subtraction")
-            self.SetMasterFrame(None, "bias", det, copy=False)
+            self.SetMasterFrame(None, "bias", det, mkcopy=False)
             return False
         else: # It must be the name of a file the user wishes to load
             msbias_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usebias']
@@ -776,7 +776,7 @@ class ScienceExposure:
         # If standard, generate a sensitivity function
         sensfunc = arflux.generate_sensfunc(self, scidx, all_specobj, fitsdict)
         # Set the sensitivity function
-        self.SetMasterFrame(sensfunc, "sensfunc", None, copy=False)
+        self.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
         return True
 
     def Setup(self):
@@ -860,8 +860,8 @@ class ScienceExposure:
             elif ftype == "normpixflat": return self._mspixflatnrm[det].copy()
             elif ftype == "pixflat": return self._mspixflat[det].copy()
             elif ftype == "trace": return self._mstrace[det].copy()
-            elif ftype == "standard": return copy.copy(self._msstd[det])
-            elif ftype == "sensfunc": return copy.copy(self._sensfunc)
+            elif ftype == "standard": return mkcopy.copy(self._msstd[det])
+            elif ftype == "sensfunc": return mkcopy.copy(self._sensfunc)
             else:
                 msgs.bug("I could not get master frame of type: {0:s}".format(ftype))
                 msgs.error("Please contact the authors")
