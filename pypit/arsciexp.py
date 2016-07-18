@@ -165,6 +165,7 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
+        bpix = None
         if self._argflag['reduce']['badpix'] == 'bias':
             if self._argflag['masters']['use']:
                 # Attempt to load the Master Frame
@@ -797,12 +798,14 @@ class ScienceExposure:
 
     # Setters
     @staticmethod
-    def SetFrame(toarray, value, det, copy=True):
-        if copy: toarray[det-1] = value.copy()
-        else: toarray[det-1] = value
+    def SetFrame(toarray, value, det, mkcopy=True):
+        if mkcopy:
+            toarray[det-1] = value.copy()
+        else:
+            toarray[det-1] = value
         return
 
-    def SetMasterFrame(self, frame, ftype, det, copy=True):
+    def SetMasterFrame(self, frame, ftype, det, mkcopy=True):
         """ Set the Master Frame
         Parameters
         ----------
@@ -811,7 +814,7 @@ class ScienceExposure:
           frame type
         det : int
           Detector index
-        copy
+        mkcopy
 
         Returns
         -------
@@ -819,8 +822,10 @@ class ScienceExposure:
         """
         if det is not None:
             det -= 1
-        if copy: cpf = frame.copy()
-        else: cpf = frame
+        if mkcopy:
+            cpf = frame.copy()
+        else:
+            cpf = frame
         # Set the frame
         if ftype == "arc": self._msarc[det] = cpf
         elif ftype == "wave": self._mswave[det] = cpf
@@ -838,17 +843,17 @@ class ScienceExposure:
 
     # Getters
     @staticmethod
-    def GetFrame(getarray, det, copy=True):
-        if copy:
+    def GetFrame(getarray, det, mkcopy=True):
+        if mkcopy:
             return getarray[det-1].copy()
         else:
             return getarray[det-1]
 
-    def GetMasterFrame(self, ftype, det, copy=True):
+    def GetMasterFrame(self, ftype, det, mkcopy=True):
 
         det -= 1
         # Get the frame
-        if copy:
+        if mkcopy:
             if ftype == "arc": return self._msarc[det].copy()
             elif ftype == "wave": return self._mswave[det].copy()
             elif ftype == "bias": return self._msbias[det].copy()
