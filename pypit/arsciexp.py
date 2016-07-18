@@ -758,8 +758,8 @@ class ScienceExposure:
             # Load the frame(s)
 #            set_trace()
             frame = arload.load_frames(self, fitsdict, ind, det, frametype='standard',
-                                   msbias=self._msbias[det-1],
-                                   transpose=self._transpose)
+                                       msbias=self._msbias[det-1],
+                                       transpose=self._transpose)
 #            msgs.warn("Taking only the first standard frame for now")
 #            ind = ind[0]
             sciframe = frame[:, :, 0]
