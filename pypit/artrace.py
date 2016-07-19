@@ -316,13 +316,22 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
     from pypit import arcytrace
-    from pypit import arcyutils
+
     msgs.info("Preparing trace frame for order edge detection")
     # Generate a binned version of the trace frame
     binarr = mstrace.copy()
     binbpx = slf._bpix[det-1].copy()
     plxbin = slf._pixlocn[det-1][:, :, 0].copy()
     plybin = slf._pixlocn[det-1][:, :, 1].copy()
+    if msgs._debug['trace']:
+        binbpx = np.zeros(mstrace.shape, dtype=np.int)
+        xs = np.arange(mstrace.shape[slf._dispaxis]*1.0)*slf._spect['det'][det-1]['xgap']
+        xt = 0.5 + np.arange(mstrace.shape[slf._dispaxis]*1.0) + xs
+        ys = np.arange(mstrace.shape[1-slf._dispaxis])*slf._spect['det'][det-1]['ygap']*slf._spect['det'][det-1]['ysize']
+        yt = slf._spect['det'][det-1]['ysize']*(0.5 + np.arange(mstrace.shape[1-slf._dispaxis]*1.0)) + ys
+        xloc, yloc = np.meshgrid(xt, yt)
+        plxbin, plybin = xloc.T, yloc.T
+
 
 #    msgs.work("binby=1 makes this slow and ineffective -- increase this to 10, and add as a parameter of choice by the user")
 #    binby = 5
@@ -367,10 +376,6 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
             edgearr[np.arange(edgearr.shape[0]), amax] = -1
         # Even better would be to fit the filt/sqrt(abs(binarr)) array with a Gaussian near the maximum in each column
     else:
-        ######
-        # Old detection algorithm
-#        tedgear = arcytrace.detect_edges(binarr, slf._dispaxis)
-        ######
         msgs.info("Detecting slit edges")
         sqmstrace = np.sqrt(np.abs(binarr))
         for ii in range(medrep):
@@ -388,7 +393,6 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
             edgsum = np.sum(nedgear, axis=0)
             sigma = 1.4826*np.median(np.abs(edgsum-np.median(edgsum)))
             w = np.where(np.abs(edgsum) >= 1.5*sigma)[0]
-        #   maskcols = np.unique(np.append(w,np.append(np.append(w+2,w+1),np.append(w-2,w-1))))
             maskcols = np.unique(np.append(w, np.append(w+1, w-1)))
             msgs.info("Masking {0:d} bad pixel rows".format(maskcols.size))
             for i in range(maskcols.size):
@@ -398,7 +402,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         ######
         msgs.info("Applying bad pixel mask")
         # tedgear *= (1.0-binbpx)  # Apply to the old detection algorithm
-        nedgear *= (1-binbpx)  # Apply to the new detection algorithm
+        nedgear *= (1-binbpx.astype(np.int))  # Apply to the new detection algorithm
         # eroll = np.roll(binbpx, 1, axis=1)
         # eroll[:,0] = eroll[:,1]
         # nedgear *= (1.0-eroll)  # Apply to the new detection algorithm (with shift)
@@ -525,7 +529,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
             if np.all(pedges[:, 1]-pedges[:, 0] == 0):
                 # Remaining peaks have no width
                 break
-            if msgs._debug['trace']:
+            if msgs._debug['trace'] and False:
                 debugger.set_trace()
                 plt.plot(arrcen, 'k-', drawstyle='steps')
                 plt.plot(wpk, np.zeros(wpk.size), 'ro')
@@ -639,7 +643,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
             if np.all(pedges[:, 1]-pedges[:, 0] == 0):
                 # Remaining peaks have no width
                 break
-            if msgs._debug['trace']:
+            if msgs._debug['trace'] and False:
                 debugger.set_trace()
                 plt.plot(arrcen, 'k-', drawstyle='steps')
                 plt.plot(wpk, np.zeros(wpk.size), 'ro')
@@ -668,6 +672,16 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
             firstpass = False
     # Ignore any order detections that weren't identified in the loop
     edgearrcp[np.where(edgearrcp >= 1000)] = 0
+    # If the slits are close by, or highly different in flux,
+    # cleverly introduce new edge locations
+    arutils.ds9plot(edgearrcp)
+    if slf._argflag['trace']['orders']['slitgap'] is not None:
+        edgearrcp[np.where(edgearrcp != 0)] += 1000
+        vals = np.unique(edgearrcp[np.where(edgearrcp != 0)])
+        edgearrcp = arcytrace.close_slits(binarr, edgearrcp, vals, int(slf._argflag['trace']['orders']['slitgap']))
+    debugger.set_trace()
+    arutils.ds9plot(edgearrcp)
+    arutils.ds9plot(binarr)
     # Update edgearr
     edgearr = edgearrcp.copy()
     iterate = True

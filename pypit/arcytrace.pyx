@@ -406,6 +406,105 @@ def clean_pix(np.ndarray[DTYPE_t, ndim=2] array not None,
     return array
 
 
+@cython.boundscheck(False)
+def close_slits(np.ndarray[DTYPE_t, ndim=2] trframe not None,
+                np.ndarray[ITYPE_t, ndim=2] edgdet not None,
+                np.ndarray[ITYPE_t, ndim=1] dets not None,
+                int npix):
+
+    cdef int sz_x, sz_y, sz_d
+    cdef int x, y, d, s, mgap, lgap, rgap, enum
+    cdef double lminv, lmaxv, rminv, rmaxv
+
+    sz_x = edgdet.shape[0]
+    sz_y = edgdet.shape[1]
+    sz_d = dets.shape[0]
+
+    cdef np.ndarray[ITYPE_t, ndim=2] edgearr = np.zeros((sz_x, sz_y), dtype=ITYPE)
+    cdef np.ndarray[ITYPE_t, ndim=1] hasedge = np.zeros(sz_d, dtype=ITYPE)
+
+    for d in range(0, sz_d):
+        for x in range(0, sz_x):
+            for y in range(0, sz_y):
+                if edgdet[x, y] != dets[d]:
+                    continue
+                else:
+                    # Check if there's an edge nearby
+                    mgap = y+npix+1
+                    # Check limits
+                    if mgap > sz_y:
+                        mgap = sz_y
+                    for s in range(y+1, mgap):
+                        if edgdet[x, s] != 0:
+                            hasedge[d] = edgdet[x, s]
+                            break
+                if hasedge[d] != 0:
+                    break
+            if hasedge[d] != 0:
+                break
+
+    # Now, if there's an edge in hasedge, mark the corresponding index in hasedge with -1
+    for d in range(0, sz_d):
+        if hasedge[d] > 0:
+            for s in range(0, sz_d):
+                if hasedge[d] == dets[s]:
+                    hasedge[s] = -1
+                    break
+
+    # Introduce an edge in cases where no edge exists,
+    # and redfine an edge where one does exists.
+    enum = 500
+    for d in range(0, sz_d):
+        for x in range(0, sz_x):
+            for y in range(0, sz_y):
+                if edgdet[x, y] != dets[d]:
+                    continue
+                if hasedge[d] == -1:
+                    edgearr[x, y] = -enum
+                elif hasedge[d] > 0:
+                    edgearr[x, y] = enum
+                else:
+                    # Create a new edge
+                    edgearr[x, y-1] = enum
+                    edgearr[x, y+1] = -enum
+                    """
+                    # Set the limits
+                    rgap = y - 2*npix
+                    if rgap < 0:
+                        rgap = 0
+                    lgap = y + 2*npix + 1
+                    if lgap > sz_y:
+                        lgap = sz_y
+                    # Calculate the minimum and maximum values
+                    rminv = trframe[x, y]
+                    rmaxv = trframe[x, y]
+                    for s in range(rgap, y):
+                        if rminv > trframe[x, s]:
+                            rminv = trframe[x, s]
+                        if rmaxv < trframe[x, s]:
+                            rmaxv = trframe[x, s]
+                    lminv = trframe[x, y]
+                    lmaxv = trframe[x, y]
+                    for s in range(y+1, lgap):
+                        if lminv > trframe[x, s]:
+                            lminv = trframe[x, s]
+                        if lmaxv < trframe[x, s]:
+                            lmaxv = trframe[x, s]
+                    # Trace left (for the right edge) until the average of the limits is found
+                    rmaxv = 0.5*(rminv+rmaxv)
+                    for s in range(0, y-mgap):
+                        if rmaxv > lmaxv:
+                            if trframe[x, y-s] >= rmaxv:
+
+                                break
+                        else:
+                    """
+        if hasedge[d] <= 0:
+            enum += 1
+    # Finally return the new slit edges array
+    return edgearr
+
+
 #######
 #  D  #
 #######

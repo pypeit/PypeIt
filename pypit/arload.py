@@ -50,7 +50,7 @@ def argflag_init():
     bfl = dict({'comb':dict({'method':None, 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}) })
     trc = dict({'comb':dict({'method':'weightmean', 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'maxnonsat'}),
                 'disp':dict({'window':None, 'direction':None}),
-                'orders': dict({'tilts':'trace', 'pcatilt':[2,1,0], 'use_ids_only': False, 'tiltorder':1, 'tiltdisporder':2, 'function':'polynomial', 'polyorder':2, 'diffpolyorder':2, 'fracignore':0.6, 'sigdetect':3.0, 'pca':[3,2,1,0,0,0], 'pcxpos':3, 'pcxneg':3,
+                'orders': dict({'slitgap':None, 'tilts':'trace', 'pcatilt':[2,1,0], 'use_ids_only': False, 'tiltorder':1, 'tiltdisporder':2, 'function':'polynomial', 'polyorder':2, 'diffpolyorder':2, 'fracignore':0.6, 'sigdetect':3.0, 'pca':[3,2,1,0,0,0], 'pcxpos':3, 'pcxneg':3,
                                 'sng_slit': []}) })
     arc = dict({'comb':dict({'method':'weightmean', 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'maxnonsat'}),
                 'extract':dict({'binby':1.0}),
