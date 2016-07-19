@@ -870,7 +870,6 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
 
     wl = np.where(edgearr < 0)
     wr = np.where(edgearr > 0)
-    debugger.set_trace()
     edgearr[wl] += esub
     edgearr[wr] -= (esub+rsub)
 
