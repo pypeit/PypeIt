@@ -415,6 +415,7 @@ def close_slits(np.ndarray[DTYPE_t, ndim=2] trframe not None,
     cdef int sz_x, sz_y, sz_d
     cdef int x, y, d, s, mgap, lgap, rgap, enum
     cdef double lminv, lmaxv, rminv, rmaxv
+    cdef int tmp
 
     sz_x = edgdet.shape[0]
     sz_y = edgdet.shape[1]
@@ -455,15 +456,25 @@ def close_slits(np.ndarray[DTYPE_t, ndim=2] trframe not None,
     # and redfine an edge where one does exists.
     enum = 500
     for d in range(0, sz_d):
+        tmp = 0
         for x in range(0, sz_x):
             for y in range(0, sz_y):
                 if edgdet[x, y] != dets[d]:
                     continue
-                if hasedge[d] == -1:
-                    edgearr[x, y] = -enum
-                elif hasedge[d] > 0:
+                if hasedge[d] > 0:
                     edgearr[x, y] = enum
-                else:
+                    # Relabel the appropriate hasedge
+                    if tmp == 0:
+                        for s in range(0, sz_d):
+                            if hasedge[d] == dets[s]:
+                                # Label hasedge as negative, to avoid confusion
+                                # with the positive hasedge numbers
+                                hasedge[s] = -enum
+                                tmp = 1
+                                break
+                elif hasedge[d] < -1:
+                    edgearr[x, y] = hasedge[d]
+                elif hasedge[d] == 0:
                     # Create a new edge
                     edgearr[x, y-1] = enum
                     edgearr[x, y+1] = -enum
@@ -499,7 +510,9 @@ def close_slits(np.ndarray[DTYPE_t, ndim=2] trframe not None,
                                 break
                         else:
                     """
-        if hasedge[d] <= 0:
+                else:
+                    print "      --->> BUG in arcytrace.close_edges(), check slit traces!!"
+        if hasedge[d] >= 0:
             enum += 1
     # Finally return the new slit edges array
     return edgearr
