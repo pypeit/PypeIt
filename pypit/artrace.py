@@ -444,6 +444,10 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     msgs.info("Assigning slit edge traces")
     # Find the most common set of edges
     edgearrcp = edgearr.copy()
+    # If slits are set as "close" by the user, take the absolute value
+    # of the detections and ignore the left/right edge detections
+    if slf._argflag['trace']['orders']['slitgap'] is not None:
+        edgearrcp[np.where(edgearrcp < 0)] += 1 + np.max(edgearrcp) - np.min(edgearrcp)
     # Assign left edges
     msgs.info("Assigning left slit edges")
     cmnold = None
@@ -674,14 +678,21 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     edgearrcp[np.where(edgearrcp >= 1000)] = 0
     # If the slits are close by, or highly different in flux,
     # cleverly introduce new edge locations
-    arutils.ds9plot(edgearrcp)
     if slf._argflag['trace']['orders']['slitgap'] is not None:
-        edgearrcp[np.where(edgearrcp != 0)] += 1000
         vals = np.unique(edgearrcp[np.where(edgearrcp != 0)])
-        edgearrcp = arcytrace.close_slits(binarr, edgearrcp, vals, int(slf._argflag['trace']['orders']['slitgap']))
-    debugger.set_trace()
-    arutils.ds9plot(edgearrcp)
-    arutils.ds9plot(binarr)
+        # Sort vals by increasing spatial position on the detector
+        minvf, maxvf = slf._pixlocn[det-1][0, 0, 0], slf._pixlocn[det-1][-1, 0, 0]
+        cenv = np.zeros(vals.size)
+        for jj in range(vals.size):
+            wedx, wedy = np.where(edgearrcp == vals[jj])
+            msk, cf = arutils.robust_polyfit(wedx, wedy,
+                                             slf._argflag['trace']['orders']['polyorder'],
+                                             function=slf._argflag['trace']['orders']['function'],
+                                             minv=minvf, maxv=maxvf)
+            cenv[jj] = arutils.func_val(cf, np.array([binarr.shape[0]/2.0]),
+                             slf._argflag['trace']['orders']['function'], minv=minvf, maxv=maxvf)[0]
+        vas = np.argsort(cenv)
+        edgearrcp = arcytrace.close_slits(binarr, edgearrcp, vals[vas], int(slf._argflag['trace']['orders']['slitgap']))
     # Update edgearr
     edgearr = edgearrcp.copy()
     iterate = True
@@ -851,6 +862,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
 #		else:
 #			rva = rvb
     msgs.info("Relabelling slit edges")
+    rsub = int(round(rsub))
     if lmin < rmin-rsub:
         esub = lmin - (slf._argflag['trace']['orders']['pcxneg']+1)
     else:
@@ -858,6 +870,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
 
     wl = np.where(edgearr < 0)
     wr = np.where(edgearr > 0)
+    debugger.set_trace()
     edgearr[wl] += esub
     edgearr[wr] -= (esub+rsub)
 
