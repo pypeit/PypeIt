@@ -6,6 +6,7 @@ import os
 import astropy.io.fits as pyfits
 from astropy.units import Quantity
 import numpy as np
+import h5py
 
 from pypit import armsgs
 
@@ -288,8 +289,46 @@ def save_tilts(slf, fname):
 
     return
 
+def save_1d_spectra_hdf5(slf, clobber=True):
+    """ Write 1D spectra to an HDF5 file
 
-def save_1d_spectra(slf, clobber=True):
+    Parameters
+    ----------
+    slf
+    clobber
+
+    Returns
+    -------
+
+    """
+    # Open file
+    outfile = slf._argflag['run']['scidir']+'/spec1d_{:s}.hdf5'.format(slf._basename)
+    hdf = h5py.File(outfile,'w')
+
+    nspec = len(slf._specobjs[det-1])
+    # Loop on extraction methods
+    for kk in range(slf._spect['mosaic']['ndet']):
+        det = kk+1
+    for method in ['boxcar', 'optimal']:
+        # Generate the unfluxed spectrum
+        if len(slf.)
+    totpix = len()
+    # Data arrays are always MaskedArray
+    data = np.ma.empty((self.nspec,), #self.npix),
+                           dtype=[(str('wave'), 'float64', (self.totpix)),
+                                  (str('flux'), 'float32', (self.totpix)),
+                                  (str('sig'),  'float32', (self.totpix)),
+                                  (str('co'),   'float32', (self.totpix)),
+                                 ])
+    self.data['wave'] = np.reshape(wave, (self.nspec, self.totpix))
+    self.data['flux'] = np.reshape(flux, (self.nspec, self.totpix))
+
+
+
+
+    # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
+
+def save_1d_spectra_fits(slf, clobber=True):
     """ Write 1D spectra to a multi-extension FITS file
 
     Parameters
