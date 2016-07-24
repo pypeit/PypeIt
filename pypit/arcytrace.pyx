@@ -415,7 +415,7 @@ def close_slits(np.ndarray[DTYPE_t, ndim=2] trframe not None,
     cdef int sz_x, sz_y, sz_d
     cdef int x, y, d, s, mgap, lgap, rgap, enum
     cdef double lminv, lmaxv, rminv, rmaxv
-    cdef int tmp
+    cdef int tmp, tix, flg, diff
 
     sz_x = edgdet.shape[0]
     sz_y = edgdet.shape[1]
@@ -425,6 +425,7 @@ def close_slits(np.ndarray[DTYPE_t, ndim=2] trframe not None,
     cdef np.ndarray[ITYPE_t, ndim=1] hasedge = np.zeros(sz_d, dtype=ITYPE)
 
     for d in range(0, sz_d):
+        tmp = sz_y
         for x in range(0, sz_x):
             for y in range(0, sz_y):
                 if edgdet[x, y] != dets[d]:
@@ -437,15 +438,52 @@ def close_slits(np.ndarray[DTYPE_t, ndim=2] trframe not None,
                         mgap = sz_y
                     for s in range(y+1, mgap):
                         if edgdet[x, s] != 0:
+                            if s-y < tmp:
+                                tmp = s-y
+                                tix = edgdet[x, s]
                             hasedge[d] = edgdet[x, s]
                             break
-                if hasedge[d] != 0:
-                    break
-            if hasedge[d] != 0:
-                break
+#                if hasedge[d] != 0:
+#                    break
+#            if hasedge[d] != 0:
+#                break
+        if tmp != sz_y:
+            hasedge[d] = tix
 
     # Now, if there's an edge in hasedge, mark the corresponding index in hasedge with -1
     for d in range(0, sz_d):
+        if hasedge[d] == dets[d]:
+            # Close slits have caused a left/right edge to be labelled as one edge
+            # Find only instances where there is a left and right edge detection
+            # Then, take their average and set hadedge to be zero
+            tmp = 0
+            diff = 0
+            for x in range(0, sz_x):
+                for y in range(0, sz_y):
+                    if edgdet[x, y] != dets[d]:
+                        continue
+                    else:
+                        # Check if there's an edge nearby
+                        mgap = y+npix+1
+                        # Check limits
+                        if mgap > sz_y:
+                            mgap = sz_y
+                        flg = 0
+                        for s in range(y+1, mgap):
+                            if edgdet[x, s] == edgdet[x, y]:
+                                edgdet[x, s] = 0
+                                edgdet[x, y] = 0
+                                tix = y + <int>(0.5*<double>(s-y) + 0.5)  # +0.5 for rounding
+                                edgdet[x, tix] = dets[d]
+                                flg = 1
+                                tmp += 1
+                                diff += (s-y)
+                                break
+                        if flg == 0:
+                            # If there isn't a common left/right edge for this pixel, ignore this single edge detection
+                            edgdet[x, y] = 0
+            hasedge[d] = diff/tmp
+            continue
         if hasedge[d] > 0:
             for s in range(0, sz_d):
                 if hasedge[d] == dets[s]:
@@ -453,7 +491,7 @@ def close_slits(np.ndarray[DTYPE_t, ndim=2] trframe not None,
                     break
 
     # Introduce an edge in cases where no edge exists,
-    # and redfine an edge where one does exists.
+    # and redefine an edge where one does exist.
     enum = 500
     for d in range(0, sz_d):
         tmp = 0
@@ -461,7 +499,7 @@ def close_slits(np.ndarray[DTYPE_t, ndim=2] trframe not None,
             for y in range(0, sz_y):
                 if edgdet[x, y] != dets[d]:
                     continue
-                if hasedge[d] > 0:
+                if hasedge[d] >= 500:
                     edgearr[x, y] = enum
                     # Relabel the appropriate hasedge
                     if tmp == 0:
@@ -474,10 +512,10 @@ def close_slits(np.ndarray[DTYPE_t, ndim=2] trframe not None,
                                 break
                 elif hasedge[d] < -1:
                     edgearr[x, y] = hasedge[d]
-                elif hasedge[d] == 0:
+                elif hasedge[d] >= 0:
                     # Create a new edge
-                    edgearr[x, y-1] = enum
-                    edgearr[x, y+1] = -enum
+                    edgearr[x, y-(1+hasedge[d])] = enum
+                    edgearr[x, y+(1+hasedge[d])] = -enum
                     """
                     # Set the limits
                     rgap = y - 2*npix

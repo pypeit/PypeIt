@@ -318,8 +318,8 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     from pypit import arcytrace
 
     msgs.info("Preparing trace frame for order edge detection")
-    # Generate a binned version of the trace frame
-    binarr = mstrace.copy()
+    # Generate a binned (or smoothed) version of the trace frame
+    binarr = ndimage.uniform_filter(mstrace, size=(3, 1))
     binbpx = slf._bpix[det-1].copy()
     plxbin = slf._pixlocn[det-1][:, :, 0].copy()
     plybin = slf._pixlocn[det-1][:, :, 1].copy()
@@ -442,7 +442,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
         lcnt = 1
     msgs.info("Assigning slit edge traces")
     # Find the most common set of edges
-    minvf, maxvf = slf._pixlocn[det-1][0, 0, 0], slf._pixlocn[det-1][-1, 0, 0]
+    minvf, maxvf = plxbin[0, 0], plxbin[-1, 0]
     edgearrcp = edgearr.copy()
     # If slits are set as "close" by the user, take the absolute value
     # of the detections and ignore the left/right edge detections
@@ -696,7 +696,13 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
                 msgs.prindent("  Inner loop, Iteration {0:d}, {1:d} right edges assigned ({2:d} total)".format(itnm, pks.size, nslit))
                 firstpass = False
             outitnm += 1
+            edgearrcp[np.where(edgearrcp >= 1000)] = 0
             if np.array_equal(edgearrcp, oldedgearrcp):
+                break
+            elif outitnm > 10:
+                msgs.warn("Edge assignment may not have converged")
+                msgs.info("Please check the slit edge traces")
+                debugger.set_trace()
                 break
             else:
                 oldedgearrcp = edgearrcp.copy()
@@ -706,23 +712,46 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     edgearrcp[np.where(edgearrcp >= 1000)] = 0
     # Sort vals by increasing spatial position on the detector
     # First, determine the model for the most common slit edge
-    debugger.set_trace()
-    cenv = np.zeros(vals.size)
+    wcm = np.where(edgearrcp >= 500)
+    cntr = Counter(edg for edg in edgearrcp[wcm])
+    commn = cntr.most_common(1)
+    wedx, wedy = np.where(edgearrcp == commn[0][0])
+    msk, cf = arutils.robust_polyfit(wedx, wedy,
+                                     slf._argflag['trace']['orders']['polyorder'],
+                                     function=slf._argflag['trace']['orders']['function'],
+                                     minv=0, maxv=binarr.shape[0]-1)
+    cenmodl = arutils.func_val(cf, np.arange(binarr.shape[0]),
+                               slf._argflag['trace']['orders']['function'],
+                               minv=0, maxv=binarr.shape[0]-1)
+
+    vals = np.unique(edgearrcp[np.where(edgearrcp != 0)])
+    diffarr = np.zeros(vals.size)
+    diffstd = 0.0
     for jj in range(vals.size):
         wedx, wedy = np.where(edgearrcp == vals[jj])
-        msk, cf = arutils.robust_polyfit(wedx, wedy,
-                                         slf._argflag['trace']['orders']['polyorder'],
-                                         function=slf._argflag['trace']['orders']['function'],
-                                         minv=minvf, maxv=maxvf)
-        cenv[jj] = arutils.func_val(cf, np.array([binarr.shape[0]/2.0]),
-                         slf._argflag['trace']['orders']['function'], minv=minvf, maxv=maxvf)[0]
-
+        diffarr[jj] = np.mean(wedy-cenmodl[wedx])
+        diffstd += np.std(wedy-cenmodl[wedx])
+    diffstd /= vals.size
+    dasrt = np.argsort(diffarr)
+    # Relabel the edges from left to right
+    edgearrcp[wcm] += 500
+    labnum = 500
+    diffarrsrt = diffarr[dasrt]
+    diffs = diffarrsrt[1:] - diffarrsrt[:-1]
+    for jj in range(vals.size):
+        wrplc = np.where(edgearrcp == 500+vals[dasrt[jj]])
+        edgearrcp[wrplc] = labnum
+        if jj != vals.size-1:
+            if diffs[jj] > 3.0*diffstd:
+                # The next edge must be a different edge
+                labnum += 1
+    arutils.ds9plot(edgearrcp)
+    debugger.set_trace()
     # If the slits are close by, or highly different in flux,
     # introduce new edge locations
     if slf._argflag['trace']['orders']['slitgap'] is not None:
-        vals = np.unique(edgearrcp[np.where(edgearrcp != 0)])
-        vas = np.argsort(cenv)
-        edgearrcp = arcytrace.close_slits(binarr, edgearrcp, vals[vas], int(slf._argflag['trace']['orders']['slitgap']))
+        vals = np.sort(np.unique(edgearrcp[np.where(edgearrcp != 0)]))
+        edgearrcp = arcytrace.close_slits(binarr, edgearrcp, vals, int(slf._argflag['trace']['orders']['slitgap']))
     # Update edgearr
     edgearr = edgearrcp.copy()
     iterate = True
@@ -756,7 +785,7 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
     msgs.info("Fitting left slit traces")
     lcoeff = np.zeros((1+slf._argflag['trace']['orders']['polyorder'], lmax-lmin+1))
 #   lfail = np.array([])
-    minvf, maxvf = slf._pixlocn[det-1][0, 0, 0], slf._pixlocn[det-1][-1, 0, 0]
+#    minvf, maxvf = slf._pixlocn[det-1][0, 0, 0], slf._pixlocn[det-1][-1, 0, 0]
     for i in range(lmin, lmax+1):
         w = np.where(edgearr == -i)
         if np.size(w[0]) <= slf._argflag['trace']['orders']['polyorder']+2:
