@@ -2423,7 +2423,8 @@ def prune_peaks(np.ndarray[ITYPE_t, ndim=1] hist not None,
         for jj in range(pks[ii], pks[ii+1]):
             if hist[jj] == 0:
                 cnt += 1
-        if cnt < (pks[ii+1] - pks[ii])/2:
+        #if cnt < (pks[ii+1] - pks[ii])/2:
+        if cnt < 2:
             # If the difference is unacceptable, both peaks are bad
             msk[ii] = 0
             msk[ii+1] = 0
