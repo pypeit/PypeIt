@@ -456,17 +456,19 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
                     labelbottom='off', labelleft='off')
 
     # Traces
+    iy = int(frame.shape[0]/2.)
     for ii in range(ntrc):
-        if extslit[ii] is True: ptyp = ':'
-        else: ptyp = '--'
+        if extslit[ii] is True:
+            ptyp = ':'
+        else:
+            ptyp = '--'
         # Left
         plt.plot(ltrace[:, ii]+0.5, ycen, 'r'+ptyp, alpha=0.7)
         # Right
         plt.plot(rtrace[:, ii]+0.5, ycen, 'g'+ptyp, alpha=0.7)
         # Label
-        iy = int(frame.shape[0]/2.)
-        plt.text(ltrace[iy, ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
-        plt.text(rtrace[iy, ii], ycen[iy], '{:d}'.format(ii+1), color='green', ha='center')
+        plt.text(ltrace[iy, ii], ycen[iy], '{0:d}'.format(ii+1), color='red', ha='left')
+        plt.text(rtrace[iy, ii], ycen[iy], '{0:d}'.format(ii+1), color='green', ha='right')
     if desc != "":
         plt.suptitle(desc)
 
