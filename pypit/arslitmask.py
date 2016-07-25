@@ -7,6 +7,7 @@ from __future__ import (print_function, absolute_import,
 from itertools import compress
 import six
 import numpy as np
+from scipy import signal
 from astropy.io import fits
 from astropy.coordinates import SkyCoord
 # from pypit import armsgs
@@ -19,33 +20,58 @@ except:
 # Logging
 # msgs = armsgs.get_logger()
 
-class Slit(object):
+# class Slit(object):
+#     '''
+#     Slit with mask coordinates
+#     '''
+#
+#     def __init__(self, name, left_edge, right_edge, pa, width, isalign=False):
+#         '''
+#         Parameters
+#         ----------
+#         name : str, name of slit
+#         left_edge : float, left edge of slit in mask coordinates
+#         right_edge : float, right edge of slit in mask coordinates
+#         pa : float, position angle of slit in degrees ccw from y-axis, mask coordinates
+#         width : float, slit width in arcsec
+#         isalign : bool, true if slit is an alignment box
+#         '''
+#         self.name = name
+#         self.left_edge = left_edge
+#         self.right_edge = right_edge
+#         self.pa = pa
+#         self.width = width
+#         self.isalign = isalign
+
+#     def __repr__(self):
+#         return '<' + type(self).__name__ + ': ' + self.name + '>'
+
+def offset(measured_edges, predicted_edges):
     '''
-    Slit with mask coordinates
+    Calculates the constant offset between two lists of edges.
+
+    Parameters
+    ----------
+    measured_edges : array of pixel values
+    predicted_edges : array of pixel values
+
+    Returns
+    -------
+    lag : float, pixel offset between the two inputs
     '''
+    pixmax = max(np.amax(measured_edges), np.amax(predicted_edges))
+    pixels = np.arange(pixmax)
+    n = pixels.size
+    m_pix = np.zeros(n)
+    m_pix[map(int, measured_edges)] = np.ones(len(measured_edges))
+    p_pix = np.zeros(n)
+    p_pix[map(int, predicted_edges)] = np.ones(len(predicted_edges))
+    corr = signal.correlate(m_pix, p_pix, mode='full')
+    lags = np.arange(corr.size) - m_pix.size + 1
+    lag = lags[np.argmax(corr)]
+    return lag
 
-    def __init__(self, name, left_edge, right_edge, pa, width, isalign=False):
-        '''
-        Parameters
-        ----------
-        name : str, name of slit
-        left_edge : float, left edge of slit in mask coordinates
-        right_edge : float, right edge of slit in mask coordinates
-        pa : float, position angle of slit in degrees ccw from y-axis, mask coordinates
-        width : float, slit width in arcsec
-        isalign : bool, true if slit is an alignment box
-        '''
-        self.name = name
-        self.left_edge = left_edge
-        self.right_edge = right_edge
-        self.pa = pa
-        self.width = width
-        self.isalign = isalign
-
-    def __repr__(self):
-        return '<' + type(self).__name__ + ': ' + self.name + '>'
-
-        
+    
 class Slitmask(object):
     '''
     Generic slitmask class, should be sub-classed for specific instruments.
@@ -59,7 +85,8 @@ class Slitmask(object):
         mask_ra : float, right ascension of mask origin, in degrees
         mask_dec : float, declination of mask origin, in degrees
         mask_pa : position angle of mask, in sky coordinates (degrees ccw from North)
-        slits : list of Slit instances
+        slits : record array of slits with fields of
+                ['name', 'left_edge', 'right_edge', 'pa', 'width', 'length', 'isalign']
         '''
         self._mask_name = mask_name
         try:
@@ -90,7 +117,7 @@ class Slitmask(object):
     def mask_pa(self):
         return self._mask_pa
 
-    def slit_edges(self, idx=None, coord_transform=None):
+    def slit_edges(self, idx=slice(None), coord_transform=None):
         '''
         Parameters
         ----------
@@ -101,32 +128,14 @@ class Slitmask(object):
         -------
         edges : [N by 2] float array, each row has [left_edge, right_edge]
         '''
-        if idx is None:
-            slits = self.slits
-        else:
-            slits = [slit for slit in compress(self.slits, idx)]
-        if  coord_transform is None:
+        if coord_transform is None:
             f = lambda x: x
         else:
             f = coord_transform
-        return np.vstack([[f(slit.left_edge), f(slit.right_edge)] for slit in slits])
+        return np.column_stack([f(self.slits.left_edge[idx]), f(self.slits[idx].right_edge)])
 
-
-    def slit_pa(self, idx=None):
-        if idx is None:
-            slits = self.slits
-        else:
-            slits = [slit for slit in compress(slits, idx)]
-        return np.array([slit.pa for slit in slits])
-
-
-    def slit_names(self, idx=None):
-        if idx is None:
-            slits = self.slits
-        else:
-            slits = [slit for slit in compress(slits, idx)]
-        return np.array([slit.name for slit in slits])
-
+    def slit_lengths(self, idx=slice(None)):
+        return np.abs(self.slits[idx].left_edge - self.slits[idx].right_edge)
 
     
 class DEIMOS_slitmask(Slitmask):
@@ -182,8 +191,11 @@ class DEIMOS_slitmask(Slitmask):
         mask_ra = mask_design[0]['RA_PNT']             # in degrees
         mask_dec = mask_design[0]['DEC_PNT']           # in degrees
 
-        # construct slits
-        slits = []
+        # construct slits as numpy record array
+        nslits = len(desi_slits)
+        # slits = np.recarray((nslits,), dtype=[('name', 'S16'), ('left_edge', '>f4'), ('right_edge', '>f4'),
+        #                                       ('pa', '>f4'), ('width', '>f4'), ('isalign', 'b1')])
+        
         obj_idx = np.array([(i in slit_obj_map['ObjectId']) for i in obj_cat['ObjectId']])
         name = obj_cat[obj_idx]['OBJECT']
         pa = desi_slits['slitLPA'] - mask_pa       # in degrees, relative to mask
@@ -191,13 +203,19 @@ class DEIMOS_slitmask(Slitmask):
         length = desi_slits['slitLen']
         width = desi_slits['slitWid']
         # make sure to convert from mm on mask to arcsec!
-        left_edge = blu_slits['SlitX1'] / mm_per_arcsec
-        right_edge = blu_slits['SlitX2'] / mm_per_arcsec
-        # check for correct-ish slit length... don't trust to more than 0.3 arcsec
+        left_edge = blu_slits['SlitX2'] / mm_per_arcsec
+        right_edge = blu_slits['SlitX1'] / mm_per_arcsec
+        # check for correct-ish slit length... don't trust to more than 0.3 arcsec, or ~2 pix
         assert np.all(np.isclose(np.abs(left_edge - right_edge), length, atol=0.5))
-        for i in range(len(desi_slits)):
-            slits.append(Slit(name[i], left_edge[i], right_edge[i], pa[i], width[i], isalign=isalign[i]))
-            
+        slit_list = []
+        for i in range(nslits):
+            slit_list.append((str(name[i]), left_edge[i], right_edge[i], pa[i], width[i], length[i], isalign[i]))
+        dtype = [('name', 'S16'), ('left_edge', 'f4'), ('right_edge', 'f4'),
+                 ('pa', 'f4'), ('width', 'f4'), ('length', 'f4'), ('isalign', 'b1')]
+        # stupid unicode compatibility issues
+        dtype = [(str(key), str(value)) for key, value in dtype]
+        slits = np.array(slit_list, dtype=dtype).view(np.recarray)
+        slits = slits[np.argsort(slits.left_edge)]
         Slitmask. __init__(self, mask_name, mask_ra, mask_dec, mask_pa, slits)
 
 
@@ -213,6 +231,28 @@ class DEIMOS_slitmask(Slitmask):
     def plate_scale(self):
         return self._plate_scale
 
+    def offset_for_det(self, det):
+        '''
+        Fudging the coordinate transforms from mask to pixel values.
+        '''
+        if det == 1:
+            return 87
+        elif det == 2:
+            return -4
+        elif det == 3:
+            return
+        elif det == 4:
+            return
+        elif det == 5:
+            return
+        elif det == 6:
+            return
+        elif det == 7:
+            return
+        elif det == 8:
+            return
+
+        
     def mosaic_location(self, det):
         '''
         Locates the chip within the DEIMOS detector mosaic.
@@ -313,7 +353,7 @@ class DEIMOS_slitmask(Slitmask):
         slits = (chip_left_edge < left_edges) & (right_edges < chip_right_edge)
         return slits
     
-    def slit_edges(self, det):
+    def slit_edges(self, det, idx=None):
         '''
         Gets the pixel values of slit edges in a detector.
 
@@ -326,10 +366,12 @@ class DEIMOS_slitmask(Slitmask):
         -------
         edges : [N by 2] float array, each row has [left_edge, right_edge] in pixel values
         '''
-        idx = self.slits_in_det(det)
+        if idx is None:
+            idx = self.slits_in_det(det)
         coord_transform = lambda x: self.mask_to_det_coords(x, det)
         edges = super(type(self), self).slit_edges(idx, coord_transform)
-        return edges[np.argsort(edges[:, 0])]
+        return edges
+
     
 class LRIS_slitmask(Slitmask):
     pass
