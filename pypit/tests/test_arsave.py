@@ -17,17 +17,17 @@ from pypit import arsave as arsv
 #    data_dir = os.path.join(os.path.dirname(__file__), 'files')
 #    return os.path.join(data_dir, filename)
 
-def mk_specobj():
+def mk_specobj(flux=5):
     # specobj
     npix = 100
     specobj = pyp_sobj.SpecObjExp((100,100), 'Kast', 0, 0, (0.4,0.6), 0.5, 0.5, objtype='science')
-    specobj.boxcar = dict(wave=np.arange(npix)*u.AA, counts=np.ones(npix)*5)
-    specobj.optimal = dict(wave=np.arange(npix)*u.AA, counts=np.ones(npix)*4.4)
+    specobj.boxcar = dict(wave=np.arange(npix)*u.AA, counts=np.ones(npix)*flux)
+    specobj.optimal = dict(wave=np.arange(npix)*u.AA, counts=np.ones(npix)*flux-0.5)
     specobj.trace = np.arange(npix) / npix
     # Return
     return specobj
 
-def test_save1d():
+def test_save1d_fits():
     """ save1d to FITS and HDF5
     """
     from pypit import arutils as arut
@@ -38,22 +38,14 @@ def test_save1d():
     # Write to FITS
     arsv.save_1d_spectra_fits(slf)
 
-"""
-def test_save1d():
+def test_save1d_hdf5():
     """ save1d to FITS and HDF5
     """
     from pypit import arutils as arut
     # Dummy self
     slf = arut.dummy_self()
     # specobj
-    npix = 100
-    specobj = pyp_sobj.SpecObjExp((100,100), 'Kast', 0, 0, (0.4,0.6), 0.5, 0.5, objtype='science')
-    specobj.boxcar = dict(wave=np.arange(npix)*u.AA, counts=np.ones(npix)*5)
-    specobj.optimal = dict(wave=np.arange(npix)*u.AA, counts=np.ones(npix)*4.4)
-    specobj.trace = np.arange(npix) / npix
     slf._specobjs = []
-    slf._specobjs.append([specobj])
+    slf._specobjs.append([mk_specobj(), mk_specobj(flux=3.)])
     # Write to HDF5
     arsv.save_1d_spectra_hdf5(slf)
-
-"""

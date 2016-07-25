@@ -307,6 +307,10 @@ def save_1d_spectra_hdf5(slf, clobber=True):
 
     # Loop on extraction methods
     for ex_method in ['boxcar', 'optimal']:
+        # Check for extraction type
+        if not hasattr(slf._specobjs[0][0], ex_method):
+            continue
+        method_grp = hdf.create_group(ex_method)
 
         # Calculate number of spectra
         nspec, totpix = 0, 0
@@ -343,7 +347,6 @@ def save_1d_spectra_hdf5(slf, clobber=True):
             spec_set[count] = data
             count += 1
     #
-    debugger.set_trace()
     hdf.close()
 
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
