@@ -186,8 +186,10 @@ def dummy_self(pypitdir=None, inum=0, fitsdict=None, nfile=10):
         pypitdir = __file__[0:__file__.rfind('/')]
     slf._argflag['run']['pypitdir'] = pypitdir
     slf._argflag['run']['spectrograph'] = 'dummy'
+    slf._argflag['run']['scidir'] = './'
     #
     slf._spect['mosaic'] = {}
+    slf._spect['mosaic']['ndet'] = 1
     slf._spect['det'] = [{'binning':'1x1'}]
     #
     return slf

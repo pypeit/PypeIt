@@ -305,26 +305,46 @@ def save_1d_spectra_hdf5(slf, clobber=True):
     outfile = slf._argflag['run']['scidir']+'/spec1d_{:s}.hdf5'.format(slf._basename)
     hdf = h5py.File(outfile,'w')
 
-    nspec = len(slf._specobjs[det-1])
     # Loop on extraction methods
-    for kk in range(slf._spect['mosaic']['ndet']):
-        det = kk+1
-    for method in ['boxcar', 'optimal']:
-        # Generate the unfluxed spectrum
-        if len(slf.)
-    totpix = len()
-    # Data arrays are always MaskedArray
-    data = np.ma.empty((self.nspec,), #self.npix),
-                           dtype=[(str('wave'), 'float64', (self.totpix)),
-                                  (str('flux'), 'float32', (self.totpix)),
-                                  (str('sig'),  'float32', (self.totpix)),
-                                  (str('co'),   'float32', (self.totpix)),
-                                 ])
-    self.data['wave'] = np.reshape(wave, (self.nspec, self.totpix))
-    self.data['flux'] = np.reshape(flux, (self.nspec, self.totpix))
+    for ex_method in ['boxcar', 'optimal']:
 
-
-
+        # Calculate number of spectra
+        nspec, totpix = 0, 0
+        for kk in range(slf._spect['mosaic']['ndet']):
+            det = kk+1
+            nspec += len(slf._specobjs[det-1])
+            # Calculate max pixels
+            for specobj in slf._specobjs[det-1]:
+                totpix = max(totpix, specobj.trace.size)
+        # Data arrays are always MaskedArray
+        dtypes = []
+        for key in getattr(slf._specobjs[det-1][0], ex_method).keys():
+            dtype = 'float64' if key == 'wave' else 'float32'
+            dtypes.append((str(key), dtype, (totpix)))
+        data = np.ma.empty((1,), dtype=dtypes)
+        # Setup in hdf5
+        spec_set = hdf[str(ex_method)].create_dataset('spec', data=data, chunks=True,
+                                         maxshape=(None,), compression='gzip')
+        spec_set.resize((nspec,))
+        # Fill (and make meta)
+        count = 0
+        for kk in range(slf._spect['mosaic']['ndet']):
+            det = kk+1
+            nspec += len(slf._specobjs[det-1])
+            # Loop on spectra
+            for specobj in slf._specobjs[det-1]:
+                sdict = getattr(specobj, ex_method)
+                for key in sdict.keys():
+                    npix = len(sdict[key])
+                    try:
+                        data[key][0][:npix] = sdict[key].value
+                    except AttributeError:
+                        data[key][0][:npix] = sdict[key]
+            spec_set[count] = data
+            count += 1
+    #
+    debugger.set_trace()
+    hdf.close()
 
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 
