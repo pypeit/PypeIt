@@ -405,9 +405,9 @@ def load_input(redname):
             aux = dfname.split('#')
             if len(aux) > 1:  # yes, there is a comment
                 dfname = aux[0].strip()
-            if dfname[0] == "":  # line is fully commented out
-                continue
-            elif dfname[0] == '~':
+                if dfname == "":  # line is fully commented out
+                    continue
+            if dfname[0] == '~':
                 dfname = os.path.expanduser(dfname)
             elif dfname[0] != '/':
                 msgs.error("You must specify the full datapath for the file:"+msgs.newline()+dfname)
