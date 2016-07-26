@@ -747,6 +747,52 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
                 labnum += 1
     arutils.ds9plot(edgearrcp)
     debugger.set_trace()
+    if slf._argflag['trace']['orders']['slitgap'] is not None:
+        vals = np.sort(np.unique(edgearrcp[np.where(edgearrcp != 0)]))
+        hasedge = arcytrace.close_edges(edgearrcp, vals, int(slf._argflag['trace']['orders']['slitgap']))
+        # Find all duplicate edges
+        edgedup = vals[np.where(hasedge == 1)]
+        if edgedup.size > 0:
+            for jj in range(edgedup.size):
+                # Raise all remaining edges by one
+                if jj != edgedup.size-1:
+                    edgedup[jj+1:] += 1
+                edgearrcp[np.where(edgearrcp > edgedup[jj])] += 1
+                # Now investigate the duplicate
+                wdup = np.where(edgearrcp == edgedup[jj])
+                alldup = edgearr[wdup]
+                alldupu = np.unique(alldup)
+                cntr = Counter(edg for edg in alldup)
+                commn = cntr.most_common(alldupu.size)
+                shftarr = np.zeros(len(commn))
+                wghtarr = np.zeros(len(commn))
+                for ii in range(len(commn)):
+                    wghtarr[ii] = commn[ii][1]
+                # First calculate the old model
+                cf = arutils.func_fit(wdup[0], wdup[1],
+                                      slf._argflag['trace']['orders']['function'],
+                                      slf._argflag['trace']['orders']['polyorder'],
+                                      minv=0, maxv=binarr.shape[0]-1)
+                cenmodl = arutils.func_val(cf, np.arange(binarr.shape[0]),
+                                           slf._argflag['trace']['orders']['function'],
+                                           minv=0, maxv=binarr.shape[0]-1)
+                chisqold = np.abs(cenmodl[wdup[0]]-wdup[1]).sum()
+                changesmade = True
+                while changesmade:
+                    # Keep shifting pixels until the best match is found
+                    changesmade = False
+                    for ii in range(1, len(commn)):
+                        # Shift by +1
+                        cf = arutils.func_fit(wdup[0], wdup[1],
+                                              slf._argflag['trace']['orders']['function'],
+                                              slf._argflag['trace']['orders']['polyorder'],
+                                              minv=0, maxv=binarr.shape[0]-1)
+                        cenmodl = arutils.func_val(cf, np.arange(binarr.shape[0]),
+                                                   slf._argflag['trace']['orders']['function'],
+                                                   minv=0, maxv=binarr.shape[0]-1)
+                        chisq = np.abs(cenmodl[wdup[0]]-wdup[1]).sum()
+
+                debugger.set_trace()
     # If the slits are close by, or highly different in flux,
     # introduce new edge locations
     if slf._argflag['trace']['orders']['slitgap'] is not None:

@@ -407,6 +407,46 @@ def clean_pix(np.ndarray[DTYPE_t, ndim=2] array not None,
 
 
 @cython.boundscheck(False)
+def close_edges(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
+                np.ndarray[ITYPE_t, ndim=1] dets not None,
+                int npix):
+
+    cdef int sz_x, sz_y, sz_d
+    cdef int x, y, d, s, mgap
+    cdef int tmp, tix
+
+    sz_x = edgdet.shape[0]
+    sz_y = edgdet.shape[1]
+    sz_d = dets.shape[0]
+
+    cdef np.ndarray[ITYPE_t, ndim=1] hasedge = np.zeros(sz_d, dtype=ITYPE)
+
+    for d in range(0, sz_d):
+        tmp = sz_y
+        for x in range(0, sz_x):
+            for y in range(0, sz_y):
+                if edgdet[x, y] != dets[d]:
+                    continue
+                else:
+                    # Check if there's an edge nearby
+                    mgap = y+npix+1
+                    # Check limits
+                    if mgap > sz_y:
+                        mgap = sz_y
+                    for s in range(y+1, mgap):
+                        if edgdet[x, s] == dets[d]:
+                            hasedge[d] = 1
+                            break
+                if hasedge[d] != 0:
+                    break
+            if hasedge[d] != 0:
+                break
+        if tmp != sz_y:
+            hasedge[d] = tix
+    return hasedge
+
+
+@cython.boundscheck(False)
 def close_slits(np.ndarray[DTYPE_t, ndim=2] trframe not None,
                 np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 np.ndarray[ITYPE_t, ndim=1] dets not None,
