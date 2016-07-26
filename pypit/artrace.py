@@ -764,34 +764,62 @@ def trace_orders(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fa
                 alldupu = np.unique(alldup)
                 cntr = Counter(edg for edg in alldup)
                 commn = cntr.most_common(alldupu.size)
-                shftarr = np.zeros(len(commn))
+                shftsml = np.zeros(len(commn))
+                shftarr = np.zeros(wdup[0].size)
                 wghtarr = np.zeros(len(commn))
+                duploc = [None for ii in range(len(commn))]
                 for ii in range(len(commn)):
                     wghtarr[ii] = commn[ii][1]
-                # First calculate the old model
-                cf = arutils.func_fit(wdup[0], wdup[1],
-                                      slf._argflag['trace']['orders']['function'],
-                                      slf._argflag['trace']['orders']['polyorder'],
-                                      minv=0, maxv=binarr.shape[0]-1)
-                cenmodl = arutils.func_val(cf, np.arange(binarr.shape[0]),
-                                           slf._argflag['trace']['orders']['function'],
-                                           minv=0, maxv=binarr.shape[0]-1)
-                chisqold = np.abs(cenmodl[wdup[0]]-wdup[1]).sum()
+                    duploc[ii] = np.where(edgearr[wdup] == commn[ii][0])
                 changesmade = True
                 while changesmade:
                     # Keep shifting pixels until the best match is found
                     changesmade = False
+                    # First calculate the old model
+                    cf = arutils.func_fit(wdup[0], wdup[1]+shftarr,
+                                          slf._argflag['trace']['orders']['function'],
+                                          slf._argflag['trace']['orders']['polyorder'],
+                                          minv=0, maxv=binarr.shape[0]-1)
+                    cenmodl = arutils.func_val(cf, np.arange(binarr.shape[0]),
+                                               slf._argflag['trace']['orders']['function'],
+                                               minv=0, maxv=binarr.shape[0]-1)
+                    chisqold = np.abs(cenmodl[wdup[0]]-wdup[1]-shftarr).sum()
                     for ii in range(1, len(commn)):
                         # Shift by +1
-                        cf = arutils.func_fit(wdup[0], wdup[1],
+                        adj = np.zeros(wdup[0].size)
+                        adj[duploc[ii]] += 1
+                        cf = arutils.func_fit(wdup[0], wdup[1]+shftarr+adj,
                                               slf._argflag['trace']['orders']['function'],
                                               slf._argflag['trace']['orders']['polyorder'],
                                               minv=0, maxv=binarr.shape[0]-1)
                         cenmodl = arutils.func_val(cf, np.arange(binarr.shape[0]),
                                                    slf._argflag['trace']['orders']['function'],
                                                    minv=0, maxv=binarr.shape[0]-1)
-                        chisq = np.abs(cenmodl[wdup[0]]-wdup[1]).sum()
-
+                        chisqp = np.abs(cenmodl[wdup[0]]-wdup[1]-shftarr-adj).sum()
+                        # Shift by -1
+                        adj = np.zeros(wdup[0].size)
+                        adj[duploc[ii]] -= 1
+                        cf = arutils.func_fit(wdup[0], wdup[1]+shftarr+adj,
+                                              slf._argflag['trace']['orders']['function'],
+                                              slf._argflag['trace']['orders']['polyorder'],
+                                              minv=0, maxv=binarr.shape[0]-1)
+                        cenmodl = arutils.func_val(cf, np.arange(binarr.shape[0]),
+                                                   slf._argflag['trace']['orders']['function'],
+                                                   minv=0, maxv=binarr.shape[0]-1)
+                        chisqm = np.abs(cenmodl[wdup[0]]-wdup[1]-shftarr-adj).sum()
+                        # Test which solution is best:
+                        if chisqold < chisqp and chisqold < chisqm:
+                            # No changes are needed
+                            continue
+                        else:
+                            changesmade = True
+                            if chisqp < chisqm:
+                                shftarr[duploc[ii]] += 1
+                                shftsml[ii] += 1
+                            else:
+                                shftarr[duploc[ii]] -= 1
+                                shftsml[ii] -= 1
+                        debugger.set_trace()
                 debugger.set_trace()
     # If the slits are close by, or highly different in flux,
     # introduce new edge locations
