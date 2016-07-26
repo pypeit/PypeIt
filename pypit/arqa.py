@@ -465,10 +465,10 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
         # Left
         plt.plot(ltrace[:, ii]+0.5, ycen, 'r'+ptyp, alpha=0.7)
         # Right
-        plt.plot(rtrace[:, ii]+0.5, ycen, 'g'+ptyp, alpha=0.7)
+        plt.plot(rtrace[:, ii]+0.5, ycen, 'c'+ptyp, alpha=0.7)
         # Label
-        plt.text(ltrace[iy, ii], ycen[iy], '{0:d}'.format(ii+1), color='red', ha='left')
-        plt.text(rtrace[iy, ii], ycen[iy], '{0:d}'.format(ii+1), color='green', ha='right')
+        #plt.text(ltrace[iy, ii], ycen[iy], '{0:d}'.format(ii+1), color='red', ha='left')
+        plt.text(0.5*(ltrace[iy, ii]+rtrace[iy, ii]), ycen[iy], '{0:d}'.format(ii+1), color='green', ha='center')
     if desc != "":
         plt.suptitle(desc)
 
