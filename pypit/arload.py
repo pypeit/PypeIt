@@ -401,7 +401,11 @@ def load_input(redname):
                 rddata += 1
                 continue
             dfname = lines[i].rstrip('\n').strip()
-            if dfname[0] == "#":
+            # is there a comment?
+            aux = dfname.split('#')
+            if len(aux) > 1:  # yes, there is a comment
+                dfname = aux[0].strip()
+            if dfname[0] == "":  # line is fully commented out
                 continue
             elif dfname[0] == '~':
                 dfname = os.path.expanduser(dfname)
