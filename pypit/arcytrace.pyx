@@ -676,6 +676,60 @@ def detect_edges(np.ndarray[DTYPE_t, ndim=2] array not None,
     return edgdet
 
 
+@cython.boundscheck(False)
+def dual_edge(np.ndarray[ITYPE_t, ndim=2] edgearr not None,
+              np.ndarray[ITYPE_t, ndim=2] edgearrcp not None,
+              np.ndarray[ITYPE_t, ndim=1] wx not None,
+              np.ndarray[ITYPE_t, ndim=1] wy not None,
+              np.ndarray[ITYPE_t, ndim=1] wl not None,
+              np.ndarray[ITYPE_t, ndim=1] wr not None,
+              int shft, int npix, int newval):
+
+    cdef int x, y, ee
+    cdef int sz_x, sz_y, sz_a, sz_b, sz_e
+    cdef int maxy, flg
+    sz_x = edgearr.shape[0]
+    sz_y = edgearr.shape[1]
+    sz_a = wl.shape[0]
+    sz_b = wr.shape[0]
+    sz_e = wx.shape[0]
+
+    # First go through the leftmost edge (suffix a)
+    for x in range(sz_a):
+        for ee in range(0, sz_e):
+            if edgearr[wx[ee], wy[ee]] == wl[x]:
+                # Update the value given to this edge
+                edgearrcp[wx[ee], wy[ee]] = newval
+                # Determine if an edge can be placed in this row
+                maxy = npix
+                if wy[ee] + maxy >= sz_y:
+                    maxy = sz_y - wy[ee] - 1
+                flg = 0
+                for y in range(1, maxy):
+                    if edgearrcp[wx[ee], wy[ee]+y] != 0:
+                        flg = 1
+                if flg == 0:
+                    edgearrcp[wx[ee], wy[ee]+shft] = newval+1
+
+    # Now go through the rightmost edge (suffix b)
+    for x in range(sz_b):
+        for ee in range(0, sz_e):
+            if edgearr[wx[ee], wy[ee]] == wr[x]:
+                # Update the value given to this edge
+                edgearrcp[wx[ee], wy[ee]] = newval + 1
+                # Determine if an edge can be placed in this row
+                maxy = npix
+                if wy[ee] - maxy < 0:
+                    maxy = wy[ee] + 1
+                flg = 0
+                for y in range(1, maxy):
+                    if edgearrcp[wx[ee], wy[ee]-y] != 0:
+                        flg = 1
+                if flg == 0:
+                    edgearrcp[wx[ee], wy[ee]-shft] = newval
+
+    return
+
 #######
 #  E  #
 #######
