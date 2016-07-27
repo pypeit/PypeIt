@@ -147,6 +147,7 @@ def dummy_fitsdict(nfile=10):
     fitsdict = {}
     fitsdict['date'] = ['2015-01-23T00:54:17.04']*nfile
     fitsdict['target'] = ['Dummy']*nfile
+    fitsdict['exptime'] = [300.]*nfile
     #
     return fitsdict
 
