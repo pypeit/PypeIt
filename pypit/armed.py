@@ -96,7 +96,7 @@ def ARMED(argflag, spect, fitsdict, reuseMaster=False):
             ###############
             # Determine the edges of the spectrum (spatial)
             set_trace()
-            lordloc, rordloc, extord = artrace.trace_orders(slf, slf._mstrace[det-1], det, pcadesc="PCA trace of the slit edges")
+            lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det - 1], det, pcadesc="PCA trace of the slit edges")
             slf.SetFrame(slf._lordloc, lordloc, det)
             slf.SetFrame(slf._rordloc, rordloc, det)
 

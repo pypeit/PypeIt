@@ -130,14 +130,14 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
                 filename = "/Users/rcooke/Desktop/edge_detect/"
                 #filename += "MasterTrace_01_Asher_DEIMOS_CHIP1.fits"
                 #filename += "MasterTrace_01_APFLevy.fits"
-                #filename += "MasterTrace_01_Nicolas_MOS_LRIS.fits"
+                filename += "MasterTrace_01_Nicolas_MOS_LRIS.fits"
                 #filename += "MasterTrace_01_Camille.fits"
-                filename += "MasterTrace_01_Zheng_LRISb_MOS.fits"
+                #filename += "MasterTrace_01_Zheng_LRISb_MOS.fits"
                 # Open up the data
                 import astropy.io.fits as pyfits
                 mstrace = pyfits.open(filename)[0].data.astype(np.float)
-                lordloc, rordloc, extord = artrace.trace_orders(slf, mstrace, det, singleSlit=False, pcadesc="PCA trace of the slit edges")
-                #lordloc, rordloc, extord = artrace.trace_orders(slf, slf._mstrace[det-1], det, singleSlit=True, pcadesc="PCA trace of the slit edges")
+                lordloc, rordloc, extord = artrace.trace_slits(slf, mstrace, det, singleSlit=False, pcadesc="PCA trace of the slit edges")
+                #lordloc, rordloc, extord = artrace.trace_orders(slf, slf._mstrace[det-1], det, singleSlit=False, pcadesc="PCA trace of the slit edges")
                 slf.SetFrame(slf._lordloc, lordloc, det)
                 slf.SetFrame(slf._rordloc, rordloc, det)
 
