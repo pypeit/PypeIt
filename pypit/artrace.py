@@ -512,7 +512,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     return tracedict
 
 
-def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=False):
+def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     """
     This routine will traces the locations of the slit edges
 
@@ -530,9 +530,6 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fal
       Mostly useful for echelle data where the slit edges are bent relative to
       the pixel columns. Do not set this keyword to True if slit edges are
       almost aligned with the pixel columns.
-    singleSlit : bool, optional
-      If True, only the most significant slit edge identified will be returned
-      Set singleSlit=True for longslit data.
 
     Returns
     -------
@@ -569,7 +566,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fal
 
     # Specify how many times to repeat the median filter
     medrep = 3
-    if singleSlit:
+    if slf._argflag['trace']['orders']['number'] is not None:
         edgearr = np.zeros(binarr.shape, dtype=np.int)
         detect = True
         # Add a user-defined slit?
@@ -597,10 +594,33 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fal
             filt = ndimage.sobel(sqmstrace, axis=1, mode='constant')
             msgs.info("Applying bad pixel mask")
             filt *= (1.0-binbpx)  # Apply to the old detection algorithm
-            amin = np.argmin(filt, axis=1)
-            amax = np.argmax(filt, axis=1)
-            edgearr[np.arange(edgearr.shape[0]), amin] = +1
-            edgearr[np.arange(edgearr.shape[0]), amax] = -1
+            absfilt = np.abs(filt)
+            filtlfr = absfilt[:, :-4]
+            filtlft = absfilt[:, 1:-3]
+            filtcen = absfilt[:, 2:-2]
+            filtrgt = absfilt[:, 3:-1]
+            filtrfr = absfilt[:, 4:]
+            # Find all significant detections
+            wx, wy = np.where((filtcen >= filtlft) & (filtcen > filtrgt) &
+                              (filtlft > filtlfr) & (filtrgt > filtrfr))
+            # Create a mask of the significant detections
+            sigmsk = np.zeros_like(binarr)
+            sigmsk[(wx, wy+2)] = 1
+            # Apply the mask
+            filt *= sigmsk
+            # Now identify the number of most significantly detected peaks (specified by the user)
+            amnmx = np.argsort(filt, axis=1)
+            sigmsk = np.zeros_like(binarr)
+            xsm = np.arange(binarr.shape[0])
+            for ii in range(0, slf._argflag['trace']['orders']['number']):
+                sigmsk[(xsm, amnmx[:, ii])] = 1
+                sigmsk[(xsm, amnmx[:, amnmx.shape[1]-1-ii])] = 1
+            filt *= sigmsk
+            # Fill in the edgearr
+            ww = np.where(filt > 0)
+            edgearr[ww] = +1
+            ww = np.where(filt < 0)
+            edgearr[ww] = -1
         # Even better would be to fit the filt/sqrt(abs(binarr)) array with a Gaussian near the maximum in each column
     else:
         msgs.info("Detecting slit edges")
@@ -798,7 +818,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fal
         lmax -= lxc
         rmax -= rxc
         iterate = False
-        if singleSlit: # Another check on slits for singleSlit
+        if slf._argflag['trace']['orders']['number'] == 1:  # Another check on slits for singleSlit
             if lmax < lmin:
                 msgs.warn("Unable to find a left edge2. Adding one in.")
                 iterate = True
@@ -909,6 +929,10 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fal
     lval = lmin + num  # Pick an order, somewhere in between lmin and lmax
     lv = (arutils.func_val(lcoeff[:, lval-lmin], xv, slf._argflag['trace']['orders']['function'],
                            minv=minvf, maxv=maxvf)+0.5).astype(np.int)
+    if np.any(lv < 0) or np.any(lv+1 >= binarr.shape[1]):
+        msgs.warn("At least one order is poorly traced")
+        msgs.info("Refer to the manual, and adjust the input trace parameters")
+        msgs.error("Cannot continue without a successful trace")
     mnvalp = np.median(binarr[:, lv+1])  # Go one row above and one row below an order edge,
     mnvalm = np.median(binarr[:, lv-1])  # then see which mean value is greater.
 
@@ -927,6 +951,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fal
     else: # There's an order overlap
         rsub = edgbtwn[1]-(lval)
     """
+    debugger.set_trace()
     if mnvalp > mnvalm:
         lvp = (arutils.func_val(lcoeff[:, lval+1-lmin], xv, slf._argflag['trace']['orders']['function'],
                                 minv=minvf, maxv=maxvf)+0.5).astype(np.int)
