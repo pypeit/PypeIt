@@ -826,6 +826,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fal
     msgs.info("Fitting left slit traces")
     lcoeff = np.zeros((1+slf._argflag['trace']['orders']['polyorder'], lmax-lmin+1))
     ldiffarr = np.zeros(lmax-lmin+1)
+    lwghtarr = np.zeros(lmax-lmin+1)
+    lnmbrarr = np.zeros(lmax-lmin+1)
     offs = cenmodl[int(binarr.shape[0]/2)]
 #   lfail = np.array([])
 #    minvf, maxvf = slf._pixlocn[det-1][0, 0, 0], slf._pixlocn[det-1][-1, 0, 0]
@@ -837,12 +839,14 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fal
         tlfitx = plxbin[w]
         tlfity = plybin[w]
         ldiffarr[i-lmin] = np.mean(w[1]-cenmodl[w[0]]) + offs
+        lwghtarr[i-lmin] = np.size(w[0])/float(binarr.shape[0])
+        lnmbrarr[i-lmin] = -i
         #lcoeff[:, i-lmin] = arutils.func_fit(tlfitx, tlfity, slf._argflag['trace']['orders']['function'],
         #                                     slf._argflag['trace']['orders']['polyorder'], minv=minvf, maxv=maxvf)
-        msk, lcoeff[:,i-lmin] = arutils.robust_polyfit(tlfitx, tlfity,
-                                             slf._argflag['trace']['orders']['polyorder'],
-                                             function=slf._argflag['trace']['orders']['function'],
-                                             minv=minvf, maxv=maxvf)
+        msk, lcoeff[:, i-lmin] = arutils.robust_polyfit(tlfitx, tlfity,
+                                                        slf._argflag['trace']['orders']['polyorder'],
+                                                        function=slf._argflag['trace']['orders']['function'],
+                                                        minv=minvf, maxv=maxvf)
 #		xv=np.linspace(0,edgearr.shape[slf._dispaxis-0])
 #		yv=np.polyval(coeffl[i-lmin,:],xv)
 #		plt.plot(w[slf._dispaxis-0],w[1-slf._dispaxis],'ro')
@@ -866,6 +870,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fal
     msgs.info("Fitting right slit traces")
     rcoeff = np.zeros((1+slf._argflag['trace']['orders']['polyorder'], rmax-rmin+1))
     rdiffarr = np.zeros(rmax-rmin+1)
+    rwghtarr = np.zeros(rmax-rmin+1)
+    rnmbrarr = np.zeros(rmax-rmin+1)
     offs = cenmodl[int(binarr.shape[0]/2)]
 #	rfail = np.array([])
     for i in range(rmin, rmax+1):
@@ -878,7 +884,9 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fal
         #rcoeff[:, i-rmin] = arutils.func_fit(tlfitx, tlfity, slf._argflag['trace']['orders']['function'],
         #                                     slf._argflag['trace']['orders']['polyorder'], minv=minvf, maxv=maxvf)
         rdiffarr[i-rmin] = np.mean(w[1]-cenmodl[w[0]]) + offs
-        msk, rcoeff[:,i-rmin] = arutils.robust_polyfit(tlfitx, tlfity,
+        rwghtarr[i-lmin] = np.size(w[0])/float(binarr.shape[0])
+        rnmbrarr[i-lmin] = i
+        msk, rcoeff[:, i-rmin] = arutils.robust_polyfit(tlfitx, tlfity,
                                                        slf._argflag['trace']['orders']['polyorder'],
                                                        function=slf._argflag['trace']['orders']['function'],
                                                        minv=minvf, maxv=maxvf)
@@ -992,6 +1000,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fal
     wr = np.where(edgearr > 0)
     edgearr[wl] += esub
     edgearr[wr] -= (esub+rsub)
+    lnmbrarr += esub
+    rnmbrarr -= (esub+rsub)
 
     # Insert new rows into coefficients arrays if rsub != 0 (if orders were not labelled correctly, there will be a mismatch for the lcoeff and rcoeff)
     almin, almax = -np.max(edgearr[wl]), -np.min(edgearr[wl]) # min and max switched because left edges have negative values
@@ -1001,16 +1011,24 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fal
         if armin < almin:
             lcoeff = np.append(np.zeros((nmord, almin-armin)), lcoeff, axis=1)
             ldiffarr = np.append(np.zeros(almin-armin), ldiffarr)
+            lnmbrarr = np.append(np.zeros(almin-armin), lnmbrarr)
+            lwghtarr = np.append(np.zeros(almin-armin), lwghtarr)
         else:
             rcoeff = np.append(np.zeros((nmord, armin-almin)), rcoeff, axis=1)
             rdiffarr = np.append(np.zeros(armin-almin), rdiffarr)
+            rnmbrarr = np.append(np.zeros(armin-almin), rnmbrarr)
+            rwghtarr = np.append(np.zeros(armin-almin), rwghtarr)
     if armax != almax:
         if armax < almax:
             rcoeff = np.append(rcoeff, np.zeros((nmord, almax-armax)), axis=1)
             rdiffarr = np.append(rdiffarr, np.zeros(almax-armax))
+            rnmbrarr = np.append(rnmbrarr, np.zeros(almax-armax))
+            rwghtarr = np.append(rwghtarr, np.zeros(almax-armax))
         else:
             lcoeff = np.append(lcoeff, np.zeros((nmord, armax-almax)), axis=1)
             ldiffarr = np.append(ldiffarr, np.zeros(armax-almax))
+            lnmbrarr = np.append(lnmbrarr, np.zeros(armax-almax))
+            lwghtarr = np.append(lwghtarr, np.zeros(armax-almax))
 
     # Now consider traces where both the left and right edges are detected
     ordunq = np.unique(edgearr)
@@ -1082,7 +1100,6 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fal
         # lcen = extrap_cent - 0.5*extrap_diff
         # rcen = extrap_cent + 0.5*extrap_diff
     elif slf._argflag['trace']['orders']['pcatype'] == 'pixel':
-        debugger.set_trace()
         maskord = np.where((np.all(lcoeff, axis=0) == False) | (np.all(rcoeff, axis=0) == False))[0]
         allord = np.arange(ldiffarr.shape[0])
         ww = np.where(np.in1d(allord, maskord) == False)[0]
@@ -1092,14 +1109,21 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fal
         rdiffarr = np.round(rdiffarr[ww]).astype(np.int)
         maskrows[ldiffarr] = 0
         maskrows[rdiffarr] = 0
+        # Extract the slit edge ID numbers associated with the acceptable traces
+        lnmbrarr = lnmbrarr[ww]
+        rnmbrarr = rnmbrarr[ww]
         # Fill in left/right coefficients
         tcoeff = np.ones((slf._argflag['trace']['orders']['polyorder']+1, binarr.shape[1]))
         tcoeff[:, ldiffarr] = lcoeff[:, ww]
         tcoeff[:, rdiffarr] = rcoeff[:, ww]
+        # Weight the PCA fit by the number of detections in each slit edge
+        pxwght = np.zeros(binarr.shape[1])
+        pxwght[ldiffarr] = lwghtarr[ww]
+        pxwght[rdiffarr] = rwghtarr[ww]
         maskrw = np.where(maskrows == 1)[0]
         maskrw.sort()
         extrap_row = maskrows.copy()
-        xv = np.arange(binarr.shape[1])
+        xv = np.arange(binarr.shape[0])
         # trace values
         trcval = arutils.func_val(tcoeff, xv, slf._argflag['trace']['orders']['function'],
                                   minv=minvf, maxv=maxvf).T
@@ -1112,12 +1136,33 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, singleSlit=Fal
             msgs.info("Performing a PCA on the slit traces")
             ordsnd = np.arange(binarr.shape[1])
             xcen = xv[:, np.newaxis].repeat(binarr.shape[1], axis=1)
-            fitted, outpar = arpca.basis(xcen, trcval, tcoeff, lnpc, ofit, weights=None,
+            fitted, outpar = arpca.basis(xcen, trcval, tcoeff, lnpc, ofit, weights=pxwght,
                                          x0in=ordsnd, mask=maskrw, skipx0=False,
                                          function=slf._argflag['trace']['orders']['function'])
             arpca.pc_plot(slf, outpar, ofit, pcadesc=pcadesc, addOne=False)
-            # Now extract the resulting edge traces
-
+            # Now extrapolate to the whole detector
+            pixpos = np.arange(binarr.shape[1])
+            extrap_trc, outpar = arpca.extrapolate(outpar, pixpos,
+                                                   function=slf._argflag['trace']['orders']['function'])
+            # Extract the resulting edge traces
+            lcen = extrap_trc[:, ldiffarr]
+            rcen = extrap_trc[:, rdiffarr]
+            # Perform a final shift fit to ensure the traces closely follow the edge detections
+            for ii in range(lnmbrarr.size):
+                wedx, wedy = np.where(edgearr == lnmbrarr[ii])
+                shft = np.mean(lcen[wedx, ii]-wedy)
+                lcen[:, ii] -= shft
+            for ii in range(rnmbrarr.size):
+                wedx, wedy = np.where(edgearr == rnmbrarr[ii])
+                shft = np.mean(rcen[wedx, ii]-wedy)
+                rcen[:, ii] -= shft
+        else:
+            allord = np.arange(lcent.shape[0])
+            maskord = np.where((np.all(lcent, axis=1) == False) | (np.all(rcent, axis=1) == False))[0]
+            ww = np.where(np.in1d(allord, maskord) == False)[0]
+            lcen = lcent[ww, :].T.copy()
+            rcen = rcent[ww, :].T.copy()
+        extrapord = np.zeros(lcen.shape[1], dtype=np.bool)
     else:
         allord = np.arange(lcent.shape[0])
         maskord = np.where((np.all(lcent, axis=1) == False) | (np.all(rcent, axis=1) == False))[0]
