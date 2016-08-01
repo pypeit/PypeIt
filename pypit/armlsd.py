@@ -127,17 +127,17 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
             if ('trace'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']):
                 ###############
                 # Determine the edges of the spectrum (spatial)
-                filename = "/Users/rcooke/Desktop/edge_detect/"
-                #filename += "MasterTrace_01_Asher_DEIMOS_CHIP1.fits"
-                #filename += "MasterTrace_01_APFLevy.fits"
-                filename += "MasterTrace_01_Nicolas_MOS_LRIS.fits"
-                #filename += "MasterTrace_01_Camille.fits"
-                #filename += "MasterTrace_01_Zheng_LRISb_MOS.fits"
+                # filename = "/Users/rcooke/Desktop/edge_detect/"
+                # filename += "MasterTrace_01_Asher_DEIMOS_CHIP1.fits"
+                # filename += "MasterTrace_01_APFLevy.fits"
+                # filename += "MasterTrace_01_Nicolas_MOS_LRIS.fits"
+                # filename += "MasterTrace_01_Camille.fits"
+                # filename += "MasterTrace_01_Zheng_LRISb_MOS.fits"
                 # Open up the data
-                import astropy.io.fits as pyfits
-                mstrace = pyfits.open(filename)[0].data.astype(np.float)
-                lordloc, rordloc, extord = artrace.trace_slits(slf, mstrace, det, singleSlit=False, pcadesc="PCA trace of the slit edges")
-                #lordloc, rordloc, extord = artrace.trace_orders(slf, slf._mstrace[det-1], det, singleSlit=False, pcadesc="PCA trace of the slit edges")
+                # import astropy.io.fits as pyfits
+                # mstrace = pyfits.open(filename)[0].data.astype(np.float)
+                # lordloc, rordloc, extord = artrace.trace_slits(slf, mstrace, det, pcadesc="PCA trace of the slit edges")
+                lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det, pcadesc="PCA trace of the slit edges")
                 slf.SetFrame(slf._lordloc, lordloc, det)
                 slf.SetFrame(slf._rordloc, rordloc, det)
 
@@ -152,9 +152,8 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._lordpix, lordpix, det)
                 slf.SetFrame(slf._rordpix, rordpix, det)
                 # Save QA for slit traces
-                arqa.slit_trace_qa(slf, mstrace, lordloc, rordloc, extord, normalize=False, desc="Trace of the slit edges")
-                #arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges")
-                msgs.error("Not really an error")
+                # arqa.slit_trace_qa(slf, mstrace, lordloc, rordloc, extord, normalize=False, desc="Trace of the slit edges")
+                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges")
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
             ###############
