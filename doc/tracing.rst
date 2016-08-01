@@ -8,7 +8,7 @@ This document will describe how the code traces the
 edges of slits.
 
 The edge tracing algorithm uses a combination of a
-median and sobel filter to identify significant
+median and sobel filters to identify significant
 gradients in the image. The detected edges are
 then grouped into common edges ("Assigned"). Each
 edge is fitted with a polynomial, and the left/right

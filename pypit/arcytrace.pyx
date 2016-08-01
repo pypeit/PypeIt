@@ -72,7 +72,6 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
             cntr = rarr[x]
             comr = x
 
-    print "-->", coml, comr
     # Obtain the (x,y) values for the most common slit edge id
     cdef np.ndarray[ITYPE_t, ndim=2] lcarr = np.zeros((cntl,2), dtype=ITYPE)
     cdef np.ndarray[ITYPE_t, ndim=2] rcarr = np.zeros((cntr,2), dtype=ITYPE)
@@ -556,38 +555,6 @@ def close_slits(np.ndarray[DTYPE_t, ndim=2] trframe not None,
                     # Create a new edge
                     edgearr[x, y-(1+hasedge[d])] = enum
                     edgearr[x, y+(1+hasedge[d])] = -enum
-                    """
-                    # Set the limits
-                    rgap = y - 2*npix
-                    if rgap < 0:
-                        rgap = 0
-                    lgap = y + 2*npix + 1
-                    if lgap > sz_y:
-                        lgap = sz_y
-                    # Calculate the minimum and maximum values
-                    rminv = trframe[x, y]
-                    rmaxv = trframe[x, y]
-                    for s in range(rgap, y):
-                        if rminv > trframe[x, s]:
-                            rminv = trframe[x, s]
-                        if rmaxv < trframe[x, s]:
-                            rmaxv = trframe[x, s]
-                    lminv = trframe[x, y]
-                    lmaxv = trframe[x, y]
-                    for s in range(y+1, lgap):
-                        if lminv > trframe[x, s]:
-                            lminv = trframe[x, s]
-                        if lmaxv < trframe[x, s]:
-                            lmaxv = trframe[x, s]
-                    # Trace left (for the right edge) until the average of the limits is found
-                    rmaxv = 0.5*(rminv+rmaxv)
-                    for s in range(0, y-mgap):
-                        if rmaxv > lmaxv:
-                            if trframe[x, y-s] >= rmaxv:
-
-                                break
-                        else:
-                    """
                 else:
                     print "      --->> BUG in arcytrace.close_edges(), check slit traces!!"
         if hasedge[d] >= 0:

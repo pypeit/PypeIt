@@ -164,7 +164,8 @@ def set_params_wtype(tvalue, svalue, lines="", setstr="", argnum=3):
         elif type(tvalue) is float:
             tvalue = float(svalue)
         elif type(tvalue) is list:
-            if svalue.lower() == 'none': tvalue = None
+            if svalue.lower() == 'none':
+                tvalue = None
             else:
                 if ',' in svalue:
                     temp = svalue.lstrip('([').rstrip(')]').split(',')

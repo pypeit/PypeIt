@@ -85,7 +85,7 @@ trace orders diffpolyorder  2         # What is the order of the 2D function tha
 trace orders sigdetect  5.0           # Sigma detection threshold for edge detection
 trace orders fracignore 0.01           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
 trace orders pcatype pixel            # Should the PCA be performed using pixel position (pixel) or by spectral order (order). The latter is used for echelle spectroscopy.
-trace orders pcaparams [3,2,1,0]  # What order polynomials should be used to fit the principle components
+trace orders pcaparams [2,2,1,0]  # What order polynomials should be used to fit the principle components
 trace orders pcxpos     0             # How many extra orders to predict in the positive direction
 trace orders pcxneg     0             # How many extra orders to predict in the negative direction
 trace orders tilts      spline        # What method should be used to trace the tilt of the slit along an order (PCA, spline, interp, perp, zero)
