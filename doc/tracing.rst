@@ -24,6 +24,20 @@ orders near the edge of the detector.
 User Inputted Values
 ====================
 
+When reducing long slit data, it may be a good
+idea to explicitly tell PYPIT that there is only
+1 slit to be identified. You can set this using
+the keyword::
+
+    trace slits number 1
+
+You can also use this variable to specify the
+number of slits that should be detected. Note,
+that this feature works best when you have
+well defined and uniformly illuminated slits
+(usually the case with cross dispersed data,
+for example).
+
 In cases where the trace frame contains slits that
 are uniformly illuminated in the spectral direction,
 and there is at least 5-10 pixels between the slits,
