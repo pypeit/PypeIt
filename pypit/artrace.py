@@ -617,10 +617,10 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
                 sigmsk[(xsm, amnmx[:, amnmx.shape[1]-1-ii])] = 1
             filt *= sigmsk
             # Fill in the edgearr
-            ww = np.where(filt > 0)
-            edgearr[ww] = +1
-            ww = np.where(filt < 0)
+            ww = np.where(filt > 0)  # A positive gradient is a left edge
             edgearr[ww] = -1
+            ww = np.where(filt < 0)  # A negative gradient is a right edge
+            edgearr[ww] = +1
         # Even better would be to fit the filt/sqrt(abs(binarr)) array with a Gaussian near the maximum in each column
     else:
         msgs.info("Detecting slit edges")
