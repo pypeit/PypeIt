@@ -1,8 +1,0 @@
-# Airmass Extinction files
-#   Generally grabbed from the Internet.  Buyer beware
-    File             Lon         Lat      Elevation  
-ctioextinct.dat     70.8150    -30.1653   2215.0
-kpnoextinct.dat    111.600     31.9633    2120.0
-lapalmaextinct.dat  17.8800    28.7583    2327.0
-mkoextinct.dat     155.47833   19.82833   4160.0
-mthamextinct.dat   121.6428    37.34139   1290.0         
