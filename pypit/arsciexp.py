@@ -165,6 +165,7 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
+        bpix = None
         if self._argflag['reduce']['badpix'] == 'bias':
             if self._argflag['masters']['use']:
                 # Attempt to load the Master Frame
@@ -414,11 +415,11 @@ class ScienceExposure:
                 msbias = arcomb.comb_frames(frames, det, spect=self._spect, frametype=self._argflag['reduce']['usebias'], **self._argflag['bias']['comb'])
                 del frames
         elif self._argflag['reduce']['usebias'] == 'overscan':
-            self.SetMasterFrame('overscan', "bias", det, copy=False)
+            self.SetMasterFrame('overscan', "bias", det, mkcopy=False)
             return False
         elif self._argflag['reduce']['usebias'] == 'none':
             msgs.info("Not performing a bias/dark subtraction")
-            self.SetMasterFrame(None, "bias", det, copy=False)
+            self.SetMasterFrame(None, "bias", det, mkcopy=False)
             return False
         else: # It must be the name of a file the user wishes to load
             msbias_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usebias']
@@ -757,8 +758,8 @@ class ScienceExposure:
             # Load the frame(s)
 #            set_trace()
             frame = arload.load_frames(self, fitsdict, ind, det, frametype='standard',
-                                   msbias=self._msbias[det-1],
-                                   transpose=self._transpose)
+                                       msbias=self._msbias[det-1],
+                                       transpose=self._transpose)
 #            msgs.warn("Taking only the first standard frame for now")
 #            ind = ind[0]
             sciframe = frame[:, :, 0]
@@ -775,7 +776,7 @@ class ScienceExposure:
         # If standard, generate a sensitivity function
         sensfunc = arflux.generate_sensfunc(self, scidx, all_specobj, fitsdict)
         # Set the sensitivity function
-        self.SetMasterFrame(sensfunc, "sensfunc", None, copy=False)
+        self.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
         return True
 
     def Setup(self):
@@ -797,12 +798,14 @@ class ScienceExposure:
 
     # Setters
     @staticmethod
-    def SetFrame(toarray, value, det, copy=True):
-        if copy: toarray[det-1] = value.copy()
-        else: toarray[det-1] = value
+    def SetFrame(toarray, value, det, mkcopy=True):
+        if mkcopy:
+            toarray[det-1] = value.copy()
+        else:
+            toarray[det-1] = value
         return
 
-    def SetMasterFrame(self, frame, ftype, det, copy=True):
+    def SetMasterFrame(self, frame, ftype, det, mkcopy=True):
         """ Set the Master Frame
         Parameters
         ----------
@@ -811,7 +814,7 @@ class ScienceExposure:
           frame type
         det : int
           Detector index
-        copy
+        mkcopy
 
         Returns
         -------
@@ -819,8 +822,10 @@ class ScienceExposure:
         """
         if det is not None:
             det -= 1
-        if copy: cpf = frame.copy()
-        else: cpf = frame
+        if mkcopy:
+            cpf = frame.copy()
+        else:
+            cpf = frame
         # Set the frame
         if ftype == "arc": self._msarc[det] = cpf
         elif ftype == "wave": self._mswave[det] = cpf
@@ -838,25 +843,25 @@ class ScienceExposure:
 
     # Getters
     @staticmethod
-    def GetFrame(getarray, det, copy=True):
-        if copy:
+    def GetFrame(getarray, det, mkcopy=True):
+        if mkcopy:
             return getarray[det-1].copy()
         else:
             return getarray[det-1]
 
-    def GetMasterFrame(self, ftype, det, copy=True):
+    def GetMasterFrame(self, ftype, det, mkcopy=True):
 
         det -= 1
         # Get the frame
-        if copy:
+        if mkcopy:
             if ftype == "arc": return self._msarc[det].copy()
             elif ftype == "wave": return self._mswave[det].copy()
             elif ftype == "bias": return self._msbias[det].copy()
             elif ftype == "normpixflat": return self._mspixflatnrm[det].copy()
             elif ftype == "pixflat": return self._mspixflat[det].copy()
             elif ftype == "trace": return self._mstrace[det].copy()
-            elif ftype == "standard": return copy.copy(self._msstd[det])
-            elif ftype == "sensfunc": return copy.copy(self._sensfunc)
+            elif ftype == "standard": return mkcopy.copy(self._msstd[det])
+            elif ftype == "sensfunc": return mkcopy.copy(self._sensfunc)
             else:
                 msgs.bug("I could not get master frame of type: {0:s}".format(ftype))
                 msgs.error("Please contact the authors")
