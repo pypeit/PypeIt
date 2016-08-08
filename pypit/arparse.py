@@ -1301,6 +1301,39 @@ class BaseSpect:
     def __init__(self):
         self._spect = NestedDict()
 
+    def mosaic_camera(self, v):
+        # Check that v is allowed
+
+        # Update argument
+        self.update(v)
+
+    def mosaic_elevation(self, v):
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
+        # Update argument
+        self.update(v)
+
+    def mosaic_latitude(self, v):
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
+        # Update argument
+        self.update(v)
+
+    def mosaic_longitude(self, v):
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
+        # Update argument
+        self.update(v)
+
     def mosaic_ndet(self, v):
         # Check that v is allowed
         try:
@@ -1309,6 +1342,15 @@ class BaseSpect:
             msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
         # Update argument
         self.update(v)
+
+    def mosaic_reduction(self, v):
+        # Check that v is allowed
+        allowed = ['ARMLSD', 'ARMED']
+        if v.upper() not in allowed:
+            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
+        # Update argument
+        self.update(v.upper())
 
     def set_spect(self, lst):
         func = "self." + "_".join(lst[:-1]) + "({0:s})".format(lst[-1])
