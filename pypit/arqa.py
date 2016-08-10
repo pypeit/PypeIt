@@ -378,6 +378,7 @@ def obj_profile_qa(slf, specobjs, scitrace):
     slf._qa.savefig(bbox_inches='tight')
     plt.close()
 
+
 def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', outfil=None, normalize=True):
     """
     Generate a QA plot for the traces
@@ -416,17 +417,17 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
     if normalize:
         nrm_frame = np.zeros_like(frame)
         for ii in range(ntrc):
-            xtrc = (ltrace[:,ii] + rtrace[:,ii])/2.
+            xtrc = (ltrace[:, ii] + rtrace[:, ii])/2.
             ixtrc = np.round(xtrc).astype(int)
             # Simple 'extraction'
-            dumi = np.zeros( (frame.shape[0],3) )
+            dumi = np.zeros((frame.shape[0], 3))
             for jj in range(3):
-                dumi[:,jj] = frame[ycen,ixtrc-1+jj]
+                dumi[:, jj] = frame[ycen, ixtrc-1+jj]
             trc = np.median(dumi, axis=1)
             # Find portion of the image and normalize
             for yy in ycen:
-                xi = max(0, int(ltrace[yy,ii])-3)
-                xe = min(frame.shape[1], int(rtrace[yy,ii])+3)
+                xi = max(0, int(ltrace[yy, ii])-3)
+                xe = min(frame.shape[1], int(rtrace[yy, ii])+3)
                 # Fill + normalize
                 nrm_frame[yy, xi:xe] = frame[yy, xi:xe] / trc[yy]
         sclmin, sclmax = 0.4, 1.1
@@ -436,14 +437,12 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
 
     # Plot
     plt.clf()
-    fig = plt.figure(dpi=1200)
-    #fig.set_size_inches(10.0,6.5)
 
     ax = plt.gca()
     set_fonts(ax)
-    for label in ax.get_yticklabels() :
+    for label in ax.get_yticklabels():
         label.set_fontproperties(ticks_font)
-    for label in ax.get_xticklabels() :
+    for label in ax.get_xticklabels():
         label.set_fontproperties(ticks_font)
     cmm = cm.Greys_r
     mplt = plt.imshow(nrm_frame, origin='lower', cmap=cmm, interpolation=None,
@@ -461,13 +460,13 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
         if extslit[ii] is True: ptyp = ':'
         else: ptyp = '--'
         # Left
-        plt.plot(ltrace[:,ii]+0.5, ycen, 'r'+ptyp, alpha=0.7)
+        plt.plot(ltrace[:, ii]+0.5, ycen, 'r'+ptyp, alpha=0.7)
         # Right
-        plt.plot(rtrace[:,ii]+0.5, ycen, 'g'+ptyp, alpha=0.7)
+        plt.plot(rtrace[:, ii]+0.5, ycen, 'g'+ptyp, alpha=0.7)
         # Label
         iy = int(frame.shape[0]/2.)
-        plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
-        plt.text(rtrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='green', ha='center')
+        plt.text(ltrace[iy, ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
+        plt.text(rtrace[iy, ii], ycen[iy], '{:d}'.format(ii+1), color='green', ha='center')
     if desc != "":
         plt.suptitle(desc)
 
@@ -475,6 +474,7 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
     #pp.savefig()
     #pp.close()
     plt.close()
+
 
 def set_fonts(ax):
     """ Set axes fonts
