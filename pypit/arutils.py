@@ -147,6 +147,7 @@ def dummy_fitsdict(nfile=10):
     fitsdict = {}
     fitsdict['date'] = ['2015-01-23T00:54:17.04']*nfile
     fitsdict['target'] = ['Dummy']*nfile
+    fitsdict['exptime'] = [300.]*nfile
     #
     return fitsdict
 
@@ -186,8 +187,10 @@ def dummy_self(pypitdir=None, inum=0, fitsdict=None, nfile=10):
         pypitdir = __file__[0:__file__.rfind('/')]
     slf._argflag['run']['pypitdir'] = pypitdir
     slf._argflag['run']['spectrograph'] = 'dummy'
+    slf._argflag['run']['scidir'] = './'
     #
     slf._spect['mosaic'] = {}
+    slf._spect['mosaic']['ndet'] = 1
     slf._spect['det'] = [{'binning':'1x1'}]
     #
     return slf

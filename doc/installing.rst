@@ -31,11 +31,12 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 * `matplotlib <http://matplotlib.org/>`_  version 1.4 or later
 * `PyQT4 <https://wiki.python.org/moin/PyQt/>`_ version 4 (needed for linetools)
 * `Ginga <https://ginga.readthedocs.io/en/latest/>`_ latest version (highly recommended; essentially required)
+* `h5py <https://www.h5py.org/>`_ version 2.6 (for data I/O)
 *  yaml -- On Python 3 (at least), you may need to install pyyaml
 
 If you are using Anaconda, you can check the presence of these packages with::
 
-	conda list "^python$|numpy|astropy$|scipy$|matplotlib|PyQT|ginga|yaml"
+	conda list "^python$|numpy|astropy$|scipy$|matplotlib|PyQT|ginga|yaml|h5py"
 
 If the packages have been installed, this command should print out all the packages and their version numbers.  
 
