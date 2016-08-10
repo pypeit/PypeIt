@@ -15,6 +15,11 @@ from setuptools import setup
 # DESI support code.
 #
 #from desiutil.setup import DesiTest, DesiVersion, get_version
+
+# Check dependencies
+from pypit import archeck
+archeck.version_check()
+
 #
 # Begin setup
 #
