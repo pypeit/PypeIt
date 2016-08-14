@@ -1301,6 +1301,56 @@ class BaseSpect:
     def __init__(self):
         self._spect = NestedDict()
 
+    def set_spect(self, lst):
+        cnt = 1
+        succeed = False
+        members = [x for x, y in inspect.getmembers(self, predicate=inspect.ismethod)]
+        while cnt < len(lst):
+            func = "_".join(lst[:-cnt])
+            # Determine if there are options that need to be passed to this function
+            options = ""
+            anmbr = ["det"]
+            for aa in anmbr:
+                aatmp = func.split("_")[0]
+                if aa in aatmp:
+                    try:
+                        aanum = int(aatmp.lstrip(anmbr))
+                    except ValueError:
+                        msgs.error("There must be an integer suffix on the {0:s} keyword argument:".format(aa) +
+                                   msgs.newline() + " ".join(lst))
+                    options += ", anmbr={0:d}".format(aanum)
+                    func = func.replace(aatmp, aa)
+            bnmbr = ["ampsec", "datasec", "oscansec", "lampname", "lampstat", "headext"]
+            for bb in bnmbr:
+                bbtmp = func.split("_")[1]
+                if bb in bbtmp:
+                    try:
+                        bbnum = int(bbtmp.lstrip(bnmbr))
+                    except ValueError:
+                        msgs.error("There must be an integer suffix on the {0:s} keyword argument:".format(bb) +
+                                   msgs.newline() + " ".join(lst))
+                    options += ", bnmbr={0:d}".format(bbnum)
+                    func = func.replace(bbtmp, bb)
+            # Now test if this is a function
+            if func in members:
+                func = "self." + func + "('{0:s}'".format(" ".join(lst[-cnt:]))
+                func += options
+                func += ")"
+                print func
+                eval(func)
+                succeed = True
+                break
+            else:
+                cnt += 1
+        if not succeed:
+            # Try a few manual options
+            if lst[0] == "check":
+                self.update(lst[-1], ll=lst[:-1])
+            else:
+                msgs.error("There appears to be an error on the following input line:" + msgs.newline() +
+                           " ".join(lst))
+        return
+
     def update(self, v, ll=None):
         """
         Update an element in argflag
@@ -1333,8 +1383,8 @@ class BaseSpect:
         self._spect = ingest(dstr, udct).copy()
         return
 
-    def det_xgap(self, v, dnmbr=1):
-        cname = get_det_name(dnmbr)
+    def det_xgap(self, v, anmbr=1):
+        cname = get_nmbr_name(anmbr=anmbr)
         # Check that v is allowed
         try:
             v = float(v)
@@ -1343,10 +1393,10 @@ class BaseSpect:
         if v < 0.0:
             msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
         # Update argument
-        self.update(v, ll=cname)
+        self.update(v, ll=cname.split('_'))
 
-    def det_ygap(self, v, dnmbr=1):
-        cname = get_det_name(dnmbr)
+    def det_ygap(self, v, anmbr=1):
+        cname = get_nmbr_name(anmbr=anmbr)
         # Check that v is allowed
         try:
             v = float(v)
@@ -1355,10 +1405,10 @@ class BaseSpect:
         if v < 0.0:
             msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
         # Update argument
-        self.update(v, ll=cname)
+        self.update(v, ll=cname.split('_'))
 
-    def det_ysize(self, v, dnmbr=1):
-        cname = get_det_name(dnmbr)
+    def det_ysize(self, v, anmbr=1):
+        cname = get_nmbr_name(anmbr=anmbr)
         # Check that v is allowed
         try:
             v = float(v)
@@ -1367,10 +1417,10 @@ class BaseSpect:
         if v <= 0.0:
             msgs.error("The argument of {0:s} must be > 0.0".format(cname))
         # Update argument
-        self.update(v, ll=cname)
+        self.update(v, ll=cname.split('_'))
 
-    def det_darkcurr(self, v, dnmbr=1):
-        cname = get_det_name(dnmbr)
+    def det_darkcurr(self, v, anmbr=1):
+        cname = get_nmbr_name(anmbr=anmbr)
         # Check that v is allowed
         try:
             v = float(v)
@@ -1379,11 +1429,11 @@ class BaseSpect:
         if v < 0.0:
             msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
         # Update argument
-        self.update(v, ll=cname)
+        self.update(v, ll=cname.split('_'))
 
 
-    def det_ronoise(self, v, dnmbr=1):
-        cname = get_det_name(dnmbr)
+    def det_ronoise(self, v, anmbr=1):
+        cname = get_nmbr_name(anmbr=anmbr)
         # Check that v is allowed
         try:
             v = float(v)
@@ -1392,10 +1442,10 @@ class BaseSpect:
         if v < 0.0:
             msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
         # Update argument
-        self.update(v, ll=cname)
+        self.update(v, ll=cname.split('_'))
 
-    def det_gain(self, v, dnmbr=1):
-        cname = get_det_name(dnmbr)
+    def det_gain(self, v, anmbr=1):
+        cname = get_nmbr_name(anmbr=anmbr)
         # Check that v is allowed
         try:
             v = float(v)
@@ -1404,10 +1454,10 @@ class BaseSpect:
         if v <= 0.0:
             msgs.error("The argument of {0:s} must be > 0.0".format(cname))
         # Update argument
-        self.update(v, ll=cname)
+        self.update(v, ll=cname.split('_'))
 
-    def det_saturation(self, v, dnmbr=1):
-        cname = get_det_name(dnmbr)
+    def det_saturation(self, v, anmbr=1):
+        cname = get_nmbr_name(anmbr=anmbr)
         # Check that v is allowed
         try:
             v = float(v)
@@ -1416,10 +1466,10 @@ class BaseSpect:
         if v <= 0.0:
             msgs.error("The argument of {0:s} must be > 0.0".format(cname))
         # Update argument
-        self.update(v, ll=cname)
+        self.update(v, ll=cname.split('_'))
 
-    def det_nonlinear(self, v, dnmbr=1):
-        cname = get_det_name(dnmbr)
+    def det_nonlinear(self, v, anmbr=1):
+        cname = get_nmbr_name(anmbr=anmbr)
         # Check that v is allowed
         try:
             v = float(v)
@@ -1428,10 +1478,10 @@ class BaseSpect:
         if v <= 0.0 or v > 1.0:
             msgs.error("The argument of {0:s} must be > 0.0 and <= 1.0".format(cname))
         # Update argument
-        self.update(v, ll=cname)
+        self.update(v, ll=cname.split('_'))
 
-    def det_numamplifiers(self, v, dnmbr=1):
-        cname = get_det_name(dnmbr)
+    def det_numamplifiers(self, v, anmbr=1):
+        cname = get_nmbr_name(anmbr=anmbr)
         # Check that v is allowed
         try:
             v = int(v)
@@ -1440,44 +1490,387 @@ class BaseSpect:
         if v <= 0:
             msgs.error("The argument of {0:s} must be >= 1".format(cname))
         # Update argument
-        self.update(v, ll=cname)
+        self.update(v, ll=cname.split('_'))
 
-    def det_ampsec(self, v, dnmbr=1, anmbr=1):
-        cname = get_det_name(dnmbr, anmbr=anmbr)
+    def det_ampsec(self, v, anmbr=1, bnmbr=1):
+        cname = get_nmbr_name(anmbr=anmbr, bnmbr=bnmbr)
         # Check that v is allowed
         try:
             v = load_sections(v)
         except ValueError:
             msgs.error("The argument of {0:s} must be detector section".format(cname))
         # Update argument
-        self.update(v, ll=cname)
+        self.update(v, ll=cname.split('_'))
 
-    def det_datasec(self, v, dnmbr=1, anmbr=1):
-        cname = get_det_name(dnmbr, anmbr=anmbr)
+    def det_datasec(self, v, anmbr=1, bnmbr=1):
+        cname = get_nmbr_name(anmbr=anmbr, bnmbr=bnmbr)
         # Check that v is allowed
         try:
             v = load_sections(v)
         except ValueError:
             msgs.error("The argument of {0:s} must be detector section".format(cname))
         # Update argument
-        self.update(v, ll=cname)
+        self.update(v, ll=cname.split('_'))
 
-    def det_oscansec(self, v, dnmbr=1, anmbr=1):
-        cname = get_det_name(dnmbr, anmbr=anmbr)
+    def det_oscansec(self, v, anmbr=1, bnmbr=1):
+        cname = get_nmbr_name(anmbr=anmbr, bnmbr=bnmbr)
         # Check that v is allowed
         try:
             v = load_sections(v)
         except ValueError:
             msgs.error("The argument of {0:s} must be detector section".format(cname))
         # Update argument
-        self.update(v, ll=cname)
+        self.update(v, ll=cname.split('_'))
 
-    def det_suffix(self, v, dnmbr=1):
-        cname = get_det_name(dnmbr)
+    def det_suffix(self, v, anmbr=1):
+        cname = get_nmbr_name(anmbr=anmbr)
         # Check that v is allowed
 
         # Update argument
-        self.update(v, ll=cname)
+        self.update(v, ll=cname.split('_'))
+
+    def fits_calwin(self, v):
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
+        if v <= 0.0:
+            msgs.error("The calibration time window must be > 0.0")
+        # Update argument
+        self.update(v)
+
+    def fits_dataext(self, v):
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v < 0:
+            msgs.error("The fits data extension number must be >= 0")
+        # Update argument
+        self.update(v)
+
+    def fits_headext(self, v, bnmbr=1):
+        cname = get_nmbr_name(bnmbr=bnmbr)
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(cname))
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(cname))
+        # Update argument
+        self.update(v, ll=cname.split('_'))
+
+    def fits_numhead(self, v):
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v <= 0:
+            msgs.error("The number of fits headers must be >= 1")
+        # Update argument
+        self.update(v)
+
+    def fits_numlamps(self, v):
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v < 0:
+            msgs.error("The number of lamps must be >= 0")
+        # Update argument
+        self.update(v)
+
+    def fits_timeunit(self, v):
+        # Check that v is allowed
+        dont forget to include the Astropy time formats. (Might need to manually specif them)
+        allowed = ['s', 'm', 'h', '', '']
+        if v not in allowed:
+            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
+        # Update argument
+        self.update(v)
+
+    def keyword_target(self, v):
+        # Check that v is allowed
+        try:
+            vspl = v.split(".")
+            vint = int(vspl[0])
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                       "##.NAME" + msgs.newline() +
+                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+
+    def keyword_idname(self, v):
+        # Check that v is allowed
+        try:
+            vspl = v.split(".")
+            vint = int(vspl[0])
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                       "##.NAME" + msgs.newline() +
+                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+
+    def keyword_time(self, v):
+        # Check that v is allowed
+        try:
+            vspl = v.split(".")
+            vint = int(vspl[0])
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                       "##.NAME" + msgs.newline() +
+                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+    def keyword_date(self, v):
+        # Check that v is allowed
+        try:
+            vspl = v.split(".")
+            vint = int(vspl[0])
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                       "##.NAME" + msgs.newline() +
+                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+    def keyword_equinox(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                vspl = v.split(".")
+                vint = int(vspl[0])
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                           "##.NAME" + msgs.newline() +
+                           "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                           "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+    def keyword_ra(self, v):
+        # Check that v is allowed
+        try:
+            vspl = v.split(".")
+            vint = int(vspl[0])
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                       "##.NAME" + msgs.newline() +
+                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+    def keyword_dec(self, v):
+        # Check that v is allowed
+        try:
+            vspl = v.split(".")
+            vint = int(vspl[0])
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                       "##.NAME" + msgs.newline() +
+                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+    def keyword_airmass(self, v):
+        # Check that v is allowed
+        try:
+            vspl = v.split(".")
+            vint = int(vspl[0])
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                       "##.NAME" + msgs.newline() +
+                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+    def keyword_naxis0(self, v):
+        # Check that v is allowed
+        try:
+            vspl = v.split(".")
+            vint = int(vspl[0])
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                       "##.NAME" + msgs.newline() +
+                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+    def keyword_naxis1(self, v):
+        # Check that v is allowed
+        try:
+            vspl = v.split(".")
+            vint = int(vspl[0])
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                       "##.NAME" + msgs.newline() +
+                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+    def keyword_exptime(self, v):
+        # Check that v is allowed
+        try:
+            vspl = v.split(".")
+            vint = int(vspl[0])
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                       "##.NAME" + msgs.newline() +
+                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+    def keyword_filter1(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                vspl = v.split(".")
+                vint = int(vspl[0])
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                           "##.NAME" + msgs.newline() +
+                           "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                           "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+    def keyword_filter2(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                vspl = v.split(".")
+                vint = int(vspl[0])
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                           "##.NAME" + msgs.newline() +
+                           "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                           "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+    def keyword_lamps(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                vspl = v.split(".")
+                vint = int(vspl[0])
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                           "##.NAME" + msgs.newline() +
+                           "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                           "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+    def keyword_lampname(self, v, bnmbr=1):
+        cname = get_nmbr_name(bnmbr=bnmbr)
+        # Check that v is allowed
+        try:
+            vspl = v.split(".")
+            vint = int(vspl[0])
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of the form:".format(cname) + msgs.newline() +
+                       "##.NAME" + msgs.newline() +
+                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "and NAME is the header keyword name")
+        # Update argument
+        self.update(v, ll=cname.split('_'))
+
+    def keyword_lampstat(self, v, bnmbr=1):
+        cname = get_nmbr_name(bnmbr=bnmbr)
+        # Check that v is allowed
+        try:
+            vspl = v.split(".")
+            vint = int(vspl[0])
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of the form:".format(cname) + msgs.newline() +
+                       "##.NAME" + msgs.newline() +
+                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "and NAME is the header keyword name")
+        # Update argument
+        self.update(v, ll=cname.split('_'))
+
+    def keyword_slitwid(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                vspl = v.split(".")
+                vint = int(vspl[0])
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                           "##.NAME" + msgs.newline() +
+                           "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                           "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+    def keyword_slitlen(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                vspl = v.split(".")
+                vint = int(vspl[0])
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                           "##.NAME" + msgs.newline() +
+                           "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                           "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+    def keyword_detrot(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                vspl = v.split(".")
+                vint = int(vspl[0])
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                           "##.NAME" + msgs.newline() +
+                           "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                           "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+    keyword    dichroic    01.    BSPLIT_N  # Dichroic name
+    keyword    disperser    01.    GRISM_N  # Grism name
+    keyword    cdangle    01.    GRTILT_P  # Cross-disperser angle
+    keyword    echangle    01.    GRATNG_O  # Echelle angle
 
     def mosaic_camera(self, v):
         # Check that v is allowed
@@ -1529,50 +1922,6 @@ class BaseSpect:
                        ", ".join(allowed))
         # Update argument
         self.update(v.upper())
-
-    def set_spect(self, lst):
-        cnt = 1
-        succeed = False
-        members = [x for x, y in inspect.getmembers(self, predicate=inspect.ismethod)]
-        while cnt < len(lst):
-            func = "_".join(lst[:-cnt])
-            # Determine if there are options that need to be passed to this function
-            options = ""
-            if func[:3] == "det":
-                dettmp = func.split("_")[0]
-                try:
-                    detnum = int(dettmp.lstrip("det"))
-                except ValueError:
-                    msgs.error("There must be an integer suffix on the det keyword argument" +
-                               msgs.newline() + " ".join(lst))
-                options += ", dnmbr={0:d}".format(detnum)
-                func = func.replace(dettmp, "det")
-            lup = ["ampsec", "datasec", "oscansec"]
-            for ll in lup:
-                if ll in func:
-                    lltmp = func.split("_")[1]
-                    try:
-                        llnum = int(lltmp.lstrip("det"))
-                    except ValueError:
-                        msgs.error("There must be an integer suffix on the {0:s} keyword argument:".format(ll) +
-                                   msgs.newline() + " ".join(lst))
-                    options += ", anmbr={0:d}".format(llnum)
-                    func = func.replace(lltmp, ll)
-            # Now test if this is a function
-            if func in members:
-                func = "self." + func + "('{0:s}'".format(" ".join(lst[-cnt:]))
-                func += options
-                func += ")"
-                print func
-                eval(func)
-                succeed = True
-                break
-            else:
-                cnt += 1
-        if not succeed:
-            msgs.error("There appears to be an error on the following input line:" + msgs.newline() +
-                       " ".join(lst))
-        return
 
 
 class ARMLSD(BaseArgFlag):
@@ -1668,13 +2017,14 @@ def get_current_name():
     return "'" + " ".join(ll) + "'"
 
 
-def get_det_name(dnmbr, anmbr=None):
+def get_nmbr_name(anmbr=None, bnmbr=None):
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
     tmp = "'" + " ".join(ll) + "'"
     cspl = tmp.split("_")
-    cspl[0] += "{0:02d}".format(dnmbr)
     if anmbr is not None:
-        cspl[1] += "{0:02d}".format(anmbr)
+        cspl[0] += "{0:02d}".format(anmbr)
+    if bnmbr is not None:
+        cspl[1] += "{0:02d}".format(bnmbr)
     return "_".join(cspl)
 
 
