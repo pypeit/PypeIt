@@ -9,7 +9,7 @@ from glob import glob
 import ardebug
 debug = ardebug.init()
 import armsgs
-msgs = armsgs.get_logger((None, debug, "now", "0.0", 1))
+msgs = armsgs.get_logger()
 
 
 class NestedDict(dict):
@@ -1301,6 +1301,103 @@ class BaseSpect:
     def __init__(self):
         self._spect = NestedDict()
 
+    def det_xgap(self, v, dnmbr=1):
+        cname = get_det_name(dnmbr)
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(cname))
+        if v < 0.0:
+            msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
+        # Update argument
+        self.update(v)
+
+    def det_ygap(self, v, dnmbr=1):
+        cname = get_det_name(dnmbr)
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(cname))
+        if v < 0.0:
+            msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
+        # Update argument
+        self.update(v)
+
+    def det_ysize(self, v, dnmbr=1):
+        cname = get_det_name(dnmbr)
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(cname))
+        if v <= 0.0:
+            msgs.error("The argument of {0:s} must be > 0.0".format(cname))
+        # Update argument
+        self.update(v)
+
+    def det_darkcurr(self, v, dnmbr=1):
+        cname = get_det_name(dnmbr)
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(cname))
+        if v < 0.0:
+            msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
+        # Update argument
+        self.update(v)
+
+
+    def det_ronoise(self, v, dnmbr=1):
+        cname = get_det_name(dnmbr)
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(cname))
+        if v < 0.0:
+            msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
+        # Update argument
+        self.update(v)
+
+    def det_gain(self, v, dnmbr=1):
+        cname = get_det_name(dnmbr)
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(cname))
+        if v <= 0.0:
+            msgs.error("The argument of {0:s} must be > 0.0".format(cname))
+        # Update argument
+        self.update(v)
+
+    def det_saturation(self, v, dnmbr=1):
+        cname = get_det_name(dnmbr)
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(cname))
+        if v <= 0.0:
+            msgs.error("The argument of {0:s} must be > 0.0".format(cname))
+        # Update argument
+        self.update(v)
+
+    def det_nonlinear(self, v, dnmbr=1):
+        cname = get_det_name(dnmbr)
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(cname))
+        if v <= 0.0 or v > 1.0:
+            msgs.error("The argument of {0:s} must be > 0.0 and <= 1.0".format(cname))
+        # Update argument
+        self.update(v)
+
     def mosaic_camera(self, v):
         # Check that v is allowed
 
@@ -1353,8 +1450,48 @@ class BaseSpect:
         self.update(v.upper())
 
     def set_spect(self, lst):
-        func = "self." + "_".join(lst[:-1]) + "({0:s})".format(lst[-1])
-        eval(func)
+        cnt = 1
+        succeed = False
+        members = [x for x, y in inspect.getmembers(self, predicate=inspect.ismethod)]
+        while cnt < len(lst):
+            func = "_".join(lst[:-cnt])
+            # Determine if there are options that need to be passed to this function
+            options = ""
+            if func[:3] == "det":
+                dettmp = func.split("_")[0]
+                try:
+                    detnum = int(dettmp.lstrip("det"))
+                except ValueError:
+                    msgs.error("There must be an integer suffix on the det keyword argument" +
+                               msgs.newline() + " ".join(lst))
+                options += ", dnmbr={0:d}".format(detnum)
+                func = func.replace(dettmp, "det")
+            lup = ["ampsec", "datasec", "oscansec"]
+            for ll in lup:
+                if ll in func:
+                    lltmp = func.split("_")[1]
+                    try:
+                        llnum = int(lltmp.lstrip("det"))
+                    except ValueError:
+                        msgs.error("There must be an integer suffix on the {0:s} keyword argument:".format(ll) +
+                                   msgs.newline() + " ".join(lst))
+                    options += ", anmbr={0:d}".format(llnum)
+                    func = func.replace(lltmp, ll)
+            # Now test if this is a function
+            if func in members:
+                func = "self." + func + "('{0:s}'".format(" ".join(lst[-cnt:]))
+                func += options
+                func += ")"
+                print func
+                eval(func)
+                succeed = True
+                break
+            else:
+                cnt += 1
+        if not succeed:
+            msgs.error("There appears to be an error on the following input line:" + msgs.newline() +
+                       " ".join(lst))
+        return
 
 
 class ARMLSD(BaseArgFlag):
@@ -1448,6 +1585,16 @@ def get_spect(init=None):
 def get_current_name():
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
     return "'" + " ".join(ll) + "'"
+
+
+def get_det_name(dnmbr, anmbr=None):
+    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
+    tmp = "'" + " ".join(ll) + "'"
+    cspl = tmp.split("_")
+    cspl[0] += "{0:02d}".format(dnmbr)
+    if anmbr is not None:
+        cspl[1] += "{0:02d}".format(anmbr)
+    return "_".join(cspl)
 
 
 def load_list(strlist):
