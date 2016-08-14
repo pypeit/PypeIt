@@ -1301,6 +1301,38 @@ class BaseSpect:
     def __init__(self):
         self._spect = NestedDict()
 
+    def update(self, v, ll=None):
+        """
+        Update an element in argflag
+        """
+
+        def ingest(dct, upd):
+            """
+            Ingest the upd dictionary into dct
+            """
+            for kk, vv in upd.iteritems():
+                if isinstance(vv, collections.Mapping):
+                    r = ingest(dct.get(kk, {}), vv)
+                    dct[kk] = r
+                else:
+                    dct[kk] = upd[kk]
+            return dct
+
+        # First derive a list of the arguments for the keyword to be updated
+        if ll is None:
+            # update() is called from within this class,
+            # so grab the name of the parent function
+            ll = inspect.currentframe().f_back.f_code.co_name.split('_')
+        # Store a copy of the dictionary to be updated
+        dstr = self._spect.copy()
+        # Formulate a dictionary that lists the argument to be updated
+        udct = dict({ll[-1]: v})
+        for ii in xrange(1, len(ll)):
+            udct = dict({ll[-ii - 1]: udct.copy()})
+        # Update the master dictionary
+        self._spect = ingest(dstr, udct).copy()
+        return
+
     def det_xgap(self, v, dnmbr=1):
         cname = get_det_name(dnmbr)
         # Check that v is allowed
@@ -1311,7 +1343,7 @@ class BaseSpect:
         if v < 0.0:
             msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
         # Update argument
-        self.update(v)
+        self.update(v, ll=cname)
 
     def det_ygap(self, v, dnmbr=1):
         cname = get_det_name(dnmbr)
@@ -1323,7 +1355,7 @@ class BaseSpect:
         if v < 0.0:
             msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
         # Update argument
-        self.update(v)
+        self.update(v, ll=cname)
 
     def det_ysize(self, v, dnmbr=1):
         cname = get_det_name(dnmbr)
@@ -1335,7 +1367,7 @@ class BaseSpect:
         if v <= 0.0:
             msgs.error("The argument of {0:s} must be > 0.0".format(cname))
         # Update argument
-        self.update(v)
+        self.update(v, ll=cname)
 
     def det_darkcurr(self, v, dnmbr=1):
         cname = get_det_name(dnmbr)
@@ -1347,7 +1379,7 @@ class BaseSpect:
         if v < 0.0:
             msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
         # Update argument
-        self.update(v)
+        self.update(v, ll=cname)
 
 
     def det_ronoise(self, v, dnmbr=1):
@@ -1360,7 +1392,7 @@ class BaseSpect:
         if v < 0.0:
             msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
         # Update argument
-        self.update(v)
+        self.update(v, ll=cname)
 
     def det_gain(self, v, dnmbr=1):
         cname = get_det_name(dnmbr)
@@ -1372,7 +1404,7 @@ class BaseSpect:
         if v <= 0.0:
             msgs.error("The argument of {0:s} must be > 0.0".format(cname))
         # Update argument
-        self.update(v)
+        self.update(v, ll=cname)
 
     def det_saturation(self, v, dnmbr=1):
         cname = get_det_name(dnmbr)
@@ -1384,7 +1416,7 @@ class BaseSpect:
         if v <= 0.0:
             msgs.error("The argument of {0:s} must be > 0.0".format(cname))
         # Update argument
-        self.update(v)
+        self.update(v, ll=cname)
 
     def det_nonlinear(self, v, dnmbr=1):
         cname = get_det_name(dnmbr)
@@ -1396,7 +1428,56 @@ class BaseSpect:
         if v <= 0.0 or v > 1.0:
             msgs.error("The argument of {0:s} must be > 0.0 and <= 1.0".format(cname))
         # Update argument
-        self.update(v)
+        self.update(v, ll=cname)
+
+    def det_numamplifiers(self, v, dnmbr=1):
+        cname = get_det_name(dnmbr)
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(cname))
+        if v <= 0:
+            msgs.error("The argument of {0:s} must be >= 1".format(cname))
+        # Update argument
+        self.update(v, ll=cname)
+
+    def det_ampsec(self, v, dnmbr=1, anmbr=1):
+        cname = get_det_name(dnmbr, anmbr=anmbr)
+        # Check that v is allowed
+        try:
+            v = load_sections(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be detector section".format(cname))
+        # Update argument
+        self.update(v, ll=cname)
+
+    def det_datasec(self, v, dnmbr=1, anmbr=1):
+        cname = get_det_name(dnmbr, anmbr=anmbr)
+        # Check that v is allowed
+        try:
+            v = load_sections(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be detector section".format(cname))
+        # Update argument
+        self.update(v, ll=cname)
+
+    def det_oscansec(self, v, dnmbr=1, anmbr=1):
+        cname = get_det_name(dnmbr, anmbr=anmbr)
+        # Check that v is allowed
+        try:
+            v = load_sections(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be detector section".format(cname))
+        # Update argument
+        self.update(v, ll=cname)
+
+    def det_suffix(self, v, dnmbr=1):
+        cname = get_det_name(dnmbr)
+        # Check that v is allowed
+
+        # Update argument
+        self.update(v, ll=cname)
 
     def mosaic_camera(self, v):
         # Check that v is allowed
@@ -1649,11 +1730,11 @@ def load_sections(string):
     """
     xyrng = string.strip('[]()').split(',')
     if xyrng[0] == ":":
-        xyarrx = [0,0]
+        xyarrx = [0, 0]
     else:
         xyarrx = xyrng[0].split(':')
     if xyrng[1] == ":":
-        xyarry = [0,0]
+        xyarry = [0, 0]
     else:
         xyarry = xyrng[1].split(':')
     return [[int(xyarrx[0]), int(xyarrx[1])], [int(xyarry[0]), int(xyarry[1])]]
