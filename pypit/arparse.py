@@ -1302,6 +1302,7 @@ class BaseSpect:
         self._spect = NestedDict()
 
     def set_spect(self, lst):
+        frmtyp = ["standard", "bias", "pixflat", "trace", "blzflat", "arc"]
         cnt = 1
         succeed = False
         members = [x for x, y in inspect.getmembers(self, predicate=inspect.ismethod)]
@@ -1309,28 +1310,27 @@ class BaseSpect:
             func = "_".join(lst[:-cnt])
             # Determine if there are options that need to be passed to this function
             options = ""
-            anmbr = ["det"]
-            for aa in anmbr:
-                aatmp = func.split("_")[0]
-                if aa in aatmp:
-                    try:
-                        aanum = int(aatmp.lstrip(anmbr))
-                    except ValueError:
-                        msgs.error("There must be an integer suffix on the {0:s} keyword argument:".format(aa) +
-                                   msgs.newline() + " ".join(lst))
-                    options += ", anmbr={0:d}".format(aanum)
-                    func = func.replace(aatmp, aa)
-            bnmbr = ["ampsec", "datasec", "oscansec", "lampname", "lampstat", "headext"]
-            for bb in bnmbr:
-                bbtmp = func.split("_")[1]
-                if bb in bbtmp:
-                    try:
-                        bbnum = int(bbtmp.lstrip(bnmbr))
-                    except ValueError:
-                        msgs.error("There must be an integer suffix on the {0:s} keyword argument:".format(bb) +
-                                   msgs.newline() + " ".join(lst))
-                    options += ", bnmbr={0:d}".format(bbnum)
-                    func = func.replace(bbtmp, bb)
+            nmbr = [["det"],   # Suffix on 1st arg
+                     ["ampsec", "datasec", "oscansec", "lampname", "lampstat", "headext"],    # Suffix on 2nd arg
+                     ["condition"]]    # Suffix on 3rd arg
+            for nn in range(len(nmbr)):
+                if nn == 0:
+                    ltr = "a"
+                elif nn == 1:
+                    ltr = "b"
+                elif nn == 2:
+                    ltr = "c"
+                anmbr = nmbr[nn]
+                for aa in anmbr:
+                    aatmp = func.split("_")[nn]
+                    if aa in aatmp:
+                        try:
+                            aanum = int(aatmp.lstrip(anmbr))
+                        except ValueError:
+                            msgs.error("There must be an integer suffix on the {0:s} keyword argument:".format(aa) +
+                                       msgs.newline() + " ".join(lst))
+                        options += ", {0:s}nmbr={1:d}".format(ltr, aanum)
+                        func = func.replace(aatmp, aa)
             # Now test if this is a function
             if func in members:
                 func = "self." + func + "('{0:s}'".format(" ".join(lst[-cnt:]))
@@ -1345,6 +1345,8 @@ class BaseSpect:
         if not succeed:
             # Try a few manual options
             if lst[0] == "check":
+                self.update(lst[-1], ll=lst[:-1])
+            elif lst[0] in frmtyp and lst[1] == "match":
                 self.update(lst[-1], ll=lst[:-1])
             else:
                 msgs.error("There appears to be an error on the following input line:" + msgs.newline() +
@@ -1382,6 +1384,141 @@ class BaseSpect:
         # Update the master dictionary
         self._spect = ingest(dstr, udct).copy()
         return
+
+    def arc_canbe(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            if "," in v:
+                v = v.strip("()[]").split(",")
+            else:
+                v = [v]
+        # Update argument
+        self.update(v)
+
+    def arc_check_condition(self, v, cnmbr=1):
+        cname = get_nmbr_name(cnmbr=cnmbr)
+        # Check that v is allowed
+        text = v.strip().replace('_', ' ')
+        if ',' in text and text[0:2] != '%,':
+            # There are multiple possibilities - split the text
+            v = text.split(',')
+        else:
+            v = text
+        # Update argument
+        self.update(v, ll=cname.split('_'))
+
+    def arc_idname(self, v):
+        # Check that v is allowed
+
+        # Update argument
+        self.update(v)
+
+    def arc_number(self, v):
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        # Update argument
+        self.update(v)
+
+    def bias_canbe(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            if "," in v:
+                v = v.strip("()[]").split(",")
+            else:
+                v = [v]
+        # Update argument
+        self.update(v)
+
+    def bias_check_condition(self, v, cnmbr=1):
+        cname = get_nmbr_name(cnmbr=cnmbr)
+        # Check that v is allowed
+        text = v.strip().replace('_', ' ')
+        if ',' in text and text[0:2] != '%,':
+            # There are multiple possibilities - split the text
+            v = text.split(',')
+        else:
+            v = text
+        # Update argument
+        self.update(v, ll=cname.split('_'))
+
+    def bias_idname(self, v):
+        # Check that v is allowed
+
+        # Update argument
+        self.update(v)
+
+    def bias_number(self, v):
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        # Update argument
+        self.update(v)
+
+    def blzflat_canbe(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            if "," in v:
+                v = v.strip("()[]").split(",")
+            else:
+                v = [v]
+        # Update argument
+        self.update(v)
+
+    def blzflat_check_condition(self, v, cnmbr=1):
+        cname = get_nmbr_name(cnmbr=cnmbr)
+        # Check that v is allowed
+        text = v.strip().replace('_', ' ')
+        if ',' in text and text[0:2] != '%,':
+            # There are multiple possibilities - split the text
+            v = text.split(',')
+        else:
+            v = text
+        # Update argument
+        self.update(v, ll=cname.split('_'))
+
+    def blzflat_idname(self, v):
+        # Check that v is allowed
+
+        # Update argument
+        self.update(v)
+
+    def blzflat_lscomb(self, v):
+        # Check that v is allowed
+        v = v.lower()
+        if v == "true":
+            v = True
+        elif v == "false":
+            v = False
+        else:
+            msgs.error("The argument of {0:s} must be True or False".format(get_current_name()))
+        # Update argument
+        self.update(v)
+
+    def blzflat_number(self, v):
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        # Update argument
+        self.update(v)
 
     def det_xgap(self, v, anmbr=1):
         cname = get_nmbr_name(anmbr=anmbr)
@@ -1923,6 +2060,183 @@ class BaseSpect:
         # Update argument
         self.update(v.upper())
 
+    def pixflat_canbe(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            if "," in v:
+                v = v.strip("()[]").split(",")
+            else:
+                v = [v]
+        # Update argument
+        self.update(v)
+
+    def pixflat_check_condition(self, v, cnmbr=1):
+        cname = get_nmbr_name(cnmbr=cnmbr)
+        # Check that v is allowed
+        text = v.strip().replace('_', ' ')
+        if ',' in text and text[0:2] != '%,':
+            # There are multiple possibilities - split the text
+            v = text.split(',')
+        else:
+            v = text
+        # Update argument
+        self.update(v, ll=cname.split('_'))
+
+    def pixflat_idname(self, v):
+        # Check that v is allowed
+
+        # Update argument
+        self.update(v)
+
+    def pixflat_lscomb(self, v):
+        # Check that v is allowed
+        v = v.lower()
+        if v == "true":
+            v = True
+        elif v == "false":
+            v = False
+        else:
+            msgs.error("The argument of {0:s} must be True or False".format(get_current_name()))
+        # Update argument
+        self.update(v)
+
+    def pixflat_number(self, v):
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        # Update argument
+        self.update(v)
+
+    def science_canbe(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            if "," in v:
+                v = v.strip("()[]").split(",")
+            else:
+                v = [v]
+        # Update argument
+        self.update(v)
+
+    def science_check_condition(self, v, cnmbr=1):
+        cname = get_nmbr_name(cnmbr=cnmbr)
+        # Check that v is allowed
+        text = v.strip().replace('_', ' ')
+        if ',' in text and text[0:2] != '%,':
+            # There are multiple possibilities - split the text
+            v = text.split(',')
+        else:
+            v = text
+        # Update argument
+        self.update(v, ll=cname.split('_'))
+
+    def science_idname(self, v):
+        # Check that v is allowed
+
+        # Update argument
+        self.update(v)
+
+    def standard_canbe(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            if "," in v:
+                v = v.strip("()[]").split(",")
+            else:
+                v = [v]
+        # Update argument
+        self.update(v)
+
+    def standard_check_condition(self, v, cnmbr=1):
+        cname = get_nmbr_name(cnmbr=cnmbr)
+        # Check that v is allowed
+        text = v.strip().replace('_', ' ')
+        if ',' in text and text[0:2] != '%,':
+            # There are multiple possibilities - split the text
+            v = text.split(',')
+        else:
+            v = text
+        # Update argument
+        self.update(v, ll=cname.split('_'))
+
+    def standard_idname(self, v):
+        # Check that v is allowed
+
+        # Update argument
+        self.update(v)
+
+    def standard_number(self, v):
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        # Update argument
+        self.update(v)
+
+    def trace_canbe(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            if "," in v:
+                v = v.strip("()[]").split(",")
+            else:
+                v = [v]
+        # Update argument
+        self.update(v)
+
+    def trace_check_condition(self, v, cnmbr=1):
+        cname = get_nmbr_name(cnmbr=cnmbr)
+        # Check that v is allowed
+        text = v.strip().replace('_', ' ')
+        if ',' in text and text[0:2] != '%,':
+            # There are multiple possibilities - split the text
+            v = text.split(',')
+        else:
+            v = text
+        # Update argument
+        self.update(v, ll=cname.split('_'))
+
+    def trace_idname(self, v):
+        # Check that v is allowed
+
+        # Update argument
+        self.update(v)
+
+    def trace_lscomb(self, v):
+        # Check that v is allowed
+        v = v.lower()
+        if v == "true":
+            v = True
+        elif v == "false":
+            v = False
+        else:
+            msgs.error("The argument of {0:s} must be True or False".format(get_current_name()))
+        # Update argument
+        self.update(v)
+
+    def trace_number(self, v):
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        # Update argument
+        self.update(v)
+
 
 class ARMLSD(BaseArgFlag):
 
@@ -2017,7 +2331,7 @@ def get_current_name():
     return "'" + " ".join(ll) + "'"
 
 
-def get_nmbr_name(anmbr=None, bnmbr=None):
+def get_nmbr_name(anmbr=None, bnmbr=None, cnmbr=None):
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
     tmp = "'" + " ".join(ll) + "'"
     cspl = tmp.split("_")
@@ -2025,6 +2339,8 @@ def get_nmbr_name(anmbr=None, bnmbr=None):
         cspl[0] += "{0:02d}".format(anmbr)
     if bnmbr is not None:
         cspl[1] += "{0:02d}".format(bnmbr)
+    if cnmbr is not None:
+        cspl[2] += "{0:02d}".format(cnmbr)
     return "_".join(cspl)
 
 
