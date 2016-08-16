@@ -1,7 +1,11 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+from future.utils import iteritems
+
 import collections
 import inspect
 from multiprocessing import cpu_count
 from os.path import dirname, basename, isfile
+from astropy.time import Time
 from textwrap import wrap as wraptext
 from glob import glob
 
@@ -23,22 +27,19 @@ class NestedDict(dict):
             value = self[item] = type(self)()
             return value
 
-
-class BaseArgFlag:
+class BaseFunctions(object):
     def __init__(self, defname, savname):
-        self._argflag = NestedDict()
         self._defname = defname
         self._afout = open(savname, 'w')
-        # Load the default settings
-        self.load()
 
-    def load(self):
-        msgs.info("Loading the default settings")
+    def load_default(self):
+        msgs.info("Loading default settings")
         lines = open(self._defname, 'r').readlines()
-        self.load_lines(lines)
-        return
+        arr = self.load_lines(lines)
+        return arr
 
     def load_lines(self, lines):
+        linesarr = []
         for ll in lines:
             ll = ll.replace("\t", " ").replace("\n", " ")
             if len(ll.strip()) == 0:
@@ -49,52 +50,60 @@ class BaseArgFlag:
                 continue
             # Remove comments
             ll = ll.split("#")[0].strip()
-            self.set_flag(ll.split())
-        return
+            linesarr.append(ll.split())
+        return linesarr
+
+
+class BaseArgFlag(BaseFunctions):
+    def __init__(self, defname, savname):
+        super(BaseArgFlag, self).__init__(defname, savname)
+        self._argflag = NestedDict()
 
     def save(self):
         """
         Save the settings used for this reduction
         """
         def savedict(dct):
-            for key, value in dct.iteritems():
+            for (key, value) in iteritems(dct):
                 self._afout.write(str(key))
                 if isinstance(value, dict):
                     savedict(value)
                 else:
-                    self._afout.write(" " + str(value) + "\n")
+                    self._afout.write(str(" {0:s}\n".format(str(value))))
         savedict(self._argflag.copy())
         self._afout.close()
         return
 
-    def set_flag(self, lst):
-        cnt = 1
-        succeed = False
-        members = [x for x, y in inspect.getmembers(self, predicate=inspect.ismethod)]
-        while cnt < len(lst):
-            func = "_".join(lst[:-cnt])
-            if func in members:
-                func = "self." + func + "('{0:s}')".format(" ".join(lst[-cnt:]))
-                print func
-                eval(func)
-                succeed = True
-                break
-            else:
-                cnt += 1
-        if not succeed:
-            msgs.error("There appears to be an error on the following input line:" + msgs.newline() +
-                       " ".join(lst))
+    def set_param(self, lstall):
+        for ll in range(len(lstall)):
+            lst = lstall[ll]
+            cnt = 1
+            succeed = False
+            members = [x for x, y in inspect.getmembers(self, predicate=inspect.ismethod)]
+            while cnt < len(lst):
+                func = "_".join(lst[:-cnt])
+                if func in members:
+                    func = "self." + func + "('{0:s}')".format(" ".join(lst[-cnt:]))
+                    print(func)
+                    eval(func)
+                    succeed = True
+                    break
+                else:
+                    cnt += 1
+            if not succeed:
+                msgs.error("There appears to be an error on the following input line:" + msgs.newline() +
+                           " ".join(lst))
         return
 
     def update(self, v, ll=None):
         """
-        Update an element in argflag
+        Update an element in the nested dictionary
         """
         def ingest(dct, upd):
             """
             Ingest the upd dictionary into dct
             """
-            for kk, vv in upd.iteritems():
+            for (kk, vv) in iteritems(upd):
                 if isinstance(vv, collections.Mapping):
                     r = ingest(dct.get(kk, {}), vv)
                     dct[kk] = r
@@ -110,7 +119,7 @@ class BaseArgFlag:
         dstr = self._argflag.copy()
         # Formulate a dictionary that lists the argument to be updated
         udct = dict({ll[-1]: v})
-        for ii in xrange(1, len(ll)):
+        for ii in range(1, len(ll)):
             udct = dict({ll[-ii-1]: udct.copy()})
         # Update the master dictionary
         self._argflag = ingest(dstr, udct).copy()
@@ -865,7 +874,7 @@ class BaseArgFlag:
         stgs_all = glob(dirname(__file__)+"/settings.*")
         stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
         spclist = [basename(stgs_spc[0]).split(".")[-1].lower()]
-        for i in xrange(1, len(stgs_spc)):
+        for i in range(1, len(stgs_spc)):
             spclist += [basename(stgs_spc[i]).split(".")[-1].lower()]
         # Check there are no duplicate names
         if len(spclist) != len(set(spclist)):
@@ -1101,7 +1110,7 @@ class BaseArgFlag:
                 v = load_sections(v)
             except ValueError:
                 msgs.error("The argument of {0:s} must be a 2D region of the form:".format(get_current_name()) +
-                msgs.newline() + "[x1:x2,y1:y2]")
+                           msgs.newline() + "[x1:x2,y1:y2]")
         # Update argument
         self.update(v)
         return
@@ -1227,7 +1236,6 @@ class BaseArgFlag:
         self.update(v)
         return
 
-
     def trace_slits_pca_extrapolate_pos(self, v):
         """
         trace orders pcxpos
@@ -1297,60 +1305,79 @@ class BaseArgFlag:
         return
 
 
-class BaseSpect:
-    def __init__(self):
+class BaseSpect(BaseFunctions):
+    def __init__(self, defname, savname):
+        super(BaseSpect, self).__init__(defname, savname)
         self._spect = NestedDict()
 
-    def set_spect(self, lst):
+    def save(self):
+        """
+        Save the settings used for this reduction
+        """
+        def savedict(dct):
+            for (key, value) in iteritems(dct):
+                self._afout.write(str(key))
+                if isinstance(value, dict):
+                    savedict(value)
+                else:
+                    self._afout.write(str(" {0:s}\n".format(str(value))))
+        savedict(self._spect.copy())
+        self._afout.close()
+        return
+
+    def set_param(self, lstall):
         frmtyp = ["standard", "bias", "pixflat", "trace", "blzflat", "arc"]
-        cnt = 1
-        succeed = False
-        members = [x for x, y in inspect.getmembers(self, predicate=inspect.ismethod)]
-        while cnt < len(lst):
-            func = "_".join(lst[:-cnt])
-            # Determine if there are options that need to be passed to this function
-            options = ""
-            nmbr = [["det"],   # Suffix on 1st arg
-                     ["ampsec", "datasec", "oscansec", "lampname", "lampstat", "headext"],    # Suffix on 2nd arg
-                     ["condition"]]    # Suffix on 3rd arg
-            for nn in range(len(nmbr)):
-                if nn == 0:
-                    ltr = "a"
-                elif nn == 1:
-                    ltr = "b"
-                elif nn == 2:
-                    ltr = "c"
-                anmbr = nmbr[nn]
-                for aa in anmbr:
-                    aatmp = func.split("_")[nn]
-                    if aa in aatmp:
-                        try:
-                            aanum = int(aatmp.lstrip(anmbr))
-                        except ValueError:
-                            msgs.error("There must be an integer suffix on the {0:s} keyword argument:".format(aa) +
-                                       msgs.newline() + " ".join(lst))
-                        options += ", {0:s}nmbr={1:d}".format(ltr, aanum)
-                        func = func.replace(aatmp, aa)
-            # Now test if this is a function
-            if func in members:
-                func = "self." + func + "('{0:s}'".format(" ".join(lst[-cnt:]))
-                func += options
-                func += ")"
-                print func
-                eval(func)
-                succeed = True
-                break
-            else:
-                cnt += 1
-        if not succeed:
-            # Try a few manual options
-            if lst[0] == "check":
-                self.update(lst[-1], ll=lst[:-1])
-            elif lst[0] in frmtyp and lst[1] == "match":
-                self.update(lst[-1], ll=lst[:-1])
-            else:
-                msgs.error("There appears to be an error on the following input line:" + msgs.newline() +
-                           " ".join(lst))
+        for ll in range(len(lstall)):
+            lst = lstall[ll]
+            cnt = 1
+            succeed = False
+            members = [x for x, y in inspect.getmembers(self, predicate=inspect.ismethod)]
+            while cnt < len(lst):
+                func = "_".join(lst[:-cnt])
+                # Determine if there are options that need to be passed to this function
+                options = ""
+                nmbr = [["det"],   # Suffix on 1st arg
+                        ["ampsec", "datasec", "oscansec", "lampname", "lampstat", "headext"],    # Suffix on 2nd arg
+                        ["condition"]]    # Suffix on 3rd arg
+                ltr = "a"
+                for nn in range(len(nmbr)):
+                    if nn == 0:
+                        ltr = "a"
+                    elif nn == 1:
+                        ltr = "b"
+                    elif nn == 2:
+                        ltr = "c"
+                    anmbr = nmbr[nn]
+                    for aa in anmbr:
+                        aatmp = func.split("_")[nn]
+                        if aa in aatmp:
+                            try:
+                                aanum = int(aatmp.lstrip(aa))
+                                options += ", {0:s}nmbr={1:d}".format(ltr, aanum)
+                            except ValueError:
+                                msgs.error("There must be an integer suffix on the {0:s} keyword argument:".format(aa) +
+                                           msgs.newline() + " ".join(lst))
+                            func = func.replace(aatmp, aa)
+                # Now test if this is a function
+                if func in members:
+                    func = "self." + func + "('{0:s}'".format(" ".join(lst[-cnt:]))
+                    func += options
+                    func += ")"
+                    print(func)
+                    eval(func)
+                    succeed = True
+                    break
+                else:
+                    cnt += 1
+            if not succeed:
+                # Try a few manual options
+                if lst[0] == "check":
+                    self.update(lst[-1], ll=lst[:-1])
+                elif lst[0] in frmtyp and lst[1] == "match":
+                    self.update(lst[-1], ll=lst[:-1])
+                else:
+                    msgs.error("There appears to be an error on the following input line:" + msgs.newline() +
+                               " ".join(lst))
         return
 
     def update(self, v, ll=None):
@@ -1362,7 +1389,7 @@ class BaseSpect:
             """
             Ingest the upd dictionary into dct
             """
-            for kk, vv in upd.iteritems():
+            for (kk, vv) in iteritems(upd):
                 if isinstance(vv, collections.Mapping):
                     r = ingest(dct.get(kk, {}), vv)
                     dct[kk] = r
@@ -1379,7 +1406,7 @@ class BaseSpect:
         dstr = self._spect.copy()
         # Formulate a dictionary that lists the argument to be updated
         udct = dict({ll[-1]: v})
-        for ii in xrange(1, len(ll)):
+        for ii in range(1, len(ll)):
             udct = dict({ll[-ii - 1]: udct.copy()})
         # Update the master dictionary
         self._spect = ingest(dstr, udct).copy()
@@ -1568,7 +1595,6 @@ class BaseSpect:
         # Update argument
         self.update(v, ll=cname.split('_'))
 
-
     def det_ronoise(self, v, anmbr=1):
         cname = get_nmbr_name(anmbr=anmbr)
         # Check that v is allowed
@@ -1724,11 +1750,12 @@ class BaseSpect:
 
     def fits_timeunit(self, v):
         # Check that v is allowed
-        dont forget to include the Astropy time formats. (Might need to manually specif them)
-        allowed = ['s', 'm', 'h', '', '']
-        if v not in allowed:
+        allowed = ['s', 'm', 'h']
+        astropy_allowed = Time.FORMATS.keys()
+        if v not in allowed and v not in astropy_allowed:
             msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
+                       ", ".join(allowed) + "or one of the astropy Time formats:" + msgs.newline() +
+                       ", ".join(astropy_allowed))
         # Update argument
         self.update(v)
 
@@ -1736,39 +1763,37 @@ class BaseSpect:
         # Check that v is allowed
         try:
             vspl = v.split(".")
-            vint = int(vspl[0])
+            int(vspl[0])
         except ValueError:
             msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                        "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                        "and NAME is the header keyword name")
         # Update argument
         self.update(v)
-
 
     def keyword_idname(self, v):
         # Check that v is allowed
         try:
             vspl = v.split(".")
-            vint = int(vspl[0])
+            int(vspl[0])
         except ValueError:
             msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                        "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                        "and NAME is the header keyword name")
         # Update argument
         self.update(v)
-
 
     def keyword_time(self, v):
         # Check that v is allowed
         try:
             vspl = v.split(".")
-            vint = int(vspl[0])
+            int(vspl[0])
         except ValueError:
             msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                        "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                        "and NAME is the header keyword name")
         # Update argument
         self.update(v)
@@ -1777,11 +1802,11 @@ class BaseSpect:
         # Check that v is allowed
         try:
             vspl = v.split(".")
-            vint = int(vspl[0])
+            int(vspl[0])
         except ValueError:
             msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                        "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                        "and NAME is the header keyword name")
         # Update argument
         self.update(v)
@@ -1793,11 +1818,11 @@ class BaseSpect:
         else:
             try:
                 vspl = v.split(".")
-                vint = int(vspl[0])
+                int(vspl[0])
             except ValueError:
                 msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                            "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                            "and NAME is the header keyword name")
         # Update argument
         self.update(v)
@@ -1806,11 +1831,11 @@ class BaseSpect:
         # Check that v is allowed
         try:
             vspl = v.split(".")
-            vint = int(vspl[0])
+            int(vspl[0])
         except ValueError:
             msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                        "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                        "and NAME is the header keyword name")
         # Update argument
         self.update(v)
@@ -1819,11 +1844,11 @@ class BaseSpect:
         # Check that v is allowed
         try:
             vspl = v.split(".")
-            vint = int(vspl[0])
+            int(vspl[0])
         except ValueError:
             msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                        "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                        "and NAME is the header keyword name")
         # Update argument
         self.update(v)
@@ -1832,11 +1857,11 @@ class BaseSpect:
         # Check that v is allowed
         try:
             vspl = v.split(".")
-            vint = int(vspl[0])
+            int(vspl[0])
         except ValueError:
             msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                        "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                        "and NAME is the header keyword name")
         # Update argument
         self.update(v)
@@ -1845,11 +1870,11 @@ class BaseSpect:
         # Check that v is allowed
         try:
             vspl = v.split(".")
-            vint = int(vspl[0])
+            int(vspl[0])
         except ValueError:
             msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                        "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                        "and NAME is the header keyword name")
         # Update argument
         self.update(v)
@@ -1858,11 +1883,11 @@ class BaseSpect:
         # Check that v is allowed
         try:
             vspl = v.split(".")
-            vint = int(vspl[0])
+            int(vspl[0])
         except ValueError:
             msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                        "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                        "and NAME is the header keyword name")
         # Update argument
         self.update(v)
@@ -1871,11 +1896,11 @@ class BaseSpect:
         # Check that v is allowed
         try:
             vspl = v.split(".")
-            vint = int(vspl[0])
+            int(vspl[0])
         except ValueError:
             msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                        "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                        "and NAME is the header keyword name")
         # Update argument
         self.update(v)
@@ -1887,11 +1912,11 @@ class BaseSpect:
         else:
             try:
                 vspl = v.split(".")
-                vint = int(vspl[0])
+                int(vspl[0])
             except ValueError:
                 msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                            "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                            "and NAME is the header keyword name")
         # Update argument
         self.update(v)
@@ -1903,11 +1928,11 @@ class BaseSpect:
         else:
             try:
                 vspl = v.split(".")
-                vint = int(vspl[0])
+                int(vspl[0])
             except ValueError:
                 msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                            "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                            "and NAME is the header keyword name")
         # Update argument
         self.update(v)
@@ -1919,11 +1944,11 @@ class BaseSpect:
         else:
             try:
                 vspl = v.split(".")
-                vint = int(vspl[0])
+                int(vspl[0])
             except ValueError:
                 msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                            "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                            "and NAME is the header keyword name")
         # Update argument
         self.update(v)
@@ -1933,11 +1958,11 @@ class BaseSpect:
         # Check that v is allowed
         try:
             vspl = v.split(".")
-            vint = int(vspl[0])
+            int(vspl[0])
         except ValueError:
             msgs.error("The argument of {0:s} must be of the form:".format(cname) + msgs.newline() +
                        "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                        "and NAME is the header keyword name")
         # Update argument
         self.update(v, ll=cname.split('_'))
@@ -1947,11 +1972,11 @@ class BaseSpect:
         # Check that v is allowed
         try:
             vspl = v.split(".")
-            vint = int(vspl[0])
+            int(vspl[0])
         except ValueError:
             msgs.error("The argument of {0:s} must be of the form:".format(cname) + msgs.newline() +
                        "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                        "and NAME is the header keyword name")
         # Update argument
         self.update(v, ll=cname.split('_'))
@@ -1963,11 +1988,11 @@ class BaseSpect:
         else:
             try:
                 vspl = v.split(".")
-                vint = int(vspl[0])
+                int(vspl[0])
             except ValueError:
                 msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                            "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                            "and NAME is the header keyword name")
         # Update argument
         self.update(v)
@@ -1979,11 +2004,11 @@ class BaseSpect:
         else:
             try:
                 vspl = v.split(".")
-                vint = int(vspl[0])
+                int(vspl[0])
             except ValueError:
                 msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                            "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                            "and NAME is the header keyword name")
         # Update argument
         self.update(v)
@@ -1995,19 +2020,14 @@ class BaseSpect:
         else:
             try:
                 vspl = v.split(".")
-                vint = int(vspl[0])
+                int(vspl[0])
             except ValueError:
                 msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                            "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see argument: fits headext##)," + msgs.newline() +
+                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                            "and NAME is the header keyword name")
         # Update argument
         self.update(v)
-
-    keyword    dichroic    01.    BSPLIT_N  # Dichroic name
-    keyword    disperser    01.    GRISM_N  # Grism name
-    keyword    cdangle    01.    GRTILT_P  # Cross-disperser angle
-    keyword    echangle    01.    GRATNG_O  # Echelle angle
 
     def mosaic_camera(self, v):
         # Check that v is allowed
@@ -2281,6 +2301,76 @@ class ARMLSD(BaseArgFlag):
         self.update(v)
 
 
+class ARMLSD_spect(BaseSpect):
+
+    def keyword_dichroic(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                vspl = v.split(".")
+                vint = int(vspl[0])
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                           "##.NAME" + msgs.newline() +
+                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
+                           "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+    def keyword_disperser(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                vspl = v.split(".")
+                vint = int(vspl[0])
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                           "##.NAME" + msgs.newline() +
+                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
+                           "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+
+class ARMED_spect(BaseSpect):
+
+    def keyword_cdangle(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                vspl = v.split(".")
+                vint = int(vspl[0])
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                           "##.NAME" + msgs.newline() +
+                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
+                           "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+    def keyword_echangle(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                vspl = v.split(".")
+                vint = int(vspl[0])
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                           "##.NAME" + msgs.newline() +
+                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
+                           "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+
 def get_argflag(init=None):
     """
     Get the Arguments and Flags
@@ -2320,9 +2410,11 @@ def get_spect(init=None):
 
     # Instantiate??
     if init is not None:
-        if init == "ARMLSD":
-            pypit_spect = ARMLSD_spect()
-
+        try:
+            defname = glob(dirname(__file__))[0] + "/settings." + init[0].lower()
+            pypit_spect = eval(init[0]+"_spect(defname='{0:s}', savname='{1:s}.spect')".format(defname, init[1]))
+        except RuntimeError:
+            msgs.error("{0:s} is not implemented yet".format(init[0]))
     return pypit_spect
 
 

@@ -117,7 +117,9 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
                    "mosaic reduction <type>")
 
     # Load default reduction arguments/flags, and set any command line arguments
-    arparse.get_argflag((redtype.upper(), ".".join(redname.split(".")[:-1])))
+    af = arparse.get_argflag((redtype.upper(), ".".join(redname.split(".")[:-1])))
+    lines = af.load_default()
+    af.set_param(lines)
     assert(False)
 
     # Load the default settings

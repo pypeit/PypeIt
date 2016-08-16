@@ -109,8 +109,6 @@ keyword slitlen None                   # Slit Length
 keyword detrot None                    # Detector Rotation angle
 keyword dichroic 01.BSPLIT_N           # Dichroic name
 keyword disperser 01.GRISM_N           # Grism name
-keyword cdangle 01.GRTILT_P            # Cross-disperser angle
-keyword echangle 01.GRATNG_O           # Echelle angle
 
 ### Fits properties
 fits timeunit s                     # The unit of keyword+time (s=seconds, m=minutes, h=hours, or any of the astropy Time formats)
