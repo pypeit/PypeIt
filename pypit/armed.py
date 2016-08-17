@@ -3,8 +3,7 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import numpy as np
-#from pypit import arflux
-#from pypit import arload
+from pypit import arload
 from pypit import armasters
 from pypit import armbase
 from pypit import armsgs
@@ -119,16 +118,22 @@ def ARMED(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
             ###############
+            # Generate a master edge frame
+            update = slf.MasterEdge(fitsdict, det)
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="blzflat")
+            ###############
             # Generate an array that provides the physical pixel locations on the detector
             slf.GetPixelLocations(det)
-            if ('trace'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']):
+            if 'trace'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
                 ###############
                 # Determine the edges of the spectrum (spatial)
-                lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det, pcadesc="PCA trace of the slit edges")
+                lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det,
+                                                               pcadesc="PCA trace of the slit edges")
 
                 # Using the order centroid, expand the order edges until the edge of the science slit is found
                 if slf._argflag['trace']['orders']['expand']:
-                    lordloc, rordloc = artrace.expand_slits()
+                    lordloc, rordloc = artrace.expand_slits(slf, slf._msblzflat[det-1], det, 0.5*(lordloc+rordloc))
 
                 # Save the locations of the order edges
                 slf.SetFrame(slf._lordloc, lordloc, det)
@@ -148,5 +153,48 @@ def ARMED(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
                 arqa.slit_trace_qa(slf, slf._mstrace[det - 1], slf._lordpix[det - 1], slf._rordpix[det - 1], extord,
                                    desc="Trace of the slit edges")
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
+
+            msgs.error("UP TO HERE!")
+            ###############
+            # Prepare the pixel flat field frame
+            update = slf.MasterFlatField(fitsdict, det)
+            if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixflat")
+            ###############
+            # Generate the 1D wavelength solution
+            update = slf.MasterWaveCalib(fitsdict, sc, det)
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
+            ###############
+            # Derive the spectral tilt
+            if slf._tilts[det - 1] is None:
+                if slf._argflag['masters']['use']:
+                    mstilt_name = armasters.master_name(slf._argflag['run']['masterdir'],
+                                                        'tilts', slf._argflag['masters']['setup'])
+                    try:
+                        tilts, head = arload.load_master(mstilt_name, frametype="tilts")
+                    except IOError:
+                        pass
+                    else:
+                        slf.SetFrame(slf._tilts, tilts, det)
+                        slf._argflag['masters']['loaded'].append('tilts' + slf._argflag['masters']['setup'])
+                if 'tilts' + slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
+                    # First time tilts are derived for this arc frame --> derive the order tilts
+                    tilts, satmask, outpar = artrace.model_tilt(slf, det, slf._msarc[det - 1])
+                    slf.SetFrame(slf._tilts, tilts, det)
+                    slf.SetFrame(slf._satmask, satmask, det)
+                    slf.SetFrame(slf._tiltpar, outpar, det)
+
+            ###############
+            # Generate/load a master wave frame
+            update = slf.MasterWave(fitsdict, sc, det)
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
+
+            # Check if the user only wants to prepare the calibrations only
+            msgs.info("All calibration frames have been prepared")
+            if slf._argflag['run']['preponly']:
+                msgs.info("If you would like to continue with the reduction,"
+                          + msgs.newline() + "disable the run+preponly command")
+                continue
 
     return status

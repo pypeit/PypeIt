@@ -310,6 +310,43 @@ def dispdir(msframe, dispwin=None, mode=0):
             return 1
 
 
+def expand_slits(slf, mstrace, det, ordcen):
+    """
+    This routine will traces the locations of the slit edges
+
+    Parameters
+    ----------
+    slf : Class instance
+      An instance of the Science Exposure class
+    mstrace : numpy ndarray
+      Calibration frame that will be used to identify slit edges
+    det : int
+      Index of the detector
+    pcadesc : str, optional
+      A descriptive string of text to be annotated as a title on the QA PCA plots
+    maskBadRows : bool, optional
+      Mostly useful for echelle data where the slit edges are bent relative to
+      the pixel columns. Do not set this keyword to True if slit edges are
+      almost aligned with the pixel columns.
+
+    Returns
+    -------
+    lcenint : ndarray
+      Locations of the left slit edges (in physical pixel coordinates)
+    rcenint : ndarray
+      Locations of the right slit edges (in physical pixel coordinates)
+    extrapord : ndarray
+      A boolean mask indicating if an order was extrapolated (True = extrapolated)
+    """
+    from pypit import arcytrace
+
+    # Calculate the pixel locations of th eorder edges
+    pixcen = phys_to_pix(ordcen, slf._pixlocn[det - 1], 1)
+    ordwid = arcytrace.expand_slits(mstrace, pixcen)
+
+    return lordloc, rordloc
+
+
 def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
                  triml=None, trimr=None, sigmin=2.0, bgreg=None,
                  maskval=-999999.9, order=0, doqa=True):

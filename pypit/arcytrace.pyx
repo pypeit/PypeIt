@@ -714,6 +714,34 @@ def edge_sum(np.ndarray[ITYPE_t, ndim=1] edghist not None,
     return edghist
 
 
+@cython.boundscheck(False)
+def expand_slit(np.ndarray[DTYPE_t, ndim=2] msedge not None,
+                np.ndarray[ITYPE_t, ndim=2] ordcen not None):
+
+    cdef int x, sz_x, o, sz_o, y, sz_y
+    cdef double minv, maxv
+
+    sz_x = msedge.shape[0]
+    sz_y = msedge.shape[1]
+    sz_o = ordcen.shape[]
+
+    cdef np.ndarray[ITYPE_t, ndim=2] ordwid = np.zeros(ordcen.shape, dtype=ITYPE)
+
+    # Determine which orders should be masked (i.e order goes off the edge of the detector)
+
+    # Find the separation between orders
+    for o in range(sz_o):
+        if mskord[o] == 1:
+            continue
+        if o == 0:
+            # Don't worry about the left edge (just do twice the distance from the right edge to the centroid)
+        elif o == sz_o-1:
+            # Don't worry about the right edge (just do twice the distance from the left edge to the centroid)
+        else:
+
+    return ordwid
+
+
 #######
 #  F  #
 #######
