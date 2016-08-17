@@ -12,7 +12,7 @@ from pypit import arproc
 #from pypit import arsave
 from pypit import arsort
 from pypit import artrace
-#from pypit import arqa
+from pypit import arqa
 
 from linetools import utils as ltu
 
@@ -125,8 +125,28 @@ def ARMED(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
                 ###############
                 # Determine the edges of the spectrum (spatial)
                 lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det, pcadesc="PCA trace of the slit edges")
+
+                # Using the order centroid, expand the order edges until the edge of the science slit is found
+                if slf._argflag['trace']['orders']['expand']:
+                    lordloc, rordloc = artrace.expand_slits()
+
+                # Save the locations of the order edges
                 slf.SetFrame(slf._lordloc, lordloc, det)
                 slf.SetFrame(slf._rordloc, rordloc, det)
 
+                # Convert physical trace into a pixel trace
+                msgs.info("Converting physical trace locations to nearest pixel")
+                pixcen = artrace.phys_to_pix(0.5 * (slf._lordloc[det - 1] + slf._rordloc[det - 1]), slf._pixlocn[det - 1], 1)
+                pixwid = (slf._rordloc[det - 1] - slf._lordloc[det - 1]).mean(0).astype(np.int)
+                lordpix = artrace.phys_to_pix(slf._lordloc[det - 1], slf._pixlocn[det - 1], 1)
+                rordpix = artrace.phys_to_pix(slf._rordloc[det - 1], slf._pixlocn[det - 1], 1)
+                slf.SetFrame(slf._pixcen, pixcen, det)
+                slf.SetFrame(slf._pixwid, pixwid, det)
+                slf.SetFrame(slf._lordpix, lordpix, det)
+                slf.SetFrame(slf._rordpix, rordpix, det)
+                # Save QA for slit traces
+                arqa.slit_trace_qa(slf, slf._mstrace[det - 1], slf._lordpix[det - 1], slf._rordpix[det - 1], extord,
+                                   desc="Trace of the slit edges")
+                armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
     return status
