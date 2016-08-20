@@ -4,8 +4,10 @@ from __future__ import absolute_import, division, print_function
 #
 # Standard imports
 #
+import sys
 import glob, os
-from distutils.extension import Extension
+import pdb
+#from distutils.extension import Extension
 #
 # setuptools' sdist command ignores MANIFEST.in
 #
@@ -15,6 +17,12 @@ from setuptools import setup
 # DESI support code.
 #
 #from desiutil.setup import DesiTest, DesiVersion, get_version
+
+# Check dependencies
+if sys.argv[1] != 'egg_info':
+    from pypit import archeck
+    archeck.version_check()
+
 #
 # Begin setup
 #
