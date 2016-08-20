@@ -6,6 +6,7 @@ from __future__ import absolute_import, division, print_function
 
 from distutils.version import LooseVersion
 
+import warnings
 from pypit import armsgs
 
 try:
@@ -16,7 +17,10 @@ except ImportError:
 # check these
 import numpy as np
 import scipy
-import ginga
+try:
+    import ginga
+except ImportError:
+    warnings.warn("Ginga is not installed.  You may wish to do so.")
 import h5py
 import astropy
 import matplotlib
