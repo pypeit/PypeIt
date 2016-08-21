@@ -716,30 +716,49 @@ def edge_sum(np.ndarray[ITYPE_t, ndim=1] edghist not None,
 
 @cython.boundscheck(False)
 def expand_slit(np.ndarray[DTYPE_t, ndim=2] msedge not None,
-                np.ndarray[ITYPE_t, ndim=2] ordcen not None):
+                np.ndarray[ITYPE_t, ndim=2] ordcen not None,
+                np.ndarray[ITYPE_t, ndim=1] extord not None):
 
-    cdef int x, sz_x, o, sz_o, y, sz_y
-    cdef double minv, maxv
+    cdef int x, sz_x, o, sz_o, y, sz_y, ymax
+    cdef int mwid, pwid
+    cdef double cenv, edgv
 
     sz_x = msedge.shape[0]
     sz_y = msedge.shape[1]
-    sz_o = ordcen.shape[]
+    sz_o = ordcen.shape[1]
 
-    cdef np.ndarray[ITYPE_t, ndim=2] ordwid = np.zeros(ordcen.shape, dtype=ITYPE)
-
-    # Determine which orders should be masked (i.e order goes off the edge of the detector)
+    cdef np.ndarray[ITYPE_t, ndim=2] pordwid = np.zeros(ordcen.shape, dtype=ITYPE)
+    cdef np.ndarray[ITYPE_t, ndim=2] mordwid = np.zeros(ordcen.shape, dtype=ITYPE)
 
     # Find the separation between orders
+    mwid = -1
+    pwid = -1
     for o in range(sz_o):
-        if mskord[o] == 1:
-            continue
-        if o == 0:
-            # Don't worry about the left edge (just do twice the distance from the right edge to the centroid)
-        elif o == sz_o-1:
-            # Don't worry about the right edge (just do twice the distance from the left edge to the centroid)
-        else:
+        for x in range(0, sz_x):
+            if extord[o] == 1:
+                mwid = -1
+                pwid = -1
+            else:
+                # Trace from centre to left
+                if o == 0:
+                    # Don't worry about the left edge
+                    mwid = -1
+                else:
+                    ymax = (ordcen[x, o] + ordcen[x, o+1])/2
+                    if ymax >= sz_y:
+                        mwid = -1
+                    else:
+                        edgv = 0.5*(msedge[x, ordcen[x,o]] + msedge[x, ymax])
+                        for y in range(ordcen[x, o], ymax):
+                            IN HERE...
+                # Trace from centre to right
+                if o == sz_o-1:
+                    # Don't worry about the right edge
 
-    return ordwid
+            mordwid[x, o] = mwid
+            pordwid[x, o] = pwid
+
+    return mordwid, pordwid
 
 
 #######
