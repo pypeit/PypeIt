@@ -744,17 +744,43 @@ def expand_slit(np.ndarray[DTYPE_t, ndim=2] msedge not None,
                     # Don't worry about the left edge
                     mwid = -1
                 else:
-                    ymax = (ordcen[x, o] + ordcen[x, o+1])/2
-                    if ymax >= sz_y:
+                    ymax = (ordcen[x, o-1] + ordcen[x, o])/2
+                    if ymax < 0:
                         mwid = -1
                     else:
-                        edgv = 0.5*(msedge[x, ordcen[x,o]] + msedge[x, ymax])
-                        for y in range(ordcen[x, o], ymax):
-                            IN HERE...
+                        edgv = 0.5*(msedge[x, ordcen[x, o]] + msedge[x, ymax])
+                        for y in range(ymax, ordcen[x, o]):
+                            if msedge[x, ordcen[x, o]] > msedge[x, ymax]:
+                                # There's a gap between echelle orders
+                                if msedge[x, y] > edgv:
+                                    mwid = ordcen[x, o]-y
+                                    break
+                            else:
+                                # Orders overlap
+                                if msedge[x, y] < edgv:
+                                    mwid = ordcen[x, o]-y
+                                    break
                 # Trace from centre to right
                 if o == sz_o-1:
                     # Don't worry about the right edge
-
+                    pwid = -1
+                else:
+                    ymax = (ordcen[x, o] + ordcen[x, o+1])/2
+                    if ymax >= sz_y:
+                        pwid = -1
+                    else:
+                        edgv = 0.5*(msedge[x, ordcen[x, o]] + msedge[x, ymax])
+                        for y in range(0, ymax-ordcen[x, o]):
+                            if msedge[x, ordcen[x, o]] > msedge[x, ymax]:
+                                # There's a gap between echelle orders
+                                if msedge[x, ymax-y] > edgv:
+                                    mwid = (ymax-ordcen[x, o])-y
+                                    break
+                            else:
+                                # Orders overlap
+                                if msedge[x, ymax-y] < edgv:
+                                    mwid = (ymax-ordcen[x, o])-y
+                                    break
             mordwid[x, o] = mwid
             pordwid[x, o] = pwid
 
