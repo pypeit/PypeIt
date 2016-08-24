@@ -339,7 +339,14 @@ def expand_slits(slf, mstrace, det, ordcen, extord):
     # Calculate the pixel locations of th eorder edges
     pixcen = phys_to_pix(ordcen, slf._pixlocn[det - 1], 1)
     mordwid, pordwid = arcytrace.expand_slits(mstrace, pixcen, extord.astype(np.int))
-
+    # Fit a function for the difference between left edge and the centre trace
+    ldiff_coeff, ldiff_fit = arutils.polyfitter2d(mordwid, mask=-1,
+                                                  order=slf._argflag['trace']['orders']['diffpolyorder'])
+    # Fit a function for the difference between left edge and the centre trace
+    rdiff_coeff, rdiff_fit = arutils.polyfitter2d(pordwid, mask=-1,
+                                                  order=slf._argflag['trace']['orders']['diffpolyorder'])
+    lordloc = ordcen - ldiff_fit
+    rordloc = ordcen + rdiff_fit
     return lordloc, rordloc
 
 
@@ -1943,7 +1950,7 @@ def trace_fweight(fimage, xinit, invvar=None, radius=3.):
     return xnew, xerr
 
 
-def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
+def trace_tilt(slf, det, msarc, prefix="", tltprefix="", trcprefix=""):
     """
     The value of "tilts" returned by this function is of the form:
     tilts = tan(tilt angle), where "tilt angle" is the angle between
@@ -1964,47 +1971,35 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
     # Calculate the perpendicular tilts for each order (this can be used as a first guess if the user asks for the tilts to be traced)
     msgs.info("Calculating perpendicular tilts for each order")
     ocen = 0.5*(slf._lordloc[det-1]+slf._rordloc[det-1])
-    dervt = ocen[1:,:]-ocen[:-1,:]
-    derv = np.append(dervt[0,:].reshape((1,dervt.shape[1])), 0.5*(dervt[1:,:]+dervt[:-1,:]),axis=0)
-    derv = np.append(derv, dervt[-1,:].reshape((1,dervt.shape[1])),axis=0)
-#	tilts = np.arctan(-1.0/derv)*180.0/np.pi
+    dervt = ocen[1:, :]-ocen[:-1, :]
+    derv = np.append(dervt[0, :].reshape((1, dervt.shape[1])), 0.5*(dervt[1:, :] + dervt[:-1, :]), axis=0)
+    derv = np.append(derv, dervt[-1, :].reshape((1, dervt.shape[1])), axis=0)
+#    tilts = np.arctan(-1.0/derv)*180.0/np.pi
     derv = -derv
     if slf._argflag['trace']['orders']['tilts'] == 'perp':
         tilts = derv
-#	plt.plot(np.arange(msarc.shape[slf._dispaxis]),slf._lordloc[:,10],'g-')
-#	plt.plot(np.arange(msarc.shape[slf._dispaxis]),slf._rordloc[:,10],'b-')
-#	showtilts=np.array([10,50,800,1000,2000,3000,3300,3600])
-#	for j in range(showtilts.size):
-#		xplt = np.arange(-5,5)+showtilts[j]
-#		yplt = ocen[showtilts[j],10] + np.tan(tilts[showtilts[j],10]*np.pi/180.0)*(xplt-showtilts[j])
-#		yplt = np.arange(-5,5)+ocen[showtilts[j],10]
-#		xplt = showtilts[j] + (yplt-ocen[showtilts[j],10])/np.tan(tilts[showtilts[j],10]*np.pi/180.0)
-#		plt.plot(xplt,yplt,'r-')
-#	plt.show()
     # Extract a rough spectrum of the arc in each order
     msgs.info("Extracting an approximate arc spectrum at the centre of each order")
     tordcen = None
     maskorder = np.zeros(ocen.shape[1],dtype=np.int)
     for i in range(ocen.shape[1]):
-        if slf._dispaxis == 0:
-            wl = np.size(np.where(ocen[:,i] <= slf._pixlocn[det-1][0,0,1])[0])
-            wh = np.size(np.where(ocen[:,i] >= slf._pixlocn[det-1][0,-1,1])[0])
+        wl = np.size(np.where(ocen[:, i] <= slf._pixlocn[det-1][0, 0, 1])[0])
+        wh = np.size(np.where(ocen[:, i] >= slf._pixlocn[det-1][0, -1, 1])[0])
+        if wl == 0 and wh == 0:
+            # The center of the order is always on the chip
+            if tordcen is None:
+                tordcen = np.zeros((ocen.shape[0], 1), dtype=np.int)
+                tordcen[:, 0] = ocen[:, i]
+            else:
+                tordcen = np.append(tordcen, ocen[:, i].reshape((ocen.shape[0], 1)), axis=1)
         else:
-            wl = np.size(np.where(ocen[:,i] <= slf._pixlocn[det-1][0,0,1])[0])
-            wh = np.size(np.where(ocen[:,i] >= slf._pixlocn[det-1][-1,0,1])[0])
-        if wl==0 and wh==0: # The center of the order is always on the chip
+            # An order isn't on the chip
             if tordcen is None:
-                tordcen = np.zeros((ocen.shape[0],1),dtype=np.int)
-                tordcen[:,0] = ocen[:,i]
+                tordcen = np.zeros((ocen.shape[0], 1), dtype=np.int)
             else:
-                tordcen = np.append(tordcen,ocen[:,i].reshape((ocen.shape[0],1)),axis=1)
-        else: # An order isn't on the chip
-            if tordcen is None:
-                tordcen = np.zeros((ocen.shape[0],1),dtype=np.int)
-            else:
-                tordcen = np.append(tordcen,ocen[:,i].reshape((ocen.shape[0],1)),axis=1)
+                tordcen = np.append(tordcen, ocen[:, i].reshape((ocen.shape[0], 1)), axis=1)
             maskorder[i] = 1
-    w = np.where(maskorder==0)[0]
+    w = np.where(maskorder == 0)[0]
     if tordcen is None:
         msgs.warn("Could not determine which full orders are on the detector")
         msgs.info("Assuming all orders are fully on the detector")
@@ -2013,49 +2008,32 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
         ordcen = phys_to_pix(tordcen[:,w], slf._pixlocn[det-1], 1)
 
     pixcen = np.arange(msarc.shape[0])
-    temparr = pixcen.reshape(msarc.shape[0],1).repeat(ordcen.shape[1],axis=1)
+    temparr = pixcen.reshape(msarc.shape[0], 1).repeat(ordcen.shape[1], axis=1)
     # Average over three pixels to remove some random fluctuations, and increase S/N
     op1 = ordcen+1
     op2 = ordcen+2
     om1 = ordcen-1
     om2 = ordcen-2
-    w = np.where(om1<0)
+    w = np.where(om1 < 0)
     om1[w] += 1
-    w = np.where(om2==-1)
+    w = np.where(om2 == -1)
     om2[w] += 1
-    w = np.where(om2==-2)
+    w = np.where(om2 == -2)
     om2[w] += 2
-    if slf._dispaxis == 0:
-        w = np.where(op1>=msarc.shape[1])
-        op1[w] -= 1
-        w = np.where(op2==msarc.shape[1])
-        op2[w] -= 1
-        w = np.where(op2==msarc.shape[1]+1)
-        op2[w] -= 2
-        arccen = (msarc[temparr,ordcen]+msarc[temparr,op1]+msarc[temparr,op2]+msarc[temparr,om1]+msarc[temparr,om2])/5.0
-#		arccel = (msarc[temparr,ordcen-2])#+msarc[temparr,ordcen+1]+msarc[temparr,ordcen-1])/3.0
-#		arccer = (msarc[temparr,ordcen+2])#+msarc[temparr,ordcen+1]+msarc[temparr,ordcen-1])/3.0
-    else:
-        w = np.where(op1>=msarc.shape[0])
-        op1[w] -= 1
-        w = np.where(op2==msarc.shape[0])
-        op2[w] -= 1
-        w = np.where(op2==msarc.shape[0]+1)
-        op2[w] -= 2
-        arccen = (msarc[ordcen,temparr]+msarc[op1,temparr]+msarc[op2,temparr]+msarc[om1,temparr]+msarc[om2,temparr])/5.0
+    w = np.where(op1 >= msarc.shape[1])
+    op1[w] -= 1
+    w = np.where(op2 == msarc.shape[1])
+    op2[w] -= 1
+    w = np.where(op2 == msarc.shape[1]+1)
+    op2[w] -= 2
+    arccen = (msarc[temparr, ordcen]+msarc[temparr, op1]+msarc[temparr, op2]+msarc[temparr, om1]+msarc[temparr, om2])/5.
     del temparr
-#		arccel = (msarc[ordcen-2,temparr])#+msarc[ordcen+1,temparr]+msarc[ordcen-1,temparr])/3.0
-#		arccer = (msarc[ordcen+2,temparr])#+msarc[ordcen+1,temparr]+msarc[ordcen-1,temparr])/3.0
-#	for i in range(arccen.shape[1]):
-#		plt.clf()
-#		plt.plot(pixcen,arccen[:,i],'g-')
-#		plt.plot(pixcen,arccer[:,i],'r-')
-#		plt.plot(pixcen,arccel[:,i],'b-')
-#		plt.show()
     msgs.info("Generating a mask of arc line saturation streaks")
     satmask = arcyarc.saturation_mask(msarc, slf._spect['det']['saturation']*slf._spect['det']['nonlinear'])
-    ordwid = 0.5*np.abs(slf._lordloc-slf._rordloc)
-    satsnd = arcyarc.order_saturation(satmask,ordcen,(ordwid+0.5).astype(np.int),slf._dispaxis)
+    #ordwid = 0.5*np.abs(slf._lordloc - slf._rordloc)
+    ordwid = 0.5*np.abs(slf._rordloc - slf._lordloc)
+    satsnd = arcyarc.order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int))
+    msgs.error("Recent change to ordwid - check the saturation mask before continuing")
 #	arutils.ds9plot((1.0-satmask)*msarc)
 #	plt.plot(pixcen,arccen[:,10],'k-',drawstyle='steps')
 #	plt.show()
@@ -2066,53 +2044,24 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
 #	arcdet = arcyarc.detections_allorders(arccen, satsnd)
     #####
     # New algorithm for arc line detection
-    pixels=[]
+    pixels = []
     totnum = 0
     siglev = 2.0*slf._argflag['arc']['calibrate']['detection']
     bpfit = 5 # order of the polynomial used to fit the background 'continuum'
     fitp = slf._argflag['arc']['calibrate']['nfitpix']
     for o in range(arccen.shape[1]):
         pixels.append([])
-        detns = arccen[:,o]
-        xrng = np.arange(float(detns.size))
-        mask = np.zeros(detns.size,dtype=np.int)
-        mskcnt=0
-        while True:
-            w = np.where(mask==0)
-            xfit = xrng[w]
-            yfit = detns[w]
-            ct = np.polyfit(xfit,yfit,bpfit)
-            yrng = np.polyval(ct,xrng)
-            sigmed = 1.4826*np.median(np.abs(detns[w]-yrng[w]))
-            w = np.where(detns>yrng+1.5*sigmed)
-            mask[w] = 1
-            if mskcnt == np.sum(mask): break # No new values have been included in the mask
-            mskcnt = np.sum(mask)
-# 		plt.plot(xrng,detns,'k-',drawstyle='steps')
-# 		plt.plot(xrng,yrng,'r-')
-# 		plt.show()
-# 		plt.clf()
-        w = np.where(mask==0)
-        xfit = xrng[w]
-        yprep = detns - yrng
-        sfit = 1.4826*np.abs(detns[w]-yrng[w])
-        ct = np.polyfit(xfit,sfit,bpfit)
-        yerr = np.polyval(ct,xrng)
-        myerr = np.median(np.sort(yerr)[:yerr.size/2])
-        yerr[np.where(yerr < myerr)] = myerr
-        # Find all significant detections
-        tpixt, num = arcyarc.detections_sigma(yprep,yerr,np.zeros(satsnd.shape[0],dtype=np.int),siglev/2.0,siglev) # The last argument is the overall minimum significance level of an arc line detection and the second last argument is the level required by an individual pixel before the neighbourhood of this pixel is searched.
-        pixt = arcyarc.remove_similar(tpixt, num)
-        pixt = pixt[np.where(pixt!=-1)].astype(np.int)
-        tampl, tcent, twid, ngood = arcyarc.fit_arcorder(xrng,yprep,pixt,fitp)
-        w = np.where((np.isnan(twid)==False) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent>0.0) & (tcent<xrng[-1]))
+        detns = arccen[:, o]
+        tampl, tcent, twid, w, satsnd, _ = ararc.detect_lines(slf, det, msarc, censpec=detns)
         pixels[o] = (tcent[w]+0.5).astype(np.int)
-        if np.size(w[0])>totnum:
+        if np.size(w[0]) > totnum:
             totnum = np.size(w[0])
     # Convert this into an arcdet array
-    arcdet = -1.0*np.ones((totnum,arccen.shape[1]))
+    arcdet = -1.0*np.ones((totnum, arccen.shape[1]))
     for o in range(arccen.shape[1]):
-        arcdet[:pixels[o].size,o] = pixels[o]
+        arcdet[:pixels[o].size, o] = pixels[o]
+
+
 #	y = arccen[:,10]
 #	pixt = arcdet[np.where(arcdet[:,10]!=-1)[0],10].astype(np.float)
 #	plt.plot(pixcen, y, 'k-', drawstyle='steps')
@@ -2122,158 +2071,110 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
 #		plt.plot([pixt[i]-0.5,pixt[i]-0.5],[yp+ym/2.0,yp + ym],'b-')
 #	plt.show()
     if slf._argflag['trace']['orders']['tilts'] in ['perp','zero']:
-        centval=-999999.9*np.ones((arcdet.shape[0],maskorder.size))
+        centval = -999999.9*np.ones((arcdet.shape[0], maskorder.size))
         nm=0
         for i in range(maskorder.size):
-            if maskorder[i] == 1: continue
-            w = arcdet[np.where(arcdet[:,nm]!=-1)[0],nm]
-            if np.size(w) != 0: centval[:np.size(w),i] = w
+            if maskorder[i] == 1:
+                continue
+            w = arcdet[np.where(arcdet[:, nm] != -1)[0], nm]
+            if np.size(w) != 0:
+                centval[:np.size(w), i] = w
             nm += 1
     elif slf._argflag['trace']['orders']['tilts'] == 'fit1D':
         # Go along each order and fit the tilts in 1D
-        tiltang=-999999.9*np.ones((arcdet.shape[0],maskorder.size))
-        centval=-999999.9*np.ones((arcdet.shape[0],maskorder.size))
+        tiltang = -999999.9*np.ones((arcdet.shape[0], maskorder.size))
+        centval = -999999.9*np.ones((arcdet.shape[0], maskorder.size))
         msgs.work("This next step could be multiprocessed to speed up the reduction")
         nm = 0
         for i in range(maskorder.size): # For each order
-            msgs.info("Tracing tilts -- order {0:d}/{1:d}".format(i+1,maskorder.size))
-            if maskorder[i] == 1: continue
-            pixt = arcdet[np.where(arcdet[:,nm]!=-1)[0],nm]
-            for j in range(pixt.size): # For each detection in this order
-                sz = int(np.floor(np.abs(slf._rordloc[pixt[j],i]-slf._lordloc[pixt[j],i])/2.0))-1
-                if slf._dispaxis == 0:
-                    xtfit = np.arange(-sz,sz+1,1.0) # pixel along the arc line
-                    ytfit = np.zeros(2*sz+1) # Fitted centroid
-                    etfit = np.zeros(2*sz+1) # Fitted centroid error
-                    mtfit = np.zeros(2*sz+1) # Mask of bad fits
-                    # Fit up
-                    pcen = pixt[j]
-                    if (pcen < 3) or (pcen > msarc.shape[0]-4): continue
-                    offchip = False
-                    for k in range(0,sz+1):
-                        if (pcen < 3) or (pcen > msarc.shape[0]-4):
-                            offchip == True
-                            break
-                        if ordcen[pcen,nm]+k >= msarc.shape[1]:
-                            mtfit[k+sz] = 1.0
-                            offchip = True
-                            break
-                        xfit = np.arange(pcen-3, pcen+3+1, 1.0)  # 2x4 + 1 = 9 pixels total along the spectral dimension
-                        yfit = msarc[pcen-3:pcen+3+1,ordcen[pcen,nm]+k]
-                        if np.size(yfit) == 0:
-                            mtfit[k+sz] = 1.0
-                            offchip = True
-                            break
-                        #params, perror, fail = arfitbase.fit_gauss(xfit,yfit)
-                        params, fail = arutils.gauss_fit(xfit,yfit,pcen)
-                        ytfit[k+sz] = params[1]
-                        etfit[k+sz] = 0.02
-                        if fail: mtfit[k+sz] = 1.0
-                        else: pcen = int(0.5+params[1])
-                    if offchip: continue
-                    # Fit down
-                    pcen = int(0.5+ytfit[sz]) # Start with the best-fitting centroid at arccen
-                    for k in range(1,sz+1):
-                        if (pcen < 3) or (pcen > msarc.shape[0]-4):
-                            offchip == True
-                            break
-                        if ordcen[pcen,nm]-k < 0:
-                            mtfit[sz-k] = 1.0
-                            offchip = True
-                            break
-                        xfit = np.arange(pcen-3, pcen+3+1, 1.0)
-                        yfit = msarc[pcen-3:pcen+3+1,ordcen[pcen,nm]-k]
-                        if np.size(yfit) == 0:
-                            mtfit[sz-k] = 1.0
-                            offchip = True
-                            break
-                        #params, perror, fail = arfitbase.fit_gauss(xfit,yfit)
-                        params, fail = arutils.gauss_fit(xfit,yfit,pcen)
-                        ytfit[sz-k] = params[1]
-                        etfit[sz-k] = 0.02
-                        if fail: mtfit[sz-k] = 1.0
-                        else: pcen = int(0.5+params[1])
-                    if offchip: continue
-                else:
-                    xtfit = np.arange(-sz,sz+1,1.0) # pixel along the arc line
-                    ytfit = np.zeros(2*sz+1) # Fitted centroid
-                    etfit = np.zeros(2*sz+1) # Fitted centroid error
-                    mtfit = np.zeros(2*sz+1) # Mask of bad fits
-                    # Fit up
-                    pcen = pixt[j]
-                    if (pcen < 3) or (pcen > msarc.shape[1]-4): continue
-                    offchip = False
-                    for k in range(0,sz+1):
-                        if (pcen < 3) or (pcen > msarc.shape[0]-4):
-                            offchip == True
-                            break
-                        if ordcen[pcen,nm]+k >= msarc.shape[0]:
-                            mtfit[k+sz] = 1.0
-                            offchip = True
-                            break
-                        xfit = np.arange(pcen-3, pcen+3+1, 1.0)  # 2x3 + 1 = 7 pixels total along the spectral dimension
-                        yfit = msarc[ordcen[pcen,nm]+k,pcen-3:pcen+3+1]
-                        if np.size(yfit) == 0:
-                            mtfit[k+sz] = 1.0
-                            offchip = True
-                            break
-                        #params, perror, fail = arfitbase.fit_gauss(xfit,yfit)
-                        params, fail = arutils.gauss_fit(xfit,yfit,pcen)
-                        ytfit[k+sz] = params[1]
-                        etfit[k+sz] = 0.02
-                        if fail: mtfit[k+sz] = 1.0
-                        else: pcen = int(0.5+params[1])
-                    if offchip: continue
-                    # Fit down
-                    pcen = int(0.5+ytfit[sz]) # Start with the best-fitting centroid at arccen
-                    for k in range(1,sz+1):
-                        if (pcen < 3) or (pcen > msarc.shape[0]-4):
-                            offchip == True
-                            break
-                        if ordcen[pcen,nm]-k < 0:
-                            mtfit[sz-k] = 1.0
-                            offchip = True
-                            break
-                        xfit = np.arange(pcen-3, pcen+3+1, 1.0)
-                        yfit = msarc[ordcen[pcen,nm]-k,pcen-3:pcen+3+1]
-                        if np.size(yfit) == 0:
-                            mtfit[sz-k] = 1.0
-                            offchip = True
-                            break
-                        #params, perror, fail = arfitbase.fit_gauss(xfit,yfit)
-                        params, fail = arutils.gauss_fit(xfit,yfit,pcen)
-                        ytfit[sz-k] = params[1]
-                        etfit[sz-k] = 0.02
-                        if fail: mtfit[sz-k] = 1.0
-                        else: pcen = int(0.5+params[1])
-                    if offchip: continue
-                wmask = np.where(mtfit==0.0)
-#				try:
-#					tcoeff = np.polynomial.polynomial.polyfit(xtfit[wmask],ytfit[wmask],1,w=1.0/mt)
-#				except:
-#					tcoeff = np.polynomial.polynomial.polyfit(xtfit[wmask],ytfit[wmask],1)
-                null, tcoeff = arutils.robust_polyfit(xtfit[wmask], ytfit[wmask], slf._argflag['trace']['orders']['tiltdisporder'], sigma=2.0)
-                #tcoeff = np.polynomial.polynomial.polyfit(xtfit[wmask],ytfit[wmask],1)
+            msgs.info("Tracing tilts -- order {0:d}/{1:d}".format(i+1, maskorder.size))
+            if maskorder[i] == 1:
+                continue
+            pixt = arcdet[np.where(arcdet[:, nm] != -1)[0], nm]
+            for j in range(pixt.size):
+                # For each detection in this order
+                sz = int(np.floor(np.abs(slf._rordloc[pixt[j], i] - slf._lordloc[pixt[j], i])/2.0))-1
+                xtfit = np.arange(-sz,sz+1,1.0) # pixel along the arc line
+                ytfit = np.zeros(2*sz+1) # Fitted centroid
+                etfit = np.zeros(2*sz+1) # Fitted centroid error
+                mtfit = np.zeros(2*sz+1) # Mask of bad fits
+                # Fit up
+                pcen = pixt[j]
+                if (pcen < 3) or (pcen > msarc.shape[0]-4): continue
+                offchip = False
+                for k in range(0,sz+1):
+                    if (pcen < 3) or (pcen > msarc.shape[0]-4):
+                        offchip == True
+                        break
+                    if ordcen[pcen,nm]+k >= msarc.shape[1]:
+                        mtfit[k+sz] = 1.0
+                        offchip = True
+                        break
+                    xfit = np.arange(pcen-3, pcen+3+1, 1.0)  # 2x4 + 1 = 9 pixels total along the spectral dimension
+                    yfit = msarc[pcen-3:pcen+3+1,ordcen[pcen,nm]+k]
+                    if np.size(yfit) == 0:
+                        mtfit[k+sz] = 1.0
+                        offchip = True
+                        break
+                    #params, perror, fail = arfitbase.fit_gauss(xfit,yfit)
+                    params, fail = arutils.gauss_fit(xfit,yfit,pcen)
+                    ytfit[k+sz] = params[1]
+                    etfit[k+sz] = 0.02
+                    if fail: mtfit[k+sz] = 1.0
+                    else: pcen = int(0.5+params[1])
+                if offchip: continue
+                # Fit down
+                pcen = int(0.5+ytfit[sz]) # Start with the best-fitting centroid at arccen
+                for k in range(1,sz+1):
+                    if (pcen < 3) or (pcen > msarc.shape[0]-4):
+                        offchip == True
+                        break
+                    if ordcen[pcen,nm]-k < 0:
+                        mtfit[sz-k] = 1.0
+                        offchip = True
+                        break
+                    xfit = np.arange(pcen-3, pcen+3+1, 1.0)
+                    yfit = msarc[pcen-3:pcen+3+1,ordcen[pcen,nm]-k]
+                    if np.size(yfit) == 0:
+                        mtfit[sz-k] = 1.0
+                        offchip = True
+                        break
+                    #params, perror, fail = arfitbase.fit_gauss(xfit,yfit)
+                    params, fail = arutils.gauss_fit(xfit,yfit,pcen)
+                    ytfit[sz-k] = params[1]
+                    etfit[sz-k] = 0.02
+                    if fail:
+                        mtfit[sz-k] = 1.0
+                    else:
+                        pcen = int(0.5+params[1])
+                if offchip:
+                    continue
+                wmask = np.where(mtfit == 0.0)
+                null, tcoeff = arutils.robust_polyfit(xtfit[wmask], ytfit[wmask],
+                                                      slf._argflag['trace']['orders']['tiltdisporder'], sigma=2.0)
+#                tcoeff = np.polynomial.polynomial.polyfit(xtfit[wmask],ytfit[wmask],1)
                 # Save the tilt angle
-                tiltang[j,i] = tcoeff[1] # tan(tilt angle)
-                centval[j,i] = tcoeff[0] # centroid of arc line
+                tiltang[j, i] = tcoeff[1]  # tan(tilt angle)
+                centval[j, i] = tcoeff[0]  # centroid of arc line
             nm += 1
         msgs.info("Fitting tilt angles")
-        tcoeff = np.ones((slf._argflag['trace']['orders']['tiltdisporder']+1,tiltang.shape[1]))
-        maskord = np.where(maskorder==1)[0]
+        tcoeff = np.ones((slf._argflag['trace']['orders']['tiltdisporder']+1, tiltang.shape[1]))
+        maskord = np.where(maskorder == 1)[0]
         extrap_ord = np.zeros(maskorder.size)
         for o in range(maskorder.size):
             if o in maskord:
                 extrap_ord[o] = 1
                 continue
-            w = np.where(tiltang[:,o]!=-999999.9)
+            w = np.where(tiltang[:, o] != -999999.9)
             if np.size(w[0]) <= slf._argflag['trace']['orders']['tiltdisporder']+2:
                 extrap_ord[o] = 1.0
-                maskord = np.append(maskord,o)
+                maskord = np.append(maskord, o)
             else:
-                null, tempc = arutils.robust_polyfit(centval[:,o][w],tiltang[:,o][w], slf._argflag['trace']['orders']['tiltdisporder'], function=slf._argflag['trace']['orders']['function'],sigma=2.0,
-                                                     minv=0.0, maxv=msarc.shape[slf._dispaxis]-1)
-                tcoeff[:,o] = tempc
+                null, tempc = arutils.robust_polyfit(centval[:, o][w],tiltang[:, o][w],
+                                                     slf._argflag['trace']['orders']['tiltdisporder'],
+                                                     function=slf._argflag['trace']['orders']['function'],
+                                                     sigma=2.0, minv=0.0, maxv=msarc.shape[0]-1)
+                tcoeff[:, o] = tempc
 #				tcoeff[:,o] = arutils.func_fit(centval[:,o][w],tiltang[:,o][w],slf._argflag['trace']['orders']['function'],slf._argflag['trace']['orders']['tiltdisporder'],min=0.0,max=msarc.shape[slf._dispaxis]-1)
 #				plt.clf()
 #				plt.plot(centval[:,o][w],tiltang[:,o][w],'bx')
@@ -2282,25 +2183,23 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
 #				plt.plot(xmod,ymod,'r-')
 #		plt.show()
         maskord.sort()
-        xv = np.arange(msarc.shape[slf._dispaxis])
-        tiltval = arutils.func_val(tcoeff,xv,slf._argflag['trace']['orders']['function'], minv=0.0,
-                                   maxv=msarc.shape[slf._dispaxis]-1).T
+        xv = np.arange(msarc.shape[0])
+        tiltval = arutils.func_val(tcoeff, xv, slf._argflag['trace']['orders']['function'], minv=0.0,
+                                   maxv=msarc.shape[0]-1).T
         msgs.work("May need to do a check here to make sure ofit is reasonable")
         ofit = slf._argflag['trace']['orders']['pcatilt']
         lnpc = len(ofit)-1
-        if np.sum(1.0-extrap_ord) > ofit[0]+1: # Only do a PCA if there are enough good orders
+        if np.sum(1.0-extrap_ord) > ofit[0]+1:  # Only do a PCA if there are enough good orders
             # Perform a PCA on the tilts
             msgs.info("Performing a PCA on the order edges")
             ordsnd = np.arange(tiltang.shape[1])+1.0
-            xcen = xv[:,np.newaxis].repeat(tiltang.shape[1],axis=1)
-            fitted, outpar = arpca.basis(xcen,tiltval,tcoeff,lnpc,ofit,x0in=ordsnd,mask=maskord,skipx0=True,function=slf._argflag['trace']['orders']['function'])
-            # If the PCA worked OK, do the following
-            msgs.work("Should something be done here inbetween the two basis calls?")
-            fitted, outpar = arpca.basis(xcen,tiltval,tcoeff,lnpc,ofit,x0in=ordsnd,mask=maskord,skipx0=False,function=slf._argflag['trace']['orders']['function'])
+            xcen = xv[:, np.newaxis].repeat(tiltang.shape[1], axis=1)
+            fitted, outpar = arpca.basis(xcen, tiltval, tcoeff, lnpc, ofit, x0in=ordsnd, mask=maskord, skipx0=False,
+                                         function=slf._argflag['trace']['orders']['function'])
             arpca.pc_plot(outpar, ofit, plotsdir=slf._argflag['run']['plotsdir'], pcatype="tilts", prefix=prefix)
             # Extrapolate the remaining orders requested
             orders = 1.0+np.arange(maskorder.size)
-            extrap_tilt, outpar = arpca.extrapolate(outpar, orders, msgs, function=slf._argflag['trace']['orders']['function'])
+            extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=slf._argflag['trace']['orders']['function'])
             tilts = extrap_tilt
             arpca.pc_plot_arctilt(tiltang, centval, tilts, plotsdir=slf._argflag['run']['plotsdir'], pcatype="tilts", prefix=prefix)
         else:
