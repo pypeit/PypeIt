@@ -48,6 +48,11 @@ If any of the packages are out of date, they can be updated with a command like:
 
 	conda update scipy
 
+Ginga is currently not available from Anaconda but you can easily install it using pip with a command like::
+    
+    pip install ginga
+
+
 Installing Linetools
 --------------------
 The latest version of `linetools <https://github.com/linetools/linetools/>`_ is
@@ -63,6 +68,8 @@ need to change your backend from macosx to TkAgg in the matplotlibrc file."
 
 GSL
 ---
+
+.. _GSLCONDA:
 
 GSL installation
 ++++++++++++++++
@@ -106,13 +113,17 @@ Here are some hacks to make the anaconda installation work as
 well as some alternate installation instructions:
 
 **1) Replace relative paths in compiled Cython files with full path** 
-::
 
-	 #in this example, GSL is installed in '/Users/USERNAME/anaconda/lib/'
-	 cd PYPIT/pypit/
-	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/cleibler/anaconda/lib/libgsl.0.dylib" arcyextract.so
-	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcyextract.so
-	 
+After installing GSL with Anaconda as explained above and installing PYPIT (see below) with ``python setup.py develop`` do the following::
+
+
+  #in this example, GSL is installed in '/Users/USERNAME/anaconda/lib/'
+  cd PYPIT/pypit/
+  install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcyextract.so
+  install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcyextract.so
+  install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.dylib" arcycomb.so
+  install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.dylib" arcycomb.so
+
 
 **2) Disable System Integrity Protection**
 
@@ -133,7 +144,6 @@ be replaced with whatever version number you have installed.
 
 Since Homebrew installs programs in /usr/local , which is not
 SIP protected, this should work without additional hacks.
-ASHER CAN YOU WRITE UP SOME INSTRUCTIONS FOR THE HOMEBREW INSTALLATION OF GSL?
 
 
 Installing PYPIT
@@ -201,16 +211,22 @@ To run the test::
 The test takes a while to run but should run without issue if all the packages have been properly installed. 
 
 
-**If you installed GSL with anaconda, a common error from running ./pypit_test all is:**
+**If you installed GSL with anaconda, a common errors from running ./pypit_test all are:**
 
 |[BUG]     :: There appears to be a bug on Line 7 of arproc.py with error:
 
-| dlopen(/Users/USERNAME/software/PYPIT/pypit/arcyextract.so, 2): Library not loaded: @rpath/./libgsl.0.dylib
+  dlopen(/Users/USERNAME/software/PYPIT/pypit/arcyextract.so, 2): Library not loaded: @rpath/./libgsl.0.dylib
+  Referenced from: /Users/USERNAME/software/PYPIT/pypit/arcyextract.so
 
-| Referenced from: /Users/USERNAME/software/PYPIT/pypit/arcyextract.so
 
 
-**To fix this bug:**
+|[BUG]     :: There appears to be a bug on Line 28 of arcomb.py with error:
+
+  dlopen(/Users/USERNAME/software/PYPIT/pypit/arcycomb.so, 2): Library not loaded: @rpath/./libgsl.0.dylib
+  Referenced from: /Users/USERNAME/software/PYPIT/pypit/arcycomb.so
+
+
+**To fix these bugs:**
 
 a) Make sure GSL_PATH and LD_LIBRARY_PATH are defined in your .bashrc or .tcshrc file and that the appropriate rc file has been sourced
 
