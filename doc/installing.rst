@@ -215,16 +215,15 @@ The test takes a while to run but should run without issue if all the packages h
 
 |[BUG]     :: There appears to be a bug on Line 7 of arproc.py with error:
 
-| dlopen(/Users/USERNAME/software/PYPIT/pypit/arcyextract.so, 2): Library not loaded: @rpath/./libgsl.0.dylib
+  dlopen(/Users/USERNAME/software/PYPIT/pypit/arcyextract.so, 2): Library not loaded: @rpath/./libgsl.0.dylib
+  Referenced from: /Users/USERNAME/software/PYPIT/pypit/arcyextract.so
 
-| Referenced from: /Users/USERNAME/software/PYPIT/pypit/arcyextract.so
 
 
 |[BUG]     :: There appears to be a bug on Line 28 of arcomb.py with error:
 
-| dlopen(/Users/USERNAME/software/PYPIT/pypit/arcycomb.so, 2): Library not loaded: @rpath/./libgsl.0.dylib
-
-| Referenced from: /Users/USERNAME/software/PYPIT/pypit/arcycomb.so
+  dlopen(/Users/USERNAME/software/PYPIT/pypit/arcycomb.so, 2): Library not loaded: @rpath/./libgsl.0.dylib
+  Referenced from: /Users/USERNAME/software/PYPIT/pypit/arcycomb.so
 
 
 **To fix these bugs:**
