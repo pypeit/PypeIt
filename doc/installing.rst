@@ -115,15 +115,16 @@ well as some alternate installation instructions:
 **1) Replace relative paths in compiled Cython files with full path** 
 ::
 
-After installing GSL with Anaconda as explained above :ref:`GSLCONDA` and installed PYPIT (see below) with `ptyhon setup.py develop` do the following:
+After installing GSL with Anaconda as explained above and installing PYPIT (see below) with `python setup.py develop` do the following:
 
+	```
 	 #in this example, GSL is installed in '/Users/USERNAME/anaconda/lib/'
 	 cd PYPIT/pypit/
 	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcyextract.so
 	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcyextract.so
 	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.dylib" arcycomb.so
 	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.dylib" arcycomb.so
-	 
+	```
 
 **2) Disable System Integrity Protection**
 
@@ -144,7 +145,6 @@ be replaced with whatever version number you have installed.
 
 Since Homebrew installs programs in /usr/local , which is not
 SIP protected, this should work without additional hacks.
-ASHER CAN YOU WRITE UP SOME INSTRUCTIONS FOR THE HOMEBREW INSTALLATION OF GSL?
 
 
 Installing PYPIT
