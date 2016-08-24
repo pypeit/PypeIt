@@ -211,7 +211,7 @@ To run the test::
 The test takes a while to run but should run without issue if all the packages have been properly installed. 
 
 
-**If you installed GSL with anaconda, a common error from running ./pypit_test all is:**
+**If you installed GSL with anaconda, a common errors from running ./pypit_test all are:**
 
 |[BUG]     :: There appears to be a bug on Line 7 of arproc.py with error:
 
@@ -219,16 +219,15 @@ The test takes a while to run but should run without issue if all the packages h
 
 | Referenced from: /Users/USERNAME/software/PYPIT/pypit/arcyextract.so
 
-OR
 
 |[BUG]     :: There appears to be a bug on Line 28 of arcomb.py with error:
 
-| dlopen(/Users/banados/Dropbox/python2_codes/PYPIT/pypit/arcycomb.so, 2): Library not loaded: @rpath/./libgsl.0.dylib
+| dlopen(/Users/USERNAME/software/PYPIT/pypit/arcycomb.so, 2): Library not loaded: @rpath/./libgsl.0.dylib
 
-| Referenced from: /Users/banados/Dropbox/python2_codes/PYPIT/pypit/arcycomb.so
+| Referenced from: /Users/USERNAME/software/PYPIT/pypit/arcycomb.so
 
 
-**To fix this bug:**
+**To fix these bugs:**
 
 a) Make sure GSL_PATH and LD_LIBRARY_PATH are defined in your .bashrc or .tcshrc file and that the appropriate rc file has been sourced
 
