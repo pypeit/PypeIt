@@ -110,8 +110,18 @@ well as some alternate installation instructions:
 
 	 #in this example, GSL is installed in '/Users/USERNAME/anaconda/lib/'
 	 cd PYPIT/pypit/
-	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/cleibler/anaconda/lib/libgsl.0.dylib" arcyextract.so
+	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcyextract.so
 	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcyextract.so
+	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcytrace.so
+	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcytrace.so
+	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcycomb.so
+	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcycomb.so
+	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcyproc.so
+	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcyproc.so
+	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcyutils.so
+	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcyutils.so
+	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcyarc.so
+	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcyarc.so
 	 
 
 **2) Disable System Integrity Protection**
@@ -133,7 +143,6 @@ be replaced with whatever version number you have installed.
 
 Since Homebrew installs programs in /usr/local , which is not
 SIP protected, this should work without additional hacks.
-ASHER CAN YOU WRITE UP SOME INSTRUCTIONS FOR THE HOMEBREW INSTALLATION OF GSL?
 
 
 Installing PYPIT
