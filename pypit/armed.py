@@ -154,7 +154,6 @@ def ARMED(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
                                    desc="Trace of the slit edges")
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
-            msgs.error("UP TO HERE!")
             ###############
             # Prepare the pixel flat field frame
             update = slf.MasterFlatField(fitsdict, det)
@@ -179,7 +178,7 @@ def ARMED(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
                         slf._argflag['masters']['loaded'].append('tilts' + slf._argflag['masters']['setup'])
                 if 'tilts' + slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
                     # First time tilts are derived for this arc frame --> derive the order tilts
-                    tilts, satmask, outpar = artrace.model_tilt(slf, det, slf._msarc[det - 1])
+                    tilts, satmask, outpar = artrace.trace_tilt(slf, det, slf._msarc[det - 1])
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
