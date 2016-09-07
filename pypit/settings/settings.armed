@@ -28,7 +28,7 @@ reduce arcmatch -1.0            # Match similar arc frames together (a successfu
 reduce calibrate True           # Wavelength calibrate the data?
 reduce heliocorr True           # Perform a heliocentric correction?
 reduce pixelsize 2.5            # The size of the extracted pixels in km/s
-reduce bgsubtraction True       # Subtract the sky background from the data?
+reduce bgsubtraction perform True       # Subtract the sky background from the data?
 
 # ARC FRAMES
 arc comb method weightmean           # How should the bias frames be combined (mean, median, weightmean)
@@ -79,7 +79,8 @@ trace orders polyorder  7             # What is the order of the function that s
 trace orders diffpolyorder  2         # What is the order of the 2D function that should be used to fit the 2d solution for the spatial size of all orders?
 trace orders sigdetect  5.0           # Sigma detection threshold for edge detection
 trace orders fracignore 0.6           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
-trace orders pca [3,2,1,0,0,0]        # What order polynomials should be used to fit the principle components
+trace orders pcatype order            # Should the PCA be performed using pixel position (pixel) or by spectral order (order). The latter is used for echelle spectroscopy.
+trace orders pcaparams [3,2,1,0,0,0]  # What order polynomials should be used to fit the principle components
 trace orders pcxpos     3             # How many extra orders to predict in the positive direction
 trace orders pcxneg     3             # How many extra orders to predict in the negative direction
 trace orders tilts      fit1D         # What method should be used to trace the tilt of the slit along an order (trace, fit1D, fit2D, perp, zero)

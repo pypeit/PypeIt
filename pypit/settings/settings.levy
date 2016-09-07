@@ -96,7 +96,7 @@ pixflat check condition1 lampstat01=On|lampstat02=On
 pixflat check condition2 decker!=Pinhole   # Check that the decker name is not set to Pinhole
 pixflat match naxis0 =0             # Match the row binning of flats with science
 pixflat match naxis1 =0             # Match the column binning of flats with science
-blzflat match slitlen %,:),1,>=0    # Make sure the slit length for blaze flats and science frames
+blzflat match slitlen %,:|),1,>=0    # Make sure the slit length for blaze flats and science frames
 pixflat combsame decker ''          # When combining pixel flat frames, make sure all frames have the same decker
 
 ### Blaze Flat frames
@@ -108,7 +108,7 @@ blzflat check condition1 lampstat01=On|lampstat02=On
 blzflat check condition2 decker!=Pinhole   # Check that the decker name is not set to Pinhole
 blzflat match naxis0 =0             # Match the row binning of flats with science
 blzflat match naxis1 =0             # Match the column binning of flats with science
-blzflat match slitlen %,:),1,=0     # Match the slit length for blaze flats and science frames
+blzflat match slitlen %,:|),1,=0     # Match the slit length for blaze flats and science frames
 blzflat combsame decker ''          # When combining blaze flat frames, make sure all frames have the same decker
 
 ### Trace frames
@@ -120,7 +120,7 @@ trace check condition1 lampstat01=On|lampstat02=On
 trace check decker Pinhole        # Check that the decker name is set to Pinhole
 trace match naxis0 =0             # Match the row binning of flats with science
 trace match naxis1 =0             # Match the column binning of flats with science
-#trace match slitlen %,:),1,=0    # Match the Decker for trace flats and science frames
+#trace match slitlen %,:|),1,=0    # Match the Decker for trace flats and science frames
 trace combsame decker ''          # When combining trace flat frames, make sure all frames have the same decker
 
 ### Arc frames
@@ -132,5 +132,5 @@ arc check condition1 lampstat03=On|lampstat04=On
 arc match naxis0 =0                 # Match the row binning of arcs with science
 arc match naxis1 =0                 # Match the column binning of arcs with science
 #arc match decker ''                 # Match the column binning of arcs with science
-arc match slitlen %,:),1,=0         # Match the slit length for arcs and science frames
+arc match slitlen %,:|),1,=0         # Match the slit length for arcs and science frames
 arc combsame decker ''              # When combining arc frames, make sure all frames have the same decker

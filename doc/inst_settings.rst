@@ -59,9 +59,9 @@ keyword lamps 01.CAGLAMPS              # Lamps being used
      commas, so the final string would be:
      %,:,1,<60
      If you want to split on multiple delimiters, separate them with
-     an ampersand. For example, if you want to split a string at the
-     characters ':' and '.', you would use the expression
-     %,:&.,1,<60
+     a logical or operator. For example, if you want to split a string
+     at the characters ':' and '.', you would use the expression
+     %,:|.,1,<60
   *  If the text '|' appears in the match condition, the absolute
      value will be taken. For example '|<=0.05' means that a given
      keyword's value for a calibration frame must be within 0.05 of
