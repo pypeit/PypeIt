@@ -400,34 +400,47 @@ def match_science(argflag, spect, fitsdict, filesort):
                         else:
                             mtch = np.float64(tmtch[2:])
                             w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) > mtch)[0]
-                elif tmtch[0:2] == '%,': # Splitting a header keyword
+                elif tmtch[0:2] == '%,':  # Splitting a header keyword
                     splcom = tmtch.split(',')
                     try:
                         spltxt, argtxt, valtxt = splcom[1], np.int(splcom[2]), splcom[3]
                         tspl = []
                         for sp in fitsdict[ch]:
-                            tspl.append(sp.split(spltxt)[argtxt])
+                            tmpspl = str(re.escape(spltxt)).replace("\\|", "|")
+                            tmpspl = re.split(tmpspl, sp)
+                            if len(tmpspl) < argtxt+1:
+                                tspl.append("-9999999")
+                            else:
+                                tspl.append(tmpspl[argtxt])
                         tspl = np.array(tspl)
+#                        debugger.set_trace()
+                        tmpspl = str(re.escape(spltxt)).replace("\\|", "|")
+                        tmpspl = re.split(tmpspl, fitsdict[ch][iSCI[i]])
+                        if len(tmpspl) < argtxt + 1:
+                            continue
+                        else:
+                            scispl = tmpspl[argtxt]
                         if valtxt == "''":
-                            w = np.where(tspl == fitsdict[ch][iSCI[i]].split(spltxt)[argtxt])[0]
+                            w = np.where(tspl == scispl)[0]
                         elif valtxt[0] == '=':
-                            mtch = np.float64(fitsdict[ch][iSCI[i]].split(spltxt)[argtxt]) + np.float64(valtxt[1:])
+                            mtch = np.float64(scispl) + np.float64(valtxt[1:])
                             w = np.where(tspl.astype(np.float64) == mtch)[0]
                         elif valtxt[0] == '<':
                             if valtxt[1] == '=':
-                                mtch = np.float64(fitsdict[ch][iSCI[i]].split(spltxt)[argtxt]) + np.float64(valtxt[2:])
+                                mtch = np.float64(scispl) + np.float64(valtxt[2:])
                                 w = np.where(tspl.astype(np.float64) <= mtch)[0]
                             else:
-                                mtch = np.float64(fitsdict[ch][iSCI[i]].split(spltxt)[argtxt]) + np.float64(valtxt[1:])
+                                mtch = np.float64(scispl) + np.float64(valtxt[1:])
                                 w = np.where(tspl.astype(np.float64) < mtch)[0]
                         elif valtxt[0] == '>':
                             if valtxt[1] == '=':
-                                mtch = np.float64(fitsdict[ch][iSCI[i]].split(spltxt)[argtxt]) + np.float64(valtxt[2:])
+                                mtch = np.float64(scispl) + np.float64(valtxt[2:])
                                 w = np.where(tspl.astype(np.float64) >= mtch)[0]
                             else:
-                                mtch = np.float64(fitsdict[ch][iSCI[i]].split(spltxt)[argtxt]) + np.float64(valtxt[1:])
+                                mtch = np.float64(scispl) + np.float64(valtxt[1:])
                                 w = np.where(tspl.astype(np.float64) > mtch)[0]
                     except:
+                        debugger.set_trace()
                         continue
                 else:
                     msgs.bug("Matching criteria {0:s} is not supported".format(tmtch))

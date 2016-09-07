@@ -412,7 +412,7 @@ def close_edges(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
 
     cdef int sz_x, sz_y, sz_d
     cdef int x, y, d, s, mgap
-    cdef int tmp, tix
+#    cdef int tmp, tix
 
     sz_x = edgdet.shape[0]
     sz_y = edgdet.shape[1]
@@ -421,7 +421,7 @@ def close_edges(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     cdef np.ndarray[ITYPE_t, ndim=1] hasedge = np.zeros(sz_d, dtype=ITYPE)
 
     for d in range(0, sz_d):
-        tmp = sz_y
+#        tmp = sz_y
         for x in range(0, sz_x):
             for y in range(0, sz_y):
                 if edgdet[x, y] != dets[d]:
@@ -440,8 +440,8 @@ def close_edges(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                     break
             if hasedge[d] != 0:
                 break
-        if tmp != sz_y:
-            hasedge[d] = tix
+#        if tmp != sz_y:
+#            hasedge[d] = tix
     return hasedge
 
 
@@ -727,8 +727,8 @@ def expand_slit(np.ndarray[DTYPE_t, ndim=2] msedge not None,
     sz_y = msedge.shape[1]
     sz_o = ordcen.shape[1]
 
-    cdef np.ndarray[ITYPE_t, ndim=2] pordwid = np.zeros(ordcen.shape, dtype=ITYPE)
-    cdef np.ndarray[ITYPE_t, ndim=2] mordwid = np.zeros(ordcen.shape, dtype=ITYPE)
+    cdef np.ndarray[ITYPE_t, ndim=2] pordwid = np.zeros((ordcen.shape[0], sz_o), dtype=ITYPE)
+    cdef np.ndarray[ITYPE_t, ndim=2] mordwid = np.zeros((ordcen.shape[0], sz_o), dtype=ITYPE)
 
     # Find the separation between orders
     mwid = -1
