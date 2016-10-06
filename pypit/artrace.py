@@ -63,9 +63,9 @@ def assign_slits(slf, binarr, edgearr, lor=-1):
             itnm += 1
             # Locate edges relative to the most common edge
             if lor == -1:
-                wl = np.where(edgearr < -1000)
+                wl = np.where(edgearr <= -1000)
             else:
-                wl = np.where(edgearr > 1000)
+                wl = np.where(edgearr >= 1000)
             if wl[0].size == 0:
                 break
             cl = Counter(edg for edg in edgearr[wl])
@@ -111,8 +111,9 @@ def assign_slits(slf, binarr, edgearr, lor=-1):
             if wpk.size == 0:
                 # No more peaks
                 break
-            wpkmsk = arcytrace.prune_peaks(edgehist, wpk, np.where(wpk+2 == offs)[0][0])
-            wpk = wpk[np.where(wpkmsk == 1)]
+            if wpk.size != 1:
+                wpkmsk = arcytrace.prune_peaks(edgehist, wpk, np.where(wpk+2 == offs)[0][0])
+                wpk = wpk[np.where(wpkmsk == 1)]
             if wpk.size == 0:
                 # After pruning, there are no more peaks
                 break
@@ -160,7 +161,6 @@ def assign_slits(slf, binarr, edgearr, lor=-1):
                     plt.plot(smallhist, 'k-', drawstyle='steps')
                     plt.show()
 
-                #debugger.set_trace()
                 for pp in range(wspk.size):  # For all small peaks identified
                     for vv in range(vals.size):
                         if lor == -1 and vals[vv] > -1000:
@@ -223,7 +223,6 @@ def assign_slits(slf, binarr, edgearr, lor=-1):
         cenmodl = arutils.func_val(cf, np.arange(binarr.shape[0]),
                                    slf._argflag['trace']['orders']['function'],
                                    minv=0, maxv=binarr.shape[0]-1)
-
         if lor == -1:
             vals = np.unique(edgearr[np.where(edgearr < 0)])
         else:
@@ -514,7 +513,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
 
 def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     """
-    This routine will traces the locations of the slit edges
+    This routine traces the locations of the slit edges
 
     Parameters
     ----------
@@ -556,72 +555,39 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
 
     # Specify how many times to repeat the median filter
     medrep = 3
-    if slf._argflag['trace']['orders']['number'] is not None:
+    if len(slf._argflag['trace']['orders']['sng_slit']) > 0:
         edgearr = np.zeros(binarr.shape, dtype=np.int)
-        detect = True
         # Add a user-defined slit?
         # Syntax is a list of values, 2 per detector that define the slit
         # according to column values.  The 2nd value (for the right edge)
         # must be >0 to be applied.  Example for LRISr [-1, -1, 7, 295]
         # which means the code skips user-definition for the first detector
         # but adds one for the 2nd.
-        if len(slf._argflag['trace']['orders']['sng_slit']) > 0:
-            ledge, redge = (det-1)*2, (det-1)*2+1
-            if slf._argflag['trace']['orders']['sng_slit'][redge] > 0:
-                msgs.warn("Using input slit edges on detector {:d}: [{:g},{:g}]".format(
-                        det,
-                        slf._argflag['trace']['orders']['sng_slit'][ledge],
-                        slf._argflag['trace']['orders']['sng_slit'][redge]))
-                msgs.warn("Better know what you are doing!")
-                edgearr[:, slf._argflag['trace']['orders']['sng_slit'][ledge]] = -1
-                edgearr[:, slf._argflag['trace']['orders']['sng_slit'][redge]] = +1
-                detect = False
-        if detect:
-            msgs.info("Detecting slit edges")
-            sqmstrace = np.sqrt(np.abs(binarr))
-            for ii in range(medrep):
-                sqmstrace = ndimage.median_filter(sqmstrace, size=(3, 5), mode='nearest')
-            filt = ndimage.sobel(sqmstrace, axis=1, mode='constant')
-            msgs.info("Applying bad pixel mask")
-            filt *= (1.0-binbpx)  # Apply to the old detection algorithm
-            absfilt = np.abs(filt)
-            filtlfr = absfilt[:, :-4]
-            filtlft = absfilt[:, 1:-3]
-            filtcen = absfilt[:, 2:-2]
-            filtrgt = absfilt[:, 3:-1]
-            filtrfr = absfilt[:, 4:]
-            # Find all significant detections
-            wx, wy = np.where((filtcen >= filtlft) & (filtcen > filtrgt) &
-                              (filtlft > filtlfr) & (filtrgt > filtrfr))
-            # Create a mask of the significant detections
-            sigmsk = np.zeros_like(binarr)
-            sigmsk[(wx, wy+2)] = 1
-            # Apply the mask
-            filt *= sigmsk
-            # Now identify the number of most significantly detected peaks (specified by the user)
-            amnmx = np.argsort(filt, axis=1)
-            sigmsk = np.zeros_like(binarr)
-            xsm = np.arange(binarr.shape[0])
-            for ii in range(0, slf._argflag['trace']['orders']['number']):
-                sigmsk[(xsm, amnmx[:, ii])] = 1
-                sigmsk[(xsm, amnmx[:, amnmx.shape[1]-1-ii])] = 1
-            filt *= sigmsk
-            # Fill in the edgearr
-            ww = np.where(filt > 0)  # A positive gradient is a left edge
-            edgearr[ww] = -1
-            ww = np.where(filt < 0)  # A negative gradient is a right edge
-            edgearr[ww] = +1
-        # Even better would be to fit the filt/sqrt(abs(binarr)) array with a Gaussian near the maximum in each column
+        ledge, redge = (det-1)*2, (det-1)*2+1
+        if slf._argflag['trace']['orders']['sng_slit'][redge] > 0:
+            msgs.warn("Using input slit edges on detector {:d}: [{:g},{:g}]".format(
+                    det,
+                    slf._argflag['trace']['orders']['sng_slit'][ledge],
+                    slf._argflag['trace']['orders']['sng_slit'][redge]))
+            msgs.warn("Better know what you are doing!")
+            edgearr[:, slf._argflag['trace']['orders']['sng_slit'][ledge]] = -1
+            edgearr[:, slf._argflag['trace']['orders']['sng_slit'][redge]] = +1
     else:
+        # Even better would be to fit the filt/sqrt(abs(binarr)) array with a Gaussian near the maximum in each column
         msgs.info("Detecting slit edges")
         sqmstrace = np.sqrt(np.abs(binarr))
         for ii in range(medrep):
             sqmstrace = ndimage.median_filter(sqmstrace, size=(3, 5))
         filt = ndimage.sobel(sqmstrace, axis=1, mode='nearest')
+        msgs.info("Applying bad pixel mask")
+        filt *= (1.0 - binbpx)  # Apply to the bad pixel mask
         siglev = np.sign(filt)*(filt**2)/sqmstrace
         tedges = np.zeros(binarr.shape, dtype=np.float)
         wl = np.where(siglev > +10.0)  # A positive gradient is a left edge
         wr = np.where(siglev < -10.0)  # A negative gradient is a right edge
+        plt.imshow(siglev)
+        plt.show()
+        debugger.set_trace()
         tedges[wl] = -1.0
         tedges[wr] = +1.0
         nedgear = arcytrace.clean_edges(siglev, tedges)
@@ -638,8 +604,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
                 nedgear[:, maskcols[i]] = 0
         ######
         msgs.info("Applying bad pixel mask")
-        # tedgear *= (1.0-binbpx)  # Apply to the old detection algorithm
-        nedgear *= (1-binbpx.astype(np.int))  # Apply to the new detection algorithm
+        nedgear *= (1-binbpx.astype(np.int))  # Apply to the bad pixel mask
         # eroll = np.roll(binbpx, 1, axis=1)
         # eroll[:,0] = eroll[:,1]
         # nedgear *= (1.0-eroll)  # Apply to the new detection algorithm (with shift)
@@ -648,7 +613,19 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
         # edgearr = np.zeros_like(nedgear)
         # edgearr[np.where((nedgear == +1) | (tedgear == +1))] = +1
         # edgearr[np.where((nedgear == -1) | (tedgear == -1))] = -1
-        edgearr = np.copy(nedgear)
+        sigedg = np.copy(siglev)
+        sigedg[np.where(nedgear == 0)] = 0
+        if slf._argflag['trace']['orders']['number'] > 0:
+            # Now identify the number of most significantly detected peaks (specified by the user)
+            amnmx = np.argsort(sigedg, axis=1)
+            edgearr = np.zeros_like(binarr)
+            xsm = np.arange(binarr.shape[0])
+            for ii in range(0, slf._argflag['trace']['orders']['number']):
+                edgearr[(xsm, amnmx[:, ii])] = -1
+                edgearr[(xsm, amnmx[:, amnmx.shape[1] - 1 - ii])] = 1
+        else:
+            edgearr = np.copy(nedgear)
+
     # Assign a number to each of the edges
     msgs.info("Matching slit edges")
     lcnt, rcnt = arcytrace.match_edges(edgearr)
@@ -698,7 +675,6 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
         edgearrcp[np.where(edgearrcp >= 1000)] = 500
     else:
         assign_slits(slf, binarr, edgearrcp, lor=+1)
-    #arutils.ds9plot(edgearrcp)
     if slf._argflag['trace']['orders']['slitgap'] is not None:
         vals = np.sort(np.unique(edgearrcp[np.where(edgearrcp != 0)]))
         hasedge = arcytrace.close_edges(edgearrcp, vals, int(slf._argflag['trace']['orders']['slitgap']))
@@ -863,6 +839,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
 #		plt.plot(xv,yv,'r-')
 #		plt.show()
 #		plt.clf()
+    debugger.set_trace()
     # Trace right slit edges
     # First, determine the model for the most common right slit edge
     wcm = np.where(edgearr > 0)
@@ -920,7 +897,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     lv = (arutils.func_val(lcoeff[:, lval-lmin], xv, slf._argflag['trace']['orders']['function'],
                            minv=minvf, maxv=maxvf)+0.5).astype(np.int)
     if np.any(lv < 0) or np.any(lv+1 >= binarr.shape[1]):
-        msgs.warn("At least one order is poorly traced")
+        msgs.warn("At least one slit is poorly traced")
         msgs.info("Refer to the manual, and adjust the input trace parameters")
         msgs.error("Cannot continue without a successful trace")
     mnvalp = np.median(binarr[:, lv+1])  # Go one row above and one row below an order edge,
@@ -945,7 +922,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     if mnvalp > mnvalm:
         lvp = (arutils.func_val(lcoeff[:, lval+1-lmin], xv, slf._argflag['trace']['orders']['function'],
                                 minv=minvf, maxv=maxvf)+0.5).astype(np.int)
-        edgbtwn = arcytrace.find_between(edgearr, lv, lvp, slf._dispaxis, 1)
+        edgbtwn = arcytrace.find_between(edgearr, lv, lvp, 1)
         # edgbtwn is a 3 element array that determines what is between two adjacent left edges
         # edgbtwn[0] is the next right order along, from left order lval
         # edgbtwn[1] is only !=-1 when there's an order overlap.
@@ -959,7 +936,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     else:
         lvp = (arutils.func_val(lcoeff[:, lval-1-lmin], xv, slf._argflag['trace']['orders']['function'],
                                 minv=minvf, maxv=maxvf)+0.5).astype(np.int)
-        edgbtwn = arcytrace.find_between(edgearr, lvp, lv, slf._dispaxis, -1)
+        edgbtwn = arcytrace.find_between(edgearr, lvp, lv, -1)
         if edgbtwn[0] == -1 and edgbtwn[1] == -1:
             rsub = edgbtwn[2]-(lval-1)  # There's an order overlap
         elif edgbtwn[1] == -1:  # No overlap
