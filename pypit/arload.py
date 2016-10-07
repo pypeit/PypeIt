@@ -167,12 +167,14 @@ def set_params_wtype(tvalue, svalue, lines="", setstr="", argnum=3):
             if svalue.lower() == 'none':
                 tvalue = None
             else:
-                if ',' in svalue:
+                if True:
                     temp = svalue.lstrip('([').rstrip(')]').split(',')
                     addarr = []
                     # Find the type of the array elements
                     for i in temp:
-                        if i.lower() == 'none': # None type
+                        if i == '':
+                            pass
+                        elif i.lower() == 'none': # None type
                             addarr += [None]
                         elif i.lower() == 'true' or i.lower() == 'false': # bool type
                             addarr += [i.lower() in ['true']]
