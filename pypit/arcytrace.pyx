@@ -760,13 +760,13 @@ def find_peak_limits(np.ndarray[ITYPE_t, ndim=1] hist not None,
 def find_between(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 np.ndarray[ITYPE_t, ndim=1] ledgem not None,
                 np.ndarray[ITYPE_t, ndim=1] ledgep not None,
-                int dispdir, int dirc):
+                int dirc):
 
     cdef int sz_x, sz_y
     cdef int x, y, ymn, ymx, ystrt
 
-    sz_x = edgdet.shape[dispdir]
-    sz_y = edgdet.shape[1-dispdir]
+    sz_x = edgdet.shape[0]
+    sz_y = edgdet.shape[1]
 
     # Setup the coefficient arrays
     cdef np.ndarray[ITYPE_t, ndim=1] edgbtwn = np.zeros((3), dtype=ITYPE)
@@ -782,22 +782,14 @@ def find_between(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
             ymn = ledgep[x]
             ymx = ledgem[x]
         for y in range(ymn,ymx):
-            if dispdir == 0:
-                if edgdet[x,y] > 0:
-                    if edgbtwn[0]==-1:
-                        edgbtwn[0] = edgdet[x,y]
-                    elif edgdet[x,y] == edgbtwn[0]:
-                        continue
-                    elif edgbtwn[1]==-1:
-                        edgbtwn[1] = edgdet[x,y]
-            else:
-                if edgdet[y,x] > 0:
-                    if edgbtwn[0]==-1:
-                        edgbtwn[0] = edgdet[y,x]
-                    elif edgdet[y,x] == edgbtwn[0]:
-                        continue
-                    elif edgbtwn[1]==-1:
-                        edgbtwn[1] = edgdet[y,x]
+            if edgdet[x,y] > 0:
+                if edgbtwn[0]==-1:
+                    edgbtwn[0] = edgdet[x,y]
+                elif edgdet[x,y] == edgbtwn[0]:
+                    continue
+                elif edgbtwn[1]==-1:
+                    edgbtwn[1] = edgdet[x,y]
+
     # If no right order edges were found between these two left order edges, find the next right order edge
     if edgbtwn[0] == -1 and edgbtwn[1] == -1:
         for x in range(0,sz_x):
@@ -807,33 +799,19 @@ def find_between(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 ystrt = ledgem[x]
             if dirc == 1:
                 while ystrt < sz_y:
-                    if dispdir == 0:
-                        if edgdet[x,y] > 0:
-                            if edgbtwn[2] == -1:
-                                edgbtwn[2] = edgdet[x,y]
-                            elif edgdet[x,y] < edgbtwn[2]:
-                                edgbtwn[2] = edgdet[x,y]
-                    else:
-                        if edgdet[y,x] > 0:
-                            if edgbtwn[2] == -1:
-                                edgbtwn[2] = edgdet[y,x]
-                            elif edgdet[y,x] < edgbtwn[2]:
-                                edgbtwn[2] = edgdet[y,x]
+                    if edgdet[x,y] > 0:
+                        if edgbtwn[2] == -1:
+                            edgbtwn[2] = edgdet[x,y]
+                        elif edgdet[x,y] < edgbtwn[2]:
+                            edgbtwn[2] = edgdet[x,y]
                     ystrt+=1
             else:
                 while ystrt >= 0:
-                    if dispdir == 0:
-                        if edgdet[x,y] > 0:
-                            if edgbtwn[2] == -1:
-                                edgbtwn[2] = edgdet[x,y]
-                            elif edgdet[x,y] > edgbtwn[2]:
-                                edgbtwn[2] = edgdet[x,y]
-                    else:
-                        if edgdet[y,x] > 0:
-                            if edgbtwn[2] == -1:
-                                edgbtwn[2] = edgdet[y,x]
-                            elif edgdet[y,x] > edgbtwn[2]:
-                                edgbtwn[2] = edgdet[y,x]
+                    if edgdet[x,y] > 0:
+                        if edgbtwn[2] == -1:
+                            edgbtwn[2] = edgdet[x,y]
+                        elif edgdet[x,y] > edgbtwn[2]:
+                            edgbtwn[2] = edgdet[x,y]
                     ystrt-=1
     # Now return the array
     return edgbtwn
