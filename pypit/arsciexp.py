@@ -221,7 +221,10 @@ class ScienceExposure:
           Updates to the input fitsdict
         """
         if self._argflag['trace']['disp']['direction'] is None:
-            self._dispaxis = artrace.dispdir(self._msarc[det-1], dispwin=self._argflag['trace']['disp']['window'], mode=0)
+            if self._spect['mosaic']['reduction'] == "ARMED":
+                self._dispaxis = artrace.dispdir(self._msarc[det-1], dispwin=self._argflag['trace']['disp']['window'], mode=0)
+            else:
+                self._dispaxis = artrace.dispdir(self._mstrace[det-1], dispwin=self._argflag['trace']['disp']['window'], mode=0)
         elif self._argflag['trace']['disp']['direction'] in [0, 1]:
             self._dispaxis = int(self._argflag['trace']['disp']['direction'])
         else:
@@ -230,9 +233,11 @@ class ScienceExposure:
                        msgs.newline() + "  1 if the dispersion axis is predominantly along a column")
         # Perform a check to warn the user if the longest axis is not equal to the dispersion direction
         if self._msarc[det-1].shape[0] > self._msarc[det-1].shape[1]:
-            if self._dispaxis == 1: msgs.warn("The dispersion axis is set to the shorter axis, is this correct?")
+            if self._dispaxis == 1:
+                msgs.warn("The dispersion axis is set to the shorter axis, is this correct?")
         else:
-            if self._dispaxis == 0: msgs.warn("The dispersion axis is set to the shorter axis, is this correct?")
+            if self._dispaxis == 0:
+                msgs.warn("The dispersion axis is set to the shorter axis, is this correct?")
 
         ###############
         # Change dispersion direction and files if necessary
@@ -250,6 +255,14 @@ class ScienceExposure:
             # Transpose the master arc, and save it
             if 'arc'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
                 self.SetMasterFrame(self._msarc[det-1].T, 'arc', det)
+            # Transpose the master edge flat (if it exists), and save it
+            if self._msblzflat[det-1] is not None:
+                if 'edge'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
+                    self.SetMasterFrame(self._msblzflat[det-1].T, 'edge', det)
+            # Transpose the master trace flat (if it exists), and save it
+            if self._mstrace[det-1] is not None:
+                if 'trace'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
+                    self.SetMasterFrame(self._mstrace[det-1].T, 'trace', det)
             # Transpose the bad pixel mask
             if self._bpix[det-1] is not None:
                 if 'badpix'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
@@ -603,9 +616,9 @@ class ScienceExposure:
                 self.SetFrame(self._rordpix, rordpix.astype(np.int), det)
                 #
                 self._argflag['masters']['loaded'].append('edge'+self._argflag['masters']['setup'])
-        if 'trace'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
+        if 'edge'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
             msgs.info("Preparing a master edge frame")
-            ind = self._idx_edge
+            ind = self._idx_blzflat
             # Load the frames for tracing
             frames = arload.load_frames(self, fitsdict, ind, det, frametype='blzflat', msbias=self._msbias[det-1],
                                         trim=self._argflag['reduce']['trim'], transpose=self._transpose)

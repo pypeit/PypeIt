@@ -108,11 +108,6 @@ def ARMED(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
             ###############
-            # Determine the dispersion direction (and transpose if necessary)
-            slf.GetDispersionDirection(fitsdict, det, scidx)
-            if slf._bpix[det-1] is None:  # Needs to be done here after nspec is set
-                slf.SetFrame(slf._bpix, np.zeros((slf._nspec[det-1], slf._nspat[det-1])), det)
-            ###############
             # Generate a master trace frame
             update = slf.MasterTrace(fitsdict, det)
             if update and reuseMaster:
@@ -122,6 +117,11 @@ def ARMED(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
             update = slf.MasterEdge(fitsdict, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="blzflat")
+            ###############
+            # Determine the dispersion direction (and transpose if necessary)
+            slf.GetDispersionDirection(fitsdict, det, scidx)
+            if slf._bpix[det-1] is None:  # Needs to be done here after nspec is set
+                slf.SetFrame(slf._bpix, np.zeros((slf._nspec[det-1], slf._nspat[det-1])), det)
             ###############
             # Generate an array that provides the physical pixel locations on the detector
             slf.GetPixelLocations(det)
@@ -133,7 +133,7 @@ def ARMED(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
 
                 # Using the order centroid, expand the order edges until the edge of the science slit is found
                 if slf._argflag['trace']['orders']['expand']:
-                    lordloc, rordloc = artrace.expand_slits(slf, slf._msblzflat[det-1], det, 0.5*(lordloc+rordloc))
+                    lordloc, rordloc = artrace.expand_slits(slf, slf._msblzflat[det-1], det, 0.5*(lordloc+rordloc), extord)
 
                 # Save the locations of the order edges
                 slf.SetFrame(slf._lordloc, lordloc, det)
