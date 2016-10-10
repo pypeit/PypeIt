@@ -245,7 +245,13 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
             arflux.apply_sensfunc(slf, det, scidx, fitsdict)
 
         # Write 1D spectra
-        arsave.save_1d_spectra(slf)
+        save_format = 'fits'
+        if save_format == 'fits':
+            arsave.save_1d_spectra_fits(slf)
+        elif save_format == 'hdf5':
+            arsave.save_1d_spectra_hdf5(slf)
+        else:
+            msgs.error(save_format + ' is not a recognized output format!')
         # Write 2D images for the Science Frame
         arsave.save_2d_images(slf)
         # Free up some memory by replacing the reduced ScienceExposure class
