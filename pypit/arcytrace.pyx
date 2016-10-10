@@ -715,9 +715,9 @@ def edge_sum(np.ndarray[ITYPE_t, ndim=1] edghist not None,
 
 
 @cython.boundscheck(False)
-def expand_slit(np.ndarray[DTYPE_t, ndim=2] msedge not None,
-                np.ndarray[ITYPE_t, ndim=2] ordcen not None,
-                np.ndarray[ITYPE_t, ndim=1] extord not None):
+def expand_slits(np.ndarray[DTYPE_t, ndim=2] msedge not None,
+                 np.ndarray[ITYPE_t, ndim=2] ordcen not None,
+                 np.ndarray[ITYPE_t, ndim=1] extord not None):
 
     cdef int x, sz_x, o, sz_o, y, sz_y, ymax
     cdef int mwid, pwid

@@ -221,10 +221,13 @@ class ScienceExposure:
           Updates to the input fitsdict
         """
         if self._argflag['trace']['disp']['direction'] is None:
+            dwin = self._argflag['trace']['disp']['window']
             if self._spect['mosaic']['reduction'] == "ARMED":
-                self._dispaxis = artrace.dispdir(self._msarc[det-1], dispwin=self._argflag['trace']['disp']['window'], mode=0)
+                self._dispaxis = artrace.dispdir(self._mstrace[det-1], dispwin=dwin, mode=0)
+            elif self._spect['mosaic']['reduction'] == "ARMLSD":
+                self._dispaxis = artrace.dispdir(self._msarc[det-1], dispwin=dwin, mode=0)
             else:
-                self._dispaxis = artrace.dispdir(self._mstrace[det-1], dispwin=self._argflag['trace']['disp']['window'], mode=0)
+                self._dispaxis = artrace.dispdir(self._msarc[det - 1], dispwin=dwin, mode=0)
         elif self._argflag['trace']['disp']['direction'] in [0, 1]:
             self._dispaxis = int(self._argflag['trace']['disp']['direction'])
         else:
