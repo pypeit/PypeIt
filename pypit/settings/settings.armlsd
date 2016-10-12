@@ -76,14 +76,18 @@ trace comb sat_pix      reject        # What to do with saturated pixels (option
 trace comb set_allrej   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
 trace disp window       None          # Window used to obtain dispersion direction
 trace disp direction    None          # Manually specify the dispersion direction (0 for row, 1 for column)
+trace orders number 1                 # How many slits would you like to trace?
+trace orders sng_slit []
+trace orders slitgap    None          # Maximum gap between slits (None if slits are far apart, or of similar illumination)
 trace orders function   legendre      # What function should be used to trace each order? (polynomial, legendre, chebyshev)
 trace orders polyorder  3             # What is the order of the function that should be used?
 trace orders diffpolyorder  2         # What is the order of the 2D function that should be used to fit the 2d solution for the spatial size of all orders?
 trace orders sigdetect  5.0           # Sigma detection threshold for edge detection
-trace orders fracignore 0.6           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
-trace orders pca [3,2,1,0,0,0]        # What order polynomials should be used to fit the principle components
-trace orders pcxpos     3             # How many extra orders to predict in the positive direction
-trace orders pcxneg     3             # How many extra orders to predict in the negative direction
+trace orders fracignore 0.01           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
+trace orders pcatype pixel            # Should the PCA be performed using pixel position (pixel) or by spectral order (order). The latter is used for echelle spectroscopy.
+trace orders pcaparams [2,2,1,0]  # What order polynomials should be used to fit the principle components
+trace orders pcxpos     0             # How many extra orders to predict in the positive direction
+trace orders pcxneg     0             # How many extra orders to predict in the negative direction
 trace orders tilts      spline        # What method should be used to trace the tilt of the slit along an order (PCA, spline, interp, perp, zero)
 trace orders pcatilt    [1,1,0]       # What order polynomials should be used to fit the tilt principle components
 trace orders tiltorder  2             # What is the order of the function to be used for tilts in a given order

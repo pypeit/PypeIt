@@ -127,7 +127,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
             if ('trace'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']):
                 ###############
                 # Determine the edges of the spectrum (spatial)
-                lordloc, rordloc, extord = artrace.trace_orders(slf, slf._mstrace[det-1], det, singleSlit=True, pcadesc="PCA trace of the slit edges")
+                lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det, pcadesc="PCA trace of the slit edges")
                 slf.SetFrame(slf._lordloc, lordloc, det)
                 slf.SetFrame(slf._rordloc, rordloc, det)
 
@@ -143,7 +143,6 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._rordpix, rordpix, det)
                 # Save QA for slit traces
                 arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges")
-                #
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
             ###############
