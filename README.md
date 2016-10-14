@@ -13,6 +13,7 @@ The Python Spectroscopic Data Reduction Pipeline
 * numpy
 * scipy
 * ginga
+* h5py
 * cython
 * astropy
 * matplotlib

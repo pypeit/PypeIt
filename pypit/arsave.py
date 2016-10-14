@@ -2,10 +2,14 @@
 """
 from __future__ import (print_function, absolute_import, division,
                         unicode_literals)
+import numpy as np
 import os
+
 import astropy.io.fits as pyfits
 from astropy.units import Quantity
-import numpy as np
+from astropy.table import Table
+
+import h5py
 
 from pypit import armsgs
 
@@ -288,8 +292,109 @@ def save_tilts(slf, fname):
 
     return
 
+def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
+    """ Write 1D spectra to an HDF5 file
 
-def save_1d_spectra(slf, clobber=True):
+    Parameters
+    ----------
+    slf
+    clobber
+
+    Returns
+    -------
+
+    """
+    from linetools import utils as ltu
+    import json
+    if clobber is False:
+        msgs.error("NOT IMPLEMENTED")
+    # Open file
+    outfile = slf._argflag['run']['scidir']+'/spec1d_{:s}.hdf5'.format(slf._basename)
+    hdf = h5py.File(outfile,'w')
+
+    # Meta Table
+    idict = dict(RA=0., DEC=0.,  # J2000
+                 objid=0, slitid=0, det=0, scidx=0,  # specobj IDs
+                 FWHM=0.,  # Spatial resolution in arcsec
+                 R=0.,     # Spectral resolution (FWHM) in lambda/Dlambda
+                 xslit=(0.,0.))
+    tkeys = idict.keys()
+    lst = [[idict[tkey]] for tkey in tkeys]
+    meta = Table(lst, names=tkeys)
+
+    # Calculate number of objects and totalpix
+    nspec, totpix = 0, 0
+    for kk in range(slf._spect['mosaic']['ndet']):
+        det = kk+1
+        nspec += len(slf._specobjs[det-1])
+        # Loop on objects
+        for specobj in slf._specobjs[det-1]:
+            # Calculate max pixels
+            totpix = max(totpix, specobj.trace.size)
+            # Update meta
+            tdict = dict(RA=0., DEC=0.,  # J2000
+                 objid=specobj.objid, slitid=specobj.slitid, det=det, scidx=specobj.scidx,  # specobj IDs
+                 FWHM=0.,  # Spatial resolution in arcsec
+                 R=0.,     # Spectral resolution (FWHM) in lambda/Dlambda
+                 xslit=specobj.xslit)
+            meta.add_row(tdict)
+    # Remove dummy row and write
+    meta = meta[1:]
+    hdf['meta'] = meta
+
+    # Make a Header from fitsdict
+    hdict = {}
+    for key in fitsdict.keys():
+        hdict[key] = fitsdict[key][slf._specobjs[0][0].scidx]  # Hopefully this is the right index
+    d = ltu.jsonify(hdict)
+    hdf['header'] = json.dumps(d)
+
+    # Loop on extraction methods
+    for ex_method in ['boxcar', 'optimal']:
+        # Check for extraction type
+        if not hasattr(slf._specobjs[0][0], ex_method):
+            continue
+        method_grp = hdf.create_group(ex_method)
+
+        # Data arrays are always MaskedArray
+        dtypes = []
+        for key in getattr(slf._specobjs[det-1][0], ex_method).keys():
+            dtype = 'float64' if key == 'wave' else 'float32'
+            dtypes.append((str(key), dtype, (totpix)))
+        dtypes.append((str('trace'), 'float32', (totpix)))
+        data = np.ma.empty((1,), dtype=dtypes)
+        # Setup in hdf5
+        spec_set = hdf[str(ex_method)].create_dataset('spec', data=data, chunks=True,
+                                         maxshape=(None,), compression='gzip')
+        spec_set.resize((nspec,))
+        # Fill (and make meta)
+        count = 0
+        for kk in range(slf._spect['mosaic']['ndet']):
+            det = kk+1
+            nspec += len(slf._specobjs[det-1])
+            # Loop on spectra
+            for specobj in slf._specobjs[det-1]:
+                # Check meta
+                assert meta['objid'][count] == specobj.objid
+                # Trace
+                data['trace'][0][:len(specobj.trace)] = specobj.trace
+                # Rest
+                sdict = getattr(specobj, ex_method)
+                for key in sdict.keys():
+                    npix = len(sdict[key])
+                    try:
+                        data[key][0][:npix] = sdict[key].value
+                    except AttributeError:
+                        data[key][0][:npix] = sdict[key]
+                # Write
+                spec_set[count] = data
+                count += 1
+    #
+    hdf.close()
+
+    # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
+
+def save_1d_spectra_fits(slf, clobber=True):
     """ Write 1D spectra to a multi-extension FITS file
 
     Parameters

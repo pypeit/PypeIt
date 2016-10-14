@@ -4,6 +4,7 @@ from signal import SIGINT, signal as sigsignal
 from warnings import resetwarnings, simplefilter
 from time import time
 from pypit import armsgs
+from pypit import archeck
 
 # Import PYPIT routines
 
@@ -64,6 +65,12 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
     msgs = armsgs.get_logger((logname, debug, verbose))
     from pypit import arload  # This needs to be after msgs is defined!
 
+    # version checking
+    try:
+        archeck.version_check()
+    except archeck.VersionError as err:
+        msgs.error(err.message)
+        
     # First send all signals to messages to be dealt with (i.e. someone hits ctrl+c)
     sigsignal(SIGINT, msgs.signal_handler)
 

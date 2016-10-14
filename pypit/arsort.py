@@ -122,8 +122,13 @@ def sort_data(argflag, spect, fitsdict):
     # Find the nearest standard star to each science frame
     wscistd = np.where(filarr[np.where(fkey == 'standard')[0], :].flatten() == 1)[0]
     for i in range(wscistd.size):
-#        set_trace()
         radec = (fitsdict['ra'][wscistd[i]], fitsdict['dec'][wscistd[i]])
+        if fitsdict['ra'][wscistd[i]] == 'None':
+            msgs.warn("No RA and DEC information for file:" + msgs.newline() + fitsdict['filename'][wscistd[i]])
+            msgs.warn("The above file could be a twilight flat frame that was" + msgs.newline() +
+                      "missed by the automatic identification.")
+            filarr[np.where(fkey == 'standard')[0], wscistd[i]] = 0
+            continue
         # If an object exists within 20 arcmins of a listed standard, then it is probably a standard star
         foundstd = find_standard_file(argflag, radec, toler=20.*u.arcmin, check=True)
         if foundstd:
