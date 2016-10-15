@@ -10,9 +10,9 @@ from textwrap import wrap as wraptext
 from glob import glob
 
 # Logging
-import ardebug
+from pypit import ardebug
 debug = ardebug.init()
-import armsgs
+from pypit import armsgs
 msgs = armsgs.get_logger()
 
 

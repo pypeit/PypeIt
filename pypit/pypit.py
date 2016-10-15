@@ -110,7 +110,11 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
     prgn_spl = progname.split('/')
     fname = "/".join(prgn_spl[:-1])
     fname += '/settings.'+specname
-    spl = open(fname, 'r').readlines()
+    try:
+        spl = open(fname, 'r').readlines()
+    except IOError:
+        msgs.error("The following instrument settings file cannot be found:" + msgs.newline() + fname + msgs.newline() +
+                   "Please check the settings file exists, and that the instrument name is spelt correctly.")
     for i in range(len(spl)):
         parspl = spl[i].split()
         if len(parspl) < 3:
