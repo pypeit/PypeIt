@@ -61,9 +61,11 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
     from pypit import ardebug
     # Init logger
     if debug is None:
-        debug=ardebug.init()
+        debug = ardebug.init()
     msgs = armsgs.get_logger((logname, debug, verbose))
-    from pypit import arload  # This needs to be after msgs is defined!
+    # These need to be loaded after msgs
+    from pypit import arload
+    from pypit import arparse
 
     # version checking
     try:
@@ -85,9 +87,9 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
     parlines, datlines, spclines = arload.load_input(redname)
 
     # Initialize the arguments and flags
-    argflag = arload.argflag_init()
-    argflag['run']['ncpus'] = ncpus
-    argflag['out']['verbose'] = verbose
+#    argflag = arload.argflag_init()
+#    argflag['run']['ncpus'] = ncpus
+#    argflag['out']['verbose'] = verbose
 
     # Determine the name of the spectrograph
     specname = None
@@ -109,7 +111,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
     # Get the software path
     prgn_spl = progname.split('/')
     fname = "/".join(prgn_spl[:-1])
-    fname += '/settings.'+specname
+    fname += '/settings/settings.'+specname
     try:
         spl = open(fname, 'r').readlines()
     except IOError:

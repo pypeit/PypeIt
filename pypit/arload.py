@@ -30,38 +30,38 @@ except:
 msgs = armsgs.get_logger()
 
 
-def argflag_init():
-    """
-    Initialise the default settings called argflag
-    """
-    rna = dict({'prognm':'pypit.py', 'redname':'filelist.red', 'spectrograph':'hamspec', 'masterdir':'MasterFrames', 'plotsdir':'Plots', 'scidir':'Science', 'ncpus':-1, 'nsubpix':5, 'calcheck':False, 'qcontrol':True, 'preponly':False, 'stopcheck':False, 'use_idname':False})
-    mas = dict({'use': False, 'setup': '', 'loaded': [], 'setup_file': ''})
-    red = dict({'locations':None, 'nlcorr':False, 'trim':True, 'badpix':True, 'usebias':'bias', 'usetrace':'trace', 'usearc':'arc', 'usewave':'wave', 'useflat':'pixflat', 'subdark':False, 'flatfield':True, 'FlatMethod':'SpatialFit', 'FlatParams':[0],
-                'bgsubtraction': {'perform': True, 'method': 'polyscan', 'bspline_keywds': {'everyn': 30}},
-                'arcmatch':2.0, 'flatmatch':2.0, 'calibrate':True, 'fluxcalibrate':True, 'extraction':'2D', 'oscanMethod':'polynomial', 'oscanParams':[1], 'heliocorr':True, 'pixelsize':2.5,
-                'flexure': {'spec': None, 'max_shift': 20, 'archive_spec': None}})
-    csq = dict({'atol':1.0E-3, 'xtol':1.0E-10, 'gtol':1.0E-10, 'ftol':1.0E-10, 'fstep':2.0})
-    opa = dict({'verbose':2, 'sorted':None, 'plots':True, 'overwrite':False})
-    sci = dict({'load':dict({'extracted':False}),
-                'extraction':dict({'method':'2D', 'profile': 'gaussian', 'centorder':1, 'widthorder':1, 'function':'legendre', 'pcacent':[1,0], 'pcawidth':[1,0], 'bintrace':10, 'max_nobj': 9999})
-                })
-    pfl = dict({'comb':dict({'method':None, 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}),
-                'norm':dict({'recnorm': True})},)
-    bfl = dict({'comb':dict({'method':None, 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}) })
-    trc = dict({'comb':dict({'method':'weightmean', 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'maxnonsat'}),
-                'disp':dict({'window':None, 'direction':None}),
-                'orders': dict({'slitgap':None, 'tilts':'trace', 'pcatilt':[2,1,0], 'use_ids_only': False, 'tiltorder':1, 'tiltdisporder':2, 'function':'polynomial', 'polyorder':2, 'diffpolyorder':2, 'fracignore':0.6, 'sigdetect':3.0, 'pcatype':'order', 'pcaparams':[3,2,1,0,0,0], 'pcxpos':3, 'pcxneg':3, 'number':1,
-                                'sng_slit': []}) })
-    arc = dict({'comb':dict({'method':'weightmean', 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'maxnonsat'}),
-                'extract':dict({'binby':1.0}),
-                'load':dict({'extracted':False, 'calibrated':False}),
-                'calibrate': dict({'cwpolyorder':2, 'threshold':3.0, 'polyorderpri':4, 'polyordersec':8, 'pcapri':[4,2,2,0], 'pcasec':[5,4,3,2,1,1], 'detection':6.0, 'method':'simple', 'nfitpix':7, 'idfile':'wave_ThAr_3100-11000.npy', 'linelist':'arclist.ThAr', 'numsearch':20, 'sigmacut':2.0,
-                    'id_pix': [0., 0., 0., 0., 0.], 'id_wave': [0., 0., 0., 0., 0.]}),
-                })
-    bia = dict({'comb':dict({'method':'mean', 'rej_cosmicray':20.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}) })
-    drk = dict({})
-    argflag = dict({'run':rna, 'reduce':red, 'masters':mas, 'science':sci, 'pixflat':pfl, 'blzflat':bfl, 'trace':trc, 'arc':arc, 'bias':bia, 'dark':drk, 'chisq':csq, 'out':opa})
-    return argflag
+# def argflag_init():
+#     """
+#     Initialise the default settings called argflag
+#     """
+#     rna = dict({'prognm':'pypit.py', 'redname':'filelist.red', 'spectrograph':'hamspec', 'masterdir':'MasterFrames', 'plotsdir':'Plots', 'scidir':'Science', 'ncpus':-1, 'nsubpix':5, 'calcheck':False, 'qcontrol':True, 'preponly':False, 'stopcheck':False, 'use_idname':False})
+#     mas = dict({'use': False, 'setup': '', 'loaded': [], 'setup_file': ''})
+#     red = dict({'locations':None, 'nlcorr':False, 'trim':True, 'badpix':True, 'usebias':'bias', 'usetrace':'trace', 'usearc':'arc', 'usewave':'wave', 'useflat':'pixflat', 'subdark':False, 'flatfield':True, 'FlatMethod':'SpatialFit', 'FlatParams':[0],
+#                 'bgsubtraction': {'perform': True, 'method': 'polyscan', 'bspline_keywds': {'everyn': 30}},
+#                 'arcmatch':2.0, 'flatmatch':2.0, 'calibrate':True, 'fluxcalibrate':True, 'extraction':'2D', 'oscanMethod':'polynomial', 'oscanParams':[1], 'heliocorr':True, 'pixelsize':2.5,
+#                 'flexure': {'spec': None, 'max_shift': 20, 'archive_spec': None}})
+#     csq = dict({'atol':1.0E-3, 'xtol':1.0E-10, 'gtol':1.0E-10, 'ftol':1.0E-10, 'fstep':2.0})
+#     opa = dict({'verbose':2, 'sorted':None, 'plots':True, 'overwrite':False})
+#     sci = dict({'load':dict({'extracted':False}),
+#                 'extraction':dict({'method':'2D', 'profile': 'gaussian', 'centorder':1, 'widthorder':1, 'function':'legendre', 'pcacent':[1,0], 'pcawidth':[1,0], 'bintrace':10, 'max_nobj': 9999})
+#                 })
+#     pfl = dict({'comb':dict({'method':None, 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}),
+#                 'norm':dict({'recnorm': True})},)
+#     bfl = dict({'comb':dict({'method':None, 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}) })
+#     trc = dict({'comb':dict({'method':'weightmean', 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'maxnonsat'}),
+#                 'disp':dict({'window':None, 'direction':None}),
+#                 'orders': dict({'slitgap':None, 'tilts':'trace', 'pcatilt':[2,1,0], 'use_ids_only': False, 'tiltorder':1, 'tiltdisporder':2, 'function':'polynomial', 'polyorder':2, 'diffpolyorder':2, 'fracignore':0.6, 'sigdetect':3.0, 'pcatype':'order', 'pcaparams':[3,2,1,0,0,0], 'pcxpos':3, 'pcxneg':3, 'number':1,
+#                                 'sng_slit': []}) })
+#     arc = dict({'comb':dict({'method':'weightmean', 'rej_cosmicray':50.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'maxnonsat'}),
+#                 'extract':dict({'binby':1.0}),
+#                 'load':dict({'extracted':False, 'calibrated':False}),
+#                 'calibrate': dict({'cwpolyorder':2, 'threshold':3.0, 'polyorderpri':4, 'polyordersec':8, 'pcapri':[4,2,2,0], 'pcasec':[5,4,3,2,1,1], 'detection':6.0, 'method':'simple', 'nfitpix':7, 'idfile':'wave_ThAr_3100-11000.npy', 'linelist':'arclist.ThAr', 'numsearch':20, 'sigmacut':2.0,
+#                     'id_pix': [0., 0., 0., 0., 0.], 'id_wave': [0., 0., 0., 0., 0.]}),
+#                 })
+#     bia = dict({'comb':dict({'method':'mean', 'rej_cosmicray':20.0, 'rej_lowhigh':[0,0], 'rej_level':[3.0,3.0], 'sat_pix':'reject', 'set_allrej':'median'}) })
+#     drk = dict({})
+#     argflag = dict({'run':rna, 'reduce':red, 'masters':mas, 'science':sci, 'pixflat':pfl, 'blzflat':bfl, 'trace':trc, 'arc':arc, 'bias':bia, 'dark':drk, 'chisq':csq, 'out':opa})
+#     return argflag
 
 
 def cpucheck(ncpu, curcpu=0):

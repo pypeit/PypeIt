@@ -34,7 +34,11 @@ class BaseFunctions(object):
 
     def load_default(self):
         msgs.info("Loading default settings")
-        lines = open(self._defname, 'r').readlines()
+        try:
+            lines = open(self._defname, 'r').readlines()
+        except IOError:
+            msgs.error("Default settings file does not exist:" + msgs.newline() +
+                       self._defname)
         arr = self.load_lines(lines)
         return arr
 
@@ -84,7 +88,6 @@ class BaseArgFlag(BaseFunctions):
                 func = "_".join(lst[:-cnt])
                 if func in members:
                     func = "self." + func + "('{0:s}')".format(" ".join(lst[-cnt:]))
-                    print(func)
                     eval(func)
                     succeed = True
                     break
@@ -870,8 +873,8 @@ class BaseArgFlag(BaseFunctions):
 
     def run_spectrograph(self, v):
         # Check that v is allowed
-        stgs_arm = glob(dirname(__file__)+"/settings.arm*")
-        stgs_all = glob(dirname(__file__)+"/settings.*")
+        stgs_arm = glob(dirname(__file__)+"/settings/settings.arm*")
+        stgs_all = glob(dirname(__file__)+"/settings/settings.*")
         stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
         spclist = [basename(stgs_spc[0]).split(".")[-1].lower()]
         for i in range(1, len(stgs_spc)):
@@ -1166,6 +1169,23 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
+    def trace_slits_maxgap(self, v):
+        """trace orders slitgap
+        """
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                v = int(v)
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of type int, or set to 'none'".format(get_current_name()))
+            if v <= 1:
+                msgs.error("The argument of {0:s} must be > 1 to set the maximum slit gap".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
     def trace_slits_polyorder(self, v):
         """
         trace orders polyorder  3
@@ -1222,6 +1242,20 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
         if v < 0.0 or v > 1.0:
             msgs.error("The argument of {0:s} must be between 0 and 1".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_slits_pca_type(self, v):
+        """
+        trace orders pcatype
+        """
+        # Check that v is allowed
+        allowed = ['pixel', 'order']
+        v = v.lower()
+        if v not in allowed:
+            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
         # Update argument
         self.update(v)
         return
@@ -2387,7 +2421,7 @@ def get_argflag(init=None):
     # Instantiate??
     if init is not None:
         try:
-            defname = glob(dirname(__file__))[0] + "/settings." + init[0].lower()
+            defname = glob(dirname(__file__))[0] + "/settings/settings." + init[0].lower()
             pypit_argflag = eval(init[0]+"(defname='{0:s}', savname='{1:s}.settings')".format(defname, init[1]))
         except RuntimeError:
             msgs.error("Reduction type '{0:s}' is not allowed".format(init))
@@ -2411,7 +2445,7 @@ def get_spect(init=None):
     # Instantiate??
     if init is not None:
         try:
-            defname = glob(dirname(__file__))[0] + "/settings." + init[0].lower()
+            defname = glob(dirname(__file__))[0] + "/settings/settings." + init[0].lower()
             pypit_spect = eval(init[0]+"_spect(defname='{0:s}', savname='{1:s}.spect')".format(defname, init[1]))
         except RuntimeError:
             msgs.error("{0:s} is not implemented yet".format(init[0]))
@@ -2496,12 +2530,3 @@ def load_sections(string):
     else:
         xyarry = xyrng[1].split(':')
     return [[int(xyarrx[0]), int(xyarrx[1])], [int(xyarry[0]), int(xyarry[1])]]
-
-
-"""
-af = get_argflag("ARMLSD")
-af.set_flag(["run", "ncpus", "5"])
-af.set_flag(["run", "qa", "5"])
-import pdb
-pdb.set_trace()
-"""

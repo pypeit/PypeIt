@@ -81,13 +81,13 @@ trace dispersion window       None          # Window used to obtain dispersion d
 trace dispersion direction    None          # Manually specify the dispersion direction (0 for row, 1 for column)
 trace slits function    legendre      # What function should be used to trace each order? (polynomial, legendre, chebyshev)
 trace slits nslits      auto          # Manually set the number of slits to identify (>=1). 'auto' or -1 will automatically identify the number of slits.
-trace slits slitgap    None          # Maximum gap between slits (None if slits are far apart, or of similar illumination)
+trace slits maxgap    None          # Maximum gap between slits (None if slits are far apart, or of similar illumination)
 #trace slits sng_slit []
 trace slits polyorder  3             # What is the order of the function that should be used?
 trace slits diffpolyorder  2         # What is the order of the 2D function that should be used to fit the 2d solution for the spatial size of all orders?
 trace slits sigdetect  5.0           # Sigma detection threshold for edge detection
 trace slits fracignore 0.01           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
-trace slits pcatype pixel            # Should the PCA be performed using pixel position (pixel) or by spectral order (order). The latter is used for echelle spectroscopy.
+trace slits pca type pixel            # Should the PCA be performed using pixel position (pixel) or by spectral order (order). The latter is used for echelle spectroscopy.
 trace slits pca form [3,2,1,0,0,0]        # What order polynomials should be used to fit the principle components
 trace slits pca extrapolate pos     0             # How many extra orders to predict in the positive direction
 trace slits pca extrapolate neg     0             # How many extra orders to predict in the negative direction
