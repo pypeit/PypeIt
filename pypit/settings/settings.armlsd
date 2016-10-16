@@ -31,6 +31,7 @@ reduce calibrate True           # Wavelength calibrate the data?
 reduce refframe heliocentric           # Which reference frame do you want the data in (geocentric, heliocentric, barycentric)?
 reduce pixelsize 2.5            # The size of the extracted pixels (as an scaled number of Arc FWHM), -1 will not resample
 reduce skysub perform True       # Subtract the sky background from the data?
+reduce skysub method bspline     # Method used for the sky subtraction
 reduce fluxcal perform True       # Perform a flux calibration
 reduce flexure spec boxcar      # Perform flexure correction on objects using boxcar extraction.  Options are: None, boxcar, slit_cen [this performs flexure correction before extraction of objects]
 reduce flexure maxshift 20     # Maximum allowed flexure shift in pixels (int)
@@ -96,6 +97,7 @@ trace slits tilts pcaform    [1,1,0]       # What order polynomials should be us
 trace slits tilts order  2             # What is the order of the function to be used for tilts in a given order
 
 # PIXEL FLAT FRAMES
+pixflat useframe flat             # What filetype should be used for pixel-to-pixel calibration (flat), you can also specify a master calibrations file if it exists.
 pixflat combine match -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
 pixflat combine method weightmean          # How should the pixel flat frames be combined (mean, median, weightmean)
 pixflat combine reject cosmics 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)

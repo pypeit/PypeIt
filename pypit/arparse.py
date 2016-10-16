@@ -3,6 +3,7 @@ from future.utils import iteritems
 
 import collections
 import inspect
+from os.path import exists as pathexists
 from multiprocessing import cpu_count
 from os.path import dirname, basename, isfile
 from astropy.time import Time
@@ -78,7 +79,24 @@ class BaseArgFlag(BaseFunctions):
         self._afout.close()
         return
 
-    def set_param(self, lstall):
+    def set_param(self, lst, value=None):
+        members = [x for x, y in inspect.getmembers(self, predicate=inspect.ismethod)]
+        if type(lst) is str:
+            lst = lst.split()
+        if value is None:
+            func = "_".join(lst[:-1])
+            value = "{0:s}".format(str(value))
+        else:
+            func = "_".join(lst)
+        if func in members:
+            func = "self." + func + "('{0:s}')".format(value)
+            eval(func)
+        else:
+            msgs.error("There appears to be an error on the following parameter:" + msgs.newline() +
+                       " ".join(lst) + " {0:s}".format(str(value)))
+        return
+
+    def set_paramlist(self, lstall):
         for ll in range(len(lstall)):
             lst = lstall[ll]
             cnt = 1
@@ -566,6 +584,16 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
+    def pixflat_useframe(self, v):
+        """
+        reduce useflat
+        """
+        # Check that v is allowed
+        msgs.info("Assuming the following is the name of a pixflat frame:" + msgs.newline() + v)
+        # Update argument
+        self.update(v)
+        return
+
     def reduce_badpix(self, v):
         # Check that v is allowed
         if v.lower() == "true":
@@ -635,6 +663,62 @@ class BaseArgFlag(BaseFunctions):
         """
         # Check that v is allowed
         v = v.lower()
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_flexure_archive_spec(self, v):
+        # Check that v is allowed
+        files_sky = glob(self._argflag['run']['pypitdir'] + '/data/sky_spec/*')
+        print(files_sky)
+        skyfiles = ""
+        if not pathexists(self._argflag['run']['pypitdir'] + '/data/sky_spec/' + v):
+            msgs.error("The following archive sky spectrum file does not exist:" + msgs.newline +
+                       v + msgs.newline() + "Please choose from one of the files below:" + msgs.newline() +
+                       skyfiles)
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_masters_file(self, v):
+        """
+        masters setup_file
+        """
+        # Check that v is allowed
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_masters_loaded(self, v):
+        """
+        masters loaded
+        """
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_masters_setup(self, v):
+        """
+        masters setup
+        """
+        # Check that v is allowed
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_masters_reuse(self, v):
+        """
+        masters use
+        """
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
         # Update argument
         self.update(v)
         return
@@ -709,6 +793,20 @@ class BaseArgFlag(BaseFunctions):
         # Check that v is allowed
         allowed = ['geocentric', 'heliocentric', 'barycentric']
         if v.lower() not in allowed:
+            msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_skysub_method(self, v):
+        """
+        reduce bgsubtraction method
+        """
+        # Check that v is allowed
+        allowed = ['bspline', 'polyscan']
+        v = v.lower()
+        if v not in allowed:
             msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
                        ", ".join(allowed))
         # Update argument
@@ -855,6 +953,14 @@ class BaseArgFlag(BaseFunctions):
         # Update argument
         self.update(v)
         return
+
+    def run_progname(self, v):
+        # Update argument
+        self.update(v)
+
+    def run_pypitdir(self, v):
+        # Update argument
+        self.update(v)
 
     def run_qa(self, v):
         """
@@ -1151,6 +1257,18 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
+    def trace_slits_idsonly(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
     def trace_slits_nslits(self, v):
         # Check that v is allowed
         if v.lower() == "auto":
@@ -1305,7 +1423,7 @@ class BaseArgFlag(BaseFunctions):
         trace orders tilts
         """
         # Check that v is allowed
-        allowed = ['PCA', 'spline', 'interp', 'perp', 'zero']
+        allowed = ['PCA', 'spline', 'spca', 'interp', 'perp', 'zero']
         if v not in allowed:
             msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
                        ", ".join(allowed))
@@ -2471,6 +2589,10 @@ def get_nmbr_name(anmbr=None, bnmbr=None, cnmbr=None):
 
 
 def load_list(strlist):
+    # Check if the input array is a null list
+    if strlist == "[]" or strlist == "()":
+        return []
+    # Remove outer brackets and split by commas
     temp = strlist.lstrip('([').rstrip(')]').split(',')
     addarr = []
     # Find the type of the array elements
