@@ -1,10 +1,6 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import os
-import sys
-import copy
-import glob
-import getopt
 import astropy.io.fits as pyfits
 from astropy.time import Time
 import numpy as np
@@ -29,102 +25,8 @@ except:
 
 # Logging and settings
 msgs = armsgs.get_logger()
-argflag = arparse.get_argflag().__dict__['argflag']
-spect = arparse.get_spect().__dict__['spect']
-
-
-def load_input(redname):
-    """
-    Load user defined input reduction file. Updates are
-    made to the argflag dictionary.
-
-    Parameters
-    ----------
-    redname : string
-      Name of reduction script
-
-    Returns
-    -------
-    parlines : list
-      Input (uncommented) lines specified by the user.
-      parlines is used in this routine to update the
-      argflag dictionary
-    datlines : list
-      Input (uncommented) lines specified by the user.
-      datlines contains the full data path to every
-      raw exposure listed by the user
-    spclines : list
-      Input (uncommented) lines specified by the user.
-      spclines contains a list of user-specified changes
-      that should be made to the default spectrograph
-      settings.
-    """
-    # Read in the model file
-    msgs.info("Loading the input file")
-    try:
-        infile = open(redname, 'r')
-    except IOError:
-        msgs.error("The filename does not exist -"+msgs.newline()+redname)
-        sys.exit()
-    lines = infile.readlines()
-    parlines = []
-    datlines = []
-    spclines = []
-    rddata, rdspec = 0, 0
-    for i in range(len(lines)):
-        if lines[i].strip() == '': continue
-        linspl = lines[i].split()
-        if rddata == 1:
-            if linspl[0] == 'data' and linspl[1] == 'end':
-                rddata += 1
-                continue
-            dfname = lines[i].rstrip('\n').strip()
-            # is there a comment?
-            aux = dfname.split('#')
-            if len(aux) > 1:  # yes, there is a comment
-                dfname = aux[0].strip()
-            if len(dfname) == 0:  # line is fully commented out
-                continue
-            elif dfname[0] == '~':
-                dfname = os.path.expanduser(dfname)
-            elif dfname[0] != '/':
-                msgs.error("You must specify the full datapath for the file:"+msgs.newline()+dfname)
-            elif len(dfname.split()) != 1:
-                msgs.error("There must be no spaces when specifying the datafile:"+msgs.newline()+dfname)
-            listing = glob.glob(dfname)
-            for lst in listing: datlines.append(lst)
-            continue
-        elif rddata == 0 and linspl[0] == 'data' and linspl[1] == 'read':
-            rddata += 1
-            continue
-        if rdspec == 1:
-            if linspl[0] == 'spect' and linspl[1] == 'end':
-                rdspec += 1
-                continue
-            spclines.append(lines[i])
-            continue
-        elif rdspec == 0 and linspl[0] == 'spect' and linspl[1] == 'read':
-            rdspec += 1
-            continue
-        if lines[i].lstrip()[0] == '#': continue
-        parlines.append(lines[i])
-    # Do some quick checks
-    if rddata == 0:
-        msgs.error("You haven't specified any data!")
-    elif rddata == 1:
-        msgs.error("Missing 'data end' in "+redname)
-    if rddata == 0:
-        msgs.info("Using Default spectrograph parameters")
-    elif rddata != 2:
-        msgs.error("Missing 'spect end' in "+redname)
-    # Check there are no duplicate inputs
-    if len(datlines) != len(set(datlines)):
-        msgs.error("There are duplicate files in the list of data.")
-    if len(datlines) == 0: msgs.error("There are no raw data frames" + msgs.newline() +
-                                      "Perhaps the path to the data is incorrect?")
-    else: msgs.info("Found {0:d} raw data frames".format(len(datlines)))
-    msgs.info("Input file loaded successfully")
-    return parlines, datlines, spclines
+argflag = arparse.get_argflag().__dict__['_argflag']
+spect = arparse.get_spect().__dict__['_spect']
 
 
 def load_spect(progname, specname, spect=None, lines=None):
