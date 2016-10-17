@@ -64,8 +64,8 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
         debug = ardebug.init()
     msgs = armsgs.get_logger((logname, debug, verbose))
     # These need to be loaded after msgs
-    from pypit import arload
     from pypit import arparse
+    from pypit import arload
 
     # version checking
     try:
@@ -110,8 +110,8 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
     redtype = None
     # Get the software path
     prgn_spl = progname.split('/')
-    fname = "/".join(prgn_spl[:-1])
-    fname += '/settings/settings.'+specname
+    tfname = "/".join(prgn_spl[:-1]) + "/"
+    fname = tfname + 'settings/settings.' + specname
     try:
         spl = open(fname, 'r').readlines()
     except IOError:
@@ -130,23 +130,22 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
                    "mosaic reduction <type>")
 
     # Load default reduction arguments/flags, and set any command line arguments
-    af = arparse.get_argflag((redtype.upper(), ".".join(redname.split(".")[:-1])))
-    lines = af.load_default()
-    af.set_param(lines)
+    argf = arparse.get_argflag((redtype.upper(), ".".join(redname.split(".")[:-1])))
+    lines = argf.load_default()
+    argf.set_param('run pypitdir {0:s}'.format(tfname))
+    argf.set_param('run progname {0:s}'.format(progname))
+    argf.set_param('run redname {0:s}'.format(redname))
+    argf.set_paramlist(lines)
+    # Load user changes to the arguments/flags
+    plines = argf.load_lines(parlines)
+    argf.set_paramlist(plines)
+    argf.set_param('run ncpus {0:s}'.format(ncpus))
+
+    run load settings
+
     assert(False)
 
-    # Load the default settings
-    prgn_spl = progname.split('/')
-    tfname = ""
-    for i in range(0,len(prgn_spl)-1): tfname += prgn_spl[i]+"/"
-    #fname = tfname + prgn_spl[-2] + '/settings.' + spect['mosaic']['reduction'].lower()
-    fname = tfname + 'settings/settings.' + spect['mosaic']['reduction'].lower()
-    argflag = arload.load_settings(fname, argflag)
-    argflag['run']['prognm'] = progname
-    argflag['run']['pypitdir'] = tfname
-
-    # Now update the settings based on the user input file
-    argflag = arload.set_params(parlines, argflag, setstr="Input ")
+    #check verbosity form command line
 
     # Load the Spectrograph settings
     spect = arload.load_spect(progname, specname)
@@ -165,7 +164,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
         msgs.work("QUICK REDUCTION TO STILL BE DONE")
 
     # Load the important information from the fits headers
-    fitsdict = arload.load_headers(argflag, spect, datlines)
+    fitsdict = arload.load_headers(argf, spect, datlines)
 
     # Reduce the data!
     status = 0

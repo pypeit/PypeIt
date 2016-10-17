@@ -15,26 +15,24 @@ run  stopcheck    False         # If True, ARMLSD will stop and require a user c
 run  useIDname   False         # If True, file sorting will ensure that the idname is made
 
 # REDUCTION RULES
-reduce pixellocations None           # If desired, a fits file can be specified (of the appropriate form) to specify the locations of the pixels on the detector
-reduce nonlinear False          # Perform a non-linear correction
+reduce calibrate nonlinear False          # Perform a non-linear correction
+reduce calibrate flux True       # Perform a flux calibration
+reduce calibrate refframe heliocentric           # Which reference frame do you want the data in (geocentric, heliocentric, barycentric)?
+reduce calibrate wavelength vacuum          # Wavelength calibrate the data? (air, vacuum, none)
 reduce overscan method SavGol       # Method used to fit the overscan (polynomial, savgol)
 reduce overscan params [5,65]       # Parameters used for the overscan method (for polynomial use [#] where # is replaced by the polynomial order, for savgol use [#,$] where # is the order and $ is the window size (should be odd)
 reduce badpix True              # Make a bad pixel mask? (This step requires bias frames)
-reduce trim True                # Trim the frame to isolate the data
 reduce flatfield perform True           # Flatfield the data?
 reduce flatfield method PolyScan      # Method used to flat field the data (PolyScan)
 reduce flatfield params [3,50,20]     # Flat field method parameters (PolyScan: [order,numPixels,repeat])
 reduce flatfield useframe pixflat          # How to flat field the data (pixflat, blzflat), you can also specify a master calibrations file if it exists.
-#reduce flatmatch -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
-#reduce arcmatch -1.0            # Match similar arc frames together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
-reduce calibrate True           # Wavelength calibrate the data?
-reduce refframe heliocentric           # Which reference frame do you want the data in (geocentric, heliocentric, barycentric)?
-reduce pixelsize 2.5            # The size of the extracted pixels (as an scaled number of Arc FWHM), -1 will not resample
+reduce flexure spec boxcar      # Perform flexure correction on objects using boxcar extraction.  Options are: None, boxcar, slitcen [this performs flexure correction before extraction of objects]
+reduce flexure maxshift 20     # Maximum allowed flexure shift in pixels (int)
+reduce pixel locations None           # If desired, a fits file can be specified (of the appropriate form) to specify the locations of the pixels on the detector
+reduce pixel size 2.5            # The size of the extracted pixels (as an scaled number of Arc FWHM), -1 will not resample
 reduce skysub perform True       # Subtract the sky background from the data?
 reduce skysub method bspline     # Method used for the sky subtraction
-reduce fluxcal perform True       # Perform a flux calibration
-reduce flexure spec boxcar      # Perform flexure correction on objects using boxcar extraction.  Options are: None, boxcar, slit_cen [this performs flexure correction before extraction of objects]
-reduce flexure maxshift 20     # Maximum allowed flexure shift in pixels (int)
+reduce trim True                # Trim the frame to isolate the data
 
 # ARC FRAMES
 arc useframe arc               # What filetype should be used for wavelength calibration (arc), you can also specify a master calibrations file if it exists.
@@ -108,22 +106,9 @@ pixflat combine satpix      reject        # What to do with saturated pixels (op
 pixflat norm recnorm   True             # Use the recnorm algorithm?
 
 # SCIENCE FRAMES
-science load extracted False          # If the science frame has previously been extracted and saved, load the extractions
-science extraction method  2D         # Method to be used to extract the science frame (options are: 2D, mean)
+science extraction reuse False        # If the science frame has previously been extracted and saved, load the extractions
 science extraction profile gaussian   # Fitting function used to extract science data, only if the extraction is 2D (options are: gaussian, gaussfunc, moffat, moffatfunc) ### NOTE: options with suffix 'func' fits a function to the pixels whereas those without this suffix takes into account the integrated function within each pixel (and is closer to truth)
-science extraction centorder 2        # What is the order of the function to be used for the target centroid in a given order
-science extraction widthorder 1       # What is the order of the function to be used for the target width in a given order
-science extraction function legendre  # What function should be used to fit the centroids each order? (polynomial, legendre, chebyshev)
-science extraction pcacent  [1,0]     # What order polynomials should be used to fit the target centroid principle components
-science extraction pcawidth [1,0]     # What order polynomials should be used to fit the target width principle components
-science extraction bintrace 16        # When deriving the target profile centroid and width, how many pixels should be averaged to speed up the process (1 = no binning, but is *very* slow)
-
-# CHI-SQUARED PROPERTIES
-#chisq  atol      1.0E-3
-#chisq  xtol      1.0E-10
-#chisq  ftol      1.0E-10
-#chisq  gtol      1.0E-10
-#chisq  fstep     2.0
+science extraction maxnumber 9999     # Maximum number of objects to extract in a science frame
 
 # OUTPUT
 output  verbosity      2				# Level of screen output (0 is No screen output, 1 is low level output, 2 is output everything)

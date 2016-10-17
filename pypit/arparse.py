@@ -16,6 +16,11 @@ debug = ardebug.init()
 from pypit import armsgs
 msgs = armsgs.get_logger()
 
+try:
+    from xastropy.xutils import xdebug as debugger
+except ImportError:
+    import pdb as debugger
+
 
 class NestedDict(dict):
     """
@@ -85,7 +90,7 @@ class BaseArgFlag(BaseFunctions):
             lst = lst.split()
         if value is None:
             func = "_".join(lst[:-1])
-            value = "{0:s}".format(str(value))
+            value = "{0:s}".format(str(lst[-1]))
         else:
             func = "_".join(lst)
         if func in members:
@@ -337,6 +342,11 @@ class BaseArgFlag(BaseFunctions):
         # Check that v is allowed
         if v.lower() == "none":
             v = None
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            msgs.info("Assuming the following is the name of an arc frame:" + msgs.newline() + v)
         # Update argument
         self.update(v)
         return
@@ -589,7 +599,10 @@ class BaseArgFlag(BaseFunctions):
         reduce useflat
         """
         # Check that v is allowed
-        msgs.info("Assuming the following is the name of a pixflat frame:" + msgs.newline() + v)
+        if v.lower() == "none":
+            v = None
+        else:
+            msgs.info("Assuming the following is the name of a pixflat frame:" + msgs.newline() + v)
         # Update argument
         self.update(v)
         return
@@ -606,7 +619,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def reduce_calibrate(self, v):
+    def reduce_calibrate_nonlinear(self, v):
         # Check that v is allowed
         if v.lower() == "true":
             v = True
@@ -614,6 +627,29 @@ class BaseArgFlag(BaseFunctions):
             v = False
         else:
             msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_calibrate_refframe(self, v):
+        """
+        reduce heliocorr
+        """
+        # Check that v is allowed
+        allowed = ['geocentric', 'heliocentric', 'barycentric']
+        if v.lower() not in allowed:
+            msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_calibrate_wavelength(self, v):
+        # Check that v is allowed
+        allowed = ['air', 'vacuum', 'none']
+        if v.lower() not in allowed:
+            msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
         # Update argument
         self.update(v)
         return
@@ -667,15 +703,40 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def reduce_flexure_archive_spec(self, v):
+    def reduce_flexure_maxshift(self, v):
         # Check that v is allowed
-        files_sky = glob(self._argflag['run']['pypitdir'] + '/data/sky_spec/*')
-        print(files_sky)
-        skyfiles = ""
-        if not pathexists(self._argflag['run']['pypitdir'] + '/data/sky_spec/' + v):
-            msgs.error("The following archive sky spectrum file does not exist:" + msgs.newline +
-                       v + msgs.newline() + "Please choose from one of the files below:" + msgs.newline() +
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_flexure_spectrum(self, v):
+        # Check that v is allowed
+        if not pathexists(self._argflag['run']['pypitdir'] + 'data/sky_spec/' + v):
+            files_sky = glob(self._argflag['run']['pypitdir'] + 'data/sky_spec/*.fits')
+            skyfiles = ""
+            for i in files_sky:
+                skyfiles += msgs.newline() + "  - " + str(i.split("/")[-1])
+            msgs.error("The following archive sky spectrum file does not exist:" + msgs.newline() +
+                       "  " + v + msgs.newline() + msgs.newline() + "Please use one of the files listed below:" +
                        skyfiles)
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_flexure_method(self, v):
+        """reduce flexure spec"""
+        # Check that v is allowed
+        allowed = ['none', 'boxcar', 'slitcen']
+        v = v.lower()
+        if v not in allowed:
+            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
+        if v == 'none':
+            v = None
         # Update argument
         self.update(v)
         return
@@ -723,18 +784,6 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def reduce_nonlinear(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
-        self.update(v)
-        return
-
     def reduce_overscan_method(self, v):
         """
         reduce oscanMethod
@@ -759,7 +808,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def reduce_pixellocations(self, v):
+    def reduce_pixel_locations(self, v):
         """
         reduce locations
         """
@@ -776,7 +825,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def reduce_pixelsize(self, v):
+    def reduce_pixel_size(self, v):
         # Check that v is allowed
         try:
             v = float(v)
@@ -786,15 +835,15 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def reduce_refframe(self, v):
+    def reduce_skysub_bspline_everyn(self, v):
         """
-        reduce heliocorr
+        reduce bgsubtraction bspline_keywds everyn
         """
         # Check that v is allowed
-        allowed = ['geocentric', 'heliocentric', 'barycentric']
-        if v.lower() not in allowed:
-            msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
         # Update argument
         self.update(v)
         return
@@ -906,7 +955,10 @@ class BaseArgFlag(BaseFunctions):
 
     def run_ncpus(self, v):
         # Check that v is allowed
-        curcpu = self._argflag['run']['ncpus']
+        if 'ncpus' in self._argflag['run'].keys():
+            curcpu = self._argflag['run']['ncpus']
+        else:
+            curcpu = 0
         cpucnt = cpu_count()
         if v == 'all':
             v = cpucnt  # Use all available cpus
@@ -977,6 +1029,10 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
+    def run_redname(self, v):
+        # Update argument
+        self.update(v)
+
     def run_spectrograph(self, v):
         # Check that v is allowed
         stgs_arm = glob(dirname(__file__)+"/settings/settings.arm*")
@@ -1025,24 +1081,12 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def science_load_extracted(self, v):
+    def science_extraction_maxnumber(self, v):
         # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
-        self.update(v)
-        return
-
-    def science_extraction_method(self, v):
-        # Check that v is allowed
-        allowed = ['2D', 'mean']
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
         # Update argument
         self.update(v)
         return
@@ -1057,56 +1101,14 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def science_extraction_centorder(self, v):
+    def science_extraction_reuse(self, v):
         # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
-        # Update argument
-        self.update(v)
-        return
-
-    def science_extraction_widthorder(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
-        # Update argument
-        self.update(v)
-        return
-
-    def science_extraction_function(self, v):
-        # Check that v is allowed
-        allowed = ['polynomial', 'legendre', 'chebyshev']
-        if v.lower() not in allowed:
-            msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
-        self.update(v)
-        return
-
-    def science_extraction_pcacent(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
-        self.update(v)
-        return
-
-    def science_extraction_pcawidth(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
-        self.update(v)
-        return
-
-    def science_extraction_bintrace(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
         # Update argument
         self.update(v)
         return
@@ -1456,6 +1458,19 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
+    def trace_useframe(self, v):
+        """
+        reduce usetrace
+        """
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            msgs.info("Assuming the following is the name of a trace frame:" + msgs.newline() + v)
+        # Update argument
+        self.update(v)
+        return
+
 
 class BaseSpect(BaseFunctions):
     def __init__(self, defname, savname):
@@ -1477,7 +1492,24 @@ class BaseSpect(BaseFunctions):
         self._afout.close()
         return
 
-    def set_param(self, lstall):
+    def set_param(self, lst, value=None):
+        members = [x for x, y in inspect.getmembers(self, predicate=inspect.ismethod)]
+        if type(lst) is str:
+            lst = lst.split()
+        if value is None:
+            func = "_".join(lst[:-1])
+            value = "{0:s}".format(str(lst[-1]))
+        else:
+            func = "_".join(lst)
+        if func in members:
+            func = "self." + func + "('{0:s}')".format(value)
+            eval(func)
+        else:
+            msgs.error("There appears to be an error on the following parameter:" + msgs.newline() +
+                       " ".join(lst) + " {0:s}".format(str(value)))
+        return
+
+    def set_paramlist(self, lstall):
         frmtyp = ["standard", "bias", "pixflat", "trace", "blzflat", "arc"]
         for ll in range(len(lstall)):
             lst = lstall[ll]
@@ -2412,6 +2444,20 @@ class BaseSpect(BaseFunctions):
 
 class ARMLSD(BaseArgFlag):
 
+    def reduce_calibrate_flux(self, v):
+        """
+        reduce fluxcalibrate
+        """
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
+        # Update argument
+        self.update(v)
+
     def reduce_flexure_maxshift(self, v):
         """
         reduce flexure max_shift
@@ -2435,20 +2481,6 @@ class ARMLSD(BaseArgFlag):
         else:
             msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
                        ", ".join(allowed))
-        # Update argument
-        self.update(v)
-
-    def reduce_fluxcal_perform(self, v):
-        """
-        reduce fluxcalibrate
-        """
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
         # Update argument
         self.update(v)
 
