@@ -28,10 +28,10 @@ reduce flatfield params [3,50,20]     # Flat field method parameters (PolyScan: 
 reduce flatfield useframe pixflat          # How to flat field the data (pixflat, blzflat), you can also specify a master calibrations file if it exists.
 reduce flexure spec boxcar      # Perform flexure correction on objects using boxcar extraction.  Options are: None, boxcar, slitcen [this performs flexure correction before extraction of objects]
 reduce flexure maxshift 20      # Maximum allowed flexure shift in pixels (int)
-reduce masters file              #
+reduce masters file None         #
 reduce masters loaded []         #
-reduce masters setup             #
-reduce masters reuse             # Reuse masters that have already been created (True/False)
+reduce masters setup None            #
+reduce masters reuse False            # Reuse masters that have already been created (True/False)
 reduce pixel locations None           # If desired, a fits file can be specified (of the appropriate form) to specify the locations of the pixels on the detector
 reduce pixel size 2.5            # The size of the extracted pixels (as an scaled number of Arc FWHM), -1 will not resample
 reduce skysub perform True       # Subtract the sky background from the data?
@@ -50,8 +50,8 @@ arc combine satpix       reject        # What to do with saturated pixels (optio
 arc extract binby      1.0           # Binning factor to use when extracting 1D arc spectrum (does not need to be integer, but should be >1.0)
 arc load extracted     False         # If the master arc has previously been extracted and saved, load the 1D extractions
 arc load calibrated    False         # If the extracted arc have previously been calibrated and saved, load the calibration files
-arc calibrate id pixels []           # Manually set the pixels to be identified
-arc calibrate id waves []            # Manually set the corresponding ID wavelengths
+arc calibrate IDpixels []            # Manually set the pixels to be identified
+arc calibrate IDwaves []             # Manually set the corresponding ID wavelengths
 arc calibrate nfitpix  5             # Number of pixels to fit when deriving the centroid of the arc lines (an odd number is best)
 arc calibrate lamps [HgI,NeI,ArI]    # name of the ions used for the wavelength calibration
 arc calibrate method simple          # What method should be used to fit the individual arc lines (options are: fit, simple); fit is perhaps the most accurate; simple uses a polynomial fit (to the log of a gaussian), is the fastest and is reliable
@@ -87,11 +87,11 @@ trace slits diffpolyorder  2         # What is the order of the 2D function that
 trace slits sigdetect  5.0           # Sigma detection threshold for edge detection
 trace slits fracignore 0.01           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
 trace slits pca type pixel            # Should the PCA be performed using pixel position (pixel) or by spectral order (order). The latter is used for echelle spectroscopy.
-trace slits pca form [3,2,1,0,0,0]        # What order polynomials should be used to fit the principle components
+trace slits pca params [3,2,1,0,0,0]        # What order polynomials should be used to fit the principle components
 trace slits pca extrapolate pos     0             # How many extra orders to predict in the positive direction
 trace slits pca extrapolate neg     0             # How many extra orders to predict in the negative direction
 trace slits tilts method      spline        # What method should be used to trace the tilt of the slit along an order (PCA, spline, interp, perp, zero)
-trace slits tilts pcaform    [1,1,0]       # What order polynomials should be used to fit the tilt principle components
+trace slits tilts params    [1,1,0]       # What order polynomials should be used to fit the tilt principle components
 trace slits tilts order  2             # What is the order of the function to be used for tilts in a given order
 
 # PIXEL FLAT FRAMES (used to correct pixel-to-pixel variations)

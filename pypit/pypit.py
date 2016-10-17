@@ -144,11 +144,10 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
         lines = argf.load_file(argf._argflag['run']['load']['settings'])
         argf.set_paramlist(lines)
     # Load command line changes
-    argf.set_param('run ncpus {0:s}'.format(ncpus))
+    argf.set_param('run ncpus {0:d}'.format(ncpus))
+    argf.set_param('output verbosity {0:d}'.format(verbose))
 
     assert(False)
-
-    #check verbosity form command line
 
     # Load the Spectrograph settings
     spect = arload.load_spect(progname, specname)

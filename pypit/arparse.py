@@ -285,7 +285,17 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def arc_calibrate_id_pixels(self, v):
+    def arc_calibrate_detection(self, v):
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def arc_calibrate_IDpixels(self, v):
         """
         arc calibrate id_pix
         """
@@ -295,7 +305,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def arc_calibrate_id_waves(self, v):
+    def arc_calibrate_IDwaves(self, v):
         """
         arc calibrate id_wave
         """
@@ -333,12 +343,14 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def arc_calibrate_detection(self, v):
+    def arc_calibrate_nfitpix(self, v):
         # Check that v is allowed
         try:
-            v = float(v)
+            v = int(v)
         except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v % 2 == 0:
+            msgs.warn("An odd integer is recommended for the argument of {0:s}".format(get_current_name()))
         # Update argument
         self.update(v)
         return
@@ -349,18 +361,6 @@ class BaseArgFlag(BaseFunctions):
             v = int(v)
         except ValueError:
             msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
-        # Update argument
-        self.update(v)
-        return
-
-    def arc_calibrate_nfitpix(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
-        if v % 2 == 0:
-            msgs.warn("An odd integer is recommended for the argument of {0:s}".format(get_current_name()))
         # Update argument
         self.update(v)
         return
@@ -482,18 +482,17 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def output_verbosity(self, v):
+    def output_overwrite(self, v):
         """
-        out verbose
+        out overwrite
         """
         # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
-        if (v < 0) or (v > 2):
-            msgs.error("The verbosity can only take values between 0 (minimum) and 2 (maximum)" + msgs.newline() +
-                       "Please change the argument of {0:s}".format(get_current_name()))
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
         # Update argument
         self.update(v)
         return
@@ -509,17 +508,18 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def output_overwrite(self, v):
+    def output_verbosity(self, v):
         """
-        out overwrite
+        out verbose
         """
         # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if (v < 0) or (v > 2):
+            msgs.error("The verbosity can only take values between 0 (minimum) and 2 (maximum)" + msgs.newline() +
+                       "Please change the argument of {0:s}".format(get_current_name()))
         # Update argument
         self.update(v)
         return
@@ -745,20 +745,6 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def reduce_flexure_spectrum(self, v):
-        # Check that v is allowed
-        if not pathexists(self._argflag['run']['pypitdir'] + 'data/sky_spec/' + v):
-            files_sky = glob(self._argflag['run']['pypitdir'] + 'data/sky_spec/*.fits')
-            skyfiles = ""
-            for i in files_sky:
-                skyfiles += msgs.newline() + "  - " + str(i.split("/")[-1])
-            msgs.error("The following archive sky spectrum file does not exist:" + msgs.newline() +
-                       "  " + v + msgs.newline() + msgs.newline() + "Please use one of the files listed below:" +
-                       skyfiles)
-        # Update argument
-        self.update(v)
-        return
-
     def reduce_flexure_method(self, v):
         """reduce flexure spec"""
         # Check that v is allowed
@@ -773,11 +759,27 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
+    def reduce_flexure_spectrum(self, v):
+        # Check that v is allowed
+        if not pathexists(self._argflag['run']['pypitdir'] + 'data/sky_spec/' + v):
+            files_sky = glob(self._argflag['run']['pypitdir'] + 'data/sky_spec/*.fits')
+            skyfiles = ""
+            for i in files_sky:
+                skyfiles += msgs.newline() + "  - " + str(i.split("/")[-1])
+            msgs.error("The following archive sky spectrum file does not exist:" + msgs.newline() +
+                       "  " + v + msgs.newline() + msgs.newline() + "Please use one of the files listed below:" +
+                       skyfiles)
+        # Update argument
+        self.update(v)
+        return
+
     def reduce_masters_file(self, v):
         """
         masters setup_file
         """
         # Check that v is allowed
+        if v.lower() == 'none':
+            v = ''
         # Update argument
         self.update(v)
         return
@@ -788,15 +790,6 @@ class BaseArgFlag(BaseFunctions):
         """
         # Check that v is allowed
         v = load_list(v)
-        # Update argument
-        self.update(v)
-        return
-
-    def reduce_masters_setup(self, v):
-        """
-        masters setup
-        """
-        # Check that v is allowed
         # Update argument
         self.update(v)
         return
@@ -812,6 +805,17 @@ class BaseArgFlag(BaseFunctions):
             v = False
         else:
             msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def reduce_masters_setup(self, v):
+        """
+        masters setup
+        """
+        # Check that v is allowed
+        if v.lower() == 'none':
+            v = ''
         # Update argument
         self.update(v)
         return
@@ -1233,6 +1237,18 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
+    def slitflat_norm_recnorm(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
     def slitflat_useframe(self, v):
         # Check that v is allowed
         if v.lower() == "none":
@@ -1341,6 +1357,21 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
+    def trace_slits_diffpolyorder(self, v):
+        """
+        trace orders diffpolyorder  3
+        """
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
     def trace_dispersion_window(self, v):
         """
         trace disp window
@@ -1377,6 +1408,21 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
+    def trace_slits_fracignore(self, v):
+        """
+        trace orders fracignore
+        """
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
+        if v < 0.0 or v > 1.0:
+            msgs.error("The argument of {0:s} must be between 0 and 1".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
     def trace_slits_function(self, v):
         """
         trace orders function
@@ -1406,6 +1452,23 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
+    def trace_slits_maxgap(self, v):
+        """trace orders slitgap
+        """
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                v = int(v)
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of type int, or set to 'none'".format(get_current_name()))
+            if v <= 1:
+                msgs.error("The argument of {0:s} must be > 1 to set the maximum slit gap".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
     def trace_slits_number(self, v):
         # Check that v is allowed
         if v.lower() == "auto":
@@ -1424,23 +1487,6 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def trace_slits_maxgap(self, v):
-        """trace orders slitgap
-        """
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                v = int(v)
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of type int, or set to 'none'".format(get_current_name()))
-            if v <= 1:
-                msgs.error("The argument of {0:s} must be > 1 to set the maximum slit gap".format(get_current_name()))
-        # Update argument
-        self.update(v)
-        return
-
     def trace_slits_polyorder(self, v):
         """
         trace orders polyorder  3
@@ -1452,61 +1498,6 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
-        # Update argument
-        self.update(v)
-        return
-
-    def trace_slits_diffpolyorder(self, v):
-        """
-        trace orders diffpolyorder  3
-        """
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
-        if v < 0:
-            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
-        # Update argument
-        self.update(v)
-        return
-
-    def trace_slits_sigdetect(self, v):
-        """
-        trace orders sigdetect
-        """
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
-        if v <= 0.0:
-            msgs.error("The argument of {0:s} must be > 0".format(get_current_name()))
-        # Update argument
-        self.update(v)
-        return
-
-    def trace_slits_single(self, v):
-        """
-        trace orders sng_slit
-        """
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
-        self.update(v)
-        return
-
-    def trace_slits_fracignore(self, v):
-        """
-        trace orders fracignore
-        """
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
-        if v < 0.0 or v > 1.0:
-            msgs.error("The argument of {0:s} must be between 0 and 1".format(get_current_name()))
         # Update argument
         self.update(v)
         return
@@ -1561,6 +1552,31 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_slits_sigdetect(self, v):
+        """
+        trace orders sigdetect
+        """
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
+        if v <= 0.0:
+            msgs.error("The argument of {0:s} must be > 0".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_slits_single(self, v):
+        """
+        trace orders sng_slit
+        """
+        # Check that v is allowed
+        v = load_list(v)
         # Update argument
         self.update(v)
         return
