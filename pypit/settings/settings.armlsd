@@ -27,7 +27,11 @@ reduce flatfield method PolyScan      # Method used to flat field the data (Poly
 reduce flatfield params [3,50,20]     # Flat field method parameters (PolyScan: [order,numPixels,repeat])
 reduce flatfield useframe pixflat          # How to flat field the data (pixflat, blzflat), you can also specify a master calibrations file if it exists.
 reduce flexure spec boxcar      # Perform flexure correction on objects using boxcar extraction.  Options are: None, boxcar, slitcen [this performs flexure correction before extraction of objects]
-reduce flexure maxshift 20     # Maximum allowed flexure shift in pixels (int)
+reduce flexure maxshift 20      # Maximum allowed flexure shift in pixels (int)
+reduce masters file              #
+reduce masters loaded []         #
+reduce masters setup             #
+reduce masters reuse             # Reuse masters that have already been created (True/False)
 reduce pixel locations None           # If desired, a fits file can be specified (of the appropriate form) to specify the locations of the pixels on the detector
 reduce pixel size 2.5            # The size of the extracted pixels (as an scaled number of Arc FWHM), -1 will not resample
 reduce skysub perform True       # Subtract the sky background from the data?
@@ -73,9 +77,9 @@ trace combine satpix      reject        # What to do with saturated pixels (opti
 trace dispersion window       None          # Window used to obtain dispersion direction
 trace dispersion direction    None          # Manually specify the dispersion direction (0 for row, 1 for column)
 trace slits function    legendre      # What function should be used to trace each order? (polynomial, legendre, chebyshev)
-trace slits nslits      auto          # Manually set the number of slits to identify (>=1). 'auto' or -1 will automatically identify the number of slits.
+trace slits number      auto          # Manually set the number of slits to identify (>=1). 'auto' or -1 will automatically identify the number of slits.
 trace slits maxgap    None          # Maximum gap between slits (None if slits are far apart, or of similar illumination)
-#trace slits sng_slit []
+trace slits single []                #
 trace slits polyorder  3             # What is the order of the function that should be used?
 trace slits diffpolyorder  2         # What is the order of the 2D function that should be used to fit the 2d solution for the spatial size of all orders?
 trace slits sigdetect  5.0           # Sigma detection threshold for edge detection

@@ -1362,6 +1362,9 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_slits_idsonly(self, v):
+        """
+        trace orders use_ids_only
+        """
         # Check that v is allowed
         if v.lower() == "true":
             v = True
@@ -1373,7 +1376,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def trace_slits_nslits(self, v):
+    def trace_slits_number(self, v):
         # Check that v is allowed
         if v.lower() == "auto":
             v = -1
@@ -1453,6 +1456,16 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
+    def trace_slits_single(self, v):
+        """
+        trace orders sng_slit
+        """
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
     def trace_slits_fracignore(self, v):
         """
         trace orders fracignore
@@ -1482,9 +1495,9 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def trace_slits_pca_form(self, v):
+    def trace_slits_pca_params(self, v):
         """
-        trace orders pca
+        trace orders pcaparams
         """
         # Check that v is allowed
         v = load_list(v)
@@ -1535,12 +1548,27 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def trace_slits_tilts_pcaform(self, v):
+    def trace_slits_tilts_params(self, v):
         """
         trace orders pcatilt
         """
         # Check that v is allowed
         v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_slits_tilts_disporder(self, v):
+        """
+        trace orders tiltdisporder
+        """
+        # Check that v is allowed
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         # Update argument
         self.update(v)
         return

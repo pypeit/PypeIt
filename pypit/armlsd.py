@@ -209,7 +209,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
             ###############
             # Perform a velocity correction
             if (slf._argflag['reduce']['heliocorr'] == True) & False:
-                if slf._argflag['science']['load']['extracted'] == True:
+                if slf._argflag['science']['extraction']['reuse'] == True:
                     msgs.warn("Heliocentric correction will not be applied if an extracted science frame exists, and is used")
                 msgs.work("Perform a full barycentric correction")
                 msgs.work("Include the facility to correct for gravitational redshifts and time delays (see Pulsar timing work)")
