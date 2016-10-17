@@ -353,7 +353,7 @@ class BaseArgFlag(BaseFunctions):
 
     def bias_combine_method(self, v):
         """
-        bias_comb_method
+        bias comb method
         """
         # Check that v is allowed
         allowed = ['mean', 'median', 'weightmean']
@@ -494,7 +494,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def pixflat_combine_match(self, v):
+    def pixelflat_combine_match(self, v):
         """
         reduce flatmatch
         """
@@ -507,7 +507,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def pixflat_combine_method(self, v):
+    def pixelflat_combine_method(self, v):
         """
         pixflat comb method
         """
@@ -521,7 +521,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def pixflat_combine_reject_cosmics(self, v):
+    def pixelflat_combine_reject_cosmics(self, v):
         """
         pixflat comb rej_cosmicray
         """
@@ -534,7 +534,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def pixflat_combine_reject_lowhigh(self, v):
+    def pixelflat_combine_reject_lowhigh(self, v):
         """
         pixflat comb rej_lowhigh
         """
@@ -544,7 +544,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def pixflat_combine_reject_level(self, v):
+    def pixelflat_combine_reject_level(self, v):
         """
         pixflat comb rej_level
         """
@@ -554,7 +554,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def pixflat_combine_reject_replace(self, v):
+    def pixelflat_combine_reject_replace(self, v):
         """
         pixflat comb set_allrej
         """
@@ -568,7 +568,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def pixflat_combine_satpix(self, v):
+    def pixelflat_combine_satpix(self, v):
         """
         pixflat comb sat_pix
         """
@@ -582,7 +582,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def pixflat_norm_recnorm(self, v):
+    def pixelflat_norm_recnorm(self, v):
         # Check that v is allowed
         if v.lower() == "true":
             v = True
@@ -594,13 +594,15 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def pixflat_useframe(self, v):
+    def pixelflat_useframe(self, v):
         """
         reduce useflat
         """
         # Check that v is allowed
         if v.lower() == "none":
             v = None
+        elif v.lower() in ['pixelflat']:
+            v = v.lower()
         else:
             msgs.info("Assuming the following is the name of a pixflat frame:" + msgs.newline() + v)
         # Update argument
@@ -1113,6 +1115,106 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
+    def slitflat_combine_match(self, v):
+        """
+        reduce flatmatch
+        """
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def slitflat_combine_method(self, v):
+        """
+        blzflat comb method
+        """
+        # Check that v is allowed
+        allowed = ['mean', 'median', 'weightmean']
+        v = v.lower()
+        if v not in allowed:
+            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
+        # Update argument
+        self.update(v)
+        return
+
+    def slitflat_combine_reject_cosmics(self, v):
+        """
+        blzflat comb rej_cosmicray
+        """
+        # Check that v is allowed
+        try:
+            v = float(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def slitflat_combine_reject_lowhigh(self, v):
+        """
+        blzflat comb rej_lowhigh
+        """
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+    def slitflat_combine_reject_level(self, v):
+        """
+        blzflat comb rej_level
+        """
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+    def slitflat_combine_reject_replace(self, v):
+        """
+        blzflat comb set_allrej
+        """
+        # Check that v is allowed
+        allowed = ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']
+        v = v.lower()
+        if v not in allowed:
+            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
+        # Update argument
+        self.update(v)
+        return
+
+    def slitflat_combine_satpix(self, v):
+        """
+        blzflat comb sat_pix
+        """
+        # Check that v is allowed
+        allowed = ['reject', 'force', 'nothing']
+        v = v.lower()
+        if v not in allowed:
+            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
+                       ", ".join(allowed))
+        # Update argument
+        self.update(v)
+        return
+
+    def slitflat_useframe(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        elif v.lower() in ['slitflat']:
+            v = v.lower()
+        else:
+            msgs.info("Assuming the following is the name of a pixflat frame:" + msgs.newline() + v)
+        # Update argument
+        self.update(v)
+        return
+
     def trace_combine_match(self, v):
         """
         reduce flatmatch
@@ -1465,6 +1567,8 @@ class BaseArgFlag(BaseFunctions):
         # Check that v is allowed
         if v.lower() == "none":
             v = None
+        elif v.lower() in ['trace', 'science']:
+            v = v.lower()
         else:
             msgs.info("Assuming the following is the name of a trace frame:" + msgs.newline() + v)
         # Update argument

@@ -51,13 +51,6 @@ arc calibrate lamps [HgI,NeI,ArI]    # name of the ions used for the wavelength 
 arc calibrate method simple          # What method should be used to fit the individual arc lines (options are: fit, simple); fit is perhaps the most accurate; simple uses a polynomial fit (to the log of a gaussian), is the fastest and is reliable
 arc calibrate detection 6.0         # How significant should the arc line detections be (in units of a standard deviation)
 arc calibrate numsearch 20           # Number of brightest arc lines to search for preliminary identification
-#arc calibrate sigmacut 2.0          # Significance level
-#arc calibrate cwpolyorder 2          # Polynomial order to fit central wavelength solution
-#arc calibrate threshold 3.0          # Rejection threshold (in pixels) for the wavelength solution. If an identified pixel is greater than this significance away from the expected location, it will be rejected.
-#arc calibrate polyorderpri 4         # Polynomial order to be used when fitting primary arc solution (note: order 4 corresponds to 5 free parameters)
-#arc calibrate polyordersec 9         # Polynomial order to be used when fitting secondary arc solution (note: order 8 corresponds to 9 free parameters)
-#arc calibrate pcapri [6,3,3,1,1]     # What order polynomials should be used to fit the principle components for the primary arc solution
-#arc calibrate pcasec [2,2,1,1,2,1,0,0] # What order polynomials should be used to fit the principle components for the secondary arc solution
 
 # BIAS FRAMES
 bias useframe [overscan,bias]         # How to subtract the detector bias (bias, overscan, dark, none), you can also specify a master calibrations file if it exists.
@@ -69,6 +62,7 @@ bias combine reject replace   median        # What to do if all pixels are rejec
 bias combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
 
 # TRACE FRAMES
+trace useframe slitflat                       # What frame should be used to trace the slit centroid (based on the average of the left/right edges). Must be one of [trace, science]
 trace combine match -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
 trace combine method weightmean          # How should the trace frames be combined (mean, median, weightmean)
 trace combine reject cosmics 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
@@ -94,25 +88,35 @@ trace slits tilts method      spline        # What method should be used to trac
 trace slits tilts pcaform    [1,1,0]       # What order polynomials should be used to fit the tilt principle components
 trace slits tilts order  2             # What is the order of the function to be used for tilts in a given order
 
-# PIXEL FLAT FRAMES
-pixflat useframe flat             # What filetype should be used for pixel-to-pixel calibration (flat), you can also specify a master calibrations file if it exists.
-pixflat combine match -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
-pixflat combine method weightmean          # How should the pixel flat frames be combined (mean, median, weightmean)
-pixflat combine reject cosmics 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
-pixflat combine reject lowhigh  [0,0]         # Number of low/high pixels to reject, [low,high]
-pixflat combine reject level    [3.0,3.0]     # Rejection level (in standard deviations), where <= 0.0 means no rejection [low,high]
-pixflat combine reject replace   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
-pixflat combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
-pixflat norm recnorm   True             # Use the recnorm algorithm?
+# PIXEL FLAT FRAMES (used to correct pixel-to-pixel variations)
+pixelflat useframe pixelflat             # What filetype should be used for pixel-to-pixel calibration (flat), you can also specify a master calibrations file if it exists.
+pixelflat combine match -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
+pixelflat combine method weightmean          # How should the pixel flat frames be combined (mean, median, weightmean)
+pixelflat combine reject cosmics 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
+pixelflat combine reject lowhigh  [0,0]         # Number of low/high pixels to reject, [low,high]
+pixelflat combine reject level    [3.0,3.0]     # Rejection level (in standard deviations), where <= 0.0 means no rejection [low,high]
+pixelflat combine reject replace   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
+pixelflat combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
+pixelflat norm recnorm   True             # Use the recnorm algorithm?
 
 # SCIENCE FRAMES
 science extraction reuse False        # If the science frame has previously been extracted and saved, load the extractions
 science extraction profile gaussian   # Fitting function used to extract science data, only if the extraction is 2D (options are: gaussian, gaussfunc, moffat, moffatfunc) ### NOTE: options with suffix 'func' fits a function to the pixels whereas those without this suffix takes into account the integrated function within each pixel (and is closer to truth)
 science extraction maxnumber 9999     # Maximum number of objects to extract in a science frame
 
+# SLIT FLAT FRAMES (used to trace the slit edges)
+slitflat useframe slitflat             # What filetype should be used to trace the slit edges (slitflat), you can also specify a master calibrations file if it exists.
+slitflat combine match -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
+slitflat combine method weightmean          # How should the pixel flat frames be combined (mean, median, weightmean)
+slitflat combine reject cosmics 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
+slitflat combine reject lowhigh  [0,0]         # Number of low/high pixels to reject, [low,high]
+slitflat combine reject level    [3.0,3.0]     # Rejection level (in standard deviations), where <= 0.0 means no rejection [low,high]
+slitflat combine reject replace   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
+slitflat combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
+slitflat norm recnorm True             # Use the recnorm algorithm?
+
 # OUTPUT
 output  verbosity      2				# Level of screen output (0 is No screen output, 1 is low level output, 2 is output everything)
 output  sorted       None          # A filename given to output the details of the sorted files. If None, no output is created.
-#output  plots        True          # Output a set of plots that can be used to check the data is doing what it is supposed to be doing
 output  overwrite    False         # Overwrite any existing output files?
 
