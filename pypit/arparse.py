@@ -38,13 +38,23 @@ class BaseFunctions(object):
         self._defname = defname
         self._afout = open(savname, 'w')
 
-    def load_default(self):
-        msgs.info("Loading default settings")
+    def load_file(self, filename=None):
+        if filename is None:
+            msgs.info("Loading default settings")
+        else:
+            msgs.info("Loading settings")
         try:
-            lines = open(self._defname, 'r').readlines()
+            if filename is None:
+                lines = open(self._defname, 'r').readlines()
+            else:
+                lines = open(filename, 'r').readlines()
         except IOError:
-            msgs.error("Default settings file does not exist:" + msgs.newline() +
-                       self._defname)
+            if filename is None:
+                msgs.error("Default settings file does not exist:" + msgs.newline() +
+                           self._defname)
+            else:
+                msgs.error("Settings file does not exist:" + msgs.newline() +
+                           self._defname)
         arr = self.load_lines(lines)
         return arr
 
@@ -271,6 +281,26 @@ class BaseArgFlag(BaseFunctions):
             v = False
         else:
             msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
+    def arc_calibrate_id_pixels(self, v):
+        """
+        arc calibrate id_pix
+        """
+        # Check that v is allowed
+        v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+    def arc_calibrate_id_waves(self, v):
+        """
+        arc calibrate id_wave
+        """
+        # Check that v is allowed
+        v = load_list(v)
         # Update argument
         self.update(v)
         return

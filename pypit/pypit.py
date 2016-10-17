@@ -131,7 +131,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
 
     # Load default reduction arguments/flags, and set any command line arguments
     argf = arparse.get_argflag((redtype.upper(), ".".join(redname.split(".")[:-1])))
-    lines = argf.load_default()
+    lines = argf.load_file()
     argf.set_param('run pypitdir {0:s}'.format(tfname))
     argf.set_param('run progname {0:s}'.format(progname))
     argf.set_param('run redname {0:s}'.format(redname))
@@ -139,9 +139,12 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
     # Load user changes to the arguments/flags
     plines = argf.load_lines(parlines)
     argf.set_paramlist(plines)
+    # If the user wishes to load a settings file, do that now
+    if argf._argflag['run']['load']['settings'] is not None:
+        lines = argf.load_file(argf._argflag['run']['load']['settings'])
+        argf.set_paramlist(lines)
+    # Load command line changes
     argf.set_param('run ncpus {0:s}'.format(ncpus))
-
-    run load settings
 
     assert(False)
 
