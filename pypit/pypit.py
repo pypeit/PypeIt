@@ -140,13 +140,15 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
     plines = argf.load_lines(parlines)
     argf.set_paramlist(plines)
     # If the user wishes to load a settings file, do that now
-    if argf._argflag['run']['load']['settings'] is not None:
-        lines = argf.load_file(argf._argflag['run']['load']['settings'])
+    if argf.__dict__['argflag']['run']['load']['settings'] is not None:
+        lines = argf.load_file(argf.__dict__['argflag']['run']['load']['settings'])
         argf.set_paramlist(lines)
     # Load command line changes
     argf.set_param('run ncpus {0:d}'.format(ncpus))
     argf.set_param('output verbosity {0:d}'.format(verbose))
 
+    # Save the arguments and flags used for this reduction
+    argf.save()
     assert(False)
 
     # Load the Spectrograph settings

@@ -504,6 +504,9 @@ class BaseArgFlag(BaseFunctions):
         # Check that v is allowed
         if v.lower() == "none":
             v = None
+        else:
+            if v.find('.') > 0:
+                msgs.error("The argument for keyword 'output sorted' should have no extension")
         # Update argument
         self.update(v)
         return

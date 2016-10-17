@@ -241,7 +241,7 @@ def badpix(slf, det, frame, sigdev=10.0):
         bpix[w] = subfr
     del subfr, tframe, temp
     # Finally, trim the bad pixel frame
-    bpix = trim(slf, bpix, det)
+    bpix = trim(bpix, det)
     msgs.info("Identified {0:d} bad pixels".format(int(np.sum(bpix))))
     return bpix
 
@@ -850,7 +850,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
 
     ###############
     # Flexure down the slit? -- Not currently recommended
-    if slf._argflag['reduce']['flexure']['spec'] == 'slit_cen':
+    if slf._argflag['reduce']['flexure']['method'] == 'slitcen':
         flex_dict = arwave.flexure_slit(slf, det)
         arqa.flexure(slf, det, flex_dict, slit_cen=True)
 
@@ -897,7 +897,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         slf._modelvarframe[det-1] = finalvar.copy()
 
     # Flexure correction?
-    if (slf._argflag['reduce']['flexure']['spec'] is not None) and (not standard):
+    if (slf._argflag['reduce']['flexure']['method'] is not None) and (not standard):
         flex_dict = arwave.flexure_obj(slf, det)
         arqa.flexure(slf, det, flex_dict)
 
@@ -1114,17 +1114,17 @@ def rn_frame(slf, det):
     return rnimg
 
 
-def sub_overscan(slf, det, file, use_datasec=False):
+def sub_overscan(file, det, use_datasec=False):
     """
     Subtract overscan
     use_datasec : bool, optional
       Overscan region is limited to datasec, not ampsec
     """
 
-    for i in range(slf._spect['det'][det-1]['numamplifiers']):
+    for i in range(spect['det'][det-1]['numamplifiers']):
         # Determine the section of the chip that contains the overscan region
         oscansec = "oscansec{0:02d}".format(i+1)
-        ox0, ox1, oy0, oy1 = slf._spect['det'][det-1][oscansec][0][0], slf._spect['det'][det-1][oscansec][0][1], slf._spect['det'][det-1][oscansec][1][0], slf._spect['det'][det-1][oscansec][1][1]
+        ox0, ox1, oy0, oy1 = spect['det'][det-1][oscansec][0][0], spect['det'][det-1][oscansec][0][1], spect['det'][det-1][oscansec][1][0], spect['det'][det-1][oscansec][1][1]
         if ox0 < 0: ox0 += file.shape[0]
         if ox1 <= 0: ox1 += file.shape[0]
         if oy0 < 0: oy0 += file.shape[1]
@@ -1135,7 +1135,7 @@ def sub_overscan(slf, det, file, use_datasec=False):
         oscan = file[w]
         # Determine the section of the chip that is read out by the amplifier
         ampsec = "ampsec{0:02d}".format(i+1)
-        ax0, ax1, ay0, ay1 = slf._spect['det'][det-1][ampsec][0][0], slf._spect['det'][det-1][ampsec][0][1], slf._spect['det'][det-1][ampsec][1][0], slf._spect['det'][det-1][ampsec][1][1]
+        ax0, ax1, ay0, ay1 = spect['det'][det-1][ampsec][0][0], spect['det'][det-1][ampsec][0][1], spect['det'][det-1][ampsec][1][0], spect['det'][det-1][ampsec][1][1]
         if ax0 < 0: ax0 += file.shape[0]
         if ax1 <= 0: ax1 += file.shape[0]
         if ay0 < 0: ay0 += file.shape[1]
@@ -1147,20 +1147,20 @@ def sub_overscan(slf, det, file, use_datasec=False):
             osfit = np.median(oscan, axis=1)  # Mean was hit by CRs
         elif ay1-ay0 == oy1-oy0:
             osfit = np.median(oscan, axis=0)
-        elif slf._argflag['reduce']['oscanMethod'].lower() == "median":
+        elif argflag['reduce']['oscanMethod'].lower() == "median":
             osfit = np.median(oscan)
         else:
             msgs.error("Overscan sections do not match amplifier sections for amplifier {0:d}".format(i+1))
         # Fit/Model the overscan region
-        if slf._argflag['reduce']['oscanMethod'].lower() == "polynomial":
-            c = np.polyfit(np.arange(osfit.size), osfit, slf._argflag['reduce']['oscanParams'][0])
+        if argflag['reduce']['oscanMethod'].lower() == "polynomial":
+            c = np.polyfit(np.arange(osfit.size), osfit, argflag['reduce']['oscanParams'][0])
             ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
-        elif slf._argflag['reduce']['oscanMethod'].lower() == "savgol":
-            ossub = savgol_filter(osfit, slf._argflag['reduce']['oscanParams'][1], slf._argflag['reduce']['oscanParams'][0])
-        elif slf._argflag['reduce']['oscanMethod'].lower() == "median":  # One simple value
+        elif argflag['reduce']['oscanMethod'].lower() == "savgol":
+            ossub = savgol_filter(osfit, argflag['reduce']['oscanParams'][1], argflag['reduce']['oscanParams'][0])
+        elif argflag['reduce']['oscanMethod'].lower() == "median":  # One simple value
             ossub = osfit * np.ones(1)
         else:
-            msgs.warn("Overscan subtraction method {0:s} is not implemented".format(slf._argflag['reduce']['oscanMethod']))
+            msgs.warn("Overscan subtraction method {0:s} is not implemented".format(argflag['reduce']['oscanMethod']))
             msgs.info("Using a linear fit to the overscan region")
             c = np.polyfit(np.arange(osfit.size), osfit, 1)
             ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
@@ -1171,7 +1171,7 @@ def sub_overscan(slf, det, file, use_datasec=False):
         # Determine the section of the chip that contains data for this amplifier
         if use_datasec:
             datasec = "datasec{0:02d}".format(i+1)
-            dx0, dx1, dy0, dy1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
+            dx0, dx1, dy0, dy1 = spect['det'][det-1][datasec][0][0], spect['det'][det-1][datasec][0][1], spect['det'][det-1][datasec][1][0], spect['det'][det-1][datasec][1][1]
             if dx0 < 0: dx0 += file.shape[0]
             if dx1 <= 0: dx1 += file.shape[0]
             if dy0 < 0: dy0 += file.shape[1]
@@ -1187,7 +1187,7 @@ def sub_overscan(slf, det, file, use_datasec=False):
             file[wd] -= ossub
         elif wd[1].shape[1] == ossub.shape[0]:
             file[wd] -= ossub.T
-        elif slf._argflag['reduce']['oscanMethod'].lower() == "median":
+        elif argflag['reduce']['oscanMethod'].lower() == "median":
             file[wd] -= osfit
         else:
             msgs.error("Could not subtract bias from overscan region --"+msgs.newline()+"size of extracted regions does not match")
@@ -1196,10 +1196,10 @@ def sub_overscan(slf, det, file, use_datasec=False):
     return file
 
 
-def trim(slf, frame, det):
-    for i in range(slf._spect['det'][det-1]['numamplifiers']):
+def trim(frame, det):
+    for i in range(spect['det'][det-1]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
-        x0, x1, y0, y1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
+        x0, x1, y0, y1 = spect['det'][det-1][datasec][0][0], spect['det'][det-1][datasec][0][1], spect['det'][det-1][datasec][1][0], spect['det'][det-1][datasec][1][1]
         if x0 < 0:
             x0 += frame.shape[0]
         if x1 <= 0:

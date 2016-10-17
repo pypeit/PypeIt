@@ -651,25 +651,20 @@ class ScienceExposure:
         if self._mswave[det-1] is not None:
             msgs.info("An identical master arc frame already exists")
             return False
-        if self._argflag['reduce']['usewave'] in ['wave']:
-            # Attempt to load the Master Frame
-            if self._argflag['masters']['use']:
-                mswave_name = armasters.master_name(self._argflag['run']['masterdir'],
-                                                   'wave', self._argflag['masters']['setup'])
-                try:
-                    mswave, head = arload.load_master(mswave_name, frametype="arc")
-                except IOError:
-                    msgs.warn("No MasterWave frame found {:s}".format(mswave_name))
-                else:
-                    self._argflag['masters']['loaded'].append('wave'+self._argflag['masters']['setup'])
-            if 'wave'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
-                msgs.info("Preparing a master wave frame")
-                wv_calib = self._wvcalib[det-1]
-                mswave = arutils.func_val(wv_calib['fitc'], self._tilts[det-1], wv_calib['function'], minv=wv_calib['fmin'], maxv=wv_calib['fmax'])
-        else: # It must be the name of a file the user wishes to load
-            msgs.error("Not prepared to read a user-specified wave file")
-            #mswave_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usewave']
-            #mswave, head = arload.load_master(mswave_name, frametype=None)
+        # Attempt to load the Master Frame
+        if self._argflag['masters']['use']:
+            mswave_name = armasters.master_name(self._argflag['run']['masterdir'],
+                                               'wave', self._argflag['masters']['setup'])
+            try:
+                mswave, head = arload.load_master(mswave_name, frametype="arc")
+            except IOError:
+                msgs.warn("No MasterWave frame found {:s}".format(mswave_name))
+            else:
+                self._argflag['masters']['loaded'].append('wave'+self._argflag['masters']['setup'])
+        if 'wave'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
+            msgs.info("Preparing a master wave frame")
+            wv_calib = self._wvcalib[det-1]
+            mswave = arutils.func_val(wv_calib['fitc'], self._tilts[det-1], wv_calib['function'], minv=wv_calib['fmin'], maxv=wv_calib['fmax'])
         # Set and then delete the Master Arc frame
         self.SetMasterFrame(mswave, "wave", det)
         del mswave
@@ -696,29 +691,23 @@ class ScienceExposure:
         if self._wvcalib[det-1] is not None:
             msgs.info("An identical master wave calib frame already exists")
             return False
-        if self._argflag['reduce']['usewave'] in ['wave']:
-            # Attempt to load the Master Frame
-            if self._argflag['masters']['use']:
-                mswv_calib_name = armasters.master_name(self._argflag['run']['masterdir'],
-                                                       'wave_calib', self._argflag['masters']['setup'])
-                try:
-                    wv_calib = arload.load_master(mswv_calib_name, frametype="wv_calib")
-                except IOError:
-                    msgs.warn("No MasterWave1D data found {:s}".format(mswv_calib_name))
-                else:
-                    self._argflag['masters']['loaded'].append('wave_calib'+self._argflag['masters']['setup'])
-            if 'wave_calib'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
-                # Setup arc parameters (e.g. linelist)
-                arcparam = ararc.setup_param(self, sc, det, fitsdict)
-                self.SetFrame(self._arcparam, arcparam, det)
-                ###############
-                # Extract arc and identify lines
-                wv_calib = ararc.simple_calib(self, det)
-                #
-        else: # It must be the name of a file the user wishes to load
-            msgs.error("Not prepared to read a user-specified wave file")
-            #mswv_calib_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usewavecalib']
-            #wv_calib = arload.load_master(mswv_calib_name, frametype="wv_calib")
+        # Attempt to load the Master Frame
+        if self._argflag['masters']['use']:
+            mswv_calib_name = armasters.master_name(self._argflag['run']['masterdir'],
+                                                   'wave_calib', self._argflag['masters']['setup'])
+            try:
+                wv_calib = arload.load_master(mswv_calib_name, frametype="wv_calib")
+            except IOError:
+                msgs.warn("No MasterWave1D data found {:s}".format(mswv_calib_name))
+            else:
+                self._argflag['masters']['loaded'].append('wave_calib'+self._argflag['masters']['setup'])
+        if 'wave_calib'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
+            # Setup arc parameters (e.g. linelist)
+            arcparam = ararc.setup_param(self, sc, det, fitsdict)
+            self.SetFrame(self._arcparam, arcparam, det)
+            ###############
+            # Extract arc and identify lines
+            wv_calib = ararc.simple_calib(self, det)
         # Set
         if wv_calib is not None:
             self.SetFrame(self._wvcalib, wv_calib, det)

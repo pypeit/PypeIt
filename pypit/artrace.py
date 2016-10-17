@@ -407,8 +407,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
         msgs.info("Found {0:d} objects".format(objl.size))
         msgs.info("Tracing {0:d} objects".format(objl.size))
     # Max obj
-    if nobj > slf._argflag['science']['extraction']['max_nobj']:
-        nobj = slf._argflag['science']['extraction']['max_nobj']
+    if nobj > slf._argflag['science']['extraction']['maxnumber']:
+        nobj = slf._argflag['science']['extraction']['maxnumber']
         msgs.warn("Restricting to the brightest {:d} objects found".format(nobj))
     # Trace objects
     cval = np.zeros(nobj)

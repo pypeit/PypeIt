@@ -119,7 +119,7 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     #Create array around the max of the correlation function for fitting for subpixel max
     # Restrict to pixels within max_shift of zero lag
     lag0 = corr.size/2
-    mxshft = slf._argflag['reduce']['flexure']['max_shift']
+    mxshft = slf._argflag['reduce']['flexure']['maxshift']
     max_corr = np.argmax(corr[lag0-mxshft:lag0+mxshft]) + lag0-mxshft
     subpix_grid = np.linspace(max_corr-3., max_corr+3., 7.)
 
@@ -160,14 +160,14 @@ def flexure_archive(slf, det):
     #   latitude = slf._spect['mosaic']['latitude']
     #   longitude = slf._spect['mosaic']['longitude']
     root = slf._argflag['run']['pypitdir']
-    if slf._argflag['reduce']['flexure']['archive_spec'] is None:
+    if slf._argflag['reduce']['flexure']['spectrum'] is None:
         # Red or blue?
         if slf._argflag['run']['spectrograph'] in ['kast_blue', 'lris_blue']:
             skyspec_fil = 'sky_kastb_600.fits'
         else:
             skyspec_fil = 'paranal_sky.fits'
     else:
-        skyspec_fil = slf._argflag['reduce']['flexure']['archive_spec']
+        skyspec_fil = slf._argflag['reduce']['flexure']['spectrum']
     #
     msgs.info("Using {:s} file for Sky spectrum".format(skyspec_fil))
     arx_sky = xspectrum1d.XSpectrum1D.from_file(root+'/data/sky_spec/'+skyspec_fil)
@@ -254,7 +254,7 @@ def flexure_obj(slf, det):
     for specobj in slf._specobjs[det-1]:  # for convenience
 
         # Using boxcar
-        if slf._argflag['reduce']['flexure']['spec'] in ['boxcar', 'slit_cen']:
+        if slf._argflag['reduce']['flexure']['method'] in ['boxcar', 'slitcen']:
             sky_wave = specobj.boxcar['wave'].to('AA').value
             sky_flux = specobj.boxcar['sky']
         else:
