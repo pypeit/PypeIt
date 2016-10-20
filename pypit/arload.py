@@ -8,7 +8,6 @@ from pypit import armsgs
 from pypit import arparse
 from pypit import arproc
 from pypit import arlris
-from multiprocessing import cpu_count
 #from multiprocessing import Pool as mpPool
 #from multiprocessing.pool import ApplyResult
 #import arutils
@@ -27,69 +26,6 @@ except:
 msgs = armsgs.get_logger()
 argflag = arparse.get_argflag().__dict__['_argflag']
 spect = arparse.get_spect().__dict__['_spect']
-
-
-def load_spect(progname, specname, spect=None, lines=None):
-    """
-    Load spectrograph settings
-
-    Parameters
-    ----------
-    progname : string
-      Name of the program
-    specname : string
-      Name of spectrograph settings file
-    spect : dict, optional
-      Properties of the spectrograph.
-      If None, spect will be created, otherwise spect
-      will be updated.
-    lines : list, optional
-      Input (uncommented) lines specified by the user.
-      lines contains a list of user-specified changes
-      that should be made to the default spectrograph
-      settings.
-
-    Returns
-    -------
-    spect : dict
-      Loaded or updated properties of the spectrograph
-    """
-    def initialise():
-        msc = dict({'ndet': 0, 'latitude': 0.0, 'longitude': 0.0, 'elevation': 0.0, 'minexp': 0., 'reduction': 'ARMLSD', 'camera': 'UNKNWN'})
-        # det starts as a dict but becomes a list of dicts in set_params
-        ddet = dict({'xgap': 0.0, 'ygap': 0.0, 'ysize': 1.0, 'darkcurr': 0.0, 'ronoise': [1.0], 'gain': [1.0], 'saturation': 65536.0, 'nonlinear': 1.0, 'numamplifiers': 1, 'suffix': ""})
-        #
-        chk = dict({})
-        stf = dict({'science': [], 'standard': [], 'bias': [], 'pixflat': [], 'blzflat': [], 'arc': [], 'trace': [], 'dark': [], 'readnoise': []})
-        kyw = dict({'target': '01.OBJECT', 'idname': '01.OBSTYPE', 'time': '01.MJD', 'date': '', 'equinox': '', 'ra': '', 'dec': '', 'airmass': '', 'naxis0': '01.NAXIS2', 'naxis1': '01.NAXIS1', 'exptime': '01.EXPTIME', 'hatch': '01.TRAPDOOR', 'filter1': '01.FILTNAME', 'filter2': None, 'lamps': '01.LAMPNAME', 'decker': '01.DECKNAME', 'slitwid': '01.SLITWIDTH', 'slitlen': '01.SLITLENGTH', 'detrot': '01.DETECTORROTATION', 'cdangle': '01.XDISPANGLE', 'echangle': '01.ECHELLEANGLE', 'crossdisp': '01.XDISPERS', 'dichroic': '', 'disperser': '', 'binning': ''})
-        fts = dict({'numhead': 1, 'numlamps':1, 'dataext':0, 'calwin':12.0, 'timeunit':'mjd'})
-        sci = dict({'index': [], 'check': dict({}), 'idname': 'OBJECT', 'canbe': None})
-        std = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 1, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({})})
-        pfl = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 5, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}), 'lscomb': False})
-        bfl = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 5, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}), 'lscomb': False})
-        trc = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 1, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}), 'lscomb': False})
-        arc = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 1, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}), 'lscomb': False})
-        bia = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 5, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}) })
-        rn = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 1, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}) })
-        drk = dict({'index': [], 'check': dict({}), 'match': dict({}), 'number': 5, 'idname': 'OBJECT', 'canbe': None, 'combsame': dict({}) })
-        spectt = dict({'mosaic': msc, 'det': ddet, 'check': chk, 'set': stf, 'keyword': kyw, 'fits': fts, 'science': sci, 'standard': std, 'pixflat': pfl, 'blzflat': bfl, 'trace': trc, 'arc': arc, 'bias': bia, 'dark': drk, 'readnoise': rn})
-        return spectt
-    if lines is None:
-        # Read in the default settings
-        # Get the software path
-        prgn_spl = progname.split('/')
-        fname = ""
-        for i in range(0, len(prgn_spl)-1): fname += prgn_spl[i]+"/"
-        fname += 'settings/settings.'+specname
-        msgs.info("Loading the "+specname+" settings")
-        spect = initialise()
-        with open(fname, 'r') as infile:
-            lines = infile.readlines()
-        spect = set_params(lines, spect, setstr="Default "+specname+" ")
-    else:
-        if spect is not None:
-            spect = set_params(lines, spect, setstr="Infile "+specname+" ")
-    return spect
 
 
 def load_headers(datlines):
