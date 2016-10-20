@@ -115,22 +115,22 @@ bias match naxis0 =0                # Match the shape of bias and science frames
 bias match naxis1 =0                # Match the shape of bias and science frames
 
 ### Pixel Flat frames
-pixflat idname flat                 # Header key value of flat frame for header keyword keyword+idname
-pixflat number 5                    # Number of flat frames to use
-pixflat canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
-pixflat lscomb False                # Combine a long and short flat
-pixflat check condition1 lamps=W # Lamp on
-pixflat match naxis0 =0             # Match the shape of flats with science
-pixflat match naxis1 =0             # Match the shape of flats with science
-pixflat match decker ''             # Check the same decker as the science frame was used
-pixflat match cdangle |<=1          # Match the cross-disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
+pixelflat idname flat                 # Header key value of flat frame for header keyword keyword+idname
+pixelflat number 5                    # Number of flat frames to use
+pixelflat canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
+pixelflat lscomb False                # Combine a long and short flat
+pixelflat check condition1 lamps=W # Lamp on
+pixelflat match naxis0 =0             # Match the shape of flats with science
+pixelflat match naxis1 =0             # Match the shape of flats with science
+pixelflat match decker ''             # Check the same decker as the science frame was used
+pixelflat match cdangle |<=1          # Match the cross-disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
 
 ### Blaze Flat frames
-#blzflat idname None                   # Header key value of trace frame for header keyword keyword+idname
-#blzflat number 0                      # Number of trace frames to use
-#blzflat canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
-#blzflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
-#blzflat check condition2 exptime>1     # Required for bias
+#slitflat idname None                   # Header key value of trace frame for header keyword keyword+idname
+#slitflat number 0                      # Number of trace frames to use
+#slitflat canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
+#slitflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
+#slitflat check condition2 exptime>1     # Required for bias
 
 ### Trace frames
 trace idname flat                 # Header key value of flat frame for header keyword keyword+idname

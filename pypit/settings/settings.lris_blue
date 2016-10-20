@@ -153,27 +153,27 @@ bias match binning ''             		# Match the shape of standard and science fr
 #bias match naxis1 =0                # Match the shape of bias and science frames
 
 ### Pixel Flat frames
-pixflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
-pixflat number 5                    # Number of flat frames to use
-pixflat canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
-pixflat lscomb False                # Combine a long and short flat
-#pixflat check condition1 lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on
-pixflat check condition1 hatch=open   # Required for blaze flats 
-pixflat check condition2 exptime<30   # Avoid stars
-pixflat match binning ''             		# Match the shape of standard and science frames
-pixflat match decker ''             # Check the same decker as the science frame was used
-pixflat match dichroic ''             # Check the same decker as the science frame was used
-pixflat match disperser ''             # Check the same decker as the science frame was used
+pixelflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
+pixelflat number 5                    # Number of flat frames to use
+pixelflat canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
+pixelflat lscomb False                # Combine a long and short flat
+#pixelflat check condition1 lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on
+pixelflat check condition1 hatch=open   # Required for blaze flats
+pixelflat check condition2 exptime<30   # Avoid stars
+pixelflat match binning ''             		# Match the shape of standard and science frames
+pixelflat match decker ''             # Check the same decker as the science frame was used
+pixelflat match dichroic ''             # Check the same decker as the science frame was used
+pixelflat match disperser ''             # Check the same decker as the science frame was used
 
 ### Blaze Flat frames
-blzflat idname None                   # Header key value of trace frame for header keyword keyword+idname
-blzflat number 0                      # Number of trace frames to use
-blzflat check condition1 hatch=open   # Required for blaze flats 
-blzflat check condition2 exptime<30   # Avoid stars
-blzflat canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
-blzflat match binning ''             		# Match the shape of standard and science frames
-blzflat match dichroic ''             # Check the same decker as the science frame was used
-blzflat match disperser ''             # Check the same decker as the science frame was used
+slitflat idname None                   # Header key value of trace frame for header keyword keyword+idname
+slitflat number 0                      # Number of trace frames to use
+slitflat check condition1 hatch=open   # Required for blaze flats
+slitflat check condition2 exptime<30   # Avoid stars
+slitflat canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
+slitflat match binning ''             		# Match the shape of standard and science frames
+slitflat match dichroic ''             # Check the same decker as the science frame was used
+slitflat match disperser ''             # Check the same decker as the science frame was used
 
 ### Trace frames
 trace idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
