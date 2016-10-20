@@ -8,6 +8,7 @@ from pypit import arload
 from pypit import armasters
 from pypit import armbase
 from pypit import armsgs
+from pypit import arparse
 from pypit import arproc
 from pypit import arsave
 from pypit import arsort
@@ -23,17 +24,16 @@ except:
 
 # Logging
 msgs = armsgs.get_logger()
+argflag = arparse.get_argflag().__dict__['_argflag']
+spect = arparse.get_spect().__dict__['_spect']
 
-def ARMLSD(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
+
+def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     """
     Automatic Reduction and Modeling of Long Slit Data
 
     Parameters
     ----------
-    argflag : dict
-      Arguments and flags used for reduction
-    spect : dict
-      Properties of the spectrograph.
     fitsdict : dict
       Contains relevant information from fits header files
     reuseMaster : bool

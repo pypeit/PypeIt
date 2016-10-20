@@ -41,8 +41,8 @@ def load_headers(datlines):
 
     Returns
     -------
-    spect : dict
-      Loaded or updated properties of the spectrograph
+    fitsdict : dict
+      The relevant header information of all fits files
     """
     chks = spect['check'].keys()
     keys = spect['keyword'].keys()

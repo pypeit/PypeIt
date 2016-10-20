@@ -239,47 +239,49 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
     if argf.__dict__['_argflag']['run']['load']['settings'] is not None:
         lines = argf.load_file(argf.__dict__['_argflag']['run']['load']['settings'])
         argf.set_paramlist(lines)
+
+    # Load default spectrograph settings
+    spect = arparse.get_spect((redtype.upper(), specname, ".".join(redname.split(".")[:-1])))
+    lines = spect.load_file()
+    spect.set_paramlist(lines)
+    # Load user changes to the arguments/flags
+    plines = spect.load_lines(spclines)
+    spect.set_paramlist(plines)
+    if argf.__dict__['_argflag']['run']['load']['spect'] is not None:
+        lines = spect.load_file(argf.__dict__['_argflag']['run']['load']['spect'])
+        spect.set_paramlist(lines)
+    # If the instrument settings file sets some argflag settings, implement those changes now
+    if len(spect.__dict__['_settings']) != 0:
+        argf.set_paramlist(spect.__dict__['_settings'])
     # Load command line changes
     argf.set_param('run ncpus {0:d}'.format(ncpus))
     argf.set_param('output verbosity {0:d}'.format(verbose))
-
-    # Save the arguments and flags used for this reduction
-    argf.save()
-    assert(False)
-
-    # Load the Spectrograph settings
-    spect = arload.load_spect(progname, specname)
-
-    # Load any changes to the spectrograph settings based on the user input file
-    spect = arload.load_spect(progname, specname, spect=spect, lines=spclines)
-
-    # Command line arguments
     if use_masters:
-        argflag['masters']['use'] = True
-
-    # If a quick reduction has been requested, make sure the requested pipeline
-    # is the quick implementation (if it exists), otherwise run the standard pipeline.
+        argf.set_param('reduce masters reuse True')
+    msgs.work("Make appropriate changes to quick reduction")
     if quick:
-        # Change to a "quick" settings file
+        # If a quick reduction has been requested, make sure the requested pipeline
+        # is the quick implementation (if it exists), otherwise run the standard pipeline.
         msgs.work("QUICK REDUCTION TO STILL BE DONE")
+    # Finally, save the arguments/flags and spectrograph settings used for this reduction
+    argf.save()
+    spect.save()
 
     # Load the important information from the fits headers
-    fitsdict = arload.load_headers(argf, spect, datlines)
+    from pypit import arload
+    fitsdict = arload.load_headers(datlines)
 
     # Reduce the data!
     status = 0
-    msgs.work("Make appropriate changes to quick reduction")
-    if quick:
-        msgs.work("define what is needed here for quick reduction")
     # Send the data away to be reduced
     if spect['mosaic']['reduction'] == 'ARMLSD':
         msgs.info("Data reduction will be performed using PYPIT-ARMLSD")
         from pypit import armlsd
-        status = armlsd.ARMLSD(argflag, spect, fitsdict)
+        status = armlsd.ARMLSD(fitsdict)
     elif spect['mosaic']['reduction'] == 'ARMED':
         msgs.info("Data reduction will be performed using PYPIT-ARMED")
         from pypit import armed
-        status = armed.ARMED(argflag, spect, fitsdict)
+        status = armed.ARMED(fitsdict)
     # Check for successful reduction
     if status == 0:
         msgs.info("Data reduction complete")

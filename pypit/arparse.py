@@ -985,9 +985,13 @@ class BaseArgFlag(BaseFunctions):
         # Check that v is allowed
         if v.lower() == "none":
             v = None
-        elif not isfile(v):
-                msgs.error("The argument of {0:s} must be a PYPIT spectrograph settings".format(get_current_name()) +
-                           msgs.newline() + "file or 'None'. The following file does not exist:" + msgs.newline() + v)
+        elif isfile(v):
+            pass
+        elif isfile(v+".spect"):
+            v += ".spect"
+        else:
+             msgs.error("The argument of {0:s} must be a PYPIT spectrograph settings".format(get_current_name()) +
+                        msgs.newline() + "file or 'None'. The following file does not exist:" + msgs.newline() + v)
         # Update argument
         self.update(v)
         return
@@ -1657,6 +1661,7 @@ class BaseSpect(BaseFunctions):
     def __init__(self, defname, savname):
         super(BaseSpect, self).__init__(defname, savname)
         self._spect = NestedDict()
+        self._settings = []
 
     def save(self):
         """
@@ -1710,7 +1715,7 @@ class BaseSpect(BaseFunctions):
         return
 
     def set_paramlist(self, lstall):
-        frmtyp = ["standard", "bias", "pixflat", "trace", "blzflat", "arc"]
+        frmtyp = ["standard", "bias", "pixelflat", "trace", "slitflat", "arc"]
         for ll in range(len(lstall)):
             lst = lstall[ll]
             cnt = 1
@@ -1733,6 +1738,9 @@ class BaseSpect(BaseFunctions):
                         ltr = "c"
                     anmbr = nmbr[nn]
                     for aa in anmbr:
+                        fspl = func.split("_")
+                        if len(fspl) <= nn:
+                            continue
                         aatmp = func.split("_")[nn]
                         if aa in aatmp:
                             try:
@@ -1747,7 +1755,6 @@ class BaseSpect(BaseFunctions):
                     func = "self." + func + "('{0:s}'".format(" ".join(lst[-cnt:]))
                     func += options
                     func += ")"
-                    print(func)
                     eval(func)
                     succeed = True
                     break
@@ -1762,6 +1769,10 @@ class BaseSpect(BaseFunctions):
                 else:
                     msgs.error("There appears to be an error on the following input line:" + msgs.newline() +
                                " ".join(lst))
+        return
+
+    def settings(self, v):
+        self._settings.append(v)
         return
 
     def update(self, v, ll=None):
@@ -1914,11 +1925,13 @@ class BaseSpect(BaseFunctions):
         cname = get_nmbr_name(anmbr=anmbr)
         # Check that v is allowed
         try:
-            v = float(v)
+            v = v.split(",")
+            for i in range(len(v)):
+                v[i] = float(v[i])
+                if v[i] <= 0.0:
+                    msgs.error("Each argument of {0:s} must be > 0.0".format(cname))
         except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(cname))
-        if v <= 0.0:
-            msgs.error("The argument of {0:s} must be > 0.0".format(cname))
+            msgs.error("Each argument of {0:s} must be of type float".format(cname))
         # Update argument
         self.update(v, ll=cname.split('_'))
 
@@ -1926,11 +1939,13 @@ class BaseSpect(BaseFunctions):
         cname = get_nmbr_name(anmbr=anmbr)
         # Check that v is allowed
         try:
-            v = float(v)
+            v = v.split(",")
+            for i in range(len(v)):
+                v[i] = float(v[i])
+                if v[i] <= 0.0:
+                    msgs.error("Each argument of {0:s} must be > 0.0".format(cname))
         except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(cname))
-        if v < 0.0:
-            msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
+            msgs.error("Each argument of {0:s} must be of type float".format(cname))
         # Update argument
         self.update(v, ll=cname.split('_'))
 
@@ -2319,28 +2334,38 @@ class BaseSpect(BaseFunctions):
     def keyword_lampname(self, v, bnmbr=1):
         cname = get_nmbr_name(bnmbr=bnmbr)
         # Check that v is allowed
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of the form:".format(cname) + msgs.newline() +
-                       "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                       "and NAME is the header keyword name")
+        if "." not in v:
+            # User must have passed the name of the lamp
+            pass
+        else:
+            # Get the name of the lamp from the header
+            try:
+                vspl = v.split(".")
+                int(vspl[0])
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of the form:".format(cname) + msgs.newline() +
+                           "##.NAME" + msgs.newline() +
+                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
+                           "and NAME is the header keyword name")
         # Update argument
         self.update(v, ll=cname.split('_'))
 
     def keyword_lampstat(self, v, bnmbr=1):
         cname = get_nmbr_name(bnmbr=bnmbr)
         # Check that v is allowed
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of the form:".format(cname) + msgs.newline() +
-                       "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                       "and NAME is the header keyword name")
+        if "." not in v:
+            # User must have specified the status
+            pass
+        else:
+            # Get the lamp status from the header
+            try:
+                vspl = v.split(".")
+                int(vspl[0])
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of the form:".format(cname) + msgs.newline() +
+                           "##.NAME" + msgs.newline() +
+                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
+                           "and NAME is the header keyword name")
         # Update argument
         self.update(v, ll=cname.split('_'))
 
@@ -2936,10 +2961,10 @@ def get_spect(init=None):
     # Instantiate??
     if init is not None:
         try:
-            defname = glob(dirname(__file__))[0] + "/settings/settings." + init[0].lower()
-            pypit_spect = eval(init[0]+"_spect(defname='{0:s}', savname='{1:s}.spect')".format(defname, init[1]))
+            defname = glob(dirname(__file__))[0] + "/settings/settings." + init[1].lower()
+            pypit_spect = eval(init[0]+"_spect(defname='{0:s}', savname='{1:s}.spect')".format(defname, init[2]))
         except RuntimeError:
-            msgs.error("{0:s} is not implemented yet".format(init[0]))
+            msgs.error("{0:s} is not implemented yet".format(init[1]))
     return pypit_spect
 
 
@@ -2950,15 +2975,15 @@ def get_current_name():
 
 def get_nmbr_name(anmbr=None, bnmbr=None, cnmbr=None):
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
-    tmp = "'" + " ".join(ll) + "'"
-    cspl = tmp.split("_")
+    tmp = " ".join(ll)
+    cspl = tmp.split(" ")
     if anmbr is not None:
         cspl[0] += "{0:02d}".format(anmbr)
     if bnmbr is not None:
         cspl[1] += "{0:02d}".format(bnmbr)
     if cnmbr is not None:
         cspl[2] += "{0:02d}".format(cnmbr)
-    return "_".join(cspl)
+    return "'" + " ".join(cspl) + "'"
 
 
 def load_list(strlist):

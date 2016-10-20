@@ -1,9 +1,10 @@
 import numpy as np
-import armasters
-import armbase
-import artrace
-import armsgs
-import arproc
+from pypit import armasters
+from pypit import armbase
+from pypit import artrace
+from pypit import armsgs
+from pypit import arparse
+from pypit import arproc
 
 try:
     from xastropy.xutils.xdebug import set_trace
@@ -13,21 +14,18 @@ except ImportError:
 
 # Logging
 msgs = armsgs.get_logger()
+argflag = arparse.get_argflag().__dict__['_argflag']
+spect = arparse.get_spect().__dict__['_spect']
 
-def ARMED(argflag, spect, fitsdict, reuseMaster=False):
+
+def ARMED(fitsdict, reuseMaster=False):
     """
     Automatic Reduction and Modeling of Echelle Data
 
     Parameters
     ----------
-    argflag : dict
-      Arguments and flags used for reduction
-    spect : dict
-      Properties of the spectrograph.
     fitsdict : dict
       Contains relevant information from fits header files
-    msgs : class
-      Messages class used to log data reduction process
     reuseMaster : bool
       If True, a master frame that will be used for another science frame
       will not be regenerated after it is first made.
