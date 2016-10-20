@@ -127,7 +127,6 @@ trace combsame decker ''          # When combining trace flat frames, make sure 
 arc idname OBJECT                   # Header key value of arc frame for header keyword keyword+idname
 arc number 1                        # Number of arc frames to use
 arc canbe None                      # If there are frames that will be arc ***in addition to other frame types***, include the other frame types here.
-arc lscomb False                    # Combine a long and short arc
 arc check condition1 lampstat03=On|lampstat04=On
 arc match naxis0 =0                 # Match the row binning of arcs with science
 arc match naxis1 =0                 # Match the column binning of arcs with science

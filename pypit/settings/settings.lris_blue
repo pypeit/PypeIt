@@ -196,7 +196,6 @@ trace match disperser ''             # Check the same decker as the science fram
 arc idname OBJECT                   # Header key value of arc frame for header keyword keyword+idname
 arc number 1                        # Number of arc frames to use
 arc canbe None                      # If there are frames that will be arc ***in addition to other frame types***, include the other frame types here.
-arc lscomb False                    # Combine a long and short arc
 arc check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on|lampstat06=on|lampstat07=on|lampstat08=on
 arc check condition2 hatch=closed # Required for arcs
 arc match binning ''                 # Match the shape of arcs with science
