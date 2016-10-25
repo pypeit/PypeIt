@@ -77,7 +77,7 @@ minimum to be::
     spect read
      #fits calwin 1000.     # calibration window; default window is 12 hrs;
                             here it is changed to 1000. hrs
-     pixflat number 1       # number of pixel flats needed for data reduction
+     pixelflat number 1       # number of pixel flats needed for data reduction
      bias number 3          # number of bias frames; note that in this case,
                             PYPIT will combine the 3 biases into a master bias
      arc number 1           # number of arcs
@@ -103,7 +103,7 @@ With that, the most basic settings file looks something like this::
     spect read
      #fits calwin 1000.
 
-     pixflat number 1
+     pixelflat number 1
      bias number 3
      arc number 1
      trace number 1
@@ -126,7 +126,7 @@ are other parameters that you can tell PYPIT to run by::
      #set bias     b150910_2036.fits.gz
      #set bias     b150910_2037.fits.gz
      #set bias     b150910_2038.fits.gz
-     #set pixflat  b150910_2051.fits.gz
+     #set pixelflat  b150910_2051.fits.gz
      #set trace    b150910_2051.fits.gz
      #set standard b150910_2083.fits.gz
      ################################

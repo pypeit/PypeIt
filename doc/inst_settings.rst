@@ -37,8 +37,8 @@ keyword slitwid 01.ISISLITW            # Slit Width
 keyword slitlen None                   # Slit Length
 keyword detrot None                    # Detector Rotation angle
 keyword dichroic 01.ISIDICHR           # Dichroic name
-keyword disperser 01.ISIGRAT           # Grism name
-keyword cdangle 01.CENWAVE             # Cross-disperser angle
+keyword dispname 01.ISIGRAT            # Grism name
+keyword dispangle 01.CENWAVE           # Disperser angle
 keyword lamps 01.CAGLAMPS              # Lamps being used
 
 * Update FITS properties
