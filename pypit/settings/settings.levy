@@ -40,7 +40,7 @@ det01 oscansec01 [0:4608,2049:2080]   # Either the overscan sections or the head
 
 ### Checks to perform
 check 01.NAXIS 2                    # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
-check 01.DSENSOR e2v_2kx4k_42-90    # Check the CCD name
+check 01.DSENSOR e2v 2kx4k 42-90    # Check the CCD name
 
 ### Keyword Identifiers
 keyword target 01.OBJECT               # Header keyword for the name given by the observer to a given frame

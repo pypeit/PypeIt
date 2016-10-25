@@ -54,7 +54,7 @@ det01 suffix _blue                    # Suffix to be appended to all saved calib
 
 ### Checks to perform
 check 01.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
-check 01.DSENSOR Fairchild_CCD_3041_2Kx2K          # Check the CCD name (replace any spaces with underscores)
+check 01.DSENSOR Fairchild CCD 3041 2Kx2K          # Check the CCD name (replace any spaces with underscores)
 
 ### Keyword Identifiers
 keyword target 01.OBJECT               # Header keyword for the name given by the observer to a given frame
