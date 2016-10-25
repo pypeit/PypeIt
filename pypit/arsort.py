@@ -129,7 +129,7 @@ def sort_data(fitsdict):
             filarr[np.where(fkey == 'standard')[0], wscistd[i]] = 0
             continue
         # If an object exists within 20 arcmins of a listed standard, then it is probably a standard star
-        foundstd = find_standard_file(argflag, radec, toler=20.*u.arcmin, check=True)
+        foundstd = find_standard_file(radec, toler=20.*u.arcmin, check=True)
         if foundstd:
             filarr[np.where(fkey == 'science')[0], wscistd[i]] = 0
         else:
@@ -216,7 +216,7 @@ def chk_condition(fitsdict, cond):
     return ntmp
 
 
-def sort_write(sortname, fitsdict, filesort, space=3):
+def sort_write(fitsdict, filesort, space=3):
     """
     Write out an xml and ascii file that contains the details of the file sorting.
     By default, the filename is printed first, followed by the filetype.
@@ -225,8 +225,6 @@ def sort_write(sortname, fitsdict, filesort, space=3):
 
     Parameters
     ----------
-    sortname : str
-      The filename to be used to save the list of sorted files
     fitsdict : dict
       Contains relevant information from fits header files
     filesort : dict
@@ -285,7 +283,7 @@ def sort_write(sortname, fitsdict, filesort, space=3):
     #if len(osspl) > 1:
     #    fname = sortname
     #else:
-    fname = sortname+'.xml'
+    fname = argflag['output']['sorted']+'.xml'
     votable.to_xml(fname)
     msgs.info("Successfully written sorted data information file:"+msgs.newline() +
               "{0:s}".format(fname))
@@ -308,7 +306,7 @@ def sort_write(sortname, fitsdict, filesort, space=3):
     # Create Table
     jxp_tbl = tTable(clms)
     # Write
-    jxp_name = fname.replace('.xml', '.lst')
+    jxp_name = argflag['output']['sorted']+'.lst'
     jxp_tbl.write(jxp_name, format='ascii.fixed_width')
     return
 

@@ -51,7 +51,8 @@ def load_headers(datlines):
     for k in keys:
         fitsdict[k]=[]
     headarr = [None for k in range(spect['fits']['numhead'])]
-    for i in range(len(datlines)):
+    numfiles = len(datlines)
+    for i in range(numfiles):
         # Try to open the fits file
         try:
             for k in range(spect['fits']['numhead']):
@@ -66,12 +67,13 @@ def load_headers(datlines):
             kchk  = '.'.join(ch.split('.')[1:])
             frhd  = whddict['{0:02d}'.format(tfrhd)]
             if spect['check'][ch] != str(headarr[frhd][kchk]).strip():
-                #print ch, frhd, kchk
-                #print spect['check'][ch], str(headarr[frhd][kchk]).strip()
+                print(ch, frhd, kchk)
+                print(spect['check'][ch], str(headarr[frhd][kchk]).strip())
                 msgs.warn("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
                 msgs.warn("Skipping the file..")
                 skip = True
         if skip:
+            numfiles -= 1
             continue
         # Now set the key values for each of the required keywords
         dspl = datlines[i].split('/')
@@ -151,7 +153,12 @@ def load_headers(datlines):
     # Convert the fitsdict arrays into numpy arrays
     for k in fitsdict.keys():
         fitsdict[k] = np.array(fitsdict[k])
-    msgs.info("Headers loaded for {0:d} files successfully".format(len(datlines)))
+    msgs.info("Headers loaded for {0:d} files successfully".format(numfiles))
+    if numfiles != len(datlines):
+        msgs.warn("Headers were not loaded for {0:d} files".format(len(datlines) - numfiles))
+    if numfiles == 0:
+        msgs.error("The headers could not be read from the input data files." + msgs.newline() +
+                   "Please check that the settings file matches the data.")
     return fitsdict
 
 

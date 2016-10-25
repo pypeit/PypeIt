@@ -67,7 +67,8 @@ class ScienceExposure:
 
         # Initialize Variables
         ndet = spect['mosaic']['ndet']
-        self._nonlinear = [spect['det'][det-1]['saturation']*spect['det'][det-1]['nonlinear']
+        self._nonlinear = [spect['det{0:02d}'.format(det+1)]['saturation'] *
+                           spect['det{0:02d}'.format(det+1)]['nonlinear']
                            for det in range(ndet)]
         self._dispaxis = None  # Which direction is the predominant spectral (dispersion) axis
         self._nspec    = [None for all in range(ndet)]   # Number of spectral pixels

@@ -1571,7 +1571,7 @@ class BaseSpect(BaseFunctions):
             if not succeed:
                 # Try a few manual options
                 if lst[0] == "check":
-                    self.update(lst[-1], ll=lst[:-1])
+                    self.update(" ".join(lst[2:]), ll=lst[:2])
                 elif lst[0] in frmtyp and lst[1] == "match":
                     self.update(lst[-1], ll=lst[:-1])
                 else:
@@ -2211,27 +2211,33 @@ class BaseSpect(BaseFunctions):
 
     def keyword_naxis0(self, v):
         # Check that v is allowed
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                       "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                       "and NAME is the header keyword name")
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                vspl = v.split(".")
+                int(vspl[0])
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                           "##.NAME" + msgs.newline() +
+                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
+                           "and NAME is the header keyword name")
         # Update argument
         self.update(v)
 
     def keyword_naxis1(self, v):
         # Check that v is allowed
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                       "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                       "and NAME is the header keyword name")
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                vspl = v.split(".")
+                int(vspl[0])
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                           "##.NAME" + msgs.newline() +
+                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
+                           "and NAME is the header keyword name")
         # Update argument
         self.update(v)
 

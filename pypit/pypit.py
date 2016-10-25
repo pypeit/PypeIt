@@ -252,7 +252,6 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
         spect.set_paramlist(lines)
     # If the instrument settings file sets some argflag settings, implement those changes now
     if len(spect.__dict__['_settings']) != 0:
-        debugger.set_trace()
         argf.set_paramlist(spect.__dict__['_settings'])
     # Load command line changes
     argf.set_param('run ncpus {0:d}'.format(ncpus))
@@ -267,7 +266,6 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     # Finally, save the arguments/flags and spectrograph settings used for this reduction
     argf.save()
     spect.save()
-    msgs.error("CHECK")
 
     # Load the important information from the fits headers
     from pypit import arload
@@ -276,11 +274,11 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     # Reduce the data!
     status = 0
     # Send the data away to be reduced
-    if spect['mosaic']['reduction'] == 'ARMLSD':
+    if spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMLSD':
         msgs.info("Data reduction will be performed using PYPIT-ARMLSD")
         from pypit import armlsd
         status = armlsd.ARMLSD(fitsdict)
-    elif spect['mosaic']['reduction'] == 'ARMED':
+    elif spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMED':
         msgs.info("Data reduction will be performed using PYPIT-ARMED")
         from pypit import armed
         status = armed.ARMED(fitsdict)

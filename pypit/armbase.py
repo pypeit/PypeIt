@@ -37,7 +37,7 @@ def SetupScience(fitsdict):
     filesort = arsort.sort_data(fitsdict)
     # Write out the details of the sorted files
     if argflag['output']['sorted'] is not None:
-        arsort.sort_write(argflag['output']['sorted'], fitsdict, filesort)
+        arsort.sort_write(fitsdict, filesort)
     # Match calibration frames to science frames
     spect = arsort.match_science(fitsdict, filesort)
     # If the user is only debugging, then exit now

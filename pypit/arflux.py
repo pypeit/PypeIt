@@ -233,7 +233,7 @@ def find_standard_file(radec, toler=20.*u.arcmin, check=False):
     closest = dict(sep=999*u.deg)
     for qq,sset in enumerate(std_sets):
         # Stars
-        path, star_tbl = sset(argflag)
+        path, star_tbl = sset()
         star_coords = SkyCoord(star_tbl['RA_2000'], star_tbl['DEC_2000'],
             unit=(u.hourangle, u.deg))
         # Match
@@ -402,8 +402,7 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
     var_corr /= fitsdict['exptime'][scidx]**2
 
     # Grab closest standard within a tolerance
-    std_dict = find_standard_file(argflag, (slf._msstd[0]['RA'],
-                                                 slf._msstd[0]['DEC']))
+    std_dict = find_standard_file((slf._msstd[0]['RA'], slf._msstd[0]['DEC']))
     # Load standard
     load_standard_file(slf, std_dict)
     # Interpolate onto observed wavelengths
