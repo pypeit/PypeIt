@@ -37,8 +37,8 @@ def SetupScience(argflag, spect, fitsdict):
     msgs.bug("Files and folders should not be deleted -- there should be an option to overwrite files automatically if they already exist, or choose to rename them if necessary")
     filesort = arsort.sort_data(argflag, spect, fitsdict)
     # Write out the details of the sorted files
-    if argflag['out']['sorted'] is not None:
-        arsort.sort_write(argflag['out']['sorted'], spect, fitsdict, filesort)
+    if argflag['output']['sorted'] is not None:
+        arsort.sort_write(argflag['output']['sorted'], spect, fitsdict, filesort)
     # Match calibration frames to science frames
     spect = arsort.match_science(argflag, spect, fitsdict, filesort)
     # If the user is only debugging, then exit now

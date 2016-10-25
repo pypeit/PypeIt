@@ -60,14 +60,14 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     masters = armasters.MasterFrames(spect['mosaic']['ndet'])
 
     # Use Masters?  Requires setup file
-    setup_file = argflag['out']['sorted']+'.setup'
+    setup_file = argflag['output']['sorted']+'.setup'
     try:
         calib_dict = ltu.loadjson(setup_file)
     except:
         msgs.info("No setup file {:s} for MasterFrames".format(setup_file))
         calib_dict = {}
     else:
-        argflag['masters']['setup_file'] = setup_file
+        argflag['reduce']['masters']['file'] = setup_file
 
     # Start reducing the data
     for sc in range(numsci):
@@ -76,7 +76,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
         msgs.sciexp = slf  # For QA writing on exit, if nothing else.  Could write Masters too
         if reloadMaster and (sc > 0):
-            slf._argflag['masters']['use'] = True
+            slf._argflag['reduce']['masters']['reuse'] = True
         # Loop on Detectors
         for kk in range(slf._spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
@@ -86,7 +86,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
             # Setup
             setup = arsort.calib_setup(slf, sc, det, fitsdict, calib_dict, write=False)
-            slf._argflag['masters']['setup'] = setup
+            slf._argflag['reduce']['masters']['setup'] = setup
             ###############
             # Generate master bias frame
             update = slf.MasterBias(fitsdict, det)
@@ -124,7 +124,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             # Generate an array that provides the physical pixel locations on the detector
             slf.GetPixelLocations(det)
             # Determine the edges of the spectrum (spatial)
-            if ('trace'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']):
+            if ('trace'+slf._argflag['reduce']['masters']['setup'] not in slf._argflag['reduce']['masters']['loaded']):
                 ###############
                 # Determine the edges of the spectrum (spatial)
                 lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det, pcadesc="PCA trace of the slit edges")
@@ -157,17 +157,17 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             ###############
             # Derive the spectral tilt
             if slf._tilts[det-1] is None:
-                if slf._argflag['masters']['use']:
-                    mstilt_name = armasters.master_name(slf._argflag['run']['masterdir'],
-                                                        'tilts', slf._argflag['masters']['setup'])
+                if slf._argflag['reduce']['masters']['reuse']:
+                    mstilt_name = armasters.master_name(slf._argflag['run']['directory']['master'],
+                                                        'tilts', slf._argflag['reduce']['masters']['setup'])
                     try:
                         tilts, head = arload.load_master(mstilt_name, frametype="tilts")
                     except IOError:
                         pass
                     else:
                         slf.SetFrame(slf._tilts, tilts, det)
-                        slf._argflag['masters']['loaded'].append('tilts'+slf._argflag['masters']['setup'])
-                if 'tilts'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
+                        slf._argflag['reduce']['masters']['loaded'].append('tilts'+slf._argflag['reduce']['masters']['setup'])
+                if 'tilts'+slf._argflag['reduce']['masters']['setup'] not in slf._argflag['reduce']['masters']['loaded']:
                     # First time tilts are derived for this arc frame --> derive the order tilts
                     tilts, satmask, outpar = artrace.model_tilt(slf, det, slf._msarc[det-1])
                     slf.SetFrame(slf._tilts, tilts, det)
@@ -208,7 +208,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             #msgs.error("UP TO HERE")
             ###############
             # Perform a velocity correction
-            if (slf._argflag['reduce']['heliocorr'] == True) & False:
+            if (slf._argflag['reduce']['calibrate']['refframe'] == 'heliocentric') & False:
                 if slf._argflag['science']['extraction']['reuse'] == True:
                     msgs.warn("Heliocentric correction will not be applied if an extracted science frame exists, and is used")
                 msgs.work("Perform a full barycentric correction")

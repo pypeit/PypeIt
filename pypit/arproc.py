@@ -363,7 +363,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
         debugger.set_trace()
     #
     msgs.info("Fitting sky background spectrum")
-    if slf._argflag['reduce']['bgsubtraction']['method'].lower() == 'polyscan':
+    if slf._argflag['reduce']['skysub']['method'].lower() == 'polyscan':
         polypoints = 5
         nsmth = 15
         bgmodel = arcyproc.polyscan_fitsky(tilts.copy(), scifrcp.copy(), 1.0/errframe, maskval, polyorder, polypoints, nsmth, repeat)
@@ -388,12 +388,12 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
             msgs.warn("At least one masked value in bgscan")
         # Generate
         bgframe = np.interp(tilts.flatten(), sxvpix[wbg[0][gdscan]], bgscan[gdscan]).reshape(tilts.shape)
-    elif slf._argflag['reduce']['bgsubtraction']['method'].lower() == 'bspline':
+    elif slf._argflag['reduce']['skysub']['method'].lower() == 'bspline':
         msgs.info("Using bspline sky subtraction")
         gdp = scifrcp != maskval
         srt = np.argsort(tilts[gdp])
         bspl = arutils.func_fit(tilts[gdp][srt], scifrcp[gdp][srt], 'bspline', 3,
-                                **slf._argflag['reduce']['bgsubtraction']['bspline_keywds'])
+                                **slf._argflag['reduce']['skysub']['bspline'])
         bgf_flat = arutils.func_val(bspl, tilts.flatten(), 'bspline')
         bgframe = bgf_flat.reshape(tilts.shape)
         if msgs._debug['sky_sub']:
@@ -406,8 +406,8 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
             plt.show()
             debugger.set_trace()
     else:
-        msgs.error('Not ready for this method for bgsubtraction {:s}'.format(
-                slf._argflag['reduce']['bgsubtraction']['method'].lower()))
+        msgs.error('Not ready for this method for skysub {:s}'.format(
+                slf._argflag['reduce']['skysub']['method'].lower()))
     if np.sum(np.isnan(bgframe)) > 0:
         msgs.warn("NAN in bgframe.  Replacing with 0")
         bad = np.isnan(bgframe)
@@ -533,10 +533,10 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
         # Rectify this order
         recframe = arcyextract.rectify(msflat, ordpix, slf._pixcen[det-1][:,o], slf._lordpix[det-1][:,o],
                                        slf._rordpix[det-1][:,o], slf._pixwid[det-1][o]+overpix, maskval, slf._dispaxis)
-        if slf._argflag["reduce"]["FlatMethod"].lower()=="polyscan":
-            polyorder = slf._argflag["reduce"]["FlatParams"][0]
-            polypoints = slf._argflag["reduce"]["FlatParams"][1]
-            repeat = slf._argflag["reduce"]["FlatParams"][2]
+        if slf._argflag["reduce"]["flatfield"]["method"].lower() == "polyscan":
+            polyorder = slf._argflag["reduce"]["flatfield"]["params"][0]
+            polypoints = slf._argflag["reduce"]["flatfield"]["params"][1]
+            repeat = slf._argflag["reduce"]["flatfield"]["params"][2]
             # Take the median along the spatial dimension
             flatmed = np.median(recframe, axis=1)
             # Perform a polynomial fitting scheme to determine the blaze profile
@@ -585,7 +585,7 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
                                                   slf._lordpix[det-1][:,o], slf._rordpix[det-1][:,o],
                                                   slf._pixwid[det-1][o]+overpix, maskval, slf._dispaxis)
         else:
-            msgs.error("Flatfield method {0:s} is not supported".format(slf._argflag["reduce"]["FlatMethod"]))
+            msgs.error("Flatfield method {0:s} is not supported".format(slf._argflag["reduce"]["flatfield"]["method"]))
     # Send the blaze away to be plotted and saved
     msgs.work("Perform a 2D PCA analysis on echelle blaze fits?")
     arplot.plot_orderfits(slf, msblaze, flat_ext1d, desc=plotdesc)
@@ -790,7 +790,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     msgs.work("Scattered light subtraction is not yet implemented...")
     ###############
     # Flat field the science frame (and variance)
-    if slf._argflag['reduce']['flatfield']:
+    if slf._argflag['reduce']['flatfield']['perform']:
         msgs.info("Flat fielding the science frame")
         sciframe, rawvarframe = flatfield(slf, sciframe, slf._mspixflatnrm[det-1], det,
                              varframe=rawvarframe)
@@ -809,12 +809,12 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
     ###############
     # Estimate Sky Background
-    if slf._argflag['reduce']['bgsubtraction']['perform']:
+    if slf._argflag['reduce']['skysub']['perform']:
         # Perform an iterative background/science extraction
         if msgs._debug['obj_profile'] and False:
             msgs.warn("Reading background from 2D image on disk")
             from astropy.io import fits
-            datfil = slf._argflag['run']['scidir']+'/spec2d_{:s}.fits'.format(slf._basename.replace(":","_"))
+            datfil = slf._argflag['run']['directory']['science']+'/spec2d_{:s}.fits'.format(slf._basename.replace(":","_"))
             hdu = fits.open(datfil)
             bgframe = hdu[1].data - hdu[2].data
         else:
@@ -834,7 +834,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         #continue
     ###############
     # Finalize the Sky Background image
-    if slf._argflag['reduce']['bgsubtraction']['perform'] & (scitrace['nobj']>0):
+    if slf._argflag['reduce']['skysub']['perform'] & (scitrace['nobj']>0):
         # Perform an iterative background/science extraction
         msgs.info("Finalizing the sky background image")
         trcmask = scitrace['object'].sum(axis=2)
@@ -1147,20 +1147,20 @@ def sub_overscan(file, det, use_datasec=False):
             osfit = np.median(oscan, axis=1)  # Mean was hit by CRs
         elif ay1-ay0 == oy1-oy0:
             osfit = np.median(oscan, axis=0)
-        elif argflag['reduce']['oscanMethod'].lower() == "median":
+        elif argflag['reduce']['overscan']['method'].lower() == "median":
             osfit = np.median(oscan)
         else:
             msgs.error("Overscan sections do not match amplifier sections for amplifier {0:d}".format(i+1))
         # Fit/Model the overscan region
-        if argflag['reduce']['oscanMethod'].lower() == "polynomial":
-            c = np.polyfit(np.arange(osfit.size), osfit, argflag['reduce']['oscanParams'][0])
+        if argflag['reduce']['overscan']['method'].lower() == "polynomial":
+            c = np.polyfit(np.arange(osfit.size), osfit, argflag['reduce']['overscan']['params'][0])
             ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
-        elif argflag['reduce']['oscanMethod'].lower() == "savgol":
-            ossub = savgol_filter(osfit, argflag['reduce']['oscanParams'][1], argflag['reduce']['oscanParams'][0])
-        elif argflag['reduce']['oscanMethod'].lower() == "median":  # One simple value
+        elif argflag['reduce']['overscan']['method'].lower() == "savgol":
+            ossub = savgol_filter(osfit, argflag['reduce']['overscan']['params'][1], argflag['reduce']['overscan']['params'][0])
+        elif argflag['reduce']['overscan']['method'].lower() == "median":  # One simple value
             ossub = osfit * np.ones(1)
         else:
-            msgs.warn("Overscan subtraction method {0:s} is not implemented".format(argflag['reduce']['oscanMethod']))
+            msgs.warn("Overscan subtraction method {0:s} is not implemented".format(argflag['reduce']['overscan']['method']))
             msgs.info("Using a linear fit to the overscan region")
             c = np.polyfit(np.arange(osfit.size), osfit, 1)
             ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
@@ -1187,7 +1187,7 @@ def sub_overscan(file, det, use_datasec=False):
             file[wd] -= ossub
         elif wd[1].shape[1] == ossub.shape[0]:
             file[wd] -= ossub.T
-        elif argflag['reduce']['oscanMethod'].lower() == "median":
+        elif argflag['reduce']['overscan']['method'].lower() == "median":
             file[wd] -= osfit
         else:
             msgs.error("Could not subtract bias from overscan region --"+msgs.newline()+"size of extracted regions does not match")

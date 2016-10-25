@@ -1212,9 +1212,9 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
         # d.set('scale log')
         # # Plot the regions
         # if tracedesc != "":
-        #     d.set('regions load ' + '"' + '{0:s}/{1:s}_trace_orders.reg'.format(slf._argflag['run']['plotsdir'],tracedesc) + '"')
+        #     d.set('regions load ' + '"' + '{0:s}/{1:s}_trace_orders.reg'.format(slf._argflag['run']['directory']['qa'],tracedesc) + '"')
         # else:
-        #     d.set('regions load ' + '"' + '{0:s}/trace_orders.reg'.format(slf._argflag['run']['plotsdir']) + '"')
+        #     d.set('regions load ' + '"' + '{0:s}/trace_orders.reg'.format(slf._argflag['run']['directory']['qa']) + '"')
         # # Save the image
         # # Check if the user wants to peruse the output as it becomes available
         # if slf._argflag['run']['stopcheck']:
@@ -2248,12 +2248,12 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
             # If the PCA worked OK, do the following
             msgs.work("Should something be done here inbetween the two basis calls?")
             fitted, outpar = arpca.basis(xcen,tiltval,tcoeff,lnpc,ofit,x0in=ordsnd,mask=maskord,skipx0=False,function=slf._argflag['trace']['orders']['function'])
-            arpca.pc_plot(outpar, ofit, plotsdir=slf._argflag['run']['plotsdir'], pcatype="tilts", prefix=prefix)
+            arpca.pc_plot(outpar, ofit, plotsdir=slf._argflag['run']['directory']['qa'], pcatype="tilts", prefix=prefix)
             # Extrapolate the remaining orders requested
             orders = 1.0+np.arange(maskorder.size)
             extrap_tilt, outpar = arpca.extrapolate(outpar, orders, msgs, function=slf._argflag['trace']['orders']['function'])
             tilts = extrap_tilt
-            arpca.pc_plot_arctilt(tiltang, centval, tilts, plotsdir=slf._argflag['run']['plotsdir'], pcatype="tilts", prefix=prefix)
+            arpca.pc_plot_arctilt(tiltang, centval, tilts, plotsdir=slf._argflag['run']['directory']['qa'], pcatype="tilts", prefix=prefix)
         else:
             msgs.warn("Could not perform a PCA when tracing the order tilts"+msgs.newline()+"Not enough well-traced orders")
             msgs.info("Attempting to fit tilts by assuming the tilt is order-independent")
@@ -2353,7 +2353,7 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
         # If the PCA worked OK, do the following
         msgs.work("Should something be done here inbetween the two basis calls?")
         fitted, outpar = arpca.basis(xcen,tiltval,coeffs,lnpc,ofit,x0in=gd+1.0,skipx0=False,function=slf._argflag['trace']['orders']['function'])
-        arpca.pc_plot(outpar, ofit, plotsdir=slf._argflag['run']['plotsdir'], pcatype="tilts", prefix=prefix)
+        arpca.pc_plot(outpar, ofit, plotsdir=slf._argflag['run']['directory']['qa'], pcatype="tilts", prefix=prefix)
         # Extrapolate the remaining orders requested
         orders = 1.0+np.arange(arcdet.shape[1])
         extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=slf._argflag['trace']['orders']['function'])
@@ -2441,7 +2441,7 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
             # If the PCA worked OK, do the following
             msgs.work("Should something be done here inbetween the two basis calls?")
             fitted, outpar = arpca.basis(xcen,tiltval,tcoeff,lnpc,ofit,x0in=ordsnd,mask=maskord,skipx0=False,function=slf._argflag['trace']['orders']['function'])
-            arpca.pc_plot(outpar, ofit, plotsdir=slf._argflag['run']['plotsdir'], pcatype="tilts", prefix=prefix)
+            arpca.pc_plot(outpar, ofit, plotsdir=slf._argflag['run']['directory']['qa'], pcatype="tilts", prefix=prefix)
             # Extrapolate the remaining orders requested
             orders = 1.0+np.arange(maskorder.size)
             extrap_tilt, outpar = arpca.extrapolate(outpar, orders, msgs, function=slf._argflag['trace']['orders']['function'])
@@ -2490,7 +2490,7 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
         # If the PCA worked OK, do the following
         msgs.bug("Should something be done here inbetween the two basis calls?")
         fitted, outpar = arpca.basis(xcen,tiltval,coeffs,lnpc,ofit,x0in=gd+1.0,skipx0=False,function=slf._argflag['trace']['orders']['function'])
-        arpca.pc_plot(outpar, ofit, plotsdir=slf._argflag['run']['plotsdir'], pcatype="tilts")
+        arpca.pc_plot(outpar, ofit, plotsdir=slf._argflag['run']['directory']['qa'], pcatype="tilts")
         # Extrapolate the remaining orders requested
         orders = 1.0+np.arange(arcdet.shape[1])
         extrap_tilt, outpar = arpca.extrapolate(outpar,orders,function=slf._argflag['trace']['orders']['function'])
@@ -2510,9 +2510,9 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
     # Write out ds9 regions file for slit tilts.
     msgs.info("Writing QC files")
     if tltprefix != "":
-        tracereg = open("{0:s}/{1:s}_trace_tilts.reg".format(slf._argflag['run']['plotsdir'],tltprefix),'w')
+        tracereg = open("{0:s}/{1:s}_trace_tilts.reg".format(slf._argflag['run']['directory']['qa'],tltprefix),'w')
     else:
-        tracereg = open("{0:s}/trace_tilts.reg".format(slf._argflag['run']['plotsdir']),'w')
+        tracereg = open("{0:s}/trace_tilts.reg".format(slf._argflag['run']['directory']['qa']),'w')
     tracereg.write("# Region file format: DS9 version 4.1\n")
     tracereg.write('global color=red dashlist=8 3 width=3 font="helvetica 10 normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1\n')
     tracereg.write("image\n")
@@ -2548,29 +2548,29 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
         d.set('scale log')
         # Plot the regions
         if tltprefix != "":
-            d.set('regions load ' + '"' + '{0:s}/{1:s}_trace_tilts.reg'.format(slf._argflag['run']['plotsdir'], tltprefix) + '"')
+            d.set('regions load ' + '"' + '{0:s}/{1:s}_trace_tilts.reg'.format(slf._argflag['run']['directory']['qa'], tltprefix) + '"')
             if trcprefix != "":
-                tfil = '{0:s}/{1:s}_trace_orders.reg'.format(slf._argflag['run']['plotsdir'], trcprefix)
+                tfil = '{0:s}/{1:s}_trace_orders.reg'.format(slf._argflag['run']['directory']['qa'], trcprefix)
                 if os.path.exists(tfil):
                     d.set('regions load ' + '"' + tfil + '"')
                 else:
                     msgs.warn("Couldn't open order locations DS9 region file:"+msgs.newline()+tfil)
             else:
-                tfil = '{0:s}/trace_orders.reg'.format(slf._argflag['run']['plotsdir'])
+                tfil = '{0:s}/trace_orders.reg'.format(slf._argflag['run']['directory']['qa'])
                 if os.path.exists(tfil):
                     d.set('regions load ' + '"' + tfil + '"')
                 else:
                     msgs.warn("Couldn't open order locations DS9 region file:"+msgs.newline()+tfil)
         else:
-            d.set('regions load ' + '"' + '{0:s}/trace_tilts.reg'.format(slf._argflag['run']['plotsdir']) + '"')
+            d.set('regions load ' + '"' + '{0:s}/trace_tilts.reg'.format(slf._argflag['run']['directory']['qa']) + '"')
             if trcprefix != "":
-                tfil = '{0:s}/{1:s}_trace_orders.reg'.format(slf._argflag['run']['plotsdir'], trcprefix)
+                tfil = '{0:s}/{1:s}_trace_orders.reg'.format(slf._argflag['run']['directory']['qa'], trcprefix)
                 if os.path.exists(tfil):
                     d.set('regions load ' + '"' + tfil + '"')
                 else:
                     msgs.warn("Couldn't open order locations DS9 region file:"+msgs.newline()+tfil)
             else:
-                tfil = '{0:s}/trace_orders.reg'.format(slf._argflag['run']['plotsdir'])
+                tfil = '{0:s}/trace_orders.reg'.format(slf._argflag['run']['directory']['qa'])
                 if os.path.exists(tfil):
                     d.set('regions load ' + '"' + tfil + '"')
                 else:

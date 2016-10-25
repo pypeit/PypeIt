@@ -119,20 +119,20 @@ def save_masters(slf, det, setup):
     import io, json
 
     # MasterFrame directory
-    mdir = slf._argflag['run']['masterdir']
+    mdir = slf._argflag['run']['directory']['master']
     # Bias
-    if 'bias'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
+    if 'bias'+slf._argflag['reduce']['masters']['setup'] not in slf._argflag['reduce']['masters']['loaded']:
         if not isinstance(slf._msbias[det-1], (basestring)):
             arsave.save_master(slf, slf._msbias[det-1],
                                filename=master_name(mdir, 'bias', setup),
                                frametype='bias')
     # Bad Pixel
-    if 'badpix'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
+    if 'badpix'+slf._argflag['reduce']['masters']['setup'] not in slf._argflag['reduce']['masters']['loaded']:
         arsave.save_master(slf, slf._bpix[det-1],
                                filename=master_name(mdir, 'badpix', setup),
                                frametype='badpix')
     # Trace
-    if 'trace'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
+    if 'trace'+slf._argflag['reduce']['masters']['setup'] not in slf._argflag['reduce']['masters']['loaded']:
         extensions = [slf._lordloc[det-1], slf._rordloc[det-1],
                       slf._pixcen[det-1], slf._pixwid[det-1],
                       slf._lordpix[det-1], slf._rordpix[det-1]]
@@ -140,16 +140,16 @@ def save_masters(slf, det, setup):
                            filename=master_name(mdir, 'trace', setup),
                            frametype='trace', extensions=extensions)
     # Pixel Flat
-    if 'normpixflat'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
+    if 'normpixflat'+slf._argflag['reduce']['masters']['setup'] not in slf._argflag['reduce']['masters']['loaded']:
         arsave.save_master(slf, slf._mspixflatnrm[det-1],
                            filename=master_name(mdir, 'normpixflat', setup),
                            frametype='normpixflat')
     # Arc/Wave
-    if 'arc'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
+    if 'arc'+slf._argflag['reduce']['masters']['setup'] not in slf._argflag['reduce']['masters']['loaded']:
         arsave.save_master(slf, slf._msarc[det-1],
                            filename=master_name(mdir, 'arc', setup),
                            frametype='arc', keywds=dict(transp=slf._transpose))
-    if 'wave'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
+    if 'wave'+slf._argflag['reduce']['masters']['setup'] not in slf._argflag['reduce']['masters']['loaded']:
         # Wavelength image
         arsave.save_master(slf, slf._mswave[det-1],
                            filename=master_name(mdir, 'wave', setup),
@@ -160,7 +160,7 @@ def save_masters(slf, det, setup):
         with io.open(json_file, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4,
                                        separators=(',', ': '))))
-    if 'tilts'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
+    if 'tilts'+slf._argflag['reduce']['masters']['setup'] not in slf._argflag['reduce']['masters']['loaded']:
         arsave.save_master(slf, slf._tilts[det-1],
                            filename=master_name(mdir, 'tilts', setup),
                            frametype='tilts')

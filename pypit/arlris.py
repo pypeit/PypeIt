@@ -143,7 +143,7 @@ def read_lris(raw_file, det=None, TRIM=False):
             xs = kk*precol
             xe = xs + nxpre
             '''
-            if keyword_set(VERBOSE) then begin
+            if keyword_set(VERBOSITY) then begin
                 section = '['+stringify(xs)+':'+stringify(xe)+',*]'
                 message, 'inserting extension '+stringify(i)+ $
                          ' predata  in '+section, /info
@@ -173,7 +173,7 @@ def read_lris(raw_file, det=None, TRIM=False):
             section = '[:,{:d}:{:d}]'.format(xs, xe)
             osec.append(section)
             '''
-            if keyword_set(VERBOSE) then begin
+            if keyword_set(VERBOSITY) then begin
                 section = '['+stringify(xs)+':'+stringify(xe)+',*]'
                 message, 'inserting extension '+stringify(i)+ $
                          ' postdata in '+section, /info
@@ -194,7 +194,7 @@ def read_lris(raw_file, det=None, TRIM=False):
             yin2 = nydata - postline 
 
             '''
-            if keyword_set(VERBOSE) then begin
+            if keyword_set(VERBOSITY) then begin
                 section = '['+stringify(xs)+':'+stringify(xe)+ $
                           ','+stringify(ys)+':'+stringify(ye)+']'
                 message, 'inserting extension '+stringify(i)+ $

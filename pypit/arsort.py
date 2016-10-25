@@ -63,7 +63,7 @@ def sort_data(argflag, spect, fitsdict):
     # Identify the frames:
     for i in range(len(fkey)):
         # Self identification
-        if argflag['run']['use_idname']:
+        if argflag['run']['useIDname']:
             w = np.where(fitsdict['idname'] == spect[fkey[i]]['idname'])[0]
             msgs.info("Sorting files")
         else:
@@ -357,10 +357,10 @@ def match_science(argflag, spect, fitsdict, filesort):
         # Find nearby calibration frames
         for ft in range(len(ftag)):
             # Some checks first to make sure we need to find matching frames
-            if ftag[ft] == 'dark' and argflag['reduce']['usebias'] != 'dark':
+            if ftag[ft] == 'dark' and argflag['bias']['useframe'] != 'dark':
                 msgs.info("  Dark frames not required")
                 continue
-            if ftag[ft] == 'bias' and argflag['reduce']['usebias'] != 'bias' and not argflag['reduce']['badpix']:
+            if ftag[ft] == 'bias' and argflag['bias']['useframe'] != 'bias' and not argflag['reduce']['badpix']:
                 msgs.info("  Bias frames not required")
                 continue
             # Now go ahead and match the frames
@@ -446,7 +446,7 @@ def match_science(argflag, spect, fitsdict, filesort):
             n = np.intersect1d(n, iARR[ft])
             # How many frames are required
             numfr = spect[ftag[ft]]['number']
-            if argflag['out']['verbose'] == 2:
+            if argflag['output']['verbosity'] == 2:
                 if numfr == 1: areis = "is"
                 else: areis = "are"
                 if np.size(n) == 1:
@@ -459,13 +459,13 @@ def match_science(argflag, spect, fitsdict, filesort):
                 msgs.warn("  Only {0:d}/{1:d} {2:s} frames for {3:s}".format(np.size(n), numfr, ftag[ft],
                                                                              fitsdict['target'][iSCI[i]]))
                 # Errors for insufficient BIAS frames
-                if argflag['reduce']['usebias'].lower() == ftag[ft]:
+                if argflag['bias']['useframe'].lower() == ftag[ft]:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient PIXELFLAT frames
-                if ftag[ft] == 'pixflat' and argflag['reduce']['flatfield']:
+                if ftag[ft] == 'pixelflat' and argflag['reduce']['flatfield']['perform']:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
-                # Errors for insufficient BLAZEFLAT frames
-                if ftag[ft] == 'blzflat' and argflag['reduce']['flatfield']:
+                # Errors for insufficient SLITFLAT frames
+                if ftag[ft] == 'slitflat' and argflag['reduce']['flatfield']['perform']:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient TRACE frames
                 if ftag[ft] == 'trace':
@@ -554,7 +554,7 @@ def match_frames_old(slf, frames, frametype='<None>'):
     msgs.info("Matching {0:d} {1:s} frames".format(frames.shape[2],frametype))
     srtframes = [np.zeros((frames.shape[0],frames.shape[1],1))]
     srtframes[0][:,:,0] = frames[:,:,0]
-    prob  = arutils.erf(slf._argflag['reduce']['flatmatch']/np.sqrt(2.0))[0]
+    prob  = arutils.erf(slf._argflag['pixflat']['combine']['match']/np.sqrt(2.0))[0]
 #	chisqv = chisq.ppf(prob,frames.shape[0]*frames.shape[1])
     chisqv = frames.shape[0]*frames.shape[1]
     for fr in range(1,frames.shape[2]):
@@ -596,10 +596,10 @@ def make_dirs(argflag, fitsdict, filesort):
     # First, get the current working directory
     currDIR = os.getcwd()
     msgs.info("Creating Science directory")
-    newdir = "{0:s}/{1:s}".format(currDIR, argflag['run']['scidir'])
+    newdir = "{0:s}/{1:s}".format(currDIR, argflag['run']['directory']['science'])
     if os.path.exists(newdir):
         msgs.info("The following directory already exists:"+msgs.newline()+newdir)
-        if not argflag['out']['overwrite']:
+        if not argflag['output']['overwrite']:
             rmdir = ''
             while os.path.exists(newdir):
                 while rmdir != 'n' and rmdir != 'y' and rmdir != 'r':
@@ -626,9 +626,9 @@ def make_dirs(argflag, fitsdict, filesort):
     rmalways = False
     for i in range(sci_targs.size):
         sci_targs[i] = sci_targs[i].replace(' ', '_')
-        newdir = "{0:s}/{1:s}/{2:s}".format(currDIR, argflag['run']['scidir'], sci_targs[i])
+        newdir = "{0:s}/{1:s}/{2:s}".format(currDIR, argflag['run']['directory']['science'], sci_targs[i])
         if os.path.exists(newdir):
-            if argflag['out']['overwrite'] or rmalways:
+            if argflag['output']['overwrite'] or rmalways:
                 pass
 #				shutil.rmtree(newdir)
 #				os.mkdir(newdir)
@@ -652,9 +652,9 @@ def make_dirs(argflag, fitsdict, filesort):
         nored = np.delete(nored, 0)
     # Create a directory where all of the master calibration frames are stored.
     msgs.info("Creating Master Calibrations directory")
-    newdir = "{0:s}/{1:s}".format(currDIR, argflag['run']['masterdir'])
+    newdir = "{0:s}/{1:s}".format(currDIR, argflag['run']['directory']['master'])
     if os.path.exists(newdir):
-        if not argflag['out']['overwrite']:
+        if not argflag['output']['overwrite']:
             msgs.info("The following directory already exists:"+msgs.newline()+newdir)
             rmdir = ''
             while rmdir != 'n' and rmdir != 'y':
@@ -670,9 +670,9 @@ def make_dirs(argflag, fitsdict, filesort):
     else: os.mkdir(newdir)
     # Create a directory where all of the master calibration frames are stored.
     msgs.info("Creating Plots directory")
-    newdir = "{0:s}/{1:s}".format(currDIR, argflag['run']['plotsdir'])
+    newdir = "{0:s}/{1:s}".format(currDIR, argflag['run']['directory']['qa'])
     if os.path.exists(newdir):
-        if not argflag['out']['overwrite']:
+        if not argflag['output']['overwrite']:
             msgs.info("The following directory already exists:"+msgs.newline()+newdir)
             rmdir=''
             while rmdir != 'n' and rmdir != 'y':
@@ -764,8 +764,8 @@ def calib_setup(sciexp, sc, det, fitsdict, calib_dict,
     # Write
     if write:
         gddict = ltu.jsonify(calib_dict)
-        setup_file = sciexp._argflag['out']['sorted']+'.setup'
-        sciexp._argflag['masters']['setup_file'] = setup_file
+        setup_file = sciexp._argflag['output']['sorted']+'.setup'
+        sciexp._argflag['reduce']['masters']['file'] = setup_file
         with io.open(setup_file, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4,
                                        separators=(',', ': '))))

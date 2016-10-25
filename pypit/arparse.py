@@ -179,9 +179,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def arc_combine_match(self, v):
-        """
-        reduce arcmatch
-        """
         # Check that v is allowed
         try:
             v = float(v)
@@ -192,9 +189,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def arc_combine_method(self, v):
-        """
-        arc comb method
-        """
         # Check that v is allowed
         allowed = ['mean', 'median', 'weightmean']
         v = v.lower()
@@ -206,9 +200,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def arc_combine_reject_cosmics(self, v):
-        """
-        arc comb rej_cosmicray
-        """
         # Check that v is allowed
         try:
             v = float(v)
@@ -219,9 +210,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def arc_combine_reject_lowhigh(self, v):
-        """
-        arc comb rej_lowhigh
-        """
         # Check that v is allowed
         v = load_list(v)
         # Update argument
@@ -229,9 +217,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def arc_combine_reject_level(self, v):
-        """
-        arc comb rej_level
-        """
         # Check that v is allowed
         v = load_list(v)
         # Update argument
@@ -239,9 +224,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def arc_combine_reject_replace(self, v):
-        """
-        arc comb set_allrej
-        """
         # Check that v is allowed
         allowed = ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']
         v = v.lower()
@@ -253,9 +235,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def arc_combine_satpix(self, v):
-        """
-        arc comb sat_pix
-        """
         # Check that v is allowed
         allowed = ['reject', 'force', 'nothing']
         v = v.lower()
@@ -313,9 +292,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def arc_calibrate_IDpixels(self, v):
-        """
-        arc calibrate id_pix
-        """
         # Check that v is allowed
         v = load_list(v)
         # Update argument
@@ -323,9 +299,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def arc_calibrate_IDwaves(self, v):
-        """
-        arc calibrate id_wave
-        """
         # Check that v is allowed
         v = load_list(v)
         # Update argument
@@ -333,9 +306,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def arc_calibrate_lamps(self, v):
-        """
-        arc calibrate linelist
-        """
         # Check that v is allowed
         allowed = ['ArI', 'CdI', 'HgI', 'HeI', 'KrI', 'NeI', 'XeI', 'ZnI', 'ThAr']
         v = load_list(v)
@@ -383,9 +353,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def arc_useframe(self, v):
-        """
-        reduce usearc
-        """
         # Check that v is allowed
         if v.lower() == "none":
             v = None
@@ -399,9 +366,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def bias_combine_method(self, v):
-        """
-        bias comb method
-        """
         # Check that v is allowed
         allowed = ['mean', 'median', 'weightmean']
         v = v.lower()
@@ -413,9 +377,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def bias_combine_reject_cosmics(self, v):
-        """
-        bias comb rej_cosmicray
-        """
         # Check that v is allowed
         try:
             v = float(v)
@@ -426,9 +387,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def bias_combine_reject_lowhigh(self, v):
-        """
-        bias comb rej_lowhigh
-        """
         # Check that v is allowed
         v = load_list(v)
         # Update argument
@@ -436,9 +394,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def bias_combine_reject_level(self, v):
-        """
-        bias comb rej_level
-        """
         # Check that v is allowed
         v = load_list(v)
         # Update argument
@@ -446,9 +401,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def bias_combine_reject_replace(self, v):
-        """
-        bias comb set_allrej
-        """
         # Check that v is allowed
         allowed = ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']
         v = v.lower()
@@ -460,9 +412,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def bias_combine_satpix(self, v):
-        """
-        bias comb sat_pix
-        """
         # Check that v is allowed
         allowed = ['reject', 'force', 'nothing']
         v = v.lower()
@@ -474,9 +423,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def bias_useframe(self, v):
-        """
-        reduce usebias
-        """
         # Check that v is allowed
         allowed = ['bias', 'overscan', 'dark', 'none']
         if "," in v:
@@ -500,9 +446,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def output_overwrite(self, v):
-        """
-        out overwrite
-        """
         # Check that v is allowed
         if v.lower() == "true":
             v = True
@@ -515,9 +458,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def output_sorted(self, v):
-        """
-        out sorted
-        """
         # Check that v is allowed
         if v.lower() == "none":
             v = None
@@ -529,9 +469,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def output_verbosity(self, v):
-        """
-        out verbose
-        """
         # Check that v is allowed
         try:
             v = int(v)
@@ -545,9 +482,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def pixelflat_combine_match(self, v):
-        """
-        reduce flatmatch
-        """
         # Check that v is allowed
         try:
             v = float(v)
@@ -558,9 +492,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def pixelflat_combine_method(self, v):
-        """
-        pixflat comb method
-        """
         # Check that v is allowed
         allowed = ['mean', 'median', 'weightmean']
         v = v.lower()
@@ -572,9 +503,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def pixelflat_combine_reject_cosmics(self, v):
-        """
-        pixflat comb rej_cosmicray
-        """
         # Check that v is allowed
         try:
             v = float(v)
@@ -585,9 +513,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def pixelflat_combine_reject_lowhigh(self, v):
-        """
-        pixflat comb rej_lowhigh
-        """
         # Check that v is allowed
         v = load_list(v)
         # Update argument
@@ -595,9 +520,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def pixelflat_combine_reject_level(self, v):
-        """
-        pixflat comb rej_level
-        """
         # Check that v is allowed
         v = load_list(v)
         # Update argument
@@ -605,9 +527,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def pixelflat_combine_reject_replace(self, v):
-        """
-        pixflat comb set_allrej
-        """
         # Check that v is allowed
         allowed = ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']
         v = v.lower()
@@ -619,9 +538,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def pixelflat_combine_satpix(self, v):
-        """
-        pixflat comb sat_pix
-        """
         # Check that v is allowed
         allowed = ['reject', 'force', 'nothing']
         v = v.lower()
@@ -645,9 +561,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def pixelflat_useframe(self, v):
-        """
-        reduce useflat
-        """
         # Check that v is allowed
         if v.lower() == "none":
             v = None
@@ -684,9 +597,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def reduce_calibrate_refframe(self, v):
-        """
-        reduce heliocorr
-        """
         # Check that v is allowed
         allowed = ['geocentric', 'heliocentric', 'barycentric']
         if v.lower() not in allowed:
@@ -707,9 +617,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def reduce_flatfield_method(self, v):
-        """
-        reduce FlatMethod
-        """
         # Check that v is allowed
         allowed = ['polyscan']
         v = v.lower()
@@ -721,9 +628,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def reduce_flatfield_params(self, v):
-        """
-        reduce FlatParams
-        """
         # Check that v is allowed
         v = load_list(v)
         # Update argument
@@ -731,9 +635,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def reduce_flatfield_perform(self, v):
-        """
-        reduce flatfield
-        """
         # Check that v is allowed
         if v.lower() == "true":
             v = True
@@ -746,11 +647,13 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def reduce_flatfield_useframe(self, v):
-        """
-        reduce useflat
-        """
         # Check that v is allowed
-        v = v.lower()
+        allowed = ['pixelflat', 'slitflat']
+        vt = v.lower()
+        if vt not in allowed:
+            msgs.warn("Assuming the following is the name of a master flatfield frame:" + msgs.newline() + v)
+        else:
+            v = vt
         # Update argument
         self.update(v)
         return
@@ -766,7 +669,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def reduce_flexure_method(self, v):
-        """reduce flexure spec"""
         # Check that v is allowed
         allowed = ['none', 'boxcar', 'slitcen']
         v = v.lower()
@@ -794,9 +696,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def reduce_masters_file(self, v):
-        """
-        masters setup_file
-        """
         # Check that v is allowed
         if v.lower() == 'none':
             v = ''
@@ -805,9 +704,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def reduce_masters_loaded(self, v):
-        """
-        masters loaded
-        """
         # Check that v is allowed
         v = load_list(v)
         # Update argument
@@ -815,9 +711,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def reduce_masters_reuse(self, v):
-        """
-        masters use
-        """
         # Check that v is allowed
         if v.lower() == "true":
             v = True
@@ -830,9 +723,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def reduce_masters_setup(self, v):
-        """
-        masters setup
-        """
         # Check that v is allowed
         if v.lower() == 'none':
             v = ''
@@ -841,9 +731,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def reduce_overscan_method(self, v):
-        """
-        reduce oscanMethod
-        """
         # Check that v is allowed
         allowed = ['polynomial', 'savgol']
         v = v.lower()
@@ -855,9 +742,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def reduce_overscan_params(self, v):
-        """
-        reduce oscanParams
-        """
         # Check that v is allowed
         v = load_list(v)
         # Update argument
@@ -865,9 +749,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def reduce_pixel_locations(self, v):
-        """
-        reduce locations
-        """
         # Check that v is allowed
         if v.lower() == "none":
             v = None
@@ -892,9 +773,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def reduce_skysub_bspline_everyn(self, v):
-        """
-        reduce bgsubtraction bspline_keywds everyn
-        """
         # Check that v is allowed
         try:
             v = int(v)
@@ -905,9 +783,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def reduce_skysub_method(self, v):
-        """
-        reduce bgsubtraction method
-        """
         # Check that v is allowed
         allowed = ['bspline', 'polyscan']
         v = v.lower()
@@ -919,9 +794,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def reduce_skysub_perform(self, v):
-        """
-        reduce bgsubtraction perform
-        """
         # Check that v is allowed
         if v.lower() == "true":
             v = True
@@ -958,9 +830,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def run_directory_master(self, v):
-        """
-        run  masterdir
-        """
         # Check that v is allowed
 
         # Update argument
@@ -968,9 +837,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def run_directory_qa(self, v):
-        """
-        run  plotsdir
-        """
         # Check that v is allowed
 
         # Update argument
@@ -978,9 +844,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def run_directory_science(self, v):
-        """
-        run  scidir
-        """
         # Check that v is allowed
 
         # Update argument
@@ -1127,9 +990,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def run_useIDname(self, v):
-        """
-        run use_idname
-        """
         # Check that v is allowed
         if v.lower() == "true":
             v = True
