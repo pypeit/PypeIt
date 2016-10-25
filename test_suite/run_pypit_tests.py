@@ -44,11 +44,11 @@ for instr in instruments:
                 i0 = dpth.rfind('/')
                 newdpth = ' '+pwd+'/'+instr+'/'+setup+dpth[i0:]
                 lines[kk+1] = newdpth
-            elif 'reduce useflat' in iline:
+            elif 'reduce flatfield useframe' in iline:
                 cpth = lines[kk]
                 i0 = cpth.rfind('/')
                 newcpth = os.getenv('PYPIT_CALIBS')+'/'+cpth[i0:]
-                lines[kk] = 'reduce useflat '+newcpth
+                lines[kk] = 'reduce flatfield useframe '+newcpth
         # Generate folder as need be
         idir = os.getenv('TST_PYPIT')+'/'+instr
         if not os.path.exists(idir):

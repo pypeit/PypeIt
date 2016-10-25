@@ -658,6 +658,18 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
+    def reduce_trace_useframe(self, v):
+        # Check that v is allowed
+        allowed = ['trace', 'slitflat', 'science']
+        vt = v.lower()
+        if vt not in allowed:
+            msgs.warn("Assuming the following is the name of a master trace frame:" + msgs.newline() + v)
+        else:
+            v = vt
+        # Update argument
+        self.update(v)
+        return
+
     def reduce_flexure_maxshift(self, v):
         # Check that v is allowed
         try:
@@ -1034,9 +1046,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def slitflat_combine_match(self, v):
-        """
-        reduce flatmatch
-        """
         # Check that v is allowed
         try:
             v = float(v)
@@ -1047,9 +1056,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def slitflat_combine_method(self, v):
-        """
-        blzflat comb method
-        """
         # Check that v is allowed
         allowed = ['mean', 'median', 'weightmean']
         v = v.lower()
@@ -1061,9 +1067,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def slitflat_combine_reject_cosmics(self, v):
-        """
-        blzflat comb rej_cosmicray
-        """
         # Check that v is allowed
         try:
             v = float(v)
@@ -1074,9 +1077,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def slitflat_combine_reject_lowhigh(self, v):
-        """
-        blzflat comb rej_lowhigh
-        """
         # Check that v is allowed
         v = load_list(v)
         # Update argument
@@ -1084,9 +1084,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def slitflat_combine_reject_level(self, v):
-        """
-        blzflat comb rej_level
-        """
         # Check that v is allowed
         v = load_list(v)
         # Update argument
@@ -1094,9 +1091,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def slitflat_combine_reject_replace(self, v):
-        """
-        blzflat comb set_allrej
-        """
         # Check that v is allowed
         allowed = ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']
         v = v.lower()
@@ -1108,9 +1102,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def slitflat_combine_satpix(self, v):
-        """
-        blzflat comb sat_pix
-        """
         # Check that v is allowed
         allowed = ['reject', 'force', 'nothing']
         v = v.lower()
@@ -1146,9 +1137,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_combine_match(self, v):
-        """
-        reduce flatmatch
-        """
         # Check that v is allowed
         try:
             v = float(v)
@@ -1159,9 +1147,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_combine_method(self, v):
-        """
-        trace comb method
-        """
         # Check that v is allowed
         allowed = ['mean', 'median', 'weightmean']
         v = v.lower()
@@ -1173,9 +1158,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_combine_reject_cosmics(self, v):
-        """
-        trace comb rej_cosmicray
-        """
         # Check that v is allowed
         try:
             v = float(v)
@@ -1186,9 +1168,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_combine_reject_lowhigh(self, v):
-        """
-        trace comb rej_lowhigh
-        """
         # Check that v is allowed
         v = load_list(v)
         if len(v) != 2:
@@ -1200,9 +1179,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_combine_reject_level(self, v):
-        """
-        trace comb rej_level
-        """
         # Check that v is allowed
         v = load_list(v)
         if len(v) != 2:
@@ -1214,9 +1190,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_combine_reject_replace(self, v):
-        """
-        trace comb set_allrej
-        """
         # Check that v is allowed
         allowed = ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']
         v = v.lower()
@@ -1228,9 +1201,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_combine_satpix(self, v):
-        """
-        trace comb sat_pix
-        """
         # Check that v is allowed
         allowed = ['reject', 'force', 'nothing']
         v = v.lower()
@@ -1242,9 +1212,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_slits_diffpolyorder(self, v):
-        """
-        trace orders diffpolyorder  3
-        """
         # Check that v is allowed
         try:
             v = int(v)
@@ -1257,9 +1224,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_dispersion_window(self, v):
-        """
-        trace disp window
-        """
         # Check that v is allowed
         if v.lower() == "none":
             v = None
@@ -1274,9 +1238,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_dispersion_direction(self, v):
-        """
-        trace disp direction
-        """
         # Check that v is allowed
         if v.lower() == "none":
             v = None
@@ -1293,9 +1254,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_slits_fracignore(self, v):
-        """
-        trace orders fracignore
-        """
         # Check that v is allowed
         try:
             v = float(v)
@@ -1308,9 +1266,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_slits_function(self, v):
-        """
-        trace orders function
-        """
         # Check that v is allowed
         allowed = ['polynomial', 'legendre', 'chebyshev']
         v = v.lower()
@@ -1322,9 +1277,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_slits_idsonly(self, v):
-        """
-        trace orders use_ids_only
-        """
         # Check that v is allowed
         if v.lower() == "true":
             v = True
@@ -1337,8 +1289,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_slits_maxgap(self, v):
-        """trace orders slitgap
-        """
         # Check that v is allowed
         if v.lower() == "none":
             v = None
@@ -1372,9 +1322,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_slits_polyorder(self, v):
-        """
-        trace orders polyorder  3
-        """
         # Check that v is allowed
         try:
             v = int(v)
@@ -1387,9 +1334,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_slits_pca_type(self, v):
-        """
-        trace orders pcatype
-        """
         # Check that v is allowed
         allowed = ['pixel', 'order']
         v = v.lower()
@@ -1401,9 +1345,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_slits_pca_params(self, v):
-        """
-        trace orders pcaparams
-        """
         # Check that v is allowed
         v = load_list(v)
         # Update argument
@@ -1411,9 +1352,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_slits_pca_extrapolate_pos(self, v):
-        """
-        trace orders pcxpos
-        """
         # Check that v is allowed
         try:
             v = int(v)
@@ -1426,9 +1364,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_slits_pca_extrapolate_neg(self, v):
-        """
-        trace orders pcxneg
-        """
         # Check that v is allowed
         try:
             v = int(v)
@@ -1441,9 +1376,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_slits_sigdetect(self, v):
-        """
-        trace orders sigdetect
-        """
         # Check that v is allowed
         try:
             v = float(v)
@@ -1456,9 +1388,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_slits_single(self, v):
-        """
-        trace orders sng_slit
-        """
         # Check that v is allowed
         v = load_list(v)
         # Update argument
@@ -1466,9 +1395,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_slits_tilts_method(self, v):
-        """
-        trace orders tilts
-        """
         # Check that v is allowed
         allowed = ['PCA', 'spline', 'spca', 'interp', 'perp', 'zero']
         if v not in allowed:
@@ -1479,9 +1405,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_slits_tilts_params(self, v):
-        """
-        trace orders pcatilt
-        """
         # Check that v is allowed
         v = load_list(v)
         # Update argument
@@ -1489,9 +1412,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_slits_tilts_disporder(self, v):
-        """
-        trace orders tiltdisporder
-        """
         # Check that v is allowed
         try:
             v = int(v)
@@ -1504,9 +1424,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_slits_tilts_order(self, v):
-        """
-        trace orders tiltorder
-        """
         # Check that v is allowed
         try:
             v = int(v)
@@ -1519,9 +1436,6 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def trace_useframe(self, v):
-        """
-        reduce usetrace
-        """
         # Check that v is allowed
         if v.lower() == "none":
             v = None
@@ -2686,9 +2600,6 @@ class BaseSpect(BaseFunctions):
 class ARMLSD(BaseArgFlag):
 
     def reduce_calibrate_flux(self, v):
-        """
-        reduce fluxcalibrate
-        """
         # Check that v is allowed
         if v.lower() == "true":
             v = True
@@ -2700,9 +2611,6 @@ class ARMLSD(BaseArgFlag):
         self.update(v)
 
     def reduce_flexure_maxshift(self, v):
-        """
-        reduce flexure max_shift
-        """
         # Check that v is allowed
         try:
             v = int(v)

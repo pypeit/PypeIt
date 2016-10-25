@@ -52,8 +52,8 @@ def sort_data(argflag, spect, fitsdict):
     ftag = dict({'science': np.array([], dtype=np.int),
                  'standard': np.array([], dtype=np.int),
                  'bias': np.array([], dtype=np.int),
-                 'pixflat': np.array([], dtype=np.int),
-                 'blzflat': np.array([], dtype=np.int),
+                 'pixelflat': np.array([], dtype=np.int),
+                 'slitflat': np.array([], dtype=np.int),
                  'trace': np.array([], dtype=np.int),
                  'arc': np.array([], dtype=np.int)})
     fkey = np.array(ftag.keys())
@@ -338,14 +338,14 @@ def match_science(argflag, spect, fitsdict, filesort):
     """
 
     msgs.info("Matching calibrations to Science frames")
-    ftag = ['standard', 'bias', 'dark', 'pixflat', 'blzflat', 'trace', 'arc']
+    ftag = ['standard', 'bias', 'dark', 'pixelflat', 'slitflat', 'trace', 'arc']
     nfiles = fitsdict['filename'].size
     iSCI = filesort['science']
     iSTD = filesort['standard']
     iBIA = filesort['bias']
     iDRK = filesort['dark']
-    iPFL = filesort['pixflat']
-    iBFL = filesort['blzflat']
+    iPFL = filesort['pixelflat']
+    iBFL = filesort['slitflat']
     iTRC = filesort['trace']
     iARC = filesort['arc']
     iARR = [iSTD, iBIA, iDRK, iPFL, iBFL, iTRC, iARC]
@@ -474,7 +474,7 @@ def match_science(argflag, spect, fitsdict, filesort):
                 if ftag[ft] == 'arc' and argflag['reduce']['calibrate']:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient ARC frames
-                if ftag[ft] == 'standard' and argflag['reduce']['fluxcalibrate']:
+                if ftag[ft] == 'standard' and argflag['reduce']['calibrate']['flux']:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
             else:
                 # Select the closest calibration frames to the science frame

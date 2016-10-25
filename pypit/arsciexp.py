@@ -49,8 +49,8 @@ class ScienceExposure:
         if self._argflag['bias']['useframe'] == 'bias': self._idx_bias = spect['bias']['index'][snum]
         elif self._argflag['bias']['useframe'] == 'dark':  self._idx_bias = spect['dark']['index'][snum]
         else: self._idx_bias = []
-        if self._argflag['reduce']['usetrace'] == 'trace': self._idx_trace = self._spect['trace']['index'][snum]
-        elif self._argflag['reduce']['usetrace'] == 'blzflat': self._idx_trace = self._spect['blzflat']['index'][snum]
+        if self._argflag['reduce']['trace']['useframe'] == 'trace': self._idx_trace = self._spect['trace']['index'][snum]
+        elif self._argflag['reduce']['trace']['useframe'] == 'slitflat': self._idx_trace = self._spect['slitflat']['index'][snum]
         else: self._idx_trace = []
         if self._argflag['reduce']['flatfield']['useframe'] == 'pixelflat': self._idx_flat = self._spect['pixelflat']['index'][snum]
         elif self._argflag['reduce']['flatfield']['useframe'] == 'slitflat': self._idx_flat = self._spect['slitflat']['index'][snum]
@@ -216,10 +216,10 @@ class ScienceExposure:
         fitsdict : dict
           Updates to the input fitsdict
         """
-        if self._argflag['trace']['disp']['direction'] is None:
-            self._dispaxis = artrace.dispdir(self._msarc[det-1], dispwin=self._argflag['trace']['disp']['window'], mode=0)
-        elif self._argflag['trace']['disp']['direction'] in [0, 1]:
-            self._dispaxis = int(self._argflag['trace']['disp']['direction'])
+        if self._argflag['trace']['dispersion']['direction'] is None:
+            self._dispaxis = artrace.dispdir(self._msarc[det-1], dispwin=self._argflag['trace']['dispersion']['window'], mode=0)
+        elif self._argflag['trace']['dispersion']['direction'] in [0, 1]:
+            self._dispaxis = int(self._argflag['trace']['dispersion']['direction'])
         else:
             msgs.error("The argument for the dispersion direction (trace+disp+direction)"+msgs.newline() +
                        "must be either:"+msgs.newline()+"  0 if the dispersion axis is predominantly along a row" +
@@ -326,9 +326,9 @@ class ScienceExposure:
                 else:
                     self._transpose = head['transp']
                     if self._transpose:  # Need to setup for flipping
-                        self._argflag['trace']['disp']['direction'] = 1
+                        self._argflag['trace']['dispersion']['direction'] = 1
                     else:
-                        self._argflag['trace']['disp']['direction'] = 0
+                        self._argflag['trace']['dispersion']['direction'] = 0
                     # Append as loaded
                     self._argflag['reduce']['masters']['loaded'].append('arc'+self._argflag['reduce']['masters']['setup'])
             if 'arc'+self._argflag['reduce']['masters']['setup'] not in self._argflag['reduce']['masters']['loaded']:
@@ -575,7 +575,7 @@ class ScienceExposure:
         if self._mstrace[det-1] is not None:
             msgs.info("An identical master trace frame already exists")
             return False
-        if self._argflag['reduce']['usetrace'] in ['trace', 'blzflat']:
+        if self._argflag['reduce']['trace']['useframe'] in ['trace', 'slitflat']:
             if self._argflag['reduce']['masters']['reuse']:
                 # Attempt to load the Master Frame
                 mstrace_name = armasters.master_name(self._argflag['run']['directory']['master'],
@@ -601,7 +601,7 @@ class ScienceExposure:
                     #
                     self._argflag['reduce']['masters']['loaded'].append('trace'+self._argflag['reduce']['masters']['setup'])
             if 'trace'+self._argflag['reduce']['masters']['setup'] not in self._argflag['reduce']['masters']['loaded']:
-                msgs.info("Preparing a master trace frame with {0:s}".format(self._argflag['reduce']['usetrace']))
+                msgs.info("Preparing a master trace frame with {0:s}".format(self._argflag['reduce']['trace']['useframe']))
                 ind = self._idx_trace
                 # Load the frames for tracing
                 frames = arload.load_frames(self, fitsdict, ind, det, frametype='trace', msbias=self._msbias[det-1],
@@ -621,10 +621,10 @@ class ScienceExposure:
                 else:
                     mstrace = arcomb.comb_frames(frames, det, spect=self._spect, frametype='trace', **self._argflag['trace']['combine'])
                 del frames
-        elif self._argflag['reduce']['usetrace'] == 'science':
+        elif self._argflag['reduce']['trace']['useframe'] == 'science':
             msgs.error("Tracing with a science frame is not yet implemented")
         else: # It must be the name of a file the user wishes to load
-            mstrace_name = self._argflag['run']['directory']['master']+'/'+self._argflag['reduce']['usetrace']
+            mstrace_name = self._argflag['run']['directory']['master']+'/'+self._argflag['reduce']['trace']['useframe']
             mstrace, head = arload.load_master(mstrace_name, frametype=None)
             debugger.set_trace()  # NEED TO LOAD EXTRAS AS ABOVE
         # Set and then delete the Master Trace frame

@@ -20,7 +20,7 @@ except ImportError:
     import pdb as debugger
 
 
-def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=1,
+def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosity=1,
           use_masters=False, logname=None):
     """
     Main driver of the PYPIT code. Default settings and
@@ -43,7 +43,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
     ncpus : int
       Number of CPUs to use for multiprocessing the
       data reduction (sometimes not used)
-    verbose : int (0,1,2)
+    verbosity : int (0,1,2)
       Level of verbosity:
         0 = No output
         1 = Minimal output (default - suitable for the average user)
@@ -63,7 +63,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
     # Init logger
     if debug is None:
         debug = ardebug.init()
-    msgs = armsgs.get_logger((logname, debug, verbose))
+    msgs = armsgs.get_logger((logname, debug, verbosity))
 
     def load_input(redname):
         """
@@ -185,7 +185,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
     # Initialize the arguments and flags
 #    argflag = arload.argflag_init()
 #    argflag['run']['ncpus'] = ncpus
-#    argflag['out']['verbose'] = verbose
+#    argflag['output']['verbosity'] = verbosity
 
     # Determine the name of the spectrograph
     specname = None
@@ -256,7 +256,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
         argf.set_paramlist(spect.__dict__['_settings'])
     # Load command line changes
     argf.set_param('run ncpus {0:d}'.format(ncpus))
-    argf.set_param('output verbosity {0:d}'.format(verbose))
+    argf.set_param('output verbosity {0:d}'.format(verbosity))
     if use_masters:
         argf.set_param('reduce masters reuse True')
     msgs.work("Make appropriate changes to quick reduction")
