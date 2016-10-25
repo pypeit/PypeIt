@@ -6,6 +6,7 @@ import sys
 import shutil
 import numpy as np
 from pypit import armsgs
+from pypit import arparse
 from pypit import arutils
 from pypit.arflux import find_standard_file
 from astropy.io.votable.tree import VOTableFile, Resource, Table, Field
@@ -16,27 +17,25 @@ from linetools import utils as ltu
 
 try:
     from xastropy.xutils import xdebug as debugger
-except:
+except ImportError:
     import pdb as debugger
 try:
     basestring
 except NameError:
     basestring = str
 
-# Logging
+# Logging and settings
 msgs = armsgs.get_logger()
+argflag = arparse.get_argflag().__dict__['_argflag']
+spect = arparse.get_spect().__dict__['_spect']
 
 
-def sort_data(argflag, spect, fitsdict):
+def sort_data(fitsdict):
     """
     Create an exposure class for every science frame
 
     Parameters
     ----------
-    argflag : dict
-      Arguments and flags used for reduction
-    spect : dict
-      Properties of the spectrograph.
     fitsdict : dict
       Contains relevant information from fits header files
 
@@ -217,7 +216,7 @@ def chk_condition(fitsdict, cond):
     return ntmp
 
 
-def sort_write(sortname, spect, fitsdict, filesort, space=3):
+def sort_write(sortname, fitsdict, filesort, space=3):
     """
     Write out an xml and ascii file that contains the details of the file sorting.
     By default, the filename is printed first, followed by the filetype.
@@ -228,8 +227,6 @@ def sort_write(sortname, spect, fitsdict, filesort, space=3):
     ----------
     sortname : str
       The filename to be used to save the list of sorted files
-    spect : dict
-      Properties of the spectrograph.
     fitsdict : dict
       Contains relevant information from fits header files
     filesort : dict
@@ -295,7 +292,7 @@ def sort_write(sortname, spect, fitsdict, filesort, space=3):
 
     # ASCII file (JXP)
     jxpord = ['filename', 'date', 'frametype', 'target', 'exptime', 'binning',
-        'dichroic', 'disperser', 'cdangle', 'decker']
+        'dichroic', 'dispname', 'dispangle', 'decker']
     # Generate the columns
     clms = []
     for pr in jxpord:
@@ -316,16 +313,12 @@ def sort_write(sortname, spect, fitsdict, filesort, space=3):
     return
 
 
-def match_science(argflag, spect, fitsdict, filesort):
+def match_science(fitsdict, filesort):
     """
     For a given set of identified data, match calibration frames to science frames
 
     Parameters
     ----------
-    argflag : dict
-      Arguments and flags used for reduction
-    spect : dict
-      Properties of the spectrograph.
     fitsdict : dict
       Contains relevant information from fits header files
     filesort : dict
@@ -538,50 +531,12 @@ def match_frames(frames, criteria, frametype='<None>', satlevel=None):
     return srtframes
 
 
-def match_frames_old(slf, frames, frametype='<None>'):
-    """
-    Parameters
-    ----------
-    slf
-    frames
-    frametype
-
-    Returns
-    -------
-
-    """
-    from pypit import arcyutils
-    msgs.info("Matching {0:d} {1:s} frames".format(frames.shape[2],frametype))
-    srtframes = [np.zeros((frames.shape[0],frames.shape[1],1))]
-    srtframes[0][:,:,0] = frames[:,:,0]
-    prob  = arutils.erf(slf._argflag['pixflat']['combine']['match']/np.sqrt(2.0))[0]
-#	chisqv = chisq.ppf(prob,frames.shape[0]*frames.shape[1])
-    chisqv = frames.shape[0]*frames.shape[1]
-    for fr in range(1,frames.shape[2]):
-        fm = None
-        for st in range(len(srtframes)):
-            chisqc = arcyutils.checkmatch(srtframes[st][:,:,0],frames[:,:,fr],1048577.0)
-            if chisqc < chisqv*10.0:
-                fm = st
-                break
-        if fm is None:
-            srtframes.append(np.zeros((frames.shape[0],frames.shape[1],1)))
-            srtframes[-1][:,:,0] = frames[:,:,fr]
-        else:
-            srtframes[fm] = np.append(srtframes[fm],np.zeros((frames.shape[0],frames.shape[1],1)),axis=2)
-            srtframes[fm][:,:,-1] = frames[:,:,fr]
-    msgs.info("Found {0:d} different sets of {1:s} frames".format(len(srtframes),frametype))
-    return srtframes
-
-
-def make_dirs(argflag, fitsdict, filesort):
+def make_dirs(fitsdict, filesort):
     """
     For a given set of identified data, match calibration frames to science frames
 
     Parameters
     ----------
-    argflag : dict
-      Arguments and flags used for reduction
     fitsdict : dict
       Contains relevant information from fits header files
     filesort : dict
@@ -704,8 +659,8 @@ def calib_setup(sciexp, sc, det, fitsdict, calib_dict,
     setup_str = [str('{:02d}'.format(i+1)) for i in range(99)]
     # Arc
     idx = sciexp._spect['arc']['index'][sc]
-    disp_name = fitsdict["disperser"][idx[0]]
-    disp_angle = fitsdict["cdangle"][idx[0]]
+    disp_name = fitsdict["dispname"][idx[0]]
+    disp_angle = fitsdict["dispangle"][idx[0]]
     # Common
     dichroic = fitsdict["dichroic"][idx[0]]
     decker = fitsdict["decker"][idx[0]]

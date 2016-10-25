@@ -43,7 +43,7 @@ def ARMED(fitsdict, reuseMaster=False):
     status = 0
 
     # Create a list of science exposure classes
-    sciexp = armbase.SetupScience(argflag, spect, fitsdict)
+    sciexp = armbase.SetupScience(fitsdict)
     numsci = len(sciexp)
 
     # Create a list of master calibration frames
@@ -55,7 +55,7 @@ def ARMED(fitsdict, reuseMaster=False):
         scidx = slf._idx_sci[0]
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
         # Loop on Detectors
-        for kk in range(slf._spect['mosaic']['ndet']):
+        for kk in range(spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             ###############
             # Get amplifier sections

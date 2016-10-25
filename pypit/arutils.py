@@ -20,26 +20,9 @@ msgs = armsgs.get_logger()
 
 try:
     from xastropy.xutils import xdebug as debugger
-except:
+except ImportError:
     import pdb as debugger
 
-try:
-    import ds9
-except ImportError:
-    warnings.warn("ds9 module not installed")
-else:
-    def ds9plot(array):
-        # Set up a ds9 instance
-        d = ds9.ds9()
-        # Load the image
-        d.set_np2arr(array)
-        # Zoom to fit
-        d.set('zoom to fit')
-        # Change the colormap and scaling
-        d.set('cmap gray')
-        d.set('scale log')
-        null = raw_input("TEST PLOT GENERATED: Press enter to continue...")
-        return
 
 def quicksave(data,fname):
     """
@@ -181,17 +164,17 @@ def dummy_self(pypitdir=None, inum=0, fitsdict=None, nfile=10):
     if fitsdict is None:
         fitsdict = dummy_fitsdict(nfile=nfile)
     # Dummy Class
-    slf = arsciexp.ScienceExposure(inum, argflag, spect, fitsdict, do_qa=False)
+    slf = arsciexp.ScienceExposure(inum, fitsdict, do_qa=False)
     #
     if pypitdir is None:
         pypitdir = __file__[0:__file__.rfind('/')]
-    slf._argflag['run']['pypitdir'] = pypitdir
-    slf._argflag['run']['spectrograph'] = 'dummy'
-    slf._argflag['run']['directory']['science'] = './'
+    argflag['run']['pypitdir'] = pypitdir
+    argflag['run']['spectrograph'] = 'dummy'
+    argflag['run']['directory']['science'] = './'
     #
-    slf._spect['mosaic'] = {}
-    slf._spect['mosaic']['ndet'] = 1
-    slf._spect['det'] = [{'binning':'1x1'}]
+    spect['mosaic'] = {}
+    spect['mosaic']['ndet'] = 1
+    spect['det'] = [{'binning':'1x1'}]
     #
     return slf
 

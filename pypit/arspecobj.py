@@ -12,7 +12,7 @@ msgs = armsgs.get_logger()
 
 
 class SpecObjExp(object):
-    '''Class to handle object spectra from a single exposure 
+    """Class to handle object spectra from a single exposure
     One generates one of these Objects for each spectrum in the exposure
 
     Parameters:
@@ -44,7 +44,7 @@ class SpecObjExp(object):
        Identifier for the slit (max=9999) 
     objid: int
        Identifier for the object (max=999)
-    '''
+    """
     # Attributes
     # Init
     def __init__(self, shape, config, scidx, det, xslit, ypos, xobj, objtype='unknown'):
@@ -101,6 +101,7 @@ class SpecObjExp(object):
         return ('[SpecObjExp: {:s} == Setup {:s} Object at {:g} in Slit at {:g} with det={:d}, scidx={:d} and objtype={:s}]'.format(
                 self.idx, self.config, self.xobj, self.slitcen, self.det, self.scidx, self.objtype))
 
+
 def init_exp(slf, scidx, det, fitsdict, trc_img=None, ypos=0.5, **kwargs):
     """Generate a list of SpecObjExp objects for a given exposure
 
@@ -119,7 +120,7 @@ def init_exp(slf, scidx, det, fitsdict, trc_img=None, ypos=0.5, **kwargs):
 
     # Init
     specobjs = []
-    config = instconfig(slf, det, scidx, fitsdict)
+    config = instconfig(det, scidx, fitsdict)
     yidx = int(np.round(ypos*slf._lordloc[det-1].shape[0]))
     pixl_slits = slf._lordloc[det-1][yidx, :]
     pixr_slits = slf._rordloc[det-1][yidx, :]

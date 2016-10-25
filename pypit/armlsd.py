@@ -53,7 +53,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     status = 0
 
     # Create a list of science exposure classes
-    sciexp = armbase.SetupScience(argflag, spect, fitsdict)
+    sciexp = armbase.SetupScience(fitsdict)
     numsci = len(sciexp)
 
     # Create a list of master calibration frames
@@ -76,9 +76,9 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
         msgs.sciexp = slf  # For QA writing on exit, if nothing else.  Could write Masters too
         if reloadMaster and (sc > 0):
-            slf._argflag['reduce']['masters']['reuse'] = True
+            argflag['reduce']['masters']['reuse'] = True
         # Loop on Detectors
-        for kk in range(slf._spect['mosaic']['ndet']):
+        for kk in range(spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             slf.det = det
             ###############
@@ -86,7 +86,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
             # Setup
             setup = arsort.calib_setup(slf, sc, det, fitsdict, calib_dict, write=False)
-            slf._argflag['reduce']['masters']['setup'] = setup
+            argflag['reduce']['masters']['setup'] = setup
             ###############
             # Generate master bias frame
             update = slf.MasterBias(fitsdict, det)
@@ -124,7 +124,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             # Generate an array that provides the physical pixel locations on the detector
             slf.GetPixelLocations(det)
             # Determine the edges of the spectrum (spatial)
-            if ('trace'+slf._argflag['reduce']['masters']['setup'] not in slf._argflag['reduce']['masters']['loaded']):
+            if ('trace'+argflag['reduce']['masters']['setup'] not in argflag['reduce']['masters']['loaded']):
                 ###############
                 # Determine the edges of the spectrum (spatial)
                 lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det, pcadesc="PCA trace of the slit edges")
@@ -148,7 +148,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             ###############
             # Prepare the pixel flat field frame
             update = slf.MasterFlatField(fitsdict, det)
-            if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixflat")
+            if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
             ###############
             # Generate the 1D wavelength solution
             update = slf.MasterWaveCalib(fitsdict, sc, det)
@@ -157,17 +157,17 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             ###############
             # Derive the spectral tilt
             if slf._tilts[det-1] is None:
-                if slf._argflag['reduce']['masters']['reuse']:
-                    mstilt_name = armasters.master_name(slf._argflag['run']['directory']['master'],
-                                                        'tilts', slf._argflag['reduce']['masters']['setup'])
+                if argflag['reduce']['masters']['reuse']:
+                    mstilt_name = armasters.master_name(argflag['run']['directory']['master'],
+                                                        'tilts', argflag['reduce']['masters']['setup'])
                     try:
                         tilts, head = arload.load_master(mstilt_name, frametype="tilts")
                     except IOError:
                         pass
                     else:
                         slf.SetFrame(slf._tilts, tilts, det)
-                        slf._argflag['reduce']['masters']['loaded'].append('tilts'+slf._argflag['reduce']['masters']['setup'])
-                if 'tilts'+slf._argflag['reduce']['masters']['setup'] not in slf._argflag['reduce']['masters']['loaded']:
+                        argflag['reduce']['masters']['loaded'].append('tilts'+argflag['reduce']['masters']['setup'])
+                if 'tilts'+argflag['reduce']['masters']['setup'] not in argflag['reduce']['masters']['loaded']:
                     # First time tilts are derived for this arc frame --> derive the order tilts
                     tilts, satmask, outpar = artrace.model_tilt(slf, det, slf._msarc[det-1])
                     slf.SetFrame(slf._tilts, tilts, det)
@@ -182,7 +182,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
 
             # Check if the user only wants to prepare the calibrations only
             msgs.info("All calibration frames have been prepared")
-            if slf._argflag['run']['preponly']:
+            if argflag['run']['preponly']:
                 msgs.info("If you would like to continue with the reduction,"
                           +msgs.newline()+"disable the run+preponly command")
                 continue
@@ -208,8 +208,8 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             #msgs.error("UP TO HERE")
             ###############
             # Perform a velocity correction
-            if (slf._argflag['reduce']['calibrate']['refframe'] == 'heliocentric') & False:
-                if slf._argflag['science']['extraction']['reuse'] == True:
+            if (argflag['reduce']['calibrate']['refframe'] == 'heliocentric') & False:
+                if argflag['science']['extraction']['reuse'] == True:
                     msgs.warn("Heliocentric correction will not be applied if an extracted science frame exists, and is used")
                 msgs.work("Perform a full barycentric correction")
                 msgs.work("Include the facility to correct for gravitational redshifts and time delays (see Pulsar timing work)")
@@ -240,7 +240,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         #
         msgs.work("Consider using archived sensitivity if not found")
         msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
-        for kk in range(slf._spect['mosaic']['ndet']):
+        for kk in range(spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             arflux.apply_sensfunc(slf, det, scidx, fitsdict)
 
@@ -259,7 +259,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     return status
 
 
-def instconfig(slf, det, scidx, fitsdict):
+def instconfig(det, scidx, fitsdict):
     """ Returns a unique config string for the current slf
 
     Parameters
@@ -273,8 +273,8 @@ def instconfig(slf, det, scidx, fitsdict):
     config_dict = OrderedDict()
     config_dict['S'] = 'slitwid'
     config_dict['D'] = 'dichroic'
-    config_dict['G'] = 'disperser'
-    config_dict['T'] = 'cdangle'
+    config_dict['G'] = 'dispname'
+    config_dict['T'] = 'dispangle'
     #
     config = ''
     for key in config_dict.keys():
@@ -290,7 +290,7 @@ def instconfig(slf, det, scidx, fitsdict):
         config = config + key+'{:s}-'.format(val)
     # Binning
     try:
-        binning = slf._spect['det'][det-1]['binning']
+        binning = spect['det'][det-1]['binning']
     except KeyError:
         msgs.warn("Assuming 1x1 binning for your detector")
         binning = '1x1'
@@ -304,10 +304,10 @@ def instconfig(slf, det, scidx, fitsdict):
 
     """
     msgs.warn("Flat indexing needs to be improved in arsort.setup")
-    fidx = slf._name_flat.index(slf._mspixflat_name)
+    fidx = slf._name_flat.index(slf._mspixelflat_name)
     if fidx > 9:
         msgs.error("Not ready for that many flats!")
-    aidx = slf._name_flat.index(slf._mspixflat_name)
+    aidx = slf._name_flat.index(slf._mspixelflat_name)
     setup = 10*(aidx+1) + fidx
     return setup
     """

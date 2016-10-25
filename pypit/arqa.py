@@ -24,8 +24,9 @@ ticks_font = matplotlib.font_manager.FontProperties(family='times new roman',
 
 try:
     from xastropy.xutils import xdebug as debugger
-except:
+except ImportError:
     import pdb as debugger
+
 
 def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
     """

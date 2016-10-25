@@ -9,6 +9,7 @@ from pypit.arplot import get_dimen as get_dimen
 # Logging
 msgs = armsgs.get_logger()
 
+
 def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, mask=None, function='polynomial', retmask=False):
     nrow = xfit.shape[0]
     ntrace = xfit.shape[1]

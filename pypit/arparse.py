@@ -567,7 +567,7 @@ class BaseArgFlag(BaseFunctions):
         elif v.lower() in ['pixelflat']:
             v = v.lower()
         else:
-            msgs.info("Assuming the following is the name of a pixflat frame:" + msgs.newline() + v)
+            msgs.info("Assuming the following is the name of a pixelflat frame:" + msgs.newline() + v)
         # Update argument
         self.update(v)
         return
@@ -1131,7 +1131,7 @@ class BaseArgFlag(BaseFunctions):
         elif v.lower() in ['slitflat']:
             v = v.lower()
         else:
-            msgs.info("Assuming the following is the name of a pixflat frame:" + msgs.newline() + v)
+            msgs.info("Assuming the following is the name of a pixelflat frame:" + msgs.newline() + v)
         # Update argument
         self.update(v)
         return
@@ -1967,7 +1967,7 @@ class BaseSpect(BaseFunctions):
         # Update argument
         self.update(v)
 
-    def keyword_binning_spatial(self, v):
+    def keyword_binningspatial(self, v):
         # Check that v is allowed
         try:
             vspl = v.split(".")
@@ -1980,7 +1980,7 @@ class BaseSpect(BaseFunctions):
         # Update argument
         self.update(v)
 
-    def keyword_binning_spectral(self, v):
+    def keyword_binningspectral(self, v):
         # Check that v is allowed
         try:
             vspl = v.split(".")
@@ -2020,6 +2020,39 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_detrot(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                vspl = v.split(".")
+                int(vspl[0])
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                           "##.NAME" + msgs.newline() +
+                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
+                           "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+    def keyword_dispname(self, v):
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                vspl = v.split(".")
+                int(vspl[0])
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                           "##.NAME" + msgs.newline() +
+                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
+                           "and NAME is the header keyword name")
+        # Update argument
+        self.update(v)
+
+
+    def keyword_dispangle(self, v):
         # Check that v is allowed
         if v.lower() == "none":
             v = None
@@ -2308,7 +2341,6 @@ class BaseSpect(BaseFunctions):
         self.update(v.upper())
 
     def pixelflat_canbe(self, v):
-        """pixflat canbe"""
         # Check that v is allowed
         if v.lower() == "none":
             v = None
@@ -2321,7 +2353,6 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def pixelflat_check_condition(self, v, cnmbr=1):
-        """pixflat check condition"""
         cname = get_nmbr_name(cnmbr=cnmbr)
         # Check that v is allowed
         text = v.strip().replace('_', ' ')
@@ -2334,14 +2365,12 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def pixelflat_idname(self, v):
-        """pixflat idname"""
         # Check that v is allowed
 
         # Update argument
         self.update(v)
 
     def pixelflat_lscomb(self, v):
-        """pixflat lscomb"""
         # Check that v is allowed
         v = v.lower()
         if v == "true":
@@ -2354,7 +2383,6 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def pixelflat_number(self, v):
-        """pixflat number"""
         # Check that v is allowed
         try:
             v = int(v)
@@ -2445,7 +2473,6 @@ class BaseSpect(BaseFunctions):
         return
 
     def slitflat_canbe(self, v):
-        """blzflat canbe"""
         # Check that v is allowed
         if v.lower() == "none":
             v = None
@@ -2458,7 +2485,6 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def slitflat_check_condition(self, v, cnmbr=1):
-        """blzflat check condition"""
         cname = get_nmbr_name(cnmbr=cnmbr)
         # Check that v is allowed
         text = v.strip().replace('_', ' ')
@@ -2471,14 +2497,12 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def slitflat_idname(self, v):
-        """blzflat idname"""
         # Check that v is allowed
 
         # Update argument
         self.update(v)
 
     def slitflat_lscomb(self, v):
-        """blzflat lscomb"""
         # Check that v is allowed
         v = v.lower()
         if v == "true":
@@ -2491,7 +2515,6 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def slitflat_number(self, v):
-        """blzflat_number"""
         # Check that v is allowed
         try:
             v = int(v)
@@ -2652,58 +2675,8 @@ class ARMLSD_spect(BaseSpect):
         # Update argument
         self.update(v)
 
-    def keyword_disperser(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
-        self.update(v)
-
 
 class ARMED_spect(BaseSpect):
-
-    def keyword_crossdisp_angle(self, v):
-        """keyword cdangle"""
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
-        self.update(v)
-
-    def keyword_crossdisp_name(self, v):
-        """keyword crossdisp"""
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
-        self.update(v)
 
     def keyword_echangle(self, v):
         # Check that v is allowed
