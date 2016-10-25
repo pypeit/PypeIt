@@ -31,8 +31,8 @@ output overwrite True
 output sorted lris_red_qpair
 
 # Reduce
-arc calibrate id_pix 131.299,400.73,474.20,499.6,946.787,1423.99,2246.698,2723.903
-arc calibrate id_wave 5462.27,5771.21,5854.1101,5883.5252,6404.018,6967.35,7950.36,8523.78
+arc calibrate IDpixels 131.299,400.73,474.20,499.6,946.787,1423.99,2246.698,2723.903
+arc calibrate IDwaves 5462.27,5771.21,5854.1101,5883.5252,6404.018,6967.35,7950.36,8523.78
 trace dispersion direction 0
 trace slits tilts params [1,1,1]
 trace slits tilts method spca

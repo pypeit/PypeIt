@@ -54,10 +54,10 @@ set defaults), but will be useful for running PYPIT::
                                     so -1 means all but one CPU
     run spectrograph lris_blue      # the spectrograph (+arm, if necessary) this set of data is from;
                                     see README for list of available instruments
-    out verbose 2                   # level of screen output; 0 = no output, 1 = low level of output;
+    output verbosity 2                   # level of screen output; 0 = no output, 1 = low level of output;
                                     2 = output everything
-    out overwrite True              # overwrite any existing output files?
-    out sorted lris_blue_long_600_4000_d560     # name of output files
+    output overwrite True              # overwrite any existing output files?
+    output sorted lris_blue_long_600_4000_d560     # name of output files
 
 Next, tell PYPIT where your raw data lives!::
 
@@ -91,9 +91,9 @@ With that, the most basic settings file looks something like this::
     # Change the default settings
     run ncpus 1
     run spectrograph lris_blue
-    out verbose 2
-    out overwrite True
-    out sorted lris_blue_long_600_4000_d560
+    output verbosity 2
+    output overwrite True
+    output sorted lris_blue_long_600_4000_d560
 
     # Read in the data
     data read
