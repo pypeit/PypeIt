@@ -26,31 +26,31 @@ between the calibration images and the science images.
 ```
 run ncpus 1
 run spectrograph lris_red
-out verbose 2
-out overwrite True
-out sorted lris_red_qpair
+output verbosity 2
+output overwrite True
+output sorted lris_red_qpair
 
 # Reduce
 arc calibrate id_pix 131.299,400.73,474.20,499.6,946.787,1423.99,2246.698,2723.903
 arc calibrate id_wave 5462.27,5771.21,5854.1101,5883.5252,6404.018,6967.35,7950.36,8523.78
-trace disp direction 0
-trace orders pcatilt 1,1,1
-trace orders tilts spca
-reduce bgsubtraction method bspline
-pixflat comb method median
-pixflat comb rej_level [10.0,10.0]
-pixflat norm recnorm False
-reduce usebias bias
+trace dispersion direction 0
+trace slits tilts params [1,1,1]
+trace slits tilts method spca
+reduce skysub method bspline
+pixelflat combine method median
+pixelflat combine reject level [10.0,10.0]
+pixelflat norm recnorm False
+bias useframe bias
 
 spect read
   fits calwin 12.
   bias number 1
   arc number 1
   trace number 1
-  pixflat number 1
+  pixelflat number 1
   standard number 1
   set bias your_bias_or_dark.fits
-  set pixflat your_flat.fits
+  set pixelflat your_flat.fits
   set trace your_flat.fits
   set arc your_arc.fits
   set standard your_standard.fits
@@ -68,14 +68,14 @@ to identify the lines manually and include them properly (try commenting those l
 the lines automatically). It is possible that the program does not recognize some lines that you might input. In that case,
 just try to choose another line or make sure that you got the correct edge of the line. For the LRIS blue side you can comment
 the line identification part on the *pypit file since the code recognizes them automatically. The rest of paramenters can be
-left as these default values. ```reduce usebias``` can be accompanied by ```bias```, ```dark``` or ```overscan```. Even if you
+left as these default values. ```bias useframe bias``` can be accompanied by ```bias```, ```dark``` or ```overscan```. Even if you
 are using dark exposures, ```bias``` will probably work (and better).
 
 The ```data read... data end``` block includes the path (you should include the full path!) of your images. In principle, PYPIT
 can recognize automatically the type of exposure and proceed from there automatically without further information. However, sometimes
 PYPIT is not able to identify the files so you must use the block ```spect read...spect end```.
 
-In the ```spect read... spect end``` block you can specify the type of image (standard, bias, dark, pixflat, trace, science).
+In the ```spect read... spect end``` block you can specify the type of image (standard, bias, dark, pixelflat, trace, science).
 
 4. You are ready to ```run_pypit yourfile.pypit```
 
