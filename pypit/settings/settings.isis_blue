@@ -1,6 +1,6 @@
 # SIMPLE RULES:
 #
-# 1. If a keyword is specified in science/pixflat/blzflat/trace/bias/arc frames
+# 1. If a keyword is specified in science/pixelflat/slitflat/trace/bias/arc frames
 #    it must also appear in the Keyword identifiers list.
 # 2. You must check NAXIS is 2 in ``checks to perform''.
 # 3. If a keyword value contains only some interesting value,
@@ -77,8 +77,8 @@ keyword slitwid 01.ISISLITW            # Slit Width
 keyword slitlen None                   # Slit Length
 keyword detrot None                    # Detector Rotation angle
 keyword dichroic 01.ISIDICHR           # Dichroic name
-keyword disperser 01.ISIGRAT           # Grism name
-keyword cdangle 01.CENWAVE             # Cross-disperser angle
+keyword dispname 01.ISIGRAT            # Grism name
+keyword dispangle 01.CENWAVE           # Disperser angle
 keyword lamps 01.CAGLAMPS              # Lamps being used
 #keyword lampname01 01.CAGLAMPS         # Name of a lamp
 #keyword echangle 01.GRATNG_O          # Echelle angle
@@ -117,13 +117,13 @@ bias match naxis1 =0                # Match the shape of bias and science frames
 ### Pixel Flat frames
 pixelflat idname flat                 # Header key value of flat frame for header keyword keyword+idname
 pixelflat number 5                    # Number of flat frames to use
-pixelflat canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
+pixelflat canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
 pixelflat lscomb False                # Combine a long and short flat
 pixelflat check condition1 lamps=W # Lamp on
 pixelflat match naxis0 =0             # Match the shape of flats with science
 pixelflat match naxis1 =0             # Match the shape of flats with science
 pixelflat match decker ''             # Check the same decker as the science frame was used
-pixelflat match cdangle |<=1          # Match the cross-disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
+pixelflat match dispangle |<=1          # Match the disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
 
 ### Blaze Flat frames
 #slitflat idname None                   # Header key value of trace frame for header keyword keyword+idname
@@ -135,13 +135,13 @@ pixelflat match cdangle |<=1          # Match the cross-disperser angle (an unce
 ### Trace frames
 trace idname flat                 # Header key value of flat frame for header keyword keyword+idname
 trace number 5                    # Number of flat frames to use
-trace canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
+trace canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
 trace lscomb False                # Combine a long and short flat
 trace check condition1 lamps=W # Lamp on
 trace match naxis0 =0             # Match the shape of flats with science
 trace match naxis1 =0             # Match the shape of flats with science
 trace match decker ''             # Check the same decker as the science frame was used
-trace match cdangle |<=1          # Match the cross-disperser angle (an uncertainty in the CENWAVE)
+trace match dispangle |<=1          # Match the disperser angle (an uncertainty in the CENWAVE)
 
 ### Arc frames
 arc idname arc                      # Header key value of arc frame for header keyword keyword+idname
@@ -150,4 +150,4 @@ arc canbe None                      # If there are frames that will be arc ***in
 arc check condition1 lamps=CuNe+CuAr
 arc match naxis0 =0                 # Match the shape of arcs with science
 arc match naxis1 =0                 # Match the shape of arcs with science
-arc match cdangle |<=1              # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+arc match dispangle |<=1              # Match the disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)

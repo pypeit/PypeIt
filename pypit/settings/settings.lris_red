@@ -1,6 +1,6 @@
 # SIMPLE RULES:
 #
-# 1. If a keyword is specified in science/pixflat/blzflat/trace/bias/arc frames
+# 1. If a keyword is specified in science/pixelflat/slitflat/trace/bias/arc frames
 #    it must also appear in the Keyword identifiers list.
 # 2. You must check NAXIS is 2 in ``checks to perform''.
 # 3. If a keyword value contains only some interesting value,
@@ -107,8 +107,8 @@ keyword slitwid None                   # Slit Width
 keyword slitlen None                   # Slit Length
 keyword detrot None                    # Detector Rotation angle
 keyword dichroic 01.DICHNAME           # Dichroic name
-keyword disperser 01.GRANAME           # Grating name
-#keyword dangle 01.GRTILT_P            # Tilt
+keyword dispname 01.GRANAME            # Grating name
+#keyword dispangle 01.GRTILT_P         # Tilt
 
 ### Fits properties
 fits timeunit mjd                   # The unit of keyword+time (s=seconds, m=minutes, h=hours, or any of the astropy Time formats)
@@ -135,7 +135,7 @@ standard number 1                    # Number of standard star frames to use
 standard canbe None                  # If there are frames that will be science ***in addition to other frame types***, include the other frame types here.
 standard check condition1 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off
 standard check condition2 hatch=open # Required for standard
-standard match disperser ''             # Check the same decker as the science frame was used
+standard match dispname ''             # Check the same decker as the science frame was used
 standard match dichroic ''             # Check the same decker as the science frame was used
 standard match binning ''             # Match the shape of standard and science frames
 #standard match naxis0 =0             # Match the shape of standard and science frames
@@ -155,7 +155,7 @@ bias match binning ''             		# Match the shape of standard and science fr
 ### Pixel Flat frames
 pixelflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
 pixelflat number 5                    # Number of flat frames to use
-pixelflat canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
+pixelflat canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
 pixelflat lscomb False                # Combine a long and short flat
 pixelflat check condition1 hatch=open   # Required for blaze flats
 pixelflat check condition2 exptime<30   # Avoid stars
@@ -163,7 +163,7 @@ pixelflat check condition3 lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=
 pixelflat match binning ''             		# Match the shape of standard and science frames
 pixelflat match decker ''             # Check the same decker as the science frame was used
 pixelflat match dichroic ''             # Check the same decker as the science frame was used
-pixelflat match disperser ''             # Check the same decker as the science frame was used
+pixelflat match dispname ''             # Check the same decker as the science frame was used
 
 ### Blaze Flat frames
 slitflat idname None                   # Header key value of trace frame for header keyword keyword+idname
@@ -174,12 +174,12 @@ slitflat check condition3 lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=o
 slitflat canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
 slitflat match binning ''             		# Match the shape of standard and science frames
 slitflat match dichroic ''             # Check the same decker as the science frame was used
-slitflat match disperser ''             # Check the same decker as the science frame was used
+slitflat match dispname ''             # Check the same decker as the science frame was used
 
 ### Trace frames
 trace idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
 trace number 0                    # Number of flat frames to use
-trace canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
+trace canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
 trace lscomb False                # Combine a long and short flat
 # Blue side should be using twilight sky
 trace check condition1 hatch=open # Required for trace flats (Dome)
@@ -190,8 +190,8 @@ trace match binning ''                 # Match the shape of trace with science
 #trace match naxis1 =0             # Match the shape of flats with science
 trace match decker ''             # Check the same decker as the science frame was used
 trace match dichroic ''             # Check the same decker as the science frame was used
-trace match disperser ''             # Check the same decker as the science frame was used
-#trace match cdangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+trace match dispname ''             # Check the same decker as the science frame was used
+#trace match dispangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
 
 ### Arc frames
 arc idname OBJECT                   # Header key value of arc frame for header keyword keyword+idname
@@ -200,8 +200,8 @@ arc canbe None                      # If there are frames that will be arc ***in
 arc check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on|lampstat06=on|lampstat07=on|lampstat08=on
 arc check condition2 hatch=closed # Required for arcs
 arc match binning ''                 # Match the shape of arcs with science
-arc match disperser ''             # Check the same decker as the science frame was used
+arc match dispname ''             # Check the same decker as the science frame was used
 arc match dichroic ''             # Check the same decker as the science frame was used
 #arc match naxis1 =0                 # Match the shape of arcs with science
-#arc match cdangle |<=5              # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+#arc match dispangle |<=5              # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
 #arc match echangle ''               # Match the echelle angle

@@ -64,9 +64,9 @@ keyword lampstat04 01.THORIUM2         # Status of a lamp
 keyword slitwid None                   # Slit Width
 keyword slitlen 01.DECKRNAM            # Slit Length
 keyword detrot None                    # Detector Rotation angle
-keyword cdangle None                   # Cross-disperser angle
 keyword echangle None                  # Echelle angle
-keyword crossdisp None                 # Cross-disperser
+keyword dispname None                  # Cross-disperser name
+keyword dispangle None                 # Cross-disperser angle
 
 ### Fits properties
 fits timeunit s                     # The unit of keyword+time (s=seconds, m=minutes, h=hours, mjd=MJD, dt=datetime)
@@ -90,7 +90,7 @@ bias match naxis1 =0                # Match the column binning of bias and scien
 ### Pixel Flat frames
 pixelflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
 pixelflat number 5                    # Number of flat frames to use
-pixelflat canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
+pixelflat canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
 pixelflat lscomb False                # Combine a long and short flat
 pixelflat check condition1 lampstat01=On|lampstat02=On
 pixelflat check condition2 decker!=Pinhole   # Check that the decker name is not set to Pinhole
@@ -102,7 +102,7 @@ pixelflat combsame decker ''          # When combining pixel flat frames, make s
 ### Blaze Flat frames
 slitflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
 slitflat number 5                    # Number of flat frames to use
-slitflat canbe None                  # If there are frames that will be blzflat ***in addition to other frame types***, include the other frame types here.
+slitflat canbe None                  # If there are frames that will be slitflat ***in addition to other frame types***, include the other frame types here.
 slitflat lscomb False                # Combine a long and short flat
 slitflat check condition1 lampstat01=On|lampstat02=On
 slitflat check condition2 decker!=Pinhole   # Check that the decker name is not set to Pinhole
@@ -114,7 +114,7 @@ slitflat combsame decker ''          # When combining blaze flat frames, make su
 ### Trace frames
 trace idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
 trace number 2                    # Number of flat frames to use
-trace canbe None                  # If there are frames that will be blzflat ***in addition to other frame types***, include the other frame types here.
+trace canbe None                  # If there are frames that will be slitflat ***in addition to other frame types***, include the other frame types here.
 trace lscomb False                # Combine a long and short flat
 trace check condition1 lampstat01=On|lampstat02=On
 trace check decker Pinhole        # Check that the decker name is set to Pinhole
