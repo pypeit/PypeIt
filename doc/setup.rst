@@ -121,7 +121,7 @@ are other parameters that you can tell PYPIT to run by::
 
 
     spect read
-     # not needed if everything runs smoothly. Check your .lst file and make sure that each frame was identified correctly (that each file is properly identified as a bias, arc, blzflat, standard, science). If any file was misidentified, you can force the file type to be something different below (note that you can also identify your various calibration and science files below if you don't want to deal with the .lst file):
+     # not needed if everything runs smoothly. Check your .lst file and make sure that each frame was identified correctly (that each file is properly identified as a bias, arc, slitflat, standard, science). If any file was misidentified, you can force the file type to be something different below (note that you can also identify your various calibration and science files below if you don't want to deal with the .lst file):
 
      #set bias     b150910_2036.fits.gz
      #set bias     b150910_2037.fits.gz
