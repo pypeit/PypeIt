@@ -11,6 +11,9 @@ from astropy.io import fits
 from astropy import units as u
 from astropy import coordinates as coords
 
+from pypit import armsgs
+from pypit import arparse
+
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
 except ImportError:
@@ -18,13 +21,14 @@ except ImportError:
 
 try:
     from xastropy.xutils import xdebug as debugger
-except:
+except ImportError:
     import pdb as debugger
 
-# Logging
-#from pypit import armsgs
-from .armsgs import get_logger
-msgs = get_logger()
+# Logging and settings
+msgs = armsgs.get_logger()
+argflag = arparse.get_argflag().__dict__['_argflag']
+spect = arparse.get_spect().__dict__['_spect']
+
 
 def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
     """ Apply the sensitivity function to the data
@@ -194,15 +198,13 @@ def extinction_correction(wave, airmass, extinct):
     return flux_corr
 
 
-def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
+def find_standard_file(radec, toler=20.*u.arcmin, check=False):
     """
     Find a match for the input file to one of the archived
     standard star files (hopefully).  Priority is by order of search.
 
     Parameters
     ----------
-    argflag : dict
-      Arguments and flags used for reduction
     radec : tuple
       ra, dec in string format ('05:06:36.6','52:52:01.0')
     toler : Angle
@@ -261,7 +263,7 @@ def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
     return None
 
 
-def load_calspec(argflag):
+def load_calspec():
     """
     Load the list of calspec standards
 
@@ -283,15 +285,13 @@ def load_calspec(argflag):
     return calspec_path, calspec_stds
 
 
-def load_extinction_data(slf, toler=5.*u.deg):
+def load_extinction_data(toler=5.*u.deg):
     """
     Find the best extinction file to use, based on longitude and latitude
     Loads it and returns a Table
 
     Parameters
     ----------
-    slf : class
-      Includes mosaic lon/lat
     toler : Angle, optional
       Tolerance for matching detector to site (5 deg)
 
@@ -301,10 +301,10 @@ def load_extinction_data(slf, toler=5.*u.deg):
       astropy Table containing the 'wavelength', 'extinct' data for AM=1.
     """
     # Mosaic coord
-    mosaic_coord = SkyCoord(slf._spect['mosaic']['longitude'],
-        slf._spect['mosaic']['latitude'], frame='gcrs', unit=u.deg)
+    mosaic_coord = SkyCoord(spect['mosaic']['longitude'],
+                            spect['mosaic']['latitude'], frame='gcrs', unit=u.deg)
     # Read list
-    extinct_path = slf._argflag['run']['pypitdir']+'/data/extinction/'
+    extinct_path = argflag['run']['pypitdir']+'/data/extinction/'
     extinct_summ = extinct_path+'README'
     extinct_files = Table.read(extinct_summ,comment='#',format='ascii')
     # Coords
@@ -326,7 +326,7 @@ def load_extinction_data(slf, toler=5.*u.deg):
     return extinct[['wave','mag_ext']]
 
 
-def load_standard_file(slf, std_dict):
+def load_standard_file(std_dict):
     """
     Load standard star data
 
@@ -343,8 +343,8 @@ def load_standard_file(slf, std_dict):
     std_flux : Quantity array
       Flux of standard star
     """
-    fil = glob.glob(slf._argflag['run']['pypitdir']+
-            std_dict['file']+'*')
+    fil = glob.glob(argflag['run']['pypitdir'] +
+                    std_dict['file']+'*')
     if len(fil) == 0:
         msgs.error("No standard star file: {:s}".format(fil))
     else:
@@ -360,6 +360,7 @@ def load_standard_file(slf, std_dict):
     else:
         msgs.error("Bad Standard Star Format")
     return
+
 
 def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=20):
     """
@@ -401,7 +402,7 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
     var_corr /= fitsdict['exptime'][scidx]**2
 
     # Grab closest standard within a tolerance
-    std_dict = find_standard_file(slf._argflag, (slf._msstd[0]['RA'],
+    std_dict = find_standard_file(argflag, (slf._msstd[0]['RA'],
                                                  slf._msstd[0]['DEC']))
     # Load standard
     load_standard_file(slf, std_dict)

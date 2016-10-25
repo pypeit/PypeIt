@@ -6,14 +6,16 @@ import glob, copy
 import yaml
 
 from pypit import armsgs
+from pypit import arparse
 
 try:
     from xastropy.xutils import xdebug as debugger
-except:
+except ImportError:
     import pdb as debugger
 
-# Logging
+# Logging and settings
 msgs = armsgs.get_logger()
+argflag = arparse.get_argflag().__dict__['_argflag']
 
 
 def parse_nist(slf,ion):
@@ -30,7 +32,7 @@ def parse_nist(slf,ion):
         from pypit import arutils as arut
         msgs.warn("Using arutils.dummy_self.  Better know what you are doing.")
         slf = arut.dummy_self()
-    root = slf._argflag['run']['pypitdir']
+    root = argflag['run']['pypitdir']
     # Find file
     srch_file = root + '/data/arc_lines/NIST/'+ion+'_vacuum.ascii'
     nist_file = glob.glob(srch_file)
@@ -97,7 +99,7 @@ def load_arcline_list(slf, idx, lines, disperser, wvmnx=None, modify_parse_dict=
         from pypit import arutils as arut
         msgs.warn("Using arutils.dummy_self.  Better know what you are doing.")
         slf = arut.dummy_self()
-    root = slf._argflag['run']['pypitdir']
+    root = argflag['run']['pypitdir']
     with open(root+'/data/arc_lines/rejected_lines.yaml', 'r') as infile:
         rej_dict = yaml.load(infile)
     # Loop through the NIST Tables
@@ -151,10 +153,10 @@ def reject_lines(slf, tbl, idx, rej_dict, disperser):
             msk[close] = False
         elif slf == None:
             continue
-        elif slf._argflag['run']['spectrograph'] in rej_dict[wave].keys():
-            if rej_dict[wave][slf._argflag['run']['spectrograph']] == 'all':
+        elif argflag['run']['spectrograph'] in rej_dict[wave].keys():
+            if rej_dict[wave][argflag['run']['spectrograph']] == 'all':
                 msk[close] = False
-            elif disperser in rej_dict[wave][slf._argflag['run']['spectrograph']]:
+            elif disperser in rej_dict[wave][argflag['run']['spectrograph']]:
                 msk[close] = False
     # Return
     return tbl[msk]

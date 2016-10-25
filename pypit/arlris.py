@@ -1,4 +1,4 @@
-# Module for LRIS spectific codes
+# Module for LRIS specific codes
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
@@ -9,7 +9,7 @@ from pypit import armsgs
 
 try:
     from xastropy.xutils import xdebug as debugger
-except:
+except ImportError:
     import pdb as debugger
 
 # Logging
@@ -370,8 +370,8 @@ def bpm(slf, camera, fitsdict, det):
     return badpix
 
 
-def convert_lowredux_pixflat(infil, outfil):
-    """ Convert LowRedux pixflat to PYPIT format
+def convert_lowredux_pixelflat(infil, outfil):
+    """ Convert LowRedux pixelflat to PYPIT format
     Returns
     -------
 
@@ -383,20 +383,20 @@ def convert_lowredux_pixflat(infil, outfil):
     #
     prihdu = pyfits.PrimaryHDU()
     hdus = [prihdu]
-    prihdu.header['FRAMETYP'] = 'pixflat'
+    prihdu.header['FRAMETYP'] = 'pixelflat'
 
     # Detector 1
     img1 = data[:,:data.shape[1]//2]
     hdu = pyfits.ImageHDU(img1)
     hdu.name = 'DET1'
-    prihdu.header['EXT0001'] = 'DET1-Pixflat'
+    prihdu.header['EXT0001'] = 'DET1-pixelflat'
     hdus.append(hdu)
 
     # Detector 2
     img2 = data[:,data.shape[1]//2:]
     hdu = pyfits.ImageHDU(img2)
     hdu.name = 'DET2'
-    prihdu.header['EXT0002'] = 'DET2-Pixflat'
+    prihdu.header['EXT0002'] = 'DET2-pixelflat'
     hdus.append(hdu)
 
     # Finish

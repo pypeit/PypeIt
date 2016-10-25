@@ -19,7 +19,7 @@ except NameError:
 
 try:
     from xastropy.xutils import xdebug as debugger
-except:
+except ImportError:
     import pdb as debugger
 
 # Logging and settings

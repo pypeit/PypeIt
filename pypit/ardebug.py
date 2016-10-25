@@ -5,7 +5,7 @@ def init():
     debug : dict
         default debug dict
     """
-    debug = dict(develop=False,
+    debug = dict(develop=True,
                  arc=False,
                  obj_profile=False,
                  sky_sub=False,
