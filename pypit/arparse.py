@@ -12,8 +12,8 @@ from glob import glob
 
 # Logging
 from pypit import ardebug
-debug = ardebug.init()
 from pypit import armsgs
+debug = ardebug.init()
 msgs = armsgs.get_logger()
 
 try:
@@ -32,6 +32,7 @@ class NestedDict(dict):
         except KeyError:
             value = self[item] = type(self)()
             return value
+
 
 class BaseFunctions(object):
     def __init__(self, defname, savname):
@@ -83,14 +84,30 @@ class BaseArgFlag(BaseFunctions):
         """
         Save the settings used for this reduction
         """
-        def savedict(dct):
+        def savedict(dct, keylst, keys):
             for (key, value) in iteritems(dct):
-                self._afout.write(str(key))
+                keys += [str(key)]
                 if isinstance(value, dict):
-                    savedict(value)
+                    savedict(value, keylst, keys)
                 else:
-                    self._afout.write(str(" {0:s}\n".format(str(value))))
-        savedict(self._argflag.copy())
+                    keylst += [str(' ').join(keys) + str(" ") +
+                               str("{0}\n".format(value).replace(" ", ""))]
+                del keys[-1]
+
+        keylst = []
+        savedict(self._argflag.copy(), keylst, [])
+        # Sort the list
+        keylst = sorted(keylst, key=str.lower)
+        # Write the list out in the set order
+        for i in range(len(keylst)):
+            lstsplt = keylst[i].split(" ")[0]
+            # Include a newline after a new keyword
+            if i == 0:
+                prev = lstsplt
+            if prev != lstsplt:
+                self._afout.write(str("\n"))
+            self._afout.write(keylst[i])
+            prev = lstsplt
         self._afout.close()
         return
 
@@ -1662,39 +1679,56 @@ class BaseSpect(BaseFunctions):
         super(BaseSpect, self).__init__(defname, savname)
         self._spect = NestedDict()
         self._settings = []
+        self.set_default()
 
     def save(self):
         """
         Save the settings used for this reduction
         """
-        def savedict(dct):
+        def savedict(dct, keylst, keys):
             for (key, value) in iteritems(dct):
-                self._afout.write(str(key))
+                keys += [str(key)]
                 if isinstance(value, dict):
-                    savedict(value)
+                    savedict(value, keylst, keys)
                 else:
-                    self._afout.write(str(" {0:s}\n".format(str(value))))
-        savedict(self._spect.copy())
+                    keylst += [str(' ').join(keys) + str(" ") +
+                               str("{0}\n".format(value).replace(" ", ""))]
+                del keys[-1]
+
+        keylst = []
+        savedict(self._spect.copy(), keylst, [])
+        # Sort the list
+        keylst = sorted(keylst, key=str.lower)
+        # Write the list out in the set order
+        for i in range(len(keylst)):
+            lstsplt = keylst[i].split(" ")[0]
+            # Include a newline after a new keyword
+            if i == 0:
+                prev = lstsplt
+            if prev != lstsplt:
+                self._afout.write(str("\n"))
+            self._afout.write(keylst[i])
+            prev = lstsplt
         self._afout.close()
         return
 
     def set_default(self):
         """ Set some arguments that are not used in the settings file
         """
-        self.update([], ll="set_arc")
-        self.update([], ll="set_bias")
-        self.update([], ll="set_pixelflat")
-        self.update([], ll="set_science")
-        self.update([], ll="set_slitflat")
-        self.update([], ll="set_standard")
-        self.update([], ll="set_trace")
-        self.update([], ll="arc_index")
-        self.update([], ll="bias_index")
-        self.update([], ll="pixelflat_index")
-        self.update([], ll="science_index")
-        self.update([], ll="slitflat_index")
-        self.update([], ll="standard_index")
-        self.update([], ll="trace_index")
+        self.update([], ll="set_arc".split("_"))
+        self.update([], ll="set_bias".split("_"))
+        self.update([], ll="set_pixelflat".split("_"))
+        self.update([], ll="set_science".split("_"))
+        self.update([], ll="set_slitflat".split("_"))
+        self.update([], ll="set_standard".split("_"))
+        self.update([], ll="set_trace".split("_"))
+        self.update([], ll="arc_index".split("_"))
+        self.update([], ll="bias_index".split("_"))
+        self.update([], ll="pixelflat_index".split("_"))
+        self.update([], ll="science_index".split("_"))
+        self.update([], ll="slitflat_index".split("_"))
+        self.update([], ll="standard_index".split("_"))
+        self.update([], ll="trace_index".split("_"))
         return
 
     def set_param(self, lst, value=None):
@@ -1772,14 +1806,13 @@ class BaseSpect(BaseFunctions):
         return
 
     def settings(self, v):
-        self._settings.append(v)
+        self._settings.append(v.split())
         return
 
     def update(self, v, ll=None):
         """
-        Update an element in argflag
+        Update an element in spect
         """
-
         def ingest(dct, upd):
             """
             Ingest the upd dictionary into dct
@@ -2842,7 +2875,7 @@ class ARMLSD_spect(BaseSpect):
         else:
             try:
                 vspl = v.split(".")
-                vint = int(vspl[0])
+                int(vspl[0])
             except ValueError:
                 msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                            "##.NAME" + msgs.newline() +
@@ -2858,7 +2891,7 @@ class ARMLSD_spect(BaseSpect):
         else:
             try:
                 vspl = v.split(".")
-                vint = int(vspl[0])
+                int(vspl[0])
             except ValueError:
                 msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                            "##.NAME" + msgs.newline() +
@@ -2878,7 +2911,7 @@ class ARMED_spect(BaseSpect):
         else:
             try:
                 vspl = v.split(".")
-                vint = int(vspl[0])
+                int(vspl[0])
             except ValueError:
                 msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                            "##.NAME" + msgs.newline() +
@@ -2895,7 +2928,7 @@ class ARMED_spect(BaseSpect):
         else:
             try:
                 vspl = v.split(".")
-                vint = int(vspl[0])
+                int(vspl[0])
             except ValueError:
                 msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                            "##.NAME" + msgs.newline() +
@@ -2911,7 +2944,7 @@ class ARMED_spect(BaseSpect):
         else:
             try:
                 vspl = v.split(".")
-                vint = int(vspl[0])
+                int(vspl[0])
             except ValueError:
                 msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
                            "##.NAME" + msgs.newline() +
@@ -2974,16 +3007,14 @@ def get_current_name():
 
 
 def get_nmbr_name(anmbr=None, bnmbr=None, cnmbr=None):
-    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
-    tmp = " ".join(ll)
-    cspl = tmp.split(" ")
+    cspl = inspect.currentframe().f_back.f_code.co_name.split('_')
     if anmbr is not None:
         cspl[0] += "{0:02d}".format(anmbr)
     if bnmbr is not None:
         cspl[1] += "{0:02d}".format(bnmbr)
     if cnmbr is not None:
         cspl[2] += "{0:02d}".format(cnmbr)
-    return "'" + " ".join(cspl) + "'"
+    return "_".join(cspl)
 
 
 def load_list(strlist):

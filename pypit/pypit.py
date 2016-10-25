@@ -252,6 +252,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
         spect.set_paramlist(lines)
     # If the instrument settings file sets some argflag settings, implement those changes now
     if len(spect.__dict__['_settings']) != 0:
+        debugger.set_trace()
         argf.set_paramlist(spect.__dict__['_settings'])
     # Load command line changes
     argf.set_param('run ncpus {0:d}'.format(ncpus))
@@ -266,6 +267,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbose=
     # Finally, save the arguments/flags and spectrograph settings used for this reduction
     argf.save()
     spect.save()
+    msgs.error("CHECK")
 
     # Load the important information from the fits headers
     from pypit import arload
