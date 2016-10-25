@@ -3,16 +3,16 @@
 # Change the default settings
 run ncpus 1
 run spectrograph lris_blue
-out verbose 2
-out overwrite True
-out sorted lris_blue_long_600_4000_d560
+output verbosity 2
+output overwrite True
+output sorted lris_blue_long_600_4000_d560
 
 # Reduce
 #trace disp direction 0   # Manually specify the dispersion direction (0 for row, 1 for column)
-trace orders tilts spca
-trace orders pcatilt 1,1,1
-reduce bgsubtraction method bspline
-reduce useflat dummy/PYPIT_LRISb_pixflat_B400_2x2_15apr2015.fits.gz
+trace slits tilts spca
+trace slits tilts params 1,1,1
+reduce skysub method bspline
+reduce flatfield useframe dummy/PYPIT_LRISb_pixflat_B400_2x2_15apr2015.fits.gz
 
 # Read in the data
 data read

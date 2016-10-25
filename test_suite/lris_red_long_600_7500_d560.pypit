@@ -3,17 +3,17 @@
 # Change the default settings
 run ncpus 1
 run spectrograph lris_red
-out verbose 2
-out overwrite True
-out sorted lris_r_ls_600_7500_d560
+output verbosity 2
+output overwrite True
+output sorted lris_r_ls_600_7500_d560
 
 # Reduce
-arc calibrate id_pix 140.93677186,542.27337912,739.04374828,1152.38285967,1767.86702435
-arc calibrate id_wave 5771.210,6404.018,6718.8974,7386.014,8379.9093
+arc calibrate IDpixels 140.93677186,542.27337912,739.04374828,1152.38285967,1767.86702435
+arc calibrate IDwaves 5771.210,6404.018,6718.8974,7386.014,8379.9093
 trace disp direction 0   # Manually specify the dispersion direction (0 for row, 1 for column) 0 for column, 1 for row????
-trace orders pcatilt 1,1,1
-trace orders tilts spca
-reduce bgsubtraction method bspline
+trace slits tilts params 1,1,1
+trace slits tilts spca
+reduce skysub method bspline
 pixflat comb method median
 pixflat comb rej_level [10.0,10.0]
 pixflat norm recnorm False

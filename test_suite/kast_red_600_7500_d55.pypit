@@ -3,15 +3,15 @@
 # Change the default settings
 run ncpus 1
 run spectrograph kast_red
-out verbose 2
-out overwrite True
-out sorted kast_red_600_7500_d55
+output verbosity 2
+output overwrite True
+output sorted kast_red_600_7500_d55
 
 # Reduce
-#arc calibrate id_pix 220.63808792,417.17122925,562.95948074,669.07189712,884.38191292
-#arc calibrate id_wave 5868.4165,6334.4276,6678.2766,6929.4672,7438.8981
-trace orders pcatilt 1,1,1
-trace orders tilts spca
+#arc calibrate IDpixels 220.63808792,417.17122925,562.95948074,669.07189712,884.38191292
+#arc calibrate IDwaves 5868.4165,6334.4276,6678.2766,6929.4672,7438.8981
+trace slits tilts params 1,1,1
+trace slits tilts spca
 
 # Read in the data
 data read

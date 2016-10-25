@@ -3,13 +3,13 @@
 # Change the default settings
 run ncpus 1
 run spectrograph kast_blue
-out verbose 2
-out overwrite True
-out sorted kast_blue_600_4310_d55
+output verbosity 2
+output overwrite True
+output sorted kast_blue_600_4310_d55
 
 # reduce
-trace orders tilts spca
-reduce bgsubtraction method bspline
+trace slits tilts spca
+reduce skysub method bspline
 pixflat comb method median
 pixflat comb rej_level [10.0,10.0]
 pixflat norm recnorm False
