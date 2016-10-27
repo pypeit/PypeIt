@@ -47,6 +47,7 @@ def dummy_spectra(s2n=10., seed=1234):
     #
     return XSpectrum1D.from_list(slist)
 
+
 def test_load():
     from pypit import arcoadd as arco
     files = [data_path('spec1d_J2202p1708_KASTb_2015Nov06T024436.08.fits'),
@@ -56,6 +57,7 @@ def test_load():
     assert spectra.nspec == 3
     # Boxcar too
     spectra = arco.load_spec(files, extract='box')
+
 
 def test_new_wave_grid():
     from pypit import arcoadd as arco
