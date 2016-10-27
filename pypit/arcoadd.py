@@ -22,6 +22,11 @@ except ImportError:
 # Logging
 msgs = armsgs.get_logger()
 
+# TODO
+    # Shift spectra
+    # Scale
+    # Better rejection
+
 
 def new_wave_grid(waves, method='iref', iref=0, pix_size=None):
     """ Create a new wavelength grid for the
@@ -35,7 +40,7 @@ def new_wave_grid(waves, method='iref', iref=0, pix_size=None):
     method : str, optional
         Desired method for creating new wavelength grid.
         'iref' -- Use the first wavelength array (default)
-        'velcoity' -- Constant velocity
+        'velocity' -- Constant velocity
         'pixel' -- Constant pixel grid
         'concatenate' -- Meld the input wavelength arrays
     iref : int, optional
@@ -559,3 +564,42 @@ def coadd_spectra(spectra, wave_grid_method=None,
     save_coadd(new_wave, new_flux, new_var, outfil)
 
     return
+
+def old_sigma_clip(fluxes, variances, sn2, n_grow_mask=1):
+    """ Sigma-clips the flux arrays.
+
+   Parameters
+   ----------
+   initial_mask : mask
+      Initial mask for the flux + variance arrays
+   n_grow_mask : int
+      Number of pixels to grow the initial mask by
+      on each side. Defaults to 1 pixel
+
+   Returns
+   -------
+   grow_mask : mask
+      Final mask for the flux + variance arrays
+   """
+    from functools import reduce
+
+    first_mask = np.ma.getmaskarray(fluxes)
+    highest_sn_idx = np.argmax(sn2)
+
+    base_sharp_chi = (fluxes - fluxes[highest_sn_idx]) / (np.sqrt(variances + variances[highest_sn_idx]))
+
+    bad_pix = []
+
+    for row in range(0, base_sharp_chi.shape[0]):
+        bad_pix.append(np.where(np.abs(base_sharp_chi[row]) > 3*np.std(base_sharp_chi, axis=1)[row])[0])
+
+    all_bad_pix = reduce(np.union1d, (np.asarray(bad_pix)))
+
+    for idx in range(len(all_bad_pix)):
+        spec_to_mask = np.argmax(np.abs(fluxes[:, all_bad_pix[idx]]))
+        print "Masking pixel", all_bad_pix[idx], "in exposure", spec_to_mask+1
+        first_mask[spec_to_mask][all_bad_pix[idx]] = True
+
+    final_mask = grow_mask(first_mask, n_grow=n_grow_mask)
+
+    return final_mask
