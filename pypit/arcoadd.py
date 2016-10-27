@@ -1,3 +1,7 @@
+""" Class for coaddition
+"""
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 import astropy.stats
 import scipy.interpolate
@@ -5,30 +9,37 @@ import scipy.signal
 
 from astropy import units as u
 from astropy.io import fits
-from astropy.table import Table
 from linetools.spectra import xspectrum1d
-from matplotlib import pyplot as plt
 
+from pypit import armsgs
+
+try:
+    from xastropy.xutils import xdebug as debugger
+except ImportError:
+    import pdb as debugger
+
+# Logging
+msgs = armsgs.get_logger()
 
 def new_wave_grid(waves, method='None'):
-	""" Create a new wavelength grid for the
-	spectra to be rebinned and coadded on
+    """ Create a new wavelength grid for the
+    spectra to be rebinned and coadded on
 
-	Parameters
-	----------
-	waves : ndarray
-		Set of N original wavelength arrays
-	method : str, optional
-		Desired method for creating new wavelength grid.
-		Defaults to using the first wavelength array
-		as the master wavelength grid, with options
-		of a constant velocity or constant pixel grid
+    Parameters
+    ----------
+    waves : ndarray
+        Set of N original wavelength arrays
+    method : str, optional
+        Desired method for creating new wavelength grid.
+        Defaults to using the first wavelength array
+        as the master wavelength grid, with options
+        of a constant velocity or constant pixel grid
 
-	Returns
-	-------
-	wave_grid : array
-		New wavelength grid
-	"""
+    Returns
+    -------
+    wave_grid : array
+        New wavelength grid
+    """
     # Eventually add/change this to also take in slf, which has
     # slf._argflag['reduce']['pixelsize'] = 2.5?? This won't work
     # if running coadding outside of PYPIT, which we'd like as an
@@ -66,6 +77,16 @@ def new_wave_grid(waves, method='None'):
     return wave_grid
 
 def gauss1(x, parameters):
+    """ Simple Gaussian
+    Parameters
+    ----------
+    x : ndarray
+    parameters : ??
+
+    Returns
+    -------
+
+    """
     sz = x.shape[0]
     
     if sz+1 == 5:
@@ -87,25 +108,25 @@ def gauss1(x, parameters):
 
 def sn_weight(new_wave, fluxes, variances):
     """ Calculate the S/N of each input spectrum and
-	create an array of weights by which to weight the
-	spectra by in coadding
+    create an array of weights by which to weight the
+    spectra by in coadding
 
-	Parameters
-	----------
-	new_wave : array
-		New wavelength grid
-	fluxes : ndarray
-		Flux arrays of the input spectra
-	variances : ndarray
-		Variances of the input spectra
+    Parameters
+    ----------
+    new_wave : array
+        New wavelength grid
+    fluxes : ndarray
+        Flux arrays of the input spectra
+    variances : ndarray
+        Variances of the input spectra
 
-	Returns
-	-------
-	sn2 : array
-		Mean S/N^2 value for each input spectra
-	weights : ndarray
-		Weights to be applied to the spectra
-	"""
+    Returns
+    -------
+    sn2 : array
+        Mean S/N^2 value for each input spectra
+    weights : ndarray
+        Weights to be applied to the spectra
+    """
 
     sn2_val = (fluxes**2.) * (1./variances)
     sn2_sigclip = astropy.stats.sigma_clip(sn2_val, sigma=3, iters=1)
@@ -114,58 +135,56 @@ def sn_weight(new_wave, fluxes, variances):
     mean_sn = np.sqrt(np.sum(sn2)/sn2.shape[0]) #Mean S/N value for all spectra
 
     if mean_sn <= 4.0:
-        print "Using constant weights for coadding, mean S/N =", float("{0:.3f}".format(mean_sn))
+        msgs.info("Using constant weights for coadding, mean S/N = {:g}".format(mean_sn))
+        #msgs.info("Using constant weights for coadding, mean S/N = {:g}".format(mean_sn))
         weights = np.outer(np.asarray(sn2), np.ones(fluxes.shape[1]))
 
     else:
-        print "Using wavelength dependent weights for coadding"
-        sn2_med1 = np.ones((fluxes.shape[0], fluxes.shape[1]))
-        weights = np.ones((fluxes.shape[0], fluxes.shape[1]))
+        msgs.info("Using wavelength dependent weights for coadding")
+        sn2_med1 = np.ones_like(fluxes) #((fluxes.shape[0], fluxes.shape[1]))
+        weights = np.ones_like(fluxes) #((fluxes.shape[0], fluxes.shape[1]))
 
         bkspace = (10000.0/3.0e5) / (np.log(10.0))
         med_width = new_wave.shape[0] / ((np.max(new_wave) - np.min(new_wave)) / bkspace)
         sig_res = max(med_width, 3)
-        nhalf = long(sig_res) * 4L
+        nhalf = int(sig_res) * 4L
         xkern = np.arange(0, 2*nhalf+2, dtype='float64')-nhalf
 
-        for spec in range(fluxes.shape[0]):
+        for spec in xrange(fluxes.shape[0]):
             sn2_med1[spec] = scipy.signal.medfilt(sn2_val[spec], kernel_size = 3)
         
         yvals = gauss1(xkern, [0.0, sig_res, 1, 0])
 
-        for spec in range(fluxes.shape[0]):
+        for spec in xrange(fluxes.shape[0]):
             weights[spec] = scipy.ndimage.filters.convolve(sn2_med1[spec], yvals)
         
     return sn2, weights
 
 
-def grow_mask(initial_mask, n_grow):
-    """ Grows sigma-clipped mask by n_grow pixels
-	on each side
+def grow_mask(initial_mask, n_grow=1):
+    """ Grows sigma-clipped mask by n_grow pixels on each side
 
-	Parameters
-	----------
-	initial_mask : mask
-		Initial mask for the flux + variance arrays
-	n_grow : int
-		Number of pixels to grow the initial mask by
-		on each side. Defaults to 1 pixel
+    Parameters
+    ----------
+    initial_mask : ndarray
+        Initial mask for the flux + variance arrays
+    n_grow : int, optional
+        Number of pixels to grow the initial mask by
+        on each side. Defaults to 1 pixel
 
-	Returns
-	-------
-	grow_mask : mask
-		Final mask for the flux + variance arrays
-	"""
-    
+    Returns
+    -------
+    grow_mask : ndarray
+        Final mask for the flux + variance arrays
+    """
     bad_pix_spec = np.where(initial_mask == True)[0]
     bad_pix_loc = np.where(initial_mask == True)[1]
     
     grow_mask = np.ma.copy(initial_mask)
     
     if len(bad_pix_spec) > 0:
-        
         for i in range(0, len(bad_pix_spec)):
-            
+
             if initial_mask[bad_pix_spec[i]][bad_pix_loc[i]]:
                 if bad_pix_loc[i] == 0:
                     grow_mask[bad_pix_spec[i]][bad_pix_loc[i]+n_grow] = True
@@ -182,19 +201,21 @@ def grow_mask(initial_mask, n_grow):
 def sigma_clip(fluxes, variances, sn2, n_grow_mask=1):
     """ Sigma-clips the flux arrays.
 
-	Parameters
-	----------
-	initial_mask : mask
-		Initial mask for the flux + variance arrays
-	n_grow_mask : int
-		Number of pixels to grow the initial mask by
-		on each side. Defaults to 1 pixel
+    Parameters
+    ----------
+    fluxes :
+    variances :
+    sn2 : ndarray
+      S/N estimates for each spectrum
+    n_grow_mask : int
+        Number of pixels to grow the initial mask by
+        on each side. Defaults to 1 pixel
 
-	Returns
-	-------
-	grow_mask : mask
-		Final mask for the flux + variance arrays
-	"""
+    Returns
+    -------
+    final_mask : ndarray
+        Final mask for the flux + variance arrays
+    """
     from functools import reduce
 
     first_mask = np.ma.getmaskarray(fluxes)
@@ -211,7 +232,7 @@ def sigma_clip(fluxes, variances, sn2, n_grow_mask=1):
 
     for idx in range(len(all_bad_pix)):
         spec_to_mask = np.argmax(np.abs(fluxes[:, all_bad_pix[idx]]))
-        print "Masking pixel", all_bad_pix[idx], "in exposure", spec_to_mask+1
+        msgs.info("Masking pixel {:d} in exposure {:d}".format(all_bad_pix[idx], spec_to_mask+1))
         first_mask[spec_to_mask][all_bad_pix[idx]] = True
 
     final_mask = grow_mask(first_mask, n_grow=n_grow_mask)
@@ -221,43 +242,49 @@ def sigma_clip(fluxes, variances, sn2, n_grow_mask=1):
 def one_d_coadd(wavelengths, fluxes, variances, sig_clip=False, wave_grid_method=None):
     """ Performs a coadding of the spectra in 1D.
 
-	Parameters
-	----------
-	wavelengths : nd masked array
-		Wavelength arrays of the input spectra
-	fluxes : nd masked array
-		Flux arrays of the input spectra
-	variances : nd masked array
-		Variances of the input spectra
-	sig_clip : optional
-		Perform sigma-clipping of arrays. Defaults to
-		no sigma-clipping
+    Parameters
+    ----------
+    wavelengths : nd masked array
+        Wavelength arrays of the input spectra
+    fluxes : nd masked array
+        Flux arrays of the input spectra
+    variances : nd masked array
+        Variances of the input spectra
+    sig_clip : optional
+        Perform sigma-clipping of arrays. Defaults to
+        no sigma-clipping
 
-	Returns
-	-------
-	fluxes : nd masked array
-		Original flux arrays of the input spectra
-	variances : nd masked array
-		Original variances of the input spectra
-	new_wave : array
-		New wavelength grid
-	new_flux : array
-		Coadded flux array
-	new_var : array
-		Variance of coadded spectrum
-	"""
+    Returns
+    -------
+    fluxes : nd masked array
+        Original flux arrays of the input spectra
+    variances : nd masked array
+        Original variances of the input spectra
+    new_wave : array
+        New wavelength grid
+    new_flux : array
+        Coadded flux array
+    new_var : array
+        Variance of coadded spectrum
+    """
+    # Generate the final wavelength grid
     new_wave = new_wave_grid(wavelengths, method=wave_grid_method)
-    
+
+    # Calculate S/N for each spectrum (for weighting)
     sn2, weights = sn_weight(new_wave, fluxes, variances)
     
     inv_variances = 1./variances
-    
+
+    # Rebin
     for spec in range(fluxes.shape[0]):
-        obj = xspectrum1d.XSpectrum1D.from_tuple((np.ma.getdata(wavelengths[spec]), np.ma.getdata(fluxes[spec]), np.sqrt(np.ma.getdata(variances[spec]))))
+        obj = xspectrum1d.XSpectrum1D.from_tuple((np.ma.getdata(wavelengths[spec]),
+                                                  np.ma.getdata(fluxes[spec]),
+                                                  np.sqrt(np.ma.getdata(variances[spec]))))
         obj = obj.rebin(new_wave*u.AA, do_sig=True)
         fluxes[spec] = np.ma.array(obj.flux)
         variances[spec] = np.ma.array(obj.sig)**2.
 
+    # Clip?
     if sig_clip:
         final_mask = sigma_clip(fluxes, variances, sn2)
 
@@ -271,13 +298,31 @@ def one_d_coadd(wavelengths, fluxes, variances, sig_clip=False, wave_grid_method
         
     sum_weights = np.ma.sum(weights, axis=0)
 
+    # Coadd
     new_flux = np.ma.sum(weights*fluxes, axis=0) / (sum_weights + (sum_weights == 0.0).astype(int))
     var = (inv_variances != 0.0).astype(float) / (inv_variances + (inv_variances == 0.0).astype(float))
     new_var = np.ma.sum((weights**2.)*var, axis=0) / ((sum_weights + (sum_weights == 0.0).astype(int))**2.)        
 
     return fluxes, variances, new_wave, new_flux, new_var
 
+'''
+# Move this to arqa
 def qa_plots(wavelengths, fluxes, variances, new_wave, new_flux, new_var):
+    """  QA plot
+    Parameters
+    ----------
+    wavelengths
+    fluxes
+    variances
+    new_wave
+    new_flux
+    new_var
+
+    Returns
+    -------
+
+    """
+    from matplotlib import pyplot as plt
     from matplotlib.backends.backend_pdf import PdfPages
     
     qa_plots = PdfPages(target + instru + '.pdf')
@@ -324,21 +369,24 @@ def qa_plots(wavelengths, fluxes, variances, new_wave, new_flux, new_var):
     qa_plots.close()
     
     return
+'''
 
+'''
+# What follows should be in XSpectrum1D or pypit.arsave
 def save_coadd(new_wave, new_flux, new_var, outfil):
     """ Saves the coadded spectrum as a .fits file
 
-	Parameters
-	----------
-	new_wave : array
-		New wavelength grid
-	new_flux : array
-		Coadded flux array
-	new_var : array
-		Variance of coadded spectrum
-	outfil : str, optional
-		Name of the coadded spectrum
-	"""
+    Parameters
+    ----------
+    new_wave : array
+        New wavelength grid
+    new_flux : array
+        Coadded flux array
+    new_var : array
+        Variance of coadded spectrum
+    outfil : str, optional
+        Name of the coadded spectrum
+    """
     prihdr = fits.Header()
     prihdu = fits.PrimaryHDU(header=prihdr)
     
@@ -352,62 +400,95 @@ def save_coadd(new_wave, new_flux, new_var, outfil):
     thdulist.writeto(outfil + '.fits', clobber=True)
     
     return
+'''
 
-def coadd_spectra(files, extensions=None, wave_grid_method=None, sig_clip=False, outfil='coadded_spectrum.fits'):
-    wavelengths = []
-    fluxes = []
-    variances = []
-    traces = []
+def load_spec(files, iextensions=None):
+    """ Load a list of spectra
 
-    if extensions is None:
+    Parameters
+    ----------
+    files : list
+      List of filenames
+    iextensions : int or list, optional
+      List of extensions, 1 per filename
+      or an int which is the extension in each file
+
+    Returns
+    -------
+    spec : list
+
+    """
+    if iextensions is None:
         extensions = np.ones(len(files), dtype='int8')
+    elif isinstance(iextensions, int):
+        extensions = np.ones(len(files), dtype='int8') * iextensions
     else:
-        extensions = np.array(extensions)
+        extensions = np.array(iextensions)
 
+    msgs.work("Use PYPIT I/O")
     for exposure in range(len(files)):
         spectrum = fits.open(files[exposure])
 
         #traces.append(spectrum[0].header['EXTNAME'])[1:4]
-
-		wavelengths.append(spectrum[extensions[exposure]].data['box_wave'])
+        wavelengths.append(spectrum[extensions[exposure]].data['box_wave'])
         fluxes.append(spectrum[extensions[exposure]].data['box_flam'])
-		variances.append(spectrum[extensions[exposure]].data['box_flam_var'])
+        variances.append(spectrum[extensions[exposure]].data['box_flam_var'])
 
-	wavelengths = np.ma.vstack([wavelengths])
-	fluxes = np.ma.vstack([fluxes])
-	variances = np.ma.vstack([variances])
 
-	# Add check on trace location here (to make sure the trace location of objects is similar, and thus likely the same object)
+def coadd_spectra(spec, wave_grid_method=None,
+                  sig_clip=False, outfil='coadded_spectrum.fits'):
+    """
+    Parameters
+    ----------
+    spec : list
+      List of XSpectrum1D objects to be coadded
+    wave_grid_method
+    sig_clip
+    outfil
 
-    masked_fluxes, masked_vars, new_wave, new_flux, new_var = one_d_coadd(wavelengths, fluxes, variances, sig_clip=sig_clip, wave_grid=wave_grid_method)
+    Returns
+    -------
 
-	dev_sig = (np.ma.getdata(masked_fluxes) - new_flux) / (np.sqrt(np.ma.getdata(masked_vars) + new_var))
-	std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=4, iters=2))
-	var_corr = std_dev
-	iters = 0
+    """
+    wavelengths = []
+    fluxes = []
+    variances = []
+    #traces = []
 
-	while np.absolute(std_dev - 1.) >= 0.1 and iters < 4:
-        print "Variance correction:", "{0:.3f}".format(var_corr), "\n"
-        print "Iterating on coadding..."
+    wavelengths = np.ma.vstack([wavelengths])
+    fluxes = np.ma.vstack([fluxes])
+    variances = np.ma.vstack([variances])
+
+    # Add check on trace location here (to make sure the trace location of objects is similar, and thus likely the same object)
+    masked_fluxes, masked_vars, new_wave, new_flux, new_var = one_d_coadd(
+            wavelengths, fluxes, variances, sig_clip=sig_clip, wave_grid=wave_grid_method)
+
+    dev_sig = (np.ma.getdata(masked_fluxes) - new_flux) / (np.sqrt(np.ma.getdata(masked_vars) + new_var))
+    std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=4, iters=2))
+    var_corr = std_dev
+    iters = 0
+
+    while np.absolute(std_dev - 1.) >= 0.1 and iters < 4:
+        msgs.info("Variance correction: {:g}".format(var_corr))
+        msgs.info("Iterating on coadding...")
         masked_fluxes, masked_vars, new_wave, new_flux, new_var = one_d_coadd(wavelengths, masked_fluxes, var_corr*masked_vars, wave_grid=wave_grid_method)
         dev_sig = (np.ma.getdata(masked_fluxes) - new_flux) / (np.sqrt(np.ma.getdata(masked_vars) + new_var))
         std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=4, iters=2))
         var_corr = var_corr * np.std(astropy.stats.sigma_clip(dev_sig, sigma=5, iters=2))
 
-        print "New standard deviation:", "{0:.3f}".format(std_dev)
+        msgs.info("New standard deviation: {:g}".format(std_dev))
 
         # Incorporate saving of each dev/sig panel onto one page? Currently only saves last fit
-
-	    qa_plots(wavelengths, masked_fluxes, masked_vars, new_wave, new_flux, new_var)
+        #qa_plots(wavelengths, masked_fluxes, masked_vars, new_wave, new_flux, new_var)
         iters = iters + 1
 
     if iters == 0:
-        print "No iterations on coadding done"
-        qa_plots(wavelengths, masked_fluxes, masked_vars, new_wave, new_flux, new_var)
-	    
-    elif iters > 0:
-        print "Final correction to initial variances:", "{0:.3f}".format(var_corr), "\n"
+        msgs.warn("No iterations on coadding done")
+        #qa_plots(wavelengths, masked_fluxes, masked_vars, new_wave, new_flux, new_var)
+    else: #if iters > 0:
+        msgs.info("Final correction to initial variances: {:g}".format(var_corr))
 
+    debugger.set_trace()
     save_coadd(new_wave, new_flux, new_var, outfil)
 
     return
