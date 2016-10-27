@@ -12,8 +12,8 @@ def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse')
     parser.add_argument("file", type=str, help="Spectral file")
     parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
-    parser.add_argument("--exten", type=int, help="FITS extension")
-    parser.add_argument("--optimal", default=False, help="Show Optimal? Default is boxcar", action="store_true")
+    parser.add_argument("--exten", type=int, default=1, help="FITS extension")
+    parser.add_argument("--extract", type=str, default='box', help="Extraction method. Default is boxcar. ['box', 'opt']")
 
     if options is None:
         args = parser.parse_args()
@@ -35,26 +35,16 @@ def main(args, unit_test=False):
         return
 
     from linetools.guis.xspecgui import XSpecGui
+    from pypit import arload
 
-    # Extension
-    exten = (args.exten if hasattr(args, 'exten') else 0)
-
-    # Read spec keywords
-    rsp_kwargs = {}
-    if args.optimal:
-        rsp_kwargs['wave_tag'] = 'opt_wave'
-        rsp_kwargs['flux_tag'] = 'opt_counts'
-        rsp_kwargs['var_tag'] = 'opt_var'
-    else:
-        rsp_kwargs['wave_tag'] = 'box_wave'
-        rsp_kwargs['flux_tag'] = 'box_counts'
-        rsp_kwargs['var_tag'] = 'box_var'
+    # Load spectrum
+    spec = arload.load_1dspec(args.file, exten=args.exten, extract=args.extract)
 
     if unit_test is False:
         from PyQt4 import QtGui
         app = QtGui.QApplication(sys.argv)
 
-    gui = XSpecGui(args.file, exten=exten, rsp_kwargs=rsp_kwargs, unit_test=unit_test)
+    gui = XSpecGui(spec, unit_test=unit_test)
     if unit_test is False:
         gui.show()
         app.exec_()

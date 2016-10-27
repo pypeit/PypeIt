@@ -11,6 +11,7 @@ from astropy import units as u
 from astropy.io import fits
 from linetools.spectra import xspectrum1d
 
+from pypit import arload
 from pypit import armsgs
 
 try:
@@ -21,19 +22,24 @@ except ImportError:
 # Logging
 msgs = armsgs.get_logger()
 
-def new_wave_grid(waves, method='None'):
+
+def new_wave_grid(waves, method='iref', iref=0):
     """ Create a new wavelength grid for the
     spectra to be rebinned and coadded on
 
     Parameters
     ----------
-    waves : ndarray
+    waves : masked ndarray
         Set of N original wavelength arrays
+        Nspec, Npix
     method : str, optional
         Desired method for creating new wavelength grid.
-        Defaults to using the first wavelength array
-        as the master wavelength grid, with options
-        of a constant velocity or constant pixel grid
+        'iref' -- Use the first wavelength array (default)
+        'velcoity' -- Constant velocity
+        'pixel' -- Constant pixel grid
+        'concatenate' -- Meld the input wavelength arrays
+    iref : int, optional
+      Reference spectrum
 
     Returns
     -------
@@ -44,6 +50,9 @@ def new_wave_grid(waves, method='None'):
     # slf._argflag['reduce']['pixelsize'] = 2.5?? This won't work
     # if running coadding outside of PYPIT, which we'd like as an
     # option!
+    from numpy.ma.core import MaskedArray
+    if not isinstance(waves, MaskedArray):
+        waves = np.ma.array(waves)
 
     if method == 'velocity': # Constant km/s
         # Loop over spectra and save wavelength arrays to find min, max of
@@ -70,8 +79,33 @@ def new_wave_grid(waves, method='None'):
         constant_A = pix_size*1.02 # 1.02 here is the A/pix for this instrument; stored in slf. somewhere?
         wave_grid = np.arange(wave_grid_min, wave_grid_max + constant_A, constant_A)
 
+    elif method == 'concatenate':  # Concatenate
+        # Setup
+        loglam = np.log10(waves)
+        nspec = waves.shape[0]
+        newloglam = loglam[iref, :]
+        # Loop
+        for j in range(nspec):
+            if j == iref:
+                continue
+            npix = newloglam.size
+            dloglam_0 = (newloglam[1]-newloglam[0])
+            dloglam_n =  (newloglam[-1] - newloglam[-2]) # Assumes sorted
+            if (newloglam[0] - loglam[j,0]) > dloglam_0:
+                kmin = np.argmin(np.abs(loglam[j, :] - newloglam[0] - dloglam_0))
+                newloglam = np.concatenate([loglam[:kmin, j], newloglam])
+                debugger.set_trace()
+            #
+            npix = newloglam.size
+            if (loglam[j, -1] - newloglam[-1]) > dloglam_n:
+                kmin = np.argmin(np.abs(loglam[j, :] - newloglam[-1] - dloglam_n))
+                newloglam = np.concatenate([newloglam, loglam[kmin:, j]])
+                print('here')
+                debugger.set_trace()
+    elif method == 'iref':  # Concatenate
+        wave_grid = np.ma.getdata(waves[iref, :])
     else:
-        wave_grid = waves[0]
+        msgs.error("Bad method")
     # Concatenate of any wavelengths in other indices that may extend beyond that of wavelengths[0]?
 
     return wave_grid
@@ -239,6 +273,7 @@ def sigma_clip(fluxes, variances, sn2, n_grow_mask=1):
     
     return final_mask
 
+
 def one_d_coadd(wavelengths, fluxes, variances, sig_clip=False, wave_grid_method=None):
     """ Performs a coadding of the spectra in 1D.
 
@@ -402,8 +437,9 @@ def save_coadd(new_wave, new_flux, new_var, outfil):
     return
 '''
 
-def load_spec(files, iextensions=None):
-    """ Load a list of spectra
+
+def load_spec(files, iextensions=None, extract='opt'):
+    """ Load a list of spectra into one XSpectrum1D object
 
     Parameters
     ----------
@@ -412,35 +448,42 @@ def load_spec(files, iextensions=None):
     iextensions : int or list, optional
       List of extensions, 1 per filename
       or an int which is the extension in each file
+    extract : str, optional
+      Extraction method ('opt', 'box')
 
     Returns
     -------
-    spec : list
-
+    spectra : XSpectrum1D
+      -- All spectra are collated in this one object
     """
+    from linetools.spectra.xspectrum1d import XSpectrum1D
+    # Extensions
     if iextensions is None:
+        msgs.warn("Extensions not provided.  Assuming first extension for all")
         extensions = np.ones(len(files), dtype='int8')
     elif isinstance(iextensions, int):
         extensions = np.ones(len(files), dtype='int8') * iextensions
     else:
         extensions = np.array(iextensions)
 
-    msgs.work("Use PYPIT I/O")
-    for exposure in range(len(files)):
-        spectrum = fits.open(files[exposure])
+    # Load spectra
+    spectra_list = []
+    for ii,fname in enumerate(files):
+        msgs.info("Loading extension {:d} of spectrum {:s}".format(extensions[ii], fname))
+        spectrum = arload.load_1dspec(fname, exten=extensions[ii], extract=extract)
+        spectra_list.append(spectrum)
+    # Join into one XSpectrum1D object
+    spectra = XSpectrum1D.from_list(spectra_list)
+    # Return
+    return spectra
 
-        #traces.append(spectrum[0].header['EXTNAME'])[1:4]
-        wavelengths.append(spectrum[extensions[exposure]].data['box_wave'])
-        fluxes.append(spectrum[extensions[exposure]].data['box_flam'])
-        variances.append(spectrum[extensions[exposure]].data['box_flam_var'])
 
-
-def coadd_spectra(spec, wave_grid_method=None,
+def coadd_spectra(spectra, wave_grid_method=None,
                   sig_clip=False, outfil='coadded_spectrum.fits'):
     """
     Parameters
     ----------
-    spec : list
+    spectra : list
       List of XSpectrum1D objects to be coadded
     wave_grid_method
     sig_clip
@@ -450,11 +493,16 @@ def coadd_spectra(spec, wave_grid_method=None,
     -------
 
     """
+    # Convert to masked arrays
     wavelengths = []
     fluxes = []
     variances = []
     #traces = []
-
+    for spectrum in spectra:
+        wavelengths.append(spectrum.wavelength.value)
+        fluxes.append(spectrum.flux.value)
+        variances.append(spectrum.sig.value**2)
+    # Recast -- This fails if the arrays are of different length
     wavelengths = np.ma.vstack([wavelengths])
     fluxes = np.ma.vstack([fluxes])
     variances = np.ma.vstack([variances])
