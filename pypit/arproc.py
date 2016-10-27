@@ -223,7 +223,7 @@ def badpix(slf, det, frame, sigdev=10.0):
     frame is a master bias frame
     sigdev is the number of standard deviations away from the median that a pixel needs to be in order to be classified as a bad pixel
     """
-    bpix = np.zeros_like(frame)
+    bpix = np.zeros_like(frame, dtype=np.int)
     subfr, tframe, temp = None, None, None
     for i in range(slf._spect['det'][det-1]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
@@ -236,8 +236,8 @@ def badpix(slf, det, frame, sigdev=10.0):
         temp = np.abs(np.median(tframe)-tframe)
         sigval = max(np.median(temp)*1.4826, 1.4826)
         ws = np.where(temp > sigdev*sigval)
-        subfr = np.zeros_like(tframe)
-        subfr[ws] = 1.0
+        subfr = np.zeros(tframe.shape, dtype=np.int)
+        subfr[ws] = 1
         bpix[w] = subfr
     del subfr, tframe, temp
     # Finally, trim the bad pixel frame
@@ -1196,18 +1196,18 @@ def sub_overscan(slf, det, file, use_datasec=False):
     return file
 
 
-def trim(slf, file, det):
-    for i in range (slf._spect['det'][det-1]['numamplifiers']):
+def trim(slf, frame, det):
+    for i in range(slf._spect['det'][det-1]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
         x0, x1, y0, y1 = slf._spect['det'][det-1][datasec][0][0], slf._spect['det'][det-1][datasec][0][1], slf._spect['det'][det-1][datasec][1][0], slf._spect['det'][det-1][datasec][1][1]
         if x0 < 0:
-            x0 += file.shape[0]
+            x0 += frame.shape[0]
         if x1 <= 0:
-            x1 += file.shape[0]
+            x1 += frame.shape[0]
         if y0 < 0:
-            y0 += file.shape[1]
+            y0 += frame.shape[1]
         if y1 <= 0:
-            y1 += file.shape[1]
+            y1 += frame.shape[1]
         if i == 0:
             xv = np.arange(x0, x1)
             yv = np.arange(y0, y1)
@@ -1225,12 +1225,12 @@ def trim(slf, file, det):
 #	else:
 #		msgs.error("Cannot trim {0:d}D frame".format(int(len(file.shape))))
     try:
-        trim_file = file[w]
+        trim_frame = frame[w]
     except:
         msgs.bug("Odds are datasec is set wrong. Maybe due to transpose")
         debugger.set_trace()
         msgs.error("Cannot trim file")
-    return file[w]
+    return frame[w]
 
 
 def variance_frame(slf, det, sciframe, idx, fitsdict=None, skyframe=None, objframe=None):

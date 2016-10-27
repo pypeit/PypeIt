@@ -133,26 +133,64 @@ def calc_offset(raA, decA, raB, decB, distance=False):
         return delRA, delDEC
 
 
-def dummy_self(pypitdir=None):
+def dummy_fitsdict(nfile=10):
+    """
+    Parameters
+    ----------
+    nfile : int
+      Number of files to mimic
+
+    Returns
+    -------
+
+    """
+    fitsdict = {}
+    fitsdict['date'] = ['2015-01-23T00:54:17.04']*nfile
+    fitsdict['target'] = ['Dummy']*nfile
+    fitsdict['exptime'] = [300.]*nfile
+    #
+    return fitsdict
+
+
+def dummy_self(pypitdir=None, inum=0, fitsdict=None, nfile=10):
     """
     Generate a dummy self class for testing
     Parameters:
     -----------
     pypitdir : str, optional
       Path to the PYPIT main directory
+    inum : int, optional
+      Index in sciexp
     Returns:
     --------
     slf
     """
+    import pypit
+    from pypit import arsciexp
+    from pypit import arload
+    # Dummy dicts
+    spect = arload.load_spect(pypit.__file__, 'kast_blue')
+    kk = 0
+    for jj,key in enumerate(spect.keys()):
+        if key in ['det']:
+            continue
+        if 'index' in spect[key].keys():
+            spect[key]['index'] = [[kk]*nfile]
+            kk += 1
+    argflag = arload.argflag_init()
+    if fitsdict is None:
+        fitsdict = dummy_fitsdict(nfile=nfile)
     # Dummy Class
-    slf = type('Dummy', (object,), {"_argflag": {}, "_spect": {}})
-    slf._argflag['run'] = {}
+    slf = arsciexp.ScienceExposure(inum, argflag, spect, fitsdict, do_qa=False)
+    #
     if pypitdir is None:
         pypitdir = __file__[0:__file__.rfind('/')]
     slf._argflag['run']['pypitdir'] = pypitdir
     slf._argflag['run']['spectrograph'] = 'dummy'
+    slf._argflag['run']['scidir'] = './'
     #
     slf._spect['mosaic'] = {}
+    slf._spect['mosaic']['ndet'] = 1
     slf._spect['det'] = [{'binning':'1x1'}]
     #
     return slf

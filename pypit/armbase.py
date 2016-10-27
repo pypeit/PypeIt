@@ -10,10 +10,9 @@ from pypit import arsciexp
 msgs = armsgs.get_logger()
 
 try:
-    from xastropy.xutils.xdebug import set_trace
-#    from xastropy.xutils import xdebug as xdb
+    from xastropy.xutils import xdebug as debugger
 except ImportError:
-    from pdb import set_trace
+    import pdb as debugger
 
 
 def SetupScience(argflag, spect, fitsdict):
@@ -98,7 +97,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
             else:
                 msgs.bug("I could not update frame of type {0:s} and subtype {1:s}".format(ftype, chktype))
                 return
-            if np.array_equal(chkarr, chkfarr) and sciexp[i].GetMasterFrame(chktype, det, msgs, copy=False) is None:
+            if np.array_equal(chkarr, chkfarr) and sciexp[i].GetMasterFrame(chktype, det, mkcopy=False) is None:
                 msgs.info("Updating master {0:s} frame for science target {1:d}/{2:d}".format(chktype, i+1, numsci))
                 sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(chktype, det), chktype, det)
         # Now check flats of a different type
@@ -112,7 +111,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
             else:
                 msgs.bug("I could not update frame of type {0:s} and subtype {1:s}".format(ftype, chktype))
                 return
-            if np.array_equal(chkarr, chkfarr) and sciexp[i].GetMasterFrame(chktype, det, copy=False) is None:
+            if np.array_equal(chkarr, chkfarr) and sciexp[i].GetMasterFrame(chktype, det, mkcopy=False) is None:
                 msgs.info("Updating master {0:s} frame for science target {1:d}/{2:d}".format(chktype, i+1, numsci))
                 sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(origtype, det), chktype, det)
     else:
@@ -125,7 +124,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
             else:
                 msgs.bug("I could not update frame of type: {0:s}".format(ftype))
                 return
-            if np.array_equal(chkarr, chkfarr) and sciexp[i].GetMasterFrame(ftype, det, copy=False) is None:
+            if np.array_equal(chkarr, chkfarr) and sciexp[i].GetMasterFrame(ftype, det, mkcopy=False) is None:
                 msgs.info("Updating master {0:s} frame for science target {1:d}/{2:d}".format(ftype, i+1, numsci))
                 sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(ftype, det), ftype, det)
     return

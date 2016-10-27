@@ -24,7 +24,7 @@ except:
 # Logging
 msgs = armsgs.get_logger()
 
-def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
+def ARMLSD(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
     """
     Automatic Reduction and Modeling of Long Slit Data
 
@@ -75,6 +75,8 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
         scidx = slf._idx_sci[0]
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
         msgs.sciexp = slf  # For QA writing on exit, if nothing else.  Could write Masters too
+        if reloadMaster and (sc > 0):
+            slf._argflag['masters']['use'] = True
         # Loop on Detectors
         for kk in range(slf._spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
@@ -122,10 +124,10 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             # Generate an array that provides the physical pixel locations on the detector
             slf.GetPixelLocations(det)
             # Determine the edges of the spectrum (spatial)
-            if 'trace'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
+            if ('trace'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']):
                 ###############
                 # Determine the edges of the spectrum (spatial)
-                lordloc, rordloc, extord = artrace.trace_orders(slf, slf._mstrace[det-1], det, singleSlit=True, pcadesc="PCA trace of the slit edges")
+                lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det, pcadesc="PCA trace of the slit edges")
                 slf.SetFrame(slf._lordloc, lordloc, det)
                 slf.SetFrame(slf._rordloc, rordloc, det)
 
@@ -141,6 +143,7 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
                 slf.SetFrame(slf._rordpix, rordpix, det)
                 # Save QA for slit traces
                 arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges")
+                armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
             ###############
             # Prepare the pixel flat field frame
@@ -242,7 +245,13 @@ def ARMLSD(argflag, spect, fitsdict, reuseMaster=False):
             arflux.apply_sensfunc(slf, det, scidx, fitsdict)
 
         # Write 1D spectra
-        arsave.save_1d_spectra(slf)
+        save_format = 'fits'
+        if save_format == 'fits':
+            arsave.save_1d_spectra_fits(slf)
+        elif save_format == 'hdf5':
+            arsave.save_1d_spectra_hdf5(slf)
+        else:
+            msgs.error(save_format + ' is not a recognized output format!')
         # Write 2D images for the Science Frame
         arsave.save_2d_images(slf)
         # Free up some memory by replacing the reduced ScienceExposure class
