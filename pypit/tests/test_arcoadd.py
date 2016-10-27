@@ -28,9 +28,11 @@ def dummy_spectra(s2n=10., seed=1234):
 
     Returns
     -------
+    dspec : XSpectrum1D
 
     """
     from linetools.spectra.xspectrum1d import XSpectrum1D
+    from linetools.spectra.utils import collate
     wvmnx = [[5000., 6000.],
             [4000.5, 5800.5],
             [4500.8, 6300.8],
@@ -44,9 +46,10 @@ def dummy_spectra(s2n=10., seed=1234):
         spec = XSpectrum1D.from_tuple((wave,flux,sig))
         # Noise and append
         slist.append(spec.add_noise(seed=seed))
+    # Collate
+    dspec = collate(slist)
     #
-    return XSpectrum1D.from_list(slist)
-
+    return dspec
 
 def test_load():
     from pypit import arcoadd as arco
@@ -59,6 +62,7 @@ def test_load():
     spectra = arco.load_spec(files, extract='box')
 
 
+'''
 def test_new_wave_grid():
     from pypit import arcoadd as arco
     # Dummy spectrum
@@ -80,62 +84,59 @@ def test_new_wave_grid():
     np.testing.assert_allclose(pix_wave[0], 4000.5)
     np.testing.assert_allclose(pix_wave[-1], 6303.15)
 
+
+def test_sn_weight():
+    """ Test sn_weight method """
+    from pypit import arcoadd as arco
+    #  Low S/N first
+    dspec = dummy_spectra(s2n=3.)
+    cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
+    sn2, weights = arco.sn_weight(cat_wave, dspec.data['flux'], dspec.data['sig']**2)
+    np.testing.assert_allclose(sn2[0], 9.8, atol=0.1)  # Noise is random
+    #  High S/N now
+    dspec2 = dummy_spectra(s2n=10.)
+    cat_wave = arco.new_wave_grid(dspec2.data['wave'], method='concatenate')
+    sn2, weights = arco.sn_weight(cat_wave, dspec2.data['flux'], dspec2.data['sig']**2)
+    np.testing.assert_allclose(sn2[0], 101.0, atol=0.1)  # Noise is random
 '''
-def test_find_standard():
-    from pypit import arutils as arut
-    from pypit import arflux as arflx
-    # Dummy self
-    slf = arut.dummy_self()
-    # G191b2b
-    std_ra = '05:06:36.6'
-    std_dec = '52:52:01.0'
-    # Grab
-    std_dict = arflx.find_standard_file(slf._argflag, (std_ra, std_dec))
+
+def test_grow_mask():
+    """ Test grow_mask method"""
+    from pypit import arcoadd as arco
+    # Setup
+    dspec = dummy_spectra(s2n=10.)
+    mask = np.ma.getmaskarray(dspec.data['wave'])
+    mask[:] = False
+    # Set some
+    mask[0, 100] = True
+    mask[1, 0] = True
+    mask[2, -1] = True
+    # Grow
+    new_mask = arco.grow_mask(mask, n_grow=1)
     # Test
-    assert std_dict['name'] == 'G191B2B'
-    assert std_dict['file'] == '/data/standards/calspec/g191b2b_mod_005.fits'
-    assert std_dict['fmt'] == 1
-    # Fail to find
-    # near G191b2b
-    std_ra = '05:06:36.6'
-    std_dec = '52:22:01.0'
-    std_dict = arflx.find_standard_file(slf._argflag, (std_ra,std_dec))
-    assert std_dict is None
+    badp = np.where(new_mask[0,:])[0]
+    assert np.all(badp == np.array([99,100,101]))
+    badpb = np.where(new_mask[1,:])[0]
+    assert np.all(badpb == np.array([0,1]))
+    badpc = np.where(new_mask[2,:])[0]
+    assert np.all(badpc == np.array([1098,1099]))
+    # Grow 2
+    new_mask2 = arco.grow_mask(mask, n_grow=2)
+    badp2 = np.where(new_mask2[0,:])[0]
+    assert np.all(badp2 == np.array([98,99,100,101,102]))
 
-
-def test_load_extinction():
-    from pypit import arflux as arflx
-    from pypit import arutils as arut
-    # Dummy self
-    slf = arut.dummy_self()
-    slf._spect['mosaic']['latitude'] = 37.3413889
-    slf._spect['mosaic']['longitude'] = 121.6428
-    # Load
-    extinct = arflx.load_extinction_data(slf)
-    np.testing.assert_allclose(extinct['wave'][0], 3200.)
-    assert extinct['wave'].unit == u.AA
-    np.testing.assert_allclose(extinct['mag_ext'][0], 1.084)
-    # Fail
-    slf._spect['mosaic']['latitude'] = 37.3413889
-    slf._spect['mosaic']['longitude'] = 0.
-    #
-    extinct = arflx.load_extinction_data(slf)
-    assert extinct is None
-
-
-def test_extinction_correction():
-    from pypit import arflux as arflx
-    from pypit import arutils as arut
-    # Dummy self
-    slf = arut.dummy_self()
-    slf._spect['mosaic']['latitude'] = 37.3413889
-    slf._spect['mosaic']['longitude'] = 121.6428
-    # Load
-    extinct = arflx.load_extinction_data(slf)
-    # Correction
-    wave = np.arange(3000.,10000.)*u.AA
-    AM=1.5
-    flux_corr = arflx.extinction_correction(wave,AM,extinct)
-    # Test
-    np.testing.assert_allclose(flux_corr[0], 4.47095192)
 '''
+def test_sigma_clip():
+    """ Test sigma_clip method """
+    from pypit import arcoadd as arco
+    # Setup
+    dspec = dummy_spectra(s2n=10.)
+    cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
+    # Rebin
+    rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True)
+    sn2, weights = arco.sn_weight(cat_wave, rspec.data['flux'], rspec.data['sig']**2)
+    # Here we go
+    final_mask = arco.sigma_clip(rspec.data['flux'], rspec.data['sig']**2, sn2=sn2)
+'''
+
+

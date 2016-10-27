@@ -165,19 +165,18 @@ def sn_weight(new_wave, fluxes, variances):
         Weights to be applied to the spectra
     """
 
-    sn2_val = (fluxes**2.) * (1./variances)
+    sn2_val = (fluxes**2) * (1./variances)
     sn2_sigclip = astropy.stats.sigma_clip(sn2_val, sigma=3, iters=1)
-    sn2 = np.mean(sn2_sigclip, axis=1) #S/N^2 value for each spectrum
+    sn2 = np.mean(sn2_sigclip, axis=1).compressed()  #S/N^2 value for each spectrum
 
     mean_sn = np.sqrt(np.sum(sn2)/sn2.shape[0]) #Mean S/N value for all spectra
 
     if mean_sn <= 4.0:
         msgs.info("Using constant weights for coadding, mean S/N = {:g}".format(mean_sn))
-        #msgs.info("Using constant weights for coadding, mean S/N = {:g}".format(mean_sn))
         weights = np.outer(np.asarray(sn2), np.ones(fluxes.shape[1]))
-
     else:
         msgs.info("Using wavelength dependent weights for coadding")
+        msgs.warn("If your spectra have very different dispersion, this is *not* accurate")
         sn2_med1 = np.ones_like(fluxes) #((fluxes.shape[0], fluxes.shape[1]))
         weights = np.ones_like(fluxes) #((fluxes.shape[0], fluxes.shape[1]))
 
@@ -194,7 +193,7 @@ def sn_weight(new_wave, fluxes, variances):
 
         for spec in xrange(fluxes.shape[0]):
             weights[spec] = scipy.ndimage.filters.convolve(sn2_med1[spec], yvals)
-        
+
     return sn2, weights
 
 
@@ -214,15 +213,23 @@ def grow_mask(initial_mask, n_grow=1):
     grow_mask : ndarray
         Final mask for the flux + variance arrays
     """
+    if not isinstance(n_grow, int):
+        msgs.error("n_grow must be an integer")
+    #
     bad_pix_spec = np.where(initial_mask == True)[0]
     bad_pix_loc = np.where(initial_mask == True)[1]
     
     grow_mask = np.ma.copy(initial_mask)
+    npix = grow_mask.shape[1]
     
     if len(bad_pix_spec) > 0:
         for i in range(0, len(bad_pix_spec)):
-
             if initial_mask[bad_pix_spec[i]][bad_pix_loc[i]]:
+                msk_p = bad_pix_loc[i] + np.arange(-1*n_grow, n_grow+1)
+                gdp = (msk_p >= 0) & (msk_p < npix)
+                grow_mask[bad_pix_spec[i]][msk_p[gdp]] = True
+                '''
+                debugger.set_trace()
                 if bad_pix_loc[i] == 0:
                     grow_mask[bad_pix_spec[i]][bad_pix_loc[i]+n_grow] = True
                     
@@ -232,10 +239,12 @@ def grow_mask(initial_mask, n_grow=1):
                 else:
                     grow_mask[bad_pix_spec[i]][bad_pix_loc[i]-n_grow] = True
                     grow_mask[bad_pix_spec[i]][bad_pix_loc[i]+n_grow] = True
-                
+                '''
+
     return grow_mask
 
-def sigma_clip(fluxes, variances, sn2, n_grow_mask=1):
+
+def sigma_clip(fluxes, variances, sn2, n_grow_mask=1, nsig=3.):
     """ Sigma-clips the flux arrays.
 
     Parameters
@@ -243,10 +252,12 @@ def sigma_clip(fluxes, variances, sn2, n_grow_mask=1):
     fluxes :
     variances :
     sn2 : ndarray
-      S/N estimates for each spectrum
+      S/N**2 estimates for each spectrum
     n_grow_mask : int
         Number of pixels to grow the initial mask by
         on each side. Defaults to 1 pixel
+    nsig : float, optional
+      Number of sigma for rejection
 
     Returns
     -------
@@ -254,24 +265,36 @@ def sigma_clip(fluxes, variances, sn2, n_grow_mask=1):
         Final mask for the flux + variance arrays
     """
     from functools import reduce
-
+    # This mask may include masked pixels (including padded ones)
+    #   We should *not* grow those
     first_mask = np.ma.getmaskarray(fluxes)
+    # New mask
+    new_mask = first_mask.copy()
+    new_mask[:] = False
+
+    # Grab highest S/N spectrum
     highest_sn_idx = np.argmax(sn2)
 
+    # Sharpened chi spectrum
     base_sharp_chi = (fluxes - fluxes[highest_sn_idx]) / (np.sqrt(variances + variances[highest_sn_idx]))
-    
-    bad_pix = []
-    
-    for row in range(0, base_sharp_chi.shape[0]):
-        bad_pix.append(np.where(np.abs(base_sharp_chi[row]) > 3*np.std(base_sharp_chi, axis=1)[row])[0])
+    std_bchi = np.std(base_sharp_chi, axis=1)
 
-    all_bad_pix = reduce(np.union1d, (np.asarray(bad_pix)))
+    debugger.set_trace()
+    for ispec in range(base_sharp_chi.shape[0]):
+        bad_pix = np.abs(base_sharp_chi[ispec]) > nsig*std_bchi[ispec]
+        new_mask[ispec, bad_pix] = True
 
-    for idx in range(len(all_bad_pix)):
-        spec_to_mask = np.argmax(np.abs(fluxes[:, all_bad_pix[idx]]))
-        msgs.info("Masking pixel {:d} in exposure {:d}".format(all_bad_pix[idx], spec_to_mask+1))
-        first_mask[spec_to_mask][all_bad_pix[idx]] = True
+    #all_bad_pix = reduce(np.union1d, (np.asarray(bad_pix)))
 
+    #for idx in range(len(all_bad_pix)):
+    #    spec_to_mask = np.argmax(np.abs(fluxes[:, all_bad_pix[idx]]))
+    #    msgs.info("Masking pixel {:d} in exposure {:d}".format(all_bad_pix[idx], spec_to_mask+1))
+    #    first_mask[spec_to_mask][all_bad_pix[idx]] = True
+
+    # Grow new mask
+    new_mask = grow_mask(new_mask, n_grow=n_grow_mask)
+
+    # Final mask
     final_mask = grow_mask(first_mask, n_grow=n_grow_mask)
     
     return final_mask
@@ -459,7 +482,7 @@ def load_spec(files, iextensions=None, extract='opt'):
     spectra : XSpectrum1D
       -- All spectra are collated in this one object
     """
-    from linetools.spectra.xspectrum1d import XSpectrum1D
+    from linetools.spectra.utils import collate
     # Extensions
     if iextensions is None:
         msgs.warn("Extensions not provided.  Assuming first extension for all")
@@ -476,7 +499,7 @@ def load_spec(files, iextensions=None, extract='opt'):
         spectrum = arload.load_1dspec(fname, exten=extensions[ii], extract=extract)
         spectra_list.append(spectrum)
     # Join into one XSpectrum1D object
-    spectra = XSpectrum1D.from_list(spectra_list)
+    spectra = collate(spectra_list)
     # Return
     return spectra
 
