@@ -228,19 +228,7 @@ def grow_mask(initial_mask, n_grow=1):
                 msk_p = bad_pix_loc[i] + np.arange(-1*n_grow, n_grow+1)
                 gdp = (msk_p >= 0) & (msk_p < npix)
                 grow_mask[bad_pix_spec[i]][msk_p[gdp]] = True
-                '''
-                debugger.set_trace()
-                if bad_pix_loc[i] == 0:
-                    grow_mask[bad_pix_spec[i]][bad_pix_loc[i]+n_grow] = True
-                    
-                elif bad_pix_loc[i] == initial_mask.shape[1]-1:
-                    grow_mask[bad_pix_spec[i]][bad_pix_loc[i]-n_grow] = True
-                    
-                else:
-                    grow_mask[bad_pix_spec[i]][bad_pix_loc[i]-n_grow] = True
-                    grow_mask[bad_pix_spec[i]][bad_pix_loc[i]+n_grow] = True
-                '''
-
+    # Return
     return grow_mask
 
 
@@ -264,7 +252,7 @@ def sigma_clip(fluxes, variances, sn2, n_grow_mask=1, nsig=3.):
     final_mask : ndarray
         Final mask for the flux + variance arrays
     """
-    from functools import reduce
+    from scipy.signal import medfilt
     # This mask may include masked pixels (including padded ones)
     #   We should *not* grow those
     first_mask = np.ma.getmaskarray(fluxes)
@@ -276,11 +264,16 @@ def sigma_clip(fluxes, variances, sn2, n_grow_mask=1, nsig=3.):
     highest_sn_idx = np.argmax(sn2)
 
     # Sharpened chi spectrum
-    base_sharp_chi = (fluxes - fluxes[highest_sn_idx]) / (np.sqrt(variances + variances[highest_sn_idx]))
+    #base_sharp_chi = (fluxes - fluxes[highest_sn_idx]) / (np.sqrt(variances + variances[highest_sn_idx]))
+    #  WHAT WAS HERE WONT REJECT BAD PIX IN THE REF SPEC
+    refflux = fluxes[highest_sn_idx]
+    med_ref = medfilt(refflux, 3)
+    debugger.set_trace()
+    base_sharp_chi =  (refflux-med_ref)/np.sqrt(variances[highest_sn_idx])
     std_bchi = np.std(base_sharp_chi, axis=1)
 
-    debugger.set_trace()
     for ispec in range(base_sharp_chi.shape[0]):
+        # Is this right?
         bad_pix = np.abs(base_sharp_chi[ispec]) > nsig*std_bchi[ispec]
         new_mask[ispec, bad_pix] = True
 
@@ -295,8 +288,8 @@ def sigma_clip(fluxes, variances, sn2, n_grow_mask=1, nsig=3.):
     new_mask = grow_mask(new_mask, n_grow=n_grow_mask)
 
     # Final mask
-    final_mask = grow_mask(first_mask, n_grow=n_grow_mask)
-    
+    final_mask = first_mask & new_mask
+
     return final_mask
 
 

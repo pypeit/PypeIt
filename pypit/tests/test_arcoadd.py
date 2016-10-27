@@ -62,7 +62,6 @@ def test_load():
     spectra = arco.load_spec(files, extract='box')
 
 
-'''
 def test_new_wave_grid():
     from pypit import arcoadd as arco
     # Dummy spectrum
@@ -91,14 +90,16 @@ def test_sn_weight():
     #  Low S/N first
     dspec = dummy_spectra(s2n=3.)
     cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
-    sn2, weights = arco.sn_weight(cat_wave, dspec.data['flux'], dspec.data['sig']**2)
-    np.testing.assert_allclose(sn2[0], 9.8, atol=0.1)  # Noise is random
+    rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True)
+    sn2, weights = arco.sn_weight(cat_wave, rspec.data['flux'], rspec.data['sig']**2)
+    np.testing.assert_allclose(sn2[0], 8.85, atol=0.1)  # Noise is random
     #  High S/N now
     dspec2 = dummy_spectra(s2n=10.)
     cat_wave = arco.new_wave_grid(dspec2.data['wave'], method='concatenate')
-    sn2, weights = arco.sn_weight(cat_wave, dspec2.data['flux'], dspec2.data['sig']**2)
-    np.testing.assert_allclose(sn2[0], 101.0, atol=0.1)  # Noise is random
-'''
+    rspec2 = dspec2.rebin(cat_wave*u.AA, all=True, do_sig=True)
+    sn2, weights = arco.sn_weight(cat_wave, rspec2.data['flux'], rspec2.data['sig']**2)
+    np.testing.assert_allclose(sn2[0], 98.3, atol=0.1)  # Noise is random
+
 
 def test_grow_mask():
     """ Test grow_mask method"""
@@ -125,7 +126,7 @@ def test_grow_mask():
     badp2 = np.where(new_mask2[0,:])[0]
     assert np.all(badp2 == np.array([98,99,100,101,102]))
 
-'''
+
 def test_sigma_clip():
     """ Test sigma_clip method """
     from pypit import arcoadd as arco
@@ -136,7 +137,7 @@ def test_sigma_clip():
     rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True)
     sn2, weights = arco.sn_weight(cat_wave, rspec.data['flux'], rspec.data['sig']**2)
     # Here we go
+    rspec.data['flux'][0, 700] = 999.
     final_mask = arco.sigma_clip(rspec.data['flux'], rspec.data['sig']**2, sn2=sn2)
-'''
 
 
