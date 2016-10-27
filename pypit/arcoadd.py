@@ -23,7 +23,7 @@ except ImportError:
 msgs = armsgs.get_logger()
 
 
-def new_wave_grid(waves, method='iref', iref=0):
+def new_wave_grid(waves, method='iref', iref=0, pix_size=None):
     """ Create a new wavelength grid for the
     spectra to be rebinned and coadded on
 
@@ -40,11 +40,13 @@ def new_wave_grid(waves, method='iref', iref=0):
         'concatenate' -- Meld the input wavelength arrays
     iref : int, optional
       Reference spectrum
+    pix_size : float
+      Pixel size in same units as input
 
     Returns
     -------
-    wave_grid : array
-        New wavelength grid
+    wave_grid : ndarray
+        New wavelength grid, not masked
     """
     # Eventually add/change this to also take in slf, which has
     # slf._argflag['reduce']['pixelsize'] = 2.5?? This won't work
@@ -72,10 +74,12 @@ def new_wave_grid(waves, method='iref', iref=0):
         wave_grid = np.asarray(wave_grid)
 
     elif method == 'pixel': # Constant Angstrom
-        wave_grid_min = np.min(np.array(waves))
-        wave_grid_max = np.max(np.array(waves))
+        if pix_size is None:
+            msgs.error("Need to provide pixel size with this method")
+        #
+        wave_grid_min = np.min(waves)
+        wave_grid_max = np.max(waves)
 
-        pix_size = 2.5 #slf._argflag['reduce']['pixelsize']
         constant_A = pix_size*1.02 # 1.02 here is the A/pix for this instrument; stored in slf. somewhere?
         wave_grid = np.arange(wave_grid_min, wave_grid_max + constant_A, constant_A)
 
@@ -83,27 +87,26 @@ def new_wave_grid(waves, method='iref', iref=0):
         # Setup
         loglam = np.log10(waves)
         nspec = waves.shape[0]
-        newloglam = loglam[iref, :]
+        newloglam = loglam[iref, :].compressed()  # Deals with mask
         # Loop
         for j in range(nspec):
             if j == iref:
                 continue
-            npix = newloglam.size
+            #
+            iloglam = loglam[j,:].compressed()
             dloglam_0 = (newloglam[1]-newloglam[0])
             dloglam_n =  (newloglam[-1] - newloglam[-2]) # Assumes sorted
-            if (newloglam[0] - loglam[j,0]) > dloglam_0:
-                kmin = np.argmin(np.abs(loglam[j, :] - newloglam[0] - dloglam_0))
-                newloglam = np.concatenate([loglam[:kmin, j], newloglam])
-                debugger.set_trace()
+            if (newloglam[0] - iloglam[0]) > dloglam_0:
+                kmin = np.argmin(np.abs(iloglam - newloglam[0] - dloglam_0))
+                newloglam = np.concatenate([iloglam[:kmin], newloglam])
             #
-            npix = newloglam.size
-            if (loglam[j, -1] - newloglam[-1]) > dloglam_n:
-                kmin = np.argmin(np.abs(loglam[j, :] - newloglam[-1] - dloglam_n))
-                newloglam = np.concatenate([newloglam, loglam[kmin:, j]])
-                print('here')
-                debugger.set_trace()
+            if (iloglam[-1] - newloglam[-1]) > dloglam_n:
+                kmin = np.argmin(np.abs(iloglam - newloglam[-1] - dloglam_n))
+                newloglam = np.concatenate([newloglam, iloglam[kmin:]])
+        # Finish
+        wave_grid = 10**newloglam
     elif method == 'iref':  # Concatenate
-        wave_grid = np.ma.getdata(waves[iref, :])
+        wave_grid = waves[iref, :].compressed()
     else:
         msgs.error("Bad method")
     # Concatenate of any wavelengths in other indices that may extend beyond that of wavelengths[0]?

@@ -57,7 +57,6 @@ def test_load():
     # Boxcar too
     spectra = arco.load_spec(files, extract='box')
 
-
 def test_new_wave_grid():
     from pypit import arcoadd as arco
     # Dummy spectrum
@@ -65,11 +64,19 @@ def test_new_wave_grid():
     # iref [default]
     iref_wave = arco.new_wave_grid(dspec.data['wave'])
     np.testing.assert_allclose(iref_wave[0], 5000.)
-    np.testing.assert_allclose(np.max(iref_wave), 6000.)
-    pytest.set_trace()
+    np.testing.assert_allclose(iref_wave[-1], 6000.)
     # Concatenate
-    new_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
-    pytest.set_trace()
+    cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
+    np.testing.assert_allclose(cat_wave[0], 4000.5)
+    np.testing.assert_allclose(cat_wave[-1], 6300.8)
+    # Velocity
+    vel_wave = arco.new_wave_grid(dspec.data['wave'], method='velocity')
+    np.testing.assert_allclose(vel_wave[0], 4000.5)
+    np.testing.assert_allclose(vel_wave[-1], 6302.7837748108632)
+    # Pixel
+    pix_wave = arco.new_wave_grid(dspec.data['wave'], method='pixel', pix_size=2.5)
+    np.testing.assert_allclose(pix_wave[0], 4000.5)
+    np.testing.assert_allclose(pix_wave[-1], 6303.15)
 
 '''
 def test_find_standard():
