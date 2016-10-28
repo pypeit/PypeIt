@@ -21,7 +21,7 @@ data end
 spect read
  fits calwin 12.
  trace number 3
- pixflat number 3
+ pixelflat number 3
  bias number 3
  set standard r136.fits.gz
  set arc r124.fits.gz

@@ -12,7 +12,7 @@ output sorted lris_blue_long_600_4000_d560
 trace slits tilts spca
 trace slits tilts params 1,1,1
 reduce skysub method bspline
-reduce flatfield useframe dummy/PYPIT_LRISb_pixflat_B400_2x2_15apr2015.fits.gz
+reduce flatfield useframe dummy/PYPIT_LRISb_pixelflat_B400_2x2_15apr2015.fits.gz
 
 # Read in the data
 data read
@@ -21,14 +21,14 @@ data end
 
 spect read
  fits calwin 12.
- pixflat number 1
+ pixelflat number 1
  bias number 3
  arc number 1
  trace number 1
  set bias     b150910_2036.fits.gz  
  set bias     b150910_2037.fits.gz 
  set bias     b150910_2038.fits.gz 
- set pixflat  b150910_2051.fits.gz 
+ set pixelflat  b150910_2051.fits.gz
  set trace    b150910_2051.fits.gz 
  set standard b150910_2083.fits.gz
 spect end

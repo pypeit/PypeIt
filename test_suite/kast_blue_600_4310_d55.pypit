@@ -10,9 +10,9 @@ output sorted kast_blue_600_4310_d55
 # reduce
 trace slits tilts spca
 reduce skysub method bspline
-pixflat comb method median
-pixflat comb rej_level [10.0,10.0]
-pixflat norm recnorm False
+pixelflat comb method median
+pixelflat comb rej_level [10.0,10.0]
+pixelflat norm recnorm False
 
 # Read in the data
 data read
@@ -21,7 +21,7 @@ data end
 
 spect read
  fits calwin 12.
- pixflat number 3
+ pixelflat number 3
  bias number 3
  trace number 3
  set standard b24.fits.gz 
