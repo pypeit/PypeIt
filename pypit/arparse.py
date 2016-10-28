@@ -422,6 +422,18 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
+    def bias_useoverscan(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
+        # Update argument
+        self.update(v)
+        return
+
     def bias_useframe(self, v):
         # Check that v is allowed
         allowed = ['bias', 'overscan', 'dark', 'none']
@@ -436,6 +448,15 @@ class BaseArgFlag(BaseFunctions):
                 if ll not in allowed:
                     msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
                                ", ".join(allowed) + " or a list containing these options")
+            if "overscan" in v:
+                self.bias_useoverscan("true")
+            if "bias" in v:
+                v = "bias"
+            elif "dark" in v:
+                v = "dark"
+            else:
+                msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
+                           ", ".join(allowed) + " or a list containing these options")
         elif v.lower() == "none":
             v = None
         elif v.lower() not in allowed:

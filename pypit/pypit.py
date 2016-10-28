@@ -97,7 +97,6 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
             infile = open(redname, 'r')
         except IOError:
             msgs.error("The filename does not exist -" + msgs.newline() + redname)
-            sys.exit()
         lines = infile.readlines()
         parlines = []
         datlines = []
@@ -118,7 +117,9 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
                 if len(dfname) == 0:  # line is fully commented out
                     continue
                 elif dfname[0] == '~':
+                    import os
                     dfname = os.path.expanduser(dfname)
+                    print(dfname)
                 elif dfname[0] != '/':
                     msgs.error("You must specify the full datapath for the file:" + msgs.newline() + dfname)
                 elif len(dfname.split()) != 1:

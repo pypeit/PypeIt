@@ -1,6 +1,6 @@
 """ Class for book-keeping the reduction process
 """
-from __future__ import absolute_import, division, print_function
+from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import sys
 import numpy as np
@@ -268,7 +268,6 @@ class ScienceExposure:
             # Update the amplifier/data/overscan sections
             for i in range(spect[dnum]['numamplifiers']):
                 # Flip the order of the sections
-                spect[dnum]['ampsec{0:02d}'.format(i+1)] = spect[dnum]['ampsec{0:02d}'.format(i+1)][::-1]
                 spect[dnum]['datasec{0:02d}'.format(i+1)] = spect[dnum]['datasec{0:02d}'.format(i+1)][::-1]
                 spect[dnum]['oscansec{0:02d}'.format(i+1)] = spect[dnum]['oscansec{0:02d}'.format(i+1)][::-1]
             # Change the user-specified (x,y) pixel sizes
