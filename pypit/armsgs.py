@@ -159,11 +159,14 @@ class Messages:
         else:
             if self._debug['develop']:
                 from pypit import armasters
+                from pypit import arparse
+                argflag = arparse.get_argflag().__dict__['_argflag']
                 armasters.save_masters(self.sciexp, self.sciexp.det,
-                                       self.sciexp._argflag['reduce']['masters']['setup'])
+                                       argflag['reduce']['masters']['setup'])
         # Close log
         if self._log:
             self._log.close()
+        return
 
     def signal_handler(self, signalnum, handler):
         """

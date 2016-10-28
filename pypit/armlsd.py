@@ -85,7 +85,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             # Get amplifier sections
             arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
             # Setup
-            setup = arsort.calib_setup(slf, sc, det, fitsdict, calib_dict, write=False)
+            setup = arsort.calib_setup(sc, det, fitsdict, calib_dict, write=False)
             argflag['reduce']['masters']['setup'] = setup
             ###############
             # Generate master bias frame
@@ -188,7 +188,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 continue
 
             # Write setup
-            setup = arsort.calib_setup(slf, sc, det, fitsdict, calib_dict, write=True)
+            setup = arsort.calib_setup(sc, det, fitsdict, calib_dict, write=True)
             # Write MasterFrames (currently per detector)
             armasters.save_masters(slf, det, setup)
 

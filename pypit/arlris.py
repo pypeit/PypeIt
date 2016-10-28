@@ -6,6 +6,7 @@ import glob
 import astropy.io.fits as pyfits
 
 from pypit import armsgs
+from pypit.arparse import load_sections
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -38,7 +39,6 @@ def read_lris(raw_file, det=None, TRIM=False):
     sections : list
       List of datasec, oscansec, ampsec sections
     """
-    from pypit import arload
 
     # Check for file; allow for extra .gz, etc. suffix
     fil = glob.glob(raw_file+'*') 
@@ -77,7 +77,7 @@ def read_lris(raw_file, det=None, TRIM=False):
         detsec = theader['DETSEC']
         if detsec != '0':
             # parse the DETSEC keyword to determine the size of the array.
-            x1, x2, y1, y2 = np.array(arload.load_sections(detsec, msgs)).flatten()
+            x1, x2, y1, y2 = np.array(load_sections(detsec)).flatten()
 
             # find the range of detector space occupied by the data
             # [xmin:xmax,ymin:ymax]
@@ -94,15 +94,15 @@ def read_lris(raw_file, det=None, TRIM=False):
             # Save
             xcol.append(xt)
 
-    #; determine the output array size...
+    # determine the output array size...
     nx = xmax - xmin + 1
     ny = ymax - ymin + 1
 
-    #; change size for binning...
+    # change size for binning...
     nx = nx // xbin
     ny = ny // ybin
 
-    #; Update PRECOL and POSTPIX
+    # Update PRECOL and POSTPIX
     precol = precol // xbin
     postpix = postpix // xbin
 
@@ -118,26 +118,26 @@ def read_lris(raw_file, det=None, TRIM=False):
     else:
         raise ValueError('Bad value for det')
 
-    #; change size for pre/postscan...
+    # change size for pre/postscan...
     if not TRIM:
         nx += n_ext*(precol+postpix)
         ny += preline + postline
 
-    #; allocate output array...
+    # allocate output array...
     array = np.zeros( (nx, ny) )
     order = np.argsort(np.array(xcol))
 
 
-    #; insert extensions into master image...
+    # insert extensions into master image...
     for kk, i in enumerate(order[det_idx]):
 
-        #; grab complete extension...
+        # grab complete extension...
         data, predata, postdata, x1, y1 = lris_read_amp(hdu, i+1)
                             #, linebias=linebias, nobias=nobias, $
                             #x1=x1, x2=x2, y1=y1, y2=y2, gaindata=gaindata)
-        #; insert components into output array...
+        # insert components into output array...
         if not TRIM:
-            #; insert predata...
+            # insert predata...
             buf = predata.shape
             nxpre = buf[0]
             xs = kk*precol
@@ -151,7 +151,7 @@ def read_lris(raw_file, det=None, TRIM=False):
             '''
             array[xs:xe, :] = predata
 
-            #; insert data...
+            # insert data...
             buf = data.shape
             nxdata = buf[0]
             nydata = buf[1]
@@ -203,7 +203,7 @@ def read_lris(raw_file, det=None, TRIM=False):
             '''
             array[xs:xe, ys:ye] = data[:, yin1:yin2]
 
-    #; make sure BZERO is a valid integer for IRAF
+    # make sure BZERO is a valid integer for IRAF
     obzero = head0['BZERO']
     head0['O_BZERO'] = obzero
     head0['BZERO'] = 32768-obzero
@@ -239,41 +239,39 @@ def lris_read_amp(inp, ext):
     ; Read one amp from LRIS mHDU image
     ;------------------------------------------------------------------------
     """
-    from pypit import arload
-
     # Parse input
     if isinstance(inp, basestring):
         hdu = pyfits.open(inp)
     else:
         hdu = inp
 
-    #; Get the pre and post pix values
-    #; for LRIS red POSTLINE = 20, POSTPIX = 80, PRELINE = 0, PRECOL = 12
+    # Get the pre and post pix values
+    # for LRIS red POSTLINE = 20, POSTPIX = 80, PRELINE = 0, PRECOL = 12
     head0 = hdu[0].header
     precol = head0['precol']
     postpix = head0['postpix']
 
-    #; Deal with binning
+    # Deal with binning
     binning = head0['BINNING']
     xbin, ybin = [int(ibin) for ibin in binning.split(',')]
     precol = precol//xbin
     postpix = postpix//xbin
 
-    #; get entire extension...
+    # get entire extension...
     temp = hdu[ext].data.transpose() # Silly Python nrow,ncol formatting
     tsize = temp.shape
     nxt = tsize[0]
 
-    #; parse the DETSEC keyword to determine the size of the array.
+    # parse the DETSEC keyword to determine the size of the array.
     header = hdu[ext].header
     detsec = header['DETSEC']
-    x1, x2, y1, y2 = np.array(arload.load_sections(detsec, msgs)).flatten()
+    x1, x2, y1, y2 = np.array(load_sections(detsec)).flatten()
 
-    #; parse the DATASEC keyword to determine the size of the science region (unbinned)
+    # parse the DATASEC keyword to determine the size of the science region (unbinned)
     datasec = header['DATASEC']
-    xdata1, xdata2, ydata1, ydata2 = np.array(arload.load_sections(datasec, msgs)).flatten()
+    xdata1, xdata2, ydata1, ydata2 = np.array(load_sections(datasec)).flatten()
 
-    #; grab the components...
+    # grab the components...
     predata = temp[0:precol, :]
     # datasec appears to have the x value for the keywords that are zero
     # based. This is only true in the image header extensions
@@ -289,14 +287,14 @@ def lris_read_amp(inp, ext):
     data = temp[precol:precol+xshape,:]
     postdata = temp[nxt-postpix:nxt, :]
 
-    #; flip in X as needed...
+    # flip in X as needed...
     if x1 > x2:
         xt = x2
         x2 = x1
         x1 = xt
         data = np.flipud(data) #reverse(temporary(data),1)
 
-    #; flip in Y as needed...
+    # flip in Y as needed...
     if y1 > y2:
         yt = y2
         y2 = y1

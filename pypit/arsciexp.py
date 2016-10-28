@@ -288,9 +288,9 @@ class ScienceExposure:
           Index of the detector
         """
         if argflag['reduce']['pixel']['locations'] is None:
-            self.SetFrame(self._pixlocn, artrace.gen_pixloc(self, self._mstrace[det-1], det, gen=True), det)
+            self.SetFrame(self._pixlocn, artrace.gen_pixloc(self._dispaxis, self._mstrace[det-1], det, gen=True), det)
         elif argflag['reduce']['pixel']['locations'] in ["mstrace"]:
-            self.SetFrame(self._pixlocn, artrace.gen_pixloc(spect, self._mstrace[det-1], det, gen=False), det)
+            self.SetFrame(self._pixlocn, artrace.gen_pixloc(self._dispaxis, self._mstrace[det-1], det, gen=False), det)
         else:
             mname = argflag['run']['directory']['master']+'/'+argflag['reduce']['pixel']['locations']
             self.SetFrame(self._pixlocn, arload.load_master(mname, frametype=None), det)
@@ -337,8 +337,7 @@ class ScienceExposure:
                 msgs.info("Preparing a master arc frame")
                 ind = self._idx_arcs
                 # Load the arc frames
-                frames = arload.load_frames(self, fitsdict, ind, det, frametype='arc',
-                                            msbias=self._msbias[det-1])
+                frames = arload.load_frames(fitsdict, ind, det, frametype='arc', msbias=self._msbias[det-1])
                 if argflag['arc']['combine']['match'] > 0.0:
                     sframes = arsort.match_frames(frames, argflag['arc']['combine']['match'], msgs, frametype='arc',
                                                   satlevel=spect['det']['saturation']*spect['det']['nonlinear'])
@@ -346,18 +345,17 @@ class ScienceExposure:
                     numarr = np.array([])
                     for i in range(len(sframes)):
                         numarr = np.append(numarr, sframes[i].shape[2])
-                        msarc = arcomb.comb_frames(sframes[i], det, spect=spect,
+                        msarc = arcomb.comb_frames(sframes[i], det,
                                                    frametype='arc', **argflag['arc']['combine'])
                         # Send the data away to be saved
                         subframes[:,:,i] = msarc.copy()
                     del sframes
                     # Combine all sub-frames
-                    msarc = arcomb.comb_frames(subframes, det, spect=spect,
-                                               frametype='arc', weights=numarr, **argflag['arc']['combine'])
+                    msarc = arcomb.comb_frames(subframes, det, frametype='arc',
+                                               weights=numarr, **argflag['arc']['combine'])
                     del subframes
                 else:
-                    msarc = arcomb.comb_frames(frames, det, spect=spect,
-                                           frametype='arc', **argflag['arc']['combine'])
+                    msarc = arcomb.comb_frames(frames, det, frametype='arc', **argflag['arc']['combine'])
                 del frames
             # # Derive a suitable name for the master arc frame
             # msarc_name = "{0:s}/{1:s}/msarc{2:s}_{3:03d}.fits".format(os.getcwd(),argflag['run']['directory']['master'],spect["det"][det-1]["suffix"],len(self._done_arcs))
@@ -413,8 +411,8 @@ class ScienceExposure:
                 # Get all of the bias frames for this science frame
                 ind = self._idx_bias
                 # Load the Bias/Dark frames
-                frames = arload.load_frames(self, fitsdict, ind, det, frametype=argflag['bias']['useframe'], transpose=self._transpose)
-                msbias = arcomb.comb_frames(frames, det, spect=spect, frametype=argflag['bias']['useframe'], **argflag['bias']['combine'])
+                frames = arload.load_frames(fitsdict, ind, det, frametype=argflag['bias']['useframe'], transpose=self._transpose)
+                msbias = arcomb.comb_frames(frames, det, frametype=argflag['bias']['useframe'], **argflag['bias']['combine'])
                 del frames
         elif argflag['bias']['useframe'] == 'overscan':
             self.SetMasterFrame('overscan', "bias", det, mkcopy=False)
@@ -514,7 +512,7 @@ class ScienceExposure:
                     # Get all of the pixel flat frames for this science frame
                     ind = self._idx_flat
                     # Load the frames for tracing
-                    frames = arload.load_frames(self, fitsdict, ind, det, frametype='pixel flat',
+                    frames = arload.load_frames(fitsdict, ind, det, frametype='pixel flat',
                                                 msbias=self._msbias[det-1], transpose=self._transpose)
                     if argflag['pixelflat']['combine']['match'] > 0.0:
                         sframes = arsort.match_frames(frames, argflag['pixelflat']['combine']['match'],
@@ -523,16 +521,16 @@ class ScienceExposure:
                         numarr = np.array([])
                         for i in range(len(sframes)):
                             numarr = np.append(numarr, sframes[i].shape[2])
-                            mspixelflat = arcomb.comb_frames(sframes[i], det, spect=spect, frametype='pixel flat',
+                            mspixelflat = arcomb.comb_frames(sframes[i], det, frametype='pixel flat',
                                                            **argflag['pixelflat']['combine'])
                             subframes[:,:,i] = mspixelflat.copy()
                         del sframes
                         # Combine all sub-frames
-                        mspixelflat = arcomb.comb_frames(subframes, det, spect=spect, frametype='pixel flat',
+                        mspixelflat = arcomb.comb_frames(subframes, det, frametype='pixel flat',
                                                        weights=numarr, **argflag['pixelflat']['combine'])
                         del subframes
                     else:
-                        mspixelflat = arcomb.comb_frames(frames, det, spect=spect, frametype='pixel flat',
+                        mspixelflat = arcomb.comb_frames(frames, det, frametype='pixel flat',
                                                        **argflag['pixelflat']['combine'])
                     del frames
                     # Apply gain (instead of ampsec scale)
@@ -606,7 +604,7 @@ class ScienceExposure:
                 msgs.info("Preparing a master trace frame with {0:s}".format(argflag['reduce']['trace']['useframe']))
                 ind = self._idx_trace
                 # Load the frames for tracing
-                frames = arload.load_frames(self, fitsdict, ind, det, frametype='trace', msbias=self._msbias[det-1],
+                frames = arload.load_frames(fitsdict, ind, det, frametype='trace', msbias=self._msbias[det-1],
                                             trim=argflag['reduce']['trim'], transpose=self._transpose)
                 if argflag['trace']['combine']['match'] > 0.0:
                     sframes = arsort.match_frames(frames, argflag['trace']['combine']['match'], msgs, frametype='trace', satlevel=spect['det'][det-1]['saturation']*spect['det'][det-1]['nonlinear'])
@@ -614,14 +612,14 @@ class ScienceExposure:
                     numarr = np.array([])
                     for i in range(len(sframes)):
                         numarr = np.append(numarr, sframes[i].shape[2])
-                        mstrace = arcomb.comb_frames(sframes[i], det, spect=spect, frametype='trace', **argflag['trace']['combine'])
+                        mstrace = arcomb.comb_frames(sframes[i], det, frametype='trace', **argflag['trace']['combine'])
                         subframes[:,:,i] = mstrace.copy()
                     del sframes
                     # Combine all sub-frames
-                    mstrace = arcomb.comb_frames(subframes, det, spect=spect, frametype='trace', weights=numarr, **argflag['trace']['combine'])
+                    mstrace = arcomb.comb_frames(subframes, det, frametype='trace', weights=numarr, **argflag['trace']['combine'])
                     del subframes
                 else:
-                    mstrace = arcomb.comb_frames(frames, det, spect=spect, frametype='trace', **argflag['trace']['combine'])
+                    mstrace = arcomb.comb_frames(frames, det, frametype='trace', **argflag['trace']['combine'])
                 del frames
         elif argflag['reduce']['trace']['useframe'] == 'science':
             msgs.error("Tracing with a science frame is not yet implemented")
@@ -748,7 +746,7 @@ class ScienceExposure:
             det = kk+1
             # Load the frame(s)
 #            set_trace()
-            frame = arload.load_frames(self, fitsdict, ind, det, frametype='standard',
+            frame = arload.load_frames(fitsdict, ind, det, frametype='standard',
                                        msbias=self._msbias[det-1],
                                        transpose=self._transpose)
 #            msgs.warn("Taking only the first standard frame for now")

@@ -2584,14 +2584,14 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
     return tilts, satsnd
 
 
-def gen_pixloc(slf, frame, det, gen=True):
+def gen_pixloc(dispaxis, frame, det, gen=True):
     """
     Generate an array of physical pixel coordinates
 
     Parameters
     ----------
-    slf : class
-      Science Exposure class
+    dispaxis : int
+      Dispersion axis
     frame : ndarray
       uniformly illuminated and normalized flat field frame
     det : int
@@ -2603,30 +2603,31 @@ def gen_pixloc(slf, frame, det, gen=True):
       A 3D array containing the x center, y center, x width and y width of each pixel.
       The returned array has a shape:   frame.shape + (4,)
     """
+    dnum = 'det{0:02d}'.format(det)
     msgs.info("Deriving physical pixel locations on the detector")
     locations = np.zeros((frame.shape[0],frame.shape[1],4))
     if gen:
-        msgs.info("Pixel gap in the dispersion direction = {0:4.3f}".format(spect['det'][det-1]['xgap']))
+        msgs.info("Pixel gap in the dispersion direction = {0:4.3f}".format(spect[dnum]['xgap']))
         msgs.info("Pixel size in the dispersion direction = {0:4.3f}".format(1.0))
-        xs = np.arange(frame.shape[slf._dispaxis]*1.0)*spect['det'][det-1]['xgap']
-        xt = 0.5 + np.arange(frame.shape[slf._dispaxis]*1.0) + xs
-        msgs.info("Pixel gap in the spatial direction = {0:4.3f}".format(spect['det'][det-1]['ygap']))
-        msgs.info("Pixel size in the spatial direction = {0:4.3f}".format(spect['det'][det-1]['ysize']))
-        ys = np.arange(frame.shape[1-slf._dispaxis])*spect['det'][det-1]['ygap']*spect['det'][det-1]['ysize']
-        yt = spect['det'][det-1]['ysize']*(0.5 + np.arange(frame.shape[1-slf._dispaxis]*1.0)) + ys
+        xs = np.arange(frame.shape[dispaxis]*1.0)*spect[dnum]['xgap']
+        xt = 0.5 + np.arange(frame.shape[dispaxis]*1.0) + xs
+        msgs.info("Pixel gap in the spatial direction = {0:4.3f}".format(spect[dnum]['ygap']))
+        msgs.info("Pixel size in the spatial direction = {0:4.3f}".format(spect[dnum]['ysize']))
+        ys = np.arange(frame.shape[1-dispaxis])*spect[dnum]['ygap']*spect[dnum]['ysize']
+        yt = spect[dnum]['ysize']*(0.5 + np.arange(frame.shape[1-dispaxis]*1.0)) + ys
         xloc, yloc = np.meshgrid(xt, yt)
 #		xwid, ywid = np.meshgrid(xs,ys)
         msgs.info("Saving pixel locations")
-        if slf._dispaxis == 0:
+        if dispaxis == 0:
             locations[:,:,0] = xloc.T
             locations[:,:,1] = yloc.T
             locations[:,:,2] = 1.0
-            locations[:,:,3] = spect['det'][det-1]['ysize']
+            locations[:,:,3] = spect[dnum]['ysize']
         else:
             locations[:,:,0] = xloc
             locations[:,:,1] = yloc
             locations[:,:,2] = 1.0
-            locations[:,:,3] = spect['det'][det-1]['ysize']
+            locations[:,:,3] = spect[dnum]['ysize']
     else:
         msgs.error("Have not yet included an algorithm to automatically generate pixel locations")
     return locations

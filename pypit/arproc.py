@@ -692,10 +692,10 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
     fitsdict : dict
       Updates to the input fitsdict
     """
-    from pypit import arload
+    dnum = 'det{0:02d}'.format(det)
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
     if argflag['run']['spectrograph'] in ['lris_blue', 'lris_red']:
-        msgs.info("Parsing datasec,oscansec,ampsec from headers")
+        msgs.info("Parsing datasec and oscansec from headers")
         temp, head0, secs = arlris.read_lris(fitsdict['directory'][scidx]+
                                              fitsdict['filename'][scidx],
                                              det)
@@ -703,20 +703,21 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
         fitsdict['naxis0'][scidx] = temp.shape[0]
         fitsdict['naxis1'][scidx] = temp.shape[1]
         # Loop on amplifiers
-        for kk in range(spect['det'][det-1]['numamplifiers']):
+        for kk in range(spect[dnum]['numamplifiers']):
             datasec = "datasec{0:02d}".format(kk+1)
-            spect['det'][det-1][datasec] = arload.load_sections(secs[0][kk], msgs)
+            spect[dnum][datasec] = arparse.load_sections(secs[0][kk])
             oscansec = "oscansec{0:02d}".format(kk+1)
-            spect['det'][det-1][oscansec] = arload.load_sections(secs[1][kk], msgs)
+            spect[dnum][oscansec] = arparse.load_sections(secs[1][kk])
             ampsec = "ampsec{0:02d}".format(kk+1)
-            spect['det'][det-1][ampsec] = arload.load_sections(secs[2][kk], msgs)
+            spect[dnum][ampsec] = arparse.load_sections(secs[2][kk])
     # For convenience
     naxis0, naxis1 = int(fitsdict['naxis0'][scidx]), int(fitsdict['naxis1'][scidx])
     # Initialize the returned array
     retarr = np.zeros((naxis0, naxis1))
-    for i in range(spect['det'][det-1]['numamplifiers']):
+    for i in range(spect[dnum]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
-        x0, x1, y0, y1 = spect['det'][det-1][datasec][0][0], spect['det'][det-1][datasec][0][1], spect['det'][det-1][datasec][1][0], spect['det'][det-1][datasec][1][1]
+        x0, x1 = spect[dnum][datasec][0][0], spect[dnum][datasec][0][1]
+        y0, y1 = spect[dnum][datasec][1][0], spect[dnum][datasec][1][1]
         if x0 < 0: x0 += naxis0
         if x1 <= 0: x1 += naxis0
         if y0 < 0: y0 += naxis1
@@ -1123,11 +1124,13 @@ def sub_overscan(frame, det, use_datasec=False):
     use_datasec : bool, optional
       Overscan region is limited to datasec, not ampsec
     """
+    dnum = 'det{0:02d}'.format(det)
 
-    for i in range(spect['det'][det-1]['numamplifiers']):
+    for i in range(spect[dnum]['numamplifiers']):
         # Determine the section of the chip that contains the overscan region
         oscansec = "oscansec{0:02d}".format(i+1)
-        ox0, ox1, oy0, oy1 = spect['det'][det-1][oscansec][0][0], spect['det'][det-1][oscansec][0][1], spect['det'][det-1][oscansec][1][0], spect['det'][det-1][oscansec][1][1]
+        ox0, ox1 = spect[dnum][oscansec][0][0], spect[dnum][oscansec][0][1]
+        oy0, oy1 = spect[dnum][oscansec][1][0], spect[dnum][oscansec][1][1]
         if ox0 < 0: ox0 += frame.shape[0]
         if ox1 <= 0: ox1 += frame.shape[0]
         if oy0 < 0: oy0 += frame.shape[1]
@@ -1138,7 +1141,8 @@ def sub_overscan(frame, det, use_datasec=False):
         oscan = frame[w]
         # Determine the section of the chip that is read out by the amplifier
         ampsec = "ampsec{0:02d}".format(i+1)
-        ax0, ax1, ay0, ay1 = spect['det'][det-1][ampsec][0][0], spect['det'][det-1][ampsec][0][1], spect['det'][det-1][ampsec][1][0], spect['det'][det-1][ampsec][1][1]
+        ax0, ax1 = spect[dnum][ampsec][0][0], spect[dnum][ampsec][0][1]
+        ay0, ay1 = spect[dnum][ampsec][1][0], spect[dnum][ampsec][1][1]
         if ax0 < 0: ax0 += frame.shape[0]
         if ax1 <= 0: ax1 += frame.shape[0]
         if ay0 < 0: ay0 += frame.shape[1]
@@ -1174,7 +1178,8 @@ def sub_overscan(frame, det, use_datasec=False):
         # Determine the section of the chip that contains data for this amplifier
         if use_datasec:
             datasec = "datasec{0:02d}".format(i+1)
-            dx0, dx1, dy0, dy1 = spect['det'][det-1][datasec][0][0], spect['det'][det-1][datasec][0][1], spect['det'][det-1][datasec][1][0], spect['det'][det-1][datasec][1][1]
+            dx0, dx1 = spect[dnum][datasec][0][0], spect[dnum][datasec][0][1]
+            dy0, dy1 = spect[dnum][datasec][1][0], spect[dnum][datasec][1][1]
             if dx0 < 0: dx0 += frame.shape[0]
             if dx1 <= 0: dx1 += frame.shape[0]
             if dy0 < 0: dy0 += frame.shape[1]
@@ -1200,9 +1205,11 @@ def sub_overscan(frame, det, use_datasec=False):
 
 
 def trim(frame, det):
-    for i in range(spect['det'][det-1]['numamplifiers']):
+    dnum = 'det{0:02d}'.format(det)
+    for i in range(spect[dnum]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
-        x0, x1, y0, y1 = spect['det'][det-1][datasec][0][0], spect['det'][det-1][datasec][0][1], spect['det'][det-1][datasec][1][0], spect['det'][det-1][datasec][1][1]
+        x0, x1 = spect[dnum][datasec][0][0], spect[dnum][datasec][0][1]
+        y0, y1 = spect[dnum][datasec][1][0], spect[dnum][datasec][1][1]
         if x0 < 0:
             x0 += frame.shape[0]
         if x1 <= 0:

@@ -302,7 +302,7 @@ def simple_calib(slf, det, get_poly=False):
     llist = aparm['llist']
 
     # IDs were input by hand
-    if argflag['arc']['calibrate']['IDpixels'][0] > 0.:
+    if len(argflag['arc']['calibrate']['IDpixels']) > 0:
         # Check that there are at least 5 values
         pixels = np.array(argflag['arc']['calibrate']['IDpixels'])
         if np.sum(pixels > 0.) < 5:

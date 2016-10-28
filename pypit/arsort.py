@@ -643,7 +643,7 @@ def make_dirs(fitsdict, filesort):
     return sci_targs
 
 
-def calib_setup(sciexp, sc, det, fitsdict, calib_dict,
+def calib_setup(sc, det, fitsdict, calib_dict,
                 write=False):
     """ Define calibration setup
     Parameters
@@ -656,7 +656,7 @@ def calib_setup(sciexp, sc, det, fitsdict, calib_dict,
     import json, io
     setup_str = [str('{:02d}'.format(i+1)) for i in range(99)]
     # Arc
-    idx = sciexp._spect['arc']['index'][sc]
+    idx = spect['arc']['index'][sc]
     disp_name = fitsdict["dispname"][idx[0]]
     disp_angle = fitsdict["dispangle"][idx[0]]
     # Common
@@ -717,8 +717,8 @@ def calib_setup(sciexp, sc, det, fitsdict, calib_dict,
     # Write
     if write:
         gddict = ltu.jsonify(calib_dict)
-        setup_file = sciexp._argflag['output']['sorted']+'.setup'
-        sciexp._argflag['reduce']['masters']['file'] = setup_file
+        setup_file = argflag['output']['sorted']+'.setup'
+        argflag['reduce']['masters']['file'] = setup_file
         with io.open(setup_file, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4,
                                        separators=(',', ': '))))
