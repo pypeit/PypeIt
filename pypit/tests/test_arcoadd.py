@@ -76,6 +76,18 @@ def dummy_spectra(s2n=10., seed=1234):
     #
     return dspec
 
+def test_1dcoadd():
+    """ Test coadd method"""
+    from pypit import arcoadd as arco
+    # Setup
+    dspec = dummy_spectra(s2n=10.)
+    cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
+    rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
+    sn2, weights = arco.sn_weight(rspec)
+    # Coadd
+    spec1d = arco.one_d_coadd(rspec, weights)
+    pytest.set_trace()
+
 def test_load():
     from pypit import arcoadd as arco
     files = [data_path('spec1d_J2202p1708_KASTb_2015Nov06T024436.08.fits'),
@@ -170,7 +182,6 @@ def test_scale():
     assert am_mthd == 'median'
     np.testing.assert_allclose(am_scls[1], 0.1, atol=0.01)
 
-'''
 def test_grow_mask():
     """ Test grow_mask method"""
     from pypit import arcoadd as arco
@@ -197,6 +208,8 @@ def test_grow_mask():
     assert np.all(badp2 == np.array([98,99,100,101,102]))
 
 
+
+'''
 def test_sigma_clip():
     """ Test sigma_clip method """
     from pypit import arcoadd as arco

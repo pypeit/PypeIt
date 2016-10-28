@@ -148,12 +148,11 @@ def gauss1(x, parameters):
                    
     return norm * x_mask * np.exp(-0.5 * u * x_mask)
 
-def sn_weight(new_wave, fluxes, variances):
+
+def sn_weight(spectra):
     """ Calculate the S/N of each input spectrum and
     create an array of weights by which to weight the
     spectra by in coadding.
-
-    If the
 
     Parameters
     ----------
@@ -171,7 +170,12 @@ def sn_weight(new_wave, fluxes, variances):
     weights : ndarray
         Weights to be applied to the spectra
     """
+    # Setup
+    fluxes = spectra.data['flux']
+    variances = spectra.data['sig']**2
+    wave = spectra.data['wave'][0,:]
 
+    # Calcualte
     sn2_val = (fluxes**2) * (1./variances)
     sn2_sigclip = astropy.stats.sigma_clip(sn2_val, sigma=3, iters=5)
     sn2 = np.mean(sn2_sigclip, axis=1).compressed()  #S/N^2 value for each spectrum
@@ -188,7 +192,7 @@ def sn_weight(new_wave, fluxes, variances):
         weights = np.ones_like(fluxes) #((fluxes.shape[0], fluxes.shape[1]))
 
         bkspace = (10000.0/3.0e5) / (np.log(10.0))
-        med_width = new_wave.shape[0] / ((np.max(new_wave) - np.min(new_wave)) / bkspace)
+        med_width = wave.shape[0] / ((np.max(wave) - np.min(wave)) / bkspace)
         sig_res = max(med_width, 3)
         nhalf = int(sig_res) * 4L
         xkern = np.arange(0, 2*nhalf+2, dtype='float64')-nhalf
@@ -201,6 +205,9 @@ def sn_weight(new_wave, fluxes, variances):
         for spec in xrange(fluxes.shape[0]):
             weights[spec] = scipy.ndimage.filters.convolve(sn2_med1[spec], yvals)
 
+    # Give weights the same mask (important later)
+    weights.mask = fluxes.mask
+    # Finish
     return sn2, weights
 
 
@@ -411,71 +418,41 @@ def sigma_clip(fluxes, variances, sn2, n_grow_mask=1, nsig=3.):
     return final_mask
 
 
-def one_d_coadd(wavelengths, fluxes, variances, sig_clip=False, wave_grid_method=None):
-    """ Performs a coadding of the spectra in 1D.
+def one_d_coadd(spectra, weights):
+    """ Performs a weighted coadd of the spectra in 1D.
 
     Parameters
     ----------
-    wavelengths : nd masked array
-        Wavelength arrays of the input spectra
-    fluxes : nd masked array
-        Flux arrays of the input spectra
-    variances : nd masked array
-        Variances of the input spectra
-    sig_clip : optional
-        Perform sigma-clipping of arrays. Defaults to
-        no sigma-clipping
+    spectra : XSpectrum1D
 
     Returns
     -------
-    fluxes : nd masked array
-        Original flux arrays of the input spectra
-    variances : nd masked array
-        Original variances of the input spectra
-    new_wave : array
-        New wavelength grid
-    new_flux : array
-        Coadded flux array
-    new_var : array
-        Variance of coadded spectrum
+    coadd : XSpectrum1D
+
     """
-    # Generate the final wavelength grid
-    new_wave = new_wave_grid(wavelengths, method=wave_grid_method)
-
-    # Calculate S/N for each spectrum (for weighting)
-    sn2, weights = sn_weight(new_wave, fluxes, variances)
-    
-    inv_variances = 1./variances
-
-    # Rebin
-    for spec in range(fluxes.shape[0]):
-        obj = xspectrum1d.XSpectrum1D.from_tuple((np.ma.getdata(wavelengths[spec]),
-                                                  np.ma.getdata(fluxes[spec]),
-                                                  np.sqrt(np.ma.getdata(variances[spec]))))
-        obj = obj.rebin(new_wave*u.AA, do_sig=True)
-        fluxes[spec] = np.ma.array(obj.flux)
-        variances[spec] = np.ma.array(obj.sig)**2.
-
-    # Clip?
-    if sig_clip:
-        final_mask = sigma_clip(fluxes, variances, sn2)
-
-        weights = np.ma.array(weights, mask=final_mask)
-        fluxes = np.ma.array(fluxes, mask=final_mask)
-        variances = np.ma.array(variances, mask=final_mask)
-    
-    else:
-        final_mask = np.ma.getmaskarray(fluxes)
-        weights = np.ma.array(weights, mask=final_mask)
-        
+    from linetools.spectra.xspectrum1d import XSpectrum1D
+    # Sum weights
     sum_weights = np.ma.sum(weights, axis=0)
+
+    # Setup
+    fluxes = spectra.data['flux']
+    variances = spectra.data['sig']**2
+    inv_variances = 1./variances
 
     # Coadd
     new_flux = np.ma.sum(weights*fluxes, axis=0) / (sum_weights + (sum_weights == 0.0).astype(int))
-    var = (inv_variances != 0.0).astype(float) / (inv_variances + (inv_variances == 0.0).astype(float))
-    new_var = np.ma.sum((weights**2.)*var, axis=0) / ((sum_weights + (sum_weights == 0.0).astype(int))**2.)        
+    var = (variances != 0.0).astype(float) / (inv_variances + (inv_variances == 0.0).astype(float))
+    new_var = np.ma.sum((weights**2.)*var, axis=0) / ((sum_weights + (sum_weights == 0.0).astype(int))**2.)
 
-    return fluxes, variances, new_wave, new_flux, new_var
+    # Replace masked values with zeros
+    new_flux = new_flux.filled(0.)
+    new_sig = np.sqrt(new_var.filled(0.))
+
+    # New obj
+    wv = np.array(spectra.data['wave'][0,:])
+    new_spec = XSpectrum1D.from_tuple((wv, new_flux, new_sig), masking='none')
+
+    return new_spec
 
 '''
 # Move this to arqa
@@ -716,3 +693,70 @@ def old_sigma_clip(fluxes, variances, sn2, n_grow_mask=1):
     final_mask = grow_mask(first_mask, n_grow=n_grow_mask)
 
     return final_mask
+
+
+def old_one_d_coadd(wavelengths, fluxes, variances, sig_clip=False, wave_grid_method=None):
+    """ Performs a coadding of the spectra in 1D.
+
+    Parameters
+    ----------
+    wavelengths : nd masked array
+        Wavelength arrays of the input spectra
+    fluxes : nd masked array
+        Flux arrays of the input spectra
+    variances : nd masked array
+        Variances of the input spectra
+    sig_clip : optional
+        Perform sigma-clipping of arrays. Defaults to
+        no sigma-clipping
+
+    Returns
+    -------
+    fluxes : nd masked array
+        Original flux arrays of the input spectra
+    variances : nd masked array
+        Original variances of the input spectra
+    new_wave : array
+        New wavelength grid
+    new_flux : array
+        Coadded flux array
+    new_var : array
+        Variance of coadded spectrum
+    """
+    # Generate the final wavelength grid
+    new_wave = new_wave_grid(wavelengths, method=wave_grid_method)
+
+    # Calculate S/N for each spectrum (for weighting)
+    sn2, weights = sn_weight(new_wave, fluxes, variances)
+
+    inv_variances = 1./variances
+
+    # Rebin
+    for spec in range(fluxes.shape[0]):
+        obj = xspectrum1d.XSpectrum1D.from_tuple((np.ma.getdata(wavelengths[spec]),
+                                                  np.ma.getdata(fluxes[spec]),
+                                                  np.sqrt(np.ma.getdata(variances[spec]))))
+        obj = obj.rebin(new_wave*u.AA, do_sig=True)
+        fluxes[spec] = np.ma.array(obj.flux)
+        variances[spec] = np.ma.array(obj.sig)**2.
+
+    # Clip?
+    if sig_clip:
+        final_mask = sigma_clip(fluxes, variances, sn2)
+
+        weights = np.ma.array(weights, mask=final_mask)
+        fluxes = np.ma.array(fluxes, mask=final_mask)
+        variances = np.ma.array(variances, mask=final_mask)
+
+    else:
+        final_mask = np.ma.getmaskarray(fluxes)
+        weights = np.ma.array(weights, mask=final_mask)
+
+    sum_weights = np.ma.sum(weights, axis=0)
+
+    # Coadd
+    new_flux = np.ma.sum(weights*fluxes, axis=0) / (sum_weights + (sum_weights == 0.0).astype(int))
+    var = (inv_variances != 0.0).astype(float) / (inv_variances + (inv_variances == 0.0).astype(float))
+    new_var = np.ma.sum((weights**2.)*var, axis=0) / ((sum_weights + (sum_weights == 0.0).astype(int))**2.)
+
+    return fluxes, variances, new_wave, new_flux, new_var
