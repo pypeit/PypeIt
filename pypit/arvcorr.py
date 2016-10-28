@@ -229,9 +229,9 @@ def helio_corr(slf, idx):
     hdr_ra = ra
     hdr_dec = dec
     hdr_equ = equinox
-    hdr_lat = spect['det']['latitude']
-    hdr_lon = spect['det']['longitude']
-    hdr_alt = spect['det']['elevation']
+    hdr_lat = spect['mosaic']['latitude']
+    hdr_lon = spect['mosaic']['longitude']
+    hdr_alt = spect['mosaic']['elevation']
     vhel = vhelio(hdr_jd, hdr_exptime, hdr_ra, hdr_dec, hdr_equ, hdr_lat, hdr_lon, hdr_alt)
     msgs.info("Heliocentric velocity correction = {0:+.4f} km/s for file:".format(vhel) + msgs.newline() +
               slf._fitsdict["filename"][idx])
