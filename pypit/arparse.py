@@ -1956,14 +1956,17 @@ class BaseSpect(BaseFunctions):
 
     def keyword_binning(self, v):
         # Check that v is allowed
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                       "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                       "and NAME is the header keyword name")
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                vspl = v.split(".")
+                int(vspl[0])
+            except ValueError:
+                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
+                           "##.NAME" + msgs.newline() +
+                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
+                           "and NAME is the header keyword name")
         # Update argument
         self.update(v)
 

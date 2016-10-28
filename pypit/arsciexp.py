@@ -425,7 +425,7 @@ class ScienceExposure:
             self.SetMasterFrame(None, "bias", det, mkcopy=False)
             return False
         else: # It must be the name of a file the user wishes to load
-            msbias_name = argflag['run']['directory']['master']+'/'+argflag['bias']['useframe']
+            msbias_name = argflag['run']['directory']['master']+u'/'+argflag['bias']['useframe']
             msbias, head = arload.load_master(msbias_name, frametype="bias")
             argflag['reduce']['masters']['loaded'].append('bias')
         # Set and then delete the Master Bias frame
