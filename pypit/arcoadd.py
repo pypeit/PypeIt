@@ -184,7 +184,7 @@ def sn_weight(spectra):
 
     if rms_sn <= 4.0:
         msgs.info("Using constant weights for coadding, RMS S/N = {:g}".format(rms_sn))
-        weights = np.outer(np.asarray(sn2), np.ones(fluxes.shape[1]))
+        weights = np.ma.outer(np.asarray(sn2), np.ones(fluxes.shape[1]))
     else:
         msgs.info("Using wavelength dependent weights for coadding")
         msgs.warn("If your spectra have very different dispersion, this is *not* accurate")
@@ -592,14 +592,13 @@ def load_spec(files, iextensions=None, extract='opt'):
     return spectra
 
 
-def coadd_spectra(spectra, wave_grid_method=None,
+def coadd_spectra(spectra, wave_grid_method=None, niter=5,
                   sig_clip=False, outfil='coadded_spectrum.fits'):
     """
     Parameters
     ----------
-    spectra : list
-      List of XSpectrum1D objects to be coadded
-    wave_grid_method
+    spectra : XSpectrum1D
+    wave_grid_method :
     sig_clip
     outfil
 
@@ -607,6 +606,7 @@ def coadd_spectra(spectra, wave_grid_method=None,
     -------
 
     """
+    '''
     # Convert to masked arrays
     wavelengths = []
     fluxes = []
@@ -624,13 +624,19 @@ def coadd_spectra(spectra, wave_grid_method=None,
     # Add check on trace location here (to make sure the trace location of objects is similar, and thus likely the same object)
     masked_fluxes, masked_vars, new_wave, new_flux, new_var = one_d_coadd(
             wavelengths, fluxes, variances, sig_clip=sig_clip, wave_grid=wave_grid_method)
+    '''
+    # Setup
+    new_wave = new_wave_grid(spectra.data['wave'], method=wave_grid_method)
 
-    dev_sig = (np.ma.getdata(masked_fluxes) - new_flux) / (np.sqrt(np.ma.getdata(masked_vars) + new_var))
-    std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=4, iters=2))
-    var_corr = std_dev
     iters = 0
+    std_dev = 0.
+    while np.absolute(std_dev - 1.) >= 0.1 and iters < niter:
 
-    while np.absolute(std_dev - 1.) >= 0.1 and iters < 4:
+
+    #dev_sig = (np.ma.getdata(masked_fluxes) - new_flux) / (np.sqrt(np.ma.getdata(masked_vars) + new_var))
+    #std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=4, iters=2))
+    #var_corr = std_dev
+
         msgs.info("Variance correction: {:g}".format(var_corr))
         msgs.info("Iterating on coadding...")
         masked_fluxes, masked_vars, new_wave, new_flux, new_var = one_d_coadd(wavelengths, masked_fluxes, var_corr*masked_vars, wave_grid=wave_grid_method)
