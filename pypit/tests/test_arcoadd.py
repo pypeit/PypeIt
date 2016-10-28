@@ -18,6 +18,31 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 @pytest.fixture
+def dummy_spectrum(s2n=10., seed=1234, wave=None):
+    """
+    Parameters
+    ----------
+    s2n
+    seed
+    wave
+
+    Returns
+    -------
+    spec : XSpectrum1D
+
+    """
+    from linetools.spectra.xspectrum1d import XSpectrum1D
+    if wave is None:
+        wave = np.linspace(4000., 5000., 2000)
+    # Create
+    flux = np.ones_like(wave)
+    sig = np.ones_like(wave) / s2n
+    ispec = XSpectrum1D.from_tuple((wave,flux,sig))
+    # Noise and append
+    spec = ispec.add_noise(seed=seed)
+    return spec
+
+@pytest.fixture
 def dummy_spectra(s2n=10., seed=1234):
     """ Generate a set of normalized spectra with varying wavelength
     and noise
@@ -31,7 +56,6 @@ def dummy_spectra(s2n=10., seed=1234):
     dspec : XSpectrum1D
 
     """
-    from linetools.spectra.xspectrum1d import XSpectrum1D
     from linetools.spectra.utils import collate
     wvmnx = [[5000., 6000.],
             [4000.5, 5800.5],
@@ -41,11 +65,12 @@ def dummy_spectra(s2n=10., seed=1234):
     slist = []
     for ii, inpix in enumerate(npix):
         wave = np.linspace(wvmnx[ii][0], wvmnx[ii][1], inpix)
-        flux = np.ones_like(wave)
-        sig = np.ones_like(wave) / s2n
-        spec = XSpectrum1D.from_tuple((wave,flux,sig))
-        # Noise and append
-        slist.append(spec.add_noise(seed=seed))
+        #flux = np.ones_like(wave)
+        #sig = np.ones_like(wave) / s2n
+        #spec = XSpectrum1D.from_tuple((wave,flux,sig))
+        ## Noise and append
+        #slist.append(spec.add_noise(seed=seed))
+        slist.append(dummy_spectrum(wave=wave, s2n=s2n, seed=seed))
     # Collate
     dspec = collate(slist)
     #
@@ -84,23 +109,68 @@ def test_new_wave_grid():
     np.testing.assert_allclose(pix_wave[-1], 6303.15)
 
 
+def test_median_flux():
+    """ Test median flux algorithm """
+    from pypit import arcoadd as arco
+    spec = dummy_spectrum(s2n=10)
+    med_flux, std_flux = arco.median_flux(spec)
+    # Put in a bad pixel
+    spec.data['flux'][0,500] = 0.
+    med_flux, std_flux = arco.median_flux(spec)
+    np.testing.assert_allclose(med_flux, 1.0, atol=0.05)  # Noise is random
+    np.testing.assert_allclose(std_flux, 0.095, atol=0.004)  # Noise is random
+
+
 def test_sn_weight():
     """ Test sn_weight method """
     from pypit import arcoadd as arco
     #  Low S/N first
-    dspec = dummy_spectra(s2n=3.)
+    dspec = dummy_spectra(s2n=3., seed=1234)
     cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
-    rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True)
+    rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
     sn2, weights = arco.sn_weight(cat_wave, rspec.data['flux'], rspec.data['sig']**2)
-    np.testing.assert_allclose(sn2[0], 8.85, atol=0.1)  # Noise is random
+    np.testing.assert_allclose(sn2[0], 8.2, atol=0.1)  # Noise is random
     #  High S/N now
-    dspec2 = dummy_spectra(s2n=10.)
+    dspec2 = dummy_spectra(s2n=10., seed=1234)
     cat_wave = arco.new_wave_grid(dspec2.data['wave'], method='concatenate')
-    rspec2 = dspec2.rebin(cat_wave*u.AA, all=True, do_sig=True)
+    rspec2 = dspec2.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
     sn2, weights = arco.sn_weight(cat_wave, rspec2.data['flux'], rspec2.data['sig']**2)
-    np.testing.assert_allclose(sn2[0], 98.3, atol=0.1)  # Noise is random
+    np.testing.assert_allclose(sn2[0], 95.3, atol=0.1)  # Noise is random
 
+def test_scale():
+    """ Test scale algorithms """
+    from pypit import arcoadd as arco
+    # Hand
+    dspec = dummy_spectra(s2n=10.)
+    cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
+    rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
+    sv_high = rspec.copy()
+    sn2, weights = arco.sn_weight(cat_wave, rspec.data['flux'], rspec.data['sig']**2)
+    _, _ = arco.scale_spectra(rspec, sn2, hand_scale=[3., 5., 10.], method='hand')
+    np.testing.assert_allclose(np.median(rspec.flux.value), 3., atol=0.01)  # Noise is random
+    # Median
+    rspec = sv_high.copy()
+    sn2, weights = arco.sn_weight(cat_wave, rspec.data['flux'], rspec.data['sig']**2)
+    _, mthd = arco.scale_spectra(rspec, sn2, method='median')
+    assert mthd == 'median'
+    np.testing.assert_allclose(np.median(rspec.flux.value), 1., atol=0.01)  # Noise is random
+    #  Auto-none
+    dspec = dummy_spectra(s2n=0.3)
+    rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
+    sn2, weights = arco.sn_weight(cat_wave, rspec.data['flux'], rspec.data['sig']**2)
+    an_scls, an_mthd = arco.scale_spectra(rspec, sn2)
+    assert an_mthd == 'none_SN'
+    #  Auto-median
+    dspec = dummy_spectra(s2n=1.5)
+    rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
+    rspec.data['flux'][1,:] *= 10.
+    rspec.data['sig'][1,:] *= 10.
+    sn2, weights = arco.sn_weight(cat_wave, rspec.data['flux'], rspec.data['sig']**2)
+    am_scls, am_mthd = arco.scale_spectra(rspec, sn2)
+    assert am_mthd == 'median'
+    np.testing.assert_allclose(am_scls[1], 0.1, atol=0.01)
 
+'''
 def test_grow_mask():
     """ Test grow_mask method"""
     from pypit import arcoadd as arco
@@ -141,3 +211,4 @@ def test_sigma_clip():
     final_mask = arco.sigma_clip(rspec.data['flux'], rspec.data['sig']**2, sn2=sn2)
 
 
+'''

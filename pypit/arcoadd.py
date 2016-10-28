@@ -24,7 +24,7 @@ msgs = armsgs.get_logger()
 
 # TODO
     # Shift spectra
-    # Scale
+    # Scale by poly
     # Better rejection
 
 
@@ -151,7 +151,9 @@ def gauss1(x, parameters):
 def sn_weight(new_wave, fluxes, variances):
     """ Calculate the S/N of each input spectrum and
     create an array of weights by which to weight the
-    spectra by in coadding
+    spectra by in coadding.
+
+    If the
 
     Parameters
     ----------
@@ -171,13 +173,13 @@ def sn_weight(new_wave, fluxes, variances):
     """
 
     sn2_val = (fluxes**2) * (1./variances)
-    sn2_sigclip = astropy.stats.sigma_clip(sn2_val, sigma=3, iters=1)
+    sn2_sigclip = astropy.stats.sigma_clip(sn2_val, sigma=3, iters=5)
     sn2 = np.mean(sn2_sigclip, axis=1).compressed()  #S/N^2 value for each spectrum
 
-    mean_sn = np.sqrt(np.sum(sn2)/sn2.shape[0]) #Mean S/N value for all spectra
+    rms_sn = np.sqrt(np.mean(sn2)) # Root Mean S/N**2 value for all spectra
 
-    if mean_sn <= 4.0:
-        msgs.info("Using constant weights for coadding, mean S/N = {:g}".format(mean_sn))
+    if rms_sn <= 4.0:
+        msgs.info("Using constant weights for coadding, RMS S/N = {:g}".format(rms_sn))
         weights = np.outer(np.asarray(sn2), np.ones(fluxes.shape[1]))
     else:
         msgs.info("Using wavelength dependent weights for coadding")
@@ -235,6 +237,117 @@ def grow_mask(initial_mask, n_grow=1):
                 grow_mask[bad_pix_spec[i]][msk_p[gdp]] = True
     # Return
     return grow_mask
+
+
+def median_flux(spec, mask=None, nsig=3., niter=5, **kwargs):
+    """ Calculate the characteristic, median flux of a spectrum
+
+    Parameters
+    ----------
+    spec : XSpectrum1D
+    mask : ndarray, optional
+      Additional input mask with True = masked
+      This needs to have the same size as the masked spectrum
+    nsig : float, optional
+      Clip sigma
+    niter : int, optional
+      Number of clipping iterations
+    **kwargs : optional
+      Passed to each call of sigma_clipped_stats
+
+    Returns
+    -------
+    med_spec, std_spec
+    """
+    from astropy.stats import sigma_clipped_stats
+    #goodpix = WHERE(refivar GT 0.0 AND finite(refflux) AND finite(refivar) $
+    #            AND refmask EQ 1 AND refivar LT 1.0d8)
+    mean_spec, med_spec, std_spec = sigma_clipped_stats(spec.flux, sigma=nsig, iters=niter, **kwargs)
+    # Clip a bit
+    #badpix = np.any([spec.flux.value < 0.5*np.abs(med_spec)])
+    badpix = spec.flux.value < 0.5*np.abs(med_spec)
+    mean_spec, med_spec, std_spec = sigma_clipped_stats(spec.flux.value, mask=badpix,
+                                                        sigma=nsig, iters=niter, **kwargs)
+    # Return
+    return med_spec, std_spec
+
+
+def scale_spectra(spectra, sn2, iref=0, method='auto', hand_scale=None,
+                  SN_MAX_MEDSCALE=2., SN_MIN_MEDSCALE=0.5):
+    """
+    Parameters
+    ----------
+    spectra : XSpecrum1D
+      Rebinned spectra
+      These should be registered, i.e. pixel 0 has the same wavelength for all
+    sn2 : ndarray
+      S/N**2 estimates for each spectrum
+    iref : int, optional
+      Index of reference spectrum
+    method : str, optional
+      Method for scaling
+       'auto' -- Use automatic method based on RMS of S/N
+       'hand' -- Use input scale factors
+       'median' -- Use calcualted median value
+    SN_MIN_MEDSCALE : float, optional
+      Maximum RMS S/N allowed to automatically apply median scaling
+    SN_MAX_MEDSCALE : float, optional
+      Maximum RMS S/N allowed to automatically apply median scaling
+
+    Returns
+    -------
+    scales : list of float or ndarray
+      Scale value (or arrays) applied to the data
+    omethod : str
+      Method applied (mainly useful if auto was adopted)
+       'hand'
+       'median'
+       'none_SN'
+    """
+    # Init
+    med_ref = None
+    rms_sn = np.sqrt(np.mean(sn2)) # Root Mean S/N**2 value for all spectra
+    # Check for wavelength registration
+    gdp = np.all(~spectra.data['flux'].mask, axis=0)
+    gidx = np.where(gdp)[0]
+    if not np.isclose(spectra.data['wave'][0,gidx[0]],spectra.data['wave'][1,gidx[0]]):
+        msgs.error("Input spectra are not registered!")
+    # Loop on exposures
+    scales = []
+    for qq in xrange(spectra.nspec):
+        if method == 'hand':
+            omethod = 'hand'
+            # Input?
+            if hand_scale is None:
+                msgs.error("Need to provide hand_scale parameter, one value per spectrum")
+            spectra.data['flux'][qq,:] *= hand_scale[qq]
+            spectra.data['sig'][qq,:] /= hand_scale[qq]
+            #arrsky[*, j] = HAND_SCALE[j]*sclsky[*, j]
+            scales.append(hand_scale[qq])
+            #
+        elif ((rms_sn <= SN_MAX_MEDSCALE) and (rms_sn > SN_MIN_MEDSCALE)) or method=='median':
+            omethod = 'median'
+            # Reference
+            if med_ref is None:
+                spectra.select = iref
+                med_ref, std_ref = median_flux(spectra)
+            # Calc
+            spectra.select = qq
+            med_spec, std_spec = median_flux(spectra)
+            # Apply
+            med_scale= np.minimum(med_ref/med_spec, 10.0)
+            spectra.data['flux'][qq,:] *= med_scale
+            spectra.data['sig'][qq,:] /= med_scale
+            #
+            scales.append(med_scale)
+        elif rms_sn <= SN_MIN_MEDSCALE:
+            omethod = 'none_SN'
+        elif (rms_sn > SN_MAX_MEDSCALE) or method=='poly':
+            pass
+        else:
+            msgs.error('uh oh')
+    # Finish
+    return scales, omethod
 
 
 def sigma_clip(fluxes, variances, sn2, n_grow_mask=1, nsig=3.):
@@ -597,7 +710,7 @@ def old_sigma_clip(fluxes, variances, sn2, n_grow_mask=1):
 
     for idx in range(len(all_bad_pix)):
         spec_to_mask = np.argmax(np.abs(fluxes[:, all_bad_pix[idx]]))
-        print "Masking pixel", all_bad_pix[idx], "in exposure", spec_to_mask+1
+        #print("Masking pixel", all_bad_pix[idx], "in exposure", spec_to_mask+1
         first_mask[spec_to_mask][all_bad_pix[idx]] = True
 
     final_mask = grow_mask(first_mask, n_grow=n_grow_mask)
