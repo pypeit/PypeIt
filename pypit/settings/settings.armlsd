@@ -27,7 +27,7 @@ reduce flatfield method PolyScan      # Method used to flat field the data (Poly
 reduce flatfield params [3,50,20]     # Flat field method parameters (PolyScan: [order,numPixels,repeat])
 reduce flatfield useframe pixelflat          # How to flat field the data (pixelflat, slitflat), you can also specify a master calibrations file if it exists.
 reduce trace useframe slitflat          # How to flat field the data (pixelflat, slitflat), you can also specify a master calibrations file if it exists.
-reduce flexure spec boxcar      # Perform flexure correction on objects using boxcar extraction.  Options are: None, boxcar, slitcen [this performs flexure correction before extraction of objects]
+reduce flexure method boxcar      # Perform flexure correction on objects using boxcar extraction.  Options are: None, boxcar, slitcen [this performs flexure correction before extraction of objects]
 reduce flexure maxshift 20      # Maximum allowed flexure shift in pixels (int)
 reduce masters file None         #
 reduce masters loaded []         #
@@ -37,6 +37,7 @@ reduce pixel locations None           # If desired, a fits file can be specified
 reduce pixel size 2.5            # The size of the extracted pixels (as an scaled number of Arc FWHM), -1 will not resample
 reduce skysub perform True       # Subtract the sky background from the data?
 reduce skysub method bspline     # Method used for the sky subtraction
+reduce skysub bspline everyn 20  # bspline fitting parameters
 reduce trim True                # Trim the frame to isolate the data
 
 # ARC FRAMES

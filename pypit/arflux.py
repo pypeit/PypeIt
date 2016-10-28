@@ -41,7 +41,7 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
     """
     from pypit import arutils
     # Load extinction data
-    extinct = load_extinction_data(slf)
+    extinct = load_extinction_data()
     airmass = fitsdict['airmass'][scidx]
     # Loop on objects
     for spobj in slf._specobjs[det-1]:
@@ -392,7 +392,7 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
     std_obj = specobjs[np.argmax(np.array(medfx))]
     wave = std_obj.boxcar['wave']
     # Apply Extinction
-    extinct = load_extinction_data(slf)
+    extinct = load_extinction_data()
     ext_corr = extinction_correction(wave,
         fitsdict['airmass'][scidx], extinct)
     flux_corr = std_obj.boxcar['counts']*ext_corr
@@ -404,7 +404,7 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
     # Grab closest standard within a tolerance
     std_dict = find_standard_file((slf._msstd[0]['RA'], slf._msstd[0]['DEC']))
     # Load standard
-    load_standard_file(slf, std_dict)
+    load_standard_file(std_dict)
     # Interpolate onto observed wavelengths
     std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
     xspec = std_xspec.rebin(wave) # Conserves flambda

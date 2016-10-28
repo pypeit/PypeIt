@@ -540,6 +540,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
+    dnum = 'det{0:02d}'.format(det)
     from pypit import arcytrace
 
     msgs.info("Preparing trace frame for order edge detection")
@@ -551,10 +552,10 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     if False:
         # Use this for debugging
         binbpx = np.zeros(mstrace.shape, dtype=np.int)
-        xs = np.arange(mstrace.shape[slf._dispaxis] * 1.0) * spect['det'][det - 1]['xgap']
+        xs = np.arange(mstrace.shape[slf._dispaxis] * 1.0) * spect[dnum]['xgap']
         xt = 0.5 + np.arange(mstrace.shape[slf._dispaxis] * 1.0) + xs
-        ys = np.arange(mstrace.shape[1 - slf._dispaxis]) * spect['det'][det - 1]['ygap'] * spect['det'][det - 1]['ysize']
-        yt = spect['det'][det - 1]['ysize'] * (0.5 + np.arange(mstrace.shape[1 - slf._dispaxis] * 1.0)) + ys
+        ys = np.arange(mstrace.shape[1 - slf._dispaxis]) * spect[dnum]['ygap'] * spect[dnum]['ysize']
+        yt = spect[dnum]['ysize'] * (0.5 + np.arange(mstrace.shape[1 - slf._dispaxis] * 1.0)) + ys
         xloc, yloc = np.meshgrid(xt, yt)
         plxbin, plybin = xloc.T, yloc.T
     #    binby = 5
@@ -1202,26 +1203,6 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     # Illustrate where the orders fall on the detector (physical units)
     if argflag['run']['qcontrol']:
         msgs.work("Not yet setup with ginga")
-        # # Set up a ds9 instance
-        # d = ds9.ds9()
-        # # Load the image
-        # d.set_np2arr(mstrace)
-        # # Zoom to fit
-        # d.set('zoom to fit')
-        # # Change the colormap and scaling
-        # d.set('cmap gray')
-        # d.set('scale log')
-        # # Plot the regions
-        # if tracedesc != "":
-        #     d.set('regions load ' + '"' + '{0:s}/{1:s}_trace_orders.reg'.format(argflag['run']['directory']['qa'],tracedesc) + '"')
-        # else:
-        #     d.set('regions load ' + '"' + '{0:s}/trace_orders.reg'.format(argflag['run']['directory']['qa']) + '"')
-        # # Save the image
-        # # Check if the user wants to peruse the output as it becomes available
-        # if argflag['run']['stopcheck']:
-        #     null=raw_input(msgs.input()+"Press enter to continue...")
-        # else:
-        #     msgs.info("DS9 window was updated")
     return lcenint, rcenint, extrapord
 
 
@@ -1316,10 +1297,11 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
     """
     from pypit import arcyutils
+    dnum = 'det{0:02d}'.format(det)
 
     msgs.work("Detecting lines")
     tampl, tcent, twid, w, satsnd, _ = ararc.detect_lines(slf, det, msarc, censpec=censpec)
-    satval = spect['det'][det-1]['saturation']*spect['det'][det-1]['nonlinear']
+    satval = spect[dnum]['saturation']*spect[dnum]['nonlinear']
     if argflag['trace']['slits']['tilts']['method'].lower() == "zero":
         # Assuming there is no spectral tilt
         tilts = np.outer(np.linspace(0.0, 1.0, msarc.shape[0]), np.ones(msarc.shape[1]))

@@ -218,6 +218,8 @@ class ScienceExposure:
         fitsdict : dict
           Updates to the input fitsdict
         """
+        dnum = 'det{0:02d}'.format(det)
+
         if argflag['trace']['dispersion']['direction'] is None:
             self._dispaxis = artrace.dispdir(self._msarc[det-1], dispwin=argflag['trace']['dispersion']['window'], mode=0)
         elif argflag['trace']['dispersion']['direction'] in [0, 1]:
@@ -259,16 +261,16 @@ class ScienceExposure:
             fitsdict['naxis0'][scidx] = fitsdict['naxis1'][scidx]
             fitsdict['naxis1'][scidx] = temp
             # Change the user-specified (x,y) pixel sizes
-            tmp = spect['det'][det-1]['xgap']
-            spect['det'][det-1]['xgap'] = spect['det'][det-1]['ygap']
-            spect['det'][det-1]['ygap'] = tmp
-            spect['det'][det-1]['ysize'] = 1.0/spect['det'][det-1]['ysize']
+            tmp = spect[dnum]['xgap']
+            spect[dnum]['xgap'] = spect[dnum]['ygap']
+            spect[dnum]['ygap'] = tmp
+            spect[dnum]['ysize'] = 1.0/spect[dnum]['ysize']
             # Update the amplifier/data/overscan sections
-            for i in range(spect['det'][det-1]['numamplifiers']):
+            for i in range(spect[dnum]['numamplifiers']):
                 # Flip the order of the sections
-                spect['det'][det-1]['ampsec{0:02d}'.format(i+1)] = spect['det'][det-1]['ampsec{0:02d}'.format(i+1)][::-1]
-                spect['det'][det-1]['datasec{0:02d}'.format(i+1)] = spect['det'][det-1]['datasec{0:02d}'.format(i+1)][::-1]
-                spect['det'][det-1]['oscansec{0:02d}'.format(i+1)] = spect['det'][det-1]['oscansec{0:02d}'.format(i+1)][::-1]
+                spect[dnum]['ampsec{0:02d}'.format(i+1)] = spect[dnum]['ampsec{0:02d}'.format(i+1)][::-1]
+                spect[dnum]['datasec{0:02d}'.format(i+1)] = spect[dnum]['datasec{0:02d}'.format(i+1)][::-1]
+                spect[dnum]['oscansec{0:02d}'.format(i+1)] = spect[dnum]['oscansec{0:02d}'.format(i+1)][::-1]
             # Change the user-specified (x,y) pixel sizes
             msgs.work("Transpose gain and readnoise frames")
             # Set the new dispersion axis
@@ -312,6 +314,7 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
+        dnum = 'det{0:02d}'.format(det)
 
         if self._msarc[det-1] is not None:
             msgs.info("An identical master arc frame already exists")
@@ -340,7 +343,7 @@ class ScienceExposure:
                 frames = arload.load_frames(fitsdict, ind, det, frametype='arc', msbias=self._msbias[det-1])
                 if argflag['arc']['combine']['match'] > 0.0:
                     sframes = arsort.match_frames(frames, argflag['arc']['combine']['match'], msgs, frametype='arc',
-                                                  satlevel=spect['det']['saturation']*spect['det']['nonlinear'])
+                                                  satlevel=spect[dnum]['saturation']*spect[dnum]['nonlinear'])
                     subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
                     numarr = np.array([])
                     for i in range(len(sframes)):
@@ -570,7 +573,7 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-
+        dnum = 'det{0:02d}'.format(det)
         # If the master trace is already made, use it
         if self._mstrace[det-1] is not None:
             msgs.info("An identical master trace frame already exists")
@@ -607,7 +610,7 @@ class ScienceExposure:
                 frames = arload.load_frames(fitsdict, ind, det, frametype='trace', msbias=self._msbias[det-1],
                                             trim=argflag['reduce']['trim'], transpose=self._transpose)
                 if argflag['trace']['combine']['match'] > 0.0:
-                    sframes = arsort.match_frames(frames, argflag['trace']['combine']['match'], msgs, frametype='trace', satlevel=spect['det'][det-1]['saturation']*spect['det'][det-1]['nonlinear'])
+                    sframes = arsort.match_frames(frames, argflag['trace']['combine']['match'], msgs, frametype='trace', satlevel=spect[dnum]['saturation']*spect['det'][det-1]['nonlinear'])
                     subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
                     numarr = np.array([])
                     for i in range(len(sframes)):

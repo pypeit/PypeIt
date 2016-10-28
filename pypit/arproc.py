@@ -227,11 +227,13 @@ def badpix(det, frame, sigdev=10.0):
     frame is a master bias frame
     sigdev is the number of standard deviations away from the median that a pixel needs to be in order to be classified as a bad pixel
     """
+    dnum = 'det{0:02d}'.format(det)
     bpix = np.zeros_like(frame, dtype=np.int)
     subfr, tframe, temp = None, None, None
-    for i in range(spect['det'][det-1]['numamplifiers']):
+    for i in range(spect[dnum]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
-        x0, x1, y0, y1 = spect['det'][det-1][datasec][0][0], spect['det'][det-1][datasec][0][1], spect['det'][det-1][datasec][1][0], spect['det'][det-1][datasec][1][1]
+        x0, x1 = spect[dnum][datasec][0][0], spect[dnum][datasec][0][1]
+        y0, y1 = spect[dnum][datasec][1][0], spect[dnum][datasec][1][1]
         xv = np.arange(x0, x1)
         yv = np.arange(y0, y1)
         # Construct an array with the rows and columns to be extracted
@@ -508,10 +510,12 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     from pypit import arcyutils
     from pypit import arcyextract
     from pypit import arcyproc
+    dnum = 'det{0:02d}'.format(det)
+
     msgs.info("Normalizing the master flat field frame")
     norders = slf._lordloc[det-1].shape[1]
     # First, determine the relative scale of each amplifier (assume amplifier 1 has a scale of 1.0)
-    if (spect['det'][det-1]['numamplifiers'] > 1) & (norders > 1):
+    if (spect[dnum]['numamplifiers'] > 1) & (norders > 1):
         sclframe = get_ampscale(slf, det, msflat)
         # Divide the master flat by the relative scale frame
         msflat /= sclframe
@@ -594,7 +598,7 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     msgs.work("Perform a 2D PCA analysis on echelle blaze fits?")
     arplot.plot_orderfits(slf, msblaze, flat_ext1d, desc=plotdesc)
     # If there is more than 1 amplifier, apply the scale between amplifiers to the normalized flat
-    if (spect['det'][det-1]['numamplifiers'] > 1) & (norders > 1):
+    if (spect[dnum]['numamplifiers'] > 1) & (norders > 1):
         msnormflat *= sclframe
     return msnormflat, msblaze
 
@@ -616,14 +620,16 @@ def get_ampscale(slf, det, msflat):
     sclframe : ndarray
       A frame to scale all amplifiers to the same counts at the amplifier borders
     """
+    dnum = 'det{0:02d}'.format(det)
+
     sclframe = np.ones_like(msflat)
-    ampdone = np.zeros(spect['det'][det-1]['numamplifiers'], dtype=int) # 1 = amplifiers have been assigned a scale
+    ampdone = np.zeros(spect[dnum]['numamplifiers'], dtype=int) # 1 = amplifiers have been assigned a scale
     ampdone[0]=1
-    while np.sum(ampdone) != spect['det'][det-1]['numamplifiers']:
+    while np.sum(ampdone) != spect[dnum]['numamplifiers']:
         abst, bbst, nbst, n0bst, n1bst = -1, -1, -1, -1, -1 # Reset the values for the most overlapping amplifier
-        for a in range(0, spect['det'][det-1]['numamplifiers']): # amplifier 'a' is always the reference amplifier
+        for a in range(0, spect[dnum]['numamplifiers']): # amplifier 'a' is always the reference amplifier
             if ampdone[a] == 0: continue
-            for b in range(0, spect['det'][det-1]['numamplifiers']):
+            for b in range(0, spect[dnum]['numamplifiers']):
                 if ampdone[b] == 1 or a == b: continue
                 tstframe = np.zeros_like(msflat)
                 tstframe[np.where(slf._ampsec[det-1] == a+1)] = 1
@@ -693,6 +699,7 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
       Updates to the input fitsdict
     """
     dnum = 'det{0:02d}'.format(det)
+
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
     if argflag['run']['spectrograph'] in ['lris_blue', 'lris_red']:
         msgs.info("Parsing datasec and oscansec from headers")
@@ -945,6 +952,7 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
     """
     from pypit import arcyutils
     from pypit import arcyproc
+    dnum = 'det{0:02d}'.format(det)
 
     msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
     msgs.work("Include these parameters in the settings files to be adjusted by the user")
@@ -958,7 +966,7 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
 
     # Determine if there are saturated pixels
     satpix = np.zeros_like(sciframe)
-    satlev = spect['det'][det-1]['saturation']*spect['det'][det-1]['nonlinear']
+    satlev = spect[dnum]['saturation']*spect[dnum]['nonlinear']
     wsat = np.where(sciframe >= satlev)
     if wsat[0].size == 0: satpix = None
     else:
@@ -1084,12 +1092,14 @@ def gain_frame(slf, det):
     gain_img : ndarray
 
     """
+    dnum = 'det{0:02d}'.format(det)
+
     # Loop on amplifiers
     gain_img = np.zeros_like(slf._ampsec[det-1])
-    for ii in range(spect['det'][det-1]['numamplifiers']):
+    for ii in range(spect[dnum]['numamplifiers']):
         amp = ii+1
         amppix = slf._ampsec[det-1] == amp
-        gain_img[amppix] = spect['det'][det-1]['gain'][amp-1]
+        gain_img[amppix] = spect[dnum]['gain'][amp-1]
     # Return
     return gain_img
 
@@ -1107,13 +1117,15 @@ def rn_frame(slf, det):
     rn_img : ndarray
       Read noise *variance* image (i.e. RN**2)
     """
+    dnum = 'det{0:02d}'.format(det)
+
     # Loop on amplifiers
     rnimg = np.zeros_like(slf._ampsec[det-1])
-    for ii in range(spect['det'][det-1]['numamplifiers']):
+    for ii in range(spect[dnum]['numamplifiers']):
         amp = ii+1
         amppix = slf._ampsec[det-1] == amp
-        rnimg[amppix] = (spect['det'][det-1]['ronoise'][ii]**2 +
-                         (0.5*spect['det'][det-1]['gain'][ii])**2)
+        rnimg[amppix] = (spect[dnum]['ronoise'][ii]**2 +
+                         (0.5*spect[dnum]['gain'][ii])**2)
     # Return
     return rnimg
 
@@ -1254,6 +1266,8 @@ def variance_frame(slf, det, sciframe, idx, fitsdict=None, skyframe=None, objfra
     -------
     variance image : ndarray
     """
+    dnum = 'det{0:02d}'.format(det)
+
     # The effective read noise (variance image)
     rnoise = rn_frame(slf, det)
     if skyframe is not None:
@@ -1264,7 +1278,7 @@ def variance_frame(slf, det, sciframe, idx, fitsdict=None, skyframe=None, objfra
     else:
         scicopy = sciframe.copy()
         # Dark Current noise
-        dnoise = (spect['det'][det-1]['darkcurr'] *
+        dnoise = (spect[dnum]['darkcurr'] *
                   float(fitsdict["exptime"][idx])/3600.0)
         # Return
         return np.abs(scicopy) + rnoise + dnoise
