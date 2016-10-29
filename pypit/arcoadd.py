@@ -149,19 +149,15 @@ def gauss1(x, parameters):
     return norm * x_mask * np.exp(-0.5 * u * x_mask)
 
 
-def sn_weight(spectra):
+def sn_weight(spectra, debug=False):
     """ Calculate the S/N of each input spectrum and
     create an array of weights by which to weight the
     spectra by in coadding.
 
     Parameters
     ----------
-    new_wave : array
+    spectra : XSpectrum1D
         New wavelength grid
-    fluxes : ndarray
-        Flux arrays of the input spectra
-    variances : ndarray
-        Variances of the input spectra
 
     Returns
     -------
@@ -172,13 +168,14 @@ def sn_weight(spectra):
     """
     # Setup
     fluxes = spectra.data['flux']
-    variances = spectra.data['sig']**2
+    sigs = spectra.data['sig']
     wave = spectra.data['wave'][0,:]
 
-    # Calcualte
-    sn2_val = (fluxes**2) * (1./variances)
-    sn2_sigclip = astropy.stats.sigma_clip(sn2_val, sigma=3, iters=5)
-    sn2 = np.mean(sn2_sigclip, axis=1).compressed()  #S/N^2 value for each spectrum
+    # Calculate
+    sn_val = fluxes * (1./sigs)  # Taking flux**2 biases negative values
+    sn_sigclip = astropy.stats.sigma_clip(sn_val, sigma=3, iters=5)
+    sn = np.mean(sn_sigclip, axis=1).compressed()
+    sn2 = sn**2 #S/N^2 value for each spectrum
 
     rms_sn = np.sqrt(np.mean(sn2)) # Root Mean S/N**2 value for all spectra
 
@@ -188,7 +185,7 @@ def sn_weight(spectra):
     else:
         msgs.info("Using wavelength dependent weights for coadding")
         msgs.warn("If your spectra have very different dispersion, this is *not* accurate")
-        sn2_med1 = np.ones_like(fluxes) #((fluxes.shape[0], fluxes.shape[1]))
+        sn_med1 = np.ones_like(fluxes) #((fluxes.shape[0], fluxes.shape[1]))
         weights = np.ones_like(fluxes) #((fluxes.shape[0], fluxes.shape[1]))
 
         bkspace = (10000.0/3.0e5) / (np.log(10.0))
@@ -198,12 +195,12 @@ def sn_weight(spectra):
         xkern = np.arange(0, 2*nhalf+2, dtype='float64')-nhalf
 
         for spec in xrange(fluxes.shape[0]):
-            sn2_med1[spec] = scipy.signal.medfilt(sn2_val[spec], kernel_size = 3)
+            sn_med1[spec] = scipy.signal.medfilt(sn_val[spec], kernel_size = 3)
         
         yvals = gauss1(xkern, [0.0, sig_res, 1, 0])
 
         for spec in xrange(fluxes.shape[0]):
-            weights[spec] = scipy.ndimage.filters.convolve(sn2_med1[spec], yvals)
+            weights[spec] = scipy.ndimage.filters.convolve(sn_med1[spec], yvals)**2
 
     # Give weights the same mask (important later)
     weights.mask = fluxes.mask
@@ -424,6 +421,8 @@ def one_d_coadd(spectra, weights):
     Parameters
     ----------
     spectra : XSpectrum1D
+    weights : ndarray
+      Should be masked
 
     Returns
     -------
@@ -593,7 +592,7 @@ def load_spec(files, iextensions=None, extract='opt'):
 
 
 def coadd_spectra(spectra, wave_grid_method=None, niter=5,
-                  sig_clip=False, outfil='coadded_spectrum.fits'):
+                  scale_method=None, sig_clip=False, **kwargs):
     """
     Parameters
     ----------
@@ -606,27 +605,21 @@ def coadd_spectra(spectra, wave_grid_method=None, niter=5,
     -------
 
     """
-    '''
-    # Convert to masked arrays
-    wavelengths = []
-    fluxes = []
-    variances = []
-    #traces = []
-    for spectrum in spectra:
-        wavelengths.append(spectrum.wavelength.value)
-        fluxes.append(spectrum.flux.value)
-        variances.append(spectrum.sig.value**2)
-    # Recast -- This fails if the arrays are of different length
-    wavelengths = np.ma.vstack([wavelengths])
-    fluxes = np.ma.vstack([fluxes])
-    variances = np.ma.vstack([variances])
-
-    # Add check on trace location here (to make sure the trace location of objects is similar, and thus likely the same object)
-    masked_fluxes, masked_vars, new_wave, new_flux, new_var = one_d_coadd(
-            wavelengths, fluxes, variances, sig_clip=sig_clip, wave_grid=wave_grid_method)
-    '''
-    # Setup
+    # Init
+    if niter <= 0:
+        msgs.error('Not prepared for no iterations')
+    # Final wavelength array
     new_wave = new_wave_grid(spectra.data['wave'], method=wave_grid_method)
+
+    # Rebin
+    rspec = spectra.rebin(new_wave*u.AA, all=True, do_sig=True, masking='none')
+    sv_mask = rspec.data['flux'].mask
+
+    # S/N**2, weights
+    sn2, weights = sn_weight(rspec)
+
+    # Scale
+    scales, omethod = scale_spectra(rspec, sn2, method=scale_method, **kwargs)
 
     iters = 0
     std_dev = 0.
@@ -637,13 +630,13 @@ def coadd_spectra(spectra, wave_grid_method=None, niter=5,
     #std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=4, iters=2))
     #var_corr = std_dev
 
-        msgs.info("Variance correction: {:g}".format(var_corr))
-        msgs.info("Iterating on coadding...")
-        masked_fluxes, masked_vars, new_wave, new_flux, new_var = one_d_coadd(wavelengths, masked_fluxes, var_corr*masked_vars, wave_grid=wave_grid_method)
+        msgs.info("Iterating on coadding... iter={:d}".format(iters))
+        spec1d = one_d_coadd(rspec, weights)
         dev_sig = (np.ma.getdata(masked_fluxes) - new_flux) / (np.sqrt(np.ma.getdata(masked_vars) + new_var))
         std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=4, iters=2))
         var_corr = var_corr * np.std(astropy.stats.sigma_clip(dev_sig, sigma=5, iters=2))
 
+        msgs.info("Variance correction: {:g}".format(var_corr))
         msgs.info("New standard deviation: {:g}".format(std_dev))
 
         # Incorporate saving of each dev/sig panel onto one page? Currently only saves last fit

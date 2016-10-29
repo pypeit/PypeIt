@@ -77,17 +77,6 @@ def dummy_spectra(s2n=10., seed=1234):
     return dspec
 
 
-def test_1dcoadd():
-    """ Test coadd method"""
-    from pypit import arcoadd as arco
-    # Setup
-    dspec = dummy_spectra(s2n=10.)
-    cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
-    rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
-    sn2, weights = arco.sn_weight(rspec)
-    # Coadd
-    spec1d = arco.one_d_coadd(rspec, weights)
-    assert spec1d.npix == 1740
 
 
 def test_load():
@@ -138,18 +127,24 @@ def test_median_flux():
 def test_sn_weight():
     """ Test sn_weight method """
     from pypit import arcoadd as arco
+    #  Very low S/N first
+    dspec = dummy_spectra(s2n=0.3, seed=1234)
+    cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
+    rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
+    sn2, weights = arco.sn_weight(rspec)
+    np.testing.assert_allclose(sn2[0], 0.095, atol=0.1)  # Noise is random
     #  Low S/N first
     dspec = dummy_spectra(s2n=3., seed=1234)
     cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
     rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
     sn2, weights = arco.sn_weight(rspec)
-    np.testing.assert_allclose(sn2[0], 8.2, atol=0.1)  # Noise is random
+    np.testing.assert_allclose(sn2[0], 8.6, atol=0.1)  # Noise is random
     #  High S/N now
     dspec2 = dummy_spectra(s2n=10., seed=1234)
     cat_wave = arco.new_wave_grid(dspec2.data['wave'], method='concatenate')
     rspec2 = dspec2.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
     sn2, weights = arco.sn_weight(rspec2)
-    np.testing.assert_allclose(sn2[0], 95.3, atol=0.1)  # Noise is random
+    np.testing.assert_allclose(sn2[0], 97.9, atol=0.1)  # Noise is random
 
 
 def test_scale():
@@ -174,7 +169,6 @@ def test_scale():
     rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
     sn2, weights = arco.sn_weight(rspec)
     an_scls, an_mthd = arco.scale_spectra(rspec, sn2)
-    pytest.set_trace()
     assert an_mthd == 'none_SN'
     #  Auto-median
     dspec = dummy_spectra(s2n=1.5)
@@ -212,6 +206,18 @@ def test_grow_mask():
     badp2 = np.where(new_mask2[0,:])[0]
     assert np.all(badp2 == np.array([98,99,100,101,102]))
 
+
+def test_1dcoadd():
+    """ Test coadd method"""
+    from pypit import arcoadd as arco
+    # Setup
+    dspec = dummy_spectra(s2n=10.)
+    cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
+    rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
+    sn2, weights = arco.sn_weight(rspec)
+    # Coadd
+    spec1d = arco.one_d_coadd(rspec, weights)
+    assert spec1d.npix == 1740
 
 
 '''
