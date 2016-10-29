@@ -208,7 +208,7 @@ def test_grow_mask():
 
 
 def test_1dcoadd():
-    """ Test coadd method"""
+    """ Test 1dcoadd method"""
     from pypit import arcoadd as arco
     # Setup
     dspec = dummy_spectra(s2n=10.)
@@ -218,6 +218,26 @@ def test_1dcoadd():
     # Coadd
     spec1d = arco.one_d_coadd(rspec, weights)
     assert spec1d.npix == 1740
+
+def test_cleancr():
+    """ Test clean CR method"""
+    from pypit import arcoadd as arco
+    # Setup
+    dspec = dummy_spectra(s2n=10.)
+    dspec.data['flux'][0, 700] *= 1000.  # One bad pixel
+    dspec.data['sig'][0, 700] *= 500.
+    cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
+    rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
+    arco.clean_cr(rspec)
+
+def test_coadd():
+    """ Test full coadd method"""
+    from pypit import arcoadd as arco
+    # Setup
+    dspec = dummy_spectra(s2n=10.)
+    dspec.data['flux'][0, 700] *= 1000.  # One bad pixel
+    dspec.data['sig'][0, 700] *= 500.
+    arco.coadd_spectra(dspec, wave_grid_method='concatenate')
 
 
 '''

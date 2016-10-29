@@ -5,7 +5,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import astropy.stats
 import scipy.interpolate
-import scipy.signal
+from  scipy.signal import medfilt
 
 from astropy import units as u
 from astropy.io import fits
@@ -26,6 +26,7 @@ msgs = armsgs.get_logger()
     # Shift spectra
     # Scale by poly
     # Better rejection
+    # Grow mask in final_rej?
 
 
 def new_wave_grid(waves, method='iref', iref=0, pix_size=None):
@@ -113,7 +114,7 @@ def new_wave_grid(waves, method='iref', iref=0, pix_size=None):
     elif method == 'iref':  # Concatenate
         wave_grid = waves[iref, :].compressed()
     else:
-        msgs.error("Bad method")
+        msgs.error("Bad method for scaling: {:s}".format(method))
     # Concatenate of any wavelengths in other indices that may extend beyond that of wavelengths[0]?
 
     return wave_grid
@@ -195,7 +196,7 @@ def sn_weight(spectra, debug=False):
         xkern = np.arange(0, 2*nhalf+2, dtype='float64')-nhalf
 
         for spec in xrange(fluxes.shape[0]):
-            sn_med1[spec] = scipy.signal.medfilt(sn_val[spec], kernel_size = 3)
+            sn_med1[spec] = medfilt(sn_val[spec], kernel_size = 3)
         
         yvals = gauss1(xkern, [0.0, sig_res, 1, 0])
 
@@ -347,23 +348,34 @@ def scale_spectra(spectra, sn2, iref=0, method='auto', hand_scale=None,
         elif rms_sn <= SN_MIN_MEDSCALE:
             omethod = 'none_SN'
         elif (rms_sn > SN_MAX_MEDSCALE) or method=='poly':
-            pass
+            msgs.work("Should be using poly here, not median")
+            omethod = 'median'
+            # Reference
+            if med_ref is None:
+                spectra.select = iref
+                med_ref, std_ref = median_flux(spectra)
+            # Calc
+            spectra.select = qq
+            med_spec, std_spec = median_flux(spectra)
+            # Apply
+            med_scale= np.minimum(med_ref/med_spec, 10.0)
+            spectra.data['flux'][qq,:] *= med_scale
+            spectra.data['sig'][qq,:] /= med_scale
+            #
+            scales.append(med_scale)
         else:
             msgs.error('uh oh')
     # Finish
     return scales, omethod
 
 
-def sigma_clip(fluxes, variances, sn2, n_grow_mask=1, nsig=3.):
-    """ Sigma-clips the flux arrays.
+def clean_cr(spectra, n_grow_mask=1, nsig=5.):
+    """ Sigma-clips the flux arrays to remove obvious CR
 
     Parameters
     ----------
-    fluxes :
-    variances :
-    sn2 : ndarray
-      S/N**2 estimates for each spectrum
-    n_grow_mask : int
+    spectra :
+    n_grow_mask : int, optional
         Number of pixels to grow the initial mask by
         on each side. Defaults to 1 pixel
     nsig : float, optional
@@ -374,40 +386,31 @@ def sigma_clip(fluxes, variances, sn2, n_grow_mask=1, nsig=3.):
     final_mask : ndarray
         Final mask for the flux + variance arrays
     """
-    from scipy.signal import medfilt
     # This mask may include masked pixels (including padded ones)
     #   We should *not* grow those
-    first_mask = np.ma.getmaskarray(fluxes)
+    first_mask = spectra.data['flux'].mask.copy()
     # New mask
     new_mask = first_mask.copy()
     new_mask[:] = False
 
-    # Grab highest S/N spectrum
-    highest_sn_idx = np.argmax(sn2)
+    # Median of the masked arrays
+    refflux = np.ma.median(spectra.data['flux'],axis=0)
+    diff = spectra.data['flux']-refflux
 
-    # Sharpened chi spectrum
-    #base_sharp_chi = (fluxes - fluxes[highest_sn_idx]) / (np.sqrt(variances + variances[highest_sn_idx]))
-    #  WHAT WAS HERE WONT REJECT BAD PIX IN THE REF SPEC
-    refflux = fluxes[highest_sn_idx]
-    med_ref = medfilt(refflux, 3)
-    debugger.set_trace()
-    base_sharp_chi =  (refflux-med_ref)/np.sqrt(variances[highest_sn_idx])
-    std_bchi = np.std(base_sharp_chi, axis=1)
-
-    for ispec in range(base_sharp_chi.shape[0]):
-        # Is this right?
-        bad_pix = np.abs(base_sharp_chi[ispec]) > nsig*std_bchi[ispec]
-        new_mask[ispec, bad_pix] = True
-
-    #all_bad_pix = reduce(np.union1d, (np.asarray(bad_pix)))
-
-    #for idx in range(len(all_bad_pix)):
-    #    spec_to_mask = np.argmax(np.abs(fluxes[:, all_bad_pix[idx]]))
-    #    msgs.info("Masking pixel {:d} in exposure {:d}".format(all_bad_pix[idx], spec_to_mask+1))
-    #    first_mask[spec_to_mask][all_bad_pix[idx]] = True
+    # Loop on spectra
+    for ispec in xrange(spectra.nspec):
+        spectra.select = ispec
+        ivar = spectra.ivar
+        chi2 = (diff[ispec].compressed())**2 * ivar
+        badchi = (ivar > 0.0) & (chi2 > nsig**2)
+        nbad = np.sum(badchi)
+        if nbad > 0:
+            spectra.add_to_mask(badchi)
+            msgs.info("Rejecting {:d} CRs in exposure {:d}".format(nbad,ispec))
 
     # Grow new mask
-    new_mask = grow_mask(new_mask, n_grow=n_grow_mask)
+    if n_grow_mask > 0:
+        new_mask = grow_mask(new_mask, n_grow=n_grow_mask)
 
     # Final mask
     final_mask = first_mask & new_mask
@@ -591,8 +594,10 @@ def load_spec(files, iextensions=None, extract='opt'):
     return spectra
 
 
-def coadd_spectra(spectra, wave_grid_method=None, niter=5,
-                  scale_method=None, sig_clip=False, **kwargs):
+def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
+                  scale_method='auto', sig_clip=False,
+                  do_offset=False, sigrej_final=3.,
+                  do_cr=True, **kwargs):
     """
     Parameters
     ----------
@@ -613,35 +618,128 @@ def coadd_spectra(spectra, wave_grid_method=None, niter=5,
 
     # Rebin
     rspec = spectra.rebin(new_wave*u.AA, all=True, do_sig=True, masking='none')
-    sv_mask = rspec.data['flux'].mask
+    pre_mask = rspec.data['flux'].mask.copy()
 
     # S/N**2, weights
     sn2, weights = sn_weight(rspec)
 
-    # Scale
+    # Scale (modifies rspec)
     scales, omethod = scale_spectra(rspec, sn2, method=scale_method, **kwargs)
+
+    # Clean bad CR
+    if do_cr:
+        clean_cr(rspec)
+
+    # Initial coadd
+    spec1d = one_d_coadd(rspec, weights)
+    debugger.set_trace()
 
     iters = 0
     std_dev = 0.
     while np.absolute(std_dev - 1.) >= 0.1 and iters < niter:
-
-
-    #dev_sig = (np.ma.getdata(masked_fluxes) - new_flux) / (np.sqrt(np.ma.getdata(masked_vars) + new_var))
-    #std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=4, iters=2))
-    #var_corr = std_dev
-
+        iters += 1
         msgs.info("Iterating on coadding... iter={:d}".format(iters))
-        spec1d = one_d_coadd(rspec, weights)
-        dev_sig = (np.ma.getdata(masked_fluxes) - new_flux) / (np.sqrt(np.ma.getdata(masked_vars) + new_var))
-        std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=4, iters=2))
-        var_corr = var_corr * np.std(astropy.stats.sigma_clip(dev_sig, sigma=5, iters=2))
 
-        msgs.info("Variance correction: {:g}".format(var_corr))
-        msgs.info("New standard deviation: {:g}".format(std_dev))
+        # Setup (strip out masks)
+        tspec = spec1d.copy()
+        tspec.unmask()
+        newvar = tspec.data['sig'][0,:].compressed()**2  # JFH Interpolates over bad values?
+        newflux = tspec.data['flux'][0,:].compressed()
+        newflux_now = newflux  # JFH interpolates
+        # Convenient for coadding
+        uspec = rspec.copy()
+        uspec.unmask()
+
+        # Loop on images to updated noise model for rejection
+        for qq in xrange(rspec.nspec):
+
+            # Grab full spectrum (unmasked)
+            flux = uspec.data['flux'][qq,:].compressed()
+            sig = uspec.data['sig'][qq,:].compressed()
+            ivar = np.zeros_like(sig)
+            mask = rspec.data['flux'].mask[qq,:]
+            gd = sig > 0.
+            ivar[gd] = 1./sig[gd]**2
+
+            # var_tot
+            var_tot = newvar + (ivar > 0.0)/(ivar + (ivar == 0.0))
+            ivar_real = (var_tot > 0.0)/(var_tot + (var_tot == 0.0))
+            # smooth out possible outliers in noise
+            var_med = medfilt(var_tot, 5)
+            var_smooth = medfilt(var_tot, 99)#, boundary = 'reflect')
+            # conservatively always take the largest variance
+            var_final = np.maximum(var_med, var_smooth)
+            ivar_final =  (var_final > 0.0)/ (var_final + (var_final == 0.0))
+            # Cap S/N ratio at SN_MAX to prevent overly aggressive rejection
+            SN_MAX = 20.0
+            ivar_cap = np.minimum(ivar_final,
+                                  (SN_MAX/newflux_now + (newflux_now <= 0.0))**2)
+            #; adjust rejection to reflect the statistics of the distribtuion
+            #; of errors. This fixes cases where for not totally understood
+            #; reasons the noise model is not quite right and
+            #; many pixels are rejected.
+
+            #; Is the model offset relative to the data? If so take it out
+            if do_offset:
+                diff1 = flux-newflux_now
+                #idum = np.where(arrmask[*, j] EQ 0, nnotmask)
+                nnotmask = np.sum(~mask)
+                nmed_diff = np.maximum(nnotmask//20, 10)
+                #; take out the smoothly varying piece
+                #; JXP -- This isnt going to work well if the data has a bunch of
+                #; null values in it
+                w = np.ones(5, 'd')
+                diff_sm = np.convolve(w/w.sum(),
+                                      medfilt(diff1*(~mask), nmed_diff), mode='same')
+                chi2 = (diff1-diff_sm)**2*ivar_real
+                debugger.set_trace()
+                goodchi = (~mask) & (ivar_real > 0.0) & (chi2 <= 36.0) # AND masklam, ngd)
+                if np.sum(goodchi) == 0:
+                    goodchi = np.array([True]*flux.size)
+                debugger.set_trace()  # Port next line to Python to use this
+                #djs_iterstat, (arrflux[goodchi, j]-newflux_now[goodchi]) $
+                #   , invvar = ivar_real[goodchi], mean = offset_mean $
+                #   , median = offset $
+            else:
+                offset = 0.
+            chi2 = (flux-newflux_now - offset)**2*ivar_real
+            goodchi = (~mask) & (ivar_real > 0.0) & (chi2 <= 36.0) # AND masklam, ngd)
+            ngd = np.sum(goodchi)
+            if ngd == 0:
+                goodchi = np.array([True]*flux.size)
+            #; evalute statistics of chi2 for good pixels and excluding
+            #; extreme 6-sigma outliers
+            chi2_good = chi2[goodchi]
+            chi2_srt = chi2_good.copy()
+            chi2_srt.sort()
+            #; evaluate at 1-sigma and then scale
+            gauss_prob = 1.0 - 2.0*(1.-scipy.stats.norm.cdf(1.)) #gaussint(-double(1.0d))
+            sigind = int(np.round(gauss_prob*ngd))
+            chi2_sigrej = chi2_srt[sigind]
+            one_sigma = np.minimum(np.maximum(np.sqrt(chi2_sigrej),1.0),5.0)
+            sigrej_eff = sigrej_final*one_sigma
+            chi2_cap = (flux-newflux_now - offset)**2*ivar_cap
+            # Grow??
+            chi_mask = (chi2_cap > sigrej_eff**2) & (~mask)
+            nrej = np.sum(chi_mask)
+            # Apply
+            if nrej > 0:
+                msgs.info("Rejecting {:d} pixels in exposure {:d}".format(nrej,qq))
+                debugger.set_trace()
+                rspec.add_to_mask(chi_mask)
+            #outmask[*, j] = (arrmask[*, j] EQ 1) OR (chi2_cap GT sigrej_eff^2)
 
         # Incorporate saving of each dev/sig panel onto one page? Currently only saves last fit
         #qa_plots(wavelengths, masked_fluxes, masked_vars, new_wave, new_flux, new_var)
-        iters = iters + 1
+
+        # Coadd anew
+        spec1d = one_d_coadd(rspec, weights)
+        debugger.set_trace()
+        dev_sig = (rspec.data['flux'] - spec1d.flux) / (np.sqrt(np.ma.getdata(masked_vars) + new_var))
+        #std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=4, iters=2))
+        #var_corr = var_corr * np.std(astropy.stats.sigma_clip(dev_sig, sigma=5, iters=2))
+        #msgs.info("Variance correction: {:g}".format(var_corr))
+        #msgs.info("New standard deviation: {:g}".format(std_dev))
 
     if iters == 0:
         msgs.warn("No iterations on coadding done")
