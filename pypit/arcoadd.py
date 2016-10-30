@@ -205,6 +205,7 @@ def sn_weight(spectra, debug=False):
 
     # Give weights the same mask (important later)
     weights.mask = fluxes.mask
+
     # Finish
     return sn2, weights
 
@@ -405,7 +406,7 @@ def clean_cr(spectra, n_grow_mask=1, nsig=5.):
         badchi = (ivar > 0.0) & (chi2 > nsig**2)
         nbad = np.sum(badchi)
         if nbad > 0:
-            spectra.add_to_mask(badchi)
+            spectra.add_to_mask(badchi, compressed=True)
             msgs.info("Rejecting {:d} CRs in exposure {:d}".format(nbad,ispec))
 
     # Grow new mask
@@ -620,19 +621,20 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     rspec = spectra.rebin(new_wave*u.AA, all=True, do_sig=True, masking='none')
     pre_mask = rspec.data['flux'].mask.copy()
 
+    # Clean bad CR
+    # -- Do this before sn2 and weights
+    # -- Or be sure to reset the weights mask accordingly
+    if do_cr:
+        clean_cr(rspec)
+
     # S/N**2, weights
     sn2, weights = sn_weight(rspec)
 
     # Scale (modifies rspec)
     scales, omethod = scale_spectra(rspec, sn2, method=scale_method, **kwargs)
 
-    # Clean bad CR
-    if do_cr:
-        clean_cr(rspec)
-
     # Initial coadd
     spec1d = one_d_coadd(rspec, weights)
-    debugger.set_trace()
 
     iters = 0
     std_dev = 0.
@@ -734,10 +736,10 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
 
         # Coadd anew
         spec1d = one_d_coadd(rspec, weights)
+        dev_sig = (rspec.data['flux'] - spec1d.flux) / (rspec.data['sig']**2 + spec1d.sig**2)
         debugger.set_trace()
-        dev_sig = (rspec.data['flux'] - spec1d.flux) / (np.sqrt(np.ma.getdata(masked_vars) + new_var))
-        #std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=4, iters=2))
-        #var_corr = var_corr * np.std(astropy.stats.sigma_clip(dev_sig, sigma=5, iters=2))
+        std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=4, iters=2))
+        var_corr = var_corr * np.std(astropy.stats.sigma_clip(dev_sig, sigma=5, iters=2))
         #msgs.info("Variance correction: {:g}".format(var_corr))
         #msgs.info("New standard deviation: {:g}".format(std_dev))
 
