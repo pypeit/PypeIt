@@ -29,7 +29,7 @@ msgs = armsgs.get_logger()
     # Grow mask in final_rej?
 
 
-def new_wave_grid(waves, method='iref', iref=0, A_pix=None):
+def new_wave_grid(waves, method='iref', iref=0, A_pix=None, **kwargs):
     """ Create a new wavelength grid for the
     spectra to be rebinned and coadded on
 
@@ -615,7 +615,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     if niter <= 0:
         msgs.error('Not prepared for no iterations')
     # Final wavelength array
-    new_wave = new_wave_grid(spectra.data['wave'], method=wave_grid_method)
+    new_wave = new_wave_grid(spectra.data['wave'], method=wave_grid_method, **kwargs)
 
     # Rebin
     rspec = spectra.rebin(new_wave*u.AA, all=True, do_sig=True, masking='none')
