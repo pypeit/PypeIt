@@ -29,7 +29,7 @@ msgs = armsgs.get_logger()
     # Grow mask in final_rej?
 
 
-def new_wave_grid(waves, method='iref', iref=0, pix_size=None):
+def new_wave_grid(waves, method='iref', iref=0, A_pix=None):
     """ Create a new wavelength grid for the
     spectra to be rebinned and coadded on
 
@@ -46,8 +46,8 @@ def new_wave_grid(waves, method='iref', iref=0, pix_size=None):
         'concatenate' -- Meld the input wavelength arrays
     iref : int, optional
       Reference spectrum
-    pix_size : float
-      Pixel size in same units as input
+    A_pix : float
+      Pixel size in same units as input wavelength array (e.g. Angstroms)
 
     Returns
     -------
@@ -86,8 +86,7 @@ def new_wave_grid(waves, method='iref', iref=0, pix_size=None):
         wave_grid_min = np.min(waves)
         wave_grid_max = np.max(waves)
 
-        constant_A = pix_size*1.02 # 1.02 here is the A/pix for this instrument; stored in slf. somewhere?
-        wave_grid = np.arange(wave_grid_min, wave_grid_max + constant_A, constant_A)
+        wave_grid = np.arange(wave_grid_min, wave_grid_max + A_pix, A_pix)
 
     elif method == 'concatenate':  # Concatenate
         # Setup
@@ -606,10 +605,10 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     spectra : XSpectrum1D
     wave_grid_method :
     sig_clip
-    outfil
 
     Returns
     -------
+    spec1d : XSpectrum1D
 
     """
     # Init

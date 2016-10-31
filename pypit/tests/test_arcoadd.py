@@ -230,6 +230,7 @@ def test_cleancr():
     rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
     arco.clean_cr(rspec)
 
+
 def test_coadd():
     """ Test full coadd method"""
     from pypit import arcoadd as arco
@@ -239,6 +240,11 @@ def test_coadd():
     dspec.data['sig'][0, 700] *= 500.
     arco.coadd_spectra(dspec, wave_grid_method='concatenate')
 
+
+def test_coadd_qa():
+    if os.getenv('PYPIT') is None:
+        assert True
+        return
 
 '''
 def test_sigma_clip():
