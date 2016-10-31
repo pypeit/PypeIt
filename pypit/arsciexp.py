@@ -73,7 +73,7 @@ class ScienceExposure:
         self._dispaxis = None  # Which direction is the predominant spectral (dispersion) axis
         self._nspec    = [None for all in range(ndet)]   # Number of spectral pixels
         self._nspat    = [None for all in range(ndet)]   # Number of spatial pixels
-        self._ampsec   = [None for all in range(ndet)]   # Locations of the amplifiers on each detector
+        self._datasec  = [None for all in range(ndet)]   # Locations of the data on each detector
         self._pixlocn  = [None for all in range(ndet)]   # Physical locations of each pixel on the detector
         self._lordloc  = [None for all in range(ndet)]   # Array of slit traces (left side) in physical pixel coordinates
         self._rordloc  = [None for all in range(ndet)]   # Array of slit traces (left side) in physical pixel coordinates
@@ -255,7 +255,7 @@ class ScienceExposure:
                 if 'badpix'+argflag['reduce']['masters']['setup'] not in argflag['reduce']['masters']['loaded']:
                     self.SetFrame(self._bpix, self._bpix[det-1].T, det)
             # Transpose the amplifier sections frame
-            self.SetFrame(self._ampsec, self._ampsec[det-1].T, det)
+            self.SetFrame(self._datasec, self._datasec[det - 1].T, det)
             # Update the keywords of the fits files
             temp = fitsdict['naxis0'][scidx]
             fitsdict['naxis0'][scidx] = fitsdict['naxis1'][scidx]

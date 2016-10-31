@@ -16,6 +16,7 @@ except ImportError:
 # Logging
 msgs = armsgs.get_logger()
 
+
 def read_lris(raw_file, det=None, TRIM=False):
     """
     Read a raw LRIS data frame (one or more detectors)
@@ -56,10 +57,9 @@ def read_lris(raw_file, det=None, TRIM=False):
     preline = head0['PRELINE']
     postline = head0['POSTLINE']
 
-    # Setup for datasec, oscansec, ampsec
+    # Setup for datasec, oscansec
     dsec = []
     osec = []
-    asec = []
 
     # get the x and y binning factors...
     binning = head0['BINNING']
@@ -160,8 +160,6 @@ def read_lris(raw_file, det=None, TRIM=False):
             # Data section
             section = '[{:d}:{:d},{:d}:{:d}]'.format(preline,nydata-postline, xs, xe)  # Eliminate lines
             dsec.append(section)
-            section = '[:,{:d}:{:d}]'.format(xs, xe)  # Amp section
-            asec.append(section)
             #print('data',xs,xe)
             array[xs:xe, :] = data   # Include postlines
 
@@ -209,7 +207,7 @@ def read_lris(raw_file, det=None, TRIM=False):
     head0['BZERO'] = 32768-obzero
 
     # Return, transposing array back to goofy Python indexing
-    return array.T, head0, (dsec, osec, asec)
+    return array.T, head0, (dsec, osec)
 
 
 def lris_read_amp(inp, ext):

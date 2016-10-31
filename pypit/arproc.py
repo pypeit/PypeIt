@@ -632,8 +632,8 @@ def get_ampscale(slf, det, msflat):
             for b in range(0, spect[dnum]['numamplifiers']):
                 if ampdone[b] == 1 or a == b: continue
                 tstframe = np.zeros_like(msflat)
-                tstframe[np.where(slf._ampsec[det-1] == a+1)] = 1
-                tstframe[np.where(slf._ampsec[det-1] == b+1)] = 2
+                tstframe[np.where(slf._datasec[det-1] == a+1)] = 1
+                tstframe[np.where(slf._datasec[det-1] == b+1)] = 2
                 # Determine the total number of adjacent edges between amplifiers a and b
                 n0 = np.sum(tstframe[1:,:]-tstframe[:-1,:])
                 n1 = np.sum(tstframe[:,1:]-tstframe[:,:-1])
@@ -645,8 +645,8 @@ def get_ampscale(slf, det, msflat):
                     bbst = b
         # Determine the scaling factor for these two amplifiers
         tstframe = np.zeros_like(msflat)
-        tstframe[np.where(slf._ampsec[det-1] == abst+1)] = 1
-        tstframe[np.where(slf._ampsec[det-1] == bbst+1)] = 2
+        tstframe[np.where(slf._datasec[det-1] == abst+1)] = 1
+        tstframe[np.where(slf._datasec[det-1] == bbst+1)] = 2
         if abs(n0bst) > abs(n1bst):
             # The amplifiers overlap on the zeroth index
             w = np.where(tstframe[1:,:]-tstframe[:-1,:] != 0)
@@ -671,7 +671,7 @@ def get_ampscale(slf, det, msflat):
                 # pixel w[1][0] falls on amplifier b
                 sclval = sclframe[w[0], w[1][0]+1] / sclval
         # Finally, apply the scale factor thwe amplifier b
-        w = np.where(slf._ampsec[det-1] == bbst+1)
+        w = np.where(slf._datasec[det-1] == bbst+1)
         sclframe[w] = np.median(sclval)
         ampdone[bbst] = 1
     return sclframe
@@ -715,8 +715,6 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
             spect[dnum][datasec] = arparse.load_sections(secs[0][kk])
             oscansec = "oscansec{0:02d}".format(kk+1)
             spect[dnum][oscansec] = arparse.load_sections(secs[1][kk])
-            ampsec = "ampsec{0:02d}".format(kk+1)
-            spect[dnum][ampsec] = arparse.load_sections(secs[2][kk])
     # For convenience
     naxis0, naxis1 = int(fitsdict['naxis0'][scidx]), int(fitsdict['naxis1'][scidx])
     # Initialize the returned array
@@ -746,7 +744,7 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
             yfin = np.unique(np.append(yfin, yv.copy()))
     # Construct and array with the rows and columns to be extracted
     w = np.ix_(xfin, yfin)
-    slf._ampsec[det-1] = retarr[w]
+    slf._datasec[det-1] = retarr[w]
     return
 
 
@@ -1095,10 +1093,10 @@ def gain_frame(slf, det):
     dnum = 'det{0:02d}'.format(det)
 
     # Loop on amplifiers
-    gain_img = np.zeros_like(slf._ampsec[det-1])
+    gain_img = np.zeros_like(slf._datasec[det-1])
     for ii in range(spect[dnum]['numamplifiers']):
         amp = ii+1
-        amppix = slf._ampsec[det-1] == amp
+        amppix = slf._datasec[det-1] == amp
         gain_img[amppix] = spect[dnum]['gain'][amp-1]
     # Return
     return gain_img
@@ -1120,10 +1118,10 @@ def rn_frame(slf, det):
     dnum = 'det{0:02d}'.format(det)
 
     # Loop on amplifiers
-    rnimg = np.zeros_like(slf._ampsec[det-1])
+    rnimg = np.zeros_like(slf._datasec[det-1])
     for ii in range(spect[dnum]['numamplifiers']):
         amp = ii+1
-        amppix = slf._ampsec[det-1] == amp
+        amppix = slf._datasec[det-1] == amp
         rnimg[amppix] = (spect[dnum]['ronoise'][ii]**2 +
                          (0.5*spect[dnum]['gain'][ii])**2)
     # Return
