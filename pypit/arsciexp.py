@@ -25,7 +25,7 @@ try:
 except ImportError:
     import pdb as debugger
 
-# Logging and settings
+# Logging
 msgs = armsgs.get_logger()
 
 

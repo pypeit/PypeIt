@@ -14,7 +14,7 @@ from pypit import armsgs
 from pypit import arparse as settings
 from pypit import arutils
 
-# Logging and settings
+# Logging
 msgs = armsgs.get_logger()
 
 try:

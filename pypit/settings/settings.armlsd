@@ -29,6 +29,7 @@ reduce flatfield useframe pixelflat          # How to flat field the data (pixel
 reduce trace useframe slitflat          # How to flat field the data (pixelflat, slitflat), you can also specify a master calibrations file if it exists.
 reduce flexure method boxcar      # Perform flexure correction on objects using boxcar extraction.  Options are: None, boxcar, slitcen [this performs flexure correction before extraction of objects]
 reduce flexure maxshift 20      # Maximum allowed flexure shift in pixels (int)
+reduce flexure spectrum None
 reduce masters file None         #
 reduce masters loaded []         #
 reduce masters setup None            #
@@ -81,18 +82,19 @@ trace combine reject replace   maxnonsat     # What to do if all pixels are reje
 trace combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
 trace dispersion window       None          # Window used to obtain dispersion direction
 trace dispersion direction    None          # Manually specify the dispersion direction (0 for row, 1 for column)
-trace slits function    legendre      # What function should be used to trace each order? (polynomial, legendre, chebyshev)
-trace slits number      auto          # Manually set the number of slits to identify (>=1). 'auto' or -1 will automatically identify the number of slits.
-trace slits maxgap    None          # Maximum gap between slits (None if slits are far apart, or of similar illumination)
-trace slits single []                #
-trace slits polyorder  3             # What is the order of the function that should be used?
 trace slits diffpolyorder  2         # What is the order of the 2D function that should be used to fit the 2d solution for the spatial size of all orders?
-trace slits sigdetect  5.0           # Sigma detection threshold for edge detection
 trace slits fracignore 0.01           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
+trace slits function    legendre      # What function should be used to trace each order? (polynomial, legendre, chebyshev)
+trace slits maxgap    None          # Maximum gap between slits (None if slits are far apart, or of similar illumination)
+trace slits number      auto          # Manually set the number of slits to identify (>=1). 'auto' or -1 will automatically identify the number of slits.
 trace slits pca type pixel            # Should the PCA be performed using pixel position (pixel) or by spectral order (order). The latter is used for echelle spectroscopy.
 trace slits pca params [3,2,1,0,0,0]        # What order polynomials should be used to fit the principle components
 trace slits pca extrapolate pos     0             # How many extra orders to predict in the positive direction
 trace slits pca extrapolate neg     0             # How many extra orders to predict in the negative direction
+trace slits polyorder  3             # What is the order of the function that should be used?
+trace slits sigdetect  5.0           # Sigma detection threshold for edge detection
+trace slits single []                #
+trace slits tilts idsonly False       # Use only the arc lines that have an identified wavelength to trace tilts
 trace slits tilts method      spline        # What method should be used to trace the tilt of the slit along an order (PCA, spca, spline, interp, perp, zero)
 trace slits tilts params    [1,1,0]       # What order polynomials should be used to fit the tilt principle components
 trace slits tilts order  2             # What is the order of the function to be used for tilts in a given order

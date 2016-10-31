@@ -1040,6 +1040,29 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
+    def science_extraction_manual(self, cnmbr=1, name="none", params="[1,1000,500,[10,10]]"):
+        # Send parameters away to individual arguments
+        self.science_extraction_manual_name(name, cnmbr=cnmbr)
+        self.science_extraction_manual_params(params, cnmbr=cnmbr)
+
+    def science_extraction_manual_name(self, v, cnmbr=1):
+        cname = get_nmbr_name(cnmbr=cnmbr)
+        # Check that v is allowed
+        if v.lower() == "none":
+            v = None
+        elif ".fits" not in v:
+            msgs.error("The argument of {0:s} must be a fits file".format(cname))
+        # Update argument
+        self.update(v, ll=cname.split('_'))
+
+    def science_extraction_manual_params(self, v, cnmbr=1):
+        cname = get_nmbr_name(cnmbr=cnmbr)
+        # Check that v is allowed
+        if ".fits" not in v:
+            msgs.error("The argument of {0:s} must be a fits file".format(cname))
+        # Update argument
+        self.update(v, ll=cname.split('_'))
+
     def science_extraction_maxnumber(self, v):
         # Check that v is allowed
         try:

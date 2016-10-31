@@ -5,7 +5,7 @@ from pypit import arparse as settings
 from pypit import arsave
 
 
-# Logging and settings
+# Logging
 msgs = armsgs.get_logger()
 
 try:

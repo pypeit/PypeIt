@@ -51,11 +51,9 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     status = 0
 
     # Create a list of science exposure classes
-    debugger.set_trace()
     sciexp = armbase.SetupScience(fitsdict)
     numsci = len(sciexp)
 
-    debugger.set_trace()
     # Create a list of master calibration frames
     masters = armasters.MasterFrames(settings.spect['mosaic']['ndet'])
 
@@ -69,8 +67,6 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     else:
         settings.argflag['reduce']['masters']['file'] = setup_file
 
-    print(settings.spect['det01']['datasec01'])
-    assert(False)
     # Start reducing the data
     for sc in range(numsci):
         slf = sciexp[sc]
@@ -106,6 +102,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
             ###############
             # Determine the dispersion direction (and transpose if necessary)
+            debugger.set_trace()
             fitsdict = slf.GetDispersionDirection(fitsdict, det)
             if slf._bpix[det-1] is None:  # Needs to be done here after nspec is set
                 slf.SetFrame(slf._bpix, np.zeros((slf._nspec[det-1], slf._nspat[det-1])), det)

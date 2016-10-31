@@ -207,7 +207,6 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None,
                 else:
                     msgs.error("Could not subtract bias level when loading {0:s} frames".format(frametype))
             if trim:
-                debugger.set_trace()
                 temp = arproc.trim(temp, det)
         if i == 0:
             frames = np.zeros((temp.shape[0], temp.shape[1], np.size(ind)))

@@ -15,7 +15,7 @@ import scipy.interpolate as interp
 import scipy.ndimage as ndimage
 from collections import Counter
 
-# Logging and settings
+# Logging
 msgs = armsgs.get_logger()
 
 try:

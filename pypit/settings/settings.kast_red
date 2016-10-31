@@ -153,7 +153,7 @@ pixelflat match dispangle |<=20         # Match the cross-disperser angle (an un
 
 ### Slit Flat frames
 slitflat idname None                   # Header key value of trace frame for header keyword keyword+idname
-slitflat number 0                      # Number of trace frames to use
+slitflat number 3                      # Number of trace frames to use
 slitflat canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
 slitflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
 slitflat check condition2 exptime>1     # Required for bias
@@ -164,7 +164,7 @@ slitflat match dispangle |<=20         # Match the cross-disperser angle (an unc
 
 ### Trace frames
 trace idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
-trace number 5                    # Number of flat frames to use
+trace number 0                    # Number of flat frames to use
 trace canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
 trace lscomb False                # Combine a long and short flat
 trace check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on

@@ -2,7 +2,7 @@ import numpy as np
 from pypit import armsgs
 from pypit import arparse as settings
 
-# Logging and settings
+# Logging
 msgs = armsgs.get_logger()
 
 jyear = 365.25       # Julian Year

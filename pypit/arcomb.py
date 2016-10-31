@@ -50,7 +50,7 @@ def comb_frames(frames_arr, det, method='weightmean', weight=None, frametype='<N
         msgs.error("You cannot reject more frames than is available with 'reject lowhigh'." + msgs.newline() +
                    "There are {0:d} frames and reject lowhigh will reject {1:d} low and {2:d} high".format(num_frames, reject['lowhigh'][0], reject['lowhigh'][1]))
     # Check that some information on the frames was supplied
-    if spect is None:
+    if settings.spect is None:
         msgs.error("When combining the {0:s} frames, spectrograph information".format(frametype)+msgs.newline()+"was not provided")
     # Calculate the values to be used if all frames are rejected in some pixels
     if reject['replace'] == 'min':

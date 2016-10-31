@@ -8,7 +8,7 @@ from pypit import artrace
 from pypit import arutils
 from pypit import arqa
 
-# Logging and settings
+# Logging
 msgs = armsgs.get_logger()
 
 try:

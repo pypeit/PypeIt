@@ -43,8 +43,8 @@ det01 darkcurr 0.0                    # Dark current (e-/hour)
 det01 saturation 65535.0              # The detector Saturation level
 det01 nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det01 numamplifiers 2                 # Number of amplifiers
-det01 gain 1.2                        # Inverse gain (e-/ADU)
-det01 ronoise 3.7                     # Read-out noise (e-)
+det01 gain 1.2,1.2                    # Inverse gain (e-/ADU)
+det01 ronoise 3.7,3.7                 # Read-out noise (e-)
 det01 suffix _blue                    # Suffix to be appended to all saved calibration and extraction frames
 det01 datasec01 [:,0:1024]        # Either the data sections or the header keyword where the valid data sections can be obtained
 det01 oscansec01 [:,2049:2080]    # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
@@ -154,7 +154,7 @@ pixelflat match decker ''             # Check the same decker as the science fra
 
 ### Slit Flat frames
 slitflat idname None                   # Header key value of trace frame for header keyword keyword+idname
-slitflat number 0                      # Number of trace frames to use
+slitflat number 3                      # Number of trace frames to use
 slitflat canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
 slitflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
 slitflat check condition2 exptime>1     # Required for bias
