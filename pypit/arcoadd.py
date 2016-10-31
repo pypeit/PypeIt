@@ -598,6 +598,7 @@ def load_spec(files, iextensions=None, extract='opt'):
 def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
                   scale_method='auto', sig_clip=False,
                   do_offset=False, sigrej_final=3.,
+                  do_var_corr=True,
                   do_cr=True, **kwargs):
     """
     Parameters
@@ -636,8 +637,18 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     # Initial coadd
     spec1d = one_d_coadd(rspec, weights)
 
+    def get_std_dev(irspec, ispec1d):
+        dev_sig = (irspec.data['flux'] - ispec1d.flux) / (irspec.data['sig']**2 + ispec1d.sig**2)
+        std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=5, iters=2))
+        return std_dev
+
+    std_dev = get_std_dev(rspec, spec1d)
+    msgs.info("Initial std_dev = {:g}".format(std_dev))
+
     iters = 0
     std_dev = 0.
+    var_corr = 1.
+
     while np.absolute(std_dev - 1.) >= 0.1 and iters < niter:
         iters += 1
         msgs.info("Iterating on coadding... iter={:d}".format(iters))
@@ -736,12 +747,16 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
 
         # Coadd anew
         spec1d = one_d_coadd(rspec, weights)
-        dev_sig = (rspec.data['flux'] - spec1d.flux) / (rspec.data['sig']**2 + spec1d.sig**2)
-        debugger.set_trace()
-        std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=4, iters=2))
-        var_corr = var_corr * np.std(astropy.stats.sigma_clip(dev_sig, sigma=5, iters=2))
-        #msgs.info("Variance correction: {:g}".format(var_corr))
-        #msgs.info("New standard deviation: {:g}".format(std_dev))
+        # Calculate std_dev
+        std_dev = get_std_dev(rspec, spec1d)
+        var_corr = var_corr * std_dev
+        msgs.info("Desired variance correction: {:g}".format(var_corr))
+        msgs.info("New standard deviation: {:g}".format(std_dev))
+        if do_var_corr:
+            msgs.info("Correcting variance")
+            for ispec in xrange(rspec.nspec):
+                rspec.data['sig'][ispec] *= np.sqrt(var_corr)
+            spec1d = one_d_coadd(rspec, weights)
 
     if iters == 0:
         msgs.warn("No iterations on coadding done")
