@@ -104,7 +104,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
             ###############
             # Determine the dispersion direction (and transpose if necessary)
-            slf.GetDispersionDirection(fitsdict, det, scidx)
+            fitsdict = slf.GetDispersionDirection(fitsdict, det)
             if slf._bpix[det-1] is None:  # Needs to be done here after nspec is set
                 slf.SetFrame(slf._bpix, np.zeros((slf._nspec[det-1], slf._nspat[det-1])), det)
             '''

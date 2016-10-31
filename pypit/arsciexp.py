@@ -200,7 +200,7 @@ class ScienceExposure:
         del bpix
         return True
 
-    def GetDispersionDirection(self, fitsdict, det, scidx):
+    def GetDispersionDirection(self, fitsdict, det):
         """ Set the dispersion axis.
         If necessary, transpose frames and adjust information as needed
 
@@ -210,8 +210,6 @@ class ScienceExposure:
           Contains relevant information from fits header files
         det : int
           Index of the detector
-        scidx : int
-          Index of frame
 
         Returns
         -------
@@ -256,10 +254,11 @@ class ScienceExposure:
                     self.SetFrame(self._bpix, self._bpix[det-1].T, det)
             # Transpose the amplifier sections frame
             self.SetFrame(self._datasec, self._datasec[det - 1].T, det)
-            # Update the keywords of the fits files
-            temp = fitsdict['naxis0'][scidx]
-            fitsdict['naxis0'][scidx] = fitsdict['naxis1'][scidx]
-            fitsdict['naxis1'][scidx] = temp
+            # Update the keywords of all fits files
+            for ff in range(len(fitsdict['naxis0'])):
+                temp = fitsdict['naxis0'][ff]
+                fitsdict['naxis0'][ff] = fitsdict['naxis1'][ff]
+                fitsdict['naxis1'][ff] = temp
             # Change the user-specified (x,y) pixel sizes
             tmp = spect[dnum]['xgap']
             spect[dnum]['xgap'] = spect[dnum]['ygap']
@@ -278,6 +277,7 @@ class ScienceExposure:
             msgs.info("Not transposing")
         # Set the number of spectral and spatial pixels
         self._nspec[det-1], self._nspat[det-1] = self._msarc[det-1].shape
+        return fitsdict
 
     def GetPixelLocations(self, det):
         """

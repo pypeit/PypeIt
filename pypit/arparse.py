@@ -716,14 +716,17 @@ class BaseArgFlag(BaseFunctions):
 
     def reduce_flexure_spectrum(self, v):
         # Check that v is allowed
-        if not pathexists(self._argflag['run']['pypitdir'] + 'data/sky_spec/' + v):
-            files_sky = glob(self._argflag['run']['pypitdir'] + 'data/sky_spec/*.fits')
-            skyfiles = ""
-            for i in files_sky:
-                skyfiles += msgs.newline() + "  - " + str(i.split("/")[-1])
-            msgs.error("The following archive sky spectrum file does not exist:" + msgs.newline() +
-                       "  " + v + msgs.newline() + msgs.newline() + "Please use one of the files listed below:" +
-                       skyfiles)
+        if v.lower() == 'none':
+            v = None
+        else:
+            if not pathexists(self._argflag['run']['pypitdir'] + 'data/sky_spec/' + v):
+                files_sky = glob(self._argflag['run']['pypitdir'] + 'data/sky_spec/*.fits')
+                skyfiles = ""
+                for i in files_sky:
+                    skyfiles += msgs.newline() + "  - " + str(i.split("/")[-1])
+                msgs.error("The following archive sky spectrum file does not exist:" + msgs.newline() +
+                           "  " + v + msgs.newline() + msgs.newline() + "Please use one of the files listed below:" +
+                           skyfiles)
         # Update argument
         self.update(v)
         return
@@ -1297,18 +1300,6 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def trace_slits_idsonly(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
-        self.update(v)
-        return
-
     def trace_slits_maxgap(self, v):
         # Check that v is allowed
         if v.lower() == "none":
@@ -1411,6 +1402,18 @@ class BaseArgFlag(BaseFunctions):
     def trace_slits_single(self, v):
         # Check that v is allowed
         v = load_list(v)
+        # Update argument
+        self.update(v)
+        return
+
+    def trace_slits_tilts_idsonly(self, v):
+        # Check that v is allowed
+        if v.lower() == "true":
+            v = True
+        elif v.lower() == "false":
+            v = False
+        else:
+            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
         # Update argument
         self.update(v)
         return

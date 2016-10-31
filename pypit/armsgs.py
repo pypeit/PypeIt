@@ -259,7 +259,7 @@ class Messages:
         """
         Print a work in progress message
         """
-        if self._verbosity == 2:
+        if self._debug['develop']:
             dbgmsg = self.debugmessage()
             premsgp = self._start + self._black_CL + "[WORK IN ]::" + self._end + "\n"
             premsgs = self._start + self._yellow_CL + "[PROGRESS]::" + self._end + " "
