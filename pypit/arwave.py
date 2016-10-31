@@ -11,12 +11,11 @@ from astropy import units as u
 from pypit import ararc
 from pypit import arextract
 from pypit import armsgs
-from pypit import arparse
+from pypit import arparse as settings
 from pypit import arutils
 
 # Logging and settings
 msgs = armsgs.get_logger()
-argflag = arparse.get_argflag().__dict__['_argflag']
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -121,7 +120,7 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     #Create array around the max of the correlation function for fitting for subpixel max
     # Restrict to pixels within maxshift of zero lag
     lag0 = corr.size/2
-    mxshft = argflag['reduce']['flexure']['maxshift']
+    mxshft = settings.argflag['reduce']['flexure']['maxshift']
     max_corr = np.argmax(corr[lag0-mxshft:lag0+mxshft]) + lag0-mxshft
     subpix_grid = np.linspace(max_corr-3., max_corr+3., 7.)
 
@@ -151,17 +150,17 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
 def flexure_archive():
     """  Load archived sky spectrum
     """
-    #   latitude = spect['mosaic']['latitude']
-    #   longitude = spect['mosaic']['longitude']
-    root = argflag['run']['pypitdir']
-    if argflag['reduce']['flexure']['spectrum'] is None:
+    #   latitude = settings.spect['mosaic']['latitude']
+    #   longitude = settings.spect['mosaic']['longitude']
+    root = settings.argflag['run']['pypitdir']
+    if settings.argflag['reduce']['flexure']['spectrum'] is None:
         # Red or blue?
-        if argflag['run']['spectrograph'] in ['kast_blue', 'lris_blue']:
+        if settings.argflag['run']['spectrograph'] in ['kast_blue', 'lris_blue']:
             skyspec_fil = 'sky_kastb_600.fits'
         else:
             skyspec_fil = 'paranal_sky.fits'
     else:
-        skyspec_fil = argflag['reduce']['flexure']['spectrum']
+        skyspec_fil = settings.argflag['reduce']['flexure']['spectrum']
     #
     msgs.info("Using {:s} file for Sky spectrum".format(skyspec_fil))
     arx_sky = xspectrum1d.XSpectrum1D.from_file(root+'/data/sky_spec/'+skyspec_fil)
@@ -248,12 +247,12 @@ def flexure_obj(slf, det):
     for specobj in slf._specobjs[det-1]:  # for convenience
 
         # Using boxcar
-        if argflag['reduce']['flexure']['method'] in ['boxcar', 'slitcen']:
+        if settings.argflag['reduce']['flexure']['method'] in ['boxcar', 'slitcen']:
             sky_wave = specobj.boxcar['wave'].to('AA').value
             sky_flux = specobj.boxcar['sky']
         else:
             msgs.error("Not ready for this flexure method: {}".format(
-                    argflag['reduce']['flexure']))
+                    settings.argflag['reduce']['flexure']))
 
         # Generate 1D spectrum for object
         obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave, sky_flux))

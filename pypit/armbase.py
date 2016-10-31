@@ -3,14 +3,12 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 import sys
 import numpy as np
 from pypit import armsgs
-from pypit import arparse
+from pypit import arparse as settings
 from pypit import arsort
 from pypit import arsciexp
 
-# Logging and settings
+# Logging
 msgs = armsgs.get_logger()
-argflag = arparse.get_argflag().__dict__['_argflag']
-spect = arparse.get_spect().__dict__['_spect']
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -36,12 +34,12 @@ def SetupScience(fitsdict):
     msgs.bug("Files and folders should not be deleted -- there should be an option to overwrite files automatically if they already exist, or choose to rename them if necessary")
     filesort = arsort.sort_data(fitsdict)
     # Write out the details of the sorted files
-    if argflag['output']['sorted'] is not None:
+    if settings.argflag['output']['sorted'] is not None:
         arsort.sort_write(fitsdict, filesort)
     # Match calibration frames to science frames
-    spect = arsort.match_science(fitsdict, filesort)
+    arsort.match_science(fitsdict, filesort)
     # If the user is only debugging, then exit now
-    if argflag['run']['calcheck']:
+    if settings.argflag['run']['calcheck']:
         msgs.info("Calibration check complete. Change the 'calcheck' flag to continue with data reduction")
         sys.exit()
     # Make directory structure for different objects

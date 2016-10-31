@@ -3,14 +3,13 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 import numpy as np
 from astropy import units as u
 from pypit import armsgs
-from pypit import arparse
+from pypit import arparse as settings
 from pypit import artrace
 from pypit import arutils
 from pypit import arqa
 
 # Logging and settings
 msgs = armsgs.get_logger()
-argflag = arparse.get_argflag().__dict__['_argflag']
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -185,7 +184,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
             weight_val = 1./sigframe[gdprof]  # 1/N
             msgs.work("Weight by S/N in boxcar extraction? [avoid CRs; smooth?]")
             # Fit
-            fdict = dict(func=argflag['science']['extraction']['profile'], deg=3)
+            fdict = dict(func=settings.argflag['science']['extraction']['profile'], deg=3)
             if fdict['func'] == 'gaussian':
                 fdict['deg'] = 2
             elif fdict['func'] == 'moffat':

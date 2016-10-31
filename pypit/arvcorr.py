@@ -1,10 +1,9 @@
 import numpy as np
 from pypit import armsgs
-from pypit import arparse
+from pypit import arparse as settings
 
 # Logging and settings
 msgs = armsgs.get_logger()
-spect = arparse.get_spect().__dict__['_spect']
 
 jyear = 365.25       # Julian Year
 j2000 = 2000.0       # J2000 epoch
@@ -229,9 +228,9 @@ def helio_corr(slf, idx):
     hdr_ra = ra
     hdr_dec = dec
     hdr_equ = equinox
-    hdr_lat = spect['mosaic']['latitude']
-    hdr_lon = spect['mosaic']['longitude']
-    hdr_alt = spect['mosaic']['elevation']
+    hdr_lat = settings.spect['mosaic']['latitude']
+    hdr_lon = settings.spect['mosaic']['longitude']
+    hdr_alt = settings.spect['mosaic']['elevation']
     vhel = vhelio(hdr_jd, hdr_exptime, hdr_ra, hdr_dec, hdr_equ, hdr_lat, hdr_lon, hdr_alt)
     msgs.info("Heliocentric velocity correction = {0:+.4f} km/s for file:".format(vhel) + msgs.newline() +
               slf._fitsdict["filename"][idx])

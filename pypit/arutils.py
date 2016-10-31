@@ -157,8 +157,8 @@ def dummy_self(pypitdir=None, inum=0, fitsdict=None, nfile=10):
     for jj,key in enumerate(spect.keys()):
         if key in ['det']:
             continue
-        if 'index' in spect[key].keys():
-            spect[key]['index'] = [[kk]*nfile]
+        if 'index' in settings.spect[key].keys():
+            settings.spect[key]['index'] = [[kk]*nfile]
             kk += 1
     argflag = arload.argflag_init()
     if fitsdict is None:
@@ -168,13 +168,13 @@ def dummy_self(pypitdir=None, inum=0, fitsdict=None, nfile=10):
     #
     if pypitdir is None:
         pypitdir = __file__[0:__file__.rfind('/')]
-    argflag['run']['pypitdir'] = pypitdir
-    argflag['run']['spectrograph'] = 'dummy'
-    argflag['run']['directory']['science'] = './'
+    settings.argflag['run']['pypitdir'] = pypitdir
+    settings.argflag['run']['spectrograph'] = 'dummy'
+    settings.argflag['run']['directory']['science'] = './'
     #
-    spect['mosaic'] = {}
-    spect['mosaic']['ndet'] = 1
-    spect['det'] = [{'binning':'1x1'}]
+    settings.spect['mosaic'] = {}
+    settings.spect['mosaic']['ndet'] = 1
+    settings.spect['det'] = [{'binning':'1x1'}]
     #
     return slf
 

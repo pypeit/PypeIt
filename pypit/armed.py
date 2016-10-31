@@ -14,8 +14,6 @@ except ImportError:
 
 # Logging
 msgs = armsgs.get_logger()
-argflag = arparse.get_argflag().__dict__['_argflag']
-spect = arparse.get_spect().__dict__['_spect']
 
 
 def ARMED(fitsdict, reuseMaster=False):
@@ -47,7 +45,7 @@ def ARMED(fitsdict, reuseMaster=False):
     numsci = len(sciexp)
 
     # Create a list of master calibration frames
-    masters = armasters.MasterFrames(spect['mosaic']['ndet'])
+    masters = armasters.MasterFrames(settings.spect['mosaic']['ndet'])
 
     # Start reducing the data
     for sc in range(numsci):
@@ -55,7 +53,7 @@ def ARMED(fitsdict, reuseMaster=False):
         scidx = slf._idx_sci[0]
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
         # Loop on Detectors
-        for kk in range(spect['mosaic']['ndet']):
+        for kk in range(settings.spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             ###############
             # Get amplifier sections

@@ -12,7 +12,7 @@ from astropy import units as u
 from astropy import coordinates as coords
 
 from pypit import armsgs
-from pypit import arparse
+from pypit import arparse as settings
 
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
@@ -24,10 +24,8 @@ try:
 except ImportError:
     import pdb as debugger
 
-# Logging and settings
+# Logging
 msgs = armsgs.get_logger()
-argflag = arparse.get_argflag().__dict__['_argflag']
-spect = arparse.get_spect().__dict__['_spect']
 
 
 def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
@@ -279,7 +277,7 @@ def load_calspec():
     """
     # Read
     calspec_path = '/data/standards/calspec/'
-    calspec_file = argflag['run']['pypitdir'] + calspec_path + 'calspec_info.txt'
+    calspec_file = settings.argflag['run']['pypitdir'] + calspec_path + 'calspec_info.txt'
     calspec_stds = Table.read(calspec_file, comment='#', format='ascii')
     # Return
     return calspec_path, calspec_stds
@@ -301,10 +299,10 @@ def load_extinction_data(toler=5.*u.deg):
       astropy Table containing the 'wavelength', 'extinct' data for AM=1.
     """
     # Mosaic coord
-    mosaic_coord = SkyCoord(spect['mosaic']['longitude'],
-                            spect['mosaic']['latitude'], frame='gcrs', unit=u.deg)
+    mosaic_coord = SkyCoord(settings.spect['mosaic']['longitude'],
+                            settings.spect['mosaic']['latitude'], frame='gcrs', unit=u.deg)
     # Read list
-    extinct_path = argflag['run']['pypitdir']+'/data/extinction/'
+    extinct_path = settings.argflag['run']['pypitdir']+'/data/extinction/'
     extinct_summ = extinct_path+'README'
     extinct_files = Table.read(extinct_summ,comment='#',format='ascii')
     # Coords
@@ -343,7 +341,7 @@ def load_standard_file(std_dict):
     std_flux : Quantity array
       Flux of standard star
     """
-    fil = glob.glob(argflag['run']['pypitdir'] +
+    fil = glob.glob(settings.argflag['run']['pypitdir'] +
                     std_dict['file']+'*')
     if len(fil) == 0:
         msgs.error("No standard star file: {:s}".format(fil))

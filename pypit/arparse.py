@@ -16,6 +16,9 @@ from pypit import armsgs
 debug = ardebug.init()
 msgs = armsgs.get_logger()
 
+# Initialize the settings variables
+argflag, spect = None, None
+
 try:
     from xastropy.xutils import xdebug as debugger
 except ImportError:
@@ -2728,7 +2731,23 @@ class ARMED_spect(BaseSpect):
         self.update(v)
 
 
-def get_argflag(init=None):
+def init(afclass, spclass):
+    """
+    Initialize the settings
+    ----------
+    afclass : class
+      Class of arguments and flags
+    spclass : class
+      Class of spectrograph settings
+    """
+    global argflag
+    argflag = afclass.__dict__['_argflag']
+    global spect
+    spect = spclass.__dict__['_spect']
+    return
+
+
+def get_argflag_class(init=None):
     """
     Get the Arguments and Flags
     ----------
@@ -2739,40 +2758,29 @@ def get_argflag(init=None):
     -------
     argflag : Arguments and Flags
     """
-    global pypit_argflag
-
-    # Instantiate??
-    if init is not None:
-        try:
-            defname = glob(dirname(__file__))[0] + "/settings/settings." + init[0].lower()
-            pypit_argflag = eval(init[0]+"(defname='{0:s}', savname='{1:s}.settings')".format(defname, init[1]))
-        except RuntimeError:
-            msgs.error("Reduction type '{0:s}' is not allowed".format(init))
-
-    return pypit_argflag
+    try:
+        defname = glob(dirname(__file__))[0] + "/settings/settings." + init[0].lower()
+        return eval(init[0]+"(defname='{0:s}', savname='{1:s}.settings')".format(defname, init[1]))
+    except RuntimeError:
+        msgs.error("Reduction type '{0:s}' is not allowed".format(init))
 
 
-def get_spect(init=None):
+def get_spect_class(init):
     """
-    Get the Arguments and Flags
+    Get the Spectrograph settings class
     ----------
     init : tuple
       For instantiation
 
     Returns
     -------
-    argflag : Arguments and Flags
+    spect_class : Class of spectrograph settings
     """
-    global pypit_spect
-
-    # Instantiate??
-    if init is not None:
-        try:
-            defname = glob(dirname(__file__))[0] + "/settings/settings." + init[1].lower()
-            pypit_spect = eval(init[0]+"_spect(defname='{0:s}', savname='{1:s}.spect')".format(defname, init[2]))
-        except RuntimeError:
-            msgs.error("{0:s} is not implemented yet".format(init[1]))
-    return pypit_spect
+    try:
+        defname = glob(dirname(__file__))[0] + "/settings/settings." + init[1].lower()
+        return eval(init[0]+"_spect(defname='{0:s}', savname='{1:s}.spect')".format(defname, init[2]))
+    except RuntimeError:
+        msgs.error("{0:s} is not implemented yet".format(init[1]))
 
 
 def get_current_name():

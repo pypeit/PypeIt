@@ -6,7 +6,7 @@ import sys
 import shutil
 import numpy as np
 from pypit import armsgs
-from pypit import arparse
+from pypit import arparse as settings
 from pypit import arutils
 from pypit.arflux import find_standard_file
 from astropy.io.votable.tree import VOTableFile, Resource, Table, Field
@@ -24,10 +24,8 @@ try:
 except NameError:
     basestring = str
 
-# Logging and settings
+# Logging
 msgs = armsgs.get_logger()
-argflag = arparse.get_argflag().__dict__['_argflag']
-spect = arparse.get_spect().__dict__['_spect']
 
 
 def sort_data(fitsdict):
@@ -62,19 +60,19 @@ def sort_data(fitsdict):
     # Identify the frames:
     for i in range(len(fkey)):
         # Self identification
-        if argflag['run']['useIDname']:
-            w = np.where(fitsdict['idname'] == spect[fkey[i]]['idname'])[0]
+        if settings.argflag['run']['useIDname']:
+            w = np.where(fitsdict['idname'] == settings.spect[fkey[i]]['idname'])[0]
             msgs.info("Sorting files")
         else:
             w = np.arange(numfiles)
         n = np.arange(numfiles)
         n = np.intersect1d(n, w)
         # Perform additional checks in order to make sure this identification is true
-        chkk = spect[fkey[i]]['check'].keys()
+        chkk = settings.spect[fkey[i]]['check'].keys()
         for ch in chkk:
             if ch[0:9] == 'condition':
                 # Deal with a conditional argument
-                conds = re.split("(\||\&)", spect[fkey[i]]['check'][ch])
+                conds = re.split("(\||\&)", settings.spect[fkey[i]]['check'][ch])
                 ntmp = chk_condition(fitsdict, conds[0])
                 # And more
                 for cn in range((len(conds)-1)//2):
@@ -86,15 +84,15 @@ def sort_data(fitsdict):
             else:
                 if fitsdict[ch].dtype.char == 'S':  # Numpy string array
                     # Strip numpy string array of all whitespace
-                    w = np.where(np.char.strip(fitsdict[ch]) == spect[fkey[i]]['check'][ch])[0]
+                    w = np.where(np.char.strip(fitsdict[ch]) == settings.spect[fkey[i]]['check'][ch])[0]
                 else:
-                    w = np.where(fitsdict[ch] == spect[fkey[i]]['check'][ch])[0]
+                    w = np.where(fitsdict[ch] == settings.spect[fkey[i]]['check'][ch])[0]
             n = np.intersect1d(n, w)
         # Assign these filetypes
         filarr[i,:][n] = 1
         # Check if these files can also be another type
-        if spect[fkey[i]]['canbe'] is not None:
-            for cb in spect[fkey[i]]['canbe']:
+        if settings.spect[fkey[i]]['canbe'] is not None:
+            for cb in settings.spect[fkey[i]]['canbe']:
                 # Assign these filetypes
                 fa = np.where(fkey == cb)[0]
                 if np.size(fa) == 1: filarr[fa[0],:][n] = 1
@@ -109,13 +107,13 @@ def sort_data(fitsdict):
 #				# For each file with a clash, get all frames that have been assigned to it
 #				tarr = np.where(filarr[:,n[bdf[b]]]==1)[0]
 #				for a in tarr:
-#					if spect[fkey[i]]['canbe'] is None:
+#					if settings.spect[fkey[i]]['canbe'] is None:
 #						print "{0:s} can only be of type: {1:s}, and is marked as {2:s}".format(fitsdict['filename'][n[bdf[b]]],fkey[i],fkey[a])
 #						clashfound=True
-#					elif fkey[a] not in spect[fkey[i]]['canbe']:
+#					elif fkey[a] not in settings.spect[fkey[i]]['canbe']:
 #						print "{0:s}  current filetype: {1:s}".format(fitsdict['filename'][n[bdf[b]]],fkey[a])
 #						clashfound=True
-#			if clashfound: msgs.error("Check these files and your settings.{0:s} file before continuing.".format(argflag['run']['spectrograph'])+msgs.newline()+"You can use the 'canbe' option to allow one frame to have multiple types.")
+#			if clashfound: msgs.error("Check these files and your settings.{0:s} file before continuing.".format(settings.argflag['run']['spectrograph'])+msgs.newline()+"You can use the 'canbe' option to allow one frame to have multiple types.")
 #			else: msgs.info("Clash permitted")
     # Identify the standard stars
     # Find the nearest standard star to each science frame
@@ -136,9 +134,9 @@ def sort_data(fitsdict):
             filarr[np.where(fkey == 'standard')[0], wscistd[i]] = 0
     # Make any forced changes
     msgs.info("Making forced file identification changes")
-    skeys = spect['set'].keys()
+    skeys = settings.spect['set'].keys()
     for sk in skeys:
-        for j in spect['set'][sk]:
+        for j in settings.spect['set'][sk]:
             w = np.where(fitsdict['filename']==j)[0]
             filarr[:,w]=0
             setarr[np.where(fkey==sk)[0],w]=1
@@ -150,10 +148,10 @@ def sort_data(fitsdict):
         msgs.info("Couldn't identify the following files:")
         for i in range(np.size(badfiles)):
             msgs.info(fitsdict['filename'][badfiles[i]])
-        msgs.error("Check these files and your settings.{0:s} file before continuing".format(argflag['run']['spectrograph']))
+        msgs.error("Check these files and your settings.{0:s} file before continuing".format(settings.argflag['run']['spectrograph']))
     # Now identify the dark frames
     wdark = np.where((filarr[np.where(fkey == 'bias')[0],:] == 1).flatten() &
-        (fitsdict['exptime'].astype(np.float64) > spect['mosaic']['minexp']))[0]
+        (fitsdict['exptime'].astype(np.float64) > settings.spect['mosaic']['minexp']))[0]
     ftag['dark'] = wdark
     # Store the frames in the ftag array
     for i in range(len(fkey)):
@@ -238,7 +236,7 @@ def sort_write(fitsdict, filesort, space=3):
     prord = ['filename', 'frametype', 'target', 'exptime', 'naxis0', 'naxis1', 'filter1', 'filter2']
     prdtp = ["char",     "char",      "char",   "double",  "int",    "int",    "char",     "char"]
     # Now insert the remaining keywords:
-    fkey = spect['keyword'].keys()
+    fkey = settings.spect['keyword'].keys()
     for i in fkey:
         if i not in prord:
             prord.append(i)
@@ -283,7 +281,7 @@ def sort_write(fitsdict, filesort, space=3):
     #if len(osspl) > 1:
     #    fname = sortname
     #else:
-    fname = argflag['output']['sorted']+'.xml'
+    fname = settings.argflag['output']['sorted']+'.xml'
     votable.to_xml(fname)
     msgs.info("Successfully written sorted data information file:"+msgs.newline() +
               "{0:s}".format(fname))
@@ -306,7 +304,7 @@ def sort_write(fitsdict, filesort, space=3):
     # Create Table
     jxp_tbl = tTable(clms)
     # Write
-    jxp_name = argflag['output']['sorted']+'.lst'
+    jxp_name = settings.argflag['output']['sorted']+'.lst'
     jxp_tbl.write(jxp_name, format='ascii.fixed_width')
     return
 
@@ -321,11 +319,6 @@ def match_science(fitsdict, filesort):
       Contains relevant information from fits header files
     filesort : dict
       Details of the sorted files
-
-    Returns
-    -------
-    spect : bool array
-      A boolean array of all frames that satisfy the input condition
     """
 
     msgs.info("Matching calibrations to Science frames")
@@ -344,21 +337,21 @@ def match_science(fitsdict, filesort):
     i = 0
     while i < nSCI:
         msgs.info("Matching calibrations to {0:s}".format(fitsdict['target'][iSCI[i]]))
-        spect['science']['index'].append(np.array([iSCI[i]]))
+        settings.spect['science']['index'].append(np.array([iSCI[i]]))
         # Find nearby calibration frames
         for ft in range(len(ftag)):
             # Some checks first to make sure we need to find matching frames
-            if ftag[ft] == 'dark' and argflag['bias']['useframe'] != 'dark':
+            if ftag[ft] == 'dark' and settings.argflag['bias']['useframe'] != 'dark':
                 msgs.info("  Dark frames not required")
                 continue
-            if ftag[ft] == 'bias' and argflag['bias']['useframe'] != 'bias' and not argflag['reduce']['badpix']:
+            if ftag[ft] == 'bias' and settings.argflag['bias']['useframe'] != 'bias' and not settings.argflag['reduce']['badpix']:
                 msgs.info("  Bias frames not required")
                 continue
             # Now go ahead and match the frames
             n = np.arange(nfiles)
-            chkk = spect[ftag[ft]]['match'].keys()
+            chkk = settings.spect[ftag[ft]]['match'].keys()
             for ch in chkk:
-                tmtch = spect[ftag[ft]]['match'][ch]
+                tmtch = settings.spect[ftag[ft]]['match'][ch]
                 if tmtch == "''":
                     w = np.where(fitsdict[ch] == fitsdict[ch][iSCI[i]])[0]
                 elif tmtch[0] == '=':
@@ -429,15 +422,15 @@ def match_science(fitsdict, filesort):
                     msgs.bug("Matching criteria {0:s} is not supported".format(tmtch))
                 n = np.intersect1d(n, w)  # n corresponds to all frames with matching instrument setup to science frames
             # Find the time difference between the calibrations and science frames
-            if spect['fits']['calwin'] > 0.0:
+            if settings.spect['fits']['calwin'] > 0.0:
                 tdiff = np.abs(fitsdict['time'][n].astype(np.float64)-np.float64(fitsdict['time'][iSCI[i]]))
-                w = np.where(tdiff <= spect['fits']['calwin'])[0]
+                w = np.where(tdiff <= settings.spect['fits']['calwin'])[0]
                 n = n[w] # n corresponds to all frames within a set time difference of the science target frame
             # Now find which of the remaining n are the appropriate calibration frames
             n = np.intersect1d(n, iARR[ft])
             # How many frames are required
-            numfr = spect[ftag[ft]]['number']
-            if argflag['output']['verbosity'] == 2:
+            numfr = settings.spect[ftag[ft]]['number']
+            if settings.argflag['output']['verbosity'] == 2:
                 if numfr == 1: areis = "is"
                 else: areis = "are"
                 if np.size(n) == 1:
@@ -450,31 +443,31 @@ def match_science(fitsdict, filesort):
                 msgs.warn("  Only {0:d}/{1:d} {2:s} frames for {3:s}".format(np.size(n), numfr, ftag[ft],
                                                                              fitsdict['target'][iSCI[i]]))
                 # Errors for insufficient BIAS frames
-                if argflag['bias']['useframe'].lower() == ftag[ft]:
+                if settings.argflag['bias']['useframe'].lower() == ftag[ft]:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient PIXELFLAT frames
-                if ftag[ft] == 'pixelflat' and argflag['reduce']['flatfield']['perform']:
+                if ftag[ft] == 'pixelflat' and settings.argflag['reduce']['flatfield']['perform']:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient SLITFLAT frames
-                if ftag[ft] == 'slitflat' and argflag['reduce']['flatfield']['perform']:
+                if ftag[ft] == 'slitflat' and settings.argflag['reduce']['flatfield']['perform']:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient TRACE frames
                 if ftag[ft] == 'trace':
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient ARC frames
-                if ftag[ft] == 'arc' and argflag['reduce']['calibrate']:
+                if ftag[ft] == 'arc' and settings.argflag['reduce']['calibrate']:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient ARC frames
-                if ftag[ft] == 'standard' and argflag['reduce']['calibrate']['flux']:
+                if ftag[ft] == 'standard' and settings.argflag['reduce']['calibrate']['flux']:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
             else:
                 # Select the closest calibration frames to the science frame
                 tdiff = np.abs(fitsdict['time'][n].astype(np.float64)-np.float64(fitsdict['time'][iSCI[i]]))
                 wa = np.argsort(tdiff)
-                spect[ftag[ft]]['index'].append(n[wa[:numfr]])
+                settings.spect[ftag[ft]]['index'].append(n[wa[:numfr]])
         i += 1
     msgs.info("Science frames successfully matched to calibration frames")
-    return spect
+    return
 
 
 def match_frames(frames, criteria, frametype='<None>', satlevel=None):
@@ -549,10 +542,10 @@ def make_dirs(fitsdict, filesort):
     # First, get the current working directory
     currDIR = os.getcwd()
     msgs.info("Creating Science directory")
-    newdir = "{0:s}/{1:s}".format(currDIR, argflag['run']['directory']['science'])
+    newdir = "{0:s}/{1:s}".format(currDIR, settings.argflag['run']['directory']['science'])
     if os.path.exists(newdir):
         msgs.info("The following directory already exists:"+msgs.newline()+newdir)
-        if not argflag['output']['overwrite']:
+        if not settings.argflag['output']['overwrite']:
             rmdir = ''
             while os.path.exists(newdir):
                 while rmdir != 'n' and rmdir != 'y' and rmdir != 'r':
@@ -579,9 +572,9 @@ def make_dirs(fitsdict, filesort):
     rmalways = False
     for i in range(sci_targs.size):
         sci_targs[i] = sci_targs[i].replace(' ', '_')
-        newdir = "{0:s}/{1:s}/{2:s}".format(currDIR, argflag['run']['directory']['science'], sci_targs[i])
+        newdir = "{0:s}/{1:s}/{2:s}".format(currDIR, settings.argflag['run']['directory']['science'], sci_targs[i])
         if os.path.exists(newdir):
-            if argflag['output']['overwrite'] or rmalways:
+            if settings.argflag['output']['overwrite'] or rmalways:
                 pass
 #				shutil.rmtree(newdir)
 #				os.mkdir(newdir)
@@ -605,9 +598,9 @@ def make_dirs(fitsdict, filesort):
         nored = np.delete(nored, 0)
     # Create a directory where all of the master calibration frames are stored.
     msgs.info("Creating Master Calibrations directory")
-    newdir = "{0:s}/{1:s}".format(currDIR, argflag['run']['directory']['master'])
+    newdir = "{0:s}/{1:s}".format(currDIR, settings.argflag['run']['directory']['master'])
     if os.path.exists(newdir):
-        if not argflag['output']['overwrite']:
+        if not settings.argflag['output']['overwrite']:
             msgs.info("The following directory already exists:"+msgs.newline()+newdir)
             rmdir = ''
             while rmdir != 'n' and rmdir != 'y':
@@ -623,9 +616,9 @@ def make_dirs(fitsdict, filesort):
     else: os.mkdir(newdir)
     # Create a directory where all of the master calibration frames are stored.
     msgs.info("Creating Plots directory")
-    newdir = "{0:s}/{1:s}".format(currDIR, argflag['run']['directory']['qa'])
+    newdir = "{0:s}/{1:s}".format(currDIR, settings.argflag['run']['directory']['qa'])
     if os.path.exists(newdir):
-        if not argflag['output']['overwrite']:
+        if not settings.argflag['output']['overwrite']:
             msgs.info("The following directory already exists:"+msgs.newline()+newdir)
             rmdir=''
             while rmdir != 'n' and rmdir != 'y':
@@ -656,7 +649,7 @@ def calib_setup(sc, det, fitsdict, calib_dict,
     import json, io
     setup_str = [str('{:02d}'.format(i+1)) for i in range(99)]
     # Arc
-    idx = spect['arc']['index'][sc]
+    idx = settings.spect['arc']['index'][sc]
     disp_name = fitsdict["dispname"][idx[0]]
     disp_angle = fitsdict["dispangle"][idx[0]]
     # Common
@@ -717,8 +710,8 @@ def calib_setup(sc, det, fitsdict, calib_dict,
     # Write
     if write:
         gddict = ltu.jsonify(calib_dict)
-        setup_file = argflag['output']['sorted']+'.setup'
-        argflag['reduce']['masters']['file'] = setup_file
+        setup_file = settings.argflag['output']['sorted']+'.setup'
+        settings.argflag['reduce']['masters']['file'] = setup_file
         with io.open(setup_file, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4,
                                        separators=(',', ': '))))

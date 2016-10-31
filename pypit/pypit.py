@@ -185,8 +185,8 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
 
     # Initialize the arguments and flags
 #    argflag = arload.argflag_init()
-#    argflag['run']['ncpus'] = ncpus
-#    argflag['output']['verbosity'] = verbosity
+#    settings.argflag['run']['ncpus'] = ncpus
+#    settings.argflag['output']['verbosity'] = verbosity
 
     # Determine the name of the spectrograph
     specname = None
@@ -227,7 +227,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
                    "mosaic reduction <type>")
 
     # Load default reduction arguments/flags, and set any command line arguments
-    argf = arparse.get_argflag((redtype.upper(), ".".join(redname.split(".")[:-1])))
+    argf = arparse.get_argflag_class((redtype.upper(), ".".join(redname.split(".")[:-1])))
     lines = argf.load_file()
     argf.set_param('run pypitdir {0:s}'.format(tfname))
     argf.set_param('run progname {0:s}'.format(progname))
@@ -242,7 +242,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
         argf.set_paramlist(lines)
 
     # Load default spectrograph settings
-    spect = arparse.get_spect((redtype.upper(), specname, ".".join(redname.split(".")[:-1])))
+    spect = arparse.get_spect_class((redtype.upper(), specname, ".".join(redname.split(".")[:-1])))
     lines = spect.load_file()
     spect.set_paramlist(lines)
     # Load user changes to the arguments/flags
@@ -267,6 +267,9 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     # Finally, save the arguments/flags and spectrograph settings used for this reduction
     argf.save()
     spect.save()
+
+    # Now that all of the relevant settings are loaded, globalize the settings
+    arparse.init(argf, spect)
 
     # Load the important information from the fits headers
     from pypit import arload

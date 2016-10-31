@@ -5,7 +5,7 @@ import astropy.io.fits as pyfits
 from astropy.time import Time
 import numpy as np
 from pypit import armsgs
-from pypit import arparse
+from pypit import arparse as settings
 from pypit import arproc
 from pypit import arlris
 #from multiprocessing import Pool as mpPool
@@ -22,10 +22,8 @@ try:
 except ImportError:
     import pdb as debugger
 
-# Logging and settings
+# Logging
 msgs = armsgs.get_logger()
-argflag = arparse.get_argflag().__dict__['_argflag']
-spect = arparse.get_spect().__dict__['_spect']
 
 
 def load_headers(datlines):
@@ -44,32 +42,32 @@ def load_headers(datlines):
     fitsdict : dict
       The relevant header information of all fits files
     """
-    chks = spect['check'].keys()
-    keys = spect['keyword'].keys()
+    chks = settings.spect['check'].keys()
+    keys = settings.spect['keyword'].keys()
     fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
     whddict = dict({})
     for k in keys:
         fitsdict[k]=[]
-    headarr = [None for k in range(spect['fits']['numhead'])]
+    headarr = [None for k in range(settings.spect['fits']['numhead'])]
     numfiles = len(datlines)
     for i in range(numfiles):
         # Try to open the fits file
         try:
-            for k in range(spect['fits']['numhead']):
-                headarr[k] = pyfits.getheader(datlines[i], ext=spect['fits']['headext{0:02d}'.format(k+1)])
-                whddict['{0:02d}'.format(spect['fits']['headext{0:02d}'.format(k+1)])] = k
+            for k in range(settings.spect['fits']['numhead']):
+                headarr[k] = pyfits.getheader(datlines[i], ext=settings.spect['fits']['headext{0:02d}'.format(k+1)])
+                whddict['{0:02d}'.format(settings.spect['fits']['headext{0:02d}'.format(k+1)])] = k
         except:
-            msgs.error("Error reading header from extension {0:d} of file:".format(spect['fits']['headext{0:02d}'.format(k+1)])+msgs.newline()+datlines[i])
+            msgs.error("Error reading header from extension {0:d} of file:".format(settings.spect['fits']['headext{0:02d}'.format(k+1)])+msgs.newline()+datlines[i])
         # Perform checks on each fits files, as specified in the settings.instrument file.
         skip = False
         for ch in chks:
             tfrhd = int(ch.split('.')[0])-1
             kchk  = '.'.join(ch.split('.')[1:])
             frhd  = whddict['{0:02d}'.format(tfrhd)]
-            if spect['check'][ch] != str(headarr[frhd][kchk]).strip():
+            if settings.spect['check'][ch] != str(headarr[frhd][kchk]).strip():
                 print(ch, frhd, kchk)
-                print(spect['check'][ch], str(headarr[frhd][kchk]).strip())
-                msgs.warn("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
+                print(settings.spect['check'][ch], str(headarr[frhd][kchk]).strip())
+                msgs.warn("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(settings.argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
                 msgs.warn("Skipping the file..")
                 skip = True
         if skip:
@@ -81,7 +79,7 @@ def load_headers(datlines):
         fitsdict['filename'].append(dspl[-1])
         # Attempt to load a UTC
         utcfound = False
-        for k in range(spect['fits']['numhead']):
+        for k in range(settings.spect['fits']['numhead']):
             if 'UTC' in headarr[k].keys():
                 utc = headarr[k]['UTC']
                 utcfound = True
@@ -96,14 +94,14 @@ def load_headers(datlines):
             fitsdict['utc'].append(None)
             msgs.warn("UTC is not listed as a header keyword in file:"+msgs.newline()+datlines[i])
         # Read binning-dependent detector properties here? (maybe read speed too)
-        #if argflag['run']['spectrograph'] in ['lris_blue']:
+        #if settings.argflag['run']['spectrograph'] in ['lris_blue']:
         #    arlris.set_det(fitsdict, headarr[k])
         # Now get the rest of the keywords
         for kw in keys:
-            if spect['keyword'][kw] is None:
+            if settings.spect['keyword'][kw] is None:
                 value = str('None')  # This instrument doesn't have/need this keyword
             else:
-                ch = spect['keyword'][kw]
+                ch = settings.spect['keyword'][kw]
                 try:
                     tfrhd = int(ch.split('.')[0])-1
                 except ValueError:
@@ -118,14 +116,14 @@ def load_headers(datlines):
                         value=str('None')
             # Convert the input time into hours
             if kw == 'time':
-                if spect['fits']['timeunit']   == 's'  : value = float(value)/3600.0    # Convert seconds to hours
-                elif spect['fits']['timeunit'] == 'm'  : value = float(value)/60.0      # Convert minutes to hours
-                elif spect['fits']['timeunit'] in Time.FORMATS.keys() : # Astropy time format
-                    if spect['fits']['timeunit'] in ['mjd']:
+                if settings.spect['fits']['timeunit']   == 's'  : value = float(value)/3600.0    # Convert seconds to hours
+                elif settings.spect['fits']['timeunit'] == 'm'  : value = float(value)/60.0      # Convert minutes to hours
+                elif settings.spect['fits']['timeunit'] in Time.FORMATS.keys() : # Astropy time format
+                    if settings.spect['fits']['timeunit'] in ['mjd']:
                         ival = float(value)
                     else:
                         ival = value
-                    tval = Time(ival, scale='tt', format=spect['fits']['timeunit'])
+                    tval = Time(ival, scale='tt', format=settings.spect['fits']['timeunit'])
                     # dspT = value.split('T')
                     # dy,dm,dd = np.array(dspT[0].split('-')).astype(np.int)
                     # th,tm,ts = np.array(dspT[1].split(':')).astype(np.float64)
@@ -194,11 +192,11 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None,
     msgs.work("Implement multiprocessing here (better -- at the moment it's slower than not) to speed up data reading")
     for i in range(np.size(ind)):
         # Instrument specific read
-        if argflag['run']['spectrograph'] in ['lris_blue', 'lris_red']:
+        if settings.argflag['run']['spectrograph'] in ['lris_blue', 'lris_red']:
             temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         else:
-            temp = pyfits.getdata(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], spect['fits']['dataext'])
-        temp = temp.astype(float)  # Let us avoid uint16
+            temp = pyfits.getdata(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], settings.spect['fits']['dataext'])
+        temp = temp.astype(np.float)  # Let us avoid uint16
         if transpose: temp = temp.T
         if msbias is not None:
             if type(msbias) is np.ndarray:
@@ -209,6 +207,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None,
                 else:
                     msgs.error("Could not subtract bias level when loading {0:s} frames".format(frametype))
             if trim:
+                debugger.set_trace()
                 temp = arproc.trim(temp, det)
         if i == 0:
             frames = np.zeros((temp.shape[0], temp.shape[1], np.size(ind)))
@@ -216,10 +215,10 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None,
         else:
             frames[:,:,i] = temp.copy()
         del temp
-#	pool = mpPool(processes=np.min([argflag['run']['ncpus'],np.size(ind)]))
+#	pool = mpPool(processes=np.min([settings.argflag['run']['ncpus'],np.size(ind)]))
 #	async_results = []
 #	for i in range(np.size(ind)):
-#		async_results.append(pool.apply_async(pyfits.getdata, (fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], spect['fits']['dataext'])))
+#		async_results.append(pool.apply_async(pyfits.getdata, (fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], settings.spect['fits']['dataext'])))
 #	pool.close()
 #	pool.join()
 #	map(ApplyResult.wait, async_results)
