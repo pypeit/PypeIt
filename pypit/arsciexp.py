@@ -195,60 +195,6 @@ class ScienceExposure:
         del bpix
         return True
 
-    def GetDispersionDirection(self, fitsdict, det):
-        """ Set the dispersion axis.
-
-        Parameters
-        ----------
-        fitsdict : dict
-          Contains relevant information from fits header files
-        det : int
-          Index of the detector
-
-        Returns
-        -------
-        fitsdict : dict
-          Updates to the input fitsdict
-        """
-        dnum = 'det{0:02d}'.format(det)
-
-        self._dispaxis = int(settings.argflag['trace']['dispersion']['direction'])
-        # Perform a weak check to warn the user if the longest axis is not equal to the dispersion direction
-        if self._msarc[det-1].shape[0] > self._msarc[det-1].shape[1]:
-            if self._dispaxis == 1: msgs.warn("The dispersion axis is set to the shorter axis, is this correct?")
-        else:
-            if self._dispaxis == 0: msgs.warn("The dispersion axis is set to the shorter axis, is this correct?")
-
-        ###############
-        # Change dispersion direction and files if necessary
-        # The code is programmed assuming dispaxis=0
-        if self._dispaxis == 1:
-            msgs.info("Transposing frames and keywords")
-            # Flip the transpose switch
-            self._transpose = True
-            # Transpose the master bias frame
-            if self._msbias[det-1] is not None:
-                if type(self._msbias[det-1]) is str: pass  # Overscan sub - change the oscansec parameters below
-                elif type(self._msbias[det-1]) is np.ndarray:
-                    if 'bias'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
-                        self.SetMasterFrame(self._msbias[det-1].T, 'bias', det)
-            # Transpose the master arc, and save it
-            if 'arc'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
-                self.SetMasterFrame(self._msarc[det-1].T, 'arc', det)
-            # Transpose the bad pixel mask
-            if self._bpix[det-1] is not None:
-                if 'badpix'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
-                    self.SetFrame(self._bpix, self._bpix[det-1].T, det)
-            # Transpose the amplifier sections frame
-            self.SetFrame(self._datasec, self._datasec[det - 1].T, det)
-            # Change the user-specified (x,y) pixel sizes
-            msgs.work("Transpose gain and readnoise frames")
-            # Set the new dispersion axis
-            self._dispaxis = 0
-        else:
-            msgs.info("Not transposing")
-        return fitsdict
-
     def GetPixelLocations(self, det):
         """
         Generate or load the physical location of each pixel
@@ -480,7 +426,7 @@ class ScienceExposure:
                         settings.argflag['reduce']['masters']['loaded'].append('normpixelflat'+settings.argflag['reduce']['masters']['setup'])
                         mspixelflat = mspixelflatnrm
                 if 'normpixelflat'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
-                    msgs.info("Preparing a master pixel flat frame with {0:s}".format(settings.argflag['reduce']['flatifeld']['useframe']))
+                    msgs.info("Preparing a master pixel flat frame with {0:s}".format(settings.argflag['reduce']['flatfield']['useframe']))
                     # Get all of the pixel flat frames for this science frame
                     ind = self._idx_flat
                     # Load the frames for tracing

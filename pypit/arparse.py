@@ -359,9 +359,8 @@ class BaseArgFlag(BaseFunctions):
         # Check that v is allowed
         if v.lower() == "none":
             v = None
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
+        elif v.lower() == "arc":
+            v = v.lower()
         else:
             msgs.info("Assuming the following is the name of an arc frame:" + msgs.newline() + v)
         # Update argument
@@ -771,11 +770,11 @@ class BaseArgFlag(BaseFunctions):
 
     def reduce_overscan_method(self, v):
         # Check that v is allowed
-        allowed = ['polynomial', 'savgol']
+        allowed = ['polynomial', 'savgol', 'median']
         v = v.lower()
         if v not in allowed:
             msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
+                       ", ".join(allowed) + msgs.newline())
         # Update argument
         self.update(v)
         return

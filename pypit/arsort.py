@@ -68,26 +68,27 @@ def sort_data(fitsdict):
         n = np.arange(numfiles)
         n = np.intersect1d(n, w)
         # Perform additional checks in order to make sure this identification is true
-        chkk = settings.spect[fkey[i]]['check'].keys()
-        for ch in chkk:
-            if ch[0:9] == 'condition':
-                # Deal with a conditional argument
-                conds = re.split("(\||\&)", settings.spect[fkey[i]]['check'][ch])
-                ntmp = chk_condition(fitsdict, conds[0])
-                # And more
-                for cn in range((len(conds)-1)//2):
-                    if conds[2*cn+1] == "|":
-                        ntmp = ntmp | chk_condition(fitsdict, conds[2*cn+2])
-                    elif conds[2*cn+1] == "&":
-                        ntmp = ntmp & chk_condition(fitsdict, conds[2*cn+2])
-                w = np.where(ntmp)[0]
-            else:
-                if fitsdict[ch].dtype.char == 'S':  # Numpy string array
-                    # Strip numpy string array of all whitespace
-                    w = np.where(np.char.strip(fitsdict[ch]) == settings.spect[fkey[i]]['check'][ch])[0]
+        if 'check' in settings.spect[fkey[i]].keys():
+            chkk = settings.spect[fkey[i]]['check'].keys()
+            for ch in chkk:
+                if ch[0:9] == 'condition':
+                    # Deal with a conditional argument
+                    conds = re.split("(\||\&)", settings.spect[fkey[i]]['check'][ch])
+                    ntmp = chk_condition(fitsdict, conds[0])
+                    # And more
+                    for cn in range((len(conds)-1)//2):
+                        if conds[2*cn+1] == "|":
+                            ntmp = ntmp | chk_condition(fitsdict, conds[2*cn+2])
+                        elif conds[2*cn+1] == "&":
+                            ntmp = ntmp & chk_condition(fitsdict, conds[2*cn+2])
+                    w = np.where(ntmp)[0]
                 else:
-                    w = np.where(fitsdict[ch] == settings.spect[fkey[i]]['check'][ch])[0]
-            n = np.intersect1d(n, w)
+                    if fitsdict[ch].dtype.char == 'S':  # Numpy string array
+                        # Strip numpy string array of all whitespace
+                        w = np.where(np.char.strip(fitsdict[ch]) == settings.spect[fkey[i]]['check'][ch])[0]
+                    else:
+                        w = np.where(fitsdict[ch] == settings.spect[fkey[i]]['check'][ch])[0]
+                n = np.intersect1d(n, w)
         # Assign these filetypes
         filarr[i,:][n] = 1
         # Check if these files can also be another type

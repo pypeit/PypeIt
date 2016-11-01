@@ -527,7 +527,11 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
         msgs.info("Detecting slit edges")
         sqmstrace = np.sqrt(np.abs(binarr))
         for ii in range(medrep):
-            sqmstrace = ndimage.median_filter(sqmstrace, size=(3, 5))
+            sqmstrace = ndimage.median_filter(sqmstrace, size=(3, 7))
+        # Make sure there are no spuriously low pixels
+        sqmstrace[np.where((sqmstrace < 1.0) & (sqmstrace >= 0.0))] = 1.0
+        sqmstrace[np.where((sqmstrace > -1.0) & (sqmstrace <= 0.0))] = -1.0
+        # Apply a Sobel filter
         filt = ndimage.sobel(sqmstrace, axis=1, mode='nearest')
         msgs.info("Applying bad pixel mask")
         filt *= (1.0 - binbpx)  # Apply to the bad pixel mask
@@ -537,6 +541,15 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
         wr = np.where(siglev < -20.0)  # A negative gradient is a right edge
         tedges[wl] = -1.0
         tedges[wr] = +1.0
+        # import astropy.io.fits as pyfits
+        # hdu = pyfits.PrimaryHDU(filt)
+        # hdu.writeto("filt_{0:02d}.fits".format(det))
+        # hdu = pyfits.PrimaryHDU(sqmstrace)
+        # hdu.writeto("sqmstrace_{0:02d}.fits".format(det))
+        # hdu = pyfits.PrimaryHDU(binarr)
+        # hdu.writeto("binarr_{0:02d}.fits".format(det))
+        # hdu = pyfits.PrimaryHDU(siglev)
+        # hdu.writeto("siglev_{0:02d}.fits".format(det))
         nedgear = arcytrace.clean_edges(siglev, tedges)
         if maskBadRows:
             msgs.info("Searching for bad pixel rows")
