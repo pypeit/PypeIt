@@ -879,8 +879,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
         #rcoeff[:, i-rmin] = arutils.func_fit(tlfitx, tlfity, settings.argflag['trace']['slits']['function'],
         #                                     settings.argflag['trace']['slits']['polyorder'], minv=minvf, maxv=maxvf)
         rdiffarr[i-rmin] = np.mean(w[1]-cenmodl[w[0]]) + offs
-        rwghtarr[i-lmin] = np.size(w[0])/float(binarr.shape[0])
-        rnmbrarr[i-lmin] = i
+        rwghtarr[i-rmin] = np.size(w[0])/float(binarr.shape[0])
+        rnmbrarr[i-rmin] = i
         msk, rcoeff[:, i-rmin] = arutils.robust_polyfit(tlfitx, tlfity,
                                                        settings.argflag['trace']['slits']['polyorder'],
                                                        function=settings.argflag['trace']['slits']['function'],
