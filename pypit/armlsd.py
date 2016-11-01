@@ -3,12 +3,12 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import numpy as np
+from pypit import arparse as settings
 from pypit import arflux
 from pypit import arload
 from pypit import armasters
 from pypit import armbase
 from pypit import armsgs
-from pypit import arparse as settings
 from pypit import arproc
 from pypit import arsave
 from pypit import arsort
@@ -101,10 +101,9 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
             ###############
-            # Determine the dispersion direction (and transpose if necessary)
-            debugger.set_trace()
-            fitsdict = slf.GetDispersionDirection(fitsdict, det)
-            if slf._bpix[det-1] is None:  # Needs to be done here after nspec is set
+            # Set the number of spectral and spatial pixels, and the bad pixel mask is it does not exist
+            slf._nspec[det-1], slf._nspat[det-1] = slf._msarc[det-1].shape
+            if slf._bpix[det-1] is None:
                 slf.SetFrame(slf._bpix, np.zeros((slf._nspec[det-1], slf._nspat[det-1])), det)
             '''
             ###############
@@ -196,8 +195,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             msgs.info("Loading science frame")
             sciframe = arload.load_frames(fitsdict, [scidx], det,
                                           frametype='science',
-                                          msbias=slf._msbias[det-1],
-                                          transpose=slf._transpose)
+                                          msbias=slf._msbias[det-1])
             sciframe = sciframe[:, :, 0]
             # Extract
             msgs.info("Processing science frame")

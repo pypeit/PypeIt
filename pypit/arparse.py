@@ -1273,32 +1273,15 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def trace_dispersion_window(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                v = load_sections(v)
-            except ValueError:
-                msgs.error("The argument of {0:s} must be a 2D region of the form:".format(get_current_name()) +
-                           msgs.newline() + "[x1:x2,y1:y2]")
-        # Update argument
-        self.update(v)
-        return
-
     def trace_dispersion_direction(self, v):
         # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                v = int(v)
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
-            if v != 0 and v != 1:
-                msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                           "0 or 1 (if the dispersion axis is along a row or column respectively)")
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v != 0 and v != 1:
+            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
+                       "0 or 1 (if the dispersion axis is along a row or column respectively)")
         # Update argument
         self.update(v)
         return
@@ -2764,8 +2747,8 @@ def init(afclass, spclass):
       Class of spectrograph settings
     """
     global argflag
-    argflag = afclass.__dict__['_argflag']
     global spect
+    argflag = afclass.__dict__['_argflag']
     spect = spclass.__dict__['_spect']
     return
 

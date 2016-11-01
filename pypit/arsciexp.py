@@ -8,6 +8,7 @@ from astropy.time import Time
 import datetime
 from matplotlib.backends.backend_pdf import PdfPages
 # Import PYPIT routines
+from pypit import arparse as settings
 from pypit import artrace
 from pypit import arload
 from pypit import arcomb
@@ -15,7 +16,6 @@ from pypit import arflux
 from pypit import arlris
 from pypit import armasters
 from pypit import armsgs
-from pypit import arparse as settings
 from pypit import arproc
 from pypit import arsort
 from pypit import arutils
@@ -36,9 +36,7 @@ class ScienceExposure:
 
     def __init__(self, snum, fitsdict, do_qa=True):
 
-        #############################
-        # Set some universal parameters
-        self._transpose = False   # Determine if the frames need to be transposed
+        self._dispaxis = 0  # This should always be zero, and this line can be deleted once all instances throughout code are removed
 
         # Set indices used for frame combination
         self._idx_sci = settings.spect['science']['index'][snum]
@@ -68,7 +66,6 @@ class ScienceExposure:
         self._nonlinear = [settings.spect['det{0:02d}'.format(det+1)]['saturation'] *
                            settings.spect['det{0:02d}'.format(det+1)]['nonlinear']
                            for det in range(ndet)]
-        self._dispaxis = None  # Which direction is the predominant spectral (dispersion) axis
         self._nspec    = [None for all in range(ndet)]   # Number of spectral pixels
         self._nspat    = [None for all in range(ndet)]   # Number of spatial pixels
         self._datasec  = [None for all in range(ndet)]   # Locations of the data on each detector
@@ -200,7 +197,6 @@ class ScienceExposure:
 
     def GetDispersionDirection(self, fitsdict, det):
         """ Set the dispersion axis.
-        If necessary, transpose frames and adjust information as needed
 
         Parameters
         ----------
@@ -216,15 +212,8 @@ class ScienceExposure:
         """
         dnum = 'det{0:02d}'.format(det)
 
-        if settings.argflag['trace']['dispersion']['direction'] is None:
-            self._dispaxis = artrace.dispdir(self._msarc[det-1], dispwin=settings.argflag['trace']['dispersion']['window'], mode=0)
-        elif settings.argflag['trace']['dispersion']['direction'] in [0, 1]:
-            self._dispaxis = int(settings.argflag['trace']['dispersion']['direction'])
-        else:
-            msgs.error("The argument for the dispersion direction (trace+disp+direction)"+msgs.newline() +
-                       "must be either:"+msgs.newline()+"  0 if the dispersion axis is predominantly along a row" +
-                       msgs.newline() + "  1 if the dispersion axis is predominantly along a column")
-        # Perform a check to warn the user if the longest axis is not equal to the dispersion direction
+        self._dispaxis = int(settings.argflag['trace']['dispersion']['direction'])
+        # Perform a weak check to warn the user if the longest axis is not equal to the dispersion direction
         if self._msarc[det-1].shape[0] > self._msarc[det-1].shape[1]:
             if self._dispaxis == 1: msgs.warn("The dispersion axis is set to the shorter axis, is this correct?")
         else:
@@ -252,29 +241,12 @@ class ScienceExposure:
                     self.SetFrame(self._bpix, self._bpix[det-1].T, det)
             # Transpose the amplifier sections frame
             self.SetFrame(self._datasec, self._datasec[det - 1].T, det)
-            # Update the keywords of all fits files
-            for ff in range(len(fitsdict['naxis0'])):
-                temp = fitsdict['naxis0'][ff]
-                fitsdict['naxis0'][ff] = fitsdict['naxis1'][ff]
-                fitsdict['naxis1'][ff] = temp
-            # Change the user-specified (x,y) pixel sizes
-            tmp = settings.spect[dnum]['xgap']
-            settings.spect[dnum]['xgap'] = settings.spect[dnum]['ygap']
-            settings.spect[dnum]['ygap'] = tmp
-            settings.spect[dnum]['ysize'] = 1.0/settings.spect[dnum]['ysize']
-            # Update the amplifier/data/overscan sections
-            for i in range(settings.spect[dnum]['numamplifiers']):
-                # Flip the order of the sections
-                settings.spect[dnum]['datasec{0:02d}'.format(i+1)] = settings.spect[dnum]['datasec{0:02d}'.format(i+1)][::-1]
-                settings.spect[dnum]['oscansec{0:02d}'.format(i+1)] = settings.spect[dnum]['oscansec{0:02d}'.format(i+1)][::-1]
             # Change the user-specified (x,y) pixel sizes
             msgs.work("Transpose gain and readnoise frames")
             # Set the new dispersion axis
             self._dispaxis = 0
         else:
             msgs.info("Not transposing")
-        # Set the number of spectral and spatial pixels
-        self._nspec[det-1], self._nspat[det-1] = self._msarc[det-1].shape
         return fitsdict
 
     def GetPixelLocations(self, det):
@@ -411,7 +383,7 @@ class ScienceExposure:
                 # Get all of the bias frames for this science frame
                 ind = self._idx_bias
                 # Load the Bias/Dark frames
-                frames = arload.load_frames(fitsdict, ind, det, frametype=settings.argflag['bias']['useframe'], transpose=self._transpose)
+                frames = arload.load_frames(fitsdict, ind, det, frametype=settings.argflag['bias']['useframe'])
                 msbias = arcomb.comb_frames(frames, det, frametype=settings.argflag['bias']['useframe'], **settings.argflag['bias']['combine'])
                 del frames
         elif settings.argflag['bias']['useframe'] == 'overscan':
@@ -513,7 +485,7 @@ class ScienceExposure:
                     ind = self._idx_flat
                     # Load the frames for tracing
                     frames = arload.load_frames(fitsdict, ind, det, frametype='pixel flat',
-                                                msbias=self._msbias[det-1], transpose=self._transpose)
+                                                msbias=self._msbias[det-1])
                     if settings.argflag['pixelflat']['combine']['match'] > 0.0:
                         sframes = arsort.match_frames(frames, settings.argflag['pixelflat']['combine']['match'],
                                                       frametype='pixel flat', satlevel=self._nonlinear)
@@ -605,7 +577,7 @@ class ScienceExposure:
                 ind = self._idx_trace
                 # Load the frames for tracing
                 frames = arload.load_frames(fitsdict, ind, det, frametype='trace', msbias=self._msbias[det-1],
-                                            trim=settings.argflag['reduce']['trim'], transpose=self._transpose)
+                                            trim=settings.argflag['reduce']['trim'])
                 if settings.argflag['trace']['combine']['match'] > 0.0:
                     sframes = arsort.match_frames(frames, settings.argflag['trace']['combine']['match'], msgs, frametype='trace', satlevel=settings.spect[dnum]['saturation']*settings.spect['det'][det-1]['nonlinear'])
                     subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
@@ -747,8 +719,7 @@ class ScienceExposure:
             # Load the frame(s)
 #            set_trace()
             frame = arload.load_frames(fitsdict, ind, det, frametype='standard',
-                                       msbias=self._msbias[det-1],
-                                       transpose=self._transpose)
+                                       msbias=self._msbias[det-1])
 #            msgs.warn("Taking only the first standard frame for now")
 #            ind = ind[0]
             sciframe = frame[:, :, 0]

@@ -118,6 +118,8 @@ def save_masters(slf, det, setup):
     from linetools import utils as ltu
     import io, json
 
+    transpose = bool(settings.argflag['trace']['dispersion']['direction'])
+
     # MasterFrame directory
     mdir = settings.argflag['run']['directory']['master']
     # Bias
@@ -148,7 +150,7 @@ def save_masters(slf, det, setup):
     if 'arc'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
         arsave.save_master(slf, slf._msarc[det-1],
                            filename=master_name(mdir, 'arc', setup),
-                           frametype='arc', keywds=dict(transp=slf._transpose))
+                           frametype='arc', keywds=dict(transp=transpose))
     if 'wave'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
         # Wavelength image
         arsave.save_master(slf, slf._mswave[det-1],

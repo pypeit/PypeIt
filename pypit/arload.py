@@ -4,8 +4,8 @@ import os
 import astropy.io.fits as pyfits
 from astropy.time import Time
 import numpy as np
-from pypit import armsgs
 from pypit import arparse as settings
+from pypit import armsgs
 from pypit import arproc
 from pypit import arlris
 #from multiprocessing import Pool as mpPool
@@ -160,8 +160,7 @@ def load_headers(datlines):
     return fitsdict
 
 
-def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None,
-                trim=True, transpose=False):
+def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
     """
     Load data frames, usually raw.
     Bias subtract (if not msbias!=None) and trim (if True)
@@ -197,7 +196,8 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None,
         else:
             temp = pyfits.getdata(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], settings.spect['fits']['dataext'])
         temp = temp.astype(np.float)  # Let us avoid uint16
-        if transpose: temp = temp.T
+        if settings.argflag['trace']['dispersion']['direction'] == 1:
+            temp = temp.T
         if msbias is not None:
             if type(msbias) is np.ndarray:
                 temp -= msbias  # Subtract the master bias frame

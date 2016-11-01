@@ -2,8 +2,8 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 
 import sys
 import numpy as np
-from pypit import armsgs
 from pypit import arparse as settings
+from pypit import armsgs
 from pypit import arsort
 from pypit import arsciexp
 

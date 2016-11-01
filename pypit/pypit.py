@@ -275,6 +275,29 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     from pypit import arload
     fitsdict = arload.load_headers(datlines)
 
+    # If the dispersion direction is 1, flip the axes
+    if arparse.argflag['trace']['dispersion']['direction'] == 1:
+        # Update the keywords of all fits files
+        for ff in range(len(fitsdict['naxis0'])):
+            temp = fitsdict['naxis0'][ff]
+            fitsdict['naxis0'][ff] = fitsdict['naxis1'][ff]
+            fitsdict['naxis1'][ff] = temp
+        # Update the spectrograph settings for all detectors in the mosaic
+        for dd in range(arparse.spect['mosaic']['ndet']):
+            ddnum = 'det{0:02d}'.format(dd + 1)
+            # Change the user-specified (x,y) pixel sizes
+            tmp = arparse.spect[ddnum]['xgap']
+            arparse.spect[ddnum]['xgap'] = arparse.spect[ddnum]['ygap']
+            arparse.spect[ddnum]['ygap'] = tmp
+            arparse.spect[ddnum]['ysize'] = 1.0 / arparse.spect[ddnum]['ysize']
+            # Update the amplifier/data/overscan sections
+            for i in range(arparse.spect[ddnum]['numamplifiers']):
+                # Flip the order of the sections
+                arparse.spect[ddnum]['datasec{0:02d}'.format(i + 1)] = arparse.spect[ddnum][
+                                                                            'datasec{0:02d}'.format(i + 1)][::-1]
+                arparse.spect[ddnum]['oscansec{0:02d}'.format(i + 1)] = arparse.spect[ddnum][
+                                                                             'oscansec{0:02d}'.format(i + 1)][::-1]
+
     # Reduce the data!
     status = 0
     # Send the data away to be reduced
