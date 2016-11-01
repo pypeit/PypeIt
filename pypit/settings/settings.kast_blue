@@ -147,6 +147,7 @@ pixelflat number 5                    # Number of flat frames to use
 pixelflat canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
 pixelflat lscomb False                # Combine a long and short flat
 pixelflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
+pixelflat check condition2 exptime>0     # Required for bias
 pixelflat match naxis0 =0             # Match the shape of flats with science
 pixelflat match naxis1 =0             # Match the shape of flats with science
 pixelflat match decker ''             # Check the same decker as the science frame was used
@@ -157,7 +158,7 @@ slitflat idname None                   # Header key value of trace frame for hea
 slitflat number 3                      # Number of trace frames to use
 slitflat canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
 slitflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
-slitflat check condition2 exptime>1     # Required for bias
+slitflat check condition2 exptime>0     # Required for bias
 slitflat match naxis0 =0             # Match the shape of flats with science
 slitflat match naxis1 =0             # Match the shape of flats with science
 slitflat match decker ''             # Check the same decker as the science frame was used
@@ -182,3 +183,6 @@ arc check condition1 lampstat06=on|lampstat07=on|lampstat08=on|lampstat09=on|lam
 arc match naxis0 =0                 # Match the shape of arcs with science
 arc match naxis1 =0                 # Match the shape of arcs with science
 #arc match dispangle |<=5              # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+
+# Make some changes to the arguments and flags
+settings trace dispersion direction 1

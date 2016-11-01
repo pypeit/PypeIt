@@ -31,6 +31,7 @@ mosaic ndet 1                         # Number of detectors in the mosaic
 mosaic latitude 26.7636               # Latitude of the telescope
 mosaic longitude +17.8947             # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
 mosaic elevation 2396.0               # Elevation of the telescope (in m)
+mosaic minexp 0.0                     # Minimum exposure time (s)
 mosaic reduction ARMLSD               # Which reduction pipeline should be used for this instrument
 mosaic camera ISISb                   # Which reduction pipeline should be used for this instrument
 
@@ -44,10 +45,8 @@ det01 gain 1.2                        # Inverse gain (e-/ADU)
 det01 saturation 65535.               # The detector Saturation level
 det01 nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det01 numamplifiers 1                 # Number of amplifiers
-#det01 ampsec01 TRIMSEC               # For each amplifier, you should specify the detector sections each amplifier reads out (values are inclusive).
 #det01 datasec01 TRIMSEC              # Either the data sections or the header keyword where the valid data sections can be obtained
 #det01 oscansec01 BIASSEC             # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
-det01 ampsec01  [:,:]                 # Either the data sections or the header keyword where the valid data sections can be obtained
 det01 datasec01 [1:4030,:]            # Either the data sections or the header keyword where the valid data sections can be obtained (Avoids bad region at top)
 det01 oscansec01 [4105:4190,98:483]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
 det01 suffix _blue                    # Suffix to be appended to all saved calibration and extraction frames
@@ -69,6 +68,7 @@ keyword dec 01.DEC                     # Declination of the target
 keyword airmass 01.AIRMASS             # Airmass at start of observation
 keyword naxis0 02.NAXIS2               # Number of pixels along the zeroth axis
 keyword naxis1 02.NAXIS1               # Number of pixels along the first axis
+keyword binning None                   # Binning
 keyword exptime 01.EXPTIME             # Exposure time keyword
 keyword filter1 01.ISIFILTA            # Filter 1
 keyword filter2 01.ISIFILTB            # Filter 2
@@ -125,16 +125,20 @@ pixelflat match naxis1 =0             # Match the shape of flats with science
 pixelflat match decker ''             # Check the same decker as the science frame was used
 pixelflat match dispangle |<=1          # Match the disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
 
-### Blaze Flat frames
-#slitflat idname None                   # Header key value of trace frame for header keyword keyword+idname
-#slitflat number 0                      # Number of trace frames to use
-#slitflat canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
-#slitflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
-#slitflat check condition2 exptime>1     # Required for bias
+### Slit Flat frames
+slitflat idname flat                 # Header key value of flat frame for header keyword keyword+idname
+slitflat number 5                    # Number of flat frames to use
+slitflat canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
+slitflat lscomb False                # Combine a long and short flat
+slitflat check condition1 lamps=W # Lamp on
+slitflat match naxis0 =0             # Match the shape of flats with science
+slitflat match naxis1 =0             # Match the shape of flats with science
+slitflat match decker ''             # Check the same decker as the science frame was used
+slitflat match dispangle |<=1          # Match the disperser angle (an uncertainty in the CENWAVE)
 
 ### Trace frames
 trace idname flat                 # Header key value of flat frame for header keyword keyword+idname
-trace number 5                    # Number of flat frames to use
+trace number 0                    # Number of flat frames to use
 trace canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
 trace lscomb False                # Combine a long and short flat
 trace check condition1 lamps=W # Lamp on
@@ -151,3 +155,6 @@ arc check condition1 lamps=CuNe+CuAr
 arc match naxis0 =0                 # Match the shape of arcs with science
 arc match naxis1 =0                 # Match the shape of arcs with science
 arc match dispangle |<=1              # Match the disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+
+# Make some changes to the arguments and flags
+settings trace dispersion direction 0

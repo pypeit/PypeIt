@@ -19,7 +19,7 @@ reduce calibrate nonlinear False          # Perform a non-linear correction
 reduce calibrate flux True       # Perform a flux calibration
 reduce calibrate refframe heliocentric           # Which reference frame do you want the data in (geocentric, heliocentric, barycentric)?
 reduce calibrate wavelength vacuum          # Wavelength calibrate the data? (air, vacuum, none)
-reduce overscan method SavGol       # Method used to fit the overscan (polynomial, savgol)
+reduce overscan method savgol       # Method used to fit the overscan (polynomial, savgol)
 reduce overscan params [5,65]       # Parameters used for the overscan method (for polynomial use [#] where # is replaced by the polynomial order, for savgol use [#,$] where # is the order and $ is the window size (should be odd)
 reduce badpix True              # Make a bad pixel mask? (This step requires bias frames)
 reduce flatfield perform True           # Flatfield the data?
@@ -62,7 +62,7 @@ arc calibrate detection 6.0         # How significant should the arc line detect
 arc calibrate numsearch 20           # Number of brightest arc lines to search for preliminary identification
 
 # BIAS FRAMES
-bias useframe overscan True           # Subtract the bias level using the overscan region?
+bias useoverscan True           # Subtract the bias level using the overscan region?
 bias useframe bias                    # How to subtract the detector bias (bias, overscan, dark, none), you can also specify a master calibrations file if it exists.
 bias combine method mean                # How should the bias frames be combined (mean, median, weightmean)
 bias combine reject cosmics 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
@@ -80,8 +80,7 @@ trace combine reject lowhigh  [0,0]         # Number of low/high pixels to rejec
 trace combine reject level    [3.0,3.0]     # Rejection level (in standard deviations), where <= 0.0 means no rejection [low,high]
 trace combine reject replace   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
 trace combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
-trace dispersion window       None          # Window used to obtain dispersion direction
-trace dispersion direction    None          # Manually specify the dispersion direction (0 for row, 1 for column)
+trace dispersion direction  0          # Specify the dispersion direction (0 for row, 1 for column)
 trace slits diffpolyorder  2         # What is the order of the 2D function that should be used to fit the 2d solution for the spatial size of all orders?
 trace slits fracignore 0.01           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
 trace slits function    legendre      # What function should be used to trace each order? (polynomial, legendre, chebyshev)
@@ -114,6 +113,8 @@ pixelflat norm recnorm   True             # Use the recnorm algorithm?
 science extraction reuse False        # If the science frame has previously been extracted and saved, load the extractions
 science extraction profile gaussian   # Fitting function used to extract science data, only if the extraction is 2D (options are: gaussian, gaussfunc, moffat, moffatfunc) ### NOTE: options with suffix 'func' fits a function to the pixels whereas those without this suffix takes into account the integrated function within each pixel (and is closer to truth)
 science extraction maxnumber 9999     # Maximum number of objects to extract in a science frame
+science extraction manual01 frame None
+science extraction manual01 params None
 
 # SLIT FLAT FRAMES (used to trace the slit edges)
 slitflat useframe slitflat             # What filetype should be used to trace the slit edges (slitflat), you can also specify a master calibrations file if it exists.

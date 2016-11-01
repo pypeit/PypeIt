@@ -139,6 +139,33 @@ class BaseArgFlag(BaseFunctions):
             members = [x for x, y in inspect.getmembers(self, predicate=inspect.ismethod)]
             while cnt < len(lst):
                 func = "_".join(lst[:-cnt])
+                # Determine if there are options that need to be passed to this function
+                options = ""
+                nmbr = [[],   # Suffix on 1st arg
+                        [],    # Suffix on 2nd arg
+                        ["manual"]]    # Suffix on 3rd arg
+                ltr = "a"
+                for nn in range(len(nmbr)):
+                    if nn == 0:
+                        ltr = "a"
+                    elif nn == 1:
+                        ltr = "b"
+                    elif nn == 2:
+                        ltr = "c"
+                    anmbr = nmbr[nn]
+                    for aa in anmbr:
+                        fspl = func.split("_")
+                        if len(fspl) <= nn:
+                            continue
+                        aatmp = func.split("_")[nn]
+                        if aa in aatmp:
+                            try:
+                                aanum = int(aatmp.lstrip(aa))
+                                options += ", {0:s}nmbr={1:d}".format(ltr, aanum)
+                            except ValueError:
+                                msgs.error("There must be an integer suffix on the {0:s} keyword argument:".format(aa) +
+                                           msgs.newline() + " ".join(lst))
+                            func = func.replace(aatmp, aa)
                 if func in members:
                     func = "self." + func + "('{0:s}')".format(" ".join(lst[-cnt:]))
                     eval(func)
@@ -1039,12 +1066,13 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def science_extraction_manual(self, cnmbr=1, name="none", params="[1,1000,500,[10,10]]"):
+    def science_extraction_manual(self, cnmbr=1, frame="none", params="[1,1000,500,[10,10]]"):
+        debugger.set_trace()
         # Send parameters away to individual arguments
-        self.science_extraction_manual_name(name, cnmbr=cnmbr)
+        self.science_extraction_manual_frame(frame, cnmbr=cnmbr)
         self.science_extraction_manual_params(params, cnmbr=cnmbr)
 
-    def science_extraction_manual_name(self, v, cnmbr=1):
+    def science_extraction_manual_frame(self, v, cnmbr=1):
         cname = get_nmbr_name(cnmbr=cnmbr)
         # Check that v is allowed
         if v.lower() == "none":
@@ -1057,8 +1085,15 @@ class BaseArgFlag(BaseFunctions):
     def science_extraction_manual_params(self, v, cnmbr=1):
         cname = get_nmbr_name(cnmbr=cnmbr)
         # Check that v is allowed
-        if ".fits" not in v:
-            msgs.error("The argument of {0:s} must be a fits file".format(cname))
+        if v.lower() == "none":
+            v = None
+        else:
+            try:
+                v = eval(v)
+            except:
+                msgs.error("The argument of {0:s} must be a 4 parameter list.".format(cname))
+            if len(v) != 4:
+                msgs.error("The argument of {0:s} must be a 4 parameter list.".format(cname))
         # Update argument
         self.update(v, ll=cname.split('_'))
 

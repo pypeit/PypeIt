@@ -156,7 +156,7 @@ slitflat idname None                   # Header key value of trace frame for hea
 slitflat number 3                      # Number of trace frames to use
 slitflat canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
 slitflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
-slitflat check condition2 exptime>1     # Required for bias
+slitflat check condition2 exptime>0     # Required for bias
 slitflat match naxis0 =0             # Match the shape of flats with science
 slitflat match naxis1 =0             # Match the shape of flats with science
 slitflat match decker ''             # Check the same decker as the science frame was used
@@ -183,3 +183,6 @@ arc match naxis0 =0                 # Match the shape of arcs with science
 arc match naxis1 =0                 # Match the shape of arcs with science
 arc match dispangle |<=10              # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 10 ~ 2pixel)
 arc check condition2 exptime>0
+
+# Make some changes to the arguments and flags
+settings trace dispersion direction 1

@@ -207,3 +207,6 @@ arc match binning ''                 # Match the shape of arcs with science
 arc match dispname ''             # Check the same decker as the science frame was used
 arc match dichroic ''             # Check the same decker as the science frame was used
 #arc match naxis1 =0                 # Match the shape of arcs with science
+
+# Make some changes to the arguments and flags
+settings trace dispersion direction 0
