@@ -4,6 +4,7 @@
 import numpy as np
 import pytest
 
+from pypit import arparse as settings
 from pypit import pyputils
 msgs = pyputils.get_dummy_logger()
 from pypit import ararc as pyarc
@@ -23,9 +24,9 @@ def test_setup_param():
     # Load
     # Dummy self
     slf = arut.dummy_self()
-    slf._argflag['run']['spectrograph'] = 'kast_blue'
-    slf._spect['arc'] = {}
-    slf._spect['arc']['index'] = [[0]]
+    settings.argflag['run']['spectrograph'] = 'kast_blue'
+    settings.spect['arc'] = {}
+    settings.spect['arc']['index'] = [[0]]
     fitsdict = {}
     fitsdict["disperser"] = ['600/4310']
     fitsdict["binning"] = [[None]]
