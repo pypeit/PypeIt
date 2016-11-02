@@ -167,7 +167,9 @@ class BaseArgFlag(BaseFunctions):
                                            msgs.newline() + " ".join(lst))
                             func = func.replace(aatmp, aa)
                 if func in members:
-                    func = "self." + func + "('{0:s}')".format(" ".join(lst[-cnt:]))
+                    func = "self." + func + "('{0:s}'".format(" ".join(lst[-cnt:]))
+                    func += options
+                    func += ")"
                     eval(func)
                     succeed = True
                     break
