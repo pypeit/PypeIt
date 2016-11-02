@@ -149,33 +149,34 @@ def dummy_self(pypitdir=None, inum=0, fitsdict=None, nfile=10):
     slf
     """
     import pypit
+    from pypit import arparse
     from pypit import arsciexp
     from pypit import arload
-    # Dummy dicts
-    spect = arload.load_spect(pypit.__file__, 'kast_blue')
-    kk = 0
-    for jj,key in enumerate(spect.keys()):
-        if key in ['det']:
-            continue
-        if 'index' in settings.spect[key].keys():
-            settings.spect[key]['index'] = [[kk]*nfile]
-            kk += 1
-    argflag = arload.argflag_init()
-    if fitsdict is None:
-        fitsdict = dummy_fitsdict(nfile=nfile)
-    # Dummy Class
-    slf = arsciexp.ScienceExposure(inum, fitsdict, do_qa=False)
-    #
+    # Dummy argflag
+    argf = arparse.get_argflag_class(("ARMLSD", "dummy"))
+    lines = argf.load_file()
     if pypitdir is None:
         pypitdir = __file__[0:__file__.rfind('/')]
-    settings.argflag['run']['pypitdir'] = pypitdir
-    settings.argflag['run']['spectrograph'] = 'dummy'
-    settings.argflag['run']['directory']['science'] = './'
-    #
-    settings.spect['mosaic'] = {}
-    settings.spect['mosaic']['ndet'] = 1
-    settings.spect['det'] = [{'binning':'1x1'}]
-    #
+    argf.set_param('run pypitdir {0:s}'.format(pypitdir))
+    argf.set_param('run spectrograph dummy')
+    argf.set_param('run directory science ./')
+    argf.set_paramlist(lines)
+    # Dummy spect
+    spect = arparse.get_spect_class(("ARMLSD", "kast_blue", "dummy"))
+    lines = spect.load_file()
+    spect.set_paramlist(lines)
+    # Dummy fitsdict
+    if fitsdict is None:
+        fitsdict = dummy_fitsdict(nfile=nfile)
+    # kk = 0
+    # for jj,key in enumerate(spect.keys()):
+    #     if key in ['det']:
+    #         continue
+    #     if 'index' in settings.spect[key].keys():
+    #         settings.spect[key]['index'] = [[kk]*nfile]
+    #         kk += 1
+    # Dummy Class
+    slf = arsciexp.ScienceExposure(inum, fitsdict, do_qa=False)
     return slf
 
 
