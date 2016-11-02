@@ -2502,6 +2502,7 @@ class BaseSpect(BaseFunctions):
     def set_arc(self, v):
         # Check that v is allowed
         v = load_list(v)
+        v = self._spect['set']['arc'] + v
         # Update argument
         self.update(v)
         return
@@ -2509,6 +2510,7 @@ class BaseSpect(BaseFunctions):
     def set_bias(self, v):
         # Check that v is allowed
         v = load_list(v)
+        v = self._spect['set']['bias'] + v
         # Update argument
         self.update(v)
         return
@@ -2516,6 +2518,7 @@ class BaseSpect(BaseFunctions):
     def set_pixelflat(self, v):
         # Check that v is allowed
         v = load_list(v)
+        v = self._spect['set']['pixelflat'] + v
         # Update argument
         self.update(v)
         return
@@ -2523,6 +2526,7 @@ class BaseSpect(BaseFunctions):
     def set_science(self, v):
         # Check that v is allowed
         v = load_list(v)
+        v = self._spect['set']['science'] + v
         # Update argument
         self.update(v)
         return
@@ -2530,6 +2534,7 @@ class BaseSpect(BaseFunctions):
     def set_slitflat(self, v):
         # Check that v is allowed
         v = load_list(v)
+        v = self._spect['set']['slitflat'] + v
         # Update argument
         self.update(v)
         return
@@ -2537,6 +2542,7 @@ class BaseSpect(BaseFunctions):
     def set_standard(self, v):
         # Check that v is allowed
         v = load_list(v)
+        v = self._spect['set']['standard'] + v
         # Update argument
         self.update(v)
         return
@@ -2544,6 +2550,7 @@ class BaseSpect(BaseFunctions):
     def set_trace(self, v):
         # Check that v is allowed
         v = load_list(v)
+        v = self._spect['set']['trace'] + v
         # Update argument
         self.update(v)
         return

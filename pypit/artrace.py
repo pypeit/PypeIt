@@ -610,11 +610,11 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
             lcnt = 1
         else:
             msgs.error("Unable to trace any edges"+msgs.newline()+"try a different method to trace the order edges")
-    elif (rcnt == 0) and (lcnt == 1):
+    elif rcnt == 0:
         msgs.warn("Unable to find a right edge. Adding one in.")
         edgearr[:, -1] = 1000
         rcnt = 1
-    elif (lcnt == 0) and (rcnt == 1):
+    elif lcnt == 0:
         msgs.warn("Unable to find a left edge. Adding one in.")
         edgearr[:, 0] = -1000
         lcnt = 1

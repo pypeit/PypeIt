@@ -163,21 +163,21 @@ pixelflat idname OBJECT               # Header key value of flat frame for heade
 pixelflat number 5                    # Number of flat frames to use
 pixelflat canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
 pixelflat lscomb False                # Combine a long and short flat
-#pixelflat check condition1 lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on
 pixelflat check condition1 hatch=open   # Required for blaze flats
 pixelflat check condition2 exptime<30   # Avoid stars
-pixelflat match binning ''             		# Match the shape of standard and science frames
-pixelflat match decker ''             # Check the same decker as the science frame was used
+#pixelflat check condition3 lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on
+pixelflat match binning ''             		# Match the shape of pixelflat and science frames
 pixelflat match dichroic ''             # Check the same decker as the science frame was used
 pixelflat match dispname ''             # Check the same decker as the science frame was used
 
 ### Blaze Flat frames
 slitflat idname None                   # Header key value of trace frame for header keyword keyword+idname
 slitflat number 1                      # Number of trace frames to use
+slitflat canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
 slitflat check condition1 hatch=open   # Required for blaze flats
 slitflat check condition2 exptime<30   # Avoid stars
-slitflat canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
-slitflat match binning ''             		# Match the shape of standard and science frames
+#slitflat check condition3 lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on
+slitflat match binning ''             		# Match the shape of slitflat and science frames
 slitflat match dichroic ''             # Check the same decker as the science frame was used
 slitflat match dispname ''             # Check the same decker as the science frame was used
 
@@ -187,13 +187,12 @@ trace number 0                    # Number of flat frames to use
 trace canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
 trace lscomb False                # Combine a long and short flat
 # Blue side should be using twilight sky
-#trace check condition1 lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on
-trace check condition1 hatch=open # Required for trace flats 
+trace check condition1 hatch=open # Required for trace flats
 trace check condition2 exptime<30 # Calibration
+#trace check condition3 lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on
 trace match binning ''                 # Match the shape of trace with science
 #trace match naxis0 =0             # Match the shape of flats with science
 #trace match naxis1 =0             # Match the shape of flats with science
-trace match decker ''             # Check the same decker as the science frame was used
 trace match dichroic ''             # Check the same decker as the science frame was used
 trace match dispname ''             # Check the same decker as the science frame was used
 
