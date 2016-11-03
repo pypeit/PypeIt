@@ -547,7 +547,16 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     binbpx = slf._bpix[det-1].copy()
     plxbin = slf._pixlocn[det-1][:, :, 0].copy()
     plybin = slf._pixlocn[det-1][:, :, 1].copy()
-#    binby = 5
+    if False:
+        # Use this for debugging
+        binbpx = np.zeros(mstrace.shape, dtype=np.int)
+        xs = np.arange(mstrace.shape[slf._dispaxis] * 1.0) * slf._spect['det'][det - 1]['xgap']
+        xt = 0.5 + np.arange(mstrace.shape[slf._dispaxis] * 1.0) + xs
+        ys = np.arange(mstrace.shape[1 - slf._dispaxis]) * slf._spect['det'][det - 1]['ygap'] * slf._spect['det'][det - 1]['ysize']
+        yt = slf._spect['det'][det - 1]['ysize'] * (0.5 + np.arange(mstrace.shape[1 - slf._dispaxis] * 1.0)) + ys
+        xloc, yloc = np.meshgrid(xt, yt)
+        plxbin, plybin = xloc.T, yloc.T
+    #    binby = 5
 #    binarr = arcyutils.bin_x(mstrace, binby, 0)
 #    binbpx = arcyutils.bin_x(slf._bpix[det-1], binby, 0)
 #    plxbin = arcyutils.bin_x(slf._pixlocn[det-1][:,:,0], binby, 1)
