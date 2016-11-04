@@ -284,7 +284,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
             fitsdict['naxis1'][ff] = temp
         # Update the spectrograph settings for all detectors in the mosaic
         for dd in range(arparse.spect['mosaic']['ndet']):
-            ddnum = 'det{0:02d}'.format(dd + 1)
+            ddnum = arparse.get_dnum(dd+1)
             # Change the user-specified (x,y) pixel sizes
             tmp = arparse.spect[ddnum]['xgap']
             arparse.spect[ddnum]['xgap'] = arparse.spect[ddnum]['ygap']

@@ -225,7 +225,7 @@ def badpix(det, frame, sigdev=10.0):
     frame is a master bias frame
     sigdev is the number of standard deviations away from the median that a pixel needs to be in order to be classified as a bad pixel
     """
-    dnum = 'det{0:02d}'.format(det)
+    dnum = settings.get_dnum(det)
     bpix = np.zeros_like(frame, dtype=np.int)
     subfr, tframe, temp = None, None, None
     for i in range(settings.spect[dnum]['numamplifiers']):
@@ -508,7 +508,7 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     from pypit import arcyutils
     from pypit import arcyextract
     from pypit import arcyproc
-    dnum = 'det{0:02d}'.format(det)
+    dnum = settings.get_dnum(det)
 
     msgs.info("Normalizing the master flat field frame")
     norders = slf._lordloc[det-1].shape[1]
@@ -618,7 +618,7 @@ def get_ampscale(slf, det, msflat):
     sclframe : ndarray
       A frame to scale all amplifiers to the same counts at the amplifier borders
     """
-    dnum = 'det{0:02d}'.format(det)
+    dnum = settings.get_dnum(det)
 
     sclframe = np.ones_like(msflat)
     ampdone = np.zeros(settings.spect[dnum]['numamplifiers'], dtype=int) # 1 = amplifiers have been assigned a scale
@@ -696,7 +696,7 @@ def get_ampsec_trimmed(slf, fitsdict, det, scidx):
     fitsdict : dict
       Updates to the input fitsdict
     """
-    dnum = 'det{0:02d}'.format(det)
+    dnum = settings.get_dnum(det)
 
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
     if settings.argflag['run']['spectrograph'] in ['lris_blue', 'lris_red']:
@@ -948,7 +948,7 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
     """
     from pypit import arcyutils
     from pypit import arcyproc
-    dnum = 'det{0:02d}'.format(det)
+    dnum = settings.get_dnum(det)
 
     msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
     msgs.work("Include these parameters in the settings files to be adjusted by the user")
@@ -1088,7 +1088,7 @@ def gain_frame(slf, det):
     gain_img : ndarray
 
     """
-    dnum = 'det{0:02d}'.format(det)
+    dnum = settings.get_dnum(det)
 
     # Loop on amplifiers
     gain_img = np.zeros_like(slf._datasec[det-1])
@@ -1116,7 +1116,7 @@ def rn_frame(slf, det):
     rn_img : ndarray
       Read noise *variance* image (i.e. RN**2)
     """
-    dnum = 'det{0:02d}'.format(det)
+    dnum = settings.get_dnum(det)
 
     # Loop on amplifiers
     rnimg = np.zeros_like(slf._datasec[det-1])
@@ -1129,13 +1129,23 @@ def rn_frame(slf, det):
     return rnimg
 
 
-def sub_overscan(frame, det, use_datasec=False):
+def sub_overscan(frame, det):
     """
     Subtract overscan
-    use_datasec : bool, optional
-      Overscan region is limited to datasec, not ampsec
+
+    Parameters
+    ----------
+    frame : ndarray
+      frame which should have the overscan region subtracted
+    det : int
+      Detector Index
+
+    Returns
+    -------
+    frame : ndarray
+      The input frame with the overscan region subtracted
     """
-    dnum = 'det{0:02d}'.format(det)
+    dnum = settings.get_dnum(det)
 
     for i in range(settings.spect[dnum]['numamplifiers']):
         # Determine the section of the chip that contains the overscan region
@@ -1150,20 +1160,20 @@ def sub_overscan(frame, det, use_datasec=False):
         yos = np.arange(oy0, oy1)
         w = np.ix_(xos, yos)
         oscan = frame[w]
-        # Determine the section of the chip that is read out by the amplifier
-        ampsec = "ampsec{0:02d}".format(i+1)
-        ax0, ax1 = settings.spect[dnum][ampsec][0][0], settings.spect[dnum][ampsec][0][1]
-        ay0, ay1 = settings.spect[dnum][ampsec][1][0], settings.spect[dnum][ampsec][1][1]
-        if ax0 < 0: ax0 += frame.shape[0]
-        if ax1 <= 0: ax1 += frame.shape[0]
-        if ay0 < 0: ay0 += frame.shape[1]
-        if ay1 <= 0: ay1 += frame.shape[1]
-        xam = np.arange(ax0, ax1)
-        yam = np.arange(ay0, ay1)
-        # Make sure the overscan section has at least one side consistent with ampsec (note: ampsec should contain both datasec and oscansec)
-        if ax1-ax0 == ox1-ox0:
+        # Determine the section of the chip that contains data
+        datasec = "datasec{0:02d}".format(i+1)
+        dx0, dx1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
+        dy0, dy1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+        if dx0 < 0: dx0 += frame.shape[0]
+        if dx1 <= 0: dx1 += frame.shape[0]
+        if dy0 < 0: dy0 += frame.shape[1]
+        if dy1 <= 0: dy1 += frame.shape[1]
+        xds = np.arange(dx0, dx1)
+        yds = np.arange(dy0, dy1)
+        # Make sure the overscan section has at least one side consistent with datasec
+        if dx1-dx0 == ox1-ox0:
             osfit = np.median(oscan, axis=1)  # Mean was hit by CRs
-        elif ay1-ay0 == oy1-oy0:
+        elif dy1-dy0 == oy1-oy0:
             osfit = np.median(oscan, axis=0)
         elif settings.argflag['reduce']['overscan']['method'].lower() == "median":
             osfit = np.median(oscan)
@@ -1182,24 +1192,7 @@ def sub_overscan(frame, det, use_datasec=False):
             msgs.info("Using a linear fit to the overscan region")
             c = np.polyfit(np.arange(osfit.size), osfit, 1)
             ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
-        #plt.plot(np.arange(osfit.size),osfit,'k-')
-        #plt.plot(np.arange(osfit.size),ossub,'r-')
-        #plt.show()
-        #plt.clf()
         # Determine the section of the chip that contains data for this amplifier
-        if use_datasec:
-            datasec = "datasec{0:02d}".format(i+1)
-            dx0, dx1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
-            dy0, dy1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
-            if dx0 < 0: dx0 += frame.shape[0]
-            if dx1 <= 0: dx1 += frame.shape[0]
-            if dy0 < 0: dy0 += frame.shape[1]
-            if dy1 <= 0: dy1 += frame.shape[1]
-            xds = np.arange(dx0, dx1)
-            yds = np.arange(dy0, dy1)
-        else:
-            xds = np.arange(ax0, ax1)
-            yds = np.arange(ay0, ay1)
         wd = np.ix_(xds, yds)
         ossub = ossub.reshape(osfit.size, 1)
         if wd[0].shape[0] == ossub.shape[0]:
@@ -1211,12 +1204,12 @@ def sub_overscan(frame, det, use_datasec=False):
         else:
             msgs.error("Could not subtract bias from overscan region --"+msgs.newline()+"size of extracted regions does not match")
     # Return
-    del xam, yam, xds, yds, xos, yos, oscan
+    del xds, yds, xos, yos, oscan
     return frame
 
 
 def trim(frame, det):
-    dnum = 'det{0:02d}'.format(det)
+    dnum = settings.get_dnum(det)
     for i in range(settings.spect[dnum]['numamplifiers']):
         datasec = "datasec{0:02d}".format(i+1)
         x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
@@ -1265,7 +1258,7 @@ def variance_frame(slf, det, sciframe, idx, fitsdict=None, skyframe=None, objfra
     -------
     variance image : ndarray
     """
-    dnum = 'det{0:02d}'.format(det)
+    dnum = settings.get_dnum(det)
 
     # The effective read noise (variance image)
     rnoise = rn_frame(slf, det)

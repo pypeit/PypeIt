@@ -2912,3 +2912,19 @@ def load_sections(string):
     else:
         xyarry = xyrng[1].split(':')
     return [[int(xyarrx[0]), int(xyarrx[1])], [int(xyarry[0]), int(xyarry[1])]]
+
+
+def get_dnum(det):
+    """Convert a detector index into a string used by the settings dictionary
+
+    Parameters
+    ----------
+    det : int
+      Detector index
+
+    Returns
+    -------
+    dnum : str
+      A string used by the settings dictionary
+    """
+    return 'det{0:02d}'.format(det)

@@ -8,40 +8,45 @@ from pypit import arparse as settings
 msgs = armsgs.get_logger()
 
 
-def comb_frames(frames_arr, det, method='weightmean', weight=None, frametype='<None>',
-                match=-1, reject=None, satpix='ignore', weights=None, maskvalue=1048577):
-    """
-    Combine several frames
-    frames: Array of frames to be combined
-    det: int
+def comb_frames(frames_arr, det, frametype, weights=None, maskvalue=1048577, printtype=None):
+    """ Combine several frames
+
+    Parameters
+    ----------
+    frames_arr : ndarray (3D)
+      Array of frames to be combined
+    det : int
       Detector index
-    method: How to combine? Allowed values are 'mean', 'median', 'weightmean'
-    weight: How to weight the combination ('counts', 'exptime', None)
-    frametype: What type of frame are you combining? (only used for screen printout)
-    satpix: What to do with saturated pixels (options are: 'reject', 'force', 'nothing')
-    maskvalue: What should the masked values be set to (should be greater than the detector's saturation value -- Default = 1 + 2**20)
-    reject: Dictionary of rejection options
+    frametype : str
+      What is the type of frame being combining? (only used for screen printout)
+    weights : str, or None (optional)
+      How should the frame combination by weighted (not currently implemented)
+    maskvalue : int (optional)
+      What should the masked values be set to (should be greater than the detector's saturation value -- Default = 1 + 2**20)
+    printtype : str (optional)
+      The frame type string that should be printed by armsgs. If None, frametype will be used
     """
+
     from pypit import arcycomb
-    dnum = 'det{0:02d}'.format(det)
+    dnum = settings.get_dnum(det)
+    reject = settings.argflag[frametype]['combine']['reject']
+    method = settings.argflag[frametype]['combine']['method']
     ###########
     # FIRST DO SOME CHECKS ON THE INPUT
     ###########
-    # Check the reject dictionary
-    if reject is None:
-        reject = {'cosmics': -1.0, 'replace': 'median', 'level': [0.0, 0.0], 'lowhigh': [0, 0]}
-    # Do we know the frametype?
-    if frametype == 'None': msgs.warn("'frametype' is unknown for combining frames")
+    # Was printtype specified
+    if printtype is None:
+        printtype = frametype
     # Check the number of frames
     if frames_arr is None:
-        msgs.error("No '{0:s}' frames were given to comb_frames to combine".format(frametype))
+        msgs.error("No '{0:s}' frames were given to comb_frames to combine".format(printtype))
     (sz_x, sz_y, num_frames) = np.shape(frames_arr)
     if num_frames == 1:
         msgs.info("Only one frame to combine!")
         msgs.info("Returning input frame")
         return frames_arr[:, :, 0]
     else:
-        msgs.info("Combining {0:d} {1:s} frames".format(num_frames, frametype))
+        msgs.info("Combining {0:d} {1:s} frames".format(num_frames, printtype))
     # Check if the user has allowed the combination of long and short frames (e.g. different exposure times)
     msgs.work("lscomb feature has not been included here yet...")
     # Check the user hasn't requested to reject more frames than available
@@ -51,7 +56,7 @@ def comb_frames(frames_arr, det, method='weightmean', weight=None, frametype='<N
                    "There are {0:d} frames and reject lowhigh will reject {1:d} low and {2:d} high".format(num_frames, reject['lowhigh'][0], reject['lowhigh'][1]))
     # Check that some information on the frames was supplied
     if settings.spect is None:
-        msgs.error("When combining the {0:s} frames, spectrograph information".format(frametype)+msgs.newline()+"was not provided")
+        msgs.error("When combining the {0:s} frames, spectrograph information".format(printtype)+msgs.newline()+"was not provided")
     # Calculate the values to be used if all frames are rejected in some pixels
     if reject['replace'] == 'min':
         allrej_arr = arcycomb.minmax(frames_arr, 0)
@@ -71,21 +76,21 @@ def comb_frames(frames_arr, det, method='weightmean', weight=None, frametype='<N
     ################
     # Saturated Pixels
     msgs.info("Finding saturated and non-linear pixels")
-    if satpix == 'force':
+    if settings.argflag[frametype]['combine']['satpix'] == 'force':
         # If a saturated pixel is in one of the frames, force them to all have saturated pixels
 #		satw = np.zeros_like(frames_arr)
 #		satw[np.where(frames_arr > settings.spect['det']['saturation']*settings.spect['det']['nonlinear'])] = 1.0
 #		satw = np.any(satw,axis=2)
         setsat = arcycomb.masked_limitget(frames_arr, settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'], 2)
 #		del satw
-    elif satpix == 'reject':
+    elif settings.argflag[frametype]['combine']['satpix'] == 'reject':
         # Ignore saturated pixels in frames if possible
         frames_arr = arcycomb.masked_limitset(frames_arr, settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'], 2, maskvalue)
-    elif satpix == 'nothing':
+    elif settings.argflag[frametype]['combine']['satpix'] == 'nothing':
         # Don't do anything special for saturated pixels (Hopefully the user has specified how to deal with them below!)
         pass
     else:
-        msgs.error("Option '{0:s}' for dealing with saturated pixels was not recognised".format(satpix))
+        msgs.error("Option '{0:s}' for dealing with saturated pixels was not recognised".format(settings.argflag[frametype]['combine']['satpix']))
     # Delete unecessary arrays
     # None!
     ################
@@ -159,12 +164,12 @@ def comb_frames(frames_arr, det, method='weightmean', weight=None, frametype='<N
     del allrej_arr
     ##############
     # Apply the saturated pixels:
-    if satpix == 'force':
+    if settings.argflag[frametype]['combine']['satpix'] == 'force':
         msgs.info("Applying saturated pixels to final combined image")
         frames_arr[setsat] = settings.spect[dnum]['saturation']
     ##############
     # And return a 2D numpy array
-    msgs.info("{0:d} {1:s} frames combined successfully!".format(num_frames, frametype))
+    msgs.info("{0:d} {1:s} frames combined successfully!".format(num_frames, printtype))
     # Make sure the returned array is the correct type
     frames_arr = np.array(frames_arr, dtype=np.float)
     return frames_arr

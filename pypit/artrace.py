@@ -479,7 +479,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
-    dnum = 'det{0:02d}'.format(det)
+    dnum = settings.get_dnum(det)
     from pypit import arcytrace
 
     msgs.info("Preparing trace frame for order edge detection")
@@ -1249,7 +1249,7 @@ def model_tilt(slf, det, msarc, censpec=None, maskval=-999999.9,
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
     """
     from pypit import arcyutils
-    dnum = 'det{0:02d}'.format(det)
+    dnum = settings.get_dnum(det)
 
     msgs.work("Detecting lines")
     tampl, tcent, twid, w, satsnd, _ = ararc.detect_lines(slf, det, msarc, censpec=censpec)
@@ -2537,7 +2537,7 @@ def gen_pixloc(dispaxis, frame, det, gen=True):
       A 3D array containing the x center, y center, x width and y width of each pixel.
       The returned array has a shape:   frame.shape + (4,)
     """
-    dnum = 'det{0:02d}'.format(det)
+    dnum = settings.get_dnum(det)
     msgs.info("Deriving physical pixel locations on the detector")
     locations = np.zeros((frame.shape[0],frame.shape[1],4))
     if gen:

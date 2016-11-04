@@ -63,8 +63,8 @@ class ScienceExposure:
 
         # Initialize Variables
         ndet = settings.spect['mosaic']['ndet']
-        self._nonlinear = [settings.spect['det{0:02d}'.format(det+1)]['saturation'] *
-                           settings.spect['det{0:02d}'.format(det+1)]['nonlinear']
+        self._nonlinear = [settings.spect[settings.get_dnum(det+1)]['saturation'] *
+                           settings.spect[settings.get_dnum(det+1)]['nonlinear']
                            for det in range(ndet)]
         self._nspec    = [None for all in range(ndet)]   # Number of spectral pixels
         self._nspat    = [None for all in range(ndet)]   # Number of spatial pixels
@@ -229,7 +229,7 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-        dnum = 'det{0:02d}'.format(det)
+        dnum = settings.get_dnum(det)
 
         if self._msarc[det-1] is not None:
             msgs.info("An identical master arc frame already exists")
@@ -263,17 +263,15 @@ class ScienceExposure:
                     numarr = np.array([])
                     for i in range(len(sframes)):
                         numarr = np.append(numarr, sframes[i].shape[2])
-                        msarc = arcomb.comb_frames(sframes[i], det,
-                                                   frametype='arc', **settings.argflag['arc']['combine'])
+                        msarc = arcomb.comb_frames(sframes[i], det, 'arc')
                         # Send the data away to be saved
                         subframes[:,:,i] = msarc.copy()
                     del sframes
                     # Combine all sub-frames
-                    msarc = arcomb.comb_frames(subframes, det, frametype='arc',
-                                               weights=numarr, **settings.argflag['arc']['combine'])
+                    msarc = arcomb.comb_frames(subframes, det, 'arc', weights=numarr)
                     del subframes
                 else:
-                    msarc = arcomb.comb_frames(frames, det, frametype='arc', **settings.argflag['arc']['combine'])
+                    msarc = arcomb.comb_frames(frames, det, 'arc')
                 del frames
             # # Derive a suitable name for the master arc frame
             # msarc_name = "{0:s}/{1:s}/msarc{2:s}_{3:03d}.fits".format(os.getcwd(),settings.argflag['run']['directory']['master'],settings.spect["det"][det-1]["suffix"],len(self._done_arcs))
@@ -330,7 +328,7 @@ class ScienceExposure:
                 ind = self._idx_bias
                 # Load the Bias/Dark frames
                 frames = arload.load_frames(fitsdict, ind, det, frametype=settings.argflag['bias']['useframe'])
-                msbias = arcomb.comb_frames(frames, det, frametype=settings.argflag['bias']['useframe'], **settings.argflag['bias']['combine'])
+                msbias = arcomb.comb_frames(frames, det, 'bias', printtype=settings.argflag['bias']['useframe'])
                 del frames
         elif settings.argflag['bias']['useframe'] == 'overscan':
             self.SetMasterFrame('overscan', "bias", det, mkcopy=False)
@@ -439,17 +437,15 @@ class ScienceExposure:
                         numarr = np.array([])
                         for i in range(len(sframes)):
                             numarr = np.append(numarr, sframes[i].shape[2])
-                            mspixelflat = arcomb.comb_frames(sframes[i], det, frametype='pixel flat',
-                                                           **settings.argflag['pixelflat']['combine'])
+                            mspixelflat = arcomb.comb_frames(sframes[i], det, 'pixelflat', printtype='pixel flat')
                             subframes[:,:,i] = mspixelflat.copy()
                         del sframes
                         # Combine all sub-frames
-                        mspixelflat = arcomb.comb_frames(subframes, det, frametype='pixel flat',
-                                                       weights=numarr, **settings.argflag['pixelflat']['combine'])
+                        mspixelflat = arcomb.comb_frames(subframes, det, 'pixelflat', weights=numarr,
+                                                         printtype='pixel flat')
                         del subframes
                     else:
-                        mspixelflat = arcomb.comb_frames(frames, det, frametype='pixel flat',
-                                                       **settings.argflag['pixelflat']['combine'])
+                        mspixelflat = arcomb.comb_frames(frames, det, 'pixelflat', printtype='pixel flat')
                     del frames
                     # Apply gain (instead of ampsec scale)
                     mspixelflat *= arproc.gain_frame(self, det)
@@ -488,7 +484,7 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-        dnum = 'det{0:02d}'.format(det)
+        dnum = settings.get_dnum(det)
         # If the master trace is already made, use it
         if self._mstrace[det-1] is not None:
             msgs.info("An identical master trace frame already exists")
@@ -530,14 +526,14 @@ class ScienceExposure:
                     numarr = np.array([])
                     for i in range(len(sframes)):
                         numarr = np.append(numarr, sframes[i].shape[2])
-                        mstrace = arcomb.comb_frames(sframes[i], det, frametype='trace', **settings.argflag['trace']['combine'])
+                        mstrace = arcomb.comb_frames(sframes[i], det, 'trace')
                         subframes[:,:,i] = mstrace.copy()
                     del sframes
                     # Combine all sub-frames
-                    mstrace = arcomb.comb_frames(subframes, det, frametype='trace', weights=numarr, **settings.argflag['trace']['combine'])
+                    mstrace = arcomb.comb_frames(subframes, det, 'trace', weights=numarr)
                     del subframes
                 else:
-                    mstrace = arcomb.comb_frames(frames, det, frametype='trace', **settings.argflag['trace']['combine'])
+                    mstrace = arcomb.comb_frames(frames, det, 'trace')
                 del frames
         elif settings.argflag['reduce']['trace']['useframe'] == 'science':
             msgs.error("Tracing with a science frame is not yet implemented")
