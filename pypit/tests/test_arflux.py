@@ -23,15 +23,12 @@ msgs = pyputils.get_dummy_logger()
 
 
 def test_find_standard():
-    from pypit import arutils as arut
     from pypit import arflux as arflx
-    # Dummy self
-    slf = arut.dummy_self()
     # G191b2b
     std_ra = '05:06:36.6'
     std_dec = '52:52:01.0'
     # Grab
-    std_dict = arflx.find_standard_file(settings.argflag, (std_ra, std_dec))
+    std_dict = arflx.find_standard_file((std_ra, std_dec))
     # Test
     assert std_dict['name'] == 'G191B2B'
     assert std_dict['file'] == '/data/standards/calspec/g191b2b_mod_005.fits'
@@ -40,19 +37,17 @@ def test_find_standard():
     # near G191b2b
     std_ra = '05:06:36.6'
     std_dec = '52:22:01.0'
-    std_dict = arflx.find_standard_file(settings.argflag, (std_ra,std_dec))
+    std_dict = arflx.find_standard_file((std_ra,std_dec))
     assert std_dict is None
 
 
 def test_load_extinction():
     from pypit import arflux as arflx
-    from pypit import arutils as arut
     # Dummy self
-    slf = arut.dummy_self()
     settings.spect['mosaic']['latitude'] = 37.3413889
     settings.spect['mosaic']['longitude'] = 121.6428
     # Load
-    extinct = arflx.load_extinction_data(slf)
+    extinct = arflx.load_extinction_data()
     np.testing.assert_allclose(extinct['wave'][0], 3200.)
     assert extinct['wave'].unit == u.AA
     np.testing.assert_allclose(extinct['mag_ext'][0], 1.084)
@@ -60,19 +55,17 @@ def test_load_extinction():
     settings.spect['mosaic']['latitude'] = 37.3413889
     settings.spect['mosaic']['longitude'] = 0.
     #
-    extinct = arflx.load_extinction_data(slf)
+    extinct = arflx.load_extinction_data()
     assert extinct is None
 
 
 def test_extinction_correction():
     from pypit import arflux as arflx
-    from pypit import arutils as arut
     # Dummy self
-    slf = arut.dummy_self()
     settings.spect['mosaic']['latitude'] = 37.3413889
     settings.spect['mosaic']['longitude'] = 121.6428
     # Load
-    extinct = arflx.load_extinction_data(slf)
+    extinct = arflx.load_extinction_data()
     # Correction
     wave = np.arange(3000.,10000.)*u.AA
     AM=1.5

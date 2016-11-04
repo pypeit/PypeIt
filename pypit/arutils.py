@@ -130,79 +130,57 @@ def dummy_fitsdict(nfile=10):
     fitsdict = {}
     fitsdict['date'] = ['2015-01-23T00:54:17.04']*nfile
     fitsdict['target'] = ['Dummy']*nfile
-    fitsdict['exptime'] = [300.]*nfile
+    fitsdict['exptime'] = [300.] * nfile
+    fitsdict['dispname'] = ['600/4310'] * nfile
+    fitsdict["binning"] = [[None]]
     #
     return fitsdict
 
 
-def dummy_self(pypitdir=None, inum=0, fitsdict=None, nfile=10):
+def dummy_self(inum=0, fitsdict=None, nfile=10):
     """
     Generate a dummy self class for testing
     Parameters:
     -----------
-    pypitdir : str, optional
-      Path to the PYPIT main directory
     inum : int, optional
       Index in sciexp
     Returns:
     --------
     slf
     """
-    import pypit
-    from pypit import arparse
     from pypit import arsciexp
-    from pypit import arload
-    # Dummy argflag
-    argf = arparse.get_argflag_class(("ARMLSD", "dummy"))
-    lines = argf.load_file()
-    if pypitdir is None:
-        pypitdir = __file__[0:__file__.rfind('/')]
-    argf.set_param('run pypitdir {0:s}'.format(pypitdir))
-    argf.set_param('run spectrograph dummy')
-    argf.set_param('run directory science ./')
-    argf.set_paramlist(lines)
-    # Dummy spect
-    spect = arparse.get_spect_class(("ARMLSD", "kast_blue", "dummy"))
-    lines = spect.load_file()
-    spect.set_paramlist(lines)
     # Dummy fitsdict
     if fitsdict is None:
         fitsdict = dummy_fitsdict(nfile=nfile)
-    # kk = 0
-    # for jj,key in enumerate(spect.keys()):
-    #     if key in ['det']:
-    #         continue
-    #     if 'index' in settings.spect[key].keys():
-    #         settings.spect[key]['index'] = [[kk]*nfile]
-    #         kk += 1
     # Dummy Class
     slf = arsciexp.ScienceExposure(inum, fitsdict, do_qa=False)
     return slf
 
 
-def erf_func(x):
-    """
-    This is a very good approximation to the erf function.
-    A probability is calculated as such:
-    prob = erf( N / np.sqrt(2.0) )
-    where N is the level of significance.
-    e.g. erf( 1.0 / np.sqrt(2.0) ) = 0.68268947
-    """
-    # Constants
-    a1 =  0.254829592
-    a2 = -0.284496736
-    a3 =  1.421413741
-    a4 = -1.453152027
-    a5 =  1.061405429
-    p  =  0.3275911
-    # Save the sign of x
-    sign = np.ones(x.size)
-    sign[np.where(x<0.0)] *= -1
-    x = np.abs(x)
-    # A&S formula 7.1.26
-    t = 1.0/(1.0 + p*x)
-    y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*np.exp(-x*x)
-    return sign*y
+def dummy_settings(pypitdir=None, nfile=10):
+    from pypit import arparse
+    # Dummy argflag
+    argf = arparse.get_argflag_class(("ARMLSD", "kast_blue"))
+    lines = argf.load_file()
+    if pypitdir is None:
+        pypitdir = __file__[0:__file__.rfind('/')]
+    argf.set_paramlist(lines)
+    argf.set_param('run pypitdir {0:s}'.format(pypitdir))
+    argf.set_param('run spectrograph kast_blue')
+    argf.set_param('run directory science ./')
+    # Dummy spect
+    spect = arparse.get_spect_class(("ARMLSD", "kast_blue", "dummy"))
+    lines = spect.load_file()
+    spect.set_paramlist(lines)
+    kk = 0
+    for jj, key in enumerate(spect._spect.keys()):
+        if key in ['det']:
+            continue
+        if 'index' in spect._spect[key].keys():
+            spect._spect[key]['index'].append([kk]*nfile)
+            kk += 1
+    arparse.init(argf, spect)
+    return
 
 
 def func_der(coeffs, func, nderive=1):
