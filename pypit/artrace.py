@@ -529,8 +529,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
         for ii in range(medrep):
             sqmstrace = ndimage.median_filter(sqmstrace, size=(3, 7))
         # Make sure there are no spuriously low pixels
-        sqmstrace[np.where((sqmstrace < 1.0) & (sqmstrace >= 0.0))] = 1.0
-        sqmstrace[np.where((sqmstrace > -1.0) & (sqmstrace <= 0.0))] = -1.0
+        sqmstrace[(sqmstrace < 1.0) & (sqmstrace >= 0.0)] = 1.0
+        sqmstrace[(sqmstrace > -1.0) & (sqmstrace <= 0.0)] = -1.0
         # Apply a Sobel filter
         filt = ndimage.sobel(sqmstrace, axis=1, mode='nearest')
         msgs.info("Applying bad pixel mask")

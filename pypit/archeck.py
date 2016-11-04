@@ -25,11 +25,14 @@ import astropy
 import matplotlib
 import yaml
 import linetools
+import future
+
 
 class VersionError(Exception):
     pass
 
 minimum_versions = {'scipy': '0.17.0'}
+
 
 def version_check():
     """

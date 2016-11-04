@@ -287,12 +287,12 @@ def sort_write(fitsdict, filesort, space=3):
     msgs.info("Successfully written sorted data information file:"+msgs.newline() +
               "{0:s}".format(fname))
 
-    # ASCII file (JXP)
-    jxpord = ['filename', 'date', 'frametype', 'target', 'exptime', 'binning',
+    # ASCII file
+    asciiord = ['filename', 'date', 'frametype', 'target', 'exptime', 'binning',
         'dichroic', 'dispname', 'dispangle', 'decker']
     # Generate the columns
     clms = []
-    for pr in jxpord:
+    for pr in asciiord:
         try:
             lidx = prord.index(pr)
         except ValueError:
@@ -303,10 +303,10 @@ def sort_write(fitsdict, filesort, space=3):
                 clm.append(table.array[i][lidx])
             clms.append(Column(clm, name=pr))
     # Create Table
-    jxp_tbl = tTable(clms)
+    ascii_tbl = tTable(clms)
     # Write
-    jxp_name = settings.argflag['output']['sorted']+'.lst'
-    jxp_tbl.write(jxp_name, format='ascii.fixed_width')
+    ascii_name = settings.argflag['output']['sorted']+'.lst'
+    ascii_tbl.write(ascii_name, format='ascii.fixed_width')
     return
 
 
