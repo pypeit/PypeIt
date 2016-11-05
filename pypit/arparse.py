@@ -39,10 +39,31 @@ class NestedDict(dict):
 
 class BaseFunctions(object):
     def __init__(self, defname, savname):
+        """ Initialise a settings class. These base functions are used by both spect and argflag settings.
+
+        Parameters
+        ----------
+        defname : str
+          Name of the default settings file to load.
+        savname : str
+          Name of the file that should save the complete list of the loaded settings.
+        """
         self._defname = defname
         self._afout = open(savname, 'w')
 
     def load_file(self, filename=None):
+        """ Load a settings file
+
+        Parameters
+        ----------
+        filename : str
+          Name of the settings file to load. If None, the default settings will be loaded.
+
+        Returns
+        -------
+        linesarr : list
+          Each element of this list contains a line that is read in from a settings file.
+        """
         if filename is None:
             msgs.info("Loading default settings")
         else:
@@ -59,10 +80,24 @@ class BaseFunctions(object):
             else:
                 msgs.error("Settings file does not exist:" + msgs.newline() +
                            self._defname)
-        arr = self.load_lines(lines)
-        return arr
+        linesarr = self.load_lines(lines)
+        return linesarr
 
     def load_lines(self, lines):
+        """ Load a lines of a settings file.
+        Ignore comment lines (those that start with a #)
+        Replace special characters.
+
+        Parameters
+        ----------
+        lines : list
+          A list containing all settings lines to be parsed.
+
+        Returns
+        -------
+        linesarr : list
+          Each element of this list contains a line that is read in from a settings file.
+        """
         linesarr = []
         for ll in lines:
             ll = ll.replace("\t", " ").replace("\n", " ")
@@ -80,12 +115,22 @@ class BaseFunctions(object):
 
 class BaseArgFlag(BaseFunctions):
     def __init__(self, defname, savname):
+        """ Initialize the base functions for the arguments and flags.
+        This class contains the functions to load the arguments and flags
+        that are common to all reduction programs (i..e ARMED, ARMLSD, etc.)
+
+        Parameters
+        ----------
+        defname : str
+          Name of the default settings file to load.
+        savname : str
+          Name of the file that should save the complete list of the loaded settings.
+        """
         super(BaseArgFlag, self).__init__(defname, savname)
         self._argflag = NestedDict()
 
     def save(self):
-        """
-        Save the settings used for this reduction
+        """ Save the arguments and flags settings used for a given reduction
         """
         def savedict(dct, keylst, keys):
             for (key, value) in iteritems(dct):
@@ -112,12 +157,27 @@ class BaseArgFlag(BaseFunctions):
             self._afout.write(keylst[i])
             prev = lstsplt
         self._afout.close()
-        return
 
     def set_param(self, lst, value=None):
+        """ Save a single parameter to the argflag dictionary
+
+        Parameters
+        ----------
+        lst : str or list
+          Either a string containing the keyword argument (e.g. 'run redname ARMLSD')
+          or a list containing the elements of the keyword argument (e.g. ['run', 'redname']).
+          If lst is a list, value must be specified.
+        value : any type
+          The value of the keyword argument provided by lst (when lst is of type list).
+        """
         members = [x for x, y in inspect.getmembers(self, predicate=inspect.ismethod)]
         if type(lst) is str:
             lst = lst.split()
+            value = None  # Force the value to be None
+        else:
+            if type(lst) is list and value is None:
+                msgs.error("Couldn't read the value from one of the keyword arguments:" + msgs.newline() +
+                           " ".join(lst))
         if value is None:
             func = "_".join(lst[:-1])
             value = "{0:s}".format(str(lst[-1]))
@@ -129,9 +189,16 @@ class BaseArgFlag(BaseFunctions):
         else:
             msgs.error("There appears to be an error on the following parameter:" + msgs.newline() +
                        " ".join(lst) + " {0:s}".format(str(value)))
-        return
 
     def set_paramlist(self, lstall):
+        """ Save a list of parameters to the argflag dictionary
+
+        Parameters
+        ----------
+        lstall : list
+          Each element of the lstall is a list containing a full line of a setting
+          (e.g. a single element of lstall might look like ['run', 'redname', 'ARMLSD'])
+        """
         for ll in range(len(lstall)):
             lst = lstall[ll]
             cnt = 1
@@ -178,11 +245,18 @@ class BaseArgFlag(BaseFunctions):
             if not succeed:
                 msgs.error("There appears to be an error on the following input line:" + msgs.newline() +
                            " ".join(lst))
-        return
 
     def update(self, v, ll=None):
-        """
-        Update an element in the nested dictionary
+        """ Update an element of the argflag dictionary
+
+        Parameters
+        ----------
+        v : any type
+          The value of a keyword argument
+        ll : list (optional)
+          A list containing the keyword (i.e. without the value).
+          In general, ll is determined by traceback to the argument
+          that called update.
         """
         def ingest(dct, upd):
             """
@@ -208,265 +282,202 @@ class BaseArgFlag(BaseFunctions):
             udct = dict({ll[-ii-1]: udct.copy()})
         # Update the master dictionary
         self._argflag = ingest(dstr, udct).copy()
-        return
 
-    def arc_combine_match(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
-        # Update argument
+    def arc_combine_match(self, v=-1.0):
+        """ Match similar arc frames together? A successful match is found when the frames
+        are similar to within N-sigma, where N is the argument of this expression. If v<0,
+        arc frames will not be matched.
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_float(v)
         self.update(v)
-        return
 
-    def arc_combine_method(self, v):
-        # Check that v is allowed
-        allowed = ['mean', 'median', 'weightmean']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+    def arc_combine_method(self, v='weightmean'):
+        """ What method should be used to combine the arc frames?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        allowed = combine_methods()
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
-    def arc_combine_reject_cosmics(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
-        # Update argument
+    def arc_combine_reject_cosmics(self, v=-1.0):
+        """ Specify the rejection threshold (in standard deviations) for
+        cosmic rays when combining the arc frames. If v<0, cosmic rays
+        will not be rejected.
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_float(v)
         self.update(v)
-        return
 
-    def arc_combine_reject_lowhigh(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
+    def arc_combine_reject_lowhigh(self, v=[0, 0]):
+        """ Specify the number of low/high pixels to be rejected when combining
+        the arc frames, in the format: [low,high].
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_list(v)
         self.update(v)
-        return
 
-    def arc_combine_reject_level(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
+    def arc_combine_reject_level(self, v=[3.0, 3.0]):
+        """ Specify the significance threshold (in standard deviations)
+        used to reject deviant pixels when combining the arc frames,
+        in the format: [low,high].
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_list(v)
         self.update(v)
-        return
 
-    def arc_combine_reject_replace(self, v):
-        # Check that v is allowed
-        allowed = ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+    def arc_combine_reject_replace(self, v='maxnonsat'):
+        """ What should be done if all pixels are rejected when
+        combining the arc frames?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        allowed = combine_replaces()
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
-    def arc_combine_satpix(self, v):
-        # Check that v is allowed
-        allowed = ['reject', 'force', 'nothing']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+    def arc_combine_satpix(self, v='reject'):
+        """ What should be done to saturated pixels when combining the arc frames?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        allowed = combine_satpixs()
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
-    def arc_extract_binby(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
+    def arc_extract_binby(self, v=1.0):
+        """ Binning factor to use when extracting 1D arc spectrum. A value of
+        1 means that no binning will be performed. This argument does not need
+        to be an integer, but it should be >=1.0.
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_float(v)
         if v < 1.0:
             msgs.error("The argument of {0:s} must be >= 1.0".format(get_current_name()))
-        # Update argument
         self.update(v)
-        return
 
     def arc_load_extracted(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
-        return
 
     def arc_load_calibrated(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
-        return
 
     def arc_calibrate_detection(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
-        # Update argument
+        v = key_float(v)
         self.update(v)
-        return
 
     def arc_calibrate_IDpixels(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
+        v = key_list(v)
         self.update(v)
-        return
 
     def arc_calibrate_IDwaves(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
+        v = key_list(v)
         self.update(v)
-        return
 
     def arc_calibrate_lamps(self, v):
-        # Check that v is allowed
         allowed = ['ArI', 'CdI', 'HgI', 'HeI', 'KrI', 'NeI', 'XeI', 'ZnI', 'ThAr']
-        v = load_list(v)
-        for ll in v:
-            if ll not in allowed:
-                msgs.error("The current list of arc lines does not include: {0:s}".format(ll) + msgs.newline() +
-                           "Please choose one of the following:" + msgs.newline() +
-                           ", ".join(allowed) + msgs.newline() +
-                           "for the argument of {0:s}".format(get_current_name()))
-        # Update argument
+        v = key_list_allowed(v, allowed)
         self.update(v)
-        return
 
     def arc_calibrate_method(self, v):
-        # Check that v is allowed
         allowed = ['fit', 'simple']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
     def arc_calibrate_nfitpix(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        v = key_int(v)
         if v % 2 == 0:
             msgs.warn("An odd integer is recommended for the argument of {0:s}".format(get_current_name()))
-        # Update argument
         self.update(v)
-        return
 
     def arc_calibrate_numsearch(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
-        # Update argument
+        v = key_int(v)
         self.update(v)
-        return
 
     def arc_useframe(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        elif v.lower() == "arc":
-            v = v.lower()
-        else:
-            msgs.info("Assuming the following is the name of an arc frame:" + msgs.newline() + v)
-        # Update argument
+        allowed = ["arc"]
+        v = key_none_allowed_filename(v, allowed)
         self.update(v)
-        return
 
     def bias_combine_method(self, v):
-        # Check that v is allowed
-        allowed = ['mean', 'median', 'weightmean']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        allowed = combine_methods()
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
     def bias_combine_reject_cosmics(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
-        # Update argument
+        v = key_float(v)
         self.update(v)
-        return
 
     def bias_combine_reject_lowhigh(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
+        v = key_list(v)
         self.update(v)
-        return
 
     def bias_combine_reject_level(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
+        v = key_list(v)
         self.update(v)
-        return
 
     def bias_combine_reject_replace(self, v):
-        # Check that v is allowed
-        allowed = ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        """ What should be done if all pixels are rejected when
+        combining the bias frames?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        allowed = combine_replaces()
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
     def bias_combine_satpix(self, v):
-        # Check that v is allowed
-        allowed = ['reject', 'force', 'nothing']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        """ What should be done to saturated pixels when combining the arc frames?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        allowed = combine_satpixs()
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
     def bias_useoverscan(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
-        return
 
     def bias_useframe(self, v):
-        # Check that v is allowed
         allowed = ['bias', 'overscan', 'dark', 'none']
         if "," in v:
             # Must be a list - multiple options
@@ -491,57 +502,30 @@ class BaseArgFlag(BaseFunctions):
         elif v.lower() == "none":
             v = None
         elif v.lower() not in allowed:
-            msgs.info("Assuming the following is the name of a bias frame:" + msgs.newline() +
-                      v)
-        # Update argument
+            msgs.info("Assuming the following is the name of a bias frame:" + msgs.newline() + v)
         self.update(v)
-        return
 
     def output_overwrite(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
-        return
 
     def output_sorted(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            if v.find('.') > 0:
-                msgs.error("The argument for keyword 'output sorted' should have no extension")
-        # Update argument
+        """
+        The argument of this keyword argument should have no extension
+        """
+        v = key_none(v)
         self.update(v)
-        return
 
     def output_verbosity(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        v = key_int(v)
         if (v < 0) or (v > 2):
             msgs.error("The verbosity can only take values between 0 (minimum) and 2 (maximum)" + msgs.newline() +
                        "Please change the argument of {0:s}".format(get_current_name()))
-        # Update argument
         self.update(v)
-        return
 
     def pixelflat_combine_match(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
-        # Update argument
+        v = key_float(v)
         self.update(v)
-        return
 
     def pixelflat_combine_method(self, v):
         # Check that v is allowed
@@ -2848,42 +2832,6 @@ def get_nmbr_name(anmbr=None, bnmbr=None, cnmbr=None):
     return "_".join(cspl)
 
 
-def load_list(strlist):
-    # Check if the input array is a null list
-    if strlist == "[]" or strlist == "()":
-        return []
-    # Remove outer brackets and split by commas
-    temp = strlist.lstrip('([').rstrip(')]').split(',')
-    addarr = []
-    # Find the type of the array elements
-    for i in temp:
-        if i.lower() == 'none':
-            # None type
-            addarr += [None]
-        elif i.lower() == 'true' or i.lower() == 'false':
-            # bool type
-            addarr += [i.lower() in ['true']]
-        elif ',' in i:
-            # a list
-            addarr += i.lstrip('([').rstrip('])').split(',')
-            msgs.bug("nested lists could cause trouble if elements are not strings!")
-        elif '.' in i:
-            try:
-                # Might be a float
-                addarr += [float(i)]
-            except ValueError:
-                # Must be a string
-                addarr += [i]
-        else:
-            try:
-                # Could be an integer
-                addarr += [int(i)]
-            except ValueError:
-                # Must be a string
-                addarr += [i]
-    return addarr
-
-
 def load_sections(string):
     """
     From the input string, return the coordinate sections
@@ -2928,3 +2876,135 @@ def get_dnum(det):
       A string used by the settings dictionary
     """
     return 'det{0:02d}'.format(det)
+
+
+def key_allowed(v, allowed):
+    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
+    func_name = "'" + " ".join(ll) + "'"
+    v = v.lower()
+    if v not in allowed:
+        msgs.error("The argument of {0:s} must be one of".format(func_name) + msgs.newline() +
+                   ", ".join(allowed))
+    return v
+
+
+def key_bool(v):
+    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
+    func_name = "'" + " ".join(ll) + "'"
+    if v.lower() == "true":
+        v = True
+    elif v.lower() == "false":
+        v = False
+    else:
+        msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(func_name))
+    return v
+
+
+def key_float(v):
+    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
+    func_name = "'" + " ".join(ll) + "'"
+    try:
+        v = float(v)
+    except ValueError:
+        msgs.error("The argument of {0:s} must be of type float".format(func_name))
+    return v
+
+
+def key_int(v):
+    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
+    func_name = "'" + " ".join(ll) + "'"
+    try:
+        v = int(v)
+    except ValueError:
+        msgs.error("The argument of {0:s} must be of type int".format(func_name))
+    return v
+
+
+def key_list(strlist):
+    # Check if the input array is a null list
+    if strlist == "[]" or strlist == "()":
+        return []
+    # Remove outer brackets and split by commas
+    temp = strlist.lstrip('([').rstrip(')]').split(',')
+    addarr = []
+    # Find the type of the array elements
+    for i in temp:
+        if i.lower() == 'none':
+            # None type
+            addarr += [None]
+        elif i.lower() == 'true' or i.lower() == 'false':
+            # bool type
+            addarr += [i.lower() in ['true']]
+        elif ',' in i:
+            # a list
+            addarr += i.lstrip('([').rstrip('])').split(',')
+            msgs.bug("nested lists could cause trouble if elements are not strings!")
+        elif '.' in i:
+            try:
+                # Might be a float
+                addarr += [float(i)]
+            except ValueError:
+                # Must be a string
+                addarr += [i]
+        else:
+            try:
+                # Could be an integer
+                addarr += [int(i)]
+            except ValueError:
+                # Must be a string
+                addarr += [i]
+    return addarr
+
+
+def key_list_allowed(v, allowed):
+    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
+    func_name = "'" + " ".join(ll) + "'"
+    v = key_list(v)
+    for ll in v:
+        if ll not in allowed:
+            msgs.error("The allowed list does not include: {0:s}".format(ll) + msgs.newline() +
+                       "Please choose one of the following:" + msgs.newline() +
+                       ", ".join(allowed) + msgs.newline() +
+                       "for the argument of {0:s}".format(func_name))
+    return v
+
+
+def key_none_allowed_filename(v, allowed):
+    """ First check if a keyword is None, then see if it is in the allowed list,
+    and finally assume that it is the name of a file if not in the list
+    """
+    if v.lower() == "none":
+        v = None
+    elif v.lower() in allowed:
+        for i in allowed:
+            if v.lower() == i:
+                v = i
+                break
+    else:
+        msgs.info("Assuming the following is the name of an arc frame:" + msgs.newline() + v)
+    return v
+
+
+def key_none(v):
+    if v.lower() == "none":
+        v = None
+    return v
+
+
+def combine_methods():
+    """ The methods that can be used to combine a set of frames into a master frame
+    """
+    methods = ['mean', 'median', 'weightmean']
+    return methods
+
+
+def combine_replaces():
+    """ The options that can be used to replace rejected pixels when combining a set of frames
+    """
+    methods = ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']
+    return methods
+
+
+def combine_satpixs():
+    methods = ['reject', 'force', 'nothing']
+    return methods
