@@ -497,7 +497,7 @@ class BaseArgFlag(BaseFunctions):
         allowed = ['bias', 'overscan', 'dark', 'none']
         if "," in v:
             # Must be a list - multiple options
-            v = load_list(v)
+            v = key_list(v)
             if "none" in v:
                 msgs.error("'none' cannot be a list element for the argument of {0:s}".format(get_current_name()))
             if ("bias" in v) and ("dark" in v):
@@ -1240,122 +1240,66 @@ class BaseSpect(BaseFunctions):
         return
 
     def arc_canbe(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            if "," in v:
-                v = v.strip("()[]").split(",")
-            else:
-                v = [v]
-        # Update argument
+        v = key_none_list(v)
         self.update(v)
 
     def arc_check_condition(self, v, cnmbr=1):
         cname = get_nmbr_name(cnmbr=cnmbr)
-        # Check that v is allowed
-        text = v.strip().replace('_', ' ')
-        if ',' in text and text[0:2] != '%,':
-            # There are multiple possibilities - split the text
-            v = text.split(',')
-        else:
-            v = text
-        # Update argument
+        v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
     def arc_idname(self, v):
-        # Check that v is allowed
-
-        # Update argument
         self.update(v)
 
     def arc_number(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
-        # Update argument
         self.update(v)
 
     def bias_canbe(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            if "," in v:
-                v = v.strip("()[]").split(",")
-            else:
-                v = [v]
-        # Update argument
+        v = key_none_list(v)
         self.update(v)
 
     def bias_check_condition(self, v, cnmbr=1):
         cname = get_nmbr_name(cnmbr=cnmbr)
-        # Check that v is allowed
-        text = v.strip().replace('_', ' ')
-        if ',' in text and text[0:2] != '%,':
-            # There are multiple possibilities - split the text
-            v = text.split(',')
-        else:
-            v = text
-        # Update argument
+        v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
     def bias_idname(self, v):
-        # Check that v is allowed
-
-        # Update argument
         self.update(v)
 
     def bias_number(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
-        # Update argument
         self.update(v)
 
     def det_datasec(self, v, anmbr=1, bnmbr=1):
         cname = get_nmbr_name(anmbr=anmbr, bnmbr=bnmbr)
-        # Check that v is allowed
         try:
             v = load_sections(v)
         except ValueError:
-            msgs.error("The argument of {0:s} must be detector section".format(cname))
-        # Update argument
+            msgs.error("The argument of {0:s} must be a detector section".format(cname))
         self.update(v, ll=cname.split('_'))
 
     def det_oscansec(self, v, anmbr=1, bnmbr=1):
         cname = get_nmbr_name(anmbr=anmbr, bnmbr=bnmbr)
-        # Check that v is allowed
         try:
             v = load_sections(v)
         except ValueError:
             msgs.error("The argument of {0:s} must be detector section".format(cname))
-        # Update argument
         self.update(v, ll=cname.split('_'))
 
     def det_darkcurr(self, v, anmbr=1):
         cname = get_nmbr_name(anmbr=anmbr)
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(cname))
+        v = key_float(v)
         if v < 0.0:
             msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
-        # Update argument
         self.update(v, ll=cname.split('_'))
 
     def det_gain(self, v, anmbr=1):
         cname = get_nmbr_name(anmbr=anmbr)
-        # Check that v is allowed
         try:
             v = v.split(",")
             for i in range(len(v)):
@@ -1364,12 +1308,10 @@ class BaseSpect(BaseFunctions):
                     msgs.error("Each argument of {0:s} must be > 0.0".format(cname))
         except ValueError:
             msgs.error("Each argument of {0:s} must be of type float".format(cname))
-        # Update argument
         self.update(v, ll=cname.split('_'))
 
     def det_ronoise(self, v, anmbr=1):
         cname = get_nmbr_name(anmbr=anmbr)
-        # Check that v is allowed
         try:
             v = v.split(",")
             for i in range(len(v)):
@@ -1378,961 +1320,398 @@ class BaseSpect(BaseFunctions):
                     msgs.error("Each argument of {0:s} must be > 0.0".format(cname))
         except ValueError:
             msgs.error("Each argument of {0:s} must be of type float".format(cname))
-        # Update argument
         self.update(v, ll=cname.split('_'))
 
     def det_nonlinear(self, v, anmbr=1):
         cname = get_nmbr_name(anmbr=anmbr)
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(cname))
+        v = key_float(v)
         if v <= 0.0 or v > 1.0:
             msgs.error("The argument of {0:s} must be > 0.0 and <= 1.0".format(cname))
-        # Update argument
         self.update(v, ll=cname.split('_'))
 
     def det_numamplifiers(self, v, anmbr=1):
         cname = get_nmbr_name(anmbr=anmbr)
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(cname))
+        v = key_int(v)
         if v <= 0:
             msgs.error("The argument of {0:s} must be >= 1".format(cname))
-        # Update argument
         self.update(v, ll=cname.split('_'))
 
     def det_saturation(self, v, anmbr=1):
         cname = get_nmbr_name(anmbr=anmbr)
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(cname))
+        v = key_float(v)
         if v <= 0.0:
             msgs.error("The argument of {0:s} must be > 0.0".format(cname))
-        # Update argument
         self.update(v, ll=cname.split('_'))
 
     def det_suffix(self, v, anmbr=1):
         cname = get_nmbr_name(anmbr=anmbr)
-        # Check that v is allowed
-
-        # Update argument
         self.update(v, ll=cname.split('_'))
 
     def det_xgap(self, v, anmbr=1):
         cname = get_nmbr_name(anmbr=anmbr)
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(cname))
+        v = key_float(v)
         if v < 0.0:
             msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
-        # Update argument
         self.update(v, ll=cname.split('_'))
 
     def det_ygap(self, v, anmbr=1):
         cname = get_nmbr_name(anmbr=anmbr)
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(cname))
+        v = key_float(v)
         if v < 0.0:
             msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
-        # Update argument
         self.update(v, ll=cname.split('_'))
 
     def det_ysize(self, v, anmbr=1):
         cname = get_nmbr_name(anmbr=anmbr)
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(cname))
+        v = key_float(v)
         if v <= 0.0:
             msgs.error("The argument of {0:s} must be > 0.0".format(cname))
-        # Update argument
         self.update(v, ll=cname.split('_'))
 
     def fits_calwin(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
+        v = key_float(v)
         if v <= 0.0:
             msgs.error("The calibration time window must be > 0.0")
-        # Update argument
         self.update(v)
 
     def fits_dataext(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        v = key_int(v)
         if v < 0:
             msgs.error("The fits data extension number must be >= 0")
-        # Update argument
         self.update(v)
 
     def fits_headext(self, v, bnmbr=1):
         cname = get_nmbr_name(bnmbr=bnmbr)
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(cname))
+        v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(cname))
-        # Update argument
         self.update(v, ll=cname.split('_'))
 
     def fits_numhead(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        v = key_int(v)
         if v <= 0:
             msgs.error("The number of fits headers must be >= 1")
-        # Update argument
         self.update(v)
 
     def fits_numlamps(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        v = key_int(v)
         if v < 0:
             msgs.error("The number of lamps must be >= 0")
-        # Update argument
         self.update(v)
 
     def fits_timeunit(self, v):
-        # Check that v is allowed
         allowed = ['s', 'm', 'h']
         astropy_allowed = Time.FORMATS.keys()
         if v not in allowed and v not in astropy_allowed:
             msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
                        ", ".join(allowed) + "or one of the astropy Time formats:" + msgs.newline() +
                        ", ".join(astropy_allowed))
-        # Update argument
         self.update(v)
 
     def keyword_ra(self, v):
-        # Check that v is allowed
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                       "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                       "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_dec(self, v):
-        # Check that v is allowed
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                       "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                       "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_target(self, v):
-        # Check that v is allowed
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                       "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                       "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_airmass(self, v):
-        # Check that v is allowed
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                       "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                       "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_binning(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_binningspatial(self, v):
-        # Check that v is allowed
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                       "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                       "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_binningspectral(self, v):
-        # Check that v is allowed
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                       "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                       "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_date(self, v):
-        # Check that v is allowed
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                       "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                       "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_decker(self, v):
-        # Check that v is allowed
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                       "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                       "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_detrot(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_dispname(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
-
     def keyword_dispangle(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_equinox(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_exptime(self, v):
-        # Check that v is allowed
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                       "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                       "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_filter1(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_filter2(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_hatch(self, v):
-        # Check that v is allowed
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                       "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                       "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_idname(self, v):
-        # Check that v is allowed
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                       "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                       "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_lamps(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_lampname(self, v, bnmbr=1):
         cname = get_nmbr_name(bnmbr=bnmbr)
-        # Check that v is allowed
         if "." not in v:
             # User must have passed the name of the lamp
             pass
         else:
-            # Get the name of the lamp from the header
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(cname) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
+            # Get the lamp status from the header
+            v = key_keyword(v)
         self.update(v, ll=cname.split('_'))
 
     def keyword_lampstat(self, v, bnmbr=1):
         cname = get_nmbr_name(bnmbr=bnmbr)
-        # Check that v is allowed
         if "." not in v:
             # User must have specified the status
             pass
         else:
             # Get the lamp status from the header
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(cname) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
+            v = key_keyword(v)
         self.update(v, ll=cname.split('_'))
 
     def keyword_naxis0(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_naxis1(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_slitwid(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_slitlen(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def keyword_time(self, v):
-        # Check that v is allowed
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                       "##.NAME" + msgs.newline() +
-                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                       "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
     def mosaic_camera(self, v):
-        # Check that v is allowed
-
-        # Update argument
         self.update(v)
 
     def mosaic_elevation(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
-        # Update argument
+        v = key_float(v)
         self.update(v)
 
     def mosaic_latitude(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
-        # Update argument
+        v = key_float(v)
         self.update(v)
 
     def mosaic_longitude(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
-        # Update argument
+        v = key_float(v)
         self.update(v)
 
     def mosaic_ndet(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
-        # Update argument
+        v = key_int(v)
         self.update(v)
 
     def mosaic_minexp(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
-        # Update argument
+        v = key_float(v)
         self.update(v)
 
     def mosaic_reduction(self, v):
         # Check that v is allowed
         allowed = ['ARMLSD', 'ARMED']
-        if v.upper() not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        v = key_allowed(v, allowed, upper=True)
         self.update(v.upper())
 
     def pixelflat_canbe(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            if "," in v:
-                v = v.strip("()[]").split(",")
-            else:
-                v = [v]
-        # Update argument
+        v = key_none_list(v)
         self.update(v)
 
     def pixelflat_check_condition(self, v, cnmbr=1):
         cname = get_nmbr_name(cnmbr=cnmbr)
-        # Check that v is allowed
-        text = v.strip().replace('_', ' ')
-        if ',' in text and text[0:2] != '%,':
-            # There are multiple possibilities - split the text
-            v = text.split(',')
-        else:
-            v = text
-        # Update argument
+        v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
     def pixelflat_idname(self, v):
-        # Check that v is allowed
-
-        # Update argument
         self.update(v)
 
     def pixelflat_lscomb(self, v):
-        # Check that v is allowed
-        v = v.lower()
-        if v == "true":
-            v = True
-        elif v == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} must be True or False".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
 
     def pixelflat_number(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
-        # Update argument
         self.update(v)
 
     def science_canbe(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            if "," in v:
-                v = v.strip("()[]").split(",")
-            else:
-                v = [v]
-        # Update argument
+        v = key_none_list(v)
         self.update(v)
 
     def science_check_condition(self, v, cnmbr=1):
         cname = get_nmbr_name(cnmbr=cnmbr)
-        # Check that v is allowed
-        text = v.strip().replace('_', ' ')
-        if ',' in text and text[0:2] != '%,':
-            # There are multiple possibilities - split the text
-            v = text.split(',')
-        else:
-            v = text
-        # Update argument
+        v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
     def science_idname(self, v):
-        # Check that v is allowed
-
-        # Update argument
         self.update(v)
 
     def set_arc(self, v):
-        # Check that v is allowed
-        v = load_list(v)
+        v = key_list(v)
         v = self._spect['set']['arc'] + v
-        # Update argument
         self.update(v)
-        return
 
     def set_bias(self, v):
-        # Check that v is allowed
-        v = load_list(v)
+        v = key_list(v)
         v = self._spect['set']['bias'] + v
-        # Update argument
         self.update(v)
-        return
 
     def set_pixelflat(self, v):
-        # Check that v is allowed
-        v = load_list(v)
+        v = key_list(v)
         v = self._spect['set']['pixelflat'] + v
-        # Update argument
         self.update(v)
-        return
 
     def set_science(self, v):
-        # Check that v is allowed
-        v = load_list(v)
+        v = key_list(v)
         v = self._spect['set']['science'] + v
-        # Update argument
         self.update(v)
-        return
 
     def set_slitflat(self, v):
-        # Check that v is allowed
-        v = load_list(v)
+        v = key_list(v)
         v = self._spect['set']['slitflat'] + v
-        # Update argument
         self.update(v)
-        return
 
     def set_standard(self, v):
-        # Check that v is allowed
-        v = load_list(v)
+        v = key_list(v)
         v = self._spect['set']['standard'] + v
-        # Update argument
         self.update(v)
-        return
 
     def set_trace(self, v):
-        # Check that v is allowed
-        v = load_list(v)
+        v = key_list(v)
         v = self._spect['set']['trace'] + v
-        # Update argument
         self.update(v)
-        return
 
     def slitflat_canbe(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            if "," in v:
-                v = v.strip("()[]").split(",")
-            else:
-                v = [v]
-        # Update argument
+        v = key_none_list(v)
         self.update(v)
 
     def slitflat_check_condition(self, v, cnmbr=1):
         cname = get_nmbr_name(cnmbr=cnmbr)
-        # Check that v is allowed
-        text = v.strip().replace('_', ' ')
-        if ',' in text and text[0:2] != '%,':
-            # There are multiple possibilities - split the text
-            v = text.split(',')
-        else:
-            v = text
-        # Update argument
+        v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
     def slitflat_idname(self, v):
-        # Check that v is allowed
-
-        # Update argument
         self.update(v)
 
     def slitflat_lscomb(self, v):
-        # Check that v is allowed
-        v = v.lower()
-        if v == "true":
-            v = True
-        elif v == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} must be True or False".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
 
     def slitflat_number(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
-        # Update argument
         self.update(v)
 
     def standard_canbe(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            if "," in v:
-                v = v.strip("()[]").split(",")
-            else:
-                v = [v]
-        # Update argument
+        v = key_none_list(v)
         self.update(v)
 
     def standard_check_condition(self, v, cnmbr=1):
         cname = get_nmbr_name(cnmbr=cnmbr)
-        # Check that v is allowed
-        text = v.strip().replace('_', ' ')
-        if ',' in text and text[0:2] != '%,':
-            # There are multiple possibilities - split the text
-            v = text.split(',')
-        else:
-            v = text
-        # Update argument
+        v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
     def standard_idname(self, v):
-        # Check that v is allowed
-
-        # Update argument
         self.update(v)
 
     def standard_number(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
-        # Update argument
         self.update(v)
 
     def trace_canbe(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            if "," in v:
-                v = v.strip("()[]").split(",")
-            else:
-                v = [v]
-        # Update argument
+        v = key_none_list(v)
         self.update(v)
 
     def trace_check_condition(self, v, cnmbr=1):
         cname = get_nmbr_name(cnmbr=cnmbr)
-        # Check that v is allowed
-        text = v.strip().replace('_', ' ')
-        if ',' in text and text[0:2] != '%,':
-            # There are multiple possibilities - split the text
-            v = text.split(',')
-        else:
-            v = text
-        # Update argument
+        v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
     def trace_idname(self, v):
-        # Check that v is allowed
-
-        # Update argument
         self.update(v)
 
     def trace_lscomb(self, v):
-        # Check that v is allowed
-        v = v.lower()
-        if v == "true":
-            v = True
-        elif v == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} must be True or False".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
 
     def trace_number(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
-        # Update argument
         self.update(v)
 
 
 class ARMLSD(BaseArgFlag):
 
     def reduce_calibrate_flux(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
 
     def reduce_flexure_maxshift(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
-        # Update argument
+        v = key_int(v)
         self.update(v)
 
     def reduce_flexure_spec(self, v):
-        # Check that v is allowed
         allowed = ['boxcar', 'slit_cen', 'none']
-        v = v.lower()
-        if v == "none":
-            v = None
-        elif v in allowed:
-            pass
-        else:
-            msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        v = key_none_allowed(v, allowed)
         self.update(v)
 
 
 class ARMLSD_spect(BaseSpect):
 
     def keyword_dichroic(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
 
 class ARMED_spect(BaseSpect):
 
     def keyword_echangle(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        else:
-            try:
-                vspl = v.split(".")
-                int(vspl[0])
-            except ValueError:
-                msgs.error("The argument of {0:s} must be of the form:".format(get_current_name()) + msgs.newline() +
-                           "##.NAME" + msgs.newline() +
-                           "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
-                           "and NAME is the header keyword name")
-        # Update argument
+        v = key_keyword(v)
         self.update(v)
 
 
@@ -2450,10 +1829,13 @@ def get_dnum(det):
     return 'det{0:02d}'.format(det)
 
 
-def key_allowed(v, allowed):
+def key_allowed(v, allowed, upper=False):
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
     func_name = "'" + " ".join(ll) + "'"
-    v = v.lower()
+    if upper:
+        v = v.upper()
+    else:
+        v = v.lower()
     if v not in allowed:
         msgs.error("The argument of {0:s} must be one of".format(func_name) + msgs.newline() +
                    ", ".join(allowed))
@@ -2481,6 +1863,16 @@ def key_bool(v):
     return v
 
 
+def key_check(v):
+    text = v.strip().replace('_', ' ')
+    if ',' in text and text[0:2] != '%,':
+        # There are multiple possibilities - split the text
+        v = text.split(',')
+    else:
+        v = text
+    return v
+
+
 def key_float(v):
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
     func_name = "'" + " ".join(ll) + "'"
@@ -2498,6 +1890,23 @@ def key_int(v):
         v = int(v)
     except ValueError:
         msgs.error("The argument of {0:s} must be of type int".format(func_name))
+    return v
+
+
+def key_keyword(v):
+    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
+    func_name = "'" + " ".join(ll) + "'"
+    if v.lower() == "none":
+        v = None
+    else:
+        try:
+            vspl = v.split(".")
+            int(vspl[0])
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of the form:".format(func_name) + msgs.newline() +
+                       "##.NAME" + msgs.newline() +
+                       "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
+                       "and NAME is the header keyword name")
     return v
 
 
@@ -2581,6 +1990,17 @@ def key_none_allowed_filename(v, allowed):
                 break
     else:
         msgs.info("Assuming the following is the name of a file:" + msgs.newline() + v)
+    return v
+
+
+def key_none_list(v):
+    if v.lower() == "none":
+        v = None
+    else:
+        if "," in v:
+            v = v.strip("()[]").split(",")
+        else:
+            v = [v]
     return v
 
 
