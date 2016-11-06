@@ -859,7 +859,8 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def science_extraction_profile(self, v):
-        v = key_allowed(v)
+        allowed = ['gaussian', 'gaussfunc', 'moffat', 'moffatfunc']
+        v = key_allowed(v, allowed)
         self.update(v)
 
     def science_extraction_reuse(self, v):
