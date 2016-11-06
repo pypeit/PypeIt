@@ -331,6 +331,10 @@ class BaseArgFlag(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_list(v)
+        if len(v) != 2:
+            msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
+        if v[0] < 0 or v[1] < 0:
+            msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
     def arc_combine_reject_level(self, v=[3.0, 3.0]):
@@ -344,6 +348,10 @@ class BaseArgFlag(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_list(v)
+        if len(v) != 2:
+            msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
+        if v[0] < 0.0 or v[1] < 0.0:
+            msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
     def arc_combine_reject_replace(self, v='maxnonsat'):
@@ -442,10 +450,18 @@ class BaseArgFlag(BaseFunctions):
 
     def bias_combine_reject_lowhigh(self, v):
         v = key_list(v)
+        if len(v) != 2:
+            msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
+        if v[0] < 0 or v[1] < 0:
+            msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
     def bias_combine_reject_level(self, v):
         v = key_list(v)
+        if len(v) != 2:
+            msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
+        if v[0] < 0.0 or v[1] < 0.0:
+            msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
     def bias_combine_reject_replace(self, v):
@@ -528,209 +544,100 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def pixelflat_combine_method(self, v):
-        # Check that v is allowed
-        allowed = ['mean', 'median', 'weightmean']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        allowed = combine_methods()
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
     def pixelflat_combine_reject_cosmics(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
-        # Update argument
+        v = key_float(v)
         self.update(v)
-        return
 
     def pixelflat_combine_reject_lowhigh(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
+        v = key_list(v)
+        if len(v) != 2:
+            msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
+        if v[0] < 0 or v[1] < 0:
+            msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
-        return
 
     def pixelflat_combine_reject_level(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
+        v = key_list(v)
+        if len(v) != 2:
+            msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
+        if v[0] < 0.0 or v[1] < 0.0:
+            msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
-        return
 
     def pixelflat_combine_reject_replace(self, v):
-        # Check that v is allowed
-        allowed = ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        allowed = combine_replaces()
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
     def pixelflat_combine_satpix(self, v):
-        # Check that v is allowed
-        allowed = ['reject', 'force', 'nothing']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        allowed = combine_satpixs()
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
     def pixelflat_norm_recnorm(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
-        return
 
     def pixelflat_useframe(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        elif v.lower() in ['pixelflat']:
-            v = v.lower()
-        else:
-            msgs.info("Assuming the following is the name of a pixelflat frame:" + msgs.newline() + v)
-        # Update argument
+        allowed = ['pixelflat']
+        v = key_none_allowed_filename(v, allowed)
         self.update(v)
-        return
 
     def reduce_badpix(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
-        return
 
     def reduce_calibrate_nonlinear(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
-        return
 
     def reduce_calibrate_refframe(self, v):
-        # Check that v is allowed
         allowed = ['geocentric', 'heliocentric', 'barycentric']
-        if v.lower() not in allowed:
-            msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
     def reduce_calibrate_wavelength(self, v):
-        # Check that v is allowed
         allowed = ['air', 'vacuum', 'none']
-        if v.lower() not in allowed:
-            msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
     def reduce_flatfield_method(self, v):
-        # Check that v is allowed
         allowed = ['polyscan']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
     def reduce_flatfield_params(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
+        v = key_list(v)
         self.update(v)
-        return
 
     def reduce_flatfield_perform(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
-        return
 
     def reduce_flatfield_useframe(self, v):
-        # Check that v is allowed
         allowed = ['pixelflat', 'slitflat']
-        vt = v.lower()
-        if vt not in allowed:
-            msgs.warn("Assuming the following is the name of a master flatfield frame:" + msgs.newline() + v)
-        else:
-            v = vt
-        # Update argument
+        v = key_allowed_filename(v, allowed)
         self.update(v)
-        return
 
     def reduce_trace_useframe(self, v):
-        # Check that v is allowed
         allowed = ['trace', 'slitflat', 'science']
-        vt = v.lower()
-        if vt not in allowed:
-            msgs.warn("Assuming the following is the name of a master trace frame:" + msgs.newline() + v)
-        else:
-            v = vt
-        # Update argument
+        v = key_allowed_filename(v, allowed)
         self.update(v)
-        return
 
     def reduce_flexure_maxshift(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
-        # Update argument
+        v = key_int(v)
         self.update(v)
-        return
 
     def reduce_flexure_method(self, v):
-        # Check that v is allowed
         allowed = ['none', 'boxcar', 'slitcen']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        if v == 'none':
-            v = None
-        # Update argument
+        v = key_none_allowed(v, allowed)
         self.update(v)
-        return
 
     def reduce_flexure_spectrum(self, v):
-        # Check that v is allowed
         if v.lower() == 'none':
             v = None
         else:
@@ -742,65 +649,36 @@ class BaseArgFlag(BaseFunctions):
                 msgs.error("The following archive sky spectrum file does not exist:" + msgs.newline() +
                            "  " + v + msgs.newline() + msgs.newline() + "Please use one of the files listed below:" +
                            skyfiles)
-        # Update argument
         self.update(v)
-        return
 
     def reduce_masters_file(self, v):
-        # Check that v is allowed
         if v.lower() == 'none':
             v = ''
-        # Update argument
         self.update(v)
-        return
 
     def reduce_masters_loaded(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
+        v = key_list(v)
         self.update(v)
-        return
 
     def reduce_masters_reuse(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
-        return
 
     def reduce_masters_setup(self, v):
-        # Check that v is allowed
         if v.lower() == 'none':
             v = ''
-        # Update argument
         self.update(v)
-        return
 
     def reduce_overscan_method(self, v):
-        # Check that v is allowed
         allowed = ['polynomial', 'savgol', 'median']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed) + msgs.newline())
-        # Update argument
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
     def reduce_overscan_params(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
+        v = key_list(v)
         self.update(v)
-        return
 
     def reduce_pixel_locations(self, v):
-        # Check that v is allowed
         if v.lower() == "none":
             v = None
         elif v.split(".")[-1] == "fits":
@@ -809,111 +687,51 @@ class BaseArgFlag(BaseFunctions):
             pass
         else:
             msgs.error("The argument of {0:s} must be 'None' or a fits file".format(get_current_name()))
-        # Update argument
         self.update(v)
-        return
 
     def reduce_pixel_size(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
-        # Update argument
+        v = key_float(v)
         self.update(v)
-        return
 
     def reduce_skysub_bspline_everyn(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
-        # Update argument
+        v = key_int(v)
         self.update(v)
-        return
 
     def reduce_skysub_method(self, v):
-        # Check that v is allowed
         allowed = ['bspline', 'polyscan']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
     def reduce_skysub_perform(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
-        return
 
     def reduce_trim(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
-        return
 
     def run_calcheck(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'").format(get_current_name())
-        # Update argument
+        v = key_bool(v)
         self.update(v)
-        return
 
     def run_directory_master(self, v):
-        # Check that v is allowed
-
-        # Update argument
         self.update(v)
-        return
 
     def run_directory_qa(self, v):
-        # Check that v is allowed
-
-        # Update argument
         self.update(v)
-        return
 
     def run_directory_science(self, v):
-        # Check that v is allowed
-
-        # Update argument
         self.update(v)
-        return
 
     def run_load_settings(self, v):
-        # Check that v is allowed
         if v.lower() == "none":
             v = None
         elif not isfile(v):
                 msgs.error("The argument of {0:s} must be a PYPIT settings file".format(get_current_name()) +
                            msgs.newline() + "or 'None'. The following file does not exist:" + msgs.newline() + v)
-        # Update argument
         self.update(v)
-        return
 
     def run_load_spect(self, v):
-        # Check that v is allowed
         if v.lower() == "none":
             v = None
         elif isfile(v):
@@ -923,23 +741,22 @@ class BaseArgFlag(BaseFunctions):
         else:
              msgs.error("The argument of {0:s} must be a PYPIT spectrograph settings".format(get_current_name()) +
                         msgs.newline() + "file or 'None'. The following file does not exist:" + msgs.newline() + v)
-        # Update argument
         self.update(v)
-        return
 
     def run_ncpus(self, v):
-        # Check that v is allowed
         if 'ncpus' in self._argflag['run'].keys():
             curcpu = self._argflag['run']['ncpus']
         else:
             curcpu = 0
         cpucnt = cpu_count()
         if v == 'all':
-            v = cpucnt  # Use all available cpus
+            # Use all available cpus
+            v = cpucnt
             if v != curcpu:
                 msgs.info("Setting {0:d} CPUs".format(v))
         elif v is None:
-            v = cpucnt-1  # Use all but 1 available cpus
+            # Use all but 1 available cpus
+            v = cpucnt-1
             if v != curcpu:
                 msgs.info("Setting {0:d} CPUs".format(v))
         else:
@@ -964,47 +781,23 @@ class BaseArgFlag(BaseFunctions):
                     v = cpu_count()-1
                     if v != curcpu:
                         msgs.info("Setting {0:d} CPUs".format(v))
-        # Update argument
         self.update(v)
-        return
 
     def run_preponly(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
-        return
 
     def run_progname(self, v):
-        # Update argument
         self.update(v)
 
     def run_pypitdir(self, v):
-        # Update argument
         self.update(v)
 
     def run_qa(self, v):
-        """
-        run qcontrol
-        """
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
-        return
 
     def run_redname(self, v):
-        # Update argument
         self.update(v)
 
     def run_spectrograph(self, v):
@@ -1024,53 +817,32 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("Settings do not exist for the {0:s} spectrograph".format(v.lower()) + msgs.newline() +
                        "Please use one of the following spectrograph settings:" + msgs.newline() +
                        wraptext(", ".join(spclist), width=60))
-        # Update argument
         self.update(v)
         return
 
     def run_stopcheck(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
-        return
 
     def run_useIDname(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
-        return
 
     def science_extraction_manual(self, cnmbr=1, frame="none", params="[1,1000,500,[10,10]]"):
-        debugger.set_trace()
         # Send parameters away to individual arguments
         self.science_extraction_manual_frame(frame, cnmbr=cnmbr)
         self.science_extraction_manual_params(params, cnmbr=cnmbr)
 
     def science_extraction_manual_frame(self, v, cnmbr=1):
         cname = get_nmbr_name(cnmbr=cnmbr)
-        # Check that v is allowed
         if v.lower() == "none":
             v = None
         elif ".fits" not in v:
             msgs.error("The argument of {0:s} must be a fits file".format(cname))
-        # Update argument
         self.update(v, ll=cname.split('_'))
 
     def science_extraction_manual_params(self, v, cnmbr=1):
         cname = get_nmbr_name(cnmbr=cnmbr)
-        # Check that v is allowed
         if v.lower() == "none":
             v = None
         else:
@@ -1080,257 +852,133 @@ class BaseArgFlag(BaseFunctions):
                 msgs.error("The argument of {0:s} must be a 4 parameter list.".format(cname))
             if len(v) != 4:
                 msgs.error("The argument of {0:s} must be a 4 parameter list.".format(cname))
-        # Update argument
         self.update(v, ll=cname.split('_'))
 
     def science_extraction_maxnumber(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
-        # Update argument
+        v = key_int(v)
         self.update(v)
-        return
 
     def science_extraction_profile(self, v):
-        # Check that v is allowed
-        allowed = ['gaussian', 'gaussfunc', 'moffat', 'moffatfunc']
-        if v.lower() not in allowed:
-            msgs.error("The argument of {0:s} must be one of:".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        v = key_allowed(v)
         self.update(v)
-        return
 
     def science_extraction_reuse(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
-        return
 
     def slitflat_combine_match(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
-        # Update argument
+        v = key_float(v)
         self.update(v)
-        return
 
     def slitflat_combine_method(self, v):
-        # Check that v is allowed
-        allowed = ['mean', 'median', 'weightmean']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        allowed = combine_methods()
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
     def slitflat_combine_reject_cosmics(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
-        # Update argument
+        v = key_float(v)
         self.update(v)
-        return
 
     def slitflat_combine_reject_lowhigh(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
-        self.update(v)
-        return
-
-    def slitflat_combine_reject_level(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
-        self.update(v)
-        return
-
-    def slitflat_combine_reject_replace(self, v):
-        # Check that v is allowed
-        allowed = ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
-        self.update(v)
-        return
-
-    def slitflat_combine_satpix(self, v):
-        # Check that v is allowed
-        allowed = ['reject', 'force', 'nothing']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
-        self.update(v)
-        return
-
-    def slitflat_norm_recnorm(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
-        self.update(v)
-        return
-
-    def slitflat_useframe(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        elif v.lower() in ['slitflat']:
-            v = v.lower()
-        else:
-            msgs.info("Assuming the following is the name of a pixelflat frame:" + msgs.newline() + v)
-        # Update argument
-        self.update(v)
-        return
-
-    def trace_combine_match(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
-        # Update argument
-        self.update(v)
-        return
-
-    def trace_combine_method(self, v):
-        # Check that v is allowed
-        allowed = ['mean', 'median', 'weightmean']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
-        self.update(v)
-        return
-
-    def trace_combine_reject_cosmics(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
-        # Update argument
-        self.update(v)
-        return
-
-    def trace_combine_reject_lowhigh(self, v):
-        # Check that v is allowed
-        v = load_list(v)
+        v = key_list(v)
         if len(v) != 2:
             msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
         if v[0] < 0 or v[1] < 0:
             msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
-        # Update argument
+        self.update(v)
+
+    def slitflat_combine_reject_level(self, v):
+        v = key_list(v)
+        if len(v) != 2:
+            msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
+        if v[0] < 0.0 or v[1] < 0.0:
+            msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
+        self.update(v)
+
+    def slitflat_combine_reject_replace(self, v):
+        allowed = combine_replaces()
+        v = key_allowed(v, allowed)
+        self.update(v)
+
+    def slitflat_combine_satpix(self, v):
+        allowed = combine_satpixs()
+        v = key_allowed(v, allowed)
+        self.update(v)
+
+    def slitflat_norm_recnorm(self, v):
+        v = key_bool(v)
+        self.update(v)
+
+    def slitflat_useframe(self, v):
+        allowed = ['slitflat']
+        v = key_none_allowed_filename(v, allowed)
+        self.update(v)
+
+    def trace_combine_match(self, v):
+        v = key_float(v)
         self.update(v)
         return
 
+    def trace_combine_method(self, v):
+        allowed = combine_methods()
+        v = key_allowed(v, allowed)
+        self.update(v)
+
+    def trace_combine_reject_cosmics(self, v):
+        v = key_float(v)
+        self.update(v)
+
+    def trace_combine_reject_lowhigh(self, v):
+        v = key_list(v)
+        if len(v) != 2:
+            msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
+        if v[0] < 0 or v[1] < 0:
+            msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
+        self.update(v)
+
     def trace_combine_reject_level(self, v):
-        # Check that v is allowed
-        v = load_list(v)
+        v = key_list(v)
         if len(v) != 2:
             msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
         if v[0] <= 0.0 or v[1] <= 0.0:
             msgs.error("The list values of argument {0:s} must be > 0.0".format(get_current_name()))
-        # Update argument
         self.update(v)
-        return
 
     def trace_combine_reject_replace(self, v):
-        # Check that v is allowed
-        allowed = ['min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        allowed = combine_replaces()
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
     def trace_combine_satpix(self, v):
-        # Check that v is allowed
-        allowed = ['reject', 'force', 'nothing']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        allowed = combine_satpixs()
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
     def trace_slits_diffpolyorder(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
-        # Update argument
         self.update(v)
-        return
 
     def trace_dispersion_direction(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        v = key_int(v)
         if v != 0 and v != 1:
             msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
                        "0 or 1 (if the dispersion axis is along a row or column respectively)")
-        # Update argument
         self.update(v)
-        return
 
     def trace_slits_fracignore(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
+        v = key_float(v)
         if v < 0.0 or v > 1.0:
             msgs.error("The argument of {0:s} must be between 0 and 1".format(get_current_name()))
-        # Update argument
         self.update(v)
-        return
 
     def trace_slits_function(self, v):
-        # Check that v is allowed
         allowed = ['polynomial', 'legendre', 'chebyshev']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
     def trace_slits_maxgap(self, v):
-        # Check that v is allowed
         if v.lower() == "none":
             v = None
         else:
@@ -1340,12 +988,9 @@ class BaseArgFlag(BaseFunctions):
                 msgs.error("The argument of {0:s} must be of type int, or set to 'none'".format(get_current_name()))
             if v <= 1:
                 msgs.error("The argument of {0:s} must be > 1 to set the maximum slit gap".format(get_current_name()))
-        # Update argument
         self.update(v)
-        return
 
     def trace_slits_number(self, v):
-        # Check that v is allowed
         if v.lower() == "auto":
             v = -1
         else:
@@ -1358,147 +1003,74 @@ class BaseArgFlag(BaseFunctions):
             elif v < -1:
                 msgs.error("The argument of {0:s} must be >= 1 to manually set the number of slits,".format(get_current_name()) + msgs.newline() +
                            "or can be set to -1 (or 'auto') if you wish PYPIT to find slits automatically.")
-        # Update argument
         self.update(v)
-        return
 
     def trace_slits_polyorder(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
-        # Update argument
         self.update(v)
-        return
 
     def trace_slits_pca_type(self, v):
-        # Check that v is allowed
         allowed = ['pixel', 'order']
-        v = v.lower()
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
     def trace_slits_pca_params(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
+        v = key_list(v)
         self.update(v)
-        return
 
     def trace_slits_pca_extrapolate_pos(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
-        # Update argument
         self.update(v)
-        return
 
     def trace_slits_pca_extrapolate_neg(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
-        # Update argument
         self.update(v)
-        return
 
     def trace_slits_sigdetect(self, v):
-        # Check that v is allowed
-        try:
-            v = float(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type float".format(get_current_name()))
+        v = key_float(v)
         if v <= 0.0:
             msgs.error("The argument of {0:s} must be > 0".format(get_current_name()))
-        # Update argument
         self.update(v)
-        return
 
     def trace_slits_single(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
+        v = key_list(v)
         self.update(v)
-        return
 
     def trace_slits_tilts_idsonly(self, v):
-        # Check that v is allowed
-        if v.lower() == "true":
-            v = True
-        elif v.lower() == "false":
-            v = False
-        else:
-            msgs.error("The argument of {0:s} can only be 'True' or 'False'".format(get_current_name()))
-        # Update argument
+        v = key_bool(v)
         self.update(v)
-        return
 
     def trace_slits_tilts_method(self, v):
-        # Check that v is allowed
         allowed = ['PCA', 'spline', 'spca', 'interp', 'perp', 'zero']
-        if v not in allowed:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       ", ".join(allowed))
-        # Update argument
+        v = key_allowed(v, allowed)
         self.update(v)
-        return
 
     def trace_slits_tilts_params(self, v):
-        # Check that v is allowed
-        v = load_list(v)
-        # Update argument
+        v = key_list(v)
         self.update(v)
-        return
 
     def trace_slits_tilts_disporder(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
-        # Update argument
         self.update(v)
-        return
 
     def trace_slits_tilts_order(self, v):
-        # Check that v is allowed
-        try:
-            v = int(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
-        # Update argument
         self.update(v)
-        return
 
     def trace_useframe(self, v):
-        # Check that v is allowed
-        if v.lower() == "none":
-            v = None
-        elif v.lower() in ['trace', 'science']:
-            v = v.lower()
-        else:
-            msgs.info("Assuming the following is the name of a trace frame:" + msgs.newline() + v)
-        # Update argument
+        allowed = ['trace', 'science']
+        v = key_none_allowed_filename(v, allowed)
         self.update(v)
-        return
 
 
 class BaseSpect(BaseFunctions):
@@ -2888,6 +2460,15 @@ def key_allowed(v, allowed):
     return v
 
 
+def key_allowed_filename(v, allowed):
+    vt = v.lower()
+    if vt not in allowed:
+        msgs.warn("Assuming the following is the name of a file:" + msgs.newline() + v)
+    else:
+        v = vt
+    return v
+
+
 def key_bool(v):
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
     func_name = "'" + " ".join(ll) + "'"
@@ -2969,6 +2550,24 @@ def key_list_allowed(v, allowed):
     return v
 
 
+def key_none_allowed(v, allowed):
+    """ First check if a keyword is None, then see if it is in the allowed list
+    """
+    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
+    func_name = "'" + " ".join(ll) + "'"
+    if v.lower() == "none":
+        v = None
+    elif v.lower() in allowed:
+        for i in allowed:
+            if v.lower() == i:
+                v = i
+                break
+    else:
+        msgs.error("The argument of {0:s} must be one of".format(func_name) + msgs.newline() +
+                   ", ".join(allowed))
+    return v
+
+
 def key_none_allowed_filename(v, allowed):
     """ First check if a keyword is None, then see if it is in the allowed list,
     and finally assume that it is the name of a file if not in the list
@@ -2981,7 +2580,7 @@ def key_none_allowed_filename(v, allowed):
                 v = i
                 break
     else:
-        msgs.info("Assuming the following is the name of an arc frame:" + msgs.newline() + v)
+        msgs.info("Assuming the following is the name of a file:" + msgs.newline() + v)
     return v
 
 

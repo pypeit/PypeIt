@@ -1153,7 +1153,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     # plt.close()
 
     # Illustrate where the orders fall on the detector (physical units)
-    if settings.argflag['run']['qcontrol']:
+    if settings.argflag['run']['qa']:
         msgs.work("Not yet setup with ginga")
     return lcenint, rcenint, extrapord
 
@@ -2470,7 +2470,7 @@ def trace_tilt(slf, msarc, prefix="", tltprefix="", trcprefix=""):
         nm += 1
     tracereg.close()
     # Plot the tilts in real time if the user requests
-    if settings.argflag['run']['qcontrol']:
+    if settings.argflag['run']['qa']:
         import ds9
         # Set up a ds9 instance
         d = ds9.ds9()
