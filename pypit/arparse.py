@@ -395,60 +395,151 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def arc_load_extracted(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def arc_load_calibrated(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def arc_calibrate_detection(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_float(v)
         self.update(v)
 
     def arc_calibrate_IDpixels(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         self.update(v)
 
     def arc_calibrate_IDwaves(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         self.update(v)
 
     def arc_calibrate_lamps(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['ArI', 'CdI', 'HgI', 'HeI', 'KrI', 'NeI', 'XeI', 'ZnI', 'ThAr']
         v = key_list_allowed(v, allowed)
         self.update(v)
 
     def arc_calibrate_method(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['fit', 'simple']
         v = key_allowed(v, allowed)
         self.update(v)
 
     def arc_calibrate_nfitpix(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         if v % 2 == 0:
             msgs.warn("An odd integer is recommended for the argument of {0:s}".format(get_current_name()))
         self.update(v)
 
     def arc_calibrate_numsearch(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         self.update(v)
 
     def arc_useframe(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ["arc"]
         v = key_none_allowed_filename(v, allowed)
         self.update(v)
 
     def bias_combine_method(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = combine_methods()
         v = key_allowed(v, allowed)
         self.update(v)
 
     def bias_combine_reject_cosmics(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_float(v)
         self.update(v)
 
     def bias_combine_reject_lowhigh(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         if len(v) != 2:
             msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
@@ -457,6 +548,13 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def bias_combine_reject_level(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         if len(v) != 2:
             msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
@@ -490,10 +588,24 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def bias_useoverscan(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def bias_useframe(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['bias', 'overscan', 'dark', 'none']
         if "," in v:
             # Must be a list - multiple options
@@ -522,6 +634,13 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def output_overwrite(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
@@ -533,6 +652,13 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def output_verbosity(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         if (v < 0) or (v > 2):
             msgs.error("The verbosity can only take values between 0 (minimum) and 2 (maximum)" + msgs.newline() +
@@ -540,19 +666,47 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def pixelflat_combine_match(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_float(v)
         self.update(v)
 
     def pixelflat_combine_method(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = combine_methods()
         v = key_allowed(v, allowed)
         self.update(v)
 
     def pixelflat_combine_reject_cosmics(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_float(v)
         self.update(v)
 
     def pixelflat_combine_reject_lowhigh(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         if len(v) != 2:
             msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
@@ -561,6 +715,13 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def pixelflat_combine_reject_level(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         if len(v) != 2:
             msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
@@ -569,75 +730,187 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def pixelflat_combine_reject_replace(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = combine_replaces()
         v = key_allowed(v, allowed)
         self.update(v)
 
     def pixelflat_combine_satpix(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = combine_satpixs()
         v = key_allowed(v, allowed)
         self.update(v)
 
     def pixelflat_norm_recnorm(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def pixelflat_useframe(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['pixelflat']
         v = key_none_allowed_filename(v, allowed)
         self.update(v)
 
     def reduce_badpix(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def reduce_calibrate_nonlinear(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def reduce_calibrate_refframe(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['geocentric', 'heliocentric', 'barycentric']
         v = key_allowed(v, allowed)
         self.update(v)
 
     def reduce_calibrate_wavelength(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['air', 'vacuum', 'none']
         v = key_allowed(v, allowed)
         self.update(v)
 
     def reduce_flatfield_method(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['polyscan']
         v = key_allowed(v, allowed)
         self.update(v)
 
     def reduce_flatfield_params(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         self.update(v)
 
     def reduce_flatfield_perform(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def reduce_flatfield_useframe(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['pixelflat', 'slitflat']
         v = key_allowed_filename(v, allowed)
         self.update(v)
 
     def reduce_trace_useframe(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['trace', 'slitflat', 'science']
         v = key_allowed_filename(v, allowed)
         self.update(v)
 
     def reduce_flexure_maxshift(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         self.update(v)
 
     def reduce_flexure_method(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['none', 'boxcar', 'slitcen']
         v = key_none_allowed(v, allowed)
         self.update(v)
 
     def reduce_flexure_spectrum(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         if v.lower() == 'none':
             v = None
         else:
@@ -652,33 +925,82 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def reduce_masters_file(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         if v.lower() == 'none':
             v = ''
         self.update(v)
 
     def reduce_masters_loaded(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         self.update(v)
 
     def reduce_masters_reuse(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def reduce_masters_setup(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         if v.lower() == 'none':
             v = ''
         self.update(v)
 
     def reduce_overscan_method(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['polynomial', 'savgol', 'median']
         v = key_allowed(v, allowed)
         self.update(v)
 
     def reduce_overscan_params(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         self.update(v)
 
     def reduce_pixel_locations(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         if v.lower() == "none":
             v = None
         elif v.split(".")[-1] == "fits":
@@ -690,40 +1012,110 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def reduce_pixel_size(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_float(v)
         self.update(v)
 
     def reduce_skysub_bspline_everyn(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         self.update(v)
 
     def reduce_skysub_method(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['bspline', 'polyscan']
         v = key_allowed(v, allowed)
         self.update(v)
 
     def reduce_skysub_perform(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def reduce_trim(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def run_calcheck(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def run_directory_master(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         self.update(v)
 
     def run_directory_qa(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         self.update(v)
 
     def run_directory_science(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         self.update(v)
 
     def run_load_settings(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         if v.lower() == "none":
             v = None
         elif not isfile(v):
@@ -732,6 +1124,13 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def run_load_spect(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         if v.lower() == "none":
             v = None
         elif isfile(v):
@@ -744,6 +1143,13 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def run_ncpus(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         if 'ncpus' in self._argflag['run'].keys():
             curcpu = self._argflag['run']['ncpus']
         else:
@@ -784,23 +1190,65 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def run_preponly(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def run_progname(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         self.update(v)
 
     def run_pypitdir(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         self.update(v)
 
     def run_qa(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def run_redname(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         self.update(v)
 
     def run_spectrograph(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         # Check that v is allowed
         stgs_arm = glob(dirname(__file__)+"/settings/settings.arm*")
         stgs_all = glob(dirname(__file__)+"/settings/settings.*")
@@ -821,19 +1269,47 @@ class BaseArgFlag(BaseFunctions):
         return
 
     def run_stopcheck(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def run_useIDname(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def science_extraction_manual(self, cnmbr=1, frame="none", params="[1,1000,500,[10,10]]"):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         # Send parameters away to individual arguments
         self.science_extraction_manual_frame(frame, cnmbr=cnmbr)
         self.science_extraction_manual_params(params, cnmbr=cnmbr)
 
     def science_extraction_manual_frame(self, v, cnmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(cnmbr=cnmbr)
         if v.lower() == "none":
             v = None
@@ -842,6 +1318,13 @@ class BaseArgFlag(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def science_extraction_manual_params(self, v, cnmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(cnmbr=cnmbr)
         if v.lower() == "none":
             v = None
@@ -855,32 +1338,81 @@ class BaseArgFlag(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def science_extraction_maxnumber(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         self.update(v)
 
     def science_extraction_profile(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['gaussian', 'gaussfunc', 'moffat', 'moffatfunc']
         v = key_allowed(v, allowed)
         self.update(v)
 
     def science_extraction_reuse(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def slitflat_combine_match(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_float(v)
         self.update(v)
 
     def slitflat_combine_method(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = combine_methods()
         v = key_allowed(v, allowed)
         self.update(v)
 
     def slitflat_combine_reject_cosmics(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_float(v)
         self.update(v)
 
     def slitflat_combine_reject_lowhigh(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         if len(v) != 2:
             msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
@@ -889,6 +1421,13 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def slitflat_combine_reject_level(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         if len(v) != 2:
             msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
@@ -897,39 +1436,95 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def slitflat_combine_reject_replace(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = combine_replaces()
         v = key_allowed(v, allowed)
         self.update(v)
 
     def slitflat_combine_satpix(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = combine_satpixs()
         v = key_allowed(v, allowed)
         self.update(v)
 
     def slitflat_norm_recnorm(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def slitflat_useframe(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['slitflat']
         v = key_none_allowed_filename(v, allowed)
         self.update(v)
 
     def trace_combine_match(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_float(v)
         self.update(v)
         return
 
     def trace_combine_method(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = combine_methods()
         v = key_allowed(v, allowed)
         self.update(v)
 
     def trace_combine_reject_cosmics(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_float(v)
         self.update(v)
 
     def trace_combine_reject_lowhigh(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         if len(v) != 2:
             msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
@@ -938,6 +1533,13 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def trace_combine_reject_level(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         if len(v) != 2:
             msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
@@ -946,22 +1548,50 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def trace_combine_reject_replace(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = combine_replaces()
         v = key_allowed(v, allowed)
         self.update(v)
 
     def trace_combine_satpix(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = combine_satpixs()
         v = key_allowed(v, allowed)
         self.update(v)
 
     def trace_slits_diffpolyorder(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
     def trace_dispersion_direction(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         if v != 0 and v != 1:
             msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
@@ -969,17 +1599,38 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def trace_slits_fracignore(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_float(v)
         if v < 0.0 or v > 1.0:
             msgs.error("The argument of {0:s} must be between 0 and 1".format(get_current_name()))
         self.update(v)
 
     def trace_slits_function(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['polynomial', 'legendre', 'chebyshev']
         v = key_allowed(v, allowed)
         self.update(v)
 
     def trace_slits_maxgap(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         if v.lower() == "none":
             v = None
         else:
@@ -992,6 +1643,13 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def trace_slits_number(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         if v.lower() == "auto":
             v = -1
         else:
@@ -1007,68 +1665,159 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def trace_slits_polyorder(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
     def trace_slits_pca_type(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['pixel', 'order']
         v = key_allowed(v, allowed)
         self.update(v)
 
     def trace_slits_pca_params(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         self.update(v)
 
     def trace_slits_pca_extrapolate_pos(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
     def trace_slits_pca_extrapolate_neg(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
     def trace_slits_sigdetect(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_float(v)
         if v <= 0.0:
             msgs.error("The argument of {0:s} must be > 0".format(get_current_name()))
         self.update(v)
 
     def trace_slits_single(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         self.update(v)
 
     def trace_slits_tilts_idsonly(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def trace_slits_tilts_method(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['PCA', 'spline', 'spca', 'interp', 'perp', 'zero']
         v = key_allowed(v, allowed)
         self.update(v)
 
     def trace_slits_tilts_params(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         self.update(v)
 
     def trace_slits_tilts_disporder(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
     def trace_slits_tilts_order(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
     def trace_useframe(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['trace', 'science']
         v = key_none_allowed_filename(v, allowed)
         self.update(v)
@@ -1241,42 +1990,105 @@ class BaseSpect(BaseFunctions):
         return
 
     def arc_canbe(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_none_list(v)
         self.update(v)
 
     def arc_check_condition(self, v, cnmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(cnmbr=cnmbr)
         v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
     def arc_idname(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         self.update(v)
 
     def arc_number(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
     def bias_canbe(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_none_list(v)
         self.update(v)
 
     def bias_check_condition(self, v, cnmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(cnmbr=cnmbr)
         v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
     def bias_idname(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         self.update(v)
 
     def bias_number(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
     def det_datasec(self, v, anmbr=1, bnmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(anmbr=anmbr, bnmbr=bnmbr)
         try:
             v = load_sections(v)
@@ -1285,6 +2097,13 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_oscansec(self, v, anmbr=1, bnmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(anmbr=anmbr, bnmbr=bnmbr)
         try:
             v = load_sections(v)
@@ -1293,6 +2112,13 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_darkcurr(self, v, anmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(anmbr=anmbr)
         v = key_float(v)
         if v < 0.0:
@@ -1300,6 +2126,13 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_gain(self, v, anmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(anmbr=anmbr)
         try:
             v = v.split(",")
@@ -1312,6 +2145,13 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_ronoise(self, v, anmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(anmbr=anmbr)
         try:
             v = v.split(",")
@@ -1324,6 +2164,13 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_nonlinear(self, v, anmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(anmbr=anmbr)
         v = key_float(v)
         if v <= 0.0 or v > 1.0:
@@ -1331,6 +2178,13 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_numamplifiers(self, v, anmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(anmbr=anmbr)
         v = key_int(v)
         if v <= 0:
@@ -1338,6 +2192,13 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_saturation(self, v, anmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(anmbr=anmbr)
         v = key_float(v)
         if v <= 0.0:
@@ -1345,10 +2206,24 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_suffix(self, v, anmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(anmbr=anmbr)
         self.update(v, ll=cname.split('_'))
 
     def det_xgap(self, v, anmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(anmbr=anmbr)
         v = key_float(v)
         if v < 0.0:
@@ -1356,6 +2231,13 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_ygap(self, v, anmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(anmbr=anmbr)
         v = key_float(v)
         if v < 0.0:
@@ -1363,6 +2245,13 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_ysize(self, v, anmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(anmbr=anmbr)
         v = key_float(v)
         if v <= 0.0:
@@ -1370,18 +2259,39 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def fits_calwin(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_float(v)
         if v <= 0.0:
             msgs.error("The calibration time window must be > 0.0")
         self.update(v)
 
     def fits_dataext(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         if v < 0:
             msgs.error("The fits data extension number must be >= 0")
         self.update(v)
 
     def fits_headext(self, v, bnmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(bnmbr=bnmbr)
         v = key_int(v)
         if v < 0:
@@ -1389,18 +2299,39 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def fits_numhead(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         if v <= 0:
             msgs.error("The number of fits headers must be >= 1")
         self.update(v)
 
     def fits_numlamps(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         if v < 0:
             msgs.error("The number of lamps must be >= 0")
         self.update(v)
 
     def fits_timeunit(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['s', 'm', 'h']
         astropy_allowed = Time.FORMATS.keys()
         if v not in allowed and v not in astropy_allowed:
@@ -1410,82 +2341,222 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_ra(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_dec(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_target(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_airmass(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_binning(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_binningspatial(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_binningspectral(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_date(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_decker(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_detrot(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_dispname(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_dispangle(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_equinox(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_exptime(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_filter1(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_filter2(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_hatch(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_idname(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_lamps(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_lampname(self, v, bnmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(bnmbr=bnmbr)
         if "." not in v:
             # User must have passed the name of the lamp
@@ -1496,6 +2567,13 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def keyword_lampstat(self, v, bnmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(bnmbr=bnmbr)
         if "." not in v:
             # User must have specified the status
@@ -1506,180 +2584,466 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def keyword_naxis0(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_naxis1(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_slitwid(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_slitlen(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def keyword_time(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
     def mosaic_camera(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         self.update(v)
 
     def mosaic_elevation(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_float(v)
         self.update(v)
 
     def mosaic_latitude(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_float(v)
         self.update(v)
 
     def mosaic_longitude(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_float(v)
         self.update(v)
 
     def mosaic_ndet(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         self.update(v)
 
     def mosaic_minexp(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_float(v)
         self.update(v)
 
     def mosaic_reduction(self, v):
-        # Check that v is allowed
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['ARMLSD', 'ARMED']
         v = key_allowed(v, allowed, upper=True)
         self.update(v.upper())
 
     def pixelflat_canbe(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_none_list(v)
         self.update(v)
 
     def pixelflat_check_condition(self, v, cnmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(cnmbr=cnmbr)
         v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
     def pixelflat_idname(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         self.update(v)
 
     def pixelflat_lscomb(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def pixelflat_number(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
     def science_canbe(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_none_list(v)
         self.update(v)
 
     def science_check_condition(self, v, cnmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(cnmbr=cnmbr)
         v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
     def science_idname(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         self.update(v)
 
     def set_arc(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         v = self._spect['set']['arc'] + v
         self.update(v)
 
     def set_bias(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         v = self._spect['set']['bias'] + v
         self.update(v)
 
     def set_pixelflat(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         v = self._spect['set']['pixelflat'] + v
         self.update(v)
 
     def set_science(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         v = self._spect['set']['science'] + v
         self.update(v)
 
     def set_slitflat(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         v = self._spect['set']['slitflat'] + v
         self.update(v)
 
     def set_standard(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         v = self._spect['set']['standard'] + v
         self.update(v)
 
     def set_trace(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_list(v)
         v = self._spect['set']['trace'] + v
         self.update(v)
 
     def slitflat_canbe(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_none_list(v)
         self.update(v)
 
     def slitflat_check_condition(self, v, cnmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(cnmbr=cnmbr)
         v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
     def slitflat_idname(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         self.update(v)
 
     def slitflat_lscomb(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def slitflat_number(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
     def standard_canbe(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_none_list(v)
         self.update(v)
 
     def standard_check_condition(self, v, cnmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(cnmbr=cnmbr)
         v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
     def standard_idname(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         self.update(v)
 
     def standard_number(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
     def trace_canbe(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_none_list(v)
         self.update(v)
 
     def trace_check_condition(self, v, cnmbr=1):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         cname = get_nmbr_name(cnmbr=cnmbr)
         v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
     def trace_idname(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         self.update(v)
 
     def trace_lscomb(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def trace_number(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
@@ -1689,14 +3053,35 @@ class BaseSpect(BaseFunctions):
 class ARMLSD(BaseArgFlag):
 
     def reduce_calibrate_flux(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_bool(v)
         self.update(v)
 
     def reduce_flexure_maxshift(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_int(v)
         self.update(v)
 
     def reduce_flexure_spec(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         allowed = ['boxcar', 'slit_cen', 'none']
         v = key_none_allowed(v, allowed)
         self.update(v)
@@ -1705,6 +3090,13 @@ class ARMLSD(BaseArgFlag):
 class ARMLSD_spect(BaseSpect):
 
     def keyword_dichroic(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
@@ -1712,6 +3104,13 @@ class ARMLSD_spect(BaseSpect):
 class ARMED_spect(BaseSpect):
 
     def keyword_echangle(self, v):
+        """
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         v = key_keyword(v)
         self.update(v)
 
