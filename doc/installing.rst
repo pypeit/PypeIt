@@ -33,6 +33,7 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 * `Ginga <https://ginga.readthedocs.io/en/latest/>`_ latest version (highly recommended; essentially required)
 * `h5py <https://www.h5py.org/>`_ version 2.6 (for data I/O)
 *  yaml -- On Python 3 (at least), you may need to install pyyaml
+* `future <https://pypi.python.org/pypi/future/0.6.0>`_ version 0.6
 
 If you are using Anaconda, you can check the presence of these packages with::
 
