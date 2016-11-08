@@ -1,9 +1,10 @@
 import numpy as np
-import armasters
-import armbase
-import artrace
-import armsgs
-import arproc
+from pypit import armasters
+from pypit import armbase
+from pypit import artrace
+from pypit import armsgs
+from pypit import arparse
+from pypit import arproc
 
 try:
     from xastropy.xutils.xdebug import set_trace
@@ -14,20 +15,15 @@ except ImportError:
 # Logging
 msgs = armsgs.get_logger()
 
-def ARMED(argflag, spect, fitsdict, reuseMaster=False):
+
+def ARMED(fitsdict, reuseMaster=False):
     """
     Automatic Reduction and Modeling of Echelle Data
 
     Parameters
     ----------
-    argflag : dict
-      Arguments and flags used for reduction
-    spect : dict
-      Properties of the spectrograph.
     fitsdict : dict
       Contains relevant information from fits header files
-    msgs : class
-      Messages class used to log data reduction process
     reuseMaster : bool
       If True, a master frame that will be used for another science frame
       will not be regenerated after it is first made.
@@ -45,11 +41,11 @@ def ARMED(argflag, spect, fitsdict, reuseMaster=False):
     status = 0
 
     # Create a list of science exposure classes
-    sciexp = armbase.SetupScience(argflag, spect, fitsdict)
+    sciexp = armbase.SetupScience(fitsdict)
     numsci = len(sciexp)
 
     # Create a list of master calibration frames
-    masters = armasters.MasterFrames(spect['mosaic']['ndet'])
+    masters = armasters.MasterFrames(settings.spect['mosaic']['ndet'])
 
     # Start reducing the data
     for sc in range(numsci):
@@ -57,7 +53,7 @@ def ARMED(argflag, spect, fitsdict, reuseMaster=False):
         scidx = slf._idx_sci[0]
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
         # Loop on Detectors
-        for kk in range(slf._spect['mosaic']['ndet']):
+        for kk in range(settings.spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             ###############
             # Get amplifier sections

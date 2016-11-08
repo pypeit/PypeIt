@@ -54,10 +54,10 @@ set defaults), but will be useful for running PYPIT::
                                     so -1 means all but one CPU
     run spectrograph lris_blue      # the spectrograph (+arm, if necessary) this set of data is from;
                                     see README for list of available instruments
-    out verbose 2                   # level of screen output; 0 = no output, 1 = low level of output;
+    output verbosity 2                   # level of screen output; 0 = no output, 1 = low level of output;
                                     2 = output everything
-    out overwrite True              # overwrite any existing output files?
-    out sorted lris_blue_long_600_4000_d560     # name of output files
+    output overwrite True              # overwrite any existing output files?
+    output sorted lris_blue_long_600_4000_d560     # name of output files
 
 Next, tell PYPIT where your raw data lives!::
 
@@ -77,7 +77,7 @@ minimum to be::
     spect read
      #fits calwin 1000.     # calibration window; default window is 12 hrs;
                             here it is changed to 1000. hrs
-     pixflat number 1       # number of pixel flats needed for data reduction
+     pixelflat number 1       # number of pixel flats needed for data reduction
      bias number 3          # number of bias frames; note that in this case,
                             PYPIT will combine the 3 biases into a master bias
      arc number 1           # number of arcs
@@ -91,9 +91,9 @@ With that, the most basic settings file looks something like this::
     # Change the default settings
     run ncpus 1
     run spectrograph lris_blue
-    out verbose 2
-    out overwrite True
-    out sorted lris_blue_long_600_4000_d560
+    output verbosity 2
+    output overwrite True
+    output sorted lris_blue_long_600_4000_d560
 
     # Read in the data
     data read
@@ -103,7 +103,7 @@ With that, the most basic settings file looks something like this::
     spect read
      #fits calwin 1000.
 
-     pixflat number 1
+     pixelflat number 1
      bias number 3
      arc number 1
      trace number 1
@@ -121,12 +121,12 @@ are other parameters that you can tell PYPIT to run by::
 
 
     spect read
-     # not needed if everything runs smoothly. Check your .lst file and make sure that each frame was identified correctly (that each file is properly identified as a bias, arc, blzflat, standard, science). If any file was misidentified, you can force the file type to be something different below (note that you can also identify your various calibration and science files below if you don't want to deal with the .lst file):
+     # not needed if everything runs smoothly. Check your .lst file and make sure that each frame was identified correctly (that each file is properly identified as a bias, arc, slitflat, standard, science). If any file was misidentified, you can force the file type to be something different below (note that you can also identify your various calibration and science files below if you don't want to deal with the .lst file):
 
      #set bias     b150910_2036.fits.gz
      #set bias     b150910_2037.fits.gz
      #set bias     b150910_2038.fits.gz
-     #set pixflat  b150910_2051.fits.gz
+     #set pixelflat  b150910_2051.fits.gz
      #set trace    b150910_2051.fits.gz
      #set standard b150910_2083.fits.gz
      ################################

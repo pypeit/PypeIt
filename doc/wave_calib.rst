@@ -57,8 +57,8 @@ your .pypit setup file.  Here is the recommended approach:
 #. Compare that spectrum with a known one and ID a few lines.  Write down.  Better be using vacuum wavelengths
 #. Add pixel values and wavelengths to your .pypit file, e.g.
 
-   * arc calibrate id_pix 872.062,902.7719,1931.0048,2452.620,3365.25658,3887.125
-   * arc calibrate id_wave 3248.4769,3274.905,4159.763,4610.656,5402.0634,5854.110
+   * arc calibrate IDpixels 872.062,902.7719,1931.0048,2452.620,3365.25658,3887.125
+   * arc calibrate IDwaves 3248.4769,3274.905,4159.763,4610.656,5402.0634,5854.110
 
 Validation
 ==========

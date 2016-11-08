@@ -11,6 +11,9 @@ from astropy.io import fits
 from astropy import units as u
 from astropy import coordinates as coords
 
+from pypit import armsgs
+from pypit import arparse as settings
+
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
 except ImportError:
@@ -18,13 +21,12 @@ except ImportError:
 
 try:
     from xastropy.xutils import xdebug as debugger
-except:
+except ImportError:
     import pdb as debugger
 
 # Logging
-#from pypit import armsgs
-from .armsgs import get_logger
-msgs = get_logger()
+msgs = armsgs.get_logger()
+
 
 def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
     """ Apply the sensitivity function to the data
@@ -37,7 +39,7 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
     """
     from pypit import arutils
     # Load extinction data
-    extinct = load_extinction_data(slf)
+    extinct = load_extinction_data()
     airmass = fitsdict['airmass'][scidx]
     # Loop on objects
     for spobj in slf._specobjs[det-1]:
@@ -194,15 +196,13 @@ def extinction_correction(wave, airmass, extinct):
     return flux_corr
 
 
-def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
+def find_standard_file(radec, toler=20.*u.arcmin, check=False):
     """
     Find a match for the input file to one of the archived
     standard star files (hopefully).  Priority is by order of search.
 
     Parameters
     ----------
-    argflag : dict
-      Arguments and flags used for reduction
     radec : tuple
       ra, dec in string format ('05:06:36.6','52:52:01.0')
     toler : Angle
@@ -231,7 +231,7 @@ def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
     closest = dict(sep=999*u.deg)
     for qq,sset in enumerate(std_sets):
         # Stars
-        path, star_tbl = sset(argflag)
+        path, star_tbl = sset()
         star_coords = SkyCoord(star_tbl['RA_2000'], star_tbl['DEC_2000'],
             unit=(u.hourangle, u.deg))
         # Match
@@ -261,7 +261,7 @@ def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
     return None
 
 
-def load_calspec(argflag):
+def load_calspec():
     """
     Load the list of calspec standards
 
@@ -277,21 +277,19 @@ def load_calspec(argflag):
     """
     # Read
     calspec_path = '/data/standards/calspec/'
-    calspec_file = argflag['run']['pypitdir'] + calspec_path + 'calspec_info.txt'
+    calspec_file = settings.argflag['run']['pypitdir'] + calspec_path + 'calspec_info.txt'
     calspec_stds = Table.read(calspec_file, comment='#', format='ascii')
     # Return
     return calspec_path, calspec_stds
 
 
-def load_extinction_data(slf, toler=5.*u.deg):
+def load_extinction_data(toler=5.*u.deg):
     """
     Find the best extinction file to use, based on longitude and latitude
     Loads it and returns a Table
 
     Parameters
     ----------
-    slf : class
-      Includes mosaic lon/lat
     toler : Angle, optional
       Tolerance for matching detector to site (5 deg)
 
@@ -301,10 +299,10 @@ def load_extinction_data(slf, toler=5.*u.deg):
       astropy Table containing the 'wavelength', 'extinct' data for AM=1.
     """
     # Mosaic coord
-    mosaic_coord = SkyCoord(slf._spect['mosaic']['longitude'],
-        slf._spect['mosaic']['latitude'], frame='gcrs', unit=u.deg)
+    mosaic_coord = SkyCoord(settings.spect['mosaic']['longitude'],
+                            settings.spect['mosaic']['latitude'], frame='gcrs', unit=u.deg)
     # Read list
-    extinct_path = slf._argflag['run']['pypitdir']+'/data/extinction/'
+    extinct_path = settings.argflag['run']['pypitdir']+'/data/extinction/'
     extinct_summ = extinct_path+'README'
     extinct_files = Table.read(extinct_summ,comment='#',format='ascii')
     # Coords
@@ -326,7 +324,7 @@ def load_extinction_data(slf, toler=5.*u.deg):
     return extinct[['wave','mag_ext']]
 
 
-def load_standard_file(slf, std_dict):
+def load_standard_file(std_dict):
     """
     Load standard star data
 
@@ -343,8 +341,8 @@ def load_standard_file(slf, std_dict):
     std_flux : Quantity array
       Flux of standard star
     """
-    fil = glob.glob(slf._argflag['run']['pypitdir']+
-            std_dict['file']+'*')
+    fil = glob.glob(settings.argflag['run']['pypitdir'] +
+                    std_dict['file']+'*')
     if len(fil) == 0:
         msgs.error("No standard star file: {:s}".format(fil))
     else:
@@ -360,6 +358,7 @@ def load_standard_file(slf, std_dict):
     else:
         msgs.error("Bad Standard Star Format")
     return
+
 
 def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=20):
     """
@@ -391,7 +390,7 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
     std_obj = specobjs[np.argmax(np.array(medfx))]
     wave = std_obj.boxcar['wave']
     # Apply Extinction
-    extinct = load_extinction_data(slf)
+    extinct = load_extinction_data()
     ext_corr = extinction_correction(wave,
         fitsdict['airmass'][scidx], extinct)
     flux_corr = std_obj.boxcar['counts']*ext_corr
@@ -401,10 +400,9 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
     var_corr /= fitsdict['exptime'][scidx]**2
 
     # Grab closest standard within a tolerance
-    std_dict = find_standard_file(slf._argflag, (slf._msstd[0]['RA'],
-                                                 slf._msstd[0]['DEC']))
+    std_dict = find_standard_file((slf._msstd[0]['RA'], slf._msstd[0]['DEC']))
     # Load standard
-    load_standard_file(slf, std_dict)
+    load_standard_file(std_dict)
     # Interpolate onto observed wavelengths
     std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
     xspec = std_xspec.rebin(wave) # Conserves flambda

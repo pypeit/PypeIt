@@ -4,7 +4,6 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 
 from astropy import units as u
 
-import os
 import numpy as np
 from pypit.arplot import zscale
 from pypit import armsgs
@@ -18,14 +17,17 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 msgs = armsgs.get_logger()
 
+# Force the default matplotlib plotting parameters
+plt.rcdefaults()
 plt.rcParams['font.family']= 'times new roman'
 ticks_font = matplotlib.font_manager.FontProperties(family='times new roman',
                                                     style='normal', size=16, weight='normal', stretch='normal')
 
 try:
     from xastropy.xutils import xdebug as debugger
-except:
+except ImportError:
     import pdb as debugger
+
 
 def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
     """

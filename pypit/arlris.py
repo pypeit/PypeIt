@@ -1,4 +1,4 @@
-# Module for LRIS spectific codes
+# Module for LRIS specific codes
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
@@ -6,14 +6,16 @@ import glob
 import astropy.io.fits as pyfits
 
 from pypit import armsgs
+from pypit.arparse import load_sections
 
 try:
     from xastropy.xutils import xdebug as debugger
-except:
+except ImportError:
     import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()
+
 
 def read_lris(raw_file, det=None, TRIM=False):
     """
@@ -38,7 +40,6 @@ def read_lris(raw_file, det=None, TRIM=False):
     sections : list
       List of datasec, oscansec, ampsec sections
     """
-    from pypit import arload
 
     # Check for file; allow for extra .gz, etc. suffix
     fil = glob.glob(raw_file+'*') 
@@ -56,10 +57,9 @@ def read_lris(raw_file, det=None, TRIM=False):
     preline = head0['PRELINE']
     postline = head0['POSTLINE']
 
-    # Setup for datasec, oscansec, ampsec
+    # Setup for datasec, oscansec
     dsec = []
     osec = []
-    asec = []
 
     # get the x and y binning factors...
     binning = head0['BINNING']
@@ -77,7 +77,7 @@ def read_lris(raw_file, det=None, TRIM=False):
         detsec = theader['DETSEC']
         if detsec != '0':
             # parse the DETSEC keyword to determine the size of the array.
-            x1, x2, y1, y2 = np.array(arload.load_sections(detsec, msgs)).flatten()
+            x1, x2, y1, y2 = np.array(load_sections(detsec)).flatten()
 
             # find the range of detector space occupied by the data
             # [xmin:xmax,ymin:ymax]
@@ -94,15 +94,15 @@ def read_lris(raw_file, det=None, TRIM=False):
             # Save
             xcol.append(xt)
 
-    #; determine the output array size...
+    # determine the output array size...
     nx = xmax - xmin + 1
     ny = ymax - ymin + 1
 
-    #; change size for binning...
+    # change size for binning...
     nx = nx // xbin
     ny = ny // ybin
 
-    #; Update PRECOL and POSTPIX
+    # Update PRECOL and POSTPIX
     precol = precol // xbin
     postpix = postpix // xbin
 
@@ -118,32 +118,32 @@ def read_lris(raw_file, det=None, TRIM=False):
     else:
         raise ValueError('Bad value for det')
 
-    #; change size for pre/postscan...
+    # change size for pre/postscan...
     if not TRIM:
         nx += n_ext*(precol+postpix)
         ny += preline + postline
 
-    #; allocate output array...
+    # allocate output array...
     array = np.zeros( (nx, ny) )
     order = np.argsort(np.array(xcol))
 
 
-    #; insert extensions into master image...
+    # insert extensions into master image...
     for kk, i in enumerate(order[det_idx]):
 
-        #; grab complete extension...
+        # grab complete extension...
         data, predata, postdata, x1, y1 = lris_read_amp(hdu, i+1)
                             #, linebias=linebias, nobias=nobias, $
                             #x1=x1, x2=x2, y1=y1, y2=y2, gaindata=gaindata)
-        #; insert components into output array...
+        # insert components into output array...
         if not TRIM:
-            #; insert predata...
+            # insert predata...
             buf = predata.shape
             nxpre = buf[0]
             xs = kk*precol
             xe = xs + nxpre
             '''
-            if keyword_set(VERBOSE) then begin
+            if keyword_set(VERBOSITY) then begin
                 section = '['+stringify(xs)+':'+stringify(xe)+',*]'
                 message, 'inserting extension '+stringify(i)+ $
                          ' predata  in '+section, /info
@@ -151,7 +151,7 @@ def read_lris(raw_file, det=None, TRIM=False):
             '''
             array[xs:xe, :] = predata
 
-            #; insert data...
+            # insert data...
             buf = data.shape
             nxdata = buf[0]
             nydata = buf[1]
@@ -160,8 +160,6 @@ def read_lris(raw_file, det=None, TRIM=False):
             # Data section
             section = '[{:d}:{:d},{:d}:{:d}]'.format(preline,nydata-postline, xs, xe)  # Eliminate lines
             dsec.append(section)
-            section = '[:,{:d}:{:d}]'.format(xs, xe)  # Amp section
-            asec.append(section)
             #print('data',xs,xe)
             array[xs:xe, :] = data   # Include postlines
 
@@ -173,7 +171,7 @@ def read_lris(raw_file, det=None, TRIM=False):
             section = '[:,{:d}:{:d}]'.format(xs, xe)
             osec.append(section)
             '''
-            if keyword_set(VERBOSE) then begin
+            if keyword_set(VERBOSITY) then begin
                 section = '['+stringify(xs)+':'+stringify(xe)+',*]'
                 message, 'inserting extension '+stringify(i)+ $
                          ' postdata in '+section, /info
@@ -194,7 +192,7 @@ def read_lris(raw_file, det=None, TRIM=False):
             yin2 = nydata - postline 
 
             '''
-            if keyword_set(VERBOSE) then begin
+            if keyword_set(VERBOSITY) then begin
                 section = '['+stringify(xs)+':'+stringify(xe)+ $
                           ','+stringify(ys)+':'+stringify(ye)+']'
                 message, 'inserting extension '+stringify(i)+ $
@@ -203,13 +201,13 @@ def read_lris(raw_file, det=None, TRIM=False):
             '''
             array[xs:xe, ys:ye] = data[:, yin1:yin2]
 
-    #; make sure BZERO is a valid integer for IRAF
+    # make sure BZERO is a valid integer for IRAF
     obzero = head0['BZERO']
     head0['O_BZERO'] = obzero
     head0['BZERO'] = 32768-obzero
 
     # Return, transposing array back to goofy Python indexing
-    return array.T, head0, (dsec, osec, asec)
+    return array.T, head0, (dsec, osec)
 
 
 def lris_read_amp(inp, ext):
@@ -239,41 +237,39 @@ def lris_read_amp(inp, ext):
     ; Read one amp from LRIS mHDU image
     ;------------------------------------------------------------------------
     """
-    from pypit import arload
-
     # Parse input
     if isinstance(inp, basestring):
         hdu = pyfits.open(inp)
     else:
         hdu = inp
 
-    #; Get the pre and post pix values
-    #; for LRIS red POSTLINE = 20, POSTPIX = 80, PRELINE = 0, PRECOL = 12
+    # Get the pre and post pix values
+    # for LRIS red POSTLINE = 20, POSTPIX = 80, PRELINE = 0, PRECOL = 12
     head0 = hdu[0].header
     precol = head0['precol']
     postpix = head0['postpix']
 
-    #; Deal with binning
+    # Deal with binning
     binning = head0['BINNING']
     xbin, ybin = [int(ibin) for ibin in binning.split(',')]
     precol = precol//xbin
     postpix = postpix//xbin
 
-    #; get entire extension...
+    # get entire extension...
     temp = hdu[ext].data.transpose() # Silly Python nrow,ncol formatting
     tsize = temp.shape
     nxt = tsize[0]
 
-    #; parse the DETSEC keyword to determine the size of the array.
+    # parse the DETSEC keyword to determine the size of the array.
     header = hdu[ext].header
     detsec = header['DETSEC']
-    x1, x2, y1, y2 = np.array(arload.load_sections(detsec, msgs)).flatten()
+    x1, x2, y1, y2 = np.array(load_sections(detsec)).flatten()
 
-    #; parse the DATASEC keyword to determine the size of the science region (unbinned)
+    # parse the DATASEC keyword to determine the size of the science region (unbinned)
     datasec = header['DATASEC']
-    xdata1, xdata2, ydata1, ydata2 = np.array(arload.load_sections(datasec, msgs)).flatten()
+    xdata1, xdata2, ydata1, ydata2 = np.array(load_sections(datasec)).flatten()
 
-    #; grab the components...
+    # grab the components...
     predata = temp[0:precol, :]
     # datasec appears to have the x value for the keywords that are zero
     # based. This is only true in the image header extensions
@@ -289,14 +285,14 @@ def lris_read_amp(inp, ext):
     data = temp[precol:precol+xshape,:]
     postdata = temp[nxt-postpix:nxt, :]
 
-    #; flip in X as needed...
+    # flip in X as needed...
     if x1 > x2:
         xt = x2
         x2 = x1
         x1 = xt
         data = np.flipud(data) #reverse(temporary(data),1)
 
-    #; flip in Y as needed...
+    # flip in Y as needed...
     if y1 > y2:
         yt = y2
         y2 = y1
@@ -370,8 +366,8 @@ def bpm(slf, camera, fitsdict, det):
     return badpix
 
 
-def convert_lowredux_pixflat(infil, outfil):
-    """ Convert LowRedux pixflat to PYPIT format
+def convert_lowredux_pixelflat(infil, outfil):
+    """ Convert LowRedux pixelflat to PYPIT format
     Returns
     -------
 
@@ -383,20 +379,20 @@ def convert_lowredux_pixflat(infil, outfil):
     #
     prihdu = pyfits.PrimaryHDU()
     hdus = [prihdu]
-    prihdu.header['FRAMETYP'] = 'pixflat'
+    prihdu.header['FRAMETYP'] = 'pixelflat'
 
     # Detector 1
     img1 = data[:,:data.shape[1]//2]
     hdu = pyfits.ImageHDU(img1)
     hdu.name = 'DET1'
-    prihdu.header['EXT0001'] = 'DET1-Pixflat'
+    prihdu.header['EXT0001'] = 'DET1-pixelflat'
     hdus.append(hdu)
 
     # Detector 2
     img2 = data[:,data.shape[1]//2:]
     hdu = pyfits.ImageHDU(img2)
     hdu.name = 'DET2'
-    prihdu.header['EXT0002'] = 'DET2-Pixflat'
+    prihdu.header['EXT0002'] = 'DET2-pixelflat'
     hdus.append(hdu)
 
     # Finish

@@ -1,6 +1,6 @@
 # SIMPLE RULES:
 #
-# 1. If a keyword is specified in science/pixflat/blzflat/trace/bias/arc frames
+# 1. If a keyword is specified in science/pixelflat/slitflat/trace/bias/arc frames
 #    it must also appear in the Keyword identifiers list.
 # 2. You must check NAXIS is 2 in ``checks to perform''.
 # 3. If a keyword value contains only some interesting value,
@@ -31,6 +31,7 @@ mosaic ndet 1                         # Number of detectors in the mosaic
 mosaic latitude 37.3413889            # Latitude of the telescope
 mosaic longitude +121.6428            # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
 mosaic elevation 1283.0               # Elevation of the telescope (in m)
+mosaic minexp 0.0                     # Minimum exposure time (s)
 mosaic reduction ARMLSD               # Which reduction pipeline should be used for this instrument
 mosaic camera KASTb                   # Which reduction pipeline should be used for this instrument
 
@@ -39,22 +40,20 @@ det01 xgap 0.0                        # Gap between the square detector pixels (
 det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
 det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)
 det01 darkcurr 0.0                    # Dark current (e-/hour)
-det01 ronoise 3.7                     # Read-out noise (e-)
-det01 gain 1.2                        # Inverse gain (e-/ADU)
 det01 saturation 65535.0              # The detector Saturation level
 det01 nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det01 numamplifiers 2                 # Number of amplifiers
-det01 ampsec01 [:,0:1024]         # For each amplifier, you should specify the detector sections each amplifier reads out (values are inclusive).
+det01 gain 1.2,1.2                    # Inverse gain (e-/ADU)
+det01 ronoise 3.7,3.7                 # Read-out noise (e-)
+det01 suffix _blue                    # Suffix to be appended to all saved calibration and extraction frames
 det01 datasec01 [:,0:1024]        # Either the data sections or the header keyword where the valid data sections can be obtained
 det01 oscansec01 [:,2049:2080]    # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
-det01 ampsec02 [:,1024:2048]      # For each amplifier, you should specify the detector sections each amplifier reads out (values are inclusive).
 det01 datasec02 [:,1024:2048]     # Either the data sections or the header keyword where the valid data sections can be obtained
 det01 oscansec02 [:,2080:2111]    # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
-det01 suffix _blue                    # Suffix to be appended to all saved calibration and extraction frames
 
 ### Checks to perform
 check 01.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
-check 01.DSENSOR Fairchild_CCD_3041_2Kx2K          # Check the CCD name (replace any spaces with underscores)
+check 01.DSENSOR Fairchild CCD 3041 2Kx2K          # Check the CCD name (replace any spaces with underscores)
 
 ### Keyword Identifiers
 keyword target 01.OBJECT               # Header keyword for the name given by the observer to a given frame
@@ -67,6 +66,7 @@ keyword dec 01.DEC                     # Declination of the target
 keyword airmass 01.AIRMASS             # Airmass at start of observation
 keyword naxis0 01.NAXIS2               # Number of pixels along the zeroth axis
 keyword naxis1 01.NAXIS1               # Number of pixels along the first axis
+keyword binning None                   # Binning
 keyword exptime 01.EXPTIME             # Exposure time keyword
 keyword filter1 01.RDFILT_N            # Filter 1
 keyword filter2 None                   # Filter 2
@@ -108,9 +108,8 @@ keyword slitwid None                   # Slit Width
 keyword slitlen None                   # Slit Length
 keyword detrot None                    # Detector Rotation angle
 keyword dichroic 01.BSPLIT_N           # Dichroic name
-keyword disperser 01.GRISM_N           # Grism name
-keyword cdangle 01.GRTILT_P            # Cross-disperser angle
-keyword echangle 01.GRATNG_O           # Echelle angle
+keyword dispname 01.GRISM_N            # Disperser name
+keyword dispangle None                 # Disperser angle
 
 ### Fits properties
 fits timeunit s                     # The unit of keyword+time (s=seconds, m=minutes, h=hours, or any of the astropy Time formats)
@@ -143,41 +142,47 @@ bias match naxis0 =0                # Match the shape of bias and science frames
 bias match naxis1 =0                # Match the shape of bias and science frames
 
 ### Pixel Flat frames
-pixflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
-pixflat number 5                    # Number of flat frames to use
-pixflat canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
-pixflat lscomb False                # Combine a long and short flat
-pixflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
-pixflat match naxis0 =0             # Match the shape of flats with science
-pixflat match naxis1 =0             # Match the shape of flats with science
-pixflat match decker ''             # Check the same decker as the science frame was used
-#pixflat match cdangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
+pixelflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
+pixelflat number 5                    # Number of flat frames to use
+pixelflat canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
+pixelflat lscomb False                # Combine a long and short flat
+pixelflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
+pixelflat check condition2 exptime>0     # Required for bias
+pixelflat match naxis0 =0             # Match the shape of flats with science
+pixelflat match naxis1 =0             # Match the shape of flats with science
+pixelflat match decker ''             # Check the same decker as the science frame was used
+#pixelflat match dispangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
 
-### Blaze Flat frames
-blzflat idname None                   # Header key value of trace frame for header keyword keyword+idname
-blzflat number 0                      # Number of trace frames to use
-blzflat canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
-blzflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
-blzflat check condition2 exptime>1     # Required for bias
+### Slit Flat frames
+slitflat idname None                   # Header key value of trace frame for header keyword keyword+idname
+slitflat number 3                      # Number of trace frames to use
+slitflat canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
+slitflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
+slitflat check condition2 exptime>0     # Required for bias
+slitflat match naxis0 =0             # Match the shape of flats with science
+slitflat match naxis1 =0             # Match the shape of flats with science
+slitflat match decker ''             # Check the same decker as the science frame was used
 
 ### Trace frames
 trace idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
 trace number 0                    # Number of flat frames to use
-trace canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
+trace canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
 trace lscomb False                # Combine a long and short flat
 trace check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
 trace check condition2 exptime>0  # Required for bias
 trace match naxis0 =0             # Match the shape of flats with science
 trace match naxis1 =0             # Match the shape of flats with science
 trace match decker ''             # Check the same decker as the science frame was used
-#trace match cdangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+#trace match dispangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
 
 ### Arc frames
 arc idname OBJECT                   # Header key value of arc frame for header keyword keyword+idname
 arc number 1                        # Number of arc frames to use
 arc canbe None                      # If there are frames that will be arc ***in addition to other frame types***, include the other frame types here.
-arc lscomb False                    # Combine a long and short arc
 arc check condition1 lampstat06=on|lampstat07=on|lampstat08=on|lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on|lampstat13=on|lampstat14=on|lampstat15=on|lampstat16=on
 arc match naxis0 =0                 # Match the shape of arcs with science
 arc match naxis1 =0                 # Match the shape of arcs with science
-#arc match cdangle |<=5              # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+#arc match dispangle |<=5              # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+
+# Make some changes to the arguments and flags
+settings trace dispersion direction 1
