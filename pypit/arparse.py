@@ -917,52 +917,6 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed_filename(v, allowed)
         self.update(v)
 
-    def reduce_flexure_maxshift(self, v):
-        """ Maximum allowed flexure shift in pixels
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        v = key_int(v)
-        self.update(v)
-
-    def reduce_flexure_method(self, v):
-        """ Perform flexure correction on objects using boxcar extraction.
-        If 'slitcen' is used, the flexure correction is performed before
-        the extraction of objects
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        allowed = ['none', 'boxcar', 'slitcen']
-        v = key_none_allowed(v, allowed)
-        self.update(v)
-
-    def reduce_flexure_spectrum(self, v):
-        """ Specify the archive sky spectrum to be used for the flexure correction
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        if v.lower() == 'none':
-            v = None
-        else:
-            if not pathexists(self._argflag['run']['pypitdir'] + 'data/sky_spec/' + v):
-                files_sky = glob(self._argflag['run']['pypitdir'] + 'data/sky_spec/*.fits')
-                skyfiles = ""
-                for i in files_sky:
-                    skyfiles += msgs.newline() + "  - " + str(i.split("/")[-1])
-                msgs.error("The following archive sky spectrum file does not exist:" + msgs.newline() +
-                           "  " + v + msgs.newline() + msgs.newline() + "Please use one of the files listed below:" +
-                           skyfiles)
-        self.update(v)
-
     def reduce_masters_file(self, v):
         """
 
@@ -2056,6 +2010,16 @@ class BaseSpect(BaseFunctions):
         return
 
     def settings(self, v):
+        """ Adjust a PYPIT setting. This can be used to force certain default
+        reduction options for a given spectrograph. For example, to use a set
+        number of cpus when reducing a given instrument, you could specify in
+        the settings.instrument_name file: 'settings run ncpus 3'
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         self._settings.append(v.split())
         return
 
@@ -2091,7 +2055,8 @@ class BaseSpect(BaseFunctions):
         return
 
     def arc_canbe(self, v):
-        """
+        """ If there are frames that will be an arc in addition to other frame types,
+        include the other frame types here.
 
         Parameters
         ----------
@@ -2102,7 +2067,10 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def arc_check_condition(self, v, cnmbr=1):
-        """
+        """ Check that a frame satisfies a series of conditions before it is
+        labelled as an arc frame. Multiple conditions can be specified,
+        where each new condition has a different integer suffix appended to
+        the condition variable.
 
         Parameters
         ----------
@@ -2114,7 +2082,7 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def arc_idname(self, v):
-        """
+        """ Header key value of arc frames for header keyword: 'keyword idname'
 
         Parameters
         ----------
@@ -2124,7 +2092,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def arc_number(self, v):
-        """
+        """ Number of arc frames to use
 
         Parameters
         ----------
@@ -2137,7 +2105,8 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def bias_canbe(self, v):
-        """
+        """ If there are frames that will be a bias in addition to other frame types,
+        include the other frame types here.
 
         Parameters
         ----------
@@ -2148,7 +2117,10 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def bias_check_condition(self, v, cnmbr=1):
-        """
+        """ Check that a frame satisfies a series of conditions before it is
+        labelled as a bias frame. Multiple conditions can be specified,
+        where each new condition has a different integer suffix appended to
+        the condition variable.
 
         Parameters
         ----------
@@ -2160,7 +2132,7 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def bias_idname(self, v):
-        """
+        """ Header key value of bias frames for header keyword: 'keyword idname'
 
         Parameters
         ----------
@@ -2170,7 +2142,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def bias_number(self, v):
-        """
+        """ Number of bias frames to use
 
         Parameters
         ----------
@@ -2183,7 +2155,8 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def det_datasec(self, v, anmbr=1, bnmbr=1):
-        """
+        """ Either the data sections or the header keyword where the
+        valid data sections can be obtained.
 
         Parameters
         ----------
@@ -2198,7 +2171,8 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_oscansec(self, v, anmbr=1, bnmbr=1):
-        """
+        """ Either the overscan sections or the header keyword where the
+        valid overscan sections can be obtained.
 
         Parameters
         ----------
@@ -2213,7 +2187,7 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_darkcurr(self, v, anmbr=1):
-        """
+        """ Dark current (e-/hour)
 
         Parameters
         ----------
@@ -2227,7 +2201,7 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_gain(self, v, anmbr=1):
-        """
+        """ Inverse gain (e-/ADU). A list should be provided if a detector contains more than one amplifier.
 
         Parameters
         ----------
@@ -2246,7 +2220,7 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_ronoise(self, v, anmbr=1):
-        """
+        """ Read-out noise (e-). A list should be provided if a detector contains more than one amplifier.
 
         Parameters
         ----------
@@ -2265,7 +2239,8 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_nonlinear(self, v, anmbr=1):
-        """
+        """ Percentage of detector range which is linear (i.e. everything above
+        nonlinear*saturation will be flagged as saturated)
 
         Parameters
         ----------
@@ -2279,7 +2254,7 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_numamplifiers(self, v, anmbr=1):
-        """
+        """ Number of amplifiers for each detector.
 
         Parameters
         ----------
@@ -2293,7 +2268,7 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_saturation(self, v, anmbr=1):
-        """
+        """ The detector saturation level
 
         Parameters
         ----------
@@ -2307,7 +2282,7 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_suffix(self, v, anmbr=1):
-        """
+        """ Suffix to be appended to all saved calibration and extraction frames
 
         Parameters
         ----------
@@ -2318,7 +2293,8 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_xgap(self, v, anmbr=1):
-        """
+        """ Gap between the square detector pixels (expressed as a fraction
+        of the pixel size along the dispersion axis)
 
         Parameters
         ----------
@@ -2332,7 +2308,8 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_ygap(self, v, anmbr=1):
-        """
+        """ Gap between the square detector pixels (expressed as a fraction
+        of the pixel size along the spatial axis)
 
         Parameters
         ----------
@@ -2346,7 +2323,8 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def det_ysize(self, v, anmbr=1):
-        """
+        """ The size of a pixel in the spatial direction as a multiple of the
+        pixel size along the spectral direction (i.e. assume xsize = 1.0)
 
         Parameters
         ----------
@@ -2360,7 +2338,8 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def fits_calwin(self, v):
-        """
+        """ The window of time in hours to search for matching calibration
+        frames for a science frame.
 
         Parameters
         ----------
@@ -2373,7 +2352,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def fits_dataext(self, v):
-        """
+        """ Extension number of data
 
         Parameters
         ----------
@@ -2386,7 +2365,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def fits_headext(self, v, bnmbr=1):
-        """
+        """ How many headers need to be read in for a given file
 
         Parameters
         ----------
@@ -2400,7 +2379,7 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def fits_numhead(self, v):
-        """
+        """ Extension number of header (one for each headnum, starting with 01)
 
         Parameters
         ----------
@@ -2413,7 +2392,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def fits_numlamps(self, v):
-        """
+        """ How many lamps are listed in the header
 
         Parameters
         ----------
@@ -2426,7 +2405,9 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def fits_timeunit(self, v):
-        """
+        """ The unit of keyword time
+
+        (s=seconds, m=minutes, h=hours, or any of the astropy Time formats)
 
         Parameters
         ----------
@@ -2442,7 +2423,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_ra(self, v):
-        """
+        """ Right Ascension of the telescope pointing
 
         Parameters
         ----------
@@ -2453,7 +2434,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_dec(self, v):
-        """
+        """ Declination of the telescope pointing
 
         Parameters
         ----------
@@ -2464,7 +2445,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_target(self, v):
-        """
+        """ Header keyword for the name given by the observer to a given frame
 
         Parameters
         ----------
@@ -2475,7 +2456,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_airmass(self, v):
-        """
+        """ Airmass at start of observation
 
         Parameters
         ----------
@@ -2486,7 +2467,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_binning(self, v):
-        """
+        """ The binning of the data
 
         Parameters
         ----------
@@ -2497,7 +2478,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_binningspatial(self, v):
-        """
+        """ Spatial binning
 
         Parameters
         ----------
@@ -2508,7 +2489,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_binningspectral(self, v):
-        """
+        """ Spectral binning
 
         Parameters
         ----------
@@ -2519,7 +2500,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_date(self, v):
-        """
+        """ The date of the observation (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
 
         Parameters
         ----------
@@ -2530,7 +2511,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_decker(self, v):
-        """
+        """ Which decker is being used
 
         Parameters
         ----------
@@ -2541,7 +2522,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_detrot(self, v):
-        """
+        """ Detector Rotation angle
 
         Parameters
         ----------
@@ -2552,7 +2533,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_dispname(self, v):
-        """
+        """ Disperser name
 
         Parameters
         ----------
@@ -2563,7 +2544,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_dispangle(self, v):
-        """
+        """ Disperser angle
 
         Parameters
         ----------
@@ -2574,7 +2555,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_equinox(self, v):
-        """
+        """ The equinox to use
 
         Parameters
         ----------
@@ -2585,7 +2566,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_exptime(self, v):
-        """
+        """ Exposure time
 
         Parameters
         ----------
@@ -2596,7 +2577,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_filter1(self, v):
-        """
+        """ Filter 1
 
         Parameters
         ----------
@@ -2607,7 +2588,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_filter2(self, v):
-        """
+        """ Filter 2
 
         Parameters
         ----------
@@ -2618,7 +2599,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_hatch(self, v):
-        """
+        """ Hatch open/close
 
         Parameters
         ----------
@@ -2629,7 +2610,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_idname(self, v):
-        """
+        """ The keyword that identifies the frame type (i.e. bias, flat, etc.)
 
         Parameters
         ----------
@@ -2640,7 +2621,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_lamps(self, v):
-        """
+        """ Lamps being used
 
         Parameters
         ----------
@@ -2651,7 +2632,9 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_lampname(self, v, bnmbr=1):
-        """
+        """ Name of a lamp. Multiple lamp nams can be specified by appending a
+        two digit number (starting with 01) after lampname. There must be a
+        corresponding keyword set for 'keyword lampstat'
 
         Parameters
         ----------
@@ -2668,7 +2651,9 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def keyword_lampstat(self, v, bnmbr=1):
-        """
+        """ Status of a lamp. Multiple lamp statuses  can be specified by appending a
+        two digit number (starting with 01) after lampstat. There must be a corresponding
+        keyword set for 'keyword lampname'
 
         Parameters
         ----------
@@ -2685,7 +2670,7 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def keyword_naxis0(self, v):
-        """
+        """ Number of pixels along the zeroth axis
 
         Parameters
         ----------
@@ -2696,7 +2681,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_naxis1(self, v):
-        """
+        """ Number of pixels along the first axis
 
         Parameters
         ----------
@@ -2707,7 +2692,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_slitwid(self, v):
-        """
+        """ Slit Width
 
         Parameters
         ----------
@@ -2718,7 +2703,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_slitlen(self, v):
-        """
+        """ Slit Length
 
         Parameters
         ----------
@@ -2729,7 +2714,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def keyword_time(self, v):
-        """
+        """ The time stamp of the observation (i.e. decimal MJD)
 
         Parameters
         ----------
@@ -2740,7 +2725,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def mosaic_camera(self, v):
-        """
+        """ Set the name of the instrument used (this will be used in the QA).
 
         Parameters
         ----------
@@ -2750,7 +2735,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def mosaic_elevation(self, v):
-        """
+        """ Elevation of the telescope (in m)
 
         Parameters
         ----------
@@ -2761,7 +2746,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def mosaic_latitude(self, v):
-        """
+        """ Latitude of the telescope
 
         Parameters
         ----------
@@ -2772,7 +2757,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def mosaic_longitude(self, v):
-        """
+        """ Longitude of the telescope
 
         Parameters
         ----------
@@ -2783,7 +2768,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def mosaic_ndet(self, v):
-        """
+        """ Number of detectors in the mosaic
 
         Parameters
         ----------
@@ -2794,7 +2779,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def mosaic_minexp(self, v):
-        """
+        """ Minimum exposure time of the instrument (s)
 
         Parameters
         ----------
@@ -2805,7 +2790,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def mosaic_reduction(self, v):
-        """
+        """ Which reduction pipeline should be used to reduce data taken with this instrument
 
         Parameters
         ----------
@@ -2817,7 +2802,8 @@ class BaseSpect(BaseFunctions):
         self.update(v.upper())
 
     def pixelflat_canbe(self, v):
-        """
+        """ If there are frames that will be a pixel flat in addition to other frame types,
+        include the other frame types here.
 
         Parameters
         ----------
@@ -2828,7 +2814,10 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def pixelflat_check_condition(self, v, cnmbr=1):
-        """
+        """ Check that a frame satisfies a series of conditions before it is
+        labelled as a pixel flat frame. Multiple conditions can be specified,
+        where each new condition has a different integer suffix appended to
+        the condition variable.
 
         Parameters
         ----------
@@ -2840,7 +2829,7 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def pixelflat_idname(self, v):
-        """
+        """ Header key value of pixel flat frames for header keyword: 'keyword idname'
 
         Parameters
         ----------
@@ -2850,7 +2839,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def pixelflat_lscomb(self, v):
-        """
+        """ Combine frames with a different exposure time?
 
         Parameters
         ----------
@@ -2861,7 +2850,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def pixelflat_number(self, v):
-        """
+        """ Number of pixel flat frames to use
 
         Parameters
         ----------
@@ -2874,7 +2863,8 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def science_canbe(self, v):
-        """
+        """ If there are frames that will be a science frame in addition to other frame types,
+        include the other frame types here.
 
         Parameters
         ----------
@@ -2885,7 +2875,10 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def science_check_condition(self, v, cnmbr=1):
-        """
+        """ Check that a frame satisfies a series of conditions before it is
+        labelled as a science frame. Multiple conditions can be specified,
+        where each new condition has a different integer suffix appended to
+        the condition variable.
 
         Parameters
         ----------
@@ -2897,7 +2890,7 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def science_idname(self, v):
-        """
+        """ Header key value of science frames for header keyword: 'keyword idname'
 
         Parameters
         ----------
@@ -2907,7 +2900,9 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def set_arc(self, v):
-        """
+        """ Manually force a given frame to be an arc frame. For example,
+         'set arc filename1.fits,filename2.fits' will force filename1.fits
+         and filename2.fits to be arc frames.
 
         Parameters
         ----------
@@ -2919,7 +2914,9 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def set_bias(self, v):
-        """
+        """ Manually force a given frame to be a bias frame. For example,
+         'set bias filename1.fits,filename2.fits' will force filename1.fits
+         and filename2.fits to be bias frames.
 
         Parameters
         ----------
@@ -2931,7 +2928,9 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def set_pixelflat(self, v):
-        """
+        """ Manually force a given frame to be a pixel flat frame. For example,
+         'set pixelflat filename1.fits,filename2.fits' will force filename1.fits
+         and filename2.fits to be pixel flat frames.
 
         Parameters
         ----------
@@ -2943,7 +2942,9 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def set_science(self, v):
-        """
+        """ Manually force a given frame to be a science frame. For example,
+         'set science filename1.fits,filename2.fits' will force filename1.fits
+         and filename2.fits to be science frames.
 
         Parameters
         ----------
@@ -2955,7 +2956,9 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def set_slitflat(self, v):
-        """
+        """ Manually force a given frame to be a slit flat frame. For example,
+         'set slitflat filename1.fits,filename2.fits' will force filename1.fits
+         and filename2.fits to be slit flat frames.
 
         Parameters
         ----------
@@ -2967,7 +2970,9 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def set_standard(self, v):
-        """
+        """ Manually force a given frame to be a standard star frame. For example,
+         'set standard filename1.fits,filename2.fits' will force filename1.fits
+         and filename2.fits to be standard star frames.
 
         Parameters
         ----------
@@ -2979,7 +2984,9 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def set_trace(self, v):
-        """
+        """ Manually force a given frame to be a trace frame. For example,
+         'set trace filename1.fits,filename2.fits' will force filename1.fits
+         and filename2.fits to be trace frames.
 
         Parameters
         ----------
@@ -2991,7 +2998,8 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def slitflat_canbe(self, v):
-        """
+        """ If there are frames that will be a slit flat in addition to other frame types,
+        include the other frame types here.
 
         Parameters
         ----------
@@ -3002,7 +3010,10 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def slitflat_check_condition(self, v, cnmbr=1):
-        """
+        """ Check that a frame satisfies a series of conditions before it is
+        labelled as a slit flat frame. Multiple conditions can be specified,
+        where each new condition has a different integer suffix appended to
+        the condition variable.
 
         Parameters
         ----------
@@ -3014,7 +3025,7 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def slitflat_idname(self, v):
-        """
+        """ Header key value of slitflat frames for header keyword: 'keyword idname'
 
         Parameters
         ----------
@@ -3024,7 +3035,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def slitflat_lscomb(self, v):
-        """
+        """ Combine frames with a different exposure time?
 
         Parameters
         ----------
@@ -3035,7 +3046,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def slitflat_number(self, v):
-        """
+        """ Number of slit flat frames to use
 
         Parameters
         ----------
@@ -3048,7 +3059,8 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def standard_canbe(self, v):
-        """
+        """ If there are frames that will be a standard star frame in addition
+        to other frame types, include the other frame types here.
 
         Parameters
         ----------
@@ -3059,7 +3071,10 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def standard_check_condition(self, v, cnmbr=1):
-        """
+        """ Check that a frame satisfies a series of conditions before it is
+        labelled as a standard frame. Multiple conditions can be specified,
+        where each new condition has a different integer suffix appended to
+        the condition variable.
 
         Parameters
         ----------
@@ -3071,7 +3086,7 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def standard_idname(self, v):
-        """
+        """ Header key value of standard star frames for header keyword: 'keyword idname'
 
         Parameters
         ----------
@@ -3081,7 +3096,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def standard_number(self, v):
-        """
+        """ Number of standard star frames to use
 
         Parameters
         ----------
@@ -3094,7 +3109,8 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def trace_canbe(self, v):
-        """
+        """ If there are frames that will be a trace flat in addition to other frame types,
+        include the other frame types here.
 
         Parameters
         ----------
@@ -3105,7 +3121,10 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def trace_check_condition(self, v, cnmbr=1):
-        """
+        """ Check that a frame satisfies a series of conditions before it is
+        labelled as a trace frame. Multiple conditions can be specified,
+        where each new condition has a different integer suffix appended to
+        the condition variable.
 
         Parameters
         ----------
@@ -3117,7 +3136,7 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def trace_idname(self, v):
-        """
+        """ Header key value of a trace frame for header keyword: 'keyword idname'
 
         Parameters
         ----------
@@ -3127,7 +3146,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def trace_lscomb(self, v):
-        """
+        """ Combine frames with a different exposure time?
 
         Parameters
         ----------
@@ -3138,7 +3157,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def trace_number(self, v):
-        """
+        """ Number of trace frames to use
 
         Parameters
         ----------
@@ -3154,7 +3173,7 @@ class BaseSpect(BaseFunctions):
 class ARMLSD(BaseArgFlag):
 
     def reduce_calibrate_flux(self, v):
-        """
+        """ Should a flux calibration be performed?
 
         Parameters
         ----------
@@ -3164,8 +3183,9 @@ class ARMLSD(BaseArgFlag):
         v = key_bool(v)
         self.update(v)
 
+
     def reduce_flexure_maxshift(self, v):
-        """
+        """ Maximum allowed flexure shift in pixels
 
         Parameters
         ----------
@@ -3175,23 +3195,46 @@ class ARMLSD(BaseArgFlag):
         v = key_int(v)
         self.update(v)
 
-    def reduce_flexure_spec(self, v):
-        """
+    def reduce_flexure_method(self, v):
+        """ Perform flexure correction on objects using boxcar extraction.
+        If 'slitcen' is used, the flexure correction is performed before
+        the extraction of objects
 
         Parameters
         ----------
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['boxcar', 'slit_cen', 'none']
+        allowed = ['none', 'boxcar', 'slitcen']
         v = key_none_allowed(v, allowed)
+        self.update(v)
+
+    def reduce_flexure_spectrum(self, v):
+        """ Specify the archive sky spectrum to be used for the flexure correction
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        if v.lower() == 'none':
+            v = None
+        else:
+            if not pathexists(self._argflag['run']['pypitdir'] + 'data/sky_spec/' + v):
+                files_sky = glob(self._argflag['run']['pypitdir'] + 'data/sky_spec/*.fits')
+                skyfiles = ""
+                for i in files_sky:
+                    skyfiles += msgs.newline() + "  - " + str(i.split("/")[-1])
+                msgs.error("The following archive sky spectrum file does not exist:" + msgs.newline() +
+                           "  " + v + msgs.newline() + msgs.newline() + "Please use one of the files listed below:" +
+                           skyfiles)
         self.update(v)
 
 
 class ARMLSD_spect(BaseSpect):
 
     def keyword_dichroic(self, v):
-        """
+        """ Dichroic used for the observation
 
         Parameters
         ----------
@@ -3205,7 +3248,7 @@ class ARMLSD_spect(BaseSpect):
 class ARMED_spect(BaseSpect):
 
     def keyword_echangle(self, v):
-        """
+        """ The angle of the echelle grating
 
         Parameters
         ----------
@@ -3269,11 +3312,18 @@ def get_spect_class(init):
 
 
 def get_current_name():
+    """ Return the name of the function that called this function
+    """
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
     return "'" + " ".join(ll) + "'"
 
 
 def get_nmbr_name(anmbr=None, bnmbr=None, cnmbr=None):
+    """ Return the name of the function that called this function,
+    and append a two digit number to the first (when anmbr!=None),
+    the second (when bnmbr!=None), or third (when cnmbr!=None) element
+    of the function name.
+    """
     cspl = inspect.currentframe().f_back.f_code.co_name.split('_')
     if anmbr is not None:
         cspl[0] += "{0:02d}".format(anmbr)
@@ -3315,7 +3365,7 @@ def load_sections(string):
 
 
 def get_dnum(det):
-    """Convert a detector index into a string used by the settings dictionary
+    """ Convert a detector index into a string used by the settings dictionary
 
     Parameters
     ----------
@@ -3331,6 +3381,24 @@ def get_dnum(det):
 
 
 def key_allowed(v, allowed, upper=False):
+    """ Check that a keyword argument is in an allowed list of parameters.
+
+    Parameters
+    ----------
+    v : str
+      value of a keyword argument
+    allowed : list
+      list of allowed values that v can take
+    upper : bool (optional)
+      If True, the allowed list is expected to contain only
+      uppercase strings. If False, the allowed list is expected
+      to contain only lowercase strings.
+
+    Returns
+    -------
+    v : str
+      A string used by the settings dictionary
+    """
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
     func_name = "'" + " ".join(ll) + "'"
     if upper:
@@ -3344,6 +3412,21 @@ def key_allowed(v, allowed, upper=False):
 
 
 def key_allowed_filename(v, allowed):
+    """ Check that a keyword argument is in an allowed list of parameters.
+    If not, assume that it is a filename.
+
+    Parameters
+    ----------
+    v : str
+      value of a keyword argument
+    allowed : list
+      list of allowed values that v can take
+
+    Returns
+    -------
+    v : str
+      A string used by the settings dictionary
+    """
     vt = v.lower()
     if vt not in allowed:
         msgs.warn("Assuming the following is the name of a file:" + msgs.newline() + v)
@@ -3353,6 +3436,18 @@ def key_allowed_filename(v, allowed):
 
 
 def key_bool(v):
+    """ Check that a keyword argument is a boolean variable.
+
+    Parameters
+    ----------
+    v : str
+      value of a keyword argument
+
+    Returns
+    -------
+    v : str
+      A string used by the settings dictionary
+    """
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
     func_name = "'" + " ".join(ll) + "'"
     if v.lower() == "true":
@@ -3365,6 +3460,19 @@ def key_bool(v):
 
 
 def key_check(v):
+    """ Check that a keyword argument satisfies the form required of a
+    keyword argument that checks frame types.
+
+    Parameters
+    ----------
+    v : str
+      value of a keyword argument
+
+    Returns
+    -------
+    v : str, list
+      A value used by the settings dictionary
+    """
     text = v.strip().replace('_', ' ')
     if ',' in text and text[0:2] != '%,':
         # There are multiple possibilities - split the text
@@ -3375,6 +3483,18 @@ def key_check(v):
 
 
 def key_float(v):
+    """ Check that a keyword argument is a float.
+
+    Parameters
+    ----------
+    v : str
+      value of a keyword argument
+
+    Returns
+    -------
+    v : float
+      A value used by the settings dictionary
+    """
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
     func_name = "'" + " ".join(ll) + "'"
     try:
@@ -3385,6 +3505,18 @@ def key_float(v):
 
 
 def key_int(v):
+    """ Check that a keyword argument is an int.
+
+    Parameters
+    ----------
+    v : str
+      value of a keyword argument
+
+    Returns
+    -------
+    v : int
+      A value used by the settings dictionary
+    """
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
     func_name = "'" + " ".join(ll) + "'"
     try:
@@ -3395,6 +3527,19 @@ def key_int(v):
 
 
 def key_keyword(v):
+    """ Check that a keyword argument satisfies the form required
+    for specifying a header keyword.
+
+    Parameters
+    ----------
+    v : str
+      value of a keyword argument
+
+    Returns
+    -------
+    v : str
+      A value used by the settings dictionary
+    """
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
     func_name = "'" + " ".join(ll) + "'"
     if v.lower() == "none":
@@ -3412,6 +3557,19 @@ def key_keyword(v):
 
 
 def key_list(strlist):
+    """ Check that a keyword argument is a list. Set the
+    appropriate type of the list based on the supplied values.
+
+    Parameters
+    ----------
+    v : str
+      value of a keyword argument
+
+    Returns
+    -------
+    v : list
+      A value used by the settings dictionary
+    """
     # Check if the input array is a null list
     if strlist == "[]" or strlist == "()":
         return []
@@ -3448,6 +3606,23 @@ def key_list(strlist):
 
 
 def key_list_allowed(v, allowed):
+    """ Check that a keyword argument is a list. Set the
+    appropriate type of the list based on the supplied values.
+    Then, check that each value in the list is also in the
+    supplied 'allowed' list.
+
+    Parameters
+    ----------
+    v : str
+      value of a keyword argument
+    allowed : list
+      list of allowed values that v can take
+
+    Returns
+    -------
+    v : list
+      A value used by the settings dictionary
+    """
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
     func_name = "'" + " ".join(ll) + "'"
     v = key_list(v)
@@ -3461,7 +3636,20 @@ def key_list_allowed(v, allowed):
 
 
 def key_none_allowed(v, allowed):
-    """ First check if a keyword is None, then see if it is in the allowed list
+    """ Check if a keyword argument is set to None. If not,
+    check that its value is in the 'allowed' list.
+
+    Parameters
+    ----------
+    v : str
+      value of a keyword argument
+    allowed : list
+      list of allowed values that v can take
+
+    Returns
+    -------
+    v : None, str
+      A value used by the settings dictionary
     """
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
     func_name = "'" + " ".join(ll) + "'"
@@ -3479,8 +3667,21 @@ def key_none_allowed(v, allowed):
 
 
 def key_none_allowed_filename(v, allowed):
-    """ First check if a keyword is None, then see if it is in the allowed list,
-    and finally assume that it is the name of a file if not in the list
+    """ Check if a keyword argument is set to None. If not,
+    check that its value is in the 'allowed' list. Finally,
+    assume that the supplied value is the name of a filename.
+
+    Parameters
+    ----------
+    v : str
+      value of a keyword argument
+    allowed : list
+      list of allowed values that v can take
+
+    Returns
+    -------
+    v : None, str
+      A value used by the settings dictionary
     """
     if v.lower() == "none":
         v = None
@@ -3495,6 +3696,19 @@ def key_none_allowed_filename(v, allowed):
 
 
 def key_none_list(v):
+    """ Check if a keyword argument is set to None. If not,
+    assume the supplied value is a list.
+
+    Parameters
+    ----------
+    v : str
+      value of a keyword argument
+
+    Returns
+    -------
+    v : list
+      A value used by the settings dictionary
+    """
     if v.lower() == "none":
         v = None
     else:
@@ -3506,6 +3720,18 @@ def key_none_list(v):
 
 
 def key_none(v):
+    """ Check if a keyword argument is set to None.
+
+    Parameters
+    ----------
+    v : str
+      value of a keyword argument
+
+    Returns
+    -------
+    v : None, str
+      A value used by the settings dictionary
+    """
     if v.lower() == "none":
         v = None
     return v
@@ -3526,5 +3752,7 @@ def combine_replaces():
 
 
 def combine_satpixs():
+    """ The options that can be used to replace saturated pixels when combining a set of frames
+    """
     methods = ['reject', 'force', 'nothing']
     return methods

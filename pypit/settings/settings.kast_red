@@ -23,7 +23,7 @@
 #    the value of the first one will be recognised.
 # 7. Strictly speaking, ARMLSD likes a one-to-one relationship between
 #    a given frame and a frame type. If you would like a one-to-many
-#    relationship (i.e. a given frame can be both a pixel and a blaze
+#    relationship (i.e. a given frame can be both a pixel and a slit
 #    flat, use the canbe option).
 #    
 ### Detector properties
