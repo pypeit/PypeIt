@@ -112,7 +112,7 @@ pixelflat norm recnorm   True             # Use the recnorm algorithm?
 # SCIENCE FRAMES
 science extraction reuse False        # If the science frame has previously been extracted and saved, load the extractions
 science extraction profile gaussian   # Fitting function used to extract science data, only if the extraction is 2D (options are: gaussian, gaussfunc, moffat, moffatfunc) ### NOTE: options with suffix 'func' fits a function to the pixels whereas those without this suffix takes into account the integrated function within each pixel (and is closer to truth)
-science extraction maxnumber 9999     # Maximum number of objects to extract in a science frame
+science extraction maxnumber 1     # Maximum number of objects to extract in a science frame
 science extraction manual01 frame None
 science extraction manual01 params None
 
