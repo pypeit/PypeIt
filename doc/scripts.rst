@@ -71,7 +71,7 @@ that into Ginga.  The dummy file is deleted afterwards.::
       --exten EXTEN  FITS extension (default: None)
 
 
-pypit_lowrfdx_pixflat
+pypit_lowrdx_pixflat
 =====================
 
 Convert a LowRedux pixel flat into a PYPIT ready file::

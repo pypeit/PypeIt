@@ -33,6 +33,7 @@ def test_log_write():
     for flg in flgs:
         assert flg is True
 
+
 def test_msgs():
     from pypit import ardebug
     from pypit import armsgs as pyparm

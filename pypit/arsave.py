@@ -12,17 +12,18 @@ from astropy.table import Table
 import h5py
 
 from pypit import armsgs
+from pypit import arparse as settings
 
 try:
     from xastropy.xutils import xdebug as debugger
-except:
+except ImportError:
     import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()
 
 
-def save_arcids(slf, fname, pixels):
+def save_arcids(fname, pixels):
     # Setup the HDU
     hdu = pyfits.PrimaryHDU()
     hdulist = pyfits.HDUList([hdu]) # Insert the primary HDU (input model)
@@ -30,12 +31,12 @@ def save_arcids(slf, fname, pixels):
         hdulist.append(pyfits.ImageHDU(pixels[o])) # Add a new Image HDU
     ans = 'y'
     if os.path.exists(fname):
-        if slf._argflag['out']['overwrite']:
+        if settings.argflag['output']['overwrite']:
             os.remove(fname)
         else:
             ans = ''
             while ans != 'y' and ans != 'n' and ans != 'r':
-                msgs.warn("File %s exists!" % (fname), verbose=slf._argflag['out']['verbose'])
+                msgs.warn("File %s exists!" % (fname), verbose=settings.argflag['output']['verbosity'])
                 ans = raw_input(msgs.input()+"Overwrite? (y/n)")
             if ans == 'y': os.remove(fname)
     if ans == 'y':
@@ -51,8 +52,8 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
         savdat = sciext
     else:
         if sciext.ndim != 2 or sciext.shape != sky.shape:
-            msgs.error("Could not save extraction"+msgs.newline()+
-                        "science and sky frames have different dimensions or shape")
+            msgs.error("Could not save extraction"+msgs.newline() +
+                       "science and sky frames have different dimensions or shape")
         tsavdat = sciext[:,:,np.newaxis]
         tsavdat = np.append(tsavdat,sky[:,:,np.newaxis],axis=2)
         if scierr is not None:
@@ -73,12 +74,12 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
     hdulist[0].header[hdrname] = (slf._fitsdict['filename'][scidx[0]], 'ARMED: Name of file that was extracted'.format(frametype))
     hdulist[0].header["FRAMETYP"] = (frametype, 'ARMED: extraction frame')
     hdulist[0].header["NUMORDS"] = (sciext.shape[1], 'ARMED: Number of orders extracted')
-    hdulist[0].header["PIXSIZE"] = (slf._argflag['reduce']['pixelsize'], 'ARMED: The size of each sampled pixel (km/s)')
+    hdulist[0].header["PIXSIZE"] = (settings.argflag['reduce']['pixelsize'], 'ARMED: The size of each sampled pixel (km/s)')
     # Loop through all orders and write the wavelength into the header
     if wave is not None:
         for i in range(sciext.shape[1]):
             hdrname = "CDELT{0:03d}".format(i+1)
-            hdulist[0].header[hdrname] = (np.log10(1.0 + slf._argflag['reduce']['pixelsize']/299792.458), 'ARMED: log10(1+pixsize/c)'.format(frametype))
+            hdulist[0].header[hdrname] = (np.log10(1.0 + settings.argflag['reduce']['pixelsize']/299792.458), 'ARMED: log10(1+pixsize/c)'.format(frametype))
             hdrname = "CRVAL{0:03d}".format(i+1)
             hdulist[0].header[hdrname] = (np.log10(wave[0,i]), 'ARMED: log10(lambda_0)'.format(frametype))
             hdrname = "CLINV{0:03d}".format(i+1)
@@ -97,7 +98,7 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
                     hdulist[0].header[hdrname] = (extprops[kys[j]][i], 'ARMED: {0:s} for order {1:d}'.format(kys[j],i+1))
     # Write the file to disk
     if os.path.exists(filename):
-        if slf._argflag['out']['overwrite'] == True:
+        if settings.argflag['output']['overwrite'] == True:
             msgs.warn("Overwriting file:"+msgs.newline()+filename)
             os.remove(filename)
             hdulist.writeto(filename)
@@ -111,7 +112,7 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
                 msgs.warn("Not saving {0:s} frame:".format(frametype)+msgs.newline()+filename)
             else:
                 os.remove(filename)
-                if rmfil == 'a': slf._argflag['run']['overwrite'] = True
+                if rmfil == 'a': settings.argflag['output']['overwrite'] = True
                 hdulist.writeto(filename)
                 msgs.info("{0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
     else:
@@ -155,7 +156,7 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
             hdulist[0].header[key] = keywds[key]
     # Write the file to disk
     if os.path.exists(filename):
-        if slf._argflag['out']['overwrite'] == True:
+        if settings.argflag['output']['overwrite'] == True:
             msgs.warn("Overwriting file:"+msgs.newline()+filename)
             os.remove(filename)
             hdulist.writeto(filename)
@@ -169,7 +170,7 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
                 msgs.warn("Not saving master {0:s} frame:".format(frametype)+msgs.newline()+filename)
             else:
                 os.remove(filename)
-                if rmfil == 'a': slf._argflag['run']['overwrite'] = True
+                if rmfil == 'a': settings.argflag['output']['overwrite'] = True
                 hdulist.writeto(filename)
                 msgs.info("Master {0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
     else:
@@ -187,7 +188,7 @@ def save_ordloc(slf, fname):
     # Write the file to disk
     filename = mstrace_bname+"_ltrace"+mstrace_bext
     if os.path.exists(filename):
-        if slf._argflag['out']['overwrite'] == True:
+        if settings.argflag['output']['overwrite'] is True:
             msgs.warn("Overwriting file:"+msgs.newline()+filename)
             os.remove(filename)
             hdulist.writeto(filename)
@@ -201,7 +202,7 @@ def save_ordloc(slf, fname):
                 msgs.warn("Not saving left order traces for file:"+msgs.newline()+fname)
             else:
                 os.remove(filename)
-                if rmfil == 'a': slf._argflag['run']['overwrite'] = True
+                if rmfil == 'a': settings.argflag['output']['overwrite'] = True
                 hdulist.writeto(filename)
                 msgs.info("Saved left order locations for frame:"+msgs.newline()+fname)
     else:
@@ -212,7 +213,7 @@ def save_ordloc(slf, fname):
     hdulist = pyfits.HDUList([hdu])
     filename = mstrace_bname+"_rtrace"+mstrace_bext
     if os.path.exists(filename):
-        if slf._argflag['out']['overwrite'] == True:
+        if settings.argflag['output']['overwrite'] is True:
             msgs.warn("Overwriting file:"+msgs.newline()+filename)
             os.remove(filename)
             hdulist.writeto(filename)
@@ -226,7 +227,7 @@ def save_ordloc(slf, fname):
                 msgs.warn("Not saving right order traces for file:"+msgs.newline()+fname)
             else:
                 os.remove(filename)
-                if rmfil == 'a': slf._argflag['run']['overwrite'] = True
+                if rmfil == 'a': settings.argflag['output']['overwrite'] = True
                 hdulist.writeto(filename)
                 msgs.info("Saved right order locations for frame:"+msgs.newline()+fname)
     else:
@@ -244,7 +245,7 @@ def save_tilts(slf, fname):
     # Write the file to disk
     filename = msarc_bname+"_tilts"+msarc_bext
     if os.path.exists(filename):
-        if slf._argflag['out']['overwrite'] == True:
+        if settings.argflag['output']['overwrite'] == True:
             msgs.warn("Overwriting file:"+msgs.newline()+filename)
             os.remove(filename)
             hdulist.writeto(filename)
@@ -258,7 +259,7 @@ def save_tilts(slf, fname):
                 msgs.warn("Not saving order tilts for file:"+msgs.newline()+fname)
             else:
                 os.remove(filename)
-                if rmfil == 'a': slf._argflag['run']['overwrite'] = True
+                if rmfil == 'a': settings.argflag['output']['overwrite'] = True
                 hdulist.writeto(filename)
                 msgs.info("Saved order tilts for frame:"+msgs.newline()+fname)
     else:
@@ -269,7 +270,7 @@ def save_tilts(slf, fname):
     hdulist = pyfits.HDUList([hdu])
     filename = msarc_bname+"_satmask"+msarc_bext
     if os.path.exists(filename):
-        if slf._argflag['out']['overwrite'] == True:
+        if settings.argflag['output']['overwrite'] == True:
             msgs.warn("Overwriting file:"+msgs.newline()+filename)
             os.remove(filename)
             hdulist.writeto(filename)
@@ -283,7 +284,7 @@ def save_tilts(slf, fname):
                 msgs.warn("Not saving saturation mask for file:"+msgs.newline()+fname)
             else:
                 os.remove(filename)
-                if rmfil == 'a': slf._argflag['run']['overwrite'] = True
+                if rmfil == 'a': settings.argflag['output']['overwrite'] = True
                 hdulist.writeto(filename)
                 msgs.info("Saved saturation mask for frame:"+msgs.newline()+fname)
     else:
@@ -291,6 +292,7 @@ def save_tilts(slf, fname):
         msgs.info("Saved saturation mask for frame:"+msgs.newline()+fname)
 
     return
+
 
 def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     """ Write 1D spectra to an HDF5 file
@@ -309,7 +311,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     if clobber is False:
         msgs.error("NOT IMPLEMENTED")
     # Open file
-    outfile = slf._argflag['run']['scidir']+'/spec1d_{:s}.hdf5'.format(slf._basename)
+    outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.hdf5'.format(slf._basename)
     hdf = h5py.File(outfile,'w')
 
     # Meta Table
@@ -324,7 +326,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
 
     # Calculate number of objects and totalpix
     nspec, totpix = 0, 0
-    for kk in range(slf._spect['mosaic']['ndet']):
+    for kk in range(settings.spect['mosaic']['ndet']):
         det = kk+1
         nspec += len(slf._specobjs[det-1])
         # Loop on objects
@@ -369,7 +371,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
         spec_set.resize((nspec,))
         # Fill (and make meta)
         count = 0
-        for kk in range(slf._spect['mosaic']['ndet']):
+        for kk in range(settings.spect['mosaic']['ndet']):
             det = kk+1
             nspec += len(slf._specobjs[det-1])
             # Loop on spectra
@@ -394,6 +396,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
 
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 
+
 def save_1d_spectra_fits(slf, clobber=True):
     """ Write 1D spectra to a multi-extension FITS file
 
@@ -411,7 +414,7 @@ def save_1d_spectra_fits(slf, clobber=True):
 
     # Loop on spectra
     ext = 0
-    for kk in range(slf._spect['mosaic']['ndet']):
+    for kk in range(settings.spect['mosaic']['ndet']):
         det = kk+1
         # Loop on spectra
         for specobj in slf._specobjs[det-1]:
@@ -446,15 +449,16 @@ def save_1d_spectra_fits(slf, clobber=True):
             hdus += [tbhdu]
     # Finish
     hdulist = pyfits.HDUList(hdus)
-    hdulist.writeto(slf._argflag['run']['scidir']+'/spec1d_{:s}.fits'.format(slf._basename), clobber=clobber)
+    hdulist.writeto(settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename), clobber=clobber)
 
 #def write_sensitivity():
-    #sensfunc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.yaml".format(os.getcwd(), slf._argflag['run']['masterdir'], slf._fitsdict['target'][scidx[0]], 0, "sensfunc")
+    #sensfunc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.yaml".format(os.getcwd(), settings.argflag['run']['directory']['master'], slf._fitsdict['target'][scidx[0]], 0, "sensfunc")
     #msgs.info("Writing sensfunc: {:s}".format(sensfunc_name))
     #with open(sensfunc_name, 'w') as yamlf:
     #    yamlf.write( yaml.dump(slf._sensfunc))
     #with io.open(sensfunc_name, 'w', encoding='utf-8') as f:
     #    f.write(unicode(json.dumps(slf._sensfunc, sort_keys=True, indent=4, separators=(',', ': '))))
+
 
 def save_2d_images(slf, clobber=True):
     """ Write 2D images to the hard drive
@@ -472,7 +476,7 @@ def save_2d_images(slf, clobber=True):
     hdus = [prihdu]
 
     ext = 0
-    for kk in range(slf._spect['mosaic']['ndet']):
+    for kk in range(settings.spect['mosaic']['ndet']):
         det = kk+1
 
         # Processed frame
@@ -501,4 +505,4 @@ def save_2d_images(slf, clobber=True):
 
     # Finish
     hdulist = pyfits.HDUList(hdus)
-    hdulist.writeto(slf._argflag['run']['scidir']+'/spec2d_{:s}.fits'.format(slf._basename), clobber=clobber)
+    hdulist.writeto(settings.argflag['run']['directory']['science']+'/spec2d_{:s}.fits'.format(slf._basename), clobber=clobber)

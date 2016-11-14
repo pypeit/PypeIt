@@ -1,14 +1,14 @@
 """ Class for book-keeping the reduction process
 """
-from __future__ import absolute_import, division, print_function
+from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import sys
-import copy
 import numpy as np
-# Import PYPIT routines
 from astropy.time import Time
 import datetime
 from matplotlib.backends.backend_pdf import PdfPages
+# Import PYPIT routines
+from pypit import arparse as settings
 from pypit import artrace
 from pypit import arload
 from pypit import arcomb
@@ -28,50 +28,47 @@ except ImportError:
 # Logging
 msgs = armsgs.get_logger()
 
+
 class ScienceExposure:
     """
     A Science Exposure class that carries all information for a given science exposure
     """
 
-    def __init__(self, snum, argflag, spect, fitsdict, do_qa=True):
+    def __init__(self, snum, fitsdict, do_qa=True):
 
-        #############################
-        # Set some universal parameters
-        self._argflag = copy.deepcopy(argflag)   # Arguments and Flags
-        self._spect = copy.deepcopy(spect)       # Spectrograph information
-        self._transpose = False   # Determine if the frames need to be transposed
+        self._dispaxis = 0  # This should always be zero, and this line can be deleted once all instances throughout code are removed
 
         # Set indices used for frame combination
-        self._idx_sci = spect['science']['index'][snum]
-        self._idx_arcs = spect['arc']['index'][snum]
-        self._idx_trace = spect['trace']['index'][snum]
-        self._idx_std = spect['standard']['index'][snum]
-        if self._argflag['reduce']['usebias'] == 'bias': self._idx_bias = spect['bias']['index'][snum]
-        elif self._argflag['reduce']['usebias'] == 'dark':  self._idx_bias = spect['dark']['index'][snum]
+        self._idx_sci = settings.spect['science']['index'][snum]
+        self._idx_arcs = settings.spect['arc']['index'][snum]
+        self._idx_trace = settings.spect['trace']['index'][snum]
+        self._idx_std = settings.spect['standard']['index'][snum]
+        if settings.argflag['bias']['useframe'] == 'bias': self._idx_bias = settings.spect['bias']['index'][snum]
+        elif settings.argflag['bias']['useframe'] == 'dark':  self._idx_bias = settings.spect['dark']['index'][snum]
         else: self._idx_bias = []
-        if self._argflag['reduce']['usetrace'] == 'trace': self._idx_trace = self._spect['trace']['index'][snum]
-        elif self._argflag['reduce']['usetrace'] == 'blzflat': self._idx_trace = self._spect['blzflat']['index'][snum]
+        if settings.argflag['reduce']['trace']['useframe'] == 'trace': self._idx_trace = settings.spect['trace']['index'][snum]
+        elif settings.argflag['reduce']['trace']['useframe'] == 'slitflat': self._idx_trace = settings.spect['slitflat']['index'][snum]
         else: self._idx_trace = []
-        if self._argflag['reduce']['useflat'] == 'pixflat': self._idx_flat = self._spect['pixflat']['index'][snum]
-        elif self._argflag['reduce']['useflat'] == 'blzflat': self._idx_flat = self._spect['blzflat']['index'][snum]
+        if settings.argflag['reduce']['flatfield']['useframe'] == 'pixelflat': self._idx_flat = settings.spect['pixelflat']['index'][snum]
+        elif settings.argflag['reduce']['flatfield']['useframe'] == 'slitflat': self._idx_flat = settings.spect['slitflat']['index'][snum]
         else: self._idx_flat = []
 
         # Set the base name and extract other names that will be used for output files
         self.SetBaseName(fitsdict)
 
         # Initialize the QA for this science exposure
-        qafn = "{0:s}/QA_{1:s}.pdf".format(self._argflag['run']['plotsdir'], self._basename)
+        qafn = "{0:s}/QA_{1:s}.pdf".format(settings.argflag['run']['directory']['qa'], self._basename)
         if do_qa:
             self._qa = PdfPages(qafn)
 
         # Initialize Variables
-        ndet = spect['mosaic']['ndet']
-        self._nonlinear = [self._spect['det'][det-1]['saturation']*self._spect['det'][det-1]['nonlinear']
+        ndet = settings.spect['mosaic']['ndet']
+        self._nonlinear = [settings.spect[settings.get_dnum(det+1)]['saturation'] *
+                           settings.spect[settings.get_dnum(det+1)]['nonlinear']
                            for det in range(ndet)]
-        self._dispaxis = None  # Which direction is the predominant spectral (dispersion) axis
         self._nspec    = [None for all in range(ndet)]   # Number of spectral pixels
         self._nspat    = [None for all in range(ndet)]   # Number of spatial pixels
-        self._ampsec   = [None for all in range(ndet)]   # Locations of the amplifiers on each detector
+        self._datasec  = [None for all in range(ndet)]   # Locations of the data on each detector
         self._pixlocn  = [None for all in range(ndet)]   # Physical locations of each pixel on the detector
         self._lordloc  = [None for all in range(ndet)]   # Array of slit traces (left side) in physical pixel coordinates
         self._rordloc  = [None for all in range(ndet)]   # Array of slit traces (left side) in physical pixel coordinates
@@ -92,15 +89,15 @@ class ScienceExposure:
         self._msbias = [None for all in range(ndet)]        # Master Bias
         self._msrn = [None for all in range(ndet)]          # Master ReadNoise image
         self._mstrace = [None for all in range(ndet)]       # Master Trace
-        self._mspixflat = [None for all in range(ndet)]     # Master pixel flat
-        self._mspixflatnrm = [None for all in range(ndet)]  # Normalized Master pixel flat
+        self._mspixelflat = [None for all in range(ndet)]     # Master pixel flat
+        self._mspixelflatnrm = [None for all in range(ndet)]  # Normalized Master pixel flat
         self._msblaze = [None for all in range(ndet)]       # Blaze function
         self._msstd = [{} for all in range(ndet)]           # Master Standard dict
         # Initialize the Master Calibration frame names
         self._msarc_name = [None for all in range(ndet)]      # Master Arc Name
         self._msbias_name = [None for all in range(ndet)]     # Master Bias Name
         self._mstrace_name = [None for all in range(ndet)]    # Master Trace Name
-        self._mspixflat_name = [None for all in range(ndet)]  # Master Pixel Flat Name
+        self._mspixelflat_name = [None for all in range(ndet)]  # Master Pixel Flat Name
         # Initialize the science, variance, and background frames
         self._sciframe = [None for all in range(ndet)]
         self._rawvarframe = [None for all in range(ndet)]    # Variance based on detected counts + RN
@@ -138,7 +135,7 @@ class ScienceExposure:
             tval = datetime.datetime.strptime(tbname, '%Y-%m-%dT%H:%M:%S.%f')
         except ValueError:
             tval = datetime.datetime.strptime(tbname, '%Y-%m-%dT%H:%M:%S')
-        self._inst_name = self._spect['mosaic']['camera']
+        self._inst_name = settings.spect['mosaic']['camera']
         self._target_name = fitsdict['target'][self._idx_sci[0]].replace(" ", "")
         self._basename = self._target_name+'_'+self._inst_name+'_'+ \
                          datetime.datetime.strftime(tval, '%Y%b%dT') + \
@@ -166,18 +163,18 @@ class ScienceExposure:
           Should other ScienceExposure classes be updated?
         """
         bpix = None
-        if self._argflag['reduce']['badpix'] == 'bias':
-            if self._argflag['masters']['use']:
+        if settings.argflag['reduce']['badpix'] == 'bias':
+            if settings.argflag['reduce']['masters']['reuse']:
                 # Attempt to load the Master Frame
-                bpix_name = armasters.master_name(self._argflag['run']['masterdir'],
-                                                'badpix', self._argflag['masters']['setup'])
+                bpix_name = armasters.master_name(settings.argflag['run']['directory']['master'],
+                                                'badpix', settings.argflag['reduce']['masters']['setup'])
                 try:
                     bpix, head = arload.load_master(bpix_name, frametype="badpix")
                 except IOError:
                     msgs.warn("No MasterBadPix frame found {:s}".format(bpix_name))
                 else:
-                    self._argflag['masters']['loaded'].append('badpix'+self._argflag['masters']['setup'])
-            if 'badpix'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
+                    settings.argflag['reduce']['masters']['loaded'].append('badpix'+settings.argflag['reduce']['masters']['setup'])
+            if 'badpix'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
                 msgs.info("Preparing a bad pixel mask")
                 # Get all of the bias frames for this science frame
                 if len(self._idx_bias) == 0:
@@ -189,7 +186,7 @@ class ScienceExposure:
                 bpix = arproc.badpix(self, det, self.GetMasterFrame('bias', det))
         else:
             # Instrument dependent
-            if self._argflag['run']['spectrograph'] in ['lris_red']:
+            if settings.argflag['run']['spectrograph'] in ['lris_red']:
                 bpix = arlris.bpm(self, 'red', fitsdict, det)
             else:
                 msgs.info("Not preparing a bad pixel mask")
@@ -197,84 +194,6 @@ class ScienceExposure:
         self.SetFrame(self._bpix, bpix, det)
         del bpix
         return True
-
-    def GetDispersionDirection(self, fitsdict, det, scidx):
-        """ Set the dispersion axis.
-        If necessary, transpose frames and adjust information as needed
-
-        Parameters
-        ----------
-        fitsdict : dict
-          Contains relevant information from fits header files
-        det : int
-          Index of the detector
-        scidx : int
-          Index of frame
-
-        Returns
-        -------
-        fitsdict : dict
-          Updates to the input fitsdict
-        """
-        if self._argflag['trace']['disp']['direction'] is None:
-            self._dispaxis = artrace.dispdir(self._msarc[det-1], dispwin=self._argflag['trace']['disp']['window'], mode=0)
-        elif self._argflag['trace']['disp']['direction'] in [0, 1]:
-            self._dispaxis = int(self._argflag['trace']['disp']['direction'])
-        else:
-            msgs.error("The argument for the dispersion direction (trace+disp+direction)"+msgs.newline() +
-                       "must be either:"+msgs.newline()+"  0 if the dispersion axis is predominantly along a row" +
-                       msgs.newline() + "  1 if the dispersion axis is predominantly along a column")
-        # Perform a check to warn the user if the longest axis is not equal to the dispersion direction
-        if self._msarc[det-1].shape[0] > self._msarc[det-1].shape[1]:
-            if self._dispaxis == 1: msgs.warn("The dispersion axis is set to the shorter axis, is this correct?")
-        else:
-            if self._dispaxis == 0: msgs.warn("The dispersion axis is set to the shorter axis, is this correct?")
-
-        ###############
-        # Change dispersion direction and files if necessary
-        # The code is programmed assuming dispaxis=0
-        if self._dispaxis == 1:
-            msgs.info("Transposing frames and keywords")
-            # Flip the transpose switch
-            self._transpose = True
-            # Transpose the master bias frame
-            if self._msbias[det-1] is not None:
-                if type(self._msbias[det-1]) is str: pass  # Overscan sub - change the oscansec parameters below
-                elif type(self._msbias[det-1]) is np.ndarray:
-                    if 'bias'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
-                        self.SetMasterFrame(self._msbias[det-1].T, 'bias', det)
-            # Transpose the master arc, and save it
-            if 'arc'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
-                self.SetMasterFrame(self._msarc[det-1].T, 'arc', det)
-            # Transpose the bad pixel mask
-            if self._bpix[det-1] is not None:
-                if 'badpix'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
-                    self.SetFrame(self._bpix, self._bpix[det-1].T, det)
-            # Transpose the amplifier sections frame
-            self.SetFrame(self._ampsec, self._ampsec[det-1].T, det)
-            # Update the keywords of the fits files
-            temp = fitsdict['naxis0'][scidx]
-            fitsdict['naxis0'][scidx] = fitsdict['naxis1'][scidx]
-            fitsdict['naxis1'][scidx] = temp
-            # Change the user-specified (x,y) pixel sizes
-            tmp = self._spect['det'][det-1]['xgap']
-            self._spect['det'][det-1]['xgap'] = self._spect['det'][det-1]['ygap']
-            self._spect['det'][det-1]['ygap'] = tmp
-            self._spect['det'][det-1]['ysize'] = 1.0/self._spect['det'][det-1]['ysize']
-            # Update the amplifier/data/overscan sections
-            for i in range(self._spect['det'][det-1]['numamplifiers']):
-                # Flip the order of the sections
-                self._spect['det'][det-1]['ampsec{0:02d}'.format(i+1)] = self._spect['det'][det-1]['ampsec{0:02d}'.format(i+1)][::-1]
-                self._spect['det'][det-1]['datasec{0:02d}'.format(i+1)] = self._spect['det'][det-1]['datasec{0:02d}'.format(i+1)][::-1]
-                self._spect['det'][det-1]['oscansec{0:02d}'.format(i+1)] = self._spect['det'][det-1]['oscansec{0:02d}'.format(i+1)][::-1]
-            # Change the user-specified (x,y) pixel sizes
-            msgs.work("Transpose gain and readnoise frames")
-            # Set the new dispersion axis
-            self._dispaxis = 0
-        else:
-            msgs.info("Not transposing")
-        # Set the number of spectral and spatial pixels
-        self._nspec[det-1], self._nspat[det-1] = self._msarc[det-1].shape
 
     def GetPixelLocations(self, det):
         """
@@ -285,12 +204,12 @@ class ScienceExposure:
         det : int
           Index of the detector
         """
-        if self._argflag['reduce']['locations'] is None:
-            self.SetFrame(self._pixlocn, artrace.gen_pixloc(self, self._mstrace[det-1], det, gen=True), det)
-        elif self._argflag['reduce']['locations'] in ["mstrace"]:
-            self.SetFrame(self._pixlocn, artrace.gen_pixloc(self._spect, self._mstrace[det-1], det, gen=False), det)
+        if settings.argflag['reduce']['pixel']['locations'] is None:
+            self.SetFrame(self._pixlocn, artrace.gen_pixloc(self._dispaxis, self._mstrace[det-1], det, gen=True), det)
+        elif settings.argflag['reduce']['pixel']['locations'] in ["mstrace"]:
+            self.SetFrame(self._pixlocn, artrace.gen_pixloc(self._dispaxis, self._mstrace[det-1], det, gen=False), det)
         else:
-            mname = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['locations']
+            mname = settings.argflag['run']['directory']['master']+'/'+settings.argflag['reduce']['pixel']['locations']
             self.SetFrame(self._pixlocn, arload.load_master(mname, frametype=None), det)
         return
 
@@ -310,15 +229,16 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
+        dnum = settings.get_dnum(det)
 
         if self._msarc[det-1] is not None:
             msgs.info("An identical master arc frame already exists")
             return False
-        if self._argflag['reduce']['usearc'] in ['arc']:
+        if settings.argflag['arc']['useframe'] in ['arc']:
             # Attempt to load the Master Frame
-            if self._argflag['masters']['use']:
-                msarc_name = armasters.master_name(self._argflag['run']['masterdir'],
-                                                    'arc', self._argflag['masters']['setup'])
+            if settings.argflag['reduce']['masters']['reuse']:
+                msarc_name = armasters.master_name(settings.argflag['run']['directory']['master'],
+                                                    'arc', settings.argflag['reduce']['masters']['setup'])
                 try:
                     msarc, head = arload.load_master(msarc_name, frametype="arc")
                 except IOError:
@@ -326,39 +246,35 @@ class ScienceExposure:
                 else:
                     self._transpose = head['transp']
                     if self._transpose:  # Need to setup for flipping
-                        self._argflag['trace']['disp']['direction'] = 1
+                        settings.argflag['trace']['dispersion']['direction'] = 1
                     else:
-                        self._argflag['trace']['disp']['direction'] = 0
+                        settings.argflag['trace']['dispersion']['direction'] = 0
                     # Append as loaded
-                    self._argflag['masters']['loaded'].append('arc'+self._argflag['masters']['setup'])
-            if 'arc'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
+                    settings.argflag['reduce']['masters']['loaded'].append('arc'+settings.argflag['reduce']['masters']['setup'])
+            if 'arc'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
                 msgs.info("Preparing a master arc frame")
                 ind = self._idx_arcs
                 # Load the arc frames
-                frames = arload.load_frames(self, fitsdict, ind, det, frametype='arc',
-                                            msbias=self._msbias[det-1])
-                if self._argflag['reduce']['arcmatch'] > 0.0:
-                    sframes = arsort.match_frames(frames, self._argflag['reduce']['arcmatch'], msgs, frametype='arc',
-                                                  satlevel=self._spect['det']['saturation']*self._spect['det']['nonlinear'])
+                frames = arload.load_frames(fitsdict, ind, det, frametype='arc', msbias=self._msbias[det-1])
+                if settings.argflag['arc']['combine']['match'] > 0.0:
+                    sframes = arsort.match_frames(frames, settings.argflag['arc']['combine']['match'], msgs, frametype='arc',
+                                                  satlevel=settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])
                     subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
                     numarr = np.array([])
                     for i in range(len(sframes)):
                         numarr = np.append(numarr, sframes[i].shape[2])
-                        msarc = arcomb.comb_frames(sframes[i], det, spect=self._spect,
-                                                   frametype='arc', **self._argflag['arc']['comb'])
+                        msarc = arcomb.comb_frames(sframes[i], det, 'arc')
                         # Send the data away to be saved
                         subframes[:,:,i] = msarc.copy()
                     del sframes
                     # Combine all sub-frames
-                    msarc = arcomb.comb_frames(subframes, det, spect=self._spect,
-                                               frametype='arc', weights=numarr, **self._argflag['arc']['comb'])
+                    msarc = arcomb.comb_frames(subframes, det, 'arc', weights=numarr)
                     del subframes
                 else:
-                    msarc = arcomb.comb_frames(frames, det, spect=self._spect,
-                                           frametype='arc', **self._argflag['arc']['comb'])
+                    msarc = arcomb.comb_frames(frames, det, 'arc')
                 del frames
             # # Derive a suitable name for the master arc frame
-            # msarc_name = "{0:s}/{1:s}/msarc{2:s}_{3:03d}.fits".format(os.getcwd(),self._argflag['run']['masterdir'],self._spect["det"][det-1]["suffix"],len(self._done_arcs))
+            # msarc_name = "{0:s}/{1:s}/msarc{2:s}_{3:03d}.fits".format(os.getcwd(),settings.argflag['run']['directory']['master'],settings.spect["det"][det-1]["suffix"],len(self._done_arcs))
             # self._tltprefix = os.path.splitext(os.path.basename(msarc_name))[0]
             # # Send the data away to be saved
             # arsave.save_master(self, msarc, filename=msarc_name, frametype='arc', ind=ind)
@@ -366,7 +282,7 @@ class ScienceExposure:
             # self._done_arcs.append(ind)
             # self._name_arcs.append(msarc_name)
         else:
-            msarc_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usearc']
+            msarc_name = settings.argflag['run']['directory']['master']+'/'+settings.argflag['arc']['useframe']
             msarc, head = arload.load_master(msarc_name, frametype=None)
         # Set and then delete the Master Arc frame
         self.SetMasterFrame(msarc, "arc", det)
@@ -392,39 +308,39 @@ class ScienceExposure:
 
         # If the master bias is already made, use it
         if self._msbias[det-1] is not None:
-            msgs.info("An identical master {0:s} frame already exists".format(self._argflag['reduce']['usebias']))
+            msgs.info("An identical master {0:s} frame already exists".format(settings.argflag['bias']['useframe']))
             return False
-        elif self._argflag['reduce']['usebias'] in ['bias', 'dark']:
+        elif settings.argflag['bias']['useframe'] in ['bias', 'dark']:
             # Load from hard-drive?
-            if self._argflag['masters']['use']:
+            if settings.argflag['reduce']['masters']['reuse']:
                 # Attempt to load the Master Frame
-                msbias_name = armasters.master_name(self._argflag['run']['masterdir'],
-                                                    'bias', self._argflag['masters']['setup'])
+                msbias_name = armasters.master_name(settings.argflag['run']['directory']['master'],
+                                                    'bias', settings.argflag['reduce']['masters']['setup'])
                 try:
                     msbias, head = arload.load_master(msbias_name, frametype="bias")
                 except IOError:
                     msgs.warn("No MasterBias frame found {:s}".format(msbias_name))
                 else:
-                    self._argflag['masters']['loaded'].append('bias'+self._argflag['masters']['setup'])
-            if 'bias'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
-                msgs.info("Preparing a master {0:s} frame".format(self._argflag['reduce']['usebias']))
+                    settings.argflag['reduce']['masters']['loaded'].append('bias'+settings.argflag['reduce']['masters']['setup'])
+            if 'bias'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+                msgs.info("Preparing a master {0:s} frame".format(settings.argflag['bias']['useframe']))
                 # Get all of the bias frames for this science frame
                 ind = self._idx_bias
                 # Load the Bias/Dark frames
-                frames = arload.load_frames(self, fitsdict, ind, det, frametype=self._argflag['reduce']['usebias'], transpose=self._transpose)
-                msbias = arcomb.comb_frames(frames, det, spect=self._spect, frametype=self._argflag['reduce']['usebias'], **self._argflag['bias']['comb'])
+                frames = arload.load_frames(fitsdict, ind, det, frametype=settings.argflag['bias']['useframe'])
+                msbias = arcomb.comb_frames(frames, det, 'bias', printtype=settings.argflag['bias']['useframe'])
                 del frames
-        elif self._argflag['reduce']['usebias'] == 'overscan':
+        elif settings.argflag['bias']['useframe'] == 'overscan':
             self.SetMasterFrame('overscan', "bias", det, mkcopy=False)
             return False
-        elif self._argflag['reduce']['usebias'] == 'none':
+        elif settings.argflag['bias']['useframe'] == 'none':
             msgs.info("Not performing a bias/dark subtraction")
             self.SetMasterFrame(None, "bias", det, mkcopy=False)
             return False
         else: # It must be the name of a file the user wishes to load
-            msbias_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usebias']
+            msbias_name = settings.argflag['run']['directory']['master']+u'/'+settings.argflag['bias']['useframe']
             msbias, head = arload.load_master(msbias_name, frametype="bias")
-            self._argflag['masters']['loaded'].append('bias')
+            settings.argflag['reduce']['masters']['loaded'].append('bias')
         # Set and then delete the Master Bias frame
         self.SetMasterFrame(msbias, "bias", det)
 
@@ -453,10 +369,10 @@ class ScienceExposure:
             return False
         msrn = np.zeros((self._nspec[det-1], self._nspat[det-1]))
         # Systems with multiple amps will need help here
-        if self._spect['det'][det-1]['numamplifiers'] > 1:
+        if settings.spect['det'][det-1]['numamplifiers'] > 1:
             msgs.work("Readnoise needs to be updated for multiple amps")
         # Set
-        rnoise = self._spect['det'][det-1]['ronoise'] #+ (0.5*self._spect['det'][det-1]['gain'])**2
+        rnoise = settings.spect['det'][det-1]['ronoise'] #+ (0.5*settings.spect['det'][det-1]['gain'])**2
         msrn[:] = rnoise
         # Save
         self.SetMasterFrame(msrn, "readnoise", det)
@@ -481,77 +397,75 @@ class ScienceExposure:
           Should other ScienceExposure classes be updated?
         """
 
-        if self._argflag['reduce']['flatfield']:  # Only do it if the user wants to flat field
-        # If the master pixflat is already made, use it
-            if self._mspixflat[det-1] is not None:
-                msgs.info("An identical master pixflat frame already exists")
-                if self._mspixflatnrm[det-1] is None:
+        if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
+        # If the master pixelflat is already made, use it
+            if self._mspixelflat[det-1] is not None:
+                msgs.info("An identical master pixelflat frame already exists")
+                if self._mspixelflatnrm[det-1] is None:
                     # Normalize the flat field
                     msgs.info("Normalizing the pixel flat")
-                    mspixflatnrm, msblaze = arproc.flatnorm(self, det, self.GetMasterFrame("pixflat", det),
+                    mspixelflatnrm, msblaze = arproc.flatnorm(self, det, self.GetMasterFrame("pixelflat", det),
                                                             overpix=0, plotdesc="Blaze function")
                     self.SetFrame(self._msblaze, msblaze, det)
-                    self.SetMasterFrame(mspixflatnrm, "normpixflat", det)
+                    self.SetMasterFrame(mspixelflatnrm, "normpixelflat", det)
                 return False
             ###############
             # Generate a master pixel flat frame
-            if self._argflag['reduce']['useflat'] in ['pixflat', 'blzflat']:
-                if self._argflag['masters']['use']:
+            if settings.argflag['reduce']['flatfield']['useframe'] in ['pixelflat', 'slitflat']:
+                if settings.argflag['reduce']['masters']['reuse']:
                     # Attempt to load the Master Frame
-                    msflat_name = armasters.master_name(self._argflag['run']['masterdir'],
-                                                    'normpixflat', self._argflag['masters']['setup'])
+                    msflat_name = armasters.master_name(settings.argflag['run']['directory']['master'],
+                                                    'normpixelflat', settings.argflag['reduce']['masters']['setup'])
                     try:
-                        mspixflatnrm, head = arload.load_master(msflat_name, frametype="normpixflat")
+                        mspixelflatnrm, head = arload.load_master(msflat_name, frametype="normpixelflat")
                     except IOError:
                         msgs.warn("No MasterFlatField frame found {:s}".format(msflat_name))
                     else:
-                        self._argflag['masters']['loaded'].append('normpixflat'+self._argflag['masters']['setup'])
-                        mspixflat = mspixflatnrm
-                if 'normpixflat'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
-                    msgs.info("Preparing a master pixel flat frame with {0:s}".format(self._argflag['reduce']['useflat']))
+                        settings.argflag['reduce']['masters']['loaded'].append('normpixelflat'+settings.argflag['reduce']['masters']['setup'])
+                        mspixelflat = mspixelflatnrm
+                if 'normpixelflat'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+                    msgs.info("Preparing a master pixel flat frame with {0:s}".format(settings.argflag['reduce']['flatfield']['useframe']))
                     # Get all of the pixel flat frames for this science frame
                     ind = self._idx_flat
                     # Load the frames for tracing
-                    frames = arload.load_frames(self, fitsdict, ind, det, frametype='pixel flat',
-                                                msbias=self._msbias[det-1], transpose=self._transpose)
-                    if self._argflag['reduce']['flatmatch'] > 0.0:
-                        sframes = arsort.match_frames(frames, self._argflag['reduce']['flatmatch'],
+                    frames = arload.load_frames(fitsdict, ind, det, frametype='pixel flat',
+                                                msbias=self._msbias[det-1])
+                    if settings.argflag['pixelflat']['combine']['match'] > 0.0:
+                        sframes = arsort.match_frames(frames, settings.argflag['pixelflat']['combine']['match'],
                                                       frametype='pixel flat', satlevel=self._nonlinear)
                         subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
                         numarr = np.array([])
                         for i in range(len(sframes)):
                             numarr = np.append(numarr, sframes[i].shape[2])
-                            mspixflat = arcomb.comb_frames(sframes[i], det, spect=self._spect, frametype='pixel flat',
-                                                           **self._argflag['pixflat']['comb'])
-                            subframes[:,:,i] = mspixflat.copy()
+                            mspixelflat = arcomb.comb_frames(sframes[i], det, 'pixelflat', printtype='pixel flat')
+                            subframes[:,:,i] = mspixelflat.copy()
                         del sframes
                         # Combine all sub-frames
-                        mspixflat = arcomb.comb_frames(subframes, det, spect=self._spect, frametype='pixel flat',
-                                                       weights=numarr, **self._argflag['pixflat']['comb'])
+                        mspixelflat = arcomb.comb_frames(subframes, det, 'pixelflat', weights=numarr,
+                                                         printtype='pixel flat')
                         del subframes
                     else:
-                        mspixflat = arcomb.comb_frames(frames, det, spect=self._spect, frametype='pixel flat',
-                                                       **self._argflag['pixflat']['comb'])
+                        mspixelflat = arcomb.comb_frames(frames, det, 'pixelflat', printtype='pixel flat')
                     del frames
                     # Apply gain (instead of ampsec scale)
-                    mspixflat *= arproc.gain_frame(self, det)
+                    mspixelflat *= arproc.gain_frame(self, det)
                     # Normalize the flat field
-                    mspixflatnrm, msblaze = arproc.flatnorm(self, det, mspixflat, overpix=0, plotdesc="Blaze function")
+                    mspixelflatnrm, msblaze = arproc.flatnorm(self, det, mspixelflat, overpix=0, plotdesc="Blaze function")
                     self.SetFrame(self._msblaze, msblaze, det)
             else:  # It must be the name of a file the user wishes to load
-                mspixflat_name = armasters.user_master_name(self._argflag['run']['masterdir'],
-                                                            self._argflag['reduce']['useflat'])
-                mspixflatnrm, head = arload.load_master(mspixflat_name, exten=det, frametype=None)
-                mspixflat = mspixflatnrm
+                mspixelflat_name = armasters.user_master_name(settings.argflag['run']['directory']['master'],
+                                                            settings.argflag['reduce']['flatfield']['useframe'])
+                mspixelflatnrm, head = arload.load_master(mspixelflat_name, exten=det, frametype=None)
+                mspixelflat = mspixelflatnrm
             # Now that the combined, master flat field frame is loaded...
         else:
             msgs.work("Pixel Flat arrays need to be generated when not flat fielding")
             msgs.bug("Blaze is currently undefined")
-            mspixflat = np.ones_like(self._msarc)
-            mspixflatnrm = np.ones_like(self._msarc)
+            mspixelflat = np.ones_like(self._msarc)
+            mspixelflatnrm = np.ones_like(self._msarc)
         # Set Master Frames
-        self.SetMasterFrame(mspixflat, "pixflat", det)
-        self.SetMasterFrame(mspixflatnrm, "normpixflat", det)
+        self.SetMasterFrame(mspixelflat, "pixelflat", det)
+        self.SetMasterFrame(mspixelflatnrm, "normpixelflat", det)
         return True
 
     def MasterTrace(self, fitsdict, det):
@@ -570,16 +484,16 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-
+        dnum = settings.get_dnum(det)
         # If the master trace is already made, use it
         if self._mstrace[det-1] is not None:
             msgs.info("An identical master trace frame already exists")
             return False
-        if self._argflag['reduce']['usetrace'] in ['trace', 'blzflat']:
-            if self._argflag['masters']['use']:
+        if settings.argflag['reduce']['trace']['useframe'] in ['trace', 'slitflat']:
+            if settings.argflag['reduce']['masters']['reuse']:
                 # Attempt to load the Master Frame
-                mstrace_name = armasters.master_name(self._argflag['run']['masterdir'],
-                                                   'trace', self._argflag['masters']['setup'])
+                mstrace_name = armasters.master_name(settings.argflag['run']['directory']['master'],
+                                                   'trace', settings.argflag['reduce']['masters']['setup'])
                 try:
                     mstrace, head = arload.load_master(mstrace_name, frametype="trace")
                 except IOError:
@@ -599,32 +513,32 @@ class ScienceExposure:
                     self.SetFrame(self._lordpix, lordpix.astype(np.int), det)
                     self.SetFrame(self._rordpix, rordpix.astype(np.int), det)
                     #
-                    self._argflag['masters']['loaded'].append('trace'+self._argflag['masters']['setup'])
-            if 'trace'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
-                msgs.info("Preparing a master trace frame with {0:s}".format(self._argflag['reduce']['usetrace']))
+                    settings.argflag['reduce']['masters']['loaded'].append('trace'+settings.argflag['reduce']['masters']['setup'])
+            if 'trace'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+                msgs.info("Preparing a master trace frame with {0:s}".format(settings.argflag['reduce']['trace']['useframe']))
                 ind = self._idx_trace
                 # Load the frames for tracing
-                frames = arload.load_frames(self, fitsdict, ind, det, frametype='trace', msbias=self._msbias[det-1],
-                                            trim=self._argflag['reduce']['trim'], transpose=self._transpose)
-                if self._argflag['reduce']['flatmatch'] > 0.0:
-                    sframes = arsort.match_frames(frames, self._argflag['reduce']['flatmatch'], msgs, frametype='trace', satlevel=self._spect['det'][det-1]['saturation']*self._spect['det'][det-1]['nonlinear'])
+                frames = arload.load_frames(fitsdict, ind, det, frametype='trace', msbias=self._msbias[det-1],
+                                            trim=settings.argflag['reduce']['trim'])
+                if settings.argflag['trace']['combine']['match'] > 0.0:
+                    sframes = arsort.match_frames(frames, settings.argflag['trace']['combine']['match'], msgs, frametype='trace', satlevel=settings.spect[dnum]['saturation']*settings.spect['det'][det-1]['nonlinear'])
                     subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
                     numarr = np.array([])
                     for i in range(len(sframes)):
                         numarr = np.append(numarr, sframes[i].shape[2])
-                        mstrace = arcomb.comb_frames(sframes[i], det, spect=self._spect, frametype='trace', **self._argflag['trace']['comb'])
+                        mstrace = arcomb.comb_frames(sframes[i], det, 'trace')
                         subframes[:,:,i] = mstrace.copy()
                     del sframes
                     # Combine all sub-frames
-                    mstrace = arcomb.comb_frames(subframes, det, spect=self._spect, frametype='trace', weights=numarr, **self._argflag['trace']['comb'])
+                    mstrace = arcomb.comb_frames(subframes, det, 'trace', weights=numarr)
                     del subframes
                 else:
-                    mstrace = arcomb.comb_frames(frames, det, spect=self._spect, frametype='trace', **self._argflag['trace']['comb'])
+                    mstrace = arcomb.comb_frames(frames, det, 'trace')
                 del frames
-        elif self._argflag['reduce']['usetrace'] == 'science':
+        elif settings.argflag['reduce']['trace']['useframe'] == 'science':
             msgs.error("Tracing with a science frame is not yet implemented")
         else: # It must be the name of a file the user wishes to load
-            mstrace_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usetrace']
+            mstrace_name = settings.argflag['run']['directory']['master']+'/'+settings.argflag['reduce']['trace']['useframe']
             mstrace, head = arload.load_master(mstrace_name, frametype=None)
             debugger.set_trace()  # NEED TO LOAD EXTRAS AS ABOVE
         # Set and then delete the Master Trace frame
@@ -651,25 +565,20 @@ class ScienceExposure:
         if self._mswave[det-1] is not None:
             msgs.info("An identical master arc frame already exists")
             return False
-        if self._argflag['reduce']['usewave'] in ['wave']:
-            # Attempt to load the Master Frame
-            if self._argflag['masters']['use']:
-                mswave_name = armasters.master_name(self._argflag['run']['masterdir'],
-                                                   'wave', self._argflag['masters']['setup'])
-                try:
-                    mswave, head = arload.load_master(mswave_name, frametype="arc")
-                except IOError:
-                    msgs.warn("No MasterWave frame found {:s}".format(mswave_name))
-                else:
-                    self._argflag['masters']['loaded'].append('wave'+self._argflag['masters']['setup'])
-            if 'wave'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
-                msgs.info("Preparing a master wave frame")
-                wv_calib = self._wvcalib[det-1]
-                mswave = arutils.func_val(wv_calib['fitc'], self._tilts[det-1], wv_calib['function'], minv=wv_calib['fmin'], maxv=wv_calib['fmax'])
-        else: # It must be the name of a file the user wishes to load
-            msgs.error("Not prepared to read a user-specified wave file")
-            #mswave_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usewave']
-            #mswave, head = arload.load_master(mswave_name, frametype=None)
+        # Attempt to load the Master Frame
+        if settings.argflag['reduce']['masters']['reuse']:
+            mswave_name = armasters.master_name(settings.argflag['run']['directory']['master'],
+                                                'wave', settings.argflag['reduce']['masters']['setup'])
+            try:
+                mswave, head = arload.load_master(mswave_name, frametype="arc")
+            except IOError:
+                msgs.warn("No MasterWave frame found {:s}".format(mswave_name))
+            else:
+                settings.argflag['reduce']['masters']['loaded'].append('wave'+settings.argflag['reduce']['masters']['setup'])
+        if 'wave'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+            msgs.info("Preparing a master wave frame")
+            wv_calib = self._wvcalib[det-1]
+            mswave = arutils.func_val(wv_calib['fitc'], self._tilts[det-1], wv_calib['function'], minv=wv_calib['fmin'], maxv=wv_calib['fmax'])
         # Set and then delete the Master Arc frame
         self.SetMasterFrame(mswave, "wave", det)
         del mswave
@@ -696,29 +605,23 @@ class ScienceExposure:
         if self._wvcalib[det-1] is not None:
             msgs.info("An identical master wave calib frame already exists")
             return False
-        if self._argflag['reduce']['usewave'] in ['wave']:
-            # Attempt to load the Master Frame
-            if self._argflag['masters']['use']:
-                mswv_calib_name = armasters.master_name(self._argflag['run']['masterdir'],
-                                                       'wave_calib', self._argflag['masters']['setup'])
-                try:
-                    wv_calib = arload.load_master(mswv_calib_name, frametype="wv_calib")
-                except IOError:
-                    msgs.warn("No MasterWave1D data found {:s}".format(mswv_calib_name))
-                else:
-                    self._argflag['masters']['loaded'].append('wave_calib'+self._argflag['masters']['setup'])
-            if 'wave_calib'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
-                # Setup arc parameters (e.g. linelist)
-                arcparam = ararc.setup_param(self, sc, det, fitsdict)
-                self.SetFrame(self._arcparam, arcparam, det)
-                ###############
-                # Extract arc and identify lines
-                wv_calib = ararc.simple_calib(self, det)
-                #
-        else: # It must be the name of a file the user wishes to load
-            msgs.error("Not prepared to read a user-specified wave file")
-            #mswv_calib_name = self._argflag['run']['masterdir']+'/'+self._argflag['reduce']['usewavecalib']
-            #wv_calib = arload.load_master(mswv_calib_name, frametype="wv_calib")
+        # Attempt to load the Master Frame
+        if settings.argflag['reduce']['masters']['reuse']:
+            mswv_calib_name = armasters.master_name(settings.argflag['run']['directory']['master'],
+                                                    'wave_calib', settings.argflag['reduce']['masters']['setup'])
+            try:
+                wv_calib = arload.load_master(mswv_calib_name, frametype="wv_calib")
+            except IOError:
+                msgs.warn("No MasterWave1D data found {:s}".format(mswv_calib_name))
+            else:
+                settings.argflag['reduce']['masters']['loaded'].append('wave_calib'+settings.argflag['reduce']['masters']['setup'])
+        if 'wave_calib'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+            # Setup arc parameters (e.g. linelist)
+            arcparam = ararc.setup_param(self, sc, det, fitsdict)
+            self.SetFrame(self._arcparam, arcparam, det)
+            ###############
+            # Extract arc and identify lines
+            wv_calib = ararc.simple_calib(self, det)
         # Set
         if wv_calib is not None:
             self.SetFrame(self._wvcalib, wv_calib, det)
@@ -753,13 +656,12 @@ class ScienceExposure:
         ind = [ind[0]]
         # Extract
         all_specobj = []
-        for kk in range(self._spect['mosaic']['ndet']):
+        for kk in range(settings.spect['mosaic']['ndet']):
             det = kk+1
             # Load the frame(s)
 #            set_trace()
-            frame = arload.load_frames(self, fitsdict, ind, det, frametype='standard',
-                                       msbias=self._msbias[det-1],
-                                       transpose=self._transpose)
+            frame = arload.load_frames(fitsdict, ind, det, frametype='standard',
+                                       msbias=self._msbias[det-1])
 #            msgs.warn("Taking only the first standard frame for now")
 #            ind = ind[0]
             sciframe = frame[:, :, 0]
@@ -785,11 +687,11 @@ class ScienceExposure:
         msgs.bug("Files and folders should not be deleted -- there should be an option to overwrite files automatically if they already exist, or choose to rename them if necessary")
         self._filesort = arsort.sort_data(self)
         # Write out the details of the sorted files
-        if self._argflag['out']['sorted'] is not None: arsort.sort_write(self)
+        if settings.argflag['output']['sorted'] is not None: arsort.sort_write(self)
         # Match Science frames to calibration frames
         arsort.match_science(self)
         # If the user is only debugging, then exit now
-        if self._argflag['run']['calcheck']:
+        if settings.argflag['run']['calcheck']:
             msgs.info("Calibration check complete. Change the 'calcheck' flag to continue with data reduction")
             sys.exit()
         # Make directory structure for different objects
@@ -831,8 +733,8 @@ class ScienceExposure:
         elif ftype == "wave": self._mswave[det] = cpf
         elif ftype == "bias": self._msbias[det] = cpf
         elif ftype == "readnoise": self._msrn[det] = cpf
-        elif ftype == "normpixflat": self._mspixflatnrm[det] = cpf
-        elif ftype == "pixflat": self._mspixflat[det] = cpf
+        elif ftype == "normpixelflat": self._mspixelflatnrm[det] = cpf
+        elif ftype == "pixelflat": self._mspixelflat[det] = cpf
         elif ftype == "trace": self._mstrace[det] = cpf
         elif ftype == "standard": self._msstd[det] = cpf
         elif ftype == "sensfunc": self._sensfunc = cpf
@@ -857,8 +759,8 @@ class ScienceExposure:
             if ftype == "arc": return self._msarc[det].copy()
             elif ftype == "wave": return self._mswave[det].copy()
             elif ftype == "bias": return self._msbias[det].copy()
-            elif ftype == "normpixflat": return self._mspixflatnrm[det].copy()
-            elif ftype == "pixflat": return self._mspixflat[det].copy()
+            elif ftype == "normpixelflat": return self._mspixelflatnrm[det].copy()
+            elif ftype == "pixelflat": return self._mspixelflat[det].copy()
             elif ftype == "trace": return self._mstrace[det].copy()
             elif ftype == "standard": return mkcopy.copy(self._msstd[det])
             elif ftype == "sensfunc": return mkcopy.copy(self._sensfunc)
@@ -869,8 +771,8 @@ class ScienceExposure:
             if ftype == "arc": return self._msarc[det]
             elif ftype == "wave": return self._mswave[det]
             elif ftype == "bias": return self._msbias[det]
-            elif ftype == "normpixflat": return self._mspixflatnrm[det]
-            elif ftype == "pixflat": return self._mspixflat[det]
+            elif ftype == "normpixelflat": return self._mspixelflatnrm[det]
+            elif ftype == "pixelflat": return self._mspixelflat[det]
             elif ftype == "trace": return self._mstrace[det]
             elif ftype == "standard": return self._msstd[det]
             elif ftype == "sensfunc": return self._sensfunc

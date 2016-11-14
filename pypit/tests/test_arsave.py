@@ -17,6 +17,7 @@ from pypit import arsave as arsv
 #    data_dir = os.path.join(os.path.dirname(__file__), 'files')
 #    return os.path.join(data_dir, filename)
 
+
 def mk_specobj(flux=5, objid=500):
     # specobj
     npix = 100
@@ -28,16 +29,19 @@ def mk_specobj(flux=5, objid=500):
     # Return
     return specobj
 
+
 def test_save1d_fits():
     """ save1d to FITS and HDF5
     """
     from pypit import arutils as arut
+    arut.dummy_settings()
     # Dummy self
     slf = arut.dummy_self()
     slf._specobjs = []
     slf._specobjs.append([mk_specobj()])
     # Write to FITS
     arsv.save_1d_spectra_fits(slf)
+
 
 def test_save1d_hdf5():
     """ save1d to FITS and HDF5

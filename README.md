@@ -16,6 +16,7 @@ The Python Spectroscopic Data Reduction Pipeline
 * h5py
 * cython
 * astropy
+* future
 * matplotlib
 * GNU Scientific Library
 * PyYAML

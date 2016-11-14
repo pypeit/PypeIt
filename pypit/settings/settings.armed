@@ -14,24 +14,25 @@ run  stopcheck    False         # If True, ARMED will stop and require a user ca
 # REDUCTION RULES
 reduce locations None           # If desired, a fits file can be specified (of the appropriate form) to specify the locations of the pixels on the detector
 reduce nlcorr False             # Perform a non-linear correction
-reduce usebias overscan         # How to subtract the detector bias (bias, overscan, dark, none), you can also specify a master calibrations file if it exists.
+bias useframe overscan         # How to subtract the detector bias (bias, overscan, dark, none), you can also specify a master calibrations file if it exists.
 reduce oscanMethod SavGol       # Method used to fit the overscan (polynomial, savgol)
 reduce oscanParams [5,65]       # Parameters used for the overscan method (for polynomial use [#] where # is replaced by the polynomial order, for savgol use [#,$] where # is the order and $ is the window size (should be odd)
 reduce badpix True              # Make a bad pixel mask? (This step requires bias frames)
 reduce trim True                # Trim the frame to isolate the data
-reduce usetrace trace           # How to trace orders (trace, object, blzflat), you can also specify a master calibrations file if it exists.
+reduce usetrace trace           # How to trace orders (trace, object, slitflat), you can also specify a master calibrations file if it exists.
 reduce usearc arc               # What filetype should be used for wavelength calibration (arc), you can also specify a master calibrations file if it exists.
-reduce useflat pixflat          # How to flat field the data (pixflat, blzflat), you can also specify a master calibrations file if it exists.
+reduce useflat pixelflat          # How to flat field the data (pixelflat, slitflat), you can also specify a master calibrations file if it exists.
 reduce flatfield True           # Flatfield the data?
 reduce flatmatch -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
 reduce arcmatch -1.0            # Match similar arc frames together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
 reduce calibrate True           # Wavelength calibrate the data?
 reduce heliocorr True           # Perform a heliocentric correction?
 reduce pixelsize 2.5            # The size of the extracted pixels in km/s
-reduce bgsubtraction True       # Subtract the sky background from the data?
+reduce skysub perform True       # Subtract the sky background from the data?
 
 # ARC FRAMES
-arc comb method weightmean           # How should the bias frames be combined (mean, median, weightmean)
+arc combine match -1.0            # Match similar arc frames together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
+arc combine method weightmean           # How should the bias frames be combined (mean, median, weightmean)
 arc comb rej_cosmicray  -1.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
 arc comb rej_lowhigh   [0,0]         # Number of low/high pixels to reject, [low,high]
 arc comb rej_level     [3.0,3.0]     # Rejection level (in standard deviations), where <= 0.0 means no rejection [low,high]
@@ -44,7 +45,7 @@ arc load calibrated    False         # If the extracted arc have previously been
 #arc calibrate overlap  15           # Pixel window overlap
 arc calibrate nfitpix  5             # Number of pixels to fit when deriving the centroid of the arc lines (an odd number is best)
 arc calibrate idfile wave_ThAr_3100-11000.npy  # Name of arc identification file. The default is for a ThAr arc line identification
-arc calibrate linelist arclist.ThAr # name of the file containing a list of all arc lines to be identified
+arc calibrate lamps arclist.ThAr # name of the file containing a list of all arc lines to be identified
 arc calibrate method simple          # What method should be used to fit the individual arc lines (options are: fit, simple); fit is perhaps the most accurate; simple uses a polynomial fit (to the log of a gaussian), is the fastest and is reliable
 arc calibrate detection 6.0          # How significant should the arc line detections be (in units of a standard deviation)
 arc calibrate numsearch 20           # Number of brightest arc lines to search for preliminary identification
@@ -87,12 +88,12 @@ trace orders tiltorder  1             # What is the order of the polynomial func
 trace orders tiltdisporder  1         # What is the order of the polynomial function to be used to fit the tilts along the dispersion direction
 
 # PIXEL FLAT FRAMES
-pixflat comb method weightmean          # How should the pixel flat frames be combined (mean, median, weightmean)
-pixflat comb rej_cosmicray 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
-pixflat comb rej_lowhigh  [0,0]         # Number of low/high pixels to reject, [low,high]
-pixflat comb rej_level    [3.0,3.0]     # Rejection level (in standard deviations), where <= 0.0 means no rejection [low,high]
-pixflat comb sat_pix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
-pixflat comb set_allrej   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
+pixelflat comb method weightmean          # How should the pixel flat frames be combined (mean, median, weightmean)
+pixelflat comb rej_cosmicray 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
+pixelflat comb rej_lowhigh  [0,0]         # Number of low/high pixels to reject, [low,high]
+pixelflat comb rej_level    [3.0,3.0]     # Rejection level (in standard deviations), where <= 0.0 means no rejection [low,high]
+pixelflat comb sat_pix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
+pixelflat comb set_allrej   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
 
 # SCIENCE FRAMES
 science load extracted False          # If the science frame has previously been extracted and saved, load the extractions
@@ -105,15 +106,7 @@ science extraction pcacent  [1,0]     # What order polynomials should be used to
 science extraction pcawidth [1,0]     # What order polynomials should be used to fit the target width principle components
 science extraction bintrace 16        # When deriving the target profile centroid and width, how many pixels should be averaged to speed up the process (1 = no binning, but is *very* slow)
 
-# CHI-SQUARED PROPERTIES
-chisq  atol      1.0E-3
-chisq  xtol      1.0E-10
-chisq  ftol      1.0E-10
-chisq  gtol      1.0E-10
-chisq  fstep     2.0
-
 # OUTPUT
-out  verbose      2				# Level of screen output (0 is No screen output, 1 is low level output, 2 is output everything)
-out  sorted       None          # A filename given to output the details of the sorted files. If None, no output is created.
-out  plots        True          # Output a set of plots that can be used to check the data is doing what it is supposed to be doing
-out  overwrite    False         # Overwrite any existing output files?
+output  verbosity      2				# Level of screen output (0 is No screen output, 1 is low level output, 2 is output everything)
+output  sorted       None          # A filename given to output the details of the sorted files. If None, no output is created.
+output  overwrite    False         # Overwrite any existing output files?

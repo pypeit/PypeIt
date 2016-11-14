@@ -6,8 +6,10 @@ import pytest
 
 from pypit import pyputils
 msgs = pyputils.get_dummy_logger()
+from pypit import arparse as settings
 from pypit import ararc as pyarc
 from pypit import arutils as arut
+
 
 #def data_path(filename):
 #    data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -20,15 +22,14 @@ def test_setup_param():
     -------
 
     """
-    # Load
-    # Dummy self
+    # Initialize some settings
+    arut.dummy_settings()
+    # Load Dummy self
     slf = arut.dummy_self()
-    slf._argflag['run']['spectrograph'] = 'kast_blue'
-    slf._spect['arc'] = {}
-    slf._spect['arc']['index'] = [[0]]
-    fitsdict = {}
-    fitsdict["disperser"] = ['600/4310']
-    fitsdict["binning"] = [[None]]
+    settings.argflag['run']['spectrograph'] = 'kast_blue'
+    settings.spect['arc'] = {}
+    settings.spect['arc']['index'] = [[0]]
+    fitsdict = arut.dummy_fitsdict()
     # Run
     arcparm = pyarc.setup_param(slf, 0, 1, fitsdict)
     for key in ['llist','disp','wvmnx']:

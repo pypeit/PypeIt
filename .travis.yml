@@ -120,6 +120,7 @@ install:
     - if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION pyyaml; fi
     #- if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION mpmath; fi
     - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/linetools/linetools.git; fi
+    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL future; fi
     - if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION matplotlib; fi
 
     # DOCUMENTATION DEPENDENCIES

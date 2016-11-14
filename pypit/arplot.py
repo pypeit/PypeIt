@@ -1,6 +1,9 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
+# Force the default matplotlib plotting parameters
+plt.rcdefaults()
+
 MAX_REJECT = 0.5
 MIN_NPIXELS = 5
 GOOD_PIXEL = 0
