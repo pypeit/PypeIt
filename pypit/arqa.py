@@ -127,6 +127,68 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
     plt.close()
     return
 
+def coaddspec_qa(ispectra, rspec, spec1d, qafile=None):
+    """  QA plot for 1D coadd of spectra
+
+    Parameters
+    ----------
+    ispectra : XSpectrum1D
+      Multi-spectra object
+    rspec : XSpectrum1D
+      Rebinned spectra with updated variance
+    spec1d : XSpectrum1D
+      Final coadd
+
+    """
+    from pypit.arcoadd import get_std_dev as gsd
+    from scipy.stats import norm
+    from astropy.stats import sigma_clip
+
+    if qafile is not None:
+        pp = PdfPages(qafile)
+
+    plt.clf()
+    plt.figure()
+    gs = gridspec.GridSpec(1,2)
+
+    # Deviate
+    std_dev, dev_sig = gsd(rspec, spec1d)
+    #dev_sig = (rspec.data['flux'] - spec1d.flux) / (rspec.data['sig']**2 + spec1d.sig**2)
+    #std_dev = np.std(sigma_clip(dev_sig, sigma=5, iters=2))
+    flat_dev_sig = dev_sig.flatten()
+
+    xmin = -10
+    xmax = 10
+    n_bins = 100
+
+    # Deviation
+    ax = plt.subplot(gs[0])
+    hist, edges = np.histogram(flat_dev_sig, range=(xmin, xmax), bins=n_bins)
+    area = len(flat_dev_sig)*((xmax-xmin)/float(n_bins))
+    xppf = np.linspace(norm.ppf(0.0001), norm.ppf(0.9999), 100)
+    ax.plot(xppf, area*norm.pdf(xppf), color='black', linewidth=2.0)
+    ax.bar(edges[:-1], hist, width=((xmax-xmin)/float(n_bins)), alpha=0.5)
+
+    # Coadd on individual
+    ax = plt.subplot(gs[1])
+    for idx in range(ispectra.nspec):
+        ispectra.select = idx
+        ax.plot(ispectra.wavelength, ispectra.flux, alpha=0.5)#, label='individual exposure')
+
+    ax.plot(spec1d.wavelength, spec1d.flux, color='black', label='coadded spectrum')
+    debug=True
+    if debug:
+        ax.set_ylim(0.6, 1.4)
+    plt.legend()
+    plt.title('Coadded + Original Spectra')
+
+    plt.tight_layout(pad=0.2,h_pad=0.,w_pad=0.2)
+    if qafile is not None:
+        pp.savefig(bbox_inches='tight')
+        pp.close()
+        msgs.info("Wrote coadd QA: {:s}".format(qafile))
+    plt.close()
+    return
 
 def flexure(slf, det, flex_dict, slit_cen=False):
     """ QA on flexure measurement

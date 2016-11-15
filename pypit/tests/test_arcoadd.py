@@ -18,7 +18,7 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 @pytest.fixture
-def dummy_spectrum(s2n=10., seed=1234, wave=None):
+def dummy_spectrum(s2n=10., rstate=None, seed=1234, wave=None):
     """
     Parameters
     ----------
@@ -31,6 +31,8 @@ def dummy_spectrum(s2n=10., seed=1234, wave=None):
     spec : XSpectrum1D
 
     """
+    if rstate is None:
+        rstate=np.random.RandomState(seed)
     from linetools.spectra.xspectrum1d import XSpectrum1D
     if wave is None:
         wave = np.linspace(4000., 5000., 2000)
@@ -39,11 +41,11 @@ def dummy_spectrum(s2n=10., seed=1234, wave=None):
     sig = np.ones_like(wave) / s2n
     ispec = XSpectrum1D.from_tuple((wave,flux,sig))
     # Noise and append
-    spec = ispec.add_noise(seed=seed)
+    spec = ispec.add_noise(rstate=rstate)
     return spec
 
 @pytest.fixture
-def dummy_spectra(s2n=10., seed=1234):
+def dummy_spectra(s2n=10., seed=1234, wvmnx=None, npix=None):
     """ Generate a set of normalized spectra with varying wavelength
     and noise
 
@@ -56,12 +58,15 @@ def dummy_spectra(s2n=10., seed=1234):
     dspec : XSpectrum1D
 
     """
+    rstate=np.random.RandomState(seed)
     from linetools.spectra.utils import collate
-    wvmnx = [[5000., 6000.],
-            [4000.5, 5800.5],
-            [4500.8, 6300.8],
-            ]
-    npix = [1000, 1001, 1100]
+    if wvmnx is None:
+        wvmnx = [[5000., 6000.],
+                [4000.5, 5800.5],
+                [4500.8, 6300.8],
+                ]
+    if npix is None:
+        npix = [1000, 1001, 1100]
     slist = []
     for ii, inpix in enumerate(npix):
         wave = np.linspace(wvmnx[ii][0], wvmnx[ii][1], inpix)
@@ -70,16 +75,30 @@ def dummy_spectra(s2n=10., seed=1234):
         #spec = XSpectrum1D.from_tuple((wave,flux,sig))
         ## Noise and append
         #slist.append(spec.add_noise(seed=seed))
-        slist.append(dummy_spectrum(wave=wave, s2n=s2n, seed=seed))
+        slist.append(dummy_spectrum(wave=wave, s2n=s2n, rstate=rstate))
     # Collate
     dspec = collate(slist)
     #
     return dspec
 
+def test_qa():
+    """ Test QA """
+    from pypit import arcoadd as arco
+    # Setup
+    #wvmnx = [[5000., 6000.],
+    #         [5000.5, 6000.5],
+    #         [5000.8, 6000.8],
+    #         ]
+    #npix = [1000, 1000, 1000]
+    dspec = dummy_spectra(s2n=10.)#, wvmnx=wvmnx, npix=npix)
+    dspec.data['flux'][0, 700] *= 1000.  # One bad pixel
+    dspec.data['sig'][0, 700] *= 500.
+    arco.coadd_spectra(dspec, wave_grid_method='concatenate', qafile='tst.pdf')
 
 
 
 def test_load():
+    pytest.set_trace()
     from pypit import arcoadd as arco
     files = [data_path('spec1d_J2202p1708_KASTb_2015Nov06T024436.08.fits'),
              data_path('spec1d_J2202p1708_KASTb_2015Nov06T031500.09.fits'),

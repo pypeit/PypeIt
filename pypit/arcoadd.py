@@ -13,6 +13,7 @@ from linetools.spectra import xspectrum1d
 
 from pypit import arload
 from pypit import armsgs
+from pypit import arqa
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -29,7 +30,7 @@ msgs = armsgs.get_logger()
     # Grow mask in final_rej?
 
 
-def new_wave_grid(waves, method='iref', iref=0, A_pix=None, **kwargs):
+def new_wave_grid(waves, method='iref', iref=0, A_pix=None, pix_size=None, **kwargs):
     """ Create a new wavelength grid for the
     spectra to be rebinned and coadded on
 
@@ -117,6 +118,7 @@ def new_wave_grid(waves, method='iref', iref=0, A_pix=None, **kwargs):
     # Concatenate of any wavelengths in other indices that may extend beyond that of wavelengths[0]?
 
     return wave_grid
+
 
 def gauss1(x, parameters):
     """ Simple Gaussian
@@ -593,11 +595,21 @@ def load_spec(files, iextensions=None, extract='opt'):
     # Return
     return spectra
 
+def get_std_dev(irspec, ispec1d):
+    # Only calculate on regions with 2 or more spectra
+    msk = ~irspec.data['flux'].mask
+    sum_msk = np.sum(msk, axis=0)
+    gdp = sum_msk > 1
+    # Here we go [note that dev_sig is still a masked array so we compress it after]
+    dev_sig = (irspec.data['flux'][:,gdp] - ispec1d.flux[gdp]) / (irspec.data['sig'][:,gdp]**2 + ispec1d.sig[gdp]**2)
+    std_dev = np.std(astropy.stats.sigma_clip(dev_sig.compressed(), sigma=5, iters=2))
+    return std_dev, dev_sig.compressed()
+
 
 def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
                   scale_method='auto', sig_clip=False,
                   do_offset=False, sigrej_final=3.,
-                  do_var_corr=True,
+                  do_var_corr=True, qafile=None,
                   do_cr=True, **kwargs):
     """
     Parameters
@@ -636,12 +648,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     # Initial coadd
     spec1d = one_d_coadd(rspec, weights)
 
-    def get_std_dev(irspec, ispec1d):
-        dev_sig = (irspec.data['flux'] - ispec1d.flux) / (irspec.data['sig']**2 + ispec1d.sig**2)
-        std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=5, iters=2))
-        return std_dev
-
-    std_dev = get_std_dev(rspec, spec1d)
+    std_dev, _ = get_std_dev(rspec, spec1d)
     msgs.info("Initial std_dev = {:g}".format(std_dev))
 
     iters = 0
@@ -747,14 +754,14 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
         # Coadd anew
         spec1d = one_d_coadd(rspec, weights)
         # Calculate std_dev
-        std_dev = get_std_dev(rspec, spec1d)
-        var_corr = var_corr * std_dev
+        std_dev, _ = get_std_dev(rspec, spec1d)
+        #var_corr = var_corr * std_dev
         msgs.info("Desired variance correction: {:g}".format(var_corr))
         msgs.info("New standard deviation: {:g}".format(std_dev))
         if do_var_corr:
             msgs.info("Correcting variance")
             for ispec in xrange(rspec.nspec):
-                rspec.data['sig'][ispec] *= np.sqrt(var_corr)
+                rspec.data['sig'][ispec] *= np.sqrt(std_dev)
             spec1d = one_d_coadd(rspec, weights)
 
     if iters == 0:
@@ -763,8 +770,9 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     else: #if iters > 0:
         msgs.info("Final correction to initial variances: {:g}".format(var_corr))
 
-    debugger.set_trace()
-    save_coadd(new_wave, new_flux, new_var, outfil)
+    # QA
+    if qafile is not None:
+        arqa.coaddspec_qa(spectra, rspec, spec1d, qafile=qafile)
 
     return
 
