@@ -178,7 +178,8 @@ def coaddspec_qa(ispectra, rspec, spec1d, qafile=None):
     ax.plot(spec1d.wavelength, spec1d.flux, color='black', label='coadded spectrum')
     debug=True
     if debug:
-        ax.set_ylim(0.6, 1.4)
+        ax.set_ylim(0., 180.)
+        ax.set_xlim(3840, 3860.)
     plt.legend()
     plt.title('Coadded + Original Spectra')
 

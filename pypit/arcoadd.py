@@ -587,7 +587,7 @@ def load_spec(files, iextensions=None, extract='opt'):
     # Load spectra
     spectra_list = []
     for ii,fname in enumerate(files):
-        msgs.info("Loading extension {:d} of spectrum {:s}".format(extensions[ii], fname))
+        #msgs.info("Loading extension {:d} of spectrum {:s}".format(extensions[ii], fname))
         spectrum = arload.load_1dspec(fname, exten=extensions[ii], extract=extract)
         spectra_list.append(spectrum)
     # Join into one XSpectrum1D object
@@ -745,7 +745,6 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
             # Apply
             if nrej > 0:
                 msgs.info("Rejecting {:d} pixels in exposure {:d}".format(nrej,qq))
-                debugger.set_trace()
                 rspec.add_to_mask(chi_mask)
             #outmask[*, j] = (arrmask[*, j] EQ 1) OR (chi2_cap GT sigrej_eff^2)
 
