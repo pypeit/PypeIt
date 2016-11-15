@@ -595,6 +595,7 @@ def load_spec(files, iextensions=None, extract='opt'):
     # Return
     return spectra
 
+
 def get_std_dev(irspec, ispec1d):
     # Only calculate on regions with 2 or more spectra
     msk = ~irspec.data['flux'].mask
@@ -609,7 +610,7 @@ def get_std_dev(irspec, ispec1d):
 def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
                   scale_method='auto', sig_clip=False,
                   do_offset=False, sigrej_final=3.,
-                  do_var_corr=True, qafile=None,
+                  do_var_corr=True, qafile=None, outfile=None,
                   do_cr=True, **kwargs):
     """
     Parameters
@@ -773,6 +774,14 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     # QA
     if qafile is not None:
         arqa.coaddspec_qa(spectra, rspec, spec1d, qafile=qafile)
+
+    # Write to disk?
+    if outfile is not None:
+        msgs.work("Need to include header info")
+        if '.hdf5' in outfile:
+            spec1d.write_to_hdf5(outfile)
+        elif '.fits' in outfile:
+            spec1d.write_to_fits(outfile)
 
     return
 
