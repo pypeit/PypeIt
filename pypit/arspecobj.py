@@ -217,7 +217,7 @@ def mtch_obj_to_objects(iobj, objects, stol=50, otol=10):
     tbl = Table(objnm_to_dict(objects))
 
     # Logic on object, slit and detector [ignoring sciidx for now]
-    gdrow = ((tbl['O']-odict['O']) < otol) & ((tbl['S']-odict['S']) < stol) & (tbl['D'] == odict['D'])
+    gdrow = (np.abs(tbl['O']-odict['O']) < otol) & (np.abs(tbl['S']-odict['S']) < stol) & (tbl['D'] == odict['D'])
     if np.sum(gdrow) == 0:
         return None
     else:
