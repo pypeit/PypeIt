@@ -66,7 +66,7 @@ def main(args):
         f.write("\n")
         f.write("spect read\n")
         f.write(" pixelflat number 0\n")
-        f.write(" arc number 0\n")
+        f.write(" arc number 1\n")
         f.write(" slitflat number 0\n")
         f.write(" bias number 0\n")
         f.write(" standard number 0\n")

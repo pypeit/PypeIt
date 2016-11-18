@@ -1,6 +1,7 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import sys
+import os
 import numpy as np
 from pypit import arparse as settings
 from pypit import armsgs
@@ -42,17 +43,34 @@ def SetupScience(fitsdict):
         arsort.sort_write(fitsdict, filesort)
     # Match calibration frames to science frames
     arsort.match_science(fitsdict, filesort)
-    # If the user is only debugging, then exit now
-    if settings.argflag['run']['calcheck']:
-        msgs.info("Calibration check complete. Change the 'calcheck' flag to continue with data reduction")
-        sys.exit()
-    # Make directory structure for different objects
-    sci_targs = arsort.make_dirs(fitsdict, filesort)
     # Create the list of science exposures
     numsci = np.size(filesort['science'])
     sciexp = []
+    if settings.argflag['run']['calcheck']:
+        do_qa = False
+    else:
+        do_qa = True
     for i in range(numsci):
-        sciexp.append(arsciexp.ScienceExposure(i, fitsdict))
+        sciexp.append(arsciexp.ScienceExposure(i, fitsdict, do_qa=do_qa))
+    # If the user is only running the setup, then create setup file
+    # and exit
+    if settings.argflag['run']['calcheck']:
+        # Setup
+        setup_file = settings.argflag['output']['sorted']+'.setup'
+        if os.path.isfile(setup_file):
+            msgs.warn("Will not overwrite setup_file: {:s}".format(setup_file))
+            msgs.warn("Remove and run again if you wish to")
+        else:
+            calib_dict = {}
+            for sc in range(numsci):
+                for kk in range(settings.spect['mosaic']['ndet']):
+                    _ = arsort.calib_setup(sc, kk+1, fitsdict, calib_dict, write=True)
+        # Finish
+        msgs.info("Calibration check complete. Change the 'calcheck' flag to continue with data reduction")
+        msgs.info("Inspect the setup file: {:s}".format(setup_file))
+        sys.exit()
+    # Make directory structure for different objects
+    sci_targs = arsort.make_dirs(fitsdict, filesort)
     return sciexp
 
 
