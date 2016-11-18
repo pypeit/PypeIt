@@ -241,8 +241,7 @@ def bspline_fitmod(np.ndarray[DTYPE_t, ndim=1] xarray not None,
                     np.ndarray[DTYPE_t, ndim=1] dtrc not None,
                     np.ndarray[DTYPE_t, ndim=1] scen not None,
                     np.ndarray[ITYPE_t, ndim=1] dpix not None,
-                    np.ndarray[ITYPE_t, ndim=1] spix not None,
-                    int dispdir):
+                    np.ndarray[ITYPE_t, ndim=1] spix not None):
    
     cdef int nbreak = ncoeffs + 2 - k
     cdef int sz_x, sz_m, i, j
@@ -321,16 +320,10 @@ def bspline_fitmod(np.ndarray[DTYPE_t, ndim=1] xarray not None,
     # Construct the model image
     for p in range(sz_p):
         # get the bottom-left (i.e. the origin) and top-left corner of the pixel
-        if dispdir == 0:
-            dbl = pixmap[dpix[p],spix[p],0] - 0.5*pixmap[dpix[p],spix[p],2]
-            sbl = pixmap[dpix[p],spix[p],1] - 0.5*pixmap[dpix[p],spix[p],3]
-            dtl = pixmap[dpix[p],spix[p],0] + 0.5*pixmap[dpix[p],spix[p],2]
-            stl = pixmap[dpix[p],spix[p],1] + 0.5*pixmap[dpix[p],spix[p],3]
-        else:
-            dbl = pixmap[spix[p],dpix[p],1] - 0.5*pixmap[spix[p],dpix[p],3]
-            sbl = pixmap[spix[p],dpix[p],0] - 0.5*pixmap[spix[p],dpix[p],2]
-            dtl = pixmap[spix[p],dpix[p],1] + 0.5*pixmap[spix[p],dpix[p],3]
-            stl = pixmap[spix[p],dpix[p],0] + 0.5*pixmap[spix[p],dpix[p],2]
+        dbl = pixmap[dpix[p],spix[p],0] - 0.5*pixmap[dpix[p],spix[p],2]
+        sbl = pixmap[dpix[p],spix[p],1] - 0.5*pixmap[dpix[p],spix[p],3]
+        dtl = pixmap[dpix[p],spix[p],0] + 0.5*pixmap[dpix[p],spix[p],2]
+        stl = pixmap[dpix[p],spix[p],1] + 0.5*pixmap[dpix[p],spix[p],3]
         donebl = 0
         donetl = 0
         for b in range(1,sz_b):
@@ -379,10 +372,7 @@ def bspline_fitmod(np.ndarray[DTYPE_t, ndim=1] xarray not None,
         cv = (lb-la)/vb
         svb = csqrt(sva*sva + 1.0) / (sva*sva - 1.0)
         # Finally, calculate the appropriate value for xfit and yfit
-        if dispdir == 0:
-            model[dpix[p],spix[p]] = (la*dva + dvb) + 0.5*(cv*dva)*svb*(pixmap[dpix[p],spix[p],2] + sva*pixmap[dpix[p],spix[p],3])
-        else:
-            model[spix[p],dpix[p]] = (la*dva + dvb) + 0.5*(cv*dva)*svb*(pixmap[spix[p],dpix[p],3] + sva*pixmap[spix[p],dpix[p],2])
+        model[dpix[p],spix[p]] = (la*dva + dvb) + 0.5*(cv*dva)*svb*(pixmap[dpix[p],spix[p],2] + sva*pixmap[dpix[p],spix[p],3])
 # 	for i in range(sz_m):
 # 		gsl_bspline_eval(marray[i], B, bw)
 # 		gsl_multifit_linear_est(B, c, cov, &yi, &yerr)
@@ -447,8 +437,7 @@ def checkmatch(np.ndarray[DTYPE_t, ndim=2] arrayA not None,
     return chisq
 
 @cython.boundscheck(False)
-def crreject(np.ndarray[DTYPE_t, ndim=2] frame not None,
-            int dispdir):
+def crreject(np.ndarray[DTYPE_t, ndim=2] frame not None):
     """
     Identifies cosmic rays as sudden jumps in neighbouring pixel fluxes
     """
@@ -746,8 +735,7 @@ def mediansort(np.ndarray[DTYPE_t, ndim=1] arrayA not None,
 @cython.boundscheck(False)
 def order_pixels(np.ndarray[DTYPE_t, ndim=3] pixlocn not None,
                 np.ndarray[DTYPE_t, ndim=2] lord not None,
-                np.ndarray[DTYPE_t, ndim=2] rord not None,
-                int dispdir):
+                np.ndarray[DTYPE_t, ndim=2] rord not None):
     """
     Based on physical pixel locations, determine which pixels are within the orders
     """
@@ -764,20 +752,12 @@ def order_pixels(np.ndarray[DTYPE_t, ndim=3] pixlocn not None,
     for x in range(sz_x):
         for y in range(sz_y):
             for o in range(sz_o):
-                if dispdir == 0:
-                    if (lord[x,o] < rord[x,o]) and (pixlocn[x,y,1]>lord[x,o]) and (pixlocn[x,y,1]<rord[x,o]):
-                        outfr[x,y] = o+1
-                        break # Speed up the routine a little by only assigning a single order to a given pixel
-                    elif (lord[x,o] > rord[x,o]) and (pixlocn[x,y,1]<lord[x,o]) and (pixlocn[x,y,1]>rord[x,o]):
-                        outfr[x,y] = o+1
-                        break # Speed up the routine a little by only assigning a single order to a given pixel
-                else:
-                    if (lord[y,o] < rord[y,o]) and (pixlocn[x,y,0]>lord[y,o]) and (pixlocn[x,y,0]<rord[y,o]):
-                        outfr[x,y] = o+1
-                        break # Speed up the routine a little by only assigning a single order to a given pixel
-                    elif (lord[y,o] > rord[y,o]) and (pixlocn[x,y,0]<lord[y,o]) and (pixlocn[x,y,0]>rord[y,o]):
-                        outfr[x,y] = o+1
-                        break # Speed up the routine a little by only assigning a single order to a given pixel
+                if (lord[x,o] < rord[x,o]) and (pixlocn[x,y,1]>lord[x,o]) and (pixlocn[x,y,1]<rord[x,o]):
+                    outfr[x,y] = o+1
+                    break # Speed up the routine a little by only assigning a single order to a given pixel
+                elif (lord[x,o] > rord[x,o]) and (pixlocn[x,y,1]<lord[x,o]) and (pixlocn[x,y,1]>rord[x,o]):
+                    outfr[x,y] = o+1
+                    break # Speed up the routine a little by only assigning a single order to a given pixel
     return outfr
 
 
@@ -1316,8 +1296,7 @@ def prepare_bsplfit(np.ndarray[DTYPE_t, ndim=2] arcfr not None,
                     np.ndarray[DTYPE_t, ndim=1] dtrc not None,
                     np.ndarray[DTYPE_t, ndim=1] scen not None,
                     np.ndarray[ITYPE_t, ndim=1] dpix not None,
-                    np.ndarray[ITYPE_t, ndim=1] spix not None,
-                    int dispdir):
+                    np.ndarray[ITYPE_t, ndim=1] spix not None):
 
     cdef int p, b, donebl, donetl
     cdef int sz_p, sz_b
@@ -1333,16 +1312,10 @@ def prepare_bsplfit(np.ndarray[DTYPE_t, ndim=2] arcfr not None,
 
     for p in range(sz_p):
         # get the bottom-left (i.e. the origin) and top-left corner of the pixel
-        if dispdir == 0:
-            dbl = pixmap[dpix[p],spix[p],0] - 0.5*pixmap[dpix[p],spix[p],2]
-            sbl = pixmap[dpix[p],spix[p],1] - 0.5*pixmap[dpix[p],spix[p],3]
-            dtl = pixmap[dpix[p],spix[p],0] + 0.5*pixmap[dpix[p],spix[p],2]
-            stl = pixmap[dpix[p],spix[p],1] + 0.5*pixmap[dpix[p],spix[p],3]
-        else:
-            dbl = pixmap[spix[p],dpix[p],1] - 0.5*pixmap[spix[p],dpix[p],3]
-            sbl = pixmap[spix[p],dpix[p],0] - 0.5*pixmap[spix[p],dpix[p],2]
-            dtl = pixmap[spix[p],dpix[p],1] + 0.5*pixmap[spix[p],dpix[p],3]
-            stl = pixmap[spix[p],dpix[p],0] + 0.5*pixmap[spix[p],dpix[p],2]
+        dbl = pixmap[dpix[p],spix[p],0] - 0.5*pixmap[dpix[p],spix[p],2]
+        sbl = pixmap[dpix[p],spix[p],1] - 0.5*pixmap[dpix[p],spix[p],3]
+        dtl = pixmap[dpix[p],spix[p],0] + 0.5*pixmap[dpix[p],spix[p],2]
+        stl = pixmap[dpix[p],spix[p],1] + 0.5*pixmap[dpix[p],spix[p],3]
         donebl = 0
         donetl = 0
         for b in range(1,sz_b):
@@ -1377,12 +1350,8 @@ def prepare_bsplfit(np.ndarray[DTYPE_t, ndim=2] arcfr not None,
         cv = (lb-la)/vb
         svb = csqrt(sva*sva + 1.0) / (sva*sva - 1.0)
         # Finally, calculate the appropriate value for xfit and yfit
-        if dispdir == 0:
-            xfit[p] = la + 0.5*cv*svb*(pixmap[dpix[p],spix[p],2] + sva*pixmap[dpix[p],spix[p],3])
-            yfit[p] = arcfr[dpix[p],spix[p]]
-        else:
-            xfit[p] = la + 0.5*cv*svb*(pixmap[spix[p],dpix[p],3] + sva*pixmap[spix[p],dpix[p],2])
-            yfit[p] = arcfr[spix[p],dpix[p]]
+        xfit[p] = la + 0.5*cv*svb*(pixmap[dpix[p],spix[p],2] + sva*pixmap[dpix[p],spix[p],3])
+        yfit[p] = arcfr[dpix[p],spix[p]]
     return xfit, yfit
 
 
