@@ -197,6 +197,21 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['n_first']=2 # Should be able to lock on
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+    elif sname=='kast_red_2016':
+        lamps = ['NeI']
+        #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
+        if disperser == '600/7500':
+            arcparam['disp']=2.35
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['wvmnx'][0] = 5000.
+            arcparam['n_first']=2 # Should be able to lock on
+        elif disperser == '1200/5000':
+            arcparam['disp']=1.17
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['wvmnx'][0] = 5000.
+            arcparam['n_first']=2 # Should be able to lock on
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='lris_blue':
         lamps = ['ZnI','CdI','HgI']
         if disperser == '600/4000':
