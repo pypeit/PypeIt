@@ -36,8 +36,6 @@ class ScienceExposure:
 
     def __init__(self, snum, fitsdict, do_qa=True):
 
-        self._dispaxis = 0  # This should always be zero, and this line can be deleted once all instances throughout code are removed
-
         # Set indices used for frame combination
         self._idx_sci = settings.spect['science']['index'][snum]
         self._idx_arcs = settings.spect['arc']['index'][snum]
@@ -205,9 +203,9 @@ class ScienceExposure:
           Index of the detector
         """
         if settings.argflag['reduce']['pixel']['locations'] is None:
-            self.SetFrame(self._pixlocn, artrace.gen_pixloc(self._dispaxis, self._mstrace[det-1], det, gen=True), det)
+            self.SetFrame(self._pixlocn, artrace.gen_pixloc(self._mstrace[det-1], det, gen=True), det)
         elif settings.argflag['reduce']['pixel']['locations'] in ["mstrace"]:
-            self.SetFrame(self._pixlocn, artrace.gen_pixloc(self._dispaxis, self._mstrace[det-1], det, gen=False), det)
+            self.SetFrame(self._pixlocn, artrace.gen_pixloc(self._mstrace[det-1], det, gen=False), det)
         else:
             mname = settings.argflag['run']['directory']['master']+'/'+settings.argflag['reduce']['pixel']['locations']
             self.SetFrame(self._pixlocn, arload.load_master(mname, frametype=None), det)
