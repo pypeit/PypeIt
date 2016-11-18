@@ -42,15 +42,13 @@ det01 darkcurr 0.0                    # Dark current (e-/hour)
 det01 saturation 65535.0              # The detector Saturation level
 det01 nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det01 numamplifiers 2                 # Number of amplifiers
-det01 gain 3.0                        # Inverse gain (e-/ADU)
-det01 ronoise 12.5                    # Read-out noise (e-)
-#det01 ampsec01 [:,1:511]              # For each amplifier, you should specify the detector sections each amplifier reads out (values are inclusive).
-det01 datasec01 [:,1:511]             # Either the data sections or the header keyword where the valid data sections can be obtained
-det01 oscansec01 [:,526:625]        # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
-#det01 ampsec02 [:,512:525]           # For each amplifier, you should specify the detector sections each amplifier reads out (values are inclusive).
-det01 datasec02 [:,512:525]          # Either the data sections or the header keyword where the valid data sections can be obtained
-det01 oscansec02 [:,626:725]        # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+det01 gain 1.9,1.9                    # Inverse gain (e-/ADU)
+det01 ronoise 3.8,3.8                 # Read-out noise (e-)
 det01 suffix _red                     # Suffix to be appended to all saved calibration and extraction frames
+det01 datasec01 [:,1:511]             # Either the data sections or the header keyword where the valid data sections can be obtained
+det01 oscansec01 [:,526:625]          # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+det01 datasec02 [:,512:525]           # Either the data sections or the header keyword where the valid data sections can be obtained
+det01 oscansec02 [:,626:725]          # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
 
 ### Checks to perform
 check 01.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
