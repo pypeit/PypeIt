@@ -28,7 +28,7 @@ except NameError:
 msgs = armsgs.get_logger()
 
 
-def sort_data(fitsdict):
+def sort_data(fitsdict, set_bad_to_unknwn=False):
     """
     Create an exposure class for every science frame
 
@@ -36,6 +36,9 @@ def sort_data(fitsdict):
     ----------
     fitsdict : dict
       Contains relevant information from fits header files
+    set_bad_to_unknwn : bool, optional
+      Instead of crashing out if there are unidentified files,
+      set to 'unknown' and continue
 
     Returns
     -------
@@ -52,6 +55,7 @@ def sort_data(fitsdict):
                  'pixelflat': np.array([], dtype=np.int),
                  'slitflat': np.array([], dtype=np.int),
                  'trace': np.array([], dtype=np.int),
+                 'unknown': np.array([], dtype=np.int),
                  'arc': np.array([], dtype=np.int)})
     fkey = np.array(ftag.keys())
     # Create an array where 1 means it is a certain type of frame and 0 means it isn't.
@@ -59,6 +63,8 @@ def sort_data(fitsdict):
     setarr = np.zeros((len(fkey), numfiles), dtype=np.int)
     # Identify the frames:
     for i in range(len(fkey)):
+        if fkey[i] == 'unknown':
+            continue
         # Self identification
         if settings.argflag['run']['useIDname']:
             w = np.where(fitsdict['idname'] == settings.spect[fkey[i]]['idname'])[0]
@@ -149,7 +155,10 @@ def sort_data(fitsdict):
         msgs.info("Couldn't identify the following files:")
         for i in range(np.size(badfiles)):
             msgs.info(fitsdict['filename'][badfiles[i]])
-        msgs.error("Check these files and your settings.{0:s} file before continuing".format(settings.argflag['run']['spectrograph']))
+        if set_bad_to_unknwn:
+            filarr[np.where(fkey == 'unknown')[0],badfiles] = 1
+        else:
+            msgs.error("Check these files and your settings.{0:s} file before continuing".format(settings.argflag['run']['spectrograph']))
     # Now identify the dark frames
     wdark = np.where((filarr[np.where(fkey == 'bias')[0],:] == 1).flatten() &
         (fitsdict['exptime'].astype(np.float64) > settings.spect['mosaic']['minexp']))[0]
@@ -337,7 +346,8 @@ def match_science(fitsdict, filesort):
     nSCI = iSCI.size
     i = 0
     while i < nSCI:
-        msgs.info("Matching calibrations to {0:s}".format(fitsdict['target'][iSCI[i]]))
+        msgs.info("Matching calibrations to {:s}: {:s}".format(
+                fitsdict['target'][iSCI[i]], fitsdict['filename'][iSCI[i]]))
         settings.spect['science']['index'].append(np.array([iSCI[i]]))
         # Find nearby calibration frames
         for ft in range(len(ftag)):
