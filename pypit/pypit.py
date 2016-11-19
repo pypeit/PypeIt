@@ -6,6 +6,7 @@ from time import time
 from pypit import armsgs
 from pypit import archeck
 import glob
+import numpy as np
 
 # Import PYPIT routines
 
@@ -100,6 +101,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
         lines = infile.readlines()
         parlines = []
         datlines = []
+        skip_files = []
         spclines = []
         rddata, rdspec = 0, 0
         for i in range(len(lines)):
@@ -108,6 +110,15 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
             if rddata == 1:
                 if linspl[0] == 'data' and linspl[1] == 'end':
                     rddata += 1
+                    # Deal with skip files
+                    if len(skip_files) > 0:
+                        keep = np.array([True]*len(datlines))
+                        for skip_file in skip_files:
+                            for kk,datfile in enumerate(datlines):
+                                if skip_file in datfile:
+                                    keep[kk] = False
+                        # Save
+                        datlines = np.array(datlines)[keep].tolist()
                     continue
                 dfname = lines[i].rstrip('\n').strip()
                 # is there a comment?
@@ -120,6 +131,8 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
                     import os
                     dfname = os.path.expanduser(dfname)
                     print(dfname)
+                elif dfname[:4] == 'skip':
+                    skip_files.append(dfname.split(' ')[1])
                 elif dfname[0] != '/':
                     msgs.error("You must specify the full datapath for the file:" + msgs.newline() + dfname)
                 elif len(dfname.split()) != 1:
