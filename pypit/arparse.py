@@ -672,7 +672,10 @@ class BaseArgFlag(BaseFunctions):
         """
         v = key_none(v)
         if v is None:
-            v = self._argflag['run']['redname'].replace('.pypit', '')
+            try:
+                v = self._argflag['run']['redname'].replace('.pypit', '')
+            except AttributeError:
+                pass
         elif v == 'off':
             v = None
         self.update(v)
