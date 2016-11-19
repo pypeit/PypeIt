@@ -52,15 +52,12 @@ The most important file generated
 is a .setup file, e.g. lris_blue_2016-Nov-18.setup.  This file describes
 all of the instrument configurations that were parsed by the
 code for the input raw files.  It is a YAML file and each
-top-level key indicates the setup values, e.g. '01_02'.
-
-PYPIT generates a unique setup for every detector in the
-instrument.  These are grouped together in the .setup file.
-For example, '01_02' is a single instrument configuration
-with two detectors.  The next configuration would have '03_04', etc.
+top-level key indicates the setup values, e.g. '01'.
+Note that PYPIT generates a unique setup for every detector in the
+instrument.
 
 The remainder of the information in the .setup file describes
-how the instrument configuration.
+the instrument configuration.
 
 **Important:**  There can be only one .setup file in a working
 PYPIT reduction folder for each instrument being reduced.
@@ -94,7 +91,12 @@ calibration files listed, these should be suppressed with
 the Settings File (alternatively one can remove them from the raw data
 folder, but this practice should be avoided).
 
-Here is example output of a .group file::
+Setups that only differ by detector are grouped together in
+this file. For example, '01_02' is a single instrument configuration
+with two detectors.  The next configuration would have '03_04', etc.
+
+Here is example output of a .group file for Kast (which has
+only 1 detector per spectrograph)::
 
     '01':
       arc: [b1.fits.gz]
