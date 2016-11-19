@@ -650,20 +650,17 @@ def make_dirs(fitsdict, filesort):
     return sci_targs
 
 
-def calib_setup(sc, det, fitsdict, calib_dict,
-                write=False, use_json=False):
-    """ Define calibration setup
+def instr_setup(sc, det, fitsdict, setup_dict):
+    """ Define instrument setup
+
     Parameters
     ----------
     sciexp
-    calib_dict
-    use_json : bool, optional
-      Output setup file in JSON [deprecating]
+    setup_dict
 
     Returns
     -------
     """
-    import json, io, yaml
     setup_str = [str('{:02d}'.format(i+1)) for i in range(99)]
     # Arc
     idx = settings.spect['arc']['index'][sc]
@@ -693,49 +690,126 @@ def calib_setup(sc, det, fitsdict, calib_dict,
                            'naxis1': naxis1},
                  )
 
-    if len(calib_dict) == 0: # Generate
+    if len(setup_dict) == 0: # Generate
         setup = str('01')
         # Finish
-        calib_dict[setup] = cdict
+        setup_dict[setup] = cdict
     else:
         # Search for a match
         setup = None
-        for ckey in calib_dict.keys():
+        for ckey in setup_dict.keys():
             mtch = True
-            for key in calib_dict[ckey].keys():
+            for key in setup_dict[ckey].keys():
                 # Dict?
-                if isinstance(calib_dict[ckey][key], dict):
-                    for ikey in calib_dict[ckey][key].keys():
-                        mtch &= calib_dict[ckey][key][ikey] == cdict[key][ikey]
+                if isinstance(setup_dict[ckey][key], dict):
+                    for ikey in setup_dict[ckey][key].keys():
+                        mtch &= setup_dict[ckey][key][ikey] == cdict[key][ikey]
                         #if mtch is False:
                         #    debugger.set_trace()
                 else:
-                    mtch &= calib_dict[ckey][key] == cdict[key]
+                    mtch &= setup_dict[ckey][key] == cdict[key]
                     #if mtch is False:
                     #    debugger.set_trace()
             if mtch:
                 setup = ckey
                 break
-        # Augment calib_dict?
+        # Augment setup_dict?
         if setup is None:
-            if write is False:
-                return ''
-            maxs = max(calib_dict.keys())
+            maxs = max(setup_dict.keys())
             setup = setup_str[setup_str.index(maxs)+1]
-            calib_dict[setup] = cdict
-
-    # Write
-    if write:
-        setup_file = settings.argflag['output']['sorted']+'.setup'
-        settings.argflag['reduce']['masters']['file'] = setup_file
-        if use_json:
-            gddict = ltu.jsonify(calib_dict)
-            with io.open(setup_file, 'w', encoding='utf-8') as f:
-                f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4,
-                                       separators=(',', ': '))))
-        else: # YAML
-            ydict = arutils.yamlify(calib_dict)
-            with open(setup_file, 'w') as yamlf:
-                yamlf.write(yaml.dump(ydict))#, default_flow_style=True) )
+            setup_dict[setup] = cdict
 
     return setup
+
+
+def get_setup_file():
+    """ Passes back name of setup file
+    Also checks for existing setup files
+
+    Returns
+    -------
+    setup_file : str
+      Name for the setup file
+    nexist : int
+      Number of existing setup files (0 or 1)
+
+    """
+    import glob
+    import datetime
+
+    spectrograph = settings.argflag['run']['spectrograph']
+    setup_files = glob.glob('./{:s}*.setup'.format(spectrograph))
+    nexist = len(setup_files)
+    # Require 1 or 0
+    if nexist == 1:
+        return setup_files[0], nexist
+    elif nexist == 0:
+        date = str(datetime.date.today().strftime('%Y-%b-%d'))
+        return '{:s}_{:s}.setup'.format(spectrograph,date), nexist
+    else:
+        msgs.error("Found more than one .setup file in the working directory.  Limit to one.")
+
+def compare_setup(s1, s2):
+    """ Compare two setup dicts
+    Parameters
+    ----------
+    s1
+    s2
+
+    Returns
+    -------
+
+    """
+    pass
+    #for key in s1.keys():
+    #    for key2 in s1[key]
+
+def load_setup():
+    """ Load setup from the disk
+
+    Returns
+    -------
+    setup_dict : dict
+
+    """
+    import yaml
+    setup_file, nexist = get_setup_file()
+    if nexist == 0:
+        msgs.error("No existing setup file.  Generate one first (e.g. pypit_setup)!")
+    # YAML
+    with open(setup_file, 'r') as infile:
+        setup_dict = yaml.load(infile)
+    # Return
+    return setup_dict
+
+
+def write_setup(setup_dict, use_json=False):
+    """ Output setup_dict to hard drive
+    This should only be done once and only if no setup file
+    exists already.
+
+    Parameters
+    ----------
+    setup_dict : dict
+      setup dict
+    use_json : bool, optional
+      Output with JSON instead of YAML (not recommended)
+
+    Returns
+    -------
+
+    """
+    import json, io, yaml
+    # Write
+    setup_file, nexist = get_setup_file()
+    if nexist == 1:
+        msgs.error("Cannot over-write existing setup file.  If you wish to, remove and rerun")
+    if use_json:
+        gddict = ltu.jsonify(setup_dict)
+        with io.open(setup_file, 'w', encoding='utf-8') as f:
+            f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4,
+                                       separators=(',', ': '))))
+    else: # YAML
+        ydict = arutils.yamlify(setup_dict)
+        with open(setup_file, 'w') as yamlf:
+            yamlf.write(yaml.dump(ydict))

@@ -37,11 +37,9 @@ def SetupScience(fitsdict):
     # Init
     if settings.argflag['run']['calcheck']:
         do_qa = False
-        write_setup=True
         bad_to_unknown = True
     else:
         do_qa = True
-        write_setup=False
         bad_to_unknown = False
     # Sort the data
     msgs.bug("Files and folders should not be deleted -- there should be an option to overwrite files automatically if they already exist, or choose to rename them if necessary")
@@ -56,14 +54,13 @@ def SetupScience(fitsdict):
     sciexp = []
     for i in range(numsci):
         sciexp.append(arsciexp.ScienceExposure(i, fitsdict, do_qa=do_qa))
-    # Generate setup and group -- Out if calcheck
-    setup_file = settings.argflag['output']['sorted']+'.setup'
-    calib_dict = {}
+    # Generate setup and group dicts
+    setup_dict = {}
     group_dict = {}
     for sc in range(numsci):
         scidx = sciexp[sc]._idx_sci[0]
         # Run setup
-        setup = arsort.calib_setup(sc, 1, fitsdict, calib_dict, write=write_setup)
+        setup = arsort.instr_setup(sc, 1, fitsdict, setup_dict)
         # Set group_key
         setup_val = ['{:02d}'.format(int(setup)+i)
                      for i in range(settings.spect['mosaic']['ndet'])]
@@ -77,9 +74,9 @@ def SetupScience(fitsdict):
                     group_dict[group_key][key] = []
                 group_dict[group_key]['sciobj'] = []
                 group_dict[group_key]['stdobj'] = []
-       # Run through the setups
+        # Run through the setups
         for kk in range(settings.spect['mosaic']['ndet']):
-            _ = arsort.calib_setup(sc, kk+1, fitsdict, calib_dict, write=write_setup)
+            _ = arsort.instr_setup(sc, kk+1, fitsdict, setup_dict)
             # Fill group_dict too
             if kk==0:
                 for key in filesort.keys():
@@ -93,6 +90,15 @@ def SetupScience(fitsdict):
                                 group_dict[group_key]['stdobj'].append(fitsdict['target'][idx])
                         if key == 'science':  # Add target name
                             group_dict[group_key]['sciobj'].append(fitsdict['target'][scidx])
+    # Write setup -- only if not present
+    setup_file, nexist = arsort.get_setup_file()
+    if nexist == 0:
+        arsort.write_setup(setup_dict)
+    elif nexist == 1: # Compare
+        pass
+        #prev_setup_dict = arsort.load_setup()
+        #if arsort.compare_setup(setup_dict, prev_setup_dict) is False:
+        #    msgs.error("Existing setup (from disk) does not match new one.  Regenerate setup file")
     # Finish calcheck
     if settings.argflag['run']['calcheck']:
         # Write group file

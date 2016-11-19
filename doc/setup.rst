@@ -7,6 +7,11 @@ Setup
 This document will describe how to organize your
 raw files and the settings files for running PYPIT.
 
+If you tend to observe with one instrument configuration
+and with a simple set of calibrations, then setup should
+be straightforward.  If you use multiple configurations
+(e.g. gratings, grating tilts), then one must pay more
+careful attention to the setup.
 
 Raw Files
 =========
