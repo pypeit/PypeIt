@@ -105,7 +105,7 @@ def SetupScience(fitsdict):
     # Finish calcheck
     if settings.argflag['run']['calcheck']:
         # Write group file
-        group_file = setup_file.replace('setup', 'group')
+        group_file = settings.argflag['output']['sorted']+'.group'
         ydict = arutils.yamlify(group_dict)
         with open(group_file, 'w') as yamlf:
             yamlf.write( yaml.dump(ydict))#, default_flow_style=True) )
