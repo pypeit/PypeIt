@@ -650,7 +650,7 @@ def make_dirs(fitsdict, filesort):
     return sci_targs
 
 
-def instr_setup(sc, det, fitsdict, setup_dict):
+def instr_setup(sc, det, fitsdict, setup_dict, must_exist=False):
     """ Define instrument setup
 
     Parameters
@@ -715,6 +715,8 @@ def instr_setup(sc, det, fitsdict, setup_dict):
                 break
         # Augment setup_dict?
         if setup is None:
+            if must_exist:
+                msgs.error("This setup is not present in the setup_dict.  Regenerate your setup file!")
             maxs = max(setup_dict.keys())
             setup = setup_str[setup_str.index(maxs)+1]
             setup_dict[setup] = cdict
@@ -748,6 +750,7 @@ def get_setup_file():
         return '{:s}_{:s}.setup'.format(spectrograph,date), nexist
     else:
         msgs.error("Found more than one .setup file in the working directory.  Limit to one.")
+
 
 def compare_setup(s1, s2):
     """ Compare two setup dicts

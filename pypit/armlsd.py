@@ -58,14 +58,9 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     masters = armasters.MasterFrames(settings.spect['mosaic']['ndet'])
 
     # Use Masters?  Requires setup file
-    setup_file = settings.argflag['output']['sorted']+'.setup'
-    try:
-        calib_dict = ltu.loadjson(setup_file)
-    except:
-        msgs.info("No setup file {:s} for MasterFrames".format(setup_file))
-        calib_dict = {}
-    else:
-        settings.argflag['reduce']['masters']['file'] = setup_file
+    setup_file, nexist = arsort.get_setup_file()
+    setup_dict = arsort.load_setup()
+    settings.argflag['reduce']['masters']['file'] = setup_file
 
     # Start reducing the data
     for sc in range(numsci):
@@ -83,7 +78,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             # Get amplifier sections
             arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
             # Setup
-            setup = arsort.calib_setup(sc, det, fitsdict, calib_dict, write=False)
+            setup = arsort.instr_setup(sc, det, fitsdict, setup_dict, must_exist=True)
             settings.argflag['reduce']['masters']['setup'] = setup
             ###############
             # Generate master bias frame
@@ -186,7 +181,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 continue
 
             # Write setup
-            setup = arsort.calib_setup(sc, det, fitsdict, calib_dict, write=True)
+            #setup = arsort.calib_setup(sc, det, fitsdict, setup_dict, write=True)
             # Write MasterFrames (currently per detector)
             armasters.save_masters(slf, det, setup)
 
