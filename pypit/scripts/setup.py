@@ -67,7 +67,7 @@ def main(args):
         f.write("run calcheck True\n")  # This is the key line here
         f.write("run spectrograph {:s}\n".format(args.spectrograph))
         f.write("output overwrite True\n")
-        f.write("output sorted {:s}\n".format(root))
+        #f.write("output sorted {:s}\n".format(root))
         f.write("\n")
         f.write("# Read in the data\n")
         f.write("data read\n")

@@ -103,7 +103,7 @@ def SetupScience(fitsdict):
         #if arsort.compare_setup(setup_dict, prev_setup_dict) is False:
         #    msgs.error("Existing setup (from disk) does not match new one.  Regenerate setup file")
     # Write group file
-    group_file = settings.argflag['output']['sorted']+'.group'
+    group_file = settings.argflag['run']['redname'].replace('.pypit', '.group')
     ydict = arutils.yamlify(group_dict)
     with open(group_file, 'w') as yamlf:
         yamlf.write( yaml.dump(ydict))#, default_flow_style=True) )
