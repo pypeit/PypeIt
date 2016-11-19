@@ -660,8 +660,10 @@ class BaseArgFlag(BaseFunctions):
 
     def output_sorted(self, v):
         """ A filename given to output the details of the sorted files.
-        If None, no output is created. The value of this keyword argument
-        should have no extension name
+        If no value is set, the default is the Settings File with .pypit
+        removed.
+        User can turn off this output by setting: output sorted off
+        The value of this keyword argument should have no extension name
 
         Parameters
         ----------
@@ -669,6 +671,10 @@ class BaseArgFlag(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_none(v)
+        if v is None:
+            v = self._argflag['run']['redname'].replace('.pypit', '')
+        elif v == 'off':
+            v = None
         self.update(v)
 
     def output_verbosity(self, v):
