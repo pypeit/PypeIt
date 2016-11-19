@@ -3,10 +3,13 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 import sys
 import os
 import numpy as np
+import yaml
+
 from pypit import arparse as settings
 from pypit import armsgs
 from pypit import arsort
 from pypit import arsciexp
+from pypit import arutils
 
 # Logging
 msgs = armsgs.get_logger()
@@ -19,7 +22,7 @@ except ImportError:
 
 def SetupScience(fitsdict):
     """ Create an exposure class for every science frame
-    Also links to standard star frames
+    Also links to standard star frames and calibrations
 
     Parameters
     ----------
@@ -31,12 +34,17 @@ def SetupScience(fitsdict):
     sciexp : list
       A list containing all science exposure classes
     """
-    # Sort the data
-    msgs.bug("Files and folders should not be deleted -- there should be an option to overwrite files automatically if they already exist, or choose to rename them if necessary")
+    # Init
     if settings.argflag['run']['calcheck']:
+        do_qa = False
+        write_setup=True
         bad_to_unknown = True
     else:
+        do_qa = True
+        write_setup=False
         bad_to_unknown = False
+    # Sort the data
+    msgs.bug("Files and folders should not be deleted -- there should be an option to overwrite files automatically if they already exist, or choose to rename them if necessary")
     filesort = arsort.sort_data(fitsdict, set_bad_to_unknwn=bad_to_unknown)
     # Write out the details of the sorted files
     if settings.argflag['output']['sorted'] is not None:
@@ -46,28 +54,54 @@ def SetupScience(fitsdict):
     # Create the list of science exposures
     numsci = np.size(filesort['science'])
     sciexp = []
-    if settings.argflag['run']['calcheck']:
-        do_qa = False
-    else:
-        do_qa = True
     for i in range(numsci):
         sciexp.append(arsciexp.ScienceExposure(i, fitsdict, do_qa=do_qa))
-    # If the user is only running the setup, then create setup file
-    # and exit
+    # Generate setup and plan -- Out if calcheck
+    setup_file = settings.argflag['output']['sorted']+'.setup'
+    calib_dict = {}
+    plan_dict = {}
+    for sc in range(numsci):
+        scidx = sciexp[sc]._idx_sci[0]
+        # Run setup
+        setup = arsort.calib_setup(sc, 1, fitsdict, calib_dict, write=write_setup)
+        # Set plan_key
+        setup_val = ['{:02d}'.format(int(setup)+i)
+                     for i in range(settings.spect['mosaic']['ndet'])]
+        s = '_'
+        plan_key = s.join(setup_val)
+        # Plan init
+        if plan_key not in plan_dict.keys():
+            plan_dict[plan_key] = {}
+            for key in filesort.keys():
+                if key not in ['unknown', 'dark']:
+                    plan_dict[plan_key][key] = []
+                plan_dict[plan_key]['sciobj'] = []
+                plan_dict[plan_key]['stdobj'] = []
+       # Run through the setups
+        for kk in range(settings.spect['mosaic']['ndet']):
+            _ = arsort.calib_setup(sc, kk+1, fitsdict, calib_dict, write=write_setup)
+            # Fill plan_dict too
+            if kk==0:
+                for key in filesort.keys():
+                    if key in ['unknown', 'dark']:
+                        continue
+                    for idx in settings.spect[key]['index'][sc]:
+                        # Only add if new
+                        if fitsdict['filename'][idx] not in plan_dict[plan_key][key]:
+                            plan_dict[plan_key][key].append(fitsdict['filename'][idx])
+                        if key == 'science':  # Add target name
+                            plan_dict[plan_key]['sciobj'].append(fitsdict['target'][scidx])
+                        if key == 'standard':  # Add target name
+                            plan_dict[plan_key]['stdobj'].append(fitsdict['target'][idx])
+    # Finish calcheck
     if settings.argflag['run']['calcheck']:
-        # Setup
-        setup_file = settings.argflag['output']['sorted']+'.setup'
-        if os.path.isfile(setup_file):
-            msgs.warn("Will not overwrite setup_file: {:s}".format(setup_file))
-            msgs.warn("Remove and run again if you wish to")
-        else:
-            calib_dict = {}
-            for sc in range(numsci):
-                for kk in range(settings.spect['mosaic']['ndet']):
-                    _ = arsort.calib_setup(sc, kk+1, fitsdict, calib_dict, write=True)
-        # Finish
+        plan_file = setup_file.replace('setup', 'plan')
+        ydict = arutils.yamlify(plan_dict)
+        with open(plan_file, 'w') as yamlf:
+            yamlf.write( yaml.dump(ydict))#, default_flow_style=True) )
         msgs.info("Calibration check complete. Change the 'calcheck' flag to continue with data reduction")
         msgs.info("Inspect the setup file: {:s}".format(setup_file))
+        msgs.info("Inspect the plan file: {:s}".format(plan_file))
         sys.exit()
     # Make directory structure for different objects
     sci_targs = arsort.make_dirs(fitsdict, filesort)

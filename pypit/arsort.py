@@ -475,7 +475,10 @@ def match_science(fitsdict, filesort):
                 # Select the closest calibration frames to the science frame
                 tdiff = np.abs(fitsdict['time'][n].astype(np.float64)-np.float64(fitsdict['time'][iSCI[i]]))
                 wa = np.argsort(tdiff)
-                settings.spect[ftag[ft]]['index'].append(n[wa[:numfr]])
+                if settings.argflag['run']['calcheck']:
+                    settings.spect[ftag[ft]]['index'].append(n[wa])
+                else:
+                    settings.spect[ftag[ft]]['index'].append(n[wa[:numfr]])
         i += 1
     msgs.info("Science frames successfully matched to calibration frames")
     return
