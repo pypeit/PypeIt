@@ -49,6 +49,9 @@ def SetupScience(fitsdict):
         arsort.sort_write(fitsdict, filesort)
     # Match calibration frames to science frames
     arsort.match_science(fitsdict, filesort)
+    # Make directory structure for different objects
+    if do_qa:
+        sci_targs = arsort.make_dirs(fitsdict, filesort)
     # Create the list of science exposures
     numsci = np.size(filesort['science'])
     sciexp = []
@@ -110,8 +113,6 @@ def SetupScience(fitsdict):
         msgs.info("Inspect the setup file: {:s}".format(setup_file))
         msgs.info("Inspect the group file: {:s}".format(group_file))
         sys.exit()
-    # Make directory structure for different objects
-    sci_targs = arsort.make_dirs(fitsdict, filesort)
     return sciexp
 
 
