@@ -96,33 +96,16 @@ folder, but this practice should be avoided).
 
 Here is example output of a .group file::
 
-  '01_02':
-      arc: [LB.20160406.11620.fits, LB.20160406.11483.fits, LB.20160406.11329.fits, LB.20160406.11278.fits,
-        LB.20160406.11165.fits, LB.20160406.11109.fits]
-      bias: []
-      pixelflat: [LB.20160406.19768.fits, LB.20160406.18944.fits, LB.20160406.18889.fits,
-        LB.20160406.18831.fits, LB.20160406.18780.fits, LB.20160406.18731.fits, LB.20160406.18679.fits,
-        LB.20160406.18632.fits, LB.20160406.18583.fits, LB.20160406.18468.fits, LB.20160406.18370.fits,
-        LB.20160406.18257.fits, LB.20160406.18128.fits, LB.20160406.18012.fits, LB.20160406.17958.fits,
-        LB.20160406.17903.fits, LB.20160406.17832.fits, LB.20160406.17779.fits, LB.20160406.17716.fits,
-        LB.20160406.17643.fits, LB.20160406.17590.fits, LB.20160406.17533.fits]
-      science: [LB.20160406.21160.fits, LB.20160406.23011.fits, LB.20160406.24861.fits,
-        LB.20160406.35081.fits, LB.20160406.36935.fits]
-      sciobj: [J0817+1351, J0817+1351, J0817+1351, J1201+2117, J1201+2117]
-      slitflat: [LB.20160406.19768.fits, LB.20160406.18944.fits, LB.20160406.18889.fits,
-        LB.20160406.18831.fits, LB.20160406.18780.fits, LB.20160406.18731.fits, LB.20160406.18679.fits,
-        LB.20160406.18632.fits, LB.20160406.18583.fits, LB.20160406.18468.fits, LB.20160406.18370.fits,
-        LB.20160406.18257.fits, LB.20160406.18128.fits, LB.20160406.18012.fits, LB.20160406.17958.fits,
-        LB.20160406.17903.fits, LB.20160406.17832.fits, LB.20160406.17779.fits, LB.20160406.17716.fits,
-        LB.20160406.17643.fits, LB.20160406.17590.fits, LB.20160406.17533.fits]
-      standard: [LB.20160406.19768.fits, LB.20160406.19649.fits]
-      stdobj: [Feige 34, Feige 34]
-      trace: [LB.20160406.19768.fits, LB.20160406.18944.fits, LB.20160406.18889.fits,
-        LB.20160406.18831.fits, LB.20160406.18780.fits, LB.20160406.18731.fits, LB.20160406.18679.fits,
-        LB.20160406.18632.fits, LB.20160406.18583.fits, LB.20160406.18468.fits, LB.20160406.18370.fits,
-        LB.20160406.18257.fits, LB.20160406.18128.fits, LB.20160406.18012.fits, LB.20160406.17958.fits,
-        LB.20160406.17903.fits, LB.20160406.17832.fits, LB.20160406.17779.fits, LB.20160406.17716.fits,
-        LB.20160406.17643.fits, LB.20160406.17590.fits, LB.20160406.17533.fits]
+    '01':
+      arc: [b1.fits.gz]
+      bias: [b23.fits.gz, b22.fits.gz, b21.fits.gz]
+      pixelflat: [b13.fits.gz, b12.fits.gz, b11.fits.gz]
+      science: [b27.fits.gz, b28.fits.gz, b29.fits.gz]
+      sciobj: [J1217p3905, J1217p3905, J1217p3905]
+      slitflat: [b13.fits.gz, b12.fits.gz, b11.fits.gz]
+      standard: [b24.fits.gz]
+      stdobj: [Feige 66]
+      trace: []
 
 Settings File
 =============

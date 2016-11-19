@@ -102,13 +102,13 @@ def SetupScience(fitsdict):
         #prev_setup_dict = arsort.load_setup()
         #if arsort.compare_setup(setup_dict, prev_setup_dict) is False:
         #    msgs.error("Existing setup (from disk) does not match new one.  Regenerate setup file")
+    # Write group file
+    group_file = settings.argflag['output']['sorted']+'.group'
+    ydict = arutils.yamlify(group_dict)
+    with open(group_file, 'w') as yamlf:
+        yamlf.write( yaml.dump(ydict))#, default_flow_style=True) )
     # Finish calcheck
     if settings.argflag['run']['calcheck']:
-        # Write group file
-        group_file = settings.argflag['output']['sorted']+'.group'
-        ydict = arutils.yamlify(group_dict)
-        with open(group_file, 'w') as yamlf:
-            yamlf.write( yaml.dump(ydict))#, default_flow_style=True) )
         msgs.info("Calibration check complete. Change the 'calcheck' flag to continue with data reduction")
         msgs.info("Inspect the setup file: {:s}".format(setup_file))
         msgs.info("Inspect the group file: {:s}".format(group_file))
