@@ -24,6 +24,8 @@ def parser(options=None):
     parser.add_argument("spectrograph", type=str, help="Name of spectrograph")
     parser.add_argument("-v", "--verbosity", type=int, default=2, help="(2) Level of verbosity (0-2)")
     parser.add_argument("-d", "--develop", default=False, action='store_true', help="Turn develop debugging on")
+    parser.add_argument("--extension", default='.fits', action='store_true',
+                        help="Extension for data files.  Note any extension for compression (e.g. .gz) is not required.")
     #parser.add_argument("-q", "--quick", default=False, help="Quick reduction", action="store_true")
     #parser.add_argument("-c", "--cpus", default=False, help="Number of CPUs for parallel processing", action="store_true")
     #parser.print_help()
@@ -38,11 +40,19 @@ def parser(options=None):
 
 def main(args):
 
-    import sys, os
-    from pypit import pypit
+    import sys
+    import glob
     from pypit.scripts import run_pypit
-    import traceback
     import datetime
+
+    # Check for existing setup file
+    setup_files = glob.glob('./{:s}*.setup'.format(args.spectrograph))
+    if len(setup_files) > 0:
+        print("Working directory already includes a .setup file")
+        for ifile in setup_files:
+            print("Remove: {:s}".format(ifile))
+        print("Then you can re-run this script")
+        sys.exit()
 
     # Generate a dummy .pypit file
     date = str(datetime.date.today().strftime('%Y-%b-%d'))
@@ -61,7 +71,7 @@ def main(args):
         f.write("\n")
         f.write("# Read in the data\n")
         f.write("data read\n")
-        f.write(" {:s}*\n".format(args.files_root))
+        f.write(" {:s}*{:s}*\n".format(args.files_root, args.extension))
         f.write("data end\n")
         f.write("\n")
         f.write("spect read\n")

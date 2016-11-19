@@ -651,16 +651,19 @@ def make_dirs(fitsdict, filesort):
 
 
 def calib_setup(sc, det, fitsdict, calib_dict,
-                write=False):
+                write=False, use_json=False):
     """ Define calibration setup
     Parameters
     ----------
     sciexp
     calib_dict
+    use_json : bool, optional
+      Output setup file in JSON [deprecating]
+
     Returns
     -------
     """
-    import json, io
+    import json, io, yaml
     setup_str = [str('{:02d}'.format(i+1)) for i in range(99)]
     # Arc
     idx = settings.spect['arc']['index'][sc]
@@ -723,11 +726,16 @@ def calib_setup(sc, det, fitsdict, calib_dict,
 
     # Write
     if write:
-        gddict = ltu.jsonify(calib_dict)
         setup_file = settings.argflag['output']['sorted']+'.setup'
         settings.argflag['reduce']['masters']['file'] = setup_file
-        with io.open(setup_file, 'w', encoding='utf-8') as f:
-            f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4,
+        if use_json:
+            gddict = ltu.jsonify(calib_dict)
+            with io.open(setup_file, 'w', encoding='utf-8') as f:
+                f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4,
                                        separators=(',', ': '))))
+        else: # YAML
+            ydict = arutils.yamlify(calib_dict)
+            with open(setup_file, 'w') as yamlf:
+                yamlf.write(yaml.dump(ydict))#, default_flow_style=True) )
 
     return setup

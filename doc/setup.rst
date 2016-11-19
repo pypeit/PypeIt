@@ -11,6 +11,84 @@ raw files and the settings files for running PYPIT.
 Raw Files
 =========
 
+The raw files may be located anywhere on the harddrive.
+We recommend you organize them by date of observation.
+They can be gzipped although Python's FITS reader works
+considerably slower on compressed files.
+
+pypit_setup
+===========
+
+PYPIT includes a script that one may execute (*recommended*)
+to initiate the data reduction process.  This script helps organize
+the primary data reduction process that follows.  It also
+generates a default Settings File which can be edited further
+to run PYPIT.
+
+Execution
+---------
+
+The setup script requires two inputs: the root of the data
+files (with the full path) and the instrument name.  Here is an example::
+
+    pypit_setup /Users/xavier/Keck/LRIS/data/2016apr06/Raw/LB lris_blue
+
+The code will search for all FITS files with the inputted root.
+
+Outputs
+-------
+
+The pypit_setup script generates several outputs.
+
+Setup File
+++++++++++
+
+The most important file generated
+is a .setup file, e.g. lris_blue_2016-Nov-18.setup.  This file describes
+all of the instrument configurations that were parsed by the
+code for the input raw files.  It is a YAML file and each
+top-level key indicates the setup values, e.g. '01_02'.
+
+PYPIT generates a unique setup for every detector in the
+instrument.  These are grouped together in the .setup file.
+For example, '01_02' is a single instrument configuration
+with two detectors.  The next configuration would have '03_04', etc.
+
+The remainder of the information in the .setup file describes
+how the instrument configuration.
+
+**Important:**  There can be only one .setup file in a working
+PYPIT reduction folder for each instrument being reduced.
+
+Here is sample output for the LRISb instrument::
+
+    '01':
+      detector: {binning: '2,2', det: 1, naxis0: None, naxis1: None}
+      dichroic: '560'
+      disperser: {angle: None, name: 600/4000}
+      slit: {decker: long_1.0, slitlen: None, slitwid: None}
+
+
+Data Listings
++++++++++++++
+
+Two files are generated which describe the input raw files,
+line by line.  These have .lst and .xml extensions.
+Data pulled from the header are shown here.  In addition, the
+frametype assigned by PYPIT is specified.  If any of these are
+mis-specified (possible), they should be correctly specified
+in your Settings File.
+
+Groupings
++++++++++
+
+A .group file is generated which describes how PYPIT will
+group calbrations, science, and standard star frames when
+performing the reduction.  If there are incorrect or unwanted
+calibration files listed, these should be suppressed with
+the Settings File (alternatively one can remove them from the raw data
+folder, but this practice should be avoided).
+
 
 Settings File
 =============

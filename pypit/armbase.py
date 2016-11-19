@@ -56,52 +56,53 @@ def SetupScience(fitsdict):
     sciexp = []
     for i in range(numsci):
         sciexp.append(arsciexp.ScienceExposure(i, fitsdict, do_qa=do_qa))
-    # Generate setup and plan -- Out if calcheck
+    # Generate setup and group -- Out if calcheck
     setup_file = settings.argflag['output']['sorted']+'.setup'
     calib_dict = {}
-    plan_dict = {}
+    group_dict = {}
     for sc in range(numsci):
         scidx = sciexp[sc]._idx_sci[0]
         # Run setup
         setup = arsort.calib_setup(sc, 1, fitsdict, calib_dict, write=write_setup)
-        # Set plan_key
+        # Set group_key
         setup_val = ['{:02d}'.format(int(setup)+i)
                      for i in range(settings.spect['mosaic']['ndet'])]
         s = '_'
-        plan_key = s.join(setup_val)
+        group_key = s.join(setup_val)
         # Plan init
-        if plan_key not in plan_dict.keys():
-            plan_dict[plan_key] = {}
+        if group_key not in group_dict.keys():
+            group_dict[group_key] = {}
             for key in filesort.keys():
                 if key not in ['unknown', 'dark']:
-                    plan_dict[plan_key][key] = []
-                plan_dict[plan_key]['sciobj'] = []
-                plan_dict[plan_key]['stdobj'] = []
+                    group_dict[group_key][key] = []
+                group_dict[group_key]['sciobj'] = []
+                group_dict[group_key]['stdobj'] = []
        # Run through the setups
         for kk in range(settings.spect['mosaic']['ndet']):
             _ = arsort.calib_setup(sc, kk+1, fitsdict, calib_dict, write=write_setup)
-            # Fill plan_dict too
+            # Fill group_dict too
             if kk==0:
                 for key in filesort.keys():
                     if key in ['unknown', 'dark']:
                         continue
                     for idx in settings.spect[key]['index'][sc]:
                         # Only add if new
-                        if fitsdict['filename'][idx] not in plan_dict[plan_key][key]:
-                            plan_dict[plan_key][key].append(fitsdict['filename'][idx])
+                        if fitsdict['filename'][idx] not in group_dict[group_key][key]:
+                            group_dict[group_key][key].append(fitsdict['filename'][idx])
+                            if key == 'standard':  # Add target name
+                                group_dict[group_key]['stdobj'].append(fitsdict['target'][idx])
                         if key == 'science':  # Add target name
-                            plan_dict[plan_key]['sciobj'].append(fitsdict['target'][scidx])
-                        if key == 'standard':  # Add target name
-                            plan_dict[plan_key]['stdobj'].append(fitsdict['target'][idx])
+                            group_dict[group_key]['sciobj'].append(fitsdict['target'][scidx])
     # Finish calcheck
     if settings.argflag['run']['calcheck']:
-        plan_file = setup_file.replace('setup', 'plan')
-        ydict = arutils.yamlify(plan_dict)
-        with open(plan_file, 'w') as yamlf:
+        # Write group file
+        group_file = setup_file.replace('setup', 'group')
+        ydict = arutils.yamlify(group_dict)
+        with open(group_file, 'w') as yamlf:
             yamlf.write( yaml.dump(ydict))#, default_flow_style=True) )
         msgs.info("Calibration check complete. Change the 'calcheck' flag to continue with data reduction")
         msgs.info("Inspect the setup file: {:s}".format(setup_file))
-        msgs.info("Inspect the plan file: {:s}".format(plan_file))
+        msgs.info("Inspect the group file: {:s}".format(group_file))
         sys.exit()
     # Make directory structure for different objects
     sci_targs = arsort.make_dirs(fitsdict, filesort)
