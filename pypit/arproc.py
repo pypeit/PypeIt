@@ -47,21 +47,18 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     retframe = np.zeros_like(sciframe)
     norders = slf._lordloc.shape[1]
     # Look at the end corners of the detector to get detector size in the dispersion direction
-    xstr = slf._pixlocn[0,0,slf._dispaxis]-slf._pixlocn[0,0,slf._dispaxis+2]/2.0
-    xfin = slf._pixlocn[-1,-1,slf._dispaxis]+slf._pixlocn[-1,-1,slf._dispaxis+2]/2.0
-    if slf._dispaxis == 0:
-        xint = slf._pixlocn[:,0,0]
-    else:
-        xint = slf._pixlocn[0,:,0]
+    xstr = slf._pixlocn[0,0,0]-slf._pixlocn[0,0,2]/2.0
+    xfin = slf._pixlocn[-1,-1,]+slf._pixlocn[-1,-1,2]/2.0
+    xint = slf._pixlocn[:,0,0]
     # Find which pixels are within the order edges
     msgs.info("Identifying pixels within each order")
-    ordpix = arcyutils.order_pixels(slf._pixlocn, slf._lordloc, slf._rordloc, slf._dispaxis)
+    ordpix = arcyutils.order_pixels(slf._pixlocn, slf._lordloc, slf._rordloc)
     allordpix = ordpix.copy()
     msgs.info("Applying bad pixel mask")
     ordpix *= (1-slf._bpix.astype(np.int))
     whord = np.where(ordpix != 0)
 #    msgs.info("Masking cosmic ray hits")
-#    crr_id = arcyutils.crreject(sciframe/np.median(sciframe[whord]), slf._dispaxis)
+#    crr_id = arcyutils.crreject(sciframe/np.median(sciframe[whord]))
 #    cruse = np.abs(crr_id/sciframe)[whord]
 #    medcr = np.median(cruse)
 #    madcr = 1.4826*np.median(np.abs(cruse-medcr))
@@ -78,8 +75,8 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     ordpixnew = np.zeros_like(ordpix)
     for o in range(norders):
         # Rectify this order
-        recframe = arcyextract.rectify(sciframe, ordpix, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o], maskval, slf._dispaxis)
-        recerror = arcyextract.rectify(errframe, ordpix, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o], maskval, slf._dispaxis)
+        recframe = arcyextract.rectify(sciframe, ordpix, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o], maskval)
+        recerror = arcyextract.rectify(errframe, ordpix, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o], maskval)
         #recmask = np.ones(recframe.shape, dtype=np.int)
         #wmsk = np.where(recframe==maskval)
         #recmask[wmsk] = 0
@@ -130,7 +127,7 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
         bgloc[:,w] = 1.0
         # Undo the rectification
         #arutils.ds9plot(bgloc)
-        unrecmask = arcyextract.rectify_undo(bgloc, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o], maskval, sciframe.shape[0], sciframe.shape[1], slf._dispaxis)
+        unrecmask = arcyextract.rectify_undo(bgloc, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o], maskval, sciframe.shape[0], sciframe.shape[1])
         #arutils.ds9plot(unrecmask)
         # Apply the mask to master mask
         ordpixnew += unrecmask.copy()
@@ -145,8 +142,8 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
 
     msgs.info("Fitting and reconstructing background")
     # Create the over-sampled array of points in the dispersion direction (detector)
-    ncoeff, k = sciframe.shape[slf._dispaxis], 1
-    xmod = np.linspace(xstr,xfin,sciframe.shape[slf._dispaxis]*nsample)
+    ncoeff, k = sciframe.shape[0], 1
+    xmod = np.linspace(xstr,xfin,sciframe.shape[0]*nsample)
     ycen = 0.5*(slf._lordloc + slf._rordloc)
     """
     The b-spline algorithm takes *far* too long to compute for the entire order simultaneously.
@@ -160,9 +157,9 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
         #if o < 3 or o > norders-5: continue
         xpix, ypix = np.where(ordpix==o+1)
         print("Preparing", o+1)
-        xbarr, ybarr = arcyutils.prepare_bsplfit(sciframe, slf._pixlocn, slf._tilts[:,o], xmod, ycen[:,o], xpix, ypix, slf._dispaxis)
+        xbarr, ybarr = arcyutils.prepare_bsplfit(sciframe, slf._pixlocn, slf._tilts[:,o], xmod, ycen[:,o], xpix, ypix)
         xapix, yapix = np.where(allordpix==o+1)
-        xball = arcyproc.prepare_bgmodel(sciframe, slf._pixlocn, slf._tilts[:,o], xmod, ycen[:,o], xapix, yapix, slf._dispaxis)
+        xball = arcyproc.prepare_bgmodel(sciframe, slf._pixlocn, slf._tilts[:,o], xmod, ycen[:,o], xapix, yapix)
         ebarr = np.ones_like(xbarr)
         print("Fitting", o+1, xbarr.size)
         argsrt = np.argsort(xbarr,kind='mergesort')
@@ -173,7 +170,7 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
 #		np.save("bspl/xbarr_ord{0:d}".format(o+1),xbarr)
 #		np.save("bspl/ybarr_ord{0:d}".format(o+1),ybarr)
 #		np.save("bspl/ebarr_ord{0:d}".format(o+1),ebarr)
-#		print min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k, slf._dispaxis
+#		print min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k
 #		np.save("bspl/pixlocn_ord{0:d}".format(o+1),slf._pixlocn)
 #		np.save("bspl/tilts_ord{0:d}".format(o+1),slf._tilts[:,o])
 #		np.save("bspl/xmod_ord{0:d}".format(o+1),xmod)
@@ -182,19 +179,19 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
 #		np.save("bspl/ypix_ord{0:d}".format(o+1),ypix)
 #		print "saved all!"
 #		#mod_yarr = cybspline.bspline_fit(xmod, xbarr, ybarr, ebarr, min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k)
-#		bgmod += arcyutils.bspline_fitmod(xbarr, ybarr, ebarr, min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k, slf._pixlocn, slf._tilts[:,o], xmod, ycen[:,o], xpix, ypix, slf._dispaxis)
+#		bgmod += arcyutils.bspline_fitmod(xbarr, ybarr, ebarr, min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k, slf._pixlocn, slf._tilts[:,o], xmod, ycen[:,o], xpix, ypix)
 
     arutils.ds9plot(bgmod.astype(np.float))
     arutils.ds9plot((sciframe-bgmod).astype(np.float))
 
-    #exsci, exerr = arcyextract.extract_weighted(frame, error, badpixmask, pixcen[:,o], piycen[:,o], slf._pixlocn, ordtilt[:,o], ordxcen[:,o], ordycen[:,o], ordwid[:,o], ordwnum[o], ordlen[o], ordnum[o], argf_interpnum, slf._dispaxis)
+    #exsci, exerr = arcyextract.extract_weighted(frame, error, badpixmask, pixcen[:,o], piycen[:,o], slf._pixlocn, ordtilt[:,o], ordxcen[:,o], ordycen[:,o], ordwid[:,o], ordwnum[o], ordlen[o], ordnum[o], argf_interpnum)
 
 # 	ordcen = 0.5*(slf._lordloc + slf._rordloc)
 # 	ordwid = np.ceil(np.median(np.abs(slf._lordloc - slf._rordloc),axis=0)).astype(np.int)/2
-# 	cord_pix = artrace.phys_to_pix(ordcen, slf._pixlocn, slf._dispaxis, 1-slf._dispaxis)
+# 	cord_pix = artrace.phys_to_pix(ordcen, slf._pixlocn, 1)
 # 	print cord_pix
 # 	print ordwid
-# 	test_rect = arcyextract.rectify_fast(sciframe, cord_pix, ordwid, -999999.9, slf._dispaxis)
+# 	test_rect = arcyextract.rectify_fast(sciframe, cord_pix, ordwid, -999999.9)
 # 	arutils.ds9plot(test_rect)
 # 	for o in range(norders):
 # 		pass
@@ -209,11 +206,11 @@ def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-
     for o in range(norders):
         xpix, ypix = np.where(ordpix==1+o)
         msgs.info("Preparing sky pixels in order {0:d}/{1:d} for a b-spline fit".format(o+1,norders))
-        #xbarr, ybarr = cybspline.prepare_bsplfit(arc, pixmap, tilts, xmod, ycen, xpix, ypix, dispaxis)
+        #xbarr, ybarr = cybspline.prepare_bsplfit(arc, pixmap, tilts, xmod, ycen, xpix, ypix)
         msgs.info("Performing b-spline fir to oversampled sky background in order {0:d}/{1:d}".format(o+1,norders))
-        #ncoeff, k = flt.shape[dispaxis], 1
+        #ncoeff, k = flt.shape[0], 1
         #mod_yarr = cybspline.bspline_fit(xmod, xbarr, ybarr, ebarr, min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k)
-        #skybg += cybspline.bspline_fitmod(xbarr, ybarr, ebarr, min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k, pixmap, tilts, xmod, ycen, xpix, ypix, slf._dispaxis)
+        #skybg += cybspline.bspline_fitmod(xbarr, ybarr, ebarr, min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k, pixmap, tilts, xmod, ycen, xpix, ypix)
 
     # Subtract the background
     msgs.info("Subtracting the sky background from the science frame")
@@ -267,15 +264,14 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     errframe = np.sqrt(varframe)
     norders = slf._lordloc[det-1].shape[1]
     # Look at the end corners of the detector to get detector size in the dispersion direction
-    xstr = slf._pixlocn[det-1][0,0,slf._dispaxis]-slf._pixlocn[det-1][0,0,slf._dispaxis+2]/2.0
-    xfin = slf._pixlocn[det-1][-1,-1,slf._dispaxis]+slf._pixlocn[det-1][-1,-1,slf._dispaxis+2]/2.0
+    xstr = slf._pixlocn[det-1][0,0,0]-slf._pixlocn[det-1][0,0,2]/2.0
+    xfin = slf._pixlocn[det-1][-1,-1,0]+slf._pixlocn[det-1][-1,-1,2]/2.0
     xint = slf._pixlocn[det-1][:,0,0]
     # Find which pixels are within the order edges
     msgs.info("Identifying pixels within each order")
     ordpix = arcyutils.order_pixels(slf._pixlocn[det-1],
                                     slf._lordloc[det-1]*0.95+slf._rordloc[det-1]*0.05,
-                                    slf._lordloc[det-1]*0.05+slf._rordloc[det-1]*0.95,
-                                    slf._dispaxis)
+                                    slf._lordloc[det-1]*0.05+slf._rordloc[det-1]*0.95)
     allordpix = ordpix.copy()
     msgs.info("Applying bad pixel mask")
     ordpix *= (1-slf._bpix[det-1].astype(np.int)) * (1-crpix.astype(np.int))
@@ -525,7 +521,7 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     #xint = slf._pixlocn[det-1][:,0,0]
     # Find which pixels are within the order edges
     msgs.info("Identifying pixels within each order")
-    ordpix = arcyutils.order_pixels(slf._pixlocn[det-1], slf._lordloc[det-1], slf._rordloc[det-1], slf._dispaxis)
+    ordpix = arcyutils.order_pixels(slf._pixlocn[det-1], slf._lordloc[det-1], slf._rordloc[det-1])
     msgs.info("Applying bad pixel mask")
     ordpix *= (1-slf._bpix[det-1].astype(np.int))
     msgs.info("Rectifying the orders to estimate the background locations")
@@ -538,7 +534,7 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     for o in range(norders):
         # Rectify this order
         recframe = arcyextract.rectify(msflat, ordpix, slf._pixcen[det-1][:,o], slf._lordpix[det-1][:,o],
-                                       slf._rordpix[det-1][:,o], slf._pixwid[det-1][o]+overpix, maskval, slf._dispaxis)
+                                       slf._rordpix[det-1][:,o], slf._pixwid[det-1][o]+overpix, maskval)
         if settings.argflag["reduce"]["flatfield"]["method"].lower() == "polyscan":
             polyorder = settings.argflag["reduce"]["flatfield"]["params"][0]
             polypoints = settings.argflag["reduce"]["flatfield"]["params"][1]
@@ -585,11 +581,11 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             # Undo the rectification
             normflat_unrec = arcyextract.rectify_undo(recframe, slf._pixcen[det-1][:,o], slf._lordpix[det-1][:,o],
                                                       slf._rordpix[det-1][:,o], slf._pixwid[det-1][o], maskval,
-                                                      msflat.shape[0], msflat.shape[1], slf._dispaxis)
+                                                      msflat.shape[0], msflat.shape[1])
             # Apply the normalized flatfield for this order to the master normalized frame
             msnormflat = arcyproc.combine_nrmflat(msnormflat, normflat_unrec, slf._pixcen[det-1][:,o],
                                                   slf._lordpix[det-1][:,o], slf._rordpix[det-1][:,o],
-                                                  slf._pixwid[det-1][o]+overpix, maskval, slf._dispaxis)
+                                                  slf._pixwid[det-1][o]+overpix, maskval)
         else:
             msgs.error("Flatfield method {0:s} is not supported".format(settings.argflag["reduce"]["flatfield"]["method"]))
     # Send the blaze away to be plotted and saved

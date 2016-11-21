@@ -1879,13 +1879,12 @@ def nbrightest(np.ndarray[DTYPE_t, ndim=2] pixels not None,
 @cython.boundscheck(False)
 def order_saturation(np.ndarray[ITYPE_t, ndim=2] satmask not None,
                     np.ndarray[ITYPE_t, ndim=2] ordcen not None,
-                    np.ndarray[ITYPE_t, ndim=2] ordwid not None,
-                    int dispdir):
+                    np.ndarray[ITYPE_t, ndim=2] ordwid not None):
 
     cdef int sz_x, sz_o, sz_y, x, y, o
     cdef int flag, xmin, xmax
-    sz_x = satmask.shape[1-dispdir]
-    sz_y = satmask.shape[dispdir]
+    sz_x = satmask.shape[1]
+    sz_y = satmask.shape[0]
     sz_o = ordcen.shape[1]
 
     cdef np.ndarray[ITYPE_t, ndim=2] ordsat = np.zeros((sz_y,sz_o), dtype=ITYPE)
@@ -1897,14 +1896,9 @@ def order_saturation(np.ndarray[ITYPE_t, ndim=2] satmask not None,
             if xmin < 0: xmin = 0
             if xmax >= sz_x: xmax=sz_x
             for x in range(xmin,xmax):
-                if dispdir == 0:
-                    if satmask[y,x] == 1:
-                        ordsat[y,o] = 1
-                        break
-                else:
-                    if satmask[x,y] == 1:
-                        ordsat[y,o] = 1
-                        break
+                if satmask[y,x] == 1:
+                    ordsat[y,o] = 1
+                    break
     return ordsat
 
 #######

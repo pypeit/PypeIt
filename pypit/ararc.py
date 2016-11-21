@@ -66,8 +66,8 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     else:
         ordcen = slf.GetFrame(slf._pixcen, det)
     if censpec is None:
-        #pixcen = np.arange(msarc.shape[slf._dispaxis], dtype=np.int)
-        #ordcen = (msarc.shape[1-slf._dispaxis]/2)*np.ones(msarc.shape[slf._dispaxis],dtype=np.int)
+        #pixcen = np.arange(msarc.shape[0], dtype=np.int)
+        #ordcen = (msarc.shape[1]/2)*np.ones(msarc.shape[0],dtype=np.int)
         #if len(ordcen.shape) != 1: msgs.error("The function artrace.model_tilt should only be used for"+msgs.newline()+"a single spectrum (or order)")
         #ordcen = ordcen.reshape((ordcen.shape[0],1))
         msgs.work("No orders being masked at the moment")
@@ -82,7 +82,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
         ordwid = 0.5*np.abs(slf._lordloc[det-1] - slf._rordloc[det-1])
         msgs.info("Generating a mask of arc line saturation streaks")
         satmask = arcyarc.saturation_mask(msarc, slf._nonlinear[det-1])
-        satsnd = arcyarc.order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int), slf._dispaxis)
+        satsnd = arcyarc.order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int))
     else:
         satsnd = np.zeros_like(ordcen)
     # Detect the location of the arc lines
@@ -184,6 +184,21 @@ def setup_param(slf, sc, det, fitsdict):
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='kast_red':
         lamps = ['HgI','NeI','ArI']
+        #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
+        if disperser == '600/7500':
+            arcparam['disp']=2.35
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['wvmnx'][0] = 5000.
+            arcparam['n_first']=2 # Should be able to lock on
+        elif disperser == '1200/5000':
+            arcparam['disp']=1.17
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['wvmnx'][0] = 5000.
+            arcparam['n_first']=2 # Should be able to lock on
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+    elif sname=='kast_red_2016':
+        lamps = ['NeI']
         #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
         if disperser == '600/7500':
             arcparam['disp']=2.35
