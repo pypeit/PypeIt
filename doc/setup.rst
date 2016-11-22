@@ -39,7 +39,13 @@ files (with the full path) and the instrument name.  Here is an example::
     pypit_setup /Users/xavier/Keck/LRIS/data/2016apr06/Raw/LB lris_blue
 
 The code will search for all FITS files with the inputted root.
-Note that the root shoult **not** contain a wild-card.
+Note that the root should **not** contain a wild-card.
+
+Alternatively, one can generate a Settings File (with extension .pypit)
+and add `run setup True` to the file.
+
+Note that both of these options sets default values in the codes
+and over-rides other user settings.
 
 Outputs
 -------
@@ -238,3 +244,8 @@ are other parameters that you can tell PYPIT to run by::
      #set standard b150910_2083.fits.gz
      ################################
     spect end
+
+calcheck
+========
+
+Run this!
