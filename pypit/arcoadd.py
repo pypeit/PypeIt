@@ -203,7 +203,7 @@ def sn_weight(spectra, debug=False):
         bkspace = (10000.0/3.0e5) / (np.log(10.0))
         med_width = wave.shape[0] / ((np.max(wave) - np.min(wave)) / bkspace)
         sig_res = max(med_width, 3)
-        nhalf = int(sig_res) * 4L
+        nhalf = int(sig_res) * 4
         xkern = np.arange(0, 2*nhalf+2, dtype='float64')-nhalf
 
         for spec in xrange(fluxes.shape[0]):
