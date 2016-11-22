@@ -93,7 +93,7 @@ def test_qa():
     dspec = dummy_spectra(s2n=10.)#, wvmnx=wvmnx, npix=npix)
     dspec.data['flux'][0, 700] *= 1000.  # One bad pixel
     dspec.data['sig'][0, 700] *= 500.
-    arco.coadd_spectra(dspec, wave_grid_method='concatenate', qafile='tst.pdf')
+    arco.coadd_spectra(dspec, wave_method='concatenate', qafile='tst.pdf')
 
 
 
@@ -117,18 +117,18 @@ def test_new_wave_grid():
     np.testing.assert_allclose(iref_wave[0], 5000.)
     np.testing.assert_allclose(iref_wave[-1], 6000.)
     # Concatenate
-    cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
+    cat_wave = arco.new_wave_grid(dspec.data['wave'], wave_method='concatenate')
     np.testing.assert_allclose(cat_wave[0], 4000.5)
     np.testing.assert_allclose(cat_wave[-1], 6300.8)
     # Velocity
-    vel_wave = arco.new_wave_grid(dspec.data['wave'], method='velocity')
+    vel_wave = arco.new_wave_grid(dspec.data['wave'], wave_method='velocity')
     np.testing.assert_allclose(vel_wave[0], 4000.5)
     np.testing.assert_allclose(vel_wave[-1], 6300.25691664)
-    vel_wave = arco.new_wave_grid(dspec.data['wave'], method='velocity', v_pix=100.)
+    vel_wave = arco.new_wave_grid(dspec.data['wave'], wave_method='velocity', v_pix=100.)
     np.testing.assert_allclose(vel_wave[0], 4000.5)
     np.testing.assert_allclose(vel_wave[-1], 6300.6820934900243)
     # Pixel
-    pix_wave = arco.new_wave_grid(dspec.data['wave'], method='pixel', pix_size=2.5)
+    pix_wave = arco.new_wave_grid(dspec.data['wave'], wave_method='pixel', pix_size=2.5)
     np.testing.assert_allclose(pix_wave[0], 4000.5)
     np.testing.assert_allclose(pix_wave[-1], 6303.15)
 
@@ -233,7 +233,7 @@ def test_1dcoadd():
     from pypit import arcoadd as arco
     # Setup
     dspec = dummy_spectra(s2n=10.)
-    cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
+    cat_wave = arco.new_wave_grid(dspec.data['wave'], wave_method='concatenate')
     rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
     sn2, weights = arco.sn_weight(rspec)
     # Coadd
@@ -247,7 +247,7 @@ def test_cleancr():
     dspec = dummy_spectra(s2n=10.)
     dspec.data['flux'][0, 700] *= 1000.  # One bad pixel
     dspec.data['sig'][0, 700] *= 500.
-    cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
+    cat_wave = arco.new_wave_grid(dspec.data['wave'], wave_method='concatenate')
     rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
     arco.clean_cr(rspec)
 
@@ -259,7 +259,7 @@ def test_coadd():
     dspec = dummy_spectra(s2n=10.)
     dspec.data['flux'][0, 700] *= 1000.  # One bad pixel
     dspec.data['sig'][0, 700] *= 500.
-    arco.coadd_spectra(dspec, wave_grid_method='concatenate')
+    arco.coadd_spectra(dspec, wave_method='concatenate')
 
 
 def test_coadd_qa():
@@ -273,7 +273,7 @@ def test_sigma_clip():
     from pypit import arcoadd as arco
     # Setup
     dspec = dummy_spectra(s2n=10.)
-    cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
+    cat_wave = arco.new_wave_grid(dspec.data['wave'], wave_method='concatenate')
     # Rebin
     rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True)
     sn2, weights = arco.sn_weight(cat_wave, rspec.data['flux'], rspec.data['sig']**2)
