@@ -206,12 +206,12 @@ def sn_weight(spectra, debug=False):
         nhalf = int(sig_res) * 4
         xkern = np.arange(0, 2*nhalf+2, dtype='float64')-nhalf
 
-        for spec in xrange(fluxes.shape[0]):
+        for spec in range(fluxes.shape[0]):
             sn_med1[spec] = medfilt(sn_val[spec], kernel_size = 3)
         
         yvals = gauss1(xkern, [0.0, sig_res, 1, 0])
 
-        for spec in xrange(fluxes.shape[0]):
+        for spec in range(fluxes.shape[0]):
             weights[spec] = scipy.ndimage.filters.convolve(sn_med1[spec], yvals)**2
 
     # Give weights the same mask (important later)
@@ -331,7 +331,7 @@ def scale_spectra(spectra, sn2, iref=0, scale_method='auto', hand_scale=None,
         msgs.error("Input spectra are not registered!")
     # Loop on exposures
     scales = []
-    for qq in xrange(spectra.nspec):
+    for qq in range(spectra.nspec):
         if scale_method == 'hand':
             omethod = 'hand'
             # Input?
@@ -410,7 +410,7 @@ def clean_cr(spectra, n_grow_mask=1, nsig=5.):
     diff = spectra.data['flux']-refflux
 
     # Loop on spectra
-    for ispec in xrange(spectra.nspec):
+    for ispec in range(spectra.nspec):
         spectra.select = ispec
         ivar = spectra.ivar
         chi2 = (diff[ispec].compressed())**2 * ivar
@@ -582,7 +582,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
         uspec.unmask()
 
         # Loop on images to updated noise model for rejection
-        for qq in xrange(rspec.nspec):
+        for qq in range(rspec.nspec):
 
             # Grab full spectrum (unmasked)
             flux = uspec.data['flux'][qq,:].compressed()
@@ -671,7 +671,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
         msgs.info("New standard deviation: {:g}".format(std_dev))
         if do_var_corr:
             msgs.info("Correcting variance")
-            for ispec in xrange(rspec.nspec):
+            for ispec in range(rspec.nspec):
                 rspec.data['sig'][ispec] *= np.sqrt(std_dev)
             spec1d = one_d_coadd(rspec, weights)
 
