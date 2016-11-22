@@ -150,19 +150,19 @@ def test_sn_weight():
     from pypit import arcoadd as arco
     #  Very low S/N first
     dspec = dummy_spectra(s2n=0.3, seed=1234)
-    cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
+    cat_wave = arco.new_wave_grid(dspec.data['wave'], wave_method='concatenate')
     rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
     sn2, weights = arco.sn_weight(rspec)
     np.testing.assert_allclose(sn2[0], 0.095, atol=0.1)  # Noise is random
     #  Low S/N first
     dspec = dummy_spectra(s2n=3., seed=1234)
-    cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
+    cat_wave = arco.new_wave_grid(dspec.data['wave'], wave_method='concatenate')
     rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
     sn2, weights = arco.sn_weight(rspec)
     np.testing.assert_allclose(sn2[0], 8.6, atol=0.1)  # Noise is random
     #  High S/N now
     dspec2 = dummy_spectra(s2n=10., seed=1234)
-    cat_wave = arco.new_wave_grid(dspec2.data['wave'], method='concatenate')
+    cat_wave = arco.new_wave_grid(dspec2.data['wave'], wave_method='concatenate')
     rspec2 = dspec2.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
     sn2, weights = arco.sn_weight(rspec2)
     np.testing.assert_allclose(sn2[0], 97.9, atol=0.1)  # Noise is random
@@ -173,16 +173,16 @@ def test_scale():
     from pypit import arcoadd as arco
     # Hand
     dspec = dummy_spectra(s2n=10.)
-    cat_wave = arco.new_wave_grid(dspec.data['wave'], method='concatenate')
+    cat_wave = arco.new_wave_grid(dspec.data['wave'], wave_method='concatenate')
     rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
     sv_high = rspec.copy()
     sn2, weights = arco.sn_weight(rspec)
-    _, _ = arco.scale_spectra(rspec, sn2, hand_scale=[3., 5., 10.], method='hand')
+    _, _ = arco.scale_spectra(rspec, sn2, hand_scale=[3., 5., 10.], scale_method='hand')
     np.testing.assert_allclose(np.median(rspec.flux.value), 3., atol=0.01)  # Noise is random
     # Median
     rspec = sv_high.copy()
     sn2, weights = arco.sn_weight(rspec)
-    _, mthd = arco.scale_spectra(rspec, sn2, method='median')
+    _, mthd = arco.scale_spectra(rspec, sn2, scale_method='median')
     assert mthd == 'median'
     np.testing.assert_allclose(np.median(rspec.flux.value), 1., atol=0.01)  # Noise is random
     #  Auto-none

@@ -30,7 +30,7 @@ msgs = armsgs.get_logger()
     # Grow mask in final_rej?
 
 
-def new_wave_grid(waves, method='iref', iref=0, A_pix=None, v_pix=None, **kwargs):
+def new_wave_grid(waves, wave_method='iref', iref=0, A_pix=None, v_pix=None, **kwargs):
     """ Create a new wavelength grid for the
     spectra to be rebinned and coadded on
 
@@ -39,7 +39,7 @@ def new_wave_grid(waves, method='iref', iref=0, A_pix=None, v_pix=None, **kwargs
     waves : masked ndarray
         Set of N original wavelength arrays
         Nspec, Npix
-    method : str, optional
+    wave_method : str, optional
         Desired method for creating new wavelength grid.
         'iref' -- Use the first wavelength array (default)
         'velocity' -- Constant velocity
@@ -66,7 +66,7 @@ def new_wave_grid(waves, method='iref', iref=0, A_pix=None, v_pix=None, **kwargs
     if not isinstance(waves, MaskedArray):
         waves = np.ma.array(waves)
 
-    if method == 'velocity':  # Constant km/s
+    if wave_method == 'velocity':  # Constant km/s
         # Find the median velocity of a pixel in the input
         # wavelength grid
 
@@ -90,7 +90,7 @@ def new_wave_grid(waves, method='iref', iref=0, A_pix=None, v_pix=None, **kwargs
 
 #        wave_grid = np.asarray(wave_grid)
 
-    elif method == 'pixel': # Constant Angstrom
+    elif wave_method == 'pixel': # Constant Angstrom
         if A_pix is None:
             msgs.error("Need to provide pixel size with A_pix for with this method")
         #
@@ -99,7 +99,7 @@ def new_wave_grid(waves, method='iref', iref=0, A_pix=None, v_pix=None, **kwargs
 
         wave_grid = np.arange(wave_grid_min, wave_grid_max + A_pix, A_pix)
 
-    elif method == 'concatenate':  # Concatenate
+    elif wave_method == 'concatenate':  # Concatenate
         # Setup
         loglam = np.log10(waves)
         nspec = waves.shape[0]
@@ -121,10 +121,10 @@ def new_wave_grid(waves, method='iref', iref=0, A_pix=None, v_pix=None, **kwargs
                 newloglam = np.concatenate([newloglam, iloglam[kmin:]])
         # Finish
         wave_grid = 10**newloglam
-    elif method == 'iref':  # Concatenate
+    elif wave_method == 'iref':  # Concatenate
         wave_grid = waves[iref, :].compressed()
     else:
-        msgs.error("Bad method for scaling: {:s}".format(method))
+        msgs.error("Bad method for scaling: {:s}".format(wave_method))
     # Concatenate of any wavelengths in other indices that may extend beyond that of wavelengths[0]?
 
     return wave_grid
@@ -289,7 +289,7 @@ def median_flux(spec, mask=None, nsig=3., niter=5, **kwargs):
     return med_spec, std_spec
 
 
-def scale_spectra(spectra, sn2, iref=0, method='auto', hand_scale=None,
+def scale_spectra(spectra, sn2, iref=0, scale_method='auto', hand_scale=None,
                   SN_MAX_MEDSCALE=2., SN_MIN_MEDSCALE=0.5):
     """
     Parameters
@@ -301,7 +301,7 @@ def scale_spectra(spectra, sn2, iref=0, method='auto', hand_scale=None,
       S/N**2 estimates for each spectrum
     iref : int, optional
       Index of reference spectrum
-    method : str, optional
+    scale_method : str, optional
       Method for scaling
        'auto' -- Use automatic method based on RMS of S/N
        'hand' -- Use input scale factors
@@ -332,7 +332,7 @@ def scale_spectra(spectra, sn2, iref=0, method='auto', hand_scale=None,
     # Loop on exposures
     scales = []
     for qq in xrange(spectra.nspec):
-        if method == 'hand':
+        if scale_method == 'hand':
             omethod = 'hand'
             # Input?
             if hand_scale is None:
@@ -342,7 +342,7 @@ def scale_spectra(spectra, sn2, iref=0, method='auto', hand_scale=None,
             #arrsky[*, j] = HAND_SCALE[j]*sclsky[*, j]
             scales.append(hand_scale[qq])
             #
-        elif ((rms_sn <= SN_MAX_MEDSCALE) and (rms_sn > SN_MIN_MEDSCALE)) or method=='median':
+        elif ((rms_sn <= SN_MAX_MEDSCALE) and (rms_sn > SN_MIN_MEDSCALE)) or scale_method=='median':
             omethod = 'median'
             # Reference
             if med_ref is None:
@@ -359,7 +359,7 @@ def scale_spectra(spectra, sn2, iref=0, method='auto', hand_scale=None,
             scales.append(med_scale)
         elif rms_sn <= SN_MIN_MEDSCALE:
             omethod = 'none_SN'
-        elif (rms_sn > SN_MAX_MEDSCALE) or method=='poly':
+        elif (rms_sn > SN_MAX_MEDSCALE) or scale_method=='poly':
             msgs.work("Should be using poly here, not median")
             omethod = 'median'
             # Reference
