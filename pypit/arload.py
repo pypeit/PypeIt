@@ -354,14 +354,15 @@ def load_tilts(fname):
     return tilts, satmask
 
 
-def load_1dspec(fname, exten=1, extract='opt'):
+def load_1dspec(fname, exten=None, extract='opt'):
     """
     Parameters
     ----------
     fname : str
       Name of the file
-    exten : int
+    exten : int, optional
       Extension of the spectrum
+      If not given, all spectra in the file are loaded
     extract : str, optional
       Extraction type ('opt', 'box')
 

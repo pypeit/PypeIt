@@ -26,13 +26,17 @@ def main(args, unit_test=False):
     """ Runs the XSpecGui on an input file
     """
     import sys
+    from pypit import arload
+    import pdb
 
     # List only?
     if args.list:
-        from astropy.io import fits
-        hdu = fits.open(args.file)
-        print(hdu.info())
-        return
+        print("Showing object names for input file...")
+        spec = arload.load_1dspec(args.file, extract=args.extract)
+        for key in spec.header.keys():
+            if 'EXT0' in key:
+                print("{} = {}".format(key, spec.header[key]))
+        sys.exit()
 
     from linetools.guis.xspecgui import XSpecGui
     from pypit import arload

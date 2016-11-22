@@ -44,25 +44,18 @@ the detector number (01), and the science index (0035), in
 one of the files.
 
 The list of object identifiers in a given spec1d file can be
-output with the pypit_objects script.
+output with the pypit_show_1dspec script, e.g.::
 
-You can find this stored in the .fits file,
-and it's meant so that PYPIT knows about where in the slit
-and in which slit (useful in masks) your science object of
-interest for coadding is. This ensures that only objects
-in the other files within an object location and slit ID
-tolerance are used for coadding, and avoids the coadding of
-spectra from two distinct science objects that may have
-fallen in the same slit. 'outfile' is the name of the
-coadded spectrum.
+    pypit_show_1dspec filename.fits --list
 
-If you have multiple objects in the slit that you'd like to
-coadd, you can add a section labeled 'b', 'c', 'd', etc...
+The coadding algorithm will attempt to match this object identifier
+to those in each data file, within some tolerance on object and slit
+position. 'outfile' is the filename of the coadded spectrum produced.
 
 Additional Coadding Parameters
 ++++++++++++++++++++++++++++++
 You can adjust the default methods by which PYPIT coadds
-spectra by adding a section named 'global'::
+spectra by adding a dict named 'global'::
 
     'filenames': ['spec1d_1.fits', 'spec1d_2.fits', 'spec1d_3.fits']
     'global':
@@ -73,27 +66,36 @@ spectra by adding a section named 'global'::
 
 The adjustable parameters and options are:
 
+Wavelength Rebinning
+--------------------
+
 ==================   =======================  ==================================================
 Parameter            Option                   Description
 ==================   =======================  ==================================================
 wave_grid_method     default: concatenate     create a new wavelength grid onto which multiple
-                                              exposures are rebinned by concatenating all
-                                              wavelength grids
+                                              exposures are rebinned after first concatenating
+                                              all wavelength grids
 --                   velocity                 create a new wavelength grid of constant km/s
---                   pixel                    create a new wavelength grid of constant Angstrom
+                                              Default is to use the median velocity width of the
+                                              input spectrum pixels but a value v_pix can be
+                                              provided
+--                   pixel                    Create a new wavelength grid of constant Angstrom
+                                              specified by the input parameter A_pix
 ==================   =======================  ==================================================
 
-More documentation (and implementation..!) on this to come...
+Scaling Flux
+------------
 
-Running the Coadder
-+++++++++++++++++++
+Running the Coadd Code
+++++++++++++++++++++++
+
 Once you have this .yaml file set up, you can coadd your
-spectra by running the command::
+1d spectra by running the command::
 
     pypit_coadd_1dspec name_of_yaml_file.yaml
 
 The coadder will also produce a quality assurance (QA) file
-named 'tst.pdf'. In the left panel, the QA shows the chi-
+named 'root_of_outfile.pdf'. In the left panel, the QA shows the chi-
 squared residuals of the coadded spectrum, and in the right
 panel, the coadded spectrum (in black) is plotted over the
 original spectra.

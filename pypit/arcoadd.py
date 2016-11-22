@@ -30,7 +30,7 @@ msgs = armsgs.get_logger()
     # Grow mask in final_rej?
 
 
-def new_wave_grid(waves, method='iref', iref=0, A_pix=None, pix_size=None, **kwargs):
+def new_wave_grid(waves, method='iref', iref=0, A_pix=None, v_pix=None, **kwargs):
     """ Create a new wavelength grid for the
     spectra to be rebinned and coadded on
 
@@ -49,6 +49,9 @@ def new_wave_grid(waves, method='iref', iref=0, A_pix=None, pix_size=None, **kwa
       Reference spectrum
     A_pix : float
       Pixel size in same units as input wavelength array (e.g. Angstroms)
+    v_pix : float
+      Pixel size in km/s for velocity method
+      If not input, the median km/s per pixel is calculated and used
 
     Returns
     -------
@@ -63,26 +66,33 @@ def new_wave_grid(waves, method='iref', iref=0, A_pix=None, pix_size=None, **kwa
     if not isinstance(waves, MaskedArray):
         waves = np.ma.array(waves)
 
-    if method == 'velocity': # Constant km/s
-        # Loop over spectra and save wavelength arrays to find min, max of
+    if method == 'velocity':  # Constant km/s
+        # Find the median velocity of a pixel in the input
         # wavelength grid
+
+        spl = 299792.458
+        if v_pix is None:
+            dv = spl * np.abs(waves - np.roll(waves,1)) / waves   # km/s
+            v_pix = np.median(dv)
+
+        # Generate wavelenth array
         wave_grid_min = np.min(waves)
         wave_grid_max = np.max(waves)
+        x = np.log10(v_pix/spl + 1)
+        npix = int(np.log10(wave_grid_max/wave_grid_min) / x) + 1
+        wave_grid = wave_grid_min * 10**(x*np.arange(npix))
 
-        wave_grid = [wave_grid_min]
-        count = 0
+        #while max(wave_grid) <= wave_grid_max:
+        #    # How do we determine a reasonable constant velocity? (the 100. here is arbitrary)
+        #    step = wave_grid[count] * (100. / 299792.458)
+        #    wave_grid.append(wave_grid[count] + step)
+        #    count += 1
 
-        while max(wave_grid) <= wave_grid_max:
-            # How do we determine a reasonable constant velocity? (the 100. here is arbitrary)
-            step = wave_grid[count] * (100. / 299792.458)
-            wave_grid.append(wave_grid[count] + step)
-            count += 1
-
-        wave_grid = np.asarray(wave_grid)
+#        wave_grid = np.asarray(wave_grid)
 
     elif method == 'pixel': # Constant Angstrom
-        if pix_size is None:
-            msgs.error("Need to provide pixel size with this method")
+        if A_pix is None:
+            msgs.error("Need to provide pixel size with A_pix for with this method")
         #
         wave_grid_min = np.min(waves)
         wave_grid_max = np.max(waves)
@@ -458,103 +468,6 @@ def one_d_coadd(spectra, weights):
 
     return new_spec
 
-'''
-# Move this to arqa
-def qa_plots(wavelengths, fluxes, variances, new_wave, new_flux, new_var):
-    """  QA plot
-    Parameters
-    ----------
-    wavelengths
-    fluxes
-    variances
-    new_wave
-    new_flux
-    new_var
-
-    Returns
-    -------
-
-    """
-    from matplotlib import pyplot as plt
-    from matplotlib.backends.backend_pdf import PdfPages
-    
-    qa_plots = PdfPages(target + instru + '.pdf')
-    
-    plt.figure()
-
-    dev_sig = (np.ma.getdata(fluxes) - new_flux) / (np.sqrt(np.ma.getdata(variances) + new_var))
-    dev_sig_clip = astropy.stats.sigma_clip(dev_sig, sigma=4, iters=2)
-    std_dev_devsig = np.std(dev_sig_clip)
-    flat_dev_sig = dev_sig_clip.flatten()
-
-    xmin = -10
-    xmax = 10
-    n_bins = 100
-
-    hist, edges = np.histogram(flat_dev_sig, range=(xmin, xmax), bins=n_bins)
-    area = len(flat_dev_sig)*((xmax-xmin)/float(n_bins))
-    xppf = np.linspace(scipy.stats.norm.ppf(0.0001), scipy.stats.norm.ppf(0.9999), 100)
-    plt.plot(xppf, area*scipy.stats.norm.pdf(xppf), color='black', linewidth=2.0)
-    plt.gca().bar(edges[:-1], hist, width=((xmax-xmin)/float(n_bins)), alpha=0.5)
-    plt.title(std_dev_devsig)
-    plt.savefig(qa_plots, format='pdf')
-
-
-    plt.figure()
-    plt.subplots(figsize=(15,8))
-
-    for spec in range(len(wavelengths)):
-        if spec == 0:
-            line_color = 'blue'
-        elif spec == 1:
-            line_color = 'green'
-        elif spec == 2:
-            line_color = 'red'
-
-        plt.plot(wavelengths[spec], fluxes[spec], color=line_color, alpha=0.5, label='individual exposure')
-
-    plt.plot(new_wave, new_flux, color='black', label='coadded spectrum')
-    plt.legend()
-    plt.title('Coadded + Original Spectra')
-    plt.savefig(qa_plots, format='pdf')
-    
-
-    qa_plots.close()
-    
-    return
-'''
-
-'''
-# What follows should be in XSpectrum1D or pypit.arsave
-def save_coadd(new_wave, new_flux, new_var, outfil):
-    """ Saves the coadded spectrum as a .fits file
-
-    Parameters
-    ----------
-    new_wave : array
-        New wavelength grid
-    new_flux : array
-        Coadded flux array
-    new_var : array
-        Variance of coadded spectrum
-    outfil : str, optional
-        Name of the coadded spectrum
-    """
-    prihdr = fits.Header()
-    prihdu = fits.PrimaryHDU(header=prihdr)
-    
-    col1 = fits.Column(array=new_wave, name='box_wave', format='f8')
-    col2 = fits.Column(array=new_flux, name='box_flam_coadd', format='f8')
-    col3 = fits.Column(array=new_var, name='box_flam_coadd_var', format='f8')
-    cols = fits.ColDefs([col1, col2, col3])
-    tbhdu = fits.BinTableHDU.from_columns(cols)
-
-    thdulist = fits.HDUList([prihdu, tbhdu])
-    thdulist.writeto(outfil + '.fits', clobber=True)
-    
-    return
-'''
-
 
 def load_spec(files, iextensions=None, extract='opt'):
     """ Load a list of spectra into one XSpectrum1D object
@@ -608,8 +521,7 @@ def get_std_dev(irspec, ispec1d):
 
 
 def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
-                  scale_method='auto', sig_clip=False,
-                  do_offset=False, sigrej_final=3.,
+                  scale_method='auto', do_offset=False, sigrej_final=3.,
                   do_var_corr=True, qafile=None, outfile=None,
                   do_cr=True, **kwargs):
     """
@@ -617,7 +529,6 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     ----------
     spectra : XSpectrum1D
     wave_grid_method :
-    sig_clip
 
     Returns
     -------
@@ -784,108 +695,4 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
 
     return
 
-def old_sigma_clip(fluxes, variances, sn2, n_grow_mask=1):
-    """ Sigma-clips the flux arrays.
 
-   Parameters
-   ----------
-   initial_mask : mask
-      Initial mask for the flux + variance arrays
-   n_grow_mask : int
-      Number of pixels to grow the initial mask by
-      on each side. Defaults to 1 pixel
-
-   Returns
-   -------
-   grow_mask : mask
-      Final mask for the flux + variance arrays
-   """
-    from functools import reduce
-
-    first_mask = np.ma.getmaskarray(fluxes)
-    highest_sn_idx = np.argmax(sn2)
-
-    base_sharp_chi = (fluxes - fluxes[highest_sn_idx]) / (np.sqrt(variances + variances[highest_sn_idx]))
-
-    bad_pix = []
-
-    for row in range(0, base_sharp_chi.shape[0]):
-        bad_pix.append(np.where(np.abs(base_sharp_chi[row]) > 3*np.std(base_sharp_chi, axis=1)[row])[0])
-
-    all_bad_pix = reduce(np.union1d, (np.asarray(bad_pix)))
-
-    for idx in range(len(all_bad_pix)):
-        spec_to_mask = np.argmax(np.abs(fluxes[:, all_bad_pix[idx]]))
-        #print("Masking pixel", all_bad_pix[idx], "in exposure", spec_to_mask+1
-        first_mask[spec_to_mask][all_bad_pix[idx]] = True
-
-    final_mask = grow_mask(first_mask, n_grow=n_grow_mask)
-
-    return final_mask
-
-
-def old_one_d_coadd(wavelengths, fluxes, variances, sig_clip=False, wave_grid_method=None):
-    """ Performs a coadding of the spectra in 1D.
-
-    Parameters
-    ----------
-    wavelengths : nd masked array
-        Wavelength arrays of the input spectra
-    fluxes : nd masked array
-        Flux arrays of the input spectra
-    variances : nd masked array
-        Variances of the input spectra
-    sig_clip : optional
-        Perform sigma-clipping of arrays. Defaults to
-        no sigma-clipping
-
-    Returns
-    -------
-    fluxes : nd masked array
-        Original flux arrays of the input spectra
-    variances : nd masked array
-        Original variances of the input spectra
-    new_wave : array
-        New wavelength grid
-    new_flux : array
-        Coadded flux array
-    new_var : array
-        Variance of coadded spectrum
-    """
-    # Generate the final wavelength grid
-    new_wave = new_wave_grid(wavelengths, method=wave_grid_method)
-
-    # Calculate S/N for each spectrum (for weighting)
-    sn2, weights = sn_weight(new_wave, fluxes, variances)
-
-    inv_variances = 1./variances
-
-    # Rebin
-    for spec in range(fluxes.shape[0]):
-        obj = xspectrum1d.XSpectrum1D.from_tuple((np.ma.getdata(wavelengths[spec]),
-                                                  np.ma.getdata(fluxes[spec]),
-                                                  np.sqrt(np.ma.getdata(variances[spec]))))
-        obj = obj.rebin(new_wave*u.AA, do_sig=True)
-        fluxes[spec] = np.ma.array(obj.flux)
-        variances[spec] = np.ma.array(obj.sig)**2.
-
-    # Clip?
-    if sig_clip:
-        final_mask = sigma_clip(fluxes, variances, sn2)
-
-        weights = np.ma.array(weights, mask=final_mask)
-        fluxes = np.ma.array(fluxes, mask=final_mask)
-        variances = np.ma.array(variances, mask=final_mask)
-
-    else:
-        final_mask = np.ma.getmaskarray(fluxes)
-        weights = np.ma.array(weights, mask=final_mask)
-
-    sum_weights = np.ma.sum(weights, axis=0)
-
-    # Coadd
-    new_flux = np.ma.sum(weights*fluxes, axis=0) / (sum_weights + (sum_weights == 0.0).astype(int))
-    var = (inv_variances != 0.0).astype(float) / (inv_variances + (inv_variances == 0.0).astype(float))
-    new_var = np.ma.sum((weights**2.)*var, axis=0) / ((sum_weights + (sum_weights == 0.0).astype(int))**2.)
-
-    return fluxes, variances, new_wave, new_flux, new_var

@@ -98,7 +98,6 @@ def test_qa():
 
 
 def test_load():
-    pytest.set_trace()
     from pypit import arcoadd as arco
     files = [data_path('spec1d_J2202p1708_KASTb_2015Nov06T024436.08.fits'),
              data_path('spec1d_J2202p1708_KASTb_2015Nov06T031500.09.fits'),
@@ -124,7 +123,10 @@ def test_new_wave_grid():
     # Velocity
     vel_wave = arco.new_wave_grid(dspec.data['wave'], method='velocity')
     np.testing.assert_allclose(vel_wave[0], 4000.5)
-    np.testing.assert_allclose(vel_wave[-1], 6302.7837748108632)
+    np.testing.assert_allclose(vel_wave[-1], 6300.25691664)
+    vel_wave = arco.new_wave_grid(dspec.data['wave'], method='velocity', v_pix=100.)
+    np.testing.assert_allclose(vel_wave[0], 4000.5)
+    np.testing.assert_allclose(vel_wave[-1], 6300.6820934900243)
     # Pixel
     pix_wave = arco.new_wave_grid(dspec.data['wave'], method='pixel', pix_size=2.5)
     np.testing.assert_allclose(pix_wave[0], 4000.5)

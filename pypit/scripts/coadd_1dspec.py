@@ -49,6 +49,8 @@ def main(args, unit_test=False):
     # Global parameters?
     if 'global' in coadd_dict.keys():
         gparam = coadd_dict.pop('global')
+    else:
+        gparam = {}
     # Loop on sources
     for key in coadd_dict.keys():
         iobj = coadd_dict[key]['object']
@@ -70,6 +72,8 @@ def main(args, unit_test=False):
                 raise ValueError("Multiple matches to object {:s} in file {:s}".format(iobj,key))
         # Load spectra
         spectra = arcoadd.load_spec(gdfiles, iextensions=extensions)#, extract='box')
+        exten = outfile.split('.')[-1]  # Allow for hdf or fits or whatever
+        qafile = outfile.replace(exten,'pdf')
         # Coadd!
-        arcoadd.coadd_spectra(spectra, wave_grid_method='concatenate', qafile='tst.pdf', outfile=outfile)
+        arcoadd.coadd_spectra(spectra, qafile=qafile, outfile=outfile, **gparam)
 
