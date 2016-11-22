@@ -333,6 +333,7 @@ def match_science(fitsdict, filesort):
 
     msgs.info("Matching calibrations to Science frames")
     ftag = ['standard', 'bias', 'dark', 'pixelflat', 'slitflat', 'trace', 'arc']
+    setup_ftag = dict(standard=0, bias=0, dark=0, pixelflat=0, slitflat=0, trace=0, arc=1)
     nfiles = fitsdict['filename'].size
     iSCI = filesort['science']
     iSTD = filesort['standard']
@@ -440,7 +441,10 @@ def match_science(fitsdict, filesort):
             # Now find which of the remaining n are the appropriate calibration frames
             n = np.intersect1d(n, iARR[ft])
             # How many frames are required
-            numfr = settings.spect[ftag[ft]]['number']
+            if settings.argflag['run']['setup']:
+                numfr = setup_ftag[ftag[ft]]
+            else:
+                numfr = settings.spect[ftag[ft]]['number']
             if settings.argflag['output']['verbosity'] == 2:
                 if numfr == 1: areis = "is"
                 else: areis = "are"
@@ -465,17 +469,17 @@ def match_science(fitsdict, filesort):
                 # Errors for insufficient TRACE frames
                 if ftag[ft] == 'trace':
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
-                # Errors for insufficient ARC frames
-                if ftag[ft] == 'arc' and settings.argflag['reduce']['calibrate']:
-                    msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient standard frames
                 if ftag[ft] == 'standard' and settings.argflag['reduce']['calibrate']['flux']:
+                    msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
+                # Errors for insufficient ARC frames
+                if ftag[ft] == 'arc' and settings.argflag['reduce']['calibrate']:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
             else:
                 # Select the closest calibration frames to the science frame
                 tdiff = np.abs(fitsdict['time'][n].astype(np.float64)-np.float64(fitsdict['time'][iSCI[i]]))
                 wa = np.argsort(tdiff)
-                if numfr < 0:
+                if settings.argflag['run']['setup']:
                     settings.spect[ftag[ft]]['index'].append(n[wa])
                 else:
                     settings.spect[ftag[ft]]['index'].append(n[wa[:numfr]])

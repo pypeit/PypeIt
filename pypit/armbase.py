@@ -35,7 +35,7 @@ def SetupScience(fitsdict):
       A list containing all science exposure classes
     """
     # Init
-    if settings.argflag['run']['calcheck']:
+    if settings.argflag['run']['calcheck'] or settings.argflag['run']['setup']:
         do_qa = False
         bad_to_unknown = True
     else:
@@ -107,9 +107,12 @@ def SetupScience(fitsdict):
     ydict = arutils.yamlify(group_dict)
     with open(group_file, 'w') as yamlf:
         yamlf.write( yaml.dump(ydict))#, default_flow_style=True) )
-    # Finish calcheck
-    if settings.argflag['run']['calcheck']:
-        msgs.info("Calibration check complete. Change the 'calcheck' flag to continue with data reduction")
+    # Finish calcheck or setup
+    if settings.argflag['run']['calcheck'] or settings.argflag['run']['setup']:
+        if settings.argflag['run']['calcheck']:
+            msgs.info("Calibration check complete. Change 'run calcheck' flag to False to continue with data reduction")
+        if settings.argflag['run']['setup']:
+            msgs.info("Setup is complete. Change 'run setup' to False to continue with data reduction")
         msgs.info("Inspect the setup file: {:s}".format(setup_file))
         msgs.info("Inspect the group file: {:s}".format(group_file))
         sys.exit()

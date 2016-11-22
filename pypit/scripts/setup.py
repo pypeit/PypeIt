@@ -64,7 +64,8 @@ def main(args):
         f.write("\n")
         f.write("# Change the default settings\n")
         f.write("run ncpus 1\n")
-        f.write("run calcheck True\n")  # This is the key line here
+        f.write("run setup True\n")  # This is the key line here
+        f.write("#run calcheck True\n")
         f.write("run spectrograph {:s}\n".format(args.spectrograph))
         f.write("output overwrite True\n")
         #f.write("output sorted {:s}\n".format(root))
@@ -75,11 +76,11 @@ def main(args):
         f.write("data end\n")
         f.write("\n")
         f.write("spect read\n")
-        f.write(" pixelflat number -1\n")
+        f.write(" pixelflat number 0\n")
         f.write(" arc number 1\n")
-        f.write(" slitflat number -1\n")
-        f.write(" bias number -1\n")
-        f.write(" standard number -1\n")
+        f.write(" slitflat number 0\n")
+        f.write(" bias number 10\n")
+        f.write(" standard number 0\n")
         f.write("spect end\n")
     print("Wrote {:s}".format(pyp_file))
 

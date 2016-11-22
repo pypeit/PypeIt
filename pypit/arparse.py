@@ -1222,6 +1222,7 @@ class BaseArgFlag(BaseFunctions):
         """
         self.update(v)
 
+
     def run_pypitdir(self, v):
         """ A variable that is set by PYPIT during execution. This parameter
         is not available for user input.
@@ -1257,6 +1258,17 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
+        self.update(v)
+
+    def run_setup(self, v):
+        """ If True, run in setup mode.  Useful to parse files when starting
+        reduction on a large set of data
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_bool(v)
         self.update(v)
 
     def run_spectrograph(self, v):
