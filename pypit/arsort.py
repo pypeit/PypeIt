@@ -28,7 +28,7 @@ except NameError:
 msgs = armsgs.get_logger()
 
 
-def sort_data(fitsdict, set_bad_to_unknwn=False):
+def sort_data(fitsdict, flag_unknown=False):
     """
     Create an exposure class for every science frame
 
@@ -36,7 +36,7 @@ def sort_data(fitsdict, set_bad_to_unknwn=False):
     ----------
     fitsdict : dict
       Contains relevant information from fits header files
-    set_bad_to_unknwn : bool, optional
+    flag_unknown : bool, optional
       Instead of crashing out if there are unidentified files,
       set to 'unknown' and continue
 
@@ -155,7 +155,7 @@ def sort_data(fitsdict, set_bad_to_unknwn=False):
         msgs.info("Couldn't identify the following files:")
         for i in range(np.size(badfiles)):
             msgs.info(fitsdict['filename'][badfiles[i]])
-        if set_bad_to_unknwn:
+        if flag_unknown:
             filarr[np.where(fkey == 'unknown')[0],badfiles] = 1
         else:
             msgs.error("Check these files and your settings.{0:s} file before continuing".format(settings.argflag['run']['spectrograph']))
@@ -468,14 +468,14 @@ def match_science(fitsdict, filesort):
                 # Errors for insufficient ARC frames
                 if ftag[ft] == 'arc' and settings.argflag['reduce']['calibrate']:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
-                # Errors for insufficient ARC frames
+                # Errors for insufficient standard frames
                 if ftag[ft] == 'standard' and settings.argflag['reduce']['calibrate']['flux']:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
             else:
                 # Select the closest calibration frames to the science frame
                 tdiff = np.abs(fitsdict['time'][n].astype(np.float64)-np.float64(fitsdict['time'][iSCI[i]]))
                 wa = np.argsort(tdiff)
-                if settings.argflag['run']['calcheck']:
+                if numfr < 0:
                     settings.spect[ftag[ft]]['index'].append(n[wa])
                 else:
                     settings.spect[ftag[ft]]['index'].append(n[wa[:numfr]])
@@ -775,7 +775,7 @@ def load_setup():
     setup_dict : dict
 
     """
-    import yaml
+    import yaml, json
     setup_file, nexist = get_setup_file()
     if nexist == 0:
         msgs.error("No existing setup file.  Generate one first (e.g. pypit_setup)!")

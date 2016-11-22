@@ -65,6 +65,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
         debug = ardebug.init()
     msgs = armsgs.get_logger((logname, debug, verbosity))
 
+
     def load_input(redname):
         """
         Load user defined input reduction file. Updates are
@@ -203,6 +204,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
                    "run spectrograph <name>")
     msgs.info("Reducing data from the {0:s} spectrograph".format(specname))
 
+
     # Determine the type of reduction used for this spectrograph
     redtype = None
     # Get the software path
@@ -270,6 +272,13 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
 
     # Now that all of the relevant settings are loaded, globalize the settings
     arparse.init(argf, spect)
+
+    # Test that a maximum of one .setup files is present
+    from pypit import arsort
+    setup_file, nexist = arsort.get_setup_file()
+    if nexist == 1:
+        msgs.info("Found setup_file: {:s}".format(setup_file))
+        msgs.info("Will use this to guide the data reduction.")
 
     # Load the important information from the fits headers
     from pypit import arload

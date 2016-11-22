@@ -43,7 +43,7 @@ def SetupScience(fitsdict):
         bad_to_unknown = False
     # Sort the data
     msgs.bug("Files and folders should not be deleted -- there should be an option to overwrite files automatically if they already exist, or choose to rename them if necessary")
-    filesort = arsort.sort_data(fitsdict, set_bad_to_unknwn=bad_to_unknown)
+    filesort = arsort.sort_data(fitsdict, flag_unknown=bad_to_unknown)
     # Write out the details of the sorted files
     if settings.argflag['output']['sorted'] is not None:
         arsort.sort_write(fitsdict, filesort)

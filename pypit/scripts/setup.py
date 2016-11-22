@@ -75,14 +75,17 @@ def main(args):
         f.write("data end\n")
         f.write("\n")
         f.write("spect read\n")
-        f.write(" pixelflat number 0\n")
+        f.write(" pixelflat number -1\n")
         f.write(" arc number 1\n")
-        f.write(" slitflat number 0\n")
-        f.write(" bias number 0\n")
-        f.write(" standard number 0\n")
+        f.write(" slitflat number -1\n")
+        f.write(" bias number -1\n")
+        f.write(" standard number -1\n")
         f.write("spect end\n")
     print("Wrote {:s}".format(pyp_file))
 
     # Run
-    args = run_pypit.parser([pyp_file])
+    pinp = [pyp_file]
+    if args.develop:
+        pinp += ['-d']
+    args = run_pypit.parser(pinp)
     run_pypit.main(args)

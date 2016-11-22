@@ -679,6 +679,7 @@ class ScienceExposure:
         self.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
         return True
 
+    '''
     def Setup(self):
 
         # Sort the data
@@ -695,6 +696,7 @@ class ScienceExposure:
         # Make directory structure for different objects
         self._sci_targs = arsort.make_dirs(self)
         return
+    '''
 
     # Setters
     @staticmethod

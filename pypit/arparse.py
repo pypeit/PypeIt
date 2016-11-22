@@ -2159,8 +2159,7 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_int(v)
-        if v < 0:
-            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        key_min_val(v,-1)
         self.update(v)
 
     def det_datasec(self, v, anmbr=1, bnmbr=1):
@@ -2867,8 +2866,9 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_int(v)
-        if v < 0:
-            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        assert key_min_val(v,-1)
+        #if v < -1:
+        #    msgs.error("The argument of {0:s} must be >= -1".format(get_current_name()))
         self.update(v)
 
     def science_canbe(self, v):
@@ -3063,8 +3063,7 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_int(v)
-        if v < 0:
-            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        key_min_val(v, -1)
         self.update(v)
 
     def standard_canbe(self, v):
@@ -3113,8 +3112,7 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_int(v)
-        if v < 0:
-            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        key_min_val(v,-1)
         self.update(v)
 
     def trace_canbe(self, v):
@@ -3745,6 +3743,18 @@ def key_none(v):
         v = None
     return v
 
+
+def key_min_val(v, vmin):
+    """ Check that the value exceeds a minimum
+    Returns
+    -------
+    bool
+
+    """
+    if v < vmin:
+        msgs.error("The argument of {0:s} must be >= -1".format(get_current_name()))
+    else:
+        return True
 
 def combine_methods():
     """ The methods that can be used to combine a set of frames into a master frame
