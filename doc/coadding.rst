@@ -68,23 +68,38 @@ The adjustable parameters and options are:
 
 Wavelength Rebinning
 --------------------
-
 ==================   =======================  ==================================================
 Parameter            Option                   Description
 ==================   =======================  ==================================================
 wave_grid_method     default: concatenate     create a new wavelength grid onto which multiple
                                               exposures are rebinned after first concatenating
                                               all wavelength grids
---                   velocity                 create a new wavelength grid of constant km/s
+--                   velocity                 create a new wavelength grid of constant km/s.
                                               Default is to use the median velocity width of the
-                                              input spectrum pixels but a value v_pix can be
+                                              input spectrum pixels but a value 'v_pix' can be
                                               provided
---                   pixel                    Create a new wavelength grid of constant Angstrom
-                                              specified by the input parameter A_pix
+--                   pixel                    create a new wavelength grid of constant Angstrom
+                                              specified by the input parameter 'A_pix'
 ==================   =======================  ==================================================
 
-Scaling Flux
+Flux Scaling
 ------------
+==================   =======================  ==================================================
+Parameter            Option                   Description
+==================   =======================  ==================================================
+scale_method         default: auto            scale the flux arrays based on the root mean
+                                              square value (RMS) of the S/N^2 value for all
+                                              spectra; if this RMS value is less than the
+                                              minimum median scale value, no scaling is applied.
+                                              If the RMS value is greater than the minimum but
+                                              smaller than the maximum median scale value, the
+                                              applied method is the median, as described below
+--                   hand                     scale the flux arrays using values specified by
+                                              the user in the input parameter 'hand_scale'. Must
+                                              have one value per spectrum
+--                   median                   scale the flux arrays by the median flux value
+                                              of each spectra
+==================   =======================  ==================================================
 
 Running the Coadd Code
 ++++++++++++++++++++++

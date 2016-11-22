@@ -294,7 +294,7 @@ def scale_spectra(spectra, sn2, iref=0, scale_method='auto', hand_scale=None,
     """
     Parameters
     ----------
-    spectra : XSpecrum1D
+    spectra : XSpectrum1D
       Rebinned spectra
       These should be registered, i.e. pixel 0 has the same wavelength for all
     sn2 : ndarray
