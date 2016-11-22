@@ -244,6 +244,8 @@ def load_input(redname, msgs):
     ----------
     redname : string
       Name of reduction script
+    msgs : Messages
+      logger for PYPIT
 
     Returns
     -------
