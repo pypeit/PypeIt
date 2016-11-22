@@ -83,6 +83,9 @@ def dummy_spectra(s2n=10., seed=1234, wvmnx=None, npix=None):
 
 def test_qa():
     """ Test QA """
+    if os.getenv('RUN_ALL_PYPIT_TESTS') is None:
+        assert True
+        return
     from pypit import arcoadd as arco
     # Setup
     #wvmnx = [[5000., 6000.],
@@ -94,7 +97,6 @@ def test_qa():
     dspec.data['flux'][0, 700] *= 1000.  # One bad pixel
     dspec.data['sig'][0, 700] *= 500.
     arco.coadd_spectra(dspec, wave_method='concatenate', qafile='tst.pdf')
-
 
 
 def test_load():
@@ -128,9 +130,9 @@ def test_new_wave_grid():
     np.testing.assert_allclose(vel_wave[0], 4000.5)
     np.testing.assert_allclose(vel_wave[-1], 6300.6820934900243)
     # Pixel
-    pix_wave = arco.new_wave_grid(dspec.data['wave'], wave_method='pixel', pix_size=2.5)
+    pix_wave = arco.new_wave_grid(dspec.data['wave'], wave_method='pixel', A_pix=2.5)
     np.testing.assert_allclose(pix_wave[0], 4000.5)
-    np.testing.assert_allclose(pix_wave[-1], 6303.15)
+    np.testing.assert_allclose(pix_wave[-1], 6303.0)
 
 
 def test_median_flux():
@@ -165,7 +167,7 @@ def test_sn_weight():
     cat_wave = arco.new_wave_grid(dspec2.data['wave'], wave_method='concatenate')
     rspec2 = dspec2.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
     sn2, weights = arco.sn_weight(rspec2)
-    np.testing.assert_allclose(sn2[0], 97.9, atol=0.1)  # Noise is random
+    np.testing.assert_allclose(sn2[0], 98.0, atol=0.1)  # Noise is random
 
 
 def test_scale():

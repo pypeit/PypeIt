@@ -290,7 +290,7 @@ def median_flux(spec, mask=None, nsig=3., niter=5, **kwargs):
 
 
 def scale_spectra(spectra, sn2, iref=0, scale_method='auto', hand_scale=None,
-                  SN_MAX_MEDSCALE=2., SN_MIN_MEDSCALE=0.5):
+                  SN_MAX_MEDSCALE=2., SN_MIN_MEDSCALE=0.5, **kwargs):
     """
     Parameters
     ----------
