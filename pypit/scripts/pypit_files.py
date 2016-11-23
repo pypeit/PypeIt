@@ -34,42 +34,52 @@ def parser(options=None):
 def main(args):
 
     import sys
-    import glob
+    import yaml
     from pypit import pyputils
+    msgs = pyputils.get_dummy_logger()
+    from pypit.pypit import load_input
+    from pypit.arsort import get_setup_file, load_setup
 
     # Check for existing setup file
-    setup_files = glob.glob('./{:s}*.setup'.format(args.spectrograph))
-    if len(setup_files) > 1:
+    setup_file, nexist = get_setup_file(spectrograph=args.spectrograph)
+    if nexist > 1:
         print("Working directory includes multiple .setup files")
         print("Only 1 is allowed.  You should probably start again with pypit_setup")
         print("Then you can re-run this script")
         sys.exit()
-    elif len(setup_files) == 1:
-        setup_file = setup_files[0]
+    elif nexist == 1:
+        pass
     else:
         print("Working directory does not include a .setup file")
         print("Generate one first with pypit_setup")
 
     # Load msgs
-    msgs = pyputils.get_dummy_logger()
-    from pypit.pypit import load_input
 
     # Read master file
     parlines, datlines, spclines, dfnames, skip_files = load_input(args.master_file, msgs)
+
+    # Read setup (may not need the dict)
+    setup_dict = load_setup(spectrograph=args.spectrograph)
+    setups = setup_dict.keys()
+    setups.sort()
+
+    # Read group file
+    group_file = setup_file.replace('.setup', '.group')
+    with open(group_file, 'r') as infile:
+        group_dict = yaml.load(infile)
+    groups = group_dict.keys()
+    groups.sort()
     debugger.set_trace()
 
     # Generate .pypit files
-    date = str(datetime.date.today().strftime('%Y-%b-%d'))
-    root = args.spectrograph+'_'+date
-    pyp_file = root+'.pypit'
+    for group in groups:
+        root = args.spectrograph+'_'
+        pyp_file = root+group+'.pypit'
 
-    pyp_utils.make_pypit_file(pyp_file, args.spectrograph,
-                              [args.files_root], args.extension)
-    print("Wrote {:s}".format(pyp_file))
+        pyputils.make_pypit_file(pyp_file, args.spectrograph, dfnames,
+                                 parlines=parlines,
+                                 spclines=spclines,
+                                 skip_files=skip_files,
+                                 calcheck=True)
+        print("Wrote {:s}".format(pyp_file))
 
-    # Run
-    pinp = [pyp_file]
-    if args.develop:
-        pinp += ['-d']
-    args = run_pypit.parser(pinp)
-    run_pypit.main(args)

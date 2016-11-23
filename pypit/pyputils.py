@@ -51,7 +51,8 @@ def get_dummy_logger():
 
 
 def make_pypit_file(pyp_file, spectrograph, dfnames, parlines=None,
-                    setup_script=False, calcheck=False, spclines=None):
+                    setup_script=False, calcheck=False, spclines=None,
+                    skip_files=[]):
     """ Generate a default PYPIT settings file
 
     Parameters
@@ -67,8 +68,10 @@ def make_pypit_file(pyp_file, spectrograph, dfnames, parlines=None,
       Lines related to filetype and calibrations
     setup_script : bool, optional
       Running setup script?
-    calcheck : bool, option
+    calcheck : bool, optional
       Run calcheck?
+    skip_files : list, optional
+      Files to skip
 
     Returns
     -------
@@ -110,8 +113,12 @@ def make_pypit_file(pyp_file, spectrograph, dfnames, parlines=None,
         f.write("\n")
         f.write("# Read in the data\n")
         f.write("data read\n")
+        # Data file paths
         for dfname in dfnames:
             f.write(dfname)
+        # Skip files
+        for skip_file in skip_files:
+            f.write(' skip '+skip_file+'\n')
         f.write("data end\n")
         f.write("\n")
         f.write("spect read\n")
