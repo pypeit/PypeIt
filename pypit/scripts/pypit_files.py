@@ -56,8 +56,12 @@ def main(args):
     # Load msgs
 
     # Read master file
-    parlines, datlines, spclines, dfnames, skip_files = load_input(args.master_file, msgs)
+    parlines, datlines, spclines, dfnames = load_input(args.master_file, msgs)
 
+    # Modify setup line (if present)
+    for jj,parline in enumerate(parlines):
+        if 'run setup' in parline:
+            parlines[jj] = 'run setup False\n'
     # Read setup (may not need the dict)
     setup_dict = load_setup(spectrograph=args.spectrograph)
     setups = setup_dict.keys()
@@ -69,17 +73,15 @@ def main(args):
         group_dict = yaml.load(infile)
     groups = group_dict.keys()
     groups.sort()
-    debugger.set_trace()
 
     # Generate .pypit files
     for group in groups:
-        root = args.spectrograph+'_'
+        root = args.spectrograph+'_setup_'
         pyp_file = root+group+'.pypit'
 
         pyputils.make_pypit_file(pyp_file, args.spectrograph, dfnames,
                                  parlines=parlines,
                                  spclines=spclines,
-                                 skip_files=skip_files,
                                  calcheck=True)
         print("Wrote {:s}".format(pyp_file))
 

@@ -86,7 +86,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     tstart = time()
 
     # Load the input file
-    parlines, datlines, spclines, _, _ = load_input(redname, msgs)
+    parlines, datlines, spclines, _ = load_input(redname, msgs)
 
     # Initialize the arguments and flags
 #    argflag = arload.argflag_init()
@@ -271,8 +271,6 @@ def load_input(redname, msgs):
       settings.
     dfnames : list
       Input data lines
-    skip_files : list
-      List of files to skip
     """
     # Read in the model file
     msgs.info("Loading the input file")
@@ -357,7 +355,7 @@ def load_input(redname, msgs):
     else:
         msgs.info("Found {0:d} raw data frames".format(len(datlines)))
     msgs.info("Input file loaded successfully")
-    return parlines, datlines, spclines, dfnames, skip_files
+    return parlines, datlines, spclines, dfnames
 
 
 

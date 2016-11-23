@@ -17,7 +17,7 @@ def test_load_input():
     # Generate a PYPIT file
     pyp_file = data_path('test.pypit')
     pyputils.make_pypit_file(pyp_file, 'kast_blue', data_path('b'), 'fits')
-    parlines, datlines, spclines, dfnames, skip_files = pypit.load_input(pyp_file, msgs)
+    parlines, datlines, spclines, dfnames = pypit.load_input(pyp_file, msgs)
     # Test
     assert len(parlines) == 4
     assert 'b1.fits' in datlines[0]

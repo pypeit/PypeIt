@@ -51,8 +51,7 @@ def get_dummy_logger():
 
 
 def make_pypit_file(pyp_file, spectrograph, dfnames, parlines=None,
-                    setup_script=False, calcheck=False, spclines=None,
-                    skip_files=[]):
+                    setup_script=False, calcheck=False, spclines=None):
     """ Generate a default PYPIT settings file
 
     Parameters
@@ -62,6 +61,7 @@ def make_pypit_file(pyp_file, spectrograph, dfnames, parlines=None,
     spectrograph : str
     dfnames : list
       Path + file root of datafiles
+      Includes skip files
     parlines : list, optional
       Standard parameter calls
     spclines : list, optional
@@ -70,8 +70,6 @@ def make_pypit_file(pyp_file, spectrograph, dfnames, parlines=None,
       Running setup script?
     calcheck : bool, optional
       Run calcheck?
-    skip_files : list, optional
-      Files to skip
 
     Returns
     -------
@@ -85,8 +83,8 @@ def make_pypit_file(pyp_file, spectrograph, dfnames, parlines=None,
     # Defaults
     if parlines is None:
         parlines = ['run ncpus 1\n',
-                    'run calcheck True\n',
                     'output overwrite True\n']
+        parlines += ["run spectrograph {:s}\n".format(spectrograph)]
     if spclines is None:
         if setup_script:
             spclines = [' pixelflat number 0\n', ' arc number 1\n',
@@ -104,10 +102,10 @@ def make_pypit_file(pyp_file, spectrograph, dfnames, parlines=None,
         f.write("# Change the default settings\n")
         for parline in parlines:
             f.write(parline)
-        f.write("run ncpus 1\n")
+        if setup_script:
+            f.write("run setup True\n")
         if calcheck:
             f.write("run calcheck True\n")
-        f.write("run spectrograph {:s}\n".format(spectrograph))
         f.write("\n")
         f.write("# Reduce\n")
         f.write("\n")
@@ -115,10 +113,7 @@ def make_pypit_file(pyp_file, spectrograph, dfnames, parlines=None,
         f.write("data read\n")
         # Data file paths
         for dfname in dfnames:
-            f.write(dfname)
-        # Skip files
-        for skip_file in skip_files:
-            f.write(' skip '+skip_file+'\n')
+            f.write(' '+dfname+'\n')
         f.write("data end\n")
         f.write("\n")
         f.write("spect read\n")

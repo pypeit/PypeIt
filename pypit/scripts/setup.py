@@ -63,7 +63,7 @@ def main(args):
         root = args.spectrograph+'_'+date
         pyp_file = root+'.pypit'
         # Generate
-        dfname = " {:s}*{:s}*\n".format(args.files_root, args.extension)
+        dfname = "{:s}*{:s}*".format(args.files_root, args.extension)
         pyputils.make_pypit_file(pyp_file, args.spectrograph,
                               [dfname], setup_script=True)
         print("Wrote {:s}".format(pyp_file))
