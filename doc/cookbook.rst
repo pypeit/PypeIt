@@ -28,17 +28,19 @@ Here is the basic outline of the work flow:
     - Run the pypit_setup script
     - Inspect the .setup file to confirm the instrument configurations
     - Inspect the .group file to confirm calibrations exist
+    - Modify the data and spect blocks in .pypit file, as needed
+    - Rerun as needed
 
 3. Generate Settings Files (.pypit; see :doc:`settings_file`)
 
-    - We recommend one per setup (instrument configuration)
-    - Run the pypit_pypfiles script
+    - We recommend one .pypit file per setup group (instrument configuration)
+    - Run the pypit_pypfiles script to generate these
 
 4. Run calcheck (described in :doc:`calcheck`)
 
+    - Modify the spect block in Settings File to specify calibrations
     - Run the pypit_calcheck script
     - Inspect the .group file for your Settings File
-    - Modify the Settings File to add/subtract calibrations
 
 5. Run the reduction (described in :doc:`running`)
 
