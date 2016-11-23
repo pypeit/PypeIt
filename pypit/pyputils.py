@@ -48,3 +48,73 @@ def get_dummy_logger():
 
     pyparm.pypit_logger = pyparm.Messages(None, debug, 0)
     return pyparm.pypit_logger
+
+
+def make_pypit_file(pyp_file, spectrograph, dfnames, parlines=None,
+                    setup_script=False, calcheck=False, spclines=None):
+    """ Generate a default PYPIT settings file
+
+    Parameters
+    ----------
+    pyp_file : str
+      Name of PYPIT file to be generated
+    spectrograph : str
+    dfnames : list
+      Path + file root of datafiles
+    parlines : list, optional
+      Standard parameter calls
+    spclines : list, optional
+      Lines related to filetype and calibrations
+    setup_script : bool, optional
+      Running setup script?
+    calcheck : bool, option
+      Run calcheck?
+
+    Returns
+    -------
+    Creates a PYPIT File
+
+    """
+    # Error checking
+    if not isinstance(dfnames, list):
+        raise IOError("files_root needs to be a list")
+
+    # Defaults
+    if parlines is None:
+        parlines = ['run ncpus 1\n',
+                    'run calcheck True\n',
+                    'output overwrite True\n']
+    if spclines is None:
+        if setup_script:
+            spclines = [' pixelflat number 0\n', ' arc number 1\n',
+                        ' slitflat number 0\n',
+                        ' bias number 0\n', ' standard number 0\n']
+        else:
+            spclines = [' pixelflat number 1\n', ' arc number 1\n',
+                        ' slitflat number 1\n',
+                        ' bias number 1\n', ' standard number 1\n']
+
+    # Here we go
+    with open(pyp_file, 'w') as f:
+        f.write("# This is a comment line\n")
+        f.write("\n")
+        f.write("# Change the default settings\n")
+        for parline in parlines:
+            f.write(parline)
+        f.write("run ncpus 1\n")
+        if calcheck:
+            f.write("run calcheck True\n")
+        f.write("run spectrograph {:s}\n".format(spectrograph))
+        f.write("\n")
+        f.write("# Reduce\n")
+        f.write("\n")
+        f.write("# Read in the data\n")
+        f.write("data read\n")
+        for dfname in dfnames:
+            f.write(dfname)
+        f.write("data end\n")
+        f.write("\n")
+        f.write("spect read\n")
+        for spcline in spclines:
+            f.write(spcline)
+        f.write("spect end\n")

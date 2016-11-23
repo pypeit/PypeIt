@@ -20,12 +20,13 @@ def parser(options=None):
     import argparse
 
     parser = argparse.ArgumentParser(description="Script to setup a PYPIT run")
-    parser.add_argument("files_root", type=str, help="File root")
+    parser.add_argument("files_root", type=str, help="File root or .pypit filename")
     parser.add_argument("spectrograph", type=str, help="Name of spectrograph")
     parser.add_argument("-v", "--verbosity", type=int, default=2, help="(2) Level of verbosity (0-2)")
     parser.add_argument("-d", "--develop", default=False, action='store_true', help="Turn develop debugging on")
     parser.add_argument("--extension", default='.fits', action='store_true',
                         help="Extension for data files.  Note any extension for compression (e.g. .gz) is not required.")
+    parser.add_argument("--pypit_file", default=False, action='store_true', help='Input is the .pypit file')
     #parser.add_argument("-q", "--quick", default=False, help="Quick reduction", action="store_true")
     #parser.add_argument("-c", "--cpus", default=False, help="Number of CPUs for parallel processing", action="store_true")
     #parser.print_help()
@@ -43,7 +44,7 @@ def main(args):
     import sys
     import glob
     from pypit.scripts import run_pypit
-    from pypit import utils as pyp_utils
+    from pypit import pyputils
     import datetime
 
     # Check for existing setup file
@@ -56,13 +57,18 @@ def main(args):
         sys.exit()
 
     # Generate a dummy .pypit file
-    date = str(datetime.date.today().strftime('%Y-%b-%d'))
-    root = args.spectrograph+'_'+date
-    pyp_file = root+'.pypit'
-
-    pyp_utils.make_pypit_file(pyp_file, args.spectrograph,
+    if not args.pypit_file:
+        # Name
+        date = str(datetime.date.today().strftime('%Y-%b-%d'))
+        root = args.spectrograph+'_'+date
+        pyp_file = root+'.pypit'
+        # Generate
+        dfname =
+        pyputils.make_pypit_file(pyp_file, args.spectrograph,
                               [args.files_root], args.extension)
-    print("Wrote {:s}".format(pyp_file))
+        print("Wrote {:s}".format(pyp_file))
+    else:
+        pyp_file = args.files_root
 
     # Run
     pinp = [pyp_file]

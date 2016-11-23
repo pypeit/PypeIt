@@ -86,7 +86,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     tstart = time()
 
     # Load the input file
-    parlines, datlines, spclines = load_input(redname, msgs)
+    parlines, datlines, spclines, _, _ = load_input(redname, msgs)
 
     # Initialize the arguments and flags
 #    argflag = arload.argflag_init()
@@ -244,7 +244,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
 
 def load_input(redname, msgs):
     """
-    Load user defined input reduction file. Updates are
+    Load user defined input .pypit reduction file. Updates are
     made to the argflag dictionary.
 
     Parameters
@@ -269,6 +269,10 @@ def load_input(redname, msgs):
       spclines contains a list of user-specified changes
       that should be made to the default spectrograph
       settings.
+    dfnames : list
+      Input data lines
+    skip_files : list
+      List of files to skip
     """
     # Read in the model file
     msgs.info("Loading the input file")
@@ -281,6 +285,7 @@ def load_input(redname, msgs):
     datlines = []
     skip_files = []
     spclines = []
+    dfnames = []
     rddata, rdspec = 0, 0
     for i in range(len(lines)):
         if lines[i].strip() == '': continue
@@ -316,6 +321,7 @@ def load_input(redname, msgs):
                 msgs.error("You must specify the full datapath for the file:" + msgs.newline() + dfname)
             elif len(dfname.split()) != 1:
                 msgs.error("There must be no spaces when specifying the datafile:" + msgs.newline() + dfname)
+            dfnames.append(dfname)
             listing = glob.glob(dfname)
             for lst in listing: datlines.append(lst)
             continue
@@ -351,7 +357,7 @@ def load_input(redname, msgs):
     else:
         msgs.info("Found {0:d} raw data frames".format(len(datlines)))
     msgs.info("Input file loaded successfully")
-    return parlines, datlines, spclines
+    return parlines, datlines, spclines, dfnames, skip_files
 
 
 

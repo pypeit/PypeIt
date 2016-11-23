@@ -6,7 +6,7 @@
 
 
 """
-This script generates files to setup a PYPIT run
+This script generates .pypit files for a PYPIT reduction run
 """
 from __future__ import (print_function, absolute_import, division,
                         unicode_literals)
@@ -19,16 +19,9 @@ except:
 def parser(options=None):
     import argparse
 
-    parser = argparse.ArgumentParser(description="Script to setup a PYPIT run")
-    parser.add_argument("files_root", type=str, help="File root")
+    parser = argparse.ArgumentParser(description="Script to generate .pypit files")
+    parser.add_argument("master_file", type=str, help="Master .pypit file")
     parser.add_argument("spectrograph", type=str, help="Name of spectrograph")
-    parser.add_argument("-v", "--verbosity", type=int, default=2, help="(2) Level of verbosity (0-2)")
-    parser.add_argument("-d", "--develop", default=False, action='store_true', help="Turn develop debugging on")
-    parser.add_argument("--extension", default='.fits', action='store_true',
-                        help="Extension for data files.  Note any extension for compression (e.g. .gz) is not required.")
-    #parser.add_argument("-q", "--quick", default=False, help="Quick reduction", action="store_true")
-    #parser.add_argument("-c", "--cpus", default=False, help="Number of CPUs for parallel processing", action="store_true")
-    #parser.print_help()
 
     if options is None:
         pargs = parser.parse_args()
@@ -42,20 +35,30 @@ def main(args):
 
     import sys
     import glob
-    from pypit.scripts import run_pypit
-    from pypit import utils as pyp_utils
-    import datetime
+    from pypit import pyputils
 
     # Check for existing setup file
     setup_files = glob.glob('./{:s}*.setup'.format(args.spectrograph))
-    if len(setup_files) > 0:
-        print("Working directory already includes a .setup file")
-        for ifile in setup_files:
-            print("Remove: {:s}".format(ifile))
+    if len(setup_files) > 1:
+        print("Working directory includes multiple .setup files")
+        print("Only 1 is allowed.  You should probably start again with pypit_setup")
         print("Then you can re-run this script")
         sys.exit()
+    elif len(setup_files) == 1:
+        setup_file = setup_files[0]
+    else:
+        print("Working directory does not include a .setup file")
+        print("Generate one first with pypit_setup")
 
-    # Generate a dummy .pypit file
+    # Load msgs
+    msgs = pyputils.get_dummy_logger()
+    from pypit.pypit import load_input
+
+    # Read master file
+    parlines, datlines, spclines, dfnames, skip_files = load_input(args.master_file, msgs)
+    debugger.set_trace()
+
+    # Generate .pypit files
     date = str(datetime.date.today().strftime('%Y-%b-%d'))
     root = args.spectrograph+'_'+date
     pyp_file = root+'.pypit'
