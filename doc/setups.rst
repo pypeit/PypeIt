@@ -1,25 +1,43 @@
 .. highlight:: rest
 
-*****
-Setup
-*****
+******
+Setups
+******
 
-This document will describe how to organize your
-raw files and the settings files for running PYPIT.
+.. index:: Setups
+
+Overview
+========
+
+PYPIT distinguishes between various configurations
+for a given instrument when processing calibrations,
+generating Master frames, and performing the data
+reduction.  This Table summarizes the parameters that
+specify a unique setup:
+
+========= ======== ====== ======== =======================================
+Element   Setting  Type   Example    Description
+========= ======== ====== ======== =======================================
+detector  binning  str    2,2      On-chip binning of the detector
+--        det      int    1        Index of the detector; starts at 1
+--        naxis0   int    2048     x dimension of the image
+--        naxis1   int    2048     y dimension of the image
+dichroic  ...      str    560      Dichroic name
+disperser angle    float  23.4     Number specifying tilt of the grating
+--        name     str    600/4000 Name of the dispersing element
+slit      decker   str    long_1.0 Name of decker or slit mask
+--        slitlen  float  120.     Number describing slit length
+--        slitwid  float  1.       Number describing slit width
+========= ======== ====== ======== =======================================
+
+Each setup is given a unique setup ID value which is a
+two digit integer starting at 01.
 
 If you tend to observe with one instrument configuration
 and with a simple set of calibrations, then setup should
 be straightforward.  If you use multiple configurations
 (e.g. gratings, grating tilts), then one must pay more
-careful attention to the setup.
-
-Raw Files
-=========
-
-The raw files may be located anywhere on the harddrive.
-We recommend you organize them by date of observation.
-They can be gzipped although Python's FITS reader works
-considerably slower on compressed files.
+careful attention to the setups.
 
 pypit_setup
 ===========
@@ -27,8 +45,7 @@ pypit_setup
 PYPIT includes a script that one may execute (*recommended*)
 to initiate the data reduction process.  This script helps organize
 the primary data reduction process that follows.  It also
-generates a default Settings File which can be edited further
-to run PYPIT.
+generates a default Settings File.
 
 Execution
 ---------

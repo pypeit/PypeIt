@@ -24,7 +24,7 @@ Contents
    :maxdepth: 2
 
    installing
-   setup 
+   setup
    running
    outputs
    scripts
