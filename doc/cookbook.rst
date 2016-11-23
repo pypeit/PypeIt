@@ -40,7 +40,7 @@ Here is the basic outline of the work flow:
     - Inspect the .group file for your Settings File
     - Modify the Settings File to add/subtract calibrations
 
-5. Run reduction (described in :doc:`running`)
+5. Run the reduction (described in :doc:`running`)
 
     - Further customize your Settings File
     - run_pypit
