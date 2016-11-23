@@ -1,11 +1,15 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import sys
+import os
 import numpy as np
+import yaml
+
 from pypit import arparse as settings
 from pypit import armsgs
 from pypit import arsort
 from pypit import arsciexp
+from pypit import arutils
 
 # Logging
 msgs = armsgs.get_logger()
@@ -18,7 +22,7 @@ except ImportError:
 
 def SetupScience(fitsdict):
     """ Create an exposure class for every science frame
-    Also links to standard star frames
+    Also links to standard star frames and calibrations
 
     Parameters
     ----------
@@ -30,25 +34,88 @@ def SetupScience(fitsdict):
     sciexp : list
       A list containing all science exposure classes
     """
+    # Init
+    if settings.argflag['run']['calcheck'] or settings.argflag['run']['setup']:
+        do_qa = False
+        bad_to_unknown = True
+    else:
+        do_qa = True
+        bad_to_unknown = False
     # Sort the data
     msgs.bug("Files and folders should not be deleted -- there should be an option to overwrite files automatically if they already exist, or choose to rename them if necessary")
-    filesort = arsort.sort_data(fitsdict)
+    filesort = arsort.sort_data(fitsdict, flag_unknown=bad_to_unknown)
     # Write out the details of the sorted files
     if settings.argflag['output']['sorted'] is not None:
         arsort.sort_write(fitsdict, filesort)
     # Match calibration frames to science frames
     arsort.match_science(fitsdict, filesort)
-    # If the user is only debugging, then exit now
-    if settings.argflag['run']['calcheck']:
-        msgs.info("Calibration check complete. Change the 'calcheck' flag to continue with data reduction")
-        sys.exit()
     # Make directory structure for different objects
-    sci_targs = arsort.make_dirs(fitsdict, filesort)
+    if do_qa:
+        sci_targs = arsort.make_dirs(fitsdict, filesort)
     # Create the list of science exposures
     numsci = np.size(filesort['science'])
     sciexp = []
     for i in range(numsci):
-        sciexp.append(arsciexp.ScienceExposure(i, fitsdict))
+        sciexp.append(arsciexp.ScienceExposure(i, fitsdict, do_qa=do_qa))
+    # Generate setup and group dicts
+    setup_dict = {}
+    group_dict = {}
+    for sc in range(numsci):
+        scidx = sciexp[sc]._idx_sci[0]
+        # Run setup
+        setup = arsort.instr_setup(sc, 1, fitsdict, setup_dict)
+        # Set group_key
+        setup_val = ['{:02d}'.format(int(setup)+i)
+                     for i in range(settings.spect['mosaic']['ndet'])]
+        s = '_'
+        group_key = s.join(setup_val)
+        # Plan init
+        if group_key not in group_dict.keys():
+            group_dict[group_key] = {}
+            for key in filesort.keys():
+                if key not in ['unknown', 'dark']:
+                    group_dict[group_key][key] = []
+                group_dict[group_key]['sciobj'] = []
+                group_dict[group_key]['stdobj'] = []
+        # Run through the setups
+        for kk in range(settings.spect['mosaic']['ndet']):
+            _ = arsort.instr_setup(sc, kk+1, fitsdict, setup_dict)
+            # Fill group_dict too
+            if kk==0:
+                for key in filesort.keys():
+                    if key in ['unknown', 'dark']:
+                        continue
+                    for idx in settings.spect[key]['index'][sc]:
+                        # Only add if new
+                        if fitsdict['filename'][idx] not in group_dict[group_key][key]:
+                            group_dict[group_key][key].append(fitsdict['filename'][idx])
+                            if key == 'standard':  # Add target name
+                                group_dict[group_key]['stdobj'].append(fitsdict['target'][idx])
+                        if key == 'science':  # Add target name
+                            group_dict[group_key]['sciobj'].append(fitsdict['target'][scidx])
+    # Write setup -- only if not present
+    setup_file, nexist = arsort.get_setup_file()
+    if nexist == 0:
+        arsort.write_setup(setup_dict)
+    elif nexist == 1: # Compare
+        pass
+        #prev_setup_dict = arsort.load_setup()
+        #if arsort.compare_setup(setup_dict, prev_setup_dict) is False:
+        #    msgs.error("Existing setup (from disk) does not match new one.  Regenerate setup file")
+    # Write group file
+    group_file = settings.argflag['run']['redname'].replace('.pypit', '.group')
+    ydict = arutils.yamlify(group_dict)
+    with open(group_file, 'w') as yamlf:
+        yamlf.write( yaml.dump(ydict))#, default_flow_style=True) )
+    # Finish calcheck or setup
+    if settings.argflag['run']['calcheck'] or settings.argflag['run']['setup']:
+        if settings.argflag['run']['calcheck']:
+            msgs.info("Calibration check complete. Change 'run calcheck' flag to False to continue with data reduction")
+        if settings.argflag['run']['setup']:
+            msgs.info("Setup is complete. Change 'run setup' to False to continue with data reduction")
+        msgs.info("Inspect the setup file: {:s}".format(setup_file))
+        msgs.info("Inspect the group file: {:s}".format(group_file))
+        sys.exit()
     return sciexp
 
 

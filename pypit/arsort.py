@@ -28,7 +28,7 @@ except NameError:
 msgs = armsgs.get_logger()
 
 
-def sort_data(fitsdict):
+def sort_data(fitsdict, flag_unknown=False):
     """
     Create an exposure class for every science frame
 
@@ -36,6 +36,9 @@ def sort_data(fitsdict):
     ----------
     fitsdict : dict
       Contains relevant information from fits header files
+    flag_unknown : bool, optional
+      Instead of crashing out if there are unidentified files,
+      set to 'unknown' and continue
 
     Returns
     -------
@@ -52,6 +55,7 @@ def sort_data(fitsdict):
                  'pixelflat': np.array([], dtype=np.int),
                  'slitflat': np.array([], dtype=np.int),
                  'trace': np.array([], dtype=np.int),
+                 'unknown': np.array([], dtype=np.int),
                  'arc': np.array([], dtype=np.int)})
     fkey = np.array(ftag.keys())
     # Create an array where 1 means it is a certain type of frame and 0 means it isn't.
@@ -59,6 +63,8 @@ def sort_data(fitsdict):
     setarr = np.zeros((len(fkey), numfiles), dtype=np.int)
     # Identify the frames:
     for i in range(len(fkey)):
+        if fkey[i] == 'unknown':
+            continue
         # Self identification
         if settings.argflag['run']['useIDname']:
             w = np.where(fitsdict['idname'] == settings.spect[fkey[i]]['idname'])[0]
@@ -149,7 +155,10 @@ def sort_data(fitsdict):
         msgs.info("Couldn't identify the following files:")
         for i in range(np.size(badfiles)):
             msgs.info(fitsdict['filename'][badfiles[i]])
-        msgs.error("Check these files and your settings.{0:s} file before continuing".format(settings.argflag['run']['spectrograph']))
+        if flag_unknown:
+            filarr[np.where(fkey == 'unknown')[0],badfiles] = 1
+        else:
+            msgs.error("Check these files and your settings.{0:s} file before continuing".format(settings.argflag['run']['spectrograph']))
     # Now identify the dark frames
     wdark = np.where((filarr[np.where(fkey == 'bias')[0],:] == 1).flatten() &
         (fitsdict['exptime'].astype(np.float64) > settings.spect['mosaic']['minexp']))[0]
@@ -324,6 +333,7 @@ def match_science(fitsdict, filesort):
 
     msgs.info("Matching calibrations to Science frames")
     ftag = ['standard', 'bias', 'dark', 'pixelflat', 'slitflat', 'trace', 'arc']
+    setup_ftag = dict(standard=0, bias=0, dark=0, pixelflat=0, slitflat=0, trace=0, arc=1)
     nfiles = fitsdict['filename'].size
     iSCI = filesort['science']
     iSTD = filesort['standard']
@@ -337,7 +347,8 @@ def match_science(fitsdict, filesort):
     nSCI = iSCI.size
     i = 0
     while i < nSCI:
-        msgs.info("Matching calibrations to {0:s}".format(fitsdict['target'][iSCI[i]]))
+        msgs.info("Matching calibrations to {:s}: {:s}".format(
+                fitsdict['target'][iSCI[i]], fitsdict['filename'][iSCI[i]]))
         settings.spect['science']['index'].append(np.array([iSCI[i]]))
         # Find nearby calibration frames
         for ft in range(len(ftag)):
@@ -430,7 +441,10 @@ def match_science(fitsdict, filesort):
             # Now find which of the remaining n are the appropriate calibration frames
             n = np.intersect1d(n, iARR[ft])
             # How many frames are required
-            numfr = settings.spect[ftag[ft]]['number']
+            if settings.argflag['run']['setup']:
+                numfr = setup_ftag[ftag[ft]]
+            else:
+                numfr = settings.spect[ftag[ft]]['number']
             if settings.argflag['output']['verbosity'] == 2:
                 if numfr == 1: areis = "is"
                 else: areis = "are"
@@ -455,17 +469,20 @@ def match_science(fitsdict, filesort):
                 # Errors for insufficient TRACE frames
                 if ftag[ft] == 'trace':
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
-                # Errors for insufficient ARC frames
-                if ftag[ft] == 'arc' and settings.argflag['reduce']['calibrate']:
+                # Errors for insufficient standard frames
+                if ftag[ft] == 'standard' and settings.argflag['reduce']['calibrate']['flux']:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient ARC frames
-                if ftag[ft] == 'standard' and settings.argflag['reduce']['calibrate']['flux']:
+                if ftag[ft] == 'arc' and settings.argflag['reduce']['calibrate']:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
             else:
                 # Select the closest calibration frames to the science frame
                 tdiff = np.abs(fitsdict['time'][n].astype(np.float64)-np.float64(fitsdict['time'][iSCI[i]]))
                 wa = np.argsort(tdiff)
-                settings.spect[ftag[ft]]['index'].append(n[wa[:numfr]])
+                if settings.argflag['run']['setup']:
+                    settings.spect[ftag[ft]]['index'].append(n[wa])
+                else:
+                    settings.spect[ftag[ft]]['index'].append(n[wa[:numfr]])
         i += 1
     msgs.info("Science frames successfully matched to calibration frames")
     return
@@ -637,17 +654,17 @@ def make_dirs(fitsdict, filesort):
     return sci_targs
 
 
-def calib_setup(sc, det, fitsdict, calib_dict,
-                write=False):
-    """ Define calibration setup
+def instr_setup(sc, det, fitsdict, setup_dict, must_exist=False):
+    """ Define instrument setup
+
     Parameters
     ----------
     sciexp
-    calib_dict
+    setup_dict
+
     Returns
     -------
     """
-    import json, io
     setup_str = [str('{:02d}'.format(i+1)) for i in range(99)]
     # Arc
     idx = settings.spect['arc']['index'][sc]
@@ -677,44 +694,129 @@ def calib_setup(sc, det, fitsdict, calib_dict,
                            'naxis1': naxis1},
                  )
 
-    if len(calib_dict) == 0: # Generate
+    if len(setup_dict) == 0: # Generate
         setup = str('01')
         # Finish
-        calib_dict[setup] = cdict
+        setup_dict[setup] = cdict
     else:
         # Search for a match
         setup = None
-        for ckey in calib_dict.keys():
+        for ckey in setup_dict.keys():
             mtch = True
-            for key in calib_dict[ckey].keys():
+            for key in setup_dict[ckey].keys():
                 # Dict?
-                if isinstance(calib_dict[ckey][key], dict):
-                    for ikey in calib_dict[ckey][key].keys():
-                        mtch &= calib_dict[ckey][key][ikey] == cdict[key][ikey]
+                if isinstance(setup_dict[ckey][key], dict):
+                    for ikey in setup_dict[ckey][key].keys():
+                        mtch &= setup_dict[ckey][key][ikey] == cdict[key][ikey]
                         #if mtch is False:
                         #    debugger.set_trace()
                 else:
-                    mtch &= calib_dict[ckey][key] == cdict[key]
+                    mtch &= setup_dict[ckey][key] == cdict[key]
                     #if mtch is False:
                     #    debugger.set_trace()
             if mtch:
                 setup = ckey
                 break
-        # Augment calib_dict?
+        # Augment setup_dict?
         if setup is None:
-            if write is False:
-                return ''
-            maxs = max(calib_dict.keys())
+            if must_exist:
+                msgs.error("This setup is not present in the setup_dict.  Regenerate your setup file!")
+            maxs = max(setup_dict.keys())
             setup = setup_str[setup_str.index(maxs)+1]
-            calib_dict[setup] = cdict
+            setup_dict[setup] = cdict
 
+    return setup
+
+
+def get_setup_file():
+    """ Passes back name of setup file
+    Also checks for existing setup files
+
+    Returns
+    -------
+    setup_file : str
+      Name for the setup file
+    nexist : int
+      Number of existing setup files (0 or 1)
+
+    """
+    import glob
+    import datetime
+
+    spectrograph = settings.argflag['run']['spectrograph']
+    setup_files = glob.glob('./{:s}*.setup'.format(spectrograph))
+    nexist = len(setup_files)
+    # Require 1 or 0
+    if nexist == 1:
+        return setup_files[0], nexist
+    elif nexist == 0:
+        date = str(datetime.date.today().strftime('%Y-%b-%d'))
+        return '{:s}_{:s}.setup'.format(spectrograph,date), nexist
+    else:
+        msgs.error("Found more than one .setup file in the working directory.  Limit to one.")
+
+
+def compare_setup(s1, s2):
+    """ Compare two setup dicts
+    Parameters
+    ----------
+    s1
+    s2
+
+    Returns
+    -------
+
+    """
+    pass
+    #for key in s1.keys():
+    #    for key2 in s1[key]
+
+def load_setup():
+    """ Load setup from the disk
+
+    Returns
+    -------
+    setup_dict : dict
+
+    """
+    import yaml, json
+    setup_file, nexist = get_setup_file()
+    if nexist == 0:
+        msgs.error("No existing setup file.  Generate one first (e.g. pypit_setup)!")
+    # YAML
+    with open(setup_file, 'r') as infile:
+        setup_dict = yaml.load(infile)
+    # Return
+    return setup_dict
+
+
+def write_setup(setup_dict, use_json=False):
+    """ Output setup_dict to hard drive
+    This should only be done once and only if no setup file
+    exists already.
+
+    Parameters
+    ----------
+    setup_dict : dict
+      setup dict
+    use_json : bool, optional
+      Output with JSON instead of YAML (not recommended)
+
+    Returns
+    -------
+
+    """
+    import json, io, yaml
     # Write
-    if write:
-        gddict = ltu.jsonify(calib_dict)
-        setup_file = settings.argflag['output']['sorted']+'.setup'
-        settings.argflag['reduce']['masters']['file'] = setup_file
+    setup_file, nexist = get_setup_file()
+    if nexist == 1:
+        msgs.error("Cannot over-write existing setup file.  If you wish to, remove and rerun")
+    if use_json:
+        gddict = ltu.jsonify(setup_dict)
         with io.open(setup_file, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4,
                                        separators=(',', ': '))))
-
-    return setup
+    else: # YAML
+        ydict = arutils.yamlify(setup_dict)
+        with open(setup_file, 'w') as yamlf:
+            yamlf.write(yaml.dump(ydict))

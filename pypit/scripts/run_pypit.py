@@ -6,7 +6,7 @@
 
 
 """
-This script pushes a FITS file to ginga
+This script runs PYPIT
 """
 from __future__ import (print_function, absolute_import, division,
                         unicode_literals)
@@ -34,7 +34,6 @@ initmsgs = Initmsg(None, debug, 1)
 def parser(options=None):
     import argparse
 
-    #parser = argparse.ArgumentParser(description=initmsgs.usage('PYPIT'))
     parser = argparse.ArgumentParser(description=initmsgs.usage('PYPIT'),
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("pypit_file", type=str, help="PYPIT reduction file (must have .pypit extension)")
