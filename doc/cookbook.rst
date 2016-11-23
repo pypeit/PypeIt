@@ -32,7 +32,7 @@ Here is the basic outline of the work flow:
 3. Generate Settings Files (.pypit; see :doc:`settings_file`)
 
     - We recommend one per setup (instrument configuration)
-    - Run the pypit_settings script
+    - Run the pypit_pypfiles script
 
 4. Run calcheck (described in :doc:`calcheck`)
 
