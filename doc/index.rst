@@ -35,6 +35,7 @@ Running PYPIT
    cookbook
    setups
    pypit_file
+   calcheck
    running
 
 Data Products
@@ -53,6 +54,7 @@ Documentation
 
    bias
    flexure
+   frametype
    tracing
    wave_calib
 
