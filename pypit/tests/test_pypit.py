@@ -16,10 +16,10 @@ def test_load_input():
     from pypit import pypit
     # Generate a PYPIT file
     pyp_file = data_path('test.pypit')
-    pyputils.make_pypit_file(pyp_file, 'kast_blue', data_path('b'), 'fits')
+    pyputils.make_pypit_file(pyp_file, 'kast_blue', [data_path('b*fits.gz')])
     parlines, datlines, spclines, dfnames = pypit.load_input(pyp_file, msgs)
     # Test
-    assert len(parlines) == 4
-    assert 'b1.fits' in datlines[0]
+    assert len(parlines) == 3
+    assert len(datlines) == 2
     assert 'arc number 1' in spclines[1]
 
