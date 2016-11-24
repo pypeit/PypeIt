@@ -20,10 +20,12 @@ We *recommend* that you generate a unique Settings File for each
 instrument setup (modulo detectors) or for each target.
 It is possible that you will need to modify the settings for
 different gratings, etc.  It will also enable you to more
-easily customize the associated calibration files.
+easily customize the associated calibration files to process.
 
-By Script
-=========
+.. _pypit_pypfiles:
+
+pypit_pypfiles
+==============
 
 PYPIT includes a simple script -- pypit_pypfiles --
 which will take an input 'master' .pypit file and
@@ -36,9 +38,9 @@ Here is an example call::
 
     pypit_pypfiles lris_blue_2016-Nov-23.pypit lris_blue
 
-For a .setup file with two groupings -- 01_02, 03_04 --
-two .pypit files are generated:  lris_blue_setup_01_02.pypit,
-lris_blue_setup_03_04.pypit
+For a .setup file with two groupings -- '01_02', '03_04' --
+two .pypit files are generated, e.g.
+lris_blue_setup_01_02.pypit, lris_blue_setup_03_04.pypit
 
 By Example
 ==========
@@ -46,23 +48,23 @@ By Example
 For reference, there are
 existing settings files in `PYPIT development suite
 <https://github.com/PYPIT/PYPIT-development-suite>`_.
-The PYPIT development suite is recommended for download in
-:doc:`installing`, and the relevant settings files are located
+The PYPIT development suite is recommended for download
+(see :doc:`installing`), and the relevant settings files are located
 in::
 
-    ~/PYPIT-development-suite/pypit_files/
+    PYPIT-development-suite/pypit_files/
 
 You should be able to find one that matches your instrument.
 
-.. _settings_by_line
+.. _pypfile_by_line:
 
 Line by line
 ============
 
 This section will instruct you on how to build a .pypit
-setting file from scratch.  This is **not** recommended
-although the following documentation should be useful
-for those attempting to edit an existing setting file.
+setting file from scratch.  This is **not** recommended.
+The following documentation is mainly for guiding
+modifications to an existing setting file.
 
 Naming
 ++++++
@@ -79,13 +81,25 @@ pound sign::
 
     # This is a comment line
 
-Run settings
-++++++++++++
+We *recommend* you separate the main blocks of the .pypit file
+with comments.
 
-The first thing you'll need to include is any changes on the
-default settings. Most of these, except the spectrograph, aren't
-truly necessary in the most basic settings file (there are existing
-set defaults), but will be useful for running PYPIT::
+.. _run_block:
+
+Run block
++++++++++
+
+The first thing to include are changes to the
+default settings related to running PYPIT.
+The only one required is to set the name of the
+spectrograph::
+
+    run spectograph name_of_your_spectrograph
+
+We do recommend including several others, and the
+.pypit files made by the :ref:`pypit_pypfiles` script
+includes most of the following.
+Here are ones that one typically sets::
 
     # Change the default settings
     run ncpus 1                     # number of CPUs to use; can also negative integers,
@@ -97,21 +111,39 @@ set defaults), but will be useful for running PYPIT::
     output overwrite True              # overwrite any existing output files?
     output sorted lris_blue_long_600_4000_d560     # name of output files
 
-Reduce settings
-+++++++++++++++
+.. _reduce_block:
 
-Data settings
-+++++++++++++
+Reduce block
+++++++++++++
 
-Next, tell PYPIT where your raw data lives!::
+.. _data_block:
+
+Data block
+++++++++++
+
+Next, tell PYPIT where your raw data lives!
+One specifies the full path and may use wild cards
+to include a set of files.  If the data are compressed,
+include that extension.  Multiple entires are allowed
+
+Here is an example::
 
     # Read in the data
     data read
      /Users/path/to/your/raw/data/*.fits
     data end
 
-Spect settings
-++++++++++++++
+If you wish to skip individual files, you can specify these
+without the complete path, e.g.::
+
+    skip LB.20160406.17832.fits
+
+These will not be ignored as if they didn't exist.
+
+.. _spect_block:
+
+Spect block
++++++++++++
 
 Then, give PYPIT some information about your raw data. For
 example, PYPIT only accepts calibration files if they were
