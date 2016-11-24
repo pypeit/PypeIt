@@ -1,15 +1,58 @@
+.. highlight:: rest
 
-=====
+==============
 PYPIT Cookbook
-=====
+==============
 
-1. Install PYPIT
+This document gives an overview on
+how to run PYPIT, i.e. with less detail.
+Notes on :doc:`installing` are found elsewhere.
 
-- Instructions to install at: https://github.com/PYPIT/PYPIT/blob/master/doc/installing.rst
-- The installation requires to define the environment variable GSL_PATH and linetools (included in astropy)
-- Make sure that you are using linetools v0.2 or newer
+The following outlines the standard steps for running
+PYPIT on a batch of data.  There are alternate ways to
+run these steps, but non-experts should adhere to the
+following approach.
 
-2. Prepare the data
+Outline
++++++++
+
+Here is the basic outline of the work flow:
+
+1. Prepare your data
+
+    - Identify folder(s) with raw images
+    - The raw images can be gzip compressed
+
+2. Generate the .setup file (see :doc:`setup`)
+
+    - Run the pypit_setup script
+    - Inspect the .setup file to confirm the instrument configurations
+    - Inspect the .group file to confirm calibrations exist
+    - Modify the data and spect blocks in .pypit file, as needed
+    - Rerun as needed
+
+3. Generate Settings Files (.pypit; see :doc:`settings_file`)
+
+    - We recommend one .pypit file per setup group (instrument configuration)
+    - Run the pypit_pypfiles script to generate these
+
+4. Run calcheck (described in :doc:`calcheck`)
+
+    - Modify the spect block in Settings File to specify calibrations
+    - Run the pypit_calcheck script
+    - Inspect the .group file for your Settings File
+
+5. Run the reduction (described in :doc:`running`)
+
+    - Further customize your Settings File
+    - run_pypit
+
+6. Examine QA
+
+7. Examine spectra
+
+Old
++++
 
 - In principle if the calibration and the science exposures are consistent you can pretty much prepare your *.pypit
 file following one of the examples at: https://github.com/PYPIT/PYPIT/tree/master/test_suite

@@ -1,0 +1,29 @@
+.. highlight:: rest
+
+===========
+Instruments
+===========
+
+Overview
+++++++++
+
+Below we describe all of the spectrograph that may
+be reduced by PYPIT.  We also provide any suggested
+tips for customizing the Settings File.
+
+=============== =========   ===================================
+PYPIT Name      Telescope   Instrument
+=============== =========   ===================================
+kast_blue       Lick 3m     Kast dual spectrometer; blue camera
+kast_red        Lick 3m     Kast dual spectrometer; red camera
+lris_blue       Keck        LRIS spectrometer; blue camera
+lris_red        Keck        LRIS spectrometer; red camera
+=============== =========   ===================================
+
+
+Kast
+++++
+
+LRIS
+++++
+
