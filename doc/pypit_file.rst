@@ -9,7 +9,7 @@ Overview
 
 The primary file which informs the PYPIT data
 reduction pipeline is referred to as the PYPIT
-Reduction file and has a .pypit extension.  This
+Reduction file and it has a .pypit extension.  This
 can be generated from PYPIT scripts (*recommended*)
 or by-hand if you are sufficiently familiar with the code.
 
@@ -40,24 +40,28 @@ For a .setup file with two groupings -- 01_02, 03_04 --
 two .pypit files are generated:  lris_blue_setup_01_02.pypit,
 lris_blue_setup_03_04.pypit
 
-Settings File
-=============
-To begin reducing your data, you'll need a settings file
-with the extension ".pypit" that will provide the information
-necessary for PYPIT to know how to proceed with reducing your
-particular set of data.
+By Example
+==========
 
-
-This section will instruct you on how to build a .pypit
-setting file from scratch. For reference, there are
-existing settings files in PYPIT development suite.
+For reference, there are
+existing settings files in `PYPIT development suite
+<https://github.com/PYPIT/PYPIT-development-suite>`_.
 The PYPIT development suite is recommended for download in
 :doc:`installing`, and the relevant settings files are located
 in::
 
     ~/PYPIT-development-suite/pypit_files/
 
-However, let's look at how to make one from scratch.
+You should be able to find one that matches your instrument.
+
+By Hand
+=======
+
+This section will instruct you on how to build a .pypit
+setting file from scratch.  This is **not** recommended
+although the following documentation should be useful
+for those attempting to edit an existing setting file.
+
 
 Settings File, line by line
 +++++++++++++++++++++++++++
@@ -161,7 +165,4 @@ are other parameters that you can tell PYPIT to run by::
      ################################
     spect end
 
-calcheck
-========
 
-Run this!
