@@ -454,7 +454,7 @@ def match_science(fitsdict, filesort):
                 else:
                     msgs.info("  Found {0:d} {1:s} frames for {2:s} ({3:d} {4:s} required)".format(np.size(n), ftag[ft], fitsdict['target'][iSCI[i]], numfr, areis))
             # Have we identified enough of these calibration frames to continue?
-            if np.size(n) < numfr:
+            if np.size(n) < np.abs(numfr):
                 msgs.warn("  Only {0:d}/{1:d} {2:s} frames for {3:s}".format(np.size(n), numfr, ftag[ft],
                                                                              fitsdict['target'][iSCI[i]]))
                 # Errors for insufficient BIAS frames
@@ -479,7 +479,7 @@ def match_science(fitsdict, filesort):
                 # Select the closest calibration frames to the science frame
                 tdiff = np.abs(fitsdict['time'][n].astype(np.float64)-np.float64(fitsdict['time'][iSCI[i]]))
                 wa = np.argsort(tdiff)
-                if settings.argflag['run']['setup']:
+                if (settings.argflag['run']['setup']) or (numfr < 0):
                     settings.spect[ftag[ft]]['index'].append(n[wa])
                 else:
                     settings.spect[ftag[ft]]['index'].append(n[wa[:numfr]])
