@@ -20,6 +20,6 @@ def test_load_input():
     parlines, datlines, spclines, dfnames = pypit.load_input(pyp_file, msgs)
     # Test
     assert len(parlines) == 3
-    assert 'b1.fits' in datlines[0]
+    assert len(datlines) == 2
     assert 'arc number 1' in spclines[1]
 
