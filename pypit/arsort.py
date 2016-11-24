@@ -29,8 +29,7 @@ msgs = armsgs.get_logger()
 
 
 def sort_data(fitsdict, flag_unknown=False):
-    """
-    Create an exposure class for every science frame
+    """ Generate a dict of filetypes from the input fitsdict object
 
     Parameters
     ----------

@@ -157,19 +157,30 @@ def dummy_self(inum=0, fitsdict=None, nfile=10):
     return slf
 
 
-def dummy_settings(pypitdir=None, nfile=10):
+def dummy_settings(pypitdir=None, nfile=10, spectrograph='kast_blue'):
+    """
+    Parameters
+    ----------
+    pypitdir
+    nfile
+    spectrograph
+
+    Returns
+    -------
+
+    """
     from pypit import arparse
     # Dummy argflag
-    argf = arparse.get_argflag_class(("ARMLSD", "kast_blue"))
+    argf = arparse.get_argflag_class(("ARMLSD", spectrograph))
     lines = argf.load_file()
     if pypitdir is None:
         pypitdir = __file__[0:__file__.rfind('/')]
     argf.set_paramlist(lines)
     argf.set_param('run pypitdir {0:s}'.format(pypitdir))
-    argf.set_param('run spectrograph kast_blue')
+    argf.set_param('run spectrograph {:s}'.format(spectrograph))
     argf.set_param('run directory science ./')
     # Dummy spect
-    spect = arparse.get_spect_class(("ARMLSD", "kast_blue", "dummy"))
+    spect = arparse.get_spect_class(("ARMLSD", spectrograph, "dummy"))
     lines = spect.load_file()
     spect.set_paramlist(lines)
     kk = 0

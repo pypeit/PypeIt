@@ -34,6 +34,7 @@ def get_version():
                 upd = lu.group(1)
     return ver, upd
 
+
 def get_dummy_fitsdict():
     """ Generates a dummy fitsdict.  Useful for testing
     Returns
