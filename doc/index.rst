@@ -34,6 +34,7 @@ Running PYPIT
 
    cookbook
    setups
+   pypit_file
    running
 
 Data Products
