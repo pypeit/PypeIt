@@ -39,10 +39,21 @@ trace     ???
 science   Spectrum of one or more science targets
 standard  Spectrum of spectrophotometric standard star
           PYPIT includes a list of pre-defined standards
+unknown   File could not be automatically identified by PYPIT
 ========= =============================================================
 
 It is possible, and for flats common, that a frame can be
 assigned more than one frametype.
 
-Modifying
-=========
+.. _modify_frametype:
+
+Modifying a frametype
+=====================
+
+One can specify one or more frametype's for any file
+in the .pypit file.  Include one or more lines in the
+:ref:`spect_block` with syntax `set frametype filename`, e.g.::
+
+    set pixelflat b150910_2051.fits.gz
+
+This will over-ride the automatic assignment by PYPIT.
