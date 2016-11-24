@@ -24,7 +24,7 @@ def parser(options=None):
     parser.add_argument("spectrograph", type=str, help="Name of spectrograph")
     parser.add_argument("-v", "--verbosity", type=int, default=2, help="(2) Level of verbosity (0-2)")
     parser.add_argument("-d", "--develop", default=False, action='store_true', help="Turn develop debugging on")
-    parser.add_argument("--extension", default='.fits', action='store_true',
+    parser.add_argument("--extension", default='.fits',
                         help="Extension for data files.  Note any extension for compression (e.g. .gz) is not required.")
     parser.add_argument("--pypit_file", default=False, action='store_true', help='Input is the .pypit file')
     #parser.add_argument("-q", "--quick", default=False, help="Quick reduction", action="store_true")

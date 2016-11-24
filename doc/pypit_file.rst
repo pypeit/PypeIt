@@ -30,6 +30,15 @@ which will take an input 'master' .pypit file and
 generate a set of reduction files, one per setup grouping.
 Each setup grouping has a unique instrument configuration
 except detector (indeed, it groups together all of the detectors).
+See :ref:`groupings` for further details.
+
+Here is an example call::
+
+    pypit_pypfiles lris_blue_2016-Nov-23.pypit lris_blue
+
+For a .setup file with two groupings -- 01_02, 03_04 --
+two .pypit files are generated:  lris_blue_setup_01_02.pypit,
+lris_blue_setup_03_04.pypit
 
 Settings File
 =============

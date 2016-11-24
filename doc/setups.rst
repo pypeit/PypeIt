@@ -19,15 +19,15 @@ specify a unique setup:
 Element   Setting  Type   Example    Description
 ========= ======== ====== ======== =======================================
 detector  binning  str    2,2      On-chip binning of the detector
---        det      int    1        Index of the detector; starts at 1
---        naxis0   int    2048     x dimension of the image
---        naxis1   int    2048     y dimension of the image
+ ..       det      int    1        Index of the detector; starts at 1
+ ..       naxis0   int    2048     x dimension of the image
+ ..       naxis1   int    2048     y dimension of the image
 dichroic  ...      str    560      Dichroic name
 disperser angle    float  23.4     Number specifying tilt of the grating
---        name     str    600/4000 Name of the dispersing element
+ ..       name     str    600/4000 Name of the dispersing element
 slit      decker   str    long_1.0 Name of decker or slit mask
---        slitlen  float  120.     Number describing slit length
---        slitwid  float  1.       Number describing slit width
+ ..       slitlen  float  120.     Number describing slit length
+ ..       slitwid  float  1.       Number describing slit width
 ========= ======== ====== ======== =======================================
 
 Each setup is given a unique setup ID value which is a
@@ -104,6 +104,8 @@ Data pulled from the header are shown here.  In addition, the
 frametype assigned by PYPIT is specified.  If any of these are
 mis-specified (possible), they should be correctly specified
 in your Settings File.
+
+.. _groupings:
 
 Groupings
 +++++++++
