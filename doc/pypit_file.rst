@@ -54,17 +54,19 @@ in::
 
 You should be able to find one that matches your instrument.
 
-By Hand
-=======
+.. _settings_by_line
+
+Line by line
+============
 
 This section will instruct you on how to build a .pypit
 setting file from scratch.  This is **not** recommended
 although the following documentation should be useful
 for those attempting to edit an existing setting file.
 
+Naming
+++++++
 
-Settings File, line by line
-+++++++++++++++++++++++++++
 Create a .pypit file. Name it anything you want, but for example,
 it's useful to have: the instrument name, the grating or grism used,
 the dichroic, etc. For example, we could call our settings file
@@ -76,6 +78,9 @@ You can make any comments in your .pypit settings file with a
 pound sign::
 
     # This is a comment line
+
+Run settings
+++++++++++++
 
 The first thing you'll need to include is any changes on the
 default settings. Most of these, except the spectrograph, aren't
@@ -92,12 +97,21 @@ set defaults), but will be useful for running PYPIT::
     output overwrite True              # overwrite any existing output files?
     output sorted lris_blue_long_600_4000_d560     # name of output files
 
+Reduce settings
++++++++++++++++
+
+Data settings
++++++++++++++
+
 Next, tell PYPIT where your raw data lives!::
 
     # Read in the data
     data read
      /Users/path/to/your/raw/data/*.fits
     data end
+
+Spect settings
+++++++++++++++
 
 Then, give PYPIT some information about your raw data. For
 example, PYPIT only accepts calibration files if they were
@@ -117,8 +131,23 @@ minimum to be::
      trace number 1         # number of trace frames
     spect end
 
-Settings File, as a whole
-+++++++++++++++++++++++++
+
+In addition to the basic calibration settings above, you
+may wish to redefine the frametype of a given file.
+Here are some examples::
+
+    spect read
+     set bias     b150910_2036.fits.gz
+     set bias     b150910_2037.fits.gz
+     set bias     b150910_2038.fits.gz
+     set pixelflat  b150910_2051.fits.gz
+     set trace    b150910_2051.fits.gz
+     set standard b150910_2083.fits.gz
+    spect end
+
+
+Whole enchilada
++++++++++++++++
 With that, the most basic settings file looks something like this::
 
     # Change the default settings
@@ -144,25 +173,3 @@ With that, the most basic settings file looks something like this::
 
 You can now run PYPIT with this .pypit settings file! See how in
 :doc:`running`.
-
-Additional parameters for the Settings File
-+++++++++++++++++++++++++++++++++++++++++++
-In addition to the basic settings file as shown above, there
-are other parameters that you can tell PYPIT to run by::
-
-    # Reduce
-
-
-    spect read
-     # not needed if everything runs smoothly. Check your .lst file and make sure that each frame was identified correctly (that each file is properly identified as a bias, arc, slitflat, standard, science). If any file was misidentified, you can force the file type to be something different below (note that you can also identify your various calibration and science files below if you don't want to deal with the .lst file):
-
-     #set bias     b150910_2036.fits.gz
-     #set bias     b150910_2037.fits.gz
-     #set bias     b150910_2038.fits.gz
-     #set pixelflat  b150910_2051.fits.gz
-     #set trace    b150910_2051.fits.gz
-     #set standard b150910_2083.fits.gz
-     ################################
-    spect end
-
-
