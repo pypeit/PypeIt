@@ -23,6 +23,10 @@ try:
 except ImportError:
     import pdb as debugger
 
+try:
+    basestring
+except NameError:  # For Python 3
+    basestring = str
 
 def quicksave(data,fname):
     """
