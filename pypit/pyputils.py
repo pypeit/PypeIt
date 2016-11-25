@@ -35,15 +35,7 @@ def get_version():
     return ver, upd
 
 
-def get_dummy_fitsdict():
-    """ Generates a dummy fitsdict.  Useful for testing
-    Returns
-    -------
-
-    """
-    fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
-
-def get_dummy_logger():
+def get_dummy_logger(develop=False):
     """ Useful for testing
 
     Returns
@@ -53,6 +45,7 @@ def get_dummy_logger():
     from pypit import ardebug
     from pypit import armsgs as pyparm
     debug = ardebug.init()
+    debug['develop'] = develop
 
     pyparm.pypit_logger = pyparm.Messages(None, debug, 0)
     return pyparm.pypit_logger

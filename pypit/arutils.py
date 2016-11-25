@@ -116,24 +116,48 @@ def calc_offset(raA, decA, raB, decB, distance=False):
         return delRA, delDEC
 
 
-def dummy_fitsdict(nfile=10):
+def dummy_fitsdict(nfile=10, spectrograph='kast_blue'):
     """
     Parameters
     ----------
-    nfile : int
+    nfile : int, optional
       Number of files to mimic
+    spectrograph : str, optional
+      Name of spectrograph to mimic
 
     Returns
     -------
 
     """
-    fitsdict = {}
-    fitsdict['date'] = ['2015-01-23T00:54:17.04']*nfile
+    fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
+    fitsdict['filename'] = ['b{:03d}.fits'.format(i) for i in range(nfile)]
+    fitsdict['date'] = ['2015-01-23T00:{:02d}:11.04'.format(i) for i in range(nfile)]  # Will fail at 60
+    fitsdict['time'] = [(1432085758+i*60)/3600. for i in range(nfile)]
     fitsdict['target'] = ['Dummy']*nfile
+    fitsdict['ra'] = ['00:00:00']*nfile
+    fitsdict['dec'] = ['+00:00:00']*nfile
     fitsdict['exptime'] = [300.] * nfile
+    fitsdict['naxis0'] = [2048] * nfile
+    fitsdict['naxis1'] = [2048] * nfile
     fitsdict['dispname'] = ['600/4310'] * nfile
+    fitsdict['dichroic'] = ['560'] * nfile
     fitsdict["binning"] = [[None]]
     #
+    if spectrograph == 'kast_blue':
+        # Lamps
+        for i in range(1,17):
+            fitsdict['lampstat{:02d}'.format(i)] = ['off'] * nfile
+        fitsdict['exptime'][0] = 0.       # Bias
+        fitsdict['lampstat06'][1] = 'on'  # Arc
+        fitsdict['lampstat01'][2] = 'on'  # Trace, pixel, slit flat
+        fitsdict['lampstat01'][3] = 'on'  # Trace, pixel, slit flat
+        fitsdict['ra'][4] = '05:06:36.6'  # Standard
+        fitsdict['dec'][4] = '52:52:01.0'
+        fitsdict['decker'] = ['0.5 arcsec'] * nfile
+    # arrays
+    for k in fitsdict.keys():
+        fitsdict[k] = np.array(fitsdict[k])
+    # Return
     return fitsdict
 
 

@@ -180,7 +180,7 @@ def sort_data(fitsdict, flag_unknown=False):
 
 def chk_condition(fitsdict, cond):
     """
-    Code to perform condition.  A bit messy so a separeate definition
+    Code to perform condition.  A bit messy so a separate definition
     was generated.
     Create an exposure class for every science frame
 
