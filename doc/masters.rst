@@ -26,8 +26,9 @@ MasterWave      2d image Wavelength image (in air and Angstroms)
 =============== ======== ===========================================
 
 
-**Warning:**  If the code has exited prematurely, one or
-more of these frames can be essentially empty.
+**Warning:**  If the code has exited prematurely, then the code
+will dump a set of MasterFrame files to the disk.  One or
+more of these frames, however, can be essentially empty.
 
 Reusing Masters
 ===============
