@@ -36,6 +36,9 @@ The code will exist with error if there are insufficient calibration
 frames.  Otherwise, it will exit after organizing the files and
 will produce a new .group file for your inspection.
 
+You should confirm that the correct number of science and
+exposure standard files have been identified.
+
 
 Settings
 ========

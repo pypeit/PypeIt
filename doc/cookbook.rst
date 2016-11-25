@@ -28,6 +28,7 @@ Here is the basic outline of the work flow:
     - Run the pypit_setup script
     - Inspect the .setup file to confirm the instrument configurations
     - Inspect the .group file to confirm calibrations exist
+    - Inspect the .group file to confirm science and standard frames exist
     - Modify the data and spect blocks in .pypit file, as needed
     - Rerun as needed
 
@@ -40,7 +41,7 @@ Here is the basic outline of the work flow:
 
     - Modify the spect block in Settings File to specify calibrations
     - Run the pypit_calcheck script
-    - Inspect the .group file for your Settings File
+    - Inspect the .group file for your Settings File. Confirm calibrations, science and standard frames
 
 5. Run the reduction (described in :doc:`running`)
 
