@@ -30,6 +30,8 @@ def test_sort_data():
 
 
 def test_user_frametype():
+    """ Test setting frametype manually
+    """
     # Load
     arutils.dummy_settings(spectrograph='kast_blue')
     fitsdict = arutils.dummy_fitsdict()
