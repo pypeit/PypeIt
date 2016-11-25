@@ -33,7 +33,10 @@ Reusing Masters
 ===============
 
 There are 2 standard ways to direct the code to reuse any
-existing MasterFrame file when reducing.
+existing MasterFrame files from the hard-drive when reducing.
+
+By default, the code reuses any MasterFrames already in memory,
+i.e. those produced during the course of the reductions.
 
 Command Line
 ------------
