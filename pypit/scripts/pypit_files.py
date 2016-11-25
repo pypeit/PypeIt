@@ -64,14 +64,14 @@ def main(args):
             parlines[jj] = 'run setup False\n'
     # Read setup (may not need the dict)
     setup_dict = load_setup(spectrograph=args.spectrograph)
-    setups = setup_dict.keys()
+    setups = list(setup_dict.keys())  # For Python 3
     setups.sort()
 
     # Read group file
     group_file = setup_file.replace('.setup', '.group')
     with open(group_file, 'r') as infile:
         group_dict = yaml.load(infile)
-    groups = group_dict.keys()
+    groups = list(group_dict.keys())
     groups.sort()
 
     # Generate .pypit files

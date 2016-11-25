@@ -56,7 +56,7 @@ def sort_data(fitsdict, flag_unknown=False):
                  'trace': np.array([], dtype=np.int),
                  'unknown': np.array([], dtype=np.int),
                  'arc': np.array([], dtype=np.int)})
-    fkey = np.array(ftag.keys())
+    fkey = np.array(list(ftag.keys()))  # For Python 3 compatability
     # Create an array where 1 means it is a certain type of frame and 0 means it isn't.
     filarr = np.zeros((len(fkey), numfiles), dtype=np.int)
     setarr = np.zeros((len(fkey), numfiles), dtype=np.int)
