@@ -28,11 +28,18 @@ def test_sort_data():
     assert filesort['standard'][0] == 4
     assert len(filesort['science']) == 5
 
+
 def test_user_frametype():
     # Load
     arutils.dummy_settings(spectrograph='kast_blue')
     fitsdict = arutils.dummy_fitsdict()
+    # Modify settings -- WARNING: THIS IS GLOBAL!
+    settings.spect['set'] = {}
+    settings.spect['set']['standard'] = ['b009.fits']
     filesort = arsort.sort_data(fitsdict)
+    assert 9 in filesort['standard']
+    settings.spect['set'] = {}
+
 
 def test_match_science():
     """ Test match_science routine
@@ -57,7 +64,7 @@ def test_neg_match_science():
     fitsdict = arutils.dummy_fitsdict()
     filesort = arsort.sort_data(fitsdict)
     # Use negative number
-    for ftype in ['arc', 'pixelflat', 'trace', 'slitflat']:
+    for ftype in ['arc', 'pixelflat', 'trace', 'slitflat', 'bias']:
         settings.spect[ftype]['number'] = 1
     settings.spect['trace']['number'] = -1
     arsort.match_science(fitsdict, filesort)
