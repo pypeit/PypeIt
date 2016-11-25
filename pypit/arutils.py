@@ -130,6 +130,8 @@ def dummy_fitsdict(nfile=10, spectrograph='kast_blue'):
 
     """
     fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
+    fitsdict['utc'] = ['2015-01-23']*nfile
+    fitsdict['directory'] = ['./']*nfile
     fitsdict['filename'] = ['b{:03d}.fits'.format(i) for i in range(nfile)]
     fitsdict['date'] = ['2015-01-23T00:{:02d}:11.04'.format(i) for i in range(nfile)]  # Will fail at 60
     fitsdict['time'] = [(1432085758+i*60)/3600. for i in range(nfile)]
@@ -154,6 +156,8 @@ def dummy_fitsdict(nfile=10, spectrograph='kast_blue'):
         fitsdict['ra'][4] = '05:06:36.6'  # Standard
         fitsdict['dec'][4] = '52:52:01.0'
         fitsdict['decker'] = ['0.5 arcsec'] * nfile
+    elif spectrograph == 'none':
+        pass
     # arrays
     for k in fitsdict.keys():
         fitsdict[k] = np.array(fitsdict[k])

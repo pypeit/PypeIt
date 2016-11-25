@@ -49,7 +49,7 @@ def test_save1d_hdf5():
     from pypit import arutils as arut
     # Dummy self
     slf = arut.dummy_self()
-    fitsdict = arut.dummy_fitsdict(nfile=1)
+    fitsdict = arut.dummy_fitsdict(nfile=1, spectrograph='none')
     # specobj
     slf._specobjs = []
     slf._specobjs.append([mk_specobj(objid=455), mk_specobj(flux=3., objid=555)])

@@ -64,8 +64,9 @@ that there be that many calibration frames for each science
 frame reduced.  And, PYPIT will restrict to precisely that many
 calibration files.
 
-If you wish to you *at least* that many frames, specify with a
-negative integer value, e.g.::
+If you wish to use *at least* an input number of frames (and
+more if they exist), then specify the calibration nubmer
+with a negative integer value, e.g.::
 
      pixelflat number 5
      arc number 1

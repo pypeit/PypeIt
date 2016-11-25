@@ -28,6 +28,11 @@ def test_sort_data():
     assert filesort['standard'][0] == 4
     assert len(filesort['science']) == 5
 
+def test_user_frametype():
+    # Load
+    arutils.dummy_settings(spectrograph='kast_blue')
+    fitsdict = arutils.dummy_fitsdict()
+    filesort = arsort.sort_data(fitsdict)
 
 def test_match_science():
     """ Test match_science routine
@@ -43,12 +48,12 @@ def test_match_science():
     assert settings.spect['standard']['index'][1][0] == 4
     assert len(settings.spect['trace']['index']) == 6
 
+
 def test_neg_match_science():
     """ Test using negative number for calibs
     """
     # Load
     arutils.dummy_settings(spectrograph='kast_blue')
-    settings.argflag['run']['setup'] = True # Over-ride default numbers
     fitsdict = arutils.dummy_fitsdict()
     filesort = arsort.sort_data(fitsdict)
     # Use negative number
@@ -57,3 +62,5 @@ def test_neg_match_science():
     settings.spect['trace']['number'] = -1
     arsort.match_science(fitsdict, filesort)
     assert len(settings.spect['trace']['index'][1]) == 2
+
+
