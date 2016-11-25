@@ -781,6 +781,7 @@ def load_setup(**kwargs):
     Returns
     -------
     setup_dict : dict
+    setup_file : str
 
     """
     import yaml
@@ -791,7 +792,7 @@ def load_setup(**kwargs):
     with open(setup_file, 'r') as infile:
         setup_dict = yaml.load(infile)
     # Return
-    return setup_dict
+    return setup_dict, setup_file
 
 
 def write_setup(setup_dict, use_json=False):

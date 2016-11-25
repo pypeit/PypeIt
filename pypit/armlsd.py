@@ -55,11 +55,11 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     numsci = len(sciexp)
 
     # Create a list of master calibration frames
-    masters = armasters.MasterFrames(settings.spect['mosaic']['ndet'])
+    #masters = armasters.MasterFrames(settings.spect['mosaic']['ndet'])
 
-    # Use Masters?  Requires setup file
-    setup_file, nexist = arsort.get_setup_file()
-    setup_dict = arsort.load_setup()
+    # Load setup
+    setup_dict, setup_file = arsort.load_setup()
+    # Masters
     settings.argflag['reduce']['masters']['file'] = setup_file
 
     # Start reducing the data

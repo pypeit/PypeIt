@@ -63,7 +63,7 @@ def main(args):
         if 'run setup' in parline:
             parlines[jj] = 'run setup False\n'
     # Read setup (may not need the dict)
-    setup_dict = load_setup(spectrograph=args.spectrograph)
+    setup_dict, setup_file = load_setup(spectrograph=args.spectrograph)
     setups = list(setup_dict.keys())  # For Python 3
     setups.sort()
 
