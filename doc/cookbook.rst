@@ -41,7 +41,7 @@ Here is the basic outline of the work flow:
 
     - Modify the spect block in Settings File to specify calibrations
     - Run the pypit_calcheck script
-    - Inspect the .group file for your Settings File. Confirm calibrations, science and standard frames
+    - Inspect the .group file for your Settings File. Confirm calibration, science and standard frames
 
 5. Run the reduction (described in :doc:`running`)
 

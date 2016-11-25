@@ -150,6 +150,8 @@ def dummy_fitsdict(nfile=10, spectrograph='kast_blue'):
     fitsdict["binning"] = [[None]]
     #
     if spectrograph == 'kast_blue':
+        fitsdict['naxis0'] = [2112] * nfile
+        fitsdict['naxis1'] = [2048] * nfile
         # Lamps
         for i in range(1,17):
             fitsdict['lampstat{:02d}'.format(i)] = ['off'] * nfile
