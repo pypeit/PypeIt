@@ -13,13 +13,14 @@ from pypit import arparse as settings
 #    return os.path.join(data_dir, filename)
 
 
-def test_sort_data():
+@pytest.fixture
+def fitsdict():
+    return arutils.dummy_fitsdict()
+
+def test_sort_data(fitsdict):
     """ Test sort_data
     """
-    # Load settings
     arutils.dummy_settings(spectrograph='kast_blue')
-    # Generate fitsdict
-    fitsdict = arutils.dummy_fitsdict()
     # Sort
     filesort = arsort.sort_data(fitsdict)
     assert filesort['bias'][0] == 0
@@ -29,12 +30,10 @@ def test_sort_data():
     assert len(filesort['science']) == 5
 
 
-def test_user_frametype():
+def test_user_frametype(fitsdict):
     """ Test setting frametype manually
     """
-    # Load
     arutils.dummy_settings(spectrograph='kast_blue')
-    fitsdict = arutils.dummy_fitsdict()
     # Modify settings -- WARNING: THIS IS GLOBAL!
     settings.spect['set'] = {}
     settings.spect['set']['standard'] = ['b009.fits']
@@ -43,13 +42,12 @@ def test_user_frametype():
     settings.spect['set'] = {}
 
 
-def test_match_science():
+def test_match_science(fitsdict):
     """ Test match_science routine
     """
-    # Load
     arutils.dummy_settings(spectrograph='kast_blue')
+    # Load
     settings.argflag['run']['setup'] = True # Over-ride default numbers
-    fitsdict = arutils.dummy_fitsdict()
     filesort = arsort.sort_data(fitsdict)
     # Match and test
     arsort.match_science(fitsdict, filesort)
@@ -58,12 +56,11 @@ def test_match_science():
     assert len(settings.spect['trace']['index']) == 6
 
 
-def test_neg_match_science():
+def test_neg_match_science(fitsdict):
     """ Test using negative number for calibs
     """
-    # Load
     arutils.dummy_settings(spectrograph='kast_blue')
-    fitsdict = arutils.dummy_fitsdict()
+    # Load
     filesort = arsort.sort_data(fitsdict)
     # Use negative number
     for ftype in ['arc', 'pixelflat', 'trace', 'slitflat', 'bias']:
