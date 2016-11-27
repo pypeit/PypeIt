@@ -9,18 +9,63 @@ Overview
 
 The primary file which informs the PYPIT data
 reduction pipeline is referred to as the PYPIT
-Reduction file and it has a .pypit extension.  This
+reduction file and it has a .pypit extension.  This
 can be generated from PYPIT scripts (*recommended*)
 or by-hand if you are sufficiently familiar with the code.
 
 This document provides guidance on generating and modifying
 the file.
 
-We *recommend* that you generate a unique Settings File for each
+We *recommend* that you generate a unique PYPIT file for each
 instrument setup (modulo detectors) or for each target.
 It is possible that you will need to modify the settings for
 different gratings, etc.  It will also enable you to more
 easily customize the associated calibration files to process.
+
+Types
+=====
+
+For reference, we distinguish between several types of PYPIT
+files.
+
+Instrument PYPIT file
+---------------------
+
+For each instrument being reduced in a working folder,
+the top-level PYPIT file is referred to as an *instrument*
+PYPIT file.  It is intended to be used to generate the
+instrument :doc:`setups` file and custom PYPIT files for the
+full reductions.
+
+The standard naming for the instrument PYPIT file is::
+
+    instrument_date.pypit
+    e.g., lris_blue_2016-Nov-23.pypit
+
+Custom PYPIT file
+-----------------
+
+When one performs the full reduction on a set of files,
+the *custom* PYPIT file is used.  We refer to it as custom
+because it may be significantly customized for the specifc
+instrument configuration and/or target.
+
+While it is possible for a custom PYPIT files to be used
+on more than one setup grouping, it is not recommended.
+
+A typical naming scheme is by setups, e.g.::
+
+    lris_blue_setup_01_02.pypit
+
+although specifying by instrument configuration::
+
+    kast_blue_600_4310_d55.pypit
+
+or target::
+
+    kast_blue_3C273.pypit
+
+may be preferable.
 
 .. _pypit_pypfiles:
 
@@ -28,8 +73,8 @@ pypit_pypfiles
 ==============
 
 PYPIT includes a simple script -- pypit_pypfiles --
-which will take an input 'master' .pypit file and
-generate a set of reduction files, one per setup grouping.
+which will take an input instrument .pypit file and
+generate a set of custom reduction files, one per setup grouping.
 Each setup grouping has a unique instrument configuration
 except detector (indeed, it groups together all of the detectors).
 See :ref:`groupings` for further details.
@@ -46,10 +91,10 @@ By Example
 ==========
 
 For reference, there are
-existing settings files in `PYPIT development suite
+existing PYPIT files in `PYPIT development suite
 <https://github.com/PYPIT/PYPIT-development-suite>`_.
 The PYPIT development suite is recommended for download
-(see :doc:`installing`), and the relevant settings files are located
+(see :doc:`installing`), and the relevant PYPIT files are located
 in::
 
     PYPIT-development-suite/pypit_files/
@@ -62,21 +107,21 @@ Line by line
 ============
 
 This section will instruct you on how to build a .pypit
-setting file from scratch.  This is **not** recommended.
+PYPIT file from scratch.  This is **not** recommended.
 The following documentation is mainly for guiding
-modifications to an existing setting file.
+modifications to an existing PYPIT file.
 
 Naming
 ++++++
 
 Create a .pypit file. Name it anything you want, but for example,
 it's useful to have: the instrument name, the grating or grism used,
-the dichroic, etc. For example, we could call our settings file
+the dichroic, etc. For example, we could call our PYPIT file
 'lris_blue_long_600_4000_d560.pypit', for our data as collected
 on LRIS's blue arm, in long slit mode, using the 600/4000 grism
 and d560 dichroic.
 
-You can make any comments in your .pypit settings file with a
+You can make any comments in your PYPIT file with a
 pound sign::
 
     # This is a comment line
@@ -180,7 +225,7 @@ Here are some examples::
 
 Whole enchilada
 +++++++++++++++
-With that, the most basic settings file looks something like this::
+With that, the most basic PYPIT file looks something like this::
 
     # Change the default settings
     run ncpus 1
