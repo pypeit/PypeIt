@@ -10,7 +10,7 @@ are distinsuished by extension:
 
 
 =========== ===========  ====== ===========================================
-Extension   File Name         Format Description
+Extension   File Name    Format Description
 =========== ===========  ====== ===========================================
 .pypit      PYPIT        ASCII  Primary file that guides the data reduction
  ..          ..                 We *recommend* one per instrument configuration.
