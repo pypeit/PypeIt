@@ -7,9 +7,9 @@ Instruments
 Overview
 ++++++++
 
-Below we describe all of the spectrograph that may
+Below we describe all of the spectrographs that may
 be reduced by PYPIT.  We also provide any suggested
-tips for customizing the Settings File.
+tips for customizing the PYPIT file.
 
 =============== =========   ===================================
 PYPIT Name      Telescope   Instrument

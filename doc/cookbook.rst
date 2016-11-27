@@ -16,35 +16,36 @@ following approach.
 Outline
 +++++++
 
-Here is the basic outline of the work flow:
+Here is the basic outline of the work flow.  The
+following is for one instrument in one working directory.
 
 1. Prepare your data
 
     - Identify folder(s) with raw images
     - The raw images can be gzip compressed
 
-2. Generate the .setup file (see :doc:`setup`)
+2. Generate the instrument PYPIT reduction file (:doc:`pypit_file`) and setup file (:doc:`setups`)
 
-    - Run the pypit_setup script
+    - Run the pypit_setup script for the instrument
     - Inspect the .setup file to confirm the instrument configurations
     - Inspect the .group file to confirm calibrations exist
     - Modify the data and spect blocks in .pypit file, as needed
     - Rerun as needed
 
-3. Generate Settings Files (.pypit; see :doc:`settings_file`)
+3. Generate custom PYPIT reduction files (:doc:`pypit_file`)
 
-    - We recommend one .pypit file per setup group (instrument configuration)
+    - We recommend one PYPIT reduction file per setup group (instrument configuration)
     - Run the pypit_pypfiles script to generate these
 
 4. Run calcheck (described in :doc:`calcheck`)
 
-    - Modify the spect block in Settings File to specify calibrations
+    - Modify the spect block in the PYPIT file to specify calibrations
     - Run the pypit_calcheck script
-    - Inspect the .group file for your Settings File
+    - Inspect the .group file for your PYPIT file
 
 5. Run the reduction (described in :doc:`running`)
 
-    - Further customize your Settings File
+    - Further customize your PYPIT file
     - run_pypit
 
 6. Examine QA
