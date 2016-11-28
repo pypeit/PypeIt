@@ -80,7 +80,8 @@ def main(args):
     pargs = run_pypit.parser(pinp)
     run_pypit.main(pargs)
 
-    # Generate .pypit files
+    # #####################
+    # Generate custom .pypit files
 
     # Read group file
     group_file = pyp_file.replace('.pypit', '.group')
@@ -93,6 +94,10 @@ def main(args):
     from pypit import pyputils
     msgs = pyputils.get_dummy_logger()
     parlines, datlines, spclines, dfnames = load_input(pyp_file, msgs)
+    # Remove run setup from parlines
+    for jj,parline in enumerate(parlines):
+        if 'run setup' in parline:
+            parlines[jj] = 'run setup False\n'
 
     # Generate .pypit files
     for group in groups:

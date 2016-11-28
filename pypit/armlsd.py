@@ -52,7 +52,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
 
     # Create a list of science exposure classes
     sciexp = armbase.SetupScience(fitsdict)
-    if sciexp == 'setup':
+    if sciexp in ['setup', 'calcheck']:
         return status
     else:
         numsci = len(sciexp)

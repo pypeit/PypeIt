@@ -43,6 +43,8 @@ exposure standard files have been identified.
 Settings
 ========
 
+NEED TO DISCUSS calwin
+
 The primary settings you need to specify at this stage are:
 
 #.  The number of calibration files required of each frametype

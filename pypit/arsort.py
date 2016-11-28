@@ -616,7 +616,8 @@ def make_dirs(fitsdict, filesort):
         nored = np.delete(nored, 0)
     # Create a directory where all of the master calibration frames are stored.
     msgs.info("Creating Master Calibrations directory")
-    newdir = "{0:s}/{1:s}".format(currDIR, settings.argflag['run']['directory']['master'])
+    newdir = "{:s}/{:s}_{:s}".format(currDIR, settings.argflag['run']['directory']['master'],
+                                     settings.argflag['run']['spectrograph'])
     if os.path.exists(newdir):
         if not settings.argflag['output']['overwrite']:
             msgs.info("The following directory already exists:"+msgs.newline()+newdir)
