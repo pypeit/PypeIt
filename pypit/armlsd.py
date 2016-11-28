@@ -78,7 +78,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             # Get amplifier sections
             arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
             # Setup
-            setup = arsort.instr_setup(sc, det, fitsdict, setup_dict, must_exist=True)
+            setup = arsort.instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=True)
             settings.argflag['reduce']['masters']['setup'] = setup
             ###############
             # Generate master bias frame
