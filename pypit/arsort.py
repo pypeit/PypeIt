@@ -668,10 +668,9 @@ def calib_set(isetup_dict, sciexp, fitsdict):
     """
     cb_strs = []
     default = 'aa'
-    for ll in ['a', 'b', 'c']:
+    for ll in ['a', 'b', 'c', 'd']:
         for lower in string.lowercase:
             cb_strs.append(ll+lower)
-    debugger.set_trace()
     # Build cbset from sciexp
     new_cbset = {}
     cbkeys = ['arcs', 'bias', 'trace', 'flat']
@@ -686,31 +685,28 @@ def calib_set(isetup_dict, sciexp, fitsdict):
         return default
 
     # Not in default
-    not_def = []
     for cbkey in cbkeys:
         def_names = np.array(isetup_dict[default][cbkey])
-        debugger.set_trace()
-        if not np.all([def_names, new_cbset[cbkey]]):
-            not_def.append(cbkey)
-    if len(not_def) == 0:
+        if np.array_equal(def_names, new_cbset[cbkey]):
+            _ = new_cbset.pop(cbkey)
+    if len(new_cbset) == 0:
         return default
 
     # New calib set?
     for cb_str in cb_strs[1:]:
         mtch = True
         if cb_str not in isetup_dict.keys():
-            isetup_dict[default] = new_cbset
+            isetup_dict[cb_str] = new_cbset
             break
-        for key in not_def:
+        for key in new_cbset:
             if key not in isetup_dict[cb_str]:
                 mtch = False
                 break
-            mtch &= np.all([isetup_dict[cb_str][key], new_cbset[key]])
+            mtch &= np.array_equal(isetup_dict[cb_str][key], new_cbset[key])
         if mtch:
             break
     # Return
     return cb_str
-
 
 
 def det_setup(isetup_dict, ddict):
@@ -766,6 +762,7 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False):
     """
     # Labels
     cfig_str = string.uppercase
+    cstr = '--'
     # Arc
     idx = sciexp._idx_arcs
     disp_name = fitsdict["dispname"][idx[0]]
@@ -776,10 +773,11 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False):
     slitwid = fitsdict["slitwid"][idx[0]]
     slitlen = fitsdict["slitlen"][idx[0]]
 
-    # Detector
+    # Detector -- These may not be set properly from the header alone, e.g. LRIS
     binning = fitsdict["binning"][idx[0]]
     naxis0 = fitsdict["naxis0"][idx[0]]
     naxis1 = fitsdict["naxis1"][idx[0]]
+    namp = fitsdict["numamplifiers"][idx[0]]
 
     # Generate
     # Don't nest deeper than 1
@@ -792,25 +790,26 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False):
                  )
     ddict = {'binning': binning,
               'det': det,
-              'naxis0': naxis0,
-              'naxis1': naxis1}
+              'namp': namp}
+              #'naxis0': naxis0,
+              #'naxis1': naxis1}
 
     # Configuration
     if len(setup_dict) == 0: # Generate
         setup = 'A'
         # Finish
         setup_dict[setup] = {}
-        setup_dict[setup]['--'] = cdict
+        setup_dict[setup][cstr] = cdict
     else:
         for ckey in setup_dict.keys():
             mtch = True
-            for key in setup_dict[ckey].keys():
+            for key in setup_dict[ckey][cstr].keys():
                 # Dict?
-                if isinstance(setup_dict[ckey][key], dict):
-                    for ikey in setup_dict[ckey][key].keys():
-                        mtch &= setup_dict[ckey][key][ikey] == cdict[key][ikey]
+                if isinstance(setup_dict[ckey][cstr][key], dict):
+                    for ikey in setup_dict[ckey][cstr][key].keys():
+                        mtch &= setup_dict[ckey][cstr][key][ikey] == cdict[key][ikey]
                 else:
-                    mtch &= setup_dict[ckey][key] == cdict[key]
+                    mtch &= setup_dict[ckey][cstr][key] == cdict[key]
             if mtch:
                 setup = ckey
                 break
@@ -821,14 +820,14 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False):
             maxs = max(setup_dict.keys())
             setup = cfig_str[cfig_str.index(maxs)+1]
             setup_dict[setup] = {}
-            setup_dict[setup]['--'] = cdict
+            setup_dict[setup][cstr] = cdict
 
     # Detector
     dkey = det_setup(setup_dict[setup], ddict)
     # Calib set
     calib_key = calib_set(setup_dict[setup], sciexp, fitsdict)
 
-    return setup
+    return '{:s}_{:s}_{:s}'.format(setup, dkey, calib_key)
 
 
 def get_setup_file(spectrograph=None):

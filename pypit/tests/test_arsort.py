@@ -2,6 +2,7 @@
 
 import pytest
 
+import numpy as np
 from pypit import pyputils
 msgs = pyputils.get_dummy_logger(develop=True)
 from pypit import arsort
@@ -20,7 +21,7 @@ def fitsdict():
 def test_sort_data(fitsdict):
     """ Test sort_data
     """
-    arutils.dummy_settings(spectrograph='kast_blue')
+    arutils.dummy_settings(spectrograph='kast_blue', set_idx=False)
     # Sort
     filesort = arsort.sort_data(fitsdict)
     assert filesort['bias'][0] == 0
@@ -33,7 +34,7 @@ def test_sort_data(fitsdict):
 def test_user_frametype(fitsdict):
     """ Test setting frametype manually
     """
-    arutils.dummy_settings(spectrograph='kast_blue')
+    arutils.dummy_settings(spectrograph='kast_blue', set_idx=False)
     # Modify settings -- WARNING: THIS IS GLOBAL!
     settings.spect['set'] = {}
     settings.spect['set']['standard'] = ['b009.fits']
@@ -45,7 +46,7 @@ def test_user_frametype(fitsdict):
 def test_match_science(fitsdict):
     """ Test match_science routine
     """
-    arutils.dummy_settings(spectrograph='kast_blue')
+    arutils.dummy_settings(spectrograph='kast_blue', set_idx=False)
     # Load
     settings.argflag['run']['setup'] = True # Over-ride default numbers
     filesort = arsort.sort_data(fitsdict)
@@ -53,13 +54,13 @@ def test_match_science(fitsdict):
     arsort.match_science(fitsdict, filesort)
     assert settings.spect['arc']['index'][1][0] == 1
     assert settings.spect['standard']['index'][1][0] == 4
-    assert len(settings.spect['trace']['index']) == 6
+    assert len(settings.spect['trace']['index'][0]) == 2
 
 
 def test_neg_match_science(fitsdict):
     """ Test using negative number for calibs
     """
-    arutils.dummy_settings(spectrograph='kast_blue')
+    arutils.dummy_settings(spectrograph='kast_blue', set_idx=False)
     # Load
     filesort = arsort.sort_data(fitsdict)
     # Use negative number
@@ -70,3 +71,31 @@ def test_neg_match_science(fitsdict):
     assert len(settings.spect['trace']['index'][1]) == 2
 
 
+def test_instr_setup(fitsdict):
+    """ Test instrument setup naming convention
+    """
+    from pypit import arsciexp
+    arutils.dummy_settings(spectrograph='kast_blue', set_idx=False)
+    # Load
+    settings.argflag['run']['setup'] = True # Over-ride default numbers
+    filesort = arsort.sort_data(fitsdict)
+    # Match and test
+    arsort.match_science(fitsdict, filesort)
+    # Make a science frame
+    sciexp = arsciexp.ScienceExposure(0, fitsdict, do_qa=False)
+    # Get an ID
+    setup_dict = {}
+    setupID = arsort.instr_setup(sciexp, 1, fitsdict, setup_dict)
+    assert setupID == 'A_01_aa'
+    # Should get same thing
+    setupID = arsort.instr_setup(sciexp, 1, fitsdict, setup_dict)
+    assert setupID == 'A_01_aa'
+    # New det
+    setupID2 = arsort.instr_setup(sciexp, 2, fitsdict, setup_dict)
+    assert setupID2 == 'A_02_aa'
+    # New calib set
+    settings.spect['arc']['index'][1] = np.array([9])  # Not really an arc, but ok
+    sciexp1 = arsciexp.ScienceExposure(1, fitsdict, do_qa=False)
+    setupID3 = arsort.instr_setup(sciexp1, 1, fitsdict, setup_dict)
+    assert setupID3 == 'A_01_ab'
+    assert setup_dict['A']['ab']['arcs'][0] == 'b009.fits'

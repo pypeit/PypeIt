@@ -147,11 +147,15 @@ def dummy_fitsdict(nfile=10, spectrograph='kast_blue'):
     fitsdict['naxis1'] = [2048] * nfile
     fitsdict['dispname'] = ['600/4310'] * nfile
     fitsdict['dichroic'] = ['560'] * nfile
-    fitsdict["binning"] = [[None]]
+    fitsdict['dispangle'] = ['none'] * nfile
+    fitsdict["binning"] = ['1x1']*nfile
     #
     if spectrograph == 'kast_blue':
+        fitsdict['numamplifiers'] = [1] * nfile
         fitsdict['naxis0'] = [2112] * nfile
         fitsdict['naxis1'] = [2048] * nfile
+        fitsdict['slitwid'] = [1.] * nfile
+        fitsdict['slitlen'] = ['none'] * nfile
         # Lamps
         for i in range(1,17):
             fitsdict['lampstat{:02d}'.format(i)] = ['off'] * nfile
@@ -191,13 +195,16 @@ def dummy_self(inum=0, fitsdict=None, nfile=10):
     return slf
 
 
-def dummy_settings(pypitdir=None, nfile=10, spectrograph='kast_blue'):
+def dummy_settings(pypitdir=None, nfile=10, spectrograph='kast_blue',
+                   set_idx=True):
     """
     Parameters
     ----------
     pypitdir
     nfile
     spectrograph
+    set_idx : bool, optional
+      Set dummy index values for science and calibs
 
     Returns
     -------
@@ -217,13 +224,15 @@ def dummy_settings(pypitdir=None, nfile=10, spectrograph='kast_blue'):
     spect = arparse.get_spect_class(("ARMLSD", spectrograph, "dummy"))
     lines = spect.load_file()
     spect.set_paramlist(lines)
-    kk = 0
-    for jj, key in enumerate(spect._spect.keys()):
-        if key in ['det']:
-            continue
-        if 'index' in spect._spect[key].keys():
-            spect._spect[key]['index'].append([kk]*nfile)
-            kk += 1
+    if set_idx:
+        kk = 0
+        for jj, key in enumerate(spect._spect.keys()):
+            if key in ['det']:
+                continue
+            if 'index' in spect._spect[key].keys():
+                for ii in range(nfile):
+                    spect._spect[key]['index'].append(np.array([kk]))
+                kk += 1
     arparse.init(argf, spect)
     return
 
