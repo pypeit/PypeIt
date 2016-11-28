@@ -67,25 +67,13 @@ or target::
 
 may be preferable.
 
-.. _pypit_pypfiles:
+.. _pypit_setup_pypit_files:
 
-pypit_pypfiles
-==============
+pypit_setup
+===========
 
-PYPIT includes a simple script -- pypit_pypfiles --
-which will take an input instrument .pypit file and
-generate a set of custom reduction files, one per setup grouping.
-Each setup grouping has a unique instrument configuration
-except detector (indeed, it groups together all of the detectors).
-See :ref:`groupings` for further details.
-
-Here is an example call::
-
-    pypit_pypfiles lris_blue_2016-Nov-23.pypit lris_blue
-
-For a .setup file with two groupings -- '01_02', '03_04' --
-two .pypit files are generated, e.g.
-lris_blue_setup_01_02.pypit, lris_blue_setup_03_04.pypit
+Here I will eventually descrbie how pypit_setup
+generates a set of default, custom .pypit files.
 
 By Example
 ==========
