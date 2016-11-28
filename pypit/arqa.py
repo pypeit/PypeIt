@@ -176,7 +176,7 @@ def coaddspec_qa(ispectra, rspec, spec1d, qafile=None):
         ax.plot(ispectra.wavelength, ispectra.flux, alpha=0.5)#, label='individual exposure')
 
     ax.plot(spec1d.wavelength, spec1d.flux, color='black', label='coadded spectrum')
-    debug=True
+    debug=False
     if debug:
         ax.set_ylim(0., 180.)
         ax.set_xlim(3840, 3860.)
