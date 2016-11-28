@@ -741,7 +741,8 @@ def det_setup(isetup_dict, ddict):
     return dkey
 
 
-def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False):
+def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
+                skip_cset=False):
     """ Define instrument config
     Make calls to detector and calib set
 
@@ -754,12 +755,15 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False):
     ----------
     sciexp : ScienceExposure
     setup_dict
+    skip_cset : bool, optional
+      Skip calib_set;  only used when first generating instrument .setup file
 
     Returns
     -------
     setup : str
       Full setup ID, e.g. A_01_aa
     """
+    dnum = settings.get_dnum(det)
     # Labels
     cfig_str = string.uppercase
     cstr = '--'
@@ -777,7 +781,7 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False):
     binning = fitsdict["binning"][idx[0]]
     naxis0 = fitsdict["naxis0"][idx[0]]
     naxis1 = fitsdict["naxis1"][idx[0]]
-    namp = fitsdict["numamplifiers"][idx[0]]
+    namp = settings.spect[dnum]["numamplifiers"]
 
     # Generate
     # Don't nest deeper than 1
@@ -795,6 +799,7 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False):
               #'naxis1': naxis1}
 
     # Configuration
+    setup = None
     if len(setup_dict) == 0: # Generate
         setup = 'A'
         # Finish
@@ -825,7 +830,10 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False):
     # Detector
     dkey = det_setup(setup_dict[setup], ddict)
     # Calib set
-    calib_key = calib_set(setup_dict[setup], sciexp, fitsdict)
+    if not skip_cset:
+        calib_key = calib_set(setup_dict[setup], sciexp, fitsdict)
+    else:
+        calib_key = '--'
 
     return '{:s}_{:s}_{:s}'.format(setup, dkey, calib_key)
 

@@ -90,7 +90,8 @@ def test_instr_setup(fitsdict):
     # Should get same thing
     setupID = arsort.instr_setup(sciexp, 1, fitsdict, setup_dict)
     assert setupID == 'A_01_aa'
-    # New det
+    # New det (fake out kast_blue)
+    settings.spect['det02'] = dict(numamplifiers=1)
     setupID2 = arsort.instr_setup(sciexp, 2, fitsdict, setup_dict)
     assert setupID2 == 'A_02_aa'
     # New calib set

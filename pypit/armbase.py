@@ -63,12 +63,9 @@ def SetupScience(fitsdict):
     for sc in range(numsci):
         scidx = sciexp[sc]._idx_sci[0]
         # Run setup
-        setup = arsort.instr_setup(sciexp[sc], 1, fitsdict, setup_dict)
+        setup = arsort.instr_setup(sciexp[sc], 1, fitsdict, setup_dict, skip_cset=True)
         # Set group_key
-        setup_val = ['{:02d}'.format(int(setup)+i)
-                     for i in range(settings.spect['mosaic']['ndet'])]
-        s = '_'
-        group_key = s.join(setup_val)
+        group_key = setup[0]
         # Plan init
         if group_key not in group_dict.keys():
             group_dict[group_key] = {}
@@ -79,7 +76,7 @@ def SetupScience(fitsdict):
                 group_dict[group_key]['stdobj'] = []
         # Run through the setups
         for kk in range(settings.spect['mosaic']['ndet']):
-            _ = arsort.instr_setup(sc, kk+1, fitsdict, setup_dict)
+            _ = arsort.instr_setup(sciexp[sc], kk+1, fitsdict, setup_dict, skip_cset=True)
             # Fill group_dict too
             if kk==0:
                 for key in filesort.keys():
