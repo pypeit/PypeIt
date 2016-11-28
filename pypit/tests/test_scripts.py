@@ -72,17 +72,7 @@ def test_setup_pfile():
     pargs2 = setup.parser([pypit_file, 'kast_blue', '--pypit_file', '-d'])
     setup.main(pargs2)
     pytest.set_trace()
-
 '''
-def test_pypit_file():
-    """ Generate .pypit files.
-    Uses .pypit file from previous test!
-    """
-    from pypit.scripts import pypit_files
-    pypit_file = glob.glob('kast_blue*.pypit')[0]
-    pargs = pypit_files.parser([pypit_file, 'kast_blue'])
-    pypit_files.main(pargs)
-    assert os.path.isfile('./kast_blue_setup_01.pypit')
 
 def test_view_fits():
     """ Only test the list option
