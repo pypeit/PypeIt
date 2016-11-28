@@ -24,15 +24,15 @@ The procedure is simple.  Add the following line to your
 You must also verify that your .pypit file does **not**
 include this line::
 
-    run setup True   # Cannot be set for calcheck or reduction
+    run setup True   # Cannot be set for calcheck or full reduction
 
 Either set to False, comment it out, or remove it altogether.
 
 You may then run PYPIT, e.g.::
 
-    run_pypit kast_blue_setup_01_02.pypit
+    run_pypit kast_blue_setup_A.pypit
 
-The code will exist with error if there are insufficient calibration
+The code will exit with error if there are insufficient calibration
 frames.  Otherwise, it will exit after organizing the files and
 will produce a new .group file for your inspection.
 

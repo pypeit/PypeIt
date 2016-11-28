@@ -55,7 +55,7 @@ on more than one setup grouping, it is not recommended.
 
 A typical naming scheme is by setups, e.g.::
 
-    lris_blue_setup_01_02.pypit
+    lris_blue_setup_A.pypit
 
 although specifying by instrument configuration::
 
@@ -72,8 +72,17 @@ may be preferable.
 pypit_setup
 ===========
 
-Here I will eventually descrbie how pypit_setup
-generates a set of default, custom .pypit files.
+By default, the pypit_setup script will generate a set of
+custom .pypit files, on per instrument configuration.  These
+will have names like::
+
+    lris_blue_setup_A.pypit
+
+This is the default because we expect most users to wish to
+reduce at one time the full set of exposures taken
+with the same instrument configuration.
+Of course, one can create other custom .pypit files.
+
 
 By Example
 ==========
