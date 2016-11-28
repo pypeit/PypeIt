@@ -106,13 +106,15 @@ def SetupScience(fitsdict):
         yamlf.write( yaml.dump(ydict))#, default_flow_style=True) )
     # Finish calcheck or setup
     if settings.argflag['run']['calcheck'] or settings.argflag['run']['setup']:
-        if settings.argflag['run']['calcheck']:
-            msgs.info("Calibration check complete. Change 'run calcheck' flag to False to continue with data reduction")
-        if settings.argflag['run']['setup']:
-            msgs.info("Setup is complete. Change 'run setup' to False to continue with data reduction")
         msgs.info("Inspect the setup file: {:s}".format(setup_file))
         msgs.info("Inspect the group file: {:s}".format(group_file))
-        sys.exit()
+        if settings.argflag['run']['calcheck']:
+            msgs.info("Calibration check complete. Change 'run calcheck' flag to False to continue with data reduction")
+        elif settings.argflag['run']['setup']:
+            msgs.info("Setup is complete. Change 'run setup' to False to continue with data reduction")
+            return 'setup'
+        else:
+            sys.exit()
     return sciexp
 
 

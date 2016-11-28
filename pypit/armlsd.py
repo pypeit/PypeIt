@@ -52,7 +52,10 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
 
     # Create a list of science exposure classes
     sciexp = armbase.SetupScience(fitsdict)
-    numsci = len(sciexp)
+    if sciexp == 'setup':
+        return status
+    else:
+        numsci = len(sciexp)
 
     # Create a list of master calibration frames
     #masters = armasters.MasterFrames(settings.spect['mosaic']['ndet'])

@@ -41,11 +41,14 @@ def parser(options=None):
 
 def main(args):
 
+    import pdb
     import sys
     import glob
     from pypit.scripts import run_pypit
     from pypit import pyputils
+    from pypit.pypit import load_input
     import datetime
+    import yaml
 
     # Check for existing setup file
     setup_files = glob.glob('./{:s}*.setup'.format(args.spectrograph))
@@ -74,5 +77,31 @@ def main(args):
     pinp = [pyp_file]
     if args.develop:
         pinp += ['-d']
-    args = run_pypit.parser(pinp)
-    run_pypit.main(args)
+    pargs = run_pypit.parser(pinp)
+    run_pypit.main(pargs)
+
+    # Generate .pypit files
+
+    # Read group file
+    group_file = pyp_file.replace('.pypit', '.group')
+    with open(group_file, 'r') as infile:
+        group_dict = yaml.load(infile)
+    groups = list(group_dict.keys())
+    groups.sort()
+
+    # Read master file
+    from pypit import pyputils
+    msgs = pyputils.get_dummy_logger()
+    parlines, datlines, spclines, dfnames = load_input(pyp_file, msgs)
+
+    # Generate .pypit files
+    for group in groups:
+        root = args.spectrograph+'_setup_'
+        pyp_file = root+group+'.pypit'
+
+        pyputils.make_pypit_file(pyp_file, args.spectrograph, dfnames,
+                                 parlines=parlines,
+                                 spclines=spclines,
+                                 calcheck=True)
+        print("Wrote {:s}".format(pyp_file))
+
