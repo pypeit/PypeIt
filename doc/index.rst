@@ -33,7 +33,8 @@ Running PYPIT
    :maxdepth: 2
 
    cookbook
-   setup
+   setups
+   pypit_file
    running
 
 Data Products

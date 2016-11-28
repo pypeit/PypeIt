@@ -57,7 +57,7 @@ def sort_data(fitsdict, flag_unknown=False):
                  'trace': np.array([], dtype=np.int),
                  'unknown': np.array([], dtype=np.int),
                  'arc': np.array([], dtype=np.int)})
-    fkey = np.array(ftag.keys())
+    fkey = np.array(list(ftag.keys()))  # For Python 3 compatability
     # Create an array where 1 means it is a certain type of frame and 0 means it isn't.
     filarr = np.zeros((len(fkey), numfiles), dtype=np.int)
     setarr = np.zeros((len(fkey), numfiles), dtype=np.int)
@@ -728,9 +728,13 @@ def instr_setup(sc, det, fitsdict, setup_dict, must_exist=False):
     return setup
 
 
-def get_setup_file():
+def get_setup_file(spectrograph=None):
     """ Passes back name of setup file
     Also checks for existing setup files
+
+    Parameters
+    ----------
+    spectrograph : str, optional
 
     Returns
     -------
@@ -743,7 +747,8 @@ def get_setup_file():
     import glob
     import datetime
 
-    spectrograph = settings.argflag['run']['spectrograph']
+    if spectrograph is None:
+        spectrograph = settings.argflag['run']['spectrograph']
     setup_files = glob.glob('./{:s}*.setup'.format(spectrograph))
     nexist = len(setup_files)
     # Require 1 or 0
@@ -771,7 +776,7 @@ def compare_setup(s1, s2):
     #for key in s1.keys():
     #    for key2 in s1[key]
 
-def load_setup():
+def load_setup(**kwargs):
     """ Load setup from the disk
 
     Returns
@@ -779,8 +784,8 @@ def load_setup():
     setup_dict : dict
 
     """
-    import yaml, json
-    setup_file, nexist = get_setup_file()
+    import yaml
+    setup_file, nexist = get_setup_file(**kwargs)
     if nexist == 0:
         msgs.error("No existing setup file.  Generate one first (e.g. pypit_setup)!")
     # YAML

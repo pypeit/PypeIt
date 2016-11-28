@@ -86,7 +86,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     tstart = time()
 
     # Load the input file
-    parlines, datlines, spclines = load_input(redname, msgs)
+    parlines, datlines, spclines, _ = load_input(redname, msgs)
 
     # Initialize the arguments and flags
 #    argflag = arload.argflag_init()
@@ -244,7 +244,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
 
 def load_input(redname, msgs):
     """
-    Load user defined input reduction file. Updates are
+    Load user defined input .pypit reduction file. Updates are
     made to the argflag dictionary.
 
     Parameters
@@ -269,6 +269,8 @@ def load_input(redname, msgs):
       spclines contains a list of user-specified changes
       that should be made to the default spectrograph
       settings.
+    dfnames : list
+      Input data lines
     """
     # Read in the model file
     msgs.info("Loading the input file")
@@ -281,6 +283,7 @@ def load_input(redname, msgs):
     datlines = []
     skip_files = []
     spclines = []
+    dfnames = []
     rddata, rdspec = 0, 0
     for i in range(len(lines)):
         if lines[i].strip() == '': continue
@@ -316,6 +319,7 @@ def load_input(redname, msgs):
                 msgs.error("You must specify the full datapath for the file:" + msgs.newline() + dfname)
             elif len(dfname.split()) != 1:
                 msgs.error("There must be no spaces when specifying the datafile:" + msgs.newline() + dfname)
+            dfnames.append(dfname)
             listing = glob.glob(dfname)
             for lst in listing: datlines.append(lst)
             continue
@@ -351,46 +355,7 @@ def load_input(redname, msgs):
     else:
         msgs.info("Found {0:d} raw data frames".format(len(datlines)))
     msgs.info("Input file loaded successfully")
-    return parlines, datlines, spclines
+    return parlines, datlines, spclines, dfnames
 
-def make_settings_file(pyp_file, spectrograph, files_root, datfil_extension):
-    """ Generate a defuult PYPIT settings file
-    Parameters
-    ----------
-    pyp_file : str
-      Name of Settings file
-    spectrograph : str
-    files_root : str
-      Path + file root of datafiles
-    datfil_extension :
-      Extension of data file
 
-    Returns
-    -------
-    Creates a Settings File
 
-    """
-    with open(pyp_file, 'w') as f:
-        f.write("# This is a comment line\n")
-        f.write("\n")
-        f.write("# Change the default settings\n")
-        f.write("run ncpus 1\n")
-        f.write("run calcheck True\n")  # This is the key line here
-        f.write("run spectrograph {:s}\n".format(spectrograph))
-        f.write("output overwrite True\n")
-        #f.write("output sorted {:s}\n".format(root))
-        f.write("\n")
-        f.write("# Reduce\n")
-        f.write("\n")
-        f.write("# Read in the data\n")
-        f.write("data read\n")
-        f.write(" {:s}*{:s}*\n".format(files_root, datfil_extension))
-        f.write("data end\n")
-        f.write("\n")
-        f.write("spect read\n")
-        f.write(" pixelflat number 0\n")
-        f.write(" arc number 1\n")
-        f.write(" slitflat number 0\n")
-        f.write(" bias number 0\n")
-        f.write(" standard number 0\n")
-        f.write("spect end\n")
