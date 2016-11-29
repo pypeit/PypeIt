@@ -275,7 +275,7 @@ def extract_2d(np.ndarray[DTYPE_t, ndim=2] frame not None,
                 np.ndarray[DTYPE_t, ndim=1] ordxcen not None,
                 np.ndarray[DTYPE_t, ndim=1] ordycen not None,
                 np.ndarray[DTYPE_t, ndim=1] ordwid not None,
-                int ordwnum, int ordlen, int ordnum, int dispaxis):
+                int ordwnum, int ordlen, int ordnum):
 
     cdef int x, sz_x, sz_y, sz_o, w
     cdef double area, uarea, darea, totarea, totflux, toterror
@@ -285,8 +285,8 @@ def extract_2d(np.ndarray[DTYPE_t, ndim=2] frame not None,
 
     down = <double>(ordwnum)
     sz_o = ordxcen.shape[0]
-    sz_x = frame.shape[dispaxis]
-    sz_y = frame.shape[1-dispaxis]
+    sz_x = frame.shape[0]
+    sz_y = frame.shape[1]
 
     cdef np.ndarray[DTYPE_t, ndim=2] extspec = np.zeros((ordnum,ordwnum), dtype=DTYPE) # The extracted spectrum
     cdef np.ndarray[DTYPE_t, ndim=2] errspec = np.zeros((ordnum,ordwnum), dtype=DTYPE) # The extracted spectrum
@@ -374,90 +374,37 @@ def extract_2d(np.ndarray[DTYPE_t, ndim=2] frame not None,
             toterror = 0.0
             j=pixs
             donesome=0
-            if dispaxis == 0:
-                # yloc = slf._pixlocn[:,0,0]
-                # xloc = slf._pixlocn[0,:,1]
-                # ysiz = slf._pixlocn[:,0,2]
-                # xsiz = slf._pixlocn[0,:,3]
+            # yloc = slf._pixlocn[:,0,0]
+            # xloc = slf._pixlocn[0,:,1]
+            # ysiz = slf._pixlocn[:,0,2]
+            # xsiz = slf._pixlocn[0,:,3]
+            while True:
+                if j >= sz_x:
+                    j = x+1
+                    break
+                # Sum up over pixels area
+                uarea = 0.0
+                i=0
+                pixu = <int>(0.5+ordwid[x]/2.0)
                 while True:
-                    if j >= sz_x:
-                        j = x+1
-                        break
-                    # Sum up over pixels area
-                    uarea = 0.0
-                    i=0
-                    pixu = <int>(0.5+ordwid[x]/2.0)
-                    while True:
-                        if (pixcen[x]+i >= sz_y) or (pixcen[x]+i < 0):
-                            if i>pixu+1:
+                    if (pixcen[x]+i >= sz_y) or (pixcen[x]+i < 0):
+                        if i>pixu+1:
 #								print x, j, i, "BREAK 1"
-                                break
-                            i += 1
-                            continue
-                        if (bpix[j,pixcen[x]+i] == 1):
-                            if i>pixu+1: break
-                            i += 1
-                            continue
-                        pixlarr[0,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
-                        pixlarr[0,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
-                        pixlarr[1,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
-                        pixlarr[1,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
-                        pixlarr[2,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
-                        pixlarr[2,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
-                        pixlarr[3,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
-                        pixlarr[3,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
-#						pixlarr[0,0,dme] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
-#						pixlarr[0,1,dme] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
-#						pixlarr[1,0,dme] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
-#						pixlarr[1,1,dme] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
-#						pixlarr[2,0,dme] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
-#						pixlarr[2,1,dme] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
-#						pixlarr[3,0,dme] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
-#						pixlarr[3,1,dme] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
-                        # Calculate the overlapping polygon area
-                        area = SH_poly_clip_area(polyarr,pixlarr,outlist,inlist)
-#						polyout = SH_poly_clip(pixlarr[:,:,dme],polyarr,outlist,inlist)
-#						dme += 1
-#						if dme >= 2000: return pixlarr, polyarr
-                        #area = poly_area(polyout)
-                        if area == np.nan:
-                            print "AREA=NAN (up)"
-                            print outlist
-                            print inlist
-                            print pixlarr
-                        uarea += area
-                        totflux += area*frame[j,pixcen[x]+i]
-                        toterror += cpow(area*error[j,pixcen[x]+i],2.0)
-                        if area == 0.0:
-                            if i>pixu+1:
-#								print x, j, i, "BREAK 2"
-                                break
-                        else:
-                            if i>pixu: pixu=i
+                            break
                         i += 1
-                    # Sum up over pixels area
-                    darea = 0.0
-                    i=-1
-                    pixd = <int>(0.5+ordwid[x]/2.0)
-                    while True:
-                        if (pixcen[x]+i >= sz_y) or (pixcen[x]+i < 0):
-                            if -i>pixd+1:
-#								print x, j, i, "BREAK 3"
-                                break
-                            i -= 1
-                            continue
-                        if (bpix[j,pixcen[x]+i] == 1):
-                            if -i>pixd+1: break
-                            i -= 1
-                            continue
-                        pixlarr[0,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
-                        pixlarr[0,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
-                        pixlarr[1,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
-                        pixlarr[1,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
-                        pixlarr[2,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
-                        pixlarr[2,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
-                        pixlarr[3,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
-                        pixlarr[3,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
+                        continue
+                    if (bpix[j,pixcen[x]+i] == 1):
+                        if i>pixu+1: break
+                        i += 1
+                        continue
+                    pixlarr[0,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
+                    pixlarr[0,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
+                    pixlarr[1,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
+                    pixlarr[1,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
+                    pixlarr[2,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
+                    pixlarr[2,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
+                    pixlarr[3,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
+                    pixlarr[3,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
 #						pixlarr[0,0,dme] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
 #						pixlarr[0,1,dme] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
 #						pixlarr[1,0,dme] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
@@ -466,160 +413,94 @@ def extract_2d(np.ndarray[DTYPE_t, ndim=2] frame not None,
 #						pixlarr[2,1,dme] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
 #						pixlarr[3,0,dme] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
 #						pixlarr[3,1,dme] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
-                        # Calculate the overlapping polygon area
-                        area = SH_poly_clip_area(polyarr,pixlarr,outlist,inlist)
+                    # Calculate the overlapping polygon area
+                    area = SH_poly_clip_area(polyarr,pixlarr,outlist,inlist)
 #						polyout = SH_poly_clip(pixlarr[:,:,dme],polyarr,outlist,inlist)
 #						dme += 1
 #						if dme >= 2000: return pixlarr, polyarr
-                        #area = poly_area(polyout)
-                        if area == np.nan:
-                            print "AREA=NAN (down)"
-                            print outlist
-                            print inlist
-                            print pixlarr
-                        darea += area
-                        totflux += area*frame[j,pixcen[x]+i]
-                        toterror += cpow(area*error[j,pixcen[x]+i],2.0)
-                        if area == 0.0:
-                            if -i>pixd+1:
-#								print x, j, i, "BREAK 4"
-                                break
-                        else:
-                            if -i>pixd: pixd=-i
-                        i -= 1
-                    # Break if we've already found some overlap
-                    if uarea+darea == 0.0:
-                        if donesome == 1:
-#							print x, j, i, "BREAK 5"
+                    #area = poly_area(polyout)
+                    if area == np.nan:
+                        print "AREA=NAN (up)"
+                        print outlist
+                        print inlist
+                        print pixlarr
+                    uarea += area
+                    totflux += area*frame[j,pixcen[x]+i]
+                    toterror += cpow(area*error[j,pixcen[x]+i],2.0)
+                    if area == 0.0:
+                        if i>pixu+1:
+#								print x, j, i, "BREAK 2"
                             break
                     else:
-                        donesome = 1
-                    # If we haven't found overlap yet, then we must be off the chip
-                    if j-pixll>=5 and donesome==0:
-                        j = x+1
-                        break
-                    j += 1
-                    totarea += (uarea+darea)
-                pixll = pixl
-                pixl  = j-1
-            else:
-                # yloc = slf._pixlocn[0,:,0]
-                # xloc = slf._pixlocn[:,0,1]
-                # ysiz = slf._pixlocn[0,:,2]
-                # xsiz = slf._pixlocn[:,0,3]
+                        if i>pixu: pixu=i
+                    i += 1
+                # Sum up over pixels area
+                darea = 0.0
+                i=-1
+                pixd = <int>(0.5+ordwid[x]/2.0)
                 while True:
-                    if j >= sz_y:
-                        j = x+1
-                        break
-                    # Sum up over pixels area
-                    uarea = 0.0
-                    i=0
-                    pixu = <int>(0.5+ordwid[x]/2.0)
-                    while True:
-                        if (pixcen[x]+i >= sz_x) or (pixcen[x]+i < 0):
-                            if i>pixu+1: break
-                            i += 1
-                            continue
-                        if (bpix[pixcen[x]+i,j] == 1):
-                            if i>pixu+1: break
-                            i += 1
-                            continue
-                        pixlarr[0,0] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-                        pixlarr[0,1] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-                        pixlarr[1,0] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-                        pixlarr[1,1] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-                        pixlarr[2,0] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-                        pixlarr[2,1] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-                        pixlarr[3,0] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-                        pixlarr[3,1] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-#						pixlarr[0,0,dme] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-#						pixlarr[0,1,dme] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-#						pixlarr[1,0,dme] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-#						pixlarr[1,1,dme] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-#						pixlarr[2,0,dme] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-#						pixlarr[2,1,dme] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-#						pixlarr[3,0,dme] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-#						pixlarr[3,1,dme] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-                        # Calculate the overlapping polygon area
-                        area = SH_poly_clip_area(polyarr,pixlarr,outlist,inlist)
-#						polyout = SH_poly_clip(pixlarr[:,:,dme],polyarr,outlist,inlist)
-#						dme += 1
-#						if dme >= 2000: return pixlarr, polyarr
-                        #area = poly_area(polyout)
-                        if area == np.nan:
-                            print "AREA=NAN"
-                            print outlist
-                            print inlist
-                            print pixlarr
-                        uarea += area
-                        totflux += area*frame[pixcen[x]+i,j]
-                        toterror += cpow(area*error[pixcen[x]+i,j],2.0)
-                        if area == 0.0:
-                            if i>pixu+1: break
-                        else:
-                            if i>pixu: pixu=i
-                        i += 1
-                    # Sum up over pixels area
-                    darea = 0.0
-                    i=-1
-                    pixd = <int>(0.5+ordwid[x]/2.0)
-                    while True:
-                        if (pixcen[x]+i >= sz_x) or (pixcen[x]+i < 0):
-                            if -i>pixd+1: break
-                            i -= 1
-                            continue
-                        if (bpix[pixcen[x]+i,j] == 1):
-                            if -i>pixd+1: break
-                            i -= 1
-                            continue
-                        pixlarr[0,0] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-                        pixlarr[0,1] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-                        pixlarr[1,0] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-                        pixlarr[1,1] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-                        pixlarr[2,0] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-                        pixlarr[2,1] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-                        pixlarr[3,0] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-                        pixlarr[3,1] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-#						pixlarr[0,0,dme] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-#						pixlarr[0,1,dme] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-#						pixlarr[1,0,dme] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-#						pixlarr[1,1,dme] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-#						pixlarr[2,0,dme] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-#						pixlarr[2,1,dme] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-#						pixlarr[3,0,dme] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-#						pixlarr[3,1,dme] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-                        # Calculate the overlapping polygon area
-                        area = SH_poly_clip_area(polyarr,pixlarr,outlist,inlist)
-#						polyout = SH_poly_clip(pixlarr[:,:,dme],polyarr,outlist,inlist)
-#						dme += 1
-#						if dme >= 2000: return pixlarr, polyarr
-                        #area = poly_area(polyout)
-                        if area == np.nan:
-                            print "AREA=NAN"
-                            print outlist
-                            print inlist
-                            print pixlarr
-                        darea += area
-                        totflux += area*frame[pixcen[x]+i,j]
-                        toterror += cpow(area*error[pixcen[x]+i,j],2.0)
-                        if area == 0.0:
-                            if -i>pixd+1: break
-                        else:
-                            if -i>pixd: pixd=-i
+                    if (pixcen[x]+i >= sz_y) or (pixcen[x]+i < 0):
+                        if -i>pixd+1:
+#								print x, j, i, "BREAK 3"
+                            break
                         i -= 1
-                    # Break if we've already found some overlap
-                    if uarea+darea == 0.0:
-                        if donesome == 1: break
+                        continue
+                    if (bpix[j,pixcen[x]+i] == 1):
+                        if -i>pixd+1: break
+                        i -= 1
+                        continue
+                    pixlarr[0,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
+                    pixlarr[0,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
+                    pixlarr[1,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
+                    pixlarr[1,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
+                    pixlarr[2,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
+                    pixlarr[2,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
+                    pixlarr[3,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
+                    pixlarr[3,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
+#						pixlarr[0,0,dme] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
+#						pixlarr[0,1,dme] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
+#						pixlarr[1,0,dme] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
+#						pixlarr[1,1,dme] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
+#						pixlarr[2,0,dme] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
+#						pixlarr[2,1,dme] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
+#						pixlarr[3,0,dme] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
+#						pixlarr[3,1,dme] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
+                    # Calculate the overlapping polygon area
+                    area = SH_poly_clip_area(polyarr,pixlarr,outlist,inlist)
+#						polyout = SH_poly_clip(pixlarr[:,:,dme],polyarr,outlist,inlist)
+#						dme += 1
+#						if dme >= 2000: return pixlarr, polyarr
+                    #area = poly_area(polyout)
+                    if area == np.nan:
+                        print "AREA=NAN (down)"
+                        print outlist
+                        print inlist
+                        print pixlarr
+                    darea += area
+                    totflux += area*frame[j,pixcen[x]+i]
+                    toterror += cpow(area*error[j,pixcen[x]+i],2.0)
+                    if area == 0.0:
+                        if -i>pixd+1:
+#								print x, j, i, "BREAK 4"
+                            break
                     else:
-                        donesome = 1
-                    # If we haven't found overlap yet, then we must be off the chip
-                    if j-pixll>=5 and donesome==0:
-                        j = x+1
+                        if -i>pixd: pixd=-i
+                    i -= 1
+                # Break if we've already found some overlap
+                if uarea+darea == 0.0:
+                    if donesome == 1:
+#							print x, j, i, "BREAK 5"
                         break
-                    j += 1
-                    totarea += (uarea+darea)
-                pixll = pixl
-                pixl  = j-1
+                else:
+                    donesome = 1
+                # If we haven't found overlap yet, then we must be off the chip
+                if j-pixll>=5 and donesome==0:
+                    j = x+1
+                    break
+                j += 1
+                totarea += (uarea+darea)
+            pixll = pixl
+            pixl  = j-1
             if totarea == np.nan:
                 print x, totarea, totflux, uarea, darea, donesome, darea==np.nan
                 print x, polyarr
@@ -642,7 +523,7 @@ def extract_mean(np.ndarray[DTYPE_t, ndim=2] frame not None,
                 np.ndarray[DTYPE_t, ndim=1] ordxcen not None,
                 np.ndarray[DTYPE_t, ndim=1] ordycen not None,
                 np.ndarray[DTYPE_t, ndim=1] ordwid not None,
-                int ordlen, int ordnum, int dispaxis):
+                int ordlen, int ordnum):
     """
     Sometimes there is a zero (or a few zeros) padded at the end of
     extspec. This might be because of a difference between ordnum and
@@ -659,8 +540,8 @@ def extract_mean(np.ndarray[DTYPE_t, ndim=2] frame not None,
 #	cdef int dme = 0
 
     sz_o = ordxcen.shape[0]
-    sz_x = frame.shape[dispaxis]
-    sz_y = frame.shape[1-dispaxis]
+    sz_x = frame.shape[0]
+    sz_y = frame.shape[1]
 
     cdef np.ndarray[DTYPE_t, ndim=1] extspec = np.zeros(ordnum, dtype=DTYPE) # The extracted spectrum
     cdef np.ndarray[DTYPE_t, ndim=2] pixlarr = np.zeros((4,2), dtype=DTYPE) # The pixel coordinates
@@ -730,89 +611,37 @@ def extract_mean(np.ndarray[DTYPE_t, ndim=2] frame not None,
         totflux = 0.0
         j=pixll
         donesome=0
-        if dispaxis == 0:
-            # yloc = slf._pixlocn[:,0,0]
-            # xloc = slf._pixlocn[0,:,1]
-            # ysiz = slf._pixlocn[:,0,2]
-            # xsiz = slf._pixlocn[0,:,3]
+        # yloc = slf._pixlocn[:,0,0]
+        # xloc = slf._pixlocn[0,:,1]
+        # ysiz = slf._pixlocn[:,0,2]
+        # xsiz = slf._pixlocn[0,:,3]
+        while True:
+            if j >= sz_x:
+                j = x+1
+                break
+            # Sum up over pixels area
+            uarea = 0.0
+            i=0
+            pixu = <int>(0.5+ordwid[x]/2.0)
             while True:
-                if j >= sz_x:
-                    j = x+1
-                    break
-                # Sum up over pixels area
-                uarea = 0.0
-                i=0
-                pixu = <int>(0.5+ordwid[x]/2.0)
-                while True:
-                    if (pixcen[x]+i >= sz_y) or (pixcen[x]+i < 0):
-                        if i>pixu+1:
+                if (pixcen[x]+i >= sz_y) or (pixcen[x]+i < 0):
+                    if i>pixu+1:
 #							print x, j, i, "BREAK 1"
-                            break
-                        i += 1
-                        continue
-                    if (bpix[j,pixcen[x]+i] == 1):
-                        if i>pixu+1: break
-                        i += 1
-                        continue
-                    pixlarr[0,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
-                    pixlarr[0,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
-                    pixlarr[1,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
-                    pixlarr[1,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
-                    pixlarr[2,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
-                    pixlarr[2,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
-                    pixlarr[3,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
-                    pixlarr[3,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
-#					pixlarr[0,0,dme] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
-#					pixlarr[0,1,dme] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
-#					pixlarr[1,0,dme] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
-#					pixlarr[1,1,dme] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
-#					pixlarr[2,0,dme] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
-#					pixlarr[2,1,dme] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
-#					pixlarr[3,0,dme] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
-#					pixlarr[3,1,dme] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
-                    # Calculate the overlapping polygon area
-                    area = SH_poly_clip_area(polyarr,pixlarr,outlist,inlist)
-#					polyout = SH_poly_clip(pixlarr[:,:,dme],polyarr,outlist,inlist)
-#					dme += 1
-#					if dme >= 2000: return pixlarr, polyarr
-                    #area = poly_area(polyout)
-                    if area == np.nan:
-                        print "AREA=NAN (up)"
-                        print outlist
-                        print inlist
-                        print pixlarr
-                    uarea += area
-                    totflux += area*frame[j,pixcen[x]+i]
-                    if area == 0.0:
-                        if i>pixu+1:
-#							print x, j, i, "BREAK 2"
-                            break
-                    else:
-                        if i>pixu: pixu=i
+                        break
                     i += 1
-                # Sum up over pixels area
-                darea = 0.0
-                i=-1
-                pixd = <int>(0.5+ordwid[x]/2.0)
-                while True:
-                    if (pixcen[x]+i >= sz_y) or (pixcen[x]+i < 0):
-                        if -i>pixd+1:
-#							print x, j, i, "BREAK 3"
-                            break
-                        i -= 1
-                        continue
-                    if (bpix[j,pixcen[x]+i] == 1):
-                        if -i>pixd+1: break
-                        i -= 1
-                        continue
-                    pixlarr[0,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
-                    pixlarr[0,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
-                    pixlarr[1,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
-                    pixlarr[1,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
-                    pixlarr[2,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
-                    pixlarr[2,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
-                    pixlarr[3,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
-                    pixlarr[3,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
+                    continue
+                if (bpix[j,pixcen[x]+i] == 1):
+                    if i>pixu+1: break
+                    i += 1
+                    continue
+                pixlarr[0,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
+                pixlarr[0,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
+                pixlarr[1,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
+                pixlarr[1,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
+                pixlarr[2,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
+                pixlarr[2,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
+                pixlarr[3,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
+                pixlarr[3,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
 #					pixlarr[0,0,dme] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
 #					pixlarr[0,1,dme] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
 #					pixlarr[1,0,dme] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
@@ -821,157 +650,92 @@ def extract_mean(np.ndarray[DTYPE_t, ndim=2] frame not None,
 #					pixlarr[2,1,dme] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
 #					pixlarr[3,0,dme] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
 #					pixlarr[3,1,dme] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
-                    # Calculate the overlapping polygon area
-                    area = SH_poly_clip_area(polyarr,pixlarr,outlist,inlist)
+                # Calculate the overlapping polygon area
+                area = SH_poly_clip_area(polyarr,pixlarr,outlist,inlist)
 #					polyout = SH_poly_clip(pixlarr[:,:,dme],polyarr,outlist,inlist)
 #					dme += 1
 #					if dme >= 2000: return pixlarr, polyarr
-                    #area = poly_area(polyout)
-                    if area == np.nan:
-                        print "AREA=NAN (down)"
-                        print outlist
-                        print inlist
-                        print pixlarr
-                    darea += area
-                    totflux += area*frame[j,pixcen[x]+i]
-                    if area == 0.0:
-                        if -i>pixd+1:
-#							print x, j, i, "BREAK 4"
-                            break
-                    else:
-                        if -i>pixd: pixd=-i
-                    i -= 1
-                # Break if we've already found some overlap
-                if uarea+darea == 0.0:
-                    if donesome == 1:
-#						print x, j, i, "BREAK 5"
+                #area = poly_area(polyout)
+                if area == np.nan:
+                    print "AREA=NAN (up)"
+                    print outlist
+                    print inlist
+                    print pixlarr
+                uarea += area
+                totflux += area*frame[j,pixcen[x]+i]
+                if area == 0.0:
+                    if i>pixu+1:
+#							print x, j, i, "BREAK 2"
                         break
                 else:
-                    donesome = 1
-                # If we haven't found overlap yet, then we must be off the chip
-                if j-pixll>=5 and donesome==0:
-                    j = x+1
-                    break
-                j += 1
-                totarea += (uarea+darea)
-            pixll = pixl
-            pixl  = j-1
-        else:
-            # yloc = slf._pixlocn[0,:,0]
-            # xloc = slf._pixlocn[:,0,1]
-            # ysiz = slf._pixlocn[0,:,2]
-            # xsiz = slf._pixlocn[:,0,3]
+                    if i>pixu: pixu=i
+                i += 1
+            # Sum up over pixels area
+            darea = 0.0
+            i=-1
+            pixd = <int>(0.5+ordwid[x]/2.0)
             while True:
-                if j >= sz_y:
-                    j = x+1
-                    break
-                # Sum up over pixels area
-                uarea = 0.0
-                i=0
-                pixu = <int>(0.5+ordwid[x]/2.0)
-                while True:
-                    if (pixcen[x]+i >= sz_x) or (pixcen[x]+i < 0):
-                        if i>pixu+1: break
-                        i += 1
-                        continue
-                    if (bpix[pixcen[x]+i,j] == 1):
-                        if i>pixu+1: break
-                        i += 1
-                        continue
-                    pixlarr[0,0] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-                    pixlarr[0,1] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-                    pixlarr[1,0] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-                    pixlarr[1,1] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-                    pixlarr[2,0] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-                    pixlarr[2,1] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-                    pixlarr[3,0] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-                    pixlarr[3,1] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-#					pixlarr[0,0,dme] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-#					pixlarr[0,1,dme] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-#					pixlarr[1,0,dme] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-#					pixlarr[1,1,dme] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-#					pixlarr[2,0,dme] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-#					pixlarr[2,1,dme] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-#					pixlarr[3,0,dme] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-#					pixlarr[3,1,dme] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-                    # Calculate the overlapping polygon area
-                    area = SH_poly_clip_area(polyarr,pixlarr,outlist,inlist)
-#					polyout = SH_poly_clip(pixlarr[:,:,dme],polyarr,outlist,inlist)
-#					dme += 1
-#					if dme >= 2000: return pixlarr, polyarr
-                    #area = poly_area(polyout)
-                    if area == np.nan:
-                        print "AREA=NAN"
-                        print outlist
-                        print inlist
-                        print pixlarr
-                    uarea += area
-                    totflux += area*frame[pixcen[x]+i,j]
-                    if area == 0.0:
-                        if i>pixu+1: break
-                    else:
-                        if i>pixu: pixu=i
-                    i += 1
-                # Sum up over pixels area
-                darea = 0.0
-                i=-1
-                pixd = <int>(0.5+ordwid[x]/2.0)
-                while True:
-                    if (pixcen[x]+i >= sz_x) or (pixcen[x]+i < 0):
-                        if -i>pixd+1: break
-                        i -= 1
-                        continue
-                    if (bpix[pixcen[x]+i,j] == 1):
-                        if -i>pixd+1: break
-                        i -= 1
-                        continue
-                    pixlarr[0,0] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-                    pixlarr[0,1] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-                    pixlarr[1,0] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-                    pixlarr[1,1] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-                    pixlarr[2,0] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-                    pixlarr[2,1] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-                    pixlarr[3,0] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-                    pixlarr[3,1] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-#					pixlarr[0,0,dme] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-#					pixlarr[0,1,dme] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-#					pixlarr[1,0,dme] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-#					pixlarr[1,1,dme] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-#					pixlarr[2,0,dme] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-#					pixlarr[2,1,dme] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-#					pixlarr[3,0,dme] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-#					pixlarr[3,1,dme] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-                    # Calculate the overlapping polygon area
-                    area = SH_poly_clip_area(polyarr,pixlarr,outlist,inlist)
-#					polyout = SH_poly_clip(pixlarr[:,:,dme],polyarr,outlist,inlist)
-#					dme += 1
-#					if dme >= 2000: return pixlarr, polyarr
-                    #area = poly_area(polyout)
-                    if area == np.nan:
-                        print "AREA=NAN"
-                        print outlist
-                        print inlist
-                        print pixlarr
-                    darea += area
-                    totflux += area*frame[pixcen[x]+i,j]
-                    if area == 0.0:
-                        if -i>pixd+1: break
-                    else:
-                        if -i>pixd: pixd=-i
+                if (pixcen[x]+i >= sz_y) or (pixcen[x]+i < 0):
+                    if -i>pixd+1:
+#							print x, j, i, "BREAK 3"
+                        break
                     i -= 1
-                # Break if we've already found some overlap
-                if uarea+darea == 0.0:
-                    if donesome == 1: break
+                    continue
+                if (bpix[j,pixcen[x]+i] == 1):
+                    if -i>pixd+1: break
+                    i -= 1
+                    continue
+                pixlarr[0,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
+                pixlarr[0,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
+                pixlarr[1,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
+                pixlarr[1,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
+                pixlarr[2,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
+                pixlarr[2,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
+                pixlarr[3,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
+                pixlarr[3,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
+#					pixlarr[0,0,dme] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
+#					pixlarr[0,1,dme] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
+#					pixlarr[1,0,dme] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
+#					pixlarr[1,1,dme] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
+#					pixlarr[2,0,dme] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
+#					pixlarr[2,1,dme] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
+#					pixlarr[3,0,dme] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
+#					pixlarr[3,1,dme] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
+                # Calculate the overlapping polygon area
+                area = SH_poly_clip_area(polyarr,pixlarr,outlist,inlist)
+#					polyout = SH_poly_clip(pixlarr[:,:,dme],polyarr,outlist,inlist)
+#					dme += 1
+#					if dme >= 2000: return pixlarr, polyarr
+                #area = poly_area(polyout)
+                if area == np.nan:
+                    print "AREA=NAN (down)"
+                    print outlist
+                    print inlist
+                    print pixlarr
+                darea += area
+                totflux += area*frame[j,pixcen[x]+i]
+                if area == 0.0:
+                    if -i>pixd+1:
+#							print x, j, i, "BREAK 4"
+                        break
                 else:
-                    donesome = 1
-                # If we haven't found overlap yet, then we must be off the chip
-                if j-pixll>=5 and donesome==0:
-                    j = x+1
+                    if -i>pixd: pixd=-i
+                i -= 1
+            # Break if we've already found some overlap
+            if uarea+darea == 0.0:
+                if donesome == 1:
+#						print x, j, i, "BREAK 5"
                     break
-                j += 1
-                totarea += (uarea+darea)
-            pixll = pixl
-            pixl  = j-1
+            else:
+                donesome = 1
+            # If we haven't found overlap yet, then we must be off the chip
+            if j-pixll>=5 and donesome==0:
+                j = x+1
+                break
+            j += 1
+            totarea += (uarea+darea)
+        pixll = pixl
+        pixl  = j-1
         if totarea == np.nan:
             print x, totarea, totflux, uarea, darea, donesome, darea==np.nan
             print x, polyarr
@@ -993,7 +757,7 @@ def extract_weighted(np.ndarray[DTYPE_t, ndim=2] frame not None,
                     np.ndarray[DTYPE_t, ndim=1] ordxcen not None,
                     np.ndarray[DTYPE_t, ndim=1] ordycen not None,
                     np.ndarray[DTYPE_t, ndim=1] ordwid not None,
-                    int ordlen, int ordnum, int intrpnum, int dispaxis):
+                    int ordlen, int ordnum, int intrpnum):
     """
     Sometimes there is a zero (or a few zeros) padded at the end of
     extspec. This might be because of a difference between ordnum and
@@ -1011,8 +775,8 @@ def extract_weighted(np.ndarray[DTYPE_t, ndim=2] frame not None,
     cdef int pixll, pixl, pixu, pixd, i, j, donesome
 
     sz_o = ordxcen.shape[0]
-    sz_x = frame.shape[dispaxis]
-    sz_y = frame.shape[1-dispaxis]
+    sz_x = frame.shape[0]
+    sz_y = frame.shape[1]
     sz_p = profile.shape[0]
 
     cdef np.ndarray[DTYPE_t, ndim=1] extspec = np.zeros(ordnum, dtype=DTYPE) # The extracted spectrum
@@ -1081,205 +845,108 @@ def extract_weighted(np.ndarray[DTYPE_t, ndim=2] frame not None,
         totflux = 0.0
         j=pixll
         donesome=0
-        if dispaxis == 0:
-            # yloc = slf._pixlocn[:,0,0]
-            # xloc = slf._pixlocn[0,:,1]
-            # ysiz = slf._pixlocn[:,0,2]
-            # xsiz = slf._pixlocn[0,:,3]
+        while True:
+            if j >= sz_x:
+                j = x+1
+                break
+            # Sum up over pixels area
+            uarea = 0.0
+            i=0
+            pixu = <int>(0.5+ordwid[x]/2.0)
             while True:
-                if j >= sz_x:
-                    j = x+1
-                    break
-                # Sum up over pixels area
-                uarea = 0.0
-                i=0
-                pixu = <int>(0.5+ordwid[x]/2.0)
-                while True:
-                    if (pixcen[x]+i >= sz_y) or (pixcen[x]+i < 0):
-                        if i>pixu+1:
+                if (pixcen[x]+i >= sz_y) or (pixcen[x]+i < 0):
+                    if i>pixu+1:
 #							print x, j, i, "BREAK 1"
-                            break
-                        i += 1
-                        continue
-                    if (bpix[j,pixcen[x]+i] == 1):
-                        if i>pixu+1: break
-                        i += 1
-                        continue
-                    pixlarr[0,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
-                    pixlarr[0,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
-                    pixlarr[1,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
-                    pixlarr[1,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
-                    pixlarr[2,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
-                    pixlarr[2,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
-                    pixlarr[3,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
-                    pixlarr[3,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
-                    # Calculate the overlapping polygon area
-                    area = SH_poly_clip_area(polyarr,pixlarr,outlist,inlist)
-                    # Calculate the profile weights
-                    if area != 0.0:
-                        subarea = (pixloc[j,pixcen[x]+i,3]*pixloc[j,pixcen[x]+i,2])/<double>(intrpnum*intrpnum)
-                        for xx in range(0,intrpnum):
-                            xpos = pixloc[j,pixcen[x]+i,1] + (-0.5 + (<double>(xx)+0.5)/<double>(intrpnum))*pixloc[j,pixcen[x]+i,3]
-                            for yy in range(0,intrpnum):
-                                ypos = pixloc[j,pixcen[x]+i,0] + (-0.5 + (<double>(yy)+0.5)/<double>(intrpnum))*pixloc[j,pixcen[x]+i,2]
-                                pip = point_in_poly(xpos,ypos,inlist)
-                                if pip == 1:
-                                    sza = csqrt( (polyarr[0,0]-polyarr[3,0])*(polyarr[0,0]-polyarr[3,0]) + (polyarr[0,1]-polyarr[3,1])*(polyarr[0,1]-polyarr[3,1]) )
-                                    szb = csqrt( (polyarr[0,0]-xpos)*(polyarr[0,0]-xpos) + (polyarr[0,1]-ypos)*(polyarr[0,1]-ypos) )
-                                    szc = csqrt( (polyarr[3,0]-xpos)*(polyarr[3,0]-xpos) + (polyarr[3,1]-ypos)*(polyarr[3,1]-ypos) )
-                                    print "Is there a negative sign needed here -- check the cosine rule?"
-                                    szd = csqrt( (4.0*sza*sza*szb*szb - cpow((szc*szc - sza*sza - szb*szb),2.0))/(4.0*sza*sza) )
-                                    ppix = <int>( 0.5 + <double>(sz_p)*szd/ordwid[x]) # 0.5 is to round, rather than floor.
-                                    pweight = profile[ppix]
-                                    print "check... is the subarea and/or pweight needed both times?"
-                                    uarea += subarea*pweight
-                                    totflux += subarea*pweight*frame[j,pixcen[x]+i]
-                    if area == 0.0:
-                        if i>pixu+1:
-#							print x, j, i, "BREAK 2"
-                            break
-                    else:
-                        if i>pixu: pixu=i
+                        break
                     i += 1
-                # Sum up over pixels area
-                darea = 0.0
-                i=-1
-                pixd = <int>(0.5+ordwid[x]/2.0)
-                while True:
-                    if (pixcen[x]+i >= sz_y) or (pixcen[x]+i < 0):
-                        if -i>pixd+1:
-#							print x, j, i, "BREAK 3"
-                            break
-                        i -= 1
-                        continue
-                    if (bpix[j,pixcen[x]+i] == 1):
-                        if -i>pixd+1: break
-                        i -= 1
-                        continue
-                    pixlarr[0,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
-                    pixlarr[0,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
-                    pixlarr[1,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
-                    pixlarr[1,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
-                    pixlarr[2,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
-                    pixlarr[2,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
-                    pixlarr[3,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
-                    pixlarr[3,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
-                    # Calculate the overlapping polygon area
-                    area = SH_poly_clip_area(polyarr,pixlarr,outlist,inlist)
-                    darea += area
-                    totflux += area*frame[j,pixcen[x]+i]
-                    if area == 0.0:
-                        if -i>pixd+1:
-                            break
-                    else:
-                        if -i>pixd: pixd=-i
-                    i -= 1
-                # Break if we've already found some overlap
-                if uarea+darea == 0.0:
-                    if donesome == 1:
+                    continue
+                if (bpix[j,pixcen[x]+i] == 1):
+                    if i>pixu+1: break
+                    i += 1
+                    continue
+                pixlarr[0,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
+                pixlarr[0,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
+                pixlarr[1,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
+                pixlarr[1,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
+                pixlarr[2,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
+                pixlarr[2,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
+                pixlarr[3,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
+                pixlarr[3,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
+                # Calculate the overlapping polygon area
+                area = SH_poly_clip_area(polyarr,pixlarr,outlist,inlist)
+                # Calculate the profile weights
+                if area != 0.0:
+                    subarea = (pixloc[j,pixcen[x]+i,3]*pixloc[j,pixcen[x]+i,2])/<double>(intrpnum*intrpnum)
+                    for xx in range(0,intrpnum):
+                        xpos = pixloc[j,pixcen[x]+i,1] + (-0.5 + (<double>(xx)+0.5)/<double>(intrpnum))*pixloc[j,pixcen[x]+i,3]
+                        for yy in range(0,intrpnum):
+                            ypos = pixloc[j,pixcen[x]+i,0] + (-0.5 + (<double>(yy)+0.5)/<double>(intrpnum))*pixloc[j,pixcen[x]+i,2]
+                            pip = point_in_poly(xpos,ypos,inlist)
+                            if pip == 1:
+                                sza = csqrt( (polyarr[0,0]-polyarr[3,0])*(polyarr[0,0]-polyarr[3,0]) + (polyarr[0,1]-polyarr[3,1])*(polyarr[0,1]-polyarr[3,1]) )
+                                szb = csqrt( (polyarr[0,0]-xpos)*(polyarr[0,0]-xpos) + (polyarr[0,1]-ypos)*(polyarr[0,1]-ypos) )
+                                szc = csqrt( (polyarr[3,0]-xpos)*(polyarr[3,0]-xpos) + (polyarr[3,1]-ypos)*(polyarr[3,1]-ypos) )
+                                print "Is there a negative sign needed here -- check the cosine rule?"
+                                szd = csqrt( (4.0*sza*sza*szb*szb - cpow((szc*szc - sza*sza - szb*szb),2.0))/(4.0*sza*sza) )
+                                ppix = <int>( 0.5 + <double>(sz_p)*szd/ordwid[x]) # 0.5 is to round, rather than floor.
+                                pweight = profile[ppix]
+                                print "check... is the subarea and/or pweight needed both times?"
+                                uarea += subarea*pweight
+                                totflux += subarea*pweight*frame[j,pixcen[x]+i]
+                if area == 0.0:
+                    if i>pixu+1:
+#							print x, j, i, "BREAK 2"
                         break
                 else:
-                    donesome = 1
-                # If we haven't found overlap yet, then we must be off the chip
-                if j-pixll>=5 and donesome==0:
-                    j = x+1
-                    break
-                j += 1
-                totarea += (uarea+darea)
-            pixll = pixl
-            pixl  = j-1
-        else:
-            # yloc = slf._pixlocn[0,:,0]
-            # xloc = slf._pixlocn[:,0,1]
-            # ysiz = slf._pixlocn[0,:,2]
-            # xsiz = slf._pixlocn[:,0,3]
+                    if i>pixu: pixu=i
+                i += 1
+            # Sum up over pixels area
+            darea = 0.0
+            i=-1
+            pixd = <int>(0.5+ordwid[x]/2.0)
             while True:
-                if j >= sz_y:
-                    j = x+1
-                    break
-                # Sum up over pixels area
-                uarea = 0.0
-                i=0
-                pixu = <int>(0.5+ordwid[x]/2.0)
-                while True:
-                    if (pixcen[x]+i >= sz_x) or (pixcen[x]+i < 0):
-                        if i>pixu+1: break
-                        i += 1
-                        continue
-                    if (bpix[pixcen[x]+i,j] == 1):
-                        if i>pixu+1: break
-                        i += 1
-                        continue
-                    pixlarr[0,0] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-                    pixlarr[0,1] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-                    pixlarr[1,0] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-                    pixlarr[1,1] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-                    pixlarr[2,0] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-                    pixlarr[2,1] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-                    pixlarr[3,0] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-                    pixlarr[3,1] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-                    # Calculate the overlapping polygon area
-                    area = SH_poly_clip_area(polyarr,pixlarr,outlist,inlist)
-                    if area == np.nan:
-                        print "AREA=NAN"
-                        print outlist
-                        print inlist
-                        print pixlarr
-                    uarea += area
-                    totflux += area*frame[pixcen[x]+i,j]
-                    if area == 0.0:
-                        if i>pixu+1: break
-                    else:
-                        if i>pixu: pixu=i
-                    i += 1
-                # Sum up over pixels area
-                darea = 0.0
-                i=-1
-                pixd = <int>(0.5+ordwid[x]/2.0)
-                while True:
-                    if (pixcen[x]+i >= sz_x) or (pixcen[x]+i < 0):
-                        if -i>pixd+1: break
-                        i -= 1
-                        continue
-                    if (bpix[pixcen[x]+i,j] == 1):
-                        if -i>pixd+1: break
-                        i -= 1
-                        continue
-                    pixlarr[0,0] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-                    pixlarr[0,1] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-                    pixlarr[1,0] = pixloc[pixcen[x]+i,j,1]-0.5*pixloc[pixcen[x]+i,j,3]
-                    pixlarr[1,1] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-                    pixlarr[2,0] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-                    pixlarr[2,1] = pixloc[pixcen[x]+i,j,0]+0.5*pixloc[pixcen[x]+i,j,2]
-                    pixlarr[3,0] = pixloc[pixcen[x]+i,j,1]+0.5*pixloc[pixcen[x]+i,j,3]
-                    pixlarr[3,1] = pixloc[pixcen[x]+i,j,0]-0.5*pixloc[pixcen[x]+i,j,2]
-                    # Calculate the overlapping polygon area
-                    area = SH_poly_clip_area(polyarr,pixlarr,outlist,inlist)
-                    if area == np.nan:
-                        print "AREA=NAN"
-                        print outlist
-                        print inlist
-                        print pixlarr
-                    darea += area
-                    totflux += area*frame[pixcen[x]+i,j]
-                    if area == 0.0:
-                        if -i>pixd+1: break
-                    else:
-                        if -i>pixd: pixd=-i
+                if (pixcen[x]+i >= sz_y) or (pixcen[x]+i < 0):
+                    if -i>pixd+1:
+#							print x, j, i, "BREAK 3"
+                        break
                     i -= 1
-                # Break if we've already found some overlap
-                if uarea+darea == 0.0:
-                    if donesome == 1: break
+                    continue
+                if (bpix[j,pixcen[x]+i] == 1):
+                    if -i>pixd+1: break
+                    i -= 1
+                    continue
+                pixlarr[0,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
+                pixlarr[0,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
+                pixlarr[1,0] = pixloc[j,pixcen[x]+i,1]-0.5*pixloc[j,pixcen[x]+i,3]
+                pixlarr[1,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
+                pixlarr[2,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
+                pixlarr[2,1] = pixloc[j,pixcen[x]+i,0]+0.5*pixloc[j,pixcen[x]+i,2]
+                pixlarr[3,0] = pixloc[j,pixcen[x]+i,1]+0.5*pixloc[j,pixcen[x]+i,3]
+                pixlarr[3,1] = pixloc[j,pixcen[x]+i,0]-0.5*pixloc[j,pixcen[x]+i,2]
+                # Calculate the overlapping polygon area
+                area = SH_poly_clip_area(polyarr,pixlarr,outlist,inlist)
+                darea += area
+                totflux += area*frame[j,pixcen[x]+i]
+                if area == 0.0:
+                    if -i>pixd+1:
+                        break
                 else:
-                    donesome = 1
-                # If we haven't found overlap yet, then we must be off the chip
-                if j-pixll>=5 and donesome==0:
-                    j = x+1
+                    if -i>pixd: pixd=-i
+                i -= 1
+            # Break if we've already found some overlap
+            if uarea+darea == 0.0:
+                if donesome == 1:
                     break
-                j += 1
-                totarea += (uarea+darea)
-            pixll = pixl
-            pixl  = j-1
+            else:
+                donesome = 1
+            # If we haven't found overlap yet, then we must be off the chip
+            if j-pixll>=5 and donesome==0:
+                j = x+1
+                break
+            j += 1
+            totarea += (uarea+darea)
+        pixll = pixl
+        pixl  = j-1
         if totarea == np.nan:
             print x, totarea, totflux, uarea, darea, donesome, darea==np.nan
             print x, polyarr
@@ -1878,53 +1545,6 @@ def optimal_scaleerr(np.ndarray[DTYPE_t, ndim=2] scifr not None,
     return scaleerr
 
 
-# @cython.boundscheck(False)
-# def optimal(np.ndarray[DTYPE_t, ndim=2] prof not None,
-# 			np.ndarray[DTYPE_t, ndim=2] xloc not None,
-# 			np.ndarray[DTYPE_t, ndim=2] xsiz not None,
-# 			int pixwid, int argf_profsamp):
-# 
-# 	cdef int i, j
-# 
-# 	shft = pixwid/2
-# 	icen = None
-# 	ynew = -999999.9*np.ones((frame.shape[dispaxis],2*shft + 1))
-# 	for i in range(frame.shape[dispaxis]):
-# 		minv = pixcen[i,o]-shft
-# 		maxv = pixcen[i,o]+shft+1
-# 		if minv < 0: minv = 0
-# 		elif minv > frame.shape[1-dispaxis]: continue
-# 		if maxv > frame.shape[1-dispaxis]: maxv = frame.shape[1-dispaxis]
-# 		elif maxv < 0: continue
-# 		xfit = xloc[minv:maxv]
-# 		xprof = np.linspace(xloc[minv]-xsiz[minv]/2.0,xloc[maxv-1]+xloc[maxv-1]/2.0,argf_profsamp*np.max(pixwid))
-# 		for j in range(0,maxv-minv):
-# 			xmin = xloc[minv+j]-xsiz[minv+j]/2.0
-# 			xmax = xloc[minv+j]+xsiz[minv+j]/2.0
-# 			
-# 			sum all pixels between xloc[minv]-xsiz[minv]/2.0 and xloc[minv]+xsiz[minv]/2.0
-# 			the number of pixels between these two values indicates the number of profile points to be summed.
-
-
-
-
-# @cython.boundscheck(False)
-# def optimal(np.ndarray[DTYPE_t, ndim=2] p not None):
-# 	"""
-# 	This function performs an iterative optimal extraction, fitting
-# 	a constant background, object flux, and object profile. The object's
-# 	profile is subpixellated (i.e. oversampled).
-# 	"""
-# 	
-# 	return blah
-
-
-# @cython.boundscheck(False)
-# def optimal_profileweights():
-# 
-# 	return weights
-
-
 @cython.boundscheck(False)
 def point_in_poly(np.ndarray[DTYPE_t, ndim=2] poly not None,
                     double x, double y):
@@ -2037,16 +1657,14 @@ def rectify_withcrr(np.ndarray[DTYPE_t, ndim=2] frame not None,
                     np.ndarray[ITYPE_t, ndim=1] pixledg not None,
                     np.ndarray[ITYPE_t, ndim=1] pixredg not None,
                     int pixwid, double sigmadet, double sigmarep,
-                    double maskval, int dispaxis):
+                    double maskval):
 
-    cdef int x, y, sz_x, sz_y, sz_xx, sz_yy
+    cdef int x, y, sz_x, sz_y
     cdef int yidx, ymin, ymax, sz_p
     cdef int shift = pixwid/2
 
-    sz_x  = frame.shape[dispaxis]
-    sz_y  = frame.shape[1-dispaxis]
-    sz_xx = frame.shape[0]
-    sz_yy = frame.shape[1]
+    sz_x  = frame.shape[0]
+    sz_y  = frame.shape[1]
     sz_p = 2*shift+1
 
     cdef np.ndarray[DTYPE_t, ndim=2] rectify = np.zeros((sz_x,sz_p), dtype=DTYPE)
@@ -2064,51 +1682,30 @@ def rectify_withcrr(np.ndarray[DTYPE_t, ndim=2] frame not None,
             if pixredg[x] <= 0 or pixledg[x] >= sz_y-1 or yidx < 0 or yidx >= sz_y:
                 rectify[x,y] = maskval
             else:
-                if dispaxis == 0:
-                    rectify[x,y] = frame[x,yidx]
-                else:
-                    rectify[x,y] = frame[yidx,x]
+                rectify[x,y] = frame[x,yidx]
 
     # Identify the bad pixels
     cr_maskmedian(rectify, maskval, sigmadet, sigmarep, maskcr)
 
     # un-rectify the bad pixel mask
-    if dispaxis == 0:
-        for x in range(0,sz_xx):
-            if pixcen[x] <= 0:
-                ymin = (pixredg[x]-shift)-shift
-                ymax = (pixredg[x]-shift)+shift+1
-            elif pixcen[x] >= sz_yy-1:
-                ymin = (pixledg[x]+shift)-shift
-                ymax = (pixledg[x]+shift)+shift+1
-            else:
-                ymin = pixcen[x]-shift
-                ymax = pixcen[x]+shift+1
-            if ymin < 0: ymin = 0
-            elif pixledg[x] >= sz_yy-1: continue
-            if pixredg[x] <= 0: continue
-            elif ymax > sz_yy: ymax = sz_yy
-            for y in range(ymin,ymax):
-                bpixmask[x,y] = maskcr[x,y-ymin]
-    else:
-        for y in range(0,sz_yy):
-            if pixcen[y] <= 0:
-                ymin = (pixredg[y]-shift)-shift
-                ymax = (pixredg[y]-shift)+shift+1
-            elif pixcen[y] >= sz_xx-1:
-                ymin = (pixledg[y]+shift)-shift
-                ymax = (pixledg[y]+shift)+shift+1
-            else:
-                ymin = pixcen[y]-shift
-                ymax = pixcen[y]+shift+1
-            if ymin < 0: ymin = 0
-            elif pixledg[y] >= sz_xx-1: continue
-            if pixredg[y] <= 0: continue
-            elif ymax > sz_xx: ymax = sz_xx
-            for x in range(ymin,ymax):
-                bpixmask[x,y] = maskcr[x,y-ymin]
-
+    for x in range(0,sz_x):
+        if pixcen[x] <= 0:
+            ymin = (pixredg[x]-shift)-shift
+            ymax = (pixredg[x]-shift)+shift+1
+        elif pixcen[x] >= sz_y-1:
+            ymin = (pixledg[x]+shift)-shift
+            ymax = (pixledg[x]+shift)+shift+1
+        else:
+            ymin = pixcen[x]-shift
+            ymax = pixcen[x]+shift+1
+        if ymin < 0: ymin = 0
+        elif pixledg[x] >= sz_y-1: continue
+        if pixredg[x] <= 0: continue
+        elif ymax > sz_y: ymax = sz_y
+        for y in range(ymin,ymax):
+            bpixmask[x,y] = maskcr[x,y-ymin]
     return bpixmask
+
 
 @cython.boundscheck(False)
 def rectify(np.ndarray[DTYPE_t, ndim=2] frame not None,
@@ -2116,16 +1713,14 @@ def rectify(np.ndarray[DTYPE_t, ndim=2] frame not None,
             np.ndarray[ITYPE_t, ndim=1] pixcen not None,
             np.ndarray[ITYPE_t, ndim=1] pixledg not None,
             np.ndarray[ITYPE_t, ndim=1] pixredg not None,
-            int pixwid, double maskval, int dispaxis):
+            int pixwid, double maskval):
 
-    cdef int x, y, sz_x, sz_y, sz_xx, sz_yy
+    cdef int x, y, sz_x, sz_y
     cdef int yidx, ymin, ymax, sz_p
     cdef int shift = pixwid/2
 
-    sz_x  = frame.shape[dispaxis]
-    sz_y  = frame.shape[1-dispaxis]
-    sz_xx = frame.shape[0]
-    sz_yy = frame.shape[1]
+    sz_x  = frame.shape[0]
+    sz_y  = frame.shape[1]
     sz_p = 2*shift+1
 
     cdef np.ndarray[DTYPE_t, ndim=2] rectify = np.zeros((sz_x,sz_p), dtype=DTYPE)
@@ -2142,12 +1737,8 @@ def rectify(np.ndarray[DTYPE_t, ndim=2] frame not None,
             if pixredg[x] <= 0 or pixledg[x] >= sz_y-1 or yidx < 0 or yidx >= sz_y:
                 rectify[x,y] = maskval
             else:
-                if dispaxis == 0:
-                    if mask[x,yidx] == 0: rectify[x,y] = maskval
-                    else: rectify[x,y] = frame[x,yidx]
-                else:
-                    if mask[yidx,x] == 0: rectify[x,y] = maskval
-                    else: rectify[x,y] = frame[yidx,x]
+                if mask[x,yidx] == 0: rectify[x,y] = maskval
+                else: rectify[x,y] = frame[x,yidx]
     return rectify
 
 
@@ -2156,52 +1747,33 @@ def rectify_undo(np.ndarray[DTYPE_t, ndim=2] recframe not None,
                 np.ndarray[ITYPE_t, ndim=1] pixcen not None,
                 np.ndarray[ITYPE_t, ndim=1] pixledg not None,
                 np.ndarray[ITYPE_t, ndim=1] pixredg not None,
-                int pixwid, double maskval, int sz_xx, int sz_yy,
-                int dispaxis):
+                int pixwid, double maskval, int sz_x, int sz_y):
     """
     To be used in conjunction with the rectify function directly above.
-    sz_xx and sz_yy correspond to the frame.shape[0] and frame.shape[1]
+    sz_x and sz_y correspond to the frame.shape[0] and frame.shape[1]
     respectively.
     """
     cdef int x, y, ymin, ymax
     cdef int shift = pixwid/2
 
-    cdef np.ndarray[DTYPE_t, ndim=2] unrec = np.zeros((sz_xx,sz_yy), dtype=DTYPE)
+    cdef np.ndarray[DTYPE_t, ndim=2] unrec = np.zeros((sz_x,sz_y), dtype=DTYPE)
 
-    if dispaxis == 0:
-        for x in range(0,sz_xx):
-            if pixcen[x] <= 0:
-                ymin = (pixredg[x]-shift)-shift
-                ymax = (pixredg[x]-shift)+shift+1
-            elif pixcen[x] >= sz_yy-1:
-                ymin = (pixledg[x]+shift)-shift
-                ymax = (pixledg[x]+shift)+shift+1
-            else:
-                ymin = pixcen[x]-shift
-                ymax = pixcen[x]+shift+1
-            if ymin < 0: ymin = 0
-            elif pixledg[x] >= sz_yy-1: continue
-            if pixredg[x] <= 0: continue
-            elif ymax > sz_yy: ymax = sz_yy
-            for y in range(ymin,ymax):
-                unrec[x,y] = recframe[x,y-ymin]
-    else:
-        for y in range(0,sz_yy):
-            if pixcen[y] <= 0:
-                ymin = (pixredg[y]-shift)-shift
-                ymax = (pixredg[y]-shift)+shift+1
-            elif pixcen[y] >= sz_xx-1:
-                ymin = (pixledg[y]+shift)-shift
-                ymax = (pixledg[y]+shift)+shift+1
-            else:
-                ymin = pixcen[y]-shift
-                ymax = pixcen[y]+shift+1
-            if ymin < 0: ymin = 0
-            elif pixledg[y] >= sz_xx-1: continue
-            if pixredg[y] <= 0: continue
-            elif ymax > sz_xx: ymax = sz_xx
-            for x in range(ymin,ymax):
-                unrec[y,x] = recframe[x,y-ymin]
+    for x in range(0,sz_x):
+        if pixcen[x] <= 0:
+            ymin = (pixredg[x]-shift)-shift
+            ymax = (pixredg[x]-shift)+shift+1
+        elif pixcen[x] >= sz_y-1:
+            ymin = (pixledg[x]+shift)-shift
+            ymax = (pixledg[x]+shift)+shift+1
+        else:
+            ymin = pixcen[x]-shift
+            ymax = pixcen[x]+shift+1
+        if ymin < 0: ymin = 0
+        elif pixledg[x] >= sz_y-1: continue
+        if pixredg[x] <= 0: continue
+        elif ymax > sz_y: ymax = sz_y
+        for y in range(ymin,ymax):
+            unrec[x,y] = recframe[x,y-ymin]
     return unrec
 
 

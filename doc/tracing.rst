@@ -47,10 +47,10 @@ neighbouring slits are a little close (perhaps with
 some crosstalk), you may need to specify the slit gap
 using the argument::
 
-    trace slits slitgap 10
+    trace slits maxgap 10
 
-in the event that the gap between all slits is less than
-10 pixels. This variable should not be used unless
+in the event that the gap between all neighbouring slits is
+less than 10 pixels. This variable should not be used unless
 there is some crosstalk between slits, or in the event
 of close slits with a non uniform illumination pattern.
 
@@ -64,7 +64,7 @@ For example, for the LRISr longslit with 2x2 binning, the
 following line will force the slit to be generated from
 columns 7-295 on the second detctor::
 
-    trace orders sng_slit [0,0,7,295]
+    trace slits single[0,0,7,295]
 
 Because the 2nd value is 0, the code will be required to
 automatically find a slit on the first detector.

@@ -88,6 +88,34 @@ RAW_FILE   str    Name of the raw data file
 Format
 ------
 
+HDF5
+++++
+
+PYPIT will generate a single HDF5 file for each science exposure. The
+HDF5 file contains the groups: header, meta, boxcar and optimal. Each
+group has its respective datasets:
+
+========  ================================================================
+Group     Description
+========  ================================================================
+Meta      Meta is an astropy Table of N rows, corresponding to the N
+          objects/spectra extracted from the exposure. The table contains
+          the RA, DEC, object ID, slit ID, detector number, science index,
+          FWHM (spatial resolution in arcseconds), resolution (spatial
+          resolution in lambda/Dlambda), and xslit.
+Header    Header contains the original header information as saved on
+          the telescope.
+Boxcar    Boxcar contains N datasets, corresponding to the N objects/
+          spectra extracted via boxcar extraction.
+Optimal   Optimal contains N datasets, correspodning to the N objects/
+          spectra extracted via optimal extraction. If one of the N
+          objects were not extracted optimally, its dataset will still
+          exist, but be empty.
+========  ================================================================
+
+FITS
+++++
+
 If one uses the default :ref:`outputs-compactness-compact` mode for 
 outputs, a single multi-extension FITS file will be generated that
 contains the binary FITS tables for each extracted source.  To ease

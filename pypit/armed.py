@@ -24,20 +24,14 @@ except ImportError:
 msgs = armsgs.get_logger()
 
 
-def ARMED(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
+def ARMED(fitsdict, reuseMaster=False):
     """
     Automatic Reduction and Modeling of Echelle Data
 
     Parameters
     ----------
-    argflag : dict
-      Arguments and flags used for reduction
-    spect : dict
-      Properties of the spectrograph.
     fitsdict : dict
       Contains relevant information from fits header files
-    msgs : class
-      Messages class used to log data reduction process
     reuseMaster : bool
       If True, a master frame that will be used for another science frame
       will not be regenerated after it is first made.
@@ -55,11 +49,11 @@ def ARMED(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
     status = 0
 
     # Create a list of science exposure classes
-    sciexp = armbase.SetupScience(argflag, spect, fitsdict)
+    sciexp = armbase.SetupScience(fitsdict)
     numsci = len(sciexp)
 
     # Create a list of master calibration frames
-    masters = armasters.MasterFrames(spect['mosaic']['ndet'])
+    masters = armasters.MasterFrames(settings.spect['mosaic']['ndet'])
 
     # Use Masters?  Requires setup file
     setup_file = argflag['out']['sorted']+'.setup'
@@ -80,7 +74,7 @@ def ARMED(argflag, spect, fitsdict, reuseMaster=False, reloadMaster=True):
         if reloadMaster and (sc > 0):
             slf._argflag['masters']['use'] = True
         # Loop on Detectors
-        for kk in range(slf._spect['mosaic']['ndet']):
+        for kk in range(settings.spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             slf.det = det
             ###############

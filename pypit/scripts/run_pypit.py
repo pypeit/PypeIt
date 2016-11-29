@@ -6,7 +6,7 @@
 
 
 """
-This script pushes a FITS file to ginga
+This script runs PYPIT
 """
 from __future__ import (print_function, absolute_import, division,
                         unicode_literals)
@@ -34,11 +34,10 @@ initmsgs = Initmsg(None, debug, 1)
 def parser(options=None):
     import argparse
 
-    #parser = argparse.ArgumentParser(description=initmsgs.usage('PYPIT'))
     parser = argparse.ArgumentParser(description=initmsgs.usage('PYPIT'),
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("pypit_file", type=str, help="PYPIT reduction file (must have .pypit extension)")
-    parser.add_argument("-v", "--verbose", type=int, default=2, help="(2) Level of verbosity (0-2)")
+    parser.add_argument("-v", "--verbosity", type=int, default=2, help="(2) Level of verbosity (0-2)")
     parser.add_argument("-m", "--use_masters", default=False, action='store_true', help="Load previously generated MasterFrames")
     parser.add_argument("-d", "--develop", default=False, action='store_true', help="Turn develop debugging on")
     parser.add_argument("--debug_arc", default=False, action='store_true', help="Turn wavelength/arc debugging on")
@@ -80,11 +79,11 @@ def main(args):
 
     # Execute the reduction, and catch any bugs for printout
     if debug['develop']:
-        pypit.PYPIT(args.pypit_file, progname=pypit.__file__, quick=qck, ncpus=cpu, verbose=args.verbose,
+        pypit.PYPIT(args.pypit_file, progname=pypit.__file__, quick=qck, ncpus=cpu, verbosity=args.verbosity,
               use_masters=args.use_masters, logname=logname, debug=debug)
     else:
         try:
-            pypit.PYPIT(args.pypit_file, progname=pypit.__file__, quick=qck, ncpus=cpu, verbose=args.verbose,
+            pypit.PYPIT(args.pypit_file, progname=pypit.__file__, quick=qck, ncpus=cpu, verbosity=args.verbosity,
                   use_masters=args.use_masters, logname=logname, debug=debug)
         except:
             # There is a bug in the code, print the file and line number of the error.

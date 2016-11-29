@@ -1,0 +1,240 @@
+\documentclass[11pt,preprint]{aastex}
+
+\usepackage{latexsym}
+\usepackage{fancybox}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{color}
+\usepackage{ulem}
+\usepackage{float}
+\usepackage{multicol}
+\usepackage{enumitem}
+%\usepackage{setspace}
+\usepackage[parfill]{parskip}
+
+\pretolerance=10000
+\textwidth=6.4in
+\textheight=8.9in
+\voffset = 0.0in
+\topmargin=0.0in
+\headheight=0.00in
+\hoffset = 0.0in
+\headsep=0.20in
+\oddsidemargin=0in
+\evensidemargin=0in
+\parindent=0em
+\parskip=0.25ex
+ 
+%\input{defs_xavier}
+%\input{/u/xavier/bin/latex}
+%\input{/u/xavier/bin/defs}
+
+\newcommand{\npair}{50}
+\def\ssp{\def\baselinestretch{1.0}\large\normalsize}
+\newcommand{\oneskip}{\vskip \baselineskip}
+\newcommand{\annrev}{ARA\&A}
+\newcommand{\za}{z$_{ abs}$}
+\newcommand{\zg}{z$_{ galaxy}$}
+\newcommand{\zl}{$z_{emitter}$}
+\newcommand{\zf}{z$_{df}$}
+\newcommand{\avxi}{$\langle\xi\rangle$}
+\newcommand{\omg}{$\Omega_{g}(z)$}
+\newcommand{\tu}{$\tau( > M)$}
+\newcommand{\mc}{$10^{12}M_{\odot}$}
+\def \lnhi {$\log N_{HI}$}
+\def \cmm  {cm$^{-2}$}
+\def \cmmm {cm$^{-3}$}
+\def \hfreq {$f_{\rm{HI}} (N,X)$}
+\def \gamrate {$\Gamma_{912}$}
+\def \fn {$f_{\rm{HI}} (N,X)$}
+\def \lyaf {Ly--$\alpha$ forest}
+\def \nqso  {seven}
+\def \cmm  {\rm cm^{-2}}
+\newcommand{\lya}{Ly$\alpha$}
+
+\usepackage{multicol}
+
+\newenvironment{my_itemize}{
+\begin{itemize}
+  \setlength{\itemsep}{1pt}
+  \setlength{\parskip}{0pt}
+  \setlength{\parsep}{0pt}}{\end{itemize}
+}
+
+\newenvironment{my_enumerate}{
+\begin{enumerate}
+  \setlength{\itemsep}{1pt}
+  \setlength{\parskip}{0pt}
+  \setlength{\parsep}{0pt}}{\end{enumerate}
+}
+
+
+% Attached is a 2-pager describing a data reduction pipeline (DRP)
+% package -- PYPIT -- that we are developing for our scientific
+% interests.  It has reached sufficient maturity that I write to
+% explore WMKO/UCO funding to enhance its usage/impact on our 
+% community.  Please review and hopefully discuss while the two
+% of you are in Scotland.  Of course, we would be willing to make
+% formal presentations to the SSC and UCOAC, although we consider
+% this matter to be somewhat time critical.
+
+	\pagestyle{myheadings}    % Go for customized headings
+%\markright{Prochaska--U079 2008A Proposal---Quasars Probing Quasars}
+	\markboth{\hfill PYPIT for WMKO/UCO (v1.0) \hfill}{\hfill
+          PYPIT for WMKO/UCO (v1.0) \hfill}
+
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\vskip 0.2in
+
+{}
+\noindent
+\uline{Brief Introduction:} \\
+PYPIT is a public, Python-based data reduction pipeline
+(DRP) package for astronomical optical spectroscopy.
+Its lead developers are Ryan Cooke (U. Durham) and 
+J. Xavier Prochaska (UC Observatories and UC Santa Cruz).
+Its governing philosophy is to apply modern data reduction
+techniques to a set of raw data files to produce
+science-grade, calibrated spectra (1D spectra; 2D spectral
+images) with minimal user interaction\footnote{The code
+does generate quality assurance (QA) output to assess
+performance.}.  Our efforts with PYPIT are primarily driven by 
+our scientific interests and needs, but these
+are broad and involve nearly every optical/IR spectrometer
+on large aperture telescopes.
+
+\parindent=2em
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\vskip 0.2in
+
+\noindent 
+\uline{An Opportunity for WMKO/UCO:} \\
+For the past several years, the Keck Science Steering
+Committee (SSC) and UCO Advisory Committee (UCOAC)
+have expressed great interest in advancing the number
+and quality of DRPs.  Indeed, it is a specific goal
+within the soon-to-be-released Keck Strategic Plan.
+Furthermore, both committees have identified enhanced
+archives as priorities for WMKO and UCO.
+JXP has been involved in these efforts since their 
+inception and remains committed to the public distribution
+of DRPs and archival data.
+
+Over the past few months, PYPIT has developed into a 
+DRP package that we are confident could greatly 
+benefit the WMKO and UCO communities.  To an extent, 
+this will continue to occur without WMKO or UCO support.
+But we believe that now is the time when WMKO/UCO support
+would have greatest impact on the future products.
+And, given the typical delay between securing funding and
+actual hiring,  the timing may even be somewhat behind.
+Below, we describe a set of deliverables that 1~FTE could
+accomplish.  We have especially emphasized ones that our 
+team is less likely to focus on themselves.
+
+Regarding JXP, he is offering to contribute a portion of his
+UCO staff time to manage this FTE\footnote{It is very possible
+that having two part-time staff members would be advantageous
+to a single FTE.}.  For co-leader Cooke, we may need to
+be more creative to compensate his time.
+We emphasize that DRP development is a difficult and
+rarely rewarding task for an academic at any level.
+JXP will be especially mindful to protect the junior 
+team members engaged in PYPIT.
+
+
+Below is a list of task-specific development activities.
+We would expect WMKO/UCO to provide input on priorities,
+additional specific needs, etc.  At the end of this
+document is a straw-man time-line for the release
+order for specific instruments and modes.  We note
+that the ones listed in Year~0 are already in development,
+funded in part by UCO (DEIMOS, APF).  
+
+
+\begin{my_enumerate}
+\item Interface PYPIT to KOA
+  \begin{my_enumerate}
+  \item Interface Level 0 KOA products (naming, calibs) with PYPIT
+  \item Deliver Level 1 products in KOA-ready format
+  \item On-line views of the outputs, meta files
+  \end{my_enumerate}
+\item Interface PYPIT to Lick archive
+\item ETC/throughput monitoring
+  \begin{my_enumerate}
+  \item With web-interfaces
+  \end{my_enumerate}
+\item Documentation, documentation, documentation
+\item Calibraton archiving
+  \begin{my_enumerate}
+  \item Bias frames
+  \item Flat field images
+  \item Sky spectra
+  \end{my_enumerate}
+\item Source deblending
+\item Testing 
+  \begin{my_enumerate}
+  \item Additional unit tests ($>90\%$ coverage)
+  \item Additional test suites
+  \end{my_enumerate}
+\item Web-based QA
+\item Quick reduce software at the telescope
+  \begin{my_enumerate}
+  \item S/N and spectrum plots `immediately' after a science exposure
+  \item Without user knowledge of PYPIT!
+  \end{my_enumerate}
+\item Manage code architecture
+\end{my_enumerate}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+\vskip 0.2in
+
+\begin{center}
+{\bf Timeline}
+\end{center}
+
+\begin{my_enumerate}
+\item Instruments and modes for Year 0
+  \begin{my_itemize}
+  \item Keck/LRIS (both cameras)
+    \begin{my_itemize}
+    \item Longslit
+    \item Multi-slit :: may require slitmask files for KOA ingestion
+    \end{my_itemize}
+  \item Keck/DEIMOS
+    \begin{my_itemize}
+    \item Longslit
+    \item Multi-slit 
+    \end{my_itemize}
+  \item Lick/Kast
+  \item Lick/APF
+    \begin{my_itemize}
+    \item Without iodine cell analysis
+    \end{my_itemize}
+  \end{my_itemize}
+\item Year 1
+  \begin{my_itemize}
+  \item Keck/ESI
+  \item Keck/HIRES
+    \begin{my_itemize}
+    \item Without iodine cell analysis
+    \end{my_itemize}
+  \item Keck/NIRSPEC
+    \begin{my_itemize}
+    \item Low-dispersion
+    \end{my_itemize}
+  \item Lick/Hamilton Spectrograph
+  \end{my_itemize}
+\item Year 2
+  \begin{my_itemize}
+  \item Keck/NIRES -- if delivered
+  \item Keck/MOSFIRE -- if desired
+  \item Keck/KCWI -- if desired
+  \end{my_itemize}
+\end{my_enumerate}
+
+\end{document}

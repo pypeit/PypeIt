@@ -11,6 +11,7 @@ from astropy import units as u
 from pypit import ararc
 from pypit import arextract
 from pypit import armsgs
+from pypit import arparse as settings
 from pypit import arutils
 
 # Logging
@@ -18,7 +19,7 @@ msgs = armsgs.get_logger()
 
 try:
     from xastropy.xutils import xdebug as debugger
-except:
+except ImportError:
     import pdb as debugger
 
 
@@ -75,9 +76,11 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     if obj_med_sig2 >= arx_med_sig2:
         smooth_sig = np.sqrt(obj_med_sig2-arx_med_sig2)  # Ang
         smooth_sig_pix = smooth_sig / np.median(arx_disp[arx_idx])
+        arx_skyspec = arx_skyspec.gauss_smooth(smooth_sig_pix*2*np.sqrt(2*np.log(2)))
     else:
         msgs.warn("Prefer archival sky spectrum to have higher resolution")
         smooth_sig_pix = 0.
+        msgs.warn("New Sky has higher resolution than Archive.  Not smoothing")
         #smooth_sig = np.sqrt(arx_med_sig**2-obj_med_sig**2)
 
     #Determine region of wavelength overlap
@@ -85,12 +88,12 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     max_wave = min(np.amax(arx_skyspec.wavelength.value), np.amax(obj_skyspec.wavelength.value))
 
     #Smooth higher resolution spectrum by smooth_sig (flux is conserved!)
-    if np.median(obj_res) >= np.median(arx_res):
-        msgs.warn("New Sky has higher resolution than Archive.  Not smoothing")
+#    if np.median(obj_res) >= np.median(arx_res):
+#        msgs.warn("New Sky has higher resolution than Archive.  Not smoothing")
         #obj_sky_newflux = ndimage.gaussian_filter(obj_sky.flux, smooth_sig)
-    else:
+#    else:
         #tmp = ndimage.gaussian_filter(arx_sky.flux, smooth_sig)
-        arx_skyspec = arx_skyspec.gauss_smooth(smooth_sig_pix*2*np.sqrt(2*np.log(2)))
+#        arx_skyspec = arx_skyspec.gauss_smooth(smooth_sig_pix*2*np.sqrt(2*np.log(2)))
         #arx_sky.flux = ndimage.gaussian_filter(arx_sky.flux, smooth_sig)
 
     # Define wavelengths of overlapping spectra
@@ -117,9 +120,9 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     corr = np.correlate(arx_skyspec.flux, obj_skyspec.flux, "same")
 
     #Create array around the max of the correlation function for fitting for subpixel max
-    # Restrict to pixels within max_shift of zero lag
+    # Restrict to pixels within maxshift of zero lag
     lag0 = corr.size/2
-    mxshft = slf._argflag['reduce']['flexure']['max_shift']
+    mxshft = settings.argflag['reduce']['flexure']['maxshift']
     max_corr = np.argmax(corr[lag0-mxshft:lag0+mxshft]) + lag0-mxshft
     subpix_grid = np.linspace(max_corr-3., max_corr+3., 7.)
 
@@ -146,28 +149,20 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     return flex_dict
 
 
-def flexure_archive(slf, det):
+def flexure_archive():
     """  Load archived sky spectrum
-    Parameters
-    ----------
-    slf
-    det
-
-    Returns
-    -------
-
     """
-    #   latitude = slf._spect['mosaic']['latitude']
-    #   longitude = slf._spect['mosaic']['longitude']
-    root = slf._argflag['run']['pypitdir']
-    if slf._argflag['reduce']['flexure']['archive_spec'] is None:
+    #   latitude = settings.spect['mosaic']['latitude']
+    #   longitude = settings.spect['mosaic']['longitude']
+    root = settings.argflag['run']['pypitdir']
+    if settings.argflag['reduce']['flexure']['spectrum'] is None:
         # Red or blue?
-        if slf._argflag['run']['spectrograph'] in ['kast_blue', 'lris_blue']:
+        if settings.argflag['run']['spectrograph'] in ['kast_blue', 'lris_blue']:
             skyspec_fil = 'sky_kastb_600.fits'
         else:
             skyspec_fil = 'paranal_sky.fits'
     else:
-        skyspec_fil = slf._argflag['reduce']['flexure']['archive_spec']
+        skyspec_fil = settings.argflag['reduce']['flexure']['spectrum']
     #
     msgs.info("Using {:s} file for Sky spectrum".format(skyspec_fil))
     arx_sky = xspectrum1d.XSpectrum1D.from_file(root+'/data/sky_spec/'+skyspec_fil)
@@ -188,7 +183,7 @@ def flexure_slit(slf, det):
     det : int
     """
     # Load Archive
-    skyspec_fil, arx_sky = flexure_archive(slf, det)
+    skyspec_fil, arx_sky = flexure_archive()
 
     # Extract
     censpec_wv = arextract.boxcar_cen(slf, det, slf._mswave[det-1])
@@ -244,7 +239,7 @@ def flexure_obj(slf, det):
     """
     msgs.work("Consider doing 2 passes in flexure as in LowRedux")
     # Load Archive
-    skyspec_fil, arx_sky = flexure_archive(slf, det)
+    skyspec_fil, arx_sky = flexure_archive()
 
     # Loop on objects
     flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
@@ -254,12 +249,12 @@ def flexure_obj(slf, det):
     for specobj in slf._specobjs[det-1]:  # for convenience
 
         # Using boxcar
-        if slf._argflag['reduce']['flexure']['spec'] in ['boxcar', 'slit_cen']:
+        if settings.argflag['reduce']['flexure']['method'] in ['boxcar', 'slitcen']:
             sky_wave = specobj.boxcar['wave'].to('AA').value
             sky_flux = specobj.boxcar['sky']
         else:
             msgs.error("Not ready for this flexure method: {}".format(
-                    slf._argflag['reduce']['flexure']))
+                    settings.argflag['reduce']['flexure']))
 
         # Generate 1D spectrum for object
         obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave, sky_flux))

@@ -40,7 +40,7 @@ det01 oscansec01 [0:4608,2049:2080]   # Either the overscan sections or the head
 
 ### Checks to perform
 check 01.NAXIS 2                    # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
-check 01.DSENSOR e2v_2kx4k_42-90    # Check the CCD name
+check 01.DSENSOR e2v 2kx4k 42-90    # Check the CCD name
 
 ### Keyword Identifiers
 keyword target 01.OBJECT               # Header keyword for the name given by the observer to a given frame
@@ -64,9 +64,9 @@ keyword lampstat04 01.THORIUM2         # Status of a lamp
 keyword slitwid None                   # Slit Width
 keyword slitlen 01.DECKRNAM            # Slit Length
 keyword detrot None                    # Detector Rotation angle
-keyword cdangle None                   # Cross-disperser angle
 keyword echangle None                  # Echelle angle
-keyword crossdisp None                 # Cross-disperser
+keyword dispname None                  # Cross-disperser name
+keyword dispangle None                 # Cross-disperser angle
 
 ### Fits properties
 fits timeunit s                     # The unit of keyword+time (s=seconds, m=minutes, h=hours, mjd=MJD, dt=datetime)
@@ -88,33 +88,33 @@ bias match naxis0 =0                # Match the row binning of bias and science 
 bias match naxis1 =0                # Match the column binning of bias and science frames
 
 ### Pixel Flat frames
-pixflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
-pixflat number 5                    # Number of flat frames to use
-pixflat canbe None                  # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
-pixflat lscomb False                # Combine a long and short flat
-pixflat check condition1 lampstat01=On|lampstat02=On
-pixflat check condition2 decker!=Pinhole   # Check that the decker name is not set to Pinhole
-pixflat match naxis0 =0             # Match the row binning of flats with science
-pixflat match naxis1 =0             # Match the column binning of flats with science
-blzflat match slitlen %,:|),1,>=0    # Make sure the slit length for blaze flats and science frames
-pixflat combsame decker ''          # When combining pixel flat frames, make sure all frames have the same decker
+pixelflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
+pixelflat number 5                    # Number of flat frames to use
+pixelflat canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
+pixelflat lscomb False                # Combine a long and short flat
+pixelflat check condition1 lampstat01=On|lampstat02=On
+pixelflat check condition2 decker!=Pinhole   # Check that the decker name is not set to Pinhole
+pixelflat match naxis0 =0             # Match the row binning of flats with science
+pixelflat match naxis1 =0             # Match the column binning of flats with science
+pixelflat match slitlen %,:),1,>=0    # Make sure the slit length for blaze flats and science frames
+pixelflat combsame decker ''          # When combining pixel flat frames, make sure all frames have the same decker
 
 ### Blaze Flat frames
-blzflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
-blzflat number 5                    # Number of flat frames to use
-blzflat canbe None                  # If there are frames that will be blzflat ***in addition to other frame types***, include the other frame types here.
-blzflat lscomb False                # Combine a long and short flat
-blzflat check condition1 lampstat01=On|lampstat02=On
-blzflat check condition2 decker!=Pinhole   # Check that the decker name is not set to Pinhole
-blzflat match naxis0 =0             # Match the row binning of flats with science
-blzflat match naxis1 =0             # Match the column binning of flats with science
-blzflat match slitlen %,:|),1,=0     # Match the slit length for blaze flats and science frames
-blzflat combsame decker ''          # When combining blaze flat frames, make sure all frames have the same decker
+slitflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
+slitflat number 5                    # Number of flat frames to use
+slitflat canbe None                  # If there are frames that will be slitflat ***in addition to other frame types***, include the other frame types here.
+slitflat lscomb False                # Combine a long and short flat
+slitflat check condition1 lampstat01=On|lampstat02=On
+slitflat check condition2 decker!=Pinhole   # Check that the decker name is not set to Pinhole
+slitflat match naxis0 =0             # Match the row binning of flats with science
+slitflat match naxis1 =0             # Match the column binning of flats with science
+slitflat match slitlen %,:),1,=0     # Match the slit length for blaze flats and science frames
+slitflat combsame decker ''          # When combining blaze flat frames, make sure all frames have the same decker
 
 ### Trace frames
 trace idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
 trace number 2                    # Number of flat frames to use
-trace canbe None                  # If there are frames that will be blzflat ***in addition to other frame types***, include the other frame types here.
+trace canbe None                  # If there are frames that will be slitflat ***in addition to other frame types***, include the other frame types here.
 trace lscomb False                # Combine a long and short flat
 trace check condition1 lampstat01=On|lampstat02=On
 trace check decker Pinhole        # Check that the decker name is set to Pinhole
@@ -127,7 +127,6 @@ trace combsame decker ''          # When combining trace flat frames, make sure 
 arc idname OBJECT                   # Header key value of arc frame for header keyword keyword+idname
 arc number 1                        # Number of arc frames to use
 arc canbe None                      # If there are frames that will be arc ***in addition to other frame types***, include the other frame types here.
-arc lscomb False                    # Combine a long and short arc
 arc check condition1 lampstat03=On|lampstat04=On
 arc match naxis0 =0                 # Match the row binning of arcs with science
 arc match naxis1 =0                 # Match the column binning of arcs with science

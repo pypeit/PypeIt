@@ -568,10 +568,8 @@ def close_slits(np.ndarray[DTYPE_t, ndim=2] trframe not None,
 #######
 
 @cython.boundscheck(False)
-def detect_edges(np.ndarray[DTYPE_t, ndim=2] array not None,
-                int dispdir):
+def detect_edges(np.ndarray[DTYPE_t, ndim=2] array not None):
     # array     : trace frame
-    # dispdir   : (0 or 1), is the direction of dispersion (0/1 is along a row/column)
 
     cdef int sz_x, sz_y
     cdef int x, y
@@ -579,8 +577,8 @@ def detect_edges(np.ndarray[DTYPE_t, ndim=2] array not None,
     cdef double difvl, difvc, difvr
     cdef int lcnt, rcnt
 
-    sz_x = array.shape[dispdir]
-    sz_y = array.shape[1-dispdir]
+    sz_x = array.shape[0]
+    sz_y = array.shape[1]
 
     # Set up the array which marks detections
     cdef np.ndarray[ITYPE_t, ndim=2] edgdet = np.zeros((array.shape[0],array.shape[1]), dtype=ITYPE)
@@ -590,7 +588,7 @@ def detect_edges(np.ndarray[DTYPE_t, ndim=2] array not None,
     cdef np.ndarray[DTYPE_t, ndim=2] medarr = np.zeros((sz_y,medsum), dtype=DTYPE)
 
     for x in range(ms,sz_x-ms):
-        median_ed(array,medarr,dispdir,x,ms)
+        median_ed(array,medarr,x,ms)
         cl = 0
         dl = 0
         cr = 0
@@ -628,17 +626,11 @@ def detect_edges(np.ndarray[DTYPE_t, ndim=2] array not None,
                     dr = 0
             if dl == 4:
                 # A left edge detection!
-                if dispdir == 0:
-                    edgdet[x,tl] = -1
-                else:
-                    edgdet[tl,x] = -1
+                edgdet[x,tl] = -1
                 dl = 0
             if dr == 4:
                 # A right edge detection!
-                if dispdir == 0:
-                    edgdet[x,tr] = 1
-                else:
-                    edgdet[tr,x] = 1
+                edgdet[x,tr] = 1
                 dr = 0
     return edgdet
 
@@ -967,15 +959,15 @@ def find_shift(np.ndarray[DTYPE_t, ndim=2] mstrace not None,
                 np.ndarray[DTYPE_t, ndim=1] minarr not None,
                 np.ndarray[ITYPE_t, ndim=1] lopos not None,
                 np.ndarray[ITYPE_t, ndim=1] diffarr not None,
-                int numsrch, int dispdir):
+                int numsrch):
 
     cdef int sz_x, sz_y
     cdef int x, y, s
     cdef int shift = 0
     cdef double cnts, npts, maxcnts
 
-    sz_x = mstrace.shape[dispdir]
-    sz_y = mstrace.shape[1-dispdir]
+    sz_x = mstrace.shape[0]
+    sz_y = mstrace.shape[1]
 
     maxcnts = -999999.9
     shift = 0
@@ -988,10 +980,7 @@ def find_shift(np.ndarray[DTYPE_t, ndim=2] mstrace not None,
             if ymin < 0: ymin = 0
             elif ymax > sz_y: ymax = sz_y
             for y in range(ymin,ymax):
-                if dispdir == 0:
-                    cnts += (mstrace[x,y]-minarr[x])
-                else:
-                    cnts += (mstrace[y,x]-minarr[x])
+                cnts += (mstrace[x,y]-minarr[x])
                 npts += 1.0
         if npts == 0.0:
             continue
@@ -1077,15 +1066,13 @@ def get_closest(np.ndarray[DTYPE_t, ndim=2] orderpx not None,
                     l+=1
     return clsdist
 
-#(orderpx,swlin,edgenby[trc,0],edgenby[trc,1])
 @cython.boundscheck(False)
 def get_edges(np.ndarray[DTYPE_t, ndim=2] array not None,
-                  double threshold, int srchspe, int srchspa, int dispdir):
+                  double threshold, int srchspe, int srchspa):
     # array     : trace frame
     # threshold : sigma detection threshold
     # srchspe   : Number of pixels to search along the spectral direction
     # srchspa   : Number of pixels to search along the spatial direction (must be an odd number)
-    # dispdir   : (0 or 1), is the direction of dispersion (0/1 is along a row/column)
 
     cdef int sz_x, sz_y
     cdef int x, y, i, j, k, l, nx, ny
@@ -1114,547 +1101,222 @@ def get_edges(np.ndarray[DTYPE_t, ndim=2] array not None,
         edgenby[i,0] = -999
         edgenby[i,1] = -999
 
-    if dispdir == 0: # If dispersion is along a row
-        for x in range(sz_x):
-            ival = -1
-            cval = -1
-            icnt = 0
-            dval = 0.0
-            for y in range(1,sz_y):
-                if array[x,y] == 0.0 or array[x,y-1] == 0.0: continue
-                difval = array[x,y]-array[x,y-1]
-                errval = array[x,y]+array[x,y-1]
-                if errval > 0.0:
-                    errval = csqrt(errval)
-                else:
-                    errval = csqrt(-errval)
-                if difval > 0.0:
-                    if dval < 0.0:
-                        if ival != -1 and icnt > 3: edgearr[x,ival] = -999
-                        ival = -1
-                        cval = -1
-                        icnt = 0
-                        dval = 0.0
-                    if difval/errval > threshold:
-                        if cval == -1:
-                            ival = y
-                            icnt = 1
-                            dval = difval
-                        elif cval+1 == y:
-                            if difval > dval:
-                                dval = difval
-                                ival = y
-                            icnt += 1
-                        else:
-                            if icnt > 3: edgearr[x,ival] = 999
-                            ival = y
-                            icnt = 1
-                            dval = difval
-                        cval = y
-                    else:
-                        if cval != -1 and ival != -1 and icnt > 3:
-                            edgearr[x,ival] = 999
-                        cval = -1
-                        icnt = 0
-                        dval = 0.0
-                else:
-                    if dval > 0.0:
-                        if ival != -1 and icnt > 3: edgearr[x,ival] = 999
-                        ival = -1
-                        cval = -1
-                        icnt = 0
-                        dval = 0.0
-                    if -difval/errval > threshold:
-                        if cval == -1:
-                            ival = y
-                            icnt = 1
-                            dval = difval
-                        elif cval+1 == y:
-                            if difval < dval:
-                                dval = difval
-                                ival = y
-                            icnt += 1
-                        else:
-                            edgearr[x,ival] = -999
-                            ival = y
-                            icnt = 0
-                            dval = difval
-                        cval = y
-                    else:
-                        if cval != -1 and ival != -1 and icnt > 3:
-                            edgearr[x,ival] = -999
-                        cval = -1
-                        icnt = 0
-                        dval = 0.0
-        return edgearr
-        # Match the edges to form groups of traces
-        pedge = 1
-        medge = -1
+    for x in range(sz_x):
+        ival = -1
+        cval = -1
+        icnt = 0
+        dval = 0.0
         for y in range(1,sz_y):
-            for x in range(0,sz_x):
-                if edgearr[x,y] == 0: continue
-                elif edgearr[x,y] == 999:
-                    # Find nearby similar edges
-                    trc = 1 # Boolean, do I keep tracing?
-                    cmax = 1+srchspe # Go srchspe pixels beyond the current one
-                    nx = x
-                    while trc == 1:
-                        if nx+cmax > sz_x: cmax = sz_x-nx
-                        for i in range(1,cmax):
-                            rmin = -(srchspa-1)/2
-                            rmax = 1-rmin
-                            if y+rmin < 1: rmin = 1 # 1 because there's nothing in the zeroth column
-                            if y+rmax > sz_y: rmax = sz_y-y
-                            bi = -1
-                            bv = 0.0
-                            for j in range(rmin,rmax):
-                                if edgearr[nx+i,y+j] == 999:
-                                    if bi == -1:
-                                        bi = y+j
-                                        bv = array[nx+i,y+j]-array[nx,y]
-                                        if bv < 0.0: bv = -bv
-                                    else:
-                                        tval = array[nx+i,y+j]-array[nx,y]
-                                        if tval < 0.0: tval = -tval
-                                        if tval < bv:
-                                            bi = y+j
-                                            bv = tval
-                            if bi != -1: # We're continuing the trace
-                                edgearr[nx+i,bi] = pedge
-                                nx += i
-                                break
-                        if bi == -1: # We've lost the trace!
-                            #pedge += 1
-                            trc = 0
-                elif edgearr[x,y] == -999:
-                    #edgearr[x,y] = medge
-                    trc = 1 # Boolean, do I keep tracing?
-                    cmax = 1+srchspe # Go srchspe pixels beyond the current one
-                    nx = x
-                    while trc == 1:
-                        if nx+cmax > sz_x: cmax = sz_x-nx
-                        for i in range(1,cmax):
-                            rmin = -(srchspa-1)/2
-                            rmax = 1-rmin
-                            if y+rmin < 1: rmin = 1 # 1 because there's nothing in the zeroth column
-                            if y+rmax > sz_y: rmax = sz_y-y
-                            bi = -1
-                            bv = 0.0
-                            for j in range(rmin,rmax):
-                                if edgearr[nx+i,y+j] == -999:
-                                    if bi == -1:
-                                        bi = y+j
-                                        bv = array[nx+i,y+j]-array[nx,y]
-                                        if bv < 0.0: bv = -bv
-                                    else:
-                                        tval = array[nx+i,y+j]-array[nx,y]
-                                        if tval < 0.0: tval = -tval
-                                        if tval < bv:
-                                            bi = y+j
-                                            bv = tval
-                            if bi != -1: # We're continuing the trace
-                                edgearr[nx+i,bi] = pedge
-                                nx += i
-                                break
-                        if bi == -1: # We've lost the trace!
-                            #pedge += 1
-                            trc = 0
-                else: continue
-            # Now trace in the other direction!
-            for x in range(0,sz_x):
-                if edgearr[sz_x-x-1,y] == 0: continue
-                elif edgearr[sz_x-x-1,y] == 999:
-                    # Find nearby similar edges
-                    edgearr[sz_x-x-1,y] = pedge
-                    trc = 1 # Boolean, do I keep tracing?
-                    cmax = 1+srchspe # Go srchspe pixels beyond the current one
-                    nx = sz_x-x-1
-                    while trc == 1:
-                        if nx-cmax < 0: cmax = 0
-                        for i in range(cmax,sz_x-x-1):
-                            rmin = -(srchspa-1)/2
-                            rmax = 1-rmin
-                            if y+rmin < 1: rmin = 1 # 1 because there's nothing in the zeroth column
-                            if y+rmax > sz_y: rmax = sz_y-y
-                            bi = -1
-                            bv = 0.0
-                            for j in range(rmin,rmax):
-                                if edgearr[nx+i,y+j] == 999:
-                                    if bi == -1:
-                                        bi = y+j
-                                        bv = array[nx-i,y+j]-array[nx,y]
-                                        if bv < 0.0: bv = -bv
-                                    else:
-                                        tval = array[nx-i,y+j]-array[nx,y]
-                                        if tval < 0.0: tval = -tval
-                                        if tval < bv:
-                                            bi = y+j
-                                            bv = tval
-                            if bi != -1: # We're continuing the trace
-                                edgearr[nx-i,bi] = pedge
-                                nx -= i
-                                break
-                        if bi == -1: # We've lost the trace!
-                            pedge += 1
-                            trc = 0
-                elif edgearr[sz_x-x-1,y] == -999:
-                    edgearr[sz_x-x-1,y] = medge
-                    trc = 1 # Boolean, do I keep tracing?
-                    cmax = 1+srchspe # Go srchspe pixels beyond the current one
-                    nx = sz_x-x-1
-                    while trc == 1:
-                        if nx-cmax < 0: cmax = 0
-                        for i in range(cmax,sz_x-x-1):
-                            rmin = -(srchspa-1)/2
-                            rmax = 1-rmin
-                            if y+rmin < 1: rmin = 1 # 1 because there's nothing in the zeroth column
-                            if y+rmax > sz_y: rmax = sz_y-y
-                            bi = -1
-                            bv = 0.0
-                            for j in range(rmin,rmax):
-                                if edgearr[nx-i,y+j] == -999:
-                                    if bi == -1:
-                                        bi = y+j
-                                        bv = array[nx-i,y+j]-array[nx,y]
-                                        if bv < 0.0: bv = -bv
-                                    else:
-                                        tval = array[nx-i,y+j]-array[nx,y]
-                                        if tval < 0.0: tval = -tval
-                                        if tval < bv:
-                                            bi = y+j
-                                            bv = tval
-                            if bi != -1: # We're continuing the trace
-                                edgearr[nx-i,bi] = medge
-                                nx -= i
-                                break
-                        if bi == -1: # We've lost the trace!
-                            medge -= 1
-                            trc = 0
-                else: continue
-    #########################
-    # Completed order tracing
-    #########################
-    else: # do this if the dispersion is along a column
-        for y in range(sz_y):
-            ival = -1
-            cval = -1
-            icnt = 0
-            dval = 0.0
-            for x in range(1,sz_x):
-                if array[x,y] == 0.0 or array[x-1,y] == 0.0: continue
-                difval = array[x,y]-array[x-1,y]
-                errval = array[x,y]+array[x-1,y]
-                if errval > 0.0:
-                    errval = csqrt(errval)
-                else:
-                    errval = csqrt(-errval)
-                if difval > 0.0:
-                    if dval < 0.0:
-                        if ival != -1 and icnt > 3: edgearr[ival,y] = -999
-                        ival = -1
-                        cval = -1
-                        icnt = 0
-                        dval = 0.0
-                    if difval/errval > threshold:
-                        if cval == -1:
-                            ival = x
-                            icnt = 1
+            if array[x,y] == 0.0 or array[x,y-1] == 0.0: continue
+            difval = array[x,y]-array[x,y-1]
+            errval = array[x,y]+array[x,y-1]
+            if errval > 0.0:
+                errval = csqrt(errval)
+            else:
+                errval = csqrt(-errval)
+            if difval > 0.0:
+                if dval < 0.0:
+                    if ival != -1 and icnt > 3: edgearr[x,ival] = -999
+                    ival = -1
+                    cval = -1
+                    icnt = 0
+                    dval = 0.0
+                if difval/errval > threshold:
+                    if cval == -1:
+                        ival = y
+                        icnt = 1
+                        dval = difval
+                    elif cval+1 == y:
+                        if difval > dval:
                             dval = difval
-                        elif cval+1 == x:
-                            if difval > dval:
-                                dval = difval
-                                ival = x
-                            icnt += 1
-                        else:
-                            if icnt > 3: edgearr[ival,y] = 999
-                            ival = x
-                            icnt = 1
-                            dval = difval
-                        cval = x
+                            ival = y
+                        icnt += 1
                     else:
-                        if cval != -1 and ival != -1 and icnt > 3:
-                            edgearr[ival,y] = 999
-                        cval = -1
-                        icnt = 0
-                        dval = 0.0
+                        if icnt > 3: edgearr[x,ival] = 999
+                        ival = y
+                        icnt = 1
+                        dval = difval
+                    cval = y
                 else:
-                    if dval > 0.0:
-                        if ival != -1 and icnt > 3: edgearr[ival,y] = 999
-                        ival = -1
-                        cval = -1
-                        icnt = 0
-                        dval = 0.0
-                    if -difval/errval > threshold:
-                        if cval == -1:
-                            ival = x
-                            icnt = 1
+                    if cval != -1 and ival != -1 and icnt > 3:
+                        edgearr[x,ival] = 999
+                    cval = -1
+                    icnt = 0
+                    dval = 0.0
+            else:
+                if dval > 0.0:
+                    if ival != -1 and icnt > 3: edgearr[x,ival] = 999
+                    ival = -1
+                    cval = -1
+                    icnt = 0
+                    dval = 0.0
+                if -difval/errval > threshold:
+                    if cval == -1:
+                        ival = y
+                        icnt = 1
+                        dval = difval
+                    elif cval+1 == y:
+                        if difval < dval:
                             dval = difval
-                        elif cval+1 == x:
-                            if difval < dval:
-                                dval = difval
-                                ival = x
-                            icnt += 1
-                        else:
-                            if icnt > 3: edgearr[ival,y] = -999
-                            ival = x
-                            icnt = 0
-                            dval = difval
-                        cval = x
+                            ival = y
+                        icnt += 1
                     else:
-                        if cval != -1 and ival != -1 and icnt > 3:
-                            edgearr[ival,y] = -999
-                        cval = -1
+                        edgearr[x,ival] = -999
+                        ival = y
                         icnt = 0
-                        dval = 0.0
-        #return edgearr
-        # Match the edges to form groups of traces
-        pedge = 1
-        medge = -1
-        for x in range(1,sz_x):
-            for y in range(0,sz_y):
-                if edgearr[x,y] == 0: continue
-                elif edgearr[x,y] == 999:
-                    # Trace in both directions
-                    # First trace up the chip
-                    # Set some definitions to be used during the UP and DOWN trace
-                    nop = 0 # Number of accepted pixels found in this trace
-                    orderpx = np.zeros((1,2), dtype=ITYPE) # Reset the array of pixel values found for this order
-                    trc = 0 # Once trc reaches some user-specified termination criteria, we've lost the trace.
-                    cmax = 1+srchspe # Go srchspe pixels beyond the current one
-                    ny = y
-                    while trc < trcign:
-                        # Find nearby similar edges between [0:+srchspe,-srchspa/2:+srchspa/2] and calculate the distance between the current pixel and all these edges.
-                        if ny+cmax > sz_y: cmax = sz_y-ny
-                        for i in range(1,cmax):
-                            rmin = -(srchspa-1)/2
-                            rmax = 1-rmin
-                            if x+rmin < 1: rmin = 1 # 1 because there's nothing in the zeroth column
-                            if x+rmax > sz_x: rmax = sz_x-x
-                            bi = -1
-                            bv = 0.0
-                            for j in range(rmin,rmax):
-                                if edgearr[x+j,ny+i] == 999:
-                                    distt = csqrt( <double>(j**2) + <double>(i**2) )
-                                    tpx = x+j
-                                    tpy = ny+i
-                                    for k in range(trcign):
-                                        if edgenby[k,0] == -999 and edgenby[k,1] == -999:
-                                            edgenby[k,0] = x+j
-                                            edgenby[k,1] = ny+i
-                                        else:
-                                            distp = csqrt( <double>(edgenby[k,0]**2) + <double>(edgenby[k,1]**2) )
-                                            l = k
-                                            while distt <= distp and l<trcign:
-                                                ttx = edgenby[l,0]
-                                                tty = edgenby[l,1]
-                                                edgenby[l,0] = tpx
-                                                edgenby[l,1] = tpy
-                                                tpx = ttx
-                                                tpy = tty
-                                                l+=1
-                        # We have now found the `trcign' closest points to the current order location (sorted by distance in edgenby)
-                        if nop >= swlin:
-                            # Find the closest swlin points to the test point at (edgenby[trc,0],edgenby[trc,1])
-                            closept = get_closest(orderpx,swlin,edgenby[trc,0],edgenby[trc,1])
-                            # Perform linear regression on these points and test if the pixel is deviant
-                            isdev = linreg_test(closept,edgenby[trc,0],edgenby[trc,1],ordthres)
-                            # Test if the pixel is deviant
-                            if isdev==0:
-                                # Add this pixel to the list of successful pixels
-                                orderpx[nop,0] = edgenby[trc,0]
-                                orderpx[nop,1] = edgenby[trc,1]
-                                nop += 1
-                                # Reset trc since we've successfully continued the trace
-                                trc = 0
-                                # Mask out the nearby edges array
-                                for i in range(trcign):
-                                    edgenby[i,0] = -999
-                                    edgenby[i,1] = -999
-                                # Before continuing, confirm that there are no extremely deviant pixels in the `acceptable' pixels
-                                orderpx = clean_pix(orderpx,ordthres)
-                            else:
-                                trc += 1
-                        else:
-                            # Determine the median and MAD of all points
-                            # check that 0 is indeed the dimension we are after
-                            medval, madval = medianmad_dimen(orderpx, 0)
-                            if ordthres: isdev = 1
-                            else: isdev = 0
-                            # Test if the pixel is deviant
-                            if isdev==0:
-                                # Add this pixel to the list of successful pixels
-                                orderpx[nop,0] = edgenby[trc,0]
-                                orderpx[nop,1] = edgenby[trc,1]
-                                nop += 1
-                                # Reset trc since we've successfully continued the trace
-                                trc = 0
-                                # Mask out the nearby edges array
-                                for i in range(trcign):
-                                    edgenby[i,0] = -999
-                                    edgenby[i,1] = -999
-                                # Before continuing, confirm that there are no extremely deviant pixels in the `acceptable' pixels
-                                orderpx = clean_pix(orderpx,ordthres)
-                            else:
-                                trc += 1
-
-                        # Sort these according to distance and get the closest one (call this the test point)
-                        # Suppose we have successfully identified N points as belonging to a given order.
-                        # If N >= 15, then from the test point, find the 15 closest points among the N known points, and call this M points
-                        # Otherwise, just use a vertical line approximation that includes all points ---> call this M points.
-                        # Fit either a linear or vertical line to the M points and check that the test pixel doesn't deviate too far from the trend of M points
-                        # If this test point is deviant, add one to trc, and repeat the process for the next nearest point
-                        # Otherwise, include the test pixel in the confirmed set of pixels and set trc to 0
-                        # Before moving on, check that there are no deviant pixels in the confirmed set.
-                    # Now trace the other direction
-                    # ...
-
-                    cmax = 1+srchspe # Go srchspe pixels beyond the current one
-                    ny = y
-                    while trc == 1:
-                        if ny+cmax > sz_y: cmax = sz_y-ny
-                        for i in range(1,cmax):
-                            rmin = -(srchspa-1)/2
-                            rmax = 1-rmin
-                            if x+rmin < 1: rmin = 1 # 1 because there's nothing in the zeroth column
-                            if x+rmax > sz_x: rmax = sz_x-x
-                            bi = -1
-                            bv = 0.0
-                            for j in range(rmin,rmax):
-                                #print "+GOING UP!", x, y, i, j, ny, cmax, rmin, rmax, sz_y
-                                if edgearr[x+j,ny+i] == 999:
-                                    if bi == -1:
-                                        bi = x+j
-                                        bv = array[x+j,ny+i]-array[x,ny]
-                                        if bv < 0.0: bv = -bv
-                                    else:
-                                        tval = array[x+j,ny+i]-array[x,ny]
-                                        if tval < 0.0: tval = -tval
-                                        if tval < bv:
-                                            bi = x+j
-                                            bv = tval
-                            if bi != -1: # We're continuing the trace
-                                edgearr[bi,ny+i] = pedge
-                                ny += i
-                                break
-                        if bi == -1 or ny+1 >= sz_y: # We've lost the trace or reached the end of the chip!
-                            #pedge += 1
-                            trc = 0
-                elif edgearr[x,y] == -999:
-                    #edgearr[x,y] = medge
-                    trc = 1 # Boolean, do I keep tracing?
-                    cmax = 1+srchspe # Go srchspe pixels beyond the current one
-                    ny = y
-                    while trc == 1:
-                        if ny+cmax > sz_y: cmax = sz_y-ny
-                        for i in range(1,cmax):
-                            rmin = -(srchspa-1)/2
-                            rmax = 1-rmin
-                            if x+rmin < 1: rmin = 1 # 1 because there's nothing in the zeroth column
-                            if x+rmax > sz_x: rmax = sz_x-x
-                            bi = -1
-                            bv = 0.0
-                            for j in range(rmin,rmax):
-                                #print "-GOING UP!", x, y, i, j, ny, cmax, rmin, rmax
-                                if edgearr[x+j,ny+i] == -999:
-                                    if bi == -1:
-                                        bi = x+j
-                                        bv = array[x+j,ny+i]-array[x,ny]
-                                        if bv < 0.0: bv = -bv
-                                    else:
-                                        tval = array[x+j,ny+i]-array[x,ny]
-                                        if tval < 0.0: tval = -tval
-                                        if tval < bv:
-                                            bi = x+j
-                                            bv = tval
-                            if bi != -1: # We're continuing the trace
-                                edgearr[bi,ny+i] = medge
-                                ny += i
-                                break
-                        if bi == -1 or ny+1 >= sz_y: # We've lost the trace!
-                            #medge -= 1
-                            trc = 0
-                else: continue
-                # Now apply the order numbers from orderpx to edgearr
-
-                # Complete!
-
-
-
-
-            #### NOOOO!!!! Don't trace the other direction, it's already done!
-            # Now trace in the other direction!
-            for y in range(0,sz_y):
-                if edgearr[x,sz_y-y-1] == 0: continue
-                elif edgearr[x,sz_y-y-1] == 999:
-                    # Find nearby similar edges
-                    edgearr[x,sz_y-y-1] = pedge
-                    trc = 1 # Boolean, do I keep tracing?
-                    cmax = 1+srchspe # Go srchspe pixels beyond the current one
-                    ny = sz_y-y-1
-                    while trc == 1:
-                        if ny+1 < cmax: cmax = ny+1
-                        for i in range(1,cmax):
-                            rmin = -(srchspa-1)/2
-                            rmax = 1-rmin
-                            if x+rmin < 1: rmin = 1 # 1 because there's nothing in the zeroth column
-                            if x+rmax > sz_x: rmax = sz_x-x
-                            bi = -1
-                            bv = 0.0
-                            for j in range(rmin,rmax):
-                                #print "+GOING DOWN!", x, y, i, j, ny, cmax, rmin, rmax
-                                if edgearr[x+j,ny-i] == 999:
-                                    if bi == -1:
-                                        bi = x+j
-                                        bv = array[x+j,ny-i]-array[x,ny]
-                                        if bv < 0.0: bv = -bv
-                                    else:
-                                        tval = array[x+j,ny-i]-array[x,ny]
-                                        if tval < 0.0: tval = -tval
-                                        if tval < bv:
-                                            bi = x+j
-                                            bv = tval
-                            if bi != -1: # We're continuing the trace
-                                edgearr[bi,ny-i] = pedge
-                                ny -= i
-                                break
-                        if bi == -1 or ny < 1: # We've lost the trace or reached the end of the chip!
-                            pedge += 1
-                            trc = 0
-                elif edgearr[x,sz_y-y-1] == -999:
-                    edgearr[x,sz_y-y-1] = medge
-                    trc = 1 # Boolean, do I keep tracing?
-                    cmax = 1+srchspe # Go srchspe pixels beyond the current one
-                    ny = sz_y-y-1
-                    while trc == 1:
-                        if ny+1 < cmax: cmax = ny+1
-                        for i in range(1,cmax):
-                            rmin = -(srchspa-1)/2
-                            rmax = 1-rmin
-                            if x+rmin < 1: rmin = 1 # 1 because there's nothing in the zeroth column
-                            if x+rmax > sz_x: rmax = sz_x-x
-                            bi = -1
-                            bv = 0.0
-                            for j in range(rmin,rmax):
-                                #print "-GOING DOWN!", x, y, i, j, ny, cmax, rmin, rmax
-                                if edgearr[x+j,ny-i] == -999:
-                                    if bi == -1:
-                                        bi = x+j
-                                        bv = array[x+j,ny-i]-array[x,ny]
-                                        if bv < 0.0: bv = -bv
-                                    else:
-                                        tval = array[x+j,ny-i]-array[x,ny]
-                                        if tval < 0.0: tval = -tval
-                                        if tval < bv:
-                                            bi = x+j
-                                            bv = tval
-                            if bi != -1: # We're continuing the trace
-                                edgearr[bi,ny-i] = medge
-                                ny -= i
-                                break
-                        if bi == -1 or ny < 1: # We've lost the trace or reached the end of the chip!
-                            medge -= 1
-                            trc = 0
-                else: continue
+                        dval = difval
+                    cval = y
+                else:
+                    if cval != -1 and ival != -1 and icnt > 3:
+                        edgearr[x,ival] = -999
+                    cval = -1
+                    icnt = 0
+                    dval = 0.0
+    return edgearr
+    # Match the edges to form groups of traces
+    pedge = 1
+    medge = -1
+    for y in range(1,sz_y):
+        for x in range(0,sz_x):
+            if edgearr[x,y] == 0: continue
+            elif edgearr[x,y] == 999:
+                # Find nearby similar edges
+                trc = 1 # Boolean, do I keep tracing?
+                cmax = 1+srchspe # Go srchspe pixels beyond the current one
+                nx = x
+                while trc == 1:
+                    if nx+cmax > sz_x: cmax = sz_x-nx
+                    for i in range(1,cmax):
+                        rmin = -(srchspa-1)/2
+                        rmax = 1-rmin
+                        if y+rmin < 1: rmin = 1 # 1 because there's nothing in the zeroth column
+                        if y+rmax > sz_y: rmax = sz_y-y
+                        bi = -1
+                        bv = 0.0
+                        for j in range(rmin,rmax):
+                            if edgearr[nx+i,y+j] == 999:
+                                if bi == -1:
+                                    bi = y+j
+                                    bv = array[nx+i,y+j]-array[nx,y]
+                                    if bv < 0.0: bv = -bv
+                                else:
+                                    tval = array[nx+i,y+j]-array[nx,y]
+                                    if tval < 0.0: tval = -tval
+                                    if tval < bv:
+                                        bi = y+j
+                                        bv = tval
+                        if bi != -1: # We're continuing the trace
+                            edgearr[nx+i,bi] = pedge
+                            nx += i
+                            break
+                    if bi == -1: # We've lost the trace!
+                        #pedge += 1
+                        trc = 0
+            elif edgearr[x,y] == -999:
+                #edgearr[x,y] = medge
+                trc = 1 # Boolean, do I keep tracing?
+                cmax = 1+srchspe # Go srchspe pixels beyond the current one
+                nx = x
+                while trc == 1:
+                    if nx+cmax > sz_x: cmax = sz_x-nx
+                    for i in range(1,cmax):
+                        rmin = -(srchspa-1)/2
+                        rmax = 1-rmin
+                        if y+rmin < 1: rmin = 1 # 1 because there's nothing in the zeroth column
+                        if y+rmax > sz_y: rmax = sz_y-y
+                        bi = -1
+                        bv = 0.0
+                        for j in range(rmin,rmax):
+                            if edgearr[nx+i,y+j] == -999:
+                                if bi == -1:
+                                    bi = y+j
+                                    bv = array[nx+i,y+j]-array[nx,y]
+                                    if bv < 0.0: bv = -bv
+                                else:
+                                    tval = array[nx+i,y+j]-array[nx,y]
+                                    if tval < 0.0: tval = -tval
+                                    if tval < bv:
+                                        bi = y+j
+                                        bv = tval
+                        if bi != -1: # We're continuing the trace
+                            edgearr[nx+i,bi] = pedge
+                            nx += i
+                            break
+                    if bi == -1: # We've lost the trace!
+                        #pedge += 1
+                        trc = 0
+            else: continue
+        # Now trace in the other direction!
+        for x in range(0,sz_x):
+            if edgearr[sz_x-x-1,y] == 0: continue
+            elif edgearr[sz_x-x-1,y] == 999:
+                # Find nearby similar edges
+                edgearr[sz_x-x-1,y] = pedge
+                trc = 1 # Boolean, do I keep tracing?
+                cmax = 1+srchspe # Go srchspe pixels beyond the current one
+                nx = sz_x-x-1
+                while trc == 1:
+                    if nx-cmax < 0: cmax = 0
+                    for i in range(cmax,sz_x-x-1):
+                        rmin = -(srchspa-1)/2
+                        rmax = 1-rmin
+                        if y+rmin < 1: rmin = 1 # 1 because there's nothing in the zeroth column
+                        if y+rmax > sz_y: rmax = sz_y-y
+                        bi = -1
+                        bv = 0.0
+                        for j in range(rmin,rmax):
+                            if edgearr[nx+i,y+j] == 999:
+                                if bi == -1:
+                                    bi = y+j
+                                    bv = array[nx-i,y+j]-array[nx,y]
+                                    if bv < 0.0: bv = -bv
+                                else:
+                                    tval = array[nx-i,y+j]-array[nx,y]
+                                    if tval < 0.0: tval = -tval
+                                    if tval < bv:
+                                        bi = y+j
+                                        bv = tval
+                        if bi != -1: # We're continuing the trace
+                            edgearr[nx-i,bi] = pedge
+                            nx -= i
+                            break
+                    if bi == -1: # We've lost the trace!
+                        pedge += 1
+                        trc = 0
+            elif edgearr[sz_x-x-1,y] == -999:
+                edgearr[sz_x-x-1,y] = medge
+                trc = 1 # Boolean, do I keep tracing?
+                cmax = 1+srchspe # Go srchspe pixels beyond the current one
+                nx = sz_x-x-1
+                while trc == 1:
+                    if nx-cmax < 0: cmax = 0
+                    for i in range(cmax,sz_x-x-1):
+                        rmin = -(srchspa-1)/2
+                        rmax = 1-rmin
+                        if y+rmin < 1: rmin = 1 # 1 because there's nothing in the zeroth column
+                        if y+rmax > sz_y: rmax = sz_y-y
+                        bi = -1
+                        bv = 0.0
+                        for j in range(rmin,rmax):
+                            if edgearr[nx-i,y+j] == -999:
+                                if bi == -1:
+                                    bi = y+j
+                                    bv = array[nx-i,y+j]-array[nx,y]
+                                    if bv < 0.0: bv = -bv
+                                else:
+                                    tval = array[nx-i,y+j]-array[nx,y]
+                                    if tval < 0.0: tval = -tval
+                                    if tval < bv:
+                                        bi = y+j
+                                        bv = tval
+                        if bi != -1: # We're continuing the trace
+                            edgearr[nx-i,bi] = medge
+                            nx -= i
+                            break
+                    if bi == -1: # We've lost the trace!
+                        medge -= 1
+                        trc = 0
+            else: continue
     return edgearr
 
 
@@ -1802,7 +1464,7 @@ def ignore_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
 
 @cython.boundscheck(False)
 def label_orders_two(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
-                int dispdir, int lcnt, int rcnt):
+                int lcnt, int rcnt):
     cdef int sz_x, sz_y, cnt
     cdef int x, y, c, j
     cdef double lvcnt, rvcnt, lncnt, rncnt
@@ -1814,8 +1476,8 @@ def label_orders_two(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     if lcnt > rcnt: cnt = lcnt
     else: cnt = rcnt
 
-    sz_x = edgdet.shape[dispdir]
-    sz_y = edgdet.shape[1-dispdir]
+    sz_x = edgdet.shape[0]
+    sz_y = edgdet.shape[1]
 
     cdef np.ndarray[DTYPE_t, ndim=2] larr = np.zeros((2,lcnt), dtype=DTYPE)
     cdef np.ndarray[DTYPE_t, ndim=2] rarr = np.zeros((2,rcnt), dtype=DTYPE)
@@ -1827,20 +1489,12 @@ def label_orders_two(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
         rncnt = 0.0
         for x in range(sz_x):
             for y in range(sz_y):
-                if dispdir == 0:
-                    if edgdet[x,y] == c:
-                        rvcnt += <double>(y)
-                        rncnt += 1.0
-                    elif edgdet[x,y] == -c:
-                        lvcnt += <double>(y)
-                        lncnt += 1.0
-                else:
-                    if edgdet[y,x] == c:
-                        rvcnt += <double>(y)
-                        rncnt += 1.0
-                    elif edgdet[y,x] == -c:
-                        lvcnt += <double>(y)
-                        lncnt += 1.0
+                if edgdet[x,y] == c:
+                    rvcnt += <double>(y)
+                    rncnt += 1.0
+                elif edgdet[x,y] == -c:
+                    lvcnt += <double>(y)
+                    lncnt += 1.0
         if lncnt != 0.0:
             larr[0,c-1000] = <double>(c)
             larr[1,c-1000] = lvcnt/lncnt
@@ -1872,28 +1526,16 @@ def label_orders_two(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     for c in range(1000,1000+cnt):
         for x in range(sz_x):
             for y in range(sz_y):
-                if dispdir == 0:
-                    if edgdet[x,y] == c:
-                        for j in range(rcnt):
-                            if rarr[0,j] == <double>(c):
-                                edgdet[x,y] = j+1
-                                break
-                    elif edgdet[x,y] == -c:
-                        for j in range(lcnt):
-                            if larr[0,j] == <double>(c):
-                                edgdet[x,y] = -j-1
-                                break
-                else:
-                    if edgdet[y,x] == c:
-                        for j in range(rcnt):
-                            if rarr[0,j] == <double>(c):
-                                edgdet[y,x] = j+1
-                                break
-                    elif edgdet[y,x] == -c:
-                        for j in range(lcnt):
-                            if larr[0,j] == <double>(c):
-                                edgdet[y,x] = -j-1
-                                break
+                if edgdet[x,y] == c:
+                    for j in range(rcnt):
+                        if rarr[0,j] == <double>(c):
+                            edgdet[x,y] = j+1
+                            break
+                elif edgdet[x,y] == -c:
+                    for j in range(lcnt):
+                        if larr[0,j] == <double>(c):
+                            edgdet[x,y] = -j-1
+                            break
     return
 
 
@@ -2189,21 +1831,17 @@ def medianmaskmin(np.ndarray[DTYPE_t, ndim=1] array not None, double mask):
 @cython.boundscheck(False)
 def median_ed(np.ndarray[DTYPE_t, ndim=2] array not None,
             np.ndarray[DTYPE_t, ndim=2] medarr not None,
-            int dispdir, int x, int ms):
+            int x, int ms):
     cdef int sz_y
     cdef int y, i, j
     cdef double temp
 
-    sz_y = array.shape[1-dispdir]
+    sz_y = array.shape[1]
 
     # Extract the relevant pieces of the array
     for y in range(sz_y):
-        if dispdir == 0:
-            for i in range(2*ms+1):
-                medarr[y,i] = array[x+i-ms,y]
-        else:
-            for i in range(2*ms+1):
-                medarr[y,i] = array[y,x+i-ms]
+        for i in range(2*ms+1):
+            medarr[y,i] = array[x+i-ms,y]
 
     # Sort the array
     for y in range(sz_y-1):
@@ -2314,13 +1952,12 @@ def medianmad_dimen(np.ndarray[DTYPE_t, ndim=1] array not None, int di):
 @cython.boundscheck(False)
 def minbetween(np.ndarray[DTYPE_t, ndim=2] mstrace not None,
                 np.ndarray[ITYPE_t, ndim=1] loord not None,
-                np.ndarray[ITYPE_t, ndim=1] hiord not None,
-                int dispdir):
+                np.ndarray[ITYPE_t, ndim=1] hiord not None):
     cdef int sz_x, sz_y
     cdef int x, y, ymin, ymax
 
-    sz_x = mstrace.shape[dispdir]
-    sz_y = mstrace.shape[1-dispdir]
+    sz_x = mstrace.shape[0]
+    sz_y = mstrace.shape[1]
 
     cdef np.ndarray[DTYPE_t, ndim=1] minarr = np.zeros(sz_x, dtype=DTYPE)
 
@@ -2330,16 +1967,10 @@ def minbetween(np.ndarray[DTYPE_t, ndim=2] mstrace not None,
         if ymin < 0: ymin = 0
         elif ymax > sz_y: ymax = sz_y
         for y in range(ymin,ymax):
-            if dispdir == 0:
-                if mstrace[x,y] < minarr[x] and mstrace[x,y] > 0.0:
-                    minarr[x] = mstrace[x,y]
-                elif minarr[x] == 0.0:
-                    minarr[x] = mstrace[x,y]
-            else:
-                if mstrace[y,x] < minarr[x] and mstrace[y,x] > 0.0:
-                    minarr[x] = mstrace[y,x]
-                elif minarr[x] == 0.0:
-                    minarr[x] = mstrace[y,x]
+            if mstrace[x,y] < minarr[x] and mstrace[x,y] > 0.0:
+                minarr[x] = mstrace[x,y]
+            elif minarr[x] == 0.0:
+                minarr[x] = mstrace[x,y]
     return minarr
 
 
@@ -2694,7 +2325,7 @@ def trace_tilts(np.ndarray[DTYPE_t, ndim=2] msarc not None,
                 np.ndarray[ITYPE_t, ndim=2] ordcen not None,
                 np.ndarray[ITYPE_t, ndim=2] ordsiz not None,
                 np.ndarray[ITYPE_t, ndim=2] arccen not None,
-                int dispdir, int maxnum):
+                int maxnum):
     """
     pseudo-maximum likelihood estimate for the trace of the arc lines.
     """
@@ -2708,8 +2339,8 @@ def trace_tilts(np.ndarray[DTYPE_t, ndim=2] msarc not None,
     sz_l = arccen.shape[0]
     sz_o = arccen.shape[1]
 
-    cdef int sz_ax = msarc.shape[1-dispdir]
-    cdef int sz_ay = msarc.shape[dispdir]
+    cdef int sz_ax = msarc.shape[1]
+    cdef int sz_ay = msarc.shape[0]
 
     cdef np.ndarray[DTYPE_t, ndim=2] derv = np.zeros((sz_l,sz_o), dtype=DTYPE)
     cdef np.ndarray[DTYPE_t, ndim=2] cent = np.zeros((sz_l,sz_o), dtype=DTYPE)
@@ -2736,24 +2367,14 @@ def trace_tilts(np.ndarray[DTYPE_t, ndim=2] msarc not None,
             if ymax+arccen[l,o] > sz_ay: ymax = sz_ay-arccen[l,o]
             for x in range(xmin,xmax):
                 for y in range(ymin,ymax):
-                    if dispdir == 0:
-                        if msarc[y,x] < back[2*maxnum-1] or back[2*maxnum-1] == -1.0:
-                            for b in range(0,2*maxnum):
-                                if back[b] == -1.0: back[b] = msarc[y,x]
-                                elif back[b] > msarc[y,x]: # Rearrange
-                                    for bb in range(b+1,2*maxnum):
-                                        back[2*maxnum+b-bb] = back[2*maxnum+b-bb-1]
-                                    back[b] = msarc[y,x]
-                                    break
-                    else:
-                        if msarc[x,y] < back[2*maxnum-1] or back[2*maxnum-1] == -1.0:
-                            for b in range(0,2*maxnum):
-                                if back[b] == -1.0: back[b] = msarc[x,y]
-                                elif back[b] > msarc[x,y]: # Rearrange
-                                    for bb in range(b+1,2*maxnum):
-                                        back[2*maxnum+b-bb] = back[2*maxnum+b-bb-1]
-                                    back[b] = msarc[x,y]
-                                    break
+                    if msarc[y,x] < back[2*maxnum-1] or back[2*maxnum-1] == -1.0:
+                        for b in range(0,2*maxnum):
+                            if back[b] == -1.0: back[b] = msarc[y,x]
+                            elif back[b] > msarc[y,x]: # Rearrange
+                                for bb in range(b+1,2*maxnum):
+                                    back[2*maxnum+b-bb] = back[2*maxnum+b-bb-1]
+                                back[b] = msarc[y,x]
+                                break
             bval = 0.0
             for b in range(0,2*maxnum):
                 bval += back[b]
@@ -2767,12 +2388,8 @@ def trace_tilts(np.ndarray[DTYPE_t, ndim=2] msarc not None,
             if ymin < 0: ymin = 0
             if ymax > sz_ay: ymax = sz_ay
             for y in range(ymin,ymax):
-                if dispdir == 0:
-                    mval += <double>(y)*(msarc[y,ordcen[l,o]]-bval)
-                    wght += (msarc[y,ordcen[l,o]]-bval)
-                else:
-                    mval += <double>(y)*(msarc[ordcen[l,o],y]-bval)
-                    wght += (msarc[ordcen[l,o],y]-bval)
+                mval += <double>(y)*(msarc[y,ordcen[l,o]]-bval)
+                wght += (msarc[y,ordcen[l,o]]-bval)
             xfit[0] = 0.0
             yfit[0] = mval/wght
             nfit += 1
@@ -2791,12 +2408,8 @@ def trace_tilts(np.ndarray[DTYPE_t, ndim=2] msarc not None,
                 if ymin < 0: ymin = 0
                 if ymax > sz_ay: ymax = sz_ay
                 for y in range(ymin,ymax):
-                    if dispdir == 0:
-                        mval += <double>(y)*(msarc[y,ordcen[l,o]+x]-bval)
-                        wght += (msarc[y,ordcen[l,o]+x]-bval)
-                    else:
-                        mval += <double>(y)*(msarc[ordcen[l,o]+x,y]-bval)
-                        wght += (msarc[ordcen[l,o]+x,y]-bval)
+                    mval += <double>(y)*(msarc[y,ordcen[l,o]+x]-bval)
+                    wght += (msarc[y,ordcen[l,o]+x]-bval)
                 xfit[nfit] = <double>(x)
                 yfit[nfit] = mval/wght
                 nfit += 1
@@ -2816,12 +2429,8 @@ def trace_tilts(np.ndarray[DTYPE_t, ndim=2] msarc not None,
                 if ymin < 0: ymin = 0
                 if ymax > sz_ay: ymax = sz_ay
                 for y in range(ymin,ymax):
-                    if dispdir == 0:
-                        mval += <double>(y)*(msarc[y,ordcen[l,o]-x]-bval)
-                        wght += (msarc[y,ordcen[l,o]-x]-bval)
-                    else:
-                        mval += <double>(y)*(msarc[ordcen[l,o]-x,y]-bval)
-                        wght += (msarc[ordcen[l,o]-x,y]-bval)
+                    mval += <double>(y)*(msarc[y,ordcen[l,o]-x]-bval)
+                    wght += (msarc[y,ordcen[l,o]-x]-bval)
                 xfit[nfit] = <double>(-x)
                 yfit[nfit] = mval/wght
                 nfit += 1

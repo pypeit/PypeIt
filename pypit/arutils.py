@@ -20,26 +20,9 @@ msgs = armsgs.get_logger()
 
 try:
     from xastropy.xutils import xdebug as debugger
-except:
+except ImportError:
     import pdb as debugger
 
-try:
-    import ds9
-except ImportError:
-    warnings.warn("ds9 module not installed")
-else:
-    def ds9plot(array):
-        # Set up a ds9 instance
-        d = ds9.ds9()
-        # Load the image
-        d.set_np2arr(array)
-        # Zoom to fit
-        d.set('zoom to fit')
-        # Change the colormap and scaling
-        d.set('cmap gray')
-        d.set('scale log')
-        null = raw_input("TEST PLOT GENERATED: Press enter to continue...")
-        return
 
 def quicksave(data,fname):
     """
@@ -147,75 +130,57 @@ def dummy_fitsdict(nfile=10):
     fitsdict = {}
     fitsdict['date'] = ['2015-01-23T00:54:17.04']*nfile
     fitsdict['target'] = ['Dummy']*nfile
+    fitsdict['exptime'] = [300.] * nfile
+    fitsdict['dispname'] = ['600/4310'] * nfile
+    fitsdict["binning"] = [[None]]
     #
     return fitsdict
 
 
-def dummy_self(pypitdir=None, inum=0, fitsdict=None, nfile=10):
+def dummy_self(inum=0, fitsdict=None, nfile=10):
     """
     Generate a dummy self class for testing
     Parameters:
     -----------
-    pypitdir : str, optional
-      Path to the PYPIT main directory
     inum : int, optional
       Index in sciexp
     Returns:
     --------
     slf
     """
-    import pypit
     from pypit import arsciexp
-    from pypit import arload
-    # Dummy dicts
-    spect = arload.load_spect(pypit.__file__, 'kast_blue')
-    kk = 0
-    for jj,key in enumerate(spect.keys()):
-        if key in ['det']:
-            continue
-        if 'index' in spect[key].keys():
-            spect[key]['index'] = [[kk]*nfile]
-            kk += 1
-    argflag = arload.argflag_init()
+    # Dummy fitsdict
     if fitsdict is None:
         fitsdict = dummy_fitsdict(nfile=nfile)
     # Dummy Class
-    slf = arsciexp.ScienceExposure(inum, argflag, spect, fitsdict, do_qa=False)
-    #
-    if pypitdir is None:
-        pypitdir = __file__[0:__file__.rfind('/')]
-    slf._argflag['run']['pypitdir'] = pypitdir
-    slf._argflag['run']['spectrograph'] = 'dummy'
-    #
-    slf._spect['mosaic'] = {}
-    slf._spect['det'] = [{'binning':'1x1'}]
-    #
+    slf = arsciexp.ScienceExposure(inum, fitsdict, do_qa=False)
     return slf
 
 
-def erf_func(x):
-    """
-    This is a very good approximation to the erf function.
-    A probability is calculated as such:
-    prob = erf( N / np.sqrt(2.0) )
-    where N is the level of significance.
-    e.g. erf( 1.0 / np.sqrt(2.0) ) = 0.68268947
-    """
-    # Constants
-    a1 =  0.254829592
-    a2 = -0.284496736
-    a3 =  1.421413741
-    a4 = -1.453152027
-    a5 =  1.061405429
-    p  =  0.3275911
-    # Save the sign of x
-    sign = np.ones(x.size)
-    sign[np.where(x<0.0)] *= -1
-    x = np.abs(x)
-    # A&S formula 7.1.26
-    t = 1.0/(1.0 + p*x)
-    y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*np.exp(-x*x)
-    return sign*y
+def dummy_settings(pypitdir=None, nfile=10):
+    from pypit import arparse
+    # Dummy argflag
+    argf = arparse.get_argflag_class(("ARMLSD", "kast_blue"))
+    lines = argf.load_file()
+    if pypitdir is None:
+        pypitdir = __file__[0:__file__.rfind('/')]
+    argf.set_paramlist(lines)
+    argf.set_param('run pypitdir {0:s}'.format(pypitdir))
+    argf.set_param('run spectrograph kast_blue')
+    argf.set_param('run directory science ./')
+    # Dummy spect
+    spect = arparse.get_spect_class(("ARMLSD", "kast_blue", "dummy"))
+    lines = spect.load_file()
+    spect.set_paramlist(lines)
+    kk = 0
+    for jj, key in enumerate(spect._spect.keys()):
+        if key in ['det']:
+            continue
+        if 'index' in spect._spect[key].keys():
+            spect._spect[key]['index'].append([kk]*nfile)
+            kk += 1
+    arparse.init(argf, spect)
+    return
 
 
 def func_der(coeffs, func, nderive=1):
@@ -1036,3 +1001,68 @@ def subsample(frame):
     coordinates = np.mgrid[slices]
     indices = coordinates.astype('i')
     return frame[tuple(indices)]
+
+
+def yamlify(obj, debug=False):
+    """Recursively process an object so it can be serialised for yaml.
+    Based on jsonify in `linetools <https://pypi.python.org/pypi/linetools>`_.
+
+    Note: All string-like keys in :class:`dict` s are converted to
+    :class:`str`.
+
+    Also found in desiutils
+
+    Parameters
+    ----------
+    obj : :class:`object`
+        Any object.
+    debug : :class:`bool`, optional
+        Print extra information if requested.
+
+    Returns
+    -------
+    :class:`object`
+       An object suitable for yaml serialization.  For example
+       :class:`numpy.ndarray` is converted to :class:`list`,
+       :class:`numpy.int64` is converted to :class:`int`, etc.
+    """
+    import numpy as np
+    if isinstance(obj, (np.float64, np.float32)):
+        obj = float(obj)
+    elif isinstance(obj, (np.int32, np.int64, np.int16)):
+        obj = int(obj)
+    elif isinstance(obj, np.bool_):
+        obj = bool(obj)
+    elif isinstance(obj, (np.string_, basestring)):
+        obj = str(obj)
+    # elif isinstance(obj, Quantity):
+    #     obj = dict(value=obj.value, unit=obj.unit.to_string())
+    elif isinstance(obj, np.ndarray):  # Must come after Quantity
+        obj = obj.tolist()
+    elif isinstance(obj, dict):
+        # First convert keys
+        nobj = {}
+        for key, value in obj.items():
+            if isinstance(key, basestring):
+                nobj[str(key)] = value
+            else:
+                nobj[key] = value
+        # Now recursive
+        obj = nobj
+        for key, value in obj.items():
+            obj[key] = yamlify(value, debug=debug)
+    elif isinstance(obj, list):
+        for i, item in enumerate(obj):
+            obj[i] = yamlify(item, debug=debug)
+    elif isinstance(obj, tuple):
+        obj = list(obj)
+        for i, item in enumerate(obj):
+            obj[i] = yamlify(item, debug=debug)
+        obj = tuple(obj)
+    # elif isinstance(obj, Unit):
+    #     obj = obj.name
+    # elif obj is u.dimensionless_unscaled:
+    #     obj = 'dimensionless_unit'
+    if debug:
+        print(type(obj))
+    return obj
