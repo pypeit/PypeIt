@@ -68,9 +68,8 @@ def SetupScience(fitsdict):
     for sc in range(numsci):
         for kk in range(settings.spect['mosaic']['ndet']):
             setupID = arsort.instr_setup(sciexp[sc], kk+1, fitsdict, setup_dict, skip_cset=skip_cset)
-            if settings.argflag['run']['setup']: # Collate all matching files
-                if kk == 0: # Only save the first detector for run setup
-                    setupIDs.append(setupID)
+            if kk == 0: # Only save the first detector for run setup
+                setupIDs.append(setupID)
     # Group file
     group_dict = {}
     if settings.argflag['run']['setup']: # Collate all matching files
@@ -98,7 +97,19 @@ def SetupScience(fitsdict):
                             group_dict[config_key]['stdobj'].append(fitsdict['target'][idx])
                     if key == 'science':  # Add target name
                         group_dict[config_key]['sciobj'].append(fitsdict['target'][scidx])
-    else:
+    else:  # Take from setup_dict
+        debugger.set_trace()
+        for config_key in setup_dict:
+            # Init
+            group_dict[config_key] = {}
+            # Add calib sets
+            for key in setup_dict[config_key]:
+                if key == ['--']:
+                    continue
+                try:
+                    tmp = int(key)
+                except ValueError:
+                    group_dict[config_key][key] = setup_dict[config_key][key]
         debugger.set_trace()
 
     # Write setup -- only if not present
