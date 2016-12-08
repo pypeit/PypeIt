@@ -26,7 +26,8 @@ reduce flatfield perform True           # Flatfield the data?
 reduce flatfield method PolyScan      # Method used to flat field the data (PolyScan)
 reduce flatfield params [3,50,20]     # Flat field method parameters (PolyScan: [order,numPixels,repeat])
 reduce flatfield useframe pixelflat          # How to flat field the data (pixelflat, slitflat), you can also specify a master calibrations file if it exists.
-reduce trace useframe slitflat          # How to flat field the data (pixelflat, slitflat), you can also specify a master calibrations file if it exists.
+reduce slitedge useframe slitflat          # How to trace the slit edges (slitflat, trace), you can also specify a master calibrations file if it exists.
+reduce trace useframe trace          # How to trace the slits (slitflat, trace), you can also specify a master calibrations file if it exists.
 reduce masters file None         #
 reduce masters loaded []         #
 reduce masters setup None            #
@@ -113,6 +114,16 @@ science extraction profile gaussian   # Fitting function used to extract science
 science extraction maxnumber 1     # Maximum number of objects to extract in a science frame
 science extraction manual01 frame None
 science extraction manual01 params None
+
+# SLIT FLAT FRAMES (used to trace the slit edges)
+slitflat useframe slitflat             # What filetype should be used to trace the slit edges (slitflat), you can also specify a master calibrations file if it exists.
+slitflat combine match -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
+slitflat combine method weightmean          # How should the pixel flat frames be combined (mean, median, weightmean)
+slitflat combine reject cosmics 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
+slitflat combine reject lowhigh  [0,0]         # Number of low/high pixels to reject, [low,high]
+slitflat combine reject level    [3.0,3.0]     # Rejection level (in standard deviations), where <= 0.0 means no rejection [low,high]
+slitflat combine reject replace   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
+slitflat combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
 
 # OUTPUT
 output  verbosity      2				# Level of screen output (0 is No screen output, 1 is low level output, 2 is output everything)

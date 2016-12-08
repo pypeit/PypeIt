@@ -27,6 +27,7 @@ reduce flatfield perform True           # Flatfield the data?
 reduce flatfield method PolyScan      # Method used to flat field the data (PolyScan)
 reduce flatfield params [3,50,20]     # Flat field method parameters (PolyScan: [order,numPixels,repeat])
 reduce flatfield useframe pixelflat          # How to flat field the data (pixelflat, slitflat), you can also specify a master calibrations file if it exists.
+reduce slitedge useframe slitflat          # How to trace the slit edges (slitflat, trace), you can also specify a master calibrations file if it exists.
 reduce trace useframe slitflat          # How to flat field the data (pixelflat, slitflat), you can also specify a master calibrations file if it exists.
 reduce flexure method boxcar      # Perform flexure correction on objects using boxcar extraction.  Options are: None, boxcar, slitcen [this performs flexure correction before extraction of objects]
 reduce flexure maxshift 20      # Maximum allowed flexure shift in pixels (int)
