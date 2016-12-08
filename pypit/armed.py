@@ -3,6 +3,7 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import numpy as np
+from pypit import arparse as settings
 from pypit import arload
 from pypit import armasters
 from pypit import armbase
@@ -24,7 +25,7 @@ except ImportError:
 msgs = armsgs.get_logger()
 
 
-def ARMED(fitsdict, reuseMaster=False):
+def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
     """
     Automatic Reduction and Modeling of Echelle Data
 
@@ -56,14 +57,9 @@ def ARMED(fitsdict, reuseMaster=False):
     masters = armasters.MasterFrames(settings.spect['mosaic']['ndet'])
 
     # Use Masters?  Requires setup file
-    setup_file = argflag['out']['sorted']+'.setup'
-    try:
-        calib_dict = ltu.loadjson(setup_file)
-    except:
-        msgs.info("No setup file {:s} for MasterFrames".format(setup_file))
-        calib_dict = {}
-    else:
-        argflag['masters']['setup_file'] = setup_file
+    setup_file, nexist = arsort.get_setup_file()
+    setup_dict = arsort.load_setup()
+    settings.argflag['reduce']['masters']['file'] = setup_file
 
     # Start reducing the data
     for sc in range(numsci):
@@ -72,7 +68,7 @@ def ARMED(fitsdict, reuseMaster=False):
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
         msgs.sciexp = slf  # For QA writing on exit, if nothing else.  Could write Masters too
         if reloadMaster and (sc > 0):
-            slf._argflag['masters']['use'] = True
+            settings.argflag['reduce']['masters']['reuse'] = True
         # Loop on Detectors
         for kk in range(settings.spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
@@ -81,8 +77,8 @@ def ARMED(fitsdict, reuseMaster=False):
             # Get amplifier sections
             arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
             # Setup
-            setup = arsort.calib_setup(slf, sc, det, fitsdict, calib_dict, write=False)
-            slf._argflag['masters']['setup'] = setup
+            setup = arsort.instr_setup(sc, det, fitsdict, setup_dict, must_exist=True)
+            settings.argflag['reduce']['masters']['setup'] = setup
             ###############
             # Generate master bias frame
             update = slf.MasterBias(fitsdict, det)
@@ -102,32 +98,35 @@ def ARMED(fitsdict, reuseMaster=False):
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
             ###############
+            # Set the number of spectral and spatial pixels, and the bad pixel mask is it does not exist
+            slf._nspec[det-1], slf._nspat[det-1] = slf._msarc[det-1].shape
+            if slf._bpix[det-1] is None:
+                slf.SetFrame(slf._bpix, np.zeros((slf._nspec[det-1], slf._nspat[det-1])), det)
+            ###############
             # Generate a master trace frame
             update = slf.MasterTrace(fitsdict, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
             ###############
-            # Generate a master edge frame
-            update = slf.MasterEdge(fitsdict, det)
+            # Generate a master slitflat frame
+            update = slf.MasterSlitFlat(fitsdict, det)
             if update and reuseMaster:
-                armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="blzflat")
-            ###############
-            # Determine the dispersion direction (and transpose if necessary)
-            slf.GetDispersionDirection(fitsdict, det, scidx)
-            if slf._bpix[det-1] is None:  # Needs to be done here after nspec is set
-                slf.SetFrame(slf._bpix, np.zeros((slf._nspec[det-1], slf._nspat[det-1])), det)
+                armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="slitflat")
             ###############
             # Generate an array that provides the physical pixel locations on the detector
             slf.GetPixelLocations(det)
-            if 'trace'+slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
+            ###############
+            # Determine the edges of the spectrum (spatial)
+            if ('trace'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']):
                 ###############
                 # Determine the edges of the spectrum (spatial)
                 lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det,
                                                                pcadesc="PCA trace of the slit edges")
 
                 # Using the order centroid, expand the order edges until the edge of the science slit is found
-                if slf._argflag['trace']['orders']['expand']:
-                    lordloc, rordloc = artrace.expand_slits(slf, slf._msblzflat[det-1], det, 0.5*(lordloc+rordloc), extord)
+                if settings.argflag['trace']['slits']['expand']:
+                    lordloc, rordloc = artrace.expand_slits(slf, slf._msslitflat[det-1], det,
+                                                            0.5*(lordloc+rordloc), extord)
 
                 # Save the locations of the order edges
                 slf.SetFrame(slf._lordloc, lordloc, det)
