@@ -50,6 +50,9 @@ class ScienceExposure:
         if settings.argflag['reduce']['flatfield']['useframe'] == 'pixelflat': self._idx_flat = settings.spect['pixelflat']['index'][snum]
         elif settings.argflag['reduce']['flatfield']['useframe'] == 'slitflat': self._idx_flat = settings.spect['slitflat']['index'][snum]
         else: self._idx_flat = []
+        if settings.argflag['reduce']['slitedge']['useframe'] == 'trace': self._idx_edge = settings.spect['trace']['index'][snum]
+        elif settings.argflag['reduce']['slitedge']['useframe'] == 'slitflat': self._idx_edge = settings.spect['slitflat']['index'][snum]
+        else: self._idx_edge = []
 
         # Set the base name and extract other names that will be used for output files
         self.SetBaseName(fitsdict)
@@ -87,7 +90,8 @@ class ScienceExposure:
         self._msbias = [None for all in range(ndet)]        # Master Bias
         self._msrn = [None for all in range(ndet)]          # Master ReadNoise image
         self._mstrace = [None for all in range(ndet)]       # Master Trace
-        self._mspixelflat = [None for all in range(ndet)]     # Master pixel flat
+        self._msslitflat = [None for all in range(ndet)]       # Master Slit Flat
+        self._mspixelflat = [None for all in range(ndet)]     # Master Pixel Flat
         self._mspixelflatnrm = [None for all in range(ndet)]  # Normalized Master pixel flat
         self._msblaze = [None for all in range(ndet)]       # Blaze function
         self._msstd = [{} for all in range(ndet)]           # Master Standard dict
@@ -95,6 +99,7 @@ class ScienceExposure:
         self._msarc_name = [None for all in range(ndet)]      # Master Arc Name
         self._msbias_name = [None for all in range(ndet)]     # Master Bias Name
         self._mstrace_name = [None for all in range(ndet)]    # Master Trace Name
+        self._msslitflat_name = [None for all in range(ndet)]    # Master Slit Flat Name
         self._mspixelflat_name = [None for all in range(ndet)]  # Master Pixel Flat Name
         # Initialize the science, variance, and background frames
         self._sciframe = [None for all in range(ndet)]
@@ -466,9 +471,9 @@ class ScienceExposure:
         self.SetMasterFrame(mspixelflatnrm, "normpixelflat", det)
         return True
 
-    def MasterEdge(self, fitsdict, det):
+    def MasterSlitFlat(self, fitsdict, det):
         """
-        Generate Master Edge flat frame for a given detector
+        Generate Master slit flat frame for a given detector
 
         Parameters
         ----------
@@ -482,63 +487,70 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-
+        dnum = settings.get_dnum(det)
         # If the master edge is already made, use it
-        if self._msblzflat[det-1] is not None:
-            msgs.info("An identical master edge frame already exists")
+        if self._msslitflat[det - 1] is not None:
+            msgs.info("An identical master slit frame already exists")
             return False
-        if self._argflag['masters']['use']:
-            # Attempt to load the Master Frame
-            msedge_name = armasters.master_name(self._argflag['run']['masterdir'],
-                                                'edge', self._argflag['masters']['setup'])
-            try:
-                mstrace, head = arload.load_master(msedge_name, frametype="edge")
-            except IOError:
-                msgs.warn("No MasterEdge frame found {:s}".format(msedge_name))
-            else:
-                # Extras
-                lordloc, _ = arload.load_master(msedge_name, frametype="edge", exten=1)
-                rordloc, _ = arload.load_master(msedge_name, frametype="edge", exten=2)
-                pixcen, _ = arload.load_master(msedge_name, frametype="edge", exten=3)
-                pixwid, _ = arload.load_master(msedge_name, frametype="edge", exten=4)
-                lordpix, _ = arload.load_master(msedge_name, frametype="edge", exten=5)
-                rordpix, _ = arload.load_master(msedge_name, frametype="edge", exten=6)
-                self.SetFrame(self._lordloc, lordloc, det)
-                self.SetFrame(self._rordloc, rordloc, det)
-                self.SetFrame(self._pixcen, pixcen.astype(np.int), det)
-                self.SetFrame(self._pixwid, pixwid.astype(np.int), det)
-                self.SetFrame(self._lordpix, lordpix.astype(np.int), det)
-                self.SetFrame(self._rordpix, rordpix.astype(np.int), det)
-                #
-                self._argflag['masters']['loaded'].append('edge'+self._argflag['masters']['setup'])
-        if 'edge'+self._argflag['masters']['setup'] not in self._argflag['masters']['loaded']:
-            msgs.info("Preparing a master edge frame")
-            ind = self._idx_blzflat
-            # Load the frames for tracing
-            frames = arload.load_frames(self, fitsdict, ind, det, frametype='blzflat', msbias=self._msbias[det-1],
-                                        trim=self._argflag['reduce']['trim'], transpose=self._transpose)
-            if self._argflag['reduce']['flatmatch'] > 0.0:
-                sframes = arsort.match_frames(frames, self._argflag['reduce']['flatmatch'], msgs,
-                                              satlevel=self._spect['det'][det-1]['saturation']*self._spect['det'][det-1]['nonlinear'])
-                subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
-                numarr = np.array([])
-                for i in range(len(sframes)):
-                    numarr = np.append(numarr, sframes[i].shape[2])
-                    mstrace = arcomb.comb_frames(sframes[i], det, spect=self._spect, frametype='blzflat',
-                                                 **self._argflag['trace']['comb'])
-                    subframes[:, :, i] = mstrace.copy()
-                del sframes
-                # Combine all sub-frames
-                mstrace = arcomb.comb_frames(subframes, det, spect=self._spect, frametype='blzflat', weights=numarr,
-                                             **self._argflag['trace']['comb'])
-                del subframes
-            else:
-                mstrace = arcomb.comb_frames(frames, det, spect=self._spect, frametype='blzflat',
-                                             **self._argflag['trace']['comb'])
-            del frames
+        if settings.argflag['reduce']['slitedge']['useframe'] in ['trace', 'slitflat']:
+            if settings.argflag['reduce']['masters']['reuse']:
+                # Attempt to load the Master Frame
+                msslitflat_name = armasters.master_name(settings.argflag['run']['directory']['master'],
+                                                        'slitflat', settings.argflag['reduce']['masters']['setup'])
+                try:
+                    msslitflat, head = arload.load_master(msslitflat_name, frametype="slitflat")
+                except IOError:
+                    msgs.warn("No MasterTrace frame found {:s}".format(msslitflat_name))
+                else:
+                    # Extras
+                    lordloc, _ = arload.load_master(msslitflat_name, frametype="slitflat", exten=1)
+                    rordloc, _ = arload.load_master(msslitflat_name, frametype="slitflat", exten=2)
+                    pixcen, _ = arload.load_master(msslitflat_name, frametype="slitflat", exten=3)
+                    pixwid, _ = arload.load_master(msslitflat_name, frametype="slitflat", exten=4)
+                    lordpix, _ = arload.load_master(msslitflat_name, frametype="slitflat", exten=5)
+                    rordpix, _ = arload.load_master(msslitflat_name, frametype="slitflat", exten=6)
+                    self.SetFrame(self._lordloc, lordloc, det)
+                    self.SetFrame(self._rordloc, rordloc, det)
+                    self.SetFrame(self._pixcen, pixcen.astype(np.int), det)
+                    self.SetFrame(self._pixwid, pixwid.astype(np.int), det)
+                    self.SetFrame(self._lordpix, lordpix.astype(np.int), det)
+                    self.SetFrame(self._rordpix, rordpix.astype(np.int), det)
+                    #
+                    settings.argflag['reduce']['masters']['loaded'].append(
+                        'slitflat' + settings.argflag['reduce']['masters']['setup'])
+            if 'slitflat' + settings.argflag['reduce']['masters']['setup'] not in \
+                    settings.argflag['reduce']['masters']['loaded']:
+                msgs.info("Preparing a master trace frame with {0:s}".format(
+                    settings.argflag['reduce']['slitedge']['useframe']))
+                ind = self._idx_edge
+                # Load the frames for tracing
+                frames = arload.load_frames(fitsdict, ind, det, frametype='slitflat', msbias=self._msbias[det - 1],
+                                            trim=settings.argflag['reduce']['trim'])
+                if settings.argflag['slitflat']['combine']['match'] > 0.0:
+                    sframes = arsort.match_frames(frames, settings.argflag['slitflat']['combine']['match'], msgs,
+                                                  frametype='slitflat', satlevel=settings.spect[dnum]['saturation'] *
+                                                  settings.spect['det'][det - 1]['nonlinear'])
+                    subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
+                    numarr = np.array([])
+                    for i in range(len(sframes)):
+                        numarr = np.append(numarr, sframes[i].shape[2])
+                        msslitflat = arcomb.comb_frames(sframes[i], det, 'slitflat')
+                        subframes[:, :, i] = msslitflat.copy()
+                    del sframes
+                    # Combine all sub-frames
+                    msslitflat = arcomb.comb_frames(subframes, det, 'slitflat', weights=numarr)
+                    del subframes
+                else:
+                    msslitflat = arcomb.comb_frames(frames, det, 'slitflat')
+                del frames
+        else:  # It must be the name of a file the user wishes to load
+            msslitflat_name = settings.argflag['run']['directory']['master'] + '/' + \
+                              settings.argflag['reduce']['slitedge']['useframe']
+            mstrace, head = arload.load_master(msslitflat_name, frametype=None)
+            debugger.set_trace()  # NEED TO LOAD EXTRAS AS ABOVE
         # Set and then delete the Master Trace frame
-        self.SetMasterFrame(mstrace, "edge", det)
-        del mstrace
+        self.SetMasterFrame(msslitflat, "edge", det)
+        del msslitflat
         return True
 
     def MasterTrace(self, fitsdict, det):
@@ -811,7 +823,7 @@ class ScienceExposure:
         elif ftype == "normpixelflat": self._mspixelflatnrm[det] = cpf
         elif ftype == "pixelflat": self._mspixelflat[det] = cpf
         elif ftype == "trace": self._mstrace[det] = cpf
-        elif ftype == "edge": self._msblzflat[det] = cpf
+        elif ftype == "edge": self._msslitflat[det] = cpf
         elif ftype == "standard": self._msstd[det] = cpf
         elif ftype == "sensfunc": self._sensfunc = cpf
         else:
@@ -838,7 +850,7 @@ class ScienceExposure:
             elif ftype == "normpixelflat": return self._mspixelflatnrm[det].copy()
             elif ftype == "pixelflat": return self._mspixelflat[det].copy()
             elif ftype == "trace": return self._mstrace[det].copy()
-            elif ftype == "edge": return self._msblzflat[det].copy()
+            elif ftype == "edge": return self._msslitflat[det].copy()
             elif ftype == "standard": return mkcopy.copy(self._msstd[det])
             elif ftype == "sensfunc": return mkcopy.copy(self._sensfunc)
             else:
@@ -851,7 +863,7 @@ class ScienceExposure:
             elif ftype == "normpixelflat": return self._mspixelflatnrm[det]
             elif ftype == "pixelflat": return self._mspixelflat[det]
             elif ftype == "trace": return self._mstrace[det]
-            elif ftype == "edge": return self._msblzflat[det]
+            elif ftype == "edge": return self._msslitflat[det]
             elif ftype == "standard": return self._msstd[det]
             elif ftype == "sensfunc": return self._sensfunc
             else:
