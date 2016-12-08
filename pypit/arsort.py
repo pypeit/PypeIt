@@ -363,6 +363,8 @@ def match_science(fitsdict, filesort):
                 continue
             # Now go ahead and match the frames
             n = np.arange(nfiles)
+            if 'match' not in settings.spect[ftag[ft]].keys():
+                debugger.set_trace()
             chkk = settings.spect[ftag[ft]]['match'].keys()
             for ch in chkk:
                 tmtch = settings.spect[ftag[ft]]['match'][ch]
