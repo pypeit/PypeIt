@@ -52,6 +52,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
         lortxt = "right"
     outitnm = 1
     oldedgearr = edgearr.copy()
+    prevedgearr = edgearr.copy()
     while True:
         msgs.prindent("Outer {0:s} edge loop, Iteration {1:d}".format(lortxt, outitnm))
         labnum = lor*ednum
@@ -113,7 +114,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
                 # No more peaks
                 break
             if wpk.size != 1:
-                wpkmsk = arcytrace.prune_peaks(edgehist, wpk, np.where(wpk+2 == offs)[0][0])
+                wpkmsk = arcytrace.prune_peaks(smedgehist, wpk, np.where(wpk+2 == offs)[0][0])
                 wpk = wpk[np.where(wpkmsk == 1)]
             if wpk.size == 0:
                 # After pruning, there are no more peaks
@@ -130,6 +131,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
                 plt.show()
             # Label all edge ids (in the original edgearr) that are located in each peak with the same number
             for ii in range(pks.size):
+                shbad = np.zeros(edgearr.shape)
                 wp = np.where((shft >= pedges[ii, 0]) & (shft <= pedges[ii, 1]))
                 vals = np.unique(tedgearr[(www[0][wp], www[1][wp])])
                 # Fit the edge detections in this edge and calculate the offsets
@@ -144,10 +146,14 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
                                                         settings.argflag['trace']['slits']['polyorder'],
                                                         function=settings.argflag['trace']['slits']['function'],
                                                         minv=0, maxv=binarr.shape[0]-1)
+                shbad[widx] = badmsk
                 smallhist = np.zeros(101, dtype=np.int)
                 meddiff = np.zeros(vals.size)
                 for vv in range(vals.size):
-                    widx = np.where(edgearr == vals[vv])
+                    widx = np.where((edgearr == vals[vv]) & (shbad == 0))
+                    if widx[0].size == 0:
+                        # These pixels were deemed to be bad
+                        continue
                     diff = widx[1] - arutils.func_val(fitcof, widx[0],
                                                       settings.argflag['trace']['slits']['function'],
                                                       minv=0, maxv=binarr.shape[0]-1)
@@ -189,7 +195,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
             edgearr[np.where(edgearr <= -2*ednum)] = 0
         else:
             edgearr[np.where(edgearr >= 2*ednum)] = 0
-        if np.array_equal(edgearr, oldedgearr):
+        if np.array_equal(edgearr, oldedgearr) or np.array_equal(edgearr, prevedgearr):
             break
         elif outitnm > 10:
             msgs.warn("Edge assignment may not have converged")
@@ -197,7 +203,8 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
             #debugger.set_trace()
             break
         else:
-            oldedgearr = edgearr.copy()
+            oldedgearr = prevedgearr.copy()
+            prevedgearr = edgearr.copy()
             if lor == -1:
                 edgearr[np.where(edgearr <= -ednum)] -= ednum
             else:
