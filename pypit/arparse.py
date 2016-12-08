@@ -1859,21 +1859,8 @@ class BaseArgFlag(BaseFunctions):
         v = key_list(v)
         self.update(v)
 
-    def trace_slits_tilts_disporder(self, v):
-        """
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        v = key_int(v)
-        if v < 0:
-            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
-        self.update(v)
-
     def trace_slits_tilts_order(self, v):
-        """
+        """ What is the order of the polynomial function to be used for the tilt of an individual arc line
 
         Parameters
         ----------
@@ -2543,6 +2530,17 @@ class BaseSpect(BaseFunctions):
 
     def keyword_detrot(self, v):
         """ Detector Rotation angle
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_keyword(v)
+        self.update(v)
+
+    def keyword_dichroic(self, v):
+        """ Dichroic used for the observation
 
         Parameters
         ----------
@@ -3250,18 +3248,24 @@ class ARMLSD(BaseArgFlag):
         self.update(v)
 
 
-class ARMLSD_spect(BaseSpect):
+class ARMED(BaseArgFlag):
 
-    def keyword_dichroic(self, v):
-        """ Dichroic used for the observation
+    def trace_slits_tilts_disporder(self, v):
+        """ What is the order of the polynomial function to be used to fit the tilts along the dispersion direction
 
         Parameters
         ----------
         v : str
           value of the keyword argument given by the name of this function
         """
-        v = key_keyword(v)
+        v = key_int(v)
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
+
+
+class ARMLSD_spect(BaseSpect):
+    pass
 
 
 class ARMED_spect(BaseSpect):
