@@ -94,7 +94,7 @@ trace slits pca params [3,2,1,0,0,0]        # What order polynomials should be u
 trace slits pca extrapolate pos     0             # How many extra orders to predict in the positive direction
 trace slits pca extrapolate neg     0             # How many extra orders to predict in the negative direction
 trace slits polyorder  3             # What is the order of the function that should be used?
-trace slits sigdetect  5.0           # Sigma detection threshold for edge detection
+trace slits sigdetect  20.0           # Sigma detection threshold for edge detection
 trace slits single []                #
 trace slits tilts idsonly False       # Use only the arc lines that have an identified wavelength to trace tilts
 trace slits tilts method      spline        # What method should be used to trace the tilt of the slit along an order (PCA, spca, spline, interp, perp, zero)
