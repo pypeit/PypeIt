@@ -24,7 +24,7 @@ except ImportError:
     import pdb as debugger
 
 
-def assign_slits(binarr, edgearr, lor=-1):
+def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
     """
     This routine will traces the locations of the slit edges
 
@@ -34,6 +34,8 @@ def assign_slits(binarr, edgearr, lor=-1):
       Calibration frame that will be used to identify slit traces (in most cases, the slit edge)
     edgearr : numpy ndarray
       An array of negative/positive numbers (left/right edges respectively) and zeros (no edge)
+    ednum : int
+      A dummy number given to define slit edges
     lor : int (-1 or +1)
       A flag that indicates if the left edge (-1) or right edge (+1) should be assigned
 
@@ -52,7 +54,7 @@ def assign_slits(binarr, edgearr, lor=-1):
     oldedgearr = edgearr.copy()
     while True:
         msgs.prindent("Outer {0:s} edge loop, Iteration {1:d}".format(lortxt, outitnm))
-        labnum = lor*500
+        labnum = lor*ednum
         itnm = 0
         nslit = 0
         cmnold = None
@@ -62,9 +64,9 @@ def assign_slits(binarr, edgearr, lor=-1):
             itnm += 1
             # Locate edges relative to the most common edge
             if lor == -1:
-                wl = np.where(edgearr <= -1000)
+                wl = np.where(edgearr <= -2*ednum)
             else:
-                wl = np.where(edgearr >= 1000)
+                wl = np.where(edgearr >= 2*ednum)
             if wl[0].size == 0:
                 break
             cl = Counter(edg for edg in edgearr[wl])
@@ -89,9 +91,9 @@ def assign_slits(binarr, edgearr, lor=-1):
             edgehist[offs+1] = 1 + ww[0].size/2
             # Find the difference between unknown edges
             if lor == -1:
-                www = np.where(tedgearr <= -1000)
+                www = np.where(tedgearr <= -2*ednum)
             else:
-                www = np.where(tedgearr >= 1000)
+                www = np.where(tedgearr >= 2*ednum)
             if www[0].size == 0:
                 break
             shft = www[1] - ww[1][www[0]]  # Calculate the shift between right edges
@@ -162,9 +164,9 @@ def assign_slits(binarr, edgearr, lor=-1):
 
                 for pp in range(wspk.size):  # For all small peaks identified
                     for vv in range(vals.size):
-                        if lor == -1 and vals[vv] > -1000:
+                        if lor == -1 and vals[vv] > -2*ednum:
                             continue
-                        elif lor == 1 and vals[vv] < 1000:
+                        elif lor == 1 and vals[vv] < 2*ednum:
                             continue
                         # Make sure this value is within 1 pixel of the peak
                         if meddiff[vv] < wspk[pp]-1:
@@ -184,9 +186,9 @@ def assign_slits(binarr, edgearr, lor=-1):
             firstpass = False
         outitnm += 1
         if lor == -1:
-            edgearr[np.where(edgearr <= -1000)] = 0
+            edgearr[np.where(edgearr <= -2*ednum)] = 0
         else:
-            edgearr[np.where(edgearr >= 1000)] = 0
+            edgearr[np.where(edgearr >= 2*ednum)] = 0
         if np.array_equal(edgearr, oldedgearr):
             break
         elif outitnm > 10:
@@ -197,20 +199,20 @@ def assign_slits(binarr, edgearr, lor=-1):
         else:
             oldedgearr = edgearr.copy()
             if lor == -1:
-                edgearr[np.where(edgearr <= -500)] -= 500
+                edgearr[np.where(edgearr <= -ednum)] -= ednum
             else:
-                edgearr[np.where(edgearr >= 500)] += 500
+                edgearr[np.where(edgearr >= ednum)] += ednum
     # Ignore any order detections that weren't identified in the loop
     if lor == -1:
-        edgearr[np.where(edgearr <= -1000)] = 0
+        edgearr[np.where(edgearr <= -2*ednum)] = 0
     else:
-        edgearr[np.where(edgearr >= 1000)] = 0
+        edgearr[np.where(edgearr >= 2*ednum)] = 0
     # Sort vals by increasing spatial position on the detector
     # First, determine the model for the most common slit edge
     if lor == -1:
-        wcm = np.where(edgearr <= -500)
+        wcm = np.where(edgearr <= -ednum)
     else:
-        wcm = np.where(edgearr >= 500)
+        wcm = np.where(edgearr >= ednum)
     if wcm[0].size != 0:
         cntr = Counter(edg for edg in edgearr[wcm])
         commn = cntr.most_common(1)
@@ -235,12 +237,12 @@ def assign_slits(binarr, edgearr, lor=-1):
         diffstd /= vals.size
         dasrt = np.argsort(diffarr)
         # Relabel the edges from left to right
-        edgearr[wcm] += lor*500
-        labnum = lor*500
+        edgearr[wcm] += lor*ednum
+        labnum = lor*ednum
         diffarrsrt = diffarr[dasrt]
         diffs = diffarrsrt[1:] - diffarrsrt[:-1]
         for jj in range(vals.size):
-            wrplc = np.where(edgearr == lor*500 + vals[dasrt[jj]])
+            wrplc = np.where(edgearr == lor*ednum + vals[dasrt[jj]])
             edgearr[wrplc] = labnum
             if jj != vals.size-1:
                 if diffs[jj] > 3.0*diffstd:
@@ -520,9 +522,10 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
     dnum = settings.get_dnum(det)
+    ednum = 100000  # A large dummy number used for slit edge assignment. ednum should be larger than the number of edges detected
     from pypit import arcytrace
 
-    msgs.info("Preparing trace frame for order edge detection")
+    msgs.info("Preparing trace frame for slit detection")
     # Generate a binned (or smoothed) version of the trace frame
     binarr = ndimage.uniform_filter(mstrace, size=(3, 1))
     binbpx = slf._bpix[det-1].copy()
@@ -577,8 +580,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
         filt *= (1.0 - binbpx)  # Apply to the bad pixel mask
         siglev = np.sign(filt)*(filt**2)/sqmstrace
         tedges = np.zeros(binarr.shape, dtype=np.float)
-        wl = np.where(siglev > +20.0)  # A positive gradient is a left edge
-        wr = np.where(siglev < -20.0)  # A negative gradient is a right edge
+        wl = np.where(siglev > +settings.argflag['trace']['slits']['sigdetect'])  # A positive gradient is a left edge
+        wr = np.where(siglev < -settings.argflag['trace']['slits']['sigdetect'])  # A negative gradient is a right edge
         tedges[wl] = -1.0
         tedges[wr] = +1.0
         # import astropy.io.fits as pyfits
@@ -631,7 +634,9 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
 
     # Assign a number to each of the edges
     msgs.info("Matching slit edges")
-    lcnt, rcnt = arcytrace.match_edges(edgearr)
+    lcnt, rcnt = arcytrace.match_edges(edgearr, ednum)
+    if lcnt >= ednum or rcnt >= ednum:
+        msgs.bug("Found more edges than allowed by ednum. Set ednum to a larger number.")
     if lcnt == 1:
         letxt = "edge"
     else:
@@ -642,21 +647,21 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
         retxt = "edges"
     msgs.info("{0:d} left {1:s} and {2:d} right {3:s} were found in the trace".format(lcnt, letxt, rcnt, retxt))
     if (lcnt == 0) and (rcnt == 0):
-        if np.median(binarr) > 500:
+        if np.median(binarr) > ednum:
             msgs.warn("Found flux but no edges.  Assuming they go to the edge of the detector.")
-            edgearr[:, -1] = 1000
+            edgearr[:, -1] = 2*ednum
             rcnt = 1
-            edgearr[:, 0] = -1000
+            edgearr[:, 0] = -2*ednum
             lcnt = 1
         else:
             msgs.error("Unable to trace any edges"+msgs.newline()+"try a different method to trace the order edges")
     elif rcnt == 0:
         msgs.warn("Unable to find a right edge. Adding one in.")
-        edgearr[:, -1] = 1000
+        edgearr[:, -1] = 2*ednum
         rcnt = 1
     elif lcnt == 0:
         msgs.warn("Unable to find a left edge. Adding one in.")
-        edgearr[:, 0] = -1000
+        edgearr[:, 0] = -2*ednum
         lcnt = 1
     msgs.info("Assigning slit edge traces")
     # Find the most common set of edges
@@ -669,13 +674,13 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     # Assign left edges
     msgs.info("Assigning left slit edges")
     if lcnt == 1:
-        edgearrcp[np.where(edgearrcp <= -1000)] = -500
+        edgearrcp[np.where(edgearrcp <= -2*ednum)] = -ednum
     else:
         assign_slits(binarr, edgearrcp, lor=-1)
     # Assign right edges
     msgs.info("Assigning right slit edges")
     if rcnt == 1:
-        edgearrcp[np.where(edgearrcp >= 1000)] = 500
+        edgearrcp[np.where(edgearrcp >= 2*ednum)] = ednum
     else:
         assign_slits(binarr, edgearrcp, lor=+1)
     if settings.argflag['trace']['slits']['maxgap'] is not None:
@@ -791,12 +796,12 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
             if lmax < lmin:
                 msgs.warn("Unable to find a left edge2. Adding one in.")
                 iterate = True
-                edgearr[:,0] = -1000
+                edgearr[:,0] = -2*ednum
                 lcnt = 1
             if rmax < rmin:
                 msgs.warn("Unable to find a right edge2. Adding one in.")
                 iterate = True
-                edgearr[:,-1] = 1000
+                edgearr[:,-1] = 2*ednum
                 rcnt = 1
     # Trace left slit edges
     # First, determine the model for the most common left slit edge

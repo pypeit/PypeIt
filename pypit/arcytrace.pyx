@@ -38,7 +38,7 @@ cdef extern from "gsl/gsl_multifit.h":
 
 @cython.boundscheck(False)
 def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
-                int lcnt, int rcnt):
+                int lcnt, int rcnt, int ednum):
     cdef int sz_x, sz_y, x, y, i, ni
     cdef int coml, comr, cntl, cntr
     cdef int nl, nr, tolp, tolm, tf, ymn, ymx
@@ -56,9 +56,9 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
         for y in range(sz_y):
             if edgdet[x,y] == 0: continue
             elif edgdet[x,y] < 0:
-                larr[-1000-edgdet[x,y]] += 1
+                larr[-2*ednum-edgdet[x,y]] += 1
             elif edgdet[x,y] > 0:
-                rarr[edgdet[x,y]-1000] += 1
+                rarr[edgdet[x,y]-2*ednum] += 1
     coml = 0
     cntl = larr[0]
     for x in range(1,lcnt):
@@ -79,11 +79,11 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     nr = 0
     for x in range(sz_x):
         for y in range(sz_y):
-            if edgdet[x,y] == -1000-coml:
+            if edgdet[x,y] == -2*ednum-coml:
                 lcarr[nl,0] = x
                 lcarr[nl,1] = y
                 nl += 1
-            elif edgdet[x,y] == 1000+comr:
+            elif edgdet[x,y] == 2*ednum+comr:
                 rcarr[nr,0] = x
                 rcarr[nr,1] = y
                 nr += 1
@@ -92,9 +92,9 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
 
     # Label this slit edge
     for x in range(nl):
-        edgdet[lcarr[x,0],lcarr[x,1]] = -500
+        edgdet[lcarr[x,0],lcarr[x,1]] = -ednum
     for x in range(nr):
-        edgdet[rcarr[x,0],rcarr[x,1]] = 500
+        edgdet[rcarr[x,0],rcarr[x,1]] = ednum
 
     # Find the closest set of points above and below this slit
     cdef np.ndarray[ITYPE_t, ndim=1] llab = np.zeros((lcnt), dtype=ITYPE)
@@ -103,11 +103,11 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     cdef np.ndarray[DTYPE_t, ndim=1] ldiffm = np.zeros((nl), dtype=DTYPE)
     cdef np.ndarray[DTYPE_t, ndim=1] rdiffp = np.zeros((nr), dtype=DTYPE)
     cdef np.ndarray[DTYPE_t, ndim=1] rdiffm = np.zeros((nr), dtype=DTYPE)
-    llab[coml] = 500 # Label the most common slit edge as 500
-    rlab[comr] = 500 # Label the most common slit edge as 500
+    llab[coml] = ednum # Label the most common slit edge as ednum
+    rlab[comr] = ednum # Label the most common slit edge as ednum
     for x in range(nl):
         for y in range(lcarr[x,1]+1,sz_y):
-            if edgdet[lcarr[x,0],y] < -999:
+            if edgdet[lcarr[x,0],y] <= -2*ednum:
                 ldiffp[x] = <double>(y - lcarr[x,1])
                 break
         for y in range(0,lcarr[x,1]):
@@ -116,7 +116,7 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 break
     for x in range(nr):
         for y in range(rcarr[x,1]+1,sz_y):
-            if edgdet[rcarr[x,0],y] > 999:
+            if edgdet[rcarr[x,0],y] >= 2*ednum:
                 rdiffp[x] = <double>(y - rcarr[x,1])
                 break
         for y in range(0,rcarr[x,1]):
@@ -135,17 +135,17 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
             if ymn < 0: ymn = 0
             if ymx > sz_y: ymx = sz_y
             for y in range(ymn,ymx):
-                if edgdet[lcarr[x,0],y] < -999:
-                    llab[-1000-edgdet[lcarr[x,0],y]] = 500+i
-                    edgdet[lcarr[x,0],y] = -(500+i)
+                if edgdet[lcarr[x,0],y] <= -2*ednum:
+                    llab[-2*ednum-edgdet[lcarr[x,0],y]] = ednum+i
+                    edgdet[lcarr[x,0],y] = -(ednum+i)
             ymn = lcarr[x,1]-i*tolm-tolm/tf
             ymx = lcarr[x,1]-i*tolm+tolm/tf+1
             if ymn < 0: ymn = 0
             if ymx > sz_y: ymx = sz_y
             for y in range(ymn,ymx):
-                if edgdet[lcarr[x,0],y] < -999:
-                    llab[-1000-edgdet[lcarr[x,0],y]] = 500-i
-                    edgdet[lcarr[x,0],y] = -(500-i)
+                if edgdet[lcarr[x,0],y] <= -2*ednum:
+                    llab[-2*ednum-edgdet[lcarr[x,0],y]] = ednum-i
+                    edgdet[lcarr[x,0],y] = -(ednum-i)
     tolp = <int>(median(rdiffp))
     tolm = <int>(median(rdiffm))
     for x in range(nr):
@@ -155,20 +155,20 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
             if ymn < 0: ymn = 0
             if ymx > sz_y: ymx = sz_y
             for y in range(ymn,ymx):
-                if edgdet[rcarr[x,0],y] > 999:
-                    rlab[edgdet[rcarr[x,0],y]-1000] = 500+i
-                    edgdet[rcarr[x,0],y] = 500+i
+                if edgdet[rcarr[x,0],y] >= 2*ednum:
+                    rlab[edgdet[rcarr[x,0],y]-2*ednum] = ednum+i
+                    edgdet[rcarr[x,0],y] = ednum+i
             ymn = rcarr[x,1]-i*tolm-tolm/tf
             ymx = rcarr[x,1]-i*tolm+tolm/tf+1
             if ymn < 0: ymn = 0
             if ymx > sz_y: ymx = sz_y
             for y in range(ymn,ymx):
-                if edgdet[rcarr[x,0],y] > 999:
-                    rlab[edgdet[rcarr[x,0],y]-1000] = 500-i
-                    edgdet[rcarr[x,0],y] = 500-i
+                if edgdet[rcarr[x,0],y] >= 2*ednum:
+                    rlab[edgdet[rcarr[x,0],y]-2*ednum] = ednum-i
+                    edgdet[rcarr[x,0],y] = ednum-i
 
     # Iterate through and label all of the left edges
-    idnum = -501
+    idnum = -ednum-1
     while True:
         nc, tolp, tolm = get_xy(edgdet, lcarr, idnum, -1) # -1 specifies the direction to move in
         if nc == 0: break
@@ -180,23 +180,23 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 if ymn < 0: ymn = 0
                 if ymx > sz_y: ymx = sz_y
                 for y in range(ymn,ymx):
-                    if edgdet[lcarr[x,0],y] < -999:
-                        llab[-1000-edgdet[lcarr[x,0],y]] = -(idnum-i)
+                    if edgdet[lcarr[x,0],y] <= -2*ednum:
+                        llab[-2*ednum-edgdet[lcarr[x,0],y]] = -(idnum-i)
                         edgdet[lcarr[x,0],y] = idnum-i
                 ymn = lcarr[x,1]-i*tolm-tolm/tf
                 ymx = lcarr[x,1]-i*tolm+tolm/tf+1
                 if ymn < 0: ymn = 0
                 if ymx > sz_y: ymx = sz_y
                 for y in range(ymn,ymx):
-                    if edgdet[lcarr[x,0],y] < -999:
-                        llab[-1000-edgdet[lcarr[x,0],y]] = -(idnum+i)
+                    if edgdet[lcarr[x,0],y] <= -2*ednum:
+                        llab[-2*ednum-edgdet[lcarr[x,0],y]] = -(idnum+i)
                         edgdet[lcarr[x,0],y] = idnum+i
         # Update the labels
-        update_labels(edgdet,llab,idnum,ni,-1)
+        update_labels(edgdet, llab, idnum, ni, -1, ednum)
         idnum -= 1
     #
-    # Now search and label the left edges, except now search backwards from order '500'
-    idnum = -499
+    # Now search and label the left edges, except now search backwards from edge ednum
+    idnum = -ednum+1
     while True:
         nc, tolp, tolm = get_xy(edgdet, lcarr, idnum, +1) # +1 specifies the direction to move in
         if nc == 0: break
@@ -208,22 +208,22 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 if ymn < 0: ymn = 0
                 if ymx > sz_y: ymx = sz_y
                 for y in range(ymn,ymx):
-                    if edgdet[lcarr[x,0],y] < -999:
-                        llab[-1000-edgdet[lcarr[x,0],y]] = -(idnum-i)
+                    if edgdet[lcarr[x,0],y] <= -2*ednum:
+                        llab[-2*ednum-edgdet[lcarr[x,0],y]] = -(idnum-i)
                         edgdet[lcarr[x,0],y] = idnum-i
                 ymn = lcarr[x,1]-i*tolm-tolm/tf
                 ymx = lcarr[x,1]-i*tolm+tolm/tf+1
                 if ymn < 0: ymn = 0
                 if ymx > sz_y: ymx = sz_y
                 for y in range(ymn,ymx):
-                    if edgdet[lcarr[x,0],y] < -999:
-                        llab[-1000-edgdet[lcarr[x,0],y]] = -(idnum+i)
+                    if edgdet[lcarr[x,0],y] <= -2*ednum:
+                        llab[-2*ednum-edgdet[lcarr[x,0],y]] = -(idnum+i)
                         edgdet[lcarr[x,0],y] = idnum+i
-        update_labels(edgdet,llab,idnum,ni,-1)
+        update_labels(edgdet, llab, idnum, ni, -1, ednum)
         idnum += 1
     #
     # Now iterate through and label all of the right edges
-    idnum = 501
+    idnum = ednum+1
     while True:
         nc, tolp, tolm = get_xy(edgdet, rcarr, idnum, +1) # +1 specifies the direction to move in
         if nc == 0: break
@@ -235,22 +235,22 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 if ymn < 0: ymn = 0
                 if ymx > sz_y: ymx = sz_y
                 for y in range(ymn,ymx):
-                    if edgdet[rcarr[x,0],y] > 999:
-                        rlab[edgdet[rcarr[x,0],y]-1000] = idnum+i
+                    if edgdet[rcarr[x,0],y] >= 2*ednum:
+                        rlab[edgdet[rcarr[x,0],y]-2*ednum] = idnum+i
                         edgdet[rcarr[x,0],y] = idnum+i
                 ymn = rcarr[x,1]-i*tolm-tolm/tf
                 ymx = rcarr[x,1]-i*tolm+tolm/tf+1
                 if ymn < 0: ymn = 0
                 if ymx > sz_y: ymx = sz_y
                 for y in range(ymn,ymx):
-                    if edgdet[rcarr[x,0],y] > 999:
-                        rlab[edgdet[rcarr[x,0],y]-1000] = idnum-i
+                    if edgdet[rcarr[x,0],y] >= 2*ednum:
+                        rlab[edgdet[rcarr[x,0],y]-2*ednum] = idnum-i
                         edgdet[rcarr[x,0],y] = idnum-i
-        update_labels(edgdet, rlab, idnum, ni, +1)
+        update_labels(edgdet, rlab, idnum, ni, +1, ednum)
         idnum += 1
     #
-    # Now search and label the right edges, except now search backwards from order '500'
-    idnum = 499
+    # Now search and label the right edges, except now search backwards from edge ednum
+    idnum = ednum-1
     while True:
         nc, tolp, tolm = get_xy(edgdet, rcarr, idnum, -1) # -1 specifies the direction to move in
         if nc == 0: break
@@ -262,29 +262,29 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 if ymn < 0: ymn = 0
                 if ymx > sz_y: ymx = sz_y
                 for y in range(ymn,ymx):
-                    if edgdet[rcarr[x,0],y] > 999:
-                        rlab[edgdet[rcarr[x,0],y]-1000] = idnum+i
+                    if edgdet[rcarr[x,0],y] >= 2*ednum:
+                        rlab[edgdet[rcarr[x,0],y]-2*ednum] = idnum+i
                         edgdet[rcarr[x,0],y] = idnum+i
                 ymn = rcarr[x,1]-i*tolm-tolm/tf
                 ymx = rcarr[x,1]-i*tolm+tolm/tf+1
                 if ymn < 0: ymn = 0
                 if ymx > sz_y: ymx = sz_y
                 for y in range(ymn,ymx):
-                    if edgdet[rcarr[x,0],y] > 999:
-                        rlab[edgdet[rcarr[x,0],y]-1000] = idnum-i
+                    if edgdet[rcarr[x,0],y] >= 2*ednum:
+                        rlab[edgdet[rcarr[x,0],y]-2*ednum] = idnum-i
                         edgdet[rcarr[x,0],y] = idnum-i
-        update_labels(edgdet, rlab, idnum, ni, +1)
+        update_labels(edgdet, rlab, idnum, ni, +1, ednum)
         idnum -= 1
     #
     # Search through edgdet and remove any unidentified (spurious) identifications
-    rmin = 500
-    rmax = 500
-    lmin = 500
-    lmax = 500
+    rmin = ednum
+    rmax = ednum
+    lmin = ednum
+    lmax = ednum
     for x in range(sz_x):
         for y in range(sz_y):
-            if edgdet[x,y] < -999: edgdet[x,y] = 0
-            elif edgdet[x,y] > 999: edgdet[x,y] = 0
+            if edgdet[x,y] <= -2*ednum: edgdet[x,y] = 0
+            elif edgdet[x,y] >= 2*ednum: edgdet[x,y] = 0
             else:
                 if edgdet[x,y] < 0:
                     if -edgdet[x,y] < lmin: lmin = -edgdet[x,y]
@@ -449,7 +449,7 @@ def close_edges(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
 def close_slits(np.ndarray[DTYPE_t, ndim=2] trframe not None,
                 np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 np.ndarray[ITYPE_t, ndim=1] dets not None,
-                int npix):
+                int npix, int ednum):
 
     cdef int sz_x, sz_y, sz_d
     cdef int x, y, d, s, mgap, lgap, rgap, enum
@@ -531,14 +531,14 @@ def close_slits(np.ndarray[DTYPE_t, ndim=2] trframe not None,
 
     # Introduce an edge in cases where no edge exists,
     # and redefine an edge where one does exist.
-    enum = 500
+    enum = ednum
     for d in range(0, sz_d):
         tmp = 0
         for x in range(0, sz_x):
             for y in range(0, sz_y):
                 if edgdet[x, y] != dets[d]:
                     continue
-                if hasedge[d] >= 500:
+                if hasedge[d] >= ednum:
                     edgearr[x, y] = enum
                     # Relabel the appropriate hasedge
                     if tmp == 0:
@@ -693,7 +693,7 @@ def dual_edge(np.ndarray[ITYPE_t, ndim=2] edgearr not None,
 #  E  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def edge_sum(np.ndarray[ITYPE_t, ndim=1] edghist not None,
             np.ndarray[ITYPE_t, ndim=1] sumarr not None):
     cdef int s, sz_s
@@ -1464,14 +1464,14 @@ def ignore_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
 
 @cython.boundscheck(False)
 def label_orders_two(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
-                int lcnt, int rcnt):
+                int lcnt, int rcnt, int ednum):
     cdef int sz_x, sz_y, cnt
     cdef int x, y, c, j
     cdef double lvcnt, rvcnt, lncnt, rncnt
     cdef double tempa, tempb
 
-    lcnt = lcnt - 1000
-    rcnt = rcnt - 1000
+    lcnt = lcnt - 2*ednum
+    rcnt = rcnt - 2*ednum
 
     if lcnt > rcnt: cnt = lcnt
     else: cnt = rcnt
@@ -1482,7 +1482,7 @@ def label_orders_two(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     cdef np.ndarray[DTYPE_t, ndim=2] larr = np.zeros((2,lcnt), dtype=DTYPE)
     cdef np.ndarray[DTYPE_t, ndim=2] rarr = np.zeros((2,rcnt), dtype=DTYPE)
 
-    for c in range(1000,1000+cnt):
+    for c in range(2*ednum,2*ednum+cnt):
         lvcnt = 0.0
         rvcnt = 0.0
         lncnt = 0.0
@@ -1496,11 +1496,11 @@ def label_orders_two(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                     lvcnt += <double>(y)
                     lncnt += 1.0
         if lncnt != 0.0:
-            larr[0,c-1000] = <double>(c)
-            larr[1,c-1000] = lvcnt/lncnt
+            larr[0,c-2*ednum] = <double>(c)
+            larr[1,c-2*ednum] = lvcnt/lncnt
         if rncnt != 0.0:
-            rarr[0,c-1000] = <double>(c)
-            rarr[1,c-1000] = rvcnt/rncnt
+            rarr[0,c-2*ednum] = <double>(c)
+            rarr[1,c-2*ednum] = rvcnt/rncnt
     print "completed first loop"
     # Now sort according to average order distance from one edge
     for x in range(lcnt-1):
@@ -1523,7 +1523,7 @@ def label_orders_two(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 rarr[1,y] = tempb
     print "applying orders"
     # Finally, apply these new numbers to the orders
-    for c in range(1000,1000+cnt):
+    for c in range(2*ednum,2*ednum+cnt):
         for x in range(sz_x):
             for y in range(sz_y):
                 if edgdet[x,y] == c:
@@ -1637,7 +1637,8 @@ def mad(np.ndarray[DTYPE_t, ndim=1] madarr not None):
 
 
 @cython.boundscheck(False)
-def match_edges(np.ndarray[ITYPE_t, ndim=2] edgdet not None):
+def match_edges(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
+                int ednum):
     cdef int sz_x, sz_y
     cdef int x, y, yn, yx, xr, xs, yt, s, t
     cdef int lcnt, rcnt, suc, anyt
@@ -1649,8 +1650,8 @@ def match_edges(np.ndarray[ITYPE_t, ndim=2] edgdet not None):
     sz_x = edgdet.shape[0]
     sz_y = edgdet.shape[1]
 
-    lcnt = 1000
-    rcnt = 1000
+    lcnt = 2*ednum
+    rcnt = 2*ednum
     for y in range(sz_y):
         for x in range(sz_x):
             anyt = 0
@@ -1776,7 +1777,7 @@ def match_edges(np.ndarray[ITYPE_t, ndim=2] edgdet not None):
                     for s in range(anyt):
                         if mrxarr[s] != 0 and mryarr[s] != 0:
                             edgdet[mrxarr[s], mryarr[s]] = 0
-    return lcnt-1000, rcnt-1000
+    return lcnt-2*ednum, rcnt-2*ednum
 
 
 @cython.boundscheck(False)
@@ -2453,7 +2454,7 @@ def trace_tilts(np.ndarray[DTYPE_t, ndim=2] msarc not None,
 @cython.boundscheck(False)
 def update_labels(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 np.ndarray[ITYPE_t, ndim=1] labels not None,
-                int idnum, int ni, int sn):
+                int idnum, int ni, int sn, int ednum):
     cdef int sz_x, sz_y, sz_l
     cdef int x, y, l, nc
 
@@ -2469,7 +2470,7 @@ def update_labels(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     for l in range(sz_l):
         indx[l] = -1
         if labels[l] >= sn*idnum-ni and labels[l] <= sn*idnum+ni:
-            indx[nc] = sn*(1000+l)
+            indx[nc] = sn*(2*ednum+l)
             indl[nc] = sn*labels[l]
             nc += 1
 
