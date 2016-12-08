@@ -1641,6 +1641,20 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
+    def trace_dispersion_direction(self, v):
+        """ Specify the primary dispersion direction of the raw data (0 for row, 1 for column)
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_int(v)
+        if v != 0 and v != 1:
+            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
+                       "0 or 1 (if the dispersion axis is along a row or column respectively)")
+        self.update(v)
+
     def trace_slits_diffpolyorder(self, v):
         """ What is the order of the 2D function that should be used to fit
         the 2D solution for the spatial size of all slits?
@@ -1655,18 +1669,18 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def trace_dispersion_direction(self, v):
-        """ Specify the primary dispersion direction of the raw data (0 for row, 1 for column)
+    def trace_slits_expand(self, v):
+        """ If you are tracing the slit edges with a trace frame (e.g. a pinhole decker),
+        you should expand the slit edges to the edges defined by the slitflat frame, which
+        should be a flatfield exposure taken with the same slit length as the science frame.
+        If the slits are traced with a slitflat frame, there is no need to expand the slits.
 
         Parameters
         ----------
         v : str
           value of the keyword argument given by the name of this function
         """
-        v = key_int(v)
-        if v != 0 and v != 1:
-            msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
-                       "0 or 1 (if the dispersion axis is along a row or column respectively)")
+        v = key_bool(v)
         self.update(v)
 
     def trace_slits_fracignore(self, v):
