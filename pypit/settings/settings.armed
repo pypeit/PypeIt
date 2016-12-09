@@ -86,7 +86,7 @@ trace slits function    legendre      # What function should be used to trace ea
 trace slits maxgap    None          # Maximum gap between slits (None if slits are far apart, or of similar illumination)
 trace slits number      auto          # Manually set the number of slits to identify (>=1). 'auto' or -1 will automatically identify the number of slits.
 trace slits pca type order            # Should the PCA be performed using pixel position (pixel) or by spectral order (order). The latter is used for echelle spectroscopy.
-trace slits pca params [3,2,1,0,0,0]        # What order polynomials should be used to fit the principle components
+trace slits pca params [4,2,2,1,1,0]        # What order polynomials should be used to fit the principle components
 trace slits pca extrapolate pos     0             # How many extra orders to predict in the positive direction
 trace slits pca extrapolate neg     0             # How many extra orders to predict in the negative direction
 trace slits polyorder  7             # What is the order of the function that should be used?
