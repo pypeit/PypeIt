@@ -143,10 +143,10 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._lordpix, lordpix, det)
                 slf.SetFrame(slf._rordpix, rordpix, det)
                 # Save QA for slit traces
-                arqa.slit_trace_qa(slf, slf._mstrace[det - 1], slf._lordpix[det - 1], slf._rordpix[det - 1], extord,
-                                   desc="Trace of the slit edges")
+                arqa.slit_trace_qa(slf, slf._msslitflat[det - 1], slf._lordpix[det - 1], slf._rordpix[det - 1], extord,
+                                   desc="Trace of the slit edges", normalize=False)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
-
+            msgs.error("UP TO HERE!!!")
             ###############
             # Prepare the pixel flat field frame
             update = slf.MasterFlatField(fitsdict, det)

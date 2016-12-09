@@ -286,15 +286,17 @@ def expand_slits(slf, mstrace, det, ordcen, extord):
 
     # Calculate the pixel locations of th eorder edges
     pixcen = phys_to_pix(ordcen, slf._pixlocn[det - 1], 1)
+    msgs.info("Expanding slit traces to slit edges")
     mordwid, pordwid = arcytrace.expand_slits(mstrace, pixcen, extord.astype(np.int))
+    debugger.set_trace()
     # Fit a function for the difference between left edge and the centre trace
     ldiff_coeff, ldiff_fit = arutils.polyfitter2d(mordwid, mask=-1,
-                                                  order=slf._argflag['trace']['orders']['diffpolyorder'])
+                                                  order=settings.argflag['trace']['slits']['diffpolyorder'])
     # Fit a function for the difference between left edge and the centre trace
     rdiff_coeff, rdiff_fit = arutils.polyfitter2d(pordwid, mask=-1,
-                                                  order=slf._argflag['trace']['orders']['diffpolyorder'])
-    lordloc = ordcen - ldiff_fit
-    rordloc = ordcen + rdiff_fit
+                                                  order=settings.argflag['trace']['slits']['diffpolyorder'])
+    lordloc = ordcen - ldiff_fit.T
+    rordloc = ordcen + rdiff_fit.T
     return lordloc, rordloc
 
 
@@ -830,12 +832,12 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     lwghtarr = np.zeros(lmax-lmin+1)
     lnmbrarr = np.zeros(lmax-lmin+1)
     offs = cenmodl[int(binarr.shape[0]/2)]
-#   lfail = np.array([])
+#    lfail = np.array([])
 #    minvf, maxvf = slf._pixlocn[det-1][0, 0, 0], slf._pixlocn[det-1][-1, 0, 0]
     for i in range(lmin, lmax+1):
         w = np.where(edgearr == -i)
         if np.size(w[0]) <= settings.argflag['trace']['slits']['polyorder']+2:
-#           lfail = np.append(lfail,i-lmin)
+            # lfail = np.append(lfail,i-lmin)
             continue
         tlfitx = plxbin[w]
         tlfity = plybin[w]
@@ -1059,7 +1061,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
         # Identify the orders to be extrapolated during reconstruction
         extrapord = (1.0-np.in1d(np.linspace(1.0, totord, totord), gord).astype(np.int)).astype(np.bool)
         msgs.info("Performing a PCA on the order edges")
-        ofit = settings.argflag['trace']['slits']['pca']
+        ofit = settings.argflag['trace']['slits']['pca']['params']
         lnpc = len(ofit)-1
         msgs.work("May need to do a check here to make sure ofit is reasonable")
         coeffs = arutils.func_fit(xv, slitcen, settings.argflag['trace']['slits']['function'],
@@ -1255,7 +1257,7 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
             msgs.info("  Refining order {0:d}: relative shift = {1:+f}".format(int(orders[-i]), relshift))
         # Renew guess for the next order
         mask[-i] = 1.0
-        extfit, outpar, fail = arpca.refine_iter(outpar, orders, mask, -i, relshift, fitord, msgs, function=function)
+        extfit, outpar, fail = arpca.refine_iter(outpar, orders, mask, -i, relshift, fitord, function=function)
         if fail:
             msgs.warn("Order refinement has large residuals -- check order traces")
             return extrap_cent, outparcopy
@@ -1282,7 +1284,7 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
             msgs.info("  Refining order {0:d}: relative shift = {1:+f}".format(int(orders[i-1]),relshift))
         # Renew guess for the next order
         mask[i-1] = 1.0
-        extfit, outpar, fail = arpca.refine_iter(outpar, orders, mask, i-1, relshift, fitord, msgs, function=function)
+        extfit, outpar, fail = arpca.refine_iter(outpar, orders, mask, i-1, relshift, fitord, function=function)
         if fail:
             msgs.warn("Order refinement has large residuals -- check order traces")
             return extrap_cent, outparcopy
