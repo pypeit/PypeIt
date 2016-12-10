@@ -740,16 +740,15 @@ def expand_slits(np.ndarray[DTYPE_t, ndim=2] msedge not None,
                     if ymax < 0:
                         mwid = -1
                     else:
-                        edgv = 0.5*(msedge[x, ordcen[x, o]] + msedge[x, ymax])
-                        for y in range(ymax, ordcen[x, o]):
-                            if msedge[x, ordcen[x, o]] > msedge[x, ymax]:
-                                # There's a gap between echelle orders
+                        if msedge[x, ordcen[x, o]] < msedge[x, ymax]:
+                            # Slits overlap
+                            mwid = -1
+                        else:
+                            # There's a gap between echelle orders
+                            # Find the slit edge
+                            edgv = 0.5*(msedge[x, ordcen[x, o]] + msedge[x, ymax])
+                            for y in range(ymax, ordcen[x, o]):
                                 if msedge[x, y] > edgv:
-                                    mwid = ordcen[x, o]-y
-                                    break
-                            else:
-                                # Orders overlap
-                                if msedge[x, y] < edgv:
                                     mwid = ordcen[x, o]-y
                                     break
                 # Trace from centre to right
@@ -761,17 +760,16 @@ def expand_slits(np.ndarray[DTYPE_t, ndim=2] msedge not None,
                     if ymax >= sz_y:
                         pwid = -1
                     else:
-                        edgv = 0.5*(msedge[x, ordcen[x, o]] + msedge[x, ymax])
-                        for y in range(0, ymax-ordcen[x, o]):
-                            if msedge[x, ordcen[x, o]] > msedge[x, ymax]:
-                                # There's a gap between echelle orders
+                        if msedge[x, ordcen[x, o]] < msedge[x, ymax]:
+                            # Slits overlap
+                            pwid = -1
+                        else:
+                            # There's a gap between echelle orders
+                            # Find the slit edge
+                            edgv = 0.5*(msedge[x, ordcen[x, o]] + msedge[x, ymax])
+                            for y in range(0, ymax-ordcen[x, o]):
                                 if msedge[x, ymax-y] > edgv:
-                                    mwid = (ymax-ordcen[x, o])-y
-                                    break
-                            else:
-                                # Orders overlap
-                                if msedge[x, ymax-y] < edgv:
-                                    mwid = (ymax-ordcen[x, o])-y
+                                    pwid = (ymax-ordcen[x, o])-y
                                     break
             mordwid[x, o] = mwid
             pordwid[x, o] = pwid
