@@ -85,6 +85,9 @@ def SetupScience(fitsdict):
                 for key in filesort.keys():
                     if key in ['unknown', 'dark']:
                         continue
+                    if len(settings.spect[key]['index']) == 0:
+                        # No bias frames
+                        continue
                     for idx in settings.spect[key]['index'][sc]:
                         # Only add if new
                         if fitsdict['filename'][idx] not in group_dict[group_key][key]:

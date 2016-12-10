@@ -655,7 +655,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
         retxt = "edges"
     msgs.info("{0:d} left {1:s} and {2:d} right {3:s} were found in the trace".format(lcnt, letxt, rcnt, retxt))
     if (lcnt == 0) and (rcnt == 0):
-        if np.median(binarr) > ednum:
+        if np.median(binarr) > 500:
             msgs.warn("Found flux but no edges.  Assuming they go to the edge of the detector.")
             edgearr[:, -1] = 2*ednum
             rcnt = 1
