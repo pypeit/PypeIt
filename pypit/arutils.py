@@ -459,7 +459,7 @@ def polyfitter2d(data, mask=None, order=2):
     x, y = np.meshgrid(np.linspace(0.0, 1.0, data.shape[1]), np.linspace(0.0, 1.0, data.shape[0]))
     if isinstance(mask, (float, int)):
         # mask is the value that should be masked in data
-        w = np.where(data == mask)
+        w = np.where(data != mask)
         xf = x[w].flatten()
         yf = y[w].flatten()
         m = polyfit2d(xf, yf, data[w].T.flatten(), order)
