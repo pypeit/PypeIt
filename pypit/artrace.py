@@ -644,7 +644,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     msgs.info("Matching slit edges")
     lcnt, rcnt = arcytrace.match_edges(edgearr, ednum)
     if lcnt >= ednum or rcnt >= ednum:
-        msgs.bug("Found more edges than allowed by ednum. Set ednum to a larger number.")
+        msgs.error("Found more edges than allowed by ednum. Set ednum to a larger number.")
     if lcnt == 1:
         letxt = "edge"
     else:
