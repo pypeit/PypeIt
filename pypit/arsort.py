@@ -6,6 +6,8 @@ import sys
 import shutil
 import string
 import numpy as np
+import yaml
+
 from pypit import armsgs
 from pypit import arparse as settings
 from pypit import arutils
@@ -316,7 +318,7 @@ def sort_write(fitsdict, filesort, space=3):
     # Write
     ascii_name = settings.argflag['output']['sorted']+'.lst'
     ascii_tbl.write(ascii_name, format='ascii.fixed_width')
-    return
+    return ascii_tbl
 
 
 def match_science(fitsdict, filesort):
@@ -657,7 +659,7 @@ def make_dirs(fitsdict, filesort):
 
 def calib_set(isetup_dict, sciexp, fitsdict):
     """
-    Ordering is '__', 'aa', 'ab', ...
+    Ordering is 'aa', 'ab', ...
     Parameters
     ----------
     isetup_dict
@@ -674,7 +676,7 @@ def calib_set(isetup_dict, sciexp, fitsdict):
             cb_strs.append(ll+lower)
     # Build cbset from sciexp
     new_cbset = {}
-    cbkeys = ['arcs', 'bias', 'trace', 'flat']
+    cbkeys = ['arcs', 'bias', 'trace', 'flat', 'sci']
     for cbkey in cbkeys:
         nms = fitsdict['filename'][getattr(sciexp,'_idx_'+cbkey)]
         nms.sort()
@@ -703,9 +705,13 @@ def calib_set(isetup_dict, sciexp, fitsdict):
             if key not in isetup_dict[cb_str]:
                 mtch = False
                 break
+            if key in ['sci']:
+                continue
             mtch &= np.array_equal(isetup_dict[cb_str][key], new_cbset[key])
         if mtch:
-            break
+            # Add sci frames
+            for sciframe in new_cbset['sci']:
+                break
     # Return
     return cb_str
 
@@ -860,14 +866,14 @@ def get_setup_file(spectrograph=None):
 
     if spectrograph is None:
         spectrograph = settings.argflag['run']['spectrograph']
-    setup_files = glob.glob('./{:s}*.setup'.format(spectrograph))
+    setup_files = glob.glob('./{:s}*.setups'.format(spectrograph))
     nexist = len(setup_files)
     # Require 1 or 0
     if nexist == 1:
         return setup_files[0], nexist
     elif nexist == 0:
         date = str(datetime.date.today().strftime('%Y-%b-%d'))
-        return '{:s}_{:s}.setup'.format(spectrograph,date), nexist
+        return '{:s}_{:s}.setups'.format(spectrograph,date), nexist
     else:
         msgs.error("Found more than one .setup file in the working directory.  Limit to one.")
 
@@ -923,7 +929,7 @@ def write_setup(setup_dict, use_json=False):
     -------
 
     """
-    import json, io, yaml
+    import json, io
     # Write
     setup_file, nexist = get_setup_file()
     if nexist == 1:
@@ -937,3 +943,44 @@ def write_setup(setup_dict, use_json=False):
         ydict = arutils.yamlify(setup_dict)
         with open(setup_file, 'w') as yamlf:
             yamlf.write(yaml.dump(ydict))
+
+def write_sorted(srt_tbl, group_dict, setup_dict):
+    """ Write the .sorted file
+    Parameters
+    ----------
+    group_dict
+    setup_dict
+
+    Returns
+    -------
+
+    """
+    # Output file
+    group_file = settings.argflag['run']['redname'].replace('.pypit', '.sorted')
+    ff = open(group_file, 'w')
+    # Keys
+    setups = group_dict.keys()
+    setups.sort()
+    ftypes = group_dict[setups[0]].keys()
+    ftypes.sort()
+    # Loop on Setup
+    asciiord = ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker']
+    for setup in setups:
+        in_setup = []
+        ff.write('Setup {:s}: \n'.format(setup))
+        ydict = arutils.yamlify(setup_dict[setup])
+        ff.write(yaml.dump(ydict))
+        ff.write('#---------------------------------------------------------\n')
+        # ID files
+        for key in ftypes:
+            for ifile in group_dict[setup][key]:
+                mt = np.where(srt_tbl['filename'] == ifile)[0]
+                if (len(mt) > 0) and (mt not in in_setup):
+                    in_setup.append(mt[0])
+        #
+        subtbl = srt_tbl[asciiord][np.array(in_setup)]
+        subtbl.write(ff, format='ascii.fixed_width')
+        #
+        ff.write('##########################################################\n')
+    ff.close()
+    debugger.set_trace()

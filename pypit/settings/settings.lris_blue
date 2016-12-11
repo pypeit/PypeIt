@@ -144,6 +144,7 @@ standard check condition2 hatch=open # Required for standard
 standard match dispname ''             # Check the same decker as the science frame was used
 standard match dichroic ''             # Check the same decker as the science frame was used
 standard match binning ''             # Match the shape of standard and science frames
+standard match decker ''              # Check the same decker as the science frame was used
 #standard match naxis0 =0             # Match the shape of standard and science frames
 #standard match naxis1 =0             # Match the shape of standard and science frames
 
@@ -169,6 +170,7 @@ pixelflat check condition2 exptime<30   # Avoid stars
 pixelflat match binning ''             		# Match the shape of pixelflat and science frames
 pixelflat match dichroic ''             # Check the same decker as the science frame was used
 pixelflat match dispname ''             # Check the same decker as the science frame was used
+pixelflat match decker ''               # Check the same decker as the science frame was used
 
 ### Blaze Flat frames
 slitflat idname None                   # Header key value of trace frame for header keyword keyword+idname
@@ -180,6 +182,7 @@ slitflat check condition2 exptime<30   # Avoid stars
 slitflat match binning ''             		# Match the shape of slitflat and science frames
 slitflat match dichroic ''             # Check the same decker as the science frame was used
 slitflat match dispname ''             # Check the same decker as the science frame was used
+slitflat match decker ''               # Check the same decker as the science frame was used
 
 ### Trace frames
 trace idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
@@ -195,6 +198,7 @@ trace match binning ''                 # Match the shape of trace with science
 #trace match naxis1 =0             # Match the shape of flats with science
 trace match dichroic ''             # Check the same decker as the science frame was used
 trace match dispname ''             # Check the same decker as the science frame was used
+trace match decker ''               # Check the same decker as the science frame was used
 
 ### Arc frames
 arc idname OBJECT                   # Header key value of arc frame for header keyword keyword+idname

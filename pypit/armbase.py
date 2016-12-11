@@ -5,6 +5,8 @@ import os
 import numpy as np
 import yaml
 
+from collections import OrderedDict
+
 from pypit import arparse as settings
 from pypit import armsgs
 from pypit import arsort
@@ -50,7 +52,7 @@ def SetupScience(fitsdict):
     filesort = arsort.sort_data(fitsdict, flag_unknown=bad_to_unknown)
     # Write out the details of the sorted files
     if settings.argflag['output']['sorted'] is not None:
-        arsort.sort_write(fitsdict, filesort)
+        srt_tbl = arsort.sort_write(fitsdict, filesort)
     # Match calibration frames to science frames
     arsort.match_science(fitsdict, filesort)
     # Make directory structure for different objects
@@ -70,7 +72,7 @@ def SetupScience(fitsdict):
             setupID = arsort.instr_setup(sciexp[sc], kk+1, fitsdict, setup_dict, skip_cset=skip_cset)
             if kk == 0: # Only save the first detector for run setup
                 setupIDs.append(setupID)
-    # Group file
+    # Calib IDs
     group_dict = {}
     if settings.argflag['run']['setup']: # Collate all matching files
         for sc,setupID in enumerate(setupIDs):
@@ -97,6 +99,11 @@ def SetupScience(fitsdict):
                             group_dict[config_key]['stdobj'].append(fitsdict['target'][idx])
                     if key == 'science':  # Add target name
                         group_dict[config_key]['sciobj'].append(fitsdict['target'][scidx])
+        # Write .sorted file
+        arsort.write_sorted(srt_tbl, group_dict, setup_dict)
+        #ydict = arutils.yamlify(group_dict)
+        #with open(group_file, 'w') as yamlf:
+        #    yamlf.write( yaml.dump(ydict))#, default_flow_style=True) )
     else:  # Take from setup_dict
         debugger.set_trace()
         for config_key in setup_dict:
@@ -121,11 +128,6 @@ def SetupScience(fitsdict):
         #prev_setup_dict = arsort.load_setup()
         #if arsort.compare_setup(setup_dict, prev_setup_dict) is False:
         #    msgs.error("Existing setup (from disk) does not match new one.  Regenerate setup file")
-    # Write group file
-    group_file = settings.argflag['run']['redname'].replace('.pypit', '.group')
-    ydict = arutils.yamlify(group_dict)
-    with open(group_file, 'w') as yamlf:
-        yamlf.write( yaml.dump(ydict))#, default_flow_style=True) )
     # Finish calcheck or setup
     if settings.argflag['run']['calcheck'] or settings.argflag['run']['setup']:
         msgs.info("Inspect the setup file: {:s}".format(setup_file))

@@ -20,7 +20,7 @@ def parser(options=None):
     import argparse
 
     parser = argparse.ArgumentParser(description="Script to setup a PYPIT run")
-    parser.add_argument("files_root", type=str, help="File root or .pypit filename")
+    parser.add_argument("files_root", type=str, help="File path+root or .pypit filename")
     parser.add_argument("spectrograph", type=str, help="Name of spectrograph")
     parser.add_argument("-v", "--verbosity", type=int, default=2, help="(2) Level of verbosity (0-2)")
     parser.add_argument("-d", "--develop", default=False, action='store_true', help="Turn develop debugging on")
@@ -51,9 +51,9 @@ def main(args):
     import yaml
 
     # Check for existing setup file
-    setup_files = glob.glob('./{:s}*.setup'.format(args.spectrograph))
+    setup_files = glob.glob('./{:s}*.setups'.format(args.spectrograph))
     if len(setup_files) > 0:
-        print("Working directory already includes a .setup file")
+        print("Working directory already includes a .setups file")
         for ifile in setup_files:
             print("Remove: {:s}".format(ifile))
         print("Then you can re-run this script")
