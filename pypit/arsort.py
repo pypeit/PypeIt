@@ -944,6 +944,49 @@ def write_setup(setup_dict, use_json=False):
         with open(setup_file, 'w') as yamlf:
             yamlf.write(yaml.dump(ydict))
 
+def load_sorted(sorted_file):
+    """ Load a .sorted file (mainly to generate a .pypit file)
+    Parameters
+    ----------
+    sorted_file : str
+
+    Returns
+    -------
+    all_setups : list
+     list of all setups eg. ['A','B']
+    all_setuplines : list
+     list of lists of all setup lines which describe the setup
+    all_setupfiles : list
+     list of lists of all setup files including the header
+    """
+    all_setups, all_setuplines, all_setupfiles = [], [], []
+    with open(sorted_file,'r') as ff:
+        # Should begin with ####
+        fline = ff.readline()
+        if fline[0:4] != '####':
+            msgs.error('Bad .sorted fomatting')
+        # Loop on setups
+        while fline[0:5] != '##end':
+            # Setup lines
+            setuplines = []
+            while fline[0:2] != '#-':
+                fline = ff.readline()
+                # Setup name
+                if 'Setup' in fline:
+                    all_setups.append(fline[6:].strip())
+                #
+                setuplines.append(fline)
+            all_setuplines.append(setuplines[:-1])
+            # Data files
+            datafiles = []
+            while fline[0:2] != '##':
+                fline = ff.readline()
+                datafiles.append(fline)
+            all_setupfiles.append(datafiles[:-1])
+    # Return
+    return all_setups, all_setuplines, all_setupfiles
+
+
 def write_sorted(srt_tbl, group_dict, setup_dict):
     """ Write the .sorted file
     Parameters
@@ -959,15 +1002,16 @@ def write_sorted(srt_tbl, group_dict, setup_dict):
     group_file = settings.argflag['run']['redname'].replace('.pypit', '.sorted')
     ff = open(group_file, 'w')
     # Keys
-    setups = group_dict.keys()
+    setups = list(group_dict.keys())
     setups.sort()
-    ftypes = group_dict[setups[0]].keys()
+    ftypes = list(group_dict[setups[0]].keys())
     ftypes.sort()
     # Loop on Setup
     asciiord = ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker']
     for setup in setups:
+        ff.write('##########################################################\n')
         in_setup = []
-        ff.write('Setup {:s}: \n'.format(setup))
+        ff.write('Setup {:s}\n'.format(setup))
         ydict = arutils.yamlify(setup_dict[setup])
         ff.write(yaml.dump(ydict))
         ff.write('#---------------------------------------------------------\n')
@@ -980,7 +1024,5 @@ def write_sorted(srt_tbl, group_dict, setup_dict):
         #
         subtbl = srt_tbl[asciiord][np.array(in_setup)]
         subtbl.write(ff, format='ascii.fixed_width')
-        #
-        ff.write('##########################################################\n')
+    ff.write('##end\n')
     ff.close()
-    debugger.set_trace()

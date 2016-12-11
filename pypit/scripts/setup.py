@@ -48,7 +48,6 @@ def main(args):
     from pypit import pyputils
     from pypit.pypit import load_input
     import datetime
-    import yaml
 
     # Check for existing setup file
     setup_files = glob.glob('./{:s}*.setups'.format(args.spectrograph))
@@ -83,30 +82,38 @@ def main(args):
     # #####################
     # Generate custom .pypit files
 
-    # Read group file
-    group_file = pyp_file.replace('.pypit', '.group')
-    with open(group_file, 'r') as infile:
-        group_dict = yaml.load(infile)
-    groups = list(group_dict.keys())
-    groups.sort()
-
     # Read master file
     from pypit import pyputils
+    from pypit import arsort
     msgs = pyputils.get_dummy_logger()
     parlines, datlines, spclines, dfnames = load_input(pyp_file, msgs)
+
+    # Get paths
+    paths = []
+    for datline in datlines:
+        islsh = datline.rfind('/')
+        path = datline[:islsh+1]
+        if path not in paths:
+            paths.append(path)
+
     # Remove run setup from parlines
     for jj,parline in enumerate(parlines):
         if 'run setup' in parline:
             parlines[jj] = 'run setup False\n'
 
     # Generate .pypit files
-    for group in groups:
+    sorted_file = pyp_file.replace('.pypit', '.sorted')
+    all_setups, all_setuplines, all_setupfiles = arsort.load_sorted(sorted_file)
+    for setup, setuplines,setupfiles in zip(all_setups, all_setuplines,all_setupfiles):
         root = args.spectrograph+'_setup_'
-        pyp_file = root+group+'.pypit'
+        pyp_file = root+setup+'.pypit'
 
-        pyputils.make_pypit_file(pyp_file, args.spectrograph, dfnames,
+        pyputils.make_pypit_file(pyp_file, args.spectrograph, [],
                                  parlines=parlines,
                                  spclines=spclines,
+                                 setuplines=setuplines,
+                                 setupfiles=setupfiles,
+                                 paths=paths,
                                  calcheck=True)
         print("Wrote {:s}".format(pyp_file))
 

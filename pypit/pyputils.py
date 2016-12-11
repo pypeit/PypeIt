@@ -52,7 +52,8 @@ def get_dummy_logger(develop=False):
 
 
 def make_pypit_file(pyp_file, spectrograph, dfnames, parlines=None,
-                    setup_script=False, calcheck=False, spclines=None):
+                    setup_script=False, calcheck=False, spclines=None,
+                    setuplines=None, setupfiles=None, paths=None):
     """ Generate a default PYPIT settings file
 
     Parameters
@@ -110,14 +111,32 @@ def make_pypit_file(pyp_file, spectrograph, dfnames, parlines=None,
         f.write("\n")
         f.write("# Reduce\n")
         f.write("\n")
-        f.write("# Read in the data\n")
-        f.write("data read\n")
-        # Data file paths
-        for dfname in dfnames:
-            f.write(' '+dfname+'\n')
-        f.write("data end\n")
-        f.write("\n")
+        # Setup stuff
         f.write("spect read\n")
         for spcline in spclines:
             f.write(spcline)
         f.write("spect end\n")
+        f.write("\n")
+        #
+        if setuplines is not None:
+            f.write("# Setup\n")
+            f.write("setup begin\n")
+            for sline in setuplines:
+                f.write(' '+sline)
+            f.write("setup end\n")
+            f.write("\n")
+        # Data
+        f.write("# Read in the data\n")
+        f.write("data read\n")
+        # Old school
+        for dfname in dfnames:
+            f.write(' '+dfname+'\n')
+        # paths and Setupfiles
+        if paths is not None:
+            for path in paths:
+                f.write(' path '+path+'\n')
+        if setupfiles is not None:
+            for sfile in setupfiles:
+                f.write(sfile)
+        f.write("data end\n")
+        f.write("\n")
