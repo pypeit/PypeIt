@@ -678,7 +678,7 @@ def calib_set(isetup_dict, sciexp, fitsdict):
     new_cbset = {}
     cbkeys = ['arcs', 'bias', 'trace', 'flat', 'sci']
     for cbkey in cbkeys:
-        nms = fitsdict['filename'][getattr(sciexp,'_idx_'+cbkey)]
+        nms = list(fitsdict['filename'][getattr(sciexp,'_idx_'+cbkey)])
         nms.sort()
         new_cbset[cbkey] = nms
 
@@ -692,7 +692,9 @@ def calib_set(isetup_dict, sciexp, fitsdict):
         def_names = np.array(isetup_dict[default][cbkey])
         if np.array_equal(def_names, new_cbset[cbkey]):
             _ = new_cbset.pop(cbkey)
-    if len(new_cbset) == 0:
+    # Science only?
+    if list(new_cbset.keys()) == ['sci']:
+        isetup_dict[default]['sci'] += new_cbset['sci']
         return default
 
     # New calib set?
@@ -707,7 +709,8 @@ def calib_set(isetup_dict, sciexp, fitsdict):
                 break
             if key in ['sci']:
                 continue
-            mtch &= np.array_equal(isetup_dict[cb_str][key], new_cbset[key])
+            ar_names = np.array(isetup_dict[default][cbkey])
+            mtch &= np.array_equal(ar_names, new_cbset[key])
         if mtch:
             # Add sci frames
             for sciframe in new_cbset['sci']:
@@ -828,7 +831,7 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
         # Augment setup_dict?
         if setup is None:
             if must_exist:
-                msgs.error("This setup is not present in the setup_dict.  Regenerate your setup file!")
+                msgs.error("This setup is not present in the setup_dict.  Something went wrong..")
             maxs = max(setup_dict.keys())
             setup = cfig_str[cfig_str.index(maxs)+1]
             setup_dict[setup] = {}
@@ -905,6 +908,7 @@ def load_setup(**kwargs):
     import yaml
     setup_file, nexist = get_setup_file(**kwargs)
     if nexist == 0:
+        debugger.set_trace()
         msgs.error("No existing setup file.  Generate one first (e.g. pypit_setup)!")
     # YAML
     with open(setup_file, 'r') as infile:
@@ -912,6 +916,20 @@ def load_setup(**kwargs):
     # Return
     return setup_dict, setup_file
 
+
+def write_calib(setup_dict):
+    """ Output setup_dict with full calibrations to hard drive
+
+    Parameters
+    ----------
+    setup_dict : dict
+      setup dict
+    """
+    calib_file = settings.argflag['run']['redname'].replace('.pypit', '.calib')
+    # Write
+    ydict = arutils.yamlify(setup_dict)
+    with open(calib_file, 'w') as yamlf:
+        yamlf.write(yaml.dump(ydict))
 
 def write_setup(setup_dict, use_json=False):
     """ Output setup_dict to hard drive

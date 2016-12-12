@@ -51,7 +51,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     status = 0
 
     # Create a list of science exposure classes
-    sciexp = armbase.SetupScience(fitsdict)
+    sciexp, setup_dict = armbase.SetupScience(fitsdict)
     if sciexp in ['setup', 'calcheck']:
         return status
     else:
@@ -60,10 +60,8 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     # Create a list of master calibration frames
     #masters = armasters.MasterFrames(settings.spect['mosaic']['ndet'])
 
-    # Load setup
-    setup_dict, setup_file = arsort.load_setup()
     # Masters
-    settings.argflag['reduce']['masters']['file'] = setup_file
+    #settings.argflag['reduce']['masters']['file'] = setup_file
 
     # Start reducing the data
     for sc in range(numsci):
@@ -81,7 +79,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             # Get amplifier sections
             arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
             # Setup
-            setup = arsort.instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=True)
+            setup = arsort.instr_setup(slf, det, fitsdict, setup_dict, must_exist=True)
             settings.argflag['reduce']['masters']['setup'] = setup
             ###############
             # Generate master bias frame

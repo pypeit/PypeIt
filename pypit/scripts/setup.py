@@ -49,7 +49,8 @@ def main(args):
     from pypit.pypit import load_input
     import datetime
 
-    # Check for existing setup file
+    '''
+    # Check for existing .setups file
     setup_files = glob.glob('./{:s}*.setups'.format(args.spectrograph))
     if len(setup_files) > 0:
         print("Working directory already includes a .setups file")
@@ -57,6 +58,7 @@ def main(args):
             print("Remove: {:s}".format(ifile))
         print("Then you can re-run this script")
         sys.exit()
+    '''
 
     # Generate a dummy .pypit file
     if not args.pypit_file:

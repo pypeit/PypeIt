@@ -101,37 +101,14 @@ def SetupScience(fitsdict):
                         group_dict[config_key]['sciobj'].append(fitsdict['target'][scidx])
         # Write .sorted file
         arsort.write_sorted(srt_tbl, group_dict, setup_dict)
-        #ydict = arutils.yamlify(group_dict)
-        #with open(group_file, 'w') as yamlf:
-        #    yamlf.write( yaml.dump(ydict))#, default_flow_style=True) )
-    else:  # Take from setup_dict
-        debugger.set_trace()
-        for config_key in setup_dict:
-            # Init
-            group_dict[config_key] = {}
-            # Add calib sets
-            for key in setup_dict[config_key]:
-                if key == ['--']:
-                    continue
-                try:
-                    tmp = int(key)
-                except ValueError:
-                    group_dict[config_key][key] = setup_dict[config_key][key]
-        debugger.set_trace()
 
     # Write setup -- only if not present
     setup_file, nexist = arsort.get_setup_file()
-    if nexist == 0:
-        arsort.write_setup(setup_dict)
-    elif nexist == 1: # Compare
-        pass
-        #prev_setup_dict = arsort.load_setup()
-        #if arsort.compare_setup(setup_dict, prev_setup_dict) is False:
-        #    msgs.error("Existing setup (from disk) does not match new one.  Regenerate setup file")
+    # Write calib file
+    arsort.write_calib(setup_dict)
     # Finish calcheck or setup
     if settings.argflag['run']['calcheck'] or settings.argflag['run']['setup']:
         msgs.info("Inspect the setup file: {:s}".format(setup_file))
-        msgs.info("Inspect the group file: {:s}".format(group_file))
         if settings.argflag['run']['calcheck']:
             msgs.info("Calibration check complete. Change 'run calcheck' flag to False to continue with data reduction")
             return 'calcheck'
@@ -140,7 +117,7 @@ def SetupScience(fitsdict):
             return 'setup'
         else:
             msgs.error("Should not get here")
-    return sciexp
+    return sciexp, setup_dict
 
 
 def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
