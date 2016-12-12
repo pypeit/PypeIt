@@ -27,7 +27,7 @@ reduce flatfield method PolyScan      # Method used to flat field the data (Poly
 reduce flatfield params [3,50,20]     # Flat field method parameters (PolyScan: [order,numPixels,repeat])
 reduce flatfield useframe pixelflat          # How to flat field the data (pixelflat, trace), you can also specify a master calibrations file if it exists.
 reduce slitcen useframe pinhole          # How to trace the slit centre (pinhole, trace), you can also specify a master calibrations file if it exists.
-reduce slitedge useframe trace             # How to trace the slit edges (pinhole, trace), you can also specify a master calibrations file if it exists.
+reduce trace useframe trace             # How to trace the slit edges (pinhole, trace), you can also specify a master calibrations file if it exists.
 reduce masters file None         #
 reduce masters loaded []         #
 reduce masters setup None            #

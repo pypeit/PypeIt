@@ -258,7 +258,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
     return
 
 
-def expand_slits(slf, msslitedge, det, ordcen, extord):
+def expand_slits(slf, mstrace, det, ordcen, extord):
     """
     This routine will traces the locations of the slit edges
 
@@ -266,7 +266,7 @@ def expand_slits(slf, msslitedge, det, ordcen, extord):
     ----------
     slf : Class instance
       An instance of the Science Exposure class
-    msslitedge : numpy ndarray
+    mstrace: numpy ndarray
       Calibration frame that will be used to identify slit edges
     det : int
       Index of the detector
@@ -287,7 +287,7 @@ def expand_slits(slf, msslitedge, det, ordcen, extord):
     # Calculate the pixel locations of th eorder edges
     pixcen = phys_to_pix(ordcen, slf._pixlocn[det - 1], 1)
     msgs.info("Expanding slit traces to slit edges")
-    mordwid, pordwid = arcytrace.expand_slits(msslitedge, pixcen, extord.astype(np.int))
+    mordwid, pordwid = arcytrace.expand_slits(mstrace, pixcen, extord.astype(np.int))
     # Fit a function for the difference between left edge and the centre trace
     ldiff_coeff, ldiff_fit = arutils.polyfitter2d(mordwid, mask=-1,
                                                   order=settings.argflag['trace']['slits']['diffpolyorder'])
