@@ -672,7 +672,7 @@ def calib_set(isetup_dict, sciexp, fitsdict):
     cb_strs = []
     default = 'aa'
     for ll in ['a', 'b', 'c', 'd']:
-        for lower in string.lowercase:
+        for lower in string.ascii_lowercase:
             cb_strs.append(ll+lower)
     # Build cbset from sciexp
     new_cbset = {}
@@ -778,7 +778,7 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
     """
     dnum = settings.get_dnum(det)
     # Labels
-    cfig_str = string.uppercase
+    cfig_str = string.ascii_uppercase
     cstr = '--'
     # Arc
     idx = sciexp._idx_arcs
