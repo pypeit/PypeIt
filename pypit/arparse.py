@@ -694,6 +694,116 @@ class BaseArgFlag(BaseFunctions):
                        "Please change the argument of {0:s}".format(get_current_name()))
         self.update(v)
 
+
+    def pinhole_combine_match(self, v):
+        """ Match similar pinhole frames together? A successful match is found when the frames
+        are similar to within N-sigma, where N is the argument of this expression. If v<0,
+        pinhole frames will not be matched.
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_float(v)
+        self.update(v)
+
+    def pinhole_combine_method(self, v):
+        """ What method should be used to combine the pinhole frames?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        allowed = combine_methods()
+        v = key_allowed(v, allowed)
+        self.update(v)
+
+    def pinhole_combine_reject_cosmics(self, v):
+        """ Specify the rejection threshold (in standard deviations) for
+        cosmic rays when combining the pinhole frames. If v<0, cosmic rays
+        will not be rejected.
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_float(v)
+        self.update(v)
+
+    def pinhole_combine_reject_lowhigh(self, v):
+        """ Specify the number of low/high pixels to be rejected when combining
+        the pinhole frames, in the format: [low,high].
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_list(v)
+        if len(v) != 2:
+            msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
+        if v[0] < 0 or v[1] < 0:
+            msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
+        self.update(v)
+
+    def pinhole_combine_reject_level(self, v):
+        """ Specify the significance threshold (in standard deviations)
+        used to reject deviant pixels when combining the pinhole frames,
+        in the format: [low,high].
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_list(v)
+        if len(v) != 2:
+            msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
+        if v[0] < 0.0 or v[1] < 0.0:
+            msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
+        self.update(v)
+
+    def pinhole_combine_reject_replace(self, v):
+        """ What should be done if all pixels are rejected when
+        combining the pinhole frames?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        allowed = combine_replaces()
+        v = key_allowed(v, allowed)
+        self.update(v)
+
+    def pinhole_combine_satpix(self, v):
+        """ What should be done to saturated pixels when combining the pinhole frames?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        allowed = combine_satpixs()
+        v = key_allowed(v, allowed)
+        self.update(v)
+
+    def pinhole_useframe(self, v):
+        """ What filetype should be used to identify the slit edges?
+        you can also specify a master calibrations file if it exists.
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        allowed = ['pinhole', 'science']
+        v = key_none_allowed_filename(v, allowed)
+        self.update(v)
+
     def pixelflat_combine_match(self, v):
         """ Match similar pixel flat frames together? A successful match is found when the frames
         are similar to within N-sigma, where N is the argument of this expression. If v<0,
@@ -909,7 +1019,7 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['pixelflat', 'slitflat']
+        allowed = ['pixelflat', 'trace']
         v = key_allowed_filename(v, allowed)
         self.update(v)
 
@@ -922,7 +1032,7 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['trace', 'slitflat']
+        allowed = ['trace', 'pinhole']
         v = key_allowed_filename(v, allowed)
         self.update(v)
 
@@ -935,7 +1045,7 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['trace', 'slitflat', 'science']
+        allowed = ['pinhole', 'science', 'trace']
         v = key_allowed_filename(v, allowed)
         self.update(v)
 
@@ -1424,126 +1534,6 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def slitflat_combine_match(self, v):
-        """ Match similar slit flat frames together? A successful match is found when the frames
-        are similar to within N-sigma, where N is the argument of this expression. If v<0,
-        slit flat frames will not be matched.
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        v = key_float(v)
-        self.update(v)
-
-    def slitflat_combine_method(self, v):
-        """ What method should be used to combine the slit flat frames?
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        allowed = combine_methods()
-        v = key_allowed(v, allowed)
-        self.update(v)
-
-    def slitflat_combine_reject_cosmics(self, v):
-        """ Specify the rejection threshold (in standard deviations) for
-        cosmic rays when combining the slit flat frames. If v<0, cosmic rays
-        will not be rejected.
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        v = key_float(v)
-        self.update(v)
-
-    def slitflat_combine_reject_lowhigh(self, v):
-        """ Specify the number of low/high pixels to be rejected when combining
-        the slit flat frames, in the format: [low,high].
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        v = key_list(v)
-        if len(v) != 2:
-            msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
-        if v[0] < 0 or v[1] < 0:
-            msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
-        self.update(v)
-
-    def slitflat_combine_reject_level(self, v):
-        """ Specify the significance threshold (in standard deviations)
-        used to reject deviant pixels when combining the slit flat frames,
-        in the format: [low,high].
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        v = key_list(v)
-        if len(v) != 2:
-            msgs.error("The argument of {0:s} must be a two element list".format(get_current_name()))
-        if v[0] < 0.0 or v[1] < 0.0:
-            msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
-        self.update(v)
-
-    def slitflat_combine_reject_replace(self, v):
-        """ What should be done if all pixels are rejected when
-        combining the slit flat frames?
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        allowed = combine_replaces()
-        v = key_allowed(v, allowed)
-        self.update(v)
-
-    def slitflat_combine_satpix(self, v):
-        """ What should be done to saturated pixels when combining the slit flat frames?
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        allowed = combine_satpixs()
-        v = key_allowed(v, allowed)
-        self.update(v)
-
-    def slitflat_norm_recnorm(self, v):
-        """ Rectify and normalize the pixel flat frame (using the recnorm algorithm)?
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        v = key_bool(v)
-        self.update(v)
-
-    def slitflat_useframe(self, v):
-        """ What filetype should be used to identify the slit edges?
-        you can also specify a master calibrations file if it exists.
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        allowed = ['slitflat']
-        v = key_none_allowed_filename(v, allowed)
-        self.update(v)
-
     def trace_combine_match(self, v):
         """ Match similar trace flat frames together? A successful match is found when the frames
         are similar to within N-sigma, where N is the argument of this expression. If v<0,
@@ -1655,6 +1645,17 @@ class BaseArgFlag(BaseFunctions):
                        "0 or 1 (if the dispersion axis is along a row or column respectively)")
         self.update(v)
 
+    def trace_norm_recnorm(self, v):
+        """ Rectify and normalize the trace flat frame (using the recnorm algorithm)?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_bool(v)
+        self.update(v)
+
     def trace_slits_diffpolyorder(self, v):
         """ What is the order of the 2D function that should be used to fit
         the 2D solution for the spatial size of all slits?
@@ -1670,10 +1671,10 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def trace_slits_expand(self, v):
-        """ If you are tracing the slit edges with a trace frame (e.g. a pinhole decker),
-        you should expand the slit edges to the edges defined by the slitflat frame, which
+        """ If you are tracing the slit edges with a pinhole frame (i.e. a pinhole/science frame),
+        you should expand the slit edges to the edges defined by the trace frame, which
         should be a flatfield exposure taken with the same slit length as the science frame.
-        If the slits are traced with a slitflat frame, there is no need to expand the slits.
+        If the slits are traced with a trace frame, there is no need to expand the slits.
 
         Parameters
         ----------
@@ -1900,7 +1901,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def trace_useframe(self, v):
-        """ What frame should be used to trace the slit centroid, based on the
+        """ What frame should be used to trace the slit edges, based on the
         average of the left/right edges.
 
         Parameters
@@ -1908,7 +1909,7 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['trace', 'science']
+        allowed = ['trace']
         v = key_none_allowed_filename(v, allowed)
         self.update(v)
 
@@ -1956,16 +1957,16 @@ class BaseSpect(BaseFunctions):
         """
         self.update([], ll="set_arc".split("_"))
         self.update([], ll="set_bias".split("_"))
+        self.update([], ll="set_pinhole".split("_"))
         self.update([], ll="set_pixelflat".split("_"))
         self.update([], ll="set_science".split("_"))
-        self.update([], ll="set_slitflat".split("_"))
         self.update([], ll="set_standard".split("_"))
         self.update([], ll="set_trace".split("_"))
         self.update([], ll="arc_index".split("_"))
         self.update([], ll="bias_index".split("_"))
+        self.update([], ll="pinhole_index".split("_"))
         self.update([], ll="pixelflat_index".split("_"))
         self.update([], ll="science_index".split("_"))
-        self.update([], ll="slitflat_index".split("_"))
         self.update([], ll="standard_index".split("_"))
         self.update([], ll="trace_index".split("_"))
         return
@@ -1988,7 +1989,7 @@ class BaseSpect(BaseFunctions):
         return
 
     def set_paramlist(self, lstall):
-        frmtyp = ["standard", "bias", "pixelflat", "trace", "slitflat", "arc"]
+        frmtyp = ["standard", "bias", "pixelflat", "trace", "pinhole", "arc"]
         for ll in range(len(lstall)):
             lst = lstall[ll]
             cnt = 1
@@ -3001,10 +3002,10 @@ class BaseSpect(BaseFunctions):
         v = self._spect['set']['science'] + v
         self.update(v)
 
-    def set_slitflat(self, v):
-        """ Manually force a given frame to be a slit flat frame. For example,
-         'set slitflat filename1.fits,filename2.fits' will force filename1.fits
-         and filename2.fits to be slit flat frames.
+    def set_pinhole(self, v):
+        """ Manually force a given frame to be a pinhole frame. For example,
+         'set pinhole filename1.fits,filename2.fits' will force filename1.fits
+         and filename2.fits to be pinhole frames.
 
         Parameters
         ----------
@@ -3012,7 +3013,7 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_list(v)
-        v = self._spect['set']['slitflat'] + v
+        v = self._spect['set']['pinhole'] + v
         self.update(v)
 
     def set_standard(self, v):
@@ -3043,8 +3044,8 @@ class BaseSpect(BaseFunctions):
         v = self._spect['set']['trace'] + v
         self.update(v)
 
-    def slitflat_canbe(self, v):
-        """ If there are frames that will be a slit flat in addition to other frame types,
+    def pinhole_canbe(self, v):
+        """ If there are frames that will be a pinhole in addition to other frame types,
         include the other frame types here.
 
         Parameters
@@ -3055,9 +3056,9 @@ class BaseSpect(BaseFunctions):
         v = key_none_list(v)
         self.update(v)
 
-    def slitflat_check_condition(self, v, cnmbr=1):
+    def pinhole_check_condition(self, v, cnmbr=1):
         """ Check that a frame satisfies a series of conditions before it is
-        labelled as a slit flat frame. Multiple conditions can be specified,
+        labelled as a pinhole frame. Multiple conditions can be specified,
         where each new condition has a different integer suffix appended to
         the condition variable.
 
@@ -3070,8 +3071,8 @@ class BaseSpect(BaseFunctions):
         v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
-    def slitflat_idname(self, v):
-        """ Header key value of slitflat frames for header keyword: 'keyword idname'
+    def pinhole_idname(self, v):
+        """ Header key value of pinhole frames for header keyword: 'keyword idname'
 
         Parameters
         ----------
@@ -3080,7 +3081,7 @@ class BaseSpect(BaseFunctions):
         """
         self.update(v)
 
-    def slitflat_lscomb(self, v):
+    def pinhole_lscomb(self, v):
         """ Combine frames with a different exposure time?
 
         Parameters
@@ -3091,8 +3092,8 @@ class BaseSpect(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def slitflat_number(self, v):
-        """ Number of slit flat frames to use
+    def pinhole_number(self, v):
+        """ Number of pinhole frames to use
 
         Parameters
         ----------
