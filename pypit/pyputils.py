@@ -93,9 +93,10 @@ def make_pypit_file(pyp_file, spectrograph, dfnames, parlines=None,
                         ' slitflat number 0\n',
                         ' bias number 0\n', ' standard number 0\n']
         else:
-            spclines = [' pixelflat number 1\n', ' arc number 1\n',
-                        ' slitflat number 1\n',
-                        ' bias number 1\n', ' standard number 1\n']
+            #spclines = [' pixelflat number -3\n', ' arc number 1\n',
+            #            ' slitflat number -3\n',
+            #            ' bias number 0\n', ' standard number 1\n']
+            spclines = [' arc number 1\n']
 
     # Here we go
     with open(pyp_file, 'w') as f:

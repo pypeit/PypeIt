@@ -102,7 +102,8 @@ def main(args):
     # Remove run setup from parlines
     for jj,parline in enumerate(parlines):
         if 'run setup' in parline:
-            parlines[jj] = 'run setup False\n'
+            #parlines[jj] = 'run setup False\n'
+            parlines[jj] = '\n'
 
     # Generate .pypit files
     sorted_file = pyp_file.replace('.pypit', '.sorted')
@@ -113,10 +114,10 @@ def main(args):
 
         pyputils.make_pypit_file(pyp_file, args.spectrograph, [],
                                  parlines=parlines,
-                                 spclines=spclines,
+                                 spclines=None,
                                  setuplines=setuplines,
                                  setupfiles=setupfiles,
                                  paths=paths,
-                                 calcheck=True)
+                                 calcheck=False)
         print("Wrote {:s}".format(pyp_file))
 

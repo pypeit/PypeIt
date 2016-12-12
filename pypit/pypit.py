@@ -151,6 +151,11 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     spect = arparse.get_spect_class((redtype.upper(), specname, ".".join(redname.split(".")[:-1])))
     lines = spect.load_file()
     spect.set_paramlist(lines)
+    # Load frametype numbers, as relevant
+    if len(pyp_dict['ftype']) > 0:
+        ftlines = spect.load_ftype(pyp_dict['ftype'])
+        plines = spect.load_lines(ftlines)
+        spect.set_paramlist(plines)
     # Load user changes to the arguments/flags
     plines = spect.load_lines(spclines)
     spect.set_paramlist(plines)
