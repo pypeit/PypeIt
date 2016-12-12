@@ -17,9 +17,10 @@ def test_load_input():
     # Generate a PYPIT file
     pyp_file = data_path('test.pypit')
     pyputils.make_pypit_file(pyp_file, 'kast_blue', [data_path('b*fits.gz')])
-    parlines, datlines, spclines, dfnames = pypit.load_input(pyp_file, msgs)
+    pyp_dict = pypit.load_input(pyp_file, msgs)
+    parlines, datlines, spclines, dfnames = [pyp_dict[ii] for ii in ['par','dat','spc','dfn']]
     # Test
     assert len(parlines) == 3
     assert len(datlines) == 2
-    assert 'arc number 1' in spclines[1]
+    assert 'arc number 1' in spclines[0]
 

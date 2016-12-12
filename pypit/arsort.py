@@ -692,8 +692,11 @@ def calib_set(isetup_dict, sciexp, fitsdict):
         def_names = np.array(isetup_dict[default][cbkey])
         if np.array_equal(def_names, new_cbset[cbkey]):
             _ = new_cbset.pop(cbkey)
-    # Science only?
-    if list(new_cbset.keys()) == ['sci']:
+    # Science only or exactly the same?
+    if len(new_cbset) == 0:
+        return default
+    elif len(new_cbset) == 1:
+        assert list(new_cbset.keys()) == ['sci']
         isetup_dict[default]['sci'] += new_cbset['sci']
         return default
 

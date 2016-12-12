@@ -104,17 +104,19 @@ def SetupScience(fitsdict):
 
     # Write setup -- only if not present
     setup_file, nexist = arsort.get_setup_file()
-    # Write calib file
-    arsort.write_calib(setup_dict)
+    arsort.write_setup(setup_dict)
+    # Write calib file (if not in setup mode)
+    if not settings.argflag['run']['setup']:
+        arsort.write_calib(setup_dict)
     # Finish calcheck or setup
     if settings.argflag['run']['calcheck'] or settings.argflag['run']['setup']:
         msgs.info("Inspect the setup file: {:s}".format(setup_file))
         if settings.argflag['run']['calcheck']:
             msgs.info("Calibration check complete. Change 'run calcheck' flag to False to continue with data reduction")
-            return 'calcheck'
+            return 'calcheck', None
         elif settings.argflag['run']['setup']:
             msgs.info("Setup is complete. Change 'run setup' to False to continue with data reduction")
-            return 'setup'
+            return 'setup', None
         else:
             msgs.error("Should not get here")
     return sciexp, setup_dict
