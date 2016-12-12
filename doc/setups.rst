@@ -42,10 +42,11 @@ careful attention to the setups.
 pypit_setup
 ===========
 
-PYPIT includes a script that one may execute (*recommended*)
+PYPIT includes a script that one may execute (*highly recommended*)
 to initiate the data reduction process.  This script helps organize
 the primary data reduction process that follows.  It also
-generates a default Settings File.
+generates a .setups file describing the various setups found
+amongst the files parsed.
 
 **Important**: To identify a setup, the code must recognize at
 least one science frame in a given configuration and an associated arc.

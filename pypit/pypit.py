@@ -177,12 +177,14 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     # Now that all of the relevant settings are loaded, globalize the settings
     arparse.init(argf, spect)
 
+    '''
     # Test that a maximum of one .setup files is present
     from pypit import arsort
     setup_file, nexist = arsort.get_setup_file()
     if nexist == 1:
         msgs.info("Found setup_file: {:s}".format(setup_file))
         msgs.info("Will use this to guide the data reduction.")
+    '''
 
     # Load the important information from the fits headers
     from pypit import arload
@@ -257,21 +259,33 @@ def load_input(redname, msgs):
 
     Returns
     -------
-    parlines : list
-      Input (uncommented) lines specified by the user.
-      parlines is used in this routine to update the
-      argflag dictionary
-    datlines : list
-      Input (uncommented) lines specified by the user.
-      datlines contains the full data path to every
-      raw exposure listed by the user
-    spclines : list
-      Input (uncommented) lines specified by the user.
-      spclines contains a list of user-specified changes
-      that should be made to the default spectrograph
-      settings.
-    dfnames : list
-      Input data lines
+    pyp_dict : dict
+      Contains the following keys --
+      'par'
+        parlines : list
+          Input (uncommented) lines specified by the user.
+          parlines is used in this routine to update the
+          argflag dictionary
+      'dat'
+        datlines : list
+          Input (uncommented) lines specified by the user.
+          datlines contains the full data path to every
+          raw exposure listed by the user
+      'spc'
+        spclines : list
+          Input (uncommented) lines specified by the user.
+          spclines contains a list of user-specified changes
+          that should be made to the default spectrograph
+          settings.
+      'dfn'
+        dfnames : list
+          Input data lines
+      'setup'
+        dict of setup info
+          'name' list of setups
+          'lines' list of lines in the setup block
+      'ftype'
+        dict of filename: frametype
     """
     import os
     # Read in the model file
