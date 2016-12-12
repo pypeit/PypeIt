@@ -30,7 +30,6 @@ def test_run_setup():
     #
     droot = data_path('b')
     pargs = setup.parser([droot, 'kast_blue', '--extension=fits.gz'])
-    pytest.set_trace()
     setup.main(pargs)
     setup_file = glob.glob('kast_blue*.setups')[0]
     # Load
