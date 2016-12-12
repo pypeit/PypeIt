@@ -92,28 +92,27 @@ pixelflat match naxis1 =0             # Match the column binning of flats with s
 pixelflat match slitlen %,:),1,>=0    # Make sure the slit length for blaze flats and science frames
 #pixelflat combsame decker ''          # When combining pixel flat frames, make sure all frames have the same decker
 
-### Blaze Flat frames
-slitflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
-slitflat number 5                    # Number of flat frames to use
-slitflat canbe None                  # If there are frames that will be slitflat ***in addition to other frame types***, include the other frame types here.
-slitflat lscomb False                # Combine a long and short flat
-slitflat check condition1 lampstat01=On|lampstat02=On
-slitflat check condition2 decker!=Pinhole   # Check that the decker name is not set to Pinhole
-slitflat match naxis0 =0             # Match the row binning of flats with science
-slitflat match naxis1 =0             # Match the column binning of flats with science
-slitflat match slitlen %,:),1,=0     # Match the slit length for blaze flats and science frames
-#slitflat combsame decker ''          # When combining blaze flat frames, make sure all frames have the same decker
+### Pinhole frames
+pinhole idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
+pinhole number 2                    # Number of flat frames to use
+pinhole canbe None                  # If there are frames that will be pinhole ***in addition to other frame types***, include the other frame types here.
+pinhole lscomb False                # Combine a long and short flat
+pinhole check condition1 lampstat01=On|lampstat02=On
+pinhole check condition2 decker=Pinhole   # Check that the decker name is set to Pinhole
+pinhole match naxis0 =0             # Match the row binning of flats with science
+pinhole match naxis1 =0             # Match the column binning of flats with science
+#pinhole combsame decker ''          # When combining pinhole frames, make sure all frames have the same decker
 
 ### Trace frames
 trace idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
-trace number 2                    # Number of flat frames to use
-trace canbe None                  # If there are frames that will be slitflat ***in addition to other frame types***, include the other frame types here.
+trace number 5                    # Number of flat frames to use
+trace canbe None                  # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
 trace lscomb False                # Combine a long and short flat
 trace check condition1 lampstat01=On|lampstat02=On
-trace check condition2 decker=Pinhole        # Check that the decker name is set to Pinhole
+trace check condition2 decker!=Pinhole        # Check that the decker name is not set to Pinhole
 trace match naxis0 =0             # Match the row binning of flats with science
 trace match naxis1 =0             # Match the column binning of flats with science
-#trace match slitlen %,:|),1,=0    # Match the Decker for trace flats and science frames
+trace match slitlen %,:),1,=0    # Match the Decker for trace flats and science frames
 #trace combsame decker ''          # When combining trace flat frames, make sure all frames have the same decker
 
 ### Arc frames

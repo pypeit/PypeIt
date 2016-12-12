@@ -125,15 +125,15 @@ pixelflat match naxis1 =0             # Match the shape of flats with science
 pixelflat match decker ''             # Check the same decker as the science frame was used
 #pixelflat match dispangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
 
-### Slit Flat frames
-slitflat idname None                   # Header key value of trace frame for header keyword keyword+idname
-slitflat number 3                      # Number of trace frames to use
-slitflat canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
-slitflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
-slitflat check condition2 exptime>0     # Required for bias
-slitflat match naxis0 =0             # Match the shape of flats with science
-slitflat match naxis1 =0             # Match the shape of flats with science
-slitflat match decker ''             # Check the same decker as the science frame was used
+### Pinhole frames
+pinhole idname None                   # Header key value of trace frame for header keyword keyword+idname
+pinhole number 3                      # Number of trace frames to use
+pinhole canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
+pinhole check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
+pinhole check condition2 exptime>0     # Required for bias
+pinhole match naxis0 =0             # Match the shape of flats with science
+pinhole match naxis1 =0             # Match the shape of flats with science
+pinhole match decker ''             # Check the same decker as the science frame was used
 
 ### Trace frames
 trace idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
