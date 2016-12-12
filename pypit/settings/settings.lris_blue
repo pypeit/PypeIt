@@ -172,7 +172,7 @@ pixelflat match dispname ''             # Check the same decker as the science f
 
 ### Pinhole frames
 pinhole idname None                   # Header key value of trace frame for header keyword keyword+idname
-pinhole number 1                      # Number of trace frames to use
+pinhole number 0                      # Number of trace frames to use
 pinhole canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
 pinhole check condition1 hatch=open   # Required for blaze flats
 pinhole check condition2 exptime<30   # Avoid stars
@@ -183,7 +183,7 @@ pinhole match dispname ''             # Check the same decker as the science fra
 
 ### Trace frames
 trace idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
-trace number 0                    # Number of flat frames to use
+trace number 1                    # Number of flat frames to use
 trace canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
 trace lscomb False                # Combine a long and short flat
 # Blue side should be using twilight sky

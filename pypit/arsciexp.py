@@ -685,7 +685,9 @@ class ScienceExposure:
                 msgs.warn("No MasterWave1D data found {:s}".format(mswv_calib_name))
             else:
                 settings.argflag['reduce']['masters']['loaded'].append('wave_calib'+settings.argflag['reduce']['masters']['setup'])
-        if 'wave_calib'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+        # msgs.bug("REMOVE FALSE ON LINE BELOW TO PERFORM WAVELENGTH CALIBRATION")
+        # if False and 'wave_calib'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+        if 'wave_calib' + settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
             # Setup arc parameters (e.g. linelist)
             arcparam = ararc.setup_param(self, sc, det, fitsdict)
             self.SetFrame(self._arcparam, arcparam, det)

@@ -146,11 +146,10 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                 arqa.slit_trace_qa(slf, slf._mstrace[det - 1], slf._lordpix[det - 1], slf._rordpix[det - 1], extord,
                                    desc="Trace of the slit edges", normalize=False)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
-            msgs.error("UP TO HERE!!!")
             ###############
             # Prepare the pixel flat field frame
             update = slf.MasterFlatField(fitsdict, det)
-            if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixflat")
+            if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
             ###############
             # Generate the 1D wavelength solution
             update = slf.MasterWaveCalib(fitsdict, sc, det)
@@ -158,24 +157,25 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
             ###############
             # Derive the spectral tilt
-            if slf._tilts[det - 1] is None:
-                if slf._argflag['masters']['use']:
-                    mstilt_name = armasters.master_name(slf._argflag['run']['masterdir'],
-                                                        'tilts', slf._argflag['masters']['setup'])
+            if slf._tilts[det-1] is None:
+                if settings.argflag['reduce']['masters']['reuse']:
+                    mstilt_name = armasters.master_name(settings.argflag['run']['directory']['master'],
+                                                        'tilts', settings.argflag['reduce']['masters']['setup'])
                     try:
                         tilts, head = arload.load_master(mstilt_name, frametype="tilts")
                     except IOError:
                         pass
                     else:
                         slf.SetFrame(slf._tilts, tilts, det)
-                        slf._argflag['masters']['loaded'].append('tilts' + slf._argflag['masters']['setup'])
-                if 'tilts' + slf._argflag['masters']['setup'] not in slf._argflag['masters']['loaded']:
+                        settings.argflag['reduce']['masters']['loaded'].append('tilts'+settings.argflag['reduce']['masters']['setup'])
+                if 'tilts'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
                     # First time tilts are derived for this arc frame --> derive the order tilts
-                    tilts, satmask, outpar = artrace.trace_tilt(slf, det, slf._msarc[det - 1])
+                    tilts, satmask, outpar = artrace.model_tilt(slf, det, slf._msarc[det-1])
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
 
+            msgs.error("UP TO HERE!!!")
             ###############
             # Generate/load a master wave frame
             update = slf.MasterWave(fitsdict, sc, det)
@@ -184,9 +184,14 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
 
             # Check if the user only wants to prepare the calibrations only
             msgs.info("All calibration frames have been prepared")
-            if slf._argflag['run']['preponly']:
+            if settings.argflag['run']['preponly']:
                 msgs.info("If you would like to continue with the reduction,"
-                          + msgs.newline() + "disable the run+preponly command")
+                          +msgs.newline()+"disable the run+preponly command")
                 continue
+
+            # Write setup
+            #setup = arsort.calib_setup(sc, det, fitsdict, setup_dict, write=True)
+            # Write MasterFrames (currently per detector)
+            armasters.save_masters(slf, det, setup)
 
     return status
