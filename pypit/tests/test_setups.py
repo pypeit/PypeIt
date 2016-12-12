@@ -29,9 +29,10 @@ def test_run_setup():
         os.remove(sfile)
     #
     droot = data_path('b')
-    pargs = setup.parser([droot, 'kast_blue', '--extension=fits.gz'])
+    pargs = setup.parser([droot, 'kast_blue',
+                          '--extension=fits.gz', '--redux_path={:s}'.format(data_path(''))])
     setup.main(pargs)
-    setup_file = glob.glob('kast_blue*.setups')[0]
+    setup_file = glob.glob(data_path('kast_blue*.setups'))[0]
     # Load
     with open(setup_file, 'r') as infile:
         setup_dict = yaml.load(infile)
@@ -40,11 +41,11 @@ def test_run_setup():
     assert setup_dict['A']['--']['disperser']['name'] == '600/4310'
 
 
-#def test_setup_made_pypit_file():
-#    """ Test the .pypit file(s) made by pypit_setup
-#    """
+def test_setup_made_pypit_file():
+    """ Test the .pypit file(s) made by pypit_setup
+    """
     from pypit.pypit import load_input
-    pyp_file = data_path('../kast_blue_setup_A.pypit')
+    pyp_file = data_path('kast_blue_setup_A.pypit')
     pyp_dict = load_input(pyp_file, msgs)
     # Test
     assert len(pyp_dict['dat']) == 2

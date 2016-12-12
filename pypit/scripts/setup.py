@@ -27,6 +27,7 @@ def parser(options=None):
     parser.add_argument("--extension", default='.fits',
                         help="Extension for data files.  Note any extension for compression (e.g. .gz) is not required.")
     parser.add_argument("--pypit_file", default=False, action='store_true', help='Input is the .pypit file')
+    parser.add_argument("--redux_path", default='./', help='Path to reduction folder (Mainly for tests)')
     #parser.add_argument("-q", "--quick", default=False, help="Quick reduction", action="store_true")
     #parser.add_argument("-c", "--cpus", default=False, help="Number of CPUs for parallel processing", action="store_true")
     #parser.print_help()
@@ -65,7 +66,7 @@ def main(args):
         # Name
         date = str(datetime.date.today().strftime('%Y-%b-%d'))
         root = args.spectrograph+'_'+date
-        pyp_file = root+'.pypit'
+        pyp_file = args.redux_path+root+'.pypit'
         # Generate
         dfname = "{:s}*{:s}*".format(args.files_root, args.extension)
         pyputils.make_pypit_file(pyp_file, args.spectrograph,
@@ -110,7 +111,7 @@ def main(args):
     all_setups, all_setuplines, all_setupfiles = arsort.load_sorted(sorted_file)
     for setup, setuplines,setupfiles in zip(all_setups, all_setuplines,all_setupfiles):
         root = args.spectrograph+'_setup_'
-        pyp_file = root+setup+'.pypit'
+        pyp_file = args.redux_path+root+setup+'.pypit'
 
         pyputils.make_pypit_file(pyp_file, args.spectrograph, [],
                                  parlines=parlines,

@@ -878,8 +878,10 @@ def get_setup_file(spectrograph=None):
     if nexist == 1:
         return setup_files[0], nexist
     elif nexist == 0:
-        date = str(datetime.date.today().strftime('%Y-%b-%d'))
-        return '{:s}_{:s}.setups'.format(spectrograph,date), nexist
+        setup_file = settings.argflag['run']['redname'].replace('.pypit', '.setups')
+        #date = str(datetime.date.today().strftime('%Y-%b-%d'))
+        #return '{:s}_{:s}.setups'.format(spectrograph,date), nexist
+        return setup_file, nexist
     else:
         msgs.error("Found more than one .setup file in the working directory.  Limit to one.")
 
