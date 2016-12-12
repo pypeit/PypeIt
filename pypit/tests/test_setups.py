@@ -40,9 +40,9 @@ def test_run_setup():
     assert setup_dict['A']['--']['disperser']['name'] == '600/4310'
 
 
-def test_setup_made_pypit_file():
-    """ Test the .pypit file(s) made by pypit_setup
-    """
+#def test_setup_made_pypit_file():
+#    """ Test the .pypit file(s) made by pypit_setup
+#    """
     from pypit.pypit import load_input
     pyp_file = data_path('../kast_blue_setup_A.pypit')
     pyp_dict = load_input(pyp_file, msgs)
