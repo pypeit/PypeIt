@@ -52,8 +52,8 @@ def sort_data(fitsdict, flag_unknown=False):
     ftag = dict({'science': np.array([], dtype=np.int),
                  'standard': np.array([], dtype=np.int),
                  'bias': np.array([], dtype=np.int),
+                 'pinhole': np.array([], dtype=np.int),
                  'pixelflat': np.array([], dtype=np.int),
-                 'slitflat': np.array([], dtype=np.int),
                  'trace': np.array([], dtype=np.int),
                  'unknown': np.array([], dtype=np.int),
                  'arc': np.array([], dtype=np.int)})
@@ -334,15 +334,15 @@ def match_science(fitsdict, filesort):
     """
 
     msgs.info("Matching calibrations to Science frames")
-    ftag = ['standard', 'bias', 'dark', 'pixelflat', 'slitflat', 'trace', 'arc']
-    setup_ftag = dict(standard=0, bias=0, dark=0, pixelflat=0, slitflat=0, trace=0, arc=1)
+    ftag = ['standard', 'bias', 'dark', 'pixelflat', 'pinhole', 'trace', 'arc']
+    setup_ftag = dict(standard=0, bias=0, dark=0, pixelflat=0, pinhole=0, trace=0, arc=1)
     nfiles = fitsdict['filename'].size
     iSCI = filesort['science']
     iSTD = filesort['standard']
     iBIA = filesort['bias']
     iDRK = filesort['dark']
     iPFL = filesort['pixelflat']
-    iBFL = filesort['slitflat']
+    iBFL = filesort['pinhole']
     iTRC = filesort['trace']
     iARC = filesort['arc']
     iARR = [iSTD, iBIA, iDRK, iPFL, iBFL, iTRC, iARC]
@@ -480,11 +480,11 @@ def match_science(fitsdict, filesort):
                 # Errors for insufficient PIXELFLAT frames
                 if ftag[ft] == 'pixelflat' and settings.argflag['reduce']['flatfield']['perform']:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
-                # Errors for insufficient SLITFLAT frames
-                if ftag[ft] == 'slitflat' and settings.argflag['reduce']['flatfield']['perform']:
+                # Errors for insufficient PINHOLE frames
+                if ftag[ft] == 'pinhole':
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient TRACE frames
-                if ftag[ft] == 'trace':
+                if ftag[ft] == 'trace' and settings.argflag['reduce']['flatfield']['perform']:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient standard frames
                 if ftag[ft] == 'standard' and settings.argflag['reduce']['calibrate']['flux']:

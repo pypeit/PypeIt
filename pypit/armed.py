@@ -108,10 +108,10 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
             ###############
-            # Generate a master slitflat frame
-            update = slf.MasterSlitFlat(fitsdict, det)
+            # Generate a master pinhole frame
+            update = slf.MasterPinhole(fitsdict, det)
             if update and reuseMaster:
-                armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="slitflat")
+                armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pinhole")
             ###############
             # Generate an array that provides the physical pixel locations on the detector
             slf.GetPixelLocations(det)
@@ -119,13 +119,13 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             # Determine the edges of the spectrum (spatial)
             if ('trace'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']):
                 ###############
-                # Determine the edges of the spectrum (spatial)
-                lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det,
+                # Determine the centroid of the spectrum (spatial)
+                lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mspinhole[det-1], det,
                                                                pcadesc="PCA trace of the slit edges")
 
                 # Using the order centroid, expand the order edges until the edge of the science slit is found
                 if settings.argflag['trace']['slits']['expand']:
-                    lordloc, rordloc = artrace.expand_slits(slf, slf._msslitflat[det-1], det,
+                    lordloc, rordloc = artrace.expand_slits(slf, slf._mstrace[det-1], det,
                                                             0.5*(lordloc+rordloc), extord)
 
                 # Save the locations of the order edges
@@ -143,7 +143,7 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._lordpix, lordpix, det)
                 slf.SetFrame(slf._rordpix, rordpix, det)
                 # Save QA for slit traces
-                arqa.slit_trace_qa(slf, slf._msslitflat[det - 1], slf._lordpix[det - 1], slf._rordpix[det - 1], extord,
+                arqa.slit_trace_qa(slf, slf._mstrace[det - 1], slf._lordpix[det - 1], slf._rordpix[det - 1], extord,
                                    desc="Trace of the slit edges", normalize=False)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
             msgs.error("UP TO HERE!!!")
