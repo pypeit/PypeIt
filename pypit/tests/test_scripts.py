@@ -38,42 +38,6 @@ def test_show_1dspec():
 '''
 
 
-def test_setup():
-    """ Test the setup script
-    """
-    from pypit.scripts import setup
-    import yaml
-    # Remove .setup if needed
-    sfiles = glob.glob('*.setup')
-    for sfile in sfiles:
-        os.remove(sfile)
-    #
-    droot = data_path('b')
-    pargs = setup.parser([droot, 'kast_blue', '--extension=fits.gz'])
-    setup.main(pargs)
-    setup_file = glob.glob('kast_blue*.setup')[0]
-    # Load
-    with open(setup_file, 'r') as infile:
-        setup_dict = yaml.load(infile)
-    # Test
-    assert '01' in setup_dict.keys()
-    assert setup_dict['01']['disperser']['name'] == '600/4310'
-
-'''
-def test_setup_pfile():
-    """ This won't run because of msgs issue..
-    """
-    from pypit.scripts import setup
-    # Try from .pypit file
-    sfiles = glob.glob('*.setup')
-    pypit_file = sfiles[0].replace('.setup', '.pypit')
-    for sfile in sfiles:
-        os.remove(sfile)
-    pargs2 = setup.parser([pypit_file, 'kast_blue', '--pypit_file', '-d'])
-    setup.main(pargs2)
-    pytest.set_trace()
-'''
-
 def test_view_fits():
     """ Only test the list option
     """

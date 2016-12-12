@@ -86,7 +86,8 @@ def main(args):
     from pypit import pyputils
     from pypit import arsort
     msgs = pyputils.get_dummy_logger()
-    parlines, datlines, spclines, dfnames = load_input(pyp_file, msgs)
+    pyp_dict = load_input(pyp_file, msgs)
+    parlines, datlines, spclines, dfnames = [pyp_dict[ii] for ii in ['par','dat','spc','dfn']]
 
     # Get paths
     paths = []

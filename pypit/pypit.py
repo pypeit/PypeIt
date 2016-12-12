@@ -86,7 +86,8 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     tstart = time()
 
     # Load the input file
-    parlines, datlines, spclines, _ = load_input(redname, msgs)
+    pyp_dict = load_input(redname, msgs)
+    parlines, datlines, spclines = [pyp_dict[ii] for ii in ['par','dat','spc']]
 
     # Initialize the arguments and flags
 #    argflag = arload.argflag_init()
@@ -272,6 +273,7 @@ def load_input(redname, msgs):
     dfnames : list
       Input data lines
     """
+    import os
     # Read in the model file
     msgs.info("Loading the input file")
     try:
@@ -284,11 +286,16 @@ def load_input(redname, msgs):
     skip_files = []
     spclines = []
     dfnames = []
-    rddata, rdspec = 0, 0
+    setuplines = []
+    paths = []
+    rddata, rdspec, rdsetup, rdsfiles = 0, 0, 0, -1
+    setups = []
+    ftype_dict = {}
+    ftype_col = -1
     for i in range(len(lines)):
         if lines[i].strip() == '': continue
         linspl = lines[i].split()
-        if rddata == 1:
+        if rddata == 1: # Read datafile(s)
             if linspl[0] == 'data' and linspl[1] == 'end':
                 rddata += 1
                 # Deal with skip files
@@ -302,37 +309,67 @@ def load_input(redname, msgs):
                     # Save
                     datlines = np.array(datlines)[keep].tolist()
                 continue
+            #
             dfname = lines[i].rstrip('\n').strip()
-            # is there a comment?
-            aux = dfname.split('#')
-            if len(aux) > 1:  # yes, there is a comment
-                dfname = aux[0].strip()
-            if len(dfname) == 0:  # line is fully commented out
-                continue
-            elif dfname[0] == '~':
-                import os
-                dfname = os.path.expanduser(dfname)
-                print(dfname)
-            elif dfname[:4] == 'skip':
-                skip_files.append(dfname.split(' ')[1])
-            elif dfname[0] != '/':
-                msgs.error("You must specify the full datapath for the file:" + msgs.newline() + dfname)
-            elif len(dfname.split()) != 1:
-                msgs.error("There must be no spaces when specifying the datafile:" + msgs.newline() + dfname)
-            dfnames.append(dfname)
-            listing = glob.glob(dfname)
-            for lst in listing: datlines.append(lst)
+            if rdsfiles == -1:
+                if 'path' in dfname[0:5]:
+                    rdsfiles = 1
+                else:
+                    rdsfiles = 0
+            if rdsfiles == 0:
+                # is there a comment?
+                aux = dfname.split('#')
+                if len(aux) > 1:  # yes, there is a comment
+                    dfname = aux[0].strip()
+                if len(dfname) == 0:  # line is fully commented out
+                    continue
+                elif dfname[0] == '~':
+                    dfname = os.path.expanduser(dfname)
+                    print(dfname)
+                elif dfname[:4] == 'skip':
+                    skip_files.append(dfname.split(' ')[1])
+                elif dfname[0] != '/':
+                    msgs.error("You must specify the full datapath for the file:" + msgs.newline() + dfname)
+                elif len(dfname.split()) != 1:
+                    msgs.error("There must be no spaces when specifying the datafile:" + msgs.newline() + dfname)
+                dfnames.append(dfname)
+                listing = glob.glob(dfname)
+                for lst in listing: datlines.append(lst)
+            else:
+                if 'path' in dfname[0:5]:
+                    paths.append(linspl[1])
+                else:  # Grab filename and frametype
+                    if ftype_col == -1:  # Identify columns for frametype
+                        ftype_col = np.where(np.array(linspl) == 'frametype')[0]
+                        dfile_col = np.where(np.array(linspl) == 'filename')[0]
+                    else:
+                        # Find datafile and update ftype dict
+                        for path in paths:
+                            if os.path.isfile(path+linspl[dfile_col]):
+                                datlines.append(path+linspl[dfile_col])
+                                ftype_dict[linspl[dfile_col]] = linspl[ftype_col]
             continue
-        elif rddata == 0 and linspl[0] == 'data' and linspl[1] == 'read':
+        elif rddata == 0 and linspl[0] == 'data' and linspl[1] == 'read': # Begin data read block
             rddata += 1
             continue
-        if rdspec == 1:
+        if rdsetup == 1:  # Read setup command
+            if linspl[0] == 'setup' and linspl[1] == 'end':
+                rdsetup += 1
+                continue
+            if 'Setup' in lines[i]:
+                setups.append(lines[i][6:].strip())
+            setuplines.append(lines[i])
+            continue
+        elif rdsetup == 0 and linspl[0] == 'setup' and linspl[1] == 'read':  # Begin setup read block
+            rdsetup += 1
+            continue
+        if rdspec == 1:  # Read spect command
             if linspl[0] == 'spect' and linspl[1] == 'end':
                 rdspec += 1
                 continue
             spclines.append(lines[i])
             continue
-        elif rdspec == 0 and linspl[0] == 'spect' and linspl[1] == 'read':
+        elif rdspec == 0 and linspl[0] == 'spect' and linspl[1] == 'read':  # Begin spect read block
             rdspec += 1
             continue
         if lines[i].lstrip()[0] == '#': continue
@@ -355,7 +392,11 @@ def load_input(redname, msgs):
     else:
         msgs.info("Found {0:d} raw data frames".format(len(datlines)))
     msgs.info("Input file loaded successfully")
-    return parlines, datlines, spclines, dfnames
+    # Let's return a dict
+    pypit_dict = dict(par=parlines, dat=datlines, spc=spclines,
+                      dfn=dfnames, setup={'name': setups, 'lines': setuplines},
+                    ftype=ftype_dict)
+    return pypit_dict # parlines, datlines, spclines, dfnames, setup, setuplines, ftype_dict
 
 
 

@@ -120,7 +120,7 @@ def make_pypit_file(pyp_file, spectrograph, dfnames, parlines=None,
         #
         if setuplines is not None:
             f.write("# Setup\n")
-            f.write("setup begin\n")
+            f.write("setup read\n")
             for sline in setuplines:
                 f.write(' '+sline)
             f.write("setup end\n")
