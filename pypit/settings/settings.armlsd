@@ -26,8 +26,9 @@ reduce badpix True              # Make a bad pixel mask? (This step requires bia
 reduce flatfield perform True           # Flatfield the data?
 reduce flatfield method PolyScan      # Method used to flat field the data (PolyScan)
 reduce flatfield params [3,50,20]     # Flat field method parameters (PolyScan: [order,numPixels,repeat])
-reduce flatfield useframe pixelflat          # How to flat field the data (pixelflat, slitflat), you can also specify a master calibrations file if it exists.
-reduce trace useframe slitflat          # How to flat field the data (pixelflat, slitflat), you can also specify a master calibrations file if it exists.
+reduce flatfield useframe pixelflat          # How to flat field the data (pixelflat, pinhole), you can also specify a master calibrations file if it exists.
+reduce slitcen useframe trace          # How to trace the slit center (pinhole, trace, science), you can also specify a master calibrations file if it exists.
+reduce trace useframe trace          # How to flat field the data (trace), you can also specify a master calibrations file if it exists.
 reduce flexure method boxcar      # Perform flexure correction on objects using boxcar extraction.  Options are: None, boxcar, slitcen [this performs flexure correction before extraction of objects]
 reduce flexure maxshift 20      # Maximum allowed flexure shift in pixels (int)
 reduce flexure spectrum None
@@ -72,8 +73,8 @@ bias combine reject level    [3.0,3.0]     # Rejection level (in standard deviat
 bias combine reject replace   median        # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
 bias combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
 
-# TRACE FRAMES
-trace useframe slitflat                       # What frame should be used to trace the slit centroid (based on the average of the left/right edges). Must be one of [trace, science]
+# TRACE FRAMES (used to trace the slit edges)
+trace useframe trace                       # What filetype should be used to trace the slit edges (trace), you can also specify a master calibrations file if it exists.
 trace combine match -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
 trace combine method weightmean          # How should the trace frames be combined (mean, median, weightmean)
 trace combine reject cosmics 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
@@ -82,7 +83,9 @@ trace combine reject level    [3.0,3.0]     # Rejection level (in standard devia
 trace combine reject replace   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
 trace combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
 trace dispersion direction  0          # Specify the dispersion direction (0 for row, 1 for column)
+trace norm recnorm True             # Use the recnorm algorithm?
 trace slits diffpolyorder  2         # What is the order of the 2D function that should be used to fit the 2d solution for the spatial size of all orders?
+trace slits expand False             # If you trace the slits with a pinhole frame, you should expand the trace edges to the slit edges defined by the trace frame
 trace slits fracignore 0.01           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
 trace slits function    legendre      # What function should be used to trace each order? (polynomial, legendre, chebyshev)
 trace slits maxgap    None          # Maximum gap between slits (None if slits are far apart, or of similar illumination)
@@ -92,7 +95,7 @@ trace slits pca params [3,2,1,0,0,0]        # What order polynomials should be u
 trace slits pca extrapolate pos     0             # How many extra orders to predict in the positive direction
 trace slits pca extrapolate neg     0             # How many extra orders to predict in the negative direction
 trace slits polyorder  3             # What is the order of the function that should be used?
-trace slits sigdetect  5.0           # Sigma detection threshold for edge detection
+trace slits sigdetect  20.0           # Sigma detection threshold for edge detection
 trace slits single []                #
 trace slits tilts idsonly False       # Use only the arc lines that have an identified wavelength to trace tilts
 trace slits tilts method      spline        # What method should be used to trace the tilt of the slit along an order (PCA, spca, spline, interp, perp, zero)
@@ -117,16 +120,15 @@ science extraction maxnumber 1     # Maximum number of objects to extract in a s
 science extraction manual01 frame None
 science extraction manual01 params None
 
-# SLIT FLAT FRAMES (used to trace the slit edges)
-slitflat useframe slitflat             # What filetype should be used to trace the slit edges (slitflat), you can also specify a master calibrations file if it exists.
-slitflat combine match -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
-slitflat combine method weightmean          # How should the pixel flat frames be combined (mean, median, weightmean)
-slitflat combine reject cosmics 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
-slitflat combine reject lowhigh  [0,0]         # Number of low/high pixels to reject, [low,high]
-slitflat combine reject level    [3.0,3.0]     # Rejection level (in standard deviations), where <= 0.0 means no rejection [low,high]
-slitflat combine reject replace   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
-slitflat combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
-slitflat norm recnorm True             # Use the recnorm algorithm?
+# PINHOLE FRAMES
+pinhole useframe pinhole             # What frame should be used to trace the slit centroid (based on the average of the left/right edges). Must be one of [pinhole, science]
+pinhole combine match -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
+pinhole combine method weightmean          # How should the pixel flat frames be combined (mean, median, weightmean)
+pinhole combine reject cosmics 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
+pinhole combine reject lowhigh  [0,0]         # Number of low/high pixels to reject, [low,high]
+pinhole combine reject level    [3.0,3.0]     # Rejection level (in standard deviations), where <= 0.0 means no rejection [low,high]
+pinhole combine reject replace   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
+pinhole combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
 
 # OUTPUT
 output  verbosity      2				# Level of screen output (0 is No screen output, 1 is low level output, 2 is output everything)

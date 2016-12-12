@@ -1,6 +1,6 @@
 # SIMPLE RULES:
 #
-# 1. If a keyword is specified in science/pixelflat/slitflat/trace/bias/arc frames
+# 1. If a keyword is specified in science/pixelflat/pinhole/trace/bias/arc frames
 #    it must also appear in the Keyword identifiers list.
 # 2. You must check NAXIS is 2 in ``checks to perform''.
 # 3. If a keyword value contains only some interesting value,
@@ -168,17 +168,17 @@ pixelflat match decker ''             # Check the same decker as the science fra
 pixelflat match dichroic ''             # Check the same decker as the science frame was used
 pixelflat match dispname ''             # Check the same decker as the science frame was used
 
-### Blaze Flat frames
-slitflat idname None                   # Header key value of trace frame for header keyword keyword+idname
-slitflat number 0                      # Number of trace frames to use
-slitflat check condition1 hatch=open   # Required for blaze flats
-slitflat check condition2 exptime<30   # Avoid stars
-slitflat check condition3 lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on
-slitflat canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
-slitflat match binning ''             		# Match the shape of standard and science frames
-slitflat match decker ''             # Check the same decker as the science frame was used
-slitflat match dichroic ''             # Check the same decker as the science frame was used
-slitflat match dispname ''             # Check the same decker as the science frame was used
+### Pinhole frames
+pinhole idname None                   # Header key value of trace frame for header keyword keyword+idname
+pinhole number 0                      # Number of trace frames to use
+pinhole check condition1 hatch=open   # Required for blaze flats
+pinhole check condition2 exptime<30   # Avoid stars
+pinhole check condition3 lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on
+pinhole canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
+pinhole match binning ''             		# Match the shape of standard and science frames
+pinhole match decker ''             # Check the same decker as the science frame was used
+pinhole match dichroic ''             # Check the same decker as the science frame was used
+pinhole match dispname ''             # Check the same decker as the science frame was used
 
 ### Trace frames
 trace idname OBJECT               # Header key value of flat frame for header keyword keyword+idname

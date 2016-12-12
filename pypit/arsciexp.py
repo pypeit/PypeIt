@@ -45,11 +45,13 @@ class ScienceExposure:
         elif settings.argflag['bias']['useframe'] == 'dark':  self._idx_bias = settings.spect['dark']['index'][snum]
         else: self._idx_bias = []
         if settings.argflag['reduce']['trace']['useframe'] == 'trace': self._idx_trace = settings.spect['trace']['index'][snum]
-        elif settings.argflag['reduce']['trace']['useframe'] == 'slitflat': self._idx_trace = settings.spect['slitflat']['index'][snum]
         else: self._idx_trace = []
         if settings.argflag['reduce']['flatfield']['useframe'] == 'pixelflat': self._idx_flat = settings.spect['pixelflat']['index'][snum]
-        elif settings.argflag['reduce']['flatfield']['useframe'] == 'slitflat': self._idx_flat = settings.spect['slitflat']['index'][snum]
+        elif settings.argflag['reduce']['flatfield']['useframe'] == 'trace': self._idx_flat = settings.spect['trace']['index'][snum]
         else: self._idx_flat = []
+        if settings.argflag['reduce']['slitcen']['useframe'] == 'trace': self._idx_cent = settings.spect['trace']['index'][snum]
+        elif settings.argflag['reduce']['slitcen']['useframe'] == 'pinhole': self._idx_cent = settings.spect['pinhole']['index'][snum]
+        else: self._idx_cent = []
 
         # Set the base name and extract other names that will be used for output files
         self.SetBaseName(fitsdict)
@@ -87,7 +89,8 @@ class ScienceExposure:
         self._msbias = [None for all in range(ndet)]        # Master Bias
         self._msrn = [None for all in range(ndet)]          # Master ReadNoise image
         self._mstrace = [None for all in range(ndet)]       # Master Trace
-        self._mspixelflat = [None for all in range(ndet)]     # Master pixel flat
+        self._mspinhole = [None for all in range(ndet)]       # Master Pinhole
+        self._mspixelflat = [None for all in range(ndet)]     # Master Pixel Flat
         self._mspixelflatnrm = [None for all in range(ndet)]  # Normalized Master pixel flat
         self._msblaze = [None for all in range(ndet)]       # Blaze function
         self._msstd = [{} for all in range(ndet)]           # Master Standard dict
@@ -95,6 +98,7 @@ class ScienceExposure:
         self._msarc_name = [None for all in range(ndet)]      # Master Arc Name
         self._msbias_name = [None for all in range(ndet)]     # Master Bias Name
         self._mstrace_name = [None for all in range(ndet)]    # Master Trace Name
+        self._mspinhole_name = [None for all in range(ndet)]    # Master Pinhole Name
         self._mspixelflat_name = [None for all in range(ndet)]  # Master Pixel Flat Name
         # Initialize the science, variance, and background frames
         self._sciframe = [None for all in range(ndet)]
@@ -255,7 +259,7 @@ class ScienceExposure:
                 # Load the arc frames
                 frames = arload.load_frames(fitsdict, ind, det, frametype='arc', msbias=self._msbias[det-1])
                 if settings.argflag['arc']['combine']['match'] > 0.0:
-                    sframes = arsort.match_frames(frames, settings.argflag['arc']['combine']['match'], msgs, frametype='arc',
+                    sframes = arsort.match_frames(frames, settings.argflag['arc']['combine']['match'], frametype='arc',
                                                   satlevel=settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])
                     subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
                     numarr = np.array([])
@@ -409,7 +413,7 @@ class ScienceExposure:
                 return False
             ###############
             # Generate a master pixel flat frame
-            if settings.argflag['reduce']['flatfield']['useframe'] in ['pixelflat', 'slitflat']:
+            if settings.argflag['reduce']['flatfield']['useframe'] in ['pixelflat', 'trace']:
                 if settings.argflag['reduce']['masters']['reuse']:
                     # Attempt to load the Master Frame
                     msflat_name = armasters.master_name(settings.argflag['run']['directory']['master'],
@@ -466,6 +470,74 @@ class ScienceExposure:
         self.SetMasterFrame(mspixelflatnrm, "normpixelflat", det)
         return True
 
+    def MasterPinhole(self, fitsdict, det):
+        """
+        Generate Master pinhole frame for a given detector
+
+        Parameters
+        ----------
+        fitsdict : dict
+          Contains relevant information from fits header files
+        det : int
+          Index of the detector
+
+        Returns
+        -------
+        boolean : bool
+          Should other ScienceExposure classes be updated?
+        """
+        dnum = settings.get_dnum(det)
+        # If the master pinhole is already made, use it
+        if self._mspinhole[det - 1] is not None:
+            msgs.info("An identical master pinhole frame already exists")
+            return False
+        if settings.argflag['reduce']['slitcen']['useframe'] in ['trace', 'pinhole']:
+            if settings.argflag['reduce']['masters']['reuse']:
+                # Attempt to load the Master Frame
+                mspinhole_name = armasters.master_name(settings.argflag['run']['directory']['master'],
+                                                        'pinhole', settings.argflag['reduce']['masters']['setup'])
+                try:
+                    mspinhole, head = arload.load_master(mspinhole_name, frametype="pinhole")
+                except IOError:
+                    msgs.warn("No MasterPinhole frame found {:s}".format(mspinhole_name))
+                else:
+                    settings.argflag['reduce']['masters']['loaded'].append(
+                        'pinhole' + settings.argflag['reduce']['masters']['setup'])
+            if 'pinhole' + settings.argflag['reduce']['masters']['setup'] not in \
+                    settings.argflag['reduce']['masters']['loaded']:
+                msgs.info("Preparing a master pinhole frame with {0:s}".format(
+                    settings.argflag['reduce']['slitcen']['useframe']))
+                ind = self._idx_cent
+                # Load the pinhole frames
+                frames = arload.load_frames(fitsdict, ind, det, frametype='pinhole', msbias=self._msbias[det - 1],
+                                            trim=settings.argflag['reduce']['trim'])
+                if settings.argflag['pinhole']['combine']['match'] > 0.0:
+                    sframes = arsort.match_frames(frames, settings.argflag['pinhole']['combine']['match'],
+                                                  frametype='pinhole', satlevel=settings.spect[dnum]['saturation'] *
+                                                  settings.spect['det'][det - 1]['nonlinear'])
+                    subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
+                    numarr = np.array([])
+                    for i in range(len(sframes)):
+                        numarr = np.append(numarr, sframes[i].shape[2])
+                        mspinhole = arcomb.comb_frames(sframes[i], det, 'pinhole')
+                        subframes[:, :, i] = mspinhole.copy()
+                    del sframes
+                    # Combine all sub-frames
+                    mspinhole = arcomb.comb_frames(subframes, det, 'pinhole', weights=numarr)
+                    del subframes
+                else:
+                    mspinhole = arcomb.comb_frames(frames, det, 'pinhole')
+                del frames
+        else:  # It must be the name of a file the user wishes to load
+            mspinhole_name = settings.argflag['run']['directory']['master'] + '/' + \
+                              settings.argflag['reduce']['slitcen']['useframe']
+            mspinhole, head = arload.load_master(mspinhole_name, frametype=None)
+            debugger.set_trace()  # NEED TO LOAD EXTRAS AS ABOVE
+        # Set and then delete the Master Trace frame
+        self.SetMasterFrame(mspinhole, "pinhole", det)
+        del mspinhole
+        return True
+
     def MasterTrace(self, fitsdict, det):
         """
         Generate Master Trace frame for a given detector
@@ -487,11 +559,11 @@ class ScienceExposure:
         if self._mstrace[det-1] is not None:
             msgs.info("An identical master trace frame already exists")
             return False
-        if settings.argflag['reduce']['trace']['useframe'] in ['trace', 'slitflat']:
+        if settings.argflag['reduce']['trace']['useframe'] in ['trace']:
             if settings.argflag['reduce']['masters']['reuse']:
                 # Attempt to load the Master Frame
                 mstrace_name = armasters.master_name(settings.argflag['run']['directory']['master'],
-                                                   'trace', settings.argflag['reduce']['masters']['setup'])
+                                                    'trace', settings.argflag['reduce']['masters']['setup'])
                 try:
                     mstrace, head = arload.load_master(mstrace_name, frametype="trace")
                 except IOError:
@@ -519,7 +591,7 @@ class ScienceExposure:
                 frames = arload.load_frames(fitsdict, ind, det, frametype='trace', msbias=self._msbias[det-1],
                                             trim=settings.argflag['reduce']['trim'])
                 if settings.argflag['trace']['combine']['match'] > 0.0:
-                    sframes = arsort.match_frames(frames, settings.argflag['trace']['combine']['match'], msgs, frametype='trace', satlevel=settings.spect[dnum]['saturation']*settings.spect['det'][det-1]['nonlinear'])
+                    sframes = arsort.match_frames(frames, settings.argflag['trace']['combine']['match'], frametype='trace', satlevel=settings.spect[dnum]['saturation']*settings.spect['det'][det-1]['nonlinear'])
                     subframes = np.zeros((frames.shape[0], frames.shape[1], len(sframes)))
                     numarr = np.array([])
                     for i in range(len(sframes)):
@@ -533,8 +605,6 @@ class ScienceExposure:
                 else:
                     mstrace = arcomb.comb_frames(frames, det, 'trace')
                 del frames
-        elif settings.argflag['reduce']['trace']['useframe'] == 'science':
-            msgs.error("Tracing with a science frame is not yet implemented")
         else: # It must be the name of a file the user wishes to load
             mstrace_name = settings.argflag['run']['directory']['master']+'/'+settings.argflag['reduce']['trace']['useframe']
             mstrace, head = arload.load_master(mstrace_name, frametype=None)
@@ -603,6 +673,8 @@ class ScienceExposure:
         if self._wvcalib[det-1] is not None:
             msgs.info("An identical master wave calib frame already exists")
             return False
+        else:
+            wv_calib = None
         # Attempt to load the Master Frame
         if settings.argflag['reduce']['masters']['reuse']:
             mswv_calib_name = armasters.master_name(settings.argflag['run']['directory']['master'],
@@ -613,7 +685,9 @@ class ScienceExposure:
                 msgs.warn("No MasterWave1D data found {:s}".format(mswv_calib_name))
             else:
                 settings.argflag['reduce']['masters']['loaded'].append('wave_calib'+settings.argflag['reduce']['masters']['setup'])
-        if 'wave_calib'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+        # msgs.bug("REMOVE FALSE ON LINE BELOW TO PERFORM WAVELENGTH CALIBRATION")
+        # if False and 'wave_calib'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+        if 'wave_calib' + settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
             # Setup arc parameters (e.g. linelist)
             arcparam = ararc.setup_param(self, sc, det, fitsdict)
             self.SetFrame(self._arcparam, arcparam, det)
@@ -736,6 +810,7 @@ class ScienceExposure:
         elif ftype == "normpixelflat": self._mspixelflatnrm[det] = cpf
         elif ftype == "pixelflat": self._mspixelflat[det] = cpf
         elif ftype == "trace": self._mstrace[det] = cpf
+        elif ftype == "pinhole": self._mspinhole[det] = cpf
         elif ftype == "standard": self._msstd[det] = cpf
         elif ftype == "sensfunc": self._sensfunc = cpf
         else:
@@ -762,6 +837,7 @@ class ScienceExposure:
             elif ftype == "normpixelflat": return self._mspixelflatnrm[det].copy()
             elif ftype == "pixelflat": return self._mspixelflat[det].copy()
             elif ftype == "trace": return self._mstrace[det].copy()
+            elif ftype == "pinhole": return self._mspinhole[det].copy()
             elif ftype == "standard": return mkcopy.copy(self._msstd[det])
             elif ftype == "sensfunc": return mkcopy.copy(self._sensfunc)
             else:
@@ -774,6 +850,7 @@ class ScienceExposure:
             elif ftype == "normpixelflat": return self._mspixelflatnrm[det]
             elif ftype == "pixelflat": return self._mspixelflat[det]
             elif ftype == "trace": return self._mstrace[det]
+            elif ftype == "pinhole": return self._mspinhole[det]
             elif ftype == "standard": return self._msstd[det]
             elif ftype == "sensfunc": return self._sensfunc
             else:

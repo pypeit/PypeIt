@@ -435,6 +435,7 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
         sclmin, sclmax = 0.4, 1.1
     else:
         nrm_frame = frame.copy()
+        nrm_frame[frame > 0.0] = np.sqrt(nrm_frame[frame > 0.0])
         sclmin, sclmax = zscale(nrm_frame)
 
     # Plot
@@ -465,12 +466,12 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
         else:
             ptyp = '--'
         # Left
-        plt.plot(ltrace[:, ii]+0.5, ycen, 'r'+ptyp, alpha=0.7)
+        plt.plot(ltrace[:, ii]+0.5, ycen, 'r'+ptyp, linewidth=0.1, alpha=0.7)
         # Right
-        plt.plot(rtrace[:, ii]+0.5, ycen, 'c'+ptyp, alpha=0.7)
+        plt.plot(rtrace[:, ii]+0.5, ycen, 'c'+ptyp, linewidth=0.1, alpha=0.7)
         # Label
         #plt.text(ltrace[iy, ii], ycen[iy], '{0:d}'.format(ii+1), color='red', ha='left')
-        plt.text(0.5*(ltrace[iy, ii]+rtrace[iy, ii]), ycen[iy], '{0:d}'.format(ii+1), color='green', ha='center')
+        plt.text(0.5*(ltrace[iy, ii]+rtrace[iy, ii]), ycen[iy], '{0:d}'.format(ii+1), color='green', ha='center', size='small')
     if desc != "":
         plt.suptitle(desc)
 

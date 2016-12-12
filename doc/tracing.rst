@@ -21,6 +21,10 @@ analysis is performed for echelle data, an
 extrapolation can be performed to locate the echelle
 orders near the edge of the detector.
 
+The slit edges are traced using a "trace" frame.
+If neighboring slits are very close together, you
+can use a "pinhole" frame to trace the slit centroid.
+
 User Inputted Values
 ====================
 
@@ -64,7 +68,27 @@ For example, for the LRISr longslit with 2x2 binning, the
 following line will force the slit to be generated from
 columns 7-295 on the second detctor::
 
-    trace slits single[0,0,7,295]
+    trace slits single [0,0,7,295]
 
 Because the 2nd value is 0, the code will be required to
 automatically find a slit on the first detector.
+
+Trace frames vs Pinhole frames
+==============================
+
+In the current version of PYPIT, pinhole frames are
+only used for echelle data reduction. Pinhole frames
+are usually an exposure of a quartz lamp through a
+very short (pinhole) slit. Thus, neighboring slit
+edges of a pinhole frame should be well separated.
+Trace frames, on the other hand, usually have the
+same slit length as the science frame. In cases
+where neighboring slits are very close together,
+it is necessary to first define the slit centroid
+using a pinhole frame, and the slit edges are
+defined using a trace frame by "expanding" the
+slits, by giving the following keyword argument::
+
+    trace slits expand True
+
+

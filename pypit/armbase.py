@@ -85,6 +85,9 @@ def SetupScience(fitsdict):
                 for key in filesort.keys():
                     if key in ['unknown', 'dark']:
                         continue
+                    if len(settings.spect[key]['index']) == 0:
+                        # No bias frames
+                        continue
                     for idx in settings.spect[key]['index'][sc]:
                         # Only add if new
                         if fitsdict['filename'][idx] not in group_dict[group_key][key]:
@@ -145,6 +148,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
     elif ftype == "flat":
         if chktype == "trace": chkarr = sciexp[sc]._idx_trace
         elif chktype == "pixelflat": chkarr = sciexp[sc]._idx_flat
+        elif chktype == "pinhole": chkarr = sciexp[sc]._idx_cent
         else:
             msgs.bug("I could not update frame of type {0:s} and subtype {1:s}".format(ftype, chktype))
             return
@@ -158,6 +162,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
             # Check if an *identical* master frame has already been produced
             if chktype == "trace": chkfarr = sciexp[i]._idx_trace
             elif chktype == "pixelflat": chkfarr = sciexp[i]._idx_flat
+            elif chktype == "pinhole": chkfarr = sciexp[i]._idx_cent
             else:
                 msgs.bug("I could not update frame of type {0:s} and subtype {1:s}".format(ftype, chktype))
                 return
@@ -172,6 +177,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
             # Check if an *identical* master frame has already been produced
             if chktype == "trace": chkfarr = sciexp[i]._idx_trace
             elif chktype == "pixelflat": chkfarr = sciexp[i]._idx_flat
+            elif chktype == "pinhole": chkfarr = sciexp[i]._idx_cent
             else:
                 msgs.bug("I could not update frame of type {0:s} and subtype {1:s}".format(ftype, chktype))
                 return
