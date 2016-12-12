@@ -673,6 +673,8 @@ class ScienceExposure:
         if self._wvcalib[det-1] is not None:
             msgs.info("An identical master wave calib frame already exists")
             return False
+        else:
+            wv_calib = None
         # Attempt to load the Master Frame
         if settings.argflag['reduce']['masters']['reuse']:
             mswv_calib_name = armasters.master_name(settings.argflag['run']['directory']['master'],
