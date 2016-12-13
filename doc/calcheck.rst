@@ -9,8 +9,10 @@ Overview
 
 We *strongly recommend* that one perform a calibration
 check with the .pypit file before proceeding to run the
-reduction.  This simply verfies that the number of desired
-calibration files exist.  It does **not** check the
+reduction.  This verifies that the number of desired
+calibration files exist and allows the user to examine
+how the code will group calibration files with science
+frames.  It does **not** check the
 sanctity of the files nor process the calibrations in any manner.
 
 Procedure
@@ -26,7 +28,7 @@ include this line::
 
     run setup True   # Cannot be set for calcheck or full reduction
 
-Either set to False, comment it out, or remove it altogether.
+Either set 'run setup' to False, comment it out, or remove it altogether.
 
 You may then run PYPIT, e.g.::
 
@@ -51,18 +53,27 @@ The primary settings you need to specify at this stage are:
 
 #.  Over-ride any frametype designations, as necessary.
 
+#.  Modify the method(s) for bias subtraction, flat fielding etc.
+
 For the second issue, see :ref:`modifying_frametype`.
 
-For the first, add a series of lines (or edit the existing ones)
-in the :ref:`spect_block` of the .pypit file.
-One line per calibration frametype desired.
-Here is a standard block for LRISb::
+For the first issue see below:
 
-     pixelflat number 5
+Calib number
+------------
+
+The user can specify and/or over-ride defaults
+for the number of calibration frames required
+by adding a series of lines (or edit the existing ones)
+in the :ref:`spect_block` of the .pypit file.
+One line per calibration frametype, as desired.
+Here is a block one might use for LRISb::
+
+    # Spect
+    spect read
      arc number 1
-     slitflat number 5
-     bias number 10
-     standard number 1
+     pixelflat number 3
+    spect end
 
 When a positive, non-zero value is used, the code will require
 that there be that many calibration frames for each science
@@ -70,7 +81,7 @@ frame reduced.  And, PYPIT will restrict to precisely that many
 calibration files.
 
 If you wish to use *at least* an input number of frames (and
-more if they exist), then specify the calibration nubmer
+more if they exist), then specify the calibration number
 with a negative integer value, e.g.::
 
      pixelflat number 5

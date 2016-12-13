@@ -112,7 +112,7 @@ def SetupScience(fitsdict):
     if settings.argflag['run']['calcheck'] or settings.argflag['run']['setup']:
         if settings.argflag['run']['calcheck']:
             msgs.info("Inspect the .calib file: {:s}".format(setup_file))
-            msgs.info("Calibration check complete. Change 'run calcheck' flag to False to continue with data reduction")
+            msgs.info("Calibration check complete. Set 'run calcheck False' to continue with data reduction")
             return 'calcheck', None
         elif settings.argflag['run']['setup']:
             msgs.info("Setup is complete. Change 'run setup' to False to continue with data reduction")
