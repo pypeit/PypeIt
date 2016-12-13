@@ -39,7 +39,6 @@ class ScienceExposure:
         # Set indices used for frame combination
         self._idx_sci = settings.spect['science']['index'][snum]
         self._idx_arcs = settings.spect['arc']['index'][snum]
-        self._idx_trace = settings.spect['trace']['index'][snum]
         self._idx_std = settings.spect['standard']['index'][snum]
         if settings.argflag['bias']['useframe'] == 'bias': self._idx_bias = settings.spect['bias']['index'][snum]
         elif settings.argflag['bias']['useframe'] == 'dark':  self._idx_bias = settings.spect['dark']['index'][snum]

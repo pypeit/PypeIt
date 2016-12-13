@@ -362,7 +362,10 @@ def load_input(redname, msgs):
                         ftype_col = np.where(np.array(linspl) == 'frametype')[0]
                         dfile_col = np.where(np.array(linspl) == 'filename')[0]
                     else:
-                        # Find datafile and update ftype dict
+                        # Skip commented lines
+                        if lines[i][0] == '#':
+                            continue
+                        # Find datafile and update ftype dict (should check ftype)
                         for path in paths:
                             if os.path.isfile(path+linspl[dfile_col]):
                                 datlines.append(path+linspl[dfile_col])
