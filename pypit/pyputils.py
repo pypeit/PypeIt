@@ -113,6 +113,7 @@ def make_pypit_file(pyp_file, spectrograph, dfnames, parlines=None,
         f.write("# Reduce\n")
         f.write("\n")
         # Setup stuff
+        f.write("# Spect\n")
         f.write("spect read\n")
         for spcline in spclines:
             f.write(spcline)

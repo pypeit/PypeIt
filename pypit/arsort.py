@@ -478,7 +478,10 @@ def match_science(fitsdict, filesort):
                                                                              fitsdict['target'][iSCI[i]]))
                 # Errors for insufficient BIAS frames
                 if settings.argflag['bias']['useframe'].lower() == ftag[ft]:
-                    msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
+                    msgs.warn("Expecting to use bias frames for bias subtraction. But insufficient frames found.")
+                    msgs.warn("Either include more frames or modify bias method")
+                    msgs.warn("  e.g.:   bias useframe overscan")
+                    msgs.error("Unable to continue")
                 # Errors for insufficient PIXELFLAT frames
                 if ftag[ft] == 'pixelflat' and settings.argflag['reduce']['flatfield']['perform']:
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))

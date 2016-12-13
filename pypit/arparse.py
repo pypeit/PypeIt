@@ -597,6 +597,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
+    '''
     def bias_useoverscan(self, v):
         """ Subtract the bias level using the overscan region?
 
@@ -607,6 +608,7 @@ class BaseArgFlag(BaseFunctions):
         """
         v = key_bool(v)
         self.update(v)
+    '''
 
     def bias_useframe(self, v):
         """ How to subtract the detector bias (bias, overscan, dark, none),
