@@ -64,7 +64,7 @@ def test_neg_match_science(fitsdict):
     # Load
     filesort = arsort.sort_data(fitsdict)
     # Use negative number
-    for ftype in ['arc', 'pixelflat', 'trace', 'slitflat', 'bias']:
+    for ftype in ['arc', 'pixelflat', 'trace', 'pinhole', 'bias']:
         settings.spect[ftype]['number'] = 1
     settings.spect['trace']['number'] = -1
     arsort.match_science(fitsdict, filesort)
