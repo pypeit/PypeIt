@@ -1887,15 +1887,17 @@ def order_saturation(np.ndarray[ITYPE_t, ndim=2] satmask not None,
     sz_y = satmask.shape[0]
     sz_o = ordcen.shape[1]
 
-    cdef np.ndarray[ITYPE_t, ndim=2] ordsat = np.zeros((sz_y,sz_o), dtype=ITYPE)
+    cdef np.ndarray[ITYPE_t, ndim=2] ordsat = np.zeros((sz_y, sz_o), dtype=ITYPE)
 
     for o in range(sz_o):
         for y in range(sz_y):
-            xmin = ordcen[y,o]-ordwid[y,o]
-            xmax = ordcen[y,o]+ordwid[y,o]+1
-            if xmin < 0: xmin = 0
-            if xmax >= sz_x: xmax=sz_x
-            for x in range(xmin,xmax):
+            xmin = ordcen[y,o] - ordwid[y,o]
+            xmax = ordcen[y,o] + ordwid[y,o] + 1
+            if xmin < 0:
+                xmin = 0
+            if xmax >= sz_x:
+                xmax=sz_x
+            for x in range(xmin, xmax):
                 if satmask[y,x] == 1:
                     ordsat[y,o] = 1
                     break

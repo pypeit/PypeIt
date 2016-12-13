@@ -148,6 +148,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
     elif ftype == "flat":
         if chktype == "trace": chkarr = sciexp[sc]._idx_trace
         elif chktype == "pixelflat": chkarr = sciexp[sc]._idx_flat
+        elif chktype == "pinhole": chkarr = sciexp[sc]._idx_cent
         else:
             msgs.bug("I could not update frame of type {0:s} and subtype {1:s}".format(ftype, chktype))
             return
@@ -161,6 +162,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
             # Check if an *identical* master frame has already been produced
             if chktype == "trace": chkfarr = sciexp[i]._idx_trace
             elif chktype == "pixelflat": chkfarr = sciexp[i]._idx_flat
+            elif chktype == "pinhole": chkfarr = sciexp[i]._idx_cent
             else:
                 msgs.bug("I could not update frame of type {0:s} and subtype {1:s}".format(ftype, chktype))
                 return
@@ -175,6 +177,7 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
             # Check if an *identical* master frame has already been produced
             if chktype == "trace": chkfarr = sciexp[i]._idx_trace
             elif chktype == "pixelflat": chkfarr = sciexp[i]._idx_flat
+            elif chktype == "pinhole": chkfarr = sciexp[i]._idx_cent
             else:
                 msgs.bug("I could not update frame of type {0:s} and subtype {1:s}".format(ftype, chktype))
                 return

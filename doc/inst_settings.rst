@@ -4,7 +4,7 @@
 Instrument Settings
 *******************
 
-This document will details aspects of the
+This document will detail aspects of the
 instrument settings files used in PYPIT.
 
 Generating a new file
@@ -44,8 +44,32 @@ keyword lamps 01.CAGLAMPS              # Lamps being used
 * Update FITS properties
   * timeunit refers to the format of the time KEYWORD (e.g. mjd)
   * We should give a few examples here
-* Fiddle with rules for Image type ID
-  * NEED TO EXPLAIN SOME OF THESE
+* Fiddle with rules for Image type ID. Below are some helpful guidelines
+  * If a keyword is specified in science/pixflat/blzflat/trace/bias/arc frames
+    it must also appear in the Keyword identifiers list.
+  *  You must check NAXIS is 2 in "checks to perform".
+  *  If a keyword value contains only some interesting value,
+     you can split the keyword value using the '%,' notation.
+     For example, suppose you have the string 10:50:23.45, and
+     you're interested in the 50 for a match condition, you would
+     use '%' to indicate you want to split the keyword value, ':'
+     indicates the delimiter text, '1' indicates you're interested
+     in the 1st argument (0-indexed), '<60' is an example criteria.
+     Each of these should be specified in this order, separated by
+     commas, so the final string would be:
+     %,:,1,<60
+     If you want to split on multiple delimiters, separate them with
+     a logical or operator. For example, if you want to split a string
+     at the characters ':' and '.', you would use the expression
+     %,:|.,1,<60
+  *  If the text '|' appears in the match condition, the absolute
+     value will be taken. For example '|<=0.05' means that a given
+     keyword's value for a calibration frame must be within 0.05 of
+     a science frame's value, in order to be matched.
+  *  If a keyword's value contains spaces, replace all spaces with
+     one underscore.
+  *  If the header contains two keyword's of the same name, only
+     the value of the first one will be recognised.
 
 * Run
 * Add arc solution
