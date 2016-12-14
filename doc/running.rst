@@ -11,5 +11,5 @@ pypit file
 ==========
 
 Make sure that neither `run calcheck` nor `run setup`
-or set to True in the .pypit file.
+are set to True in the .pypit file.
 
