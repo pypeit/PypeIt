@@ -11,7 +11,7 @@ The primary file which informs the PYPIT data
 reduction pipeline is referred to as the PYPIT
 reduction file and it has a .pypit extension.  This
 can be generated from PYPIT scripts (*recommended*)
-or by-hand if you are sufficiently familiar with the code.
+or by hand if you are sufficiently familiar with the code.
 
 This document provides guidance on generating and modifying
 the file.
@@ -73,12 +73,12 @@ pypit_setup
 ===========
 
 By default, the pypit_setup script will generate a set of
-custom .pypit files, on per instrument configuration.  These
+custom .pypit files, one per instrument configuration.  These
 will have names like::
 
     lris_blue_setup_A.pypit
 
-This is the default because we expect most users to wish to
+This is the default because we expect that most users wish to
 reduce at one time the full set of exposures taken
 with the same instrument configuration.
 Of course, one can create other custom .pypit files.
@@ -114,7 +114,7 @@ Naming
 Create a .pypit file. Name it anything you want, but for example,
 it's useful to have: the instrument name, the grating or grism used,
 the dichroic, etc. For example, we could call our PYPIT file
-'lris_blue_long_600_4000_d560.pypit', for our data as collected
+'lris_blue_long_600_4000_d560.pypit', for our data was collected
 on LRIS's blue arm, in long slit mode, using the 600/4000 grism
 and d560 dichroic.
 
@@ -166,7 +166,7 @@ Data block
 Next, tell PYPIT where your raw data lives!
 One specifies the full path and may use wild cards
 to include a set of files.  If the data are compressed,
-include that extension.  Multiple entires are allowed
+include that extension.  Multiple entries are allowed
 
 Here is an example::
 
