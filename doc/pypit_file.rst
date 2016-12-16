@@ -180,7 +180,7 @@ without the complete path, e.g.::
 
     skip LB.20160406.17832.fits
 
-These will not be ignored as if they didn't exist.
+These will be ignored as if they didn't exist.
 
 .. _spect_block:
 

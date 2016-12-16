@@ -16,18 +16,18 @@ Here is the sequence of events:
 ========== ============= ===========================================
 Step       Products      Description
 ========== ============= ===========================================
-ampsec     datasec image 2D image describing the detectoe pixels for analysis
+datasec    datasec image 2D image describing the detector pixels for analysis
 ========== ============= ===========================================
 
-ampsec
-======
+datasec
+=======
 
 In this step, PYPIT parses the instrument settings file
 (or user input) to establish the region on each detector
 for analysis.  The overscan section is also established
 and is included in the datasec if one exists.
 
-An 2D image defining the datasec pixels
+A 2D image defining the datasec pixels
 is generated and stored internally (in _datasec).
 
 Standard
@@ -35,7 +35,7 @@ Standard
 
 The standard approach to defining the datasec is to set these
 in the instrument settings file.  It is necessary to generate
-on set per amplifier as each of these may have distinct
+one set per amplifier as each of these may have distinct
 properties (e.g. readnoise, gain).
 
 Here are the values for Kast blue::
@@ -52,5 +52,5 @@ LRIS
 ----
 
 The FITS file writing for LRIS is sufficiently complex that the
-ampsec definition (and file loading)
+datasec definition (and file loading)
 is guided by a custom method: arlris.read_lris()

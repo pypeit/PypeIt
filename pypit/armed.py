@@ -74,8 +74,8 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             det = kk + 1  # Detectors indexed from 1
             slf.det = det
             ###############
-            # Get amplifier sections
-            arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
+            # Get datasec sections
+            arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
             # Setup
             setup = arsort.instr_setup(sc, det, fitsdict, setup_dict, must_exist=True)
             settings.argflag['reduce']['masters']['setup'] = setup

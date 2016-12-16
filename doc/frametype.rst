@@ -58,6 +58,17 @@ assigned more than one frametype.
 Modifying a frametype
 =====================
 
+data block
+----------
+
+If your PYPIT reduction file includes the file-by-file
+listing of frames to analyze, you can edit the frametype
+directly in the appropriate column.  The values in the
+.pypit file will over-ride any assessed by the code.
+
+spect block
+-----------
+
 One can specify one or more frametype's for any file
 in the .pypit file.  Include one or more lines in the
 :ref:`spect_block` with syntax `set frametype filename`, e.g.::

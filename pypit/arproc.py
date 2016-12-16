@@ -671,7 +671,7 @@ def get_ampscale(slf, det, msflat):
     return sclframe
 
 
-def get_ampsec_trimmed(slf, fitsdict, det, scidx):
+def get_datasec_trimmed(slf, fitsdict, det, scidx):
     """
      Generate a frame that identifies each pixel to an amplifier, and then trim it to the data sections.
      This frame can be used to later identify which trimmed pixels correspond to which amplifier
