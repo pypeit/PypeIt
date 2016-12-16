@@ -45,7 +45,11 @@ exposure standard files have been identified.
 Settings
 ========
 
-NEED TO DISCUSS calwin
+PYPIT identifies calibration files that are closest in time to every individual science frame.  You can place an upper limit on the time window that PYPIT uses to search for calibrations but setting the keyword::
+
+     fits calwin 12.0
+
+which will search for calibrations that were taken within +/-12 hours from a science frame.
 
 The primary settings you need to specify at this stage are:
 
@@ -72,6 +76,9 @@ Here is a block one might use for LRISb::
     # Spect
     spect read
      arc number 1
+     trace number 5
+     bias number 10
+     standard number 1
      pixelflat number 3
     spect end
 
@@ -86,7 +93,7 @@ with a negative integer value, e.g.::
 
      pixelflat number 5
      arc number 1
-     slitflat number -5
+     trace number -5
      bias number -5
      standard number -1
 

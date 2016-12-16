@@ -231,6 +231,10 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     # Check for successful reduction
     if status == 0:
         msgs.info("Data reduction complete")
+    elif status == 1:
+        msgs.info("Setup complete")
+    elif status == 2:
+        msgs.info("Calcheck complete")
     else:
         msgs.error("Data reduction failed with status ID {0:d}".format(status))
     # Capture the end time and print it to user
@@ -354,7 +358,7 @@ def load_input(redname, msgs):
                 dfnames.append(dfname)
                 listing = glob.glob(dfname)
                 for lst in listing: datlines.append(lst)
-            else:
+            else:  # File by file approach
                 if 'path' in dfname[0:5]:
                     paths.append(linspl[1])
                 else:  # Grab filename and frametype
@@ -365,11 +369,11 @@ def load_input(redname, msgs):
                         # Skip commented lines
                         if lines[i][0] == '#':
                             continue
-                        # Find datafile and update ftype dict (should check ftype)
-                        for path in paths:
-                            if os.path.isfile(path+linspl[dfile_col]):
-                                datlines.append(path+linspl[dfile_col])
-                                ftype_dict[linspl[dfile_col]] = linspl[ftype_col]
+                        # Find datafile using last used path and update ftype dict
+                        path = paths[-1]
+                        if os.path.isfile(path+linspl[dfile_col]):
+                            datlines.append(path+linspl[dfile_col])
+                            ftype_dict[linspl[dfile_col]] = linspl[ftype_col]
             continue
         elif rddata == 0 and linspl[0] == 'data' and linspl[1] == 'read': # Begin data read block
             rddata += 1

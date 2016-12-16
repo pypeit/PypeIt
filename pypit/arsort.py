@@ -264,6 +264,8 @@ def sort_write(fitsdict, filesort, space=3):
                 prdtp.append("double")
             else:
                 msgs.bug("I didn't expect useful headers to contain type {0:s}".format(typv).replace('<type ', '').replace('>', ''))
+
+    '''
     # Open a VOTable for writing
     votable = VOTableFile()
     resource = Resource()
@@ -299,27 +301,30 @@ def sort_write(fitsdict, filesort, space=3):
     votable.to_xml(fname)
     msgs.info("Successfully written sorted data information file:"+msgs.newline() +
               "{0:s}".format(fname))
+    '''
 
     # ASCII file
     asciiord = ['filename', 'date', 'frametype', 'target', 'exptime', 'binning',
         'dichroic', 'dispname', 'dispangle', 'decker']
-    # Generate the columns
-    clms = []
+    # Generate the columns except frametype
+    ascii_tbl = tTable()
     for pr in asciiord:
-        try:
-            lidx = prord.index(pr)
-        except ValueError:
-            msgs.warn('{:s} keyword not used'.format(pr))
-        else:
-            clm = []
-            for i in range(nfiles):
-                clm.append(table.array[i][lidx])
-            clms.append(Column(clm, name=pr))
-    # Create Table
-    ascii_tbl = tTable(clms)
+        if pr != 'frametype':
+            ascii_tbl[pr] = fitsdict[pr]
+    # Now frame type
+    ftypes = []
+    filtyp = filesort.keys()
+    for i in range(nfiles):
+        addval = ""
+        for ft in filtyp:
+            if i in filesort[ft]:
+                if len(addval) != 0: addval += ","
+                addval += ft
+        ftypes.append(addval)
+    ascii_tbl['frametype'] = ftypes
     # Write
     ascii_name = settings.argflag['output']['sorted']+'.lst'
-    ascii_tbl.write(ascii_name, format='ascii.fixed_width')
+    ascii_tbl[asciiord].write(ascii_name, format='ascii.fixed_width')
     return ascii_tbl
 
 
@@ -699,7 +704,7 @@ def calib_set(isetup_dict, sciexp, fitsdict):
             cb_strs.append(ll+lower)
     # Build cbset from sciexp
     new_cbset = {}
-    cbkeys = ['arcs', 'bias', 'trace', 'flat', 'sci']
+    cbkeys = ['arcs', 'bias', 'trace', 'flat', 'sci', 'cent']
     for cbkey in cbkeys:
         nms = list(fitsdict['filename'][getattr(sciexp,'_idx_'+cbkey)])
         nms.sort()
