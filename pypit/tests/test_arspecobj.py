@@ -24,6 +24,12 @@ def test_objnm_to_dict():
     idict = aspobj.objnm_to_dict('O968-S5387-D01-I0026')
     assert 'O' in idict.keys()
     assert idict['O'] == 968
+    assert 'S' in idict.keys()
+    assert idict['S'] == 5387
+    assert 'D' in idict.keys()
+    assert idict['D'] == 1
+    assert 'I' in idict.keys()
+    assert idict['I'] == 26
     # List
     idict2 = aspobj.objnm_to_dict(['O968-S5387-D01-I0026', 'O967-S5397-D01-I0026'])
     assert len(idict2['O']) == 2

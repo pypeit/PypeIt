@@ -139,7 +139,6 @@ def test_median_flux():
     """ Test median flux algorithm """
     from pypit import arcoadd as arco
     spec = dummy_spectrum(s2n=10)
-    med_flux, std_flux = arco.median_flux(spec)
     # Put in a bad pixel
     spec.data['flux'][0,500] = 0.
     med_flux, std_flux = arco.median_flux(spec)
@@ -199,7 +198,7 @@ def test_scale():
     rspec.data['flux'][1,:] *= 10.
     rspec.data['sig'][1,:] *= 10.
     sn2, weights = arco.sn_weight(rspec)
-    am_scls, am_mthd = arco.scale_spectra(rspec, sn2)
+    am_scls, am_mthd = arco.scale_spectra(rspec, sn2, scale_method='median')
     assert am_mthd == 'median'
     np.testing.assert_allclose(am_scls[1], 0.1, atol=0.01)
 
