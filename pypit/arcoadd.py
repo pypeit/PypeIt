@@ -338,7 +338,7 @@ def scale_spectra(spectra, sn2, iref=0, scale_method='auto', hand_scale=None,
             if hand_scale is None:
                 msgs.error("Need to provide hand_scale parameter, one value per spectrum")
             spectra.data['flux'][qq,:] *= hand_scale[qq]
-            spectra.data['sig'][qq,:] /= hand_scale[qq]
+            spectra.data['sig'][qq,:] *= hand_scale[qq]
             #arrsky[*, j] = HAND_SCALE[j]*sclsky[*, j]
             scales.append(hand_scale[qq])
             #
@@ -354,7 +354,7 @@ def scale_spectra(spectra, sn2, iref=0, scale_method='auto', hand_scale=None,
             # Apply
             med_scale= np.minimum(med_ref/med_spec, 10.0)
             spectra.data['flux'][qq,:] *= med_scale
-            spectra.data['sig'][qq,:] /= med_scale
+            spectra.data['sig'][qq,:] *= med_scale
             #
             scales.append(med_scale)
         elif rms_sn <= SN_MIN_MEDSCALE:
@@ -372,11 +372,11 @@ def scale_spectra(spectra, sn2, iref=0, scale_method='auto', hand_scale=None,
             # Apply
             med_scale= np.minimum(med_ref/med_spec, 10.0)
             spectra.data['flux'][qq,:] *= med_scale
-            spectra.data['sig'][qq,:] /= med_scale
+            spectra.data['sig'][qq,:] *= med_scale
             #
             scales.append(med_scale)
         else:
-            msgs.error('uh oh')
+            msgs.error("Scale method not recognized! Check documentation for available options")
     # Finish
     return scales, omethod
 
@@ -623,11 +623,11 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
                 diff_sm = np.convolve(w/w.sum(),
                                       medfilt(diff1*(~mask), nmed_diff), mode='same')
                 chi2 = (diff1-diff_sm)**2*ivar_real
-                debugger.set_trace()
+#                debugger.set_trace()
                 goodchi = (~mask) & (ivar_real > 0.0) & (chi2 <= 36.0) # AND masklam, ngd)
                 if np.sum(goodchi) == 0:
                     goodchi = np.array([True]*flux.size)
-                debugger.set_trace()  # Port next line to Python to use this
+#                debugger.set_trace()  # Port next line to Python to use this
                 #djs_iterstat, (arrflux[goodchi, j]-newflux_now[goodchi]) $
                 #   , invvar = ivar_real[goodchi], mean = offset_mean $
                 #   , median = offset $
