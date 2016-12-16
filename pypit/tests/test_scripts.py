@@ -7,11 +7,11 @@ matplotlib.use('agg')  # For Travis
 
 import sys, os
 import pytest
+import glob
 
-from pypit.scripts import arcid_plot, view_fits
 from pypit import pyputils
-msgs = pyputils.get_dummy_logger()
 
+msgs = pyputils.get_dummy_logger()
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -37,8 +37,10 @@ def test_show_1dspec():
     show_1dspec.main(pargs, unit_test=True)
 '''
 
+
 def test_view_fits():
     """ Only test the list option
     """
+    from pypit.scripts import view_fits
     spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
     pargs = view_fits.parser([spec_file, '--list'])

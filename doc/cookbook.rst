@@ -5,7 +5,7 @@ PYPIT Cookbook
 ==============
 
 This document gives an overview on
-how to run PYPIT, i.e. with less detail.
+how to run PYPIT, i.e. minimal detail is provided.
 Notes on :doc:`installing` are found elsewhere.
 
 The following outlines the standard steps for running
@@ -21,32 +21,34 @@ following is for one instrument in one working directory.
 
 1. Prepare your data
 
-    - Identify folder(s) with raw images
-    - The raw images can be gzip compressed
+  - Identify folder(s) with raw images
+  - The raw images can be gzip compressed
 
-2. Generate the instrument PYPIT reduction file (:doc:`pypit_file`) and setup file (:doc:`setups`)
+2. Run the pypit_setup script
 
-    - Run the pypit_setup script for the instrument
-    - Inspect the .setup file to confirm the instrument configurations
-    - Inspect the .group file to confirm calibrations exist
-    - Modify the data and spect blocks in .pypit file, as needed
-    - Rerun as needed
+    - Generates the instrument PYPIT reduction file (:doc:`pypit_file`)
+    - Generates the instrument .setups file (:doc:`setups`)
+    - Generates a custom PYPIT reduction file for each setup
+    - Inspect the .setups file to confirm the instrument configurations
+    - Modify the data and spect blocks in master .pypit file, as needed
+    - If changes were made, rerun pypit_setup
 
-3. Generate custom PYPIT reduction files (:doc:`pypit_file`)
+3. Isolate and modify the custom PYPIT reduction files (:doc:`pypit_file`)
 
-    - We recommend one PYPIT reduction file per setup group (instrument configuration)
-    - Run the pypit_pypfiles script to generate these
+  - Copy/move the PYPIT reduction file for a given setup into its own folder
+    (*recommended* but not required)
+  - Modify, as needed (e.g. trim/add calibration files, edit frametypes)
 
-4. Run calcheck (described in :doc:`calcheck`)
+4. Run calcheck on the custom PYPIT file(s) (described in :doc:`calcheck`)
 
     - Modify the spect block in the PYPIT file to specify calibrations
-    - Run the pypit_calcheck script
-    - Inspect the .group file for your PYPIT file
+    - Inspect the .calibs file for your PYPIT file.
+    - Confirm calibration, science and standard frames
 
 5. Run the reduction (described in :doc:`running`)
 
-    - Further customize your PYPIT file
-    - run_pypit
+  - Further customize your PYPIT file
+  - run_pypit
 
 6. Examine QA
 

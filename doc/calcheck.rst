@@ -1,0 +1,86 @@
+.. highlight:: rest
+
+*****************
+Calibration Check
+*****************
+
+Overview
+========
+
+We *strongly recommend* that one perform a calibration
+check with the .pypit file before proceeding to run the
+reduction.  This simply verfies that the number of desired
+calibration files exist.  It does **not** check the
+sanctity of the files nor process the calibrations in any manner.
+
+Procedure
+=========
+
+The procedure is simple.  Add the following line to your
+.pypit file::
+
+    run calcheck True
+
+You must also verify that your .pypit file does **not**
+include this line::
+
+    run setup True   # Cannot be set for calcheck or full reduction
+
+Either set to False, comment it out, or remove it altogether.
+
+You may then run PYPIT, e.g.::
+
+    run_pypit kast_blue_setup_A.pypit
+
+The code will exit with error if there are insufficient calibration
+frames.  Otherwise, it will exit after organizing the files and
+will produce a new .group file for your inspection.
+
+You should confirm that the correct number of science and
+exposure standard files have been identified.
+
+
+Settings
+========
+
+PYPIT identifies calibration files that are closest in time to every individual science frame.  You can place an upper limit on the time window that PYPIT uses to search for calibrations but setting the keyword::
+
+     fits calwin 12.0
+
+which will search for calibrations that were taken within +/-12 hours from a science frame.
+
+The primary settings you need to specify at this stage are:
+
+#.  The number of calibration files required of each frametype
+
+#.  Over-ride any frametype designations, as necessary.
+
+For the second issue, see :ref:`modifying_frametype`.
+
+For the first, add a series of lines (or edit the existing ones)
+in the :ref:`spect_block` of the .pypit file.
+One line per calibration frametype desired.
+Here is a standard block for LRISb::
+
+     pixelflat number 5
+     arc number 1
+     trace number 5
+     bias number 10
+     standard number 1
+
+When a positive, non-zero value is used, the code will require
+that there be that many calibration frames for each science
+frame reduced.  And, PYPIT will restrict to precisely that many
+calibration files.
+
+If you wish to use *at least* an input number of frames (and
+more if they exist), then specify the calibration nubmer
+with a negative integer value, e.g.::
+
+     pixelflat number 5
+     arc number 1
+     trace number -5
+     bias number -5
+     standard number -1
+
+

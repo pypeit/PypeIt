@@ -23,6 +23,10 @@ try:
 except ImportError:
     import pdb as debugger
 
+try:
+    basestring
+except NameError:  # For Python 3
+    basestring = str
 
 def quicksave(data,fname):
     """
@@ -116,24 +120,58 @@ def calc_offset(raA, decA, raB, decB, distance=False):
         return delRA, delDEC
 
 
-def dummy_fitsdict(nfile=10):
+def dummy_fitsdict(nfile=10, spectrograph='kast_blue'):
     """
     Parameters
     ----------
-    nfile : int
+    nfile : int, optional
       Number of files to mimic
+    spectrograph : str, optional
+      Name of spectrograph to mimic
 
     Returns
     -------
 
     """
-    fitsdict = {}
-    fitsdict['date'] = ['2015-01-23T00:54:17.04']*nfile
+    fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
+    fitsdict['utc'] = ['2015-01-23']*nfile
+    fitsdict['directory'] = ['./']*nfile
+    fitsdict['filename'] = ['b{:03d}.fits'.format(i) for i in range(nfile)]
+    fitsdict['date'] = ['2015-01-23T00:{:02d}:11.04'.format(i) for i in range(nfile)]  # Will fail at 60
+    fitsdict['time'] = [(1432085758+i*60)/3600. for i in range(nfile)]
     fitsdict['target'] = ['Dummy']*nfile
+    fitsdict['ra'] = ['00:00:00']*nfile
+    fitsdict['dec'] = ['+00:00:00']*nfile
     fitsdict['exptime'] = [300.] * nfile
+    fitsdict['naxis0'] = [2048] * nfile
+    fitsdict['naxis1'] = [2048] * nfile
     fitsdict['dispname'] = ['600/4310'] * nfile
-    fitsdict["binning"] = [[None]]
+    fitsdict['dichroic'] = ['560'] * nfile
+    fitsdict['dispangle'] = ['none'] * nfile
+    fitsdict["binning"] = ['1x1']*nfile
     #
+    if spectrograph == 'kast_blue':
+        fitsdict['numamplifiers'] = [1] * nfile
+        fitsdict['naxis0'] = [2112] * nfile
+        fitsdict['naxis1'] = [2048] * nfile
+        fitsdict['slitwid'] = [1.] * nfile
+        fitsdict['slitlen'] = ['none'] * nfile
+        # Lamps
+        for i in range(1,17):
+            fitsdict['lampstat{:02d}'.format(i)] = ['off'] * nfile
+        fitsdict['exptime'][0] = 0.       # Bias
+        fitsdict['lampstat06'][1] = 'on'  # Arc
+        fitsdict['lampstat01'][2] = 'on'  # Trace, pixel, slit flat
+        fitsdict['lampstat01'][3] = 'on'  # Trace, pixel, slit flat
+        fitsdict['ra'][4] = '05:06:36.6'  # Standard
+        fitsdict['dec'][4] = '52:52:01.0'
+        fitsdict['decker'] = ['0.5 arcsec'] * nfile
+    elif spectrograph == 'none':
+        pass
+    # arrays
+    for k in fitsdict.keys():
+        fitsdict[k] = np.array(fitsdict[k])
+    # Return
     return fitsdict
 
 
@@ -157,28 +195,44 @@ def dummy_self(inum=0, fitsdict=None, nfile=10):
     return slf
 
 
-def dummy_settings(pypitdir=None, nfile=10):
+def dummy_settings(pypitdir=None, nfile=10, spectrograph='kast_blue',
+                   set_idx=True):
+    """
+    Parameters
+    ----------
+    pypitdir
+    nfile
+    spectrograph
+    set_idx : bool, optional
+      Set dummy index values for science and calibs
+
+    Returns
+    -------
+
+    """
     from pypit import arparse
     # Dummy argflag
-    argf = arparse.get_argflag_class(("ARMLSD", "kast_blue"))
+    argf = arparse.get_argflag_class(("ARMLSD", spectrograph))
     lines = argf.load_file()
     if pypitdir is None:
         pypitdir = __file__[0:__file__.rfind('/')]
     argf.set_paramlist(lines)
     argf.set_param('run pypitdir {0:s}'.format(pypitdir))
-    argf.set_param('run spectrograph kast_blue')
+    argf.set_param('run spectrograph {:s}'.format(spectrograph))
     argf.set_param('run directory science ./')
     # Dummy spect
-    spect = arparse.get_spect_class(("ARMLSD", "kast_blue", "dummy"))
+    spect = arparse.get_spect_class(("ARMLSD", spectrograph, "dummy"))
     lines = spect.load_file()
     spect.set_paramlist(lines)
-    kk = 0
-    for jj, key in enumerate(spect._spect.keys()):
-        if key in ['det']:
-            continue
-        if 'index' in spect._spect[key].keys():
-            spect._spect[key]['index'].append([kk]*nfile)
-            kk += 1
+    if set_idx:
+        kk = 0
+        for jj, key in enumerate(spect._spect.keys()):
+            if key in ['det']:
+                continue
+            if 'index' in spect._spect[key].keys():
+                for ii in range(nfile):
+                    spect._spect[key]['index'].append(np.array([kk]))
+                kk += 1
     arparse.init(argf, spect)
     return
 

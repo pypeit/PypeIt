@@ -52,6 +52,7 @@ class ScienceExposure:
         if settings.argflag['reduce']['slitcen']['useframe'] == 'trace': self._idx_cent = settings.spect['trace']['index'][snum]
         elif settings.argflag['reduce']['slitcen']['useframe'] == 'pinhole': self._idx_cent = settings.spect['pinhole']['index'][snum]
         else: self._idx_cent = []
+        self.sc = snum
 
         # Set the base name and extract other names that will be used for output files
         self.SetBaseName(fitsdict)

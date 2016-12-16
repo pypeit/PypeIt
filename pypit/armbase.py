@@ -5,6 +5,8 @@ import os
 import numpy as np
 import yaml
 
+from collections import OrderedDict
+
 from pypit import arparse as settings
 from pypit import armsgs
 from pypit import arsort
@@ -41,12 +43,16 @@ def SetupScience(fitsdict):
     else:
         do_qa = True
         bad_to_unknown = False
+    if settings.argflag['run']['setup']:
+        skip_cset = True
+    else:
+        skip_cset = False
     # Sort the data
     msgs.bug("Files and folders should not be deleted -- there should be an option to overwrite files automatically if they already exist, or choose to rename them if necessary")
     filesort = arsort.sort_data(fitsdict, flag_unknown=bad_to_unknown)
     # Write out the details of the sorted files
     if settings.argflag['output']['sorted'] is not None:
-        arsort.sort_write(fitsdict, filesort)
+        srt_tbl = arsort.sort_write(fitsdict, filesort)
     # Match calibration frames to science frames
     arsort.match_science(fitsdict, filesort)
     # Make directory structure for different objects
@@ -59,67 +65,61 @@ def SetupScience(fitsdict):
         sciexp.append(arsciexp.ScienceExposure(i, fitsdict, do_qa=do_qa))
     # Generate setup and group dicts
     setup_dict = {}
-    group_dict = {}
+    # Run through the setups to fill setup_dict
+    setupIDs = []
     for sc in range(numsci):
-        scidx = sciexp[sc]._idx_sci[0]
-        # Run setup
-        setup = arsort.instr_setup(sc, 1, fitsdict, setup_dict)
-        # Set group_key
-        setup_val = ['{:02d}'.format(int(setup)+i)
-                     for i in range(settings.spect['mosaic']['ndet'])]
-        s = '_'
-        group_key = s.join(setup_val)
-        # Plan init
-        if group_key not in group_dict.keys():
-            group_dict[group_key] = {}
-            for key in filesort.keys():
-                if key not in ['unknown', 'dark']:
-                    group_dict[group_key][key] = []
-                group_dict[group_key]['sciobj'] = []
-                group_dict[group_key]['stdobj'] = []
-        # Run through the setups
         for kk in range(settings.spect['mosaic']['ndet']):
-            _ = arsort.instr_setup(sc, kk+1, fitsdict, setup_dict)
-            # Fill group_dict too
-            if kk==0:
+            setupID = arsort.instr_setup(sciexp[sc], kk+1, fitsdict, setup_dict, skip_cset=skip_cset)
+            if kk == 0: # Only save the first detector for run setup
+                setupIDs.append(setupID)
+    # Calib IDs
+    group_dict = {}
+    if settings.argflag['run']['setup']: # Collate all matching files
+        for sc,setupID in enumerate(setupIDs):
+            scidx = sciexp[sc]._idx_sci[0]
+            # Set group_key
+            config_key = setupID[0]
+            # Plan init
+            if config_key not in group_dict.keys():
+                group_dict[config_key] = {}
                 for key in filesort.keys():
-                    if key in ['unknown', 'dark']:
-                        continue
-                    if len(settings.spect[key]['index']) == 0:
-                        # No bias frames
-                        continue
-                    for idx in settings.spect[key]['index'][sc]:
-                        # Only add if new
-                        if fitsdict['filename'][idx] not in group_dict[group_key][key]:
-                            group_dict[group_key][key].append(fitsdict['filename'][idx])
-                            if key == 'standard':  # Add target name
-                                group_dict[group_key]['stdobj'].append(fitsdict['target'][idx])
-                        if key == 'science':  # Add target name
-                            group_dict[group_key]['sciobj'].append(fitsdict['target'][scidx])
+                    if key not in ['unknown', 'dark']:
+                        group_dict[config_key][key] = []
+                    group_dict[config_key]['sciobj'] = []
+                    group_dict[config_key]['stdobj'] = []
+            # Fill group_dict too
+            for key in filesort.keys():
+                if key in ['unknown', 'dark']:
+                    continue
+                for idx in settings.spect[key]['index'][sc]:
+                    # Only add if new
+                    if fitsdict['filename'][idx] not in group_dict[config_key][key]:
+                        group_dict[config_key][key].append(fitsdict['filename'][idx])
+                        if key == 'standard':  # Add target name
+                            group_dict[config_key]['stdobj'].append(fitsdict['target'][idx])
+                    if key == 'science':  # Add target name
+                        group_dict[config_key]['sciobj'].append(fitsdict['target'][scidx])
+        # Write .sorted file
+        arsort.write_sorted(srt_tbl, group_dict, setup_dict)
+
     # Write setup -- only if not present
     setup_file, nexist = arsort.get_setup_file()
-    if nexist == 0:
-        arsort.write_setup(setup_dict)
-    elif nexist == 1: # Compare
-        pass
-        #prev_setup_dict = arsort.load_setup()
-        #if arsort.compare_setup(setup_dict, prev_setup_dict) is False:
-        #    msgs.error("Existing setup (from disk) does not match new one.  Regenerate setup file")
-    # Write group file
-    group_file = settings.argflag['run']['redname'].replace('.pypit', '.group')
-    ydict = arutils.yamlify(group_dict)
-    with open(group_file, 'w') as yamlf:
-        yamlf.write( yaml.dump(ydict))#, default_flow_style=True) )
+    arsort.write_setup(setup_dict)
+    # Write calib file (if not in setup mode)
+    if not settings.argflag['run']['setup']:
+        arsort.write_calib(setup_dict)
     # Finish calcheck or setup
     if settings.argflag['run']['calcheck'] or settings.argflag['run']['setup']:
+        msgs.info("Inspect the setup file: {:s}".format(setup_file))
         if settings.argflag['run']['calcheck']:
             msgs.info("Calibration check complete. Change 'run calcheck' flag to False to continue with data reduction")
-        if settings.argflag['run']['setup']:
+            return 'calcheck', None
+        elif settings.argflag['run']['setup']:
             msgs.info("Setup is complete. Change 'run setup' to False to continue with data reduction")
-        msgs.info("Inspect the setup file: {:s}".format(setup_file))
-        msgs.info("Inspect the group file: {:s}".format(group_file))
-        sys.exit()
-    return sciexp
+            return 'setup', None
+        else:
+            msgs.error("Should not get here")
+    return sciexp, setup_dict
 
 
 def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):

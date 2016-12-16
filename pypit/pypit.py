@@ -86,7 +86,8 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     tstart = time()
 
     # Load the input file
-    parlines, datlines, spclines = load_input(redname, msgs)
+    pyp_dict = load_input(redname, msgs)
+    parlines, datlines, spclines = [pyp_dict[ii] for ii in ['par','dat','spc']]
 
     # Initialize the arguments and flags
 #    argflag = arload.argflag_init()
@@ -150,6 +151,11 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     spect = arparse.get_spect_class((redtype.upper(), specname, ".".join(redname.split(".")[:-1])))
     lines = spect.load_file()
     spect.set_paramlist(lines)
+    # Load frametype numbers, as relevant
+    if len(pyp_dict['ftype']) > 0:
+        ftlines = spect.load_ftype(pyp_dict['ftype'])
+        plines = spect.load_lines(ftlines)
+        spect.set_paramlist(plines)
     # Load user changes to the arguments/flags
     plines = spect.load_lines(spclines)
     spect.set_paramlist(plines)
@@ -176,12 +182,14 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     # Now that all of the relevant settings are loaded, globalize the settings
     arparse.init(argf, spect)
 
+    '''
     # Test that a maximum of one .setup files is present
     from pypit import arsort
     setup_file, nexist = arsort.get_setup_file()
     if nexist == 1:
         msgs.info("Found setup_file: {:s}".format(setup_file))
         msgs.info("Will use this to guide the data reduction.")
+    '''
 
     # Load the important information from the fits headers
     from pypit import arload
@@ -223,6 +231,10 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     # Check for successful reduction
     if status == 0:
         msgs.info("Data reduction complete")
+    elif status == 1:
+        msgs.info("Setup complete")
+    elif status == 2:
+        msgs.info("Calcheck complete")
     else:
         msgs.error("Data reduction failed with status ID {0:d}".format(status))
     # Capture the end time and print it to user
@@ -244,7 +256,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
 
 def load_input(redname, msgs):
     """
-    Load user defined input reduction file. Updates are
+    Load user defined input .pypit reduction file. Updates are
     made to the argflag dictionary.
 
     Parameters
@@ -256,20 +268,35 @@ def load_input(redname, msgs):
 
     Returns
     -------
-    parlines : list
-      Input (uncommented) lines specified by the user.
-      parlines is used in this routine to update the
-      argflag dictionary
-    datlines : list
-      Input (uncommented) lines specified by the user.
-      datlines contains the full data path to every
-      raw exposure listed by the user
-    spclines : list
-      Input (uncommented) lines specified by the user.
-      spclines contains a list of user-specified changes
-      that should be made to the default spectrograph
-      settings.
+    pyp_dict : dict
+      Contains the following keys --
+      'par'
+        parlines : list
+          Input (uncommented) lines specified by the user.
+          parlines is used in this routine to update the
+          argflag dictionary
+      'dat'
+        datlines : list
+          Input (uncommented) lines specified by the user.
+          datlines contains the full data path to every
+          raw exposure listed by the user
+      'spc'
+        spclines : list
+          Input (uncommented) lines specified by the user.
+          spclines contains a list of user-specified changes
+          that should be made to the default spectrograph
+          settings.
+      'dfn'
+        dfnames : list
+          Input data lines
+      'setup'
+        dict of setup info
+          'name' list of setups
+          'lines' list of lines in the setup block
+      'ftype'
+        dict of filename: frametype
     """
+    import os
     # Read in the model file
     msgs.info("Loading the input file")
     try:
@@ -281,11 +308,17 @@ def load_input(redname, msgs):
     datlines = []
     skip_files = []
     spclines = []
-    rddata, rdspec = 0, 0
+    dfnames = []
+    setuplines = []
+    paths = []
+    rddata, rdspec, rdsetup, rdsfiles = 0, 0, 0, -1
+    setups = []
+    ftype_dict = {}
+    ftype_col = -1
     for i in range(len(lines)):
         if lines[i].strip() == '': continue
         linspl = lines[i].split()
-        if rddata == 1:
+        if rddata == 1: # Read datafile(s)
             if linspl[0] == 'data' and linspl[1] == 'end':
                 rddata += 1
                 # Deal with skip files
@@ -299,36 +332,67 @@ def load_input(redname, msgs):
                     # Save
                     datlines = np.array(datlines)[keep].tolist()
                 continue
+            #
             dfname = lines[i].rstrip('\n').strip()
-            # is there a comment?
-            aux = dfname.split('#')
-            if len(aux) > 1:  # yes, there is a comment
-                dfname = aux[0].strip()
-            if len(dfname) == 0:  # line is fully commented out
-                continue
-            elif dfname[0] == '~':
-                import os
-                dfname = os.path.expanduser(dfname)
-                print(dfname)
-            elif dfname[:4] == 'skip':
-                skip_files.append(dfname.split(' ')[1])
-            elif dfname[0] != '/':
-                msgs.error("You must specify the full datapath for the file:" + msgs.newline() + dfname)
-            elif len(dfname.split()) != 1:
-                msgs.error("There must be no spaces when specifying the datafile:" + msgs.newline() + dfname)
-            listing = glob.glob(dfname)
-            for lst in listing: datlines.append(lst)
+            if rdsfiles == -1:
+                if 'path' in dfname[0:5]:
+                    rdsfiles = 1
+                else:
+                    rdsfiles = 0
+            if rdsfiles == 0:
+                # is there a comment?
+                aux = dfname.split('#')
+                if len(aux) > 1:  # yes, there is a comment
+                    dfname = aux[0].strip()
+                if len(dfname) == 0:  # line is fully commented out
+                    continue
+                elif dfname[0] == '~':
+                    dfname = os.path.expanduser(dfname)
+                    print(dfname)
+                elif dfname[:4] == 'skip':
+                    skip_files.append(dfname.split(' ')[1])
+                elif dfname[0] != '/':
+                    msgs.error("You must specify the full datapath for the file:" + msgs.newline() + dfname)
+                elif len(dfname.split()) != 1:
+                    msgs.error("There must be no spaces when specifying the datafile:" + msgs.newline() + dfname)
+                dfnames.append(dfname)
+                listing = glob.glob(dfname)
+                for lst in listing: datlines.append(lst)
+            else:  # File by file approach
+                if 'path' in dfname[0:5]:
+                    paths.append(linspl[1])
+                else:  # Grab filename and frametype
+                    if ftype_col == -1:  # Identify columns for frametype
+                        ftype_col = np.where(np.array(linspl) == 'frametype')[0]
+                        dfile_col = np.where(np.array(linspl) == 'filename')[0]
+                    else:
+                        # Find datafile using last used path and update ftype dict
+                        path = paths[-1]
+                        if os.path.isfile(path+linspl[dfile_col]):
+                            datlines.append(path+linspl[dfile_col])
+                            ftype_dict[linspl[dfile_col]] = linspl[ftype_col]
             continue
-        elif rddata == 0 and linspl[0] == 'data' and linspl[1] == 'read':
+        elif rddata == 0 and linspl[0] == 'data' and linspl[1] == 'read': # Begin data read block
             rddata += 1
             continue
-        if rdspec == 1:
+        if rdsetup == 1:  # Read setup command
+            if linspl[0] == 'setup' and linspl[1] == 'end':
+                rdsetup += 1
+                continue
+            if 'Setup' in lines[i]:
+                setups.append(lines[i][6:].strip())
+            setuplines.append(lines[i])
+            continue
+        elif rdsetup == 0 and linspl[0] == 'setup' and linspl[1] == 'read':  # Begin setup read block
+            rdsetup += 1
+            continue
+        if rdspec == 1:  # Read spect command
             if linspl[0] == 'spect' and linspl[1] == 'end':
                 rdspec += 1
                 continue
             spclines.append(lines[i])
             continue
-        elif rdspec == 0 and linspl[0] == 'spect' and linspl[1] == 'read':
+        elif rdspec == 0 and linspl[0] == 'spect' and linspl[1] == 'read':  # Begin spect read block
             rdspec += 1
             continue
         if lines[i].lstrip()[0] == '#': continue
@@ -351,46 +415,11 @@ def load_input(redname, msgs):
     else:
         msgs.info("Found {0:d} raw data frames".format(len(datlines)))
     msgs.info("Input file loaded successfully")
-    return parlines, datlines, spclines
+    # Let's return a dict
+    pypit_dict = dict(par=parlines, dat=datlines, spc=spclines,
+                      dfn=dfnames, setup={'name': setups, 'lines': setuplines},
+                    ftype=ftype_dict)
+    return pypit_dict # parlines, datlines, spclines, dfnames, setup, setuplines, ftype_dict
 
-def make_settings_file(pyp_file, spectrograph, files_root, datfil_extension):
-    """ Generate a defuult PYPIT settings file
-    Parameters
-    ----------
-    pyp_file : str
-      Name of Settings file
-    spectrograph : str
-    files_root : str
-      Path + file root of datafiles
-    datfil_extension :
-      Extension of data file
 
-    Returns
-    -------
-    Creates a Settings File
 
-    """
-    with open(pyp_file, 'w') as f:
-        f.write("# This is a comment line\n")
-        f.write("\n")
-        f.write("# Change the default settings\n")
-        f.write("run ncpus 1\n")
-        f.write("run calcheck True\n")  # This is the key line here
-        f.write("run spectrograph {:s}\n".format(spectrograph))
-        f.write("output overwrite True\n")
-        #f.write("output sorted {:s}\n".format(root))
-        f.write("\n")
-        f.write("# Reduce\n")
-        f.write("\n")
-        f.write("# Read in the data\n")
-        f.write("data read\n")
-        f.write(" {:s}*{:s}*\n".format(files_root, datfil_extension))
-        f.write("data end\n")
-        f.write("\n")
-        f.write("spect read\n")
-        f.write(" pixelflat number 0\n")
-        f.write(" arc number 1\n")
-        f.write(" pinhole number 0\n")
-        f.write(" bias number 0\n")
-        f.write(" standard number 0\n")
-        f.write("spect end\n")
