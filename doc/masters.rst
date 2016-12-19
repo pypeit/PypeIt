@@ -6,7 +6,8 @@ Master Frames
 
 By default, PYPIT will write a series of
 calibration files per setup to the hard-drive in the
-MastersFrames folder.  This is to allow the user
+MastersFrames folder named MF_instrument (e.g.
+MF_lris_blue).  This is to allow the user
 to inspect the calibations.  It is also to allow
 a quicker re-reduction (i.e. these steps can be
 skipped).

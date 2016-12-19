@@ -3832,7 +3832,6 @@ def key_min_val(v, vmin):
 
     """
     if v < vmin:
-        debugger.set_trace()
         msgs.error("The argument of {0:s} must be >= -1".format(get_current_name()))
     else:
         return True

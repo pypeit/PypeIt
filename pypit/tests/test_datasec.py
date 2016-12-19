@@ -25,7 +25,7 @@ def test_ampsec(fitsdict):
     slf = arutils.dummy_self()
     # Run
     det, scidx = 1, 5
-    arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
+    arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
     # Test
     assert slf._datasec[det-1].shape == (2112, 2048)
     assert np.sum(np.isclose(slf._datasec[0],1)) == 2162688  # Data region

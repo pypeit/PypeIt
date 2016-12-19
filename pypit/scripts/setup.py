@@ -42,9 +42,6 @@ def parser(options=None):
 
 def main(args):
 
-    import pdb
-    import sys
-    import glob
     from pypit.scripts import run_pypit
     from pypit import pyputils
     from pypit.pypit import load_input

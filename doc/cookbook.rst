@@ -31,7 +31,7 @@ following is for one instrument in one working directory.
     - Generates a custom PYPIT reduction file for each setup
     - Inspect the .setups file to confirm the instrument configurations
     - Modify the data and spect blocks in master .pypit file, as needed
-    - Rerun pypit_setup as needed
+    - If changes were made, rerun pypit_setup
 
 3. Isolate and modify the custom PYPIT reduction files (:doc:`pypit_file`)
 

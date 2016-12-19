@@ -22,7 +22,7 @@ Subtract Bias Frame
 
 This method combines the set of input bias frames and
 subtracts the resulting MasterBias from all other frames.
-This is the default in ARMLSD when bias frames are not
+This is the default in ARMLSD when bias frames are
 provided.  It can be explicitly enforced by adding::
 
     bias useframe bias

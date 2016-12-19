@@ -45,14 +45,18 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     -------
     status : int
       Status of the reduction procedure
-      0 = Successful execution
-      1 = ...
+      0 = Successful full execution
+      1 = Successful processing of setup or calcheck
     """
     status = 0
 
     # Create a list of science exposure classes
     sciexp, setup_dict = armbase.SetupScience(fitsdict)
-    if sciexp in ['setup', 'calcheck']:
+    if sciexp == 'setup':
+        status = 1
+        return status
+    elif sciexp == 'calcheck':
+        status = 2
         return status
     else:
         numsci = len(sciexp)
@@ -76,8 +80,8 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             det = kk + 1  # Detectors indexed from 1
             slf.det = det
             ###############
-            # Get amplifier sections
-            arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
+            # Get data sections
+            arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
             # Setup
             setup = arsort.instr_setup(slf, det, fitsdict, setup_dict, must_exist=True)
             settings.argflag['reduce']['masters']['setup'] = setup

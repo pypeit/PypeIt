@@ -33,9 +33,17 @@ bias      Bias frame;  typically a 0s exposure with the shutter closed
 pixelflat Spectrum taken to correct for pixel-to-pixel detector variations
           Often an exposure using a flat lamp, but
           for observations in the very blue, this may be on-sky
-slitflat  Spectrum taken to define the slit edges and correct for
-          illumination variations across the slit
-trace     ???
+trace     Spectrum taken to define the slit edges and correct for
+          illumination variations across the slit. Often this is an
+          exposure using a flat lamp, but for observations in the very
+          blue, this may be on-sky. The slit length of a trace frame
+          should be the same as the science slit.
+pinhole   Spectrum taken through a pinhole slit (i.e. a very short slit
+          length), and is used to define the centre if a slit (currently,
+          this frame is only used for echelle data reduction). Often this
+          is an exposure using a flat lamp, but one can in principle use
+          a standard star frame too (or a science frame if the spectrum
+          is uniform).
 science   Spectrum of one or more science targets
 standard  Spectrum of spectrophotometric standard star
           PYPIT includes a list of pre-defined standards
@@ -49,6 +57,17 @@ assigned more than one frametype.
 
 Modifying a frametype
 =====================
+
+data block
+----------
+
+If your PYPIT reduction file includes the file-by-file
+listing of frames to analyze, you can edit the frametype
+directly in the appropriate column.  The values in the
+.pypit file will over-ride any assessed by the code.
+
+spect block
+-----------
 
 One can specify one or more frametype's for any file
 in the .pypit file.  Include one or more lines in the
