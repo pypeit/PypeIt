@@ -967,8 +967,6 @@ def write_calib(setup_dict):
 
 def write_setup(setup_dict, use_json=False):
     """ Output setup_dict to hard drive
-    This should only be done once and only if no setup file
-    exists already.
 
     Parameters
     ----------
