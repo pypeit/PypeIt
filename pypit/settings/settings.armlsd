@@ -64,8 +64,8 @@ arc calibrate detection 6.0         # How significant should the arc line detect
 arc calibrate numsearch 20           # Number of brightest arc lines to search for preliminary identification
 
 # BIAS FRAMES
-bias useoverscan True           # Subtract the bias level using the overscan region?
-bias useframe bias                    # How to subtract the detector bias (bias, overscan, dark, none), you can also specify a master calibrations file if it exists.
+#bias useoverscan True                  # Subtract the bias level using the overscan region?
+bias useframe bias                  # How to subtract the detector bias (bias, overscan, dark, none), you can also specify a master calibrations file if it exists.
 bias combine method mean                # How should the bias frames be combined (mean, median, weightmean)
 bias combine reject cosmics 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
 bias combine reject lowhigh  [0,0]         # Number of low/high pixels to reject, [low,high]

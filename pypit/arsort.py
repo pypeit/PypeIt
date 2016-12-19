@@ -483,10 +483,16 @@ def match_science(fitsdict, filesort):
                                                                              fitsdict['target'][iSCI[i]]))
                 # Errors for insufficient BIAS frames
                 if settings.argflag['bias']['useframe'].lower() == ftag[ft]:
-                    msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
+                    msgs.warn("Expecting to use bias frames for bias subtraction. But insufficient frames found.")
+                    msgs.warn("Either include more frames or modify bias method")
+                    msgs.warn("  e.g.:   bias useframe overscan")
+                    msgs.error("Unable to continue")
                 # Errors for insufficient PIXELFLAT frames
                 if ftag[ft] == 'pixelflat' and settings.argflag['reduce']['flatfield']['perform']:
-                    msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
+                    msgs.warn("Either include more frames or reduce the required amount with:")
+                    msgs.warn("  pixelflat number XX")
+                    msgs.warn("in the spect read/end block")
+                    msgs.error("Unable to continue")
                 # Errors for insufficient PINHOLE frames
                 if ftag[ft] == 'pinhole':
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
@@ -719,7 +725,8 @@ def calib_set(isetup_dict, sciexp, fitsdict):
         return default
     elif len(new_cbset) == 1:
         assert list(new_cbset.keys()) == ['sci']
-        isetup_dict[default]['sci'] += new_cbset['sci']
+        if new_cbset['sci'][0] not in isetup_dict[default]['sci']:
+            isetup_dict[default]['sci'] += new_cbset['sci']
         return default
 
     # New calib set?
@@ -960,8 +967,6 @@ def write_calib(setup_dict):
 
 def write_setup(setup_dict, use_json=False):
     """ Output setup_dict to hard drive
-    This should only be done once and only if no setup file
-    exists already.
 
     Parameters
     ----------
@@ -978,7 +983,7 @@ def write_setup(setup_dict, use_json=False):
     # Write
     setup_file, nexist = get_setup_file()
     if nexist == 1:
-        msgs.error("Cannot over-write existing setup file.  If you wish to, remove and rerun")
+        msgs.warn("Over-writing existing .setups file")
     if use_json:
         gddict = ltu.jsonify(setup_dict)
         with io.open(setup_file, 'w', encoding='utf-8') as f:
@@ -1062,7 +1067,10 @@ def write_sorted(srt_tbl, group_dict, setup_dict):
         ff.write('#---------------------------------------------------------\n')
         # ID files
         for key in ftypes:
-            for ifile in group_dict[setup][key]:
+            # Sort
+            gfiles = group_dict[setup][key]
+            gfiles.sort()
+            for ifile in gfiles:
                 mt = np.where(srt_tbl['filename'] == ifile)[0]
                 if (len(mt) > 0) and (mt not in in_setup):
                     in_setup.append(mt[0])

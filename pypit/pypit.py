@@ -366,6 +366,9 @@ def load_input(redname, msgs):
                         ftype_col = np.where(np.array(linspl) == 'frametype')[0]
                         dfile_col = np.where(np.array(linspl) == 'filename')[0]
                     else:
+                        # Skip commented lines
+                        if lines[i][0] == '#':
+                            continue
                         # Find datafile using last used path and update ftype dict
                         path = paths[-1]
                         if os.path.isfile(path+linspl[dfile_col]):
