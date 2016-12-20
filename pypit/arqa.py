@@ -123,7 +123,11 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
 
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    slf._qa.savefig(bbox_inches='tight')
+    if slf is not None:
+        slf._qa.savefig(bbox_inches='tight')
+    else:
+        pp.savefig(bbox_inches='tight')
+        pp.close()
     plt.close()
     return
 
