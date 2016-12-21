@@ -400,6 +400,27 @@ def func_val(c, x, func, minv=None, maxv=None):
                    "Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
 
 
+def calc_fit_rms(xfit, yfit, fit, func, fmin=None, fmax=None):
+    """ Simple RMS calculation
+    Parameters
+    ----------
+    xfit : ndarray
+    yfit : ndarray
+    fit : coefficients
+    func : str
+    fmin : float, optional
+    fmax : float, optional
+
+    Returns
+    -------
+    rms : float
+
+    """
+    values  = func_val(fit, xfit, func, minv=fmin, maxv=fmax)
+    rms = np.sqrt(np.sum((yfit-values)**2)/len(xfit))
+    # Return
+    return rms
+
 def func_vander(x, func, deg, minv=None, maxv=None):
     if func == "polynomial":
         return np.polynomial.polynomial.polyvander(x, deg)
