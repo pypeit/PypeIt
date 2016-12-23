@@ -693,7 +693,10 @@ class ScienceExposure:
             self.SetFrame(self._arcparam, arcparam, det)
             ###############
             # Extract arc and identify lines
-            wv_calib = ararc.simple_calib(self, det)
+            if settings.argflag['arc']['calibrate']['method'] == 'simple':
+                wv_calib = ararc.simple_calib(self, det)
+            elif settings.argflag['arc']['calibrate']['method'] == 'arclines':
+                wv_calib = ararc.calib_with_arclines(self, det)
         # Set
         if wv_calib is not None:
             self.SetFrame(self._wvcalib, wv_calib, det)

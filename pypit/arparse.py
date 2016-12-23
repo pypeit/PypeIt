@@ -472,7 +472,7 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['fit', 'simple']
+        allowed = ['fit', 'simple', 'arclines']
         v = key_allowed(v, allowed)
         self.update(v)
 

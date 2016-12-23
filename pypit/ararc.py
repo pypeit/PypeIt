@@ -155,6 +155,8 @@ def setup_param(slf, sc, det, fitsdict):
         disp=0.,             # Ang/unbinned pixel
         b1=0.,               # Pixel fit term (binning independent)
         b2=0.,               # Pixel fit term
+        lamps=[],            # Line lamps on
+        wv_cen=0.,           # Estimate of central wavelength
         wvmnx=[2900.,12000.],# Guess at wavelength range
         disp_toler=0.1,      # 10% tolerance
         match_toler=3.,      # Matcing tolerance (pixels)
@@ -220,6 +222,7 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['b1']= 4.54698031e-04 
             arcparam['b2']= -6.86414978e-09
             arcparam['wvmnx'][1] = 6000.
+            arcparam['wv_cen'] = 4000.
         elif disperser == '400/3400':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=1.02
@@ -266,6 +269,7 @@ def setup_param(slf, sc, det, fitsdict):
         msgs.error('ararc.setup_param: Not ready for this instrument {:s}!'.format(sname))
 
     # Load linelist
+    arcparam['lamps'] = lamps
     slmps = lamps[0]
     for lamp in lamps[1:]:
         slmps=slmps+','+lamp
@@ -514,6 +518,36 @@ def simple_calib(slf, det, get_poly=False):
     arqa.arc_fit_qa(slf, final_fit)
     # Return
     return final_fit
+
+def calib_with_arclines(slf, det, get_poly=False):
+    """Simple calibration algorithm for longslit wavelengths
+
+    Uses slf._arcparam to guide the analysis
+
+    Parameters
+    ----------
+    get_poly : bool, optional
+      Pause to record the polynomial pix = b0 + b1*lambda + b2*lambda**2
+
+    Returns
+    -------
+    final_fit : dict
+      Dict of fit info
+    """
+    from arclines.holy.grail import basic
+    # Parameters (just for convenience)
+    aparm = slf._arcparam[det-1]
+    # Extract the arc
+    msgs.work("Detecting lines..")
+    tampl, tcent, twid, w, satsnd, spec = detect_lines(slf, det, slf._msarc[det-1])
+
+    # Go
+    stuff = basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
+                  #siglev=siglev, min_ampl=min_ampl,
+                  #swv_uncertainty=swv_uncertainty,
+                  #pix_tol=pix_tol, plot_fil=plot_fil)
+    status, ngd_match, match_idx, scores, final_fit = stuff
+    arqa.arc_fit_qa(slf, final_fit)
 
 
 def calibrate(slf, filename, pixtmp=None, prefix=""):
