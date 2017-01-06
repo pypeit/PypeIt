@@ -3291,6 +3291,21 @@ class ARMED(BaseArgFlag):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
+    def trace_slits_tilts_order(self, v):
+        """ What is the order of the polynomial function to be used for the tilt of an individual arc line
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_int(v)
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        if v != 1:
+            msgs.error("The argument of {0:s} must be equal to 1 for echelle data".format(get_current_name()))
+        self.update(v)
+
 
 class ARMLSD_spect(BaseSpect):
     pass
