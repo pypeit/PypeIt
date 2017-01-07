@@ -1292,9 +1292,10 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
 
 
 def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
-               trthrsh=1000.0):
+               trthrsh=1000.0, nsmth=0):
     """
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
+    nsmth     Number of pixels +/- in the spatial direction to include in the fit (0=no smoothing, 1=3 pixels, 2=5 pixels...)
     """
     # from pypit import arcyutils
     dnum = settings.get_dnum(det)
@@ -1362,21 +1363,23 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
     msgs.info("Modelling arc line tilts with {0:d} arc lines".format(np.sum(aduse)))
     if np.sum(aduse) == 0:
         msgs.warn("No arc lines were deemed usable in slit {0:d} for spectral tilt".format(slitnum))
-        return None, None
+        return None
     # Go along each order and trace the tilts
     # Start by masking every row, then later unmask the rows with usable arc lines
     msgs.work("This next step could be multiprocessed to speed up the reduction")
     nspecfit = 7
-    nsmth = 3  # Number of pixels +/- in the spatial direction to include in the fit (0=no smoothing, 1=3 pixels, 2=5 pixels...)
     badlines = 0
     for j in range(arcdet.size):
         # For each detection in this order
-        msgs.info("Tracing tilt of arc line {0:d}/{1:d}".format(j+1, arcdet.size))
+        #msgs.info("Tracing tilt of arc line {0:d}/{1:d}".format(j+1, arcdet.size))
         # Check if this is a saturated line
         ysat = msarc[arcdet[j]-nspecfit:arcdet[j]+nspecfit+1, ordcen[arcdet[j], 0]-nsmth:ordcen[arcdet[j], 0]+nsmth+1]
         if np.where(ysat > satval)[0].size != 0:
             aduse[j] = False
             badlines += 1
+            trcdict["xtfit"].append(None)
+            trcdict["ytfit"].append(None)
+            trcdict["wmask"].append(None)
             continue
         # Get the size of the slit
         sz = int(np.floor(np.abs(slf._rordloc[det-1][arcdet[j], 0]-slf._lordloc[det-1][arcdet[j], 0])/2.0)) - 2
@@ -1393,6 +1396,9 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             # Too close to the end of the spectrum
             aduse[j] = False
             badlines += 1
+            trcdict["xtfit"].append(None)
+            trcdict["ytfit"].append(None)
+            trcdict["wmask"].append(None)
             continue
         offchip = False
         for k in range(0, sz+1-nsmth):
@@ -1440,6 +1446,9 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             # Don't use lines that go off the chip (could lead to a bad trace)
             aduse[j] = False
             badlines += 1
+            trcdict["xtfit"].append(None)
+            trcdict["ytfit"].append(None)
+            trcdict["wmask"].append(None)
             continue
         for k in range(sz+1-nsmth, sz+1):
             xtfit[k+sz] = ordcen[arcdet[j], 0]+k
@@ -1490,6 +1499,9 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             # Don't use lines that go off the chip (could lead to a bad trace)
             aduse[j] = False
             badlines += 1
+            trcdict["xtfit"].append(None)
+            trcdict["ytfit"].append(None)
+            trcdict["wmask"].append(None)
             continue
         for k in range(sz+1-nsmth, sz+1):
             xtfit[sz-k] = ordcen[arcdet[j], 0]-k
@@ -1694,11 +1706,9 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts"):
         arpca.pc_plot(slf, outpar, ofit, pcadesc=pcadesc)
         # Extrapolate the remaining orders requested
         orders = 1.0 + np.arange(norders)
-        extrap_tilt, outpar = arpca.extrapolate(outpar, orders, msgs,
-                                                function=settings.argflag['trace']['slits']['function'])
+        extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
         tilts = extrap_tilt
-        arpca.pc_plot_arctilt(tiltang, centval, tilts, plotsdir=settings.argflag['run']['directory']['qa'],
-                              pcatype="tilts", prefix=prefix)
+        arpca.pc_plot_arctilt(slf, tiltang, centval, tilts)
     else:
         msgs.warn("Could not perform a PCA when tracing the order tilts" + msgs.newline() +
                   "Not enough well-traced orders")
@@ -1752,7 +1762,7 @@ def multislit_tilt(slf, msarc, det):
     # Now trace the tilt for each slit
     for o in range(arccen.shape[1]):
         # Determine the tilts for this slit
-        trcdict = trace_tilt(slf, det, msarc, o, censpec=arccen[:, o])
+        trcdict = trace_tilt(slf, det, msarc, o, censpec=arccen[:, o], nsmth=3)
         if trcdict is None:
             # No arc lines were available to determine the spectral tilt
             continue
@@ -2038,7 +2048,7 @@ def multislit_tilt(slf, msarc, det):
     return tilts, satmask, outpar
 
 
-def get_censpec(slf, det, frame, gen_satmask=False):
+def get_censpec(slf, frame, det, gen_satmask=False):
     """
     The value of "tilts" returned by this function is of the form:
     tilts = tan(tilt angle), where "tilt angle" is the angle between

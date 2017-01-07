@@ -403,7 +403,7 @@ def pc_plot(slf, inpar, ofit, maxp=25, pcadesc="", addOne=True):
     return
 
 
-def pc_plot_arctilt(tiltang, centval, tilts, plotsdir="Plots", pcatype="<unknown>", maxp=25, prefix=""):
+def pc_plot_arctilt(slf, tiltang, centval, tilts, maxp=25):
     """
     Saves a few output png files of the PCA analysis for the arc tilts
     """
@@ -464,11 +464,9 @@ def pc_plot_arctilt(tiltang, centval, tilts, plotsdir="Plots", pcatype="<unknown
         else: ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
         f.set_size_inches(11.0, ypngsiz)
         f.tight_layout()
-        if prefix != "":
-            f.savefig("{0:s}/{1:s}_PCA_arc{2:s}_page-{3:d}.png".format(plotsdir,prefix,pcatype,i+1), dpi=200, orientation='landscape')
-        else:
-            f.savefig("{0:s}/PCA_arc{1:s}_page-{2:d}.png".format(plotsdir,pcatype,i+1), dpi=200, orientation='landscape')
-    f.clf()
+        slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
+        plt.close()
+        f.clf()
     del f
     return
 
