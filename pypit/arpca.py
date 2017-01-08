@@ -411,27 +411,33 @@ def pc_plot_arctilt(slf, tiltang, centval, tilts, maxp=25):
     pages, npp = get_dimen(npc,maxp=maxp)
     x0=np.arange(tilts.shape[0])
     # First calculate the min and max values for the plotting axes, to make sure they are all the same
-    ymin, ymax = None, None
-    for i in range(npc):
-        w = np.where(tiltang[:,i]!=-999999.9)
-        if np.size(w[0]) == 0: continue
-        medv = np.median(tiltang[:,i][w])
-        madv = 1.4826*np.median(np.abs(medv-tiltang[:,i][w]))
-        vmin, vmax = medv-3.0*madv, medv+3.0*madv
-        tymin = min(vmin,np.min(tilts[:,i]))
-        tymax = max(vmax,np.max(tilts[:,i]))
-        if ymin is None: ymin = tymin
-        else:
-            if tymin < ymin: ymin = tymin
-        if ymax is None: ymax = tymax
-        else:
-            if tymax > ymax: ymax = tymax
+    w = np.where(tiltang != -999999.9)
+    medv = np.median(tiltang[w])
+    madv = 1.4826 * np.median(np.abs(medv - tiltang[w]))
+    ymin, ymax = medv - 3.0 * madv, medv + 3.0 * madv
+    ymin = min(ymin, np.min(tilts))
+    ymax = max(ymax, np.max(tilts))
+    # ymin, ymax = None, None
+    # for i in range(npc):
+    #     w = np.where(tiltang[:,i]!=-999999.9)
+    #     if np.size(w[0]) == 0: continue
+    #     medv = np.median(tiltang[:,i][w])
+    #     madv = 1.4826*np.median(np.abs(medv-tiltang[:,i][w]))
+    #     vmin, vmax = medv-3.0*madv, medv+3.0*madv
+    #     tymin = min(vmin,np.min(tilts[:,i]))
+    #     tymax = max(vmax,np.max(tilts[:,i]))
+    #     if ymin is None: ymin = tymin
+    #     else:
+    #         if tymin < ymin: ymin = tymin
+    #     if ymax is None: ymax = tymax
+    #     else:
+    #         if tymax > ymax: ymax = tymax
     # Check that ymin and ymax are set, if not, return without plotting
     if ymin is None or ymax is None:
         msgs.warn("Arc tilt fits were not plotted")
         return
     # Generate the plots
-    ndone=0
+    ndone = 0
     for i in range(len(pages)):
         f, axes = plt.subplots(pages[i][1], pages[i][0])
         ipx, ipy = 0, 0
