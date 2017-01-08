@@ -1515,6 +1515,7 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
         trcdict["wmask"].append(wmask[0].copy())
     trcdict["aduse"] = aduse
     trcdict["badlines"] = badlines
+    msgs.info("Completed spectral tilt tracing".format(np.sum(aduse)))
     return trcdict
 
 
@@ -1784,6 +1785,7 @@ def multislit_tilt(slf, msarc, det):
         arcdet = trcdict["arcdet"]
         xtfits = trcdict["xtfit"]
         ytfits = trcdict["ytfit"]
+        wmasks = trcdict["wmask"]
         badlines = trcdict["badlines"]
         # Initialize some arrays
         maskrows = np.ones(msarc.shape[0], dtype=np.int)
@@ -1795,8 +1797,11 @@ def multislit_tilt(slf, msarc, det):
         wtilt = np.ones((msarc.shape[1], arcdet.size)) * maskval
         # Analyze each spectral line
         for j in range(arcdet.size):
+            if not aduse[j]:
+                continue
             xtfit = xtfits[j]
             ytfit = ytfits[j]
+            wmask = wmasks[j]
             xint = int(xtfit[0])
             sz = (xtfit.size-1)/2
 
@@ -1831,7 +1836,7 @@ def multislit_tilt(slf, msarc, det):
                                                   function=settings.argflag['trace']['slits']['function'],
                                                   sigma=2.0, minv=0.0, maxv=msarc.shape[1] - 1.0)
             # Update the mask
-            wmask = wmask[0][np.where(wmsk == 0)]
+            wmask = wmask[np.where(wmsk == 0)]
 
             # Save the tilt angle, and unmask the row
             factr = (msarc.shape[0] - 1.0) * arutils.func_val(mcoeff, ordcen[arcdet[j], 0],
@@ -1845,9 +1850,6 @@ def multislit_tilt(slf, msarc, det):
             if settings.argflag['trace']['slits']['tilts']['idsonly']:
                 if not aduse[j]:
                     maskrows[idx] = 1
-
-
-
 
             xtilt[xint:xint + 2 * sz + 1, j] = xtfit / (msarc.shape[1] - 1.0)
             ytilt[xint:xint + 2 * sz + 1, j] = arcdet[j] / (msarc.shape[0] - 1.0)
