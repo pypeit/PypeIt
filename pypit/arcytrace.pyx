@@ -2328,7 +2328,7 @@ def tilts_image(np.ndarray[DTYPE_t, ndim=2] tilts not None,
 
     cdef int o, sz_o, x, sz_x, y
     cdef int ymin, ymax
-    cdef double yv, ow, oc
+    cdef double yv, ow, oc, dszx
 
     sz_x = tilts.shape[0]
     sz_o = tilts.shape[1]
