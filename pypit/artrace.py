@@ -1309,7 +1309,7 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
     # from pypit import arcyutils
     dnum = settings.get_dnum(det)
 
-    msgs.work("Detecting lines for slit {0:d}".format(slitnum))
+    msgs.work("Detecting lines for slit {0:d}".format(slitnum+1))
     ordcen = slf._pixcen[det-1].copy()
     tampl, tcent, twid, w, satsnd, _ = ararc.detect_lines(slf, det, msarc, censpec=censpec)
     satval = settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear']
