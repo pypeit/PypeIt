@@ -1633,6 +1633,8 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts"):
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
+    from pypit import arcytrace
+
     maskval = -999999.9
     arccen, maskslit, satmask = get_censpec(slf, msarc, det, gen_satmask=True)
     # If the user sets no tilts, return here
@@ -1663,8 +1665,6 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts"):
                 tiltang = np.append(tiltang, maskval * np.ones((aduse.size-totnum, norders)), axis=0)
                 centval = np.append(centval, maskval * np.ones((aduse.size-totnum, norders)), axis=0)
                 totnum = aduse.size
-        if o == 20:
-            debugger.set_trace()
         for j in range(aduse.size):
             if not aduse[j]:
                 continue
@@ -1720,6 +1720,7 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts"):
         tilts = extrap_tilt
         arpca.pc_plot_arctilt(slf, tiltang, centval, tilts)
     else:
+        outpar = None
         msgs.warn("Could not perform a PCA when tracing the order tilts" + msgs.newline() +
                   "Not enough well-traced orders")
         msgs.info("Attempting to fit tilts by assuming the tilt is order-independent")
@@ -1743,11 +1744,7 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts"):
             tilts = np.zeros_like(slf._lordloc)
 
     # Generate tilts image
-    msgs.error("done for now")
-    debugger.set_trace()
-    for o in range(norders):
-        # More work needed here...
-        tiltsimg = tilts
+    tiltsimg = arcytrace.tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1], msarc.shape[1])
     return tiltsimg, satmask, outpar
 
 
