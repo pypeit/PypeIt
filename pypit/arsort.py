@@ -908,6 +908,8 @@ def get_setup_file(spectrograph=None):
         return setup_files[0], nexist
     elif nexist == 0:
         setup_file = settings.argflag['run']['redname'].replace('.pypit', '.setups')
+        if os.path.isfile(setup_file):
+            nexist = 1
         #date = str(datetime.date.today().strftime('%Y-%b-%d'))
         #return '{:s}_{:s}.setups'.format(spectrograph,date), nexist
         return setup_file, nexist
