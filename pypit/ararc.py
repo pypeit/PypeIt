@@ -548,6 +548,8 @@ def calib_with_arclines(slf, det, get_poly=False):
                   #pix_tol=pix_tol, plot_fil=plot_fil)
     status, ngd_match, match_idx, scores, final_fit = stuff
     arqa.arc_fit_qa(slf, final_fit)
+    #
+    return final_fit
 
 
 def calibrate(slf, filename, pixtmp=None, prefix=""):

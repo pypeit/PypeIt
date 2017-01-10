@@ -2418,8 +2418,8 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_float(v)
-        if v <= 0.0:
-            msgs.error("The calibration time window must be > 0.0")
+        #if v <= 0.0:
+        #    msgs.error("The calibration time window must be > 0.0")
         self.update(v)
 
     def fits_dataext(self, v):
