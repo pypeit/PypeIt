@@ -4,7 +4,10 @@ import os
 import re
 import sys
 import shutil
+import string
 import numpy as np
+import yaml
+
 from pypit import armsgs
 from pypit import arparse as settings
 from pypit import arutils
@@ -29,8 +32,7 @@ msgs = armsgs.get_logger()
 
 
 def sort_data(fitsdict, flag_unknown=False):
-    """
-    Create an exposure class for every science frame
+    """ Generate a dict of filetypes from the input fitsdict object
 
     Parameters
     ----------
@@ -57,7 +59,7 @@ def sort_data(fitsdict, flag_unknown=False):
                  'trace': np.array([], dtype=np.int),
                  'unknown': np.array([], dtype=np.int),
                  'arc': np.array([], dtype=np.int)})
-    fkey = np.array(ftag.keys())
+    fkey = np.array(list(ftag.keys()))  # For Python 3 compatability
     # Create an array where 1 means it is a certain type of frame and 0 means it isn't.
     filarr = np.zeros((len(fkey), numfiles), dtype=np.int)
     setarr = np.zeros((len(fkey), numfiles), dtype=np.int)
@@ -183,7 +185,7 @@ def sort_data(fitsdict, flag_unknown=False):
 
 def chk_condition(fitsdict, cond):
     """
-    Code to perform condition.  A bit messy so a separeate definition
+    Code to perform condition.  A bit messy so a separate definition
     was generated.
     Create an exposure class for every science frame
 
@@ -262,6 +264,8 @@ def sort_write(fitsdict, filesort, space=3):
                 prdtp.append("double")
             else:
                 msgs.bug("I didn't expect useful headers to contain type {0:s}".format(typv).replace('<type ', '').replace('>', ''))
+
+    '''
     # Open a VOTable for writing
     votable = VOTableFile()
     resource = Resource()
@@ -297,28 +301,31 @@ def sort_write(fitsdict, filesort, space=3):
     votable.to_xml(fname)
     msgs.info("Successfully written sorted data information file:"+msgs.newline() +
               "{0:s}".format(fname))
+    '''
 
     # ASCII file
     asciiord = ['filename', 'date', 'frametype', 'target', 'exptime', 'binning',
         'dichroic', 'dispname', 'dispangle', 'decker']
-    # Generate the columns
-    clms = []
+    # Generate the columns except frametype
+    ascii_tbl = tTable()
     for pr in asciiord:
-        try:
-            lidx = prord.index(pr)
-        except ValueError:
-            msgs.warn('{:s} keyword not used'.format(pr))
-        else:
-            clm = []
-            for i in range(nfiles):
-                clm.append(table.array[i][lidx])
-            clms.append(Column(clm, name=pr))
-    # Create Table
-    ascii_tbl = tTable(clms)
+        if pr != 'frametype':
+            ascii_tbl[pr] = fitsdict[pr]
+    # Now frame type
+    ftypes = []
+    filtyp = filesort.keys()
+    for i in range(nfiles):
+        addval = ""
+        for ft in filtyp:
+            if i in filesort[ft]:
+                if len(addval) != 0: addval += ","
+                addval += ft
+        ftypes.append(addval)
+    ascii_tbl['frametype'] = ftypes
     # Write
     ascii_name = settings.argflag['output']['sorted']+'.lst'
-    ascii_tbl.write(ascii_name, format='ascii.fixed_width')
-    return
+    ascii_tbl[asciiord].write(ascii_name, format='ascii.fixed_width')
+    return ascii_tbl
 
 
 def match_science(fitsdict, filesort):
@@ -471,15 +478,21 @@ def match_science(fitsdict, filesort):
                 else:
                     msgs.info("  Found {0:d} {1:s} frames for {2:s} ({3:d} {4:s} required)".format(np.size(n), ftag[ft], fitsdict['target'][iSCI[i]], numfr, areis))
             # Have we identified enough of these calibration frames to continue?
-            if np.size(n) < numfr:
+            if np.size(n) < np.abs(numfr):
                 msgs.warn("  Only {0:d}/{1:d} {2:s} frames for {3:s}".format(np.size(n), numfr, ftag[ft],
                                                                              fitsdict['target'][iSCI[i]]))
                 # Errors for insufficient BIAS frames
                 if settings.argflag['bias']['useframe'].lower() == ftag[ft]:
-                    msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
+                    msgs.warn("Expecting to use bias frames for bias subtraction. But insufficient frames found.")
+                    msgs.warn("Either include more frames or modify bias method")
+                    msgs.warn("  e.g.:   bias useframe overscan")
+                    msgs.error("Unable to continue")
                 # Errors for insufficient PIXELFLAT frames
                 if ftag[ft] == 'pixelflat' and settings.argflag['reduce']['flatfield']['perform']:
-                    msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
+                    msgs.warn("Either include more frames or reduce the required amount with:")
+                    msgs.warn("  pixelflat number XX")
+                    msgs.warn("in the spect read/end block")
+                    msgs.error("Unable to continue")
                 # Errors for insufficient PINHOLE frames
                 if ftag[ft] == 'pinhole':
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
@@ -496,7 +509,7 @@ def match_science(fitsdict, filesort):
                 # Select the closest calibration frames to the science frame
                 tdiff = np.abs(fitsdict['time'][n].astype(np.float64)-np.float64(fitsdict['time'][iSCI[i]]))
                 wa = np.argsort(tdiff)
-                if settings.argflag['run']['setup']:
+                if (settings.argflag['run']['setup']) or (numfr < 0):
                     settings.spect[ftag[ft]]['index'].append(n[wa])
                 else:
                     settings.spect[ftag[ft]]['index'].append(n[wa[:numfr]])
@@ -633,7 +646,8 @@ def make_dirs(fitsdict, filesort):
         nored = np.delete(nored, 0)
     # Create a directory where all of the master calibration frames are stored.
     msgs.info("Creating Master Calibrations directory")
-    newdir = "{0:s}/{1:s}".format(currDIR, settings.argflag['run']['directory']['master'])
+    newdir = "{:s}/{:s}_{:s}".format(currDIR, settings.argflag['run']['directory']['master'],
+                                     settings.argflag['run']['spectrograph'])
     if os.path.exists(newdir):
         if not settings.argflag['output']['overwrite']:
             msgs.info("The following directory already exists:"+msgs.newline()+newdir)
@@ -671,20 +685,132 @@ def make_dirs(fitsdict, filesort):
     return sci_targs
 
 
-def instr_setup(sc, det, fitsdict, setup_dict, must_exist=False):
-    """ Define instrument setup
-
+def calib_set(isetup_dict, sciexp, fitsdict):
+    """
+    Ordering is 'aa', 'ab', ...
     Parameters
     ----------
-    sciexp
-    setup_dict
+    isetup_dict
+    cset
 
     Returns
     -------
+
     """
-    setup_str = [str('{:02d}'.format(i+1)) for i in range(99)]
+    cb_strs = []
+    default = 'aa'
+    for ll in ['a', 'b', 'c', 'd']:
+        for lower in string.ascii_lowercase:
+            cb_strs.append(ll+lower)
+    # Build cbset from sciexp
+    new_cbset = {}
+    cbkeys = ['arcs', 'bias', 'trace', 'flat', 'sci', 'cent']
+    for cbkey in cbkeys:
+        nms = list(fitsdict['filename'][getattr(sciexp,'_idx_'+cbkey)])
+        nms.sort()
+        new_cbset[cbkey] = nms
+
+    # Uninitialized?
+    if default not in isetup_dict.keys():
+        isetup_dict[default] = new_cbset
+        return default
+
+    # Not in default
+    for cbkey in cbkeys:
+        def_names = np.array(isetup_dict[default][cbkey])
+        if np.array_equal(def_names, new_cbset[cbkey]):
+            _ = new_cbset.pop(cbkey)
+    # Science only or exactly the same?
+    if len(new_cbset) == 0:
+        return default
+    elif len(new_cbset) == 1:
+        assert list(new_cbset.keys()) == ['sci']
+        if new_cbset['sci'][0] not in isetup_dict[default]['sci']:
+            isetup_dict[default]['sci'] += new_cbset['sci']
+        return default
+
+    # New calib set?
+    for cb_str in cb_strs[1:]:
+        mtch = True
+        if cb_str not in isetup_dict.keys():
+            isetup_dict[cb_str] = new_cbset
+            break
+        for key in new_cbset:
+            if key not in isetup_dict[cb_str]:
+                mtch = False
+                break
+            if key in ['sci']:
+                continue
+            ar_names = np.array(isetup_dict[default][cbkey])
+            mtch &= np.array_equal(ar_names, new_cbset[key])
+        if mtch:
+            # Add sci frames
+            for sciframe in new_cbset['sci']:
+                break
+    # Return
+    return cb_str
+
+
+def det_setup(isetup_dict, ddict):
+    """ Return detector setup on config dict or add to it if new
+
+    Parameters
+    ----------
+    isetup_dict : dict
+      Selected setup_dict
+    ddict : dict
+      detector dict
+
+    Returns
+    -------
+    dkey : str
+      Name of the detector string associated to the input ddict
+      May be new or previously used
+
+    """
+    det_str = [str('{:02d}'.format(i+1)) for i in range(99)]
+    # Init
+    for dkey in det_str:
+        mtch = True
+        if dkey not in isetup_dict.keys():
+            isetup_dict[dkey] = ddict
+            break
+        for key in isetup_dict[dkey].keys():
+            mtch &= isetup_dict[dkey][key] == ddict[key]
+        if mtch:
+            break
+    # Return
+    return dkey
+
+
+def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
+                skip_cset=False):
+    """ Define instrument config
+    Make calls to detector and calib set
+
+    config: A, B, C
+    detector setup: 01, 02, 03, ..
+    calib set: aa, ab, ac, ..
+
+
+    Parameters
+    ----------
+    sciexp : ScienceExposure
+    setup_dict
+    skip_cset : bool, optional
+      Skip calib_set;  only used when first generating instrument .setup file
+
+    Returns
+    -------
+    setup : str
+      Full setup ID, e.g. A_01_aa
+    """
+    dnum = settings.get_dnum(det)
+    # Labels
+    cfig_str = string.ascii_uppercase
+    cstr = '--'
     # Arc
-    idx = settings.spect['arc']['index'][sc]
+    idx = sciexp._idx_arcs
     disp_name = fitsdict["dispname"][idx[0]]
     disp_angle = fitsdict["dispangle"][idx[0]]
     # Common
@@ -692,10 +818,12 @@ def instr_setup(sc, det, fitsdict, setup_dict, must_exist=False):
     decker = fitsdict["decker"][idx[0]]
     slitwid = fitsdict["slitwid"][idx[0]]
     slitlen = fitsdict["slitlen"][idx[0]]
-    # Detector
+
+    # Detector -- These may not be set properly from the header alone, e.g. LRIS
     binning = fitsdict["binning"][idx[0]]
     naxis0 = fitsdict["naxis0"][idx[0]]
     naxis1 = fitsdict["naxis1"][idx[0]]
+    namp = settings.spect[dnum]["numamplifiers"]
 
     # Generate
     # Don't nest deeper than 1
@@ -705,49 +833,60 @@ def instr_setup(sc, det, fitsdict, setup_dict, must_exist=False):
                  slit={'decker': decker,
                        'slitwid': slitwid,
                        'slitlen': slitlen},
-                 detector={'binning': binning,
-                           'det': det,
-                           'naxis0': naxis0,
-                           'naxis1': naxis1},
                  )
+    ddict = {'binning': binning,
+              'det': det,
+              'namp': namp}
+              #'naxis0': naxis0,
+              #'naxis1': naxis1}
 
+    # Configuration
+    setup = None
     if len(setup_dict) == 0: # Generate
-        setup = str('01')
+        setup = 'A'
         # Finish
-        setup_dict[setup] = cdict
+        setup_dict[setup] = {}
+        setup_dict[setup][cstr] = cdict
     else:
-        # Search for a match
-        setup = None
         for ckey in setup_dict.keys():
             mtch = True
-            for key in setup_dict[ckey].keys():
+            for key in setup_dict[ckey][cstr].keys():
                 # Dict?
-                if isinstance(setup_dict[ckey][key], dict):
-                    for ikey in setup_dict[ckey][key].keys():
-                        mtch &= setup_dict[ckey][key][ikey] == cdict[key][ikey]
-                        #if mtch is False:
-                        #    debugger.set_trace()
+                if isinstance(setup_dict[ckey][cstr][key], dict):
+                    for ikey in setup_dict[ckey][cstr][key].keys():
+                        mtch &= setup_dict[ckey][cstr][key][ikey] == cdict[key][ikey]
                 else:
-                    mtch &= setup_dict[ckey][key] == cdict[key]
-                    #if mtch is False:
-                    #    debugger.set_trace()
+                    mtch &= setup_dict[ckey][cstr][key] == cdict[key]
             if mtch:
                 setup = ckey
                 break
         # Augment setup_dict?
         if setup is None:
             if must_exist:
-                msgs.error("This setup is not present in the setup_dict.  Regenerate your setup file!")
+                msgs.error("This setup is not present in the setup_dict.  Something went wrong..")
             maxs = max(setup_dict.keys())
-            setup = setup_str[setup_str.index(maxs)+1]
-            setup_dict[setup] = cdict
+            setup = cfig_str[cfig_str.index(maxs)+1]
+            setup_dict[setup] = {}
+            setup_dict[setup][cstr] = cdict
 
-    return setup
+    # Detector
+    dkey = det_setup(setup_dict[setup], ddict)
+    # Calib set
+    if not skip_cset:
+        calib_key = calib_set(setup_dict[setup], sciexp, fitsdict)
+    else:
+        calib_key = '--'
+
+    return '{:s}_{:s}_{:s}'.format(setup, dkey, calib_key)
 
 
-def get_setup_file():
+def get_setup_file(spectrograph=None):
     """ Passes back name of setup file
     Also checks for existing setup files
+
+    Parameters
+    ----------
+    spectrograph : str, optional
 
     Returns
     -------
@@ -760,15 +899,18 @@ def get_setup_file():
     import glob
     import datetime
 
-    spectrograph = settings.argflag['run']['spectrograph']
-    setup_files = glob.glob('./{:s}*.setup'.format(spectrograph))
+    if spectrograph is None:
+        spectrograph = settings.argflag['run']['spectrograph']
+    setup_files = glob.glob('./{:s}*.setups'.format(spectrograph))
     nexist = len(setup_files)
     # Require 1 or 0
     if nexist == 1:
         return setup_files[0], nexist
     elif nexist == 0:
-        date = str(datetime.date.today().strftime('%Y-%b-%d'))
-        return '{:s}_{:s}.setup'.format(spectrograph,date), nexist
+        setup_file = settings.argflag['run']['redname'].replace('.pypit', '.setups')
+        #date = str(datetime.date.today().strftime('%Y-%b-%d'))
+        #return '{:s}_{:s}.setups'.format(spectrograph,date), nexist
+        return setup_file, nexist
     else:
         msgs.error("Found more than one .setup file in the working directory.  Limit to one.")
 
@@ -788,29 +930,43 @@ def compare_setup(s1, s2):
     #for key in s1.keys():
     #    for key2 in s1[key]
 
-def load_setup():
+def load_setup(**kwargs):
     """ Load setup from the disk
 
     Returns
     -------
     setup_dict : dict
+    setup_file : str
 
     """
-    import yaml, json
-    setup_file, nexist = get_setup_file()
+    import yaml
+    setup_file, nexist = get_setup_file(**kwargs)
     if nexist == 0:
+        debugger.set_trace()
         msgs.error("No existing setup file.  Generate one first (e.g. pypit_setup)!")
     # YAML
     with open(setup_file, 'r') as infile:
         setup_dict = yaml.load(infile)
     # Return
-    return setup_dict
+    return setup_dict, setup_file
 
+
+def write_calib(setup_dict):
+    """ Output setup_dict with full calibrations to hard drive
+
+    Parameters
+    ----------
+    setup_dict : dict
+      setup dict
+    """
+    calib_file = settings.argflag['run']['redname'].replace('.pypit', '.calib')
+    # Write
+    ydict = arutils.yamlify(setup_dict)
+    with open(calib_file, 'w') as yamlf:
+        yamlf.write(yaml.dump(ydict))
 
 def write_setup(setup_dict, use_json=False):
     """ Output setup_dict to hard drive
-    This should only be done once and only if no setup file
-    exists already.
 
     Parameters
     ----------
@@ -823,11 +979,11 @@ def write_setup(setup_dict, use_json=False):
     -------
 
     """
-    import json, io, yaml
+    import json, io
     # Write
     setup_file, nexist = get_setup_file()
     if nexist == 1:
-        msgs.error("Cannot over-write existing setup file.  If you wish to, remove and rerun")
+        msgs.warn("Over-writing existing .setups file")
     if use_json:
         gddict = ltu.jsonify(setup_dict)
         with io.open(setup_file, 'w', encoding='utf-8') as f:
@@ -837,3 +993,89 @@ def write_setup(setup_dict, use_json=False):
         ydict = arutils.yamlify(setup_dict)
         with open(setup_file, 'w') as yamlf:
             yamlf.write(yaml.dump(ydict))
+
+def load_sorted(sorted_file):
+    """ Load a .sorted file (mainly to generate a .pypit file)
+    Parameters
+    ----------
+    sorted_file : str
+
+    Returns
+    -------
+    all_setups : list
+     list of all setups eg. ['A','B']
+    all_setuplines : list
+     list of lists of all setup lines which describe the setup
+    all_setupfiles : list
+     list of lists of all setup files including the header
+    """
+    all_setups, all_setuplines, all_setupfiles = [], [], []
+    with open(sorted_file,'r') as ff:
+        # Should begin with ####
+        fline = ff.readline()
+        if fline[0:4] != '####':
+            msgs.error('Bad .sorted fomatting')
+        # Loop on setups
+        while fline[0:5] != '##end':
+            # Setup lines
+            setuplines = []
+            while fline[0:2] != '#-':
+                fline = ff.readline()
+                # Setup name
+                if 'Setup' in fline:
+                    all_setups.append(fline[6:].strip())
+                #
+                setuplines.append(fline)
+            all_setuplines.append(setuplines[:-1])
+            # Data files
+            datafiles = []
+            while fline[0:2] != '##':
+                fline = ff.readline()
+                datafiles.append(fline)
+            all_setupfiles.append(datafiles[:-1])
+    # Return
+    return all_setups, all_setuplines, all_setupfiles
+
+
+def write_sorted(srt_tbl, group_dict, setup_dict):
+    """ Write the .sorted file
+    Parameters
+    ----------
+    group_dict
+    setup_dict
+
+    Returns
+    -------
+
+    """
+    # Output file
+    group_file = settings.argflag['run']['redname'].replace('.pypit', '.sorted')
+    ff = open(group_file, 'w')
+    # Keys
+    setups = list(group_dict.keys())
+    setups.sort()
+    ftypes = list(group_dict[setups[0]].keys())
+    ftypes.sort()
+    # Loop on Setup
+    asciiord = ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker']
+    for setup in setups:
+        ff.write('##########################################################\n')
+        in_setup = []
+        ff.write('Setup {:s}\n'.format(setup))
+        ydict = arutils.yamlify(setup_dict[setup])
+        ff.write(yaml.dump(ydict))
+        ff.write('#---------------------------------------------------------\n')
+        # ID files
+        for key in ftypes:
+            # Sort
+            gfiles = group_dict[setup][key]
+            gfiles.sort()
+            for ifile in gfiles:
+                mt = np.where(srt_tbl['filename'] == ifile)[0]
+                if (len(mt) > 0) and (mt not in in_setup):
+                    in_setup.append(mt[0])
+        #
+        subtbl = srt_tbl[asciiord][np.array(in_setup)]
+        subtbl.write(ff, format='ascii.fixed_width')
+    ff.write('##end\n')
+    ff.close()

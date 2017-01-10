@@ -263,21 +263,15 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     # Begin the algorithm
     errframe = np.sqrt(varframe)
     norders = slf._lordloc[det-1].shape[1]
-    # Look at the end corners of the detector to get detector size in the dispersion direction
-    xstr = slf._pixlocn[det-1][0,0,0]-slf._pixlocn[det-1][0,0,2]/2.0
-    xfin = slf._pixlocn[det-1][-1,-1,0]+slf._pixlocn[det-1][-1,-1,2]/2.0
-    xint = slf._pixlocn[det-1][:,0,0]
     # Find which pixels are within the order edges
     msgs.info("Identifying pixels within each order")
     ordpix = arcyutils.order_pixels(slf._pixlocn[det-1],
                                     slf._lordloc[det-1]*0.95+slf._rordloc[det-1]*0.05,
                                     slf._lordloc[det-1]*0.05+slf._rordloc[det-1]*0.95)
-    allordpix = ordpix.copy()
     msgs.info("Applying bad pixel mask")
     ordpix *= (1-slf._bpix[det-1].astype(np.int)) * (1-crpix.astype(np.int))
     if tracemask is not None: ordpix *= (1-tracemask.astype(np.int))
     # Construct an array of pixels to be fit with a spline
-    #msgs.bug("Tilts are the wrong shape, transposing -- fix this later")
     msgs.bug("Remember to include the following in a loop over order number")
     #whord = np.where(ordpix != 0)
     o = 0 # order=1
@@ -524,6 +518,7 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     ordpix = arcyutils.order_pixels(slf._pixlocn[det-1], slf._lordloc[det-1], slf._rordloc[det-1])
     msgs.info("Applying bad pixel mask")
     ordpix *= (1-slf._bpix[det-1].astype(np.int))
+    mskord = np.zeros(msflat.shape)
     msgs.info("Rectifying the orders to estimate the background locations")
     #badorders = np.zeros(norders)
     msnormflat = maskval*np.ones_like(msflat)
@@ -586,6 +581,26 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             msnormflat = arcyproc.combine_nrmflat(msnormflat, normflat_unrec, slf._pixcen[det-1][:,o],
                                                   slf._lordpix[det-1][:,o], slf._rordpix[det-1][:,o],
                                                   slf._pixwid[det-1][o]+overpix, maskval)
+        elif settings.argflag["reduce"]["flatfield"]["method"].lower() == "bspline":
+            msgs.info("Deriving blaze function with a bspline")
+            tilts = slf._tilts[det - 1].copy()
+            gdp = (msflat != maskval) & (ordpix == o+1)
+            srt = np.argsort(tilts[gdp])
+            bspl = arutils.func_fit(tilts[gdp][srt], msflat[gdp][srt], 'bspline', 3,
+                                    everyn=slf._pixwid[det-1][o]*settings.argflag['reduce']['flatfield']['params'][0])
+            model_flat = arutils.func_val(bspl, tilts.flatten(), 'bspline')
+            model = model_flat.reshape(tilts.shape)
+            word = np.where(ordpix == o+1)
+            msnormflat[word] = msflat[word]/model[word]
+            msblaze[:, o] = arutils.func_val(bspl, np.linspace(0.0, 1.0, msflat.shape[0]), 'bspline')
+            mskord[word] = 1.0
+            flat_ext1d[:, o] = np.sum(msflat * mskord, axis=1)/np.sum(mskord, axis=1)
+            mskord *= 0.0
+            # import astropy.io.fits as pyfits
+            # hdu = pyfits.PrimaryHDU(model)
+            # hdu.writeto("model_{0:02d}.fits".format(det))
+            # hdu = pyfits.PrimaryHDU(msnormflat)
+            # hdu.writeto("msnormflat_{0:02d}.fits".format(det))
         else:
             msgs.error("Flatfield method {0:s} is not supported".format(settings.argflag["reduce"]["flatfield"]["method"]))
     # Send the blaze away to be plotted and saved
@@ -671,7 +686,7 @@ def get_ampscale(slf, det, msflat):
     return sclframe
 
 
-def get_ampsec_trimmed(slf, fitsdict, det, scidx):
+def get_datasec_trimmed(slf, fitsdict, det, scidx):
     """
      Generate a frame that identifies each pixel to an amplifier, and then trim it to the data sections.
      This frame can be used to later identify which trimmed pixels correspond to which amplifier

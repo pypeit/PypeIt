@@ -597,6 +597,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
+    '''
     def bias_useoverscan(self, v):
         """ Subtract the bias level using the overscan region?
 
@@ -607,6 +608,7 @@ class BaseArgFlag(BaseFunctions):
         """
         v = key_bool(v)
         self.update(v)
+    '''
 
     def bias_useframe(self, v):
         """ How to subtract the detector bias (bias, overscan, dark, none),
@@ -981,7 +983,7 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['polyscan']
+        allowed = ['polyscan', 'bspline']
         v = key_allowed(v, allowed)
         self.update(v)
 
@@ -990,6 +992,7 @@ class BaseArgFlag(BaseFunctions):
         specified by the 'reduce flatfield method' keyword:
 
         polyscan:  [Polynomial order, Number of pixels, Number of repeats]
+        bspline:   [Number of pixels in the dispersion direction between each knot]
 
         Parameters
         ----------
@@ -1921,6 +1924,40 @@ class BaseSpect(BaseFunctions):
         self._settings = []
         self.set_default()
 
+    def load_ftype(self, ftype_dict):
+        """ Parse the dict generated from a .pypit file on frametypes
+        Parameters
+        ----------
+        ftype_dict : dict
+
+        Returns
+        -------
+        linesarr : list
+          Each element of this list is a line equivalent to that in a PYPIT file
+          e.g.  arc number 1
+
+        """
+        # Save
+        self.__dict__['_ftdict'] = ftype_dict.copy()
+        # Dict to hold values
+        fdict = {}
+        for key,value in ftype_dict.items():
+            ftypes = value.split(',')
+            for ftype in ftypes:
+                if ftype == 'science':
+                    continue
+                if ftype not in fdict.keys():
+                    fdict[ftype] = 1
+                else:
+                    fdict[ftype] += 1
+        # Generate the lines
+        linesarr = []
+        for key,value in fdict.items():
+            if value > self.__dict__['_spect'][key]['number']:
+                linesarr.append(' {:s} number {:d}\n'.format(key,value))
+        # Return
+        return linesarr
+
     def save(self):
         """
         Save the settings used for this reduction
@@ -2186,7 +2223,7 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_int(v)
-        key_min_val(v,-1)
+        #key_min_val(v,-1)
         self.update(v)
 
     def det_datasec(self, v, anmbr=1, bnmbr=1):
@@ -2904,7 +2941,7 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_int(v)
-        assert key_min_val(v,-1)
+        #assert key_min_val(v,-1)
         #if v < -1:
         #    msgs.error("The argument of {0:s} must be >= -1".format(get_current_name()))
         self.update(v)
@@ -3101,7 +3138,7 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_int(v)
-        key_min_val(v, -1)
+        #key_min_val(v, -1)
         self.update(v)
 
     def standard_canbe(self, v):
@@ -3150,7 +3187,7 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_int(v)
-        key_min_val(v,-1)
+        #key_min_val(v,-1)
         self.update(v)
 
     def trace_canbe(self, v):
@@ -3210,8 +3247,8 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_int(v)
-        if v < 0:
-            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        #if v < 0:
+        #    msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
 

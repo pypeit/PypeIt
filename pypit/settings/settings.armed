@@ -23,8 +23,8 @@ reduce overscan method savgol       # Method used to fit the overscan (polynomia
 reduce overscan params [5,65]       # Parameters used for the overscan method (for polynomial use [#] where # is replaced by the polynomial order, for savgol use [#,$] where # is the order and $ is the window size (should be odd)
 reduce badpix True              # Make a bad pixel mask? (This step requires bias frames)
 reduce flatfield perform True           # Flatfield the data?
-reduce flatfield method PolyScan      # Method used to flat field the data (PolyScan)
-reduce flatfield params [3,50,20]     # Flat field method parameters (PolyScan: [order,numPixels,repeat])
+reduce flatfield method bspline      # Method used to flat field the data (PolyScan, bspline)
+reduce flatfield params [20]     # Flat field method parameters (PolyScan: [order,numPixels,repeat], bspline: [spacing])
 reduce flatfield useframe pixelflat          # How to flat field the data (pixelflat, trace), you can also specify a master calibrations file if it exists.
 reduce slitcen useframe pinhole          # How to trace the slit centre (pinhole, trace), you can also specify a master calibrations file if it exists.
 reduce trace useframe trace             # How to trace the slit edges (pinhole, trace), you can also specify a master calibrations file if it exists.
@@ -60,7 +60,7 @@ arc calibrate detection 6.0         # How significant should the arc line detect
 arc calibrate numsearch 20           # Number of brightest arc lines to search for preliminary identification
 
 # BIAS FRAMES
-bias useoverscan True           # Subtract the bias level using the overscan region?
+#bias useoverscan True           # Subtract the bias level using the overscan region?
 bias useframe bias                    # How to subtract the detector bias (bias, overscan, dark, none), you can also specify a master calibrations file if it exists.
 bias combine method mean                # How should the bias frames be combined (mean, median, weightmean)
 bias combine reject cosmics 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)

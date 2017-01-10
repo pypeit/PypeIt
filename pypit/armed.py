@@ -72,8 +72,8 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             det = kk + 1  # Detectors indexed from 1
             slf.det = det
             ###############
-            # Get amplifier sections
-            arproc.get_ampsec_trimmed(slf, fitsdict, det, scidx)
+            # Get datasec sections
+            arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
             # Setup
             setup = arsort.instr_setup(sc, det, fitsdict, setup_dict, must_exist=True)
             settings.argflag['reduce']['masters']['setup'] = setup
@@ -144,13 +144,7 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                 arqa.slit_trace_qa(slf, slf._mstrace[det - 1], slf._lordpix[det - 1], slf._rordpix[det - 1], extord,
                                    desc="Trace of the slit edges", normalize=False)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
-            ###############
-            # Prepare the pixel flat field frame
-            if False:
-                update = slf.MasterFlatField(fitsdict, det)
-                if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
-            else:
-                msgs.bug("PIXEL FLAT NOT BEING CREATED!!!")
+
             ###############
             # Generate the 1D wavelength solution
             update = slf.MasterWaveCalib(fitsdict, sc, det)
@@ -175,6 +169,11 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
+
+            ###############
+            # Prepare the pixel flat field frame
+            update = slf.MasterFlatField(fitsdict, det)
+            if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
 
             msgs.error("UP TO HERE!!!")
             ###############

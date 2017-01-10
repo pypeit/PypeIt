@@ -143,7 +143,6 @@ def load_headers(datlines):
             elif isinstance(value, basestring) or typv is np.string_:
                 fitsdict[kw].append(value.strip())
             else:
-                debugger.set_trace()
                 msgs.bug("I didn't expect useful headers to contain type {0:s}".format(typv).replace('<type ','').replace('>',''))
 
         msgs.info("Successfully loaded headers for file:"+msgs.newline()+datlines[i])

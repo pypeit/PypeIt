@@ -92,7 +92,10 @@ def main(args):
             while tb:
                 co = tb.tb_frame.f_code
                 filename = str(co.co_filename)
-                line_no = str(traceback.tb_lineno(tb))
+                try:
+                    line_no = str(traceback.tb_lineno(tb))
+                except AttributeError:  # Python 3
+                    line_no = 'UNDEFINED'
                 tb = tb.tb_next
             filename = filename.split('/')[-1]
             if str(ev) != "":

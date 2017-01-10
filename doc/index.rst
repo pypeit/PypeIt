@@ -33,7 +33,9 @@ Running PYPIT
    :maxdepth: 2
 
    cookbook
-   setup
+   setups
+   pypit_file
+   calcheck
    running
 
 Data Products
@@ -44,6 +46,14 @@ Data Products
 
    outputs
 
+Calibrations
+++++++++++++
+
+.. toctree::
+   :maxdepth: 2
+
+   calibrations
+
 Documentation
 +++++++++++++
 
@@ -52,6 +62,7 @@ Documentation
 
    bias
    flexure
+   frametype
    tracing
    wave_calib
 
