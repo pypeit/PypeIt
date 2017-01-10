@@ -992,7 +992,7 @@ class BaseArgFlag(BaseFunctions):
         specified by the 'reduce flatfield method' keyword:
 
         polyscan:  [Polynomial order, Number of pixels, Number of repeats]
-        bspline:   [everyn]
+        bspline:   [Number of pixels in the dispersion direction between each knot]
 
         Parameters
         ----------
