@@ -586,8 +586,12 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             tilts = slf._tilts[det - 1].copy()
             gdp = (msflat != maskval) & (ordpix == o+1)
             srt = np.argsort(tilts[gdp])
-            bspl = arutils.func_fit(tilts[gdp][srt], msflat[gdp][srt], 'bspline', 3,
-                                    everyn=slf._pixwid[det-1][o]*settings.argflag['reduce']['flatfield']['params'][0])
+            everyn = settings.argflag['reduce']['flatfield']['params'][0]
+            if everyn > 0.0 and everyn < 1.0:
+                everyn *= msflat.shape[0]
+                everyn = int(everyn+0.5)
+            everyn *= slf._pixwid[det-1][o]
+            bspl = arutils.func_fit(tilts[gdp][srt], msflat[gdp][srt], 'bspline', 3, everyn=everyn)
             model_flat = arutils.func_val(bspl, tilts.flatten(), 'bspline')
             model = model_flat.reshape(tilts.shape)
             word = np.where(ordpix == o+1)

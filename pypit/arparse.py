@@ -994,6 +994,8 @@ class BaseArgFlag(BaseFunctions):
         polyscan:  [Polynomial order, Number of pixels, Number of repeats]
         bspline:   [Number of pixels in the dispersion direction between each knot]
 
+        Note: if the bspline argument is 0 < number < 1, it will be assumed to be a fraction of the pixels in the dispersion direction
+
         Parameters
         ----------
         v : str

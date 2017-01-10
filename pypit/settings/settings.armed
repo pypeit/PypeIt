@@ -24,7 +24,7 @@ reduce overscan params [5,65]       # Parameters used for the overscan method (f
 reduce badpix True              # Make a bad pixel mask? (This step requires bias frames)
 reduce flatfield perform True           # Flatfield the data?
 reduce flatfield method bspline      # Method used to flat field the data (PolyScan, bspline)
-reduce flatfield params [20]     # Flat field method parameters (PolyScan: [order,numPixels,repeat], bspline: [spacing])
+reduce flatfield params [0.05]     # Flat field method parameters (PolyScan: [order,numPixels,repeat], bspline: [spacing])
 reduce flatfield useframe pixelflat          # How to flat field the data (pixelflat, trace), you can also specify a master calibrations file if it exists.
 reduce slitcen useframe pinhole          # How to trace the slit centre (pinhole, trace), you can also specify a master calibrations file if it exists.
 reduce trace useframe trace             # How to trace the slit edges (pinhole, trace), you can also specify a master calibrations file if it exists.
