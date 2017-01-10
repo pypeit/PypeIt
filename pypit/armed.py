@@ -9,12 +9,10 @@ from pypit import armasters
 from pypit import armbase
 from pypit import armsgs
 from pypit import arproc
-#from pypit import arsave
+from pypit import arsave
 from pypit import arsort
 from pypit import artrace
 from pypit import arqa
-
-from linetools import utils as ltu
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -197,4 +195,30 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             # Write MasterFrames (currently per detector)
             armasters.save_masters(slf, det, setup)
 
+            ###############
+            # Load the science frame and from this generate a Poisson error frame
+            msgs.info("Loading science frame")
+            sciframe = arload.load_frames(fitsdict, [scidx], det,
+                                          frametype='science',
+                                          msbias=slf._msbias[det - 1])
+            sciframe = sciframe[:, :, 0]
+            # Extract
+            msgs.info("Processing science frame")
+            arproc.reduce_frame(slf, sciframe, scidx, fitsdict, det)
+
+        # Close the QA for this object
+        slf._qa.close()
+
+        # Write 1D spectra
+        save_format = 'fits'
+        if save_format == 'fits':
+            arsave.save_1d_spectra_fits(slf)
+        elif save_format == 'hdf5':
+            arsave.save_1d_spectra_hdf5(slf)
+        else:
+            msgs.error(save_format + ' is not a recognized output format!')
+        # Write 2D images for the Science Frame
+        arsave.save_2d_images(slf)
+        # Free up some memory by replacing the reduced ScienceExposure class
+        sciexp[sc] = None
     return status
