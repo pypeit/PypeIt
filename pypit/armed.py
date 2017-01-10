@@ -48,16 +48,21 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
     status = 0
 
     # Create a list of science exposure classes
-    sciexp = armbase.SetupScience(fitsdict)
-    numsci = len(sciexp)
+    sciexp, setup_dict = armbase.SetupScience(fitsdict)
+    if sciexp == 'setup':
+        status = 1
+        return status
+    elif sciexp == 'calcheck':
+        status = 2
+        return status
+    else:
+        numsci = len(sciexp)
 
     # Create a list of master calibration frames
-    masters = armasters.MasterFrames(settings.spect['mosaic']['ndet'])
+    #masters = armasters.MasterFrames(settings.spect['mosaic']['ndet'])
 
-    # Use Masters?  Requires setup file
-    setup_file, nexist = arsort.get_setup_file()
-    setup_dict = arsort.load_setup()
-    settings.argflag['reduce']['masters']['file'] = setup_file
+    # Masters
+    #settings.argflag['reduce']['masters']['file'] = setup_file
 
     # Start reducing the data
     for sc in range(numsci):
@@ -72,10 +77,10 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             det = kk + 1  # Detectors indexed from 1
             slf.det = det
             ###############
-            # Get datasec sections
+            # Get data sections
             arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
             # Setup
-            setup = arsort.instr_setup(sc, det, fitsdict, setup_dict, must_exist=True)
+            setup = arsort.instr_setup(slf, det, fitsdict, setup_dict, must_exist=True)
             settings.argflag['reduce']['masters']['setup'] = setup
             ###############
             # Generate master bias frame
