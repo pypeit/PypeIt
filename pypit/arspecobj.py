@@ -10,6 +10,10 @@ from pypit import armsgs
 # Logging
 msgs = armsgs.get_logger()
 
+try:
+    from xastropy.xutils import xdebug as debugger
+except ImportError:
+    import pdb as debugger
 
 class SpecObjExp(object):
     """Class to handle object spectra from a single exposure
@@ -62,7 +66,7 @@ class SpecObjExp(object):
         self.slitid= int(np.round(self.slitcen*1e4))
         self.objid= int(np.round(xobj*1e3))
 
-        # Generate a unique index for this expsoure
+        # Generate a unique index for this exposure
         #self.idx = '{:02d}'.format(self.setup)
         self.idx = 'O{:03d}'.format(self.objid)
         self.idx += '-S{:04d}'.format(self.slitid)
@@ -152,4 +156,69 @@ def init_exp(slf, scidx, det, fitsdict, trc_img=None, ypos=0.5, **kwargs):
     return specobjs
 
 
+def objnm_to_dict(objnm):
+    """ Convert an object name or list of them into a dict
 
+    Parameters
+    ----------
+    objnm : str or list of str
+
+    Returns
+    -------
+    odict : dict
+      Object value or list of object values
+    """
+    if isinstance(objnm, list):
+        tdict = {}
+        for kk,iobj in enumerate(objnm):
+            idict = objnm_to_dict(iobj)
+            if kk == 0:
+                for key in idict.keys():
+                    tdict[key] = []
+            # Fill
+            for key in idict.keys():
+                tdict[key].append(idict[key])
+        # Generate the Table
+        return tdict
+    # Generate the dict
+    prs = objnm.split('-')
+    odict = {}
+    for iprs in prs:
+        odict[iprs[0]] = int(iprs[1:])
+    # Return
+    return odict
+
+
+def mtch_obj_to_objects(iobj, objects, stol=50, otol=10):
+    """
+    Parameters
+    ----------
+    iobj : str
+      Object identifier in format O###-S####-D##
+    objects : list
+      List of object identifiers
+    stol : int
+      Tolerance in slit matching
+    otol : int
+      Tolerance in object matching
+
+    Returns
+    -------
+    matches : list
+      indices of matches in objects
+      None if none
+    indcies : list
+
+    """
+    from astropy.table import Table
+    # Parse input object
+    odict = objnm_to_dict(iobj)
+    # Generate a Table of the objects
+    tbl = Table(objnm_to_dict(objects))
+
+    # Logic on object, slit and detector [ignoring sciidx for now]
+    gdrow = (np.abs(tbl['O']-odict['O']) < otol) & (np.abs(tbl['S']-odict['S']) < stol) & (tbl['D'] == odict['D'])
+    if np.sum(gdrow) == 0:
+        return None
+    else:
+        return np.array(objects)[gdrow].tolist(), np.where(gdrow)[0].tolist()
