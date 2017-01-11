@@ -2325,6 +2325,28 @@ def tilts_image(np.ndarray[DTYPE_t, ndim=2] tilts not None,
                 np.ndarray[DTYPE_t, ndim=2] lordloc not None,
                 np.ndarray[DTYPE_t, ndim=2] rordloc not None,
                 int sz_y):
+    """ Using the tilt (assumed to be fit with a first order polynomial)
+    generate an image of the tilts for each slit.
+
+    Parameters
+    ----------
+    tilts : ndarray
+      An (m x n) 2D array specifying the tilt (i.e. gradient) at each
+      pixel along the spectral direction (m) for each slit (n).
+    lordloc : ndarray
+      Location of the left slit edges
+    rordloc : ndarray
+      Location of the right slit edges
+    sz_y : int
+      Number of detector pixels in the spatial direction.
+
+    Returns
+    -------
+    tiltsimg : ndarray
+      An image the same size as the science frame, containing values from 0-1.
+      0/1 corresponds to the bottom/top of the detector (in the spectral direction),
+      and constant wavelength is represented by a single value from 0-1.
+    """
 
     cdef int o, sz_o, x, sz_x, y
     cdef int ymin, ymax
