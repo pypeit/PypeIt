@@ -983,7 +983,7 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['polyscan']
+        allowed = ['polyscan', 'bspline']
         v = key_allowed(v, allowed)
         self.update(v)
 
@@ -992,6 +992,7 @@ class BaseArgFlag(BaseFunctions):
         specified by the 'reduce flatfield method' keyword:
 
         polyscan:  [Polynomial order, Number of pixels, Number of repeats]
+        bspline:   [Number of pixels in the dispersion direction between each knot]
 
         Parameters
         ----------
@@ -3325,6 +3326,21 @@ class ARMED(BaseArgFlag):
         v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        self.update(v)
+
+    def trace_slits_tilts_order(self, v):
+        """ What is the order of the polynomial function to be used for the tilt of an individual arc line
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_int(v)
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        if v != 1:
+            msgs.error("The argument of {0:s} must be equal to 1 for echelle data".format(get_current_name()))
         self.update(v)
 
 

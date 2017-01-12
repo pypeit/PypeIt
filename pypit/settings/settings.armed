@@ -7,7 +7,7 @@ run load spect None             # Load a spectrograph settings file (Note: this 
 run  calcheck     False         # Doesn't reduce the data, just checks to make sure all calibration data are present
 run  setup       False          # Generate a setup file and parse files
 run  spectrograph levy          # Default spectrograph data to reduce
-run  directory master   MasterFrames  # Child Directory name for master calibration frames
+run  directory master   MF  # Child Directory name for master calibration frames
 run  directory science       Science       # Child Directory name for extracted science frames
 run  directory qa     QA         # Child Directory name for quality assurance
 run  qa     False         # Run quality control in real time? (setting this to False will still produce the checks, but won't display the results during the reduction).
@@ -23,8 +23,8 @@ reduce overscan method savgol       # Method used to fit the overscan (polynomia
 reduce overscan params [5,65]       # Parameters used for the overscan method (for polynomial use [#] where # is replaced by the polynomial order, for savgol use [#,$] where # is the order and $ is the window size (should be odd)
 reduce badpix True              # Make a bad pixel mask? (This step requires bias frames)
 reduce flatfield perform True           # Flatfield the data?
-reduce flatfield method PolyScan      # Method used to flat field the data (PolyScan)
-reduce flatfield params [3,50,20]     # Flat field method parameters (PolyScan: [order,numPixels,repeat])
+reduce flatfield method bspline      # Method used to flat field the data (PolyScan, bspline)
+reduce flatfield params [20]     # Flat field method parameters (PolyScan: [order,numPixels,repeat], bspline: [spacing])
 reduce flatfield useframe pixelflat          # How to flat field the data (pixelflat, trace), you can also specify a master calibrations file if it exists.
 reduce slitcen useframe pinhole          # How to trace the slit centre (pinhole, trace), you can also specify a master calibrations file if it exists.
 reduce trace useframe trace             # How to trace the slit edges (pinhole, trace), you can also specify a master calibrations file if it exists.
@@ -95,7 +95,7 @@ trace slits sigdetect  10.0           # Sigma detection threshold for edge detec
 trace slits single []                #
 trace slits tilts idsonly False       # Use only the arc lines that have an identified wavelength to trace tilts
 trace slits tilts method      PCA        # What method should be used to trace the tilt of the slit along an order (PCA, spca, spline, interp, perp, zero)
-trace slits tilts params    [1,1,0]       # What order polynomials should be used to fit the tilt principle components
+trace slits tilts params    [2,1]       # What order polynomials should be used to fit the tilt principle components
 trace slits tilts order  1             # What is the order of the polynomial function to be used for the tilt of an individual arc line
 trace slits tilts disporder  1             # What is the order of the polynomial function to be used to fit the tilts along the dispersion direction
 

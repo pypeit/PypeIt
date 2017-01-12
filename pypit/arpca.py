@@ -403,7 +403,7 @@ def pc_plot(slf, inpar, ofit, maxp=25, pcadesc="", addOne=True):
     return
 
 
-def pc_plot_arctilt(tiltang, centval, tilts, plotsdir="Plots", pcatype="<unknown>", maxp=25, prefix=""):
+def pc_plot_arctilt(slf, tiltang, centval, tilts, maxp=25):
     """
     Saves a few output png files of the PCA analysis for the arc tilts
     """
@@ -411,27 +411,33 @@ def pc_plot_arctilt(tiltang, centval, tilts, plotsdir="Plots", pcatype="<unknown
     pages, npp = get_dimen(npc,maxp=maxp)
     x0=np.arange(tilts.shape[0])
     # First calculate the min and max values for the plotting axes, to make sure they are all the same
-    ymin, ymax = None, None
-    for i in range(npc):
-        w = np.where(tiltang[:,i]!=-999999.9)
-        if np.size(w[0]) == 0: continue
-        medv = np.median(tiltang[:,i][w])
-        madv = 1.4826*np.median(np.abs(medv-tiltang[:,i][w]))
-        vmin, vmax = medv-3.0*madv, medv+3.0*madv
-        tymin = min(vmin,np.min(tilts[:,i]))
-        tymax = max(vmax,np.max(tilts[:,i]))
-        if ymin is None: ymin = tymin
-        else:
-            if tymin < ymin: ymin = tymin
-        if ymax is None: ymax = tymax
-        else:
-            if tymax > ymax: ymax = tymax
+    w = np.where(tiltang != -999999.9)
+    medv = np.median(tiltang[w])
+    madv = 1.4826 * np.median(np.abs(medv - tiltang[w]))
+    ymin, ymax = medv - 3.0 * madv, medv + 3.0 * madv
+    ymin = min(ymin, np.min(tilts))
+    ymax = max(ymax, np.max(tilts))
+    # ymin, ymax = None, None
+    # for i in range(npc):
+    #     w = np.where(tiltang[:,i]!=-999999.9)
+    #     if np.size(w[0]) == 0: continue
+    #     medv = np.median(tiltang[:,i][w])
+    #     madv = 1.4826*np.median(np.abs(medv-tiltang[:,i][w]))
+    #     vmin, vmax = medv-3.0*madv, medv+3.0*madv
+    #     tymin = min(vmin,np.min(tilts[:,i]))
+    #     tymax = max(vmax,np.max(tilts[:,i]))
+    #     if ymin is None: ymin = tymin
+    #     else:
+    #         if tymin < ymin: ymin = tymin
+    #     if ymax is None: ymax = tymax
+    #     else:
+    #         if tymax > ymax: ymax = tymax
     # Check that ymin and ymax are set, if not, return without plotting
     if ymin is None or ymax is None:
         msgs.warn("Arc tilt fits were not plotted")
         return
     # Generate the plots
-    ndone=0
+    ndone = 0
     for i in range(len(pages)):
         f, axes = plt.subplots(pages[i][1], pages[i][0])
         ipx, ipy = 0, 0
@@ -464,11 +470,9 @@ def pc_plot_arctilt(tiltang, centval, tilts, plotsdir="Plots", pcatype="<unknown
         else: ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
         f.set_size_inches(11.0, ypngsiz)
         f.tight_layout()
-        if prefix != "":
-            f.savefig("{0:s}/{1:s}_PCA_arc{2:s}_page-{3:d}.png".format(plotsdir,prefix,pcatype,i+1), dpi=200, orientation='landscape')
-        else:
-            f.savefig("{0:s}/PCA_arc{1:s}_page-{2:d}.png".format(plotsdir,pcatype,i+1), dpi=200, orientation='landscape')
-    f.clf()
+        slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
+        plt.close()
+        f.clf()
     del f
     return
 
