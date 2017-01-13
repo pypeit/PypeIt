@@ -311,10 +311,7 @@ def pc_plot(slf, inpar, ofit, maxp=25, pcadesc="", addOne=True):
     ndone = 0
     for i in range(len(pages)):
         plt.clf()
-        try:
-            f, axes = plt.subplots(pages[i][1], pages[i][0])
-        except:
-            debugger.set_trace()
+        f, axes = plt.subplots(pages[i][1], pages[i][0])
         ipx, ipy = 0, 0
         if i == 0:
             if pages[i][1] == 1: ind = (0,)
