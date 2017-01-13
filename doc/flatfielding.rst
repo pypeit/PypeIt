@@ -48,9 +48,10 @@ bspline
 -------
 
 The bspline method takes a single parameter which, if >= 1, corresponds to
-the spacing between pixels in the spectral direction. If the parameter is
-less than 1, PYPIT will assume that this is the fraction of pixels along
-the spectral direction to use. The default value is 0.01.
+the spacing between knots in the spectral direction, in units of pixels.
+If the supplied parameter value is less than 1, PYPIT assumes that this
+represents a fraction of the pixels in the spectral direction, and will
+use this as the knot spacing. The default value is 0.05.
 
 polyscan
 --------
