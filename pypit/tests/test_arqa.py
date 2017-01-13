@@ -1,11 +1,9 @@
 # Module to run tests on arqa
 
-import numpy as np
-import pytest
-
 from pypit import pyputils
-msgs = pyputils.get_dummy_logger()
 from pypit import arqa
+
+msgs = pyputils.get_dummy_logger()
 
 
 def test_get_dimen():

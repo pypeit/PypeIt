@@ -1610,7 +1610,7 @@ def trace_fweight(fimage, xinit, invvar=None, radius=3.):
     return xnew, xerr
 
 
-def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts"):
+def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", maskval=-999999.9):
     """ Determine the spectral tilts in each echelle order
 
     Parameters
@@ -1623,6 +1623,8 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts"):
       Index of the detector
     pcadesc : str (optional)
       A description of the tilts
+    maskval : float (optional)
+      Mask value used in numpy arrays
 
     Returns
     -------
@@ -1635,7 +1637,6 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts"):
     """
     from pypit import arcytrace
 
-    maskval = -999999.9
     arccen, maskslit, satmask = get_censpec(slf, msarc, det, gen_satmask=True)
     # If the user sets no tilts, return here
     if settings.argflag['trace']['slits']['tilts']['method'].lower() == "zero":
@@ -1748,7 +1749,7 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts"):
     return tiltsimg, satmask, outpar
 
 
-def multislit_tilt(slf, msarc, det):
+def multislit_tilt(slf, msarc, det, maskval=-999999.9):
     """ Determine the spectral tilt of each slit in a multislit image
 
     Parameters
@@ -1759,6 +1760,8 @@ def multislit_tilt(slf, msarc, det):
       Wavelength calibration frame that will be used to trace constant wavelength
     det : int
       Index of the detector
+    maskval : float (optional)
+      Mask value used in numpy arrays
 
     Returns
     -------
@@ -1769,7 +1772,7 @@ def multislit_tilt(slf, msarc, det):
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
-    maskval = -999999.9
+
     arccen, maskslit, satmask = get_censpec(slf, msarc, det, gen_satmask=True)
     # If the user sets no tilts, return here
     if settings.argflag['trace']['slits']['tilts']['method'].lower() == "zero":
