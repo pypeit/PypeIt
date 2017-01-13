@@ -983,7 +983,7 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['polyscan']
+        allowed = ['polyscan', 'bspline']
         v = key_allowed(v, allowed)
         self.update(v)
 
@@ -992,6 +992,7 @@ class BaseArgFlag(BaseFunctions):
         specified by the 'reduce flatfield method' keyword:
 
         polyscan:  [Polynomial order, Number of pixels, Number of repeats]
+        bspline:   [Number of pixels in the dispersion direction between each knot]
 
         Parameters
         ----------
