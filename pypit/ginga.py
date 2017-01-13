@@ -50,7 +50,7 @@ def show_image(img):
 
 def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0.):
     # Connect
-    cname = 'ATilts'
+    cname = 'ArcTilts'
     viewer = connect_to_ginga()
     ch = viewer.channel(cname)
     canvas = viewer.canvas(cname)

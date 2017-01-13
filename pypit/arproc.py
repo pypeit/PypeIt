@@ -813,8 +813,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Flat field the science frame (and variance)
     if settings.argflag['reduce']['flatfield']['perform']:
         msgs.info("Flat fielding the science frame")
-        sciframe, rawvarframe = flatfield(slf, sciframe, slf._mspixelflatnrm[det-1], det,
-                             varframe=rawvarframe)
+        sciframe, rawvarframe = flatfield(slf, sciframe, slf._mspixelflatnrm[det-1], det, varframe=rawvarframe)
     else:
         msgs.info("Not performing a flat field calibration")
     if not standard:

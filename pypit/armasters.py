@@ -51,7 +51,7 @@ class MasterFrames:
         self._mspixelflat_name = [None for all in range(ndet)]  # Master Pixel Flat Name
 
 
-def master_name(mdir, ftype, setup):
+def master_name(imdir, ftype, setup):
     """ Default filenames
     Parameters
     ----------
@@ -61,6 +61,7 @@ def master_name(mdir, ftype, setup):
     Returns
     -------
     """
+    mdir = settings.argflag['run']['directory']['master']+'_'+settings.argflag['run']['spectrograph']
     name_dict = dict(bias='{:s}/MasterBias_{:s}.fits'.format(mdir,setup),
                      badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir,setup),
                      trace='{:s}/MasterTrace_{:s}.fits'.format(mdir,setup),
