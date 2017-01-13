@@ -596,11 +596,6 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             mskord[word] = 1.0
             flat_ext1d[:, o] = np.sum(msflat * mskord, axis=1)/np.sum(mskord, axis=1)
             mskord *= 0.0
-            # import astropy.io.fits as pyfits
-            # hdu = pyfits.PrimaryHDU(model)
-            # hdu.writeto("model_{0:02d}.fits".format(det))
-            # hdu = pyfits.PrimaryHDU(msnormflat)
-            # hdu.writeto("msnormflat_{0:02d}.fits".format(det))
         else:
             msgs.error("Flatfield method {0:s} is not supported".format(settings.argflag["reduce"]["flatfield"]["method"]))
     # Send the blaze away to be plotted and saved
