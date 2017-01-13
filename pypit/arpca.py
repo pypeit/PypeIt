@@ -4,7 +4,12 @@ from matplotlib import pyplot as plt
 import numpy as np
 from pypit import armsgs
 from pypit import arutils
-from pypit.arplot import get_dimen as get_dimen
+from pypit.arqa import get_dimen as get_dimen
+
+try:
+    from xastropy.xutils import xdebug as debugger
+except ImportError:
+    import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -306,7 +311,10 @@ def pc_plot(slf, inpar, ofit, maxp=25, pcadesc="", addOne=True):
     ndone = 0
     for i in range(len(pages)):
         plt.clf()
-        f, axes = plt.subplots(pages[i][1], pages[i][0])
+        try:
+            f, axes = plt.subplots(pages[i][1], pages[i][0])
+        except:
+            debugger.set_trace()
         ipx, ipy = 0, 0
         if i == 0:
             if pages[i][1] == 1: ind = (0,)

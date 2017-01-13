@@ -347,8 +347,8 @@ def get_dimen(x, maxp=25):
             xpg = int(xt)/ypg
         else:
             xpg = 1 + int(xt)/ypg
-        pages.append([xpg, ypg])
-        npp.append(xt)
+        pages.append([int(xpg), int(ypg)])
+        npp.append(int(xt))
         xr -= xpg*ypg
     return pages, npp
 

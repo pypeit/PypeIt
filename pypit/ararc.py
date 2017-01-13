@@ -6,7 +6,6 @@ from pypit import arparse as settings
 from pypit import armsgs
 from pypit import arsave
 from pypit import arutils
-from pypit.arplot import get_dimen as get_dimen
 from pypit import ararclines
 from pypit import arqa
 from matplotlib import pyplot as plt
@@ -1817,7 +1816,7 @@ def plot_residuals(arcs, pix, wav, ord, plotsdir="Plots", plottype="Arc_Residual
     Saves a few output png files of the Wavelength calibration analysis
     """
     npc = arcs.shape[1]
-    pages, npp = get_dimen(npc,maxp=maxp)
+    pages, npp = arqa.get_dimen(npc,maxp=maxp)
     x0=np.arange(arcs.shape[0])
     # Generate the plots
     ndone=0
