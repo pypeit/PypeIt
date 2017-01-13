@@ -122,10 +122,14 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             # Generate an array that provides the physical pixel locations on the detector
             slf.GetPixelLocations(det)
             # Determine the edges of the spectrum (spatial)
+
             if ('trace'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']):
                 ###############
                 # Determine the edges of the spectrum (spatial)
                 lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det, pcadesc="PCA trace of the slit edges")
+                # LRIS KLUDGE (FLAT IS OFFSET)
+                if det == 1:
+                    lordloc[:,0] = lordloc[:,0] + 18
                 slf.SetFrame(slf._lordloc, lordloc, det)
                 slf.SetFrame(slf._rordloc, rordloc, det)
 
@@ -145,9 +149,11 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
 
             ###############
             # Generate the 1D wavelength solution
+            #debugger.set_trace()
             update = slf.MasterWaveCalib(fitsdict, sc, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
+            #debugger.set_trace()
             ###############
             # Derive the spectral tilt
             if slf._tilts[det-1] is None:

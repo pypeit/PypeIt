@@ -24,7 +24,7 @@ debug = ardebug.init()
 #debug['sky_sub'] = True
 #debug['trace'] = True
 #debug['obj_profile'] = True
-#debug['tilts'] = True
+debug['tilts'] = True
 #debug['flexure'] = True
 
 from pypit.armsgs import Messages as Initmsg

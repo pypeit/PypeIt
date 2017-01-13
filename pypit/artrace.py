@@ -1293,9 +1293,24 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
 
 def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
                trthrsh=1000.0, nsmth=0):
-    """
-    This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
+    """ This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
     nsmth     Number of pixels +/- in the spatial direction to include in the fit (0=no smoothing, 1=3 pixels, 2=5 pixels...)
+
+    Parameters
+    ----------
+    slf
+    det
+    msarc
+    slitnum
+    censpec
+    maskval
+    trthrsh
+    nsmth
+
+    Returns
+    -------
+    trcdict : dict
+
     """
     def pad_dict(indict):
         """ If an arc line is considered bad, fill the
@@ -1377,6 +1392,7 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
     msgs.work("This next step could be multiprocessed to speed up the reduction")
     nspecfit = 7
     badlines = 0
+    jxp_fix = True
     for j in range(arcdet.size):
         # For each detection in this order
         #msgs.info("Tracing tilt of arc line {0:d}/{1:d}".format(j+1, arcdet.size))
@@ -1444,7 +1460,8 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             if fail:
                 mtfit[k+sz] = 1
             else:
-                pcen = int(0.5 + centv)
+                if not jxp_fix:
+                    pcen = int(0.5 + centv)
                 mtfit[k+sz] = 0
         if offchip:
             # Don't use lines that go off the chip (could lead to a bad trace)
@@ -1477,6 +1494,7 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
                 tstcc = False  # Once we have an array, there's no need to keep looking
             # yfit = msarc[pcen-nspecfit:pcen+nspecfit+1,ordcen[arcdet[j],0]-k]
             yfit = msarc[pcen-nspecfit:pcen+nspecfit+1, ordcen[arcdet[j], slitnum]-k-nsmth:ordcen[arcdet[j], slitnum]-k+nsmth+1]
+            sv2dy = yfit.copy()
             if len(yfit.shape) == 2:
                 yfit = np.median(yfit, axis=1)
             if np.size(yfit) == 0:
@@ -1492,11 +1510,57 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             ytfit[sz-k] = centv
             etfit[sz-k] = 0.02
             apfit[sz-k] = params[0]
+            '''
+            if j == 2:
+                print(k, centv, pcen)
+                if k >= 98:
+                    print(k, centv, params, pcen)
+                    print(ordcen[arcdet[j], slitnum]-k-nsmth,ordcen[arcdet[j], slitnum]-k+nsmth+1)
+                    #debugger.xplot(xfit, yfit, ccyfit)
+                    debugger.xplot(xfit, yfit, xtwo=xfit+params[1], ytwo=ccyfit)
+                    #debugger.xplot(xfit, yfit, svyfit)
+                    #debugger.xplot(cc)
+                    debugger.set_trace()
+                    svyfit = yfit
+                #if s(centv-2.17491947e+02) < 0.01: # k=98
+            '''
             if fail:
                 mtfit[sz-k] = 1
             else:
-                pcen = int(0.5 + centv)
+                if not jxp_fix:
+                    pcen = int(0.5 + centv)
                 mtfit[sz-k] = 0
+        #if j == 2:  # Try trace_crude
+        if jxp_fix:
+            from desispec.bootcalib import trace_crude_init
+            from desispec.bootcalib import trace_fweight as dbtf
+            from pypit import ginga
+            pcen = arcdet[j]
+            img = msarc[pcen-nspecfit:pcen+nspecfit+1, ordcen[arcdet[j], slitnum]-sz:ordcen[arcdet[j], slitnum]+sz+1]
+            rot_img = np.rot90(img,3) - 980.  # Bias!
+            #
+            xcen = np.array([6.6]) # 8.5, 173
+            ypass = 173
+            # Tune-up first
+            for ii in range(4):
+                xcen, xsig = dbtf(rot_img, xcen, ycen=np.array([ypass]).astype(int), invvar=None, radius=2.)
+            xset, xerr = trace_crude_init(rot_img, xcen, ypass, invvar=None, radius=3., maxshift0=0.5, maxshift=0.15, maxerr=0.2)
+            #xcen, xsig = dbtf(rot_img, np.array([6.5,6.5]), ycen=np.array([173,173]).astype(int), invvar=None, radius=2.)
+            # Convert back
+            y0 = pcen+nspecfit
+            ycrude = y0 - xset[:,0]
+            '''
+            debugger.set_trace()
+            cytfit = ytfit.copy()
+            cytfit[np.where(ytfit < 0)] = np.median(cytfit)
+            debugger.xplot(np.arange(img.shape[1]), ycrude, cytfit)
+            '''
+            #
+            #trcdict['save_yt'] = ytfit.copy()
+            assert ycrude.size == ytfit.size
+            ytfit = ycrude
+            #debugger.set_trace()
+
         if offchip:
             # Don't use lines that go off the chip (could lead to a bad trace)
             aduse[j] = False
@@ -1769,6 +1833,7 @@ def multislit_tilt(slf, msarc, det):
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
+    from pypit import ginga
     maskval = -999999.9
     arccen, maskslit, satmask = get_censpec(slf, msarc, det, gen_satmask=True)
     # If the user sets no tilts, return here
@@ -1781,12 +1846,16 @@ def multislit_tilt(slf, msarc, det):
     fitxy = [settings.argflag['trace']['slits']['tilts']['order'], 1]
 
     # Now trace the tilt for each slit
+    # Check?
     for o in range(arccen.shape[1]):
         # Determine the tilts for this slit
         trcdict = trace_tilt(slf, det, msarc, o, censpec=arccen[:, o], nsmth=3)
         if trcdict is None:
             # No arc lines were available to determine the spectral tilt
             continue
+        if msgs._debug['tilts']:
+            ginga.chk_arc_tilts(msarc, trcdict, sedges=(slf._lordloc[det-1][:,o], slf._rordloc[det-1][:,o]))
+            #debugger.set_trace()
         # Extract information from the trace dictionary
         aduse = trcdict["aduse"]
         arcdet = trcdict["arcdet"]

@@ -342,7 +342,8 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     scifrcp[whord] += (maskval*maskpix)[rxargsrt]
     scifrcp[np.where(ordpix == 0)] = maskval
     # Check tilts?
-    if msgs._debug['tilts']:
+    '''
+    if msgs._debug['sky_tilts']:
         gdp = scifrcp != maskval
         debugger.xplot(tilts[gdp]*tilts.shape[0], scifrcp[gdp], scatter=True)
         if False:
@@ -355,6 +356,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
             ax.set_ylim(0., 3000)
             plt.show()
         debugger.set_trace()
+    '''
     #
     msgs.info("Fitting sky background spectrum")
     if settings.argflag['reduce']['skysub']['method'].lower() == 'polyscan':

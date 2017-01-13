@@ -128,8 +128,9 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
     else:
         pp.savefig(bbox_inches='tight')
         pp.close()
-    plt.close()
+    #plt.close('all')
     return
+
 
 def coaddspec_qa(ispectra, rspec, spec1d, qafile=None):
     """  QA plot for 1D coadd of spectra
@@ -404,7 +405,7 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, root='trace', outfil=None, normaliz
         plt.text(rtrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='green', ha='center')
 
     slf._qa.savefig(bbox_inches='tight')
-    plt.close()
+    #plt.close()
 
 def obj_profile_qa(slf, specobjs, scitrace):
     """ Generate a QA plot for the object spatial profile
@@ -445,7 +446,7 @@ def obj_profile_qa(slf, specobjs, scitrace):
                 transform=ax.transAxes, size='large', ha='left')
 
     slf._qa.savefig(bbox_inches='tight')
-    plt.close()
+    #plt.close()
 
 
 def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', outfil=None, normalize=True):
@@ -545,7 +546,7 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
     slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
     #pp.savefig()
     #pp.close()
-    plt.close()
+    #plt.close('all')
 
 
 def set_fonts(ax):
