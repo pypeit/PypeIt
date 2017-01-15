@@ -4,7 +4,6 @@ import numpy as np
 from scipy.signal import savgol_filter
 import scipy.signal as signal
 import scipy.ndimage as ndimage
-import scipy.interpolate as inter
 from matplotlib import pyplot as plt
 from pypit import arextract
 from pypit import arlris
@@ -14,6 +13,7 @@ from pypit import arutils
 from pypit import arparse as settings
 from pypit import arspecobj
 from pypit import arqa
+from pypit import arpca
 from pypit import arwave
 
 try:
@@ -529,7 +529,26 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
         # Rectify this order
         recframe = arcyextract.rectify(msflat, ordpix, slf._pixcen[det-1][:,o], slf._lordpix[det-1][:,o],
                                        slf._rordpix[det-1][:,o], slf._pixwid[det-1][o]+overpix, maskval)
-        if settings.argflag["reduce"]["flatfield"]["method"].lower() == "polyscan":
+        if settings.argflag["reduce"]["flatfield"]["method"].lower() == "bspline":
+            msgs.info("Deriving blaze function of slit {0:d} with a bspline".format(o+1))
+            tilts = slf._tilts[det - 1].copy()
+            gdp = (msflat != maskval) & (ordpix == o + 1)
+            srt = np.argsort(tilts[gdp])
+            everyn = settings.argflag['reduce']['flatfield']['params'][0]
+            if everyn > 0.0 and everyn < 1.0:
+                everyn *= msflat.shape[0]
+                everyn = int(everyn + 0.5)
+            everyn *= slf._pixwid[det - 1][o]
+            bspl = arutils.func_fit(tilts[gdp][srt], msflat[gdp][srt], 'bspline', 3, everyn=everyn)
+            model_flat = arutils.func_val(bspl, tilts.flatten(), 'bspline')
+            model = model_flat.reshape(tilts.shape)
+            word = np.where(ordpix == o + 1)
+            msnormflat[word] = msflat[word] / model[word]
+            msblaze[:, o] = arutils.func_val(bspl, np.linspace(0.0, 1.0, msflat.shape[0]), 'bspline')
+            mskord[word] = 1.0
+            flat_ext1d[:, o] = np.sum(msflat * mskord, axis=1) / np.sum(mskord, axis=1)
+            mskord *= 0.0
+        elif settings.argflag["reduce"]["flatfield"]["method"].lower() == "polyscan":
             polyorder = settings.argflag["reduce"]["flatfield"]["params"][0]
             polypoints = settings.argflag["reduce"]["flatfield"]["params"][1]
             repeat = settings.argflag["reduce"]["flatfield"]["params"][2]
@@ -569,9 +588,8 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             #rows = np.arange(recsort.shape[0]/4,(3*recsort.shape[0])/4,dtype=np.int)
             #w = np.ix_(rows,np.arange(recframe.shape[1]))
             #recmean = np.mean(recsort[w],axis=0)
-            if settings.argflag['pixelflat']['norm']['recnorm']:
-                for i in range(recmean.size):
-                    recframe[:, i] /= recmean[i]
+            for i in range(recmean.size):
+                recframe[:, i] /= recmean[i]
             # Undo the rectification
             normflat_unrec = arcyextract.rectify_undo(recframe, slf._pixcen[det-1][:,o], slf._lordpix[det-1][:,o],
                                                       slf._rordpix[det-1][:,o], slf._pixwid[det-1][o], maskval,
@@ -580,33 +598,19 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             msnormflat = arcyproc.combine_nrmflat(msnormflat, normflat_unrec, slf._pixcen[det-1][:,o],
                                                   slf._lordpix[det-1][:,o], slf._rordpix[det-1][:,o],
                                                   slf._pixwid[det-1][o]+overpix, maskval)
-        elif settings.argflag["reduce"]["flatfield"]["method"].lower() == "bspline":
-            msgs.info("Deriving blaze function with a bspline")
-            tilts = slf._tilts[det - 1].copy()
-            gdp = (msflat != maskval) & (ordpix == o+1)
-            srt = np.argsort(tilts[gdp])
-            everyn = settings.argflag['reduce']['flatfield']['params'][0]
-            if everyn > 0.0 and everyn < 1.0:
-                everyn *= msflat.shape[0]
-                everyn = int(everyn+0.5)
-            everyn *= slf._pixwid[det-1][o]
-            bspl = arutils.func_fit(tilts[gdp][srt], msflat[gdp][srt], 'bspline', 3, everyn=everyn)
-            model_flat = arutils.func_val(bspl, tilts.flatten(), 'bspline')
-            model = model_flat.reshape(tilts.shape)
-            word = np.where(ordpix == o+1)
-            msnormflat[word] = msflat[word]/model[word]
-            msblaze[:, o] = arutils.func_val(bspl, np.linspace(0.0, 1.0, msflat.shape[0]), 'bspline')
-            mskord[word] = 1.0
-            flat_ext1d[:, o] = np.sum(msflat * mskord, axis=1)/np.sum(mskord, axis=1)
-            mskord *= 0.0
         else:
             msgs.error("Flatfield method {0:s} is not supported".format(settings.argflag["reduce"]["flatfield"]["method"]))
     # Send the blaze away to be plotted and saved
-    msgs.work("Perform a 2D PCA analysis on echelle blaze fits?")
+    if settings.argflag["reduce"]["flatfield"]["2dpca"] >= 1:
+        msgs.info("Performing a 2D PCA on the blaze fits")
+        msblaze = arpca.pca2d(msblaze, settings.argflag["reduce"]["flatfield"]["2dpca"])
+    # Plot the blaze model
+    msgs.info("Saving blaze fits to QA")
     arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc=plotdesc, textplt="Order")
     # If there is more than 1 amplifier, apply the scale between amplifiers to the normalized flat
     if (settings.spect[dnum]['numamplifiers'] > 1) & (norders > 1):
         msnormflat *= sclframe
+    msgs.error("woot")
     return msnormflat, msblaze
 
 
