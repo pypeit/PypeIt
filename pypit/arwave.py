@@ -110,15 +110,35 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
         arx_skyspec = arx_skyspec.rebin(keep_wave)
         obj_skyspec = obj_skyspec.rebin(keep_wave)
 
+    #   Normalize spectra to unit average sky count
+    #norm = (total(sky_obj)/double(nkeep))
+    norm = np.sum(obj_skyspec.flux.value)/obj_skyspec.npix
+    obj_skyspec.flux = obj_skyspec.flux / norm
+    #sky_obj_ivar = sky_obj_ivar*norm^2
+    norm2 = np.sum(arx_skyspec.flux.value)/arx_skyspec.npix
+    arx_skyspec.flux = arx_skyspec.flux / norm2
+
     #deal with bad pixels
     msgs.work("Need to mask bad pixels")
 
     #deal with underlying continuum
-    msgs.work("Need to deal with underlying continuum")
+    msgs.work("Consider taking median first [5 pixel]")
+    everyn = obj_skyspec.npix // 20
+    mask, ct = arutils.robust_polyfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value, 3, function='bspline',
+                                  sigma=3., everyn=everyn)
+    obj_sky_cont = arutils.func_val(ct, obj_skyspec.wavelength.value, 'bspline')
+    obj_sky_flux = obj_skyspec.flux.value - obj_sky_cont
+    mask, ct_arx = arutils.robust_polyfit(arx_skyspec.wavelength.value, arx_skyspec.flux.value, 3, function='bspline',
+                                      sigma=3., everyn=everyn)
+    arx_sky_cont = arutils.func_val(ct_arx, arx_skyspec.wavelength.value, 'bspline')
+    arx_sky_flux = arx_skyspec.flux.value - arx_sky_cont
+
+    # Consider shaprness filtering (e.g. LowRedux)
+    msgs.work("Consider taking median first [5 pixel]")
 
     #Cross correlation of spectra
-    corr = np.correlate(arx_skyspec.flux.value, obj_skyspec.flux.value, "same")
-    corr = np.correlate(arx_skyspec.flux.value[0:1900], obj_skyspec.flux.value[0:1900], "same")
+    #corr = np.correlate(arx_skyspec.flux, obj_skyspec.flux, "same")
+    corr = np.correlate(arx_sky_flux, obj_sky_flux, "same")
 
     #Create array around the max of the correlation function for fitting for subpixel max
     # Restrict to pixels within maxshift of zero lag
@@ -137,7 +157,7 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     #model = (fit[2]*(subpix_grid**2.))+(fit[1]*subpix_grid)+fit[0]
 
     if msgs._debug['flexure']:
-        debugger.xplot(arx_skyspec.wavelength, arx_skyspec.flux, xtwo=obj_skyspec.wavelength, ytwo=obj_skyspec.flux)
+        debugger.xplot(arx_skyspec.wavelength, arx_sky_flux, xtwo=np.roll(obj_skyspec.wavelength,int(-1*shift)), ytwo=obj_sky_flux)
         #debugger.xplot(arx_sky.wavelength, arx_sky.flux, xtwo=np.roll(obj_sky.wavelength.value,9), ytwo=obj_sky.flux*100)
         debugger.set_trace()
 
