@@ -9,12 +9,10 @@ from pypit import armasters
 from pypit import armbase
 from pypit import armsgs
 from pypit import arproc
-#from pypit import arsave
+from pypit import arsave
 from pypit import arsort
 from pypit import artrace
 from pypit import arqa
-
-from linetools import utils as ltu
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -50,16 +48,21 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
     status = 0
 
     # Create a list of science exposure classes
-    sciexp = armbase.SetupScience(fitsdict)
-    numsci = len(sciexp)
+    sciexp, setup_dict = armbase.SetupScience(fitsdict)
+    if sciexp == 'setup':
+        status = 1
+        return status
+    elif sciexp == 'calcheck':
+        status = 2
+        return status
+    else:
+        numsci = len(sciexp)
 
     # Create a list of master calibration frames
-    masters = armasters.MasterFrames(settings.spect['mosaic']['ndet'])
+    #masters = armasters.MasterFrames(settings.spect['mosaic']['ndet'])
 
-    # Use Masters?  Requires setup file
-    setup_file, nexist = arsort.get_setup_file()
-    setup_dict = arsort.load_setup()
-    settings.argflag['reduce']['masters']['file'] = setup_file
+    # Masters
+    #settings.argflag['reduce']['masters']['file'] = setup_file
 
     # Start reducing the data
     for sc in range(numsci):
@@ -74,10 +77,10 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             det = kk + 1  # Detectors indexed from 1
             slf.det = det
             ###############
-            # Get datasec sections
+            # Get data sections
             arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
             # Setup
-            setup = arsort.instr_setup(sc, det, fitsdict, setup_dict, must_exist=True)
+            setup = arsort.instr_setup(slf, det, fitsdict, setup_dict, must_exist=True)
             settings.argflag['reduce']['masters']['setup'] = setup
             ###############
             # Generate master bias frame
@@ -196,4 +199,30 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             # Write MasterFrames (currently per detector)
             armasters.save_masters(slf, det, setup)
 
+            ###############
+            # Load the science frame and from this generate a Poisson error frame
+            msgs.info("Loading science frame")
+            sciframe = arload.load_frames(fitsdict, [scidx], det,
+                                          frametype='science',
+                                          msbias=slf._msbias[det - 1])
+            sciframe = sciframe[:, :, 0]
+            # Extract
+            msgs.info("Processing science frame")
+            arproc.reduce_frame(slf, sciframe, scidx, fitsdict, det)
+
+        # Close the QA for this object
+        slf._qa.close()
+
+        # Write 1D spectra
+        save_format = 'fits'
+        if save_format == 'fits':
+            arsave.save_1d_spectra_fits(slf)
+        elif save_format == 'hdf5':
+            arsave.save_1d_spectra_hdf5(slf)
+        else:
+            msgs.error(save_format + ' is not a recognized output format!')
+        # Write 2D images for the Science Frame
+        arsave.save_2d_images(slf)
+        # Free up some memory by replacing the reduced ScienceExposure class
+        sciexp[sc] = None
     return status

@@ -1391,9 +1391,9 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
     # Go along each order and trace the tilts
     # Start by masking every row, then later unmask the rows with usable arc lines
     msgs.work("This next step could be multiprocessed to speed up the reduction")
-    nspecfit = 7
+    nspecfit = 3
     badlines = 0
-    jxp_fix = True
+    method = "fweight"  # Can be "fweight", "cc"
     for j in range(arcdet.size):
         # For each detection in this order
         #msgs.info("Tracing tilt of arc line {0:d}/{1:d}".format(j+1, arcdet.size))
@@ -1410,8 +1410,9 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
         ytfit = np.ones(2*sz+1)*maskval  # Fitted centroid
         etfit = np.zeros(2*sz+1)  # Fitted centroid error
         mtfit = np.ones(2*sz+1, dtype=np.int)   # Mask of bad fits
-        apfit = np.zeros(2*sz+1)  # Fitted Amplitude
+        #apfit = np.zeros(2*sz+1)  # Fitted Amplitude
         xfit = np.arange(-nspecfit, nspecfit+1, 1.0)
+        wfit = np.ones(xfit.size, dtype=np.float)
         tstcc = True  # A boolean to tell the loop once a good set of pixels has been found to cross-correlate with
         # Fit up
         pcen = arcdet[j]
@@ -1422,6 +1423,7 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             trcdict = pad_dict(trcdict)
             continue
         offchip = False
+        centv = None
         for k in range(0, sz+1-nsmth):
             if (pcen < nspecfit) or (pcen > msarc.shape[0]-(nspecfit+1)):
                 offchip = True
@@ -1429,17 +1431,6 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             if ordcen[pcen, slitnum]+k >= msarc.shape[1]:
                 offchip = True
                 break
-            # Get a copy of the array that will be used to cross-correlate
-            if tstcc:
-                # ccyfit = msarc[arcdet[j]-nspecfit:arcdet[j]+nspecfit+1,ordcen[arcdet[j],0]+k]
-                ccyfit = msarc[arcdet[j]-nspecfit:arcdet[j]+nspecfit+1,ordcen[arcdet[j],slitnum]+k-nsmth:ordcen[arcdet[j],slitnum]+k+nsmth+1]
-                if len(ccyfit.shape) == 2:
-                    ccyfit = np.median(ccyfit, axis=1)
-                wgd = np.where(ccyfit == maskval)
-                if wgd[0].size != 0:
-                    continue
-                ccval = arcdet[j] + np.sum(xfit*ccyfit)/np.sum(ccyfit)
-                tstcc = False  # Once we have an array, there's no need to keep looking
             # yfit = msarc[pcen-nspecfit:pcen+nspecfit+1,ordcen[arcdet[j],0]+k]
             yfit = msarc[pcen-nspecfit:pcen+nspecfit+1, ordcen[arcdet[j], slitnum]+k-nsmth:ordcen[arcdet[j], slitnum]+k+nsmth+1]
             if len(yfit.shape) == 2:
@@ -1451,18 +1442,38 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             wgd = np.where(yfit == maskval)
             if wgd[0].size != 0:
                 continue
-            cc = np.correlate(ccyfit, yfit, mode='same')
-            params, fail = arutils.gauss_lsqfit(xfit, cc, 0.0)
-            centv = ccval + pcen - arcdet[j] - params[1]
+            if method == "fweight":
+                if centv is None:
+                    centv = np.sum(yfit * (pcen+xfit))/np.sum(yfit)
+                wfit[0] = 0.5 + (pcen-centv)
+                wfit[-1] = 0.5 - (pcen-centv)
+                sumxw = yfit * (pcen+xfit) * wfit
+                sumw = yfit * wfit
+                centv = np.sum(sumxw)/np.sum(sumw)
+                fail = False
+            elif method == "cc":
+                # Get a copy of the array that will be used to cross-correlate
+                if tstcc:
+                    # ccyfit = msarc[arcdet[j]-nspecfit:arcdet[j]+nspecfit+1,ordcen[arcdet[j],0]+k]
+                    ccyfit = msarc[arcdet[j]-nspecfit:arcdet[j]+nspecfit+1,ordcen[arcdet[j],slitnum]+k-nsmth:ordcen[arcdet[j],slitnum]+k+nsmth+1]
+                    if len(ccyfit.shape) == 2:
+                        ccyfit = np.median(ccyfit, axis=1)
+                    wgd = np.where(ccyfit == maskval)
+                    if wgd[0].size != 0:
+                        continue
+                    ccval = arcdet[j] + np.sum(xfit*ccyfit)/np.sum(ccyfit)
+                    tstcc = False  # Once we have an array, there's no need to keep looking
+                cc = np.correlate(ccyfit, yfit, mode='same')
+                params, fail = arutils.gauss_lsqfit(xfit, cc, 0.0)
+                centv = ccval + pcen - arcdet[j] - params[1]
             xtfit[k+sz] = ordcen[arcdet[j], slitnum] + k
             ytfit[k+sz] = centv
             etfit[k+sz] = 0.02
-            apfit[k+sz] = params[0]
+            #apfit[k+sz] = params[0]
             if fail:
                 mtfit[k+sz] = 1
             else:
-                if not jxp_fix:
-                    pcen = int(0.5 + centv)
+                pcen = int(0.5 + centv)
                 mtfit[k+sz] = 0
         if offchip:
             # Don't use lines that go off the chip (could lead to a bad trace)
@@ -1474,6 +1485,7 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             xtfit[k+sz] = ordcen[arcdet[j], slitnum]+k
         # Fit down
         pcen = arcdet[j]
+        centv = None
         for k in range(1,sz+1-nsmth):
             if (pcen < nspecfit) or (pcen > msarc.shape[0]-(nspecfit+1)):
                 offchip = True
@@ -1481,21 +1493,9 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             if ordcen[pcen, slitnum]-k < 0:
                 offchip = True
                 break
-            # Get a copy of the array that will be used to cross-correlate
-            # (testcc is probably already False from the Fit Up part of the loop, but it's best to be sure)
-            if tstcc:
-                # ccyfit = msarc[arcdet[j]-nspecfit:arcdet[j]+nspecfit+1,ordcen[arcdet[j],0]-k]
-                ccyfit = msarc[arcdet[j]-nspecfit:arcdet[j]+nspecfit+1,ordcen[arcdet[j],slitnum]-k-nsmth:ordcen[arcdet[j],slitnum]-k+nsmth+1]
-                if len(ccyfit.shape) == 2:
-                    ccyfit = np.median(ccyfit, axis=1)
-                wgd = np.where(ccyfit == maskval)
-                if wgd[0].size != 0:
-                    continue
-                ccval = arcdet[j] + np.sum(xfit*ccyfit)/np.sum(ccyfit)
-                tstcc = False  # Once we have an array, there's no need to keep looking
             # yfit = msarc[pcen-nspecfit:pcen+nspecfit+1,ordcen[arcdet[j],0]-k]
-            yfit = msarc[pcen-nspecfit:pcen+nspecfit+1, ordcen[arcdet[j], slitnum]-k-nsmth:ordcen[arcdet[j], slitnum]-k+nsmth+1]
-            sv2dy = yfit.copy()
+            yfit = msarc[pcen - nspecfit:pcen + nspecfit + 1,
+                   ordcen[arcdet[j], slitnum] - k - nsmth:ordcen[arcdet[j], slitnum] - k + nsmth + 1]
             if len(yfit.shape) == 2:
                 yfit = np.median(yfit, axis=1)
             if np.size(yfit) == 0:
@@ -1504,32 +1504,39 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             wgd = np.where(yfit == maskval)
             if wgd[0].size != 0:
                 continue
-            cc = np.correlate(ccyfit, yfit, mode='same')
-            params, fail = arutils.gauss_lsqfit(xfit, cc, 0.0)
-            centv = ccval + pcen - arcdet[j] - params[1]
+            if method == "fweight":
+                if centv is None:
+                    centv = np.sum(yfit * (pcen+xfit))/np.sum(yfit)
+                wfit[0] = 0.5 + (pcen-centv)
+                wfit[-1] = 0.5 - (pcen-centv)
+                sumxw = yfit * (pcen+xfit) * wfit
+                sumw = yfit * wfit
+                centv = np.sum(sumxw)/np.sum(sumw)
+                fail = False
+            elif method == "cc":
+                # Get a copy of the array that will be used to cross-correlate
+                # (testcc is probably already False from the Fit Up part of the loop, but it's best to be sure)
+                if tstcc:
+                    # ccyfit = msarc[arcdet[j]-nspecfit:arcdet[j]+nspecfit+1,ordcen[arcdet[j],0]-k]
+                    ccyfit = msarc[arcdet[j]-nspecfit:arcdet[j]+nspecfit+1,ordcen[arcdet[j],slitnum]-k-nsmth:ordcen[arcdet[j],slitnum]-k+nsmth+1]
+                    if len(ccyfit.shape) == 2:
+                        ccyfit = np.median(ccyfit, axis=1)
+                    wgd = np.where(ccyfit == maskval)
+                    if wgd[0].size != 0:
+                        continue
+                    ccval = arcdet[j] + np.sum(xfit*ccyfit)/np.sum(ccyfit)
+                    tstcc = False  # Once we have an array, there's no need to keep looking
+                cc = np.correlate(ccyfit, yfit, mode='same')
+                params, fail = arutils.gauss_lsqfit(xfit, cc, 0.0)
+                centv = ccval + pcen - arcdet[j] - params[1]
             xtfit[sz-k] = ordcen[arcdet[j], slitnum] - k
             ytfit[sz-k] = centv
             etfit[sz-k] = 0.02
-            apfit[sz-k] = params[0]
-            '''
-            if j == 2:
-                print(k, centv, pcen)
-                if k >= 98:
-                    print(k, centv, params, pcen)
-                    print(ordcen[arcdet[j], slitnum]-k-nsmth,ordcen[arcdet[j], slitnum]-k+nsmth+1)
-                    #debugger.xplot(xfit, yfit, ccyfit)
-                    debugger.xplot(xfit, yfit, xtwo=xfit+params[1], ytwo=ccyfit)
-                    #debugger.xplot(xfit, yfit, svyfit)
-                    #debugger.xplot(cc)
-                    debugger.set_trace()
-                    svyfit = yfit
-                #if s(centv-2.17491947e+02) < 0.01: # k=98
-            '''
+            #apfit[sz-k] = params[0]
             if fail:
                 mtfit[sz-k] = 1
             else:
-                if not jxp_fix:
-                    pcen = int(0.5 + centv)
+                pcen = int(0.5 + centv)
                 mtfit[sz-k] = 0
         #if j == 2:  # Try trace_crude
         if jxp_fix:
@@ -1675,7 +1682,7 @@ def trace_fweight(fimage, xinit, invvar=None, radius=3.):
     return xnew, xerr
 
 
-def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts"):
+def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", maskval=-999999.9):
     """ Determine the spectral tilts in each echelle order
 
     Parameters
@@ -1688,6 +1695,8 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts"):
       Index of the detector
     pcadesc : str (optional)
       A description of the tilts
+    maskval : float (optional)
+      Mask value used in numpy arrays
 
     Returns
     -------
@@ -1700,7 +1709,6 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts"):
     """
     from pypit import arcytrace
 
-    maskval = -999999.9
     arccen, maskslit, satmask = get_censpec(slf, msarc, det, gen_satmask=True)
     # If the user sets no tilts, return here
     if settings.argflag['trace']['slits']['tilts']['method'].lower() == "zero":
@@ -1813,7 +1821,7 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts"):
     return tiltsimg, satmask, outpar
 
 
-def multislit_tilt(slf, msarc, det):
+def multislit_tilt(slf, msarc, det, maskval=-999999.9):
     """ Determine the spectral tilt of each slit in a multislit image
 
     Parameters
@@ -1824,6 +1832,8 @@ def multislit_tilt(slf, msarc, det):
       Wavelength calibration frame that will be used to trace constant wavelength
     det : int
       Index of the detector
+    maskval : float (optional)
+      Mask value used in numpy arrays
 
     Returns
     -------
@@ -1835,7 +1845,6 @@ def multislit_tilt(slf, msarc, det):
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
     from pypit import ginga
-    maskval = -999999.9
     arccen, maskslit, satmask = get_censpec(slf, msarc, det, gen_satmask=True)
     # If the user sets no tilts, return here
     if settings.argflag['trace']['slits']['tilts']['method'].lower() == "zero":
@@ -1847,7 +1856,6 @@ def multislit_tilt(slf, msarc, det):
     fitxy = [settings.argflag['trace']['slits']['tilts']['order'], 1]
 
     # Now trace the tilt for each slit
-    # Check?
     for o in range(arccen.shape[1]):
         # Determine the tilts for this slit
         trcdict = trace_tilt(slf, det, msarc, o, censpec=arccen[:, o], nsmth=3)
@@ -2128,8 +2136,9 @@ def multislit_tilt(slf, msarc, det):
     xdat[np.where(xdat != maskval)] *= (msarc.shape[1] - 1.0)
 
     msgs.info("Plotting arc tilt QA")
-    arplot.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
-                          textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
+    arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
+                        textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
+    msgs.error("end")
     return tilts, satmask, outpar
 
 

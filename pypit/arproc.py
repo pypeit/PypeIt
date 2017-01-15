@@ -11,7 +11,6 @@ from pypit import arlris
 from pypit import armsgs
 from pypit import artrace
 from pypit import arutils
-from pypit import arplot
 from pypit import arparse as settings
 from pypit import arspecobj
 from pypit import arqa
@@ -588,8 +587,12 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             tilts = slf._tilts[det - 1].copy()
             gdp = (msflat != maskval) & (ordpix == o+1)
             srt = np.argsort(tilts[gdp])
-            bspl = arutils.func_fit(tilts[gdp][srt], msflat[gdp][srt], 'bspline', 3,
-                                    everyn=slf._pixwid[det-1][o]*settings.argflag['reduce']['flatfield']['params'][0])
+            everyn = settings.argflag['reduce']['flatfield']['params'][0]
+            if everyn > 0.0 and everyn < 1.0:
+                everyn *= msflat.shape[0]
+                everyn = int(everyn+0.5)
+            everyn *= slf._pixwid[det-1][o]
+            bspl = arutils.func_fit(tilts[gdp][srt], msflat[gdp][srt], 'bspline', 3, everyn=everyn)
             model_flat = arutils.func_val(bspl, tilts.flatten(), 'bspline')
             model = model_flat.reshape(tilts.shape)
             word = np.where(ordpix == o+1)
@@ -598,16 +601,11 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             mskord[word] = 1.0
             flat_ext1d[:, o] = np.sum(msflat * mskord, axis=1)/np.sum(mskord, axis=1)
             mskord *= 0.0
-            # import astropy.io.fits as pyfits
-            # hdu = pyfits.PrimaryHDU(model)
-            # hdu.writeto("model_{0:02d}.fits".format(det))
-            # hdu = pyfits.PrimaryHDU(msnormflat)
-            # hdu.writeto("msnormflat_{0:02d}.fits".format(det))
         else:
             msgs.error("Flatfield method {0:s} is not supported".format(settings.argflag["reduce"]["flatfield"]["method"]))
     # Send the blaze away to be plotted and saved
     msgs.work("Perform a 2D PCA analysis on echelle blaze fits?")
-    arplot.plot_orderfits(slf, msblaze, flat_ext1d, desc=plotdesc)
+    arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc=plotdesc, textplt="Order")
     # If there is more than 1 amplifier, apply the scale between amplifiers to the normalized flat
     if (settings.spect[dnum]['numamplifiers'] > 1) & (norders > 1):
         msnormflat *= sclframe

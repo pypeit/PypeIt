@@ -323,6 +323,41 @@ def flexure(slf, det, flex_dict, slit_cen=False):
     return
 
 
+def get_dimen(x, maxp=25):
+    """ Assign the plotting dimensions to be the "most square"
+
+    Parameters
+    ----------
+    x : int
+      An integer that equals the number of panels to be plot
+    maxp : int (optional)
+      The maximum number of panels to plot on a single page
+
+    Returns
+    -------
+    pages : list
+      The number of panels in the x and y direction on each page
+    npp : list
+      The number of panels on each page
+    """
+    pages, npp = [], []
+    xr = x
+    while xr > 0:
+        if xr > maxp:
+            xt = maxp
+        else:
+            xt = xr
+        ypg = int(np.sqrt(np.float(xt)))
+        if int(xt) % ypg == 0:
+            xpg = int(xt)/ypg
+        else:
+            xpg = 1 + int(xt)/ypg
+        pages.append([int(xpg), int(ypg)])
+        npp.append(int(xt))
+        xr -= xt
+    return pages, npp
+
+
 def obj_trace_qa(slf, frame, ltrace, rtrace, root='trace', outfil=None, normalize=True):
     """ Generate a QA plot for the object trace
 
@@ -407,6 +442,7 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, root='trace', outfil=None, normaliz
     slf._qa.savefig(bbox_inches='tight')
     #plt.close()
 
+
 def obj_profile_qa(slf, specobjs, scitrace):
     """ Generate a QA plot for the object spatial profile
     Parameters
@@ -447,6 +483,107 @@ def obj_profile_qa(slf, specobjs, scitrace):
 
     slf._qa.savefig(bbox_inches='tight')
     #plt.close()
+
+
+def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit", maxp=4, desc="", maskval=-999999.9):
+    """ Generate a QA plot for the blaze function fit to each slit
+
+    Parameters
+    ----------
+    slf : class
+      Science Exposure class
+    model : ndarray
+      (m x n) 2D array containing the model blaze function (m) of a flat frame for each slit (n)
+    ydata : ndarray
+      (m x n) 2D array containing the extracted 1D spectrum (m) of a flat frame for each slit (n)
+    xdata : ndarray, optional
+      x values of the data points
+    xmodl : ndarry, optional
+      x values of the model points
+    textplt : str, optional
+      A string printed above each panel
+    maxp : int, (optional)
+      Maximum number of panels per page
+    desc : str, (optional)
+      A description added to the top of each page
+    maskval : float, (optional)
+      Value used in arrays to indicate a masked value
+    """
+    npix, nord = ydata.shape
+    pages, npp = get_dimen(nord, maxp=maxp)
+    if xdata is None: xdata = np.arange(npix).reshape((npix, 1)).repeat(nord, axis=1)
+    if xmodl is None: xmodl = np.arange(model.shape[0])
+    # Loop through all pages and plot the results
+    ndone = 0
+    axesIdx = True
+    for i in range(len(pages)):
+        f, axes = plt.subplots(pages[i][1], pages[i][0])
+        ipx, ipy = 0, 0
+        for j in range(npp[i]):
+            if pages[i][0] == 1 and pages[i][1] == 1: axesIdx = False
+            elif pages[i][1] == 1: ind = (ipx,)
+            elif pages[i][0] == 1: ind = (ipy,)
+            else: ind = (ipy, ipx)
+            if axesIdx:
+                axes[ind].plot(xdata[:,ndone+j], ydata[:,ndone+j], 'bx', drawstyle='steps')
+                axes[ind].plot(xmodl, model[:,ndone+j], 'r-')
+            else:
+                axes.plot(xdata[:,ndone+j], ydata[:,ndone+j], 'bx', drawstyle='steps')
+                axes.plot(xmodl, model[:,ndone+j], 'r-')
+            ytmp = ydata[:,ndone+j]
+            ytmp = ytmp[np.where(ytmp != maskval)]
+            if ytmp.size != 0: amn = min(np.min(ytmp), np.min(model[:,ndone+j]))
+            else: amn = np.min(model[:,ndone+j])
+            if ytmp.size != 0: amx = max(np.max(ytmp), np.max(model[:,ndone+j]))
+            else: amx = np.max(model[:,ndone+j])
+            xtmp = xdata[:,ndone+j]
+            xtmp = xtmp[np.where(xtmp != maskval)]
+            if xtmp.size == 0:
+                xmn = np.min(xmodl)
+                xmx = np.max(xmodl)
+            else:
+                xmn = np.min(xtmp)
+                xmx = np.max(xtmp)
+                #xmn = min(np.min(xtmp), np.min(xmodl))
+                #xmx = max(np.max(xtmp), np.max(xmodl))
+            if axesIdx:
+                axes[ind].axis([xmn, xmx, amn-1, amx+1])
+                axes[ind].set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
+            else:
+                axes.axis([xmn, xmx, amn, amx])
+                axes.set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
+            ipx += 1
+            if ipx == pages[i][0]:
+                ipx = 0
+                ipy += 1
+        # Delete the unnecessary axes
+        if axesIdx:
+            for j in range(npp[i], axes.size):
+                if pages[i][1] == 1: ind = (ipx,)
+                elif pages[i][0] == 1: ind = (ipy,)
+                else: ind = (ipy, ipx)
+                f.delaxes(axes[ind])
+                if ipx == pages[i][0]:
+                    ipx = 0
+                    ipy += 1
+        ndone += npp[i]
+        # Save the figure
+        if axesIdx: axsz = axes.size
+        else: axsz = 1.0
+        if pages[i][1] == 1 or pages[i][0] == 1: ypngsiz = 11.0/axsz
+        else: ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
+        f.set_size_inches(11.0, ypngsiz)
+        if desc != "":
+            pgtxt = ""
+            if len(pages) != 1:
+                pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
+            f.suptitle(desc + pgtxt, y=1.02, size=16)
+        f.tight_layout()
+        slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
+        plt.close()
+        f.clf()
+    del f
+    return
 
 
 def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', outfil=None, normalize=True):

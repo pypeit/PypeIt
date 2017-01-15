@@ -4,7 +4,12 @@ from matplotlib import pyplot as plt
 import numpy as np
 from pypit import armsgs
 from pypit import arutils
-from pypit.arplot import get_dimen as get_dimen
+from pypit.arqa import get_dimen as get_dimen
+
+try:
+    from xastropy.xutils import xdebug as debugger
+except ImportError:
+    import pdb as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -403,15 +408,29 @@ def pc_plot(slf, inpar, ofit, maxp=25, pcadesc="", addOne=True):
     return
 
 
-def pc_plot_arctilt(slf, tiltang, centval, tilts, maxp=25):
-    """
-    Saves a few output png files of the PCA analysis for the arc tilts
+def pc_plot_arctilt(slf, tiltang, centval, tilts, maxp=25, maskval=-999999.9):
+    """ Generate a QA plot for the blaze function fit to each slit
+
+    Parameters
+    ----------
+    slf : class
+      Science Exposure class
+    tiltang : ndarray
+      (m x n) 2D array containing the measured tilts (m) for each slit (n)
+    centval : ndarray
+      (m x n) 2D array containing the pixel location (in the spectral direction) of the measured tilts (m) for each slit (n)
+    tilts : ndarray
+      (m x n) 2D array containing the model tilts (m) for each slit (n)
+    maxp : int, (optional)
+      Maximum number of panels per page
+    maskval : float, (optional)
+      Value used in arrays to indicate a masked value
     """
     npc = tiltang.shape[1]
-    pages, npp = get_dimen(npc,maxp=maxp)
-    x0=np.arange(tilts.shape[0])
+    pages, npp = get_dimen(npc, maxp=maxp)
+    x0 = np.arange(tilts.shape[0])
     # First calculate the min and max values for the plotting axes, to make sure they are all the same
-    w = np.where(tiltang != -999999.9)
+    w = np.where(tiltang != maskval)
     medv = np.median(tiltang[w])
     madv = 1.4826 * np.median(np.abs(medv - tiltang[w]))
     ymin, ymax = medv - 3.0 * madv, medv + 3.0 * madv
@@ -442,14 +461,17 @@ def pc_plot_arctilt(slf, tiltang, centval, tilts, maxp=25):
         f, axes = plt.subplots(pages[i][1], pages[i][0])
         ipx, ipy = 0, 0
         for j in range(npp[i]):
-            if pages[i][1] == 1: ind = (ipx)
-            elif pages[i][0] == 1: ind = (ipy)
-            else: ind = (ipy,ipx)
-            w = np.where(tiltang[:,ndone]!=-999999.9)
+            if pages[i][1] == 1:
+                ind = (ipx,)
+            elif pages[i][0] == 1:
+                ind = (ipy,)
+            else:
+                ind = (ipy, ipx)
+            w = np.where(tiltang[:, ndone] != maskval)
             if np.size(w[0]) != 0:
-                axes[ind].plot(centval[:,ndone][w],tiltang[:,ndone][w],'bx')
-                axes[ind].plot(x0,tilts[:,ndone],'r-')
-            axes[ind].axis([0,tilts.shape[0]-1,ymin,ymax])
+                axes[ind].plot(centval[:, ndone][w], tiltang[:, ndone][w], 'bx')
+                axes[ind].plot(x0, tilts[:, ndone], 'r-')
+            axes[ind].axis([0, tilts.shape[0]-1, ymin, ymax])
             axes[ind].set_title("Order {0:d}".format(1+ndone))
             ipx += 1
             if ipx == pages[i][0]:
@@ -457,23 +479,28 @@ def pc_plot_arctilt(slf, tiltang, centval, tilts, maxp=25):
                 ipy += 1
             ndone += 1
         # Delete the unnecessary axes
-        for j in range(npp[i],axes.size):
-            if pages[i][1] == 1: ind = (ipx)
-            elif pages[i][0] == 1: ind = (ipy)
-            else: ind = (ipy,ipx)
+        for j in range(npp[i], axes.size):
+            if pages[i][1] == 1:
+                ind = (ipx,)
+            elif pages[i][0] == 1:
+                ind = (ipy,)
+            else:
+                ind = (ipy, ipx)
             f.delaxes(axes[ind])
             if ipx == pages[i][0]:
                 ipx = 0
                 ipy += 1
         # Save the figure
-        if pages[i][1] == 1 or pages[i][0] == 1: ypngsiz = 11.0/axes.size
-        else: ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
+        if pages[i][1] == 1 or pages[i][0] == 1:
+            ypngsiz = 11.0/axes.size
+        else:
+            ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
         f.set_size_inches(11.0, ypngsiz)
         f.tight_layout()
         slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
         plt.close()
         f.clf()
-    del f
+        del f
     return
 
 
