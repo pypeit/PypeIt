@@ -2248,76 +2248,110 @@ def prune_peaks(np.ndarray[ITYPE_t, ndim=1] hist not None,
 #  T  #
 #######
 
-'''
-@cython.boundscheck(False)
 def trace_fweight(np.ndarray[DTYPE_t, ndim=2] fimage not None,
-                np.ndarray[DTYPE_t, ndim=1] xinit not None,
-                double radius=3.):
-    JXP port of trace_fweight from IDLUTILS
-    Parameters:
-    -----------
+                  np.ndarray[DTYPE_t, ndim=2] invvar not None,
+                  np.ndarray[DTYPE_t, ndim=1] xinit not None,
+                  np.ndarray[DTYPE_t, ndim=1] ycen not None,
+                  double radius):
+
+    """
+    Parameters
+    ----------
     fimage: 2D ndarray
       Image for tracing
+    invvar: ndarray, optional
+      Inverse variance array for the image
     xinit: ndarray
       Initial guesses for x-trace
-    radius: float, optional
-      Radius for centroiding; default to 3.0
-    # Definitions
-    cdef int nx,ny,ncen
+    ycen : ndarray
+      Initial guesses for y-trace
+    radius: float
+      Radius for centroiding
+    """
+
+    cdef int nx, ny, fpix, spot
+    cdef int y, x, sz_x, qbad, ix1, ix2
+    cdef double xdiff, absxdiff, delx
+    cdef double x1, x2
+    cdef double sumw, sumwt, sumxw, var_term
+    cdef double sumsx1, sumsx2
 
     # Init
-    nx = fimage.shape[0]
-    ny = fimage.shape[1]
-    ncen = len(xcen)
+    nx = fimage.shape[1]
+    ny = fimage.shape[0]
+    sz_x = xinit.shape[0]
 
-    cdef np.ndarray[ITYPE_t, ndim=1] ycen = np.arange(nx, dtype=ITYPE)
-    cdef np.ndarray[DTYPE_t, ndim=1] invvar = 0. * fimage + 1.
-    cdef np.ndarray[DTYPE_t, ndim=1] x1 = xinit - radius + 0.5
-    cdef np.ndarray[DTYPE_t, ndim=1] x2 = xinit + radius + 0.5
-    cdef np.ndarray[ITYPE_t, ndim=1] ix1 = np.fix(x1)
-    cdef np.ndarray[ITYPE_t, ndim=1] ix2 = np.fix(x2)
-    cdef np.ndarray[DTYPE_t, ndim=1] fullpix = np.maximum(np.min(ix2-ix1)-1),0)
+    # Create xnew, xerr
+    cdef np.ndarray[DTYPE_t, ndim=1] xnew = np.zeros(sz_x, dtype=DTYPE)
+    cdef np.ndarray[DTYPE_t, ndim=1] xerr = -999999.9*np.ones(sz_x, dtype=DTYPE)
 
-    cdef np.ndarray[DTYPE_t, ndim=1] sumw = np.zeros(nx, dypte=DTYPE)
-    cdef np.ndarray[DTYPE_t, ndim=1] sumxw = np.zeros(nx, dypte=DTYPE)
-    cdef np.ndarray[DTYPE_t, ndim=1] sumwt = np.zeros(nx, dypte=DTYPE)
-    cdef np.ndarray[DTYPE_t, ndim=1] sumsx1 = np.zeros(nx, dypte=DTYPE)
-    cdef np.ndarray[DTYPE_t, ndim=1] sumsx2 = np.zeros(nx, dypte=DTYPE)
-    cdef np.ndarray[ITYPE_t, ndim=1] qbad = np.zeros(nx, dypte=ITYPE)
+    for x in range(sz_x):
+        x1 = xinit[x] - radius + 0.5
+        x2 = xinit[x] + radius + 0.5
+        ix1 = <int>(x1)
+        ix2 = <int>(x2)
+        # Apply a floor operation for negative values
+        if x1 < 0.0:
+            ix1 -= 1
+        if x2 < 0.0:
+            ix2 -= 1
+        fpix = (ix2-ix1)-1
+        if fpix < 0:
+            fpix = 0
+        # Zero the centering
+        sumw = 0.0
+        sumwt = 0.0
+        sumxw = 0.0
+        sumsx1 = 0.0
+        sumsx2 = 0.0
+        qbad = 0
+        # Compute
+        for y in range(0, fpix+3):
+            spot = ix1 - 1 + y
+            if spot < 0:
+                ih = 0
+            elif spot > nx-1:
+                ih = nx-1
+            else:
+                ih = spot
+            xdiff = <double>(spot) - xinit[x]
+            if xdiff < 0.0:
+                absxdiff = -1.0*xdiff
+            else:
+                absxdiff = xdiff
+            wt = radius - absxdiff + 0.5
+            if wt < 0.0:
+                wt = 0.0
+            elif wt > 1.0:
+                wt = 1.0
+            sumw += fimage[ycen[x], ih] * wt
+            sumwt += wt
+            sumxw += fimage[ycen[x], ih] * xdiff * wt
+            if invvar[ycen[x], ih] == 0.0:
+                var_term = wt**2
+            else:
+                var_term = wt**2 / invvar[ycen[x], ih]
+            sumsx2 += var_term
+            sumsx1 += xdiff**2 * var_term
+            if invvar[ycen[x],ih] <= 0:
+                qbad = 1
 
-    # INIT
-    fullpix = np.maximum(np.min(ix2-ix1)-1),0) 
+        # Fill up
+        xnew[x] = xinit[x]
+        if (sumw > 0.0) and (qbad == 0):
+            delx = sumxw/sumw
+            xnew[x] = delx + xinit
+            xerr[x] = csqrt(sumsx1 + sumsx2*delx*delx)/sumw
 
-    for ii in range(0,fullpix+3):
-        spot = ix1 - 1 + ii
-        ih = np.clip(spot,0,nx-1)
-        xdiff = spot - xinit
-        #
-        wt = np.clip(radius - np.abs(xdiff) + 0.5,0,1) * ((spot >= 0) & (spot < nx))
-        sumw = sumw + fimage[ih,ycen] * wt
-        sumwt = sumwt + wt
-        sumxw = sumxw + fimage[ih,ycen] * xdiff * wt
-        var_term = wt**2 / (invvar[ih,ycen] + (invvar[ih,ycen] EQ 0))
-        sumsx2 = sumsx2 + var_term
-        sumsx1 = sumsx1 + xdiff^2 * var_term
-        qbad = qbad OR (invvar[ih,ycen] LE 0)
+        absxdiff = xnew[x]-xinit[x]
+        if absxdiff < 0.0:
+            absxdiff *= -1.0
+        if (absxdiff > radius+0.5) or (xinit[x] < radius-0.5) or (xinit[x] > nx - 0.5 - radius):
+            xnew[x] = xinit[x]
+            xerr[x] = -999999.9
 
- xnew = xinit
- xerr = xinit*0. + 999.0
- good = where(sumw GT 0 AND qbad EQ 0)
- if good[0] NE -1 then begin
-   delta_x = sumxw[good]/sumw[good]
-   xnew[good] = delta_x + xinit[good]
-   xerr[good] = sqrt(sumsx1[good] + sumsx2[good]*delta_x^2 )/sumw[good] 
- endif 
-
- bad = where(abs(xnew-xinit) GT radius + 0.5 OR $
-             xinit LT radius - 0.5 OR xinit GT nx - 0.5 - radius)
- if bad[0] NE -1 then begin
-   xnew[bad] = xinit[bad]
-   xerr[bad] = 999.0
- endif
-'''
+    # Return
+    return xnew, xerr
 
 
 @cython.boundscheck(False)
