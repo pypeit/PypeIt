@@ -129,3 +129,4 @@ arc match slitlen %,:|),1,=0         # Match the slit length for arcs and scienc
 # Make some changes to the arguments and flags
 settings trace dispersion direction 0
 settings trace slits pca params [4,2,2,1,1,0]
+trace slits tilts params [2,0]
