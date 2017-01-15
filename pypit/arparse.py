@@ -902,16 +902,6 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def pixelflat_norm_recnorm(self, v):
-        """ Rectify and normalize the pixel flat frame (using the recnorm algorithm)?
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        v = key_bool(v)
-        self.update(v)
 
     def pixelflat_useframe(self, v):
         """ What filetype should be used for pixel-to-pixel calibration (flat),
@@ -1648,17 +1638,6 @@ class BaseArgFlag(BaseFunctions):
         if v != 0 and v != 1:
             msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
                        "0 or 1 (if the dispersion axis is along a row or column respectively)")
-        self.update(v)
-
-    def trace_norm_recnorm(self, v):
-        """ Rectify and normalize the trace flat frame (using the recnorm algorithm)?
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        v = key_bool(v)
         self.update(v)
 
     def trace_slits_diffpolyorder(self, v):
@@ -3316,6 +3295,22 @@ class ARMLSD(BaseArgFlag):
 
 
 class ARMED(BaseArgFlag):
+
+    def reduce_flatfield_2dpca(self, v):
+        """ Perform a simple 2D PCA on the echelle blaze fits
+         if the value of this argument is >1. The argument value
+         is equal to the number of PCA components. 0 means that
+         no PCA will be performed.
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_int(v)
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        self.update(v)
 
     def trace_slits_tilts_disporder(self, v):
         """ What is the order of the polynomial function to be used to fit the tilts along the dispersion direction
