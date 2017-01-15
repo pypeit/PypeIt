@@ -61,7 +61,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     # Extract a rough spectrum of the arc in each order
     msgs.info("Detecting lines")
     msgs.info("Extracting an approximate arc spectrum at the centre of the chip")
-    if msgs._debug['flexure']:
+    if msgs._debug['flexure'] or msgs._debug['testing']:
         ordcen = slf._pixcen
     else:
         ordcen = slf.GetFrame(slf._pixcen, det)
