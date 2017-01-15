@@ -610,7 +610,6 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     # If there is more than 1 amplifier, apply the scale between amplifiers to the normalized flat
     if (settings.spect[dnum]['numamplifiers'] > 1) & (norders > 1):
         msnormflat *= sclframe
-    msgs.error("woot")
     return msnormflat, msblaze
 
 
