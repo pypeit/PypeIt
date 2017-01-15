@@ -14,6 +14,7 @@ def init():
                  tilts=False,
                  flexure=False,
                  no_qa=False,
+                 testing=False,
                  trace_obj=False,
                  )
     return debug
