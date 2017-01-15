@@ -1539,6 +1539,7 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
                 pcen = int(0.5 + centv)
                 mtfit[sz-k] = 0
         #if j == 2:  # Try trace_crude
+        jxp_fix = False
         if jxp_fix:
             from desispec.bootcalib import trace_crude_init
             from desispec.bootcalib import trace_fweight as dbtf
@@ -2138,7 +2139,6 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
     msgs.info("Plotting arc tilt QA")
     arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
                         textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
-    msgs.error("end")
     return tilts, satmask, outpar
 
 

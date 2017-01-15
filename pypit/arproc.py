@@ -917,14 +917,15 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Flexure correction?
     if (settings.argflag['reduce']['flexure']['method'] is not None) and (not standard):
         flex_dict = arwave.flexure_obj(slf, det)
-        o = 0
-        sky_spec = flex_dict['sky_spec'][o]
-        arx_spec = flex_dict['arx_spec'][o]
-        plt.clf()
-        ax = plt.gca()
-        ax.plot(sky_spec.wavelength.value, sky_spec.flux.value)
-        plt.show()
-        debugger.set_trace()
+        if False:
+            o = 0
+            sky_spec = flex_dict['sky_spec'][o]
+            arx_spec = flex_dict['arx_spec'][o]
+            plt.clf()
+            ax = plt.gca()
+            ax.plot(sky_spec.wavelength.value, sky_spec.flux.value)
+            plt.show()
+            debugger.set_trace()
         arqa.flexure(slf, det, flex_dict)
 
 
