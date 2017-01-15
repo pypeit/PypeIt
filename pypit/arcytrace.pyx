@@ -2319,6 +2319,67 @@ def trace_fweight(np.ndarray[DTYPE_t, ndim=2] fimage not None,
  endif
 '''
 
+
+@cython.boundscheck(False)
+def tilts_image(np.ndarray[DTYPE_t, ndim=2] tilts not None,
+                np.ndarray[DTYPE_t, ndim=2] lordloc not None,
+                np.ndarray[DTYPE_t, ndim=2] rordloc not None,
+                int sz_y):
+    """ Using the tilt (assumed to be fit with a first order polynomial)
+    generate an image of the tilts for each slit.
+
+    Parameters
+    ----------
+    tilts : ndarray
+      An (m x n) 2D array specifying the tilt (i.e. gradient) at each
+      pixel along the spectral direction (m) for each slit (n).
+    lordloc : ndarray
+      Location of the left slit edges
+    rordloc : ndarray
+      Location of the right slit edges
+    sz_y : int
+      Number of detector pixels in the spatial direction.
+
+    Returns
+    -------
+    tiltsimg : ndarray
+      An image the same size as the science frame, containing values from 0-1.
+      0/1 corresponds to the bottom/top of the detector (in the spectral direction),
+      and constant wavelength is represented by a single value from 0-1.
+    """
+
+    cdef int o, sz_o, x, sz_x, y
+    cdef int ymin, ymax
+    cdef double yv, ow, oc, dszx
+
+    sz_x = tilts.shape[0]
+    sz_o = tilts.shape[1]
+    dszx = (sz_x-1.0)
+
+    cdef np.ndarray[DTYPE_t, ndim=2] tiltsimg = np.zeros((sz_x,sz_y), dtype=DTYPE)
+
+    for o in range(0, sz_o):
+        for x in range(0, sz_x):
+            ow = (rordloc[x,o]-lordloc[x,o])/2.0
+            oc = (rordloc[x,o]+lordloc[x,o])/2.0
+            ymin = <int>(oc-ow)
+            ymax = <int>(oc+ow)+1
+            # Check we are in bounds
+            if ymin < 0:
+                ymin = 0
+            elif ymax < 0:
+                continue
+            if ymax > sz_y-1:
+                ymax = sz_y-1
+            elif ymin > sz_y-1:
+                continue
+            # Set the tilt value at each pixel in this row
+            for y in range(ymin, ymax):
+                yv = (<double>(y)-lordloc[x, o])/ow - 1.0
+                tiltsimg[x,y] = (tilts[x,o]*yv + <double>(x))/dszx
+    return tiltsimg
+
+
 @cython.boundscheck(False)
 def trace_tilts(np.ndarray[DTYPE_t, ndim=2] msarc not None,
                 np.ndarray[ITYPE_t, ndim=2] ordcen not None,

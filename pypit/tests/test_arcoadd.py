@@ -9,7 +9,6 @@ import pytest
 from astropy import units as u
 
 from pypit import pyputils
-import pypit
 msgs = pyputils.get_dummy_logger()
 
 

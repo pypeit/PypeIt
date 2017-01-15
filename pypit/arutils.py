@@ -691,6 +691,8 @@ def gauss_fit(x, y, pcen):
     try:
         if np.any(y<0.0):
             return [0.0, 0.0, 0.0], True
+        if x.size <= 3:
+            return [0.0, 0.0, 0.0], True
         ampl, cent, sigm, good = arcyarc.fit_gauss(x, y, np.zeros(3,dtype=np.float), 0, x.size, float(pcen))
         if good == 0:
             return [0.0, 0.0, 0.0], True
