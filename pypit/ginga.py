@@ -67,7 +67,7 @@ def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0.):
         y = trcdict['ytfit'][idx] + yoff  # FOR IMAGING (ALREADY OFFSET IN GINGA)
         gdy = y > 0.
         if np.sum(gdy) > 0:
-            points = zip(x[gdy].tolist(),y[gdy].tolist())
+            points = list(zip(x[gdy].tolist(),y[gdy].tolist()))
             if trcdict['aduse'][idx]:
                 clr = 'green'
             else:
@@ -90,7 +90,7 @@ def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0.):
         x = trcdict['xtfit'][2]
         y = trcdict['save_yt']
         gdy = y > 0.
-        points = zip(x[gdy].tolist(),y[gdy].tolist())
+        points = list(zip(x[gdy].tolist(),y[gdy].tolist()))
         canvas.add('path', points, color='blue')
     debugger.set_trace()
 

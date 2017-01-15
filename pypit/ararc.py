@@ -515,7 +515,8 @@ def simple_calib(slf, det, get_poly=False):
         xrej=xrej, yrej=yrej, mask=mask, spec=yprep, nrej=aparm['nsig_rej_final'],
         shift=0., tcent=tcent)
     # QA
-    arqa.arc_fit_qa(slf, final_fit)
+    if not msgs._debug['no_qa']:
+        arqa.arc_fit_qa(slf, final_fit)
     # Return
     return final_fit
 
@@ -547,7 +548,8 @@ def calib_with_arclines(slf, det, get_poly=False):
                   #swv_uncertainty=swv_uncertainty,
                   #pix_tol=pix_tol, plot_fil=plot_fil)
     status, ngd_match, match_idx, scores, final_fit = stuff
-    arqa.arc_fit_qa(slf, final_fit)
+    if not msgs._debug['no_qa']:
+        arqa.arc_fit_qa(slf, final_fit)
     #
     return final_fit
 

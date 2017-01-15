@@ -318,7 +318,7 @@ def flexure(slf, det, flex_dict, slit_cen=False):
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
     slf._qa.savefig(bbox_inches='tight')
-    plt.close()
+    #plt.close()
 
     return
 

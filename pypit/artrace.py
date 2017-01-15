@@ -389,7 +389,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     #plt.show()
     nobj = objl.size
     if msgs._debug['trace_obj']:
-        nobj = 1
+        debugger.set_trace()
+        #nobj = 1
     if nobj==1:
         msgs.info("Found {0:d} object".format(objl.size))
         msgs.info("Tracing {0:d} object".format(objl.size))
@@ -490,7 +491,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
         rec_bg_img[:,:,o] = rec_img.copy()
         #arutils.ds9plot(rec_img)
     # Save the quality control
-    if doqa:
+    if doqa and (not msgs._debug['no_qa']):
         arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, root="object_trace", normalize=False)
     # Trace dict
     tracedict = dict({})

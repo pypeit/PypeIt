@@ -77,6 +77,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             settings.argflag['reduce']['masters']['reuse'] = True
         # Loop on Detectors
         for kk in range(settings.spect['mosaic']['ndet']):
+        #for kk in range(1,settings.spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             slf.det = det
             ###############
@@ -147,7 +148,8 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._lordpix, lordpix, det)
                 slf.SetFrame(slf._rordpix, rordpix, det)
                 # Save QA for slit traces
-                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges")
+                if not msgs._debug['no_qa']:
+                    arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges")
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
             ###############

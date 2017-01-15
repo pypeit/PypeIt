@@ -58,7 +58,7 @@ class ScienceExposure:
 
         # Initialize the QA for this science exposure
         qafn = "{0:s}/QA_{1:s}.pdf".format(settings.argflag['run']['directory']['qa'], self._basename)
-        if do_qa:
+        if do_qa and not msgs._debug['no_qa']:
             self._qa = PdfPages(qafn)
 
         # Initialize Variables

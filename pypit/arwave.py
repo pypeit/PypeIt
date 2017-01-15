@@ -117,7 +117,8 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     msgs.work("Need to deal with underlying continuum")
 
     #Cross correlation of spectra
-    corr = np.correlate(arx_skyspec.flux, obj_skyspec.flux, "same")
+    corr = np.correlate(arx_skyspec.flux.value, obj_skyspec.flux.value, "same")
+    corr = np.correlate(arx_skyspec.flux.value[0:1900], obj_skyspec.flux.value[0:1900], "same")
 
     #Create array around the max of the correlation function for fitting for subpixel max
     # Restrict to pixels within maxshift of zero lag
@@ -157,8 +158,10 @@ def flexure_archive():
     root = settings.argflag['run']['pypitdir']
     if settings.argflag['reduce']['flexure']['spectrum'] is None:
         # Red or blue?
-        if settings.argflag['run']['spectrograph'] in ['kast_blue', 'lris_blue']:
+        if settings.argflag['run']['spectrograph'] in ['kast_blue']:
             skyspec_fil = 'sky_kastb_600.fits'
+        elif settings.argflag['run']['spectrograph'] in ['lris_blue']:
+            skyspec_fil = 'sky_LRISb_600.fits'
         else:
             skyspec_fil = 'paranal_sky.fits'
     else:
