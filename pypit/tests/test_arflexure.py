@@ -35,6 +35,7 @@ def test_flex_shift():
     arx_file = pypit.__path__[0]+'/data/sky_spec/sky_LRISb_600.fits'
     arx_spec = lsio.readspec(arx_file)
     # Call
+    msgs._debug['testing'] = True
     #msgs._debug['flexure'] = True
     flex_dict = arwave.flex_shift(slf, 1, obj_spec, arx_spec)
     assert np.abs(flex_dict['shift'] - 43.7) < 0.1
