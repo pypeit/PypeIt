@@ -77,7 +77,6 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             settings.argflag['reduce']['masters']['reuse'] = True
         # Loop on Detectors
         for kk in range(settings.spect['mosaic']['ndet']):
-        #for kk in range(1,settings.spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             slf.det = det
             ###############
@@ -123,17 +122,10 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             # Generate an array that provides the physical pixel locations on the detector
             slf.GetPixelLocations(det)
             # Determine the edges of the spectrum (spatial)
-
             if ('trace'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']):
                 ###############
                 # Determine the edges of the spectrum (spatial)
                 lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det, pcadesc="PCA trace of the slit edges")
-                # LRIS KLUDGE (FLAT IS OFFSET)
-                if det == 1:
-                    lordloc[:,0] = lordloc[:,0] + 18
-                elif det == 2:
-                    lordloc[:,0] = lordloc[:,0] + 10
-                    rordloc[:,0] = rordloc[:,0] - 10
                 slf.SetFrame(slf._lordloc, lordloc, det)
                 slf.SetFrame(slf._rordloc, rordloc, det)
 
@@ -154,7 +146,6 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
 
             ###############
             # Generate the 1D wavelength solution
-            #debugger.set_trace()
             update = slf.MasterWaveCalib(fitsdict, sc, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")

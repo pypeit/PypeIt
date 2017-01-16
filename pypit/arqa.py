@@ -580,7 +580,7 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit", ma
             f.suptitle(desc + pgtxt, y=1.02, size=16)
         f.tight_layout()
         slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
-        plt.close()
+        #plt.close()
         f.clf()
     del f
     return

@@ -1538,7 +1538,7 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             else:
                 pcen = int(0.5 + centv)
                 mtfit[sz-k] = 0
-        #if j == 2:  # Try trace_crude
+        '''
         jxp_fix = False
         if jxp_fix:
             from desispec.bootcalib import trace_crude_init
@@ -1558,17 +1558,16 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             # Convert back
             y0 = pcen+nspecfit
             ycrude = y0 - xset[:,0]
-            '''
-            debugger.set_trace()
-            cytfit = ytfit.copy()
-            cytfit[np.where(ytfit < 0)] = np.median(cytfit)
-            debugger.xplot(np.arange(img.shape[1]), ycrude, cytfit)
-            '''
+            #debugger.set_trace()
+            #cytfit = ytfit.copy()
+            #cytfit[np.where(ytfit < 0)] = np.median(cytfit)
+            #debugger.xplot(np.arange(img.shape[1]), ycrude, cytfit)
             #
             #trcdict['save_yt'] = ytfit.copy()
             assert ycrude.size == ytfit.size
             ytfit = ycrude
             #debugger.set_trace()
+        '''
 
         if offchip:
             # Don't use lines that go off the chip (could lead to a bad trace)
@@ -1845,7 +1844,6 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
-    from pypit import ginga
     arccen, maskslit, satmask = get_censpec(slf, msarc, det, gen_satmask=True)
     # If the user sets no tilts, return here
     if settings.argflag['trace']['slits']['tilts']['method'].lower() == "zero":
@@ -1864,6 +1862,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             # No arc lines were available to determine the spectral tilt
             continue
         if msgs._debug['tilts']:
+            from pypit import ginga
             ginga.chk_arc_tilts(msarc, trcdict, sedges=(slf._lordloc[det-1][:,o], slf._rordloc[det-1][:,o]))
             #debugger.set_trace()
         # Extract information from the trace dictionary
@@ -2137,7 +2136,8 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
     xdat[np.where(xdat != maskval)] *= (msarc.shape[1] - 1.0)
 
     msgs.info("Plotting arc tilt QA")
-    arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
+    if not msgs._debug['no_qa']:
+        arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
                         textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
     return tilts, satmask, outpar
 
