@@ -144,10 +144,6 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
             ###############
-            # Prepare the pixel flat field frame
-            update = slf.MasterFlatField(fitsdict, det)
-            if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
-            ###############
             # Generate the 1D wavelength solution
             update = slf.MasterWaveCalib(fitsdict, sc, det)
             if update and reuseMaster:
@@ -167,10 +163,15 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                         settings.argflag['reduce']['masters']['loaded'].append('tilts'+settings.argflag['reduce']['masters']['setup'])
                 if 'tilts'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
                     # First time tilts are derived for this arc frame --> derive the order tilts
-                    tilts, satmask, outpar = artrace.model_tilt(slf, det, slf._msarc[det-1])
+                    tilts, satmask, outpar = artrace.multislit_tilt(slf, slf._msarc[det-1], det)
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
+
+            ###############
+            # Prepare the pixel flat field frame
+            update = slf.MasterFlatField(fitsdict, det)
+            if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
 
             ###############
             # Generate/load a master wave frame

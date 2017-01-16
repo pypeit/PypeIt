@@ -11,7 +11,6 @@ from pypit import arlris
 from pypit import armsgs
 from pypit import artrace
 from pypit import arutils
-from pypit import arplot
 from pypit import arparse as settings
 from pypit import arspecobj
 from pypit import arqa
@@ -263,21 +262,15 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     # Begin the algorithm
     errframe = np.sqrt(varframe)
     norders = slf._lordloc[det-1].shape[1]
-    # Look at the end corners of the detector to get detector size in the dispersion direction
-    xstr = slf._pixlocn[det-1][0,0,0]-slf._pixlocn[det-1][0,0,2]/2.0
-    xfin = slf._pixlocn[det-1][-1,-1,0]+slf._pixlocn[det-1][-1,-1,2]/2.0
-    xint = slf._pixlocn[det-1][:,0,0]
     # Find which pixels are within the order edges
     msgs.info("Identifying pixels within each order")
     ordpix = arcyutils.order_pixels(slf._pixlocn[det-1],
                                     slf._lordloc[det-1]*0.95+slf._rordloc[det-1]*0.05,
                                     slf._lordloc[det-1]*0.05+slf._rordloc[det-1]*0.95)
-    allordpix = ordpix.copy()
     msgs.info("Applying bad pixel mask")
     ordpix *= (1-slf._bpix[det-1].astype(np.int)) * (1-crpix.astype(np.int))
     if tracemask is not None: ordpix *= (1-tracemask.astype(np.int))
     # Construct an array of pixels to be fit with a spline
-    #msgs.bug("Tilts are the wrong shape, transposing -- fix this later")
     msgs.bug("Remember to include the following in a loop over order number")
     #whord = np.where(ordpix != 0)
     o = 0 # order=1
@@ -524,6 +517,7 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     ordpix = arcyutils.order_pixels(slf._pixlocn[det-1], slf._lordloc[det-1], slf._rordloc[det-1])
     msgs.info("Applying bad pixel mask")
     ordpix *= (1-slf._bpix[det-1].astype(np.int))
+    mskord = np.zeros(msflat.shape)
     msgs.info("Rectifying the orders to estimate the background locations")
     #badorders = np.zeros(norders)
     msnormflat = maskval*np.ones_like(msflat)
@@ -586,11 +580,30 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             msnormflat = arcyproc.combine_nrmflat(msnormflat, normflat_unrec, slf._pixcen[det-1][:,o],
                                                   slf._lordpix[det-1][:,o], slf._rordpix[det-1][:,o],
                                                   slf._pixwid[det-1][o]+overpix, maskval)
+        elif settings.argflag["reduce"]["flatfield"]["method"].lower() == "bspline":
+            msgs.info("Deriving blaze function with a bspline")
+            tilts = slf._tilts[det - 1].copy()
+            gdp = (msflat != maskval) & (ordpix == o+1)
+            srt = np.argsort(tilts[gdp])
+            everyn = settings.argflag['reduce']['flatfield']['params'][0]
+            if everyn > 0.0 and everyn < 1.0:
+                everyn *= msflat.shape[0]
+                everyn = int(everyn+0.5)
+            everyn *= slf._pixwid[det-1][o]
+            bspl = arutils.func_fit(tilts[gdp][srt], msflat[gdp][srt], 'bspline', 3, everyn=everyn)
+            model_flat = arutils.func_val(bspl, tilts.flatten(), 'bspline')
+            model = model_flat.reshape(tilts.shape)
+            word = np.where(ordpix == o+1)
+            msnormflat[word] = msflat[word]/model[word]
+            msblaze[:, o] = arutils.func_val(bspl, np.linspace(0.0, 1.0, msflat.shape[0]), 'bspline')
+            mskord[word] = 1.0
+            flat_ext1d[:, o] = np.sum(msflat * mskord, axis=1)/np.sum(mskord, axis=1)
+            mskord *= 0.0
         else:
             msgs.error("Flatfield method {0:s} is not supported".format(settings.argflag["reduce"]["flatfield"]["method"]))
     # Send the blaze away to be plotted and saved
     msgs.work("Perform a 2D PCA analysis on echelle blaze fits?")
-    arplot.plot_orderfits(slf, msblaze, flat_ext1d, desc=plotdesc)
+    arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc=plotdesc, textplt="Order")
     # If there is more than 1 amplifier, apply the scale between amplifiers to the normalized flat
     if (settings.spect[dnum]['numamplifiers'] > 1) & (norders > 1):
         msnormflat *= sclframe

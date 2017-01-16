@@ -353,6 +353,34 @@ def load_tilts(fname):
     return tilts, satmask
 
 
+def load_1dspec(fname, exten=None, extract='opt'):
+    """
+    Parameters
+    ----------
+    fname : str
+      Name of the file
+    exten : int, optional
+      Extension of the spectrum
+      If not given, all spectra in the file are loaded
+    extract : str, optional
+      Extraction type ('opt', 'box')
+
+    Returns
+    -------
+    spec : XSpectrum1D
+
+    """
+    from linetools.spectra.xspectrum1d import XSpectrum1D
+    # Keywords for Table
+    rsp_kwargs = {}
+    rsp_kwargs['wave_tag'] = '{:s}_wave'.format(extract)
+    rsp_kwargs['flux_tag'] = '{:s}_counts'.format(extract)
+    rsp_kwargs['var_tag'] = '{:s}_var'.format(extract)
+    # Load
+    spec = XSpectrum1D.from_file(fname, exten=exten, **rsp_kwargs)
+    # Return
+    return spec
+
 def waveids(fname):
     infile = pyfits.open(fname)
     pixels=[]
