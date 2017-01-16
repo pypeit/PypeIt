@@ -20,7 +20,7 @@ except NameError:
 msgs = armsgs.get_logger()
 
 
-def connect_to_ginga(host='localhost', port=9000,):
+def connect_to_ginga(host='localhost', port=9000):
     """ Connect to an active RC Ginga
     Parameters
     ----------
