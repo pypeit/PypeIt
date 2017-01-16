@@ -120,7 +120,7 @@ def calc_offset(raA, decA, raB, decB, distance=False):
         return delRA, delDEC
 
 
-def dummy_fitsdict(nfile=10, spectrograph='kast_blue'):
+def dummy_fitsdict(nfile=10, spectrograph='kast_blue', directory='./'):
     """
     Parameters
     ----------
@@ -135,7 +135,7 @@ def dummy_fitsdict(nfile=10, spectrograph='kast_blue'):
     """
     fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
     fitsdict['utc'] = ['2015-01-23']*nfile
-    fitsdict['directory'] = ['./']*nfile
+    fitsdict['directory'] = [directory]*nfile
     fitsdict['filename'] = ['b{:03d}.fits'.format(i) for i in range(nfile)]
     fitsdict['date'] = ['2015-01-23T00:{:02d}:11.04'.format(i) for i in range(nfile)]  # Will fail at 60
     fitsdict['time'] = [(1432085758+i*60)/3600. for i in range(nfile)]

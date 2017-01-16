@@ -460,7 +460,7 @@ def save_1d_spectra_fits(slf, clobber=True):
     #    f.write(unicode(json.dumps(slf._sensfunc, sort_keys=True, indent=4, separators=(',', ': '))))
 
 
-def save_2d_images(slf, clobber=True):
+def save_2d_images(slf, fitsdict, clobber=True):
     """ Write 2D images to the hard drive
     Parameters
     ----------
@@ -471,9 +471,39 @@ def save_2d_images(slf, clobber=True):
     -------
 
     """
+    import datetime
+    # Original header
+    scidx = slf._idx_sci[0]
+    path = fitsdict['directory'][scidx]
+    ifile = fitsdict['filename'][scidx]
+    headarr = [None for k in range(settings.spect['fits']['numhead'])]
+    for k in range(settings.spect['fits']['numhead']):
+        headarr[k] = pyfits.getheader(path+ifile, ext=settings.spect['fits']['headext{0:02d}'.format(k+1)])
+
     # Primary header
     prihdu = pyfits.PrimaryHDU()
+    # Update with original header, skipping a few keywords
     hdus = [prihdu]
+    hdukeys = ['BUNIT', 'COMMENT', '', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2',
+               'HISTORY', 'EXTEND', 'DATASEC']
+    for key in headarr[0].keys():
+        # Use new ones
+        if key in hdukeys:
+            continue
+        # Update unused ones
+        prihdu.header[key] = headarr[0][key]
+    # History
+    if 'HISTORY' in headarr[0].keys():
+        # Strip \n
+        tmp = str(headarr[0]['HISTORY']).replace('\n', ' ')
+        prihdu.header.add_history(str(tmp))
+
+    # PYPIT
+    prihdu.header['PIPELINE'] = str('PYPIT')
+    prihdu.header['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
+    setup = settings.argflag['reduce']['masters']['setup'].split('_')
+    prihdu.header['PYPCNFIG'] = str(setup[0])
+    prihdu.header['PYPCALIB'] = str(setup[2])
 
     ext = 0
     for kk in range(settings.spect['mosaic']['ndet']):
@@ -505,4 +535,4 @@ def save_2d_images(slf, clobber=True):
 
     # Finish
     hdulist = pyfits.HDUList(hdus)
-    hdulist.writeto(settings.argflag['run']['directory']['science']+'/spec2d_{:s}.fits'.format(slf._basename), clobber=clobber)
+    hdulist.writeto(settings.argflag['run']['directory']['science']+'/spec2d_{:s}.fits'.format(slf._basename), overwrite=clobber)
