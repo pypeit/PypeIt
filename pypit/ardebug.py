@@ -13,7 +13,6 @@ def init():
                  wave=False,
                  tilts=False,
                  flexure=False,
-                 testing=False,
                  trace_obj=False,
                  )
     return debug

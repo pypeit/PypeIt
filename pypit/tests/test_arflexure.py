@@ -18,8 +18,6 @@ from pypit import arparse as settings  # Has to come after the logger
 import pypit
 from pypit import arwave
 
-msgs._debug['testing'] = True
-
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
@@ -35,7 +33,6 @@ def test_flex_shift():
     arx_file = pypit.__path__[0]+'/data/sky_spec/sky_LRISb_600.fits'
     arx_spec = lsio.readspec(arx_file)
     # Call
-    msgs._debug['testing'] = True
     #msgs._debug['flexure'] = True
     flex_dict = arwave.flex_shift(slf, 1, obj_spec, arx_spec)
     assert np.abs(flex_dict['shift'] - 43.7) < 0.1
