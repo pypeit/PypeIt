@@ -18,8 +18,6 @@ from pypit import arparse as settings  # Has to come after the logger
 import pypit
 from pypit import arwave
 
-msgs._debug['testing'] = True
-
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
