@@ -24,17 +24,20 @@ def data_path(filename):
 
 
 def test_flex_shift():
-    # Dummy slf
-    arut.dummy_settings()
-    settings.argflag['reduce']['flexure']['maxshift'] = 50
-    slf = arut.dummy_self()
-    # Read spectra
-    obj_spec = lsio.readspec(data_path('obj_lrisb_600_sky.fits'))
-    arx_file = pypit.__path__[0]+'/data/sky_spec/sky_LRISb_600.fits'
-    arx_spec = lsio.readspec(arx_file)
-    # Call
-    #msgs._debug['flexure'] = True
-    flex_dict = arwave.flex_shift(slf, 1, obj_spec, arx_spec)
-    assert np.abs(flex_dict['shift'] - 43.7) < 0.1
+    if not os.getenv('PYPIT'):
+        pass
+    else:
+        # Dummy slf
+        arut.dummy_settings()
+        settings.argflag['reduce']['flexure']['maxshift'] = 50
+        slf = arut.dummy_self()
+        # Read spectra
+        obj_spec = lsio.readspec(data_path('obj_lrisb_600_sky.fits'))
+        arx_file = pypit.__path__[0]+'/data/sky_spec/sky_LRISb_600.fits'
+        arx_spec = lsio.readspec(arx_file)
+        # Call
+        #msgs._debug['flexure'] = True
+        flex_dict = arwave.flex_shift(slf, 1, obj_spec, arx_spec)
+        assert np.abs(flex_dict['shift'] - 43.7) < 0.1
 
 
