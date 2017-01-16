@@ -1292,10 +1292,11 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
 
 
 def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
-               trthrsh=1000.0, nsmth=0):
+               trthrsh=1000.0, nsmth=0, method = "fweight"):
     """
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
     nsmth     Number of pixels +/- in the spatial direction to include in the fit (0=no smoothing, 1=3 pixels, 2=5 pixels...)
+    method : str (fweight or cc)
     """
     def pad_dict(indict):
         """ If an arc line is considered bad, fill the
@@ -1377,7 +1378,6 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
     msgs.work("This next step could be multiprocessed to speed up the reduction")
     nspecfit = 3
     badlines = 0
-    method = "fweight"  # Can be "fweight", "cc"
     for j in range(arcdet.size):
         # For each detection in this order
         #msgs.info("Tracing tilt of arc line {0:d}/{1:d}".format(j+1, arcdet.size))
@@ -2088,7 +2088,6 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
     msgs.info("Plotting arc tilt QA")
     arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
                         textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
-    msgs.error("end")
     return tilts, satmask, outpar
 
 

@@ -74,9 +74,9 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
 
     Returns:
     ---------
-    fit_dict: dict  
-      dict describing the bspline fit 
-    ''' 
+    tck : tuple
+      describes the bspline
+    '''
     #
     if w is None:
         ngd = x.size
