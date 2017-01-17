@@ -68,3 +68,19 @@ large number of times will increasingly smooth the blaze fits).
 
 Note that this method is not stable near the edges of the detector. If you
 decide to use this method, please check the blaze fits in your QA files.
+
+Blaze information
+=================
+
+The blaze functions that are derived from one of the methods listed above
+are saved by PYPIT. If desired, you can perform a simple 2D PCA on the
+blaze models. This step is only recommended (but not necessary) for
+echelle data reduction, where the blaze functions of neighbouring slits
+are quite similar. A 2D PCA will not be performed if the argument of the
+following keyword is set to zero::
+
+    reduce flatfield 2dpca 0
+
+A number greater than zero will result in a PCA fit to the blaze functions.
+The argument of this keyword sets the number of principal components to
+use when reconstructing the blaze functions.

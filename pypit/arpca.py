@@ -277,19 +277,22 @@ def image_basis(img, numpc=0):
     return eigvec, eigval, score
 
 
-def pca2d(img, numpc, mask=None, maskval=-999999.9):
-    img = img.T
-    # Check if the number of principle components is within bounds
-    if (numpc<0) or (numpc > img.shape[0]): numpc = img.shape[0]/2
-    # Obtain the principal components
-    if mask is None:
-        mask = np.zeros_like(img)
-        mask[np.where(img == maskval)] = 1
-    mimg = np.ma.array(img, mask=mask)
-    eigvec, eigval, score = image_basis(mimg, numpc)
+def pca2d(img, numpc):
+    # Compute eigenvalues and eigenvectors of covariance matrix
+    imgsub = (img-np.mean(img.T, axis=1)).T  # subtract the mean (along a column)
+    [latent, coeff] = np.linalg.eig(np.cov(imgsub))
+    p = coeff.shape[1]
+    # Sort the eigenvalues/vectors in ascending order
+    idx = np.argsort(latent)
+    idx = idx[::-1]
+    coeff = coeff[:, idx]
+    if numpc < p:
+        coeff = coeff[:, range(numpc)]
+    # projection of the data in the new space
+    proj = np.dot(coeff.T, imgsub)
     # Reconstruct the image
-    imgpca = np.dot(eigvec, score).T + mimg.mean(axis=0).data
-    return imgpca.astype(np.float).T
+    imgpca = np.dot(coeff, proj).T + np.mean(img, axis=0)
+    return imgpca.astype(np.float)
 
 
 ################################################
