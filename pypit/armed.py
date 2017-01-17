@@ -222,7 +222,7 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
         else:
             msgs.error(save_format + ' is not a recognized output format!')
         # Write 2D images for the Science Frame
-        arsave.save_2d_images(slf)
+        arsave.save_2d_images(slf, fitsdict)
         # Free up some memory by replacing the reduced ScienceExposure class
         sciexp[sc] = None
     return status

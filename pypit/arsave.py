@@ -504,6 +504,7 @@ def save_2d_images(slf, fitsdict, clobber=True):
     setup = settings.argflag['reduce']['masters']['setup'].split('_')
     prihdu.header['PYPCNFIG'] = str(setup[0])
     prihdu.header['PYPCALIB'] = str(setup[2])
+    prihdu.header['PYPMFDIR'] = str(settings.argflag['run']['directory']['master']+'_'+settings.argflag['run']['spectrograph'])
 
     ext = 0
     for kk in range(settings.spect['mosaic']['ndet']):
