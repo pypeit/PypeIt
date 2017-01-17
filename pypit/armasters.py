@@ -124,8 +124,6 @@ def save_masters(slf, det, setup):
 
     transpose = bool(settings.argflag['trace']['dispersion']['direction'])
 
-    # MasterFrame directory
-    #mdir = settings.argflag['run']['directory']['master']+'_'+settings.argflag['run']['spectrograph']
     # Bias
     if 'bias'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
         if not isinstance(slf._msbias[det-1], (basestring)):

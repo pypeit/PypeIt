@@ -141,7 +141,6 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
     """
     msgs.info("Saving master {0:s} frame as:".format(frametype)+msgs.newline()+filename)
     hdu = pyfits.PrimaryHDU(data)
-    hdu.name = 'TraceFlat'
     hlist = [hdu]
     # Extensions
     if extensions is not None:

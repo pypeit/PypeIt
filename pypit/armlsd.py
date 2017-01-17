@@ -126,13 +126,6 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 ###############
                 # Determine the edges of the spectrum (spatial)
                 lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det, pcadesc="PCA trace of the slit edges")
-                # LRIS KLUDGE (FLAT IS OFFSET)
-                if det == 1:
-                    lordloc[:,0] = lordloc[:,0] + 18
-                elif det == 2:
-                    lordloc[:,0] = lordloc[:,0] + 10
-                    rordloc[:,0] = rordloc[:,0] - 10
-
                 slf.SetFrame(slf._lordloc, lordloc, det)
                 slf.SetFrame(slf._rordloc, rordloc, det)
 
