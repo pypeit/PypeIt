@@ -40,7 +40,7 @@ def connect_to_ginga(host='localhost', port=9000):
     return viewer
 
 
-def show_image(img):
+def show_image(img, chname='Image'):
     """ Displays input image in Ginga viewer
     Supersedes method in xastropy
 
@@ -53,10 +53,57 @@ def show_image(img):
 
     """
     viewer = connect_to_ginga()
-    ch = viewer.channel('Image')
+    ch = viewer.channel(chname)
     name='image'
     ch.load_np(name, img, 'fits', {})
+    return viewer, ch
 
+
+def show_slits(viewer, ch, lordloc, rordloc, det):
+    """ Overplot slits on image in Ginga
+    Parameters
+    ----------
+    viewer
+    ch
+    lordloc
+    rordloc
+    det
+
+    Returns
+    -------
+
+    """
+    # Canvas
+    canvas = viewer.canvas(ch._chname)
+    canvas.clear()
+    # y-axis
+    y = (np.arange(lordloc.shape[0])).tolist()
+    ohf = lordloc.shape[0] // 2
+    # Loop on slits
+    for slit in range(lordloc.shape[1]):
+        # Left
+        points = zip(lordloc[:,slit].tolist(),y)
+        canvas.add('path', points, color='cyan')
+        # Right
+        points = zip(rordloc[:,slit].tolist(),y)
+        canvas.add('path', points, color='cyan')
+        # Text -- Should use the 'real' name
+        canvas.add('text', float(lordloc[ohf,slit]), float(y[ohf]),
+                   '{:d}'.format(slit), color='cyan')
+
+def show_trace(viewer, ch, trace, trc_name, color='blue', clear=False):
+    # Canvas
+    canvas = viewer.canvas(ch._chname)
+    if clear:
+        canvas.clear()
+    # Show
+    y = (np.arange(trace.size)).tolist()
+    points = zip(trace.tolist(),y)
+    canvas.add('path', points, color=color)
+    # Text
+    ohf = trace.size // 2
+    canvas.add('text', float(trace[ohf]), float(y[ohf]), trc_name,
+               rot_deg=90., color=color, fontsize=17.)
 
 def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0.):
     """  Display arc image and overlay the arcline tilt measurements
@@ -80,7 +127,7 @@ def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0.):
     cname = 'ArcTilts'
     viewer = connect_to_ginga()
     ch = viewer.channel(cname)
-    canvas = viewer.canvas(cname)
+    canvas = viewer.canvas(ch._chname)
     # Show image, clear canvas [in case this is a repeat]
     name='image'
     ch.load_np(name, msarc, 'fits', {})

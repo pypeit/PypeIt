@@ -159,8 +159,7 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             # Derive the spectral tilt
             if slf._tilts[det-1] is None:
                 if settings.argflag['reduce']['masters']['reuse']:
-                    mstilt_name = armasters.master_name(settings.argflag['run']['directory']['master'],
-                                                        'tilts', settings.argflag['reduce']['masters']['setup'])
+                    mstilt_name = armasters.master_name('tilts', settings.argflag['reduce']['masters']['setup'])
                     try:
                         tilts, head = arload.load_master(mstilt_name, frametype="tilts")
                     except IOError:

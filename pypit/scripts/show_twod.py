@@ -5,7 +5,8 @@
 # -*- coding: utf-8 -*-
 
 """
-This script enables the viewing of a FITS file
+This script enables the viewing of a processed FITS file
+with extras
 """
 
 def parser(options=None):
@@ -14,9 +15,9 @@ def parser(options=None):
     parser = argparse.ArgumentParser(description='Runs Ginga viewer on 2D spectrum',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('spec2d_file', type = str, default = None, help = 'PYPIT 2dspec file')
+    parser.add_argument('file', type = str, default = None, help = 'PYPIT 2dspec file')
     parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
-    parser.add_argument('--exten', type=int, help="FITS extension")
+    parser.add_argument('--det', default=1, type=int, help="Detector")
 
     if options is None:
         args = parser.parse_args()
@@ -29,49 +30,49 @@ def main(args):
 
     # List only?
     from astropy.io import fits
+    from astropy.table import Table
+    hdu = fits.open(args.file)
+    head0 = hdu[0].header
     if args.list:
-        hdu = fits.open(args.file)
         print(hdu.info())
         return
 
-    kludge_fil = 'tmp_ginga.fits'
-
     # Setup for PYPIT imports
-    import subprocess
     from pypit import pyputils
     msgs = pyputils.get_dummy_logger()
+    from pypit import arparse as settings  # Has to come after the logger
+    from pypit import ginga as pyp_ginga
+    from pypit import armasters
 
-    from pypit import arlris
+    # One detector, sky sub for now
+    names = [hdu[i].name for i in range(len(hdu))]
+    exten = names.index('DET{:d}-SKYSUB'.format(args.det))
+    skysub = hdu[exten].data
 
-    # Extension
-    if args.exten is not None:
-        hdu = fits.open(args.file)
-        img = hdu[args.exten].data
-        # Write
-        msgs.warn('Writing kludge file to {:s}'.format(kludge_fil))
-        hdunew = fits.PrimaryHDU(img)
-        hdulist = fits.HDUList([hdunew])
-        hdulist.writeto(kludge_fil,clobber=True)
-        #
-        args.file = kludge_fil
+    # Show Image
+    viewer, ch = pyp_ginga.show_image(skysub, chname='DET-{:02d}'.format(args.det))
 
-    # RAW_LRIS??
-    if args.raw_lris:
-        # 
-        img, head, _ = arlris.read_lris(args.file)
-        # Generate hdu
-        hdu = fits.PrimaryHDU(img)
-        hdulist = fits.HDUList([hdu])
-        # Write
-        msgs.warn('Writing kludge file to {:s}'.format(kludge_fil))
-        hdulist.writeto(kludge_fil,clobber=True)
-        args.file = kludge_fil
+    # Add slits
+    testing = False
+    if testing:
+        mdir = 'MF_lris_blue/'
+        setup = 'A_{:02d}_aa'.format(args.det)
+    else:
+        mdir = head0['PYPMFDIR']+'/'
+        setup = '{:s}_{:02d}_{:s}'.format(head0['PYPCNFIG'], args.det, head0['PYPCALIB'])
+    trc_file = armasters.master_name('trace', setup, mdir=mdir)
+    trc_hdu = fits.open(trc_file)
+    lordloc = trc_hdu[1].data  # Should check name
+    rordloc = trc_hdu[2].data  # Should check name
+    pyp_ginga.show_slits(viewer, ch, lordloc, rordloc, args.det)
 
-    # Spawn ginga
-    subprocess.call(["ginga", args.file])
-
-    if args.raw_lris:
-        msgs.warn('Removing kludge file {:s}'.format(kludge_fil))
-        subprocess.call(["rm", args.file])
-
+    # Object traces
+    spec1d_file = args.file.replace('spec2d', 'spec1d')
+    hdulist_1d = fits.open(spec1d_file)
+    det_nm = 'D{:02d}'.format(args.det)
+    for hdu in hdulist_1d:
+        if det_nm in hdu.name:
+            tbl = Table(hdu.data)
+            trace = tbl['obj_trace']
+            pyp_ginga.show_trace(viewer, ch, trace, hdu.name)
 

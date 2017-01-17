@@ -122,7 +122,7 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
 
 
 def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
-                extensions=None, keywds=None):
+                extensions=None, keywds=None, names=None):
     """ Write a MasterFrame
     Parameters
     ----------
@@ -131,18 +131,25 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
     filename
     frametype
     ind
-    extensions : list of additional data images
+    extensions : list, optional
+      Additional data images to write
+    names : list, optional
+      Names of the extensions
     keywds : Additional keywords for the Header
     Returns
     -------
     """
     msgs.info("Saving master {0:s} frame as:".format(frametype)+msgs.newline()+filename)
     hdu = pyfits.PrimaryHDU(data)
-    # Extensions
+    hdu.name = 'TraceFlat'
     hlist = [hdu]
+    # Extensions
     if extensions is not None:
-        for exten in extensions:
-            hlist.append(pyfits.ImageHDU(exten))
+        for kk,exten in enumerate(extensions):
+            hdu = pyfits.ImageHDU(exten)
+            if names is not None:
+                hdu.name = names[kk]
+            hlist.append(hdu)
     # HDU list
     hdulist = pyfits.HDUList(hlist)
     # Header
@@ -379,7 +386,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
                 # Check meta
                 assert meta['objid'][count] == specobj.objid
                 # Trace
-                data['trace'][0][:len(specobj.trace)] = specobj.trace
+                data['obj_trace'][0][:len(specobj.trace)] = specobj.trace
                 # Rest
                 sdict = getattr(specobj, ex_method)
                 for key in sdict.keys():
