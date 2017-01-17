@@ -83,7 +83,6 @@ trace combine reject level    [3.0,3.0]     # Rejection level (in standard devia
 trace combine reject replace   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
 trace combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
 trace dispersion direction  0          # Specify the dispersion direction (0 for row, 1 for column)
-trace norm recnorm True             # Use the recnorm algorithm?
 trace slits diffpolyorder  2         # What is the order of the 2D function that should be used to fit the 2d solution for the spatial size of all orders?
 trace slits expand False             # If you trace the slits with a pinhole frame, you should expand the trace edges to the slit edges defined by the trace frame
 trace slits fracignore 0.01           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
@@ -111,7 +110,6 @@ pixelflat combine reject lowhigh  [0,0]         # Number of low/high pixels to r
 pixelflat combine reject level    [3.0,3.0]     # Rejection level (in standard deviations), where <= 0.0 means no rejection [low,high]
 pixelflat combine reject replace   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
 pixelflat combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
-pixelflat norm recnorm   True             # Use the recnorm algorithm?
 
 # SCIENCE FRAMES
 science extraction reuse False        # If the science frame has previously been extracted and saved, load the extractions
