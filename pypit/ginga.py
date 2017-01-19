@@ -36,6 +36,13 @@ def connect_to_ginga(host='localhost', port=9000):
     from ginga.util import grc as ggrc
     # Start
     viewer = ggrc.RemoteClient(host, port)
+    # Test
+    ginga = viewer.shell()
+    try:
+        ginga.fileinfo()
+    except:
+        msgs.warn("Problem connecting to Ginga.  Launch an RC Ginga viewer then continue.")
+        debugger.set_trace()
     # Return
     return viewer
 

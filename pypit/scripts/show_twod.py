@@ -12,10 +12,10 @@ with extras
 def parser(options=None):
     import argparse
 
-    parser = argparse.ArgumentParser(description='Runs Ginga viewer on 2D spectrum',
+    parser = argparse.ArgumentParser(description='Display spec2d image in a Ginga viewer',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('file', type = str, default = None, help = 'PYPIT 2dspec file')
+    parser.add_argument('file', type = str, default = None, help = 'PYPIT spec2d file')
     parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
     parser.add_argument('--det', default=1, type=int, help="Detector")
 
