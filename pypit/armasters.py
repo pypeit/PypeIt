@@ -51,16 +51,19 @@ class MasterFrames:
         self._mspixelflat_name = [None for all in range(ndet)]  # Master Pixel Flat Name
 
 
-def master_name(mdir, ftype, setup):
+def master_name(ftype, setup, mdir=None):
     """ Default filenames
     Parameters
     ----------
-    mdir : str
-      Master directory
     ftype
+    mdir : str, optional
+      Master directory; usually taken from settings
+
     Returns
     -------
     """
+    if mdir is None:
+        mdir = settings.argflag['run']['directory']['master']+'_'+settings.argflag['run']['spectrograph']
     name_dict = dict(bias='{:s}/MasterBias_{:s}.fits'.format(mdir,setup),
                      badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir,setup),
                      trace='{:s}/MasterTrace_{:s}.fits'.format(mdir,setup),
@@ -106,6 +109,7 @@ def load_masters(slf, det, setup):
     slf._tilts[det-1] = load_master(master_name('tilts', setup))
 '''
 
+
 def save_masters(slf, det, setup):
     """ Save Master Frames
     Parameters
@@ -120,51 +124,50 @@ def save_masters(slf, det, setup):
 
     transpose = bool(settings.argflag['trace']['dispersion']['direction'])
 
-    # MasterFrame directory
-    mdir = settings.argflag['run']['directory']['master']+'_'+settings.argflag['run']['spectrograph']
     # Bias
     if 'bias'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
         if not isinstance(slf._msbias[det-1], (basestring)):
             arsave.save_master(slf, slf._msbias[det-1],
-                               filename=master_name(mdir, 'bias', setup),
+                               filename=master_name('bias', setup),
                                frametype='bias')
     # Bad Pixel
     if 'badpix'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
         arsave.save_master(slf, slf._bpix[det-1],
-                               filename=master_name(mdir, 'badpix', setup),
+                               filename=master_name('badpix', setup),
                                frametype='badpix')
     # Trace
     if 'trace'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
         extensions = [slf._lordloc[det-1], slf._rordloc[det-1],
                       slf._pixcen[det-1], slf._pixwid[det-1],
                       slf._lordpix[det-1], slf._rordpix[det-1]]
+        names = ['LeftEdges_det', 'RightEdges_det', 'SlitCentre', 'SlitLength', 'LeftEdges_pix', 'RightEdges_pix']
         arsave.save_master(slf, slf._mstrace[det-1],
-                           filename=master_name(mdir, 'trace', setup),
-                           frametype='trace', extensions=extensions)
+                           filename=master_name('trace', setup),
+                           frametype='trace', extensions=extensions, names=names)
     # Pixel Flat
     if 'normpixelflat'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
         arsave.save_master(slf, slf._mspixelflatnrm[det-1],
-                           filename=master_name(mdir, 'normpixelflat', setup),
+                           filename=master_name('normpixelflat', setup),
                            frametype='normpixelflat')
     # Arc/Wave
     if 'arc'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
         arsave.save_master(slf, slf._msarc[det-1],
-                           filename=master_name(mdir, 'arc', setup),
+                           filename=master_name('arc', setup),
                            frametype='arc', keywds=dict(transp=transpose))
     if 'wave'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
         # Wavelength image
         arsave.save_master(slf, slf._mswave[det-1],
-                           filename=master_name(mdir, 'wave', setup),
+                           filename=master_name('wave', setup),
                            frametype='wave')
         # Wavelength fit
         gddict = ltu.jsonify(slf._wvcalib[det-1])
-        json_file=master_name(mdir, 'wave_calib', setup)
+        json_file=master_name('wave_calib', setup)
         with io.open(json_file, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4,
                                        separators=(',', ': '))))
     if 'tilts'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
         arsave.save_master(slf, slf._tilts[det-1],
-                           filename=master_name(mdir, 'tilts', setup),
+                           filename=master_name('tilts', setup),
                            frametype='tilts')
 
 def user_master_name(mdir, input_name):

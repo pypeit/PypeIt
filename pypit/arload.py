@@ -200,7 +200,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
         if msbias is not None:
             if type(msbias) is np.ndarray:
                 temp -= msbias  # Subtract the master bias frame
-            elif type(msbias) is str:
+            elif isinstance(msbias,basestring):
                 if msbias == "overscan":
                     arproc.sub_overscan(temp, det)
                 else:

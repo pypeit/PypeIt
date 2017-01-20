@@ -45,11 +45,16 @@ exposure standard files have been identified.
 Settings
 ========
 
-PYPIT identifies calibration files that are closest in time to every individual science frame.  You can place an upper limit on the time window that PYPIT uses to search for calibrations but setting the keyword::
+PYPIT identifies calibration files that are closest in time to every
+individual science frame.
+You can place an upper limit on the time window that PYPIT uses to search
+for calibrations but setting the keyword::
 
      fits calwin 12.0
 
-which will search for calibrations that were taken within +/-12 hours from a science frame.
+which will search for calibrations that were taken within +/-12 hours
+from a science frame.  See docs on :ref:`calwin` for a further
+discussion.
 
 The primary settings you need to specify at this stage are:
 
@@ -62,6 +67,23 @@ The primary settings you need to specify at this stage are:
 For the second issue, see :ref:`modifying_frametype`.
 
 For the first issue see below:
+
+.. _calwin:
+
+calwin
+------
+
+When associating calibration files to a given science frame,
+PYPIT will restrict to data within a window in time.  This
+is specified by a `calwin` parameter which has a default
+value of 12 (hours) for most instruments.  One can turn
+off this restriction by setting the value to 0 in
+the :ref:`spect_block`::
+
+    fits calwin 0
+
+This is the default for :ref:`LRISb` and
+may become the default for all instruments.
 
 Calib number
 ------------

@@ -25,5 +25,5 @@ def test_master_name():
             exten = 'json'
         else:
             exten = 'fits'
-        assert armasters.master_name('MasterFrames', itype, '01') == 'MasterFrames/Master{:s}_01.{:s}'.format(isuff,exten)
+        assert armasters.master_name(itype, '01', mdir='MasterFrames') == 'MasterFrames/Master{:s}_01.{:s}'.format(isuff,exten)
 

@@ -120,7 +120,7 @@ def calc_offset(raA, decA, raB, decB, distance=False):
         return delRA, delDEC
 
 
-def dummy_fitsdict(nfile=10, spectrograph='kast_blue'):
+def dummy_fitsdict(nfile=10, spectrograph='kast_blue', directory='./'):
     """
     Parameters
     ----------
@@ -135,7 +135,7 @@ def dummy_fitsdict(nfile=10, spectrograph='kast_blue'):
     """
     fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
     fitsdict['utc'] = ['2015-01-23']*nfile
-    fitsdict['directory'] = ['./']*nfile
+    fitsdict['directory'] = [directory]*nfile
     fitsdict['filename'] = ['b{:03d}.fits'.format(i) for i in range(nfile)]
     fitsdict['date'] = ['2015-01-23T00:{:02d}:11.04'.format(i) for i in range(nfile)]  # Will fail at 60
     fitsdict['time'] = [(1432085758+i*60)/3600. for i in range(nfile)]
@@ -398,6 +398,29 @@ def func_val(c, x, func, minv=None, maxv=None):
     else:
         msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                    "Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
+
+
+def calc_fit_rms(xfit, yfit, fit, func, minv=None, maxv=None):
+    """ Simple RMS calculation
+
+    Parameters
+    ----------
+    xfit : ndarray
+    yfit : ndarray
+    fit : coefficients
+    func : str
+    minv : float, optional
+    maxv : float, optional
+
+    Returns
+    -------
+    rms : float
+
+    """
+    values = func_val(fit, xfit, func, minv=minv, maxv=maxv)
+    rms = np.std(yfit-values)
+    # Return
+    return rms
 
 
 def func_vander(x, func, deg, minv=None, maxv=None):

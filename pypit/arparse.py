@@ -472,7 +472,7 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['fit', 'simple']
+        allowed = ['fit', 'simple', 'arclines']
         v = key_allowed(v, allowed)
         self.update(v)
 
@@ -2400,8 +2400,8 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_float(v)
-        if v <= 0.0:
-            msgs.error("The calibration time window must be > 0.0")
+        #if v <= 0.0:
+        #    msgs.error("The calibration time window must be > 0.0")
         self.update(v)
 
     def fits_dataext(self, v):
