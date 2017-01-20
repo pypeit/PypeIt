@@ -389,7 +389,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     #plt.show()
     nobj = objl.size
     if msgs._debug['trace_obj']:
-        nobj = 1
+        debugger.set_trace()
+        #nobj = 1
     if nobj==1:
         msgs.info("Found {0:d} object".format(objl.size))
         msgs.info("Tracing {0:d} object".format(objl.size))
@@ -490,7 +491,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
         rec_bg_img[:,:,o] = rec_img.copy()
         #arutils.ds9plot(rec_img)
     # Save the quality control
-    if doqa:
+    if doqa and (not msgs._debug['no_qa']):
         arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, root="object_trace", normalize=False)
     # Trace dict
     tracedict = dict({})
@@ -1295,8 +1296,24 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
                trthrsh=1000.0, nsmth=0, method = "fweight"):
     """
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
-    nsmth     Number of pixels +/- in the spatial direction to include in the fit (0=no smoothing, 1=3 pixels, 2=5 pixels...)
+               trthrsh=1000.0, nsmth=0):
+
+    Parameters
+    ----------
+    slf
+    det
+    msarc
+    slitnum
+    censpec
+    maskval
+    trthrsh
+    nsmth
     method : str (fweight or cc)
+
+    Returns
+    -------
+    trcdict : dict
+
     """
     def pad_dict(indict):
         """ If an arc line is considered bad, fill the
@@ -1522,6 +1539,37 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             else:
                 pcen = int(0.5 + centv)
                 mtfit[sz-k] = 0
+        '''
+        jxp_fix = False
+        if jxp_fix:
+            from desispec.bootcalib import trace_crude_init
+            from desispec.bootcalib import trace_fweight as dbtf
+            from pypit import ginga
+            pcen = arcdet[j]
+            img = msarc[pcen-nspecfit:pcen+nspecfit+1, ordcen[arcdet[j], slitnum]-sz:ordcen[arcdet[j], slitnum]+sz+1]
+            rot_img = np.rot90(img,3) - 980.  # Bias!
+            #
+            xcen = np.array([6.6]) # 8.5, 173
+            ypass = 173
+            # Tune-up first
+            for ii in range(4):
+                xcen, xsig = dbtf(rot_img, xcen, ycen=np.array([ypass]).astype(int), invvar=None, radius=2.)
+            xset, xerr = trace_crude_init(rot_img, xcen, ypass, invvar=None, radius=3., maxshift0=0.5, maxshift=0.15, maxerr=0.2)
+            #xcen, xsig = dbtf(rot_img, np.array([6.5,6.5]), ycen=np.array([173,173]).astype(int), invvar=None, radius=2.)
+            # Convert back
+            y0 = pcen+nspecfit
+            ycrude = y0 - xset[:,0]
+            #debugger.set_trace()
+            #cytfit = ytfit.copy()
+            #cytfit[np.where(ytfit < 0)] = np.median(cytfit)
+            #debugger.xplot(np.arange(img.shape[1]), ycrude, cytfit)
+            #
+            #trcdict['save_yt'] = ytfit.copy()
+            assert ycrude.size == ytfit.size
+            ytfit = ycrude
+            #debugger.set_trace()
+        '''
+
         if offchip:
             # Don't use lines that go off the chip (could lead to a bad trace)
             aduse[j] = False
@@ -1797,7 +1845,6 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
-
     arccen, maskslit, satmask = get_censpec(slf, msarc, det, gen_satmask=True)
     # If the user sets no tilts, return here
     if settings.argflag['trace']['slits']['tilts']['method'].lower() == "zero":
@@ -1815,6 +1862,10 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
         if trcdict is None:
             # No arc lines were available to determine the spectral tilt
             continue
+        if msgs._debug['tilts']:
+            from pypit import ginga
+            ginga.chk_arc_tilts(msarc, trcdict, sedges=(slf._lordloc[det-1][:,o], slf._rordloc[det-1][:,o]))
+            #debugger.set_trace()
         # Extract information from the trace dictionary
         aduse = trcdict["aduse"]
         arcdet = trcdict["arcdet"]
@@ -2086,7 +2137,8 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
     xdat[np.where(xdat != maskval)] *= (msarc.shape[1] - 1.0)
 
     msgs.info("Plotting arc tilt QA")
-    arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
+    if not msgs._debug['no_qa']:
+        arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
                         textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
     return tilts, satmask, outpar
 

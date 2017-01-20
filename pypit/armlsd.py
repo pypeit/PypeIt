@@ -140,7 +140,8 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._lordpix, lordpix, det)
                 slf.SetFrame(slf._rordpix, rordpix, det)
                 # Save QA for slit traces
-                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges")
+                if not msgs._debug['no_qa']:
+                    arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges")
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
             ###############
@@ -148,12 +149,12 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             update = slf.MasterWaveCalib(fitsdict, sc, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
+            #debugger.set_trace()
             ###############
             # Derive the spectral tilt
             if slf._tilts[det-1] is None:
                 if settings.argflag['reduce']['masters']['reuse']:
-                    mstilt_name = armasters.master_name(settings.argflag['run']['directory']['master'],
-                                                        'tilts', settings.argflag['reduce']['masters']['setup'])
+                    mstilt_name = armasters.master_name('tilts', settings.argflag['reduce']['masters']['setup'])
                     try:
                         tilts, head = arload.load_master(mstilt_name, frametype="tilts")
                     except IOError:
@@ -251,7 +252,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         else:
             msgs.error(save_format + ' is not a recognized output format!')
         # Write 2D images for the Science Frame
-        arsave.save_2d_images(slf)
+        arsave.save_2d_images(slf, fitsdict)
         # Free up some memory by replacing the reduced ScienceExposure class
         sciexp[sc] = None
     return status

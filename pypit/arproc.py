@@ -341,7 +341,8 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     scifrcp[whord] += (maskval*maskpix)[rxargsrt]
     scifrcp[np.where(ordpix == 0)] = maskval
     # Check tilts?
-    if msgs._debug['tilts']:
+    '''
+    if msgs._debug['sky_tilts']:
         gdp = scifrcp != maskval
         debugger.xplot(tilts[gdp]*tilts.shape[0], scifrcp[gdp], scatter=True)
         if False:
@@ -354,6 +355,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
             ax.set_ylim(0., 3000)
             plt.show()
         debugger.set_trace()
+    '''
     #
     msgs.info("Fitting sky background spectrum")
     if settings.argflag['reduce']['skysub']['method'].lower() == 'polyscan':
@@ -812,8 +814,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Flat field the science frame (and variance)
     if settings.argflag['reduce']['flatfield']['perform']:
         msgs.info("Flat fielding the science frame")
-        sciframe, rawvarframe = flatfield(slf, sciframe, slf._mspixelflatnrm[det-1], det,
-                             varframe=rawvarframe)
+        sciframe, rawvarframe = flatfield(slf, sciframe, slf._mspixelflatnrm[det-1], det, varframe=rawvarframe)
     else:
         msgs.info("Not performing a flat field calibration")
     if not standard:
@@ -920,6 +921,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     if (settings.argflag['reduce']['flexure']['method'] is not None) and (not standard):
         flex_dict = arwave.flexure_obj(slf, det)
         arqa.flexure(slf, det, flex_dict)
+
 
     # Final
     if not standard:

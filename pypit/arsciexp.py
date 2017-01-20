@@ -58,7 +58,7 @@ class ScienceExposure:
 
         # Initialize the QA for this science exposure
         qafn = "{0:s}/QA_{1:s}.pdf".format(settings.argflag['run']['directory']['qa'], self._basename)
-        if do_qa:
+        if do_qa and not msgs._debug['no_qa']:
             self._qa = PdfPages(qafn)
 
         # Initialize Variables
@@ -168,8 +168,7 @@ class ScienceExposure:
         if settings.argflag['reduce']['badpix'] == 'bias':
             if settings.argflag['reduce']['masters']['reuse']:
                 # Attempt to load the Master Frame
-                bpix_name = armasters.master_name(settings.argflag['run']['directory']['master'],
-                                                'badpix', settings.argflag['reduce']['masters']['setup'])
+                bpix_name = armasters.master_name('badpix', settings.argflag['reduce']['masters']['setup'])
                 try:
                     bpix, head = arload.load_master(bpix_name, frametype="badpix")
                 except IOError:
@@ -239,8 +238,7 @@ class ScienceExposure:
         if settings.argflag['arc']['useframe'] in ['arc']:
             # Attempt to load the Master Frame
             if settings.argflag['reduce']['masters']['reuse']:
-                msarc_name = armasters.master_name(settings.argflag['run']['directory']['master'],
-                                                    'arc', settings.argflag['reduce']['masters']['setup'])
+                msarc_name = armasters.master_name('arc', settings.argflag['reduce']['masters']['setup'])
                 try:
                     msarc, head = arload.load_master(msarc_name, frametype="arc")
                 except IOError:
@@ -316,8 +314,7 @@ class ScienceExposure:
             # Load from hard-drive?
             if settings.argflag['reduce']['masters']['reuse']:
                 # Attempt to load the Master Frame
-                msbias_name = armasters.master_name(settings.argflag['run']['directory']['master'],
-                                                    'bias', settings.argflag['reduce']['masters']['setup'])
+                msbias_name = armasters.master_name('bias', settings.argflag['reduce']['masters']['setup'])
                 try:
                     msbias, head = arload.load_master(msbias_name, frametype="bias")
                 except IOError:
@@ -416,8 +413,7 @@ class ScienceExposure:
             if settings.argflag['reduce']['flatfield']['useframe'] in ['pixelflat', 'trace']:
                 if settings.argflag['reduce']['masters']['reuse']:
                     # Attempt to load the Master Frame
-                    msflat_name = armasters.master_name(settings.argflag['run']['directory']['master'],
-                                                    'normpixelflat', settings.argflag['reduce']['masters']['setup'])
+                    msflat_name = armasters.master_name('normpixelflat', settings.argflag['reduce']['masters']['setup'])
                     try:
                         mspixelflatnrm, head = arload.load_master(msflat_name, frametype="normpixelflat")
                     except IOError:
@@ -494,8 +490,7 @@ class ScienceExposure:
         if settings.argflag['reduce']['slitcen']['useframe'] in ['trace', 'pinhole']:
             if settings.argflag['reduce']['masters']['reuse']:
                 # Attempt to load the Master Frame
-                mspinhole_name = armasters.master_name(settings.argflag['run']['directory']['master'],
-                                                        'pinhole', settings.argflag['reduce']['masters']['setup'])
+                mspinhole_name = armasters.master_name('pinhole', settings.argflag['reduce']['masters']['setup'])
                 try:
                     mspinhole, head = arload.load_master(mspinhole_name, frametype="pinhole")
                 except IOError:
@@ -562,8 +557,7 @@ class ScienceExposure:
         if settings.argflag['reduce']['trace']['useframe'] in ['trace']:
             if settings.argflag['reduce']['masters']['reuse']:
                 # Attempt to load the Master Frame
-                mstrace_name = armasters.master_name(settings.argflag['run']['directory']['master'],
-                                                    'trace', settings.argflag['reduce']['masters']['setup'])
+                mstrace_name = armasters.master_name('trace', settings.argflag['reduce']['masters']['setup'])
                 try:
                     mstrace, head = arload.load_master(mstrace_name, frametype="trace")
                 except IOError:
@@ -635,8 +629,7 @@ class ScienceExposure:
             return False
         # Attempt to load the Master Frame
         if settings.argflag['reduce']['masters']['reuse']:
-            mswave_name = armasters.master_name(settings.argflag['run']['directory']['master'],
-                                                'wave', settings.argflag['reduce']['masters']['setup'])
+            mswave_name = armasters.master_name('wave', settings.argflag['reduce']['masters']['setup'])
             try:
                 mswave, head = arload.load_master(mswave_name, frametype="arc")
             except IOError:
@@ -677,8 +670,7 @@ class ScienceExposure:
             wv_calib = None
         # Attempt to load the Master Frame
         if settings.argflag['reduce']['masters']['reuse']:
-            mswv_calib_name = armasters.master_name(settings.argflag['run']['directory']['master'],
-                                                    'wave_calib', settings.argflag['reduce']['masters']['setup'])
+            mswv_calib_name = armasters.master_name('wave_calib', settings.argflag['reduce']['masters']['setup'])
             try:
                 wv_calib = arload.load_master(mswv_calib_name, frametype="wv_calib")
             except IOError:
@@ -693,7 +685,10 @@ class ScienceExposure:
             self.SetFrame(self._arcparam, arcparam, det)
             ###############
             # Extract arc and identify lines
-            wv_calib = ararc.simple_calib(self, det)
+            if settings.argflag['arc']['calibrate']['method'] == 'simple':
+                wv_calib = ararc.simple_calib(self, det)
+            elif settings.argflag['arc']['calibrate']['method'] == 'arclines':
+                wv_calib = ararc.calib_with_arclines(self, det)
         # Set
         if wv_calib is not None:
             self.SetFrame(self._wvcalib, wv_calib, det)

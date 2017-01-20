@@ -232,7 +232,8 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
             scitrace['opt_profile'].append({})
             continue
     # QA
-    arqa.obj_profile_qa(slf, specobjs, scitrace)
+    if not msgs._debug['no_qa']:
+        arqa.obj_profile_qa(slf, specobjs, scitrace)
     return scitrace['opt_profile']
 
 

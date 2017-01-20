@@ -122,7 +122,7 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
 
 
 def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
-                extensions=None, keywds=None):
+                extensions=None, keywds=None, names=None):
     """ Write a MasterFrame
     Parameters
     ----------
@@ -131,18 +131,24 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
     filename
     frametype
     ind
-    extensions : list of additional data images
+    extensions : list, optional
+      Additional data images to write
+    names : list, optional
+      Names of the extensions
     keywds : Additional keywords for the Header
     Returns
     -------
     """
     msgs.info("Saving master {0:s} frame as:".format(frametype)+msgs.newline()+filename)
     hdu = pyfits.PrimaryHDU(data)
-    # Extensions
     hlist = [hdu]
+    # Extensions
     if extensions is not None:
-        for exten in extensions:
-            hlist.append(pyfits.ImageHDU(exten))
+        for kk,exten in enumerate(extensions):
+            hdu = pyfits.ImageHDU(exten)
+            if names is not None:
+                hdu.name = names[kk]
+            hlist.append(hdu)
     # HDU list
     hdulist = pyfits.HDUList(hlist)
     # Header
@@ -363,7 +369,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
         for key in getattr(slf._specobjs[det-1][0], ex_method).keys():
             dtype = 'float64' if key == 'wave' else 'float32'
             dtypes.append((str(key), dtype, (totpix)))
-        dtypes.append((str('trace'), 'float32', (totpix)))
+        dtypes.append((str('obj_trace'), 'float32', (totpix)))
         data = np.ma.empty((1,), dtype=dtypes)
         # Setup in hdf5
         spec_set = hdf[str(ex_method)].create_dataset('spec', data=data, chunks=True,
@@ -379,7 +385,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
                 # Check meta
                 assert meta['objid'][count] == specobj.objid
                 # Trace
-                data['trace'][0][:len(specobj.trace)] = specobj.trace
+                data['obj_trace'][0][:len(specobj.trace)] = specobj.trace
                 # Rest
                 sdict = getattr(specobj, ex_method)
                 for key in sdict.keys():
@@ -460,7 +466,7 @@ def save_1d_spectra_fits(slf, clobber=True):
     #    f.write(unicode(json.dumps(slf._sensfunc, sort_keys=True, indent=4, separators=(',', ': '))))
 
 
-def save_2d_images(slf, clobber=True):
+def save_2d_images(slf, fitsdict, clobber=True):
     """ Write 2D images to the hard drive
     Parameters
     ----------
@@ -471,9 +477,40 @@ def save_2d_images(slf, clobber=True):
     -------
 
     """
+    import datetime
+    # Original header
+    scidx = slf._idx_sci[0]
+    path = fitsdict['directory'][scidx]
+    ifile = fitsdict['filename'][scidx]
+    headarr = [None for k in range(settings.spect['fits']['numhead'])]
+    for k in range(settings.spect['fits']['numhead']):
+        headarr[k] = pyfits.getheader(path+ifile, ext=settings.spect['fits']['headext{0:02d}'.format(k+1)])
+
     # Primary header
     prihdu = pyfits.PrimaryHDU()
+    # Update with original header, skipping a few keywords
     hdus = [prihdu]
+    hdukeys = ['BUNIT', 'COMMENT', '', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2',
+               'HISTORY', 'EXTEND', 'DATASEC']
+    for key in headarr[0].keys():
+        # Use new ones
+        if key in hdukeys:
+            continue
+        # Update unused ones
+        prihdu.header[key] = headarr[0][key]
+    # History
+    if 'HISTORY' in headarr[0].keys():
+        # Strip \n
+        tmp = str(headarr[0]['HISTORY']).replace('\n', ' ')
+        prihdu.header.add_history(str(tmp))
+
+    # PYPIT
+    prihdu.header['PIPELINE'] = str('PYPIT')
+    prihdu.header['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
+    setup = settings.argflag['reduce']['masters']['setup'].split('_')
+    prihdu.header['PYPCNFIG'] = str(setup[0])
+    prihdu.header['PYPCALIB'] = str(setup[2])
+    prihdu.header['PYPMFDIR'] = str(settings.argflag['run']['directory']['master']+'_'+settings.argflag['run']['spectrograph'])
 
     ext = 0
     for kk in range(settings.spect['mosaic']['ndet']):
@@ -505,4 +542,4 @@ def save_2d_images(slf, clobber=True):
 
     # Finish
     hdulist = pyfits.HDUList(hdus)
-    hdulist.writeto(settings.argflag['run']['directory']['science']+'/spec2d_{:s}.fits'.format(slf._basename), clobber=clobber)
+    hdulist.writeto(settings.argflag['run']['directory']['science']+'/spec2d_{:s}.fits'.format(slf._basename), overwrite=clobber)

@@ -104,10 +104,10 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
     ax_fit.set_ylabel('Wavelength')
     ax_fit.get_xaxis().set_ticks([]) # Suppress labeling
     # Stats
-    wave_fit = arutils.func_val(fit['fitc'], fit['xfit'], 'legendre', 
+    wave_fit = arutils.func_val(fit['fitc'], fit['xfit'], 'legendre',
         minv=fit['fmin'], maxv=fit['fmax'])
-    dwv_pix = np.median(np.abs(wave-np.roll(wave,1)))
     rms = np.sqrt(np.sum((fit['yfit']-wave_fit)**2)/len(fit['xfit'])) # Ang
+    dwv_pix = np.median(np.abs(wave-np.roll(wave,1)))
     ax_fit.text(0.1*len(arc_spec), 0.90*ymin+(ymax-ymin),
         r'$\Delta\lambda$={:.3f}$\AA$ (per pix)'.format(dwv_pix), size='small')
     ax_fit.text(0.1*len(arc_spec), 0.80*ymin+(ymax-ymin),
@@ -123,9 +123,14 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
 
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    slf._qa.savefig(bbox_inches='tight')
-    plt.close()
+    if slf is not None:
+        slf._qa.savefig(bbox_inches='tight')
+    else:
+        pp.savefig(bbox_inches='tight')
+        pp.close()
+    #plt.close('all')
     return
+
 
 def coaddspec_qa(ispectra, rspec, spec1d, qafile=None):
     """  QA plot for 1D coadd of spectra
@@ -313,7 +318,7 @@ def flexure(slf, det, flex_dict, slit_cen=False):
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
     slf._qa.savefig(bbox_inches='tight')
-    plt.close()
+    #plt.close()
 
     return
 
@@ -435,7 +440,7 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, root='trace', outfil=None, normaliz
         plt.text(rtrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='green', ha='center')
 
     slf._qa.savefig(bbox_inches='tight')
-    plt.close()
+    #plt.close()
 
 
 def obj_profile_qa(slf, specobjs, scitrace):
@@ -477,7 +482,7 @@ def obj_profile_qa(slf, specobjs, scitrace):
                 transform=ax.transAxes, size='large', ha='left')
 
     slf._qa.savefig(bbox_inches='tight')
-    plt.close()
+    #plt.close()
 
 
 def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit", maxp=4, desc="", maskval=-999999.9):
@@ -575,7 +580,7 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit", ma
             f.suptitle(desc + pgtxt, y=1.02, size=16)
         f.tight_layout()
         slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
-        plt.close()
+        #plt.close()
         f.clf()
     del f
     return
@@ -678,7 +683,7 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
     slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
     #pp.savefig()
     #pp.close()
-    plt.close()
+    #plt.close('all')
 
 
 def set_fonts(ax):

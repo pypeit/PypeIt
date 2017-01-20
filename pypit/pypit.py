@@ -23,8 +23,7 @@ except ImportError:
 
 def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosity=1,
           use_masters=False, logname=None):
-    """
-    Main driver of the PYPIT code. Default settings and
+    """ Main driver of the PYPIT code. Default settings and
     user-specified changes are made, and passed to the
     appropriate code for data reduction.
 
