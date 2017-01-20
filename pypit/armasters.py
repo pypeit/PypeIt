@@ -140,7 +140,7 @@ def save_masters(slf, det, setup):
         extensions = [slf._lordloc[det-1], slf._rordloc[det-1],
                       slf._pixcen[det-1], slf._pixwid[det-1],
                       slf._lordpix[det-1], slf._rordpix[det-1]]
-        names = ['LeftEdges', 'RightEdges', 'Pixcen', 'Pixwid', 'LordPix', 'RordtPix']
+        names = ['LeftEdges_det', 'RightEdges_det', 'SlitCentre', 'SlitLength', 'LeftEdges_pix', 'RightEdges_pix']
         arsave.save_master(slf, slf._mstrace[det-1],
                            filename=master_name('trace', setup),
                            frametype='trace', extensions=extensions, names=names)

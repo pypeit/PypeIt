@@ -12,6 +12,8 @@ This file summarizes several instrument specific
 settings that are related to the Keck/LRIS spectrograph.
 
 
+.. _LRISb:
+
 LRISb
 =====
 
@@ -21,7 +23,6 @@ for LRISb::
     settings trace dispersion direction 0
     settings trace slits tilts method spca
     settings trace slits tilts params 1,1,1
-    settings reduce skysub method bspline
 
 
 

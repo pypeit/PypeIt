@@ -60,7 +60,7 @@ any objects extracted.  It should be called from the reduction
 directory, i.e. above the Science folder where the spec2d image
 is located.  Here is the usage::
 
-    wolverine-6.local> pypit_show_2dspec -h
+    unix> pypit_show_2dspec -h
     usage: pypit_show_2dspec [-h] [--list] [--det DET] file
 
     Display spec2d image in a Ginga viewer
@@ -101,7 +101,7 @@ pypit_lowrdx_pixflat
 
 Convert a LowRedux pixel flat into a PYPIT ready file::
 
-    wolverine.ucolick.org> pypit_lowrdx_pixflat -h
+    unix> pypit_lowrdx_pixflat -h
     usage: pypit_lowrdx_pixflat [-h] lowrdx_file new_file
 
     positional arguments:

@@ -104,10 +104,10 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
     ax_fit.set_ylabel('Wavelength')
     ax_fit.get_xaxis().set_ticks([]) # Suppress labeling
     # Stats
-    wave_fit = arutils.func_val(fit['fitc'], fit['xfit'], 'legendre', 
+    wave_fit = arutils.func_val(fit['fitc'], fit['xfit'], 'legendre',
         minv=fit['fmin'], maxv=fit['fmax'])
-    dwv_pix = np.median(np.abs(wave-np.roll(wave,1)))
     rms = np.sqrt(np.sum((fit['yfit']-wave_fit)**2)/len(fit['xfit'])) # Ang
+    dwv_pix = np.median(np.abs(wave-np.roll(wave,1)))
     ax_fit.text(0.1*len(arc_spec), 0.90*ymin+(ymax-ymin),
         r'$\Delta\lambda$={:.3f}$\AA$ (per pix)'.format(dwv_pix), size='small')
     ax_fit.text(0.1*len(arc_spec), 0.80*ymin+(ymax-ymin),
