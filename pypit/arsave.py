@@ -369,7 +369,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
         for key in getattr(slf._specobjs[det-1][0], ex_method).keys():
             dtype = 'float64' if key == 'wave' else 'float32'
             dtypes.append((str(key), dtype, (totpix)))
-        dtypes.append((str('trace'), 'float32', (totpix)))
+        dtypes.append((str('obj_trace'), 'float32', (totpix)))
         data = np.ma.empty((1,), dtype=dtypes)
         # Setup in hdf5
         spec_set = hdf[str(ex_method)].create_dataset('spec', data=data, chunks=True,
