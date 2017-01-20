@@ -123,14 +123,22 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             if ('trace'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']):
                 ###############
                 # Determine the centroid of the spectrum (spatial)
-                lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mspinhole[det-1], det,
-                                                               pcadesc="PCA trace of the slit edges")
+                if False:
+                    lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mspinhole[det-1], det,
+                                                                   pcadesc="PCA trace of the slit edges")
 
-                # Using the order centroid, expand the order edges until the edge of the science slit is found
-                if settings.argflag['trace']['slits']['expand']:
-                    lordloc, rordloc = artrace.expand_slits(slf, slf._mstrace[det-1], det,
-                                                            0.5*(lordloc+rordloc), extord)
+                    # Using the order centroid, expand the order edges until the edge of the science slit is found
+                    if settings.argflag['trace']['slits']['expand']:
+                        lordloc, rordloc = artrace.expand_slits(slf, slf._mstrace[det-1], det,
+                                                                0.5*(lordloc+rordloc), extord)
 
+                    np.save("lordloc", lordloc)
+                    np.save("rordloc", rordloc)
+                    np.save("extord", extord)
+                else:
+                    lordloc = np.load("lordloc.npy")
+                    rordloc = np.load("rordloc.npy")
+                    extord = np.load("extord.npy")
                 # Save the locations of the order edges
                 slf.SetFrame(slf._lordloc, lordloc, det)
                 slf.SetFrame(slf._rordloc, rordloc, det)
