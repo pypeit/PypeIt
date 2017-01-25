@@ -2331,3 +2331,59 @@ def slit_image(slf, det, scitrace, obj, tilts=None):
     slit_img[neg] *= -1
     # Return
     return slit_img
+
+
+def slit_profile(slf, mstrace, det):
+    """ Generate an image of the spatial slit profile.
+
+    Parameters
+    ----------
+    slf : class
+      Science Exposure Class
+    mstrace : ndarray
+      Master trace frame that is used to trace the slit edges.
+    det : int
+      Detector index
+
+    Returns
+    -------
+    slit_profile : ndarray
+      An image containing the slit profile
+    """
+    from pypit import arcytrace
+
+    nslits = slf._lordloc[det - 1].shape[1]
+    msgs.work("Multiprocess this step to increase speed")
+    for o in range(nslits):
+        lordloc = slf._lordloc[det - 1][:, o]
+        rordloc = slf._rordloc[det - 1][:, o]
+        ordloc = arcytrace.locate_order(lordloc, rordloc, mstrace.shape[0], mstrace.shape[1], 2)
+        word = np.where(ordloc != 0)
+        spatval = word[0]
+        specval = slf._tilts[det-1][word]
+        fluxval = mstrace[word]
+        tckx = np.linspace()
+        tcky = np.linspace()
+        tck, fp, ier, msgval = interp.bisplrep(spatval, specval, fluxval, task=-1, tx=, ty=)
+        if ier > 0:
+            msgs.error("There was an error with the 2D bspline fit for the slit profile:" + msgs.newline() +
+                       msgval)
+    # Setup
+    if tilts is None:
+        tilts = slf._tilts[det-1]
+    ximg = np.outer(np.ones(tilts.shape[0]), np.arange(tilts.shape[1]))
+    dypix = 1./tilts.shape[0]
+    #  Trace
+    xtrc = np.round(scitrace['traces'][:,obj]).astype(int)
+    msgs.work("Use 2D spline to evaluate tilts")
+    trc_tilt = tilts[np.arange(tilts.shape[0]), xtrc]
+    trc_tilt_img = np.outer(trc_tilt, np.ones(tilts.shape[1]))
+    # Slit image
+    msgs.work("Should worry about changing plate scale")
+    dy = (tilts - trc_tilt_img)/dypix  # Pixels
+    dx = ximg - np.outer(scitrace['traces'][:,obj],np.ones(tilts.shape[1]))
+    slit_img = np.sqrt(dx**2 - dy**2)
+    neg = dx < 0.
+    slit_img[neg] *= -1
+    # Return
+    return slit_img
