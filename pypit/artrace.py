@@ -1,14 +1,12 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import numpy as np
-import os
 import copy
 from pypit import arqa
 from pypit import ararc
 from pypit import armsgs
 from pypit import arutils
 from pypit import arpca
-from pypit import arplot
 from pypit import arparse as settings
 import matplotlib.pyplot as plt
 import scipy.interpolate as interp
@@ -2353,37 +2351,38 @@ def slit_profile(slf, mstrace, det):
     from pypit import arcytrace
 
     nslits = slf._lordloc[det - 1].shape[1]
+    slit_profiles = np.zeros_like(mstrace)
+    # Set the number of ticks in the spectral direction
+    ntcky = 20  # Default value
+    if settings.argflag["reduce"]["slitprofile"]["method"] == "bspline":
+        ntcky = settings.argflag["reduce"]["slitprofile"]["params"][0]
+        if settings.argflag["reduce"]["slitprofile"]["params"][0] < 1.0:
+            ntcky = int(1.0/ntcky)+0.5
     msgs.work("Multiprocess this step to increase speed")
     for o in range(nslits):
+        msgs.info("Deriving the spatial profile for slit {0:d}".format(o+1))
         lordloc = slf._lordloc[det - 1][:, o]
         rordloc = slf._rordloc[det - 1][:, o]
-        ordloc = arcytrace.locate_order(lordloc, rordloc, mstrace.shape[0], mstrace.shape[1], 2)
+        ordloc = arcytrace.locate_order(lordloc, rordloc, mstrace.shape[0], mstrace.shape[1], 0)
         word = np.where(ordloc != 0)
-        spatval = word[0]
+        spatval = (word[1] - lordloc[word[0]])/(rordloc[word[0]] - lordloc[word[0]])
         specval = slf._tilts[det-1][word]
         fluxval = mstrace[word]
-        tckx = np.linspace()
-        tcky = np.linspace()
-        tck, fp, ier, msgval = interp.bisplrep(spatval, specval, fluxval, task=-1, tx=, ty=)
-        if ier > 0:
-            msgs.error("There was an error with the 2D bspline fit for the slit profile:" + msgs.newline() +
-                       msgval)
-    # Setup
-    if tilts is None:
-        tilts = slf._tilts[det-1]
-    ximg = np.outer(np.ones(tilts.shape[0]), np.arange(tilts.shape[1]))
-    dypix = 1./tilts.shape[0]
-    #  Trace
-    xtrc = np.round(scitrace['traces'][:,obj]).astype(int)
-    msgs.work("Use 2D spline to evaluate tilts")
-    trc_tilt = tilts[np.arange(tilts.shape[0]), xtrc]
-    trc_tilt_img = np.outer(trc_tilt, np.ones(tilts.shape[1]))
-    # Slit image
-    msgs.work("Should worry about changing plate scale")
-    dy = (tilts - trc_tilt_img)/dypix  # Pixels
-    dx = ximg - np.outer(scitrace['traces'][:,obj],np.ones(tilts.shape[1]))
-    slit_img = np.sqrt(dx**2 - dy**2)
-    neg = dx < 0.
-    slit_img[neg] *= -1
+        tckx = np.linspace(np.min(spatval), np.max(spatval), 2*slf._pixwid[det - 1][o])
+        tcky = np.linspace(np.min(specval), np.max(specval), ntcky)
+        modspl = interp.LSQBivariateSpline(spatval, specval, fluxval, tckx, tcky)
+        modvals = modspl.ev(spatval, specval)
+        if msgs._debug['slit_profile'] and o == 30:
+            model = np.zeros_like(mstrace)
+            model[word] = modvals
+            diff = mstrace - model
+            import astropy.io.fits as pyfits
+            hdu = pyfits.PrimaryHDU(mstrace)
+            hdu.writeto("mstrace_{0:02d}.fits".format(det))
+            hdu = pyfits.PrimaryHDU(model)
+            hdu.writeto("model_{0:02d}.fits".format(det))
+            hdu = pyfits.PrimaryHDU(diff)
+            hdu.writeto("diff_{0:02d}.fits".format(det))
+        slit_profiles[word] = modvals
     # Return
-    return slit_img
+    return slit_profiles
