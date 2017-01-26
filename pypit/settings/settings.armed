@@ -40,7 +40,7 @@ reduce skysub method bspline     # Method used for the sky subtraction
 reduce skysub bspline everyn 20  # bspline fitting parameters
 reduce slitprofile perform True    # Determine the spatial slit profile
 reduce slitprofile method bspline  # Method used for the spatial slit profile
-reduce slitprofile params [0.05]   # Slit profile method parameters (bspline: [spacing], or [fraction of spectral pixels])
+reduce slitprofile params [0.1]   # Slit profile method parameters (bspline: [spacing], or [fraction of spectral pixels])
 reduce trim True                # Trim the frame to isolate the data
 
 # ARC FRAMES
