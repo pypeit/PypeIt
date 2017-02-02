@@ -48,6 +48,7 @@ def load_headers(datlines):
     whddict = dict({})
     for k in keys:
         fitsdict[k]=[]
+    allhead = []
     headarr = [None for k in range(settings.spect['fits']['numhead'])]
     numfiles = len(datlines)
     for i in range(numfiles):
@@ -58,6 +59,10 @@ def load_headers(datlines):
                 whddict['{0:02d}'.format(settings.spect['fits']['headext{0:02d}'.format(k+1)])] = k
         except:
             msgs.error("Error reading header from extension {0:d} of file:".format(settings.spect['fits']['headext{0:02d}'.format(k+1)])+msgs.newline()+datlines[i])
+        # Save
+        for k in range(settings.spect['fits']['numhead']):
+            tmp = [head.copy() for head in headarr]
+            allhead.append(tmp)
         # Perform checks on each fits files, as specified in the settings.instrument file.
         skip = False
         for ch in chks:
@@ -146,7 +151,6 @@ def load_headers(datlines):
                 msgs.bug("I didn't expect useful headers to contain type {0:s}".format(typv).replace('<type ','').replace('>',''))
 
         msgs.info("Successfully loaded headers for file:"+msgs.newline()+datlines[i])
-    del headarr
     # Convert the fitsdict arrays into numpy arrays
     for k in fitsdict.keys():
         fitsdict[k] = np.array(fitsdict[k])
@@ -156,6 +160,8 @@ def load_headers(datlines):
     if numfiles == 0:
         msgs.error("The headers could not be read from the input data files." + msgs.newline() +
                    "Please check that the settings file matches the data.")
+    # Return
+    fitsdict['headers'] = allhead
     return fitsdict
 
 
@@ -193,7 +199,9 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
         if settings.argflag['run']['spectrograph'] in ['lris_blue', 'lris_red']:
             temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         else:
-            temp = pyfits.getdata(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], settings.spect['fits']['dataext'])
+            hdulist = pyfits.open(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]])
+            temp = hdulist[settings.spect['fits']['dataext']].data
+            head0 = hdulist[0].header
         temp = temp.astype(np.float)  # Let us avoid uint16
         if settings.argflag['trace']['dispersion']['direction'] == 1:
             temp = temp.T
@@ -207,12 +215,14 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
                     msgs.error("Could not subtract bias level when loading {0:s} frames".format(frametype))
             if trim:
                 temp = arproc.trim(temp, det)
+        # Save image
         if i == 0:
             frames = np.zeros((temp.shape[0], temp.shape[1], np.size(ind)))
             frames[:,:,i] = temp.copy()
         else:
             frames[:,:,i] = temp.copy()
         del temp
+
 #	pool = mpPool(processes=np.min([settings.argflag['run']['ncpus'],np.size(ind)]))
 #	async_results = []
 #	for i in range(np.size(ind)):
