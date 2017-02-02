@@ -182,6 +182,8 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
 
+            artrace.slit_profile(slf, slf._mstrace[det - 1], det)
+
             ###############
             # Prepare the pixel flat field frame
             update = slf.MasterFlatField(fitsdict, det)
