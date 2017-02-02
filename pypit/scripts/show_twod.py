@@ -64,7 +64,7 @@ def main(args):
     trc_hdu = fits.open(trc_file)
     lordloc = trc_hdu[1].data  # Should check name
     rordloc = trc_hdu[2].data  # Should check name
-    pyp_ginga.show_slits(viewer, ch, lordloc, rordloc, args.det)
+    pyp_ginga.show_slits(viewer, ch, lordloc, rordloc)#, args.det)
 
     # Object traces
     spec1d_file = args.file.replace('spec2d', 'spec1d')

@@ -6,6 +6,7 @@ import os
 import numpy as np
 
 from pypit import armsgs
+from pypit import pyputils
 
 try:
     from xastropy.xutils import xdebug as debugger
@@ -18,6 +19,11 @@ except NameError:
 
 # Logging
 msgs = armsgs.get_logger()
+'''
+if msgs is None:  # For usage outside of PYPIT
+    msgs = pyputils.get_dummy_logger()
+    armsgs.pypit_logger = msgs
+'''
 
 
 def connect_to_ginga(host='localhost', port=9000):
@@ -39,7 +45,7 @@ def connect_to_ginga(host='localhost', port=9000):
     # Test
     ginga = viewer.shell()
     try:
-        ginga.fileinfo()
+        tmp = ginga.get_current_workspace()
     except:
         msgs.warn("Problem connecting to Ginga.  Launch an RC Ginga viewer then continue.")
         debugger.set_trace()
@@ -47,18 +53,35 @@ def connect_to_ginga(host='localhost', port=9000):
     return viewer
 
 
-def show_image(img, chname='Image'):
+def show_image(inp, chname='Image', **kwargs):
     """ Displays input image in Ginga viewer
     Supersedes method in xastropy
 
     Parameters
     ----------
-    img : ndarray (2D)
+    inp : str or ndarray (2D)
+      If str, assumes the image is written to disk
 
     Returns
     -------
 
     """
+    from astropy.io import fits
+    from pypit import arlris
+    if isinstance(inp, basestring):
+        if '.fits' in inp:
+            if 'raw_lris' in kwargs.keys():
+                img, head, _ = arlris.read_lris(inp)
+            else:
+                hdu = fits.open(inp)
+                try:
+                    exten = kwargs['exten']
+                except KeyError:
+                    exten = 0
+                img = hdu[exten].data
+    else:
+        img = inp
+
     viewer = connect_to_ginga()
     ch = viewer.channel(chname)
     name='image'
@@ -66,7 +89,7 @@ def show_image(img, chname='Image'):
     return viewer, ch
 
 
-def show_slits(viewer, ch, lordloc, rordloc, det):
+def show_slits(viewer, ch, lordloc, rordloc):
     """ Overplot slits on image in Ginga
     Parameters
     ----------
@@ -74,7 +97,6 @@ def show_slits(viewer, ch, lordloc, rordloc, det):
     ch
     lordloc
     rordloc
-    det
 
     Returns
     -------
