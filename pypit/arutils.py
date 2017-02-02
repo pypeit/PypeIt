@@ -1081,6 +1081,61 @@ def subsample(frame):
     indices = coordinates.astype('i')
     return frame[tuple(indices)]
 
+def trace_gweight(fimage, xcen, ycen, sigma, invvar=None):
+    """ Port of SDSS trace_gweight algorithm
+    Parameters
+    ----------
+    fimage
+    xcen
+    ycen
+    sigma
+    invvar
+
+    Returns
+    -------
+    xnew
+    xerr
+
+    """
+    from scipy.special import erf
+    # Setup
+    nx = fimage.shape[1]
+    ncen = xcen.size
+    xnew = xcen.copy()
+    xerr = 0.0 * xnew # Allocate memory
+
+    if invvar is None:
+        invvar = np.ones_like(fimage)
+
+    # More setting up
+    x_int = np.round(xcen).astype(int)
+    nstep = 2*int(3.0*sigma) - 1
+
+    weight = np.zeros_like(xcen)
+    numer  = np.zeros_like(xcen)
+    meanvar = np.zeros_like(xcen)
+    bad = np.zeros_like(ncen).astype(bool)
+
+    for i in range(nstep):
+        xh = x_int - nstep/2 + i
+        xtemp = (xh - xcen - 0.5)/sigma/np.sqrt(2.0)
+        g_int = (erf(xtemp+1./sigma/np.sqrt(2.0)) - erf(xtemp))/2.
+        xs = np.minimum(np.maximum(xh,0),(nx-1))
+        cur_weight = fimage[ycen, xs] * (invvar[ycen, xs] > 0) * g_int * (
+            (xh >= 0) & (xh < nx))
+        weight += cur_weight
+        numer += cur_weight * xh
+        meanvar += cur_weight * cur_weight * (xcen-xh)**2 / (
+                            invvar[ycen, xs] + (invvar[ycen, xs] == 0))
+        bad = np.any([bad,xh < 0,xh >= nx], axis=0)
+
+    xerr[:] = 999.0
+    good = np.where((~bad) and weight > 0)
+    if len(good) > 0:
+        xnew[good] = numer[good]/weight[good]
+        xerr[good] = np.sqrt(meanvar[good])/weight[good]
+    # Return
+    return xnew, xerr
 
 def yamlify(obj, debug=False):
     """Recursively process an object so it can be serialised for yaml.
