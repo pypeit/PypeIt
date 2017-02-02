@@ -226,7 +226,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     elif spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMED':
         msgs.info("Data reduction will be performed using PYPIT-ARMED")
         from pypit import armed
-        status = armed.ARMED(fitsdict)
+        status = armed.ARMED(fitsdict, allhead)
     # Check for successful reduction
     if status == 0:
         msgs.info("Data reduction complete")
