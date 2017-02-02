@@ -16,10 +16,7 @@ from pypit import arqa
 from pypit import arpca
 from pypit import arwave
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except ImportError:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 # Logging
 msgs = armsgs.get_logger()

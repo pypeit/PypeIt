@@ -18,9 +18,6 @@ from collections import Counter
 # Logging
 msgs = armsgs.get_logger()
 
-#try:
-#    from xastropy.xutils import xdebug as debugger
-#except ImportError:
 from pypit import ardebug as debugger
 
 

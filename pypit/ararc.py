@@ -11,11 +11,7 @@ from pypit import arqa
 from matplotlib import pyplot as plt
 import os
 
-
-try:
-    from xastropy.xutils import xdebug as debugger
-except ImportError:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 # Logging
 msgs = armsgs.get_logger()

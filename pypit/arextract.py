@@ -11,10 +11,7 @@ from pypit import arqa
 # Logging
 msgs = armsgs.get_logger()
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except ImportError:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 # MASK VALUES FROM EXTRACTION
 # 0 

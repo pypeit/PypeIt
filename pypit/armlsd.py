@@ -17,10 +17,7 @@ from pypit import arqa
 
 from linetools import utils as ltu
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 # Logging
 msgs = armsgs.get_logger()

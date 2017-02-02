@@ -23,10 +23,7 @@ plt.rcParams['font.family']= 'times new roman'
 ticks_font = matplotlib.font_manager.FontProperties(family='times new roman',
                                                     style='normal', size=16, weight='normal', stretch='normal')
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except ImportError:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 
 def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
