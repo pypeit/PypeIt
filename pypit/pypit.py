@@ -192,7 +192,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
 
     # Load the important information from the fits headers
     from pypit import arload
-    fitsdict = arload.load_headers(datlines)
+    fitsdict, allhead = arload.load_headers(datlines)
 
     # If the dispersion direction is 1, flip the axes
     if arparse.argflag['trace']['dispersion']['direction'] == 1:
@@ -222,7 +222,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     if spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMLSD':
         msgs.info("Data reduction will be performed using PYPIT-ARMLSD")
         from pypit import armlsd
-        status = armlsd.ARMLSD(fitsdict)
+        status = armlsd.ARMLSD(fitsdict, allhead)
     elif spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMED':
         msgs.info("Data reduction will be performed using PYPIT-ARMED")
         from pypit import armed

@@ -26,7 +26,7 @@ except:
 msgs = armsgs.get_logger()
 
 
-def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
+def ARMLSD(fitsdict, allhead, reuseMaster=False, reloadMaster=True):
     """
     Automatic Reduction and Modeling of Long Slit Data
 
@@ -195,7 +195,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             ###############
             # Load the science frame and from this generate a Poisson error frame
             msgs.info("Loading science frame")
-            sciframe, headers = arload.load_frames(fitsdict, [scidx], det,
+            sciframe = arload.load_frames(fitsdict, [scidx], det,
                                           frametype='science',
                                           msbias=slf._msbias[det-1])
             sciframe = sciframe[:, :, 0]
