@@ -30,25 +30,17 @@ The standard algorithm performs the following steps:
 
 2. Smooth this 2D image
 
-3. Perform sigma clipping (median stat) down the wavelength
-dimension to further reject CRs.  This may eliminate bright
-emission lines.
+3. Perform sigma clipping (median stat) down the wavelength dimension to further reject CRs.  This may eliminate bright emission lines.
 
-4.  Smash the 2D image into a 1D array aligned with the
-slit (i.e. spatial dimension).
+4.  Smash the 2D image into a 1D array aligned with the slit (i.e. spatial dimension).
 
-5.  Perform an initial search for objects by fitting a low-order
-polynomial to the slit array and associate objects with pixels
-that are deviant with that fit.
+5.  Perform an initial search for objects by fitting a low-order polynomial to the slit array and associate objects with pixels that are deviant with that fit.
 
-6.  Estimate the scatter in the slit array and then
-define all 5 sigma, positive excursion as objects (with
-3 sigma edges).
+6.  Estimate the scatter in the slit array and then define all 5 sigma, positive excursion as objects (with 3 sigma edges).
 
 7.  Eliminate any objects within a few percent of the slit edge.
 
-8.  Optional: Restrict to maximum number of input objects,
- ordered by flux.
+8.  Optional: Restrict to maximum number of input objects, ordered by flux.
 
 By-hand
 -------
