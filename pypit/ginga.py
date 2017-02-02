@@ -8,7 +8,8 @@ import numpy as np
 from pypit import armsgs
 from pypit import pyputils
 
-from pypit import ardebug as debugger
+# CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
+#from pypit import ardebug as debugger
 
 try:
     basestring
