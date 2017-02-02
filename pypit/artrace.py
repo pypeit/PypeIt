@@ -933,6 +933,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     else: # There's an order overlap
         rsub = edgbtwn[1]-(lval)
     """
+    debugger.set_trace()
     if mnvalp > mnvalm:
         lvp = (arutils.func_val(lcoeff[:, lval+1-lmin], xv, settings.argflag['trace']['slits']['function'],
                                 minv=minvf, maxv=maxvf)+0.5).astype(np.int)
@@ -994,7 +995,10 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     msgs.info("Relabelling slit edges")
     rsub = int(round(rsub))
     msgs.warn("KLUDGE HERE")
-    rsub = -1
+    if det == 1:
+        rsub = -1
+    else:
+        debugger.set_trace()
     if lmin < rmin-rsub:
         esub = lmin - (settings.argflag['trace']['slits']['pca']['extrapolate']['neg']+1)
     else:
