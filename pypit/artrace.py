@@ -101,7 +101,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
             shft += offs  # Apply the offset to the edgehist arr
             arcytrace.edge_sum(edgehist, shft)
             # Smooth the histogram with a Gaussian of standard deviation 1 pixel to reduce noise
-            smedgehist = ndimage.gaussian_filter1d(edgehist, 2)
+            smedgehist = ndimage.uniform_filter1d(edgehist, 3)
             # Identify peaks (which indicate the locations of the right slit edges)
             arrlfr = smedgehist[0:-4]
             arrlft = smedgehist[1:-3]
@@ -786,6 +786,55 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     # Update edgearr
     edgearr = edgearrcp.copy()
     iterate = True
+    # Get the final estimates of left and right edges
+    eaunq = np.unique(edgearr)
+    lcnt = np.where(eaunq < 0)[0].size
+    rcnt = np.where(eaunq > 0)[0].size
+    if lcnt == 0:
+        msgs.warn("Unable to find a left edge. Adding one in.")
+        edgearr[:, 0] = -2 * ednum
+        lcnt = 1
+    if rcnt == 0:
+        msgs.warn("Unable to find a right edge. Adding one in.")
+        edgearr[:, -1] = 2 * ednum
+        rcnt = 1
+    if (lcnt == 1) & (rcnt > 1):
+        msgs.warn("Only one left edge, and multiple right edges.")
+        msgs.info("Restricting right edge detection to the most significantly detected edge.")
+        wtst = np.where(eaunq > 0)[0]
+        bval, bidx = -np.median(siglev[np.where(edgearr == eaunq[wtst[0]])]), 0
+        for r in range(1, rcnt):
+            wed = np.where(edgearr == eaunq[wtst[r]])
+            tstv = -np.median(siglev[wed])
+            if tstv > bval:
+                bval = tstv
+                bidx = r
+        edgearr[np.where((edgearr > 0) & (edgearr != eaunq[wtst[bidx]]))] = 0
+        edgearr[np.where(edgearr > 0)] = +ednum  # Reset the edge value
+        rcnt = 1
+    if (lcnt > 1) & (rcnt == 1):
+        msgs.warn("Only one right edge, and multiple left edges.")
+        msgs.info("Restricting left edge detection to the most significantly detected edge.")
+        wtst = np.where(eaunq < 0)[0]
+        bval, bidx = np.median(siglev[np.where(edgearr == eaunq[wtst[0]])]), 0
+        for r in range(1, lcnt):
+            wed = np.where(edgearr == eaunq[wtst[r]])
+            tstv = np.median(siglev[wed])
+            if tstv > bval:
+                bval = tstv
+                bidx = r
+        edgearr[np.where((edgearr < 0) & (edgearr != eaunq[wtst[bidx]]))] = 0
+        edgearr[np.where(edgearr < 0)] = -ednum  # Reset the edge value
+        lcnt = 1
+    if lcnt == 1:
+        letxt = "edge"
+    else:
+        letxt = "edges"
+    if rcnt == 1:
+        retxt = "edge"
+    else:
+        retxt = "edges"
+    msgs.info("{0:d} left {1:s} and {2:d} right {3:s} were found in the trace".format(lcnt, letxt, rcnt, retxt))
     while iterate:
         # Calculate the minimum and maximum left/right edges
         ww = np.where(edgearr < 0)
