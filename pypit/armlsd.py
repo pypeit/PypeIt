@@ -146,7 +146,7 @@ def ARMLSD(fitsdict, allhead, reuseMaster=False, reloadMaster=True):
 
             ###############
             # Generate the 1D wavelength solution
-            update = slf.MasterWaveCalib(fitsdict, sc, det)
+            update = slf.MasterWaveCalib(fitsdict, sc, det, allhead)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
             #debugger.set_trace()

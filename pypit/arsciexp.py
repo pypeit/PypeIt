@@ -645,7 +645,7 @@ class ScienceExposure:
         del mswave
         return True
 
-    def MasterWaveCalib(self, fitsdict, sc, det):
+    def MasterWaveCalib(self, fitsdict, sc, det, allhead):
         """
         Generate Master 1D Wave Solution (down slit center)
 
@@ -681,7 +681,7 @@ class ScienceExposure:
         # if False and 'wave_calib'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
         if 'wave_calib' + settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
             # Setup arc parameters (e.g. linelist)
-            arcparam = ararc.setup_param(self, sc, det, fitsdict)
+            arcparam = ararc.setup_param(self, sc, det, fitsdict, allhead)
             self.SetFrame(self._arcparam, arcparam, det)
             ###############
             # Extract arc and identify lines
