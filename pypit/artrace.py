@@ -1865,7 +1865,8 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
             tilts = np.zeros_like(slf._lordloc)
 
     # Generate tilts image
-    tiltsimg = arcytrace.tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1], msarc.shape[1])
+    tiltsimg = arcytrace.tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1],
+                                     settings.argflag['trace']['slits']['pad'], msarc.shape[1])
     return tiltsimg, satmask, outpar
 
 
@@ -2412,7 +2413,8 @@ def slit_profile(slf, mstrace, det):
         msgs.info("Deriving the spatial profile for slit {0:d}".format(o+1))
         lordloc = slf._lordloc[det - 1][:, o]
         rordloc = slf._rordloc[det - 1][:, o]
-        ordloc = arcytrace.locate_order(lordloc, rordloc, mstrace.shape[0], mstrace.shape[1], 0)
+        ordloc = arcytrace.locate_order(lordloc, rordloc, mstrace.shape[0], mstrace.shape[1],
+                                        settings.argflag['trace']['slits']['pad'])
         word = np.where(ordloc != 0)
         spatval = (word[1] - lordloc[word[0]])/(rordloc[word[0]] - lordloc[word[0]])
         specval = slf._tilts[det-1][word]
@@ -2427,11 +2429,11 @@ def slit_profile(slf, mstrace, det):
             diff = mstrace - model
             import astropy.io.fits as pyfits
             hdu = pyfits.PrimaryHDU(mstrace)
-            hdu.writeto("mstrace_{0:02d}.fits".format(det))
+            hdu.writeto("mstrace_{0:02d}.fits".format(det), overwrite=True)
             hdu = pyfits.PrimaryHDU(model)
-            hdu.writeto("model_{0:02d}.fits".format(det))
+            hdu.writeto("model_{0:02d}.fits".format(det), overwrite=True)
             hdu = pyfits.PrimaryHDU(diff)
-            hdu.writeto("diff_{0:02d}.fits".format(det))
+            hdu.writeto("diff_{0:02d}.fits".format(det), overwrite=True)
         slit_profiles[word] = modvals
     # Return
     return slit_profiles
