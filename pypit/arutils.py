@@ -1097,6 +1097,7 @@ def trace_gweight(fimage, xcen, ycen, sigma, invvar=None):
     xerr
 
     """
+    # import
     from scipy.special import erf
     # Setup
     nx = fimage.shape[1]
