@@ -379,6 +379,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     med, mad = arutils.robust_meanstd(trcprof[wm])
     trcprof -= med
     objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
+    debugger.set_trace()
     #plt.clf()
     #plt.plot(trcxrng,trcprof,'k-')
     #wl = np.where(bckl[:,0]==1)
