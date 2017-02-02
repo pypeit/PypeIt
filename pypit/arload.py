@@ -162,7 +162,6 @@ def load_headers(datlines):
     if numfiles == 0:
         msgs.error("The headers could not be read from the input data files." + msgs.newline() +
                    "Please check that the settings file matches the data.")
-    debugger.set_trace()
     # Return
     return fitsdict, allhead
 
