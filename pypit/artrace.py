@@ -19,7 +19,6 @@ from collections import Counter
 msgs = armsgs.get_logger()
 
 from pypit import ardebug as debugger
-from xastropy.xutils import xdebug as xdb
 
 
 def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
