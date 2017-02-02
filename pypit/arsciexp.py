@@ -255,7 +255,7 @@ class ScienceExposure:
                 msgs.info("Preparing a master arc frame")
                 ind = self._idx_arcs
                 # Load the arc frames
-                frames = arload.load_frames(fitsdict, ind, det, frametype='arc', msbias=self._msbias[det-1])
+                frames, headers = arload.load_frames(fitsdict, ind, det, frametype='arc', msbias=self._msbias[det-1])
                 if settings.argflag['arc']['combine']['match'] > 0.0:
                     sframes = arsort.match_frames(frames, settings.argflag['arc']['combine']['match'], frametype='arc',
                                                   satlevel=settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])
@@ -326,7 +326,7 @@ class ScienceExposure:
                 # Get all of the bias frames for this science frame
                 ind = self._idx_bias
                 # Load the Bias/Dark frames
-                frames = arload.load_frames(fitsdict, ind, det, frametype=settings.argflag['bias']['useframe'])
+                frames, headers = arload.load_frames(fitsdict, ind, det, frametype=settings.argflag['bias']['useframe'])
                 msbias = arcomb.comb_frames(frames, det, 'bias', printtype=settings.argflag['bias']['useframe'])
                 del frames
         elif settings.argflag['bias']['useframe'] == 'overscan':
@@ -426,7 +426,7 @@ class ScienceExposure:
                     # Get all of the pixel flat frames for this science frame
                     ind = self._idx_flat
                     # Load the frames for tracing
-                    frames = arload.load_frames(fitsdict, ind, det, frametype='pixel flat',
+                    frames, headers = arload.load_frames(fitsdict, ind, det, frametype='pixel flat',
                                                 msbias=self._msbias[det-1])
                     if settings.argflag['pixelflat']['combine']['match'] > 0.0:
                         sframes = arsort.match_frames(frames, settings.argflag['pixelflat']['combine']['match'],
@@ -504,7 +504,7 @@ class ScienceExposure:
                     settings.argflag['reduce']['slitcen']['useframe']))
                 ind = self._idx_cent
                 # Load the pinhole frames
-                frames = arload.load_frames(fitsdict, ind, det, frametype='pinhole', msbias=self._msbias[det - 1],
+                frames, headers = arload.load_frames(fitsdict, ind, det, frametype='pinhole', msbias=self._msbias[det - 1],
                                             trim=settings.argflag['reduce']['trim'])
                 if settings.argflag['pinhole']['combine']['match'] > 0.0:
                     sframes = arsort.match_frames(frames, settings.argflag['pinhole']['combine']['match'],
@@ -582,7 +582,7 @@ class ScienceExposure:
                 msgs.info("Preparing a master trace frame with {0:s}".format(settings.argflag['reduce']['trace']['useframe']))
                 ind = self._idx_trace
                 # Load the frames for tracing
-                frames = arload.load_frames(fitsdict, ind, det, frametype='trace', msbias=self._msbias[det-1],
+                frames, headers = arload.load_frames(fitsdict, ind, det, frametype='trace', msbias=self._msbias[det-1],
                                             trim=settings.argflag['reduce']['trim'])
                 if settings.argflag['trace']['combine']['match'] > 0.0:
                     sframes = arsort.match_frames(frames, settings.argflag['trace']['combine']['match'], frametype='trace', satlevel=settings.spect[dnum]['saturation']*settings.spect['det'][det-1]['nonlinear'])
@@ -727,7 +727,7 @@ class ScienceExposure:
             det = kk+1
             # Load the frame(s)
 #            set_trace()
-            frame = arload.load_frames(fitsdict, ind, det, frametype='standard',
+            frame, headers = arload.load_frames(fitsdict, ind, det, frametype='standard',
                                        msbias=self._msbias[det-1])
 #            msgs.warn("Taking only the first standard frame for now")
 #            ind = ind[0]

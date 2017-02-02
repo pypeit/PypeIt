@@ -201,7 +201,7 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             ###############
             # Load the science frame and from this generate a Poisson error frame
             msgs.info("Loading science frame")
-            sciframe = arload.load_frames(fitsdict, [scidx], det,
+            sciframe, headers = arload.load_frames(fitsdict, [scidx], det,
                                           frametype='science',
                                           msbias=slf._msbias[det - 1])
             sciframe = sciframe[:, :, 0]

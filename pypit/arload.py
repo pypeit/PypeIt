@@ -177,7 +177,10 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
     -------
     frames : ndarray (3 dimensional)
       One image per ind
+    headers : list
+      List of headers, one per ind
     """
+    headers = []
     def load_indfr(name,ext):
         msgs.work("Trim and overscan has not been applied")
         temp = pyfits.getdata(name, ext)
@@ -193,7 +196,9 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
         if settings.argflag['run']['spectrograph'] in ['lris_blue', 'lris_red']:
             temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         else:
-            temp = pyfits.getdata(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], settings.spect['fits']['dataext'])
+            hdulist = pyfits.open(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]])
+            temp = hdulist[settings.spect['fits']['dataext']].data
+            head0 = hdulist[0].header
         temp = temp.astype(np.float)  # Let us avoid uint16
         if settings.argflag['trace']['dispersion']['direction'] == 1:
             temp = temp.T
@@ -207,12 +212,16 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
                     msgs.error("Could not subtract bias level when loading {0:s} frames".format(frametype))
             if trim:
                 temp = arproc.trim(temp, det)
+        # Save image
         if i == 0:
             frames = np.zeros((temp.shape[0], temp.shape[1], np.size(ind)))
             frames[:,:,i] = temp.copy()
         else:
             frames[:,:,i] = temp.copy()
         del temp
+        # Save headers
+        headers.append(head0)
+
 #	pool = mpPool(processes=np.min([settings.argflag['run']['ncpus'],np.size(ind)]))
 #	async_results = []
 #	for i in range(np.size(ind)):
@@ -238,7 +247,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
         msgs.info("Loaded {0:d} {1:s} frame successfully".format(np.size(ind), frametype))
     else:
         msgs.info("Loaded {0:d} {1:s} frames successfully".format(np.size(ind), frametype))
-    return frames
+    return frames, headers
 
 
 def load_extraction(name, frametype='<None>', wave=True):
