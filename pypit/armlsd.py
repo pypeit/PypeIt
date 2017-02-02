@@ -147,7 +147,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
 
             ###############
             # Generate the 1D wavelength solution
-            update = slf.MasterWaveCalib(fitsdict, sc, det, allhead)
+            update = slf.MasterWaveCalib(fitsdict, sc, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
             #debugger.set_trace()
@@ -215,7 +215,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 msgs.work("Include the facility to correct for gravitational redshifts and time delays (see Pulsar timing work)")
                 msgs.info("Performing a heliocentric correction")
                 # Load the header for the science frame
-                slf._waveids = arvcorr.helio_corr(slf, scidx[0])
+                #slf._waveids = arvcorr.helio_corr(slf, scidx[0])
             else:
                 msgs.info("A heliocentric correction will not be performed")
 
