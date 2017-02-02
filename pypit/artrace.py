@@ -1042,11 +1042,6 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
 #			rva = rvb
     msgs.info("Relabelling slit edges")
     rsub = int(round(rsub))
-    msgs.warn("KLUDGE HERE")
-    if det == 1:
-        rsub = -1
-    else:
-        debugger.set_trace()
     if lmin < rmin-rsub:
         esub = lmin - (settings.argflag['trace']['slits']['pca']['extrapolate']['neg']+1)
     else:
