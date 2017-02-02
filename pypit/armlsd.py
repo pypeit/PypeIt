@@ -26,7 +26,7 @@ except:
 msgs = armsgs.get_logger()
 
 
-def ARMLSD(fitsdict, allhead, reuseMaster=False, reloadMaster=True):
+def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     """
     Automatic Reduction and Modeling of Long Slit Data
 
