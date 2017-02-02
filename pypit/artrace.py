@@ -954,7 +954,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     msgs.info("Synchronizing left and right slit traces")
     # Define the array of pixel values along the dispersion direction
     xv = plxbin[:, 0]
-    num = (lmax-lmin)//2  # Should be an int, right?
+    num = (lmax-lmin)//2
     lval = lmin + num  # Pick an order, somewhere in between lmin and lmax
     lv = (arutils.func_val(lcoeff[:, lval-lmin], xv, settings.argflag['trace']['slits']['function'], minv=minvf, maxv=maxvf)+0.5).astype(np.int)
     if np.any(lv < 0) or np.any(lv+1 >= binarr.shape[1]):

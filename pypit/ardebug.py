@@ -23,25 +23,8 @@ def init():
                  )
     return debug
 
-'''
-# GINGA WRAPPERS
-def show_image(args, **kwargs):
-    """ Wrapper to pypit_ginga
-    Parameters
-    ----------
-    args
-    kwargs
-
-    Returns
-    -------
-
-    """
-    return pyp_g.show_image(args, **kwargs)
-'''
-
 # ADD-ONs from xastropy
-
-def plot1d(*args,**kwargs):
+def plot1d(*args, **kwargs):
     """ Plot 1d arrays
 
     Parameters
