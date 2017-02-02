@@ -603,9 +603,10 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
         else:
             msgs.error("Flatfield method {0:s} is not supported".format(settings.argflag["reduce"]["flatfield"]["method"]))
     # Send the blaze away to be plotted and saved
-    if settings.argflag["reduce"]["flatfield"]["2dpca"] >= 1:
-        msgs.info("Performing a 2D PCA on the blaze fits")
-        msblaze = arpca.pca2d(msblaze, settings.argflag["reduce"]["flatfield"]["2dpca"])
+    if "2dpca" in settings.argflag["reduce"]["flatfield"].keys():
+        if settings.argflag["reduce"]["flatfield"]["2dpca"] >= 1:
+            msgs.info("Performing a 2D PCA on the blaze fits")
+            msblaze = arpca.pca2d(msblaze, settings.argflag["reduce"]["flatfield"]["2dpca"])
     # Plot the blaze model
     msgs.info("Saving blaze fits to QA")
     arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc=plotdesc, textplt="Order")
