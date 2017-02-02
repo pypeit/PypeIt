@@ -1802,8 +1802,7 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        v = key_float(v)
-        v = float(int(v + 0.5))  # Make sure this value is an integer, but float format is needed.
+        v = key_int(v)
         if v < 0.0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
