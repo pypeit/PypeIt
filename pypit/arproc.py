@@ -951,7 +951,8 @@ def sn_frame(slf, sciframe, idx):
     return snframe
 
 
-def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-999999.9):
+def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-999999.9,
+             simple_var=False):
     """
     Identify cosmic rays using the L.A.Cosmic algorithm
     U{http://www.astro.yale.edu/dokkum/lacosmic/}
@@ -999,7 +1000,10 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
         msgs.info("Creating noise model")
         # Build a custom noise map, and compare  this to the laplacian
         m5 = ndimage.filters.median_filter(scicopy, size=5, mode='mirror')
-        noise = np.sqrt(variance_frame(slf, det, m5, scidx, fitsdict))
+        if simple_var:
+            noise = np.sqrt(np.abs(m5)) #variance_frame(slf, det, m5, scidx, fitsdict))
+        else:
+            noise = np.sqrt(variance_frame(slf, det, m5, scidx, fitsdict))
         msgs.info("Calculating Laplacian signal to noise ratio")
 
         # Laplacian S/N
