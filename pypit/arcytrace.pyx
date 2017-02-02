@@ -2417,7 +2417,7 @@ def trace_fweight(np.ndarray[DTYPE_t, ndim=2] fimage not None,
 def tilts_image(np.ndarray[DTYPE_t, ndim=2] tilts not None,
                 np.ndarray[DTYPE_t, ndim=2] lordloc not None,
                 np.ndarray[DTYPE_t, ndim=2] rordloc not None,
-                double pad, int sz_y):
+                int pad, int sz_y):
     """ Using the tilt (assumed to be fit with a first order polynomial)
     generate an image of the tilts for each slit.
 
@@ -2430,7 +2430,7 @@ def tilts_image(np.ndarray[DTYPE_t, ndim=2] tilts not None,
       Location of the left slit edges
     rordloc : ndarray
       Location of the right slit edges
-    pad : float
+    pad : int
       Set the tilts within each slit, and extend a number of pixels
       outside the slit edges (this number is set by pad).
     sz_y : int
@@ -2456,10 +2456,10 @@ def tilts_image(np.ndarray[DTYPE_t, ndim=2] tilts not None,
 
     for o in range(0, sz_o):
         for x in range(0, sz_x):
-            ow = pad + (rordloc[x,o]-lordloc[x,o])/2.0
+            ow = (rordloc[x,o]-lordloc[x,o])/2.0
             oc = (rordloc[x,o]+lordloc[x,o])/2.0
-            ymin = <int>(oc-ow)
-            ymax = <int>(oc+ow)+1
+            ymin = <int>(oc-ow) - pad
+            ymax = <int>(oc+ow) + 1 + pad
             # Check we are in bounds
             if ymin < 0:
                 ymin = 0
@@ -2471,7 +2471,7 @@ def tilts_image(np.ndarray[DTYPE_t, ndim=2] tilts not None,
                 continue
             # Set the tilt value at each pixel in this row
             for y in range(ymin, ymax):
-                yv = (<double>(y)-lordloc[x, o])/(ow-pad) - 1.0
+                yv = (<double>(y)-lordloc[x, o])/ow - 1.0
                 tiltsimg[x,y] = (tilts[x,o]*yv + <double>(x))/dszx
     return tiltsimg
 
