@@ -6,13 +6,13 @@
 
 """
 This script enables the viewing of a processed FITS file
-with extras
+with extras.  Run above the Science/ folder.
 """
 
 def parser(options=None):
     import argparse
 
-    parser = argparse.ArgumentParser(description='Display spec2d image in a Ginga viewer',
+    parser = argparse.ArgumentParser(description='Display spec2d image in a Ginga viewer.  Run above the Science/ folder',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('file', type = str, default = None, help = 'PYPIT spec2d file')
@@ -64,7 +64,7 @@ def main(args):
     trc_hdu = fits.open(trc_file)
     lordloc = trc_hdu[1].data  # Should check name
     rordloc = trc_hdu[2].data  # Should check name
-    pyp_ginga.show_slits(viewer, ch, lordloc, rordloc, args.det)
+    pyp_ginga.show_slits(viewer, ch, lordloc, rordloc)#, args.det)
 
     # Object traces
     spec1d_file = args.file.replace('spec2d', 'spec1d')

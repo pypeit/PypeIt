@@ -18,10 +18,7 @@ from collections import Counter
 # Logging
 msgs = armsgs.get_logger()
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except ImportError:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 
 def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
@@ -957,10 +954,9 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     msgs.info("Synchronizing left and right slit traces")
     # Define the array of pixel values along the dispersion direction
     xv = plxbin[:, 0]
-    num = (lmax-lmin)/2
+    num = (lmax-lmin)//2
     lval = lmin + num  # Pick an order, somewhere in between lmin and lmax
-    lv = (arutils.func_val(lcoeff[:, lval-lmin], xv, settings.argflag['trace']['slits']['function'],
-                           minv=minvf, maxv=maxvf)+0.5).astype(np.int)
+    lv = (arutils.func_val(lcoeff[:, lval-lmin], xv, settings.argflag['trace']['slits']['function'], minv=minvf, maxv=maxvf)+0.5).astype(np.int)
     if np.any(lv < 0) or np.any(lv+1 >= binarr.shape[1]):
         msgs.warn("At least one slit is poorly traced")
         msgs.info("Refer to the manual, and adjust the input trace parameters")
@@ -1124,7 +1120,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
         xcen = xv[:, np.newaxis].repeat(ordsnd.size, axis=1)
         fitted, outpar = arpca.basis(xcen, slitcen, coeffs, lnpc, ofit, x0in=ordsnd, mask=maskord,
                                      skipx0=False, function=settings.argflag['trace']['slits']['function'])
-        arpca.pc_plot(slf, outpar, ofit, pcadesc=pcadesc)
+        if not msgs._debug['no_qa']:
+            arpca.pc_plot(slf, outpar, ofit, pcadesc=pcadesc)
         # Extrapolate the remaining orders requested
         orders = 1.0+np.arange(totord)
         extrap_cent, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
@@ -1191,7 +1188,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
             fitted, outpar = arpca.basis(xcen, trcval, tcoeff, lnpc, ofit, weights=pxwght,
                                          x0in=ordsnd, mask=maskrw, skipx0=False,
                                          function=settings.argflag['trace']['slits']['function'])
-            arpca.pc_plot(slf, outpar, ofit, pcadesc=pcadesc, addOne=False)
+            if not msgs._debug['no_qa']:
+                arpca.pc_plot(slf, outpar, ofit, pcadesc=pcadesc, addOne=False)
             # Now extrapolate to the whole detector
             pixpos = np.arange(binarr.shape[1])
             extrap_trc, outpar = arpca.extrapolate(outpar, pixpos,
@@ -1252,6 +1250,11 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     # plt.close()
 
     # Illustrate where the orders fall on the detector (physical units)
+    if msgs._debug['trace']:
+        from pypit import ginga
+        viewer, ch = ginga.show_image(mstrace)
+        ginga.show_slits(viewer, ch, lcenint, rcenint)
+        debugger.set_trace()
     if settings.argflag['run']['qa']:
         msgs.work("Not yet setup with ginga")
     return lcenint, rcenint, extrapord
@@ -1836,12 +1839,14 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
         xcen = xv[:, np.newaxis].repeat(norders, axis=1)
         fitted, outpar = arpca.basis(xcen, tiltval, tcoeff, lnpc, ofit, x0in=ordsnd, mask=maskord, skipx0=False,
                                      function=settings.argflag['trace']['slits']['function'])
-        arpca.pc_plot(slf, outpar, ofit, pcadesc=pcadesc)
+        if not msgs._debug['no_qa']:
+            arpca.pc_plot(slf, outpar, ofit, pcadesc=pcadesc)
         # Extrapolate the remaining orders requested
         orders = 1.0 + np.arange(norders)
         extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
         tilts = extrap_tilt
-        arpca.pc_plot_arctilt(slf, tiltang, centval, tilts)
+        if not msgs._debug['no_qa']:
+            arpca.pc_plot_arctilt(slf, tiltang, centval, tilts)
     else:
         outpar = None
         msgs.warn("Could not perform a PCA when tracing the order tilts" + msgs.newline() +
@@ -2037,7 +2042,8 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             fitted, outpar = arpca.basis(xcen, tiltval, tcoeff, lnpc, ofit, weights=None,
                                          x0in=ordsnd, mask=maskrw, skipx0=False,
                                          function=settings.argflag['trace']['slits']['function'])
-            arpca.pc_plot(slf, outpar, ofit, pcadesc="Spectral Tilts PCA", addOne=False)
+            if not msgs._debug['no_qa']:
+                arpca.pc_plot(slf, outpar, ofit, pcadesc="Spectral Tilts PCA", addOne=False)
             # Extrapolate the remaining orders requested
             orders = np.linspace(0.0, 1.0, msarc.shape[0])
             extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])

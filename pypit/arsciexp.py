@@ -20,10 +20,7 @@ from pypit import arproc
 from pypit import arsort
 from pypit import arutils
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except ImportError:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 # Logging
 msgs = armsgs.get_logger()
