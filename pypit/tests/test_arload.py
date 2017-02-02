@@ -11,15 +11,29 @@ from astropy import units as u
 from pypit import pyputils
 import pypit
 msgs = pyputils.get_dummy_logger()
+from pypit import arutils
+from pypit import arload as arl
 
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
+@pytest.fixture
+def fitsdict():
+    return arutils.dummy_fitsdict()
+
+
+def test_load_headers():
+    arutils.dummy_settings(spectrograph='kast_blue', set_idx=False)
+    kast_files = [data_path('b1.fits.gz'), data_path('b27.fits.gz')]
+    fistdict, headers = arl.load_headers(kast_files)
+    # Test
+    assert len(headers) == 2
+    assert headers[0][0]['OBJECT'] == 'Arcs'
+
 
 def test_load_1dspec():
-    from pypit import arload as arl
     from linetools.spectra.xspectrum1d import XSpectrum1D
 
     spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
