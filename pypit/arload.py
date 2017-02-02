@@ -41,6 +41,8 @@ def load_headers(datlines):
     -------
     fitsdict : dict
       The relevant header information of all fits files
+    allhead : list
+      List of all headers
     """
     chks = settings.spect['check'].keys()
     keys = settings.spect['keyword'].keys()
@@ -48,6 +50,7 @@ def load_headers(datlines):
     whddict = dict({})
     for k in keys:
         fitsdict[k]=[]
+    allhead = []
     headarr = [None for k in range(settings.spect['fits']['numhead'])]
     numfiles = len(datlines)
     for i in range(numfiles):
@@ -58,6 +61,10 @@ def load_headers(datlines):
                 whddict['{0:02d}'.format(settings.spect['fits']['headext{0:02d}'.format(k+1)])] = k
         except:
             msgs.error("Error reading header from extension {0:d} of file:".format(settings.spect['fits']['headext{0:02d}'.format(k+1)])+msgs.newline()+datlines[i])
+        # Save
+        for k in range(settings.spect['fits']['numhead']):
+            tmp = [head.copy() for head in headarr]
+            allhead.append(tmp)
         # Perform checks on each fits files, as specified in the settings.instrument file.
         skip = False
         for ch in chks:
@@ -146,7 +153,6 @@ def load_headers(datlines):
                 msgs.bug("I didn't expect useful headers to contain type {0:s}".format(typv).replace('<type ','').replace('>',''))
 
         msgs.info("Successfully loaded headers for file:"+msgs.newline()+datlines[i])
-    del headarr
     # Convert the fitsdict arrays into numpy arrays
     for k in fitsdict.keys():
         fitsdict[k] = np.array(fitsdict[k])
@@ -156,7 +162,8 @@ def load_headers(datlines):
     if numfiles == 0:
         msgs.error("The headers could not be read from the input data files." + msgs.newline() +
                    "Please check that the settings file matches the data.")
-    return fitsdict
+    # Return
+    return fitsdict, allhead
 
 
 def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
@@ -177,10 +184,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
     -------
     frames : ndarray (3 dimensional)
       One image per ind
-    headers : list
-      List of headers, one per ind
     """
-    headers = []
     def load_indfr(name,ext):
         msgs.work("Trim and overscan has not been applied")
         temp = pyfits.getdata(name, ext)
@@ -219,8 +223,6 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
         else:
             frames[:,:,i] = temp.copy()
         del temp
-        # Save headers
-        headers.append(head0)
 
 #	pool = mpPool(processes=np.min([settings.argflag['run']['ncpus'],np.size(ind)]))
 #	async_results = []
@@ -247,7 +249,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
         msgs.info("Loaded {0:d} {1:s} frame successfully".format(np.size(ind), frametype))
     else:
         msgs.info("Loaded {0:d} {1:s} frames successfully".format(np.size(ind), frametype))
-    return frames, headers
+    return frames
 
 
 def load_extraction(name, frametype='<None>', wave=True):
