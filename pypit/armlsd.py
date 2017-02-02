@@ -17,16 +17,13 @@ from pypit import arqa
 
 from linetools import utils as ltu
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 # Logging
 msgs = armsgs.get_logger()
 
 
-def ARMLSD(fitsdict, allhead, reuseMaster=False, reloadMaster=True):
+def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     """
     Automatic Reduction and Modeling of Long Slit Data
 
@@ -76,7 +73,6 @@ def ARMLSD(fitsdict, allhead, reuseMaster=False, reloadMaster=True):
         if reloadMaster and (sc > 0):
             settings.argflag['reduce']['masters']['reuse'] = True
         # Loop on Detectors
-        #for kk in range(1,settings.spect['mosaic']['ndet']):
         for kk in range(settings.spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             slf.det = det
@@ -147,7 +143,7 @@ def ARMLSD(fitsdict, allhead, reuseMaster=False, reloadMaster=True):
 
             ###############
             # Generate the 1D wavelength solution
-            update = slf.MasterWaveCalib(fitsdict, sc, det, allhead)
+            update = slf.MasterWaveCalib(fitsdict, sc, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
             #debugger.set_trace()
@@ -215,7 +211,7 @@ def ARMLSD(fitsdict, allhead, reuseMaster=False, reloadMaster=True):
                 msgs.work("Include the facility to correct for gravitational redshifts and time delays (see Pulsar timing work)")
                 msgs.info("Performing a heliocentric correction")
                 # Load the header for the science frame
-                slf._waveids = arvcorr.helio_corr(slf, scidx[0])
+                #slf._waveids = arvcorr.helio_corr(slf, scidx[0])
             else:
                 msgs.info("A heliocentric correction will not be performed")
 

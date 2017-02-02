@@ -10,10 +10,7 @@ from pypit import armsgs
 # Logging
 msgs = armsgs.get_logger()
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except ImportError:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 class SpecObjExp(object):
     """Class to handle object spectra from a single exposure

@@ -8,10 +8,9 @@ import numpy as np
 from pypit import armsgs
 from pypit import pyputils
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except ImportError:
-    import pdb as debugger
+# CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
+#from pypit import ardebug as debugger
+
 try:
     basestring
 except NameError:

@@ -17,10 +17,7 @@ try:
 except NameError:
     basestring = str
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except ImportError:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -41,8 +38,6 @@ def load_headers(datlines):
     -------
     fitsdict : dict
       The relevant header information of all fits files
-    allhead : list
-      List of all headers
     """
     chks = settings.spect['check'].keys()
     keys = settings.spect['keyword'].keys()
@@ -163,7 +158,8 @@ def load_headers(datlines):
         msgs.error("The headers could not be read from the input data files." + msgs.newline() +
                    "Please check that the settings file matches the data.")
     # Return
-    return fitsdict, allhead
+    fitsdict['headers'] = allhead
+    return fitsdict
 
 
 def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):

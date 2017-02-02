@@ -17,6 +17,7 @@ from pypit import armbase as armb
 
 def test_update_masters():
     # Dummy self
+    arut.dummy_settings(spectrograph='kast_blue', set_idx=True)
     slf1 = arut.dummy_self()
     slf1._idx_arcs = np.array([0,1])
     slf2 = arut.dummy_self()

@@ -18,10 +18,8 @@ from astropy import units as u
 
 from linetools import utils as ltu
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except ImportError:
-    import pdb as debugger
+from pypit import ardebug as debugger
+
 try:
     basestring
 except NameError:

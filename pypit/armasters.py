@@ -8,11 +8,7 @@ from pypit import arsave
 # Logging
 msgs = armsgs.get_logger()
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except ImportError:
-    import pdb as debugger
-
+from pypit import ardebug as debugger
 
 class MasterFrames:
 
