@@ -23,7 +23,7 @@ except ImportError:
 msgs = armsgs.get_logger()
 
 
-def ARMED(fitsdict, allhead, reuseMaster=False, reloadMaster=True):
+def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
     """
     Automatic Reduction and Modeling of Echelle Data
 

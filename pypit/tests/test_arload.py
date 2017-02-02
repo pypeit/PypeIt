@@ -19,16 +19,12 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-@pytest.fixture
-def fitsdict():
-    return arutils.dummy_fitsdict()
-
-
 def test_load_headers():
     arutils.dummy_settings(spectrograph='kast_blue', set_idx=False)
     kast_files = [data_path('b1.fits.gz'), data_path('b27.fits.gz')]
-    fistdict, headers = arl.load_headers(kast_files)
+    fitsdict = arl.load_headers(kast_files)
     # Test
+    headers = fitsdict['headers']
     assert len(headers) == 2
     assert headers[0][0]['OBJECT'] == 'Arcs'
 
