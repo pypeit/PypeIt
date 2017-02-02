@@ -91,4 +91,40 @@ slits, by giving the following keyword argument::
 
     trace slits expand True
 
+Slit Profile
+============
+
+With relatively short slits (often the case with
+multiobject or echelle data), the sky background
+is determined from relatively few pixels towards
+the edge of the slit, where the flux from a uniformly
+illuminated slit tends to roll off. To correct for
+this effect, PYPIT models the spatial slit profile
+of a trace frame (i.e. a flatfield with the same
+slit length as the science slit). The relevant set
+of parameters that determine the fit properties
+are given by::
+
+    reduce slitprofile perform True
+    reduce slitprofile method bspline
+    reduce slitprofile params [n]
+
+where n in the last line should be an integer or
+floating point number.
+The first line can be used to turn off the
+spatial slit profile calculation. The second line
+sets the method that should be used to determine
+the spatial slit profile. At this stage, PYPIT only
+supports the value 'bspline', where the knot spacing
+is set by the third line above. If the argument of
+reduce slitprofile params is n >= 1, PYPIT will place
+a knot at every n pixels. Otherwise, if n < 1, PYPIT
+will place a knot at every k pixels, where k=n*N and
+N is the total number of pixels in the spectral
+direction. The number of knots in the spatial
+direction is set automatically by PYPIT, to be twice
+the number of pixels along the slit. Thus, the user
+only has the ability to change the number of knots
+in the spectral direction (i.e. the blaze function).
+
 
