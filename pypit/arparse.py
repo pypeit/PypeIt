@@ -1791,6 +1791,23 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
+    def trace_slits_pad(self, v):
+        """ How many pixels should be considered beyond the automatic slit
+        edge trace. Note that this parameter does not change the location
+        of the slit edges. This parameter allows for a smooth model to be
+        fit past the automatically detected slit edges.
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_float(v)
+        v = float(int(v + 0.5))  # Make sure this value is an integer, but float format is needed.
+        if v < 0.0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        self.update(v)
+
     def trace_slits_pca_type(self, v):
         """ Should the PCA be performed using pixel position (pixel) or by spectral order (order).
         The latter is used for echelle spectroscopy, or for slits where the slit separation is a
