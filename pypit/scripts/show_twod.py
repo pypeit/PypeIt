@@ -6,13 +6,13 @@
 
 """
 This script enables the viewing of a processed FITS file
-with extras
+with extras.  Run above the Science/ folder.
 """
 
 def parser(options=None):
     import argparse
 
-    parser = argparse.ArgumentParser(description='Display spec2d image in a Ginga viewer',
+    parser = argparse.ArgumentParser(description='Display spec2d image in a Ginga viewer.  Run above the Science/ folder',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('file', type = str, default = None, help = 'PYPIT spec2d file')

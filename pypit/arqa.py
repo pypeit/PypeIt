@@ -671,9 +671,9 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
         else:
             ptyp = '--'
         # Left
-        plt.plot(ltrace[:, ii]+0.5, ycen, 'r'+ptyp, linewidth=0.1, alpha=0.7)
+        plt.plot(ltrace[:, ii]+0.5, ycen, 'r'+ptyp, linewidth=0.3, alpha=0.7)
         # Right
-        plt.plot(rtrace[:, ii]+0.5, ycen, 'c'+ptyp, linewidth=0.1, alpha=0.7)
+        plt.plot(rtrace[:, ii]+0.5, ycen, 'c'+ptyp, linewidth=0.3, alpha=0.7)
         # Label
         #plt.text(ltrace[iy, ii], ycen[iy], '{0:d}'.format(ii+1), color='red', ha='left')
         plt.text(0.5*(ltrace[iy, ii]+rtrace[iy, ii]), ycen[iy], '{0:d}'.format(ii+1), color='green', ha='center', size='small')
