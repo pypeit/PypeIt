@@ -2402,6 +2402,7 @@ def slit_profile(slf, mstrace, det, ntcky=20):
     """
     from pypit import arcytrace
 
+    mstracenrm = mstrace.copy()
     nslits = slf._lordloc[det - 1].shape[1]
     slit_profiles = np.zeros_like(mstrace)
     # Set the number of knots in the spectral direction
@@ -2418,8 +2419,8 @@ def slit_profile(slf, mstrace, det, ntcky=20):
         ordloc = arcytrace.locate_order(lordloc, rordloc, mstrace.shape[0], mstrace.shape[1],
                                         settings.argflag['trace']['slits']['pad'])
         word = np.where(ordloc != 0)
-        if word.size == 0:
-            msgs.warn("There are no pixels in slit {0:d}".format(o+1))
+        if word[0].size <= (ntcky+1)*(2*slf._pixwid[det - 1][o]+1):
+            msgs.warn("There are not enough pixels in slit {0:d}".format(o+1))
             continue
         msordloc[word] = o+1
         spatval = (word[1] - lordloc[word[0]])/(rordloc[word[0]] - lordloc[word[0]])
@@ -2445,9 +2446,10 @@ def slit_profile(slf, mstrace, det, ntcky=20):
         spatval = 0.5*np.ones(specval.size)
         nrmvals = modspl.ev(spatval, specval)
         slit_profiles[word] = modvals/nrmvals
+        mstracenrm[word] /= nrmvals
     # Prepare some QA for the average slit profile along the slit
     msgs.info("Preparing QA for each slit profile")
-    arqa.slit_profile(slf, mstrace, slit_profiles, slf._lordloc[det - 1], slf._rordloc[det - 1],
+    arqa.slit_profile(slf, mstracenrm, slit_profiles, slf._lordloc[det - 1], slf._rordloc[det - 1],
                       msordloc, desc="Slit profile")
     # Return
     return slit_profiles
