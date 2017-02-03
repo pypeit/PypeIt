@@ -2381,7 +2381,7 @@ def slit_image(slf, det, scitrace, obj, tilts=None):
     return slit_img
 
 
-def slit_profile(slf, mstrace, det):
+def slit_profile(slf, mstrace, det, ntcky=20):
     """ Generate an image of the spatial slit profile.
 
     Parameters
@@ -2392,6 +2392,8 @@ def slit_profile(slf, mstrace, det):
       Master trace frame that is used to trace the slit edges.
     det : int
       Detector index
+    ntcky : int
+      Number of bspline knots in the spectral direction.
 
     Returns
     -------
@@ -2402,8 +2404,7 @@ def slit_profile(slf, mstrace, det):
 
     nslits = slf._lordloc[det - 1].shape[1]
     slit_profiles = np.zeros_like(mstrace)
-    # Set the number of ticks in the spectral direction
-    ntcky = 20  # Default value
+    # Set the number of knots in the spectral direction
     if settings.argflag["reduce"]["slitprofile"]["method"] == "bspline":
         ntcky = settings.argflag["reduce"]["slitprofile"]["params"][0]
         if settings.argflag["reduce"]["slitprofile"]["params"][0] < 1.0:

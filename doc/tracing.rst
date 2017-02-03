@@ -111,16 +111,18 @@ are given by::
 
 where n in the last line should be an integer or
 floating point number.
-The first line can be used to turn off the
-spatial slit profile calculation. The second line
-sets the method that should be used to determine
-the spatial slit profile. At this stage, PYPIT only
-supports the value 'bspline', where the knot spacing
-is set by the third line above. If the argument of
-reduce slitprofile params is n >= 1, PYPIT will place
-a knot at every n pixels. Otherwise, if n < 1, PYPIT
-will place a knot at every k pixels, where k=n*N and
-N is the total number of pixels in the spectral
+
+The default setting is to calculate the slit profile.
+To turn off this functionality, the argument of the
+first line above can be set to False. If the calculation
+is performed, the second line sets the method that should
+be used to determine the spatial slit profile. At this
+stage, PYPIT only supports the value 'bspline', where
+the knot spacing is set by the third line above. If the
+argument of reduce slitprofile params is n >= 1, PYPIT
+will place a knot at every n pixels. Otherwise, if n < 1,
+PYPIT will place a knot at every k pixels, where k=n*N
+and N is the total number of pixels in the spectral
 direction. The number of knots in the spatial
 direction is set automatically by PYPIT, to be twice
 the number of pixels along the slit. Thus, the user
