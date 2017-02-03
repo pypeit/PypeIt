@@ -626,7 +626,7 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
             else: ind = (ipy, ipx)
             # Get data to be plotted
             word = np.where(msordloc == ndone+1)
-            if word.size == 0:
+            if word[0].size == 0:
                 msgs.warn("There are no pixels in slit {0:d}".format(ndone + 1))
                 # Delete the axis
                 if pages[i][1] == 1: ind = (ipx,)
@@ -640,23 +640,31 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
                 continue
             spatval = (word[1] - lordloc[:, ndone][word[0]]) / (rordloc[:, ndone][word[0]] - lordloc[:, ndone][word[0]])
             fluxval = mstrace[word]
+            mxval = np.max(fluxval)
+            modvals = np.zeros(xedges.size - 1)
             if axesIdx:
-                cnts, xedges, yedges, null = axes[ind].hist2d(spatval, fluxval, bins=nbins)
-                modvals, xedges = np.histogram(model[word], bins=xedges)
+                cnts, xedges, yedges, null = axes[ind].hist2d(spatval, fluxval, bins=nbins, cmap=plt.cm.Greys)
+                groups = np.digitize(spatval, xedges)
+                modelw = model[word]
+                for mm in range(1, xedges.size):
+                    modvals[mm-1] = modelw[groups == mm].mean()
                 axes[ind].plot(0.5*(xedges[1:]+xedges[:-1]), modvals, 'g-', linewidth=2.0)
-                axes[ind].plot([0.0, 0.0], [0.0,1.0], 'r-')
-                axes[ind].plot([1.0, 1.0], [0.0,1.0], 'r-')
+                axes[ind].plot([0.0, 0.0], [0.0, mxval], 'r-')
+                axes[ind].plot([1.0, 1.0], [0.0, mxval], 'r-')
             else:
-                cnts, xedges, yedges, null = axes.hist2d(spatval, fluxval, bins=nbins)
-                modvals, xedges = np.histogram(model[word], bins=xedges)
+                cnts, xedges, yedges, null = axes.hist2d(spatval, fluxval, bins=nbins, cmap=plt.cm.Greys)
+                groups = np.digitize(spatval, xedges)
+                modelw = model[word]
+                for mm in range(1, xedges.size):
+                    modvals[mm-1] = modelw[groups == mm].mean()
                 axes.plot(0.5*(xedges[1:]+xedges[:-1]), modvals, 'g-', linewidth=2.0)
-                axes.plot([0.0, 0.0], [0.0,1.0], 'r-')
-                axes.plot([1.0, 1.0], [0.0,1.0], 'r-')
+                axes.plot([0.0, 0.0], [0.0, mxval], 'r-')
+                axes.plot([1.0, 1.0], [0.0, mxval], 'r-')
             if axesIdx:
-                axes[ind].axis([xedges[0], xedges[-1], 0.0, 1.1*np.max(modvals)])
+                axes[ind].axis([xedges[0], xedges[-1], 0.0, 1.1*mxval])
                 axes[ind].set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
             else:
-                axes.axis([xedges[0], xedges[-1], 0.0, 1.1*np.max(modvals)])
+                axes.axis([xedges[0], xedges[-1], 0.0, 1.1*mxval])
                 axes.set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
             ipx += 1
             if ipx == pages[i][0]:
