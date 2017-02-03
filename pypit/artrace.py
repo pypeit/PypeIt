@@ -2410,6 +2410,7 @@ def slit_profile(slf, mstrace, det, ntcky=20):
         if settings.argflag["reduce"]["slitprofile"]["params"][0] < 1.0:
             ntcky = int(1.0/ntcky)+0.5
     msgs.work("Multiprocess this step to increase speed")
+    msordloc = np.zeros(mstrace.shape)
     for o in range(nslits):
         msgs.info("Deriving the spatial profile for slit {0:d}".format(o+1))
         lordloc = slf._lordloc[det - 1][:, o]
@@ -2417,6 +2418,10 @@ def slit_profile(slf, mstrace, det, ntcky=20):
         ordloc = arcytrace.locate_order(lordloc, rordloc, mstrace.shape[0], mstrace.shape[1],
                                         settings.argflag['trace']['slits']['pad'])
         word = np.where(ordloc != 0)
+        if word.size == 0:
+            msgs.warn("There are no pixels in slit {0:d}".format(o+1))
+            continue
+        msordloc[word] = o+1
         spatval = (word[1] - lordloc[word[0]])/(rordloc[word[0]] - lordloc[word[0]])
         specval = slf._tilts[det-1][word]
         fluxval = mstrace[word]
@@ -2435,6 +2440,14 @@ def slit_profile(slf, mstrace, det, ntcky=20):
             hdu.writeto("model_{0:02d}.fits".format(det), overwrite=True)
             hdu = pyfits.PrimaryHDU(diff)
             hdu.writeto("diff_{0:02d}.fits".format(det), overwrite=True)
-        slit_profiles[word] = modvals
+        # Normalize to the value at the centre of the slit
+        specval = slf._tilts[det - 1][word]
+        spatval = 0.5*np.ones(specval.size)
+        nrmvals = modspl.ev(spatval, specval)
+        slit_profiles[word] = modvals/nrmvals
+    # Prepare some QA for the average slit profile along the slit
+    msgs.info("Preparing QA for each slit profile")
+    arqa.slit_profile(slf, mstrace, slit_profiles, slf._lordloc[det - 1], slf._rordloc[det - 1],
+                      msordloc, desc="Slit profile")
     # Return
     return slit_profiles
