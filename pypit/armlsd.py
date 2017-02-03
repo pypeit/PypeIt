@@ -73,8 +73,8 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         if reloadMaster and (sc > 0):
             settings.argflag['reduce']['masters']['reuse'] = True
         # Loop on Detectors
-        #for kk in range(settings.spect['mosaic']['ndet']):
-        for kk in range(1,settings.spect['mosaic']['ndet']):
+        #for kk in range(1,settings.spect['mosaic']['ndet']):
+        for kk in range(settings.spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             slf.det = det
             ###############

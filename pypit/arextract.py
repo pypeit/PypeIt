@@ -61,7 +61,6 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
         msgs.info("Performing boxcar extraction on object {0:d}/{1:d}".format(o+1,nobj))
         # Fit the background
         msgs.info("   Fitting the background")
-        debugger.set_trace()
         # Trim CRs further
         bg_mask = np.zeros_like(sciframe)
         bg_mask[np.where(scitrace['background'][:,:,o]*cr_mask <= 0.)] = 1.

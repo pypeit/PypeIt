@@ -120,9 +120,12 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     # Find all significant detections
     # The last argument is the overall minimum significance level of an arc line detection and the second
     # last argument is the level required by an individual pixel before the neighbourhood of this pixel is searched.
+    msgs.info('Entering detections_sigma')
     tpixt, num = arcyarc.detections_sigma(yprep, yerr, np.zeros(satsnd.shape[0], dtype=np.int), siglev/2.0, siglev)
+    msgs.info('Entering remove_similar')
     pixt = arcyarc.remove_similar(tpixt, num)
     pixt = pixt[np.where(pixt != -1)].astype(np.int)
+    msgs.info('Entering fit_arcorder')
     tampl, tcent, twid, ngood = arcyarc.fit_arcorder(xrng, yprep, pixt, fitp)
     w = np.where((np.isnan(twid) == False) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
     # Check the results
