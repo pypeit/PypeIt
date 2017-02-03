@@ -625,9 +625,9 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
             elif pages[i][0] == 1: ind = (ipy,)
             else: ind = (ipy, ipx)
             # Get data to be plotted
-            word = np.where(msordloc == ndone+1)
+            word = np.where(msordloc == ndone+j+1)
             if word[0].size == 0:
-                msgs.warn("There are no pixels in slit {0:d}".format(ndone + 1))
+                msgs.warn("There are no pixels in slit {0:d}".format(ndone + j + 1))
                 # Delete the axis
                 if pages[i][1] == 1: ind = (ipx,)
                 elif pages[i][0] == 1: ind = (ipy,)
@@ -638,7 +638,7 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
                     ipx = 0
                     ipy += 1
                 continue
-            spatval = (word[1] - lordloc[:, ndone][word[0]]) / (rordloc[:, ndone][word[0]] - lordloc[:, ndone][word[0]])
+            spatval = (word[1] - lordloc[:, ndone+j][word[0]]) / (rordloc[:, ndone+j][word[0]] - lordloc[:, ndone+j][word[0]])
             fluxval = mstrace[word]
             mxval = np.max(fluxval)
             modvals = np.zeros(nbins)

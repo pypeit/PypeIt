@@ -2418,7 +2418,6 @@ def slit_profile(slf, mstrace, det, ntcky=20):
         rordloc = slf._rordloc[det - 1][:, o]
         ordloc = arcytrace.locate_order(lordloc, rordloc, mstrace.shape[0], mstrace.shape[1],
                                         settings.argflag['trace']['slits']['pad'])
-        print(settings.argflag['trace']['slits']['pad'])
         word = np.where(ordloc != 0)
         if word[0].size <= (ntcky+1)*(2*slf._pixwid[det - 1][o]+1):
             msgs.warn("There are not enough pixels in slit {0:d}".format(o+1))
