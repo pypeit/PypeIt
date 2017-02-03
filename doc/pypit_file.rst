@@ -45,7 +45,8 @@ The standard naming for the instrument PYPIT file is::
 Custom PYPIT file
 -----------------
 
-When one performs the full reduction on a set of files,
+When one performs the full reduction on a set of files for
+a given setup,
 the *custom* PYPIT file is used.  We refer to it as custom
 because it may be significantly customized for the specifc
 instrument configuration and/or target.
@@ -103,8 +104,9 @@ You should be able to find one that matches your instrument.
 Line by line
 ============
 
-This section will instruct you on how to build a .pypit
-PYPIT file from scratch.  This is **not** recommended.
+This section describes the various sections of a .pypit file.
+In principle, you can use the following descirption to build a .pypit
+file from scratch.  This is **not** recommended.
 The following documentation is mainly for guiding
 modifications to an existing PYPIT file.
 

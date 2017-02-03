@@ -15,8 +15,10 @@ how the code will group calibration files with science
 frames.  It does **not** check the
 sanctity of the files nor process the calibrations in any manner.
 
-Procedure
-=========
+.. _run-calcheck:
+
+calcheck
+========
 
 The procedure is simple.  Add the following line to your
 .pypit file::

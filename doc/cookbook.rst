@@ -22,28 +22,31 @@ following is for one instrument in one working directory.
 1. Prepare your data
 
   - Identify folder(s) with raw images
-  - The raw images can be gzip compressed
+  - The raw images can be gzip compressed although the Python FITS reader works much more slowly on gzipped files
 
-2. Run the pypit_setup script
+2. Run the :ref:`pypit_setup` script one of the PYPIT-approved :doc:`instruments` (e.g. lris_blue, kast_red)
 
-    - Generates the instrument PYPIT reduction file (:doc:`pypit_file`)
-    - Generates the instrument .setups file (:doc:`setups`)
-    - Generates a custom PYPIT reduction file for each setup
-    - Inspect the .setups file to confirm the instrument configurations
-    - Modify the data and spect blocks in master .pypit file, as needed
-    - If changes were made, rerun pypit_setup
+  - Generates the instrument PYPIT reduction file [not used further]
+  - Generates the instrument .setups file (:doc:`setup`)
+  - Generates a custom PYPIT reduction file for each setup
+  - Scan the output WARNING messages which will indicate insufficient calibration files (e.g. missing arc frames)
 
-3. Isolate and modify the custom PYPIT reduction files (:doc:`pypit_file`)
+3. Inspect the :ref:`setups-file` and :ref:`sorted-file` to confirm the instrument configurations
+  - Modify the data and spect blocks in the instrument PYPIT file, as needed (see :ref:`setup-modifications`)
 
-  - Copy/move the PYPIT reduction file for a given setup into its own folder
+    - If changes were made, rerun :ref:`pypit_setup`
+
+4. Isolate and modify the custom PYPIT reduction files (:doc:`pypit_file`)
+
+  - One should copy/move the PYPIT reduction file for a given setup into its own folder
     (*recommended* but not required)
   - Modify, as needed (e.g. trim/add calibration files, edit frametypes)
 
-4. Run calcheck on the custom PYPIT file(s) (described in :doc:`calcheck`)
+4. Run :ref:`run-calcheck` on the custom PYPIT file(s) (described in :doc:`calcheck`)
 
-    - Modify the spect block in the PYPIT file to specify calibrations
-    - Inspect the .calibs file for your PYPIT file.
-    - Confirm calibration, science and standard frames
+  - Modify the spect block in the PYPIT file to specify calibrations
+  - Inspect the .calibs file for your PYPIT file.
+  - Confirm calibration, science and standard frames
 
 5. Run the reduction (described in :doc:`running`)
 

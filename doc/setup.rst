@@ -39,6 +39,8 @@ be straightforward.  If you use multiple configurations
 (e.g. gratings, grating tilts), then one must pay more
 careful attention to the setups.
 
+.. _pypit_setup:
+
 pypit_setup
 ===========
 
@@ -75,6 +77,7 @@ Outputs
 
 The pypit_setup script generates several outputs.
 
+.. _setups-file:
 
 Setups File
 -----------
@@ -116,6 +119,8 @@ PYPIT files
 The script automatically generates one PYPIT file per
 setup.  The setup details are listed and the data read
 block is limited to the files grouped with that setup.
+See :doc:`pypit_file` for a greater description of editing
+the PYPIT files.
 
 Data Listings
 -------------
@@ -131,7 +136,7 @@ in your Settings File.
 None of these files are intended to be modified by the
 user.
 
-.. _sorted_file:
+.. _sorted-file:
 
 Sorted File
 +++++++++++
@@ -221,6 +226,8 @@ Here is one for LRISb which has two detectors::
         LB.20160406.18257.fits, LB.20160406.18128.fits, LB.20160406.18012.fits, LB.20160406.17958.fits,
         LB.20160406.17903.fits, LB.20160406.17832.fits, LB.20160406.17779.fits, LB.20160406.17716.fits,
         LB.20160406.17643.fits, LB.20160406.17590.fits, LB.20160406.17533.fits]
+
+.. _setup-modifications:
 
 Modifications
 =============

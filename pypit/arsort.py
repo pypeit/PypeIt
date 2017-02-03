@@ -350,6 +350,7 @@ def match_science(fitsdict, filesort):
     iBFL = filesort['pinhole']
     iTRC = filesort['trace']
     iARC = filesort['arc']
+    filesort['failures'] = []
     iARR = [iSTD, iBIA, iDRK, iPFL, iBFL, iTRC, iARC]
     nSCI = iSCI.size
     i = 0
@@ -502,7 +503,17 @@ def match_science(fitsdict, filesort):
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient ARC frames
                 if ftag[ft] == 'arc' and settings.argflag['reduce']['calibrate']:
-                    msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
+                    if settings.argflag['run']['setup']:
+                        msgs.warn("No arc frame for {0:s}. Removing it from list of science frames".format(fitsdict['target'][iSCI[i]]))
+                        msgs.warn("Add an arc and rerun one if you wish to reduce this with PYPIT!!")
+                        # Remove
+                        #tmp = list(filesort['science'])
+                        #tmp.pop(tmp.index(iSCI[i]))
+                        #filesort['science'] = np.array(tmp)
+                        filesort['failures'].append(iSCI[i])
+                        settings.spect['science']['index'].pop(-1)
+                    else:
+                        msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
             else:
                 # Select the closest calibration frames to the science frame
                 tdiff = np.abs(fitsdict['time'][n].astype(np.float64)-np.float64(fitsdict['time'][iSCI[i]]))
@@ -794,7 +805,11 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
     Parameters
     ----------
     sciexp : ScienceExposure
-    setup_dict
+    det : int
+      detector identifier
+    fitsdict : dict
+      contains header info
+    setup_dict : dict
     skip_cset : bool, optional
       Skip calib_set;  only used when first generating instrument .setup file
 
