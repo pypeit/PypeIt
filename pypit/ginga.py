@@ -17,7 +17,7 @@ except NameError:
     basestring = str
 
 # Logging
-msgs = armsgs.get_logger()
+msgs = armsgs.get_logger()   # THESE MAY NOT WORK..
 '''
 if msgs is None:  # For usage outside of PYPIT
     msgs = pyputils.get_dummy_logger()
@@ -175,7 +175,7 @@ def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0.):
             else:
                 clr = 'red'  # Bad line
             canvas.add('path', points, color=clr)
-    msgs.info("Check the Ginga viewer")
+    #msgs.info("Check the Ginga viewer")
     # Show slit edges
     if sedges is not None:
         y = (np.arange(msarc.shape[0]) + yoff).tolist()

@@ -1939,9 +1939,8 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             # No arc lines were available to determine the spectral tilt
             continue
         if msgs._debug['tilts']:
-            from pypit import ginga
-            ginga.chk_arc_tilts(msarc, trcdict, sedges=(slf._lordloc[det-1][:,o], slf._rordloc[det-1][:,o]))
-            #debugger.set_trace()
+            debugger.chk_arc_tilts(msarc, trcdict, sedges=(slf._lordloc[det-1][:,o], slf._rordloc[det-1][:,o]))
+            debugger.set_trace()
         # Extract information from the trace dictionary
         aduse = trcdict["aduse"]
         arcdet = trcdict["arcdet"]

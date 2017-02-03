@@ -80,6 +80,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     else:
         gd = np.where(w > 0.)[0]
         weights = w[gd]
+        ngd = len(gd)
     # Make the knots
     if knots is None:
         if bkspace is not None: 
@@ -88,8 +89,8 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
             nbkpts = max(int(xrnge/bkspace) + 1,2)
             tempbkspace = xrnge/(nbkpts-1)
             knots = np.arange(1,nbkpts-1)*tempbkspace + startx
-        elif everyn is not None:
-            idx_knots = np.arange(10, ngd-10, everyn) # A knot every good N pixels
+        elif everyn is not None: # A knot every good N pixels
+            idx_knots = np.arange(10, ngd-10, everyn)
             knots = x[gd[idx_knots]]
         else:
             msgs.error("No method specified to generate knots")

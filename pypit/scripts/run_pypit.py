@@ -21,13 +21,13 @@ from pypit import ardebug
 debug = ardebug.init()
 #debug['develop'] = True
 #debug['arc'] = True
-#debug['sky_sub'] = True
+debug['sky_sub'] = True
 #debug['trace'] = True
 #debug['obj_profile'] = True
 #debug['trace_obj'] = True
 #debug['tilts'] = True
 #debug['flexure'] = True
-#debug['no_qa'] = True
+debug['no_qa'] = True
 
 from pypit.armsgs import Messages as Initmsg
 initmsgs = Initmsg(None, debug, 1)
