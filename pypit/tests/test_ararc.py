@@ -35,7 +35,7 @@ def test_setup_param():
     arcparm = pyarc.setup_param(slf, 0, 1, fitsdict)
     for key in ['llist','disp','wvmnx']:
         assert key in arcparm
-        
+
 
 def test_detect_lines():
     if os.getenv('RUN_ALL_PYPIT_TESTS') is None:  # REMOVE WHEN WORKING WITH Python 3
