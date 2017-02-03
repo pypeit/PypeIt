@@ -641,7 +641,7 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
             spatval = (word[1] - lordloc[:, ndone][word[0]]) / (rordloc[:, ndone][word[0]] - lordloc[:, ndone][word[0]])
             fluxval = mstrace[word]
             mxval = np.max(fluxval)
-            modvals = np.zeros(xedges.size - 1)
+            modvals = np.zeros(nbins)
             if axesIdx:
                 cnts, xedges, yedges, null = axes[ind].hist2d(spatval, fluxval, bins=nbins, cmap=plt.cm.Greys)
                 groups = np.digitize(spatval, xedges)
