@@ -390,6 +390,7 @@ def pc_plot(slf, inpar, ofit, maxp=25, pcadesc="", addOne=True):
             elif pages[i][0] == 1: ind = (ipy,)
             else: ind = (ipy, ipx)
             f.delaxes(axes[ind])
+            ipx += 1
             if ipx == pages[i][0]:
                 ipx = 0
                 ipy += 1
@@ -490,6 +491,7 @@ def pc_plot_arctilt(slf, tiltang, centval, tilts, maxp=25, maskval=-999999.9):
             else:
                 ind = (ipy, ipx)
             f.delaxes(axes[ind])
+            ipx += 1
             if ipx == pages[i][0]:
                 ipx = 0
                 ipy += 1
