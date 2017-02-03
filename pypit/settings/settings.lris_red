@@ -206,3 +206,4 @@ arc match dispangle |<=0.1           # Match the grating angle (no idea if this 
 
 # Make some changes to the arguments and flags
 settings trace dispersion direction 0
+settings trace slits tilts method spca
