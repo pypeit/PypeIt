@@ -36,3 +36,12 @@ def test_setup_param():
         assert key in arcparm
 
 def test_detect_lines():
+    from linetools.spectra import xspectrum1d
+    import pypit
+    slf = arut.dummy_self()
+    det = 1
+    # Using Paranal night sky as an 'arc'
+    arx_sky = xspectrum1d.XSpectrum1D.from_file(pypit.__path__[0]+'/data/sky_spec/paranal_sky.fits')
+    arx_amp, arx_cent, arx_wid, arx_w, arx_satsnd, arx_yprep = pyarc.detect_lines(slf, det, msarc=None, censpec=arx_sky.flux.value, MK_SATMASK=False)
+    # Test
+    assert len(arx_w[0]) == 1767
