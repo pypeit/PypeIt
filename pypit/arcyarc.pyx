@@ -438,6 +438,7 @@ def detections_sigma(np.ndarray[DTYPE_t, ndim=1] pixels not None,
             d=1
             flag = 0
             while True:
+                if p+d >= (sz_p-1): break
                 # Test if the peak of the emission line has been reached, and we are now decreasing in flux.
                 if pixels[p+d] > pixels[p+d-1] and pixels[p+d] > pixels[p+d+1]:
                     flag = 1
@@ -448,9 +449,9 @@ def detections_sigma(np.ndarray[DTYPE_t, ndim=1] pixels not None,
                     mnum = pixels[p+d]
                     inum = p+d
                 d += 1
+                if p+d >= (sz_p-1): break
                 if pixels[p+d] > pixels[p+d-1] and flag == 1: break
                 if pixels[p+d] <= 0.0: break
-                if p+d >= sz_p: break
             p += d
             #print p, npc, psum, csqrt(esum), c, d, psum/csqrt(esum)
             if psum/csqrt(esum) >= detect and d+c >= 6:

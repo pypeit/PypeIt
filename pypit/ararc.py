@@ -79,7 +79,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
         satmask = arcyarc.saturation_mask(msarc, slf._nonlinear[det-1])
         satsnd = arcyarc.order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int))
     else:
-        satsnd = np.zeros_like(ordcen)
+        satsnd = np.zeros_like(censpec)
     # Detect the location of the arc lines
     msgs.info("Detecting the strongest, nonsaturated lines")
     #####
@@ -121,7 +121,8 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     # The last argument is the overall minimum significance level of an arc line detection and the second
     # last argument is the level required by an individual pixel before the neighbourhood of this pixel is searched.
     msgs.info('Entering detections_sigma')
-    tpixt, num = arcyarc.detections_sigma(yprep, yerr, np.zeros(satsnd.shape[0], dtype=np.int), siglev/2.0, siglev)
+    #tpixt, num = arcyarc.detections_sigma(yprep, yerr, np.zeros(satsnd.shape[0], dtype=np.int), siglev/2.0, siglev)
+    tpixt, num = detections_sigma(yprep, yerr, np.zeros(satsnd.shape[0], dtype=np.int), siglev/2.0, siglev)
     msgs.info('Entering remove_similar')
     pixt = arcyarc.remove_similar(tpixt, num)
     pixt = pixt[np.where(pixt != -1)].astype(np.int)
@@ -1998,3 +1999,75 @@ def arcord_strdir(maskorder):
                 sord = tsord
                 dirc = tdirc
     return sord, int(ncts), dirc
+
+#===============================================================
+# CYTHON
+
+def detections_sigma(pixels, errors, satmask, thresh, detect):
+    '''
+    cdef int sz_p, flag
+    cdef int p, c, d, npc, inum
+    cdef double psum, esum, mnum
+    '''
+
+    sz_p = pixels.shape[0]
+    pixcen = np.zeros(sz_p).astype(int)
+
+    c = 0
+    npc = 0
+    p = 1
+    pixcen[0] = -1
+    while p < sz_p-1:
+        pixcen[p] = -1
+        # If you have a saturated pixel, ignore it
+        if satmask[p] == 1:
+            c = 0
+            while satmask[p+c] == 1:
+                pixcen[p+c] = -1
+                c += 1
+                if p+c >= sz_p:
+                    break
+            p += c
+            if p >= sz_p: break
+            else: continue
+        if pixels[p]/errors[p] >= thresh and pixels[p+1] > pixels[p]:
+            psum = pixels[p]
+            esum = errors[p]*errors[p]
+            mnum = pixels[p]
+            inum = p
+            c=1
+            while pixels[p-c] < pixels[p-c+1]:
+                psum += pixels[p-c]
+                esum += errors[p-c]*errors[p-c]
+                c += 1
+                if p-c < 0: break
+                if pixels[p-c] <= 0.0: break
+            d=1
+            flag = 0
+            while True:
+                if p+d >= (sz_p-1): break
+                # Test if the peak of the emission line has been reached, and we are now decreasing in flux.
+                if pixels[p+d] > pixels[p+d-1] and pixels[p+d] > pixels[p+d+1]:
+                    flag = 1
+                pixcen[p+d] = -1
+                psum += pixels[p+d]
+                esum += errors[p+d]*errors[p+d]
+                if pixels[p+d]>mnum:
+                    mnum = pixels[p+d]
+                    inum = p+d
+                d += 1
+                if p+d >= (sz_p-1): break
+                if pixels[p+d] > pixels[p+d-1] and flag == 1: break
+                if pixels[p+d] <= 0.0: break
+            p += d
+            #print p, npc, psum, csqrt(esum), c, d, psum/csqrt(esum)
+            if psum/np.sqrt(esum) >= detect and d+c >= 6:
+                pixcen[npc] = inum
+                npc += 1
+                psum = 0.0
+            if p >= sz_p: break
+        else:
+            p += 1
+            if p >= sz_p: break
+    return pixcen, npc
+
