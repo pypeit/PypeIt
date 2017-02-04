@@ -302,7 +302,7 @@ def sort_write(fitsdict, filesort, space=3):
     '''
 
     # ASCII file
-    asciiord = ['filename', 'date', 'frametype', 'target', 'exptime', 'binning',
+    asciiord = ['filename', 'date', 'frametype', 'frameno', 'target', 'exptime', 'binning',
         'dichroic', 'dispname', 'dispangle', 'decker']
     # Generate the columns except frametype
     ascii_tbl = tTable()
@@ -623,6 +623,7 @@ def make_dirs(fitsdict, filesort):
     #Go through objects creating directory tree structure
     w = filesort['science']
     sci_targs = np.array(list(set(fitsdict['target'][w])))
+    '''
     # Loop through targets and replace spaces with underscores
     nored = np.array([])
     # Create directories
@@ -653,6 +654,7 @@ def make_dirs(fitsdict, filesort):
     while nored.size > 0:
         sci_targs = np.delete(sci_targs, nored[0])
         nored = np.delete(nored, 0)
+    '''
     # Create a directory where all of the master calibration frames are stored.
     msgs.info("Creating Master Calibrations directory")
     newdir = "{:s}/{:s}_{:s}".format(currDIR, settings.argflag['run']['directory']['master'],
@@ -1072,7 +1074,7 @@ def write_sorted(srt_tbl, group_dict, setup_dict):
     ftypes = list(group_dict[setups[0]].keys())
     ftypes.sort()
     # Loop on Setup
-    asciiord = ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker']
+    asciiord = ['filename', 'date', 'frameno', 'frametype', 'target', 'exptime', 'dispname', 'decker']
     for setup in setups:
         ff.write('##########################################################\n')
         in_setup = []

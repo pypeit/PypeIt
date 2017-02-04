@@ -2662,6 +2662,17 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
+    def keyword_frameno(self, v):
+        """ Frame Number
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_keyword(v)
+        self.update(v)
+
     def keyword_hatch(self, v):
         """ Hatch open/close
 
@@ -3622,6 +3633,7 @@ def key_int(v):
     try:
         v = int(v)
     except ValueError:
+        debugger.set_trace()
         msgs.error("The argument of {0:s} must be of type int".format(func_name))
     return v
 
