@@ -58,7 +58,6 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     else:
         numsci = len(sciexp)
 
-    debugger.set_trace()
     # Create a list of master calibration frames
     #masters = armasters.MasterFrames(settings.spect['mosaic']['ndet'])
 

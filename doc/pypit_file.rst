@@ -169,10 +169,26 @@ the overscan region, then set the following::
     bias useframe overscan
 
 
+Setup block
++++++++++++
+
+If a Setup is defined here, the value (e.g. "A" or "D") will be
+used instead of starting from the default "A" value.  But *only*
+if there is a single Setup in the PYPIT file.
+
 .. _data_block:
 
 Data block
 ++++++++++
+
+By Files
+--------
+
+This is the recommended approach when performing the
+full run (as opposed to :ref:`pypit-setup`).
+
+By Path Only
+------------
 
 Next, tell PYPIT where your raw data lives!
 One specifies the full path and may use wild cards
