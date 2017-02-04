@@ -66,7 +66,12 @@ def SetupScience(fitsdict):
     setupIDs = []
     for sc in range(numsci):
         for kk in range(settings.spect['mosaic']['ndet']):
-            setupID = arsort.instr_setup(sciexp[sc], kk+1, fitsdict, setup_dict, skip_cset=skip_cset)
+            # Use user-supplied setup name (useful for some book-keeping)?
+            try:
+                cname = settings.argflag['setup']['name']
+            except KeyError:
+                cname = None
+            setupID = arsort.instr_setup(sciexp[sc], kk+1, fitsdict, setup_dict, skip_cset=skip_cset, config_name=cname)
             if kk == 0: # Only save the first detector for run setup
                 setupIDs.append(setupID)
     # Calib IDs
@@ -110,6 +115,10 @@ def SetupScience(fitsdict):
         if settings.argflag['run']['calcheck']:
             msgs.info("Inspect the .calib file: {:s}".format(setup_file))
             msgs.info("Calibration check complete. Set 'run calcheck False' to continue with data reduction")
+            # Instrument specific (might push into a separate file)
+            if settings.argflag['run']['spectrograph'] in ['lris_blue']:
+                if settings.argflag['reduce']['flatfield']['useframe'] in ['pixelflat']:
+                    msgs.warn("We recommend a slitless flat for your instrument.")
             return 'calcheck', None
         elif settings.argflag['run']['setup']:
             for idx in filesort['failures']:

@@ -52,11 +52,22 @@ def sort_data(fitsdict, flag_unknown=False):
     ftag = dict({'science': np.array([], dtype=np.int),
                  'standard': np.array([], dtype=np.int),
                  'bias': np.array([], dtype=np.int),
+                 'dark': np.array([], dtype=np.int),
                  'pinhole': np.array([], dtype=np.int),
                  'pixelflat': np.array([], dtype=np.int),
                  'trace': np.array([], dtype=np.int),
                  'unknown': np.array([], dtype=np.int),
                  'arc': np.array([], dtype=np.int)})
+    if len(settings.ftdict) > 0:
+        for ifile,ftypes in settings.ftdict.items():
+            idx = np.where(fitsdict['filename'] == ifile)[0]
+            sptypes = ftypes.split(',')
+            for iftype in sptypes:
+                ftag[iftype] = np.concatenate([ftag[iftype], idx])
+        # Sort
+        for key in ftag.keys():
+            ftag[key].sort()
+        return ftag
     fkey = np.array(list(ftag.keys()))  # For Python 3 compatability
     # Create an array where 1 means it is a certain type of frame and 0 means it isn't.
     filarr = np.zeros((len(fkey), numfiles), dtype=np.int)
@@ -487,10 +498,12 @@ def match_science(fitsdict, filesort):
                     msgs.warn("  e.g.:   bias useframe overscan")
                     msgs.error("Unable to continue")
                 # Errors for insufficient PIXELFLAT frames
-                if ftag[ft] == 'pixelflat' and settings.argflag['reduce']['flatfield']['perform']:
+                if ftag[ft] == 'pixelflat' and settings.argflag['reduce']['flatfield']['perform'] and (
+                    settings.argflag['reduce']['flatfield']['useframe'] == 'pixelflat'):
                     msgs.warn("Either include more frames or reduce the required amount with:")
-                    msgs.warn("  pixelflat number XX")
+                    msgs.warn("     pixelflat number XX")
                     msgs.warn("in the spect read/end block")
+                    msgs.warn("Or specify a pixelflat file with --  reduce flatfield useframe file_name")
                     msgs.error("Unable to continue")
                 # Errors for insufficient PINHOLE frames
                 if ftag[ft] == 'pinhole':
@@ -795,7 +808,7 @@ def det_setup(isetup_dict, ddict):
 
 
 def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
-                skip_cset=False):
+                skip_cset=False, config_name=None):
     """ Define instrument config
     Make calls to detector and calib set
 
@@ -814,6 +827,8 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
     setup_dict : dict
     skip_cset : bool, optional
       Skip calib_set;  only used when first generating instrument .setup file
+    config_name : str, optional
+      Can be used to choose the config value
 
     Returns
     -------
@@ -858,7 +873,10 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
     # Configuration
     setup = None
     if len(setup_dict) == 0: # Generate
-        setup = 'A'
+        if config_name is None:
+            setup = 'A'
+        else:
+            setup = config_name
         # Finish
         setup_dict[setup] = {}
         setup_dict[setup][cstr] = cdict

@@ -155,10 +155,19 @@ Here are ones that one typically sets::
     output overwrite True              # overwrite any existing output files?
     output sorted lris_blue_long_600_4000_d560     # name of output files
 
-.. _reduce_block:
+.. _reduce-block:
 
 Reduce block
 ++++++++++++
+
+bias
+----
+
+If you have no bias frames and/or wish to subtract the bias with
+the overscan region, then set the following::
+
+    bias useframe overscan
+
 
 .. _data_block:
 

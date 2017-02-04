@@ -1529,6 +1529,16 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
+    def setup_name(self, v):
+        """ Use this setup_name
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        self.update(v)
+
     def trace_combine_match(self, v):
         """ Match similar trace flat frames together? A successful match is found when the frames
         are similar to within N-sigma, where N is the argument of this expression. If v<0,
@@ -1934,7 +1944,7 @@ class BaseSpect(BaseFunctions):
         # Generate the lines
         linesarr = []
         for key,value in fdict.items():
-            if value > self.__dict__['_spect'][key]['number']:
+            if value > self.__dict__['_spect'][key]['number']:  # Only update if the input exceeds the default
                 linesarr.append(' {:s} number {:d}\n'.format(key,value))
         # Return
         return linesarr
@@ -1952,7 +1962,7 @@ class BaseSpect(BaseFunctions):
                     keylst += [str(' ').join(keys) + str(" ") +
                                str("{0}\n".format(value).replace(" ", ""))]
                 del keys[-1]
-
+        # spect
         keylst = []
         savedict(self._spect.copy(), keylst, [])
         # Sort the list
@@ -3378,11 +3388,21 @@ def init(afclass, spclass):
       Class of arguments and flags
     spclass : class
       Class of spectrograph settings
+
+    Returns
+    -------
+    ftdict : dict
+      dict of frametypes set globally (if input)
     """
     global argflag
     global spect
+    global ftdict
     argflag = afclass.__dict__['_argflag']
     spect = spclass.__dict__['_spect']
+    if '_ftdict' in spclass.__dict__.keys():
+        ftdict = spclass.__dict__['_ftdict']
+    else:
+        ftdict = {}
     return
 
 
