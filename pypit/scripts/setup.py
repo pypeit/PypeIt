@@ -11,10 +11,7 @@ This script generates files to setup a PYPIT run
 from __future__ import (print_function, absolute_import, division,
                         unicode_literals)
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except:
-    import pdb as debugger
+import pdb as debugger
 
 def parser(options=None):
     import argparse

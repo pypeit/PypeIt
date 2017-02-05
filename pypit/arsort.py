@@ -317,9 +317,16 @@ def sort_write(fitsdict, filesort, space=3):
         'dichroic', 'dispname', 'dispangle', 'decker']
     # Generate the columns except frametype
     ascii_tbl = tTable()
+    badclms = []
     for pr in asciiord:
         if pr != 'frametype':
-            ascii_tbl[pr] = fitsdict[pr]
+            try:  # No longer require that all of these be present
+                ascii_tbl[pr] = fitsdict[pr]
+            except KeyError:
+                badclms.append(pr)
+    # Remove
+    for pr in badclms:
+        asciiord.pop(asciiord.index(pr))
     # Now frame type
     ftypes = []
     filtyp = filesort.keys()
@@ -1092,7 +1099,7 @@ def write_sorted(srt_tbl, group_dict, setup_dict):
     ftypes = list(group_dict[setups[0]].keys())
     ftypes.sort()
     # Loop on Setup
-    asciiord = ['filename', 'date', 'frameno', 'frametype', 'target', 'exptime', 'dispname', 'decker']
+    asciiord = np.array(['filename', 'date', 'frameno', 'frametype', 'target', 'exptime', 'dispname', 'decker'])
     for setup in setups:
         ff.write('##########################################################\n')
         in_setup = []
@@ -1109,8 +1116,9 @@ def write_sorted(srt_tbl, group_dict, setup_dict):
                 mt = np.where(srt_tbl['filename'] == ifile)[0]
                 if (len(mt) > 0) and (mt not in in_setup):
                     in_setup.append(mt[0])
-        #
-        subtbl = srt_tbl[asciiord][np.array(in_setup)]
+        # Write overlapping keys
+        gdkeys = np.in1d(asciiord, np.array(srt_tbl.keys()))
+        subtbl = srt_tbl[asciiord[gdkeys].tolist()][np.array(in_setup)]
         subtbl.write(ff, format='ascii.fixed_width')
     ff.write('##end\n')
     ff.close()

@@ -29,7 +29,7 @@ def test_run_setup():
         os.remove(sfile)
     #
     droot = data_path('b')
-    pargs = setup.parser([droot, 'kast_blue',
+    pargs = setup.parser([droot, 'kast_blue', '-d',
                           '--extension=fits.gz', '--redux_path={:s}'.format(data_path(''))])
     setup.main(pargs)
     setup_file = glob.glob(data_path('kast_blue*.setups'))[0]
