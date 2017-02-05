@@ -293,7 +293,7 @@ def load_input(redname, msgs):
           'name' list of setups
           'lines' list of lines in the setup block
       'ftype' : dict
-         Sets required number of calib frames
+         dict of filename: frametype
     """
     import os
     # Read in the model file
