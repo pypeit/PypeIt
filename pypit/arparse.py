@@ -1182,6 +1182,46 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
+    def reduce_slitprofile_method(self, v):
+        """ Specify the method that should be used to determine the slit profile
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        allowed = ['bspline']
+        v = key_allowed(v, allowed)
+        self.update(v)
+
+    def reduce_slitprofile_params(self, v):
+        """ Slit profile method parameters, where the parameters relate to the method
+        specified by the 'reduce slitprofile method' keyword:
+
+        bspline:   [Number of pixels in the dispersion direction between each knot]
+
+        Note: if the bspline argument is 0 < number < 1, it will be assumed to be a
+              fraction of the pixels in the dispersion direction
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_list(v)
+        self.update(v)
+
+    def reduce_slitprofile_perform(self, v):
+        """ Determine the spatial slit profile?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_bool(v)
+        self.update(v)
+
     def reduce_trim(self, v):
         """ Trim the frame to isolate the data?
 
@@ -1748,6 +1788,22 @@ class BaseArgFlag(BaseFunctions):
         """
         v = key_int(v)
         if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        self.update(v)
+
+    def trace_slits_pad(self, v):
+        """ How many pixels should be considered beyond the automatic slit
+        edge trace. Note that this parameter does not change the location
+        of the slit edges. This parameter allows for a smooth model to be
+        fit past the automatically detected slit edges.
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_int(v)
+        if v < 0.0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 

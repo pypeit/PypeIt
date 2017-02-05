@@ -13,6 +13,7 @@ def init():
     debug = dict(develop=False,
                  arc=False,
                  obj_profile=False,
+                 slit_profile=False,
                  sky_sub=False,
                  trace=False,
                  wave=False,
