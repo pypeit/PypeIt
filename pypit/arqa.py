@@ -663,9 +663,11 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
             if axesIdx:
                 axes[ind].axis([xedges[0], xedges[-1], 0.0, 1.1*mxval])
                 axes[ind].set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
+                axes[ind].tick_params(labelsize=10)
             else:
                 axes.axis([xedges[0], xedges[-1], 0.0, 1.1*mxval])
                 axes.set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
+                axes.tick_params(labelsize=10)
             ipx += 1
             if ipx == pages[i][0]:
                 ipx = 0

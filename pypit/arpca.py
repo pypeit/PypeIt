@@ -379,6 +379,7 @@ def pc_plot(slf, inpar, ofit, maxp=25, pcadesc="", addOne=True):
                 if addOne: axes[ind].axis([0, nc+1, vmin-0.1*(vmax-vmin), vmax+0.1*(vmax-vmin)])
                 else: axes[ind].axis([0, nc, vmin-0.1*(vmax-vmin), vmax+0.1*(vmax-vmin)])
             axes[ind].set_title("PC {0:d}".format(j+ndone))
+            axes[ind].tick_params(labelsize=8)
             ipx += 1
             if ipx == pages[i][0]:
                 ipx = 0
@@ -476,7 +477,8 @@ def pc_plot_arctilt(slf, tiltang, centval, tilts, maxp=25, maskval=-999999.9):
                 axes[ind].plot(centval[:, ndone][w], tiltang[:, ndone][w], 'bx')
                 axes[ind].plot(x0, tilts[:, ndone], 'r-')
             axes[ind].axis([0, tilts.shape[0]-1, ymin, ymax])
-            axes[ind].set_title("Order {0:d}".format(1+ndone))
+            axes[ind].set_title("Slit {0:d}".format(1+ndone))
+            axes[ind].tick_params(labelsize=8)
             ipx += 1
             if ipx == pages[i][0]:
                 ipx = 0
