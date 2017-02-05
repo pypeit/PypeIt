@@ -32,9 +32,9 @@ The standard algorithm performs the following steps:
 
 3. Perform sigma clipping (median stat) down the wavelength dimension to further reject CRs.  This may eliminate bright emission lines.
 
-4.  Smash the 2D image into a 1D array aligned with the slit (i.e. spatial dimension).
+4.  Smash the 2D image along the spectral dimension, to get a 1D array that represents the spatial profile of the exposure.
 
-5.  Perform an initial search for objects by fitting a low-order polynomial to the slit array and associate objects with pixels that are deviant with that fit.
+5.  Perform an initial search for objects by fitting a low-order polynomial to the spatial profile and associate objects with pixels that are deviant with that fit.
 
 6.  Estimate the scatter in the slit array and then define all 5 sigma, positive excursion as objects (with 3 sigma edges).
 
