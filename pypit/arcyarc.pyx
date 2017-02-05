@@ -968,6 +968,7 @@ def fit_arcorder(np.ndarray[DTYPE_t, ndim=1] xarray not None,
 
     sz_p = pixt.shape[0]
     sz_a = yarray.shape[0]
+    pp = 0
 
     cdef np.ndarray[DTYPE_t, ndim=1] coeff = np.zeros(3, dtype=DTYPE)
     cdef np.ndarray[DTYPE_t, ndim=1] ampl = np.zeros(sz_a, dtype=DTYPE)

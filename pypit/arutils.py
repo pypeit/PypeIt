@@ -13,15 +13,10 @@ from pypit import armsgs
 #from pypit import arcyarc
 import warnings
 
-#from xastropy.xutils import xdebug as xdb
-
 # Logging
 msgs = armsgs.get_logger()
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except ImportError:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 try:
     basestring

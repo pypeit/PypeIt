@@ -11,11 +11,7 @@ from pypit import arqa
 from matplotlib import pyplot as plt
 import os
 
-
-try:
-    from xastropy.xutils import xdebug as debugger
-except ImportError:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -138,7 +134,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     return tampl, tcent, twid, w, satsnd, yprep
 
 
-def setup_param(slf, sc, det, fitsdict, allhead):
+def setup_param(slf, sc, det, fitsdict):
     """ Setup for arc analysis
 
     Parameters
@@ -232,7 +228,7 @@ def setup_param(slf, sc, det, fitsdict, allhead):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='lris_red':
-        arcparam['wv_cen'] = allhead[idx[0]][0]['WAVELEN']
+        arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['WAVELEN']
         lamps = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
         if disperser == '600/7500':
             arcparam['n_first']=2 # Too much curvature for 1st order
@@ -520,7 +516,7 @@ def simple_calib(slf, det, get_poly=False):
     # Return
     return final_fit
 
-def calib_with_arclines(slf, det, get_poly=False):
+def calib_with_arclines(slf, det, get_poly=False, use_basic=False):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
@@ -535,19 +531,19 @@ def calib_with_arclines(slf, det, get_poly=False):
     final_fit : dict
       Dict of fit info
     """
-    from arclines.holy.grail import basic
+    from arclines.holy.grail import basic, semi_brute
     # Parameters (just for convenience)
     aparm = slf._arcparam[det-1]
     # Extract the arc
     msgs.work("Detecting lines..")
     tampl, tcent, twid, w, satsnd, spec = detect_lines(slf, det, slf._msarc[det-1])
 
-    # Go
-    stuff = basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
-                  #siglev=siglev, min_ampl=min_ampl,
-                  #swv_uncertainty=swv_uncertainty,
-                  #pix_tol=pix_tol, plot_fil=plot_fil)
-    status, ngd_match, match_idx, scores, final_fit = stuff
+    if use_basic:
+        # Go
+        stuff = basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
+        status, ngd_match, match_idx, scores, final_fit = stuff
+    else:  # Now preferred
+        final_fit = semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm) #min_ampl=min_ampl,
     if not msgs._debug['no_qa']:
         arqa.arc_fit_qa(slf, final_fit)
     #

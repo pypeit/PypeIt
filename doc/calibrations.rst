@@ -1,15 +1,15 @@
 .. highlight:: rest
 
-============
-Calibrations
-============
+====================
+Calibration Overview
+====================
 
 This document gives an overview of the calibration
 steps of PYPIT.  There is additional documentation
 for several of the more complex steps.
 
-Overview
-========
+Sequence of Events
+==================
 
 Here is the sequence of events:
 
