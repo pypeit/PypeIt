@@ -1985,6 +1985,7 @@ class BaseSpect(BaseFunctions):
         """
         self.update([], ll="set_arc".split("_"))
         self.update([], ll="set_bias".split("_"))
+        self.update([], ll="set_dark".split("_"))
         self.update([], ll="set_pinhole".split("_"))
         self.update([], ll="set_pixelflat".split("_"))
         self.update([], ll="set_science".split("_"))
@@ -1992,6 +1993,7 @@ class BaseSpect(BaseFunctions):
         self.update([], ll="set_trace".split("_"))
         self.update([], ll="arc_index".split("_"))
         self.update([], ll="bias_index".split("_"))
+        self.update([], ll="dark_index".split("_"))
         self.update([], ll="pinhole_index".split("_"))
         self.update([], ll="pixelflat_index".split("_"))
         self.update([], ll="science_index".split("_"))
@@ -2215,6 +2217,18 @@ class BaseSpect(BaseFunctions):
         """
         v = key_int(v)
         #key_min_val(v,-1)
+        self.update(v)
+
+    def dark_canbe(self, v):
+        """ If there are frames that will be a dark in addition to other frame types,
+        include the other frame types here.
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_none_list(v)
         self.update(v)
 
     def det_datasec(self, v, anmbr=1, bnmbr=1):
@@ -3011,6 +3025,20 @@ class BaseSpect(BaseFunctions):
         """
         v = key_list(v)
         v = self._spect['set']['bias'] + v
+        self.update(v)
+
+    def set_dark(self, v):
+        """ Manually force a given frame to be a dark frame. For example,
+         'set dark filename1.fits,filename2.fits' will force filename1.fits
+         and filename2.fits to be bias frames.
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_list(v)
+        v = self._spect['set']['dark'] + v
         self.update(v)
 
     def set_pixelflat(self, v):

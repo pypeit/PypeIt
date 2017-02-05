@@ -113,6 +113,9 @@ bias check condition1 exptime<1     # Required for bias
 bias match naxis0 =0                # Match the shape of bias and science frames
 bias match naxis1 =0                # Match the shape of bias and science frames
 
+# DARK FRAMES (used to trace the slit edges)
+dark canbe None
+
 ### Pixel Flat frames
 pixelflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
 pixelflat number 5                    # Number of flat frames to use

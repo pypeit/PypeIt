@@ -251,12 +251,13 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
 
     Parameters
     ----------
-    x
-    y
+    x : ndarray
+    y : ndarray
     func : str
       polynomial, legendre, chebyshev, bspline, gauss
-    deg
-    minv
+    deg : int
+      degree of the fit
+    minv : float, optional
     maxv
     w
     guesses
@@ -264,6 +265,9 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
 
     Returns
     -------
+    coeff : ndarray or tuple
+      ndarray for standard function fits
+      tuple for bspline
 
     """
     if func == "polynomial":

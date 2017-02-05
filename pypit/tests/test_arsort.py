@@ -85,14 +85,14 @@ def test_instr_setup(fitsdict):
     sciexp = arsciexp.ScienceExposure(0, fitsdict, do_qa=False)
     # Get an ID
     setup_dict = {}
-    setupID = arsort.instr_setup(sciexp, 1, fitsdict, setup_dict)
+    setupID = arsort.instr_setup(sciexp._idx_arcs[0], 1, fitsdict, setup_dict)
     assert setupID == 'A_01_aa'
     # Should get same thing
-    setupID = arsort.instr_setup(sciexp, 1, fitsdict, setup_dict)
+    setupID = arsort.instr_setup(sciexp._idx_arcs[0], 1, fitsdict, setup_dict)
     assert setupID == 'A_01_aa'
     # New det (fake out kast_blue)
     settings.spect['det02'] = dict(numamplifiers=1)
-    setupID2 = arsort.instr_setup(sciexp, 2, fitsdict, setup_dict)
+    setupID2 = arsort.instr_setup(sciexp._idx_arcs[0], 2, fitsdict, setup_dict)
     assert setupID2 == 'A_02_aa'
     # New calib set
     settings.spect['arc']['index'][1] = np.array([9])  # Not really an arc, but ok
