@@ -1,4 +1,4 @@
-""" Module for dealing with settings file.
+""" Module for examining/archiving/etc. settings files.
 This cannot be located in the pypit/ folder (import issues)
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
@@ -24,7 +24,7 @@ except NameError:
 #msgs = pyputils.get_dummy_logger(develop=True)
 
 
-def compare_dicts(top_key, dict1, dict2):
+def compare_dicts(top_key, dict1, dict2, skip_keys=()):
     for key in dict1.keys():
         if isinstance(dict1[key], dict):
             if key in dict2.keys():
@@ -36,7 +36,8 @@ def compare_dicts(top_key, dict1, dict2):
                 pass
             else:
                 if test:
-                    msgs.info("{:s},{:s} is a duplicate".format(top_key,key))
+                    if key not in skip_keys:
+                        msgs.info("{:s},{:s} is a duplicate".format(top_key,key))
                 else:
                     msgs.warn("{:s},{:s} is different".format(top_key,key))
 
@@ -84,15 +85,18 @@ def spect_diff_and_dup():
     basespect.set_paramlist(base_lines)
 
     # ARMLSD instruments
-    for specname in ['kast_blue']:
+    for specname in ['kast_blue', 'kast_red']:
+        msgs.info("===============================================")
+        msgs.info("Working on {:s}".format(specname))
         spect = arparse.get_spect_class(('ARMLSD', specname, ".tmp"))
         spect_lines = spect.load_file()
         spect.set_paramlist(spect_lines)
+        msgs.info("===============================================")
         for key in basespect._spect.keys():
             if key in ['set']:
                 continue
             if key in spect._spect.keys():
-                compare_dicts(key, basespect._spect[key], spect._spect[key])
+                compare_dicts(key, basespect._spect[key], spect._spect[key], skip_keys=('index'))
 
 if __name__ == '__main__':
 

@@ -82,13 +82,13 @@ standard match naxis0 =0             # Match the shape of standard and science f
 standard match naxis1 =0             # Match the shape of standard and science frames
 
 ### Bias/Dark frames
-standard check condition5 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off
+bias check condition5 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off
 bias match naxis0 =0                # Match the shape of bias and science frames
 bias match naxis1 =0                # Match the shape of bias and science frames
 
 ### Pixel Flat frames
 pixelflat check condition5 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
-#pixelflat check condition6 exptime>0  # Required to avoid bias
+pixelflat check condition6 exptime>0  # Required to avoid bias
 pixelflat match naxis0 =0             # Match the shape of flats with science
 pixelflat match naxis1 =0             # Match the shape of flats with science
 
