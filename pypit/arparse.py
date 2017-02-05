@@ -676,7 +676,7 @@ class BaseArgFlag(BaseFunctions):
         if v is None:
             try:
                 v = self._argflag['run']['redname'].replace('.pypit', '')
-            except AttributeError:
+            except (AttributeError, KeyError):
                 pass
         elif v == 'off':
             v = None
@@ -3387,7 +3387,7 @@ def get_argflag_class(init=None):
     argflag : Arguments and Flags
     """
     try:
-        defname = glob(dirname(__file__))[0] + "/settings/settings." + init[0].lower()
+        defname = glob(dirname(__file__))[0] + "/data/settings/settings." + init[0].lower()
         return eval(init[0]+"(defname='{0:s}', savname='{1:s}.settings')".format(defname, init[1]))
     except RuntimeError:
         msgs.error("Reduction type '{0:s}' is not allowed".format(init))
