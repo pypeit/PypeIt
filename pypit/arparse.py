@@ -3405,7 +3405,7 @@ def get_spect_class(init):
     spect_class : Class of spectrograph settings
     """
     try:
-        defname = glob(dirname(__file__))[0] + "/settings/settings." + init[1].lower()
+        defname = glob(dirname(__file__))[0] + "/data/settings/settings." + init[1].lower()
         return eval(init[0]+"_spect(defname='{0:s}', savname='{1:s}.spect')".format(defname, init[2]))
     except RuntimeError:
         msgs.error("{0:s} is not implemented yet".format(init[1]))
