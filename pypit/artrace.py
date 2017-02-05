@@ -298,7 +298,8 @@ def expand_slits(slf, mstrace, det, ordcen, extord):
 
 def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
                  triml=None, trimr=None, sigmin=2.0, bgreg=None,
-                 maskval=-999999.9, order=0, doqa=True):
+                 maskval=-999999.9, order=0, doqa=True,
+                 xedge=0.03, fwhm=3.):
     """ Finds objects, and traces their location on the detector
     Parameters
     ----------
@@ -313,6 +314,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     bgreg
     maskval
     order
+    xedge : float
+      Trim objects within xedge % of the slit edge
     doqa
 
     Returns
@@ -320,6 +323,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
 
     """
     from pypit import arcytrace
+    from pypit import arproc
     from pypit import arcyutils
     smthby = 7
     rejhilo = 1
@@ -361,8 +365,12 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     srtsig = np.sort(rec_sigframe_bin,axis=1)
     ww = np.where(srtsig[:,-2] > med + sigmin*mad)
     mask_sigframe = np.ma.array(rec_sigframe_bin, mask=rec_crmask, fill_value=maskval)
+    # Clip image along spatial dimension -- May eliminate bright emission lines
+    from astropy.stats import sigma_clip
+    clip_image = sigma_clip(mask_sigframe[ww[0],:], axis=0, sigma=4.)
     # Collapse along the spectral direction to get object profile
-    trcprof = np.ma.mean(mask_sigframe[ww[0],:], axis=0).filled(0.0)
+    #trcprof = np.ma.mean(mask_sigframe[ww[0],:], axis=0).filled(0.0)
+    trcprof = np.ma.mean(clip_image, axis=0).filled(0.0)
     trcxrng = np.arange(npix)/(npix-1.0)
     msgs.info("Identifying objects that are significantly detected")
     # Find significantly detected objects
@@ -375,19 +383,23 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
         return None
     med, mad = arutils.robust_meanstd(trcprof[wm])
     trcprof -= med
+    # Gaussian smooth
+    #from scipy.ndimage.filters import gaussian_filter1d
+    #smth_prof = gaussian_filter1d(trcprof, fwhm/2.35)
+    # Define all 5 sigma deviations as objects (should make the 5 user-defined)
+    #objl, objr, bckl, bckr = arcytrace.find_objects(smth_prof, bgreg, mad)
     objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
-    #plt.clf()
-    #plt.plot(trcxrng,trcprof,'k-')
-    #wl = np.where(bckl[:,0]==1)
-    #plt.plot(trcxrng[wl],trcprof[wl],'ro')
-    #wr = np.where(bckr[:,0]==1)
-    #plt.plot(trcxrng[wr],trcprof[wr],'go')
-    #plt.plot(trcxrng[objl[0]:objr[0]+1],trcprof[objl[0]:objr[0]+1],'bx')
-    #plt.show()
+    # Remove objects within x percent of the slit edge
+    xp = (objr+objl)/float(trcprof.size)/2.
+    gdobj = (xp < (1-xedge)) * (xp > xedge)
+    objl = objl[gdobj]
+    objr = objr[gdobj]
+    bckl = bckl[:,gdobj]
+    bckr = bckr[:,gdobj]
+    if np.sum(~gdobj) > 0:
+        msgs.warn("Removed objects near the slit edges")
+    #
     nobj = objl.size
-    if msgs._debug['trace_obj']:
-        debugger.set_trace()
-        #nobj = 1
     if nobj==1:
         msgs.info("Found {0:d} object".format(objl.size))
         msgs.info("Tracing {0:d} object".format(objl.size))
@@ -402,10 +414,13 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     cval = np.zeros(nobj)
     allsfit = np.array([])
     allxfit = np.array([])
+    clip_image2 = sigma_clip(mask_sigframe, axis=0, sigma=4.)
     for o in range(nobj):
         xfit = np.arange(objl[o],objr[o]).reshape((1,-1))/(npix-1.0)
-        cent = np.ma.sum(mask_sigframe[:,objl[o]:objr[o]]*xfit, axis=1)
-        wght = np.ma.sum(mask_sigframe[:,objl[o]:objr[o]], axis=1)
+        #cent = np.ma.sum(mask_sigframe[:,objl[o]:objr[o]]*xfit, axis=1)
+        #wght = np.ma.sum(mask_sigframe[:,objl[o]:objr[o]], axis=1)
+        cent = np.ma.sum(clip_image2[:,objl[o]:objr[o]]*xfit, axis=1)
+        wght = np.ma.sum(clip_image2[:,objl[o]:objr[o]], axis=1)
         cent /= wght
         centfit = cent.filled(maskval)
         specfit = np.linspace(-1.0, 1.0, sciframe.shape[0])
@@ -487,6 +502,13 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
         rec_img[np.where(idxarr==1)] = rec_bg_arr
         rec_bg_img[:,:,o] = rec_img.copy()
         #arutils.ds9plot(rec_img)
+    # Check object traces in ginga
+    if msgs._debug['trace_obj']:
+        from pypit import ginga
+        viewer, ch = ginga.show_image(sciframe)
+        for ii in range(nobj):
+            ginga.show_trace(viewer, ch, traces[:,ii], '{:d}'.format(ii), clear=(ii==0))
+        debugger.set_trace()
     # Save the quality control
     if doqa and (not msgs._debug['no_qa']):
         arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, root="object_trace", normalize=False)
