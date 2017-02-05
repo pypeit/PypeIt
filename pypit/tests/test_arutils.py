@@ -23,14 +23,14 @@ def test_func_fit():
     # Polynomial
     pcoeff = arut.func_fit(x, y, 'polynomial', 3)
     np.testing.assert_allclose(pcoeff, np.array([ -4.74660344e-02,   1.30745471e+00,
-                                                 -4.16175760e-01, 3.08557167e-18]))
+                                                 -4.16175760e-01, 3.08557167e-18]), rtol=1e-5)
     # Legendre
     lcoeff = arut.func_fit(x, y, 'legendre', 3)
     np.testing.assert_allclose(lcoeff, np.array([  6.37115652e-01,   6.83317251e-17,
-                                                   -6.84581686e-01, -7.59352737e-17]))
+                                                   -6.84581686e-01, -7.59352737e-17]), rtol=1e-5)
     # bspline
     bcoeff = arut.func_fit(x, y, 'bspline', 2)
     np.testing.assert_allclose(bcoeff[0], [ 0.        ,  0.        ,  0.        ,  0.31733259,  0.95199777,
-        1.58666296,  2.22132814,  3.14159265,  3.14159265,  3.14159265])
+        1.58666296,  2.22132814,  3.14159265,  3.14159265,  3.14159265], rtol=1e-5)
 
 
