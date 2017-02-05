@@ -2413,7 +2413,7 @@ def slit_profile(slf, mstrace, det, ntcky=20):
     msgs.work("Multiprocess this step to increase speed")
     msordloc = np.zeros(mstrace.shape)
     for o in range(nslits):
-        msgs.info("Deriving the spatial profile for slit {0:d}".format(o+1))
+        msgs.info("Deriving the spatial profile of slit {0:d}".format(o+1))
         lordloc = slf._lordloc[det - 1][:, o]
         rordloc = slf._rordloc[det - 1][:, o]
         ordloc = arcytrace.locate_order(lordloc, rordloc, mstrace.shape[0], mstrace.shape[1],
@@ -2448,7 +2448,7 @@ def slit_profile(slf, mstrace, det, ntcky=20):
         slit_profiles[word] = modvals/nrmvals
         mstracenrm[word] /= nrmvals
     # Prepare some QA for the average slit profile along the slit
-    msgs.info("Preparing QA for each slit profile")
+    msgs.info("Preparing QA of each slit profile")
     arqa.slit_profile(slf, mstracenrm, slit_profiles, slf._lordloc[det - 1], slf._rordloc[det - 1],
                       msordloc, desc="Slit profile")
     # Return

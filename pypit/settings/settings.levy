@@ -134,6 +134,6 @@ settings trace slits polyorder  7
 settings trace slits pca extrapolate pos 0
 settings trace slits pca extrapolate neg 0
 settings trace slits pca params [8,4,2,2,2,1,0,0]
-settings trace slits tilts params [2,3,1]
+settings trace slits tilts params [3,3,1]
 settings trace slits tilts disporder 2
 settings trace slits pad 1
