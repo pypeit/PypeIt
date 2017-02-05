@@ -1606,6 +1606,65 @@ def linreg_test(np.ndarray[DTYPE_t, ndim=2] array not None,
         return 0
 
 
+@cython.boundscheck(False)
+def locate_order(np.ndarray[DTYPE_t, ndim=1] lordloc not None,
+                 np.ndarray[DTYPE_t, ndim=1] rordloc not None,
+                 int sz_x, int sz_y, int pad):
+    """ Generate a boolean image that identifies which pixels
+    belong to the slit associated with the supplied left and
+    right slit edges.
+
+    Parameters
+    ----------
+    lordloc : ndarray
+      Location of the left slit edges of 1 slit
+    rordloc : ndarray
+      Location of the right slit edges of 1 slit
+    sz_x : int
+      The size of an image in the spectral (0th) dimension
+    sz_y : int
+      The size of an image in the spatial (1st) dimension
+    pad : int
+      Additional pixels to pad the left and right slit edges
+
+    Returns
+    -------
+    orderloc : ndarray
+      An image the same size as the input frame, containing values from 0-1.
+      0 = pixel is not in the specified slit
+      1 = pixel is in the specified slit
+    """
+
+    cdef int x, y
+    cdef int ymin, ymax
+    cdef double ow, oc
+
+    cdef np.ndarray[ITYPE_t, ndim=2] orderloc = np.zeros((sz_x,sz_y), dtype=ITYPE)
+
+    for x in range(0, sz_x):
+        ow = (rordloc[x]-lordloc[x])/2.0
+        oc = (rordloc[x]+lordloc[x])/2.0
+        ymin = <int>(oc-ow)-pad
+        ymax = <int>(oc+ow)+1+pad
+        # Check we are in bounds
+        if ymin < 0:
+            ymin = 0
+        elif ymax < 0:
+            continue
+        elif ymax <= ymin:
+            continue
+        if ymax > sz_y-1:
+            ymax = sz_y-1
+        elif ymin > sz_y-1:
+            continue
+        elif ymin >= ymax:
+            continue
+        # Set these values to 1 for this slit
+        for y in range(ymin, ymax):
+            orderloc[x,y] = 1
+    return orderloc
+
+
 #######
 #  M  #
 #######
@@ -2358,7 +2417,7 @@ def trace_fweight(np.ndarray[DTYPE_t, ndim=2] fimage not None,
 def tilts_image(np.ndarray[DTYPE_t, ndim=2] tilts not None,
                 np.ndarray[DTYPE_t, ndim=2] lordloc not None,
                 np.ndarray[DTYPE_t, ndim=2] rordloc not None,
-                int sz_y):
+                int pad, int sz_y):
     """ Using the tilt (assumed to be fit with a first order polynomial)
     generate an image of the tilts for each slit.
 
@@ -2371,6 +2430,9 @@ def tilts_image(np.ndarray[DTYPE_t, ndim=2] tilts not None,
       Location of the left slit edges
     rordloc : ndarray
       Location of the right slit edges
+    pad : int
+      Set the tilts within each slit, and extend a number of pixels
+      outside the slit edges (this number is set by pad).
     sz_y : int
       Number of detector pixels in the spatial direction.
 
@@ -2396,8 +2458,8 @@ def tilts_image(np.ndarray[DTYPE_t, ndim=2] tilts not None,
         for x in range(0, sz_x):
             ow = (rordloc[x,o]-lordloc[x,o])/2.0
             oc = (rordloc[x,o]+lordloc[x,o])/2.0
-            ymin = <int>(oc-ow)
-            ymax = <int>(oc+ow)+1
+            ymin = <int>(oc-ow) - pad
+            ymax = <int>(oc+ow) + 1 + pad
             # Check we are in bounds
             if ymin < 0:
                 ymin = 0

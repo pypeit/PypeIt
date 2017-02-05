@@ -1,14 +1,12 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import numpy as np
-import os
 import copy
 from pypit import arqa
 from pypit import ararc
 from pypit import armsgs
 from pypit import arutils
 from pypit import arpca
-from pypit import arplot
 from pypit import arparse as settings
 import matplotlib.pyplot as plt
 import scipy.interpolate as interp
@@ -1894,7 +1892,8 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
             tilts = np.zeros_like(slf._lordloc)
 
     # Generate tilts image
-    tiltsimg = arcytrace.tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1], msarc.shape[1])
+    tiltsimg = arcytrace.tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1],
+                                     settings.argflag['trace']['slits']['pad'], msarc.shape[1])
     return tiltsimg, satmask, outpar
 
 
@@ -2408,3 +2407,77 @@ def slit_image(slf, det, scitrace, obj, tilts=None):
     slit_img[neg] *= -1
     # Return
     return slit_img
+
+
+def slit_profile(slf, mstrace, det, ntcky=20):
+    """ Generate an image of the spatial slit profile.
+
+    Parameters
+    ----------
+    slf : class
+      Science Exposure Class
+    mstrace : ndarray
+      Master trace frame that is used to trace the slit edges.
+    det : int
+      Detector index
+    ntcky : int
+      Number of bspline knots in the spectral direction.
+
+    Returns
+    -------
+    slit_profile : ndarray
+      An image containing the slit profile
+    """
+    from pypit import arcytrace
+
+    mstracenrm = mstrace.copy()
+    nslits = slf._lordloc[det - 1].shape[1]
+    slit_profiles = np.zeros_like(mstrace)
+    # Set the number of knots in the spectral direction
+    if settings.argflag["reduce"]["slitprofile"]["method"] == "bspline":
+        ntcky = settings.argflag["reduce"]["slitprofile"]["params"][0]
+        if settings.argflag["reduce"]["slitprofile"]["params"][0] < 1.0:
+            ntcky = int(1.0/ntcky)+0.5
+    msgs.work("Multiprocess this step to increase speed")
+    msordloc = np.zeros(mstrace.shape)
+    for o in range(nslits):
+        msgs.info("Deriving the spatial profile of slit {0:d}".format(o+1))
+        lordloc = slf._lordloc[det - 1][:, o]
+        rordloc = slf._rordloc[det - 1][:, o]
+        ordloc = arcytrace.locate_order(lordloc, rordloc, mstrace.shape[0], mstrace.shape[1],
+                                        settings.argflag['trace']['slits']['pad'])
+        word = np.where(ordloc != 0)
+        if word[0].size <= (ntcky+1)*(2*slf._pixwid[det - 1][o]+1):
+            msgs.warn("There are not enough pixels in slit {0:d}".format(o+1))
+            continue
+        msordloc[word] = o+1
+        spatval = (word[1] - lordloc[word[0]])/(rordloc[word[0]] - lordloc[word[0]])
+        specval = slf._tilts[det-1][word]
+        fluxval = mstrace[word]
+        tckx = np.linspace(np.min(spatval), np.max(spatval), 2*slf._pixwid[det - 1][o])
+        tcky = np.linspace(np.min(specval), np.max(specval), ntcky)
+        modspl = interp.LSQBivariateSpline(spatval, specval, fluxval, tckx, tcky)
+        modvals = modspl.ev(spatval, specval)
+        if msgs._debug['slit_profile'] and o == 30:
+            model = np.zeros_like(mstrace)
+            model[word] = modvals
+            diff = mstrace - model
+            import astropy.io.fits as pyfits
+            hdu = pyfits.PrimaryHDU(mstrace)
+            hdu.writeto("mstrace_{0:02d}.fits".format(det), overwrite=True)
+            hdu = pyfits.PrimaryHDU(model)
+            hdu.writeto("model_{0:02d}.fits".format(det), overwrite=True)
+            hdu = pyfits.PrimaryHDU(diff)
+            hdu.writeto("diff_{0:02d}.fits".format(det), overwrite=True)
+        # Normalize to the value at the centre of the slit
+        specval = slf._tilts[det - 1][word]
+        spatval = 0.5*np.ones(specval.size)
+        nrmvals = modspl.ev(spatval, specval)
+        slit_profiles[word] = modvals/nrmvals
+        mstracenrm[word] /= nrmvals
+    # Prepare some QA for the average slit profile along the slit
+    msgs.info("Preparing QA of each slit profile")
+    arqa.slit_profile(slf, mstracenrm, slit_profiles, slf._lordloc[det - 1], slf._rordloc[det - 1],
+                      msordloc, desc="Slit profile")
+    # Return
+    return slit_profiles

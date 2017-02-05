@@ -129,5 +129,11 @@ arc match slitlen %,:|),1,=0         # Match the slit length for arcs and scienc
 # Make some changes to the arguments and flags
 settings reduce flatfield 2dpca 4
 settings trace dispersion direction 0
-settings trace slits pca params [4,2,2,1,1,0]
-settings trace slits tilts params [2,0]
+settings bias useframe overscan
+settings trace slits polyorder  7
+settings trace slits pca extrapolate pos 0
+settings trace slits pca extrapolate neg 0
+settings trace slits pca params [8,4,2,2,2,1,0,0]
+settings trace slits tilts params [3,3,1]
+settings trace slits tilts disporder 2
+settings trace slits pad 1
