@@ -53,6 +53,17 @@ Calibrations
    :maxdepth: 2
 
    calibrations
+   bias
+   tracing
+   wave_calib
+
+Object Algorithms
++++++++++++++++++
+
+.. toctree::
+   :maxdepth: 2
+
+   object_id
 
 Documentation
 +++++++++++++
@@ -60,11 +71,8 @@ Documentation
 .. toctree::
    :maxdepth: 1
 
-   bias
    flexure
    frametype
-   tracing
-   wave_calib
 
 Other
 +++++

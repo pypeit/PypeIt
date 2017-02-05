@@ -28,6 +28,9 @@ can use a "pinhole" frame to trace the slit centroid.
 User Inputted Values
 ====================
 
+Slit Number
+-----------
+
 When reducing long slit data, it may be a good
 idea to explicitly tell PYPIT that there is only
 1 slit to be identified. You can set this using
@@ -41,6 +44,9 @@ that this feature works best when you have
 well defined and uniformly illuminated slits
 (usually the case with cross dispersed data,
 for example).
+
+Slit Gaps
+---------
 
 In cases where the trace frame contains slits that
 are uniformly illuminated in the spectral direction,
@@ -58,6 +64,9 @@ less than 10 pixels. This variable should not be used unless
 there is some crosstalk between slits, or in the event
 of close slits with a non uniform illumination pattern.
 
+User defined
+------------
+
 If necessary, the user may define the edges of the slit(s)
 on each detector.  Currently this is only implemented for
 single slit (i.e. longslit) mode.  The syntax is to add a
@@ -72,6 +81,19 @@ columns 7-295 on the second detctor::
 
 Because the 2nd value is 0, the code will be required to
 automatically find a slit on the first detector.
+
+Slit Threshold
+--------------
+
+The detection threshold for identifying slits is set
+relatively low to err on finding more than fewer slit edges.
+The algorithm can be fooled by scattered light and detector
+defects.  One can increase the threshold with the *sigdetect*
+parameter::
+
+    trace slits sigdetect 30.
+
+Then monitor the number of slits detected by the algorithm.
 
 Trace frames vs Pinhole frames
 ==============================

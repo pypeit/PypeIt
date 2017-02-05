@@ -16,10 +16,7 @@ from pypit import arqa
 from pypit import arpca
 from pypit import arwave
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except ImportError:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -954,7 +951,8 @@ def sn_frame(slf, sciframe, idx):
     return snframe
 
 
-def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-999999.9):
+def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-999999.9,
+             simple_var=False):
     """
     Identify cosmic rays using the L.A.Cosmic algorithm
     U{http://www.astro.yale.edu/dokkum/lacosmic/}
@@ -1002,7 +1000,10 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
         msgs.info("Creating noise model")
         # Build a custom noise map, and compare  this to the laplacian
         m5 = ndimage.filters.median_filter(scicopy, size=5, mode='mirror')
-        noise = np.sqrt(variance_frame(slf, det, m5, scidx, fitsdict))
+        if simple_var:
+            noise = np.sqrt(np.abs(m5)) #variance_frame(slf, det, m5, scidx, fitsdict))
+        else:
+            noise = np.sqrt(variance_frame(slf, det, m5, scidx, fitsdict))
         msgs.info("Calculating Laplacian signal to noise ratio")
 
         # Laplacian S/N
@@ -1166,18 +1167,6 @@ def sub_overscan(frame, det):
     dnum = settings.get_dnum(det)
 
     for i in range(settings.spect[dnum]['numamplifiers']):
-        # Determine the section of the chip that contains the overscan region
-        oscansec = "oscansec{0:02d}".format(i+1)
-        ox0, ox1 = settings.spect[dnum][oscansec][0][0], settings.spect[dnum][oscansec][0][1]
-        oy0, oy1 = settings.spect[dnum][oscansec][1][0], settings.spect[dnum][oscansec][1][1]
-        if ox0 < 0: ox0 += frame.shape[0]
-        if ox1 <= 0: ox1 += frame.shape[0]
-        if oy0 < 0: oy0 += frame.shape[1]
-        if oy1 <= 0: oy1 += frame.shape[1]
-        xos = np.arange(ox0, ox1)
-        yos = np.arange(oy0, oy1)
-        w = np.ix_(xos, yos)
-        oscan = frame[w]
         # Determine the section of the chip that contains data
         datasec = "datasec{0:02d}".format(i+1)
         dx0, dx1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
@@ -1188,6 +1177,18 @@ def sub_overscan(frame, det):
         if dy1 <= 0: dy1 += frame.shape[1]
         xds = np.arange(dx0, dx1)
         yds = np.arange(dy0, dy1)
+        # Determine the section of the chip that contains the overscan region
+        oscansec = "oscansec{0:02d}".format(i+1)
+        ox0, ox1 = settings.spect[dnum][oscansec][0][0], settings.spect[dnum][oscansec][0][1]
+        oy0, oy1 = settings.spect[dnum][oscansec][1][0], settings.spect[dnum][oscansec][1][1]
+        if ox0 < 0: ox0 += frame.shape[0]
+        if ox1 <= 0: ox1 += min(frame.shape[0], dx1)  # Truncate to datasec
+        if oy0 < 0: oy0 += frame.shape[1]
+        if oy1 <= 0: oy1 += min(frame.shape[1], dy1)  # Truncate to datasec
+        xos = np.arange(ox0, ox1)
+        yos = np.arange(oy0, oy1)
+        w = np.ix_(xos, yos)
+        oscan = frame[w]
         # Make sure the overscan section has at least one side consistent with datasec
         if dx1-dx0 == ox1-ox0:
             osfit = np.median(oscan, axis=1)  # Mean was hit by CRs
