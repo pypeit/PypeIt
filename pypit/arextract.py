@@ -51,7 +51,6 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     from pypit import arcyutils
     from astropy.stats import sigma_clip
 
-    dnum = settings.get_dnum(det)
 
     bgfitord = 1  # Polynomial order used to fit the background
     nobj = scitrace['traces'].shape[1]

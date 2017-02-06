@@ -399,27 +399,6 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
 
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 
-def save_obj_info(slf, fitsdict, clobber=True):
-    # Lists for a Table
-    names, boxsize, opt_fwhm = [], [], []
-    # Loop on detectors
-    for kk in range(settings.spect['mosaic']['ndet']):
-        det = kk+1
-        # Loop on spectra
-        for specobj in slf._specobjs[det-1]:
-            # Append
-            names.append(specobj.idx)
-            if 'size' in specobj.boxcar.keys():
-                slit_pix = specobj.boxcar['size']
-                # Convert to arcsec
-                debugger.set_trace()
-                boxsize.append(specobj.boxcar['size'])
-            else:
-                boxsize.append(0.)
-            if 'fwhm' in specobj.optimal.keys():
-                opt_fwhm.append(specobj.optimal['size'])
-            else:
-                opt_fwhm.append(0.)
 
 def save_1d_spectra_fits(slf, clobber=True):
     """ Write 1D spectra to a multi-extension FITS file
@@ -452,6 +431,9 @@ def save_1d_spectra_fits(slf, clobber=True):
             cols += [pyfits.Column(array=specobj.trace, name=str('obj_trace'), format=specobj.trace.dtype)]
             # Boxcar
             for key in specobj.boxcar.keys():
+                # Skip some
+                if key in ['size']:
+                    continue
                 if isinstance(specobj.boxcar[key], Quantity):
                     cols += [pyfits.Column(array=specobj.boxcar[key].value,
                                          name=str('box_'+key), format=specobj.boxcar[key].value.dtype)]
@@ -460,6 +442,10 @@ def save_1d_spectra_fits(slf, clobber=True):
                                          name=str('box_'+key), format=specobj.boxcar[key].dtype)]
             # Optimal
             for key in specobj.optimal.keys():
+                # Skip some
+                if key in ['fwhm']:
+                    continue
+                # Generate column
                 if isinstance(specobj.optimal[key], Quantity):
                     cols += [pyfits.Column(array=specobj.optimal[key].value,
                                            name=str('opt_'+key), format=specobj.optimal[key].value.dtype)]
@@ -483,6 +469,30 @@ def save_1d_spectra_fits(slf, clobber=True):
     #with io.open(sensfunc_name, 'w', encoding='utf-8') as f:
     #    f.write(unicode(json.dumps(slf._sensfunc, sort_keys=True, indent=4, separators=(',', ': '))))
 
+def save_obj_info(slf, fitsdict, clobber=True):
+    # Lists for a Table
+    names, boxsize, opt_fwhm = [], [], []
+    # Loop on detectors
+    for kk in range(settings.spect['mosaic']['ndet']):
+        det = kk+1
+        dnum = settings.get_dnum(det)
+        # Loop on spectra
+        for specobj in slf._specobjs[det-1]:
+            # Append
+            names.append(specobj.idx)
+            if 'size' in specobj.boxcar.keys():
+                slit_pix = specobj.boxcar['size']
+                # Convert to arcsec
+                binspatial, binspectral = settings.parse_binning(fitsdict['binning'][specobj.scidx])
+                debugger.set_trace()
+                boxsize.append(slit_pix*binspatial*settings.spect[dnum]['plate_scale'])
+            else:
+                boxsize.append(0.)
+            if 'fwhm' in specobj.optimal.keys():
+                binspatial, binspectral = settings.parse_binning(fitsdict['binning'][specobj.scidx])
+                opt_fwhm.append(specobj.optimal['fwhm']*binspatial*settings.spect[dnum]['plate_scale'])
+            else:
+                opt_fwhm.append(0.)
 
 def save_2d_images(slf, fitsdict, clobber=True):
     """ Write 2D images to the hard drive

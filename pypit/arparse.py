@@ -20,6 +20,11 @@ msgs = armsgs.get_logger()
 argflag, spect = None, None
 
 try:
+    basestring
+except NameError:  # For Python 3
+    basestring = str
+
+try:
     from xastropy.xutils import xdebug as debugger
 except ImportError:
     import pdb as debugger
@@ -4055,3 +4060,35 @@ def combine_satpixs():
     """
     methods = ['reject', 'force', 'nothing']
     return methods
+
+
+def parse_binning(binning):
+    """ Convert binning keyword to binning values
+
+    Parameters
+    ----------
+    binning : str
+      Probably parsed from the header
+
+    Returns
+    -------
+    binspatial : int
+    binspectral : int
+
+    """
+    # comma separated format
+    binspatial, binspectral = None, None
+    if isinstance(binning, basestring):
+        if ',' in binning:
+            binspatial, binspectral = [int(item) for item in binning.split(',')]  # Keck standard, I think
+        else:
+            pass
+    else:
+        pass
+    # Finish
+    if binspatial is None:
+        msgs.warn("Unable to parse input binning: {}".format(binning))
+        msgs.warn("Assuming unbinned, i.e.  1x1")
+        return 1,1
+    else:
+        return binspatial, binspectral

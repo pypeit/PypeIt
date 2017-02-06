@@ -263,7 +263,6 @@ def setup_param(slf, sc, det, fitsdict):
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     else:
         msgs.error('ararc.setup_param: Not ready for this instrument {:s}!'.format(sname))
-
     # Load linelist
     arcparam['lamps'] = lamps
     slmps = lamps[0]
@@ -272,13 +271,9 @@ def setup_param(slf, sc, det, fitsdict):
     msgs.info('Loading line list using {:s} lamps'.format(slmps))
     arcparam['llist'] = ararclines.load_arcline_list(slf, idx, lamps, disperser,
         wvmnx=arcparam['wvmnx'], modify_parse_dict=modify_dict)
-    #llist = ascii.read(aparm['llist'],
-    #    format='fixed_width_no_header', comment='#', #data_start=1, 
-    #    names=('wave', 'flag', 'ID'),
-    #    col_starts=(0,12,14), col_ends=(11,13,24))
     # Binning
-    if fitsdict['binning'][idx[0]] in ['2,2']:
-        arcparam['disp'] *= 2
+    binspatial, binspectral = settings.parse_binning(fitsdict['binning'][idx[0]])
+    arcparam['disp'] *= binspectral
     # Return
     return arcparam
 
