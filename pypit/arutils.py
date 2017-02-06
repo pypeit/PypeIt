@@ -1076,28 +1076,37 @@ def subsample(frame):
     indices = coordinates.astype('i')
     return frame[tuple(indices)]
 
-def trace_gweight(fimage, xcen, ycen, sigma, invvar=None):
-    """ Port of SDSS trace_gweight algorithm
+def trace_gweight(fimage, xcen, ycen, sigma, invvar=None, maskval=-999999.9):
+    """ Determines the trace centroid by weighting the flux by the integral
+    of a Gaussian over a pixel
+    Port of SDSS trace_gweight algorithm
+
     Parameters
     ----------
-    fimage
-    xcen
-    ycen
-    sigma
-    invvar
+    fimage : ndarray
+      image to centroid on
+    xcen : ndarray
+      guess of centroids in x (column) dimension
+    ycen : ndarray (usually int)
+      guess of centroids in y (rows) dimension
+    sigma : float
+      Width of gaussian
+    invvar : ndarray, optional
+    maskval : float, optional
+      Value for masking
 
     Returns
     -------
-    xnew
-    xerr
+    xnew : ndarray
+      New estimate for trace in x-dimension
+    xerr : ndarray
+      Error estimate for trace.  Rejected points have maskval
 
     """
-    # import
-    from scipy.special import erf
     # Setup
     nx = fimage.shape[1]
-    xnew = xcen.copy()
-    xerr = 0.0 * xnew # Allocate memory
+    xnew = np.zeros_like(xcen)
+    xerr = maskval*np.ones_like(xnew)
 
     if invvar is None:
         invvar = np.ones_like(fimage)
@@ -1123,8 +1132,7 @@ def trace_gweight(fimage, xcen, ycen, sigma, invvar=None):
                             invvar[ycen, xs] + (invvar[ycen, xs] == 0))
         bad = np.any([bad, xh < 0, xh >= nx], axis=0)
 
-
-    xerr[:] = 999.0
+    # Masking
     good = (~bad) & (weight > 0)
     if np.sum(good) > 0:
         xnew[good] = numer[good]/weight[good]
