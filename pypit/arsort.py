@@ -371,6 +371,14 @@ def match_science(fitsdict, filesort):
             if ftag[ft] == 'bias' and settings.argflag['bias']['useframe'] != 'bias' and not settings.argflag['reduce']['badpix']:
                 msgs.info("  Bias frames not required")
                 continue
+            # How many frames are required
+            if settings.argflag['run']['setup']:
+                numfr = setup_ftag[ftag[ft]]
+            else:
+                numfr = settings.spect[ftag[ft]]['number']
+            if numfr == 0:
+                msgs.info("No {0:s} frames are required".format(ftag[ft]))
+                continue
             # Now go ahead and match the frames
             n = np.arange(nfiles)
             if 'match' not in settings.spect[ftag[ft]].keys():
@@ -469,11 +477,6 @@ def match_science(fitsdict, filesort):
                 n = n[w] # n corresponds to all frames within a set time difference of the science target frame
             # Now find which of the remaining n are the appropriate calibration frames
             n = np.intersect1d(n, iARR[ft])
-            # How many frames are required
-            if settings.argflag['run']['setup']:
-                numfr = setup_ftag[ftag[ft]]
-            else:
-                numfr = settings.spect[ftag[ft]]['number']
             if settings.argflag['output']['verbosity'] == 2:
                 if numfr == 1: areis = "is"
                 else: areis = "are"
