@@ -220,7 +220,12 @@ def chk_condition(fitsdict, cond):
         ntmp = fitsdict[tcond[0]] > float(tcond[1])
     elif "=" in cond:
         tcond = cond.split("=")
-        ntmp = (fitsdict[tcond[0]] == tcond[1])
+        if 'int' in fitsdict[tcond[0]].dtype.name:
+            ntmp = fitsdict[tcond[0]] == int(tcond[1])
+        elif 'float' in fitsdict[tcond[0]].dtype.name:
+            ntmp = fitsdict[tcond[0]] == float(tcond[1])
+        else:
+            ntmp = fitsdict[tcond[0]] == tcond[1]
     else:
         ntmp = None
     return ntmp
@@ -373,7 +378,9 @@ def match_science(fitsdict, filesort):
             chkk = settings.spect[ftag[ft]]['match'].keys()
             for ch in chkk:
                 tmtch = settings.spect[ftag[ft]]['match'][ch]
-                if tmtch == "''":
+                if tmtch == "any":
+                    w = np.arange(len(fitsdict['filename'])).astype(int)
+                elif tmtch == "''":
                     w = np.where(fitsdict[ch] == fitsdict[ch][iSCI[i]])[0]
                 elif tmtch[0] == '=':
                     mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[1:])

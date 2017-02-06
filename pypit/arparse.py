@@ -139,6 +139,16 @@ class BaseArgFlag(BaseFunctions):
         super(BaseArgFlag, self).__init__(defname, savname)
         self._argflag = NestedDict()
 
+    def init_param(self):
+        """ Initialze the parameter list
+        """
+        # Base
+        lines = self.load_file(base=True)
+        self.set_paramlist(lines)
+        # Pipeline speicific
+        lines = self.load_file()
+        self.set_paramlist(lines)
+
     def save(self):
         """ Save the arguments and flags settings used for a given reduction
         """

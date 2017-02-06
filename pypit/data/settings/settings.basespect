@@ -83,7 +83,7 @@ standard match decker ''              # Check the same decker as the science fra
 bias idname DARK                    # Header key value of bias frame for header keyword keyword+idname
 bias number 5                       # Number of bias frames to use
 bias canbe None                     # If there are frames that will be bias ***in addition to other frame types***, include the other frame types here.
-bias check condition1 exptime=0     # Not all detectors can use 0s
+bias check condition1 exptime=0    # Be warned that not all detectors can use 0s
 bias match binning ''             		# Match the shape of standard and science frames
 #bias match naxis0 =0                # Match the shape of bias and science frames
 #bias match naxis1 =0                # Match the shape of bias and science frames
@@ -91,9 +91,9 @@ bias match binning ''             		# Match the shape of standard and science fr
 ### Pixel Flat frames
 pixelflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
 pixelflat number 5                    # Number of flat frames to use
-pixelflat canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
+pixelflat canbe trace                 # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
 pixelflat lscomb False                # Combine a long and short flat
-pixelflat check condition1 exptime<30 # Blue exposures may require longer time
+pixelflat check condition1 exptime<=30 # Blue exposures may require longer time
 pixelflat match binning ''            # Match the shape of pixelflat and science frames
 pixelflat match dichroic ''             # Check the same decker as the science frame was used
 pixelflat match dispname ''             # Check the same decker as the science frame was used
@@ -131,6 +131,6 @@ arc check condition1 exptime<30     #
 arc match binning ''                # Match the shape of arcs with science
 arc match dispname ''               # Check the same decker as the science frame was used
 arc match dichroic ''               # Check the same decker as the science frame was used
-arc match decker ''                 # Check the same decker as the science frame was used
+arc match decker ''                 # Check the same decker as the science frame was used; narrower slits are sometimes used
 #arc match naxis1 =0                # Match the shape of arcs with science
 

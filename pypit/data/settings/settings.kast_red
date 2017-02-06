@@ -127,11 +127,15 @@ pixelflat match dispangle |<=20         # Match the cross-disperser angle (an un
 pinhole check condition99 exptime>999999 # Avoids any pinhole frames
 
 ### Trace frames
-trace check condition99 exptime>999999   # Avoids any trace frames
+trace check condition5 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
+trace check condition6 exptime>0  # Required to avoid bias
+trace match naxis0 =0             # Match the shape of flats with science
+trace match naxis1 =0             # Match the shape of flats with science
 
 ### Arc frames
 arc check condition5 lampstat07=on|lampstat08=on|lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on|lampstat13=on|lampstat14=on|lampstat15=on|lampstat16=on
 arc check condition6 exptime>0      # Lamps aren't always listed as on
+arc match decker any                # People frequently use a more narrow slit
 arc match naxis0 =0                 # Match the shape of arcs with science
 arc match naxis1 =0                 # Match the shape of arcs with science
 arc match dispangle |<=10              # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 10 ~ 2pixel)

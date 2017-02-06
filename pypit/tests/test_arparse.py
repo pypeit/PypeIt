@@ -16,10 +16,9 @@ def test_load_armlsd():
     """ Test loading of ARMLSD
     """
     argf = arparse.get_argflag_class(('ARMLSD', ''))
-    lines = argf.load_file()
+    argf.init_param()
     argf.set_param('run pypitdir {0:s}'.format('pypit'))
     argf.set_param('run redname {0:s}'.format('kast_blue_setup_01'))
-    argf.set_paramlist(lines)
     # Test
     assert argf._argflag['run']['redname'] == 'kast_blue_setup_01'
     assert argf._argflag['reduce']['trim'] == True

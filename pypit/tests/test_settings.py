@@ -27,6 +27,8 @@ def test_settings_vs_archive():
     """ Test that the current settings.base files match the
     most recent archived one.  This avoids our changing the former
     without careful consideration (I hope)
+
+    If this test fails, you likely need to run data/settings/settings.archive()
     """
     # Base
     settings_path = pypit.__path__[0]+'/data/settings/'
