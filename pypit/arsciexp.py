@@ -417,9 +417,10 @@ class ScienceExposure:
                         # profile. Avoid recalculating the slit profile and blaze function and save them here.
                         self.SetFrame(self._msblaze, msblaze, det)
                         self.SetFrame(self._slitprof, slit_profiles, det)
-                        msgs.info("Preparing QA of each slit profile")
-                        arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
-                                          self._slitpix[det - 1], desc="Slit profile")
+                        if settings.argflag["reduce"]["slitprofile"]["perform"]:
+                            msgs.info("Preparing QA of each slit profile")
+                            arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
+                                              self._slitpix[det - 1], desc="Slit profile")
                         msgs.info("Saving blaze function QA")
                         arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function", textplt="Order")
                 return False
@@ -465,8 +466,7 @@ class ScienceExposure:
                     # Normalize the flat field
                     msgs.info("Normalizing the pixel flat")
                     slit_profiles, mstracenrm, msblaze, flat_ext1d = \
-                        arproc.slit_profile(self, self.GetMasterFrame("pixelflat", det),
-                                            det, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
+                        arproc.slit_profile(self, mspixelflat, det, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
                     # mspixelflatnrm, msblaze = arproc.flatnorm(self, det, self.GetMasterFrame("pixelflat", det),
                     #                                         overpix=0, plotdesc="Blaze function")
                     mspixelflatnrm = mstracenrm.copy()
@@ -477,9 +477,10 @@ class ScienceExposure:
                         # profile. Avoid recalculating the slit profile and blaze function and save them here.
                         self.SetFrame(self._msblaze, msblaze, det)
                         self.SetFrame(self._slitprof, slit_profiles, det)
-                        msgs.info("Preparing QA of each slit profile")
-                        arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
-                                          self._slitpix[det - 1], desc="Slit profile")
+                        if settings.argflag["reduce"]["slitprofile"]["perform"]:
+                            msgs.info("Preparing QA of each slit profile")
+                            arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
+                                              self._slitpix[det - 1], desc="Slit profile")
                         msgs.info("Saving blaze function QA")
                         arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function", textplt="Order")
             else:  # It must be the name of a file the user wishes to load
