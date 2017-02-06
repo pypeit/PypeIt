@@ -969,7 +969,7 @@ def slit_pixels(slf, frameshape, det):
     return msordloc
 
 
-def slit_profile(slf, mstrace, det, ntcky=20):
+def slit_profile(slf, mstrace, det, ntcky=None):
     """ Generate an image of the spatial slit profile.
 
     Parameters
@@ -987,6 +987,12 @@ def slit_profile(slf, mstrace, det, ntcky=20):
     -------
     slit_profile : ndarray
       An image containing the slit profile
+    mstracenrm : ndarray
+      The input trace frame, normalized by the blaze function (but still contains the slit profile)
+    msblaze : ndarray
+      A model of the blaze function of each slit
+    blazeext : ndarray
+      The blaze function extracted down the centre of the slit
     """
     dnum = settings.get_dnum(det)
     nslits = slf._lordloc[det - 1].shape[1]
@@ -998,15 +1004,23 @@ def slit_profile(slf, mstrace, det, ntcky=20):
         mstrace /= sclframe
 
     mstracenrm = mstrace.copy()
+    msblaze = np.ones_like(slf._lordloc[det - 1])
+    blazeext = np.ones_like(slf._lordloc[det - 1])
     slit_profiles = np.zeros_like(mstrace)
     # Set the number of knots in the spectral direction
-    if settings.argflag["reduce"]["slitprofile"]["method"] == "bspline":
-        ntcky = settings.argflag["reduce"]["slitprofile"]["params"][0]
-        if settings.argflag["reduce"]["slitprofile"]["params"][0] < 1.0:
-            ntcky = int(1.0/ntcky)+0.5
-    msgs.work("Multiprocess this step to increase speed")
+    if ntcky is None:
+        if settings.argflag["reduce"]["slitprofile"]["method"] == "bspline":
+            ntcky = settings.argflag["reduce"]["slitprofile"]["params"][0]
+            if settings.argflag["reduce"]["slitprofile"]["params"][0] < 1.0:
+                ntcky = int(1.0/ntcky)+0.5
+        else:
+            ntcky = 20
+    else:
+        if ntcky < 1.0:
+            ntcky = int(1.0 / ntcky) + 0.5
+    msgs.work("Multiprocess this step")
     for o in range(nslits):
-        msgs.info("Deriving the spatial profile of slit {0:d}".format(o+1))
+        msgs.info("Deriving the spatial profile and blaze function of slit {0:d}".format(o+1))
         lordloc = slf._lordloc[det - 1][:, o]
         rordloc = slf._rordloc[det - 1][:, o]
         word = np.where(slf._slitpix[det - 1] == o+1)
@@ -1035,10 +1049,12 @@ def slit_profile(slf, mstrace, det, ntcky=20):
         specval = slf._tilts[det - 1][word]
         spatval = 0.5*np.ones(specval.size)
         nrmvals = modspl.ev(spatval, specval)
+        msblaze[:, o] = modspl.ev(0.5*np.ones(msblaze.shape[0]), np.linspace(0.0, 1.0, msblaze.shape[0]))
+        blazeext[:, o] = mstrace[:, np.round(0.5*(lordloc+rordloc)).astype(np.int)]
         slit_profiles[word] = modvals/nrmvals
         mstracenrm[word] /= nrmvals
     # Return
-    return slit_profiles, mstracenrm
+    return slit_profiles, mstracenrm, msblaze, blazeext
 
 
 def sn_frame(slf, sciframe, idx):
