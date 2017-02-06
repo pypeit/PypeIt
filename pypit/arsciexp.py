@@ -17,6 +17,7 @@ from pypit import arlris
 from pypit import armasters
 from pypit import armsgs
 from pypit import arproc
+from pypit import arqa
 from pypit import arsort
 from pypit import arutils
 
@@ -73,6 +74,7 @@ class ScienceExposure:
         self._pixwid   = [None for all in range(ndet)]   # Width of slit (at each row) in apparent pixel coordinates
         self._lordpix  = [None for all in range(ndet)]   # Array of slit traces (left side) in apparent pixel coordinates
         self._rordpix  = [None for all in range(ndet)]   # Array of slit traces (right side) in apparent pixel coordinates
+        self._slitpix  = [None for all in range(ndet)]   # Array identifying if a given pixel belongs to a given slit
         self._tilts    = [None for all in range(ndet)]   # Array of spectral tilts at each position on the detector
         self._tiltpar  = [None for all in range(ndet)]   # Dict parameters for tilt fitting
         self._satmask  = [None for all in range(ndet)]   # Array of Arc saturation streaks
@@ -334,7 +336,7 @@ class ScienceExposure:
             msgs.info("Not performing a bias/dark subtraction")
             self.SetMasterFrame(None, "bias", det, mkcopy=False)
             return False
-        else: # It must be the name of a file the user wishes to load
+        else:  # It must be the name of a file the user wishes to load
             msbias_name = settings.argflag['run']['directory']['master']+u'/'+settings.argflag['bias']['useframe']
             msbias, head = arload.load_master(msbias_name, frametype="bias")
             settings.argflag['reduce']['masters']['loaded'].append('bias')
@@ -395,16 +397,31 @@ class ScienceExposure:
         """
 
         if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
-        # If the master pixelflat is already made, use it
+            # If the master pixelflat is already made, use it
             if self._mspixelflat[det-1] is not None:
                 msgs.info("An identical master pixelflat frame already exists")
                 if self._mspixelflatnrm[det-1] is None:
                     # Normalize the flat field
                     msgs.info("Normalizing the pixel flat")
-                    mspixelflatnrm, msblaze = arproc.flatnorm(self, det, self.GetMasterFrame("pixelflat", det),
-                                                            overpix=0, plotdesc="Blaze function")
-                    self.SetFrame(self._msblaze, msblaze, det)
+                    slit_profiles, mstracenrm, msblaze, flat_ext1d = \
+                        arproc.slit_profile(self, self.GetMasterFrame("pixelflat", det),
+                                            det, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
+                    # mspixelflatnrm, msblaze = arproc.flatnorm(self, det, self.GetMasterFrame("pixelflat", det),
+                    #                                           overpix=0, plotdesc="Blaze function")
+                    mspixelflatnrm = mstracenrm.copy()
+                    winpp = np.where(slit_profiles != 0.0)
+                    mspixelflatnrm[winpp] /= slit_profiles[winpp]
                     self.SetMasterFrame(mspixelflatnrm, "normpixelflat", det)
+                    if np.array_equal(self._idx_flat, self._idx_trace):
+                        # The flat field frame is also being used to trace the slit edges and determine the slit
+                        # profile. Avoid recalculating the slit profile and blaze function and save them here.
+                        self.SetFrame(self._msblaze, msblaze, det)
+                        self.SetFrame(self._slitprof, slit_profiles, det)
+                        msgs.info("Preparing QA of each slit profile")
+                        arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
+                                          self._slitpix[det - 1], desc="Slit profile")
+                        msgs.info("Saving blaze function QA")
+                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function", textplt="Order")
                 return False
             ###############
             # Generate a master pixel flat frame
@@ -434,7 +451,7 @@ class ScienceExposure:
                         for i in range(len(sframes)):
                             numarr = np.append(numarr, sframes[i].shape[2])
                             mspixelflat = arcomb.comb_frames(sframes[i], det, 'pixelflat', printtype='pixel flat')
-                            subframes[:,:,i] = mspixelflat.copy()
+                            subframes[:, :, i] = mspixelflat.copy()
                         del sframes
                         # Combine all sub-frames
                         mspixelflat = arcomb.comb_frames(subframes, det, 'pixelflat', weights=numarr,
@@ -446,11 +463,28 @@ class ScienceExposure:
                     # Apply gain (instead of ampsec scale)
                     mspixelflat *= arproc.gain_frame(self, det)
                     # Normalize the flat field
-                    mspixelflatnrm, msblaze = arproc.flatnorm(self, det, mspixelflat, overpix=0, plotdesc="Blaze function")
-                    self.SetFrame(self._msblaze, msblaze, det)
+                    msgs.info("Normalizing the pixel flat")
+                    slit_profiles, mstracenrm, msblaze, flat_ext1d = \
+                        arproc.slit_profile(self, self.GetMasterFrame("pixelflat", det),
+                                            det, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
+                    # mspixelflatnrm, msblaze = arproc.flatnorm(self, det, self.GetMasterFrame("pixelflat", det),
+                    #                                         overpix=0, plotdesc="Blaze function")
+                    mspixelflatnrm = mstracenrm.copy()
+                    winpp = np.where(slit_profiles != 0.0)
+                    mspixelflatnrm[winpp] /= slit_profiles[winpp]
+                    if np.array_equal(self._idx_flat, self._idx_trace):
+                        # The flat field frame is also being used to trace the slit edges and determine the slit
+                        # profile. Avoid recalculating the slit profile and blaze function and save them here.
+                        self.SetFrame(self._msblaze, msblaze, det)
+                        self.SetFrame(self._slitprof, slit_profiles, det)
+                        msgs.info("Preparing QA of each slit profile")
+                        arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
+                                          self._slitpix[det - 1], desc="Slit profile")
+                        msgs.info("Saving blaze function QA")
+                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function", textplt="Order")
             else:  # It must be the name of a file the user wishes to load
                 mspixelflat_name = armasters.user_master_name(settings.argflag['run']['directory']['master'],
-                                                            settings.argflag['reduce']['flatfield']['useframe'])
+                                                              settings.argflag['reduce']['flatfield']['useframe'])
                 mspixelflatnrm, head = arload.load_master(mspixelflat_name, exten=det, frametype=None)
                 mspixelflat = mspixelflatnrm
             # Now that the combined, master flat field frame is loaded...
@@ -568,12 +602,14 @@ class ScienceExposure:
                     pixwid, _ = arload.load_master(mstrace_name, frametype="trace", exten=4)
                     lordpix, _ = arload.load_master(mstrace_name, frametype="trace", exten=5)
                     rordpix, _ = arload.load_master(mstrace_name, frametype="trace", exten=6)
+                    slitpix, _ = arload.load_master(mstrace_name, frametype="trace", exten=7)
                     self.SetFrame(self._lordloc, lordloc, det)
                     self.SetFrame(self._rordloc, rordloc, det)
                     self.SetFrame(self._pixcen, pixcen.astype(np.int), det)
                     self.SetFrame(self._pixwid, pixwid.astype(np.int), det)
                     self.SetFrame(self._lordpix, lordpix.astype(np.int), det)
                     self.SetFrame(self._rordpix, rordpix.astype(np.int), det)
+                    self.SetFrame(self._slitpix, slitpix.astype(np.int), det)
                     #
                     settings.argflag['reduce']['masters']['loaded'].append('trace'+settings.argflag['reduce']['masters']['setup'])
             if 'trace'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:

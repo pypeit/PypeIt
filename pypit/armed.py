@@ -148,6 +148,10 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._pixwid, pixwid, det)
                 slf.SetFrame(slf._lordpix, lordpix, det)
                 slf.SetFrame(slf._rordpix, rordpix, det)
+                msgs.info("Identifying the pixels belonging to each slit")
+                slitpix = arproc.slit_pixels(slf, slf._mstrace[det-1].shape, det)
+                slf.SetFrame(slf._slitpix, slitpix, det)
+
                 # Save QA for slit traces
                 arqa.slit_trace_qa(slf, slf._mstrace[det - 1], slf._lordpix[det - 1], slf._rordpix[det - 1], extord,
                                    desc="Trace of the slit edges", normalize=False)
@@ -158,6 +162,7 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             update = slf.MasterWaveCalib(fitsdict, sc, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
+
             ###############
             # Derive the spectral tilt
             if slf._tilts[det-1] is None:
@@ -177,6 +182,13 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
 
+            ###############
+            # Prepare the pixel flat field frame
+            update = slf.MasterFlatField(fitsdict, det)
+            if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
+
+            ###############
+            # Derive the spatial profile and blaze function
             if slf._slitprof[det-1] is None:
                 if settings.argflag['reduce']['masters']['reuse']:
                     msslitprof_name = armasters.master_name('slitprof', settings.argflag['reduce']['masters']['setup'])
@@ -189,17 +201,15 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                         settings.argflag['reduce']['masters']['loaded'].append('slitprof'+settings.argflag['reduce']['masters']['setup'])
                 if 'slitprof'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
                     # First time slit profile is derived
-                    if not msgs._debug['develop']:
-                        slit_profiles = artrace.slit_profile(slf, slf._mstrace[det - 1], det)
-                        np.save("slit_profiles", slit_profiles)
-                    else:
-                        slit_profiles = np.load("slit_profiles.npy")
+                    slit_profiles, mstracenrm, msblaze, flat_ext1d = arproc.slit_profile(slf, slf._mstrace[det - 1], det)
                     slf.SetFrame(slf._slitprof, slit_profiles, det)
-
-            ###############
-            # Prepare the pixel flat field frame
-            update = slf.MasterFlatField(fitsdict, det)
-            if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
+                    slf.SetFrame(slf._msblaze, msblaze, det)
+                    # Prepare some QA for the average slit profile along the slit
+                    msgs.info("Preparing QA of each slit profile")
+                    arqa.slit_profile(slf, mstracenrm, slit_profiles, slf._lordloc[det - 1], slf._rordloc[det - 1],
+                                      slf._slitpix[det - 1], desc="Slit profile")
+                    msgs.info("Saving blaze function QA")
+                    arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc="Blaze function", textplt="Order")
 
             msgs.error("UP TO HERE!!!")
             ###############
