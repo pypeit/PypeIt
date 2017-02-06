@@ -56,18 +56,11 @@ def archive_argf():
     """
     import pypit
     settings_path = pypit.__path__[0]+'/data/settings/'
-    archive_path = pypit.__path__[0]+'/data/settings/archive/'
-    # Load archive
-    archive_files = glob(archive_path+'settings.*.baseargflag')
-    # Find the most recent
-    dates = []
-    for afile in archive_files:
-        dates.append(afile.split('.')[-2])
-    times = Time(dates)
-    imax = np.argmax(times)
-    arch_file = archive_files[imax]
     # Compare most recent to current
     baseargf_file = settings_path+'settings.baseargflag'
+    # Archive
+    archive_path = pypit.__path__[0]+'/data/settings/archive/'
+    arch_file = current_arch_file(archive_path)
     # Identical?
     match = filecmp.cmp(baseargf_file, arch_file)
     if not match:
@@ -110,6 +103,20 @@ def argf_diff_and_dup():
     for key in baseargf._argflag.keys():
         if key in armed._argflag.keys():
             compare_dicts(key, baseargf._argflag[key], armed._argflag[key])
+
+
+def current_arch_file(apath):
+    # Load archive
+    archive_files = glob(apath+'settings.*.baseargflag')
+    # Find the most recent
+    dates = []
+    for afile in archive_files:
+        dates.append(afile.split('.')[-2])
+    times = Time(dates)
+    imax = np.argmax(times)
+    arch_file = archive_files[imax]
+    # Return
+    return arch_file
 
 
 def spect_diff_and_dup():
