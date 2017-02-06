@@ -399,6 +399,27 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
 
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 
+def save_obj_info(slf, fitsdict, clobber=True):
+    # Lists for a Table
+    names, boxsize, opt_fwhm = [], [], []
+    # Loop on detectors
+    for kk in range(settings.spect['mosaic']['ndet']):
+        det = kk+1
+        # Loop on spectra
+        for specobj in slf._specobjs[det-1]:
+            # Append
+            names.append(specobj.idx)
+            if 'size' in specobj.boxcar.keys():
+                slit_pix = specobj.boxcar['size']
+                # Convert to arcsec
+                debugger.set_trace()
+                boxsize.append(specobj.boxcar['size'])
+            else:
+                boxsize.append(0.)
+            if 'fwhm' in specobj.optimal.keys():
+                opt_fwhm.append(specobj.optimal['size'])
+            else:
+                opt_fwhm.append(0.)
 
 def save_1d_spectra_fits(slf, clobber=True):
     """ Write 1D spectra to a multi-extension FITS file
@@ -415,7 +436,7 @@ def save_1d_spectra_fits(slf, clobber=True):
     prihdu = pyfits.PrimaryHDU()
     hdus = [prihdu]
 
-    # Loop on spectra
+    # Loop on detectors
     ext = 0
     for kk in range(settings.spect['mosaic']['ndet']):
         det = kk+1

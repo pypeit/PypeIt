@@ -2457,6 +2457,20 @@ class BaseSpect(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 1".format(cname))
         self.update(v, ll=cname.split('_'))
 
+    def det_platescale(self, v, anmbr=1):
+        """ Number of amplifiers for each detector.
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        cname = get_nmbr_name(anmbr=anmbr)
+        v = key_float(v)
+        if v <= 0:
+            msgs.error("The argument of {0:s} must be > 0".format(cname))
+        self.update(v, ll=cname.split('_'))
+
     def det_saturation(self, v, anmbr=1):
         """ The detector saturation level
 

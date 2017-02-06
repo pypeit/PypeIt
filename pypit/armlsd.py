@@ -248,6 +248,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             arsave.save_1d_spectra_hdf5(slf)
         else:
             msgs.error(save_format + ' is not a recognized output format!')
+        arsave.save_obj_info(slf, fitsdict)
         # Write 2D images for the Science Frame
         arsave.save_2d_images(slf, fitsdict)
         # Free up some memory by replacing the reduced ScienceExposure class
