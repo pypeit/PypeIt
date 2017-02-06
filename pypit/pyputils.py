@@ -91,6 +91,7 @@ def make_pypit_file(pyp_file, spectrograph, dfnames, parlines=None,
         if setup_script:
             spclines = [' pixelflat number 0\n', ' arc number 1\n',
                         ' pinhole number 0\n',
+                        ' trace number 0\n',
                         ' bias number 0\n', ' standard number 0\n']
         else:
             #spclines = [' pixelflat number -3\n', ' arc number 1\n',

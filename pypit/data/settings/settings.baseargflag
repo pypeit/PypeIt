@@ -6,7 +6,6 @@ run load settings None        # Load a reduction settings file (Note: this comma
 run load spect None           # Load a spectrograph settings file (Note: this command overwrites all default settings)
 run  calcheck     False         # Doesn't reduce the data, just checks to make sure all calibration data are present
 run  setup       False          # Generate a setup file and parse files
-run  spectrograph kast_red      # Default spectrograph data to reduce
 run  directory master   MF      # Root Directory name for master calibration frames
 run  directory science       Science       # Child Directory name for extracted science frames
 run  directory qa     QA         # Child Directory name for quality assurance
@@ -17,7 +16,7 @@ run  useIDname   False         # If True, file sorting will ensure that the idna
 
 # REDUCTION RULES
 reduce calibrate nonlinear False          # Perform a non-linear correction
-reduce calibrate flux True       # Perform a flux calibration
+#reduce calibrate flux True       # Perform a flux calibration
 reduce calibrate refframe heliocentric           # Which reference frame do you want the data in (geocentric, heliocentric, barycentric)?
 reduce calibrate wavelength vacuum          # Wavelength calibrate the data? (air, vacuum, none)
 reduce overscan method savgol       # Method used to fit the overscan (polynomial, savgol)
@@ -29,9 +28,9 @@ reduce flatfield params [20]     # Flat field method parameters (PolyScan: [orde
 reduce flatfield useframe pixelflat          # How to flat field the data (pixelflat, pinhole), you can also specify a master calibrations file if it exists.
 reduce slitcen useframe trace          # How to trace the slit center (pinhole, trace, science), you can also specify a master calibrations file if it exists.
 reduce trace useframe trace          # How to flat field the data (trace), you can also specify a master calibrations file if it exists.
-reduce flexure method boxcar      # Perform flexure correction on objects using boxcar extraction.  Options are: None, boxcar, slitcen [this performs flexure correction before extraction of objects]
-reduce flexure maxshift 20      # Maximum allowed flexure shift in pixels (int)
-reduce flexure spectrum None
+#reduce flexure method boxcar      # Perform flexure correction on objects using boxcar extraction.  Options are: None, boxcar, slitcen [this performs flexure correction before extraction of objects]
+#reduce flexure maxshift 20      # Maximum allowed flexure shift in pixels (int)
+#reduce flexure spectrum None
 reduce masters file None         #
 reduce masters loaded []         #
 reduce masters setup None            #
@@ -133,7 +132,7 @@ pinhole combine reject replace   maxnonsat     # What to do if all pixels are re
 pinhole combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
 
 # OUTPUT
-output  verbosity      2				# Level of screen output (0 is No screen output, 1 is low level output, 2 is output everything)
+output  verbosity      2		   # Level of screen output (0 is No screen output, 1 is low level output, 2 is output everything)
 output  sorted       None          # A filename given to output the details of the sorted files. If None, no output is created.
 output  overwrite    False         # Overwrite any existing output files?
 

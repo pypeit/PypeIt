@@ -73,6 +73,7 @@ Documentation
 
    flexure
    frametype
+   inst_settings
 
 Other
 +++++

@@ -154,10 +154,13 @@ def dummy_fitsdict(nfile=10, spectrograph='kast_blue', directory='./'):
         # Lamps
         for i in range(1,17):
             fitsdict['lampstat{:02d}'.format(i)] = ['off'] * nfile
-        fitsdict['exptime'][0] = 0.       # Bias
+        fitsdict['exptime'][0] = 0        # Bias
         fitsdict['lampstat06'][1] = 'on'  # Arc
+        fitsdict['exptime'][1] = 30       # Arc
         fitsdict['lampstat01'][2] = 'on'  # Trace, pixel, slit flat
         fitsdict['lampstat01'][3] = 'on'  # Trace, pixel, slit flat
+        fitsdict['exptime'][2] = 30     # flat
+        fitsdict['exptime'][3] = 30     # flat
         fitsdict['ra'][4] = '05:06:36.6'  # Standard
         fitsdict['dec'][4] = '52:52:01.0'
         fitsdict['decker'] = ['0.5 arcsec'] * nfile
@@ -208,15 +211,17 @@ def dummy_settings(pypitdir=None, nfile=10, spectrograph='kast_blue',
     from pypit import arparse
     # Dummy argflag
     argf = arparse.get_argflag_class(("ARMLSD", spectrograph))
-    lines = argf.load_file()
+    argf.init_param()
     if pypitdir is None:
         pypitdir = __file__[0:__file__.rfind('/')]
-    argf.set_paramlist(lines)
+    # Run specific
     argf.set_param('run pypitdir {0:s}'.format(pypitdir))
     argf.set_param('run spectrograph {:s}'.format(spectrograph))
     argf.set_param('run directory science ./')
     # Dummy spect
     spect = arparse.get_spect_class(("ARMLSD", spectrograph, "dummy"))
+    lines = spect.load_file(base=True)  # Base spectrograph settings
+    spect.set_paramlist(lines)
     lines = spect.load_file()
     spect.set_paramlist(lines)
     if set_idx:
