@@ -545,6 +545,9 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
                 everyn *= msflat.shape[0]
                 everyn = int(everyn + 0.5)
             everyn *= slf._pixwid[det - 1][o]
+            if np.where(gdp)[0].size < 2*everyn:
+                msgs.warn("Not enough pixels in slit {0:d} to fit a bspline")
+                continue
             bspl = arutils.func_fit(tilts[gdp][srt], msflat[gdp][srt], 'bspline', 3, everyn=everyn)
             model_flat = arutils.func_val(bspl, tilts.flatten(), 'bspline')
             model = model_flat.reshape(tilts.shape)

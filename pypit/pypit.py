@@ -110,7 +110,8 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     # Get the software path
     prgn_spl = progname.split('/')
     tfname = "/".join(prgn_spl[:-1]) + "/"
-    fname = tfname + 'settings/settings.' + specname
+    # Settings file
+    fname = tfname + 'data/settings/settings.' + specname
     try:
         spl = open(fname, 'r').readlines()
     except IOError:
@@ -130,11 +131,11 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
 
     # Load default reduction arguments/flags, and set any command line arguments
     argf = arparse.get_argflag_class((redtype.upper(), ".".join(redname.split(".")[:-1])))
-    lines = argf.load_file()
+    argf.init_param()
+    # Run specific
     argf.set_param('run pypitdir {0:s}'.format(tfname))
     argf.set_param('run progname {0:s}'.format(progname))
     argf.set_param('run redname {0:s}'.format(redname))
-    argf.set_paramlist(lines)
     # Load user changes to the arguments/flags
     plines = argf.load_lines(parlines)
     argf.set_paramlist(plines)
@@ -145,7 +146,9 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
 
     # Load default spectrograph settings
     spect = arparse.get_spect_class((redtype.upper(), specname, ".".join(redname.split(".")[:-1])))
-    lines = spect.load_file()
+    lines = spect.load_file(base=True)  # Base spectrograph settings
+    spect.set_paramlist(lines)
+    lines = spect.load_file()  # Instrument specific
     spect.set_paramlist(lines)
     # Load frametype numbers, as relevant
     if len(pyp_dict['ftype']) > 0:
