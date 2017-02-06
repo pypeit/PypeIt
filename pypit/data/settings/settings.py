@@ -47,32 +47,40 @@ def compare_dicts(top_key, dict1, dict2, skip_keys=()):
                     msgs.warn("{:s},{:s} is different".format(top_key,key))
 
 
-def archive_argf_spect():
-    """ Generate an archival file for the baseargf file or spect file
-    Returns
-
-    -------
-
+def archive():
+    """ Generate archival file for the baseargf file or spect file
+    and instrument setting files
     """
     import pypit
     settings_path = pypit.__path__[0]+'/data/settings/'
-    for ftype in ['argflag', 'spect']:
-        msgs.info("Working on base={:s}".format(ftype))
-        # Compare most recent to current
-        base_file = settings_path+'settings.base{:s}'.format(ftype)
+    archive_path = pypit.__path__[0]+'/data/settings/archive/'
+    # Files
+    sett_files = glob(settings_path+'settings.*')
+    for sfile in sett_files:
+        # Extension
+        ext = sfile.split('.')[-1]
+        if ext in ['py', 'pyc']:
+            continue
+        msgs.info("===============================================")
+        sroot = sfile.split('/')[-1]
+        msgs.info("Working on settings file {:s}".format(sroot))
+        msgs.info("===============================================")
         # Archive
-        archive_path = pypit.__path__[0]+'/data/settings/archive/'
-        arch_file = current_sett_file(archive_path, ftype)
-        # Identical?
-        match = filecmp.cmp(base_file, arch_file)
+        arch_file = current_sett_file(archive_path, sfile)
+        if arch_file is None:
+            match = False
+            arch_root = None
+        else: # Compare
+            match = filecmp.cmp(sfile, arch_file)
+            arch_root = arch_file.split('/')[-1]
         if not match:
-            msgs.warn("Current archive {:s} does not match {:s}".format(arch_file, base_file))
-            new_arch = archive_path+'/settings.{:s}.base{:s}'.format(time.strftime("%Y-%m-%d"), ftype)
-            msgs.warn("Generating a new archive file: {:s}".format(new_arch))
-            copyfile(base_file, new_arch)
-            msgs.warn("Add to repository")
+            msgs.warn("Current archive {:s} does not match {:s}".format(arch_root, sfile))
+            new_arch = archive_path+'/settings.{:s}.{:s}'.format(time.strftime("%Y-%m-%d"), ext)
+            msgs.warn("Generating a new archive file: {:s}".format(new_arch.split('/')[-1]))
+            copyfile(sfile, new_arch)
+            msgs.warn("Add it to the repository!")
         else:
-            msgs.info("Current archive {:s} matches base_file".format(arch_file))
+            msgs.info("Current archive file {:s} matches current settings file".format(arch_root))
 
 def archive_instr():
     pass
@@ -111,12 +119,13 @@ def argf_diff_and_dup():
             compare_dicts(key, baseargf._argflag[key], armed._argflag[key])
 
 
-def current_sett_file(apath, ftype):
-    # Load archive
-    if ftype == 'argflag':
-        archive_files = glob(apath+'settings.*.baseargflag')
-    elif ftype == 'spect':
-        archive_files = glob(apath+'settings.*.basespect')
+def current_sett_file(apath, sfile):
+    # Load archive files
+    ftype = sfile.split('.')[-1]
+    archive_files = glob(apath+'settings.*.{:s}'.format(ftype))
+    if len(archive_files) == 0:
+        msgs.warn("No archival files found for {:s}".format(sfile))
+        return None
     # Find the most recent
     dates = []
     for afile in archive_files:
@@ -162,4 +171,4 @@ if __name__ == '__main__':
     if flg_sett & (2**1):
         spect_diff_and_dup()
     if flg_sett & (2**2):
-        archive_argf_spect()
+        archive()

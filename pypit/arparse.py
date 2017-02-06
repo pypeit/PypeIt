@@ -51,7 +51,7 @@ class BaseFunctions(object):
         self._defname = defname
         self._afout = open(savname, 'w')
 
-    def load_file(self, filename=None):
+    def load_file(self, filename=None, base=False):
         """ Load a settings file
 
         Parameters
@@ -70,7 +70,17 @@ class BaseFunctions(object):
             msgs.info("Loading settings")
         try:
             if filename is None:
-                lines = open(self._defname, 'r').readlines()
+                if base:
+                    if isinstance(self, BaseArgFlag):
+                        basefile = glob(dirname(__file__))[0] + "/data/settings/settings.baseargflag"
+                    elif isinstance(self, BaseSpect):
+                        basefile = glob(dirname(__file__))[0] + "/data/settings/settings.basespect"
+                    else:
+                        msgs.error("No base for this class")
+                    msgs.info("Loading base settings from {:s}".format(basefile.split('/')[-1]))
+                    lines = open(basefile, 'r').readlines()
+                else:
+                    lines = open(self._defname, 'r').readlines()
             else:
                 lines = open(filename, 'r').readlines()
         except IOError:
@@ -1439,8 +1449,8 @@ class BaseArgFlag(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         # Check that v is allowed
-        stgs_arm = glob(dirname(__file__)+"/settings/settings.arm*")
-        stgs_all = glob(dirname(__file__)+"/settings/settings.*")
+        stgs_arm = glob(dirname(__file__)+"/data/settings/settings.arm*")
+        stgs_all = glob(dirname(__file__)+"/data/settings/settings.*")
         stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
         spclist = [basename(stgs_spc[0]).split(".")[-1].lower()]
         for i in range(1, len(stgs_spc)):

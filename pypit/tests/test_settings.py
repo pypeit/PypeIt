@@ -7,7 +7,7 @@ matplotlib.use('agg')  # For Travis
 
 import sys, os
 import pytest
-import glob
+from glob import glob
 import filecmp
 
 import pypit
@@ -23,7 +23,7 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
-def test_base_settings():
+def test_settings_vs_archive():
     """ Test that the current settings.base files match the
     most recent archived one.  This avoids our changing the former
     without careful consideration (I hope)
@@ -31,9 +31,13 @@ def test_base_settings():
     # Base
     settings_path = pypit.__path__[0]+'/data/settings/'
     archive_path = pypit.__path__[0]+'/data/settings/archive/'
-    for ftype in ['argflag', 'spect']:
-        base_file = settings_path+'settings.base{:s}'.format(ftype)
+    sett_files = glob(settings_path+'settings.*')
+    for sfile in sett_files:
+        # Extension
+        ext = sfile.split('.')[-1]
+        if ext in ['py', 'pyc']:
+            continue
         # Archive
-        arch_file = py_sett.current_sett_file(archive_path, ftype)
+        arch_file = py_sett.current_sett_file(archive_path, sfile)
         # Test
-        assert filecmp.cmp(base_file, arch_file)
+        assert filecmp.cmp(sfile, arch_file)
