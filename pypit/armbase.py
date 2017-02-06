@@ -102,7 +102,10 @@ def SetupScience(fitsdict):
                     if key == 'science':  # Add target name
                         group_dict[config_key]['sciobj'].append(fitsdict['target'][scidx])
         # Write .sorted file
-        arsort.write_sorted(srt_tbl, group_dict, setup_dict)
+        if len(group_dict) > 0:
+            arsort.write_sorted(srt_tbl, group_dict, setup_dict)
+        else:
+            msgs.warn("No group dict entries and therefore no .sorted file")
 
     # Write setup -- only if not present
     setup_file, nexist = arsort.get_setup_file()

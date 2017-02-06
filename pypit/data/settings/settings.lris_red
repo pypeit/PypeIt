@@ -133,6 +133,9 @@ pixelflat match dispangle |<=0.1        # Match the cross-disperser angle (an un
 ### Pinhole frames
 pinhole check condition99 exptime>999999 # Avoids any pinhole frames
 
+### Dark frames
+dark check condition99 exptime>999999    # Avoids darks
+
 ### Trace frames
 trace canbe pixelflat
 trace check condition5 hatch=open   # Required for blaze flats

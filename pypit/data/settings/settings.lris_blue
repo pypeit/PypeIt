@@ -126,6 +126,9 @@ pixelflat check condition5 hatch=open   # Required for blaze flats
 ### Pinhole frames
 pinhole check condition99 exptime>999999 # Avoids any pinhole frames
 
+### Dark frames
+dark check condition99 exptime>999999    # Avoids darks
+
 ### Trace frames
 trace check condition5 hatch=open   # Blue side should be using twilight sky
 trace check condition6 exptime<30   # Avoid stars

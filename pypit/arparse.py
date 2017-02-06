@@ -2095,7 +2095,7 @@ class BaseSpect(BaseFunctions):
         return
 
     def set_paramlist(self, lstall):
-        frmtyp = ["standard", "bias", "pixelflat", "trace", "pinhole", "arc"]
+        frmtyp = ["standard", "bias", "pixelflat", "trace", "pinhole", "arc", "dark"]
         for ll in range(len(lstall)):
             lst = lstall[ll]
             cnt = 1
@@ -2296,7 +2296,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def dark_canbe(self, v):
-        """ If there are frames that will be a dark in addition to other frame types,
+        """ If there are frames that will be a bias in addition to other frame types,
         include the other frame types here.
 
         Parameters
@@ -2305,6 +2305,43 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_none_list(v)
+        self.update(v)
+
+    def dark_check_condition(self, v, cnmbr=1):
+        """ Check that a frame satisfies a series of conditions before it is
+        labelled as a bias frame. Multiple conditions can be specified,
+        where each new condition has a different integer suffix appended to
+        the condition variable.
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        cname = get_nmbr_name(cnmbr=cnmbr)
+        v = key_check(v)
+        self.update(v, ll=cname.split('_'))
+
+    def dark_idname(self, v):
+        """ Header key value of bias frames for header keyword: 'keyword idname'
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        self.update(v)
+
+    def dark_number(self, v):
+        """ Number of bias frames to use
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_int(v)
+        #key_min_val(v,-1)
         self.update(v)
 
     def det_datasec(self, v, anmbr=1, bnmbr=1):
