@@ -82,36 +82,49 @@ fits headext02 1                    # Extension number of header (one for each h
 
 ### Science frames
 science idname object                  # Header key value of science frame for header keyword keyword+idname
-science check condition5 lamps=Off
-science check condition6 exptime>1     #
+science check condition1 lamps=Off
+science check condition2 exptime>1     #
 
 ### Standard Star frames
 standard idname object               # Header key value of science frame for header keyword keyword+idname
-standard check condition5 lamps=Off
+standard check condition1 lamps=Off
 standard match naxis0 =0             # Match the shape of standard and science frames
 standard match naxis1 =0             # Match the shape of standard and science frames
 
 ### Bias/Dark frames
 bias idname zero                    # Header key value of bias frame for header keyword keyword+idname
+bias check condition1 exptime<1     # Required for bias
 bias match naxis0 =0                # Match the shape of bias and science frames
 bias match naxis1 =0                # Match the shape of bias and science frames
 
 ### Pixel Flat frames
 pixelflat idname flat                 # Header key value of flat frame for header keyword keyword+idname
-pixelflat check condition5 lamps=W # Lamp on
+pixelflat check condition1 lamps=W # Lamp on
 pixelflat match naxis0 =0             # Match the shape of flats with science
 pixelflat match naxis1 =0             # Match the shape of flats with science
+pixelflat match decker ''             # Check the same decker as the science frame was used
 pixelflat match dispangle |<=1          # Match the disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
 
 ### Pinhole frames
-pinhole check condition99 exptime>999999 # Avoids any pinhole frames
+pinhole idname flat                 # Header key value of flat frame for header keyword keyword+idname
+pinhole check condition1 lamps=W # Lamp on
+pinhole match naxis0 =0             # Match the shape of flats with science
+pinhole match naxis1 =0             # Match the shape of flats with science
+pinhole match decker ''             # Check the same decker as the science frame was used
+pinhole match dispangle |<=1          # Match the disperser angle (an uncertainty in the CENWAVE)
 
 ### Trace frames
-trace check condition99 exptime>999999 # Avoids any pinhole frames
+trace idname flat                 # Header key value of flat frame for header keyword keyword+idname
+trace number 0                    # Number of flat frames to use
+trace check condition1 lamps=W # Lamp on
+trace match naxis0 =0             # Match the shape of flats with science
+trace match naxis1 =0             # Match the shape of flats with science
+trace match decker ''             # Check the same decker as the science frame was used
+trace match dispangle |<=1          # Match the disperser angle (an uncertainty in the CENWAVE)
 
 ### Arc frames
 arc idname arc                      # Header key value of arc frame for header keyword keyword+idname
-arc check condition5 lamps=CuNe+CuAr
+arc check condition1 lamps=CuNe+CuAr
 arc match naxis0 =0                 # Match the shape of arcs with science
 arc match naxis1 =0                 # Match the shape of arcs with science
 arc match dispangle |<=1              # Match the disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
