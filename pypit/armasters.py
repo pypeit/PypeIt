@@ -60,14 +60,15 @@ def master_name(ftype, setup, mdir=None):
     """
     if mdir is None:
         mdir = settings.argflag['run']['directory']['master']+'_'+settings.argflag['run']['spectrograph']
-    name_dict = dict(bias='{:s}/MasterBias_{:s}.fits'.format(mdir,setup),
-                     badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir,setup),
-                     trace='{:s}/MasterTrace_{:s}.fits'.format(mdir,setup),
-                     normpixelflat='{:s}/MasterFlatField_{:s}.fits'.format(mdir,setup),
-                     arc='{:s}/MasterArc_{:s}.fits'.format(mdir,setup),
-                     wave='{:s}/MasterWave_{:s}.fits'.format(mdir,setup),
-                     wave_calib='{:s}/MasterWaveCalib_{:s}.json'.format(mdir,setup),
-                     tilts='{:s}/MasterTilts_{:s}.fits'.format(mdir,setup),
+    name_dict = dict(bias='{:s}/MasterBias_{:s}.fits'.format(mdir, setup),
+                     badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir, setup),
+                     trace='{:s}/MasterTrace_{:s}.fits'.format(mdir, setup),
+                     normpixelflat='{:s}/MasterFlatField_{:s}.fits'.format(mdir, setup),
+                     arc='{:s}/MasterArc_{:s}.fits'.format(mdir, setup),
+                     wave='{:s}/MasterWave_{:s}.fits'.format(mdir, setup),
+                     wave_calib='{:s}/MasterWaveCalib_{:s}.json'.format(mdir, setup),
+                     tilts='{:s}/MasterTilts_{:s}.fits'.format(mdir, setup),
+                     slitprof='{:s}/MasterSlitProfile_{:s}.fits'.format(mdir, setup),
                      )
     return name_dict[ftype]
 
@@ -159,12 +160,18 @@ def save_masters(slf, det, setup):
         gddict = ltu.jsonify(slf._wvcalib[det-1])
         json_file=master_name('wave_calib', setup)
         with io.open(json_file, 'w', encoding='utf-8') as f:
-            f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4,
-                                       separators=(',', ': '))))
+            f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4, separators=(',', ': '))))
     if 'tilts'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
         arsave.save_master(slf, slf._tilts[det-1],
                            filename=master_name('tilts', setup),
                            frametype='tilts')
+
+    # Spatial slit profile
+    if 'slitprof' + settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+        arsave.save_master(slf, slf._slitprof[det - 1],
+                           filename=master_name('slitprof', setup),
+                           frametype='slit profile')
+
 
 def user_master_name(mdir, input_name):
     """ Convert user-input filename for master into full name

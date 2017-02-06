@@ -104,6 +104,7 @@ class ScienceExposure:
         self._bgframe = [None for all in range(ndet)]
         self._scimask = [None for all in range(ndet)]        # Mask (1=Bad pix; 2=CR)
         self._scitrace = [None for all in range(ndet)]
+        self._slitprof = [None for all in range(ndet)]   # Slit profiles at each position on the detector
         self._specobjs = [None for all in range(ndet)]
         # Initialize some extraction products
         self._ext_boxcar = [None for all in range(ndet)]

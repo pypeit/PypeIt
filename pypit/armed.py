@@ -177,8 +177,25 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
 
-            artrace.slit_profile(slf, slf._mstrace[det - 1], det)
-            msgs.error("check it")
+            if slf._slitprof[det-1] is None:
+                if settings.argflag['reduce']['masters']['reuse']:
+                    msslitprof_name = armasters.master_name('slitprof', settings.argflag['reduce']['masters']['setup'])
+                    try:
+                        slit_profiles, head = arload.load_master(msslitprof_name, frametype="slit profile")
+                    except IOError:
+                        pass
+                    else:
+                        slf.SetFrame(slf._slitprof, slit_profiles, det)
+                        settings.argflag['reduce']['masters']['loaded'].append('slitprof'+settings.argflag['reduce']['masters']['setup'])
+                if 'slitprof'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+                    # First time slit profile is derived
+                    if not msgs._debug['develop']:
+                        slit_profiles = artrace.slit_profile(slf, slf._mstrace[det - 1], det)
+                        np.save("slit_profiles", slit_profiles)
+                    else:
+                        slit_profiles = np.load("slit_profiles.npy")
+                    slf.SetFrame(slf._slitprof, slit_profiles, det)
+
             ###############
             # Prepare the pixel flat field frame
             update = slf.MasterFlatField(fitsdict, det)
