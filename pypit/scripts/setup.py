@@ -66,8 +66,13 @@ def main(args):
         pyp_file = args.redux_path+root+'.pypit'
         # Generate
         dfname = "{:s}*{:s}*".format(args.files_root, args.extension)
+        # parlines
+        parlines = ['run ncpus 1\n',
+                    'output overwrite True\n']
+        parlines += ["run spectrograph {:s}\n".format(args.spectrograph)]
+        parlines += ["output sorted {:s}\n".format(root)]
         pyputils.make_pypit_file(pyp_file, args.spectrograph,
-                              [dfname], setup_script=True)
+                              [dfname], setup_script=True, parlines=parlines)
         print("Wrote {:s}".format(pyp_file))
     else:
         pyp_file = args.files_root
@@ -77,6 +82,7 @@ def main(args):
     if args.develop:
         pinp += ['-d']
     pargs = run_pypit.parser(pinp)
+    sorted_file = pyp_file.replace('.pypit', '.sorted')
     run_pypit.main(pargs)
 
     # #####################
@@ -104,7 +110,6 @@ def main(args):
             parlines[jj] = '\n'
 
     # Generate .pypit files
-    sorted_file = pyp_file.replace('.pypit', '.sorted')
     all_setups, all_setuplines, all_setupfiles = arsort.load_sorted(sorted_file)
     for setup, setuplines,setupfiles in zip(all_setups, all_setuplines,all_setupfiles):
         root = args.spectrograph+'_setup_'
