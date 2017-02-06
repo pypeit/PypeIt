@@ -57,6 +57,7 @@ def archive_argf_spect():
     import pypit
     settings_path = pypit.__path__[0]+'/data/settings/'
     for ftype in ['argflag', 'spect']:
+        msgs.info("Working on base={:s}".format(ftype))
         # Compare most recent to current
         base_file = settings_path+'settings.base{:s}'.format(ftype)
         # Archive
@@ -65,14 +66,16 @@ def archive_argf_spect():
         # Identical?
         match = filecmp.cmp(base_file, arch_file)
         if not match:
-            msgs.warn("Current archive {:s} does not match {:s}")
+            msgs.warn("Current archive {:s} does not match {:s}".format(arch_file, base_file))
             new_arch = archive_path+'/settings.{:s}.base{:s}'.format(time.strftime("%Y-%m-%d"), ftype)
             msgs.warn("Generating a new archive file: {:s}".format(new_arch))
             copyfile(base_file, new_arch)
             msgs.warn("Add to repository")
         else:
-            msgs.info("Current archive matches base_file")
+            msgs.info("Current archive {:s} matches base_file".format(arch_file))
 
+def archive_instr():
+    pass
 
 def argf_diff_and_dup():
     """ Compares default argf values against those in the ARMLSD and AMRED files
