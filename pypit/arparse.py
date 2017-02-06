@@ -51,7 +51,7 @@ class BaseFunctions(object):
         self._defname = defname
         self._afout = open(savname, 'w')
 
-    def load_file(self, filename=None):
+    def load_file(self, filename=None, base=False):
         """ Load a settings file
 
         Parameters
@@ -70,7 +70,17 @@ class BaseFunctions(object):
             msgs.info("Loading settings")
         try:
             if filename is None:
-                lines = open(self._defname, 'r').readlines()
+                if base:
+                    if isinstance(self, BaseArgFlag):
+                        basefile = glob(dirname(__file__))[0] + "/data/settings/settings.baseargflag"
+                    elif isinstance(self, BaseSpect):
+                        basefile = glob(dirname(__file__))[0] + "/data/settings/settings.basespect"
+                    else:
+                        msgs.error("No base for this class")
+                    msgs.info("Loading base settings from {:s}".format(basefile.split('/')[-1]))
+                    lines = open(basefile, 'r').readlines()
+                else:
+                    lines = open(self._defname, 'r').readlines()
             else:
                 lines = open(filename, 'r').readlines()
         except IOError:
@@ -128,6 +138,16 @@ class BaseArgFlag(BaseFunctions):
         """
         super(BaseArgFlag, self).__init__(defname, savname)
         self._argflag = NestedDict()
+
+    def init_param(self):
+        """ Initialze the parameter list
+        """
+        # Base
+        lines = self.load_file(base=True)
+        self.set_paramlist(lines)
+        # Pipeline specific
+        lines = self.load_file()
+        self.set_paramlist(lines)
 
     def save(self):
         """ Save the arguments and flags settings used for a given reduction
@@ -676,7 +696,7 @@ class BaseArgFlag(BaseFunctions):
         if v is None:
             try:
                 v = self._argflag['run']['redname'].replace('.pypit', '')
-            except AttributeError:
+            except (AttributeError, KeyError):
                 pass
         elif v == 'off':
             v = None
@@ -1439,8 +1459,8 @@ class BaseArgFlag(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         # Check that v is allowed
-        stgs_arm = glob(dirname(__file__)+"/settings/settings.arm*")
-        stgs_all = glob(dirname(__file__)+"/settings/settings.*")
+        stgs_arm = glob(dirname(__file__)+"/data/settings/settings.arm*")
+        stgs_all = glob(dirname(__file__)+"/data/settings/settings.*")
         stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
         spclist = [basename(stgs_spc[0]).split(".")[-1].lower()]
         for i in range(1, len(stgs_spc)):
@@ -3443,7 +3463,7 @@ def get_argflag_class(init=None):
     argflag : Arguments and Flags
     """
     try:
-        defname = glob(dirname(__file__))[0] + "/settings/settings." + init[0].lower()
+        defname = glob(dirname(__file__))[0] + "/data/settings/settings." + init[0].lower()
         return eval(init[0]+"(defname='{0:s}', savname='{1:s}.settings')".format(defname, init[1]))
     except RuntimeError:
         msgs.error("Reduction type '{0:s}' is not allowed".format(init))
@@ -3461,7 +3481,7 @@ def get_spect_class(init):
     spect_class : Class of spectrograph settings
     """
     try:
-        defname = glob(dirname(__file__))[0] + "/settings/settings." + init[1].lower()
+        defname = glob(dirname(__file__))[0] + "/data/settings/settings." + init[1].lower()
         return eval(init[0]+"_spect(defname='{0:s}', savname='{1:s}.spect')".format(defname, init[2]))
     except RuntimeError:
         msgs.error("{0:s} is not implemented yet".format(init[1]))
