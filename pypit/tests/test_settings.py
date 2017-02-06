@@ -23,17 +23,17 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
-def test_baseargflag():
-    """ Test that the current settings.baseargflag matches the
+def test_base_settings():
+    """ Test that the current settings.base files match the
     most recent archived one.  This avoids our changing the former
     without careful consideration (I hope)
     """
     # Base
     settings_path = pypit.__path__[0]+'/data/settings/'
-    baseargf_file = settings_path+'settings.baseargflag'
-    # Archive
     archive_path = pypit.__path__[0]+'/data/settings/archive/'
-    arch_file = py_sett.current_arch_file(archive_path)
-    # Test
-    assert filecmp.cmp(baseargf_file, arch_file)
-
+    for ftype in ['argflag', 'spect']:
+        base_file = settings_path+'settings.base{:s}'.format(ftype)
+        # Archive
+        arch_file = py_sett.current_sett_file(archive_path, ftype)
+        # Test
+        assert filecmp.cmp(base_file, arch_file)

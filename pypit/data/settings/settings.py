@@ -47,8 +47,8 @@ def compare_dicts(top_key, dict1, dict2, skip_keys=()):
                     msgs.warn("{:s},{:s} is different".format(top_key,key))
 
 
-def archive_argf():
-    """ Generate an archival file for the baseargf file
+def archive_argf_spect():
+    """ Generate an archival file for the baseargf file or spect file
     Returns
 
     -------
@@ -56,19 +56,22 @@ def archive_argf():
     """
     import pypit
     settings_path = pypit.__path__[0]+'/data/settings/'
-    # Compare most recent to current
-    baseargf_file = settings_path+'settings.baseargflag'
-    # Archive
-    archive_path = pypit.__path__[0]+'/data/settings/archive/'
-    arch_file = current_arch_file(archive_path)
-    # Identical?
-    match = filecmp.cmp(baseargf_file, arch_file)
-    if not match:
-        msgs.warn("Current archive {:s} does not match {:s}")
-        new_arch = archive_path+'/settings.{:s}.baseargflag'.format(time.strftime("%Y-%m-%d"))
-        msgs.warn("Generating a new archive file: {:s}".format(new_arch))
-        copyfile(baseargf_file, new_arch)
-        msgs.warn("Add to repository")
+    for ftype in ['argflag', 'spect']:
+        # Compare most recent to current
+        base_file = settings_path+'settings.base{:s}'.format(ftype)
+        # Archive
+        archive_path = pypit.__path__[0]+'/data/settings/archive/'
+        arch_file = current_sett_file(archive_path, ftype)
+        # Identical?
+        match = filecmp.cmp(base_file, arch_file)
+        if not match:
+            msgs.warn("Current archive {:s} does not match {:s}")
+            new_arch = archive_path+'/settings.{:s}.base{:s}'.format(time.strftime("%Y-%m-%d"), ftype)
+            msgs.warn("Generating a new archive file: {:s}".format(new_arch))
+            copyfile(base_file, new_arch)
+            msgs.warn("Add to repository")
+        else:
+            msgs.info("Current archive matches base_file")
 
 
 def argf_diff_and_dup():
@@ -105,9 +108,12 @@ def argf_diff_and_dup():
             compare_dicts(key, baseargf._argflag[key], armed._argflag[key])
 
 
-def current_arch_file(apath):
+def current_sett_file(apath, ftype):
     # Load archive
-    archive_files = glob(apath+'settings.*.baseargflag')
+    if ftype == 'argflag':
+        archive_files = glob(apath+'settings.*.baseargflag')
+    elif ftype == 'spect':
+        archive_files = glob(apath+'settings.*.basespect')
     # Find the most recent
     dates = []
     for afile in archive_files:
@@ -153,4 +159,4 @@ if __name__ == '__main__':
     if flg_sett & (2**1):
         spect_diff_and_dup()
     if flg_sett & (2**2):
-        archive_argf()
+        archive_argf_spect()
