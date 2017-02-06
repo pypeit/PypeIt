@@ -1020,7 +1020,10 @@ def slit_profile(slf, mstrace, det, ntcky=None):
             ntcky = int(1.0 / ntcky) + 0.5
     msgs.work("Multiprocess this step")
     for o in range(nslits):
-        msgs.info("Deriving the spatial profile and blaze function of slit {0:d}".format(o+1))
+        if settings.argflag["reduce"]["slitprofile"]["perform"]:
+            msgs.info("Deriving the spatial profile and blaze function of slit {0:d}".format(o+1))
+        else:
+            msgs.info("Deriving the blaze function of slit {0:d}".format(o + 1))
         lordloc = slf._lordloc[det - 1][:, o]
         rordloc = slf._rordloc[det - 1][:, o]
         word = np.where(slf._slitpix[det - 1] == o+1)
@@ -1030,7 +1033,11 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         spatval = (word[1] - lordloc[word[0]])/(rordloc[word[0]] - lordloc[word[0]])
         specval = slf._tilts[det-1][word]
         fluxval = mstrace[word]
-        tckx = np.linspace(np.min(spatval), np.max(spatval), 2*slf._pixwid[det - 1][o])
+        ntckx = 2*slf._pixwid[det - 1][o]
+        if not settings.argflag["reduce"]["slitprofile"]["perform"]:
+            # The slit profile is not needed, so just do the quickest possible fit
+            ntckx = 3
+        tckx = np.linspace(np.min(spatval), np.max(spatval), ntckx)
         tcky = np.linspace(np.min(specval), np.max(specval), ntcky)
         modspl = interp.LSQBivariateSpline(spatval, specval, fluxval, tckx, tcky)
         modvals = modspl.ev(spatval, specval)
@@ -1050,7 +1057,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         spatval = 0.5*np.ones(specval.size)
         nrmvals = modspl.ev(spatval, specval)
         msblaze[:, o] = modspl.ev(0.5*np.ones(msblaze.shape[0]), np.linspace(0.0, 1.0, msblaze.shape[0]))
-        blazeext[:, o] = mstrace[:, np.round(0.5*(lordloc+rordloc)).astype(np.int)]
+        blazeext[:, o] = mstrace[(np.arange(mstrace.shape[0]), np.round(0.5*(lordloc+rordloc)).astype(np.int),)]
         slit_profiles[word] = modvals/nrmvals
         mstracenrm[word] /= nrmvals
     # Return
