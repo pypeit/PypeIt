@@ -14,6 +14,7 @@ reduce flexure spectrum None
 # BIAS FRAMES
 
 # TRACE FRAMES (used to trace the slit edges)
+trace slits tilts order  2
 
 # PIXEL FLAT FRAMES (used to correct pixel-to-pixel variations)
 
