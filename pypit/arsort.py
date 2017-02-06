@@ -489,14 +489,14 @@ def match_science(fitsdict, filesort):
                 # Errors for insufficient BIAS frames
                 if settings.argflag['bias']['useframe'].lower() == ftag[ft]:
                     msgs.warn("Expecting to use bias frames for bias subtraction. But insufficient frames found.")
-                    msgs.warn("Either include more frames or modify bias method")
-                    msgs.warn("  e.g.:   bias useframe overscan")
+                    msgs.warn("Either include more frames or modify bias method" + msgs.newline() +
+                              "  e.g.:   bias useframe overscan")
                     msgs.error("Unable to continue")
                 # Errors for insufficient PIXELFLAT frames
                 if ftag[ft] == 'pixelflat' and settings.argflag['reduce']['flatfield']['perform']:
-                    msgs.warn("Either include more frames or reduce the required amount with:")
-                    msgs.warn("  pixelflat number XX")
-                    msgs.warn("in the spect read/end block")
+                    msgs.warn("Either include more frames or reduce the required amount with:" + msgs.newline() +
+                              "pixelflat number XX" + msgs.newline() +
+                              "in the spect read/end block")
                     msgs.error("Unable to continue")
                 # Errors for insufficient PINHOLE frames
                 if ftag[ft] == 'pinhole':
