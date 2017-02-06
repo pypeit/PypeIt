@@ -7,6 +7,11 @@ import os
 from glob import glob
 import numpy as np
 from os.path import dirname
+import filecmp
+import time
+from shutil import copyfile
+
+from astropy.time import Time
 
 from pypit import pyputils
 msgs = pyputils.get_dummy_logger()#develop=True)
@@ -40,6 +45,37 @@ def compare_dicts(top_key, dict1, dict2, skip_keys=()):
                         msgs.info("{:s},{:s} is a duplicate".format(top_key,key))
                 else:
                     msgs.warn("{:s},{:s} is different".format(top_key,key))
+
+
+def archive_argf():
+    """ Generate an archival file for the baseargf file
+    Returns
+
+    -------
+
+    """
+    import pypit
+    settings_path = pypit.__path__[0]+'/data/settings/'
+    archive_path = pypit.__path__[0]+'/data/settings/archive/'
+    # Load archive
+    archive_files = glob(archive_path+'settings.*.baseargflag')
+    # Find the most recent
+    dates = []
+    for afile in archive_files:
+        dates.append(afile.split('.')[-2])
+    times = Time(dates)
+    imax = np.argmax(times)
+    arch_file = archive_files[imax]
+    # Compare most recent to current
+    baseargf_file = settings_path+'settings.baseargflag'
+    # Identical?
+    match = filecmp.cmp(baseargf_file, arch_file)
+    if not match:
+        msgs.warn("Current archive {:s} does not match {:s}")
+        new_arch = archive_path+'/settings.{:s}.baseargflag'.format(time.strftime("%Y-%m-%d"))
+        msgs.warn("Generating a new archive file: {:s}".format(new_arch))
+        copyfile(baseargf_file, new_arch)
+        msgs.warn("Add to repository")
 
 
 def argf_diff_and_dup():
@@ -102,9 +138,12 @@ if __name__ == '__main__':
 
     flg_sett = 0
     #flg_sett += 2**0  # argflag checking
-    flg_sett += 2**1 # spect checking
+    #flg_sett += 2**1 # spect checking
+    flg_sett += 2**2 # archive baseargflag
 
     if flg_sett & (2**0):
         argf_diff_and_dup()
     if flg_sett & (2**1):
         spect_diff_and_dup()
+    if flg_sett & (2**2):
+        archive_argf()
