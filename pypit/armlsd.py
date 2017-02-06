@@ -136,6 +136,10 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._pixwid, pixwid, det)
                 slf.SetFrame(slf._lordpix, lordpix, det)
                 slf.SetFrame(slf._rordpix, rordpix, det)
+                msgs.info("Identifying the pixels belonging to each slit")
+                slitpix = arproc.slit_pixels(slf, slf._mstrace[det-1].shape, det)
+                slf.SetFrame(slf._slitpix, slitpix, det)
+
                 # Save QA for slit traces
                 if not msgs._debug['no_qa']:
                     arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges")
@@ -146,7 +150,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             update = slf.MasterWaveCalib(fitsdict, sc, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
-            #debugger.set_trace()
+
             ###############
             # Derive the spectral tilt
             if slf._tilts[det-1] is None:
