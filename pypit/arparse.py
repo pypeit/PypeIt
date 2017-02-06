@@ -145,7 +145,7 @@ class BaseArgFlag(BaseFunctions):
         # Base
         lines = self.load_file(base=True)
         self.set_paramlist(lines)
-        # Pipeline speicific
+        # Pipeline specific
         lines = self.load_file()
         self.set_paramlist(lines)
 
