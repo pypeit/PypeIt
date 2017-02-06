@@ -1202,35 +1202,6 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def reduce_slitprofile_method(self, v):
-        """ Specify the method that should be used to determine the slit profile
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        allowed = ['bspline']
-        v = key_allowed(v, allowed)
-        self.update(v)
-
-    def reduce_slitprofile_params(self, v):
-        """ Slit profile method parameters, where the parameters relate to the method
-        specified by the 'reduce slitprofile method' keyword:
-
-        bspline:   [Number of pixels in the dispersion direction between each knot]
-
-        Note: if the bspline argument is 0 < number < 1, it will be assumed to be a
-              fraction of the pixels in the dispersion direction
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        v = key_list(v)
-        self.update(v)
-
     def reduce_slitprofile_perform(self, v):
         """ Determine the spatial slit profile?
 

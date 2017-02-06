@@ -1009,9 +1009,9 @@ def slit_profile(slf, mstrace, det, ntcky=None):
     slit_profiles = np.zeros_like(mstrace)
     # Set the number of knots in the spectral direction
     if ntcky is None:
-        if settings.argflag["reduce"]["slitprofile"]["method"] == "bspline":
-            ntcky = settings.argflag["reduce"]["slitprofile"]["params"][0]
-            if settings.argflag["reduce"]["slitprofile"]["params"][0] < 1.0:
+        if settings.argflag["reduce"]["flatfield"]["method"] == "bspline":
+            ntcky = settings.argflag["reduce"]["flatfield"]["params"][0]
+            if settings.argflag["reduce"]["flatfield"]["params"][0] < 1.0:
                 ntcky = int(1.0/ntcky)+0.5
         else:
             ntcky = 20
