@@ -7,6 +7,7 @@ import os
 
 import astropy.io.fits as pyfits
 from astropy.units import Quantity
+from astropy import units as u
 from astropy.table import Table
 
 import h5py
@@ -459,7 +460,7 @@ def save_1d_spectra_fits(slf, clobber=True):
             hdus += [tbhdu]
     # Finish
     hdulist = pyfits.HDUList(hdus)
-    hdulist.writeto(settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename), clobber=clobber)
+    hdulist.writeto(settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename), overwrite=clobber)
 
 #def write_sensitivity():
     #sensfunc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.yaml".format(os.getcwd(), settings.argflag['run']['directory']['master'], slf._fitsdict['target'][scidx[0]], 0, "sensfunc")
@@ -471,7 +472,7 @@ def save_1d_spectra_fits(slf, clobber=True):
 
 def save_obj_info(slf, fitsdict, clobber=True):
     # Lists for a Table
-    names, boxsize, opt_fwhm = [], [], []
+    names, boxsize, opt_fwhm, s2n = [], [], [], []
     # Loop on detectors
     for kk in range(settings.spect['mosaic']['ndet']):
         det = kk+1
@@ -480,19 +481,39 @@ def save_obj_info(slf, fitsdict, clobber=True):
         for specobj in slf._specobjs[det-1]:
             # Append
             names.append(specobj.idx)
+            # Boxcar width
             if 'size' in specobj.boxcar.keys():
                 slit_pix = specobj.boxcar['size']
                 # Convert to arcsec
                 binspatial, binspectral = settings.parse_binning(fitsdict['binning'][specobj.scidx])
-                debugger.set_trace()
-                boxsize.append(slit_pix*binspatial*settings.spect[dnum]['plate_scale'])
+                boxsize.append(slit_pix*binspatial*settings.spect[dnum]['platescale'])
             else:
                 boxsize.append(0.)
+            # Optimal profile (FWHM)
             if 'fwhm' in specobj.optimal.keys():
                 binspatial, binspectral = settings.parse_binning(fitsdict['binning'][specobj.scidx])
-                opt_fwhm.append(specobj.optimal['fwhm']*binspatial*settings.spect[dnum]['plate_scale'])
+                opt_fwhm.append(specobj.optimal['fwhm']*binspatial*settings.spect[dnum]['platescale'])
             else:
                 opt_fwhm.append(0.)
+            # S2N -- default to boxcar
+            sext = (specobj.boxcar if (len(specobj.boxcar) > 0) else specobj.optimal)
+            ivar = (sext['var'] == 0) / (sext['var'] + (sext['var'] == 0))
+            is2n = np.median(sext['counts']*np.sqrt(ivar))
+            s2n.append(is2n)
+
+    # Generate the table
+    obj_tbl = Table()
+    obj_tbl['name'] = names
+    obj_tbl['box_width'] = boxsize
+    obj_tbl['box_width'].format = '.2f'
+    obj_tbl['box_width'].unit = u.arcsec
+    obj_tbl['opt_fwhm'] = opt_fwhm
+    obj_tbl['opt_fwhm'].format = '.3f'
+    obj_tbl['opt_fwhm'].unit = u.arcsec
+    obj_tbl['s2n'] = s2n
+    obj_tbl['s2n'].format = '.2f'
+    # Write
+    obj_tbl.write(settings.argflag['run']['directory']['science']+'/objinfo_{:s}.txt'.format(slf._basename), format='ascii.fixed_width')
 
 def save_2d_images(slf, fitsdict, clobber=True):
     """ Write 2D images to the hard drive
