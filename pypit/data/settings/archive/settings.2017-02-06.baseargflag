@@ -133,6 +133,6 @@ pinhole combine satpix      reject        # What to do with saturated pixels (op
 
 # OUTPUT
 output  verbosity      2		   # Level of screen output (0 is No screen output, 1 is low level output, 2 is output everything)
-output  sorted       True          # A filename given to output the details of the sorted files. If None, no output is created.
+output  sorted       None          # A filename given to output the details of the sorted files. If None, no output is created.
 output  overwrite    False         # Overwrite any existing output files?
 
