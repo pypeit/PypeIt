@@ -4,6 +4,7 @@ import numpy as np
 from scipy.signal import savgol_filter
 import scipy.signal as signal
 import scipy.ndimage as ndimage
+import scipy.interpolate as interp
 from matplotlib import pyplot as plt
 from pypit import arextract
 from pypit import arlris
@@ -505,6 +506,8 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
         sclframe = get_ampscale(slf, det, msflat)
         # Divide the master flat by the relative scale frame
         msflat /= sclframe
+    else:
+        sclframe = np.ones(msflat, dtype=np.float)
     # Determine the blaze
     polyord_blz = 2  # This probably doesn't need to be a parameter that can be set by the user
     # Look at the end corners of the detector to get detector size in the dispersion direction
@@ -525,9 +528,6 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     msgs.work("Multiprocess this step to make it faster")
     flat_ext1d = maskval*np.ones((msflat.shape[0],norders))
     for o in range(norders):
-        # Rectify this order
-        recframe = arcyextract.rectify(msflat, ordpix, slf._pixcen[det-1][:,o], slf._lordpix[det-1][:,o],
-                                       slf._rordpix[det-1][:,o], slf._pixwid[det-1][o]+overpix, maskval)
         if settings.argflag["reduce"]["flatfield"]["method"].lower() == "bspline":
             msgs.info("Deriving blaze function of slit {0:d} with a bspline".format(o+1))
             tilts = slf._tilts[det - 1].copy()
@@ -551,6 +551,9 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             flat_ext1d[:, o] = np.sum(msflat * mskord, axis=1) / np.sum(mskord, axis=1)
             mskord *= 0.0
         elif settings.argflag["reduce"]["flatfield"]["method"].lower() == "polyscan":
+            # Rectify this order
+            recframe = arcyextract.rectify(msflat, ordpix, slf._pixcen[det - 1][:, o], slf._lordpix[det - 1][:, o],
+                                           slf._rordpix[det - 1][:, o], slf._pixwid[det - 1][o] + overpix, maskval)
             polyorder = settings.argflag["reduce"]["flatfield"]["params"][0]
             polypoints = settings.argflag["reduce"]["flatfield"]["params"][1]
             repeat = settings.argflag["reduce"]["flatfield"]["params"][2]
@@ -797,10 +800,10 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
       Standard star frame?
     """
     # Check inputs
-    if not isinstance(scidx,int):
+    if not isinstance(scidx, int):
         raise IOError("scidx needs to be an int")
     # Convert ADUs to electrons
-    sciframe *= gain_frame(slf,det) #settings.spect['det'][det-1]['gain']
+    sciframe *= gain_frame(slf, det)
     # Mask
     slf._scimask[det-1] = np.zeros_like(sciframe).astype(int)
     msgs.info("Masking bad pixels")
@@ -929,6 +932,115 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         slf._bgframe[det-1] += bgcorr_box
     # Return
     return True
+
+
+def slit_pixels(slf, frameshape, det):
+    """ Generate an image indicating the slit associated with each pixel.
+
+    Parameters
+    ----------
+    slf : class
+      Science Exposure Class
+    frameshape : tuple
+      A two element tuple providing the shape of a trace frame.
+    det : int
+      Detector index
+
+    Returns
+    -------
+    msordloc : ndarray
+      An image assigning each pixel to a slit number. A zero value indicates
+      that this pixel does not belong to any slit.
+    """
+
+    from pypit import arcytrace
+    nslits = slf._lordloc[det - 1].shape[1]
+    msordloc = np.zeros(frameshape)
+    for o in range(nslits):
+        lordloc = slf._lordloc[det - 1][:, o]
+        rordloc = slf._rordloc[det - 1][:, o]
+        ordloc = arcytrace.locate_order(lordloc, rordloc, frameshape[0], frameshape[1],
+                                        settings.argflag['trace']['slits']['pad'])
+        word = np.where(ordloc != 0)
+        if word[0].size == 0:
+            msgs.warn("There are no pixels in slit {0:d}".format(o + 1))
+            continue
+        msordloc[word] = o + 1
+    return msordloc
+
+
+def slit_profile(slf, mstrace, det, ntcky=20):
+    """ Generate an image of the spatial slit profile.
+
+    Parameters
+    ----------
+    slf : class
+      Science Exposure Class
+    mstrace : ndarray
+      Master trace frame that is used to trace the slit edges.
+    det : int
+      Detector index
+    ntcky : int
+      Number of bspline knots in the spectral direction.
+
+    Returns
+    -------
+    slit_profile : ndarray
+      An image containing the slit profile
+    """
+    dnum = settings.get_dnum(det)
+    nslits = slf._lordloc[det - 1].shape[1]
+
+    # First, determine the relative scale of each amplifier (assume amplifier 1 has a scale of 1.0)
+    if (settings.spect[dnum]['numamplifiers'] > 1) & (nslits > 1):
+        sclframe = get_ampscale(slf, det, mstrace)
+        # Divide the master flat by the relative scale frame
+        mstrace /= sclframe
+
+    mstracenrm = mstrace.copy()
+    slit_profiles = np.zeros_like(mstrace)
+    # Set the number of knots in the spectral direction
+    if settings.argflag["reduce"]["slitprofile"]["method"] == "bspline":
+        ntcky = settings.argflag["reduce"]["slitprofile"]["params"][0]
+        if settings.argflag["reduce"]["slitprofile"]["params"][0] < 1.0:
+            ntcky = int(1.0/ntcky)+0.5
+    msgs.work("Multiprocess this step to increase speed")
+    for o in range(nslits):
+        msgs.info("Deriving the spatial profile of slit {0:d}".format(o+1))
+        lordloc = slf._lordloc[det - 1][:, o]
+        rordloc = slf._rordloc[det - 1][:, o]
+        ordloc = arcytrace.locate_order(lordloc, rordloc, mstrace.shape[0], mstrace.shape[1],
+                                        settings.argflag['trace']['slits']['pad'])
+        word = np.where(ordloc != 0)
+        if word[0].size <= (ntcky+1)*(2*slf._pixwid[det - 1][o]+1):
+            msgs.warn("There are not enough pixels in slit {0:d}".format(o+1))
+            continue
+        spatval = (word[1] - lordloc[word[0]])/(rordloc[word[0]] - lordloc[word[0]])
+        specval = slf._tilts[det-1][word]
+        fluxval = mstrace[word]
+        tckx = np.linspace(np.min(spatval), np.max(spatval), 2*slf._pixwid[det - 1][o])
+        tcky = np.linspace(np.min(specval), np.max(specval), ntcky)
+        modspl = interp.LSQBivariateSpline(spatval, specval, fluxval, tckx, tcky)
+        modvals = modspl.ev(spatval, specval)
+        if msgs._debug['slit_profile'] and o == 30:
+            model = np.zeros_like(mstrace)
+            model[word] = modvals
+            diff = mstrace - model
+            import astropy.io.fits as pyfits
+            hdu = pyfits.PrimaryHDU(mstrace)
+            hdu.writeto("mstrace_{0:02d}.fits".format(det), overwrite=True)
+            hdu = pyfits.PrimaryHDU(model)
+            hdu.writeto("model_{0:02d}.fits".format(det), overwrite=True)
+            hdu = pyfits.PrimaryHDU(diff)
+            hdu.writeto("diff_{0:02d}.fits".format(det), overwrite=True)
+        # Normalize to the value at the centre of the slit
+        specval = slf._tilts[det - 1][word]
+        spatval = 0.5*np.ones(specval.size)
+        nrmvals = modspl.ev(spatval, specval)
+        slit_profiles[word] = modvals/nrmvals
+        mstracenrm[word] /= nrmvals
+    # Return
+    return slit_profiles, mstracenrm
 
 
 def sn_frame(slf, sciframe, idx):
