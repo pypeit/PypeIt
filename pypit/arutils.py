@@ -159,6 +159,8 @@ def dummy_fitsdict(nfile=10, spectrograph='kast_blue', directory='./'):
         fitsdict['exptime'][1] = 30       # Arc
         fitsdict['lampstat01'][2] = 'on'  # Trace, pixel, slit flat
         fitsdict['lampstat01'][3] = 'on'  # Trace, pixel, slit flat
+        fitsdict['exptime'][2] = 30     # flat
+        fitsdict['exptime'][3] = 30     # flat
         fitsdict['ra'][4] = '05:06:36.6'  # Standard
         fitsdict['dec'][4] = '52:52:01.0'
         fitsdict['decker'] = ['0.5 arcsec'] * nfile
