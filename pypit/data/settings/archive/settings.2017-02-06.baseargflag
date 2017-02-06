@@ -132,7 +132,7 @@ pinhole combine reject replace   maxnonsat     # What to do if all pixels are re
 pinhole combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
 
 # OUTPUT
-output  verbosity      2				# Level of screen output (0 is No screen output, 1 is low level output, 2 is output everything)
-output  sorted       None          # A filename given to output the details of the sorted files. If None, no output is created.
+output  verbosity      2		   # Level of screen output (0 is No screen output, 1 is low level output, 2 is output everything)
+output  sorted       True          # A filename given to output the details of the sorted files. If None, no output is created.
 output  overwrite    False         # Overwrite any existing output files?
 
