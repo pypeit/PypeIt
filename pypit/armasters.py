@@ -136,8 +136,9 @@ def save_masters(slf, det, setup):
     if 'trace'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
         extensions = [slf._lordloc[det-1], slf._rordloc[det-1],
                       slf._pixcen[det-1], slf._pixwid[det-1],
-                      slf._lordpix[det-1], slf._rordpix[det-1]]
-        names = ['LeftEdges_det', 'RightEdges_det', 'SlitCentre', 'SlitLength', 'LeftEdges_pix', 'RightEdges_pix']
+                      slf._lordpix[det-1], slf._rordpix[det-1],
+                      slf._slitpix[det-1]]
+        names = ['LeftEdges_det', 'RightEdges_det', 'SlitCentre', 'SlitLength', 'LeftEdges_pix', 'RightEdges_pix', 'SlitPixels']
         arsave.save_master(slf, slf._mstrace[det-1],
                            filename=master_name('trace', setup),
                            frametype='trace', extensions=extensions, names=names)
