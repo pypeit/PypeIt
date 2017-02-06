@@ -95,11 +95,7 @@ pixelflat match naxis1 =0             # Match the shape of flats with science
 pixelflat match decker ''             # Check the same decker as the science frame was used
 
 ### Pinhole frames
-pinhole check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
-pinhole check condition2 exptime>0     # Required for bias
-pinhole match naxis0 =0             # Match the shape of flats with science
-pinhole match naxis1 =0             # Match the shape of flats with science
-pinhole match decker ''             # Check the same decker as the science frame was used
+pinhole check condition1 exptime>999999 # Avoids any pinhole frames
 
 ### Trace frames
 trace check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on

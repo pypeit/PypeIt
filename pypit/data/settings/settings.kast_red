@@ -1,31 +1,3 @@
-# SIMPLE RULES:
-#
-# 1. If a keyword is specified in science/pixelflat/pinhole/trace/bias/arc frames
-#    it must also appear in the Keyword identifiers list.
-# 2. You must check NAXIS is 2 in ``checks to perform''.
-# 3. If a keyword value contains only some interesting value,
-#    you can split the keyword value using the '%,' notation.
-#    For example, suppose you have the string 10:50:23.45, and
-#    you're interested in the 50 for a match condition, you would
-#    use '%' to indicate you want to split the keyword value, ':'
-#    indicates the delimiter text, '1' indicates you're interested
-#    in the 1st argument (0-indexed), '<60' is an example criteria.
-#    Each of these should be specified in this order, seperated by
-#    commas, so the final string would be:
-#    %,:,1,<60
-# 4. If the text '|' appears in the match condition, the absolute
-#    value will be taken. For example '|<=0.05' means that a given
-#    keyword's value for a calibration frame must be within 0.05 of
-#    a science frame's value, in order to be matched.
-# 5. If a keyword's value contains spaces, replace all spaces with
-#    one underscore.
-# 6. If the header contains two keyword's of the same name, only
-#    the value of the first one will be recognised.
-# 7. Strictly speaking, ARMLSD likes a one-to-one relationship between
-#    a given frame and a frame type. If you would like a one-to-many
-#    relationship (i.e. a given frame can be both a pixel and a slit
-#    flat, use the canbe option).
-#
 ### Detector properties
 mosaic ndet 1                         # Number of detectors in the mosaic
 mosaic latitude 37.3413889             # Latitude of the telescope
@@ -102,43 +74,45 @@ fits calwin 12.0                    # The window of time in hours to search for 
 fits numlamps 16                    # How many lamps are there listed in the header
 
 ### Science frames
-science check condition5 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off
-science check condition6 exptime>1     #
+science check condition1 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off
+science check condition2 exptime>1     #
 
 ### Standard Star frames
-standard check condition5 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off
+standard check condition1 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off
 standard match naxis0 =0             # Match the shape of standard and science frames
 standard match naxis1 =0             # Match the shape of standard and science frames
 standard match dispangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 20 ~ 2pixel)
 
 ### Bias/Dark frames
-bias check condition5 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off
+bias check condition1 exptime<1     # Required for bias
 bias match naxis0 =0                # Match the shape of bias and science frames
 bias match naxis1 =0                # Match the shape of bias and science frames
 
 ### Pixel Flat frames
-pixelflat check condition5 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
-pixelflat check condition6 exptime>0  # Required for bad lamp header values
+pixelflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
+pixelflat check condition2 exptime>0  # Required for bias
 pixelflat match naxis0 =0             # Match the shape of flats with science
 pixelflat match naxis1 =0             # Match the shape of flats with science
+pixelflat match decker ''             # Check the same decker as the science frame was used
 pixelflat match dispangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
 
 ### Pinhole frames
-pinhole check condition99 exptime>999999 # Avoids any pinhole frames
+pinhole check condition1 exptime>999999 # Avoids any pinhole frames
 
 ### Trace frames
-trace check condition5 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
-trace check condition6 exptime>0  # Required to avoid bias
+trace check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
+trace check condition2 exptime>0  # Required for bias
 trace match naxis0 =0             # Match the shape of flats with science
 trace match naxis1 =0             # Match the shape of flats with science
+trace match decker ''             # Check the same decker as the science frame was used
+trace match dispangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
 
 ### Arc frames
-arc check condition5 lampstat07=on|lampstat08=on|lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on|lampstat13=on|lampstat14=on|lampstat15=on|lampstat16=on
-arc check condition6 exptime>0      # Lamps aren't always listed as on
-arc match decker any                # People frequently use a more narrow slit
+arc check condition1 lampstat07=on|lampstat08=on|lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on|lampstat13=on|lampstat14=on|lampstat15=on|lampstat16=on
 arc match naxis0 =0                 # Match the shape of arcs with science
 arc match naxis1 =0                 # Match the shape of arcs with science
 arc match dispangle |<=10              # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 10 ~ 2pixel)
+arc check condition2 exptime>0
 
 # Make some changes to the arguments and flags
 settings trace dispersion direction 1

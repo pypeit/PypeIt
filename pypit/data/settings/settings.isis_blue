@@ -106,12 +106,7 @@ pixelflat match decker ''             # Check the same decker as the science fra
 pixelflat match dispangle |<=1          # Match the disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
 
 ### Pinhole frames
-pinhole idname flat                 # Header key value of flat frame for header keyword keyword+idname
-pinhole check condition1 lamps=W # Lamp on
-pinhole match naxis0 =0             # Match the shape of flats with science
-pinhole match naxis1 =0             # Match the shape of flats with science
-pinhole match decker ''             # Check the same decker as the science frame was used
-pinhole match dispangle |<=1          # Match the disperser angle (an uncertainty in the CENWAVE)
+pinhole check condition1 exptime>999999 # Avoids any pinhole frames
 
 ### Trace frames
 trace idname flat                 # Header key value of flat frame for header keyword keyword+idname
