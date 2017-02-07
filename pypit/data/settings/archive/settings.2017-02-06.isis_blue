@@ -107,10 +107,18 @@ pixelflat match dispangle |<=1          # Match the disperser angle (an uncertai
 pinhole check condition99 exptime>999999 # Avoids any pinhole frames
 
 ### Trace frames
-trace check condition99 exptime>999999 # Avoids any pinhole frames
+trace idname flat                 # Header key value of flat frame for header keyword keyword+idname
+trace check condition5 lamps=W    # Lamp on
+trace match naxis0 =0             # Match the shape of flats with science
+trace match naxis1 =0             # Match the shape of flats with science
+trace match dispangle |<=1          # Match the disperser angle (an uncertainty in the KAST BLUE tilt angle of 5 ~ 1pixel)
+
+### Dark frames
+dark check condition99 exptime>999999    # Avoids darks
 
 ### Arc frames
 arc idname arc                      # Header key value of arc frame for header keyword keyword+idname
+arc check condition1 exptime<120    # Long exposures for these arcs
 arc check condition5 lamps=CuNe+CuAr
 arc match naxis0 =0                 # Match the shape of arcs with science
 arc match naxis1 =0                 # Match the shape of arcs with science

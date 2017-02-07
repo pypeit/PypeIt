@@ -105,7 +105,7 @@ Line by line
 ============
 
 This section describes the various sections of a .pypit file.
-In principle, you can use the following descirption to build a .pypit
+In principle, you can use the following description to build a .pypit
 file from scratch.  This is **not** recommended.
 The following documentation is mainly for guiding
 modifications to an existing PYPIT file.
