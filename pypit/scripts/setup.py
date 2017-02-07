@@ -115,11 +115,11 @@ def main(args):
     for setup, setuplines,setupfiles in zip(all_setups, all_setuplines,all_setupfiles):
         root = args.spectrograph+'_setup_'
         # Make the dir
-        newdir = root+setup
+        newdir = args.redux_path+root+setup
         if not os.path.exists(newdir):
             os.mkdir(newdir)
         # Now the file
-        pyp_file = args.redux_path+newdir+'/'+root+setup+'.pypit'
+        pyp_file = newdir+'/'+root+setup+'.pypit'
         # Modify parlines
         for kk,pline in enumerate(parlines):
             if 'output sorted' in pline:
