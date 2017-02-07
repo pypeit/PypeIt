@@ -28,7 +28,7 @@ following is for one instrument in one working directory.
 
   - Generates the instrument PYPIT reduction file [not used further]
   - Generates the instrument .setups file (:doc:`setup`)
-  - Generates a custom PYPIT reduction file for each setup
+  - Generates a .sorted file which lists files sorted by setup
   - Scan the output WARNING messages which will indicate insufficient calibration files (e.g. missing arc frames)
 
 3. Inspect the :ref:`setups-file` and :ref:`sorted-file` to confirm the instrument configurations
@@ -36,26 +36,31 @@ following is for one instrument in one working directory.
 
     - If changes were made, rerun :ref:`pypit_setup`
 
-4. Isolate and modify the custom PYPIT reduction files (:doc:`pypit_file`)
+  - Now run :ref:`pypit_setup` with the --custom option to generates custom PYPIT reduction files and folders for each setup
 
-  - One should copy/move the PYPIT reduction file for a given setup into its own folder
-    (*recommended* but not required)
-  - Modify, as needed (e.g. trim/add calibration files, edit frametypes)
+4. Prepare the custom :doc:`pypit_file` for reducing a given setup
+  - Enter one of the setup folders (e.g. lris_blue_setup_A)
+  - Modify the custom :doc:`pypit_file` as needed
 
-4. Run :ref:`run-calcheck` on the custom PYPIT file(s) (described in :doc:`calcheck`)
+    - e.g. trim/add calibration files, edit frametypes
+
+5. Run :ref:`run-calcheck` on the custom PYPIT file(s) (described in :doc:`calcheck`)
 
   - Modify the spect block in the PYPIT file to specify calibrations
   - Inspect the .calibs file for your PYPIT file.
   - Confirm calibration, science and standard frames
 
-5. Run the reduction (described in :doc:`running`)
+6. Run the reduction (described in :doc:`running`)
 
   - Further customize your PYPIT file
   - run_pypit
 
-6. Examine QA
+7. Examine QA
 
-7. Examine spectra
+8. Examine spectra
+
+9. Repeat steps 4-8 for additional setups, as desired
+
 
 Old
 +++
