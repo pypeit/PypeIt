@@ -258,7 +258,6 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     polyorder, repeat = 5, 1
     # Begin the algorithm
     errframe = np.sqrt(varframe)
-    norders = slf._lordloc[det-1].shape[1]
     # Find which pixels are within the order edges
     msgs.info("Identifying pixels within each order")
     ordpix = arcyutils.order_pixels(slf._pixlocn[det-1],
@@ -337,22 +336,21 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     scifrcp = scimask.copy()
     scifrcp[whord] += (maskval*maskpix)[rxargsrt]
     scifrcp[np.where(ordpix == 0)] = maskval
-    # Check tilts?
-    '''
-    if msgs._debug['sky_tilts']:
+    # Check tilts? -- Can also be error in flat fielding or slit illumination
+    if msgs._debug['sky_sub']:
         gdp = scifrcp != maskval
-        debugger.xplot(tilts[gdp]*tilts.shape[0], scifrcp[gdp], scatter=True)
-        if False:
+        #debugger.xplot(tilts[gdp]*tilts.shape[0], scifrcp[gdp], scatter=True)
+        idx = 1893
+        if True:
             plt.clf()
             ax = plt.gca()
-            ax.scatter(tilts[1749,:], scifrcp[1749,:], color='green')
-            ax.scatter(tilts[1750,:], scifrcp[1750,:], color='blue')
-            ax.scatter(tilts[1751,:], scifrcp[1751,:], color='red')
-            ax.scatter(tilts[1752,:], scifrcp[1752,:], color='orange')
+            ax.scatter(tilts[idx-2,:], scifrcp[idx-2,:], color='green')
+            ax.scatter(tilts[idx-1,:], scifrcp[idx-1,:], color='blue')
+            ax.scatter(tilts[idx,:], scifrcp[idx,:], color='red')
+            ax.scatter(tilts[idx+1,:], scifrcp[idx+1,:], color='orange')
             ax.set_ylim(0., 3000)
             plt.show()
-        debugger.set_trace()
-    '''
+            debugger.set_trace()
     #
     msgs.info("Fitting sky background spectrum")
     if settings.argflag['reduce']['skysub']['method'].lower() == 'polyscan':
@@ -367,9 +365,9 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
         xpix = sxvpix[wbg]
         maxdiff = np.sort(xpix[1:]-xpix[:-1])[xpix.size-sciframe.shape[0]-1] # only include the next pixel in the fit if it is less than 10x the median difference between all pixels
         msgs.info("Generating sky background image")
-        if msgs._debug['sky_sub']:
-            debugger.set_trace()
-            debugger.xplot(sxvpix[wbg]*tilts.shape[0], sbgpix[wbg], scatter=True)
+        #if msgs._debug['sky_sub']:
+        #    debugger.set_trace()
+        #    debugger.xplot(sxvpix[wbg]*tilts.shape[0], sbgpix[wbg], scatter=True)
         bgscan = arcyutils.polyfit_scan_lim(sxvpix[wbg], sbgpix[wbg].copy(), np.ones(wbg[0].size,dtype=np.float), maskval, polyorder, sciframe.shape[1]/3, repeat, maxdiff)
         # Restrict to good values
         gdscan = bgscan != maskval
@@ -384,18 +382,26 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
         msgs.info("Using bspline sky subtraction")
         gdp = scifrcp != maskval
         srt = np.argsort(tilts[gdp])
-        bspl = arutils.func_fit(tilts[gdp][srt], scifrcp[gdp][srt], 'bspline', 3,
-                                **settings.argflag['reduce']['skysub']['bspline'])
+        #bspl = arutils.func_fit(tilts[gdp][srt], scifrcp[gdp][srt], 'bspline', 3,
+        #                        **settings.argflag['reduce']['skysub']['bspline'])
+        ivar = (varframe > 0.)/(varframe + (varframe == 0))
+        mask, bspl = arutils.robust_polyfit(tilts[gdp][srt], scifrcp[gdp][srt], 3, function='bspline',
+                                            weights=np.sqrt(ivar)[gdp][srt], sigma=5.,
+                                            maxone=False, **settings.argflag['reduce']['skysub']['bspline'])
         bgf_flat = arutils.func_val(bspl, tilts.flatten(), 'bspline')
         bgframe = bgf_flat.reshape(tilts.shape)
         if msgs._debug['sky_sub']:
-            gdp = scifrcp != maskval
-            srt = np.argsort(tilts.flatten())
-            plt.clf()
-            ax = plt.gca()
-            ax.scatter(tilts[gdp]*tilts.shape[0], scifrcp[gdp], marker='o')
-            ax.plot(tilts.flatten()[srt]*tilts.shape[0], bgf_flat[srt], 'r-')
-            plt.show()
+            def plt_bspline_sky(tilts, scifrcp, bgf_flat, maskval):
+                # Setup
+                srt = np.argsort(tilts.flatten())
+                # Plot
+                plt.close()
+                plt.clf()
+                ax = plt.gca()
+                ax.scatter(tilts[gdp]*tilts.shape[0], scifrcp[gdp], marker='o')
+                ax.plot(tilts.flatten()[srt]*tilts.shape[0], bgf_flat[srt], 'r-')
+                plt.show()
+            plt_bspline_sky(tilts, scifrcp, bgf_flat, maskval)
             debugger.set_trace()
     else:
         msgs.error('Not ready for this method for skysub {:s}'.format(
@@ -406,6 +412,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
         bgframe[bad] = 0.
     if msgs._debug['sky_sub']:
         debugger.set_trace()
+        #debugger.show_image(sciframe-bgframe)
     # Plot to make sure that the result is good
     #arutils.ds9plot(bgframe)
     #arutils.ds9plot(sciframe-bgframe)
@@ -608,8 +615,9 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             msgs.info("Performing a 2D PCA on the blaze fits")
             msblaze = arpca.pca2d(msblaze, settings.argflag["reduce"]["flatfield"]["2dpca"])
     # Plot the blaze model
-    msgs.info("Saving blaze fits to QA")
-    arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc=plotdesc, textplt="Order")
+    if not msgs._debug['no_qa']:
+        msgs.info("Saving blaze fits to QA")
+        arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc=plotdesc, textplt="Order")
     # If there is more than 1 amplifier, apply the scale between amplifiers to the normalized flat
     if (settings.spect[dnum]['numamplifiers'] > 1) & (norders > 1):
         msnormflat *= sclframe
@@ -861,8 +869,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         msgs.info("Finalizing the sky background image")
         trcmask = scitrace['object'].sum(axis=2)
         trcmask[np.where(trcmask>0.0)] = 1.0
-        if not msgs._debug['obj_profile']:
-            bgframe = bg_subtraction(slf, det, sciframe, modelvarframe, crmask, tracemask=trcmask)
+        bgframe = bg_subtraction(slf, det, sciframe, modelvarframe, crmask, tracemask=trcmask)
         # Redetermine the variance frame based on the new sky model
         modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
         # Save

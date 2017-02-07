@@ -174,6 +174,9 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
         # If a quick reduction has been requested, make sure the requested pipeline
         # is the quick implementation (if it exists), otherwise run the standard pipeline.
         msgs.work("QUICK REDUCTION TO STILL BE DONE")
+    # Setup from PYPIT file?
+    if len(pyp_dict['setup']['name']) == 1:
+        argf.set_param('setup name {:s}'.format(pyp_dict['setup']['name'][0]))
     # Finally, save the arguments/flags and spectrograph settings used for this reduction
     argf.save()
     spect.save()
@@ -292,8 +295,8 @@ def load_input(redname, msgs):
         dict of setup info
           'name' list of setups
           'lines' list of lines in the setup block
-      'ftype'
-        dict of filename: frametype
+      'ftype' : dict
+         dict of filename: frametype
     """
     import os
     # Read in the model file
