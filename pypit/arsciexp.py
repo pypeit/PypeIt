@@ -712,18 +712,19 @@ class ScienceExposure:
                 msgs.warn("No MasterWave1D data found {:s}".format(mswv_calib_name))
             else:
                 settings.argflag['reduce']['masters']['loaded'].append('wave_calib'+settings.argflag['reduce']['masters']['setup'])
-        # msgs.bug("REMOVE FALSE ON LINE BELOW TO PERFORM WAVELENGTH CALIBRATION")
-        # if False and 'wave_calib'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
-        if 'wave_calib' + settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
-            # Setup arc parameters (e.g. linelist)
-            arcparam = ararc.setup_param(self, sc, det, fitsdict)
-            self.SetFrame(self._arcparam, arcparam, det)
-            ###############
-            # Extract arc and identify lines
-            if settings.argflag['arc']['calibrate']['method'] == 'simple':
-                wv_calib = ararc.simple_calib(self, det)
-            elif settings.argflag['arc']['calibrate']['method'] == 'arclines':
-                wv_calib = ararc.calib_with_arclines(self, det)
+        if settings.argflag["reduce"]["calibrate"]["wavelength"] is None:
+            msgs.info("A wavelength calibration will not be performed")
+        else:
+            if 'wave_calib' + settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+                # Setup arc parameters (e.g. linelist)
+                arcparam = ararc.setup_param(self, sc, det, fitsdict)
+                self.SetFrame(self._arcparam, arcparam, det)
+                ###############
+                # Extract arc and identify lines
+                if settings.argflag['arc']['calibrate']['method'] == 'simple':
+                    wv_calib = ararc.simple_calib(self, det)
+                elif settings.argflag['arc']['calibrate']['method'] == 'arclines':
+                    wv_calib = ararc.calib_with_arclines(self, det)
         # Set
         if wv_calib is not None:
             self.SetFrame(self._wvcalib, wv_calib, det)

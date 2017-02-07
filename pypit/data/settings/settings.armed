@@ -3,6 +3,7 @@
 # RUNNING ARMED
 
 # REDUCTION RULES
+reduce calibrate wavelength none   # Temporary until a wavelength calibration routine is implemented.
 reduce flatfield params [0.05]     # Flat field method parameters (PolyScan: [order,numPixels,repeat], bspline: [spacing])
 reduce flatfield 2dpca 0                # Perform a 2D PCA on the blaze models
 reduce slitcen useframe pinhole          # How to trace the slit centre (pinhole, trace), you can also specify a master calibrations file if it exists.

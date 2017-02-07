@@ -3555,6 +3555,8 @@ def key_allowed(v, allowed, upper=False):
     if v not in allowed:
         msgs.error("The argument of {0:s} must be one of".format(func_name) + msgs.newline() +
                    ", ".join(allowed))
+    if v.lower() == "none":
+        v = None
     return v
 
 
