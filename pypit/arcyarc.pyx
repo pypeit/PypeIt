@@ -50,7 +50,7 @@ cdef extern from "gsl/gsl_multifit.h":
 #######
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def calc_angperpix(np.ndarray[DTYPE_t, ndim=1] order not None,
                     np.ndarray[DTYPE_t, ndim=1] app not None,
                     double stepsize, double startval,
@@ -143,7 +143,7 @@ def calc_angperpix(np.ndarray[DTYPE_t, ndim=1] order not None,
     return retarr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def calculate_lineprob_bffit(np.ndarray[DTYPE_t, ndim=1] pixls not None,
                         np.ndarray[DTYPE_t, ndim=1] carr not None,
                         np.ndarray[DTYPE_t, ndim=1] waves not None,
@@ -224,7 +224,7 @@ def calculate_lineprob_bffit(np.ndarray[DTYPE_t, ndim=1] pixls not None,
     return prbpixl, prbmtrx, ipar, jpar
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def calculate_lineprob_iter(np.ndarray[DTYPE_t, ndim=1] pixls not None,
                         np.ndarray[DTYPE_t, ndim=2] pararr not None,
                         np.ndarray[DTYPE_t, ndim=1] waves not None,
@@ -308,7 +308,7 @@ def calculate_lineprob_iter(np.ndarray[DTYPE_t, ndim=1] pixls not None,
     return prbpixl, prbmtrx, ipar
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def calibrate_order(np.ndarray[DTYPE_t, ndim=1] wcls not None,
                     np.ndarray[DTYPE_t, ndim=1] waves not None):
     cdef int w, sz_w,  c, sz_c
@@ -358,7 +358,7 @@ def centre_wave(np.ndarray[DTYPE_t, ndim=1] pixarr not None,
 #  D  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def detections(np.ndarray[DTYPE_t, ndim=1] pixels not None,
                 np.ndarray[ITYPE_t, ndim=1] satmask not None):
     cdef int sz_p
@@ -394,7 +394,7 @@ def detections(np.ndarray[DTYPE_t, ndim=1] pixels not None,
             d = 0
     return pixcen
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def detections_sigma(np.ndarray[DTYPE_t, ndim=1] pixels not None,
                     np.ndarray[DTYPE_t, ndim=1] errors not None,
                     np.ndarray[ITYPE_t, ndim=1] satmask not None,
@@ -439,6 +439,8 @@ def detections_sigma(np.ndarray[DTYPE_t, ndim=1] pixels not None,
             flag = 0
             while True:
                 # Test if the peak of the emission line has been reached, and we are now decreasing in flux.
+                if p+d >= (sz_p-1):
+                    break
                 if pixels[p+d] > pixels[p+d-1] and pixels[p+d] > pixels[p+d+1]:
                     flag = 1
                 pixcen[p+d] = -1
@@ -448,9 +450,10 @@ def detections_sigma(np.ndarray[DTYPE_t, ndim=1] pixels not None,
                     mnum = pixels[p+d]
                     inum = p+d
                 d += 1
+                if p+d >= sz_p:
+                    break
                 if pixels[p+d] > pixels[p+d-1] and flag == 1: break
                 if pixels[p+d] <= 0.0: break
-                if p+d >= sz_p: break
             p += d
             #print p, npc, psum, csqrt(esum), c, d, psum/csqrt(esum)
             if psum/csqrt(esum) >= detect and d+c >= 6:
@@ -465,7 +468,7 @@ def detections_sigma(np.ndarray[DTYPE_t, ndim=1] pixels not None,
 
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def detections_allorders(np.ndarray[DTYPE_t, ndim=2] pixels not None,
                         np.ndarray[ITYPE_t, ndim=2] satmask not None):
     cdef int sz_o, sz_p
@@ -515,7 +518,7 @@ def detections_allorders(np.ndarray[DTYPE_t, ndim=2] pixels not None,
 #  F  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def find_closest(np.ndarray[DTYPE_t, ndim=1] arclist not None,
                 double waveval, int p):
     cdef int sz_w
@@ -588,7 +591,7 @@ def find_nearest(np.ndarray[DTYPE_t, ndim=1] pixels not None,
                 break
     return apix
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def find_patterns(np.ndarray[DTYPE_t, ndim=1] pixels not None,
                 np.ndarray[DTYPE_t, ndim=2] patterns not None):
     cdef int sz_m, sz_p
@@ -832,7 +835,7 @@ def find_patterns_iter(np.ndarray[DTYPE_t, ndim=2] pixels not None,
 #	return pixfit, wavfit, wavecen, complete
     return prbwave, prbmtrx, prbdirc, pixnew
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def find_cont(np.ndarray[DTYPE_t, ndim=1] xarr not None,
                 np.ndarray[DTYPE_t, ndim=1] yarr not None,
                 np.ndarray[ITYPE_t, ndim=1] marr not None,
@@ -873,7 +876,7 @@ def find_cont(np.ndarray[DTYPE_t, ndim=1] xarr not None,
     return xfit[:n], yfit[:n]
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def find_wavecen(np.ndarray[DTYPE_t, ndim=1] waves not None,
                 np.ndarray[DTYPE_t, ndim=1] orders not None):
 
@@ -957,7 +960,7 @@ def find_wavecen(np.ndarray[DTYPE_t, ndim=1] waves not None,
     return prbwave, prbmtrx
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def fit_arcorder(np.ndarray[DTYPE_t, ndim=1] xarray not None,
                 np.ndarray[DTYPE_t, ndim=1] yarray not None,
                 np.ndarray[ITYPE_t, ndim=1] pixt not None,
@@ -1005,7 +1008,7 @@ def fit_arcorder(np.ndarray[DTYPE_t, ndim=1] xarray not None,
     return ampl, cent, widt, pp
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def fit_gauss(np.ndarray[DTYPE_t, ndim=1] xarray not None,
                 np.ndarray[DTYPE_t, ndim=1] yarray not None,
                 np.ndarray[DTYPE_t, ndim=1] coeff not None,
@@ -1110,7 +1113,7 @@ def fit_gauss(np.ndarray[DTYPE_t, ndim=1] xarray not None,
         return amp, cen, wid, 1
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def fit_gauss_old(np.ndarray[DTYPE_t, ndim=1] xarray not None,
                 np.ndarray[DTYPE_t, ndim=1] yarray not None,
                 np.ndarray[ITYPE_t, ndim=1] pixt not None,
@@ -1151,7 +1154,7 @@ def fit_gauss_old(np.ndarray[DTYPE_t, ndim=1] xarray not None,
     return cent, widt, pp
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def func_pcsurf(np.ndarray[DTYPE_t, ndim=1] x not None,
                 np.ndarray[DTYPE_t, ndim=1] ord not None,
                 np.ndarray[DTYPE_t, ndim=1] p not None,
@@ -1176,7 +1179,7 @@ def func_pcsurf(np.ndarray[DTYPE_t, ndim=1] x not None,
             yfit[i] +=  pc * cpow(x[i],<double>(j))
     return yfit
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def func_pcsurf_ret(np.ndarray[DTYPE_t, ndim=1] x not None,
                     np.ndarray[DTYPE_t, ndim=1] ord not None,
                     np.ndarray[DTYPE_t, ndim=1] p not None,
@@ -1205,7 +1208,7 @@ def func_pcsurf_ret(np.ndarray[DTYPE_t, ndim=1] x not None,
 #  G  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def get_model(np.ndarray[DTYPE_t, ndim=1] arclines not None,
                 double sigma):
     cdef int sz_a, sz_p
@@ -1228,7 +1231,7 @@ def get_model(np.ndarray[DTYPE_t, ndim=1] arclines not None,
             yfit[i] += cexp( -((xfit[i] - arclines[j])/sigma)**2 )
     return yfit
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def get_signal(np.ndarray[DTYPE_t, ndim=1] pixels not None,
                 double sigma):
     cdef int sz_p, sz_w
@@ -1255,7 +1258,7 @@ def get_signal(np.ndarray[DTYPE_t, ndim=1] pixels not None,
 #  I  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def identify(np.ndarray[DTYPE_t, ndim=1] pixels not None,
                 np.ndarray[DTYPE_t, ndim=1] arclist not None,
                 double srcrng):
@@ -1368,7 +1371,7 @@ def identify(np.ndarray[DTYPE_t, ndim=1] pixels not None,
 #	return prbmtrx, prbwave
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def identifytwo(np.ndarray[DTYPE_t, ndim=1] pixels not None,
                 np.ndarray[DTYPE_t, ndim=1] arclist not None,
                 double srcrng):
@@ -1447,7 +1450,7 @@ def identifytwo(np.ndarray[DTYPE_t, ndim=1] pixels not None,
 
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def identifythree(np.ndarray[DTYPE_t, ndim=1] pixels not None,
                 np.ndarray[DTYPE_t, ndim=1] arclist not None,
                 double srcrng):
@@ -1520,7 +1523,7 @@ def identifythree(np.ndarray[DTYPE_t, ndim=1] pixels not None,
     return prbmtrx, prbwave
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def identify_lines(np.ndarray[DTYPE_t, ndim=1] pixls not None,
                     np.ndarray[DTYPE_t, ndim=1] wvguess not None,
                     np.ndarray[DTYPE_t, ndim=1] waves not None):
@@ -1564,7 +1567,7 @@ def identify_lines(np.ndarray[DTYPE_t, ndim=1] pixls not None,
 #  L  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def linreg_test(np.ndarray[DTYPE_t, ndim=2] array not None,
                 int edx, int edy, double threshold):
     cdef int sz_x
@@ -1607,7 +1610,7 @@ def linreg_test(np.ndarray[DTYPE_t, ndim=2] array not None,
 #  M  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def mask_update(np.ndarray[DTYPE_t, ndim=1] arclist not None,
                 np.ndarray[ITYPE_t, ndim=1] mask not None,
                 int start, int last, double srcrng):
@@ -1626,7 +1629,7 @@ def mask_update(np.ndarray[DTYPE_t, ndim=1] arclist not None,
         return
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def mask_generate(np.ndarray[DTYPE_t, ndim=1] arclist not None,
                     np.ndarray[ITYPE_t, ndim=1] mask not None,
                     double srcrng, int last):
@@ -1646,7 +1649,7 @@ def mask_generate(np.ndarray[DTYPE_t, ndim=1] arclist not None,
 
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def mad(np.ndarray[DTYPE_t, ndim=1] madarr not None):
     cdef int sz_x
     cdef int x, j
@@ -1669,7 +1672,7 @@ def mad(np.ndarray[DTYPE_t, ndim=1] madarr not None):
     # Return the median absolute deviation
     return madval
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def median(np.ndarray[DTYPE_t, ndim=1] array not None):
     cdef int sz_x
     cdef int x, j
@@ -1690,7 +1693,7 @@ def median(np.ndarray[DTYPE_t, ndim=1] array not None):
         return array[(sz_x-1)/2]
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def median_mask(np.ndarray[DTYPE_t, ndim=1] array not None,
                 double maskval):
     cdef int sz_x
@@ -1723,7 +1726,7 @@ def median_mask(np.ndarray[DTYPE_t, ndim=1] array not None,
         return arrmod[(nnm-1)/2]
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def medianmad(np.ndarray[DTYPE_t, ndim=1] array not None):
     cdef int sz_x
     cdef int x, j
@@ -1768,7 +1771,7 @@ def medianmad(np.ndarray[DTYPE_t, ndim=1] array not None):
     return medval, madval
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def medianmad_qs(np.ndarray[DTYPE_t, ndim=1] array not None):
     cdef int sz_x
     cdef int x, j
@@ -1801,7 +1804,7 @@ def medianmad_qs(np.ndarray[DTYPE_t, ndim=1] array not None):
     # Return the median and median absolute deviation
     return medval, madval
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def medianmad_dimen(np.ndarray[DTYPE_t, ndim=1] array not None, int di):
     cdef int sz_x
     cdef int x, j
@@ -1877,7 +1880,7 @@ def nbrightest(np.ndarray[DTYPE_t, ndim=2] pixels not None,
 #  O  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def order_saturation(np.ndarray[ITYPE_t, ndim=2] satmask not None,
                     np.ndarray[ITYPE_t, ndim=2] ordcen not None,
                     np.ndarray[ITYPE_t, ndim=2] ordwid not None):
@@ -1908,7 +1911,7 @@ def order_saturation(np.ndarray[ITYPE_t, ndim=2] satmask not None,
 #  P  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def polydiff(np.ndarray[DTYPE_t, ndim=1] x not None,
         np.ndarray[DTYPE_t, ndim=1] y not None,
         np.ndarray[DTYPE_t, ndim=1] c not None):
@@ -1930,7 +1933,7 @@ def polydiff(np.ndarray[DTYPE_t, ndim=1] x not None,
     return md
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def polyfit(np.ndarray[DTYPE_t, ndim=1] x not None,
         np.ndarray[DTYPE_t, ndim=1] y not None,
         int degree, np.ndarray[DTYPE_t, ndim=1] coeffs not None):
@@ -1979,7 +1982,7 @@ def polyfit(np.ndarray[DTYPE_t, ndim=1] x not None,
     return chisq
 #	return coeffs
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def polyfit_integral(np.ndarray[DTYPE_t, ndim=1] x not None,
                     np.ndarray[DTYPE_t, ndim=1] y not None,
                     np.ndarray[DTYPE_t, ndim=1] dx not None,
@@ -2028,7 +2031,7 @@ def polyfit_integral(np.ndarray[DTYPE_t, ndim=1] x not None,
     return chisq
 #	return coeffs
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def polyfit_weighted(np.ndarray[DTYPE_t, ndim=1] x not None,
         np.ndarray[DTYPE_t, ndim=1] y not None,
         np.ndarray[DTYPE_t, ndim=1] w not None,
@@ -2081,7 +2084,7 @@ def polyfit_weighted(np.ndarray[DTYPE_t, ndim=1] x not None,
 #	return coeffs
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def polyfit_xy(np.ndarray[DTYPE_t, ndim=2] xy not None,
         int degree):
 
@@ -2133,7 +2136,7 @@ def polyfit_xy(np.ndarray[DTYPE_t, ndim=2] xy not None,
 #  Q  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def quicksort(np.ndarray[DTYPE_t, ndim=1] array not None,
                 int k):
 
@@ -2164,7 +2167,7 @@ def quicksort(np.ndarray[DTYPE_t, ndim=1] array not None,
 #  R  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def remove_similar(np.ndarray[ITYPE_t, ndim=1] array not None,
                     int numl):
 
@@ -2215,7 +2218,7 @@ def reverse_array(np.ndarray[DTYPE_t, ndim=1] array not None,
 
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def rofunc(np.ndarray[DTYPE_t, ndim=1] xarr not None,
             np.ndarray[DTYPE_t, ndim=1] yarr not None,
             double b):
@@ -2254,7 +2257,7 @@ def rofunc(np.ndarray[DTYPE_t, ndim=1] xarr not None,
     return sum, a, abdev
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def robust_regression(np.ndarray[DTYPE_t, ndim=1] xarr not None,
                 np.ndarray[DTYPE_t, ndim=1] yarr not None,
                 np.ndarray[ITYPE_t, ndim=2] rarr not None,
@@ -2297,7 +2300,7 @@ def robust_regression(np.ndarray[DTYPE_t, ndim=1] xarr not None,
 
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def robust_gridreg(np.ndarray[DTYPE_t, ndim=1] xarr not None,
                 np.ndarray[DTYPE_t, ndim=1] yarr not None,
                 int order):
@@ -2422,7 +2425,7 @@ def robust_gridreg(np.ndarray[DTYPE_t, ndim=1] xarr not None,
 
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def robust_linreg(np.ndarray[DTYPE_t, ndim=1] xarr not None,
                 np.ndarray[DTYPE_t, ndim=1] yarr not None):
     cdef int sz_a = xarr.shape[0]
@@ -2490,7 +2493,7 @@ def robust_linreg(np.ndarray[DTYPE_t, ndim=1] xarr not None,
 #  S  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def saturation_mask(np.ndarray[DTYPE_t, ndim=2] array not None,
                     double satlevel):
    
@@ -2558,7 +2561,7 @@ def saturation_mask(np.ndarray[DTYPE_t, ndim=2] array not None,
 
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def select(np.ndarray[DTYPE_t, ndim=1] array not None,
             int k):
    
@@ -2616,7 +2619,7 @@ def select(np.ndarray[DTYPE_t, ndim=1] array not None,
             if j >= k: ir = j-1
             if j <= k: l = i
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def strip(np.ndarray[DTYPE_t, ndim=1] array not None,
             double maskval):
    

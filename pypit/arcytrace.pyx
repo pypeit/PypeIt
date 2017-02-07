@@ -36,7 +36,7 @@ cdef extern from "gsl/gsl_multifit.h":
 #  A  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 int lcnt, int rcnt, int ednum):
     cdef int sz_x, sz_y, x, y, i, ni
@@ -303,7 +303,7 @@ def assign_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
 #  C  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def clean_edges(np.ndarray[DTYPE_t, ndim=2] diff not None,
                 np.ndarray[DTYPE_t, ndim=2] tedges not None):
     cdef int sz_x, sz_y
@@ -349,7 +349,7 @@ def clean_edges(np.ndarray[DTYPE_t, ndim=2] diff not None,
     return edgdet
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def clean_pix(np.ndarray[DTYPE_t, ndim=2] array not None,
             double threshold):
 
@@ -405,7 +405,7 @@ def clean_pix(np.ndarray[DTYPE_t, ndim=2] array not None,
     return array
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def close_edges(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 np.ndarray[ITYPE_t, ndim=1] dets not None,
                 int npix):
@@ -445,7 +445,7 @@ def close_edges(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     return hasedge
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def close_slits(np.ndarray[DTYPE_t, ndim=2] trframe not None,
                 np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 np.ndarray[ITYPE_t, ndim=1] dets not None,
@@ -567,7 +567,7 @@ def close_slits(np.ndarray[DTYPE_t, ndim=2] trframe not None,
 #  D  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def detect_edges(np.ndarray[DTYPE_t, ndim=2] array not None):
     # array     : trace frame
 
@@ -635,7 +635,7 @@ def detect_edges(np.ndarray[DTYPE_t, ndim=2] array not None):
     return edgdet
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def dual_edge(np.ndarray[ITYPE_t, ndim=2] edgearr not None,
               np.ndarray[ITYPE_t, ndim=2] edgearrcp not None,
               np.ndarray[ITYPE_t, ndim=1] wx not None,
@@ -706,7 +706,7 @@ def edge_sum(np.ndarray[ITYPE_t, ndim=1] edghist not None,
     return edghist
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def expand_slits(np.ndarray[DTYPE_t, ndim=2] msedge not None,
                  np.ndarray[ITYPE_t, ndim=2] ordcen not None,
                  np.ndarray[ITYPE_t, ndim=1] extord not None):
@@ -781,7 +781,7 @@ def expand_slits(np.ndarray[DTYPE_t, ndim=2] msedge not None,
 #  F  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def find_peak_limits(np.ndarray[ITYPE_t, ndim=1] hist not None,
                     np.ndarray[ITYPE_t, ndim=1] pks not None):
     """
@@ -819,7 +819,7 @@ def find_peak_limits(np.ndarray[ITYPE_t, ndim=1] hist not None,
     return edges
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def find_between(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 np.ndarray[ITYPE_t, ndim=1] ledgem not None,
                 np.ndarray[ITYPE_t, ndim=1] ledgep not None,
@@ -880,7 +880,7 @@ def find_between(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     return edgbtwn
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def find_objects(np.ndarray[DTYPE_t, ndim=1] profile not None,
                 int bgreg, double stddev):
     """
@@ -952,7 +952,7 @@ def find_objects(np.ndarray[DTYPE_t, ndim=1] profile not None,
     return objl[:cntr], objr[:cntr], bckl, bckr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def find_shift(np.ndarray[DTYPE_t, ndim=2] mstrace not None,
                 np.ndarray[DTYPE_t, ndim=1] minarr not None,
                 np.ndarray[ITYPE_t, ndim=1] lopos not None,
@@ -991,7 +991,7 @@ def find_shift(np.ndarray[DTYPE_t, ndim=2] mstrace not None,
 
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def fit_edges(np.ndarray[DTYPE_t, ndim=2] array not None,
                 int polyorder, int lcnt, int rcnt):
     # array     : edges frame
@@ -1027,7 +1027,7 @@ def fit_edges(np.ndarray[DTYPE_t, ndim=2] array not None,
 #  G  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def get_closest(np.ndarray[DTYPE_t, ndim=2] orderpx not None,
                   int swlin, int edx, int edy):
 
@@ -1064,7 +1064,7 @@ def get_closest(np.ndarray[DTYPE_t, ndim=2] orderpx not None,
                     l+=1
     return clsdist
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def get_edges(np.ndarray[DTYPE_t, ndim=2] array not None,
                   double threshold, int srchspe, int srchspa):
     # array     : trace frame
@@ -1318,7 +1318,7 @@ def get_edges(np.ndarray[DTYPE_t, ndim=2] array not None,
     return edgearr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def get_xy(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
             np.ndarray[ITYPE_t, ndim=2] coords not None,
             int idnum, int mvdir):
@@ -1376,7 +1376,7 @@ def get_xy(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
 #  I  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def ignore_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 int fracpix, int lmin, int lmax, int rmin, int rmax):
     cdef int sz_x, sz_y
@@ -1460,7 +1460,7 @@ def ignore_orders(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
 #######
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def label_orders_two(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 int lcnt, int rcnt, int ednum):
     cdef int sz_x, sz_y, cnt
@@ -1537,7 +1537,7 @@ def label_orders_two(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     return
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def limit_yval(int yc, int maxv):
     cdef int yn, yx
     if yc == 0:
@@ -1567,7 +1567,7 @@ def limit_yval(int yc, int maxv):
 
 
 #(closept,edgenby[trc,0],edgenby[trc,1],ordthres)
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def linreg_test(np.ndarray[DTYPE_t, ndim=2] array not None,
                 int edx, int edy, double threshold):
     cdef int sz_x
@@ -1606,7 +1606,7 @@ def linreg_test(np.ndarray[DTYPE_t, ndim=2] array not None,
         return 0
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def locate_order(np.ndarray[DTYPE_t, ndim=1] lordloc not None,
                  np.ndarray[DTYPE_t, ndim=1] rordloc not None,
                  int sz_x, int sz_y, int pad):
@@ -1669,7 +1669,7 @@ def locate_order(np.ndarray[DTYPE_t, ndim=1] lordloc not None,
 #  M  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def mad(np.ndarray[DTYPE_t, ndim=1] madarr not None):
     cdef int sz_x
     cdef int x, j
@@ -1693,7 +1693,7 @@ def mad(np.ndarray[DTYPE_t, ndim=1] madarr not None):
     return madval
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def match_edges(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 int ednum):
     cdef int sz_x, sz_y
@@ -1837,7 +1837,7 @@ def match_edges(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     return lcnt-2*ednum, rcnt-2*ednum
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def median(np.ndarray[DTYPE_t, ndim=1] array not None):
     cdef int sz_x
     cdef int x, j
@@ -1858,7 +1858,7 @@ def median(np.ndarray[DTYPE_t, ndim=1] array not None):
         return array[(sz_x-1)/2]
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def medianmaskmin(np.ndarray[DTYPE_t, ndim=1] array not None, double mask):
     # This routine assumes that the masked value is also the minimum in the array
     cdef int sz_x
@@ -1886,7 +1886,7 @@ def medianmaskmin(np.ndarray[DTYPE_t, ndim=1] array not None, double mask):
         return array[(sz_x+nm-1)/2]
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def median_ed(np.ndarray[DTYPE_t, ndim=2] array not None,
             np.ndarray[DTYPE_t, ndim=2] medarr not None,
             int x, int ms):
@@ -1917,7 +1917,7 @@ def median_ed(np.ndarray[DTYPE_t, ndim=2] array not None,
 #		return array[(sz_x-1)/2]
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def medianmad(np.ndarray[DTYPE_t, ndim=1] array not None):
     cdef int sz_x
     cdef int x, j
@@ -1962,7 +1962,7 @@ def medianmad(np.ndarray[DTYPE_t, ndim=1] array not None):
     return medval, madval
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def medianmad_dimen(np.ndarray[DTYPE_t, ndim=1] array not None, int di):
     cdef int sz_x
     cdef int x, j
@@ -2007,7 +2007,7 @@ def medianmad_dimen(np.ndarray[DTYPE_t, ndim=1] array not None, int di):
     return medval, madval
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def minbetween(np.ndarray[DTYPE_t, ndim=2] mstrace not None,
                 np.ndarray[ITYPE_t, ndim=1] loord not None,
                 np.ndarray[ITYPE_t, ndim=1] hiord not None):
@@ -2044,7 +2044,7 @@ def minbetween(np.ndarray[DTYPE_t, ndim=2] mstrace not None,
 #  P  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def phys_to_pix(np.ndarray[DTYPE_t, ndim=2] array not None,
         np.ndarray[DTYPE_t, ndim=1] diff not None):
 
@@ -2073,7 +2073,7 @@ def phys_to_pix(np.ndarray[DTYPE_t, ndim=2] array not None,
     return pixarr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def polyfit(np.ndarray[DTYPE_t, ndim=1] x not None,
         np.ndarray[DTYPE_t, ndim=1] y not None,
         int degree):
@@ -2122,7 +2122,7 @@ def polyfit(np.ndarray[DTYPE_t, ndim=1] x not None,
     return coeffs
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def polyfit_mask(np.ndarray[DTYPE_t, ndim=1] xt not None,
                 np.ndarray[DTYPE_t, ndim=1] yt not None,
                 np.ndarray[DTYPE_t, ndim=1] coeffs not None,
@@ -2194,7 +2194,7 @@ def polyfit_mask(np.ndarray[DTYPE_t, ndim=1] xt not None,
     return coeffs
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def polyfit_xy(np.ndarray[DTYPE_t, ndim=2] xy not None,
         int degree):
 
@@ -2242,7 +2242,7 @@ def polyfit_xy(np.ndarray[DTYPE_t, ndim=2] xy not None,
     return coeffs
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def prune_peaks(np.ndarray[ITYPE_t, ndim=1] hist not None,
                 np.ndarray[ITYPE_t, ndim=1] pks not None,
                 int pkidx):
@@ -2413,7 +2413,7 @@ def trace_fweight(np.ndarray[DTYPE_t, ndim=2] fimage not None,
     return xnew, xerr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def tilts_image(np.ndarray[DTYPE_t, ndim=2] tilts not None,
                 np.ndarray[DTYPE_t, ndim=2] lordloc not None,
                 np.ndarray[DTYPE_t, ndim=2] rordloc not None,
@@ -2476,7 +2476,7 @@ def tilts_image(np.ndarray[DTYPE_t, ndim=2] tilts not None,
     return tiltsimg
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def trace_tilts(np.ndarray[DTYPE_t, ndim=2] msarc not None,
                 np.ndarray[ITYPE_t, ndim=2] ordcen not None,
                 np.ndarray[ITYPE_t, ndim=2] ordsiz not None,
@@ -2606,7 +2606,7 @@ def trace_tilts(np.ndarray[DTYPE_t, ndim=2] msarc not None,
 #  U  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def update_labels(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 np.ndarray[ITYPE_t, ndim=1] labels not None,
                 int idnum, int ni, int sn, int ednum):
