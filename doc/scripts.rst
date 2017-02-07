@@ -37,7 +37,7 @@ Wrapper around the linetools XSpecGUI.  Grabs a single
 1D spectrum from the PYPIT spec1d output and runs::
 
    unix> pypit_show_1dspec -h
-    usage: pypit_show_1dspec [-h] [--list] [--exten EXTEN] [--optimal] file
+    usage: pypit_show_1dspec [-h] [--list] [--exten EXTEN] [--extract EXTRACT] [--obj OBJ] file
 
     Parse
 
@@ -45,10 +45,11 @@ Wrapper around the linetools XSpecGUI.  Grabs a single
       file           Spectral file
 
     optional arguments:
-      -h, --help     show this help message and exit
-      --list         List the extensions only?
-      --exten EXTEN  FITS extension
-      --optimal      Show Optimal? Default is boxcar
+      -h, --help         show this help message and exit
+      --list             List the extensions only?
+      --exten EXTEN      FITS extension
+      --obj OBJ          Object name in lieu of extension, e.g. O424-S1466-D02-I0013
+      --extract EXTRACT  Extraction method. Default is boxcar. ['box', 'opt']
 
 
 pypit_show_2dspec
