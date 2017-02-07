@@ -211,20 +211,22 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                     msgs.info("Saving blaze function QA")
                     arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc="Blaze function", textplt="Order")
 
-            msgs.error("UP TO HERE!!!")
             ###############
             # Generate/load a master wave frame
-            update = slf.MasterWave(fitsdict, sc, det)
-            if update and reuseMaster:
-                armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
+            if settings.argflag["reduce"]["calibrate"]["wavelength"] is not None:
+                update = slf.MasterWave(fitsdict, sc, det)
+                if update and reuseMaster:
+                    armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
 
+            ###############
             # Check if the user only wants to prepare the calibrations only
             msgs.info("All calibration frames have been prepared")
             if settings.argflag['run']['preponly']:
-                msgs.info("If you would like to continue with the reduction,"
-                          +msgs.newline()+"disable the run+preponly command")
+                msgs.info("If you would like to continue with the reduction, disable the command:" + msgs.newline() +
+                          "run preponly False")
                 continue
 
+            ###############
             # Write setup
             #setup = arsort.calib_setup(sc, det, fitsdict, setup_dict, write=True)
             # Write MasterFrames (currently per detector)
@@ -240,6 +242,8 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             # Extract
             msgs.info("Processing science frame")
             arproc.reduce_frame(slf, sciframe, scidx, fitsdict, det)
+
+        msgs.error("UP TO HERE!!!")
 
         # Close the QA for this object
         slf._qa.close()

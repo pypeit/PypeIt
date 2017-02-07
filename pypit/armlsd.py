@@ -181,13 +181,15 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
 
+            ###############
             # Check if the user only wants to prepare the calibrations only
             msgs.info("All calibration frames have been prepared")
             if settings.argflag['run']['preponly']:
-                msgs.info("If you would like to continue with the reduction,"
-                          +msgs.newline()+"disable the run+preponly command")
+                msgs.info("If you would like to continue with the reduction, disable the command:" + msgs.newline() +
+                          "run preponly False")
                 continue
 
+            ###############
             # Write setup
             #setup = arsort.calib_setup(sc, det, fitsdict, setup_dict, write=True)
             # Write MasterFrames (currently per detector)
