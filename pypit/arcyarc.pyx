@@ -449,7 +449,7 @@ def detections_sigma(np.ndarray[DTYPE_t, ndim=1] pixels not None,
                     mnum = pixels[p+d]
                     inum = p+d
                 d += 1
-                if p+d >= (sz_p-1): break
+                if (p+d) >= sz_p: break
                 if pixels[p+d] > pixels[p+d-1] and flag == 1: break
                 if pixels[p+d] <= 0.0: break
             p += d

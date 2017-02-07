@@ -79,7 +79,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
         satmask = arcyarc.saturation_mask(msarc, slf._nonlinear[det-1])
         satsnd = arcyarc.order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int))
     else:
-        satsnd = np.zeros_like(censpec)
+        satsnd = np.zeros_like(ordcen)
     # Detect the location of the arc lines
     msgs.info("Detecting the strongest, nonsaturated lines")
     #####
@@ -120,7 +120,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     # Find all significant detections
     # The last argument is the overall minimum significance level of an arc line detection and the second
     # last argument is the level required by an individual pixel before the neighbourhood of this pixel is searched.
-    tpixt, num = arcyarc.detections_sigma(yprep, yerr, np.zeros(satsnd.shape[0], dtype=np.int), siglev/2.0, siglev)
+    tpixt, num = arcyarc.detections_sigma(yprep, yerr, np.zeros(censpec.shape[0], dtype=np.int), siglev/2.0, siglev)
     pixt = arcyarc.remove_similar(tpixt, num)
     pixt = pixt[np.where(pixt != -1)].astype(np.int)
     tampl, tcent, twid, ngood = arcyarc.fit_arcorder(xrng, yprep, pixt, fitp)

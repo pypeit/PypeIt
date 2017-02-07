@@ -3529,11 +3529,11 @@ def init(afclass, spclass):
       Class of arguments and flags
     spclass : class
       Class of spectrograph settings
+    ftdict : dict in spclass
+      dict of frametypes set globally (if input)
 
     Returns
     -------
-    ftdict : dict
-      dict of frametypes set globally (if input)
     """
     global argflag
     global spect
@@ -3794,7 +3794,6 @@ def key_int(v):
     try:
         v = int(v)
     except ValueError:
-        debugger.set_trace()
         msgs.error("The argument of {0:s} must be of type int".format(func_name))
     return v
 
