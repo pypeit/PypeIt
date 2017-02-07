@@ -2296,7 +2296,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def dark_canbe(self, v):
-        """ If there are frames that will be a bias in addition to other frame types,
+        """ If there are frames that will be a dark in addition to other frame types,
         include the other frame types here.
 
         Parameters
@@ -2309,7 +2309,7 @@ class BaseSpect(BaseFunctions):
 
     def dark_check_condition(self, v, cnmbr=1):
         """ Check that a frame satisfies a series of conditions before it is
-        labelled as a bias frame. Multiple conditions can be specified,
+        labelled as a dark frame. Multiple conditions can be specified,
         where each new condition has a different integer suffix appended to
         the condition variable.
 
@@ -2323,7 +2323,7 @@ class BaseSpect(BaseFunctions):
         self.update(v, ll=cname.split('_'))
 
     def dark_idname(self, v):
-        """ Header key value of bias frames for header keyword: 'keyword idname'
+        """ Header key value of dark frames for header keyword: 'keyword idname'
 
         Parameters
         ----------
@@ -2333,7 +2333,7 @@ class BaseSpect(BaseFunctions):
         self.update(v)
 
     def dark_number(self, v):
-        """ Number of bias frames to use
+        """ Number of dark frames to use
 
         Parameters
         ----------
