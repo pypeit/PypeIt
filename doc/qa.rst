@@ -71,4 +71,22 @@ Object Identification QA
 
 An image of the sky-subtracted slit is displayed.  Overlayed are the
 left/right edges of the extraction region for each object.  These
-are also labeled by a running index.
+are also labeled by the object ID value where the 3-digit number
+is the trace position relative to the slit, ranging from 0-1000.
+
+Object Profile QA
+-----------------
+
+For every object where optimal extraction was performed the
+spatial profile and the fit are displayed.  The x-axis is
+in units of pixels.
+
+Flexure QA
+----------
+
+If a flexure correction was performed, the fit to the
+correlation lags is shown and the adopted shift is listed.
+
+There is then a series of plots showing several sky lines
+from the data compared against an archived sky spectrum.
+These should coincide well in wavelength.

@@ -25,7 +25,7 @@ def main(args, unit_test=False):
     """ Runs the XSpecGui on an input file
     """
     import pdb
-    import yaml
+    import yaml, glob
     from pypit import arcoadd
     from pypit import arspecobj
     from astropy.io import fits
@@ -36,7 +36,14 @@ def main(args, unit_test=False):
         coadd_dict = yaml.load(infile)
 
     # Grab object names in the spectra
-    files = coadd_dict.pop('filenames')
+    filelist = coadd_dict.pop('filenames')
+    # Allow for wildcards
+    files = []
+    for ifl in filelist:
+        if '*' in ifl:
+            files += glob.glob(ifl)
+        else:
+            files += ifl
     fdict = {}
     all_obj = []
     for ifile in files:

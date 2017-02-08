@@ -62,8 +62,13 @@ following is for one instrument in one working directory.
   - Examine the output as described in the :doc:`qa` documentation
 
 8. Examine spectra
+  - Examine the extracted 1D spectra with :ref:`pypit-1dspec`
+  - Examine the extracted 2D spectra with :ref:`pypit-2dspec`
 
-9. Repeat steps 4-8 for additional setups, as desired
+9. Coadd (see :doc:`coadding`)
+
+10. Repeat steps 4-8 for additional setups, as desired
+
 
 
 Old
