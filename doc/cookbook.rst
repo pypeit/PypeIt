@@ -49,13 +49,17 @@ following is for one instrument in one working directory.
   - Modify the spect block in the PYPIT file to specify calibrations
   - Inspect the .calibs file for your PYPIT file.
   - Confirm calibration, science and standard frames
+  - Further customize your PYPIT file, as needed
 
 6. Run the reduction (described in :doc:`running`)
 
-  - Further customize your PYPIT file
-  - run_pypit
+  - :ref:`run-pypit` PYPIT_file
+  - Hope for the best...  :)
 
-7. Examine QA
+7. Examine QA (:doc:`qa`)
+
+  - When an exposure is fully reduced, a QA file (PDF) is generated in the QA folder
+  - Examine the output as described in the :doc:`qa` documentation
 
 8. Examine spectra
 

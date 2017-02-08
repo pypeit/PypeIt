@@ -889,14 +889,12 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask, doqa=(not standard))
     if standard:
         slf._msstd[det-1]['trace'] = scitrace
-        specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict,
-                                      trc_img=scitrace, objtype='standard')
+        specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict, scitrace, objtype='standard')
         slf._msstd[det-1]['spobjs'] = specobjs
     else:
         slf._scitrace[det-1] = scitrace
         # Generate SpecObjExp list
-        specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict,
-                                      trc_img=scitrace, objtype='science')
+        specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict, scitrace, objtype='science')
         slf._specobjs[det-1] = specobjs
 
     ###############

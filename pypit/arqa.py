@@ -613,6 +613,7 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
     desc : str, (optional)
       A description added to the top of each page
     """
+
     npix, nord = lordloc.shape
     nbins = 40
     pages, npp = get_dimen(nord, maxp=maxp)
@@ -706,7 +707,8 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
     return
 
 
-def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', outfil=None, normalize=True):
+def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', outfil=None, normalize=True,
+                  use_slitid=None):
     """
     Generate a QA plot for the traces
 
@@ -738,6 +740,7 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
     #         outfil = outfil.replace('MasterFrames', 'Plots')
     #     else:
     #         outfil = root+'.pdf'
+    from pypit.arspecobj import get_slitid
     ntrc = ltrace.shape[1]
     ycen = np.arange(frame.shape[0])
     # Normalize flux in the traces
@@ -795,8 +798,12 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
         # Right
         plt.plot(rtrace[:, ii]+0.5, ycen, 'c'+ptyp, linewidth=0.3, alpha=0.7)
         # Label
-        #plt.text(ltrace[iy, ii], ycen[iy], '{0:d}'.format(ii+1), color='red', ha='left')
-        plt.text(0.5*(ltrace[iy, ii]+rtrace[iy, ii]), ycen[iy], '{0:d}'.format(ii+1), color='green', ha='center', size='small')
+        if use_slitid:
+            slitid, _, _ = get_slitid(slf, use_slitid, ii, ypos=0.5)
+            lbl = 'S{:04d}'.format(slitid)
+        else:
+            lbl = '{0:d}'.format(ii+1)
+        plt.text(0.5*(ltrace[iy, ii]+rtrace[iy, ii]), ycen[iy], lbl, color='green', ha='center', size='small')
     if desc != "":
         plt.suptitle(desc)
 

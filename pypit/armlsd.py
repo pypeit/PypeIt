@@ -138,7 +138,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._rordpix, rordpix, det)
                 # Save QA for slit traces
                 if not msgs._debug['no_qa']:
-                    arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges")
+                    arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges", use_slitid=det)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
             ###############
