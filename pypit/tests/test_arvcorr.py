@@ -25,10 +25,10 @@ DEC = '+30:20:50.5'
 coord = ltu.radec_to_coord((RA,DEC))
 hdr_ra = coord.ra.value
 hdr_dec = coord.dec.value
-hdr_equ =  2000.
-hdr_lon =  155.47833            # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
-hdr_lat =  19.82833              # Latitude of the telescope
-hdr_alt =  4160.0               # Elevation of the telescope (in m)
+hdr_equ = 2000.
+hdr_lon = 155.47833            # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+hdr_lat = 19.82833              # Latitude of the telescope
+hdr_alt = 4160.0               # Elevation of the telescope (in m)
 
 def test_jd_to_date():
     hdr_jd = hdr_mjd + 2400000.5
