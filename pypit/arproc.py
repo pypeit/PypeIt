@@ -783,8 +783,8 @@ def get_wscale(slf):
     return wave
 
 
-def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
-    """ Run standard extraction steps on a frame
+def reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=False):
+    """ Prepare the Run standard extraction steps on a frame
 
     Parameters
     ----------
@@ -831,7 +831,72 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     else: crmask = np.zeros(sciframe.shape)
     # Mask
     slf.update_sci_pixmask(det, crmask, 'CR')
+    return crmask
+
+
+def reduce_echelle(slf, sciframe, scidx, fitsdict, det, standard=False):
+    """ Run standard extraction steps on an echelle frame
+
+    Parameters
+    ----------
+    sciframe : image
+      Bias subtracted image (using arload.load_frame)
+    scidx : int
+      Index of the frame
+    fitsdict : dict
+      Contains relevant information from fits header files
+    det : int
+      Detector index
+    standard : bool, optional
+      Standard star frame?
+    """
+    crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
+    sciframe, rawvarframe = get from slf... and anything else?
+
     msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
+
+    return
+
+
+def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
+    """ Run standard extraction steps on an echelle frame
+
+    Parameters
+    ----------
+    sciframe : image
+      Bias subtracted image (using arload.load_frame)
+    scidx : int
+      Index of the frame
+    fitsdict : dict
+      Contains relevant information from fits header files
+    det : int
+      Detector index
+    standard : bool, optional
+      Standard star frame?
+    """
+    rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
+    msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
+
+    return
+
+
+def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
+    """ Run standard extraction steps on a frame
+
+    Parameters
+    ----------
+    sciframe : image
+      Bias subtracted image (using arload.load_frame)
+    scidx : int
+      Index of the frame
+    fitsdict : dict
+      Contains relevant information from fits header files
+    det : int
+      Detector index
+    standard : bool, optional
+      Standard star frame?
+    """
+
     ###############
     # Estimate Sky Background
     if settings.argflag['reduce']['skysub']['perform']:
@@ -1006,7 +1071,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
     mstracenrm = mstrace.copy()
     msblaze = np.ones_like(slf._lordloc[det - 1])
     blazeext = np.ones_like(slf._lordloc[det - 1])
-    slit_profiles = np.zeros_like(mstrace)
+    slit_profiles = np.ones_like(mstrace)
     # Set the number of knots in the spectral direction
     if ntcky is None:
         if settings.argflag["reduce"]["flatfield"]["method"] == "bspline":
@@ -1058,7 +1123,9 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         nrmvals = modspl.ev(spatval, specval)
         msblaze[:, o] = modspl.ev(0.5*np.ones(msblaze.shape[0]), np.linspace(0.0, 1.0, msblaze.shape[0]))
         blazeext[:, o] = mstrace[(np.arange(mstrace.shape[0]), np.round(0.5*(lordloc+rordloc)).astype(np.int),)]
-        slit_profiles[word] = modvals/nrmvals
+        if not settings.argflag["reduce"]["slitprofile"]["perform"]:
+            # Leave slit_profiles as ones if the slitprofile is not being determined, otherwise, set the model.
+            slit_profiles[word] = modvals/nrmvals
         mstracenrm[word] /= nrmvals
     # Return
     return slit_profiles, mstracenrm, msblaze, blazeext
