@@ -355,7 +355,7 @@ def get_dimen(x, maxp=25):
     return pages, npp
 
 
-def obj_trace_qa(slf, frame, ltrace, rtrace, root='trace', outfil=None, normalize=True):
+def obj_trace_qa(slf, frame, ltrace, rtrace, objids, root='trace', outfil=None, normalize=True):
     """ Generate a QA plot for the object trace
 
     Parameters
@@ -430,11 +430,12 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, root='trace', outfil=None, normaliz
         # Left
         plt.plot(ltrace[:,ii]+0.5, ycen, 'r--',alpha=0.7)
         # Right
-        plt.plot(rtrace[:,ii]+0.5, ycen, 'g--',alpha=0.7)
+        plt.plot(rtrace[:,ii]+0.5, ycen, 'c--',alpha=0.7)
         # Label
         iy = int(frame.shape[0]/2.)
-        plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
-        plt.text(rtrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='green', ha='center')
+        #plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
+        lbl = 'O{:03d}'.format(objids[ii])
+        plt.text((ltrace[iy,ii]+rtrace[iy,ii])/2., ycen[iy], lbl, color='green', ha='center')
 
     slf._qa.savefig(bbox_inches='tight')
     #plt.close()

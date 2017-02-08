@@ -1,4 +1,5 @@
-# New Hamamatsu detector
+# Old Kast red Reticon detector
+#
 # SIMPLE RULES:
 #
 # 1. If a keyword is specified in science/pixelflat/pinhole/trace/bias/arc frames
@@ -40,19 +41,19 @@ det01 xgap 0.0                        # Gap between the square detector pixels (
 det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
 det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)
 det01 darkcurr 0.0                    # Dark current (e-/hour)
-det01 platescale 0.43                 # arcsec per pixel in the spatial dimension for an unbinned pixel (new Hamamatsu)
+det01 platescale 0.774                # arcsec per pixel in the spatial dimension for an unbinned pixel  (27 microns)
 det01 saturation 65535.0              # The detector Saturation level
 det01 nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det01 numamplifiers 1                 # Number of amplifiers
-det01 gain 1.9                        # Inverse gain (e-/ADU) [slow]
-det01 ronoise  3.8                    # Read-out noise (e-) [slow]
+det01 gain 3.0                        # Inverse gain (e-/ADU)
+det01 ronoise 12.5                    # Read-out noise (e-)
 det01 suffix _red                     # Suffix to be appended to all saved calibration and extraction frames
-det01 datasec01 [:,1:1200]            # Either the data sections or the header keyword where the valid data sections can be obtained
-det01 oscansec01 [:,1202:1232]        # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+det01 datasec01 [:,1:1200]       # Either the data sections or the header keyword where the valid data sections can be obtained
+det01 oscansec01 [:,1202:1232]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
 
 ### Checks to perform
 check 01.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
-check 01.DSENSOR Hamamatsu             # Check the CCD name (replace any spaces with underscores)
+check 01.DSENSOR Ret 400x1200          # Check the CCD name (replace any spaces with underscores)
 
 ### Keyword Identifiers
 keyword time 01.TSEC                   # The time stamp of the observation (i.e. decimal MJD)

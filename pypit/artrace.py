@@ -311,7 +311,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     sigmin
     bgreg
     maskval
-    order
+    order : int
+      Slit or order
     xedge : float
       Trim objects within xedge % of the slit edge
     doqa
@@ -507,15 +508,21 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
         for ii in range(nobj):
             ginga.show_trace(viewer, ch, traces[:,ii], '{:d}'.format(ii), clear=(ii==0))
         debugger.set_trace()
-    # Save the quality control
-    if doqa and (not msgs._debug['no_qa']):
-        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, root="object_trace", normalize=False)
     # Trace dict
     tracedict = dict({})
     tracedict['nobj'] = nobj
     tracedict['traces'] = traces
     tracedict['object'] = rec_obj_img
     tracedict['background'] = rec_bg_img
+    # Save the quality control
+    if doqa and (not msgs._debug['no_qa']):
+        from pypit.arspecobj import get_objid
+        objids = []
+        for ii in range(nobj):
+            objid, xobj = get_objid(slf, det, order, ii, tracedict)
+            objids.append(objid)
+        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, objids, root="object_trace", normalize=False)
+    # Return
     return tracedict
 
 

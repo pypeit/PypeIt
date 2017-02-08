@@ -221,17 +221,64 @@ def mtch_obj_to_objects(iobj, objects, stol=50, otol=10):
 
 
 def get_slitid(slf, det, islit, ypos=0.5):
-    trc_img = slf._mstrace[det-1]
+    """ Convert slit position to a slitid
+    Parameters
+    ----------
+    slf
+    det : int
+    islit : int
+    ypos : float, optional
+
+    Returns
+    -------
+    slitid : int
+      Slit center position on the detector normalized to range from 0-10000
+    slitcen : float
+      Slitcenter relative to the detector ranging from 0-1
+    xslit : tuple
+      left, right positions of the slit edges
+    """
+    shape = slf._mstrace[det-1].shape
     # Index at ypos
     yidx = int(np.round(ypos*slf._lordloc[det-1].shape[0]))
     # Slit at yidx
     pixl_slit = slf._lordloc[det-1][yidx, islit]
     pixr_slit = slf._rordloc[det-1][yidx, islit]
     # Relative to full image
-    xl_slit = pixl_slit/trc_img.shape[1]
-    xr_slit = pixr_slit/trc_img.shape[1]
+    xl_slit = pixl_slit/shape[1]
+    xr_slit = pixr_slit/shape[1]
     # Center
     slitcen = np.mean([xl_slit, xr_slit])
     slitid = int(np.round(slitcen*1e4))
     # Return them all
     return slitid, slitcen, (xl_slit, xr_slit)
+
+
+def get_objid(slf, det, islit, iobj, trc_img, ypos=0.5):
+    """ Convert slit position to a slitid
+    Parameters
+    ----------
+    slf
+    det : int
+    islit : int
+    iobj : int
+    trc_img : dict
+    ypos : float, optional
+
+    Returns
+    -------
+    slitid : int
+      Slit center position on the detector normalized to range from 0-10000
+    slitcen : float
+      Slitcenter relative to the detector ranging from 0-1
+    xslit : tuple
+      left, right positions of the slit edges
+    """
+    yidx = int(np.round(ypos*slf._lordloc[det-1].shape[0]))
+    pixl_slit = slf._lordloc[det-1][yidx, islit]
+    pixr_slit = slf._rordloc[det-1][yidx, islit]
+    #
+    xobj = (trc_img['traces'][yidx,iobj]-pixl_slit) / (pixr_slit-pixl_slit)
+    objid= int(np.round(xobj*1e3))
+    # Return
+    return objid, xobj

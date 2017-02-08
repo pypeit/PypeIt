@@ -25,8 +25,50 @@ Slit Edge QA
 
 The first output is a plot showing the flat image of the given
 detector.  The left/right slit edges are marked with red/cyan
-dashed lines.
+dashed lines.  The slit name is labelled in green and the number
+indicates the position of the slit center on the detector
+mapped to the range [0-10000].
+
+.. _wave-fit-qa:
+
+Wavelength Fit QA
+-----------------
+
+This page shows the arc spectrum with labelled arc lines in
+the left panel and the fit and residuals to the fit in the
+right panels.  A good solutions should have RMS < 0.05 pixels.
+
+.. _spectral-tilts-qa:
+
+Spectral Tilts QA
+-----------------
+
+There are then a series of pages describing the analysis of the
+tilts of the arc lines.  The first page may show fits to the
+PCA components describing the arcline tilt fits.  The next
+pages show the pixel positions of the arc lines across the
+detector (blue) and the fits (red).  Good performance will
+show agreement between the data and fits.
+
+.. _blaze-qa:
+
+Blaze Function QA
+-----------------
+
+This page shows the blaze function measured from a flat-field
+image and the fit to this function.  There should be good
+correspondence between the two.
 
 
 Extraction QA
 =============
+
+After the calibration QA, there are a series of pages describing
+object identification and extraction.
+
+Object Identification QA
+------------------------
+
+An image of the sky-subtracted slit is displayed.  Overlayed are the
+left/right edges of the extraction region for each object.  These
+are also labeled by a running index.
