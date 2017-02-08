@@ -135,12 +135,10 @@ def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
                 msgs.error('arspecobj.init_exp: Problem finding the slit')
             else:
                 islit = gds[0]
-                pixl_slit = pixl_slits[islit]
-                pixr_slit = pixr_slits[islit]
                 slitid, slitcen, xslit = get_slitid(slf, det, islit, ypos=ypos)
             # xobj
-            xobj = (trc_img['traces'][yidx,qq]-pixl_slit) / (pixr_slit-pixl_slit)
-            # Generate 
+            _, xobj = get_objid(slf, det, islit, qq, trc_img, ypos=ypos)
+            # Generate
             specobj = SpecObjExp((trc_img['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj, **kwargs)
             # Add traces
             specobj.trace = trc_img['traces'][:,qq]

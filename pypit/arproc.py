@@ -857,7 +857,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
             slf._bgframe[det-1] = bgframe
     ###############
     # Estimate trace of science objects
-    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask, doqa=(not standard))
+    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask, doqa=False)# (not standard))
     if scitrace is None:
         msgs.info("Not performing extraction for science frame"+msgs.newline()+fitsdict['filename'][scidx[0]])
         debugger.set_trace()
