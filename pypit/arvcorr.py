@@ -1,6 +1,8 @@
+from __future__ import (print_function, absolute_import, division, unicode_literals)
+
 import numpy as np
-from pypit import armsgs
 from pypit import arparse as settings
+from pypit import armsgs
 
 # Logging
 msgs = armsgs.get_logger()
@@ -82,6 +84,20 @@ def epoch_to_jd(epoch):
 
 
 def jd_to_date(j):
+    """ Parse input julian date into year, month, day ut
+    Parameters
+    ----------
+    j : float
+      Julian date
+
+    Returns
+    -------
+    year
+    month
+    day
+    ut
+
+    """
     ja = int(j+0.5)
     ut = 24.0*(j+0.5-float(ja))
     if ja >= 2299161:
@@ -267,6 +283,7 @@ def vhelio(hdr_jd, hdr_exptime, hdr_ra, hdr_dec, hdr_equ, hdr_lat, hdr_lon, hdr_
 
     # Calculate the observer's motion relative to the Earth's centre (diurnal)
     vrot = vrotate(ra, dec, hdr_epoch, hdr_lat, hdr_lon, hdr_alt)
+    import pdb; pdb.set_trace()
 
     # Calculate heliocentric velocity
     vhel = vorb + vbary + vrot
