@@ -364,7 +364,7 @@ def load_tilts(fname):
     return tilts, satmask
 
 
-def load_1dspec(fname, exten=None, extract='opt', objname=None):
+def load_1dspec(fname, exten=None, extract='opt', objname=None, flux=False):
     """
     Parameters
     ----------
@@ -377,6 +377,8 @@ def load_1dspec(fname, exten=None, extract='opt', objname=None):
       Extraction type ('opt', 'box')
     objname : str, optional
       Identify extension based on input object name
+    flux : bool, optional
+      Return fluxed spectra?
 
     Returns
     -------
@@ -389,8 +391,12 @@ def load_1dspec(fname, exten=None, extract='opt', objname=None):
     # Keywords for Table
     rsp_kwargs = {}
     rsp_kwargs['wave_tag'] = '{:s}_wave'.format(extract)
-    rsp_kwargs['flux_tag'] = '{:s}_counts'.format(extract)
-    rsp_kwargs['var_tag'] = '{:s}_var'.format(extract)
+    if flux:
+        rsp_kwargs['flux_tag'] = '{:s}_flam'.format(extract)
+        rsp_kwargs['var_tag'] = '{:s}_flam_var'.format(extract)
+    else:
+        rsp_kwargs['flux_tag'] = '{:s}_counts'.format(extract)
+        rsp_kwargs['var_tag'] = '{:s}_var'.format(extract)
     # Identify extension from objname?
     if objname is not None:
         hdulist = fits.open(fname)
