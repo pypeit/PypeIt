@@ -5,7 +5,7 @@ import pytest
 
 from pypit import pyputils
 msgs = pyputils.get_dummy_logger()
-from pypit import arparse as settings
+
 from pypit import arvcorr as py_arvcorr
 from astropy.time import Time
 from astropy.coordinates import SkyCoord
