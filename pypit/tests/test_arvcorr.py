@@ -25,7 +25,7 @@ def test_vhelio():
     """
     loc = (lon * u.deg, lat * u.deg, alt * u.m,)
 
-    radec = SkyCoord(RA, DEC, unit=(u.hourangle, u.deg), frame='fk5')
+    radec = SkyCoord(RA, DEC, unit=(u.hourangle, u.deg), frame='icrs')
     obstime = Time(mjd, format='mjd', scale='utc', location=loc)
 
     corrhelio = py_arvcorr.correction(obstime, radec, frame="heliocentric")
@@ -35,6 +35,6 @@ def test_vhelio():
     # vhel = x_keckhelio(106.59770833333332, 30.34736111111111, 2000., jd=2457783.769661)
     #    vrotate = -0.25490532
     pytest.set_trace()
-    assert np.isclose(corrhelio, -12.510015817405023)
-    assert np.isclose(corrbary, -12.49764005490221)
+    assert np.isclose(corrhelio, -12.49764005490221)
+    assert np.isclose(corrbary, -12.510015817405023)
 

@@ -65,7 +65,7 @@ def correction(time, skycoord, frame="heliocentric"):
     op, ov = time.location.get_gcrs_posvel(time)
     # ICRS and GCRS are axes-aligned. Can add the velocities
     velocity = ev + ov
-    if frame == "barycentric":
+    if frame == "heliocentric":
         # ICRS position and velocity of the Sun
         sp, sv = solar_system.get_body_barycentric_posvel('sun', time)
         velocity += sv
