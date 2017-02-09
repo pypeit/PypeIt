@@ -201,6 +201,7 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                         settings.argflag['reduce']['masters']['loaded'].append('slitprof'+settings.argflag['reduce']['masters']['setup'])
                 if 'slitprof'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
                     # First time slit profile is derived
+                    msgs.info("Calculating slit profile from master trace frame")
                     slit_profiles, mstracenrm, msblaze, flat_ext1d = arproc.slit_profile(slf, slf._mstrace[det - 1], det)
                     slf.SetFrame(slf._slitprof, slit_profiles, det)
                     slf.SetFrame(slf._msblaze, msblaze, det)
