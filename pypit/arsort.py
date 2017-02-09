@@ -377,6 +377,7 @@ def match_science(fitsdict, filesort):
             else:
                 numfr = settings.spect[ftag[ft]]['number']
             if numfr == 0:
+                settings.spect[ftag[ft]]['index'].append(np.array([]))
                 msgs.info("No {0:s} frames are required".format(ftag[ft]))
                 continue
             # Now go ahead and match the frames
