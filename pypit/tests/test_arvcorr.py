@@ -31,9 +31,6 @@ def test_vhelio():
     corrhelio = py_arvcorr.correction(obstime, radec, frame="heliocentric")
     corrbary  = py_arvcorr.correction(obstime, radec, frame="barycentric")
 
-    # IDL
-    # vhel = x_keckhelio(106.59770833333332, 30.34736111111111, 2000., jd=2457783.769661)
-    #    vrotate = -0.25490532
     pytest.set_trace()
     assert np.isclose(corrhelio, -12.49764005490221)
     assert np.isclose(corrbary, -12.510015817405023)
