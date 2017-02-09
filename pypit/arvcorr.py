@@ -72,4 +72,4 @@ def correction(time, skycoord, frame="heliocentric"):
 
     # Get unit ICRS vector in direction of SkyCoord
     sc_cartesian = skycoord.icrs.represent_as(UnitSphericalRepresentation).represent_as(CartesianRepresentation)
-    return sc_cartesian.dot(velocity).to(u.km / u.s)
+    return sc_cartesian.dot(velocity).to(u.km / u.s).value
