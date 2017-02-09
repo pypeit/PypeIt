@@ -309,6 +309,27 @@ def flexure_obj(slf, det):
     return flex_dict
 
 
+def helio_corr(slf, det, fitsdict):
+
+    from pypit import arvcorr
+    # Calculate
+    helio = arvcorr.calculate(slf, fitsdict, slf._idx_sci[0])
+    hel_corr = np.sqrt( (1. + helio/299792.458) / (1. - helio/299792.458) )
+
+    # Loop on objects
+    for specobj in slf._specobjs[det-1]:
+        # Loop on extraction methods
+        for attr in ['boxcar', 'optimal']:
+            if not hasattr(specobj,attr):
+                continue
+            if 'wave' in getattr(specobj, attr).keys():
+                msgs.info("Applying helio correction to {:s} extraction for object {:s}".format(
+                        attr, str(specobj)))
+                getattr(specobj, attr)['wave'] = getattr(specobj, attr)['wave'] * hel_corr
+    # Return
+    return helio, hel_corr  # Mainly for debugging
+
+
 def airtovac(wave):
     """Convert air-based wavelengths to vacuum
 

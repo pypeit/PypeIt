@@ -10,6 +10,7 @@ from astropy import units as u
 # Logging
 msgs = armsgs.get_logger()
 
+from pypit import ardebug as debugger
 
 def calculate(slf, fitsdict, idx):
     """
@@ -17,23 +18,25 @@ def calculate(slf, fitsdict, idx):
     """
 
     frame = settings.argflag["reduce"]["calibrate"]["refframe"]
-    mjd = float(fitsdict["time"][idx])
     lat = settings.spect['mosaic']['latitude']
     lon = settings.spect['mosaic']['longitude']
     alt = settings.spect['mosaic']['elevation']
     loc = (lon * u.deg, lat * u.deg, alt * u.m,)
 
-    radec = SkyCoord(slf._fitsdict["ra"][idx], slf._fitsdict["dec"][idx], unit=(u.hourangle, u.deg), frame='fk5')
-    obstime = Time(mjd, format='mjd', scale='utc', location=loc)
+    radec = SkyCoord(fitsdict["ra"][idx], fitsdict["dec"][idx], unit=(u.hourangle, u.deg), frame='fk5')
+    obstime = Time(slf._time.value, format=slf._time.format, scale='utc', location=loc)
 
     vcorr = correction(obstime, radec, frame=frame)
+    return vcorr
 
+    '''  This needs to be applied *after* the flexure correction which is performed in Earth's frame
     msgs.info("{0:s} velocity correction = {1:+.4f} km/s for file:".format(frame.title(), vcorr) + msgs.newline() +
               fitsdict["filename"][idx])
     w = np.where(slf._waveids == -999999.9)
     slf._waveids += slf._waveids*vcorr/299792.458
     slf._waveids[w] = -999999.9
     return slf._waveids
+    '''
 
 
 def correction(time, skycoord, frame="heliocentric"):

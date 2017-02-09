@@ -34,7 +34,7 @@
 keyword target 01.OBJECT               # Header keyword for the name given by the observer to a given frame
 keyword idname 01.OBSTYPE              # The keyword that identifies the frame type (i.e. bias, flat, etc.)
 keyword time 01.MJD-OBS                # The time stamp of the observation (i.e. decimal MJD)
-keyword date 01.DATE                   # The date of the observation (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
+keyword date 01.DATE                   # The UT date of the observation which is used for heliocentric (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
 keyword equinox None                   # The equinox to use
 keyword ra 01.RA                       # Right Ascension of the target
 keyword dec 01.DEC                     # Declination of the target
