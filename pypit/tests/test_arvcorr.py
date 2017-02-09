@@ -20,7 +20,7 @@ RA = '07:06:23.45'
 DEC = '+30:20:50.5'
 hdr_equ = 2000.
 lon = 155.47833            # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
-lat = 19.82833              # Latitude of the telescope
+lat = 19.82833             # Latitude of the telescope
 alt = 4160.0               # Elevation of the telescope (in m)
 
 @pytest.fixture
