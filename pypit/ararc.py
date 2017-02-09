@@ -1995,3 +1995,4 @@ def arcord_strdir(maskorder):
                 sord = tsord
                 dirc = tdirc
     return sord, int(ncts), dirc
+

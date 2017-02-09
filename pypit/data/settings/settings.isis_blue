@@ -120,6 +120,7 @@ trace match dispangle |<=1          # Match the disperser angle (an uncertainty 
 ### Arc frames
 arc idname arc                      # Header key value of arc frame for header keyword keyword+idname
 arc check condition1 lamps=CuNe+CuAr
+arc check condition2 exptime<120    # Long exposures for these arcs
 arc match naxis0 =0                 # Match the shape of arcs with science
 arc match naxis1 =0                 # Match the shape of arcs with science
 arc match dispangle |<=1              # Match the disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)

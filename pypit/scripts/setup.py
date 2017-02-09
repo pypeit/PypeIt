@@ -11,10 +11,7 @@ This script generates files to setup a PYPIT run
 from __future__ import (print_function, absolute_import, division,
                         unicode_literals)
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except:
-    import pdb as debugger
+import pdb as debugger
 
 def parser(options=None):
     import argparse
@@ -28,6 +25,7 @@ def parser(options=None):
                         help="Extension for data files.  Note any extension for compression (e.g. .gz) is not required.")
     parser.add_argument("--pypit_file", default=False, action='store_true', help='Input is the .pypit file')
     parser.add_argument("--redux_path", default='./', help='Path to reduction folder (Mainly for tests)')
+    parser.add_argument("-c", "--custom", default=False, action='store_true', help='Generate custom folders and pypit files?')
     #parser.add_argument("-q", "--quick", default=False, help="Quick reduction", action="store_true")
     #parser.add_argument("-c", "--cpus", default=False, help="Number of CPUs for parallel processing", action="store_true")
     #parser.print_help()
@@ -45,6 +43,7 @@ def main(args):
     from pypit.scripts import run_pypit
     from pypit import pyputils
     from pypit.pypit import load_input
+    import os
     import datetime
 
     '''
@@ -87,6 +86,8 @@ def main(args):
 
     # #####################
     # Generate custom .pypit files
+    if not args.custom:
+        return
 
     # Read master file
     from pypit import pyputils
@@ -109,11 +110,21 @@ def main(args):
             #parlines[jj] = 'run setup False\n'
             parlines[jj] = '\n'
 
-    # Generate .pypit files
+    # Generate .pypit files and sub-folders
     all_setups, all_setuplines, all_setupfiles = arsort.load_sorted(sorted_file)
     for setup, setuplines,setupfiles in zip(all_setups, all_setuplines,all_setupfiles):
         root = args.spectrograph+'_setup_'
-        pyp_file = args.redux_path+root+setup+'.pypit'
+        # Make the dir
+        newdir = args.redux_path+root+setup
+        if not os.path.exists(newdir):
+            os.mkdir(newdir)
+        # Now the file
+        pyp_file = newdir+'/'+root+setup+'.pypit'
+        # Modify parlines
+        for kk,pline in enumerate(parlines):
+            if 'output sorted' in pline:
+                parlines.pop(kk)
+        parlines += ["output sorted {:s}\n".format(root+setup)]
 
         pyputils.make_pypit_file(pyp_file, args.spectrograph, [],
                                  parlines=parlines,

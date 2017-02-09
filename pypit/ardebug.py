@@ -2,6 +2,7 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 
 # These need to be outside of the def's
 from pypit.ginga import show_image
+from pypit.ginga import chk_arc_tilts
 
 def init():
     """

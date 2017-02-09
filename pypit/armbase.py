@@ -47,7 +47,7 @@ def SetupScience(fitsdict):
     # Sort the data
     msgs.bug("Files and folders should not be deleted -- there should be an option to overwrite files automatically if they already exist, or choose to rename them if necessary")
     filesort = arsort.sort_data(fitsdict, flag_unknown=bad_to_unknown)
-    # Write out the details of the sorted files
+    # Write out the details of the sorted files into a .lst file
     if settings.argflag['output']['sorted'] is not None:
         srt_tbl = arsort.sort_write(fitsdict, filesort)
     # Match calibration frames to science frames
@@ -56,7 +56,7 @@ def SetupScience(fitsdict):
     if do_qa:
         sci_targs = arsort.make_dirs(fitsdict, filesort)
     # Create the list of science exposures
-    numsci = np.size(filesort['science'])
+    numsci = np.size(settings.spect['science']['index'])
     sciexp = []
     for i in range(numsci):
         sciexp.append(arsciexp.ScienceExposure(i, fitsdict, do_qa=do_qa))
@@ -66,7 +66,12 @@ def SetupScience(fitsdict):
     setupIDs = []
     for sc in range(numsci):
         for kk in range(settings.spect['mosaic']['ndet']):
-            setupID = arsort.instr_setup(sciexp[sc], kk+1, fitsdict, setup_dict, skip_cset=skip_cset)
+            # Use user-supplied setup name (useful for some book-keeping)?
+            try:
+                cname = settings.argflag['setup']['name']
+            except KeyError:
+                cname = None
+            setupID = arsort.instr_setup(sciexp[sc], kk+1, fitsdict, setup_dict, skip_cset=skip_cset, config_name=cname)
             if kk == 0: # Only save the first detector for run setup
                 setupIDs.append(setupID)
     # Calib IDs
@@ -86,7 +91,7 @@ def SetupScience(fitsdict):
                     group_dict[config_key]['stdobj'] = []
             # Fill group_dict too
             for key in filesort.keys():
-                if key in ['unknown', 'dark']:
+                if key in ['unknown', 'dark', 'failures']:
                     continue
                 for idx in settings.spect[key]['index'][sc]:
                     # Only add if new
@@ -97,7 +102,10 @@ def SetupScience(fitsdict):
                     if key == 'science':  # Add target name
                         group_dict[config_key]['sciobj'].append(fitsdict['target'][scidx])
         # Write .sorted file
-        arsort.write_sorted(srt_tbl, group_dict, setup_dict)
+        if len(group_dict) > 0:
+            arsort.write_sorted(srt_tbl, group_dict, setup_dict)
+        else:
+            msgs.warn("No group dict entries and therefore no .sorted file")
 
     # Write setup -- only if not present
     setup_file, nexist = arsort.get_setup_file()
@@ -110,8 +118,14 @@ def SetupScience(fitsdict):
         if settings.argflag['run']['calcheck']:
             msgs.info("Inspect the .calib file: {:s}".format(setup_file))
             msgs.info("Calibration check complete. Set 'run calcheck False' to continue with data reduction")
+            # Instrument specific (might push into a separate file)
+            if settings.argflag['run']['spectrograph'] in ['lris_blue']:
+                if settings.argflag['reduce']['flatfield']['useframe'] in ['pixelflat']:
+                    msgs.warn("We recommend a slitless flat for your instrument.")
             return 'calcheck', None
         elif settings.argflag['run']['setup']:
+            for idx in filesort['failures']:
+                msgs.warn("No Arc found: Skipping object {:s} with file {:s}".format(fitsdict['target'][idx],fitsdict['filename'][idx]))
             msgs.info("Setup is complete. Change 'run setup' to False to continue with data reduction")
             msgs.info("Inspect the .setups file: {:s}".format(setup_file))
             return 'setup', None

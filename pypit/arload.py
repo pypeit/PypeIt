@@ -55,7 +55,11 @@ def load_headers(datlines):
                 headarr[k] = pyfits.getheader(datlines[i], ext=settings.spect['fits']['headext{0:02d}'.format(k+1)])
                 whddict['{0:02d}'.format(settings.spect['fits']['headext{0:02d}'.format(k+1)])] = k
         except:
-            msgs.error("Error reading header from extension {0:d} of file:".format(settings.spect['fits']['headext{0:02d}'.format(k+1)])+msgs.newline()+datlines[i])
+            if settings.argflag['run']['setup']:
+                msgs.warn("Bad header in extension {0:d} of file:".format(settings.spect['fits']['headext{0:02d}'.format(k+1)])+msgs.newline()+datlines[i])
+                msgs.warn("Proceeding on the hopes this was a calibration file, otherwise consider removing.")
+            else:
+                msgs.error("Error reading header from extension {0:d} of file:".format(settings.spect['fits']['headext{0:02d}'.format(k+1)])+msgs.newline()+datlines[i])
         # Save
         for k in range(settings.spect['fits']['numhead']):
             tmp = [head.copy() for head in headarr]

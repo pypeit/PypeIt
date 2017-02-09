@@ -45,7 +45,8 @@ The standard naming for the instrument PYPIT file is::
 Custom PYPIT file
 -----------------
 
-When one performs the full reduction on a set of files,
+When one performs the full reduction on a set of files for
+a given setup,
 the *custom* PYPIT file is used.  We refer to it as custom
 because it may be significantly customized for the specifc
 instrument configuration and/or target.
@@ -103,8 +104,9 @@ You should be able to find one that matches your instrument.
 Line by line
 ============
 
-This section will instruct you on how to build a .pypit
-PYPIT file from scratch.  This is **not** recommended.
+This section describes the various sections of a .pypit file.
+In principle, you can use the following description to build a .pypit
+file from scratch.  This is **not** recommended.
 The following documentation is mainly for guiding
 modifications to an existing PYPIT file.
 
@@ -153,15 +155,40 @@ Here are ones that one typically sets::
     output overwrite True              # overwrite any existing output files?
     output sorted lris_blue_long_600_4000_d560     # name of output files
 
-.. _reduce_block:
+.. _reduce-block:
 
 Reduce block
 ++++++++++++
+
+bias
+----
+
+If you have no bias frames and/or wish to subtract the bias with
+the overscan region, then set the following::
+
+    bias useframe overscan
+
+
+Setup block
++++++++++++
+
+If a Setup is defined here, the value (e.g. "A" or "D") will be
+used instead of starting from the default "A" value.  But *only*
+if there is a single Setup in the PYPIT file.
 
 .. _data_block:
 
 Data block
 ++++++++++
+
+By Files
+--------
+
+This is the recommended approach when performing the
+full run (as opposed to :ref:`pypit-setup`).
+
+By Path Only
+------------
 
 Next, tell PYPIT where your raw data lives!
 One specifies the full path and may use wild cards

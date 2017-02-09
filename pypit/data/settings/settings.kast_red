@@ -99,6 +99,9 @@ pixelflat match dispangle |<=20         # Match the cross-disperser angle (an un
 ### Pinhole frames
 pinhole check condition1 exptime>999999 # Avoids any pinhole frames
 
+### Dark frames
+dark check condition99 exptime>999999    # Avoids darks
+
 ### Trace frames
 trace check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
 trace check condition2 exptime>0  # Required for bias

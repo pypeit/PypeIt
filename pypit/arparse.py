@@ -1560,6 +1560,16 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
+    def setup_name(self, v):
+        """ Use this setup_name
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        self.update(v)
+
     def trace_combine_match(self, v):
         """ Match similar trace flat frames together? A successful match is found when the frames
         are similar to within N-sigma, where N is the argument of this expression. If v<0,
@@ -1981,7 +1991,7 @@ class BaseSpect(BaseFunctions):
         # Generate the lines
         linesarr = []
         for key,value in fdict.items():
-            if value > self.__dict__['_spect'][key]['number']:
+            if value > self.__dict__['_spect'][key]['number']:  # Only update if the input exceeds the default
                 linesarr.append(' {:s} number {:d}\n'.format(key,value))
         # Return
         return linesarr
@@ -1999,7 +2009,7 @@ class BaseSpect(BaseFunctions):
                     keylst += [str(' ').join(keys) + str(" ") +
                                str("{0}\n".format(value).replace(" ", ""))]
                 del keys[-1]
-
+        # spect
         keylst = []
         savedict(self._spect.copy(), keylst, [])
         # Sort the list
@@ -2022,6 +2032,7 @@ class BaseSpect(BaseFunctions):
         """
         self.update([], ll="set_arc".split("_"))
         self.update([], ll="set_bias".split("_"))
+        self.update([], ll="set_dark".split("_"))
         self.update([], ll="set_pinhole".split("_"))
         self.update([], ll="set_pixelflat".split("_"))
         self.update([], ll="set_science".split("_"))
@@ -2029,6 +2040,7 @@ class BaseSpect(BaseFunctions):
         self.update([], ll="set_trace".split("_"))
         self.update([], ll="arc_index".split("_"))
         self.update([], ll="bias_index".split("_"))
+        self.update([], ll="dark_index".split("_"))
         self.update([], ll="pinhole_index".split("_"))
         self.update([], ll="pixelflat_index".split("_"))
         self.update([], ll="science_index".split("_"))
@@ -2054,7 +2066,7 @@ class BaseSpect(BaseFunctions):
         return
 
     def set_paramlist(self, lstall):
-        frmtyp = ["standard", "bias", "pixelflat", "trace", "pinhole", "arc"]
+        frmtyp = ["standard", "bias", "pixelflat", "trace", "pinhole", "arc", "dark"]
         for ll in range(len(lstall)):
             lst = lstall[ll]
             cnt = 1
@@ -2244,6 +2256,55 @@ class BaseSpect(BaseFunctions):
 
     def bias_number(self, v):
         """ Number of bias frames to use
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_int(v)
+        #key_min_val(v,-1)
+        self.update(v)
+
+    def dark_canbe(self, v):
+        """ If there are frames that will be a dark in addition to other frame types,
+        include the other frame types here.
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_none_list(v)
+        self.update(v)
+
+    def dark_check_condition(self, v, cnmbr=1):
+        """ Check that a frame satisfies a series of conditions before it is
+        labelled as a dark frame. Multiple conditions can be specified,
+        where each new condition has a different integer suffix appended to
+        the condition variable.
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        cname = get_nmbr_name(cnmbr=cnmbr)
+        v = key_check(v)
+        self.update(v, ll=cname.split('_'))
+
+    def dark_idname(self, v):
+        """ Header key value of dark frames for header keyword: 'keyword idname'
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        self.update(v)
+
+    def dark_number(self, v):
+        """ Number of dark frames to use
 
         Parameters
         ----------
@@ -2709,6 +2770,17 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
+    def keyword_frameno(self, v):
+        """ Frame Number
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_keyword(v)
+        self.update(v)
+
     def keyword_hatch(self, v):
         """ Hatch open/close
 
@@ -3037,6 +3109,20 @@ class BaseSpect(BaseFunctions):
         """
         v = key_list(v)
         v = self._spect['set']['bias'] + v
+        self.update(v)
+
+    def set_dark(self, v):
+        """ Manually force a given frame to be a dark frame. For example,
+         'set dark filename1.fits,filename2.fits' will force filename1.fits
+         and filename2.fits to be bias frames.
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_list(v)
+        v = self._spect['set']['dark'] + v
         self.update(v)
 
     def set_pixelflat(self, v):
@@ -3414,11 +3500,21 @@ def init(afclass, spclass):
       Class of arguments and flags
     spclass : class
       Class of spectrograph settings
+    ftdict : dict in spclass
+      dict of frametypes set globally (if input)
+
+    Returns
+    -------
     """
     global argflag
     global spect
+    global ftdict
     argflag = afclass.__dict__['_argflag']
     spect = spclass.__dict__['_spect']
+    if '_ftdict' in spclass.__dict__.keys():
+        ftdict = spclass.__dict__['_ftdict']
+    else:
+        ftdict = {}
     return
 
 

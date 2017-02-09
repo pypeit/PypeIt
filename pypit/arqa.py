@@ -528,13 +528,19 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit", ma
                 axes.plot(xdata[:,ndone+j], ydata[:,ndone+j], 'bx', drawstyle='steps')
                 axes.plot(xmodl, model[:,ndone+j], 'r-')
             ytmp = ydata[:,ndone+j]
-            ytmp = ytmp[np.where(ytmp != maskval)]
-            if ytmp.size != 0: amn = min(np.min(ytmp), np.min(model[:,ndone+j]))
-            else: amn = np.min(model[:,ndone+j])
-            if ytmp.size != 0: amx = max(np.max(ytmp), np.max(model[:,ndone+j]))
+            gdy = ytmp != maskval
+            ytmp = ytmp[gdy]
+            if ytmp.size != 0:
+                amn = min(np.min(ytmp), np.min(model[gdy,ndone+j]))
+            else:
+                amn = np.min(model[:,ndone+j])
+            if ytmp.size != 0:
+                amx = max(np.max(ytmp), np.max(model[gdy,ndone+j]))
             else: amx = np.max(model[:,ndone+j])
+            # Restrict to good pixels
             xtmp = xdata[:,ndone+j]
-            xtmp = xtmp[np.where(xtmp != maskval)]
+            gdx = xtmp != maskval
+            xtmp = xtmp[gdx]
             if xtmp.size == 0:
                 xmn = np.min(xmodl)
                 xmx = np.max(xmodl)

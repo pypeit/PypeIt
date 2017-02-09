@@ -72,10 +72,17 @@ standard idname OBJECT               # Header key value of science frame for hea
 standard number 1                    # Number of standard star frames to use
 standard canbe None                  # If there are frames that will be science ***in addition to other frame types***, include the other frame types here.
 
-### Bias/Dark frames
+### Bias frames
 bias idname DARK                    # Header key value of bias frame for header keyword keyword+idname
 bias number 5                       # Number of bias frames to use
 bias canbe None                     # If there are frames that will be bias ***in addition to other frame types***, include the other frame types here.
+
+### Dark frames
+dark idname DARK                    # Header key value of bias frame for header keyword keyword+idname
+dark number 0                       # Number of bias frames to use
+dark canbe None                     # If there are frames that will be bias ***in addition to other frame types***, include the other frame types here.
+dark check condition1 exptime>0     # Be warned that not all detectors can use 0s
+dark match binning ''             	# Match the shape of standard and science frames
 
 ### Pixel Flat frames
 pixelflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname

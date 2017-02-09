@@ -52,11 +52,22 @@ def sort_data(fitsdict, flag_unknown=False):
     ftag = dict({'science': np.array([], dtype=np.int),
                  'standard': np.array([], dtype=np.int),
                  'bias': np.array([], dtype=np.int),
+                 'dark': np.array([], dtype=np.int),
                  'pinhole': np.array([], dtype=np.int),
                  'pixelflat': np.array([], dtype=np.int),
                  'trace': np.array([], dtype=np.int),
                  'unknown': np.array([], dtype=np.int),
                  'arc': np.array([], dtype=np.int)})
+    if len(settings.ftdict) > 0:
+        for ifile,ftypes in settings.ftdict.items():
+            idx = np.where(fitsdict['filename'] == ifile)[0]
+            sptypes = ftypes.split(',')
+            for iftype in sptypes:
+                ftag[iftype] = np.concatenate([ftag[iftype], idx])
+        # Sort
+        for key in ftag.keys():
+            ftag[key].sort()
+        return ftag
     fkey = np.array(list(ftag.keys()))  # For Python 3 compatability
     # Create an array where 1 means it is a certain type of frame and 0 means it isn't.
     filarr = np.zeros((len(fkey), numfiles), dtype=np.int)
@@ -307,13 +318,20 @@ def sort_write(fitsdict, filesort, space=3):
     '''
 
     # ASCII file
-    asciiord = ['filename', 'date', 'frametype', 'target', 'exptime', 'binning',
+    asciiord = ['filename', 'date', 'frametype', 'frameno', 'target', 'exptime', 'binning',
         'dichroic', 'dispname', 'dispangle', 'decker']
     # Generate the columns except frametype
     ascii_tbl = tTable()
+    badclms = []
     for pr in asciiord:
         if pr != 'frametype':
-            ascii_tbl[pr] = fitsdict[pr]
+            try:  # No longer require that all of these be present
+                ascii_tbl[pr] = fitsdict[pr]
+            except KeyError:
+                badclms.append(pr)
+    # Remove
+    for pr in badclms:
+        asciiord.pop(asciiord.index(pr))
     # Now frame type
     ftypes = []
     filtyp = filesort.keys()
@@ -355,6 +373,7 @@ def match_science(fitsdict, filesort):
     iBFL = filesort['pinhole']
     iTRC = filesort['trace']
     iARC = filesort['arc']
+    filesort['failures'] = []
     iARR = [iSTD, iBIA, iDRK, iPFL, iBFL, iTRC, iARC]
     nSCI = iSCI.size
     i = 0
@@ -497,10 +516,12 @@ def match_science(fitsdict, filesort):
                               "  e.g.:   bias useframe overscan")
                     msgs.error("Unable to continue")
                 # Errors for insufficient PIXELFLAT frames
-                if ftag[ft] == 'pixelflat' and settings.argflag['reduce']['flatfield']['perform']:
+                if ftag[ft] == 'pixelflat' and settings.argflag['reduce']['flatfield']['perform'] and (
+                    settings.argflag['reduce']['flatfield']['useframe'] == 'pixelflat'):
                     msgs.warn("Either include more frames or reduce the required amount with:" + msgs.newline() +
                               "pixelflat number XX" + msgs.newline() +
                               "in the spect read/end block")
+                    msgs.warn("Or specify a pixelflat file with --  reduce flatfield useframe file_name")
                     msgs.error("Unable to continue")
                 # Errors for insufficient PINHOLE frames
                 if ftag[ft] == 'pinhole':
@@ -513,7 +534,17 @@ def match_science(fitsdict, filesort):
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient ARC frames
                 if ftag[ft] == 'arc' and settings.argflag['reduce']['calibrate']:
-                    msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
+                    if settings.argflag['run']['setup']:
+                        msgs.warn("No arc frame for {0:s}. Removing it from list of science frames".format(fitsdict['target'][iSCI[i]]))
+                        msgs.warn("Add an arc and rerun one if you wish to reduce this with PYPIT!!")
+                        # Remove
+                        #tmp = list(filesort['science'])
+                        #tmp.pop(tmp.index(iSCI[i]))
+                        #filesort['science'] = np.array(tmp)
+                        filesort['failures'].append(iSCI[i])
+                        settings.spect['science']['index'].pop(-1)
+                    else:
+                        msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
             else:
                 # Select the closest calibration frames to the science frame
                 tdiff = np.abs(fitsdict['time'][n].astype(np.float64)-np.float64(fitsdict['time'][iSCI[i]]))
@@ -623,6 +654,7 @@ def make_dirs(fitsdict, filesort):
     #Go through objects creating directory tree structure
     w = filesort['science']
     sci_targs = np.array(list(set(fitsdict['target'][w])))
+    '''
     # Loop through targets and replace spaces with underscores
     nored = np.array([])
     # Create directories
@@ -653,6 +685,7 @@ def make_dirs(fitsdict, filesort):
     while nored.size > 0:
         sci_targs = np.delete(sci_targs, nored[0])
         nored = np.delete(nored, 0)
+    '''
     # Create a directory where all of the master calibration frames are stored.
     msgs.info("Creating Master Calibrations directory")
     newdir = "{:s}/{:s}_{:s}".format(currDIR, settings.argflag['run']['directory']['master'],
@@ -793,7 +826,7 @@ def det_setup(isetup_dict, ddict):
 
 
 def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
-                skip_cset=False):
+                skip_cset=False, config_name=None):
     """ Define instrument config
     Make calls to detector and calib set
 
@@ -805,9 +838,15 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
     Parameters
     ----------
     sciexp : ScienceExposure
-    setup_dict
+    det : int
+      detector identifier
+    fitsdict : dict
+      contains header info
+    setup_dict : dict
     skip_cset : bool, optional
       Skip calib_set;  only used when first generating instrument .setup file
+    config_name : str, optional
+      Can be used to choose the config value
 
     Returns
     -------
@@ -852,7 +891,10 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
     # Configuration
     setup = None
     if len(setup_dict) == 0: # Generate
-        setup = 'A'
+        if config_name is None:
+            setup = 'A'
+        else:
+            setup = config_name
         # Finish
         setup_dict[setup] = {}
         setup_dict[setup][cstr] = cdict
@@ -1068,7 +1110,7 @@ def write_sorted(srt_tbl, group_dict, setup_dict):
     ftypes = list(group_dict[setups[0]].keys())
     ftypes.sort()
     # Loop on Setup
-    asciiord = ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker']
+    asciiord = np.array(['filename', 'date', 'frameno', 'frametype', 'target', 'exptime', 'dispname', 'decker'])
     for setup in setups:
         ff.write('##########################################################\n')
         in_setup = []
@@ -1085,8 +1127,9 @@ def write_sorted(srt_tbl, group_dict, setup_dict):
                 mt = np.where(srt_tbl['filename'] == ifile)[0]
                 if (len(mt) > 0) and (mt not in in_setup):
                     in_setup.append(mt[0])
-        #
-        subtbl = srt_tbl[asciiord][np.array(in_setup)]
+        # Write overlapping keys
+        gdkeys = np.in1d(asciiord, np.array(srt_tbl.keys()))
+        subtbl = srt_tbl[asciiord[gdkeys].tolist()][np.array(in_setup)]
         subtbl.write(ff, format='ascii.fixed_width')
     ff.write('##end\n')
     ff.close()
