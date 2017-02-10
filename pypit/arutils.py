@@ -164,6 +164,8 @@ def dummy_fitsdict(nfile=10, spectrograph='kast_blue', directory='./'):
         fitsdict['exptime'][3] = 30     # flat
         fitsdict['ra'][4] = '05:06:36.6'  # Standard
         fitsdict['dec'][4] = '52:52:01.0'
+        fitsdict['ra'][5] = '07:06:23.45' # Random object
+        fitsdict['dec'][5] = '+30:20:50.5'
         fitsdict['decker'] = ['0.5 arcsec'] * nfile
     elif spectrograph == 'none':
         pass
@@ -175,8 +177,7 @@ def dummy_fitsdict(nfile=10, spectrograph='kast_blue', directory='./'):
 
 
 def dummy_self(inum=0, fitsdict=None, nfile=10):
-    """
-    Generate a dummy self class for testing
+    """ Generate a dummy self class for testing
     Parameters:
     -----------
     inum : int, optional
@@ -196,7 +197,7 @@ def dummy_self(inum=0, fitsdict=None, nfile=10):
 
 def dummy_settings(pypitdir=None, nfile=10, spectrograph='kast_blue',
                    set_idx=True):
-    """
+    """ Generate settings classes
     Parameters
     ----------
     pypitdir
@@ -211,6 +212,8 @@ def dummy_settings(pypitdir=None, nfile=10, spectrograph='kast_blue',
     """
     from pypit import arparse
     # Dummy argflag
+    if spectrograph != 'kast_blue':
+        msgs.error("Only setup for Kast Blue")  # You will need to fuss with scidx
     argf = arparse.get_argflag_class(("ARMLSD", spectrograph))
     argf.init_param()
     if pypitdir is None:
@@ -226,17 +229,59 @@ def dummy_settings(pypitdir=None, nfile=10, spectrograph='kast_blue',
     lines = spect.load_file()
     spect.set_paramlist(lines)
     if set_idx:
-        kk = 0
         for jj, key in enumerate(spect._spect.keys()):
             if key in ['det']:
                 continue
             if 'index' in spect._spect[key].keys():
-                for ii in range(nfile):
-                    spect._spect[key]['index'].append(np.array([kk]))
-                kk += 1
+                if spectrograph == 'kast_blue':  # Science frames from idx = 5 to 9
+                    assert nfile == 10
+                for kk in [5,6,7,8,9]:
+                    if key == 'science':
+                        spect._spect[key]['index'] += [np.array([kk])]
+                    elif key == 'arc':
+                        spect._spect[key]['index'] += [np.array([1])]
+                    elif key == 'standard':
+                        spect._spect[key]['index'] += [np.array([4])]
+                    elif key == 'bias':
+                        spect._spect[key]['index'] += [np.array([0])]
+                    elif key == 'trace':
+                        spect._spect[key]['index'] += [np.array([2,3])]
+                    elif key == 'pixelflat':
+                        spect._spect[key]['index'] += [np.array([2,3])]
     arparse.init(argf, spect)
     return
 
+def dummy_specobj(fitsdict, det=1, extraction=True):
+    """ Generate dummy specobj classes
+    Parameters
+    ----------
+    fitsdict : dict
+      Expecting the fitsdict from dummy_fitsdict
+    Returns
+    -------
+
+    """
+    from astropy import units as u
+    from pypit import arspecobj
+    shape = fitsdict['naxis1'][0], fitsdict['naxis0'][0]
+    config = 'AA'
+    scidx = 5 # Could be wrong
+    xslit = (0.3,0.7) # Center of the detector
+    ypos = 0.5
+    xobjs = [0.4, 0.6]
+    specobjs = []
+    for xobj in xobjs:
+        specobj = arspecobj.SpecObjExp(shape, config, scidx, det, xslit, ypos, xobj)
+        # Dummy extraction?
+        if extraction:
+            npix = 2001
+            specobj.boxcar['wave'] = np.linspace(4000., 6000., npix)*u.AA
+            specobj.boxcar['counts'] = 50.*(specobj.boxcar['wave'].value/5000.)**-1.
+            specobj.boxcar['var']  = specobj.boxcar['counts'].copy()
+        # Append
+        specobjs.append(specobj)
+    # Return
+    return specobjs
 
 def func_der(coeffs, func, nderive=1):
     if func == "polynomial":
