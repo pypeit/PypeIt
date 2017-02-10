@@ -936,7 +936,7 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         #msgs.work("Include the facility to correct for gravitational redshifts and time delays (see Pulsar timing work)")
         msgs.info("Performing a heliocentric correction")
         # Load the header for the science frame
-        arwave.helio_corr(slf, scidx[0])
+        arwave.helio_corr(slf, det, fitsdict)
     else:
         msgs.info("A heliocentric correction will not be performed")
 
