@@ -839,7 +839,7 @@ def reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=False):
     else: crmask = np.zeros(sciframe.shape)
     # Mask
     slf.update_sci_pixmask(det, crmask, 'CR')
-    return crmask
+    return sciframe, rawvarframe, crmask
 
 
 def reduce_echelle(slf, sciframe, scidx, fitsdict, det, standard=False):
@@ -858,9 +858,26 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det, standard=False):
     standard : bool, optional
       Standard star frame?
     """
-    crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
-    sciframe, rawvarframe = get from slf... and anything else?
+    nspec = sciframe.shape[0]
+    nord = slf._lordloc[det-1].shape[1]
+    # Prepare the frames for tracing and extraction
+    sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
+    # Obtain a first estimate of the object trace
+    traces = np.zeros((nspec, nord), dtype=np.float)
+    trcerr = np.zeros((nspec, nord), dtype=np.float)
+    msgs.work("Multiprocess this step to increase speed")
+    for o in range(nord):
+        trace, error = artrace.trace_weighted(sciframe, slf._lordloc[det-1][:, o], slf._rordloc[det-1][:, o],
+                                              mask=slf._scimask[det-1], wght="flux")
+        traces[:, o] = trace
+        trcerr[:, o] = error
+    # Fit the traces
 
+    # Determine object profile and background regions
+
+    # Fit the traces and perform a PCA
+
+    # Object extraction
     msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
 
     return
@@ -882,7 +899,7 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
     standard : bool, optional
       Standard star frame?
     """
-    rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
+    sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
     msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
 
     return
