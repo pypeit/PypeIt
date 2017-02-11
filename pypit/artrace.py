@@ -321,7 +321,6 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
 
     """
     from pypit import arcytrace
-    from pypit import arproc
     from pypit import arcyutils
     smthby = 7
     rejhilo = 1
@@ -1664,8 +1663,49 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
     return trcdict
 
 
-def trace_fweight(fimage, xinit, invvar=None, radius=3.):
-    '''Python port of trace_fweight.pro from IDLUTILS
+def trace_weighted(frame, ltrace, rtrace, mask=None, wght="flux"):
+    nspec, nspat = frame.shape
+    lidx = int(np.ceil(np.min(ltrace)))-1
+    ridx = int(np.floor(np.max(rtrace)))+1
+    if lidx < 0:
+        lidx = 0
+    if ridx >= nspat:
+        ridx = nspat-1
+    extfram = frame[:, lidx:ridx+1]
+    if isinstance(wght, (str, unicode)):
+        if wght == "flux":
+            extwght = extfram.copy()
+        elif wght == "uniform":
+            extwght = np.ones(extfram.shape, dtype=np.float)
+    else:
+        # Assume extwght is a numpy array
+        extwght = wght
+    # Calculate the weights
+    idxarr = np.outer(np.ones(nspec), np.arange(lidx, ridx+1))
+    for i in range(extwght.shape[1]): print idxarr[0, i], extwght[0, i]
+    ldiff = idxarr - ltrace.reshape(nspec, 1)
+    rdiff = idxarr - rtrace.reshape(nspec, 1) - 1.0
+    msgs.work("Not sure why -1 is needed here, might be a bug about how ltrace and rtrace are defined")
+    lwhr = np.where(ldiff <= -1.0)
+    rwhr = np.where(rdiff >= +0.0)
+    extwght[lwhr] = 0.0
+    extwght[rwhr] = 0.0
+    lwhr = np.where((-1.0 < ldiff) & (ldiff <= 0.0))
+    rwhr = np.where((-1.0 <= rdiff) & (rdiff < 0.0))
+    extwght[lwhr] *= 1.0+ldiff[lwhr]
+    extwght[rwhr] *= -rdiff[rwhr]
+    # Apply mask
+    if mask is not None:
+        extwght *= mask
+    # Determine the weighted trace
+    wghtsum = np.sum(extwght, axis=1)
+    trace = np.sum(idxarr*extwght, axis=1)/wghtsum
+    error = np.sqrt(np.sum((idxarr-trace.reshape(nspec, 1))**2 * extwght, axis=1)/wghtsum)
+    return trace, error
+
+
+def trace_fweight(fimage, xinit, ltrace=None, rtraceinvvar=None, radius=3.):
+    """ Python port of trace_fweight.pro from IDLUTILS
 
     Parameters:
     -----------
@@ -1677,9 +1717,7 @@ def trace_fweight(fimage, xinit, invvar=None, radius=3.):
       Inverse variance array for the image
     radius: float, optional
       Radius for centroiding; default to 3.0
-    '''
-    # Definitions for Cython
-    #cdef int nx,ny,ncen
+    """
 
     # Init
     nx = fimage.shape[1]
@@ -1695,7 +1733,7 @@ def trace_fweight(fimage, xinit, invvar=None, radius=3.):
     ix1 = np.floor(x1).astype(int)
     ix2 = np.floor(x2).astype(int)
 
-    fullpix = int(np.maximum(np.min(ix2-ix1)-1,0))
+    fullpix = int(np.maximum(np.min(ix2-ix1)-1, 0))
     sumw = np.zeros(ny)
     sumxw = np.zeros(ny)
     sumwt = np.zeros(ny)
@@ -1705,23 +1743,6 @@ def trace_fweight(fimage, xinit, invvar=None, radius=3.):
 
     if invvar is None: 
         invvar = np.zeros_like(fimage) + 1. 
-
-    '''
-    cdef np.ndarray[ITYPE_t, ndim=1] ycen = np.arange(ny, dtype=ITYPE)
-    cdef np.ndarray[DTYPE_t, ndim=1] invvar = 0. * fimage + 1.
-    cdef np.ndarray[DTYPE_t, ndim=1] x1 = xinit - radius + 0.5
-    cdef np.ndarray[DTYPE_t, ndim=1] x2 = xinit + radius + 0.5
-    cdef np.ndarray[ITYPE_t, ndim=1] ix1 = np.fix(x1)
-    cdef np.ndarray[ITYPE_t, ndim=1] ix2 = np.fix(x2)
-    cdef np.ndarray[DTYPE_t, ndim=1] fullpix = np.maximum(np.min(ix2-ix1)-1),0)
-
-    cdef np.ndarray[DTYPE_t, ndim=1] sumw = np.zeros(ny, dypte=DTYPE)
-    cdef np.ndarray[DTYPE_t, ndim=1] sumxw = np.zeros(ny, dypte=DTYPE)
-    cdef np.ndarray[DTYPE_t, ndim=1] sumwt = np.zeros(ny, dypte=DTYPE)
-    cdef np.ndarray[DTYPE_t, ndim=1] sumsx1 = np.zeros(ny, dypte=DTYPE)
-    cdef np.ndarray[DTYPE_t, ndim=1] sumsx2 = np.zeros(ny, dypte=DTYPE)
-    cdef np.ndarray[ITYPE_t, ndim=1] qbad = np.zeros(ny, dypte=ITYPE)
-    '''
 
     # Compute
     for ii in range(0,fullpix+3):
@@ -1740,13 +1761,13 @@ def trace_fweight(fimage, xinit, invvar=None, radius=3.):
         qbad = np.any([qbad, invvar[ycen,ih] <= 0], axis=0)
 
     # Fill up
-    good = (sumw > 0) &  (~qbad)
+    good = (sumw > 0) & (~qbad)
     if np.sum(good) > 0:
         delta_x = sumxw[good]/sumw[good]
         xnew[good] = delta_x + xinit[good]
         xerr[good] = np.sqrt(sumsx1[good] + sumsx2[good]*delta_x**2)/sumw[good]
 
-    bad = np.any([np.abs(xnew-xinit) > radius + 0.5,xinit < radius - 0.5,xinit > nx - 0.5 - radius],axis=0)
+    bad = np.any([np.abs(xnew-xinit) > radius + 0.5, xinit < radius - 0.5, xinit > nx - 0.5 - radius], axis=0)
     if np.sum(bad) > 0:
         xnew[bad] = xinit[bad]
         xerr[bad] = 999.0
