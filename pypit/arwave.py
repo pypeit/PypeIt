@@ -323,8 +323,8 @@ def helio_corr(slf, det, fitsdict):
             if not hasattr(specobj,attr):
                 continue
             if 'wave' in getattr(specobj, attr).keys():
-                msgs.info("Applying helio correction to {:s} extraction for object {:s}".format(
-                        attr, str(specobj)))
+                msgs.info("Applying helio correction of {:g} km/s to {:s} extraction for object {:s}".format(
+                        helio, attr, str(specobj)))
                 getattr(specobj, attr)['wave'] = getattr(specobj, attr)['wave'] * hel_corr
     # Return
     return helio, hel_corr  # Mainly for debugging

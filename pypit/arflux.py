@@ -41,7 +41,7 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
     # Loop on objects
     for spobj in slf._specobjs[det-1]:
         # Loop on extraction modes
-        for extract_type in ['boxcar', 'opt']:
+        for extract_type in ['boxcar', 'optimal']:
             try:
                 extract = getattr(spobj,extract_type)
             except AttributeError:
