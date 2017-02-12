@@ -24,12 +24,36 @@ msgs = armsgs.get_logger()
 
 
 def background_subtraction(slf, sciframe, varframe, slitn, det, maskval=-999999.9):
-    debugger.set_trace()
-    word = np.where(slf._slitpix[det - 1] == slitn + 1)
+    """ Generate a frame containing the background sky spectrum
+
+    Parameters
+    ----------
+    slf : Class
+      Science Exposure Class
+    sciframe : ndarray
+      science frame
+    varframe : ndarray
+      variance frame
+    slitn : int
+      Slit number
+    det : int
+      Detector index
+    maskval : float, optional
+      Value used to mask pixels in the science frame
+
+    Returns
+    -------
+    bgframe : ndarray
+      An image, the same size as sciframe, that contains
+      the background spectrum within the specified slit.
+    """
+    word = np.where((slf._slitpix[det - 1] == slitn + 1) & (slf._scimask[det - 1] == 0))
     if word[0].size == 0:
         msgs.warn("There are no pixels in slit {0:d}".format(slitn))
-        return None
-    nbins = 3*slf._pixwid[det-1][slitn]
+        return np.zeros_like(sciframe)
+    npix = slf._pixwid[det-1][slitn]
+    nbins = 3*npix
+    tilts = slf._tilts[det - 1].copy()
     lordloc = slf._lordloc[det - 1][:, slitn]
     rordloc = slf._rordloc[det - 1][:, slitn]
     spatval = (word[1] - lordloc[word[0]]) / (rordloc[word[0]] - lordloc[word[0]])
@@ -49,191 +73,47 @@ def background_subtraction(slf, sciframe, varframe, slitn, det, maskval=-999999.
     argr = np.argmin(np.abs(csum - 0.95))
     wl = np.where((modvals[1:] < modvals[:-1]) & (bincent[1:] < bincent[argl]))
     wr = np.where((modvals[1:] > modvals[:-1]) & (bincent[1:] > bincent[argr]))
-    if wl[0].size == 0 and wr[0].size == 0:
-        msgs.warn("The object profile appears to extrapolate to the edge of the detector")
-        msgs.info("A background subtraction will not be performed for slit".format(slitn+1))
     nl, nr = 0, 0
     if wl[0].size != 0:
         nl = np.max(wl[0])
     if wr[0].size != 0:
-        nr = np.max(wr[0])
-    if np.max(wl[0])
-
-    from pypit import arcyextract
-    from pypit import arcyutils
-    from pypit import arcyproc
-    errframe = np.sqrt(varframe)
-    retframe = np.zeros_like(sciframe)
-    norders = slf._lordloc.shape[1]
-    # Look at the end corners of the detector to get detector size in the dispersion direction
-    xstr = slf._pixlocn[0,0,0]-slf._pixlocn[0,0,2]/2.0
-    xfin = slf._pixlocn[-1,-1,]+slf._pixlocn[-1,-1,2]/2.0
-    xint = slf._pixlocn[:,0,0]
-    # Find which pixels are within the order edges
-    msgs.info("Identifying pixels within each order")
-    ordpix = arcyutils.order_pixels(slf._pixlocn, slf._lordloc, slf._rordloc)
-    allordpix = ordpix.copy()
-    msgs.info("Applying bad pixel mask")
-    ordpix *= (1-slf._bpix.astype(np.int))
-    whord = np.where(ordpix != 0)
-#    msgs.info("Masking cosmic ray hits")
-#    crr_id = arcyutils.crreject(sciframe/np.median(sciframe[whord]))
-#    cruse = np.abs(crr_id/sciframe)[whord]
-#    medcr = np.median(cruse)
-#    madcr = 1.4826*np.median(np.abs(cruse-medcr))
-#    whcrt = np.where(cruse>medcr+crsigma*madcr)
-#    whcrr = (whord[0][whcrt],whord[1][whcrt])
-#    msgs.info("Identified {0:d} pixels affected by cosmic rays within orders in the science frame".format(whord[0].size))
-#    if whcrr[0].size != 0: ordpix[whcrr] = 0
-#	temp = sciframe.copy()
-#	temp[whcrr] = 0.0
-#	arutils.ds9plot(temp.astype(np.float))
-    msgs.info("Rectifying the orders to estimate the background locations")
-    msgs.work("Multiprocess this step to make it faster")
-    badorders = np.zeros(norders)
-    ordpixnew = np.zeros_like(ordpix)
-    for o in range(norders):
-        # Rectify this order
-        recframe = arcyextract.rectify(sciframe, ordpix, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o], maskval)
-        recerror = arcyextract.rectify(errframe, ordpix, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o], maskval)
-        #recmask = np.ones(recframe.shape, dtype=np.int)
-        #wmsk = np.where(recframe==maskval)
-        #recmask[wmsk] = 0
-        #arutils.ds9plot(recframe.astype(np.float))
-        #arutils.ds9plot(recerror.astype(np.float))
-        #arutils.ds9plot((recframe/recerror).astype(np.float))
-        # Create a mask where there is significant flux from the object
-        #flux = arcyextract.maskedaverage_order(recframe, np.ones_like(recframe), maskval)
-        #plt.plot(np.arange(flux.size),flux,'k-',drawstyle='steps')
-        # At least three pixels in a given row need to be detected at 2 sigma
-        rowd = np.where( ((recerror!=0.0) & (recframe/recerror > 2.0)).astype(np.int).sum(axis=1) >= 3 )
-        w = np.ix_(rowd[0],np.arange(recframe.shape[1]))
-        #arutils.ds9plot(recframe.astype(np.float))
-        #objprof = arcyextract.maskedaverage_order(recframe[w], recerror[w]**2, maskval)
-        recframesmth = arcyproc.smooth_gaussmask(recframe[w], maskval, 4.0)
-        # Sort the pixels along the spatial direction based on their flux
-
-        # Select only pixels with a flux consistent with a constant valueIdentify the most common columns are
-
-
-
-
-        #arutils.ds9plot(recframe[w].astype(np.float))
-        #arutils.ds9plot(recframesmth.astype(np.float))
-        objprofm = arcyextract.maskedmedian_order(recframesmth, maskval)
-        if (len(objprofm) < slf._pixwid[o]/3) or (len(objprofm) <= 5):
-            badorders[o] = 1
-            continue
-        #plt.plot(np.arange(objprof.size),objprof,'r-',drawstyle='steps')
-        #plt.plot(np.arange(objprofm.size),objprofm,'k-',drawstyle='steps')
-        # Reject the flux from the 3 highest S/N pixels (originally required to be included)
-        xarray = np.arange(objprofm.size)
-        profmask = np.zeros(objprofm.size,dtype=np.int)
-        w = np.argsort(objprofm)[-3:]
-        profmask[w] = 1
-        # Exclude the end points
-        profmask[0] = 1
-        profmask[-1] = 1
-        profmask, coeff = arutils.robust_polyfit(xarray, objprofm, 0, maxone=True, sigma=2.0, function="polynomial", initialmask=profmask, forceimask=True)
-        #bgfit = arutils.func_val(coeff,xarray,"polynomial")
-        #plt.plot(xarray,bgfit,'r-')
-        w = np.where(profmask==0)
-        #plt.plot(xarray[w],bgfit[w],'go')
-        #plt.axis([0,30,0,np.max(objprofm)])
-        #plt.show()
-        #plt.clf()
-        bgloc = np.zeros_like(recframe)
-        bgloc[:,w] = 1.0
-        # Undo the rectification
-        #arutils.ds9plot(bgloc)
-        unrecmask = arcyextract.rectify_undo(bgloc, slf._pixcen[:,o], slf._lordpix[:,o], slf._rordpix[:,o], slf._pixwid[o], maskval, sciframe.shape[0], sciframe.shape[1])
-        #arutils.ds9plot(unrecmask)
-        # Apply the mask to master mask
-        ordpixnew += unrecmask.copy()
-
-    # Update ordpix
-    msgs.info("Masking object to determine background level")
-    ordpix *= ordpixnew
-
-    msgs.work("Plot/save background locations")
-    msgs.work("Deal with bad orders")
-    #arutils.ds9plot(ordpix.astype(np.float))
-
-    msgs.info("Fitting and reconstructing background")
-    # Create the over-sampled array of points in the dispersion direction (detector)
-    ncoeff, k = sciframe.shape[0], 1
-    xmod = np.linspace(xstr,xfin,sciframe.shape[0]*nsample)
-    ycen = 0.5*(slf._lordloc + slf._rordloc)
-    """
-    The b-spline algorithm takes *far* too long to compute for the entire order simultaneously.
-    An iteration procedure is now needed to step along the order and fit each position as you step along the order.
-
-    Speed this up by selecting only considering pixels inside the given lordpix/rordpix of each order, rather than grabbing all xpix and ypix
-    """
-    bgmod = np.zeros_like(sciframe)
-    polyorder, repeat = 9, 1
-    for o in range(norders):
-        #if o < 3 or o > norders-5: continue
-        xpix, ypix = np.where(ordpix==o+1)
-        print("Preparing", o+1)
-        xbarr, ybarr = arcyutils.prepare_bsplfit(sciframe, slf._pixlocn, slf._tilts[:,o], xmod, ycen[:,o], xpix, ypix)
-        xapix, yapix = np.where(allordpix==o+1)
-        xball = arcyproc.prepare_bgmodel(sciframe, slf._pixlocn, slf._tilts[:,o], xmod, ycen[:,o], xapix, yapix)
-        ebarr = np.ones_like(xbarr)
-        print("Fitting", o+1, xbarr.size)
-        argsrt = np.argsort(xbarr,kind='mergesort')
-        polypoints = 3*slf._pixwid[o]
-        fitfunc = arcyutils.polyfit_scan(xbarr[argsrt], ybarr[argsrt], ebarr, maskval, polyorder, polypoints, repeat)
-        fitfunc_model = np.interp(xball, xbarr[argsrt], fitfunc)
-        bgmod += arcyproc.background_model(fitfunc_model, xapix, yapix, sciframe.shape[0], sciframe.shape[1])
-#		np.save("bspl/xbarr_ord{0:d}".format(o+1),xbarr)
-#		np.save("bspl/ybarr_ord{0:d}".format(o+1),ybarr)
-#		np.save("bspl/ebarr_ord{0:d}".format(o+1),ebarr)
-#		print min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k
-#		np.save("bspl/pixlocn_ord{0:d}".format(o+1),slf._pixlocn)
-#		np.save("bspl/tilts_ord{0:d}".format(o+1),slf._tilts[:,o])
-#		np.save("bspl/xmod_ord{0:d}".format(o+1),xmod)
-#		np.save("bspl/ycen_ord{0:d}".format(o+1),ycen[:,o])
-#		np.save("bspl/xpix_ord{0:d}".format(o+1),xpix)
-#		np.save("bspl/ypix_ord{0:d}".format(o+1),ypix)
-#		print "saved all!"
-#		#mod_yarr = cybspline.bspline_fit(xmod, xbarr, ybarr, ebarr, min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k)
-#		bgmod += arcyutils.bspline_fitmod(xbarr, ybarr, ebarr, min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k, slf._pixlocn, slf._tilts[:,o], xmod, ycen[:,o], xpix, ypix)
-
-    arutils.ds9plot(bgmod.astype(np.float))
-    arutils.ds9plot((sciframe-bgmod).astype(np.float))
-
-    #exsci, exerr = arcyextract.extract_weighted(frame, error, badpixmask, pixcen[:,o], piycen[:,o], slf._pixlocn, ordtilt[:,o], ordxcen[:,o], ordycen[:,o], ordwid[:,o], ordwnum[o], ordlen[o], ordnum[o], argf_interpnum)
-
-# 	ordcen = 0.5*(slf._lordloc + slf._rordloc)
-# 	ordwid = np.ceil(np.median(np.abs(slf._lordloc - slf._rordloc),axis=0)).astype(np.int)/2
-# 	cord_pix = artrace.phys_to_pix(ordcen, slf._pixlocn, 1)
-# 	print cord_pix
-# 	print ordwid
-# 	test_rect = arcyextract.rectify_fast(sciframe, cord_pix, ordwid, -999999.9)
-# 	arutils.ds9plot(test_rect)
-# 	for o in range(norders):
-# 		pass
-
-
-    assert(False)
-    # Mask out ordpix pixels where there is target flux
-    ordpix = None
-    # Prepare and fit the sky background pixels in every order
-    msgs.work("Multiprocess this step to make it faster")
-    skybg = np.zeros_like(sciframe)
-    for o in range(norders):
-        xpix, ypix = np.where(ordpix==1+o)
-        msgs.info("Preparing sky pixels in order {0:d}/{1:d} for a b-spline fit".format(o+1,norders))
-        #xbarr, ybarr = cybspline.prepare_bsplfit(arc, pixmap, tilts, xmod, ycen, xpix, ypix)
-        msgs.info("Performing b-spline fir to oversampled sky background in order {0:d}/{1:d}".format(o+1,norders))
-        #ncoeff, k = flt.shape[0], 1
-        #mod_yarr = cybspline.bspline_fit(xmod, xbarr, ybarr, ebarr, min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k)
-        #skybg += cybspline.bspline_fitmod(xbarr, ybarr, ebarr, min(np.min(xbarr),xstr), max(np.max(xbarr),xfin), ncoeff, k, pixmap, tilts, xmod, ycen, xpix, ypix)
-
-    # Subtract the background
-    msgs.info("Subtracting the sky background from the science frame")
-    return sciframe-skybg, skybg
+        nr = npix - np.min(wr[0])
+    if nl+nr < 5:
+        msgs.warn("The object profile appears to extrapolate to the edge of the detector")
+        msgs.info("A background subtraction will not be performed for slit".format(slitn+1))
+        return np.zeros_like(sciframe)
+    # Find background pixels and fit
+    wbgpix = np.where((spatval <= float(nl)/npix) | (spatval >= float(nr)/npix))
+    if settings.argflag['reduce']['skysub']['method'].lower() == 'bspline':
+        msgs.info("Using bspline sky subtraction")
+        srt = np.argsort(tilts[wbgpix])
+        ivar = (varframe > 0.)/(varframe + (varframe == 0))
+        mask, bspl = arutils.robust_polyfit(tilts[wbgpix][srt], sciframe[wbgpix][srt], 3, function='bspline',
+                                            weights=np.sqrt(ivar)[wbgpix][srt], sigma=5.,
+                                            maxone=False, **settings.argflag['reduce']['skysub']['bspline'])
+        bgf_flat = arutils.func_val(bspl, tilts.flatten(), 'bspline')
+        bgframe = bgf_flat.reshape(tilts.shape)
+        if msgs._debug['sky_sub']:
+            def plt_bspline_sky(tilts, scifrcp, bgf_flat, maskval):
+                # Setup
+                srt = np.argsort(tilts.flatten())
+                # Plot
+                plt.close()
+                plt.clf()
+                ax = plt.gca()
+                ax.scatter(tilts[gdp]*tilts.shape[0], scifrcp[gdp], marker='o')
+                ax.plot(tilts.flatten()[srt]*tilts.shape[0], bgf_flat[srt], 'r-')
+                plt.show()
+            plt_bspline_sky(tilts, sciframe, bgf_flat, maskval)
+            debugger.set_trace()
+    else:
+        msgs.error('Not ready for this method for skysub {:s}'.format(
+                settings.argflag['reduce']['skysub']['method'].lower()))
+    if np.sum(np.isnan(bgframe)) > 0:
+        msgs.warn("NAN in bgframe.  Replacing with 0")
+        bad = np.isnan(bgframe)
+        bgframe[bad] = 0.
+    return bgframe
 
 
 def badpix(det, frame, sigdev=10.0):
