@@ -23,7 +23,7 @@ from pypit import ardebug as debugger
 msgs = armsgs.get_logger()
 
 
-def background_subtraction(slf, sciframe, varframe, slitn, det):
+def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
     """ Generate a frame containing the background sky spectrum
 
     Parameters
@@ -38,8 +38,12 @@ def background_subtraction(slf, sciframe, varframe, slitn, det):
       Slit number
     det : int
       Detector index
-    maskval : float, optional
-      Value used to mask pixels in the science frame
+    refine : float or ndarray
+      refine the object traces. This should be a small value around 0.0.
+      If a float, a constant offset will be applied.
+      Otherwise, an array needs to be specified of the same length as
+      sciframe.shape[0] that contains the refinement of each pixel along
+      the spectral direction.
 
     Returns
     -------
@@ -51,13 +55,13 @@ def background_subtraction(slf, sciframe, varframe, slitn, det):
     if word[0].size == 0:
         msgs.warn("There are no pixels in slit {0:d}".format(slitn))
         return np.zeros_like(sciframe)
-    xedges, modvals = object_profile(slf, sciframe, slitn, det, factor=3)
+    xedges, modvals = object_profile(slf, sciframe, slitn, det, refine=refine, factor=3)
     bincent = 0.5*(xedges[1:]+xedges[:-1])
     npix = slf._pixwid[det - 1][slitn]
     tilts = slf._tilts[det - 1].copy()
     lordloc = slf._lordloc[det - 1][:, slitn]
     rordloc = slf._rordloc[det - 1][:, slitn]
-    spatval = (word[1] - lordloc[word[0]]) / (rordloc[word[0]] - lordloc[word[0]])
+    spatval = (word[1] - lordloc[word[0]] + refine) / (rordloc[word[0]] - lordloc[word[0]])
     # Cumulative sum and normalize
     csum = np.cumsum(modvals)
     csum -= csum[0]
@@ -330,7 +334,7 @@ def error_frame_postext(sciframe, idx, fitsdict):
 
 
 def flatfield(slf, sciframe, flatframe, det, snframe=None,
-              varframe=None):
+              varframe=None, slitprofile=None):
     """ Flat field the input image
     Parameters
     ----------
@@ -340,6 +344,10 @@ def flatfield(slf, sciframe, flatframe, det, snframe=None,
     snframe : 2d image, optional
     det : int
       Detector index
+    varframe : ndarray
+      variance image
+    slitprofile : ndarray
+      slit profile image
 
     Returns
     -------
@@ -350,6 +358,8 @@ def flatfield(slf, sciframe, flatframe, det, snframe=None,
     """
     if (varframe is not None) & (snframe is not None):
         msgs.error("Cannot set both varframe and snframe")
+    if slitprofile is not None:
+        flatframe *= slitprofile
     # New image
     retframe = np.zeros_like(sciframe)
     w = np.where(flatframe > 0.0)
@@ -772,7 +782,8 @@ def reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Flat field the science frame (and variance)
     if settings.argflag['reduce']['flatfield']['perform']:
         msgs.info("Flat fielding the science frame")
-        sciframe, rawvarframe = flatfield(slf, sciframe, slf._mspixelflatnrm[det-1], det, varframe=rawvarframe)
+        sciframe, rawvarframe = flatfield(slf, sciframe, slf._mspixelflatnrm[det-1], det,
+                                          varframe=rawvarframe, slitprofile=slf._slitprof[det-1])
     else:
         msgs.info("Not performing a flat field calibration")
     if not standard:
@@ -809,15 +820,23 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det, standard=False):
     nord = slf._lordloc[det-1].shape[1]
     # Prepare the frames for tracing and extraction
     sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
-    # Identify background pixels
-    background_subtraction(slf, sciframe, rawvarframe, 30, det)
-    for o in range(nord):
-        background_subtraction(slf, sciframe, rawvarframe, o, det)
+    bgframe = np.zeros_like(sciframe)
+    if settings.argflag['reduce']['skysub']['perform']:
+        # Identify background pixels, and generate an image of the sky spectrum in each slit
+        for o in range(nord):
+            bgframe += background_subtraction(slf, sciframe, rawvarframe, o, det)
+        modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
+    else:
+        modelvarframe = rawvarframe.copy()
+        bgframe = np.zeros_like(sciframe)
+    if not standard:  # Need to save
+        slf._modelvarframe[det - 1] = modelvarframe
+        slf._bgframe[det - 1] = bgframe
     # Obtain a first estimate of the object trace
     traces = np.zeros((nspec, nord), dtype=np.float)
     trcerr = np.zeros((nspec, nord), dtype=np.float)
     for o in range(nord):
-        trace, error = artrace.trace_weighted(sciframe, slf._lordloc[det-1][:, o], slf._rordloc[det-1][:, o],
+        trace, error = artrace.trace_weighted(sciframe-bgframe, slf._lordloc[det-1][:, o], slf._rordloc[det-1][:, o],
                                               mask=slf._scimask[det-1], wght="flux")
         traces[:, o] = trace
         trcerr[:, o] = error
@@ -825,12 +844,20 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det, standard=False):
 
     # Determine object profile and background regions
 
-    # Fit the traces and perform a PCA
+    # Fit the traces and perform a PCA for the refinements
 
-    # Object extraction
+    refine = "TO BE DONE - I think refine should be defined as zero at sciframe.shape[0]/2"
+    # Finalize the Sky Background image
+    if settings.argflag['reduce']['skysub']['perform'] & (scitrace['nobj']>0):
+        # Identify background pixels, and generate an image of the sky spectrum in each slit
+        bgframe = np.zeros_like(sciframe)
+        for o in range(nord):
+            bgframe += background_subtraction(slf, sciframe, rawvarframe, o, det, refine=refine)
+        modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
+
+    # Perform an optimal extraction
     msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
-
-    return
+    return reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask, standard=standard)
 
 
 def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
@@ -850,27 +877,6 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
       Standard star frame?
     """
     sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
-    msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
-
-    return
-
-
-def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
-    """ Run standard extraction steps on a frame
-
-    Parameters
-    ----------
-    sciframe : image
-      Bias subtracted image (using arload.load_frame)
-    scidx : int
-      Index of the frame
-    fitsdict : dict
-      Contains relevant information from fits header files
-    det : int
-      Detector index
-    standard : bool, optional
-      Standard star frame?
-    """
 
     ###############
     # Estimate Sky Background
@@ -887,9 +893,13 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
             bgframe = bg_subtraction(slf, det, sciframe, rawvarframe, crmask)
         #bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask)
         modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
-        if not standard: # Need to save
-            slf._modelvarframe[det-1] = modelvarframe
-            slf._bgframe[det-1] = bgframe
+    else:
+        modelvarframe = rawvarframe.copy()
+        bgframe = np.zeros_like(sciframe)
+    if not standard:  # Need to save
+        slf._modelvarframe[det - 1] = modelvarframe
+        slf._bgframe[det - 1] = bgframe
+
     ###############
     # Estimate trace of science objects
     scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask, doqa=(not standard))
@@ -917,6 +927,34 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     if settings.argflag['reduce']['flexure']['method'] == 'slitcen':
         flex_dict = arwave.flexure_slit(slf, det)
         arqa.flexure(slf, det, flex_dict, slit_cen=True)
+
+    # Perform an optimal extraction
+    msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
+    return reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask, standard=standard)
+
+
+def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask, standard=False):
+    """ Run standard extraction steps on a frame
+
+    Parameters
+    ----------
+    sciframe : image
+      Bias subtracted, trimmed, and flatfielded image
+    rawvarframe : ndarray
+      Variance array using the raw detector counts
+    modelvarframe : ndarray
+      Model variance array using the raw detector counts and an image of the sky background frame.
+    bgframe : ndarray
+      Sky background image
+    scidx : int
+      Index of the frame
+    fitsdict : dict
+      Contains relevant information from fits header files
+    det : int
+      Detector index
+    standard : bool, optional
+      Standard star frame?
+    """
 
     ###############
     # Determine the final trace of the science objects
