@@ -23,20 +23,42 @@ from pypit import ardebug as debugger
 msgs = armsgs.get_logger()
 
 
-def background_subtraction(slf, sciframe, varframe, k=3, crsigma=20.0, maskval=-999999.9, nsample=1):
-    """
-    Idea for background subtraction:
-    (1) Assume that all pixels are background and (by considering the tilts) create an array of pixel flux vs pixel wavelength.
-    (2) Step along pixel wavelength, and mask out the N pixels (where N ~ 5) that have the maximum flux in each "pixel" bin.
-    (3) At each pixel bin, perform a robust regression with the remaining values until all values in a given bin are consistent with a constant value.
-    (4) Using all non-masked values, perform a least-squares spline fit to the points. This corresponds to the background spectrum
-    (5) Reconstruct the background image by accounting for the tilts.
+def background_subtraction(slf, sciframe, varframe, slitn, det, maskval=-999999.9):
+    debugger.set_trace()
+    word = np.where(slf._slitpix[det - 1] == slitn + 1)
+    if word[0].size == 0:
+        msgs.warn("There are no pixels in slit {0:d}".format(slitn))
+        return None
+    nbins = 3*slf._pixwid[det-1][slitn]
+    lordloc = slf._lordloc[det - 1][:, slitn]
+    rordloc = slf._rordloc[det - 1][:, slitn]
+    spatval = (word[1] - lordloc[word[0]]) / (rordloc[word[0]] - lordloc[word[0]])
+    modvals = np.zeros(nbins)
+    xedges = np.linspace(np.min(spatval), np.max(spatval), nbins+1)
+    groups = np.digitize(spatval, xedges)
+    flxfr = sciframe[word]
+    for mm in range(1, xedges.size):
+        modvals[mm - 1] = flxfr[groups == mm].median()
+    bincent = 0.5*(xedges[1:]+xedges[:-1])
+    # Cumulative sum and normalize
+    csum = np.cumsum(modvals)
+    csum -= csum[0]
+    csum /= csum[-1]
+    # Find where the background begins
+    argl = np.argmin(np.abs(csum - 0.05))
+    argr = np.argmin(np.abs(csum - 0.95))
+    wl = np.where((modvals[1:] < modvals[:-1]) & (bincent[1:] < bincent[argl]))
+    wr = np.where((modvals[1:] > modvals[:-1]) & (bincent[1:] > bincent[argr]))
+    if wl[0].size == 0 and wr[0].size == 0:
+        msgs.warn("The object profile appears to extrapolate to the edge of the detector")
+        msgs.info("A background subtraction will not be performed for slit".format(slitn+1))
+    nl, nr = 0, 0
+    if wl[0].size != 0:
+        nl = np.max(wl[0])
+    if wr[0].size != 0:
+        nr = np.max(wr[0])
+    if np.max(wl[0])
 
-    Perform a background subtraction on the science frame by
-    fitting a b-spline to the background.
-
-    This routine will (probably) work poorly if the order traces overlap (of course)
-    """
     from pypit import arcyextract
     from pypit import arcyutils
     from pypit import arcyproc
@@ -858,14 +880,18 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det, standard=False):
     standard : bool, optional
       Standard star frame?
     """
+    msgs.work("Multiprocess this algorithm")
     nspec = sciframe.shape[0]
     nord = slf._lordloc[det-1].shape[1]
     # Prepare the frames for tracing and extraction
     sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
+    # Identify background pixels
+    background_subtraction(slf, sciframe, rawvarframe, 30, det)
+    for o in range(nord):
+        background_subtraction(slf, sciframe, rawvarframe, o, det)
     # Obtain a first estimate of the object trace
     traces = np.zeros((nspec, nord), dtype=np.float)
     trcerr = np.zeros((nspec, nord), dtype=np.float)
-    msgs.work("Multiprocess this step to increase speed")
     for o in range(nord):
         trace, error = artrace.trace_weighted(sciframe, slf._lordloc[det-1][:, o], slf._rordloc[det-1][:, o],
                                               mask=slf._scimask[det-1], wght="flux")
