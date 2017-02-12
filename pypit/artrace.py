@@ -1682,7 +1682,6 @@ def trace_weighted(frame, ltrace, rtrace, mask=None, wght="flux"):
         extwght = wght
     # Calculate the weights
     idxarr = np.outer(np.ones(nspec), np.arange(lidx, ridx+1))
-    for i in range(extwght.shape[1]): print idxarr[0, i], extwght[0, i]
     ldiff = idxarr - ltrace.reshape(nspec, 1)
     rdiff = idxarr - rtrace.reshape(nspec, 1) - 1.0
     msgs.work("Not sure why -1 is needed here, might be a bug about how ltrace and rtrace are defined")
