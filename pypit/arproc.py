@@ -23,7 +23,7 @@ from pypit import ardebug as debugger
 msgs = armsgs.get_logger()
 
 
-def background_subtraction(slf, sciframe, varframe, slitn, det, maskval=-999999.9):
+def background_subtraction(slf, sciframe, varframe, slitn, det):
     """ Generate a frame containing the background sky spectrum
 
     Parameters
@@ -687,7 +687,7 @@ def get_wscale(slf):
     return wave
 
 
-def object_profile(slf, sciframe, slitn, det, factor=3):
+def object_profile(slf, sciframe, slitn, det, refine=0.0, factor=3):
     """ Generate an array of the object profile
 
     Parameters
@@ -700,6 +700,12 @@ def object_profile(slf, sciframe, slitn, det, factor=3):
       Slit number
     det : int
       Detector index
+    refine : float or ndarray
+      refine the object traces. This should be a small value around 0.0.
+      If a float, a constant offset will be applied.
+      Otherwise, an array needs to be specified of the same length as
+      sciframe.shape[0] that contains the refinement of each pixel along
+      the spectral direction.
     factor : int, optional
       Sampling factor. factor=1 samples the object profile
       with the number of pixels along the length of the slit.
@@ -721,7 +727,7 @@ def object_profile(slf, sciframe, slitn, det, factor=3):
     nbins = factor*npix
     lordloc = slf._lordloc[det - 1][:, slitn]
     rordloc = slf._rordloc[det - 1][:, slitn]
-    spatval = (word[1] - lordloc[word[0]]) / (rordloc[word[0]] - lordloc[word[0]])
+    spatval = (word[1] - lordloc[word[0]] + refine) / (rordloc[word[0]] - lordloc[word[0]])
     profile = np.zeros(nbins)
     xedges = np.linspace(np.min(spatval), np.max(spatval), nbins+1)
     groups = np.digitize(spatval, xedges)
