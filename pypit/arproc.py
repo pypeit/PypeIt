@@ -832,23 +832,39 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det, standard=False):
     if not standard:  # Need to save
         slf._modelvarframe[det - 1] = modelvarframe
         slf._bgframe[det - 1] = bgframe
-    # Obtain a first estimate of the object trace
-    traces = np.zeros((nspec, nord), dtype=np.float)
-    trcerr = np.zeros((nspec, nord), dtype=np.float)
+    # Obtain a first estimate of the object trace then
+    # fit the traces and perform a PCA for the refinements
+    trccoeff = np.zeros((settings.argflag['trace']['object']['order'], nord))
+    trcxfit = np.arange(nspec)
     for o in range(nord):
         trace, error = artrace.trace_weighted(sciframe-bgframe, slf._lordloc[det-1][:, o], slf._rordloc[det-1][:, o],
                                               mask=slf._scimask[det-1], wght="flux")
-        traces[:, o] = trace
-        trcerr[:, o] = error
-    # Fit the traces
+        msk, trccoeff[:, o] = arutils.robust_polyfit(trcxfit, trace,
+                                                     settings.argflag['trace']['object']['order'],
+                                                     function=settings.argflag['trace']['object']['function'],
+                                                     weights=1.0 / error ** 2, minv=0.0, maxv=nspec-1.0)
+    # Identify the orders to be extrapolated during reconstruction
+    orders = 1.0 + np.arange(nord)
+    msgs.info("Performing a PCA on the object trace")
+    ofit = settings.argflag['trace']['object']['pca']['params']
+    lnpc = len(ofit) - 1
+    msgs.work("May need to do a check here to make sure ofit is reasonable")
+    xcen = trcxfit[:, np.newaxis].repeat(nord, axis=1)
+    trccen = arutils.func_val(trccoeff, trcxfit, settings.argflag['trace']['object']['function'],
+                              minv=0.0, maxv=nspec-1.0)
+    fitted, outpar = arpca.basis(xcen, trccen, trccoeff, lnpc, ofit, skipx0=False,
+                                 function=settings.argflag['trace']['object']['function'])
+    if not msgs._debug['no_qa']:
+        arpca.pc_plot(slf, outpar, ofit, pcadesc="PCA of object trace")
+    # Extrapolate the remaining orders requested
+    trccen, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['object']['function'])
+    refine = trccen-trccen[nspec//2, :].reshape((1, nord))
 
-    # Determine object profile and background regions
+    # Estimate trace of science objects
+    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask, doqa=(not standard))
 
-    # Fit the traces and perform a PCA for the refinements
-
-    refine = "TO BE DONE - I think refine should be defined as zero at sciframe.shape[0]/2"
     # Finalize the Sky Background image
-    if settings.argflag['reduce']['skysub']['perform'] & (scitrace['nobj']>0):
+    if settings.argflag['reduce']['skysub']['perform'] & (scitrace['nobj'] > 0):
         # Identify background pixels, and generate an image of the sky spectrum in each slit
         bgframe = np.zeros_like(sciframe)
         for o in range(nord):
@@ -909,7 +925,7 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
         #continue
     ###############
     # Finalize the Sky Background image
-    if settings.argflag['reduce']['skysub']['perform'] & (scitrace['nobj']>0):
+    if settings.argflag['reduce']['skysub']['perform'] & (scitrace['nobj'] > 0):
         # Perform an iterative background/science extraction
         msgs.info("Finalizing the sky background image")
         trcmask = scitrace['object'].sum(axis=2)
