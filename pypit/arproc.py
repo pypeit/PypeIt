@@ -51,19 +51,13 @@ def background_subtraction(slf, sciframe, varframe, slitn, det, maskval=-999999.
     if word[0].size == 0:
         msgs.warn("There are no pixels in slit {0:d}".format(slitn))
         return np.zeros_like(sciframe)
-    npix = slf._pixwid[det-1][slitn]
-    nbins = 3*npix
+    xedges, modvals = object_profile(slf, sciframe, slitn, det, factor=3)
+    bincent = 0.5*(xedges[1:]+xedges[:-1])
+    npix = slf._pixwid[det - 1][slitn]
     tilts = slf._tilts[det - 1].copy()
     lordloc = slf._lordloc[det - 1][:, slitn]
     rordloc = slf._rordloc[det - 1][:, slitn]
     spatval = (word[1] - lordloc[word[0]]) / (rordloc[word[0]] - lordloc[word[0]])
-    modvals = np.zeros(nbins)
-    xedges = np.linspace(np.min(spatval), np.max(spatval), nbins+1)
-    groups = np.digitize(spatval, xedges)
-    flxfr = sciframe[word]
-    for mm in range(1, xedges.size):
-        modvals[mm - 1] = flxfr[groups == mm].median()
-    bincent = 0.5*(xedges[1:]+xedges[:-1])
     # Cumulative sum and normalize
     csum = np.cumsum(modvals)
     csum -= csum[0]
@@ -94,7 +88,7 @@ def background_subtraction(slf, sciframe, varframe, slitn, det, maskval=-999999.
         bgf_flat = arutils.func_val(bspl, tilts.flatten(), 'bspline')
         bgframe = bgf_flat.reshape(tilts.shape)
         if msgs._debug['sky_sub']:
-            def plt_bspline_sky(tilts, scifrcp, bgf_flat, maskval):
+            def plt_bspline_sky(tilts, scifrcp, bgf_flat):
                 # Setup
                 srt = np.argsort(tilts.flatten())
                 # Plot
@@ -104,7 +98,7 @@ def background_subtraction(slf, sciframe, varframe, slitn, det, maskval=-999999.
                 ax.scatter(tilts[gdp]*tilts.shape[0], scifrcp[gdp], marker='o')
                 ax.plot(tilts.flatten()[srt]*tilts.shape[0], bgf_flat[srt], 'r-')
                 plt.show()
-            plt_bspline_sky(tilts, sciframe, bgf_flat, maskval)
+            plt_bspline_sky(tilts, sciframe, bgf_flat)
             debugger.set_trace()
     else:
         msgs.error('Not ready for this method for skysub {:s}'.format(
@@ -691,6 +685,50 @@ def get_wscale(slf):
     msgs.info("Extracted wavelength range will be: {0:.5f} - {1:.5f}".format(wave.min(),wave.max()))
     msgs.info("Total number of spectral pixels in the extracted spectrum will be: {0:d}".format(1+nmax-nmin))
     return wave
+
+
+def object_profile(slf, sciframe, slitn, det, factor=3):
+    """ Generate an array of the object profile
+
+    Parameters
+    ----------
+    slf : Class
+      Science Exposure Class
+    sciframe : ndarray
+      science frame
+    slitn : int
+      Slit number
+    det : int
+      Detector index
+    factor : int, optional
+      Sampling factor. factor=1 samples the object profile
+      with the number of pixels along the length of the slit.
+      factor=2 samples with twice the number of pixels along
+      the length of the slit, etc.
+
+    Returns
+    -------
+    xedges : ndarray
+      bin edges
+    profile : ndarray
+      object profile
+    """
+    word = np.where((slf._slitpix[det - 1] == slitn + 1) & (slf._scimask[det - 1] == 0))
+    if word[0].size == 0:
+        msgs.warn("There are no pixels in slit {0:d}".format(slitn))
+        return None, None
+    npix = slf._pixwid[det-1][slitn]
+    nbins = factor*npix
+    lordloc = slf._lordloc[det - 1][:, slitn]
+    rordloc = slf._rordloc[det - 1][:, slitn]
+    spatval = (word[1] - lordloc[word[0]]) / (rordloc[word[0]] - lordloc[word[0]])
+    profile = np.zeros(nbins)
+    xedges = np.linspace(np.min(spatval), np.max(spatval), nbins+1)
+    groups = np.digitize(spatval, xedges)
+    flxfr = sciframe[word]
+    for mm in range(1, xedges.size):
+        profile[mm - 1] = flxfr[groups == mm].median()
+    return xedges, profile
 
 
 def reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=False):
