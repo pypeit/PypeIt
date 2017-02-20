@@ -1983,7 +1983,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             ytfit = ytfits[j]
             wmask = wmasks[j]
             xint = int(xtfit[0])
-            sz = (xtfit.size-1)/2
+            sz = (xtfit.size-1)//2
 
             # Perform a scanning polynomial fit to the tilts
             # model = arcyutils.polyfit_scan_intext(xtfit, ytfit, np.ones(ytfit.size, dtype=np.float), mtfit,
