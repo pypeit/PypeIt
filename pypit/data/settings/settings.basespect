@@ -66,27 +66,16 @@ fits numlamps 1                     # How many lamps are there listed in the hea
 ### Science frames
 science idname OBJECT               # Header key value of science frame for header keyword keyword+idname
 science canbe None                  # If there are frames that will be science ***in addition to other frame types***, include the other frame types here.
-science check condition1 exptime>29 # Arbitrary exptime limit
 
 ### Standard Star frames
 standard idname OBJECT               # Header key value of science frame for header keyword keyword+idname
 standard number 1                    # Number of standard star frames to use
 standard canbe None                  # If there are frames that will be science ***in addition to other frame types***, include the other frame types here.
-standard match dispname ''             # Check the same decker as the science frame was used
-standard match dichroic ''             # Check the same decker as the science frame was used
-standard match binning ''             # Match the shape of standard and science frames
-standard match decker ''              # Check the same decker as the science frame was used
-#standard match naxis0 =0             # Match the shape of standard and science frames
-#standard match naxis1 =0             # Match the shape of standard and science frames
 
 ### Bias frames
 bias idname DARK                    # Header key value of bias frame for header keyword keyword+idname
 bias number 5                       # Number of bias frames to use
 bias canbe None                     # If there are frames that will be bias ***in addition to other frame types***, include the other frame types here.
-bias check condition1 exptime=0    # Be warned that not all detectors can use 0s
-bias match binning ''             		# Match the shape of standard and science frames
-#bias match naxis0 =0                # Match the shape of bias and science frames
-#bias match naxis1 =0                # Match the shape of bias and science frames
 
 ### Dark frames
 dark idname DARK                    # Header key value of bias frame for header keyword keyword+idname
@@ -100,44 +89,20 @@ pixelflat idname OBJECT               # Header key value of flat frame for heade
 pixelflat number 5                    # Number of flat frames to use
 pixelflat canbe trace                 # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
 pixelflat lscomb False                # Combine a long and short flat
-pixelflat check condition1 exptime<=30 # Blue exposures may require longer time
-pixelflat match binning ''            # Match the shape of pixelflat and science frames
-pixelflat match dichroic ''             # Check the same decker as the science frame was used
-pixelflat match dispname ''             # Check the same decker as the science frame was used
-pixelflat match decker ''               # Check the same decker as the science frame was used
 
 ### Pinhole frames
 pinhole idname None                   # Header key value of trace frame for header keyword keyword+idname
 pinhole number 0                      # Number of trace frames to use
 pinhole canbe None                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
-pinhole check condition1 decker=pinhole   # Likely eliminates pinhole flats from LRISb
-#pinhole check condition1 hatch=open   # Required for blaze flats
-#pinhole check condition2 exptime<30   # Avoid stars
-#pinhole check condition3 lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on
-pinhole match binning ''             		# Match the shape of pinhole and science frames
-pinhole match dichroic ''             # Check the same decker as the science frame was used
-pinhole match dispname ''             # Check the same decker as the science frame was used
 
 ### Trace frames
 trace idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
 trace number 3                    # Number of flat frames to use
 trace canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
 trace lscomb False                # Combine a long and short flat
-trace match binning ''             # Match the shape of trace with science
-trace match dichroic ''            # Check the same decker as the science frame was used
-trace match dispname ''            # Check the same decker as the science frame was used
-trace match decker ''              # Check the same decker as the science frame was used
-#trace match naxis0 =0             # Match the shape of flats with science
-#trace match naxis1 =0             # Match the shape of flats with science
 
 ### Arc frames
 arc idname OBJECT                   # Header key value of arc frame for header keyword keyword+idname
 arc number 1                        # Number of arc frames to use
 arc canbe None                      # If there are frames that will be arc ***in addition to other frame types***, include the other frame types here.
-arc check condition1 exptime<30     #
-arc match binning ''                # Match the shape of arcs with science
-arc match dispname ''               # Check the same decker as the science frame was used
-arc match dichroic ''               # Check the same decker as the science frame was used
-arc match decker ''                 # Check the same decker as the science frame was used; narrower slits are sometimes used
-#arc match naxis1 =0                # Match the shape of arcs with science
 
