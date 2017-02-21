@@ -390,6 +390,15 @@ def match_science(fitsdict, filesort):
             if ftag[ft] == 'bias' and settings.argflag['bias']['useframe'] != 'bias' and not settings.argflag['reduce']['badpix']:
                 msgs.info("  Bias frames not required")
                 continue
+            # How many frames are required
+            if settings.argflag['run']['setup']:
+                numfr = setup_ftag[ftag[ft]]
+            else:
+                numfr = settings.spect[ftag[ft]]['number']
+            if numfr == 0:
+                settings.spect[ftag[ft]]['index'].append(np.array([]))
+                msgs.info("No {0:s} frames are required".format(ftag[ft]))
+                continue
             # Now go ahead and match the frames
             n = np.arange(nfiles)
             if 'match' not in settings.spect[ftag[ft]].keys():
@@ -488,11 +497,6 @@ def match_science(fitsdict, filesort):
                 n = n[w] # n corresponds to all frames within a set time difference of the science target frame
             # Now find which of the remaining n are the appropriate calibration frames
             n = np.intersect1d(n, iARR[ft])
-            # How many frames are required
-            if settings.argflag['run']['setup']:
-                numfr = setup_ftag[ftag[ft]]
-            else:
-                numfr = settings.spect[ftag[ft]]['number']
             if settings.argflag['output']['verbosity'] == 2:
                 if numfr == 1: areis = "is"
                 else: areis = "are"
@@ -508,15 +512,15 @@ def match_science(fitsdict, filesort):
                 # Errors for insufficient BIAS frames
                 if settings.argflag['bias']['useframe'].lower() == ftag[ft]:
                     msgs.warn("Expecting to use bias frames for bias subtraction. But insufficient frames found.")
-                    msgs.warn("Either include more frames or modify bias method")
-                    msgs.warn("  e.g.:   bias useframe overscan")
+                    msgs.warn("Either include more frames or modify bias method" + msgs.newline() +
+                              "  e.g.:   bias useframe overscan")
                     msgs.error("Unable to continue")
                 # Errors for insufficient PIXELFLAT frames
                 if ftag[ft] == 'pixelflat' and settings.argflag['reduce']['flatfield']['perform'] and (
                     settings.argflag['reduce']['flatfield']['useframe'] == 'pixelflat'):
-                    msgs.warn("Either include more frames or reduce the required amount with:")
-                    msgs.warn("     pixelflat number XX")
-                    msgs.warn("in the spect read/end block")
+                    msgs.warn("Either include more frames or reduce the required amount with:" + msgs.newline() +
+                              "pixelflat number XX" + msgs.newline() +
+                              "in the spect read/end block")
                     msgs.warn("Or specify a pixelflat file with --  reduce flatfield useframe file_name")
                     msgs.error("Unable to continue")
                 # Errors for insufficient PINHOLE frames
