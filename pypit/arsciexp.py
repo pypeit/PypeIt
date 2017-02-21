@@ -122,19 +122,21 @@ class ScienceExposure:
         import datetime
         #
         scidx = self._idx_sci[0]
+        tbname = None
         try:
             if "T" in fitsdict['date'][scidx]:
                 tbname = fitsdict['date'][scidx]
         except IndexError:
             debugger.set_trace()
         else:
-            if settings.spect["fits"]["timeunit"] == "mjd":
-                # Not ideal, but convert MJD into a date+time
-                timval = Time(fitsdict['time'][scidx] / 24.0, scale='tt', format='mjd')
-                tbname = timval.isot
-            else:
-                # Really not ideal... just append date and time
-                tbname = fitsdict['date'][scidx] + "T" + str(fitsdict['time'][scidx])
+            if tbname is None:
+                if settings.spect["fits"]["timeunit"] == "mjd":
+                    # Not ideal, but convert MJD into a date+time
+                    timval = Time(fitsdict['time'][scidx] / 24.0, scale='tt', format='mjd')
+                    tbname = timval.isot
+                else:
+                    # Really not ideal... just append date and time
+                    tbname = fitsdict['date'][scidx] + "T" + str(fitsdict['time'][scidx])
         '''
         if "T" in fitsdict['date'][scidx]:
             tbname = fitsdict['date'][scidx]
