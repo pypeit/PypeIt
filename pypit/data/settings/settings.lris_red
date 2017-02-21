@@ -112,10 +112,10 @@ pixelflat match dispname ''             # Check the same decker as the science f
 pixelflat match dispangle |<=0.1        # Match the grating angle (no idea if this is reasonable for LRISr)
 
 ### Pinhole frames
-pinhole number 0                      # Number of trace frames to use
+pinhole check condition1 exptime>999999 # Avoids any pinhole frames
 
 ### Dark frames
-dark number 0                      # Number of dark frames to use
+dark check condition1 exptime>999999 # Avoids any dark frames
 
 ### Trace frames
 trace check condition1 hatch=open   # Required for blaze flats

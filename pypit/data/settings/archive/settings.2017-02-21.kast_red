@@ -98,10 +98,10 @@ pixelflat match decker ''             # Check the same decker as the science fra
 pixelflat match dispangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
 
 ### Pinhole frames
-pinhole number 0                    # Number of pinhole frames to use
+pinhole check condition1 exptime>999999 # Avoids any pinhole frames
 
 ### Dark frames
-dark number 0                    # Number of dark frames to use
+dark check condition1 exptime>999999 # Avoids any dark frames
 
 ### Trace frames
 trace check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
