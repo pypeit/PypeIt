@@ -365,8 +365,8 @@ def load_input(redname, msgs):
                     paths.append(linspl[1])
                 else:  # Grab filename and frametype
                     if ftype_col == -1:  # Identify columns for frametype
-                        ftype_col = np.where(np.array(linspl) == 'frametype')[0]
-                        dfile_col = np.where(np.array(linspl) == 'filename')[0]
+                        ftype_col = np.where(np.array(linspl) == 'frametype')[0][0]
+                        dfile_col = np.where(np.array(linspl) == 'filename')[0][0]
                     else:
                         # Skip commented lines
                         if lines[i][0] == '#':
