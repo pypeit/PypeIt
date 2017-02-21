@@ -931,9 +931,9 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
         arqa.flexure(slf, det, flex_dict)
 
     # Correct Earth's motion
-        if settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']:
+    if settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']:
         if settings.argflag['science']['extraction']['reuse'] == True:
-            msgs.warn("Heliocentric correction will not be applied if an extracted science frame exists, and is used")
+            msgs.warn("{0:s} correction will not be applied if an extracted science frame exists, and is used".format(settings.argflag['reduce']['calibrate']['refframe']))
         msgs.info("Performing a {0:s} correction".format(settings.argflag['reduce']['calibrate']['refframe']))
         # Load the header for the science frame
         arwave.geomotion_correct(slf, det, fitsdict)
