@@ -99,7 +99,7 @@ class SpecObjExp(object):
     # Printing
     def __repr__(self):
         # Generate sets string
-        return ('[SpecObjExp: {:s} == Setup {:s} Object at {:g} in Slit at {:g} with det={:d}, scidx={:d} and objtype={:s}]'.format(
+        return ('<SpecObjExp: {:s} == Setup {:s} Object at {:g} in Slit at {:g} with det={:d}, scidx={:d} and objtype={:s}>'.format(
                 self.idx, self.config, self.xobj, self.slitcen, self.det, self.scidx, self.objtype))
 
 
