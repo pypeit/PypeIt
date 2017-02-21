@@ -328,9 +328,30 @@ def geomotion_calculate(slf, fitsdict, idx):
 
 
 def geomotion_correct(slf, det, fitsdict):
+    """ Correct the wavelength of every pixel to a barycentric/heliocentric frame.
+
+    Parameters
+    ----------
+    slf : class
+      Science exposure class
+    det : int
+      Detector index
+    fitsdict : dict
+      Dictionary containing the properties of every fits file
+
+    Returns
+    -------
+    vel : float
+      The velocity correction that should be applied to the wavelength array.
+    vel_corr : float
+      The relativistic velocity correction that should be multiplied by the
+      wavelength array to convert each wavelength into the user-spewcified
+      reference frame.
+
+    """
     # Calculate
-    helio = geomotion_calculate(slf, fitsdict, slf._idx_sci[0])
-    hel_corr = np.sqrt((1. + helio/299792.458) / (1. - helio/299792.458))
+    vel = geomotion_calculate(slf, fitsdict, slf._idx_sci[0])
+    vel_corr = np.sqrt((1. + vel/299792.458) / (1. - vel/299792.458))
 
     # Loop on objects
     for specobj in slf._specobjs[det-1]:
@@ -341,9 +362,9 @@ def geomotion_correct(slf, det, fitsdict):
             if 'wave' in getattr(specobj, attr).keys():
                 msgs.info("Applying helio correction to {:s} extraction for object {:s}".format(
                         attr, str(specobj)))
-                getattr(specobj, attr)['wave'] = getattr(specobj, attr)['wave'] * hel_corr
+                getattr(specobj, attr)['wave'] = getattr(specobj, attr)['wave'] * vel_corr
     # Return
-    return helio, hel_corr  # Mainly for debugging
+    return vel, vel_corr  # Mainly for debugging
 
 
 def geomotion_velocity(time, skycoord, frame="heliocentric"):
@@ -358,6 +379,8 @@ def geomotion_velocity(time, skycoord, frame="heliocentric"):
       The time of observation, including the location.
     skycoord: astropy.coordinates.SkyCoord
       The RA and DEC of the pointing, as a SkyCoord quantity.
+    frame : str
+      The reference frame that should be used for the calculation.
 
     Returns
     -------
