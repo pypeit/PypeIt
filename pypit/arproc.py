@@ -295,41 +295,41 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
                 msk, cf = arutils.robust_polyfit(txpix, typix, 0, sigma=rejsigma)
                 maskpix[wpix] = msk
                 #fitcls[i] = cf[0]
-                wgd=np.where(msk==0)
+                wgd=np.where(msk == 0)
                 szt = np.size(wgd[0])
                 if szt > 8:
-                    fitcls[i] = np.mean(typix[wgd][szt/2-3:szt/2+4]) # Average the 7 middle pixels
+                    fitcls[i] = np.mean(typix[wgd][szt//2-3:szt//2+4]) # Average the 7 middle pixels
                     #fitcls[i] = np.mean(np.random.shuffle(typix[wgd])[:5]) # Average the 5 random pixels
                 else:
                     fitcls[i] = cf[0]
     else:
         msgs.work("Speed up this step in cython")
         for i in range(sciframe.shape[0]-1):
-            wpix = np.where((sxvpix>=edges[i]) & (sxvpix<=edges[i+1]))
+            wpix = np.where((sxvpix >= edges[i]) & (sxvpix <= edges[i+1]))
             typix = sscipix[wpix]
             szt = typix.size
             if szt > 8:
-                fitcls[i] = np.mean(typix[szt/2-3:szt/2+4]) # Average the 7 middle pixels
+                fitcls[i] = np.mean(typix[szt//2-3:szt//2+4])  # Average the 7 middle pixels
             elif szt != 0:
                 fitcls[i] = np.mean(typix)
             else:
                 fitcls[i] = 0.0
         # Trace the sky lines to get a better estimate of the tilts
         scicopy = sciframe.copy()
-        scicopy[np.where(ordpix==0)] = maskval
+        scicopy[np.where(ordpix == 0)] = maskval
         scitilts, _ = artrace.model_tilt(slf, det, scicopy, guesstilts=tilts.copy(), censpec=fitcls, maskval=maskval, plotQA=True)
         xvpix  = scitilts[whord]
         scipix = sciframe[whord]
         varpix = varframe[whord]
         mskpix = tracemask[whord]
-        xargsrt = np.argsort(xvpix,kind='mergesort')
+        xargsrt = np.argsort(xvpix, kind='mergesort')
         sxvpix  = xvpix[xargsrt]
         sscipix = scipix[xargsrt]
         svarpix = varpix[xargsrt]
         maskpix = mskpix[xargsrt]
     # Check the mask is reasonable
     scimask = sciframe.copy()
-    rxargsrt = np.argsort(xargsrt,kind='mergesort')
+    rxargsrt = np.argsort(xargsrt, kind='mergesort')
     scimask[whord] *= (1.0-maskpix)[rxargsrt]
     #arutils.ds9plot(scimask)
     # Now trace the sky lines to get a better estimate of the spectral tilt during the observations
