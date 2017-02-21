@@ -422,7 +422,7 @@ class ScienceExposure:
                             arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
                                               self._slitpix[det - 1], desc="Slit profile")
                         msgs.info("Saving blaze function QA")
-                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function", textplt="Order")
+                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
                 return False
             ###############
             # Generate a master pixel flat frame
@@ -482,7 +482,7 @@ class ScienceExposure:
                             arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
                                               self._slitpix[det - 1], desc="Slit profile")
                         msgs.info("Saving blaze function QA")
-                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function", textplt="Order")
+                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
             else:  # It must be the name of a file the user wishes to load
                 mspixelflat_name = armasters.user_master_name(settings.argflag['run']['directory']['master'],
                                                               settings.argflag['reduce']['flatfield']['useframe'])
@@ -773,7 +773,12 @@ class ScienceExposure:
                 self._msstd[det-1]['RA'] = fitsdict['ra'][ind[0]]
                 self._msstd[det-1]['DEC'] = fitsdict['dec'][ind[0]]
             #debugger.set_trace()
-            arproc.reduce_frame(self, sciframe, ind[0], fitsdict, det, standard=True)
+            if settings.spect["mosaic"]["reduction"] == "ARMLSD":
+                arproc.reduce_multislit(self, sciframe, ind[0], fitsdict, det, standard=True)
+            elif settings.spect["mosaic"]["reduction"] == "ARMED":
+                arproc.reduce_echelle(self, sciframe, ind[0], fitsdict, det, standard=True)
+            else:
+                msgs.error("Not ready for reduction type {0:s}".format(settings.spect["mosaic"]["reduction"]))
 
             #
             all_specobj += self._msstd[det-1]['spobjs']

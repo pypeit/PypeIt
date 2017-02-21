@@ -204,22 +204,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             sciframe = sciframe[:, :, 0]
             # Extract
             msgs.info("Processing science frame")
-            arproc.reduce_frame(slf, sciframe, scidx, fitsdict, det)
-
-            #continue
-            #msgs.error("UP TO HERE")
-            ###############
-            # Perform a velocity correction
-            if (settings.argflag['reduce']['calibrate']['refframe'] == 'heliocentric') & False:
-                if settings.argflag['science']['extraction']['reuse'] == True:
-                    msgs.warn("Heliocentric correction will not be applied if an extracted science frame exists, and is used")
-                msgs.work("Perform a full barycentric correction")
-                msgs.work("Include the facility to correct for gravitational redshifts and time delays (see Pulsar timing work)")
-                msgs.info("Performing a heliocentric correction")
-                # Load the header for the science frame
-                #slf._waveids = arvcorr.helio_corr(slf, scidx[0])
-            else:
-                msgs.info("A heliocentric correction will not be performed")
+            arproc.reduce_multislit(slf, sciframe, scidx, fitsdict, det)
 
             ###############
             # Using model sky, calculate a flexure correction
