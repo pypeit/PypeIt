@@ -836,7 +836,6 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     else: crmask = np.zeros(sciframe.shape)
     # Mask
     slf.update_sci_pixmask(det, crmask, 'CR')
-    msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
     ###############
     # Estimate Sky Background
     if settings.argflag['reduce']['skysub']['perform']:
