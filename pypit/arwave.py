@@ -362,7 +362,7 @@ def geomotion_correct(slf, det, fitsdict):
             if 'wave' in getattr(specobj, attr).keys():
                 msgs.info("Applying helio correction of {:g} km/s to {:s} extraction for object {:s}".format(
                         vel_corr, attr, str(specobj)))
-                getattr(specobj, attr)['wave'] = getattr(specobj, attr)['wave'] * hel_corr
+                getattr(specobj, attr)['wave'] = getattr(specobj, attr)['wave'] * vel_corr
     # Return
     return vel, vel_corr  # Mainly for debugging
 
