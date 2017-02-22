@@ -5,7 +5,6 @@ from __future__ import (absolute_import, division, print_function, unicode_liter
 import sys
 import numpy as np
 from astropy.time import Time
-import datetime
 from matplotlib.backends.backend_pdf import PdfPages
 # Import PYPIT routines
 from pypit import arparse as settings
@@ -52,6 +51,7 @@ class ScienceExposure:
         self.sc = snum
 
         # Set the base name and extract other names that will be used for output files
+        #  Also parses the time input
         self.SetBaseName(fitsdict)
 
         # Initialize the QA for this science exposure
@@ -122,26 +122,44 @@ class ScienceExposure:
         fitsdict : dict
           Contains relevant information from fits header files
         """
+        import datetime
+        #
         scidx = self._idx_sci[0]
+        tbname = None
         try:
-            "T" in fitsdict['date'][scidx]
+            if "T" in fitsdict['date'][scidx]:
+                tbname = fitsdict['date'][scidx]
         except IndexError:
             debugger.set_trace()
+        else:
+            if tbname is None:
+                if settings.spect["fits"]["timeunit"] == "mjd":
+                    # Not ideal, but convert MJD into a date+time
+                    timval = Time(fitsdict['time'][scidx] / 24.0, scale='tt', format='mjd')
+                    tbname = timval.isot
+                else:
+                    # Really not ideal... just append date and time
+                    tbname = fitsdict['date'][scidx] + "T" + str(fitsdict['time'][scidx])
+        '''
         if "T" in fitsdict['date'][scidx]:
             tbname = fitsdict['date'][scidx]
         else:
             # Not ideal, but convert MJD into a date+time
+            debugger.set_trace() # CANNOT GET HERE
             timval = Time(fitsdict['time'][scidx]/24.0, scale='tt', format='mjd')
             tbname = timval.isot
-        try:
-            tval = datetime.datetime.strptime(tbname, '%Y-%m-%dT%H:%M:%S.%f')
-        except ValueError:
-            tval = datetime.datetime.strptime(tbname, '%Y-%m-%dT%H:%M:%S')
+        '''
+        tval = Time(tbname, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
+        dtime = datetime.datetime.strptime(tval.value, '%Y-%m-%dT%H:%M:%S.%f')
+        #except ValueError:
+            #tval = datetime.datetime.strptime(tbname, '%Y-%m-%dT%H:%M:%S')
         self._inst_name = settings.spect['mosaic']['camera']
         self._target_name = fitsdict['target'][self._idx_sci[0]].replace(" ", "")
         self._basename = self._target_name+'_'+self._inst_name+'_'+ \
-                         datetime.datetime.strftime(tval, '%Y%b%dT') + \
+                         datetime.datetime.strftime(dtime, '%Y%b%dT') + \
                          tbname.split("T")[1].replace(':','')
+        # Save Time object
+        self._time = tval
         return
 
     ###################################
