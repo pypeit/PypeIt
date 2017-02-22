@@ -51,8 +51,9 @@ def test_match_science(fitsdict):
     # Load
     settings.argflag['run']['setup'] = True  # Over-ride default numbers
     filesort = arsort.sort_data(fitsdict)
+    setup_ftag = dict(standard=1, bias=0, dark=0, pixelflat=0, pinhole=0, trace=0, arc=1)
     # Match and test
-    arsort.match_science(fitsdict, filesort)
+    arsort.match_science(fitsdict, filesort, setup_ftag=setup_ftag)
     assert settings.spect['arc']['index'][1][0] == 1
     assert settings.spect['standard']['index'][1][0] == 4
     assert len(settings.spect['trace']['index'][0]) == 2
