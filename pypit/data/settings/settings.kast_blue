@@ -29,7 +29,7 @@ check 01.NAXIS 2                       # THIS IS A MUST! It performs a standard 
 check 01.DSENSOR Fairchild CCD 3041 2Kx2K          # Check the CCD name (replace any spaces with underscores)
 
 ### Keyword Identifiers
-keyword time 01.TSEC                   # A time stamp of the observation; not sure what this is really..
+keyword time 01.TSEC                   # A time stamp of the observation; used to find calibrations proximate to science frames. The units of this value are specified by fits+timeunit below
 keyword naxis0 01.NAXIS2               # Number of pixels along the zeroth axis
 keyword naxis1 01.NAXIS1               # Number of pixels along the first axis
 #keyword filter1 01.RDFILT_N            # Filter 1

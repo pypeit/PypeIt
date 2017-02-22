@@ -1,11 +1,11 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import numpy as np
-from scipy import ndimage
 from scipy import interpolate
 
 from linetools.spectra import xspectrum1d
-from astropy.io import fits
+from astropy.coordinates import SkyCoord, solar_system, EarthLocation, ICRS, UnitSphericalRepresentation, CartesianRepresentation
+from astropy.time import Time
 from astropy import units as u
 
 from pypit import ararc
@@ -309,29 +309,107 @@ def flexure_obj(slf, det):
     return flex_dict
 
 
-def helio_corr(slf, det, fitsdict):
+def geomotion_calculate(slf, fitsdict, idx):
+    """
+    Correct the wavelength calibration solution to the desired reference frame
+    """
 
-    from pypit import arvcorr
+    frame = settings.argflag["reduce"]["calibrate"]["refframe"]
+    lat = settings.spect['mosaic']['latitude']
+    lon = settings.spect['mosaic']['longitude']
+    alt = settings.spect['mosaic']['elevation']
+    loc = (lon * u.deg, lat * u.deg, alt * u.m,)
+
+    radec = SkyCoord(fitsdict["ra"][idx], fitsdict["dec"][idx], unit=(u.hourangle, u.deg), frame='fk5')
+    obstime = Time(slf._time.value, format=slf._time.format, scale='utc', location=loc)
+
+    vcorr = geomotion_velocity(obstime, radec, frame=frame)
+    return vcorr
+
+
+def geomotion_correct(slf, det, fitsdict):
+    """ Correct the wavelength of every pixel to a barycentric/heliocentric frame.
+
+    Parameters
+    ----------
+    slf : class
+      Science exposure class
+    det : int
+      Detector index
+    fitsdict : dict
+      Dictionary containing the properties of every fits file
+
+    Returns
+    -------
+    vel : float
+      The velocity correction that should be applied to the wavelength array.
+    vel_corr : float
+      The relativistic velocity correction that should be multiplied by the
+      wavelength array to convert each wavelength into the user-spewcified
+      reference frame.
+
+    """
     # Calculate
-    helio = arvcorr.calculate(slf, fitsdict, slf._idx_sci[0])
-    hel_corr = np.sqrt( (1. + helio/299792.458) / (1. - helio/299792.458) )
+    vel = geomotion_calculate(slf, fitsdict, slf._idx_sci[0])
+    vel_corr = np.sqrt((1. + vel/299792.458) / (1. - vel/299792.458))
 
     # Loop on objects
     for specobj in slf._specobjs[det-1]:
         # Loop on extraction methods
         for attr in ['boxcar', 'optimal']:
-            if not hasattr(specobj,attr):
+            if not hasattr(specobj, attr):
                 continue
             if 'wave' in getattr(specobj, attr).keys():
                 msgs.info("Applying helio correction of {:g} km/s to {:s} extraction for object {:s}".format(
-                        helio, attr, str(specobj)))
+                        vel_corr, attr, str(specobj)))
                 getattr(specobj, attr)['wave'] = getattr(specobj, attr)['wave'] * hel_corr
     # Return
-    return helio, hel_corr  # Mainly for debugging
+    return vel, vel_corr  # Mainly for debugging
+
+
+def geomotion_velocity(time, skycoord, frame="heliocentric"):
+    """ Perform a barycentric/heliocentric velocity correction.
+
+    For the correciton, this routine uses the ephemeris:  astropy.coordinates.solar_system_ephemeris.set
+    For more information see `~astropy.coordinates.solar_system_ephemeris`.
+
+    Parameters
+    ----------
+    time : astropy.time.Time
+      The time of observation, including the location.
+    skycoord: astropy.coordinates.SkyCoord
+      The RA and DEC of the pointing, as a SkyCoord quantity.
+    frame : str
+      The reference frame that should be used for the calculation.
+
+    Returns
+    -------
+    vcorr : float
+      The velocity correction that should be added to the original velocity.
+    """
+
+    # Check that the RA/DEC of the object is ICRS compatible
+    if not skycoord.is_transformable_to(ICRS()):
+        msgs.error("Cannot transform RA/DEC of object to the ICRS")
+
+    # Calculate ICRS position and velocity of Earth's geocenter
+    ep, ev = solar_system.get_body_barycentric_posvel('earth', time)
+    # Calculate GCRS position and velocity of observatory
+    op, ov = time.location.get_gcrs_posvel(time)
+    # ICRS and GCRS are axes-aligned. Can add the velocities
+    velocity = ev + ov
+    if frame == "heliocentric":
+        # ICRS position and velocity of the Sun
+        sp, sv = solar_system.get_body_barycentric_posvel('sun', time)
+        velocity += sv
+
+    # Get unit ICRS vector in direction of SkyCoord
+    sc_cartesian = skycoord.icrs.represent_as(UnitSphericalRepresentation).represent_as(CartesianRepresentation)
+    return sc_cartesian.dot(velocity).to(u.km / u.s).value
 
 
 def airtovac(wave):
-    """Convert air-based wavelengths to vacuum
+    """ Convert air-based wavelengths to vacuum
 
     Parameters:
     ----------
