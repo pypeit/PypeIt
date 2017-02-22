@@ -349,7 +349,7 @@ def sort_write(fitsdict, filesort, space=3):
     return ascii_tbl
 
 
-def match_science(fitsdict, filesort, setup_ftag=None):
+def match_science(fitsdict, filesort):
     """
     For a given set of identified data, match calibration frames to science frames
 
@@ -363,8 +363,7 @@ def match_science(fitsdict, filesort, setup_ftag=None):
 
     msgs.info("Matching calibrations to Science frames")
     ftag = ['standard', 'bias', 'dark', 'pixelflat', 'pinhole', 'trace', 'arc']
-    if setup_ftag is None:
-        setup_ftag = dict(standard=0, bias=0, dark=0, pixelflat=0, pinhole=0, trace=0, arc=1)
+    setup_ftag = dict(standard=0, bias=0, dark=0, pixelflat=0, pinhole=0, trace=0, arc=1)
     nfiles = fitsdict['filename'].size
     iSCI = filesort['science']
     iSTD = filesort['standard']
