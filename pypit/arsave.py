@@ -501,19 +501,20 @@ def save_obj_info(slf, fitsdict, clobber=True):
             is2n = np.median(sext['counts']*np.sqrt(ivar))
             s2n.append(is2n)
 
-    # Generate the table
-    obj_tbl = Table()
-    obj_tbl['name'] = names
-    obj_tbl['box_width'] = boxsize
-    obj_tbl['box_width'].format = '.2f'
-    obj_tbl['box_width'].unit = u.arcsec
-    obj_tbl['opt_fwhm'] = opt_fwhm
-    obj_tbl['opt_fwhm'].format = '.3f'
-    obj_tbl['opt_fwhm'].unit = u.arcsec
-    obj_tbl['s2n'] = s2n
-    obj_tbl['s2n'].format = '.2f'
-    # Write
-    obj_tbl.write(settings.argflag['run']['directory']['science']+'/objinfo_{:s}.txt'.format(slf._basename), format='ascii.fixed_width')
+    # Generate the table, if we have at least one source
+    if len(names) > 0:
+        obj_tbl = Table()
+        obj_tbl['name'] = names
+        obj_tbl['box_width'] = boxsize
+        obj_tbl['box_width'].format = '.2f'
+        obj_tbl['box_width'].unit = u.arcsec
+        obj_tbl['opt_fwhm'] = opt_fwhm
+        obj_tbl['opt_fwhm'].format = '.3f'
+        obj_tbl['opt_fwhm'].unit = u.arcsec
+        obj_tbl['s2n'] = s2n
+        obj_tbl['s2n'].format = '.2f'
+        # Write
+        obj_tbl.write(settings.argflag['run']['directory']['science']+'/objinfo_{:s}.txt'.format(slf._basename), format='ascii.fixed_width', overwrite=True)
 
 def save_2d_images(slf, fitsdict, clobber=True):
     """ Write 2D images to the hard drive
