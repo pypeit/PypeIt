@@ -226,6 +226,10 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['b1']= 2.72694493e-04
             arcparam['b2']= -5.30717321e-09
             arcparam['wvmnx'][1] = 6000.
+        elif disperser == '300/5000':
+            arcparam['n_first'] = 2
+            arcparam['wv_cen'] = 4500.
+            arcparam['disp'] = 1.43
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='lris_red':
