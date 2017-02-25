@@ -18,6 +18,7 @@ from pypit import arparse as settings
 def fitsdict():
     return arutils.dummy_fitsdict()
 
+
 def test_sort_data(fitsdict):
     """ Test sort_data
     """
@@ -48,7 +49,7 @@ def test_match_science(fitsdict):
     """
     arutils.dummy_settings(spectrograph='kast_blue', set_idx=False)
     # Load
-    settings.argflag['run']['setup'] = True # Over-ride default numbers
+    settings.argflag['run']['setup'] = True  # Over-ride default numbers
     filesort = arsort.sort_data(fitsdict)
     # Match and test
     arsort.match_science(fitsdict, filesort)
