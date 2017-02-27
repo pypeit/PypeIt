@@ -156,4 +156,4 @@ arc match dispangle |<=10              # Match the cross-disperser angle (an unc
 arc check condition2 exptime>0
 
 # Make some changes to the arguments and flags
-settings trace dispersion direction 1
+settings trace dispersion direction 0
