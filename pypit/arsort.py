@@ -884,9 +884,18 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
               #'naxis0': naxis0,
               #'naxis1': naxis1}
 
+    def chk_key(val1, val2, tol=1e-3):
+        if isinstance(val1,float):
+            if np.isclose(val1,val2,rtol=tol):
+                return True
+            else:
+                return False
+        else:
+            return val1 == val2
+
     # Configuration
     setup = None
-    if len(setup_dict) == 0: # Generate
+    if len(setup_dict) == 0: #  New one, generate
         if config_name is None:
             setup = 'A'
         else:
@@ -894,16 +903,16 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
         # Finish
         setup_dict[setup] = {}
         setup_dict[setup][cstr] = cdict
-    else:
+    else:  # Is it new?
         for ckey in setup_dict.keys():
             mtch = True
             for key in setup_dict[ckey][cstr].keys():
                 # Dict?
                 if isinstance(setup_dict[ckey][cstr][key], dict):
                     for ikey in setup_dict[ckey][cstr][key].keys():
-                        mtch &= setup_dict[ckey][cstr][key][ikey] == cdict[key][ikey]
+                        mtch &= chk_key(setup_dict[ckey][cstr][key][ikey],cdict[key][ikey])
                 else:
-                    mtch &= setup_dict[ckey][cstr][key] == cdict[key]
+                    mtch &= chk_key(setup_dict[ckey][cstr][key], cdict[key])
             if mtch:
                 setup = ckey
                 break
