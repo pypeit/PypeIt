@@ -139,7 +139,7 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
 
     #Create array around the max of the correlation function for fitting for subpixel max
     # Restrict to pixels within maxshift of zero lag
-    lag0 = corr.size/2
+    lag0 = corr.size//2
     mxshft = settings.argflag['reduce']['flexure']['maxshift']
     max_corr = np.argmax(corr[lag0-mxshft:lag0+mxshft]) + lag0-mxshft
     subpix_grid = np.linspace(max_corr-3., max_corr+3., 7.)
@@ -290,8 +290,8 @@ def flexure_obj(slf, det):
             if not hasattr(specobj,attr):
                 continue
             if 'wave' in getattr(specobj, attr).keys():
-                msgs.info("Applying flexure correction to {:s} extraction for object {:s}".format(
-                    attr, str(specobj)))
+                msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) + msgs.newline() +
+                          "{0:s}".format(str(specobj)))
                 f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
                 getattr(specobj, attr)['wave'] = f(x+fdict['shift']/(npix-1))*u.AA
         # Shift sky spec too
@@ -349,6 +349,7 @@ def geomotion_correct(slf, det, fitsdict):
       reference frame.
 
     """
+    frame = settings.argflag["reduce"]["calibrate"]["refframe"]
     # Calculate
     vel = geomotion_calculate(slf, fitsdict, slf._idx_sci[0])
     vel_corr = np.sqrt((1. + vel/299792.458) / (1. - vel/299792.458))
@@ -360,8 +361,13 @@ def geomotion_correct(slf, det, fitsdict):
             if not hasattr(specobj, attr):
                 continue
             if 'wave' in getattr(specobj, attr).keys():
+<<<<<<< .merge_file_fSaccE
                 msgs.info("Applying helio correction of {:g} km/s to {:s} extraction for object {:s}".format(
                         vel_corr, attr, str(specobj)))
+=======
+                msgs.info("Applying {0:s} correction to {1:s} extraction for object:".format(frame, attr) +
+                          msgs.newline() + "{0:s}".format(str(specobj)))
+>>>>>>> .merge_file_S7rfN4
                 getattr(specobj, attr)['wave'] = getattr(specobj, attr)['wave'] * vel_corr
     # Return
     return vel, vel_corr  # Mainly for debugging

@@ -82,8 +82,10 @@ def archive():
         else:
             msgs.info("Current archive file {:s} matches current settings file".format(arch_root))
 
+
 def archive_instr():
     pass
+
 
 def argf_diff_and_dup():
     """ Compares default argf values against those in the ARMLSD and AMRED files

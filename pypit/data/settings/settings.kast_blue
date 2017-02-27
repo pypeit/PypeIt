@@ -75,40 +75,42 @@ fits calwin 12.0                    # The window of time in hours to search for 
 fits numlamps 16                    # How many lamps are there listed in the header
 
 ### Science frames
-science check condition5 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off
+science check condition1 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off
+science check condition2 exptime>1     #
 
 ### Standard Star frames
-standard check condition5 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off
+standard check condition1 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off
 standard match naxis0 =0             # Match the shape of standard and science frames
 standard match naxis1 =0             # Match the shape of standard and science frames
 
 ### Bias/Dark frames
-bias check condition5 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off
+bias check condition1 exptime<1     # Required for bias
 bias match naxis0 =0                # Match the shape of bias and science frames
 bias match naxis1 =0                # Match the shape of bias and science frames
 
 ### Pixel Flat frames
-pixelflat check condition5 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
-pixelflat check condition6 exptime>0  # Required to avoid bias
+pixelflat check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
+pixelflat check condition2 exptime>0     # Required for bias
 pixelflat match naxis0 =0             # Match the shape of flats with science
 pixelflat match naxis1 =0             # Match the shape of flats with science
+pixelflat match decker ''             # Check the same decker as the science frame was used
 
 ### Pinhole frames
-pinhole check condition99 exptime>999999 # Avoids any pinhole frames
+pinhole check condition1 exptime>999999 # Avoids any pinhole frames
 
 ### Dark frames
-dark check condition99 exptime>999999    # Avoids darks
+dark check condition1 exptime>999999 # Avoids any dark frames
 
 ### Trace frames
-trace check condition5 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
-trace check condition6 exptime>0  # Required to avoid bias
+trace check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
+trace check condition2 exptime>0  # Required for bias
 trace match naxis0 =0             # Match the shape of flats with science
 trace match naxis1 =0             # Match the shape of flats with science
+trace match decker ''             # Check the same decker as the science frame was used
 
 ### Arc frames
-arc check condition1 exptime<=60    # Lamps are faint
-arc check condition5 lampstat06=on|lampstat07=on|lampstat08=on|lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on|lampstat13=on|lampstat14=on|lampstat15=on|lampstat16=on
-arc match decker any                # People frequently use a more narrow slit
+arc check condition1 lampstat06=on|lampstat07=on|lampstat08=on|lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on|lampstat13=on|lampstat14=on|lampstat15=on|lampstat16=on
+arc check condition2 exptime<=60    # Lamps are faint
 arc match naxis0 =0                 # Match the shape of arcs with science
 arc match naxis1 =0                 # Match the shape of arcs with science
 
