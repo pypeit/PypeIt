@@ -87,7 +87,7 @@ def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
     -------
     """
     from pypit import arutils
-    invvar = (var > 0.)/(var + (var <= 0.))
+    invvar = (var > 0.)/(np.max(var,0))
     nx = wave.size
     pos_error = 1./np.sqrt(np.maximum(invvar,0.) + (invvar == 0))
     pos_mask = (flux > pos_error/10.0) & (invvar > 0) & (flux_std > 0.0)
@@ -441,10 +441,7 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
     msk[tell] = False
 
     # Fit in magnitudes
-    # trying to fix bspline problem
-    var_corr[msk == False] = 0.
-    print(var_corr)
-    #var_corr[msk == False] = -1.
+    var_corr[msk == False] = -1.
     mag_tck = bspline_magfit(wave.value, flux_corr, var_corr, flux_true,
                              bkspace=resln.value*nresln)
     sens_dict = dict(c=mag_tck, func='bspline',min=None,max=None, std=std_dict)
