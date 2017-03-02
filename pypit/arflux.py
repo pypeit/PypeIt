@@ -49,7 +49,7 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
             msgs.info("Fluxing {:s} extraction for {}".format(extract_type, spobj))
             wave = extract['wave']  # for convenience
             scale = np.zeros(wave.size)
-            # Allow for some extrapolation 
+            # Allow for some extrapolation
             dwv = slf._sensfunc['wave_max']-slf._sensfunc['wave_min']
             inds = ((wave >= slf._sensfunc['wave_min']-dwv*MAX_EXTRAP)
                     & (wave <= slf._sensfunc['wave_max']+dwv*MAX_EXTRAP))
@@ -103,7 +103,7 @@ def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
 
     # Interpolate over masked pixels
     if not nointerp:
-        bad = logivar <= 0. 
+        bad = logivar <= 0.
         if np.sum(bad) > 0:
             f = scipy.interpolate.InterpolatedUnivariateSpline(wave[~bad], magfunc[~bad], k=2)
             magfunc[bad] = f(wave[bad])
@@ -177,7 +177,7 @@ def extinction_correction(wave, airmass, extinct):
         extinct['mag_ext'], bounds_error=False, fill_value=0.)
     mag_ext = f_mag_ext(wave.to('AA').value)
 
-    # Deal with outside wavelengths 
+    # Deal with outside wavelengths
     gdv = np.where(mag_ext > 0.)[0]
     if len(gdv) == 0:
         msgs.error("None of the input wavelengths are in the extinction correction range.  Presumably something was input wrong.")
@@ -247,8 +247,8 @@ def find_standard_file(radec, toler=20.*u.arcmin, check=False):
             mind2d = d2d[imind2d]
             if mind2d < closest['sep']:
                 closest['sep'] = mind2d
-                closest.update(dict(name=star_tbl[int(idx)]['Name'], 
-                    ra=star_tbl[int(idx)]['RA_2000'], 
+                closest.update(dict(name=star_tbl[int(idx)]['Name'],
+                    ra=star_tbl[int(idx)]['RA_2000'],
                     dec=star_tbl[int(idx)]['DEC_2000']))
     # Standard star not found
     if check: return False
@@ -310,7 +310,7 @@ def load_extinction_data(toler=5.*u.deg):
         extinct_file = extinct_files[int(idx)]['File']
         msgs.info("Using {:s} for extinction corrections.".format(extinct_file))
     else:
-        msgs.warn("No file found for extinction corrections.  Applying none") 
+        msgs.warn("No file found for extinction corrections.  Applying none")
         msgs.warn("You should generate a site-specific file")
         return None
     # Read
@@ -369,10 +369,10 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
     specobjs : list
       List of spectra
     BALM_MASK_WID : float
-      Mask parameter for Balmer absorption.  A region equal to 
-      BALM_MASK_WID*resln is masked wher resln is the estimate 
+      Mask parameter for Balmer absorption.  A region equal to
+      BALM_MASK_WID*resln is masked wher resln is the estimate
       for the spectral resolution.
-    nresln : int  
+    nresln : int
       Number of resolution elements for break-point placement
 
     Returns
@@ -415,7 +415,7 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
     # Mask bad pixels
     msk[var_corr <= 0.] = False
 
-    # Mask edges 
+    # Mask edges
     msk[flux_true <= 0.] = False
     msk[:10] = False
     msk[-10:] = False
@@ -423,7 +423,7 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
 
     # Mask Balmer
     # Compute an effective resolution for the standard. This could be improved
-    # to setup an array of breakpoints based on the resolution. At the 
+    # to setup an array of breakpoints based on the resolution. At the
     # moment we are using only one number
     msgs.warn("Should pull resolution from arc line analysis")
     std_res = 2.0*np.median(np.abs(wave - np.roll(wave, 1)))
@@ -431,7 +431,7 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
 
     msgs.info("Masking Balmer")
     lines_balm = np.array([3836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7, 5407.0, 6564.6, 8224.8, 8239.2])*u.AA
-    for line_balm in lines_balm: 
+    for line_balm in lines_balm:
       ibalm = np.abs(wave-line_balm) <= BALM_MASK_WID*resln
       msk[ibalm] = False
 
@@ -441,11 +441,14 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
     msk[tell] = False
 
     # Fit in magnitudes
-    var_corr[msk == False] = -1.
+    # trying to fix bspline problem
+    var_corr[msk == False] = 0.
+    print(var_corr)
+    #var_corr[msk == False] = -1.
     mag_tck = bspline_magfit(wave.value, flux_corr, var_corr, flux_true,
                              bkspace=resln.value*nresln)
     sens_dict = dict(c=mag_tck, func='bspline',min=None,max=None, std=std_dict)
     # Add in wavemin,wavemax
-    sens_dict['wave_min'] = np.min(wave) 
-    sens_dict['wave_max'] = np.max(wave) 
+    sens_dict['wave_min'] = np.min(wave)
+    sens_dict['wave_max'] = np.max(wave)
     return sens_dict
