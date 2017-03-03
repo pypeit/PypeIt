@@ -274,7 +274,10 @@ def setup_param(slf, sc, det, fitsdict):
     else:
         msgs.error('ararc.setup_param: Not ready for this instrument {:s}!'.format(sname))
     # Load linelist
-    arcparam['lamps'] = lamps
+    if settings.argflag['arc']['calibrate']['lamps'] is not None:
+        arcparam['lamps'] = settings.argflag['arc']['calibrate']['lamps']
+    else:
+        arcparam['lamps'] = lamps
     slmps = lamps[0]
     for lamp in lamps[1:]:
         slmps=slmps+','+lamp

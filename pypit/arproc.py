@@ -880,7 +880,8 @@ def reduce_frame(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Flexure down the slit? -- Not currently recommended
     if settings.argflag['reduce']['flexure']['method'] == 'slitcen':
         flex_dict = arwave.flexure_slit(slf, det)
-        arqa.flexure(slf, det, flex_dict, slit_cen=True)
+        if not msgs._debug['no_qa']:
+            arqa.flexure(slf, det, flex_dict, slit_cen=True)
 
     ###############
     # Determine the final trace of the science objects

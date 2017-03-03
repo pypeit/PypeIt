@@ -407,8 +407,8 @@ def match_science(fitsdict, filesort):
                 chkk = settings.spect[ftag[ft]]['match'].keys()
                 for ch in chkk:
                     tmtch = settings.spect[ftag[ft]]['match'][ch]
-                    if ch == 'dispname':
-                        debugger.set_trace()
+                    #if ch == 'dispname':
+                    #    debugger.set_trace()
                     if tmtch == "any":
                         w = np.arange(len(fitsdict['filename'])).astype(int)
                     elif tmtch == "''":
