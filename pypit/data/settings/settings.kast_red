@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <<<<<<< .merge_file_WYBct2
 # New Hamamatsu detector
 # SIMPLE RULES:
@@ -30,6 +31,8 @@
 #
 =======
 >>>>>>> .merge_file_zqvYLG
+=======
+>>>>>>> 6c297f20604ce0269a68d0bb4eac0672ac66d4c6
 ### Detector properties
 mosaic ndet 1                         # Number of detectors in the mosaic
 mosaic latitude 37.3413889             # Latitude of the telescope

@@ -240,6 +240,11 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
             arcparam['wvmnx'][1] = 9000.
+        elif disperser == '600/10000':
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=0.80 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['wvmnx'][1] = 12000.
         elif disperser == '400/8500':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=1.16 # Ang per pixel (unbinned)
