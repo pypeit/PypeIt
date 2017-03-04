@@ -557,7 +557,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     binbpx = slf._bpix[det-1].copy()
     plxbin = slf._pixlocn[det-1][:, :, 0].copy()
     plybin = slf._pixlocn[det-1][:, :, 1].copy()
-    if False:
+    if msgs._debug["trace"]:
         # Use this for debugging
         binbpx = np.zeros(mstrace.shape, dtype=np.int)
         xs = np.arange(mstrace.shape[0] * 1.0) * settings.spect[dnum]['xgap']
