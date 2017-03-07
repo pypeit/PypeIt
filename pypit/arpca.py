@@ -71,10 +71,10 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
 
     numer = np.sum(sub, axis=0)
     denom = np.sum(outmask, axis=0)
-    x0 = np.zeros(float(ntrace))
-    fitmask = np.zeros(float(ntrace))
+    x0 = np.zeros(ntrace, dtype=np.float)
+    fitmask = np.zeros(ntrace, dtype=np.float)
     #fitmask[mask] = 1
-    x0fit = np.zeros(float(ntrace))
+    x0fit = np.zeros(ntrace, dtype=np.float)
     chisqnu = 0.0
     chisqold = 0.0
     robust = True
@@ -85,7 +85,7 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
             good = np.where(fitmask != 0)[0]
             bad = np.where(fitmask == 0)[0]
             x0[good] = numer[good]/denom[good]
-            imask = np.zeros(float(ntrace))
+            imask = np.zeros(ntrace, dtype=np.float)
             imask[bad] = 1.0
             ttmask, x0res = arutils.robust_polyfit(x0in, x0, pnpc[0], weights=weights, sigma=2.0,
                                                    function=function, minv=x0in[0], maxv=x0in[-1], initialmask=imask)

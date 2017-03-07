@@ -11,7 +11,6 @@ mosaic camera KASTb                   # Which reduction pipeline should be used 
 det01 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
 det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
 det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)
-det01 platescale 0.43                 # arcsec per pixel in the spatial dimension for an unbinned pixel
 det01 darkcurr 0.0                    # Dark current (e-/hour)
 det01 saturation 65535.0              # The detector Saturation level
 det01 nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
