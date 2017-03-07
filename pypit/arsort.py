@@ -390,97 +390,109 @@ def match_science(fitsdict, filesort):
             if ftag[ft] == 'bias' and settings.argflag['bias']['useframe'] != 'bias' and not settings.argflag['reduce']['badpix']:
                 msgs.info("  Bias frames not required")
                 continue
+            # How many frames are required
+            if settings.argflag['run']['setup']:
+                numfr = setup_ftag[ftag[ft]]
+            else:
+                numfr = settings.spect[ftag[ft]]['number']
+            if (numfr == 0) and (not settings.argflag['run']['setup']):
+                settings.spect[ftag[ft]]['index'].append(np.array([]))
+                msgs.info("No {0:s} frames are required".format(ftag[ft]))
+                continue
             # Now go ahead and match the frames
             n = np.arange(nfiles)
-            if 'match' not in settings.spect[ftag[ft]].keys():
+            if 'match' not in settings.spect[ftag[ft]].keys() and (not settings.argflag['run']['setup']):
                 debugger.set_trace()
-            chkk = settings.spect[ftag[ft]]['match'].keys()
-            for ch in chkk:
-                tmtch = settings.spect[ftag[ft]]['match'][ch]
-                if tmtch == "any":
-                    w = np.arange(len(fitsdict['filename'])).astype(int)
-                elif tmtch == "''":
-                    w = np.where(fitsdict[ch] == fitsdict[ch][iSCI[i]])[0]
-                elif tmtch[0] == '=':
-                    mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[1:])
-                    w = np.where((fitsdict[ch]).astype(np.float64) == mtch)[0]
-                elif tmtch[0] == '<':
-                    if tmtch[1] == '=':
-                        mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[2:])
-                        w = np.where((fitsdict[ch]).astype(np.float64) <= mtch)[0]
-                    else:
+            if not settings.argflag['run']['setup']:
+                chkk = settings.spect[ftag[ft]]['match'].keys()
+                for ch in chkk:
+                    tmtch = settings.spect[ftag[ft]]['match'][ch]
+                    #if ch == 'dispname':
+                    #    debugger.set_trace()
+                    if tmtch == "any":
+                        w = np.arange(len(fitsdict['filename'])).astype(int)
+                    elif tmtch == "''":
+                        w = np.where(fitsdict[ch] == fitsdict[ch][iSCI[i]])[0]
+                    elif tmtch[0] == '=':
                         mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[1:])
-                        w = np.where((fitsdict[ch]).astype(np.float64) < mtch)[0]
-                elif tmtch[0] == '>':
-                    if tmtch[1] == '=':
-                        mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[2:])
-                        w = np.where((fitsdict[ch]).astype(np.float64) >= mtch)[0]
-                    else:
-                        mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[1:])
-                        w = np.where((fitsdict[ch]).astype(np.float64) > mtch)[0]
-                elif tmtch[0] == '|':
-                    if tmtch[1] == '=':
-                        mtch = np.float64(tmtch[2:])
-                        w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) == mtch)[0]
-                    elif tmtch[1] == '<':
-                        if tmtch[2] == '=':
-                            mtch = np.float64(tmtch[3:])
-                            w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) <= mtch)[0]
+                        w = np.where((fitsdict[ch]).astype(np.float64) == mtch)[0]
+                    elif tmtch[0] == '<':
+                        if tmtch[1] == '=':
+                            mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[2:])
+                            w = np.where((fitsdict[ch]).astype(np.float64) <= mtch)[0]
                         else:
-                            mtch = np.float64(tmtch[2:])
-                            w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) < mtch)[0]
-                    elif tmtch[1] == '>':
-                        if tmtch[2] == '=':
-                            mtch = np.float64(tmtch[3:])
-                            w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) >= mtch)[0]
+                            mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[1:])
+                            w = np.where((fitsdict[ch]).astype(np.float64) < mtch)[0]
+                    elif tmtch[0] == '>':
+                        if tmtch[1] == '=':
+                            mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[2:])
+                            w = np.where((fitsdict[ch]).astype(np.float64) >= mtch)[0]
                         else:
+                            mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[1:])
+                            w = np.where((fitsdict[ch]).astype(np.float64) > mtch)[0]
+                    elif tmtch[0] == '|':
+                        if tmtch[1] == '=':
                             mtch = np.float64(tmtch[2:])
-                            w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) > mtch)[0]
-                elif tmtch[0:2] == '%,':  # Splitting a header keyword
-                    splcom = tmtch.split(',')
-                    try:
-                        spltxt, argtxt, valtxt = splcom[1], np.int(splcom[2]), splcom[3]
-                        tspl = []
-                        for sp in fitsdict[ch]:
+                            w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) == mtch)[0]
+                        elif tmtch[1] == '<':
+                            if tmtch[2] == '=':
+                                mtch = np.float64(tmtch[3:])
+                                w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) <= mtch)[0]
+                            else:
+                                mtch = np.float64(tmtch[2:])
+                                w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) < mtch)[0]
+                        elif tmtch[1] == '>':
+                            if tmtch[2] == '=':
+                                mtch = np.float64(tmtch[3:])
+                                w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) >= mtch)[0]
+                            else:
+                                mtch = np.float64(tmtch[2:])
+                                w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) > mtch)[0]
+                    elif tmtch[0:2] == '%,':  # Splitting a header keyword
+                        splcom = tmtch.split(',')
+                        try:
+                            spltxt, argtxt, valtxt = splcom[1], np.int(splcom[2]), splcom[3]
+                            tspl = []
+                            for sp in fitsdict[ch]:
+                                tmpspl = str(re.escape(spltxt)).replace("\\|", "|")
+                                tmpspl = re.split(tmpspl, sp)
+                                if len(tmpspl) < argtxt+1:
+                                    tspl.append("-9999999")
+                                else:
+                                    tspl.append(tmpspl[argtxt])
+                            tspl = np.array(tspl)
+    #                        debugger.set_trace()
                             tmpspl = str(re.escape(spltxt)).replace("\\|", "|")
-                            tmpspl = re.split(tmpspl, sp)
-                            if len(tmpspl) < argtxt+1:
-                                tspl.append("-9999999")
+                            tmpspl = re.split(tmpspl, fitsdict[ch][iSCI[i]])
+                            if len(tmpspl) < argtxt + 1:
+                                continue
                             else:
-                                tspl.append(tmpspl[argtxt])
-                        tspl = np.array(tspl)
-#                        debugger.set_trace()
-                        tmpspl = str(re.escape(spltxt)).replace("\\|", "|")
-                        tmpspl = re.split(tmpspl, fitsdict[ch][iSCI[i]])
-                        if len(tmpspl) < argtxt + 1:
+                                scispl = tmpspl[argtxt]
+                            if valtxt == "''":
+                                w = np.where(tspl == scispl)[0]
+                            elif valtxt[0] == '=':
+                                mtch = np.float64(scispl) + np.float64(valtxt[1:])
+                                w = np.where(tspl.astype(np.float64) == mtch)[0]
+                            elif valtxt[0] == '<':
+                                if valtxt[1] == '=':
+                                    mtch = np.float64(scispl) + np.float64(valtxt[2:])
+                                    w = np.where(tspl.astype(np.float64) <= mtch)[0]
+                                else:
+                                    mtch = np.float64(scispl) + np.float64(valtxt[1:])
+                                    w = np.where(tspl.astype(np.float64) < mtch)[0]
+                            elif valtxt[0] == '>':
+                                if valtxt[1] == '=':
+                                    mtch = np.float64(scispl) + np.float64(valtxt[2:])
+                                    w = np.where(tspl.astype(np.float64) >= mtch)[0]
+                                else:
+                                    mtch = np.float64(scispl) + np.float64(valtxt[1:])
+                                    w = np.where(tspl.astype(np.float64) > mtch)[0]
+                        except:
+                            debugger.set_trace()
                             continue
-                        else:
-                            scispl = tmpspl[argtxt]
-                        if valtxt == "''":
-                            w = np.where(tspl == scispl)[0]
-                        elif valtxt[0] == '=':
-                            mtch = np.float64(scispl) + np.float64(valtxt[1:])
-                            w = np.where(tspl.astype(np.float64) == mtch)[0]
-                        elif valtxt[0] == '<':
-                            if valtxt[1] == '=':
-                                mtch = np.float64(scispl) + np.float64(valtxt[2:])
-                                w = np.where(tspl.astype(np.float64) <= mtch)[0]
-                            else:
-                                mtch = np.float64(scispl) + np.float64(valtxt[1:])
-                                w = np.where(tspl.astype(np.float64) < mtch)[0]
-                        elif valtxt[0] == '>':
-                            if valtxt[1] == '=':
-                                mtch = np.float64(scispl) + np.float64(valtxt[2:])
-                                w = np.where(tspl.astype(np.float64) >= mtch)[0]
-                            else:
-                                mtch = np.float64(scispl) + np.float64(valtxt[1:])
-                                w = np.where(tspl.astype(np.float64) > mtch)[0]
-                    except:
-                        debugger.set_trace()
-                        continue
-                else:
-                    msgs.bug("Matching criteria {0:s} is not supported".format(tmtch))
-                n = np.intersect1d(n, w)  # n corresponds to all frames with matching instrument setup to science frames
+                    else:
+                        msgs.bug("Matching criteria {0:s} is not supported".format(tmtch))
+                    n = np.intersect1d(n, w)  # n corresponds to all frames with matching instrument setup to science frames
             # Find the time difference between the calibrations and science frames
             if settings.spect['fits']['calwin'] > 0.0:
                 tdiff = np.abs(fitsdict['time'][n].astype(np.float64)-np.float64(fitsdict['time'][iSCI[i]]))
@@ -488,11 +500,6 @@ def match_science(fitsdict, filesort):
                 n = n[w] # n corresponds to all frames within a set time difference of the science target frame
             # Now find which of the remaining n are the appropriate calibration frames
             n = np.intersect1d(n, iARR[ft])
-            # How many frames are required
-            if settings.argflag['run']['setup']:
-                numfr = setup_ftag[ftag[ft]]
-            else:
-                numfr = settings.spect[ftag[ft]]['number']
             if settings.argflag['output']['verbosity'] == 2:
                 if numfr == 1: areis = "is"
                 else: areis = "are"
@@ -508,15 +515,15 @@ def match_science(fitsdict, filesort):
                 # Errors for insufficient BIAS frames
                 if settings.argflag['bias']['useframe'].lower() == ftag[ft]:
                     msgs.warn("Expecting to use bias frames for bias subtraction. But insufficient frames found.")
-                    msgs.warn("Either include more frames or modify bias method")
-                    msgs.warn("  e.g.:   bias useframe overscan")
+                    msgs.warn("Either include more frames or modify bias method" + msgs.newline() +
+                              "  e.g.:   bias useframe overscan")
                     msgs.error("Unable to continue")
                 # Errors for insufficient PIXELFLAT frames
                 if ftag[ft] == 'pixelflat' and settings.argflag['reduce']['flatfield']['perform'] and (
                     settings.argflag['reduce']['flatfield']['useframe'] == 'pixelflat'):
-                    msgs.warn("Either include more frames or reduce the required amount with:")
-                    msgs.warn("     pixelflat number XX")
-                    msgs.warn("in the spect read/end block")
+                    msgs.warn("Either include more frames or reduce the required amount with:" + msgs.newline() +
+                              "pixelflat number XX" + msgs.newline() +
+                              "in the spect read/end block")
                     msgs.warn("Or specify a pixelflat file with --  reduce flatfield useframe file_name")
                     msgs.error("Unable to continue")
                 # Errors for insufficient PINHOLE frames
@@ -546,9 +553,9 @@ def match_science(fitsdict, filesort):
                 tdiff = np.abs(fitsdict['time'][n].astype(np.float64)-np.float64(fitsdict['time'][iSCI[i]]))
                 wa = np.argsort(tdiff)
                 if (settings.argflag['run']['setup']) or (numfr < 0):
-                    settings.spect[ftag[ft]]['index'].append(n[wa])
+                    settings.spect[ftag[ft]]['index'].append(n[wa].copy())
                 else:
-                    settings.spect[ftag[ft]]['index'].append(n[wa[:numfr]])
+                    settings.spect[ftag[ft]]['index'].append(n[wa[:numfr]].copy())
         i += 1
     msgs.info("Science frames successfully matched to calibration frames")
     return
@@ -744,7 +751,7 @@ def calib_set(isetup_dict, sciexp, fitsdict):
     new_cbset = {}
     cbkeys = ['arcs', 'bias', 'trace', 'flat', 'sci', 'cent']
     for cbkey in cbkeys:
-        nms = list(fitsdict['filename'][getattr(sciexp,'_idx_'+cbkey)])
+        nms = list(fitsdict['filename'][getattr(sciexp, '_idx_'+cbkey)])
         nms.sort()
         new_cbset[cbkey] = nms
 
@@ -884,9 +891,18 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
               #'naxis0': naxis0,
               #'naxis1': naxis1}
 
+    def chk_key(val1, val2, tol=1e-3):
+        if isinstance(val1,float):
+            if np.isclose(val1,val2,rtol=tol):
+                return True
+            else:
+                return False
+        else:
+            return val1 == val2
+
     # Configuration
     setup = None
-    if len(setup_dict) == 0: # Generate
+    if len(setup_dict) == 0: #  New one, generate
         if config_name is None:
             setup = 'A'
         else:
@@ -894,16 +910,16 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
         # Finish
         setup_dict[setup] = {}
         setup_dict[setup][cstr] = cdict
-    else:
+    else:  # Is it new?
         for ckey in setup_dict.keys():
             mtch = True
             for key in setup_dict[ckey][cstr].keys():
                 # Dict?
                 if isinstance(setup_dict[ckey][cstr][key], dict):
                     for ikey in setup_dict[ckey][cstr][key].keys():
-                        mtch &= setup_dict[ckey][cstr][key][ikey] == cdict[key][ikey]
+                        mtch &= chk_key(setup_dict[ckey][cstr][key][ikey],cdict[key][ikey])
                 else:
-                    mtch &= setup_dict[ckey][cstr][key] == cdict[key]
+                    mtch &= chk_key(setup_dict[ckey][cstr][key], cdict[key])
             if mtch:
                 setup = ckey
                 break

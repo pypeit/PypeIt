@@ -944,9 +944,9 @@ def rebin(frame, newshape):
     lenShape = len(shape)
     factor = np.asarray(shape)/np.asarray(newshape)
     evList = ['frame.reshape('] + \
-             ['newshape[%d],factor[%d],'%(i,i) for i in range(lenShape)] + \
-             [')'] + ['.sum(%d)'%(i+1) for i in range(lenShape)] + \
-             ['/factor[%d]'%i for i in range(lenShape)]
+             ['int(newshape[%d]),int(factor[%d]),'% (i, i) for i in range(lenShape)] + \
+             [')'] + ['.sum(%d)' % (i+1) for i in range(lenShape)] + \
+             ['/factor[%d]' % i for i in range(lenShape)]
     return eval(''.join(evList))
 
 

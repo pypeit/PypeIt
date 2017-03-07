@@ -18,6 +18,7 @@ msgs = pyputils.get_dummy_logger()
 sys.path.append(os.path.abspath(pypit.__path__[0]+"/data/settings"))
 import settings as py_sett
 
+
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)

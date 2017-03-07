@@ -482,9 +482,12 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['ArI', 'CdI', 'HgI', 'HeI', 'KrI', 'NeI', 'XeI', 'ZnI', 'ThAr']
-        v = key_list_allowed(v, allowed)
-        self.update(v)
+        if v == 'None':
+            self.update(None)
+        else:
+            allowed = ['ArI', 'CdI', 'HgI', 'HeI', 'KrI', 'NeI', 'XeI', 'ZnI', 'ThAr', 'None']
+            v = key_list_allowed(v, allowed)
+            self.update(v)
 
     def arc_calibrate_method(self, v):
         """ What method should be used to fit the individual arc lines.
@@ -973,8 +976,8 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['geocentric', 'heliocentric', 'barycentric']
-        v = key_allowed(v, allowed)
+        allowed = ['heliocentric', 'barycentric']
+        v = key_none_allowed(v, allowed)
         self.update(v)
 
     def reduce_calibrate_wavelength(self, v):

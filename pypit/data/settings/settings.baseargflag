@@ -17,7 +17,7 @@ run  useIDname   False         # If True, file sorting will ensure that the idna
 # REDUCTION RULES
 reduce calibrate nonlinear False          # Perform a non-linear correction
 #reduce calibrate flux True       # Perform a flux calibration
-reduce calibrate refframe heliocentric           # Which reference frame do you want the data in (geocentric, heliocentric, barycentric)?
+reduce calibrate refframe heliocentric           # Which reference frame do you want the data in (heliocentric, barycentric, none)?
 reduce calibrate wavelength vacuum          # Wavelength calibrate the data? (air, vacuum, none)
 reduce overscan method savgol       # Method used to fit the overscan (polynomial, savgol)
 reduce overscan params [5,65]       # Parameters used for the overscan method (for polynomial use [#] where # is replaced by the polynomial order, for savgol use [#,$] where # is the order and $ is the window size (should be odd)
@@ -60,7 +60,7 @@ arc load calibrated    False         # If the extracted arc have previously been
 arc calibrate IDpixels []            # Manually set the pixels to be identified
 arc calibrate IDwaves []             # Manually set the corresponding ID wavelengths
 arc calibrate nfitpix  5             # Number of pixels to fit when deriving the centroid of the arc lines (an odd number is best)
-arc calibrate lamps [HgI,NeI,ArI]    # name of the ions used for the wavelength calibration
+arc calibrate lamps None           # name of the ions used for the wavelength calibration
 arc calibrate method simple          # What method should be used to fit the individual arc lines (options are: fit, simple); fit is perhaps the most accurate; simple uses a polynomial fit (to the log of a gaussian), is the fastest and is reliable
 arc calibrate detection 6.0         # How significant should the arc line detections be (in units of a standard deviation)
 arc calibrate numsearch 20           # Number of brightest arc lines to search for preliminary identification

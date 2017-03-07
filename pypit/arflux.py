@@ -46,7 +46,8 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
                 extract = getattr(spobj,extract_type)
             except AttributeError:
                 continue
-            msgs.info("Fluxing {:s} extraction for {}".format(extract_type, spobj))
+            msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() +
+                      "{}".format(spobj))
             wave = extract['wave']  # for convenience
             scale = np.zeros(wave.size)
             # Allow for some extrapolation

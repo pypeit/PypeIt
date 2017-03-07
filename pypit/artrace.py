@@ -1006,6 +1006,9 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     else: # There's an order overlap
         rsub = edgbtwn[1]-(lval)
     """
+    if msgs._debug['trace']:
+        from xastropy.xutils import xdebug as xdb
+        debugger.set_trace()
     if mnvalp > mnvalm:
         lvp = (arutils.func_val(lcoeff[:, lval+1-lmin], xv, settings.argflag['trace']['slits']['function'],
                                 minv=minvf, maxv=maxvf)+0.5).astype(np.int)
@@ -1970,7 +1973,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             ytfit = ytfits[j]
             wmask = wmasks[j]
             xint = int(xtfit[0])
-            sz = (xtfit.size-1)/2
+            sz = (xtfit.size-1)//2
 
             # Perform a scanning polynomial fit to the tilts
             # model = arcyutils.polyfit_scan_intext(xtfit, ytfit, np.ones(ytfit.size, dtype=np.float), mtfit,
