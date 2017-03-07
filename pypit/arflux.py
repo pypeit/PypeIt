@@ -88,6 +88,7 @@ def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
     """
     from pypit import arutils
     invvar = (var > 0.)/(np.max(var,0))
+    invvar[np.where(var==0.0)] = 0.0
     nx = wave.size
     pos_error = 1./np.sqrt(np.maximum(invvar,0.) + (invvar == 0))
     pos_mask = (flux > pos_error/10.0) & (invvar > 0) & (flux_std > 0.0)

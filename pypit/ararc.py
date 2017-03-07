@@ -543,7 +543,6 @@ def calib_with_arclines(slf, det, get_poly=False, use_basic=False):
     msgs.work("Detecting lines..")
     tampl, tcent, twid, w, satsnd, spec = detect_lines(slf, det, slf._msarc[det-1])
 
-    use_basic = True
     if use_basic:
         # Go
         stuff = basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
