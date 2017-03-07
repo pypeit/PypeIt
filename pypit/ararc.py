@@ -239,7 +239,6 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
-            arcparam['wvmnx'][1] = 9000.
             arcparam['wvmnx'][1] = 11000.
         elif disperser == '600/10000':
             arcparam['n_first']=2 # Too much curvature for 1st order
@@ -547,7 +546,6 @@ def calib_with_arclines(slf, det, get_poly=False, use_basic=False):
     msgs.work("Detecting lines..")
     tampl, tcent, twid, w, satsnd, spec = detect_lines(slf, det, slf._msarc[det-1])
 
-    use_basic = True
     if use_basic:
         # Go
         stuff = basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
