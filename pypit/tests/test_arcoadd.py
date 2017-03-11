@@ -103,7 +103,7 @@ def test_load():
     files = [data_path('spec1d_J2202p1708_KASTb_2015Nov06T024436.08.fits'),
              data_path('spec1d_J2202p1708_KASTb_2015Nov06T031500.09.fits'),
              data_path('spec1d_J2202p1708_KASTb_2015Nov06T034520.54.fits')]
-    spectra = arco.load_spec(files)
+    spectra = arco.load_spec(files, flux=False)  # Need to add in fluxed test files
     assert spectra.nspec == 3
     # Boxcar too
     spectra = arco.load_spec(files, extract='box')
