@@ -43,7 +43,7 @@ def main(args, unit_test=False):
         if '*' in ifl:
             files += glob.glob(ifl)
         else:
-            files += ifl
+            files += [ifl]
     fdict = {}
     all_obj = []
     for ifile in files:
