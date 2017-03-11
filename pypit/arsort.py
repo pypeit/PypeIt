@@ -755,8 +755,11 @@ def calib_set(isetup_dict, sciexp, fitsdict):
     new_cbset = {}
     cbkeys = ['arcs', 'bias', 'trace', 'flat', 'sci', 'cent']
     for cbkey in cbkeys:
-        nms = list(fitsdict['filename'][getattr(sciexp, '_idx_'+cbkey)])
-        nms.sort()
+        if len(getattr(sciexp, '_idx_'+cbkey)) != 0:
+            nms = list(fitsdict['filename'][getattr(sciexp, '_idx_'+cbkey)])
+            nms.sort()
+        else:
+            nms = []
         new_cbset[cbkey] = nms
 
     # Uninitialized?
