@@ -362,9 +362,10 @@ def match_science(fitsdict, filesort):
     """
 
     msgs.info("Matching calibrations to Science frames")
-    ftag = ['standard', 'bias', 'dark', 'pixelflat', 'pinhole', 'trace', 'arc']
+    ftag = ['arc', 'standard', 'bias', 'dark', 'pixelflat', 'pinhole', 'trace']  # arc *must* be first
     setup_ftag = dict(standard=0, bias=0, dark=0, pixelflat=0, pinhole=0, trace=0, arc=1)
     nfiles = fitsdict['filename'].size
+    iARC = filesort['arc']
     iSCI = filesort['science']
     iSTD = filesort['standard']
     iBIA = filesort['bias']
@@ -372,9 +373,8 @@ def match_science(fitsdict, filesort):
     iPFL = filesort['pixelflat']
     iBFL = filesort['pinhole']
     iTRC = filesort['trace']
-    iARC = filesort['arc']
     filesort['failures'] = []
-    iARR = [iSTD, iBIA, iDRK, iPFL, iBFL, iTRC, iARC]
+    iARR = [iARC, iSTD, iBIA, iDRK, iPFL, iBFL, iTRC]
     nSCI = iSCI.size
     i = 0
     while i < nSCI:
@@ -403,12 +403,17 @@ def match_science(fitsdict, filesort):
             n = np.arange(nfiles)
             if 'match' not in settings.spect[ftag[ft]].keys() and (not settings.argflag['run']['setup']):
                 debugger.set_trace()
-            if not settings.argflag['run']['setup']:
+            #if not settings.argflag['run']['setup']:
+            try:
                 chkk = settings.spect[ftag[ft]]['match'].keys()
+            except KeyError:
+                if not settings.argflag['run']['setup']:
+                    msgs.bug("Matching criteria {0:s} is not supported".format(tmtch))
+                else:
+                    msgs.warn("Matching criteria {0:s} not supported for this instrument".format(tmtch))
+            else:
                 for ch in chkk:
                     tmtch = settings.spect[ftag[ft]]['match'][ch]
-                    #if ch == 'dispname':
-                    #    debugger.set_trace()
                     if tmtch == "any":
                         w = np.arange(len(fitsdict['filename'])).astype(int)
                     elif tmtch == "''":
@@ -490,8 +495,6 @@ def match_science(fitsdict, filesort):
                         except:
                             debugger.set_trace()
                             continue
-                    else:
-                        msgs.bug("Matching criteria {0:s} is not supported".format(tmtch))
                     n = np.intersect1d(n, w)  # n corresponds to all frames with matching instrument setup to science frames
             # Find the time difference between the calibrations and science frames
             if settings.spect['fits']['calwin'] > 0.0:
@@ -546,6 +549,7 @@ def match_science(fitsdict, filesort):
                         #filesort['science'] = np.array(tmp)
                         filesort['failures'].append(iSCI[i])
                         settings.spect['science']['index'].pop(-1)
+                        break
                     else:
                         msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
             else:
