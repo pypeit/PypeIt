@@ -41,9 +41,11 @@ def main(args, unit_test=False):
     files = []
     for ifl in filelist:
         if '*' in ifl:
-            files += glob.glob(ifl)
+            #files += glob.glob(ifl)
+            files.append(glob.glob(ifl))
         else:
-            files += ifl
+            #files += ifl
+            files.append(ifl)
     fdict = {}
     all_obj = []
     for ifile in files:
@@ -68,6 +70,7 @@ def main(args, unit_test=False):
         extensions = []
         gdobj= []
         for key in fdict:
+            print iobj, fdict[key]
             mtch_obj, idx = arspecobj.mtch_obj_to_objects(iobj, fdict[key])
             if mtch_obj is None:
                 print("No object {:s} in file {:s}".format(iobj,key))
