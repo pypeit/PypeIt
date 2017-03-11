@@ -41,7 +41,7 @@ def main(args, unit_test=False):
     files = []
     for ifl in filelist:
         if '*' in ifl:
-            files += glob.glob(ifl)
+            files.append(glob.glob(ifl))
         else:
             files += [ifl]
     fdict = {}
