@@ -398,7 +398,8 @@ def func_val(c, x, func, minv=None, maxv=None):
 
     Parameters
     ----------
-    c
+    c : ndarray
+      coefficients
     x
     func
     minv
@@ -406,6 +407,7 @@ def func_val(c, x, func, minv=None, maxv=None):
 
     Returns
     -------
+    values : ndarray
 
     """
     if func == "polynomial":
