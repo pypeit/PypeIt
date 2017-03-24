@@ -1007,7 +1007,6 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
         rsub = edgbtwn[1]-(lval)
     """
     if msgs._debug['trace']:
-        from xastropy.xutils import xdebug as xdb
         debugger.set_trace()
     if mnvalp > mnvalm:
         lvp = (arutils.func_val(lcoeff[:, lval+1-lmin], xv, settings.argflag['trace']['slits']['function'],

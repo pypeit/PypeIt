@@ -497,7 +497,7 @@ def save_obj_info(slf, fitsdict, clobber=True):
                 opt_fwhm.append(0.)
             # S2N -- default to boxcar
             sext = (specobj.boxcar if (len(specobj.boxcar) > 0) else specobj.optimal)
-            ivar = (sext['var'] == 0) / (sext['var'] + (sext['var'] == 0))
+            ivar = (sext['var'] > 0) / (sext['var'] + (sext['var'] == 0))
             is2n = np.median(sext['counts']*np.sqrt(ivar))
             s2n.append(is2n)
 

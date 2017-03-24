@@ -6,8 +6,11 @@ PYPIT QA
 
 As part of the standard reduction, PYPIT will generate one
 Quality Assurance (QA) file per exposure reduced.  This
-documentation describes the typicaly outputs, in order of
+documentation describes the typical outputs, in order of
 appearance.
+
+One should also inspect the logging output to confirm
+the data were reduced as expected.
 
 Note that there is a sequence of outputs per detector.
 

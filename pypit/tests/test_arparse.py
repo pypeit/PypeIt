@@ -46,6 +46,6 @@ def test_parse_binning():
     assert bin1 == 2
     assert bin2 == 2
     # Other input
-    bin1, bin2 = arparse.parse_binning((2,2))
+    bin1, bin2 = arparse.parse_binning((2,2))   # String output required so this returns 1,1 (the default)
     assert bin1 == 1
     assert bin2 == 1

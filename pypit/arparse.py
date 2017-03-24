@@ -268,6 +268,7 @@ class BaseArgFlag(BaseFunctions):
                 else:
                     cnt += 1
             if not succeed:
+                debugger.set_trace()
                 msgs.error("There appears to be an error on the following input line:" + msgs.newline() +
                            " ".join(lst))
 
