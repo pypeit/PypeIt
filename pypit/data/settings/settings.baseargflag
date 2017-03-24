@@ -28,9 +28,6 @@ reduce flatfield params [20]     # Flat field method parameters (PolyScan: [orde
 reduce flatfield useframe pixelflat          # How to flat field the data (pixelflat, pinhole), you can also specify a master calibrations file if it exists.
 reduce slitcen useframe trace          # How to trace the slit center (pinhole, trace, science), you can also specify a master calibrations file if it exists.
 reduce trace useframe trace          # How to flat field the data (trace), you can also specify a master calibrations file if it exists.
-#reduce flexure method boxcar      # Perform flexure correction on objects using boxcar extraction.  Options are: None, boxcar, slitcen [this performs flexure correction before extraction of objects]
-#reduce flexure maxshift 20      # Maximum allowed flexure shift in pixels (int)
-#reduce flexure spectrum None
 reduce masters file None         #
 reduce masters loaded []         #
 reduce masters setup None            #

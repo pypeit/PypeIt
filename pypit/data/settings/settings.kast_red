@@ -1,32 +1,4 @@
 # New Hamamatsu detector
-# SIMPLE RULES:
-#
-# 1. If a keyword is specified in science/pixelflat/pinhole/trace/bias/arc frames
-#    it must also appear in the Keyword identifiers list.
-# 2. You must check NAXIS is 2 in ``checks to perform''.
-# 3. If a keyword value contains only some interesting value,
-#    you can split the keyword value using the '%,' notation.
-#    For example, suppose you have the string 10:50:23.45, and
-#    you're interested in the 50 for a match condition, you would
-#    use '%' to indicate you want to split the keyword value, ':'
-#    indicates the delimiter text, '1' indicates you're interested
-#    in the 1st argument (0-indexed), '<60' is an example criteria.
-#    Each of these should be specified in this order, seperated by
-#    commas, so the final string would be:
-#    %,:,1,<60
-# 4. If the text '|' appears in the match condition, the absolute
-#    value will be taken. For example '|<=0.05' means that a given
-#    keyword's value for a calibration frame must be within 0.05 of
-#    a science frame's value, in order to be matched.
-# 5. If a keyword's value contains spaces, replace all spaces with
-#    one underscore.
-# 6. If the header contains two keyword's of the same name, only
-#    the value of the first one will be recognised.
-# 7. Strictly speaking, ARMLSD likes a one-to-one relationship between
-#    a given frame and a frame type. If you would like a one-to-many
-#    relationship (i.e. a given frame can be both a pixel and a slit
-#    flat, use the canbe option).
-#
 ### Detector properties
 mosaic ndet 1                         # Number of detectors in the mosaic
 mosaic latitude 37.3413889             # Latitude of the telescope

@@ -116,6 +116,13 @@ def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
        Detector index 
     ypos : float, optional [0.5]
        Row on trimmed detector (fractional) to define slit (and object)
+    trc_img : dict
+       Contains trace info
+
+    Returns
+    -------
+    specobjs : list
+      List of SpecObjExp objects
     """
     from pypit.armlsd import instconfig
 
