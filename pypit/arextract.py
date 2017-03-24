@@ -51,6 +51,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     from pypit import arcyutils
     from astropy.stats import sigma_clip
 
+
     bgfitord = 1  # Polynomial order used to fit the background
     nobj = scitrace['traces'].shape[1]
     cr_mask = 1.0-crmask
@@ -117,6 +118,15 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
             debugger.set_trace()
         specobjs[o].boxcar['sky'] = skysum.copy()  # per pixel
         specobjs[o].boxcar['mask'] = boxmask.copy()
+        # Find boxcar size
+        slit_sz = []
+        inslit = np.where(weight == 1.)
+        for ii in range(weight.shape[0]):
+            inrow = inslit[0] == ii
+            if np.sum(inrow) > 0:
+                slit_sz.append(np.max(inslit[1][inrow])-np.min(inslit[1][inrow]))
+        slit_pix = np.median(slit_sz)  # Pixels
+        specobjs[o].boxcar['size'] = slit_pix
     # Return
     return bgcorr
 
@@ -213,6 +223,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
             fdict['slit_val'] = slit_val
             fdict['flux_val'] = flux_val
             scitrace['opt_profile'].append(fdict)
+            specobjs[o].optimal['fwhm'] = fdict['param'][1] # Pixels
             if msgs._debug['obj_profile']: #
                 gdp = mask == 0
                 mn = np.min(slit_val[gdp])

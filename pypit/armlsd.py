@@ -138,7 +138,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._rordpix, rordpix, det)
                 # Save QA for slit traces
                 if not msgs._debug['no_qa']:
-                    arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges")
+                    arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges D{:02d}".format(det), use_slitid=det)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
             ###############
@@ -235,6 +235,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             arsave.save_1d_spectra_hdf5(slf)
         else:
             msgs.error(save_format + ' is not a recognized output format!')
+        arsave.save_obj_info(slf, fitsdict)
         # Write 2D images for the Science Frame
         arsave.save_2d_images(slf, fitsdict)
         # Free up some memory by replacing the reduced ScienceExposure class

@@ -28,7 +28,7 @@ class SpecObjExp(object):
        Detector index (max=99)
     xslit: tuple
        float (0-1), float (0-1)
-       x0, x1 of slit in fraction of total (trimmed) detector size defined at ypos
+       left, right of slit in fraction of total (trimmed) detector size defined at ypos
     ypos: float
        ypos of slit in fraction of total (trimmed) detector size 
     xobj: float
@@ -103,7 +103,7 @@ class SpecObjExp(object):
                 self.idx, self.config, self.xobj, self.slitcen, self.det, self.scidx, self.objtype))
 
 
-def init_exp(slf, scidx, det, fitsdict, trc_img=None, ypos=0.5, **kwargs):
+def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
     """Generate a list of SpecObjExp objects for a given exposure
 
     Parameters
@@ -116,6 +116,13 @@ def init_exp(slf, scidx, det, fitsdict, trc_img=None, ypos=0.5, **kwargs):
        Detector index 
     ypos : float, optional [0.5]
        Row on trimmed detector (fractional) to define slit (and object)
+    trc_img : dict
+       Contains trace info
+
+    Returns
+    -------
+    specobjs : list
+      List of SpecObjExp objects
     """
     from pypit.armlsd import instconfig
 
@@ -135,14 +142,11 @@ def init_exp(slf, scidx, det, fitsdict, trc_img=None, ypos=0.5, **kwargs):
                 msgs.error('arspecobj.init_exp: Problem finding the slit')
             else:
                 islit = gds[0]
-                pixl_slit = pixl_slits[islit]
-                pixr_slit = pixr_slits[islit]
-                xl_slit = pixl_slit/trc_img['object'].shape[1]
-                xr_slit = pixr_slit/trc_img['object'].shape[1]
+                slitid, slitcen, xslit = get_slitid(slf, det, islit, ypos=ypos)
             # xobj
-            xobj = (trc_img['traces'][yidx,qq]-pixl_slit) / (pixr_slit-pixl_slit)
-            # Generate 
-            specobj = SpecObjExp((trc_img['object'].shape[:2]), config, scidx, det, (xl_slit,xr_slit),ypos, xobj, **kwargs)
+            _, xobj = get_objid(slf, det, islit, qq, trc_img, ypos=ypos)
+            # Generate
+            specobj = SpecObjExp((trc_img['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj, **kwargs)
             # Add traces
             specobj.trace = trc_img['traces'][:,qq]
             # Append
@@ -219,3 +223,67 @@ def mtch_obj_to_objects(iobj, objects, stol=50, otol=10):
         return None
     else:
         return np.array(objects)[gdrow].tolist(), np.where(gdrow)[0].tolist()
+
+
+def get_slitid(slf, det, islit, ypos=0.5):
+    """ Convert slit position to a slitid
+    Parameters
+    ----------
+    slf
+    det : int
+    islit : int
+    ypos : float, optional
+
+    Returns
+    -------
+    slitid : int
+      Slit center position on the detector normalized to range from 0-10000
+    slitcen : float
+      Slitcenter relative to the detector ranging from 0-1
+    xslit : tuple
+      left, right positions of the slit edges
+    """
+    shape = slf._mstrace[det-1].shape
+    # Index at ypos
+    yidx = int(np.round(ypos*slf._lordloc[det-1].shape[0]))
+    # Slit at yidx
+    pixl_slit = slf._lordloc[det-1][yidx, islit]
+    pixr_slit = slf._rordloc[det-1][yidx, islit]
+    # Relative to full image
+    xl_slit = pixl_slit/shape[1]
+    xr_slit = pixr_slit/shape[1]
+    # Center
+    slitcen = np.mean([xl_slit, xr_slit])
+    slitid = int(np.round(slitcen*1e4))
+    # Return them all
+    return slitid, slitcen, (xl_slit, xr_slit)
+
+
+def get_objid(slf, det, islit, iobj, trc_img, ypos=0.5):
+    """ Convert slit position to a slitid
+    Parameters
+    ----------
+    slf
+    det : int
+    islit : int
+    iobj : int
+    trc_img : dict
+    ypos : float, optional
+
+    Returns
+    -------
+    slitid : int
+      Slit center position on the detector normalized to range from 0-10000
+    slitcen : float
+      Slitcenter relative to the detector ranging from 0-1
+    xslit : tuple
+      left, right positions of the slit edges
+    """
+    yidx = int(np.round(ypos*slf._lordloc[det-1].shape[0]))
+    pixl_slit = slf._lordloc[det-1][yidx, islit]
+    pixr_slit = slf._rordloc[det-1][yidx, islit]
+    #
+    xobj = (trc_img['traces'][yidx,iobj]-pixl_slit) / (pixr_slit-pixl_slit)
+    objid= int(np.round(xobj*1e3))
+    # Return
+    return objid, xobj

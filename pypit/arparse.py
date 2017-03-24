@@ -20,6 +20,11 @@ msgs = armsgs.get_logger()
 argflag, spect = None, None
 
 try:
+    basestring
+except NameError:  # For Python 3
+    basestring = str
+
+try:
     from xastropy.xutils import xdebug as debugger
 except ImportError:
     import pdb as debugger
@@ -263,6 +268,7 @@ class BaseArgFlag(BaseFunctions):
                 else:
                     cnt += 1
             if not succeed:
+                debugger.set_trace()
                 msgs.error("There appears to be an error on the following input line:" + msgs.newline() +
                            " ".join(lst))
 
@@ -477,9 +483,12 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['ArI', 'CdI', 'HgI', 'HeI', 'KrI', 'NeI', 'XeI', 'ZnI', 'ThAr']
-        v = key_list_allowed(v, allowed)
-        self.update(v)
+        if v == 'None':
+            self.update(None)
+        else:
+            allowed = ['ArI', 'CdI', 'HgI', 'HeI', 'KrI', 'NeI', 'XeI', 'ZnI', 'ThAr', 'None']
+            v = key_list_allowed(v, allowed)
+            self.update(v)
 
     def arc_calibrate_method(self, v):
         """ What method should be used to fit the individual arc lines.
@@ -2457,6 +2466,20 @@ class BaseSpect(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 1".format(cname))
         self.update(v, ll=cname.split('_'))
 
+    def det_platescale(self, v, anmbr=1):
+        """ Number of amplifiers for each detector.
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        cname = get_nmbr_name(anmbr=anmbr)
+        v = key_float(v)
+        if v <= 0:
+            msgs.error("The argument of {0:s} must be > 0".format(cname))
+        self.update(v, ll=cname.split('_'))
+
     def det_saturation(self, v, anmbr=1):
         """ The detector saturation level
 
@@ -4040,3 +4063,35 @@ def combine_satpixs():
     """
     methods = ['reject', 'force', 'nothing']
     return methods
+
+
+def parse_binning(binning):
+    """ Convert binning keyword to binning values
+
+    Parameters
+    ----------
+    binning : str
+      Probably parsed from the header
+
+    Returns
+    -------
+    binspatial : int
+    binspectral : int
+
+    """
+    # comma separated format
+    binspatial, binspectral = None, None
+    if isinstance(binning, basestring):
+        if ',' in binning:
+            binspatial, binspectral = [int(item) for item in binning.split(',')]  # Keck standard, I think
+        else:
+            pass
+    else:
+        pass
+    # Finish
+    if binspatial is None:
+        msgs.warn("Unable to parse input binning: {}".format(binning))
+        msgs.warn("Assuming unbinned, i.e.  1x1")
+        return 1,1
+    else:
+        return binspatial, binspectral

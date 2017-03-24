@@ -74,6 +74,7 @@ def SetupScience(fitsdict):
             setupID = arsort.instr_setup(sciexp[sc], kk+1, fitsdict, setup_dict, skip_cset=skip_cset, config_name=cname)
             if kk == 0: # Only save the first detector for run setup
                 setupIDs.append(setupID)
+
     # Calib IDs
     group_dict = {}
     if settings.argflag['run']['setup']: # Collate all matching files
@@ -101,6 +102,7 @@ def SetupScience(fitsdict):
                             group_dict[config_key]['stdobj'].append(fitsdict['target'][idx])
                     if key == 'science':  # Add target name
                         group_dict[config_key]['sciobj'].append(fitsdict['target'][scidx])
+            #debugger.set_trace()
         # Write .sorted file
         if len(group_dict) > 0:
             arsort.write_sorted(srt_tbl, group_dict, setup_dict)

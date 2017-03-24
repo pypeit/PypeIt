@@ -164,8 +164,8 @@ def spect_diff_and_dup():
 if __name__ == '__main__':
 
     flg_sett = 0
-    #flg_sett += 2**0  # argflag checking
-    #flg_sett += 2**1 # spect checking
+    flg_sett += 2**0  # argflag checking
+    flg_sett += 2**1 # spect checking
     flg_sett += 2**2 # archive baseargflag
 
     if flg_sett & (2**0):
