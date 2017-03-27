@@ -43,6 +43,7 @@ def main(args):
     from pypit import arparse as settings  # Has to come after the logger
     from pypit import ginga as pyp_ginga
     from pypit import armasters
+    import pdb
 
     # One detector, sky sub for now
     names = [hdu[i].name for i in range(len(hdu))]
