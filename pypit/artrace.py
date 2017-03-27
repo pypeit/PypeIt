@@ -1432,7 +1432,7 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             if ampl[w[u]] > ampl[olduse][s]:
                 aduse[idxuse[s]] = False
                 break
-    # Restricted to ID lines? [avoid ghosts]
+    # Restricted to ID lines? [introduced to avoid LRIS ghosts]
     if settings.argflag['trace']['slits']['tilts']['idsonly']:
         ids_pix = np.round(np.array(slf._wvcalib[det-1]['xfit'])*(msarc.shape[0]-1))
         idxuse = np.arange(arcdet.size)[aduse]
@@ -1482,6 +1482,11 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
         # Check if this is a saturated line
         ysat = msarc[arcdet[j]-nspecfit:arcdet[j]+nspecfit+1, ordcen[arcdet[j], slitnum]-nsmth:ordcen[arcdet[j], slitnum]+nsmth+1]
         if np.where(ysat > satval)[0].size != 0:
+            aduse[j] = False
+            badlines += 1
+            trcdict = pad_dict(trcdict)
+            continue
+        if j == 74:  # KLUDGE!!!!
             aduse[j] = False
             badlines += 1
             trcdict = pad_dict(trcdict)
