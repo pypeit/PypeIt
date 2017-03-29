@@ -237,7 +237,7 @@ def setup_param(slf, sc, det, fitsdict):
         arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['WAVELEN']
         lamps = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
         if disperser == '600/7500':
-            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['n_first']=3 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
             arcparam['wvmnx'][1] = 11000.
@@ -560,10 +560,9 @@ def calib_with_arclines(slf, det, get_poly=False, use_basic=False):
         stuff = basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
         status, ngd_match, match_idx, scores, final_fit = stuff
     else:  # Now preferred
-        best_dict, final_fit = semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'],
-                                          fit_parm=aparm, min_ampl=aparm['min_ampl'])
-        if det == 2:
-            debugger.set_trace()
+        best_dict, final_fit = semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
+        #if det == 2:
+        #    debugger.set_trace()
     if not msgs._debug['no_qa']:
         arqa.arc_fit_qa(slf, final_fit)
     #

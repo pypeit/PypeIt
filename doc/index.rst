@@ -77,6 +77,10 @@ Documentation
 
 Other
 +++++
+
+.. toctree::
+   :maxdepth: 1
+
    scripts
    api
 

@@ -89,7 +89,8 @@ def show_image(inp, chname='Image', **kwargs):
     header = {}
     header['NAXIS1'] = img.shape[1]
     header['NAXIS2'] = img.shape[0]
-    header['WCS-xIMG'] = 'MF_lris_blue/MasterWave_A_01_aa.fits'
+    header['WCS-xIMG'] = 'MF_lris_red/MasterWave_A_02_aa.fits'
+    import pdb; pdb.set_trace()
     # Giddy up
     #pdb.set_trace()
     ch.load_np(name, img, 'fits', header)

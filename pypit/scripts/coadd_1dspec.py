@@ -12,7 +12,7 @@ def parser(options=None):
     import argparse
 
     parser = argparse.ArgumentParser(description='Script to coadd a set of spec1D files and 1 or more slits and 1 or more objects')
-    parser.add_argument("infile", type=str, help="Input file")
+    parser.add_argument("infile", type=str, help="Input file (YAML)")
 
     if options is None:
         args = parser.parse_args()
@@ -41,11 +41,12 @@ def main(args, unit_test=False):
     files = []
     for ifl in filelist:
         if '*' in ifl:
-            files.append(glob.glob(ifl))
+            files = glob.glob(ifl)
         else:
             files += [ifl]
     fdict = {}
     all_obj = []
+    pdb.set_trace()
     for ifile in files:
         # Open file
         hdulist = fits.open(ifile)

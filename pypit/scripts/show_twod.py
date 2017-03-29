@@ -54,6 +54,7 @@ def main(args):
     viewer, ch = pyp_ginga.show_image(skysub, chname='DET-{:02d}'.format(args.det))
 
     # Add slits
+    '''
     testing = False
     if testing:
         mdir = 'MF_lris_blue/'
@@ -76,4 +77,5 @@ def main(args):
             tbl = Table(hdu.data)
             trace = tbl['obj_trace']
             pyp_ginga.show_trace(viewer, ch, trace, hdu.name)
+    '''
 
