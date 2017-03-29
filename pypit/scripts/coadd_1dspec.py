@@ -46,7 +46,6 @@ def main(args, unit_test=False):
             files += [ifl]
     fdict = {}
     all_obj = []
-    pdb.set_trace()
     for ifile in files:
         # Open file
         hdulist = fits.open(ifile)
