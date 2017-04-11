@@ -182,12 +182,6 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
 
-            msgs.info("Temporary code")
-            sciframe = arload.load_frames(fitsdict, [scidx], det, frametype='science', msbias=slf._msbias[det - 1])
-            sciframe = sciframe[:, :, 0]
-            arproc.background_subtraction(slf, sciframe, sciframe, 30, det)
-            msgs.error("Remove this code")
-
             ###############
             # Prepare the pixel flat field frame
             update = slf.MasterFlatField(fitsdict, det)
