@@ -1154,7 +1154,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         msblaze[:, o] = arutils.func_val(blzspl, np.linspace(0.0, 1.0, msblaze.shape[0]), 'bspline')
         blazeext[:, o] = mstrace[(np.arange(mstrace.shape[0]), np.round(0.5*(lordloc+rordloc)).astype(np.int),)]
         # Calculate the slit profile
-        sprof_fit = fluxval / (blz_flat + (blz_flat==0.0))
+        sprof_fit = fluxval / (blz_flat + (blz_flat == 0.0))
         srt = np.argsort(spatval)
         mask, sltspl = arutils.robust_polyfit(spatval[srt], sprof_fit[srt], 3, function='bspline',
                                               sigma=5., maxone=False, knots=tckx)
@@ -1162,7 +1162,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         modvals = blz_flat * slt_flat
         # Normalize to the value at the centre of the slit
         nrmvals = blz_flat * arutils.func_val(sltspl, 0.5, 'bspline')
-        if not settings.argflag["reduce"]["slitprofile"]["perform"]:
+        if settings.argflag["reduce"]["slitprofile"]["perform"]:
             # Leave slit_profiles as ones if the slitprofile is not being determined, otherwise, set the model.
             slit_profiles[word] = modvals/nrmvals
         mstracenrm[word] /= nrmvals
