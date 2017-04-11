@@ -362,9 +362,10 @@ def match_science(fitsdict, filesort):
     """
 
     msgs.info("Matching calibrations to Science frames")
-    ftag = ['standard', 'bias', 'dark', 'pixelflat', 'pinhole', 'trace', 'arc']
+    ftag = ['arc', 'standard', 'bias', 'dark', 'pixelflat', 'pinhole', 'trace']  # arc *must* be first
     setup_ftag = dict(standard=0, bias=0, dark=0, pixelflat=0, pinhole=0, trace=0, arc=1)
     nfiles = fitsdict['filename'].size
+    iARC = filesort['arc']
     iSCI = filesort['science']
     iSTD = filesort['standard']
     iBIA = filesort['bias']
@@ -372,9 +373,8 @@ def match_science(fitsdict, filesort):
     iPFL = filesort['pixelflat']
     iBFL = filesort['pinhole']
     iTRC = filesort['trace']
-    iARC = filesort['arc']
     filesort['failures'] = []
-    iARR = [iSTD, iBIA, iDRK, iPFL, iBFL, iTRC, iARC]
+    iARR = [iARC, iSTD, iBIA, iDRK, iPFL, iBFL, iTRC]
     nSCI = iSCI.size
     i = 0
     while i < nSCI:
@@ -403,8 +403,15 @@ def match_science(fitsdict, filesort):
             n = np.arange(nfiles)
             if 'match' not in settings.spect[ftag[ft]].keys() and (not settings.argflag['run']['setup']):
                 debugger.set_trace()
-            if not settings.argflag['run']['setup']:
+            #if not settings.argflag['run']['setup']:
+            try:
                 chkk = settings.spect[ftag[ft]]['match'].keys()
+            except KeyError:
+                if not settings.argflag['run']['setup']:
+                    msgs.bug("Matching criteria {0:s} is not supported".format(tmtch))
+                else:
+                    msgs.warn("Matching criteria {0:s} not supported for this instrument".format(tmtch))
+            else:
                 for ch in chkk:
                     tmtch = settings.spect[ftag[ft]]['match'][ch]
                     if tmtch == "any":
@@ -488,8 +495,6 @@ def match_science(fitsdict, filesort):
                         except:
                             debugger.set_trace()
                             continue
-                    else:
-                        msgs.bug("Matching criteria {0:s} is not supported".format(tmtch))
                     n = np.intersect1d(n, w)  # n corresponds to all frames with matching instrument setup to science frames
             # Find the time difference between the calibrations and science frames
             if settings.spect['fits']['calwin'] > 0.0:
@@ -544,6 +549,7 @@ def match_science(fitsdict, filesort):
                         #filesort['science'] = np.array(tmp)
                         filesort['failures'].append(iSCI[i])
                         settings.spect['science']['index'].pop(-1)
+                        break
                     else:
                         msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
             else:
@@ -749,8 +755,11 @@ def calib_set(isetup_dict, sciexp, fitsdict):
     new_cbset = {}
     cbkeys = ['arcs', 'bias', 'trace', 'flat', 'sci', 'cent']
     for cbkey in cbkeys:
-        nms = list(fitsdict['filename'][getattr(sciexp, '_idx_'+cbkey)])
-        nms.sort()
+        if len(getattr(sciexp, '_idx_'+cbkey)) != 0:
+            nms = list(fitsdict['filename'][getattr(sciexp, '_idx_'+cbkey)])
+            nms.sort()
+        else:
+            nms = []
         new_cbset[cbkey] = nms
 
     # Uninitialized?
@@ -889,9 +898,18 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
               #'naxis0': naxis0,
               #'naxis1': naxis1}
 
+    def chk_key(val1, val2, tol=1e-3):
+        if isinstance(val1,float):
+            if np.isclose(val1,val2,rtol=tol):
+                return True
+            else:
+                return False
+        else:
+            return val1 == val2
+
     # Configuration
     setup = None
-    if len(setup_dict) == 0: # Generate
+    if len(setup_dict) == 0: #  New one, generate
         if config_name is None:
             setup = 'A'
         else:
@@ -899,16 +917,16 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
         # Finish
         setup_dict[setup] = {}
         setup_dict[setup][cstr] = cdict
-    else:
+    else:  # Is it new?
         for ckey in setup_dict.keys():
             mtch = True
             for key in setup_dict[ckey][cstr].keys():
                 # Dict?
                 if isinstance(setup_dict[ckey][cstr][key], dict):
                     for ikey in setup_dict[ckey][cstr][key].keys():
-                        mtch &= setup_dict[ckey][cstr][key][ikey] == cdict[key][ikey]
+                        mtch &= chk_key(setup_dict[ckey][cstr][key][ikey],cdict[key][ikey])
                 else:
-                    mtch &= setup_dict[ckey][cstr][key] == cdict[key]
+                    mtch &= chk_key(setup_dict[ckey][cstr][key], cdict[key])
             if mtch:
                 setup = ckey
                 break

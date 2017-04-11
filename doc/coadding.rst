@@ -48,6 +48,9 @@ output with the pypit_show_1dspec script, e.g.::
 
     pypit_show_1dspec filename.fits --list
 
+These can also be recovered from the object info files in the Science/folder
+(one per exposure).
+
 The coadding algorithm will attempt to match this object identifier
 to those in each data file, within some tolerance on object and slit
 position. 'outfile' is the filename of the coadded spectrum produced.

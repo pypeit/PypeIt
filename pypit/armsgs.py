@@ -110,8 +110,10 @@ class Messages:
         for i in range(1, len(stgs_arm)):
             armlist += ", " + basename(stgs_arm[i]).split(".")[-1]
         spclist = basename(stgs_spc[0]).split(".")[-1]
-        for i in range(1, len(stgs_spc)):
-            spclist += ", " + basename(stgs_spc[i]).split(".")[-1]
+        for kk,istsp in enumerate(stgs_spc):
+            if (kk == 0) or ('base' in istsp) or ('py' in istsp.split('.')[-1]):
+                continue
+            spclist += ", " + istsp.split(".")[-1]
         spcl = wraptext(spclist, width=60)
         #print("\n#################################################################")
         #print(self.pypitheader(prognm))
@@ -129,8 +131,8 @@ class Messages:
         descs += "\n##   " + armlist
         #print("##  Available spectrographs include:")
         descs += "\n##  Available spectrographs include:"
-        for i in spcl:
-            descs += "\n##   " + i
+        for ispcl in spcl:
+            descs += "\n##   " + ispcl
             #print("##   " + i)
         #print("##  -------------------------------------------------------------")
         #print("##  Last updated: {0:s}".format(self._last_updated))

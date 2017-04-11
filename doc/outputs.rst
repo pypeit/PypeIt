@@ -36,6 +36,7 @@ Output Type  Prefix       Description
 ===========  ===========  ===========
 1D Spectra   spec1d       1D arrays and meta data associated with extracted
                           1D spectra
+Object info  objinfo      ASCII table listing several object attributes
 2D Spectra   spec2d       2D arrays related to sources (e.g. sky-subtracted image)
 Calibration  MasterFrame  Calibration images, fits, meta files, etc.
 Reduction    N/A          Files that guide or describe the reduction
@@ -58,6 +59,7 @@ is given in the documentation describing each type of output products.
 Mode      Type        Outputs
 =======   =========== =======
 Quick     1D Spectra  boxcar (counts), meta
+ ..       Object info all
  ..       2D Spectra  none
  ..       Calibration meta
  ..       QA          S/N

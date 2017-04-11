@@ -146,7 +146,7 @@ def setup_param(slf, sc, det, fitsdict):
 
     """
     # Defaults
-    arcparam = dict(llist='', 
+    arcparam = dict(llist='',
         disp=0.,             # Ang/unbinned pixel
         b1=0.,               # Pixel fit term (binning independent)
         b2=0.,               # Pixel fit term
@@ -180,21 +180,22 @@ def setup_param(slf, sc, det, fitsdict):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='kast_red':
-        lamps = ['HgI','NeI','ArI']
+        lamps = ['NeI']
         #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
         if disperser == '600/7500':
-            arcparam['disp']=2.35
+            arcparam['disp']=1.30
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
             arcparam['wvmnx'][0] = 5000.
             arcparam['n_first']=2 # Should be able to lock on
         elif disperser == '1200/5000':
-            arcparam['disp']=1.17
+            arcparam['disp']=0.63
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
             arcparam['wvmnx'][0] = 5000.
             arcparam['n_first']=2 # Should be able to lock on
+            arcparam['wv_cen'] = 6600.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-    elif sname=='kast_red_2016':
+    elif sname=='kast_red_ret':
         lamps = ['NeI']
         #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
         if disperser == '600/7500':
@@ -210,11 +211,11 @@ def setup_param(slf, sc, det, fitsdict):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='lris_blue':
-        lamps = ['ZnI','CdI','HgI']
+        lamps = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI','CdI','HgI']
         if disperser == '600/4000':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.63 # Ang per pixel (unbinned)
-            arcparam['b1']= 4.54698031e-04 
+            arcparam['b1']= 4.54698031e-04
             arcparam['b2']= -6.86414978e-09
             arcparam['wvmnx'][1] = 6000.
             arcparam['wv_cen'] = 4000.
@@ -225,6 +226,10 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['b1']= 2.72694493e-04
             arcparam['b2']= -5.30717321e-09
             arcparam['wvmnx'][1] = 6000.
+        elif disperser == '300/5000':
+            arcparam['n_first'] = 2
+            arcparam['wv_cen'] = 4500.
+            arcparam['disp'] = 1.43
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='lris_red':
@@ -234,7 +239,12 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
-            arcparam['wvmnx'][1] = 9000.
+            arcparam['wvmnx'][1] = 11000.
+        elif disperser == '600/10000':
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=0.80 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['wvmnx'][1] = 12000.
         elif disperser == '400/8500':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=1.16 # Ang per pixel (unbinned)
@@ -263,22 +273,20 @@ def setup_param(slf, sc, det, fitsdict):
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     else:
         msgs.error('ararc.setup_param: Not ready for this instrument {:s}!'.format(sname))
-
     # Load linelist
-    arcparam['lamps'] = lamps
+    if settings.argflag['arc']['calibrate']['lamps'] is not None:
+        arcparam['lamps'] = settings.argflag['arc']['calibrate']['lamps']
+    else:
+        arcparam['lamps'] = lamps
     slmps = lamps[0]
     for lamp in lamps[1:]:
         slmps=slmps+','+lamp
     msgs.info('Loading line list using {:s} lamps'.format(slmps))
     arcparam['llist'] = ararclines.load_arcline_list(slf, idx, lamps, disperser,
         wvmnx=arcparam['wvmnx'], modify_parse_dict=modify_dict)
-    #llist = ascii.read(aparm['llist'],
-    #    format='fixed_width_no_header', comment='#', #data_start=1, 
-    #    names=('wave', 'flag', 'ID'),
-    #    col_starts=(0,12,14), col_ends=(11,13,24))
     # Binning
-    if fitsdict['binning'][idx[0]] in ['2,2']:
-        arcparam['disp'] *= 2
+    binspatial, binspectral = settings.parse_binning(fitsdict['binning'][idx[0]])
+    arcparam['disp'] *= binspectral
     # Return
     return arcparam
 
@@ -423,10 +431,10 @@ def simple_calib(slf, det, get_poly=False):
     all_idsion = np.array(['12345']*len(tcent))
     all_ids[ifit] = ids[gd_str]
     all_idsion[ifit] = idsion[gd_str]
-    # Fit 
+    # Fit
     n_order = aparm['n_first']
     flg_quit = False
-    fmin, fmax = -1., 1. 
+    fmin, fmax = -1., 1.
     msgs.info('Iterative wavelength fitting..')
     while (n_order <= aparm['n_final']) and (flg_quit is False):
         #msgs.info('n_order={:d}'.format(n_order))
@@ -464,7 +472,7 @@ def simple_calib(slf, det, get_poly=False):
             flg_quit = True
 
     # Final fit (originals can now be rejected)
-    fmin, fmax = 0., 1. 
+    fmin, fmax = 0., 1.
     xfit, yfit = tcent[ifit]/(slf._msarc[det-1].shape[0]-1), all_ids[ifit]
     mask, fit = arutils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej_final'], minv=fmin, maxv=fmax)#, debug=True)
     irej = np.where(mask==1)[0]
@@ -482,7 +490,7 @@ def simple_calib(slf, det, get_poly=False):
     #
     if msgs._debug['arc']:
         msarc = slf._msarc[det-1]
-        wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]), 
+        wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
             'legendre', minv=fmin, maxv=fmax)
         debugger.xplot(xfit,yfit, scatter=True,
             xtwo=np.arange(msarc.shape[0])/float(msarc.shape[0]),
@@ -543,7 +551,7 @@ def calib_with_arclines(slf, det, get_poly=False, use_basic=False):
         stuff = basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
         status, ngd_match, match_idx, scores, final_fit = stuff
     else:  # Now preferred
-        final_fit = semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm) #min_ampl=min_ampl,
+        best_dict, final_fit = semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm) #min_ampl=min_ampl,
     if not msgs._debug['no_qa']:
         arqa.arc_fit_qa(slf, final_fit)
     #
@@ -565,7 +573,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
     msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")
-    msgs.warn("READ THIS IDEA!!!") 
+    msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")
@@ -1039,7 +1047,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
 # 					srch = True
 # 					break
 # 		running += 1
-# 
+#
 # 	msgs.info("{0:d} values masked in central wavelength identification".format(nmsk))
 # 	msgs.bug("Allow user to manually mask bad orders")
 
@@ -1607,7 +1615,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
 # 			for k in range(len(fitorder)):
 # 				coeff[k].append(ct[k])
 # 				ordft[k].append(i)
-# 
+#
 # Fit the coefficients
 # 		pstart = []
 # 		for i in range(len(coeff)):
@@ -1620,13 +1628,13 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
 # 					pstart.append(ct[j])
 # 				for k in range(j,fitorder[i]):
 # 					pstart.append(0.0)
-# 
+#
 # 		msgs.info("Commencing preliminary surface fit to identifications")
 # 		m, fail = arfitbase.fit_pcsurf(orcorid, pxcorid, wvcorid, fitorder, p0=pstart, app=np.mean(fmodel/amodel))
-# 
+#
 # 		if fail:
 # 			msgs.error("Failed to fit a polynomial surface to the arc identifications:"+msgs.newline()+m.errmsg)
-# 
+#
 # 		xmodel = np.linspace(0.0,1.0,int(maxpix)).reshape(int(maxpix),1).repeat(norders,axis=1).flatten(1)
 # 		omodel = np.arange(norders,dtype=np.float).reshape(int(norders),1).repeat(int(maxpix),axis=1).flatten(0)
 # 		oindex=np.zeros(fitorder.size,dtype=np.int)
@@ -1653,15 +1661,15 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
 # 				w = np.where(orcorid==i)
 # 				plt.plot(pxcorid[w]*maxpix,wvcorid[w]-ymodel[w]+i,'bx')
 # 			plt.show()
-# 
+#
 # 		msgs.bug("Try it determine the above fitorder automatically to save user input.")
 # For example, keep increasing the orders until the dispersion in the (wvcorid[w]-ymodel[w])
 # values are less than the angstroms per pixel used? Does this overfit the ids?
-# 
+#
 # 		perror = np.sqrt(np.diag(m.covar))
 # 		if np.size(np.where(perror == 0.0)[0]) != 0:
 # 			msgs.error("Error with covariance matrix"+msgs.newline()+"This is usually caused by a over/under flow"+msgs.newline()+"Try using a lower order polynomial, or a legendre polynomial")
-# 
+#
 # Get a set of new model parameters
 # 		nperturb = 10000
 # 		pararr = perturb(m.covar, m.params, nsim=nperturb)

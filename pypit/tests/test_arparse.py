@@ -38,3 +38,14 @@ def test_load_spectrograph():
     assert spect._spect['keyword']['dispname'] == '01.GRISM_N'
     assert spect._spect['keyword']['dichroic'] == '01.BSPLIT_N'
     spect.save()
+
+def test_parse_binning():
+    """ Test parse binning algorithm
+    """
+    bin1, bin2 = arparse.parse_binning('2,2')
+    assert bin1 == 2
+    assert bin2 == 2
+    # Other input
+    bin1, bin2 = arparse.parse_binning((2,2))   # String output required so this returns 1,1 (the default)
+    assert bin1 == 1
+    assert bin2 == 1

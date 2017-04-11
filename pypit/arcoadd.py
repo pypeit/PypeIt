@@ -466,7 +466,7 @@ def one_d_coadd(spectra, weights):
     return new_spec
 
 
-def load_spec(files, iextensions=None, extract='opt'):
+def load_spec(files, iextensions=None, extract='opt', flux=True):
     """ Load a list of spectra into one XSpectrum1D object
 
     Parameters
@@ -478,6 +478,8 @@ def load_spec(files, iextensions=None, extract='opt'):
       or an int which is the extension in each file
     extract : str, optional
       Extraction method ('opt', 'box')
+    flux : bool, optional
+      Apply to fluxed spectra?
 
     Returns
     -------
@@ -498,7 +500,7 @@ def load_spec(files, iextensions=None, extract='opt'):
     spectra_list = []
     for ii,fname in enumerate(files):
         #msgs.info("Loading extension {:d} of spectrum {:s}".format(extensions[ii], fname))
-        spectrum = arload.load_1dspec(fname, exten=extensions[ii], extract=extract)
+        spectrum = arload.load_1dspec(fname, exten=extensions[ii], extract=extract, flux=flux)
         spectra_list.append(spectrum)
     # Join into one XSpectrum1D object
     spectra = collate(spectra_list)

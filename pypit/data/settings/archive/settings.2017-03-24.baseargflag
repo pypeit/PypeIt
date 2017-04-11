@@ -37,7 +37,9 @@ reduce pixel size 2.5            # The size of the extracted pixels (as an scale
 reduce skysub perform True       # Subtract the sky background from the data?
 reduce skysub method bspline     # Method used for the sky subtraction
 reduce skysub bspline everyn 20  # bspline fitting parameters
-reduce slitprofile perform False    # Determine the spatial slit profile
+reduce slitprofile perform True    # Determine the spatial slit profile
+reduce slitprofile method bspline  # Method used for the spatial slit profile
+reduce slitprofile params [0.1]   # Slit profile method parameters (bspline: [spacing], or [fraction of spectral pixels])
 reduce trim True                # Trim the frame to isolate the data
 
 # ARC FRAMES
@@ -97,7 +99,7 @@ trace slits single []                #
 trace slits tilts idsonly False       # Use only the arc lines that have an identified wavelength to trace tilts
 trace slits tilts method      spline        # What method should be used to trace the tilt of the slit along an order (PCA, spca, spline, interp, perp, zero)
 trace slits tilts params    [1,1,0]       # What order polynomials should be used to fit the tilt principle components
-trace slits tilts order  1             # What is the order of the function to be used for tilts in a given order
+trace slits tilts order  2             # What is the order of the function to be used for tilts in a given order
 
 # PIXEL FLAT FRAMES (used to correct pixel-to-pixel variations)
 pixelflat useframe pixelflat             # What filetype should be used for pixel-to-pixel calibration (flat), you can also specify a master calibrations file if it exists.

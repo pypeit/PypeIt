@@ -918,7 +918,7 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
 
     ###############
     # Estimate trace of science objects
-    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask, doqa=(not standard))
+    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask, doqa=False)# (not standard))
     if scitrace is None:
         msgs.info("Not performing extraction for science frame"+msgs.newline()+fitsdict['filename'][scidx[0]])
         debugger.set_trace()
@@ -942,7 +942,8 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Flexure down the slit? -- Not currently recommended
     if settings.argflag['reduce']['flexure']['method'] == 'slitcen':
         flex_dict = arwave.flexure_slit(slf, det)
-        arqa.flexure(slf, det, flex_dict, slit_cen=True)
+        if not msgs._debug['no_qa']:
+            arqa.flexure(slf, det, flex_dict, slit_cen=True)
 
     # Perform an optimal extraction
     msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
@@ -978,14 +979,12 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
     scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask, doqa=(not standard))
     if standard:
         slf._msstd[det-1]['trace'] = scitrace
-        specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict,
-                                      trc_img=scitrace, objtype='standard')
+        specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict, scitrace, objtype='standard')
         slf._msstd[det-1]['spobjs'] = specobjs
     else:
         slf._scitrace[det-1] = scitrace
         # Generate SpecObjExp list
-        specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict,
-                                      trc_img=scitrace, objtype='science')
+        specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict, scitrace, objtype='science')
         slf._specobjs[det-1] = specobjs
 
     ###############

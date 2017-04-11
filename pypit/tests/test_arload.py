@@ -39,5 +39,8 @@ def test_load_1dspec():
     # Boxcar
     spec = arl.load_1dspec(spec_file, extract='box')
     assert isinstance(spec, XSpectrum1D)
+    # By objname
+    spec2 = arl.load_1dspec(spec_file, objname='O473-S5473-D01-I0008')
+    assert isinstance(spec2, XSpectrum1D)
 
 

@@ -311,7 +311,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     sigmin
     bgreg
     maskval
-    order
+    order : int
+      Slit or order
     xedge : float
       Trim objects within xedge % of the slit edge
     doqa
@@ -506,15 +507,21 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
         for ii in range(nobj):
             ginga.show_trace(viewer, ch, traces[:,ii], '{:d}'.format(ii), clear=(ii==0))
         debugger.set_trace()
-    # Save the quality control
-    if doqa and (not msgs._debug['no_qa']):
-        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, root="object_trace", normalize=False)
     # Trace dict
     tracedict = dict({})
     tracedict['nobj'] = nobj
     tracedict['traces'] = traces
     tracedict['object'] = rec_obj_img
     tracedict['background'] = rec_bg_img
+    # Save the quality control
+    if doqa and (not msgs._debug['no_qa']):
+        from pypit.arspecobj import get_objid
+        objids = []
+        for ii in range(nobj):
+            objid, xobj = get_objid(slf, det, order, ii, tracedict)
+            objids.append(objid)
+        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, objids, root="object_trace", normalize=False)
+    # Return
     return tracedict
 
 
@@ -556,7 +563,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     binbpx = slf._bpix[det-1].copy()
     plxbin = slf._pixlocn[det-1][:, :, 0].copy()
     plybin = slf._pixlocn[det-1][:, :, 1].copy()
-    if False:
+    if msgs._debug["trace"]:
         # Use this for debugging
         binbpx = np.zeros(mstrace.shape, dtype=np.int)
         xs = np.arange(mstrace.shape[0] * 1.0) * settings.spect[dnum]['xgap']
@@ -998,6 +1005,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     else: # There's an order overlap
         rsub = edgbtwn[1]-(lval)
     """
+    if msgs._debug['trace']:
+        debugger.set_trace()
     if mnvalp > mnvalm:
         lvp = (arutils.func_val(lcoeff[:, lval+1-lmin], xv, settings.argflag['trace']['slits']['function'],
                                 minv=minvf, maxv=maxvf)+0.5).astype(np.int)

@@ -364,7 +364,7 @@ def load_tilts(fname):
     return tilts, satmask
 
 
-def load_1dspec(fname, exten=None, extract='opt'):
+def load_1dspec(fname, exten=None, extract='opt', objname=None, flux=False):
     """
     Parameters
     ----------
@@ -375,18 +375,35 @@ def load_1dspec(fname, exten=None, extract='opt'):
       If not given, all spectra in the file are loaded
     extract : str, optional
       Extraction type ('opt', 'box')
+    objname : str, optional
+      Identify extension based on input object name
+    flux : bool, optional
+      Return fluxed spectra?
 
     Returns
     -------
     spec : XSpectrum1D
 
     """
+    from astropy.io import fits
     from linetools.spectra.xspectrum1d import XSpectrum1D
+
     # Keywords for Table
     rsp_kwargs = {}
     rsp_kwargs['wave_tag'] = '{:s}_wave'.format(extract)
-    rsp_kwargs['flux_tag'] = '{:s}_counts'.format(extract)
-    rsp_kwargs['var_tag'] = '{:s}_var'.format(extract)
+    if flux:
+        rsp_kwargs['flux_tag'] = '{:s}_flam'.format(extract)
+        rsp_kwargs['var_tag'] = '{:s}_flam_var'.format(extract)
+    else:
+        rsp_kwargs['flux_tag'] = '{:s}_counts'.format(extract)
+        rsp_kwargs['var_tag'] = '{:s}_var'.format(extract)
+    # Identify extension from objname?
+    if objname is not None:
+        hdulist = fits.open(fname)
+        hdu_names = [hdu.name for hdu in hdulist]
+        exten = hdu_names.index(objname)
+        if exten < 0:
+            msgs.error("Bad input object name: {:s}".format(objname))
     # Load
     spec = XSpectrum1D.from_file(fname, exten=exten, **rsp_kwargs)
     # Return
