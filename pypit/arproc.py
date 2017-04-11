@@ -1144,9 +1144,30 @@ def slit_profile(slf, mstrace, det, ntcky=None):
             ntckx = 3
         tckx = np.linspace(np.min(spatval), np.max(spatval), ntckx)
         tcky = np.linspace(np.min(specval), np.max(specval), ntcky)
-        modspl = interp.LSQBivariateSpline(spatval, specval, fluxval, tckx, tcky)
-        modvals = modspl.ev(spatval, specval)
+
+        # Derive the blaze function
+        wsp = np.where((spatval > 0.25) & (spatval < 0.75))
+        srt = np.argsort(specval[wsp])
+        mask, blzspl = arutils.robust_polyfit(specval[wsp][srt], fluxval[wsp][srt], 3, function='bspline',
+                                              sigma=5., maxone=False, knots=tcky)
+        blz_flat = arutils.func_val(blzspl, specval, 'bspline')
+        msblaze[:, o] = arutils.func_val(blzspl, np.linspace(0.0, 1.0, msblaze.shape[0]), 'bspline')
+        blazeext[:, o] = mstrace[(np.arange(mstrace.shape[0]), np.round(0.5*(lordloc+rordloc)).astype(np.int),)]
+        # Calculate the slit profile
+        sprof_fit = fluxval / (blz_flat + (blz_flat==0.0))
+        srt = np.argsort(spatval)
+        mask, sltspl = arutils.robust_polyfit(spatval[srt], sprof_fit[srt], 3, function='bspline',
+                                              sigma=5., maxone=False, knots=tckx)
+        slt_flat = arutils.func_val(sltspl, spatval, 'bspline')
+        modvals = blz_flat * slt_flat
+        # Normalize to the value at the centre of the slit
+        nrmvals = blz_flat * arutils.func_val(sltspl, 0.5, 'bspline')
+        if not settings.argflag["reduce"]["slitprofile"]["perform"]:
+            # Leave slit_profiles as ones if the slitprofile is not being determined, otherwise, set the model.
+            slit_profiles[word] = modvals/nrmvals
+        mstracenrm[word] /= nrmvals
         if msgs._debug['slit_profile'] and o == 30:
+            debugger.set_trace()
             model = np.zeros_like(mstrace)
             model[word] = modvals
             diff = mstrace - model
@@ -1157,16 +1178,6 @@ def slit_profile(slf, mstrace, det, ntcky=None):
             hdu.writeto("model_{0:02d}.fits".format(det), overwrite=True)
             hdu = pyfits.PrimaryHDU(diff)
             hdu.writeto("diff_{0:02d}.fits".format(det), overwrite=True)
-        # Normalize to the value at the centre of the slit
-        specval = slf._tilts[det - 1][word]
-        spatval = 0.5*np.ones(specval.size)
-        nrmvals = modspl.ev(spatval, specval)
-        msblaze[:, o] = modspl.ev(0.5*np.ones(msblaze.shape[0]), np.linspace(0.0, 1.0, msblaze.shape[0]))
-        blazeext[:, o] = mstrace[(np.arange(mstrace.shape[0]), np.round(0.5*(lordloc+rordloc)).astype(np.int),)]
-        if not settings.argflag["reduce"]["slitprofile"]["perform"]:
-            # Leave slit_profiles as ones if the slitprofile is not being determined, otherwise, set the model.
-            slit_profiles[word] = modvals/nrmvals
-        mstracenrm[word] /= nrmvals
     # Return
     return slit_profiles, mstracenrm, msblaze, blazeext
 
