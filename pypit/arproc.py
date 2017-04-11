@@ -1147,16 +1147,18 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         # Derive the blaze function
         wsp = np.where((spatval > 0.25) & (spatval < 0.75))
         srt = np.argsort(specval[wsp])
+        xb, xe = min(specval[wsp][srt][0], tcky[0]), max(specval[wsp][srt][-1], tcky[-1])
         mask, blzspl = arutils.robust_polyfit(specval[wsp][srt], fluxval[wsp][srt], 3, function='bspline',
-                                              sigma=5., maxone=False, knots=tcky)
+                                              sigma=5., maxone=False, xmin=xb, xmax=xe, knots=tcky[1:-1])
         blz_flat = arutils.func_val(blzspl, specval, 'bspline')
         msblaze[:, o] = arutils.func_val(blzspl, np.linspace(0.0, 1.0, msblaze.shape[0]), 'bspline')
         blazeext[:, o] = mstrace[(np.arange(mstrace.shape[0]), np.round(0.5*(lordloc+rordloc)).astype(np.int),)]
         # Calculate the slit profile
         sprof_fit = fluxval / (blz_flat + (blz_flat == 0.0))
         srt = np.argsort(spatval)
+        xb, xe = min(spatval[srt][0], tckx[0]), max(spatval[srt][-1], tckx[-1])
         mask, sltspl = arutils.robust_polyfit(spatval[srt], sprof_fit[srt], 3, function='bspline',
-                                              sigma=5., maxone=False, knots=tckx)
+                                              sigma=5., maxone=False, xmin=xb, xmax=xe, knots=tckx[1:-1])
         slt_flat = arutils.func_val(sltspl, spatval, 'bspline')
         modvals = blz_flat * slt_flat
         # Normalize to the value at the centre of the slit

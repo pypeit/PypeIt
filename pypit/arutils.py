@@ -100,12 +100,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
         task = -1
     # Generate spline
     try:
-        if task == -1:
-            xb = min(x[gd][0], knots[0])
-            xe = max(x[gd][-1], knots[-1])
-            tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, xb=xb, xe=xe, t=knots[1:-1], task=task)
-        else:
-            tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, t=knots, task=task)
+        tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, xb=xmin, xe=xmax, t=knots, task=task)
     except ValueError: # Knot problem
         msgs.warn("Problem in the bspline knot")
     return tck
