@@ -565,11 +565,9 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     sn2, weights = sn_weight(rspec)
 
     # Scale (modifies rspec)
-    debugger.set_trace()
     scales, omethod = scale_spectra(rspec, sn2, scale_method=scale_method, **kwargs)
 
     # Initial coadd
-    debugger.set_trace()
     spec1d = one_d_coadd(rspec, weights)
 
     std_dev, _ = get_std_dev(rspec, spec1d)
