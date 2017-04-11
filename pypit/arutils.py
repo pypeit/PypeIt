@@ -44,6 +44,7 @@ def bspline_inner_knots(all_knots):
     i1=pos[-1]
     return all_knots[i0:i1]
 
+
 def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bkspace=None):
     ''' bspline fit to x,y
     Should probably only be called from func_fit
@@ -73,6 +74,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
       describes the bspline
     '''
     #
+    task = 0  # Default of splrep
     if w is None:
         ngd = x.size
         gd = np.arange(ngd)
@@ -94,9 +96,16 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
             knots = x[gd[idx_knots]]
         else:
             msgs.error("No method specified to generate knots")
+    else:
+        task = -1
     # Generate spline
     try:
-        tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, t=knots)
+        if task == -1:
+            xb = min(x[gd][0], knots[0])
+            xe = max(x[gd][-1], knots[-1])
+            tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, xb=xb, xe=xe, t=knots[1:-1], task=task)
+        else:
+            tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, t=knots, task=task)
     except ValueError: # Knot problem
         msgs.warn("Problem in the bspline knot")
         debugger.set_trace()
