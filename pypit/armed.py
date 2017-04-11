@@ -128,9 +128,9 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                     if settings.argflag['trace']['slits']['expand']:
                         lordloc, rordloc = artrace.expand_slits(slf, slf._mstrace[det-1], det,
                                                                 0.5*(lordloc+rordloc), extord)
-                    np.save("lordloc", lordloc)
-                    np.save("rordloc", rordloc)
-                    np.save("extord", extord)
+                    # np.save("lordloc", lordloc)
+                    # np.save("rordloc", rordloc)
+                    # np.save("extord", extord)
                 else:
                     lordloc, rordloc, extord = np.load("lordloc.npy"), np.load("rordloc.npy"), np.load("extord.npy")
 
@@ -181,6 +181,12 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
+
+            # msgs.info("Temporary code")
+            # sciframe = arload.load_frames(fitsdict, [scidx], det, frametype='science', msbias=slf._msbias[det - 1])
+            # sciframe = sciframe[:, :, 0]
+            # arproc.background_subtraction(slf, sciframe, sciframe, 30, det)
+            # msgs.error("Remove this code")
 
             ###############
             # Prepare the pixel flat field frame
