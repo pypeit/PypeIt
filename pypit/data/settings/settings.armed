@@ -28,7 +28,7 @@ trace slits tilts disporder  1             # What is the order of the polynomial
 trace object order 2                # What is the order of the polynomial function to be used to fit the object trace in each order
 trace object function legendre      # What function should be used to trace the object in each order? (polynomial, legendre, chebyshev)
 trace object method PCA        # What method should be used to trace the object (PCA)
-trace object params [2,1]       # What order polynomials should be used to fit the object trace principle components
+trace object params [1,0]       # What order polynomials should be used to fit the object trace principle components
 
 # PIXEL FLAT FRAMES
 
