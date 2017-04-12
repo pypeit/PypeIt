@@ -326,7 +326,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     smthby = 7
     rejhilo = 1
     bgreg = 20
-    traceorder = 2   # Order of polynomial used to trace the objects
+    tracefunc = settings.argflag['trace']['object']['function']
+    traceorder = settings.argflag['trace']['object']['order']
     if triml is None: triml = trim
     if trimr is None: trimr = trim
     npix = int(slf._pixwid[det-1][order] - triml - trimr)
@@ -425,8 +426,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
         w = np.where(centfit != maskval)
         specfit = specfit[w]
         centfit = centfit[w]
-        mskbad, coeffs = arutils.robust_polyfit(specfit,centfit,traceorder,function="legendre", minv=-1.0, maxv=1.0)
-        cval[o] = arutils.func_val(coeffs, np.array([0.0]), "legendre", minv=-1.0, maxv=1.0)[0]
+        mskbad, coeffs = arutils.robust_polyfit(specfit,centfit,traceorder,function=tracefunc, minv=-1.0, maxv=1.0)
+        cval[o] = arutils.func_val(coeffs, np.array([0.0]), tracefunc, minv=-1.0, maxv=1.0)[0]
         w = np.where(mskbad==0.0)
         if w[0].size!=0:
             allxfit = np.append(allxfit, specfit[w])
@@ -436,8 +437,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
         return dict(nobj=0, traces=None, object=None, background=None)
     # Tracing
     msgs.info("Performing global trace to all objects")
-    mskbad, coeffs = arutils.robust_polyfit(allxfit,allsfit,traceorder,function="legendre", minv=-1.0, maxv=1.0)
-    trcfunc = arutils.func_val(coeffs, np.linspace(-1.0, 1.0, sciframe.shape[0]), "legendre", minv=-1.0, maxv=1.0)
+    mskbad, coeffs = arutils.robust_polyfit(allxfit,allsfit,traceorder,function=tracefunc, minv=-1.0, maxv=1.0)
+    trcfunc = arutils.func_val(coeffs, np.linspace(-1.0, 1.0, sciframe.shape[0]), tracefunc, minv=-1.0, maxv=1.0)
     msgs.info("Constructing a trace for all objects")
     trcfunc = trcfunc.reshape((-1,1)).repeat(nobj, axis=1)
     trccopy = trcfunc.copy()
