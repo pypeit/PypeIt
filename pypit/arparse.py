@@ -1690,6 +1690,31 @@ class BaseArgFlag(BaseFunctions):
                        "0 or 1 (if the dispersion axis is along a row or column respectively)")
         self.update(v)
 
+    def trace_object_function(self, v):
+        """ What function should be used to trace the object in each order?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        allowed = ['polynomial', 'legendre', 'chebyshev']
+        v = key_allowed(v, allowed)
+        self.update(v)
+
+    def trace_object_order(self, v):
+        """ What is the order of the polynomial function to be used to fit the object trace in each order
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_int(v)
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        self.update(v)
+
     def trace_slits_diffpolyorder(self, v):
         """ What is the order of the 2D function that should be used to fit
         the 2D solution for the spatial size of all slits?
@@ -3468,18 +3493,6 @@ class ARMED(BaseArgFlag):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def trace_object_function(self, v):
-        """ What function should be used to trace the object in each order?
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        allowed = ['polynomial', 'legendre', 'chebyshev']
-        v = key_allowed(v, allowed)
-        self.update(v)
-
     def trace_object_method(self, v):
         """ What method should be used to trace the object?
 
@@ -3504,19 +3517,6 @@ class ARMED(BaseArgFlag):
           value of the keyword argument given by the name of this function
         """
         v = key_list(v)
-        self.update(v)
-
-    def trace_object_order(self, v):
-        """ What is the order of the polynomial function to be used to fit the object trace in each order
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        v = key_int(v)
-        if v < 0:
-            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
     def trace_slits_tilts_disporder(self, v):
