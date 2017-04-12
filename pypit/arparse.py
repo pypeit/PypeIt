@@ -3468,6 +3468,57 @@ class ARMED(BaseArgFlag):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
+    def trace_object_function(self, v):
+        """ What function should be used to trace the object in each order?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        allowed = ['polynomial', 'legendre', 'chebyshev']
+        v = key_allowed(v, allowed)
+        self.update(v)
+
+    def trace_object_method(self, v):
+        """ What method should be used to trace the object?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        allowed = ['pca', 'spline', 'spca', 'interp', 'perp', 'zero']
+        v = key_allowed(v, allowed)
+        self.update(v)
+
+    def trace_object_params(self, v):
+        """ Parameters that should be used for the 'trace object method' argument.
+        Options include:
+
+        pca :  A list containing the order of the polynomials that should be used to fit the object trace principle components
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_list(v)
+        self.update(v)
+
+    def trace_object_order(self, v):
+        """ What is the order of the polynomial function to be used to fit the object trace in each order
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_int(v)
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        self.update(v)
+
     def trace_slits_tilts_disporder(self, v):
         """ What is the order of the polynomial function to be used to fit the tilts along the dispersion direction
 
