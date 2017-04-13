@@ -882,17 +882,18 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
     else:
         msgs.error("Not ready for object trace method:" + msgs.newline() +
                    settings.argflag['trace']['object']['method'])
+    # Construct the left and right traces of the object profile
+    # The following code ensures that the fraction of the slit
+    # containing the object remains constant along the spectral
+    # direction
+    trcmean = np.mean(trccen, axis=0)
+    trobjl = (trcmean - (1+bgnl)/slf._pixwid[det - 1].astype(np.float)).reshape((1, nord)).repeat(nspec, axis=0)
+    trobjl = trccen - trobjl
+    trobjr = (-trcmean + (slf._pixwid[det - 1]-bgnr-1)/slf._pixwid[det - 1].astype(np.float)).reshape((1, nord)).repeat(nspec, axis=0)
+    trobjr = trccen + trobjr
     # Convert trccen to the actual trace locations
     trccen *= (slf._rordloc[det - 1] - slf._lordloc[det - 1])
     trccen += slf._lordloc[det - 1]
-    # Construct the left and right traces of the object profile
-    debugger.set_trace()
-    trobjl = (bgnl.astype(np.float)).reshape((1, nord)).repeat(nspec, axis=0)
-    trobjl *= (slf._rordloc[det - 1] - slf._lordloc[det - 1])
-    trobjl += slf._lordloc[det - 1]
-    trobjr = ((slf._pixwid[det - 1]-bgnr).astype(np.float)).reshape((1, nord)).repeat(nspec, axis=0)
-    trobjr *= (slf._rordloc[det - 1] - slf._lordloc[det - 1])
-    trobjr += slf._lordloc[det - 1]
 
     # Generate an image of pixel weights for each object
     rec_obj_img = np.zeros_like(sciframe)
