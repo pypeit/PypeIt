@@ -835,7 +835,7 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
     # Prepare the frames for tracing and extraction
     sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
     bgframe = np.zeros_like(sciframe)
-    bgnl, bgnr = np.zeros(nord), np.zeros(nord)
+    bgnl, bgnr = np.zeros(nord, dtype=np.int), np.zeros(nord, dtype=np.int)
     if settings.argflag['reduce']['skysub']['perform']:
         # Identify background pixels, and generate an image of the sky spectrum in each slit
         for o in range(nord):
@@ -886,8 +886,13 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
     trccen *= (slf._rordloc[det - 1] - slf._lordloc[det - 1])
     trccen += slf._lordloc[det - 1]
     # Construct the left and right traces of the object profile
-    trobjl = None
     debugger.set_trace()
+    trobjl = (bgnl.astype(np.float)).reshape((1, nord)).repeat(nspec, axis=0)
+    trobjl *= (slf._rordloc[det - 1] - slf._lordloc[det - 1])
+    trobjl += slf._lordloc[det - 1]
+    trobjr = ((slf._pixwid[det - 1]-bgnr).astype(np.float)).reshape((1, nord)).repeat(nspec, axis=0)
+    trobjr *= (slf._rordloc[det - 1] - slf._lordloc[det - 1])
+    trobjr += slf._lordloc[det - 1]
 
     # Generate an image of pixel weights for each object
     rec_obj_img = np.zeros_like(sciframe)
@@ -915,7 +920,8 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
     tracedict['background'] = rec_bg_img
     # Save the quality control
     if not msgs._debug['no_qa']:
-        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, objids, root="object_trace", normalize=False)
+        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, None, root="object_trace", normalize=False)
+
     msgs.error("UP TO HERE!!!!!!!")
 
     # Finalize the Sky Background image
