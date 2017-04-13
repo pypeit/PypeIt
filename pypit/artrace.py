@@ -294,35 +294,130 @@ def expand_slits(slf, mstrace, det, ordcen, extord):
     return lordloc, rordloc
 
 
+def trace_objbg_image(slf, det, sciframe, slitn, nobj=1, trim=2.0, triml=None, trimr=None):
+    """ Creates an image with weights corresponding to object or background pixels
+
+    Parameters
+    ----------
+    slf : Class instance
+      An instance of the Science Exposure class
+    det : int
+      Index of the detector
+    sciframe: numpy ndarray
+      Science frame
+    slitn : int
+      Slit (or order) number
+    trim : int (optional)
+      Number of pixels to trim from the left and right slit edges.
+      To separately specify how many pixels to trim from the left
+      and right slit edges, use triml and trimr.
+    triml : int (optional)
+      Number of pixels to trim from the left slit edge
+    trimr : int (optional)
+      Number of pixels to trim from the right slit edge
+
+    Returns
+    -------
+    lordloc : ndarray
+      Locations of the left slit edges (in physical pixel coordinates)
+    rordloc : ndarray
+      Locations of the right slit edges (in physical pixel coordinates)
+    """
+    if triml is None:
+        triml = trim
+    if trimr is None:
+        trimr = trim
+    npix = int(slf._pixwid[det-1][slitn] - triml - trimr)
+    # Make an image of pixel weights for each object
+    xint = np.linspace(0.0, 1.0, sciframe.shape[0])
+    yint = np.linspace(0.0, 1.0, npix)
+    yint = np.append(-yint[1], np.append(yint, 2.0-yint[-2]))
+    msgs.info("Creating an image weighted by object pixels")
+    rec_obj_img = np.zeros((sciframe.shape[0], sciframe.shape[1], nobj))
+    for o in range(nobj):
+        obj = np.zeros(npix)
+        obj[objl[o]:objr[o]+1] = 1
+        scitmp = np.append(0.0, np.append(obj, 0.0))
+        objframe = scitmp.reshape(1, -1).repeat(sciframe.shape[0], axis=0)
+        objspl = interp.RectBivariateSpline(xint, yint, objframe, bbox=[0.0, 1.0, yint.min(), yint.max()], kx=1, ky=1, s=0)
+        xx, yy = np.meshgrid(np.linspace(0, 1.0, sciframe.shape[0]), np.arange(0, sciframe.shape[1]), indexing='ij')
+        lo = (slf._lordloc[det-1][:, slitn]+triml).reshape((-1, 1))
+        vv = ((yy-lo)/(npix-1.0)).flatten()
+        xx = xx.flatten()
+        wf = np.where((vv >= yint[0]) & (vv <= yint[-1]))
+        rec_obj_arr = objspl.ev(xx[wf], vv[wf])
+        idxarr = np.zeros(sciframe.shape).flatten()
+        idxarr[wf] = 1
+        idxarr = idxarr.reshape(sciframe.shape)
+        rec_img = np.zeros_like(sciframe)
+        rec_img[np.where(idxarr == 1)] = rec_obj_arr
+        rec_obj_img[:, :, o] = rec_img.copy()
+    # Make an image of pixel weights for the background region of each object
+    msgs.info("Creating an image weighted by background pixels")
+    rec_bg_img = np.zeros((sciframe.shape[0], sciframe.shape[1], nobj))
+    for o in range(nobj):
+        backtmp = np.append(0.0, np.append(bckl[:, o] + bckr[:, o], 0.0))
+        bckframe = backtmp.reshape(1, -1).repeat(sciframe.shape[0], axis=0)
+        bckspl = interp.RectBivariateSpline(xint, yint, bckframe, bbox=[0.0, 1.0, yint.min(), yint.max()], kx=1, ky=1, s=0)
+        xx, yy = np.meshgrid(np.linspace(0, 1.0, sciframe.shape[0]), np.arange(0, sciframe.shape[1]), indexing='ij')
+        lo = (slf._lordloc[det-1][:, slitn]+triml).reshape((-1, 1))
+        vv = ((yy-lo)/(npix-1.0)).flatten()
+        xx = xx.flatten()
+        wf = np.where((vv >= yint[0]) & (vv <= yint[-1]))
+        rec_bg_arr = bckspl.ev(xx[wf], vv[wf])
+        idxarr = np.zeros(sciframe.shape).flatten()
+        idxarr[wf] = 1
+        idxarr = idxarr.reshape(sciframe.shape)
+        rec_img = np.zeros_like(sciframe)
+        rec_img[np.where(idxarr == 1)] = rec_bg_arr
+        rec_bg_img[:, :, o] = rec_img.copy()
+    return rec_obj_img, rec_bg_img
+
+
 def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
                  triml=None, trimr=None, sigmin=2.0, bgreg=None,
-                 maskval=-999999.9, order=0, doqa=True,
+                 maskval=-999999.9, slitn=0, doqa=True,
                  xedge=0.03, fwhm=3.):
     """ Finds objects, and traces their location on the detector
     Parameters
     ----------
-    slf
-    sciframe
-    varframe
-    crmask
-    trim
-    triml
-    trimr
-    sigmin
-    bgreg
-    maskval
-    order : int
-      Slit or order
+    slf : Class instance
+      An instance of the Science Exposure class
+    det : int
+      Index of the detector
+    sciframe: numpy ndarray
+      Science frame
+    varframe: numpy ndarray
+      Variance frame
+    crmask: numpy ndarray
+      Mask or cosmic rays
+    slitn : int
+      Slit (or order) number
+    trim : int (optional)
+      Number of pixels to trim from the left and right slit edges.
+      To separately specify how many pixels to trim from the left
+      and right slit edges, use triml and trimr.
+    triml : int (optional)
+      Number of pixels to trim from the left slit edge
+    trimr : int (optional)
+      Number of pixels to trim from the right slit edge
+    sigmin : float
+      Significance threshold to eliminate CRs
+    maskval : float
+      Placeholder value used to mask pixels
     xedge : float
       Trim objects within xedge % of the slit edge
-    doqa
+    doqa : bool
+      Should QA be output?
 
     Returns
     -------
-
+    tracedict : dict
+      A dictionary containing the object trace information
     """
     from pypit import arcytrace
     from pypit import arcyutils
+    # Find the trace of each object
     smthby = 7
     rejhilo = 1
     bgreg = 20
@@ -330,7 +425,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     traceorder = settings.argflag['trace']['object']['order']
     if triml is None: triml = trim
     if trimr is None: trimr = trim
-    npix = int(slf._pixwid[det-1][order] - triml - trimr)
+    npix = int(slf._pixwid[det-1][slitn] - triml - trimr)
     if bgreg is None: bgreg = npix
     # Interpolate the science array onto a new grid (with constant spatial slit length)
     msgs.info("Rectifying science frame")
@@ -340,8 +435,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     varspl = interp.RectBivariateSpline(xint, yint, varframe, bbox=[0.0, 1.0, 0.0, 1.0], kx=1, ky=1, s=0)
     crmspl = interp.RectBivariateSpline(xint, yint, crmask, bbox=[0.0, 1.0, 0.0, 1.0], kx=1, ky=1, s=0)
     xx, yy = np.meshgrid(np.linspace(0.0,1.0,sciframe.shape[0]),np.linspace(0.0,1.0,npix), indexing='ij')
-    ro = (slf._rordloc[det-1][:,order]-trimr).reshape((-1,1))/(sciframe.shape[1]-1.0)
-    lo = (slf._lordloc[det-1][:,order]+triml).reshape((-1,1))/(sciframe.shape[1]-1.0)
+    ro = (slf._rordloc[det-1][:, slitn] - trimr).reshape((-1, 1)) / (sciframe.shape[1] - 1.0)
+    lo = (slf._lordloc[det-1][:, slitn] + triml).reshape((-1, 1)) / (sciframe.shape[1] - 1.0)
     vv = (lo+(ro-lo)*yy).flatten()
     xx = xx.flatten()
     recsh = (sciframe.shape[0],npix)
@@ -445,9 +540,9 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     for o in range(nobj): trcfunc[:,o] += cval[o]
     if nobj==1: msgs.info("Converting object trace to detector pixels")
     else: msgs.info("Converting object traces to detector pixels")
-    ofst = slf._lordloc[det-1][:,order].reshape((-1,1)).repeat(nobj,axis=1) + triml
-    diff = (slf._rordloc[det-1][:,order].reshape((-1,1)).repeat(nobj,axis=1)
-            - slf._lordloc[det-1][:,order].reshape((-1,1)).repeat(nobj,axis=1))
+    ofst = slf._lordloc[det-1][:, slitn].reshape((-1, 1)).repeat(nobj, axis=1) + triml
+    diff = (slf._rordloc[det-1][:, slitn].reshape((-1, 1)).repeat(nobj, axis=1)
+            - slf._lordloc[det-1][:, slitn].reshape((-1, 1)).repeat(nobj, axis=1))
     # Convert central trace
     traces = ofst + (diff-triml-trimr)*trcfunc
     # Convert left object trace
@@ -456,51 +551,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     # Convert right object trace
     for o in range(nobj): trccopy[:,o] = trcfunc[:,o] - cval[o] + objr[o]/(npix-1.0)
     trobjr = ofst + (diff-triml-trimr)*trccopy
-    # Make an image of pixel weights for each object
-    xint = np.linspace(0.0, 1.0, sciframe.shape[0])
-    yint = np.linspace(0.0, 1.0, npix)
-    yint = np.append(-yint[1],np.append(yint,2.0-yint[-2]))
-    msgs.info("Creating an image weighted by object pixels")
-    #plt.plot(trcxrng[objl[0]:objr[0]+1],trcprof[objl[0]:objr[0]+1],'bx')
-    rec_obj_img = np.zeros((sciframe.shape[0],sciframe.shape[1],nobj))
-    for o in range(nobj):
-        obj = np.zeros(npix)
-        obj[objl[o]:objr[o]+1]=1
-        scitmp = np.append(0.0,np.append(obj,0.0))
-        objframe = scitmp.reshape(1,-1).repeat(sciframe.shape[0],axis=0)
-        objspl = interp.RectBivariateSpline(xint, yint, objframe, bbox=[0.0, 1.0, yint.min(), yint.max()], kx=1, ky=1, s=0)
-        xx, yy = np.meshgrid(np.linspace(0,1.0,sciframe.shape[0]), np.arange(0,sciframe.shape[1]), indexing='ij')
-        lo = (slf._lordloc[det-1][:,order]+triml).reshape((-1,1))
-        vv = ((yy-lo)/(npix-1.0)).flatten()
-        xx = xx.flatten()
-        wf = np.where((vv>=yint[0])&(vv<=yint[-1]))
-        rec_obj_arr = objspl.ev(xx[wf], vv[wf])
-        idxarr = np.zeros(sciframe.shape).flatten()
-        idxarr[wf] = 1
-        idxarr = idxarr.reshape(sciframe.shape)
-        rec_img = np.zeros_like(sciframe)
-        rec_img[np.where(idxarr==1)] = rec_obj_arr
-        rec_obj_img[:,:,o] = rec_img.copy()
-    # Make an image of pixel weights for the background region of each object
-    msgs.info("Creating an image weighted by background pixels")
-    rec_bg_img = np.zeros((sciframe.shape[0],sciframe.shape[1],nobj))
-    for o in range(nobj):
-        backtmp = np.append(0.0,np.append(bckl[:,o]+bckr[:,o],0.0))
-        bckframe = backtmp.reshape(1,-1).repeat(sciframe.shape[0],axis=0)
-        bckspl = interp.RectBivariateSpline(xint, yint, bckframe, bbox=[0.0, 1.0, yint.min(), yint.max()], kx=1, ky=1, s=0)
-        xx, yy = np.meshgrid(np.linspace(0,1.0,sciframe.shape[0]), np.arange(0,sciframe.shape[1]), indexing='ij')
-        lo = (slf._lordloc[det-1][:,order]+triml).reshape((-1,1))
-        vv = ((yy-lo)/(npix-1.0)).flatten()
-        xx = xx.flatten()
-        wf = np.where((vv>=yint[0])&(vv<=yint[-1]))
-        rec_bg_arr = bckspl.ev(xx[wf], vv[wf])
-        idxarr = np.zeros(sciframe.shape).flatten()
-        idxarr[wf] = 1
-        idxarr = idxarr.reshape(sciframe.shape)
-        rec_img = np.zeros_like(sciframe)
-        rec_img[np.where(idxarr==1)] = rec_bg_arr
-        rec_bg_img[:,:,o] = rec_img.copy()
-        #arutils.ds9plot(rec_img)
+    # Generate an image of pixel weights for each object
+    rec_obj_img, rec_bg_img = trace_objbg_image(slf, sciframe)
     # Check object traces in ginga
     if msgs._debug['trace_obj']:
         from pypit import ginga
@@ -519,7 +571,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
         from pypit.arspecobj import get_objid
         objids = []
         for ii in range(nobj):
-            objid, xobj = get_objid(slf, det, order, ii, tracedict)
+            objid, xobj = get_objid(slf, det, slitn, ii, tracedict)
             objids.append(objid)
         arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, objids, root="object_trace", normalize=False)
     # Return
