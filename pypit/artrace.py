@@ -294,7 +294,7 @@ def expand_slits(slf, mstrace, det, ordcen, extord):
     return lordloc, rordloc
 
 
-def trace_objbg_image(slf, det, sciframe, slitn, nobj=1, trim=2.0, triml=None, trimr=None):
+def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2.0, triml=None, trimr=None):
     """ Creates an image with weights corresponding to object or background pixels
 
     Parameters
@@ -307,6 +307,13 @@ def trace_objbg_image(slf, det, sciframe, slitn, nobj=1, trim=2.0, triml=None, t
       Science frame
     slitn : int
       Slit (or order) number
+    objreg : list
+      A two element list containing arrays that indicate the left and right
+      pixels of the object locations for each object.
+    bgreg : list
+      A two element list containing arrays that indicate the background regions
+      around each object (i.e. [bgleft, bgright]). Each array is 2D and contains
+      a list of pixels for each object. The size of each array is [npix, nobj].
     trim : int (optional)
       Number of pixels to trim from the left and right slit edges.
       To separately specify how many pixels to trim from the left
@@ -323,6 +330,8 @@ def trace_objbg_image(slf, det, sciframe, slitn, nobj=1, trim=2.0, triml=None, t
     rordloc : ndarray
       Locations of the right slit edges (in physical pixel coordinates)
     """
+    # Get the number of objects in the slit
+    nobj = len(objreg[0])
     if triml is None:
         triml = trim
     if trimr is None:
@@ -336,7 +345,7 @@ def trace_objbg_image(slf, det, sciframe, slitn, nobj=1, trim=2.0, triml=None, t
     rec_obj_img = np.zeros((sciframe.shape[0], sciframe.shape[1], nobj))
     for o in range(nobj):
         obj = np.zeros(npix)
-        obj[objl[o]:objr[o]+1] = 1
+        obj[objreg[0][o]:objreg[1][o]+1] = 1
         scitmp = np.append(0.0, np.append(obj, 0.0))
         objframe = scitmp.reshape(1, -1).repeat(sciframe.shape[0], axis=0)
         objspl = interp.RectBivariateSpline(xint, yint, objframe, bbox=[0.0, 1.0, yint.min(), yint.max()], kx=1, ky=1, s=0)
@@ -356,7 +365,7 @@ def trace_objbg_image(slf, det, sciframe, slitn, nobj=1, trim=2.0, triml=None, t
     msgs.info("Creating an image weighted by background pixels")
     rec_bg_img = np.zeros((sciframe.shape[0], sciframe.shape[1], nobj))
     for o in range(nobj):
-        backtmp = np.append(0.0, np.append(bckl[:, o] + bckr[:, o], 0.0))
+        backtmp = np.append(0.0, np.append(bgreg[0][:, o] + bgreg[1][:, o], 0.0))
         bckframe = backtmp.reshape(1, -1).repeat(sciframe.shape[0], axis=0)
         bckspl = interp.RectBivariateSpline(xint, yint, bckframe, bbox=[0.0, 1.0, yint.min(), yint.max()], kx=1, ky=1, s=0)
         xx, yy = np.meshgrid(np.linspace(0, 1.0, sciframe.shape[0]), np.arange(0, sciframe.shape[1]), indexing='ij')
@@ -552,7 +561,9 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
     for o in range(nobj): trccopy[:,o] = trcfunc[:,o] - cval[o] + objr[o]/(npix-1.0)
     trobjr = ofst + (diff-triml-trimr)*trccopy
     # Generate an image of pixel weights for each object
-    rec_obj_img, rec_bg_img = trace_objbg_image(slf, sciframe)
+    rec_obj_img, rec_bg_img = trace_objbg_image(slf, det, sciframe, slitn,
+                                                [objl, objr], [bckl, bckr],
+                                                triml=triml, trimr=trimr)
     # Check object traces in ginga
     if msgs._debug['trace_obj']:
         from pypit import ginga
