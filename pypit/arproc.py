@@ -836,13 +836,23 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
     sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
     bgframe = np.zeros_like(sciframe)
     bgnl, bgnr = np.zeros(nord, dtype=np.int), np.zeros(nord, dtype=np.int)
+    skysub = True
     if settings.argflag['reduce']['skysub']['perform']:
         # Identify background pixels, and generate an image of the sky spectrum in each slit
         for o in range(nord):
             tbgframe, nl, nr = background_subtraction(slf, sciframe, rawvarframe, o, det)
             bgnl[o], bgnr[o] = nl, nr
             bgframe += tbgframe
-        modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
+            if nl == 0 and nr == 0:
+                # If just one slit cannot do sky subtraction, don't do sky subtraction
+                msgs.warn("A sky subtraction will not be performed")
+                skysub = False
+                bgframe = np.zeros_like(sciframe)
+                modelvarframe = rawvarframe.copy()
+                break
+        if skysub:
+            # Provided the for loop above didn't break early, model the variance frame
+            modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
     else:
         modelvarframe = rawvarframe.copy()
         bgframe = np.zeros_like(sciframe)
@@ -862,6 +872,7 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
                                                      settings.argflag['trace']['object']['order'],
                                                      function=settings.argflag['trace']['object']['function'],
                                                      weights=1.0 / error ** 2, minv=0.0, maxv=nspec-1.0)
+    refine = 0.0
     if settings.argflag['trace']['object']['method'] == "pca":
         # Identify the orders to be extrapolated during reconstruction
         orders = 1.0 + np.arange(nord)
@@ -878,7 +889,7 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
             arpca.pc_plot(slf, outpar, ofit, pcadesc="PCA of object trace")
         # Extrapolate the remaining orders requested
         trccen, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['object']['function'])
-        refine = trccen-trccen[nspec//2, :].reshape((1, nord))
+        #refine = trccen-trccen[nspec//2, :].reshape((1, nord))
     else:
         msgs.error("Not ready for object trace method:" + msgs.newline() +
                    settings.argflag['trace']['object']['method'])
@@ -894,6 +905,10 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
     # Convert trccen to the actual trace locations
     trccen *= (slf._rordloc[det - 1] - slf._lordloc[det - 1])
     trccen += slf._lordloc[det - 1]
+    trobjl *= (slf._rordloc[det - 1] - slf._lordloc[det - 1])
+    trobjl += slf._lordloc[det - 1]
+    trobjr *= (slf._rordloc[det - 1] - slf._lordloc[det - 1])
+    trobjr += slf._lordloc[det - 1]
 
     # Generate an image of pixel weights for each object
     rec_obj_img = np.zeros_like(sciframe)
@@ -914,27 +929,26 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
         rec_bg_img += tbg_img[:, :, 0]
 
     # Create trace dict
-    tracedict = dict({})
-    tracedict['nobj'] = 1
-    tracedict['traces'] = trccen
-    tracedict['object'] = rec_obj_img
-    tracedict['background'] = rec_bg_img
+    scitrace = dict({})
+    scitrace['nobj'] = 1
+    scitrace['traces'] = trccen
+    scitrace['object'] = rec_obj_img
+    scitrace['background'] = rec_bg_img
     # Save the quality control
     if not msgs._debug['no_qa']:
         arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, None, root="object_trace", normalize=False)
 
-    msgs.error("UP TO HERE!!!!!!!")
-
     # Finalize the Sky Background image
-    if settings.argflag['reduce']['skysub']['perform'] & (scitrace['nobj'] > 0):
+    if settings.argflag['reduce']['skysub']['perform'] and (scitrace['nobj'] > 0) and skysub:
         # Identify background pixels, and generate an image of the sky spectrum in each slit
         bgframe = np.zeros_like(sciframe)
         for o in range(nord):
-            bgframe += background_subtraction(slf, sciframe, rawvarframe, o, det, refine=refine)
+            tbgframe, nl, nr = background_subtraction(slf, sciframe, rawvarframe, o, det, refine=refine)
+            bgnl[o], bgnr[o] = nl, nr
+            bgframe += tbgframe
         modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
 
     # Perform an optimal extraction
-    msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
     return reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask, standard=standard)
 
 
