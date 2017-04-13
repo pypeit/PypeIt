@@ -434,8 +434,9 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, root='trace', outfil=None, 
         # Label
         iy = int(frame.shape[0]/2.)
         #plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
-        lbl = 'O{:03d}'.format(objids[ii])
-        plt.text((ltrace[iy,ii]+rtrace[iy,ii])/2., ycen[iy], lbl, color='green', ha='center')
+        if objids is not None:
+            lbl = 'O{:03d}'.format(objids[ii])
+            plt.text((ltrace[iy,ii]+rtrace[iy,ii])/2., ycen[iy], lbl, color='green', ha='center')
 
     slf._qa.savefig(bbox_inches='tight')
     #plt.close()
