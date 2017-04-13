@@ -294,7 +294,7 @@ def expand_slits(slf, mstrace, det, ordcen, extord):
     return lordloc, rordloc
 
 
-def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2.0, triml=None, trimr=None):
+def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=None, trimr=None):
     """ Creates an image with weights corresponding to object or background pixels
 
     Parameters
@@ -383,7 +383,7 @@ def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2.0, triml=
     return rec_obj_img, rec_bg_img
 
 
-def trace_object(slf, det, sciframe, varframe, crmask, trim=2.0,
+def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
                  triml=None, trimr=None, sigmin=2.0, bgreg=None,
                  maskval=-999999.9, slitn=0, doqa=True,
                  xedge=0.03, fwhm=3.):
