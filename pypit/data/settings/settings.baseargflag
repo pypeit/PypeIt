@@ -26,6 +26,7 @@ reduce flatfield perform True           # Flatfield the data?
 reduce flatfield method bspline      # Method used to flat field the data (PolyScan, bspline)
 reduce flatfield params [20]     # Flat field method parameters (PolyScan: [order,numPixels,repeat], bspline: [spacing])
 reduce flatfield useframe pixelflat          # How to flat field the data (pixelflat, pinhole), you can also specify a master calibrations file if it exists.
+reduce flexure perform True
 reduce slitcen useframe trace          # How to trace the slit center (pinhole, trace, science), you can also specify a master calibrations file if it exists.
 reduce trace useframe trace          # How to flat field the data (trace), you can also specify a master calibrations file if it exists.
 reduce masters file None         #

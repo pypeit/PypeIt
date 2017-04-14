@@ -1047,6 +1047,17 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed_filename(v, allowed)
         self.update(v)
 
+    def reduce_flexure_perform(self, v):
+        """ Perform a flexure correction?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_bool(v)
+        self.update(v)
+
     def reduce_slitcen_useframe(self, v):
         """ What frame should be used to trace the slit centroid? You can also
         specify a master calibrations file if it exists.
