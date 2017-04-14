@@ -911,8 +911,8 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
     trobjr += slf._lordloc[det - 1]
 
     # Generate an image of pixel weights for each object
-    rec_obj_img = np.zeros_like(sciframe)
-    rec_bg_img = np.zeros_like(sciframe)
+    rec_obj_img = np.zeros(sciframe.shape+(1,))
+    rec_bg_img = np.zeros(sciframe.shape+(1,))
     for o in range(nord):
         # Prepare object/background regions
         objl = np.array([bgnl[o]])
@@ -925,8 +925,8 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
         tobj_img, tbg_img = artrace.trace_objbg_image(slf, det, sciframe-bgframe, o,
                                                       [objl, objr], [bckl, bckr],
                                                       triml=triml, trimr=trimr)
-        rec_obj_img += tobj_img[:, :, 0]
-        rec_bg_img += tbg_img[:, :, 0]
+        rec_obj_img += tobj_img
+        rec_bg_img += tbg_img
 
     # Create trace dict
     scitrace = dict({})
@@ -949,7 +949,8 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
         modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
 
     # Perform an optimal extraction
-    return reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask, standard=standard)
+    return reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask,
+                        scitrace=scitrace, standard=standard)
 
 
 def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
@@ -1026,7 +1027,8 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
     return reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask, standard=standard)
 
 
-def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask, standard=False):
+def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask,
+                 scitrace=None, standard=False):
     """ Run standard extraction steps on a frame
 
     Parameters
@@ -1045,14 +1047,17 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
       Contains relevant information from fits header files
     det : int
       Detector index
+    scitrace : dict
+      Dictionary containing object trace parameters
     standard : bool, optional
       Standard star frame?
     """
 
     ###############
     # Determine the final trace of the science objects
-    msgs.info("Final trace")
-    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask, doqa=(not standard))
+    if scitrace is None:
+        msgs.info("Performing final object trace")
+        scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask, doqa=(not standard))
     if standard:
         slf._msstd[det-1]['trace'] = scitrace
         specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict, scitrace, objtype='standard')
@@ -1090,13 +1095,14 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
         slf._modelvarframe[det-1] = finalvar.copy()
 
     # Flexure correction?
-    if (settings.argflag['reduce']['flexure']['method'] is not None) and (not standard):
-        flex_dict = arwave.flexure_obj(slf, det)
-        arqa.flexure(slf, det, flex_dict)
+    if settings.argflag['reduce']['flexure']['perform'] and (not standard):
+        if settings.argflag['reduce']['flexure']['method'] is not None:
+            flex_dict = arwave.flexure_obj(slf, det)
+            arqa.flexure(slf, det, flex_dict)
 
     # Correct Earth's motion
     if settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']:
-        if settings.argflag['science']['extraction']['reuse'] == True:
+        if settings.argflag['science']['extraction']['reuse']:
             msgs.warn("{0:s} correction will not be applied if an extracted science frame exists, and is used".format(settings.argflag['reduce']['calibrate']['refframe']))
         msgs.info("Performing a {0:s} correction".format(settings.argflag['reduce']['calibrate']['refframe']))
         # Load the header for the science frame
