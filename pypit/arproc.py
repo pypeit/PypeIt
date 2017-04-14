@@ -1075,7 +1075,7 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
         return True
 
     # Boxcar
-    msgs.info("Extracting")
+    msgs.info("Performing boxcar extraction")
     bgcorr_box = arextract.boxcar(slf, det, specobjs, sciframe-bgframe,
                                   rawvarframe, bgframe, crmask, scitrace)
 
@@ -1109,9 +1109,6 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
         arwave.geomotion_correct(slf, det, fitsdict)
     else:
         msgs.info("A heliocentric correction will not be performed")
-
-            ###############
-
 
     # Final
     if not standard:

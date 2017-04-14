@@ -644,7 +644,7 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
                     ipx = 0
                     ipy += 1
                 continue
-            spatval = (word[1] - lordloc[:, ndone+j][word[0]]) / (rordloc[:, ndone+j][word[0]] - lordloc[:, ndone+j][word[0]])
+            spatval = (word[1] + 0.5 - lordloc[:, ndone+j][word[0]]) / (rordloc[:, ndone+j][word[0]] - lordloc[:, ndone+j][word[0]])
             fluxval = mstrace[word]
             mxval = np.max(fluxval)
             modvals = np.zeros(nbins)
