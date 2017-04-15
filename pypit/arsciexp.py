@@ -730,7 +730,7 @@ class ScienceExposure:
                 msgs.warn("No MasterWave1D data found {:s}".format(mswv_calib_name))
             else:
                 settings.argflag['reduce']['masters']['loaded'].append('wave_calib'+settings.argflag['reduce']['masters']['setup'])
-        if settings.argflag["reduce"]["calibrate"]["wavelength"] is None:
+        if settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
             msgs.info("A wavelength calibration will not be performed")
         else:
             if 'wave_calib' + settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:

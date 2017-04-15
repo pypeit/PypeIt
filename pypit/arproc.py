@@ -85,7 +85,7 @@ def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
     if settings.argflag['reduce']['skysub']['method'].lower() == 'bspline':
         msgs.info("Using bspline sky subtraction")
         srt = np.argsort(tilts[wbgpix])
-        ivar = (varframe > 0.)/(varframe + (varframe == 0))
+        ivar = arutils.calc_ivar(varframe)
         mask, bspl = arutils.robust_polyfit(tilts[wbgpix][srt], sciframe[wbgpix][srt], 3, function='bspline',
                                             weights=np.sqrt(ivar)[wbgpix][srt], sigma=5.,
                                             maxone=False, **settings.argflag['reduce']['skysub']['bspline'])
@@ -285,7 +285,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
         srt = np.argsort(tilts[gdp])
         #bspl = arutils.func_fit(tilts[gdp][srt], scifrcp[gdp][srt], 'bspline', 3,
         #                        **settings.argflag['reduce']['skysub']['bspline'])
-        ivar = (varframe > 0.)/(varframe + (varframe == 0))
+        ivar = arutils.calc_ivar(varframe)
         mask, bspl = arutils.robust_polyfit(tilts[gdp][srt], scifrcp[gdp][srt], 3, function='bspline',
                                             weights=np.sqrt(ivar)[gdp][srt], sigma=5.,
                                             maxone=False, **settings.argflag['reduce']['skysub']['bspline'])

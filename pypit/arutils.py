@@ -106,6 +106,13 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     return tck
 
 
+def calc_ivar(varframe):
+    """ Calculate the inverse variance based on the input array
+    """
+    ivar = (varframe > 0.) / (np.abs(varframe) + (varframe == 0))
+    return ivar
+
+
 def calc_offset(raA, decA, raB, decB, distance=False):
     """
     Calculate the offset in arcseconds between two sky coordinates

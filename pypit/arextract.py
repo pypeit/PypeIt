@@ -284,7 +284,7 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
     # Inverse variance
     model_ivar = np.zeros_like(varframe)
     gdvar = varframe > 0.
-    model_ivar[gdvar] = 1./varframe[gdvar]
+    model_ivar[gdvar] = arutils.calc_ivar(varframe[gdvar])
     cr_mask = 1.0-crmask
     # Object model image
     obj_model = np.zeros_like(varframe)
@@ -327,14 +327,14 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
         # Optimal ivar
         opt_num = np.sum(mask * model_ivar * prof_img**2, axis=1)
         ivar_den = np.sum(mask * prof_img, axis=1)
-        opt_ivar = opt_num / (ivar_den + (ivar_den==0.))
+        opt_ivar = opt_num * arutils.calc_ivar(ivar_den)
 
         # Save
         specobjs[o].optimal['wave'] = opt_wave.copy()*u.AA  # Yes, units enter here
         specobjs[o].optimal['counts'] = opt_flux.copy()
         gdiv = (opt_ivar > 0.) & (ivar_den > 0.)
         opt_var = np.zeros_like(opt_ivar)
-        opt_var[gdiv] = 1./opt_ivar[gdiv]
+        opt_var[gdiv] = arutils.calc_ivar(opt_ivar[gdiv])
         specobjs[o].optimal['var'] = opt_var.copy()
         #specobjs[o].boxcar['sky'] = skysum  # per pixel
 
