@@ -34,3 +34,10 @@ def test_func_fit():
         1.58666296,  2.22132814,  3.14159265,  3.14159265,  3.14159265], atol=1e-5)
 
 
+def test_calc_ivar():
+    """ Run the parameter setup script
+    """
+    x = np.array([-1.0, -0.1, 0.0, 0.1, 1.0])
+    res = arut.calc_ivar(x)
+    assert np.array_equal(res, np.array([0.0, 0.0, 0.0, 10.0, 1.0]))
+    assert np.array_equal(arut.calc_ivar(res), np.array([0.0, 0.0, 0.0, 0.1, 1.0]))
