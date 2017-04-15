@@ -983,14 +983,14 @@ class BaseArgFlag(BaseFunctions):
 
     def reduce_calibrate_wavelength(self, v):
         """ Wavelength calibrate the data? The data will not be wavelength
-        calibrated if the value of the keyword is set to None.
+        calibrated if the value of the keyword is set to pixel.
 
         Parameters
         ----------
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['air', 'vacuum', 'none']
+        allowed = ['air', 'vacuum', 'pixel']
         v = key_allowed(v, allowed)
         self.update(v)
 
