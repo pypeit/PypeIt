@@ -1673,6 +1673,32 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
 
 
 def trace_weighted(frame, ltrace, rtrace, mask=None, wght="flux"):
+    """ Estimate the trace of an object in a single slit,
+    weighted by the specified method.
+
+    Parameters:
+    -----------
+    frame : 2D ndarray
+      Image for tracing
+    ltrace : ndarray
+      Left slit edge trace
+    rtrace : ndarray
+      Right slit edge trace
+    mask : ndarray, optional
+      Mask of pixels to ignore while tracing
+    wght : str
+      Method that should be used to weight the tracing:
+        wght="flux"  will weight the trace by the flux of each pixel
+        wght="uniform"  will use uniform weights
+
+    Returns:
+    --------
+    trace : ndarray
+      array containing the trace of the object along the slit
+    error : ndarray
+      the associated error of the object trace
+    """
+
     nspec, nspat = frame.shape
     lidx = int(np.ceil(np.min(ltrace)))-1
     ridx = int(np.floor(np.max(rtrace)))+1

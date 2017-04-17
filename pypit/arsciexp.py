@@ -16,7 +16,6 @@ from pypit import arlris
 from pypit import armasters
 from pypit import armsgs
 from pypit import arproc
-from pypit import arqa
 from pypit import arsort
 from pypit import arutils
 
@@ -413,6 +412,7 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
+        from pypit import arqa
 
         if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
             # If the master pixelflat is already made, use it
