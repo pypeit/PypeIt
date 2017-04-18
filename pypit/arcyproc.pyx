@@ -46,7 +46,7 @@ cdef extern from "gsl/gsl_multifit.h":
 #  B  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def background_model(np.ndarray[DTYPE_t, ndim=1] fitfunc not None,
                     np.ndarray[ITYPE_t, ndim=1] xpix not None,
                     np.ndarray[ITYPE_t, ndim=1] ypix not None,
@@ -58,7 +58,7 @@ def background_model(np.ndarray[DTYPE_t, ndim=1] fitfunc not None,
     return model
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def blaze_fitends(np.ndarray[DTYPE_t, ndim=1] xarr not None,
                     np.ndarray[DTYPE_t, ndim=1] yarr not None,
                     np.ndarray[DTYPE_t, ndim=1] marr not None,
@@ -146,7 +146,7 @@ def blaze_fitends(np.ndarray[DTYPE_t, ndim=1] xarr not None,
 #  C  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def combine_nrmflat(np.ndarray[DTYPE_t, ndim=2] msframe not None,
                     np.ndarray[DTYPE_t, ndim=2] frame not None,
                     np.ndarray[ITYPE_t, ndim=1] pixcen not None,
@@ -189,7 +189,7 @@ def combine_nrmflat(np.ndarray[DTYPE_t, ndim=2] msframe not None,
 #  M  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def cr_screen(np.ndarray[DTYPE_t, ndim=2] frame not None, double maskval):
     """
     Perofrm a masked median filter along the spatial
@@ -283,7 +283,7 @@ def cr_screen(np.ndarray[DTYPE_t, ndim=2] frame not None, double maskval):
 #  P  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def polyfit(np.ndarray[DTYPE_t, ndim=1] x not None,
         np.ndarray[DTYPE_t, ndim=1] y not None,
         int degree, np.ndarray[DTYPE_t, ndim=1] coeffs not None):
@@ -495,7 +495,7 @@ def prepare_bgmodel(np.ndarray[DTYPE_t, ndim=2] arcfr not None,
 #  R  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def remove_maskedends(np.ndarray[DTYPE_t, ndim=1] xarr not None,
                     np.ndarray[DTYPE_t, ndim=1] yarr not None,
                     np.ndarray[DTYPE_t, ndim=1] marr not None,
@@ -533,7 +533,7 @@ def remove_maskedends(np.ndarray[DTYPE_t, ndim=1] xarr not None,
 #  S  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def scale_blaze(np.ndarray[DTYPE_t, ndim=2] recsort not None,
                     double maskval):
     cdef int d, sz_d, s, sz_s
@@ -563,7 +563,7 @@ def scale_blaze(np.ndarray[DTYPE_t, ndim=2] recsort not None,
     return recmean
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def smooth_gaussmask(np.ndarray[DTYPE_t, ndim=2] flux not None,
                     double maskval, double nsig):
     """

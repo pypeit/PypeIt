@@ -34,7 +34,7 @@ cdef extern from "gsl/gsl_multifit.h":
     void gsl_vector_free(gsl_vector *v)
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def bkgrd_polyfit(np.ndarray[DTYPE_t, ndim=1] sky not None,
                     int npix, int nord):
     cdef int p, sz_p, n, c
@@ -59,7 +59,7 @@ def bkgrd_polyfit(np.ndarray[DTYPE_t, ndim=1] sky not None,
     return skysmth
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def clip_arr(np.ndarray[DTYPE_t, ndim=2] parr not None,
             double cval):
     cdef int p, pp, sz_p
@@ -74,7 +74,7 @@ def clip_arr(np.ndarray[DTYPE_t, ndim=2] parr not None,
         pout[p,1] = parr[p,1]
     return pout
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def cr_maskmedian(np.ndarray[DTYPE_t, ndim=2] frame not None,
                     double maskval, double sigmadet, double sigmarep,
                     np.ndarray[ITYPE_t, ndim=2] maskcr not None):
@@ -202,7 +202,7 @@ def cr_maskmedian(np.ndarray[DTYPE_t, ndim=2] frame not None,
     return# maskcr#, masksky
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def floodfill(np.ndarray[DTYPE_t, ndim=2] frame not None,
                 np.ndarray[DTYPE_t, ndim=2] mask not None,
                 int r, int c, int sz_r, int sz_c,
@@ -221,7 +221,7 @@ def floodfill(np.ndarray[DTYPE_t, ndim=2] frame not None,
             floodfill(frame,mask,r,c+1,sz_r,sz_c,cond,replace)
     return
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def floodfill_fast(np.ndarray[DTYPE_t, ndim=2] frame not None,
                 np.ndarray[ITYPE_t, ndim=2] mask not None,
                 np.ndarray[ITYPE_t, ndim=2] stack not None,
@@ -264,7 +264,7 @@ def floodfill_fast(np.ndarray[DTYPE_t, ndim=2] frame not None,
     return
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def extract_2d(np.ndarray[DTYPE_t, ndim=2] frame not None,
                 np.ndarray[DTYPE_t, ndim=2] error not None,
                 np.ndarray[DTYPE_t, ndim=2] bpix not None,
@@ -513,7 +513,7 @@ def extract_2d(np.ndarray[DTYPE_t, ndim=2] frame not None,
     return extspec, errspec
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def extract_mean(np.ndarray[DTYPE_t, ndim=2] frame not None,
                 np.ndarray[DTYPE_t, ndim=2] bpix not None,
                 np.ndarray[ITYPE_t, ndim=1] pixcen not None,
@@ -958,7 +958,7 @@ def extract_weighted(np.ndarray[DTYPE_t, ndim=2] frame not None,
 
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def extract_ritter_gauss(np.ndarray[DTYPE_t, ndim=2] scifr not None,
                         np.ndarray[DTYPE_t, ndim=2] errfr not None,
                         np.ndarray[DTYPE_t, ndim=1] centint not None,
@@ -1022,7 +1022,7 @@ def extract_ritter_gauss(np.ndarray[DTYPE_t, ndim=2] scifr not None,
     return sciext, scierr, skyext, skyerr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def gauss_prof(np.ndarray[DTYPE_t, ndim=1] profile not None,
                 double centroid, double width):
     cdef int x, sz_x
@@ -1046,7 +1046,7 @@ def gauss_prof(np.ndarray[DTYPE_t, ndim=1] profile not None,
     return
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def get_locations(np.ndarray[DTYPE_t, ndim=2] inxcen not None,
                     np.ndarray[DTYPE_t, ndim=2] inxwid not None,
                     np.ndarray[DTYPE_t, ndim=1] ypix not None,
@@ -1112,7 +1112,7 @@ def get_locations(np.ndarray[DTYPE_t, ndim=2] inxcen not None,
     return ordxcen, ordycen, ordtilt, ordlen, ordwid, ordnum
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def get_wavelocations(np.ndarray[DTYPE_t, ndim=2] ordxcen not None,
                     np.ndarray[DTYPE_t, ndim=2] ordycen not None,
                     np.ndarray[DTYPE_t, ndim=2] ordtilt not None,
@@ -1160,7 +1160,7 @@ def get_wavelocations(np.ndarray[DTYPE_t, ndim=2] ordxcen not None,
     return oordxcen, oordycen, oordtilt, oordwid
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def maskedmean_aperture(np.ndarray[DTYPE_t, ndim=2] scifr not None,
                         np.ndarray[DTYPE_t, ndim=2] varfr not None,
                         np.ndarray[ITYPE_t, ndim=1] bckidx not None,
@@ -1213,7 +1213,7 @@ def maskedmean_aperture(np.ndarray[DTYPE_t, ndim=2] scifr not None,
         return meanaxB
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def masked_mean(np.ndarray[DTYPE_t, ndim=2] scifr not None,
                 np.ndarray[DTYPE_t, ndim=2] errfr not None,
                 np.ndarray[DTYPE_t, ndim=2] maskcr not None,
@@ -1245,7 +1245,7 @@ def masked_mean(np.ndarray[DTYPE_t, ndim=2] scifr not None,
             profile[c] = avprof/wtprof
     return profile
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def maskedaverage_order(np.ndarray[DTYPE_t, ndim=2] scifr not None,
                         np.ndarray[DTYPE_t, ndim=2] varfr not None,
                         double maskval):
@@ -1270,7 +1270,7 @@ def maskedaverage_order(np.ndarray[DTYPE_t, ndim=2] scifr not None,
     return avarr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def maskedmedian_order(np.ndarray[DTYPE_t, ndim=2] scifr not None,
                         double maskval):
 
@@ -1310,7 +1310,7 @@ def maskedmedian_order(np.ndarray[DTYPE_t, ndim=2] scifr not None,
     return medarr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def optimal_extract(np.ndarray[DTYPE_t, ndim=2] scifr not None,
                         np.ndarray[DTYPE_t, ndim=2] errfr not None,
                         np.ndarray[DTYPE_t, ndim=2] maskcr not None,
@@ -1361,7 +1361,7 @@ def optimal_extract(np.ndarray[DTYPE_t, ndim=2] scifr not None,
     return objarr, objerr, bckarr, bckerr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def optimal_getprofile(np.ndarray[DTYPE_t, ndim=2] scifr not None,
                         np.ndarray[DTYPE_t, ndim=2] errfr not None,
                         np.ndarray[DTYPE_t, ndim=1] backgr not None,
@@ -1433,7 +1433,7 @@ def optimal_getprofile(np.ndarray[DTYPE_t, ndim=2] scifr not None,
     # Return the normalized profile
     return profile
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def optimal_normalize(np.ndarray[DTYPE_t, ndim=2] profile not None):
 
     cdef int r, sz_r, c, sz_c
@@ -1449,7 +1449,7 @@ def optimal_normalize(np.ndarray[DTYPE_t, ndim=2] profile not None):
         for c in range(0,sz_c): profile[r,c] /= avprof
     return profile
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def optimal_scaleerr(np.ndarray[DTYPE_t, ndim=2] scifr not None,
                         np.ndarray[DTYPE_t, ndim=2] errfr not None,
                         np.ndarray[DTYPE_t, ndim=2] maskcr not None,
@@ -1545,7 +1545,7 @@ def optimal_scaleerr(np.ndarray[DTYPE_t, ndim=2] scifr not None,
     return scaleerr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def point_in_poly(np.ndarray[DTYPE_t, ndim=2] poly not None,
                     double x, double y):
 
@@ -1584,7 +1584,7 @@ def point_in_poly(np.ndarray[DTYPE_t, ndim=2] poly not None,
     return inside
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def poly_area(np.ndarray[DTYPE_t, ndim=2] p not None):
     cdef int x, sz_x
     sz_x = p.shape[0]
@@ -1600,7 +1600,7 @@ def poly_area(np.ndarray[DTYPE_t, ndim=2] p not None):
     return area
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def polyfit(np.ndarray[DTYPE_t, ndim=1] x not None,
         np.ndarray[DTYPE_t, ndim=1] y not None,
         int pmin, int pmax, int degree, double offset,
@@ -1650,7 +1650,7 @@ def polyfit(np.ndarray[DTYPE_t, ndim=1] x not None,
     return chisq
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def rectify_withcrr(np.ndarray[DTYPE_t, ndim=2] frame not None,
                     np.ndarray[ITYPE_t, ndim=2] bpixmask not None,
                     np.ndarray[ITYPE_t, ndim=1] pixcen not None,
@@ -1707,7 +1707,7 @@ def rectify_withcrr(np.ndarray[DTYPE_t, ndim=2] frame not None,
     return bpixmask
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def rectify(np.ndarray[DTYPE_t, ndim=2] frame not None,
             np.ndarray[ITYPE_t, ndim=2] mask not None,
             np.ndarray[ITYPE_t, ndim=1] pixcen not None,
@@ -1742,7 +1742,7 @@ def rectify(np.ndarray[DTYPE_t, ndim=2] frame not None,
     return rectify
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def rectify_undo(np.ndarray[DTYPE_t, ndim=2] recframe not None,
                 np.ndarray[ITYPE_t, ndim=1] pixcen not None,
                 np.ndarray[ITYPE_t, ndim=1] pixledg not None,
@@ -1781,7 +1781,7 @@ def rectify_undo(np.ndarray[DTYPE_t, ndim=2] recframe not None,
 #  Sutherland-Hodgman Algorithm  #
 ##################################
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def SH_poly_clip_area(np.ndarray[DTYPE_t, ndim=2] poly not None,
               np.ndarray[DTYPE_t, ndim=2] pixl not None,
               np.ndarray[DTYPE_t, ndim=2] p1 not None,
@@ -1944,13 +1944,13 @@ def SH_poly_clip_area(np.ndarray[DTYPE_t, ndim=2] poly not None,
 # OLD SLOW VERSION
 ########
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def OLD_SH_inside(double px, double py, double cp1x, double cp1y, double cp2x, double cp2y):
     if (cp2x-cp1x)*(py-cp1y) > (cp2y-cp1y)*(px-cp1x): return 1
     else: return 0
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def OLD_SH_intersection(double sx, double sy,
                 double ex, double ey,
                 double cp1x, double cp1y,
@@ -1967,7 +1967,7 @@ def OLD_SH_intersection(double sx, double sy,
     ry = (n1*dpy - n2*dcy) * n3
     return rx, ry
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def OLD_SH_poly_clip(np.ndarray[DTYPE_t, ndim=2] poly not None,
               np.ndarray[DTYPE_t, ndim=2] pixl not None,
               np.ndarray[DTYPE_t, ndim=2] outlist not None,
@@ -2020,7 +2020,7 @@ def OLD_SH_poly_clip(np.ndarray[DTYPE_t, ndim=2] poly not None,
     return clip_arr(outlist,-999999.9)
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def OLD_SH_empty(np.ndarray[DTYPE_t, ndim=2] outlist not None):
     cdef int x, sz_x
     sz_x = outlist.shape[0]
@@ -2030,7 +2030,7 @@ def OLD_SH_empty(np.ndarray[DTYPE_t, ndim=2] outlist not None):
         outlist[x,1] = -999999.9
     return
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def OLD_SH_update(np.ndarray[DTYPE_t, ndim=2] inlist not None,
             np.ndarray[DTYPE_t, ndim=2] outlist not None):
     cdef int x, sz_x
@@ -2041,7 +2041,7 @@ def OLD_SH_update(np.ndarray[DTYPE_t, ndim=2] inlist not None,
         inlist[x,1] = outlist[x,1]
     return
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def OLD_SH_set(np.ndarray[DTYPE_t, ndim=2] outlist not None,
             np.ndarray[DTYPE_t, ndim=2] poly not None):
     cdef int x, sz_x
