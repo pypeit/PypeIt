@@ -11,7 +11,7 @@ def parser(options=None):
 
     import argparse
 
-    parser = argparse.ArgumentParser(description='Script to coadd a set of spec1D files and 1 or more slits and 1 or more objects. Current defaults use Optimal + Fluxed extraction.')
+    parser = argparse.ArgumentParser(description='Script to coadd a set of spec1D files and 1 or more slits and 1 or more objects. Current defaults use Optimal + Fluxed extraction. [v1.1]')
     parser.add_argument("infile", type=str, help="Input file (YAML)")
 
     if options is None:
