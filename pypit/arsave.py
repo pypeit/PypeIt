@@ -160,16 +160,16 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
             hdulist[0].header[key] = keywds[key]
     # Write the file to disk
     if os.path.exists(filename):
-        if settings.argflag['output']['overwrite'] == True:
+        if settings.argflag['output']['overwrite'] is True:
             msgs.warn("Overwriting file:"+msgs.newline()+filename)
             os.remove(filename)
             hdulist.writeto(filename)
             msgs.info("Master {0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
         else:
             msgs.warn("This file already exists")
-            rmfil=''
+            rmfil = ''
             while rmfil != 'n' and rmfil != 'y' and rmfil != 'a':
-                rmfil=raw_input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
+                rmfil = raw_input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
             if rmfil == 'n':
                 msgs.warn("Not saving master {0:s} frame:".format(frametype)+msgs.newline()+filename)
             else:
@@ -497,7 +497,7 @@ def save_obj_info(slf, fitsdict, clobber=True):
                 opt_fwhm.append(0.)
             # S2N -- default to boxcar
             sext = (specobj.boxcar if (len(specobj.boxcar) > 0) else specobj.optimal)
-            ivar = (sext['var'] > 0) / (sext['var'] + (sext['var'] == 0))
+            ivar = arutils.calc_ivar(sext['var'])
             is2n = np.median(sext['counts']*np.sqrt(ivar))
             s2n.append(is2n)
 

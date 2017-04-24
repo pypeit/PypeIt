@@ -137,6 +137,10 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._pixwid, pixwid, det)
                 slf.SetFrame(slf._lordpix, lordpix, det)
                 slf.SetFrame(slf._rordpix, rordpix, det)
+                msgs.info("Identifying the pixels belonging to each slit")
+                slitpix = arproc.slit_pixels(slf, slf._mstrace[det-1].shape, det)
+                slf.SetFrame(slf._slitpix, slitpix, det)
+
                 # Save QA for slit traces
                 if not msgs._debug['no_qa']:
                     arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges D{:02d}".format(det), use_slitid=det)
@@ -200,8 +204,8 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                                           msbias=slf._msbias[det-1])
             sciframe = sciframe[:, :, 0]
             # Extract
-            msgs.info("Processing science frame and performing extraction")
-            arproc.reduce_frame(slf, sciframe, scidx, fitsdict, det)
+            msgs.info("Processing science frame")
+            arproc.reduce_multislit(slf, sciframe, scidx, fitsdict, det)
 
             ###############
             # Using model sky, calculate a flexure correction

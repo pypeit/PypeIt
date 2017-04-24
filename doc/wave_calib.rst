@@ -135,4 +135,26 @@ By default, the code will calculate a flexure shift based on the
 extracted sky spectrum (boxcar). See :doc:`flexure` for
 further details.
 
+Wavelength Frame
+================
 
+PYPIT offers several frames of reference that can used for the
+wavelength scale. The first choice is whether you would like the
+data to be calibrated to air or vacuum wavelengths. This option
+is controlled by the argument::
+
+    reduce calibrate wavelength air
+
+where the default value is to calibrate to vacuum. You can also
+specify 'pixel', which will save the pixel values instead of the
+wavelength values (i.e. a wavelength calibration will not be
+performed).
+
+You can also choose if you want the wavelength scale corrected
+to the heliocentric (Sun-centered), barycentric (Solar system
+barycentre), or none (no correction). This option is governed
+by the command::
+
+    reduce calibrate refframe barycentric
+
+where the default value is a heliocentric wavelength scale.

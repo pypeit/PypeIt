@@ -32,7 +32,7 @@ cdef extern from "math.h":
 #######
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def masked_limitget(np.ndarray[DTYPE_t, ndim=3] array not None,
                   double limvalue,
                   int limtype):
@@ -79,7 +79,7 @@ def masked_limitget(np.ndarray[DTYPE_t, ndim=3] array not None,
     return array
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def masked_limitset(np.ndarray[DTYPE_t, ndim=3] array not None,
                   double limvalue,
                   int limtype,
@@ -117,7 +117,7 @@ def masked_limitset(np.ndarray[DTYPE_t, ndim=3] array not None,
     return array
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def masked_limitsetarr(np.ndarray[DTYPE_t, ndim=3] array not None,
                   np.ndarray[DTYPE_t, ndim=2] limvalue not None,
                   int limtype,
@@ -155,7 +155,7 @@ def masked_limitsetarr(np.ndarray[DTYPE_t, ndim=3] array not None,
     return array
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def masked_mean(np.ndarray[DTYPE_t, ndim=3] array not None,
                   double maskvalue):
     cdef int sz_x, sz_y, nfr
@@ -184,7 +184,7 @@ def masked_mean(np.ndarray[DTYPE_t, ndim=3] array not None,
     return meanarr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def masked_median(np.ndarray[DTYPE_t, ndim=3] array not None,
                   double maskvalue):
     cdef int sz_x, sz_y, nfr
@@ -225,7 +225,7 @@ def masked_median(np.ndarray[DTYPE_t, ndim=3] array not None,
     return medarr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def masked_replace(np.ndarray[DTYPE_t, ndim=2] array not None,
                   np.ndarray[DTYPE_t, ndim=2] repvalue not None,
                   double maskvalue):
@@ -243,7 +243,7 @@ def masked_replace(np.ndarray[DTYPE_t, ndim=2] array not None,
     return array
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def masked_weightmean(np.ndarray[DTYPE_t, ndim=3] array not None,
                   double maskvalue):
     # This routine uses the weighted mean formula described
@@ -283,7 +283,7 @@ def masked_weightmean(np.ndarray[DTYPE_t, ndim=3] array not None,
     return meanarr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def maxnonsat(np.ndarray[DTYPE_t, ndim=3] array not None,
            double satval):
 
@@ -314,7 +314,7 @@ def maxnonsat(np.ndarray[DTYPE_t, ndim=3] array not None,
     return mmarr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def mean(np.ndarray[DTYPE_t, ndim=3] array not None):
     cdef int sz_x, sz_y, nfr
     cdef int x, y, n
@@ -338,7 +338,7 @@ def mean(np.ndarray[DTYPE_t, ndim=3] array not None):
     return meanarr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def median(np.ndarray[DTYPE_t, ndim=3] array not None):
     cdef int sz_x, sz_y, nfr
     cdef int x, y, n, j
@@ -366,7 +366,7 @@ def median(np.ndarray[DTYPE_t, ndim=3] array not None):
                 medarr[x,y] = array[x,y,(nfr-1)/2]
     return medarr
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def minmax(np.ndarray[DTYPE_t, ndim=3] array not None,
            int mm):
 

@@ -124,7 +124,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     pixt = arcyarc.remove_similar(tpixt, num)
     pixt = pixt[np.where(pixt != -1)].astype(np.int)
     tampl, tcent, twid, ngood = arcyarc.fit_arcorder(xrng, yprep, pixt, fitp)
-    w = np.where((np.isnan(twid) == False) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
+    w = np.where((~np.isnan(twid)) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
     # Check the results
     #plt.clf()
     #plt.plot(xrng,yprep,'k-')

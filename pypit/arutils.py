@@ -44,6 +44,7 @@ def bspline_inner_knots(all_knots):
     i1=pos[-1]
     return all_knots[i0:i1]
 
+
 def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bkspace=None):
     ''' bspline fit to x,y
     Should probably only be called from func_fit
@@ -73,6 +74,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
       describes the bspline
     '''
     #
+    task = 0  # Default of splrep
     if w is None:
         ngd = x.size
         gd = np.arange(ngd)
@@ -94,12 +96,21 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
             knots = x[gd[idx_knots]]
         else:
             msgs.error("No method specified to generate knots")
+    else:
+        task = -1
     # Generate spline
     try:
-        tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, t=knots)
+        tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, xb=xmin, xe=xmax, t=knots, task=task)
     except ValueError: # Knot problem
         msgs.warn("Problem in the bspline knot")
     return tck
+
+
+def calc_ivar(varframe):
+    """ Calculate the inverse variance based on the input array
+    """
+    ivar = (varframe > 0.) / (np.abs(varframe) + (varframe == 0))
+    return ivar
 
 
 def calc_offset(raA, decA, raB, decB, distance=False):

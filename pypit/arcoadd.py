@@ -14,6 +14,7 @@ from linetools.spectra import xspectrum1d
 from pypit import arload
 from pypit import armsgs
 from pypit import arqa
+from pypit import arutils
 
 from pypit import ardebug as debugger
 
@@ -603,14 +604,14 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
             ivar[gd] = 1./sig[gd]**2
 
             # var_tot
-            var_tot = newvar + (ivar > 0.0)/(ivar + (ivar == 0.0))
-            ivar_real = (var_tot > 0.0)/(var_tot + (var_tot == 0.0))
+            var_tot = newvar + arutils.calc_ivar(ivar)
+            ivar_real = arutils.calc_ivar(var_tot)
             # smooth out possible outliers in noise
             var_med = medfilt(var_tot, 5)
             var_smooth = medfilt(var_tot, 99)#, boundary = 'reflect')
             # conservatively always take the largest variance
             var_final = np.maximum(var_med, var_smooth)
-            ivar_final =  (var_final > 0.0)/ (var_final + (var_final == 0.0))
+            ivar_final = arutils.calc_ivar(var_final)
             # Cap S/N ratio at SN_MAX to prevent overly aggressive rejection
             SN_MAX = 20.0
             ivar_cap = np.minimum(ivar_final,

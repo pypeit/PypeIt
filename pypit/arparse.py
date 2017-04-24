@@ -983,14 +983,14 @@ class BaseArgFlag(BaseFunctions):
 
     def reduce_calibrate_wavelength(self, v):
         """ Wavelength calibrate the data? The data will not be wavelength
-        calibrated if the value of the keyword is set to None.
+        calibrated if the value of the keyword is set to pixel.
 
         Parameters
         ----------
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['air', 'vacuum', 'none']
+        allowed = ['air', 'vacuum', 'pixel']
         v = key_allowed(v, allowed)
         self.update(v)
 
@@ -1209,35 +1209,6 @@ class BaseArgFlag(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_bool(v)
-        self.update(v)
-
-    def reduce_slitprofile_method(self, v):
-        """ Specify the method that should be used to determine the slit profile
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        allowed = ['bspline']
-        v = key_allowed(v, allowed)
-        self.update(v)
-
-    def reduce_slitprofile_params(self, v):
-        """ Slit profile method parameters, where the parameters relate to the method
-        specified by the 'reduce slitprofile method' keyword:
-
-        bspline:   [Number of pixels in the dispersion direction between each knot]
-
-        Note: if the bspline argument is 0 < number < 1, it will be assumed to be a
-              fraction of the pixels in the dispersion direction
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        v = key_list(v)
         self.update(v)
 
     def reduce_slitprofile_perform(self, v):
@@ -3703,6 +3674,8 @@ def key_allowed(v, allowed, upper=False):
     if v not in allowed:
         msgs.error("The argument of {0:s} must be one of".format(func_name) + msgs.newline() +
                    ", ".join(allowed))
+    if v.lower() == "none":
+        v = None
     return v
 
 

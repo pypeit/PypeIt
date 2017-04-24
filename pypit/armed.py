@@ -128,9 +128,9 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                     if settings.argflag['trace']['slits']['expand']:
                         lordloc, rordloc = artrace.expand_slits(slf, slf._mstrace[det-1], det,
                                                                 0.5*(lordloc+rordloc), extord)
-                    np.save("lordloc", lordloc)
-                    np.save("rordloc", rordloc)
-                    np.save("extord", extord)
+                    # np.save("lordloc", lordloc)
+                    # np.save("rordloc", rordloc)
+                    # np.save("extord", extord)
                 else:
                     lordloc, rordloc, extord = np.load("lordloc.npy"), np.load("rordloc.npy"), np.load("extord.npy")
 
@@ -148,9 +148,14 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._pixwid, pixwid, det)
                 slf.SetFrame(slf._lordpix, lordpix, det)
                 slf.SetFrame(slf._rordpix, rordpix, det)
+                msgs.info("Identifying the pixels belonging to each slit")
+                slitpix = arproc.slit_pixels(slf, slf._mstrace[det-1].shape, det)
+                slf.SetFrame(slf._slitpix, slitpix, det)
+
                 # Save QA for slit traces
-                arqa.slit_trace_qa(slf, slf._mstrace[det - 1], slf._lordpix[det - 1], slf._rordpix[det - 1], extord,
-                                   desc="Trace of the slit edges", normalize=False)
+                if not msgs._debug['no_qa']:
+                    arqa.slit_trace_qa(slf, slf._mstrace[det - 1], slf._lordpix[det - 1], slf._rordpix[det - 1], extord,
+                                       desc="Trace of the slit edges", normalize=False)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
             ###############
@@ -158,6 +163,7 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             update = slf.MasterWaveCalib(fitsdict, sc, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
+
             ###############
             # Derive the spectral tilt
             if slf._tilts[det-1] is None:
@@ -177,27 +183,59 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
 
-            artrace.slit_profile(slf, slf._mstrace[det - 1], det)
-            msgs.error("check it")
+            # msgs.info("Temporary code")
+            # sciframe = arload.load_frames(fitsdict, [scidx], det, frametype='science', msbias=slf._msbias[det - 1])
+            # sciframe = sciframe[:, :, 0]
+            # arproc.background_subtraction(slf, sciframe, sciframe, 30, det)
+            # msgs.error("Remove this code")
+
             ###############
             # Prepare the pixel flat field frame
             update = slf.MasterFlatField(fitsdict, det)
             if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
 
-            msgs.error("UP TO HERE!!!")
+            ###############
+            # Derive the spatial profile and blaze function
+            if slf._slitprof[det-1] is None:
+                if settings.argflag['reduce']['masters']['reuse']:
+                    msslitprof_name = armasters.master_name('slitprof', settings.argflag['reduce']['masters']['setup'])
+                    try:
+                        slit_profiles, head = arload.load_master(msslitprof_name, frametype="slit profile")
+                    except IOError:
+                        pass
+                    else:
+                        slf.SetFrame(slf._slitprof, slit_profiles, det)
+                        settings.argflag['reduce']['masters']['loaded'].append('slitprof'+settings.argflag['reduce']['masters']['setup'])
+                if 'slitprof'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+                    # First time slit profile is derived
+                    msgs.info("Calculating slit profile from master trace frame")
+                    slit_profiles, mstracenrm, msblaze, flat_ext1d = arproc.slit_profile(slf, slf._mstrace[det - 1], det)
+                    slf.SetFrame(slf._slitprof, slit_profiles, det)
+                    slf.SetFrame(slf._msblaze, msblaze, det)
+                    # Prepare some QA for the average slit profile along the slit
+                    if not msgs._debug['no_qa']:
+                        msgs.info("Preparing QA of each slit profile")
+                        arqa.slit_profile(slf, mstracenrm, slit_profiles, slf._lordloc[det - 1], slf._rordloc[det - 1],
+                                          slf._slitpix[det - 1], desc="Slit profile")
+                        msgs.info("Saving blaze function QA")
+                        arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc="Blaze function", textplt="Order")
+
             ###############
             # Generate/load a master wave frame
-            update = slf.MasterWave(fitsdict, sc, det)
-            if update and reuseMaster:
-                armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
+            if settings.argflag["reduce"]["calibrate"]["wavelength"] != "pixel":
+                update = slf.MasterWave(fitsdict, sc, det)
+                if update and reuseMaster:
+                    armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
 
+            ###############
             # Check if the user only wants to prepare the calibrations only
             msgs.info("All calibration frames have been prepared")
             if settings.argflag['run']['preponly']:
-                msgs.info("If you would like to continue with the reduction,"
-                          +msgs.newline()+"disable the run+preponly command")
+                msgs.info("If you would like to continue with the reduction, disable the command:" + msgs.newline() +
+                          "run preponly False")
                 continue
 
+            ###############
             # Write setup
             #setup = arsort.calib_setup(sc, det, fitsdict, setup_dict, write=True)
             # Write MasterFrames (currently per detector)
@@ -212,7 +250,9 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             sciframe = sciframe[:, :, 0]
             # Extract
             msgs.info("Processing science frame")
-            arproc.reduce_frame(slf, sciframe, scidx, fitsdict, det)
+            arproc.reduce_echelle(slf, sciframe, scidx, fitsdict, det)
+
+        msgs.error("UP TO HERE!!!")
 
         # Close the QA for this object
         slf._qa.close()

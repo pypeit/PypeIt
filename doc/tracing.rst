@@ -127,21 +127,21 @@ slit length as the science slit). The relevant set
 of parameters that determine the fit properties
 are given by::
 
-    reduce slitprofile perform True
-    reduce slitprofile method bspline
-    reduce slitprofile params [n]
+    reduce slitprofile perform False
+    reduce flatfield method bspline
+    reduce flatfield params [n]
 
 where n in the last line should be an integer or
 floating point number.
 
-The default setting is to calculate the slit profile.
-To turn off this functionality, the argument of the
-first line above can be set to False. If the calculation
+The default setting is to not calculate the slit profile.
+To turn on this functionality, the argument of the
+first line above can be set to True. If the calculation
 is performed, the second line sets the method that should
 be used to determine the spatial slit profile. At this
 stage, PYPIT only supports the value 'bspline', where
 the knot spacing is set by the third line above. If the
-argument of reduce slitprofile params is n >= 1, PYPIT
+argument of reduce flatfield params is n >= 1, PYPIT
 will place a knot at every n pixels. Otherwise, if n < 1,
 PYPIT will place a knot at every k pixels, where k=n*N
 and N is the total number of pixels in the spectral
@@ -150,5 +150,7 @@ direction is set automatically by PYPIT, to be twice
 the number of pixels along the slit. Thus, the user
 only has the ability to change the number of knots
 in the spectral direction (i.e. the blaze function).
-
+If the spatial slit profile is not calculated, the
+blaze function will still be calculated using the
+'reduce flatfield' settings listed above.
 
