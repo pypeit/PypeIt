@@ -13,8 +13,8 @@ addons:
 
 python:
     - 2.7
-    - 3.4
     - 3.5
+    - 3.6
 
     # This is just for "egg_info".  All other builds are explicitly given in the matrix
 env:
