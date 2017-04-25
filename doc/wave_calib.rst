@@ -146,7 +146,7 @@ is controlled by the argument::
     reduce calibrate wavelength air
 
 where the default value is to calibrate to vacuum. You can also
-specify 'none', which will save the pixel values instead of the
+specify 'pixel', which will save the pixel values instead of the
 wavelength values (i.e. a wavelength calibration will not be
 performed).
 

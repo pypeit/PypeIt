@@ -55,33 +55,44 @@ def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
     nr : int
       number of pixels from the right slit edge to use as background pixels
     """
-    word = np.where(slf._slitpix[det - 1] == slitn + 1)
-    #word = np.where((slf._slitpix[det - 1] == slitn + 1) & (slf._scimask[det - 1] == 0))
+    # Obtain all pixels that are within the slit edges, and are not masked
+    word = np.where((slf._slitpix[det - 1] == slitn + 1) & (slf._scimask[det - 1] == 0))
     if word[0].size == 0:
         msgs.warn("There are no pixels in slit {0:d}".format(slitn))
         debugger.set_trace()
         nl, nr = 0, 0
         return np.zeros_like(sciframe), nl, nr
+    # Calculate the oversampled object profiles
     xedges, modvals = object_profile(slf, sciframe, slitn, det, refine=refine, factor=3)
     bincent = 0.5*(xedges[1:]+xedges[:-1])
     npix = slf._pixwid[det - 1][slitn]
     tilts = slf._tilts[det - 1].copy()
     lordloc = slf._lordloc[det - 1][:, slitn]
     rordloc = slf._rordloc[det - 1][:, slitn]
+    # For each pixel, calculate the fraction along the slit's spatial direction
     spatval = (word[1] - lordloc[word[0]] + refine) / (rordloc[word[0]] - lordloc[word[0]])
     # Cumulative sum and normalize
     csum = np.cumsum(modvals)
     csum -= csum[0]
     csum /= csum[-1]
-    # Find where the background begins
+    # Find a first guess of the edges of the object profile - assume this is the innermost 90 percent of the flux
     argl = np.argmin(np.abs(csum - 0.05))
     argr = np.argmin(np.abs(csum - 0.95))
+    # Considering the possible background pixels that are left of the object,
+    # find the first time where the object profile no longer decreases as you
+    # move toward the edge of the slit. This is the beginning of the noisy
+    # object profile, which is where the object can no longer be distinguished
+    # from the background.
     wl = np.where((modvals[1:] < modvals[:-1]) & (bincent[1:] < bincent[argl]))
     wr = np.where((modvals[1:] > modvals[:-1]) & (bincent[1:] > bincent[argr]))
     nl, nr = 0, 0
     if wl[0].size != 0:
+        # This is the index of the first time where the object profile
+        # no longer decreases as you move towards the slit edge
         nl = np.max(wl[0])
     if wr[0].size != 0:
+        # This is the index of the first time where the object profile
+        # no longer decreases as you move towards the slit edge
         nr = npix - np.min(wr[0])
     if nl+nr < 5:
         msgs.warn("The object profile appears to extrapolate to the edge of the detector")
@@ -93,7 +104,8 @@ def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
     if settings.argflag['reduce']['skysub']['method'].lower() == 'bspline':
         msgs.info("Using bspline sky subtraction")
         srt = np.argsort(tilts[wbgpix])
-        ivar = (varframe > 0.)/(varframe + (varframe == 0))
+        ivar = arutils.calc_ivar(varframe)
+        # Perform a weighted b-spline fit to the sky background pixels
         mask, bspl = arutils.robust_polyfit(tilts[wbgpix][srt], sciframe[wbgpix][srt], 3, function='bspline',
                                             weights=np.sqrt(ivar)[wbgpix][srt], sigma=5.,
                                             maxone=False, **settings.argflag['reduce']['skysub']['bspline'])
@@ -293,7 +305,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
         srt = np.argsort(tilts[gdp])
         #bspl = arutils.func_fit(tilts[gdp][srt], scifrcp[gdp][srt], 'bspline', 3,
         #                        **settings.argflag['reduce']['skysub']['bspline'])
-        ivar = (varframe > 0.)/(varframe + (varframe == 0))
+        ivar = arutils.calc_ivar(varframe)
         mask, bspl = arutils.robust_polyfit(tilts[gdp][srt], scifrcp[gdp][srt], 3, function='bspline',
                                             weights=np.sqrt(ivar)[gdp][srt], sigma=5.,
                                             maxone=False, **settings.argflag['reduce']['skysub']['bspline'])
@@ -737,20 +749,29 @@ def object_profile(slf, sciframe, slitn, det, refine=0.0, factor=3):
     profile : ndarray
       object profile
     """
-    word = np.where(slf._slitpix[det - 1] == slitn + 1)
-    #word = np.where((slf._slitpix[det - 1] == slitn + 1) & (slf._scimask[det - 1] == 0))
+    # Obtain the indices of the pixels that are in slit number 'slitn', and are not masked
+    word = np.where((slf._slitpix[det - 1] == slitn + 1) & (slf._scimask[det - 1] == 0))
     if word[0].size == 0:
         msgs.warn("There are no pixels in slit {0:d}".format(slitn))
         return None, None
+    # Determine the width of the slit in pixels, and calculate the
+    # number of bins needed to oversample the object profile.
     npix = slf._pixwid[det-1][slitn]
     nbins = factor*npix
+    # Extract the left and right order locations, and estimate the spatial positions
+    # of all pixels within the slit.
     lordloc = slf._lordloc[det - 1][:, slitn]
     rordloc = slf._rordloc[det - 1][:, slitn]
     spatval = (word[1] - lordloc[word[0]] + refine) / (rordloc[word[0]] - lordloc[word[0]])
+    # Create an array to store the oversampled object profile
     profile = np.zeros(nbins)
+    # Determine the bin edges of the oversampled array
     xedges = np.linspace(np.min(spatval), np.max(spatval), nbins+1)
+    # Assign each detector pixel within the slit to an oversampled pixel
     groups = np.digitize(spatval, xedges)
     flxfr = sciframe[word]
+    # For each oversampled pixel, calculate the median flux
+    msgs.work("It might be a good idea to use a weighted mean (where weights=flux), instead of the median here")
     for mm in range(1, xedges.size):
         profile[mm - 1] = np.median(flxfr[groups == mm])
     return xedges, profile

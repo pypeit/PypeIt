@@ -150,8 +150,9 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._slitpix, slitpix, det)
 
                 # Save QA for slit traces
-                arqa.slit_trace_qa(slf, slf._mstrace[det - 1], slf._lordpix[det - 1], slf._rordpix[det - 1], extord,
-                                   desc="Trace of the slit edges", normalize=False)
+                if not msgs._debug['no_qa']:
+                    arqa.slit_trace_qa(slf, slf._mstrace[det - 1], slf._lordpix[det - 1], slf._rordpix[det - 1], extord,
+                                       desc="Trace of the slit edges", normalize=False)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
             ###############
@@ -203,15 +204,16 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                     slf.SetFrame(slf._slitprof, slit_profiles, det)
                     slf.SetFrame(slf._msblaze, msblaze, det)
                     # Prepare some QA for the average slit profile along the slit
-                    msgs.info("Preparing QA of each slit profile")
-                    arqa.slit_profile(slf, mstracenrm, slit_profiles, slf._lordloc[det - 1], slf._rordloc[det - 1],
-                                      slf._slitpix[det - 1], desc="Slit profile")
-                    msgs.info("Saving blaze function QA")
-                    arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc="Blaze function", textplt="Order")
+                    if not msgs._debug['no_qa']:
+                        msgs.info("Preparing QA of each slit profile")
+                        arqa.slit_profile(slf, mstracenrm, slit_profiles, slf._lordloc[det - 1], slf._rordloc[det - 1],
+                                          slf._slitpix[det - 1], desc="Slit profile")
+                        msgs.info("Saving blaze function QA")
+                        arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc="Blaze function", textplt="Order")
 
             ###############
             # Generate/load a master wave frame
-            if settings.argflag["reduce"]["calibrate"]["wavelength"] is not None:
+            if settings.argflag["reduce"]["calibrate"]["wavelength"] != "pixel":
                 update = slf.MasterWave(fitsdict, sc, det)
                 if update and reuseMaster:
                     armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
