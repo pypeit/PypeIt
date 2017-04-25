@@ -1485,11 +1485,13 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             badlines += 1
             trcdict = pad_dict(trcdict)
             continue
+        '''
         if j == 74:  # KLUDGE!!!!
             aduse[j] = False
             badlines += 1
             trcdict = pad_dict(trcdict)
             continue
+        '''
         # Get the size of the slit
         sz = int(np.floor(np.abs(slf._rordloc[det-1][arcdet[j], slitnum]-slf._lordloc[det-1][arcdet[j], slitnum])/2.0)) - 2
         xtfit = np.zeros(2*sz+1)
@@ -2297,6 +2299,7 @@ def get_censpec(slf, frame, det, gen_satmask=False):
     ordwid = 0.5*np.abs(slf._lordloc[det-1]-slf._rordloc[det-1])
     if gen_satmask:
         msgs.info("Generating a mask of arc line saturation streaks")
+        debugger.set_trace()
         satmask = arcyarc.saturation_mask(frame, settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])
         satsnd = arcyarc.order_saturation(satmask, (ordcen+0.5).astype(np.int), (ordwid+0.5).astype(np.int))
     # Extract a rough spectrum of the arc in each slit

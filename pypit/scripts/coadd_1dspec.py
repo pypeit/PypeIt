@@ -72,6 +72,8 @@ def main(args, unit_test=False):
     for key in coadd_dict.keys():
         iobj = coadd_dict[key]['object']
         outfile = coadd_dict[key]['outfile']
+        if unit_test:
+            return gparam, ex_value, flux_value, iobj, outfile, files
 
         # Loop on spec1d files
         gdfiles = []

@@ -509,7 +509,7 @@ def load_spec(files, iextensions=None, extract='opt', flux=True):
                            spectrum.sig**2 > 1e10,
                            ], axis=0)
         if np.sum(bad_flux):
-            msgs.warn("There are some bad flux values in this spectrum.  Will zero them out (not ideal)")
+            msgs.warn("There are some bad flux values in this spectrum.  Will zero them out and mask them (not ideal)")
             spectrum.data['flux'][spectrum.select][bad_flux] = 0.
             spectrum.data['sig'][spectrum.select][bad_flux] = 0.
         # Append

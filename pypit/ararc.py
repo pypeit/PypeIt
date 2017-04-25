@@ -444,11 +444,6 @@ def simple_calib(slf, det, get_poly=False):
         # Fit with rejection
         xfit, yfit = tcent[ifit], all_ids[ifit]
         mask, fit = arutils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej'], minv=fmin, maxv=fmax)
-        # DEBUG
-        #if msgs._debug['arc']:
-        #    debugger.set_trace()
-            #wave = arutils.func_val(fit, np.arange(slf._msarc.shape[0]), aparm['func'], min=fmin, max=fmax)
-            #xdb.xplot(xfit,yfit,scatter=True,xtwo=np.arange(slf._msarc.shape[0]), ytwo=wave)
         # Reject but keep originals (until final fit)
         ifit = list(ifit[mask == 0]) + sv_ifit
         # Find new points (should we allow removal of the originals?)
@@ -495,10 +490,6 @@ def simple_calib(slf, det, get_poly=False):
         msarc = slf._msarc[det-1]
         wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
             'legendre', minv=fmin, maxv=fmax)
-        #debugger.xplot(xfit,yfit, scatter=True,
-        #    xtwo=np.arange(msarc.shape[0])/float(msarc.shape[0]),
-        #    ytwo=wave)
-        #debugger.xpcol(xfit*msarc.shape[0], yfit)
         debugger.set_trace()
 
         #debugger.xplot(xfit, np.ones(len(xfit)), scatter=True,
@@ -527,7 +518,7 @@ def simple_calib(slf, det, get_poly=False):
     # RMS
     rms_ang = arutils.calc_fit_rms(xfit, yfit, fit, aparm['func'], minv=fmin, maxv=fmax)
     wave = arutils.func_val(fit, np.arange(slf._msarc[det-1].shape[0])/float(slf._msarc[det-1].shape[0]),
-                            'legendre', minv=fmin, maxv=fmax)
+                            aparm['func'], minv=fmin, maxv=fmax)
     rms_pix = rms_ang/np.median(np.abs(wave-np.roll(wave,1)))
     msgs.info("Fit RMS = {} pix".format(rms_pix))
     # Return

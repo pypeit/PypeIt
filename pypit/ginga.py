@@ -10,7 +10,7 @@ from pypit import pyputils
 
 # CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
 #from pypit import ardebug as debugger
-import pdb
+import pdb as debugger
 
 try:
     basestring
@@ -48,7 +48,7 @@ def connect_to_ginga(host='localhost', port=9000):
         tmp = ginga.get_current_workspace()
     except:
         msgs.warn("Problem connecting to Ginga.  Launch an RC Ginga viewer then continue.")
-        pdb.set_trace()
+        debugger.set_trace()
     # Return
     return viewer
 
@@ -90,9 +90,8 @@ def show_image(inp, chname='Image', **kwargs):
     header['NAXIS1'] = img.shape[1]
     header['NAXIS2'] = img.shape[0]
     header['WCS-xIMG'] = 'MF_lris_red/MasterWave_A_02_aa.fits'
-    import pdb; pdb.set_trace()
+    debugger.set_trace()
     # Giddy up
-    #pdb.set_trace()
     ch.load_np(name, img, 'fits', header)
     return viewer, ch
 

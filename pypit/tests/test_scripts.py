@@ -44,3 +44,18 @@ def test_view_fits():
     from pypit.scripts import view_fits
     spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
     pargs = view_fits.parser([spec_file, '--list'])
+
+def test_coadd():
+    from pypit.scripts import coadd_1dspec
+    coadd_file = data_path('coadd_UGC3672A_red.yaml')
+    args = coadd_1dspec.parser([coadd_file])
+    # Main
+    gparam, ex_value, flux_value, iobj, outfile, files = coadd_1dspec.main(args, unit_test=True)
+    # Test
+    assert len(gparam) == 0
+    assert isinstance(gparam, dict)
+    assert ex_value == 'opt'
+    assert flux_value is True
+    assert iobj == 'O210-S1467-D02-I0012'
+    assert outfile == 'UGC3672A_r.fits'
+    assert len(files) == 4
