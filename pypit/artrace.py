@@ -1982,7 +1982,8 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
-    arccen, maskslit, satmask = get_censpec(slf, msarc, det, gen_satmask=True)
+    arccen, maskslit = get_censpec(slf, msarc, det, gen_satmask=False)
+    satmask = np.zeros_like(slf._pixcen)
     # If the user sets no tilts, return here
     if settings.argflag['trace']['slits']['tilts']['method'].lower() == "zero":
         # Assuming there is no spectral tilt
