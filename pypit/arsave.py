@@ -13,6 +13,7 @@ from astropy.table import Table
 import h5py
 
 from pypit import armsgs
+from pypit import arutils
 from pypit import arparse as settings
 
 from pypit import ardebug as debugger

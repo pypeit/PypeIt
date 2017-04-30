@@ -91,8 +91,9 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
             nbkpts = max(int(xrnge/bkspace) + 1,2)
             tempbkspace = xrnge/(nbkpts-1)
             knots = np.arange(1,nbkpts-1)*tempbkspace + startx
-        elif everyn is not None: # A knot every good N pixels
-            idx_knots = np.arange(10, ngd-10, everyn)
+        elif everyn is not None:
+            # A knot every good N pixels
+            idx_knots = np.arange(everyn//2, ngd-everyn//2, everyn)
             knots = x[gd[idx_knots]]
         else:
             msgs.error("No method specified to generate knots")
@@ -101,8 +102,10 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     # Generate spline
     try:
         tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, xb=xmin, xe=xmax, t=knots, task=task)
-    except ValueError: # Knot problem
+    except ValueError:
+        # Knot problem
         msgs.warn("Problem in the bspline knot")
+        debugger.set_trace()
     return tck
 
 
