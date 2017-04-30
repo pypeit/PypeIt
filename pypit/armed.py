@@ -213,10 +213,9 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
 
             ###############
             # Generate/load a master wave frame
-            if settings.argflag["reduce"]["calibrate"]["wavelength"] != "pixel":
-                update = slf.MasterWave(fitsdict, sc, det)
-                if update and reuseMaster:
-                    armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
+            update = slf.MasterWave(fitsdict, sc, det)
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
 
             ###############
             # Check if the user only wants to prepare the calibrations only
