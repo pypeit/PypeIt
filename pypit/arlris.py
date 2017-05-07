@@ -10,6 +10,11 @@ from pypit.arparse import load_sections
 
 from pypit import ardebug as debugger
 
+try:
+    basestring
+except NameError:  # For Python 3
+    basestring = str
+
 # Logging
 msgs = armsgs.get_logger()
 
