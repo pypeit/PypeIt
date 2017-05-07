@@ -37,7 +37,7 @@ def parse_nist(slf,ion):
     elif len(nist_file) != 1:
         msgs.error("Multiple NIST files for {:s}".format(srch_file))
     # Read
-    nist_tbl = Table.read(nist_file[0], format='ascii.fixed_width')
+    nist_tbl = Table.read(nist_file[0], format='ascii.fixed_width', comment='#')
     gdrow = nist_tbl['Observed'] > 0.  # Eliminate dummy lines
     nist_tbl = nist_tbl[gdrow]
     # Now unique values only (no duplicates)
@@ -59,6 +59,8 @@ def parse_nist(slf,ion):
     nist_tbl.remove_column('Rel.')
     nist_tbl.remove_column('Ritz')
     nist_tbl.add_column(Column(agdrel,name='RelInt'))
+    nist_tbl.remove_column('Acc.')
+    nist_tbl.remove_column('Type')
     #nist_tbl.add_column(Column([ion]*len(nist_tbl), name='Ion', dtype='S5'))
     nist_tbl.add_column(Column([ion]*len(nist_tbl), name='Ion', dtype='U5'))
     nist_tbl.rename_column('Observed','wave')
@@ -174,7 +176,10 @@ def parse_nist_tbl(tbl,parse_dict):
     '''
     # Parse
     gdI = tbl['RelInt'] >= parse_dict['min_intensity']
-    gdA = tbl['Aki'] >= parse_dict['min_Aki']
+    try:
+        gdA = tbl['Aki'] >= parse_dict['min_Aki']
+    except TypeError:
+        debugger.set_trace()
     gdw = tbl['wave'] >= parse_dict['min_wave']
     # Combine
     allgd = gdI & gdA & gdw
