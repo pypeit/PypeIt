@@ -500,8 +500,19 @@ def load_spec(files, iextensions=None, extract='opt', flux=True):
     # Load spectra
     spectra_list = []
     for ii,fname in enumerate(files):
-        #msgs.info("Loading extension {:d} of spectrum {:s}".format(extensions[ii], fname))
+        msgs.info("Loading extension {:d} of spectrum {:s}".format(extensions[ii], fname))
         spectrum = arload.load_1dspec(fname, exten=extensions[ii], extract=extract, flux=flux)
+        # Polish a bit -- Deal with NAN, inf, and *very* large values that will exceed
+        #   the floating point precision of float32 for var which is sig**2 (i.e. 1e38)
+        bad_flux = np.any([np.isnan(spectrum.flux), np.isinf(spectrum.flux),
+                           np.abs(spectrum.flux) > 1e30,
+                           spectrum.sig**2 > 1e10,
+                           ], axis=0)
+        if np.sum(bad_flux):
+            msgs.warn("There are some bad flux values in this spectrum.  Will zero them out and mask them (not ideal)")
+            spectrum.data['flux'][spectrum.select][bad_flux] = 0.
+            spectrum.data['sig'][spectrum.select][bad_flux] = 0.
+        # Append
         spectra_list.append(spectrum)
     # Join into one XSpectrum1D object
     spectra = collate(spectra_list)
@@ -542,7 +553,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     new_wave = new_wave_grid(spectra.data['wave'], method=wave_grid_method, **kwargs)
 
     # Rebin
-    rspec = spectra.rebin(new_wave*u.AA, all=True, do_sig=True, masking='none')
+    rspec = spectra.rebin(new_wave*u.AA, all=True, do_sig=True, grow_bad_sig=True, masking='none')
     pre_mask = rspec.data['flux'].mask.copy()
 
     # Clean bad CR

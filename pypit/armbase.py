@@ -119,7 +119,7 @@ def SetupScience(fitsdict):
     if settings.argflag['run']['calcheck'] or settings.argflag['run']['setup']:
         if settings.argflag['run']['calcheck']:
             msgs.info("Inspect the .calib file: {:s}".format(setup_file))
-            msgs.info("Calibration check complete. Set 'run calcheck False' to continue with data reduction")
+            msgs.info("Calibration check complete and successful. Set 'run calcheck False' to continue with data reduction")
             # Instrument specific (might push into a separate file)
             if settings.argflag['run']['spectrograph'] in ['lris_blue']:
                 if settings.argflag['reduce']['flatfield']['useframe'] in ['pixelflat']:

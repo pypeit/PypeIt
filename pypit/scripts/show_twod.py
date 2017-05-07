@@ -30,7 +30,6 @@ def main(args):
 
     # List only?
     from astropy.io import fits
-    from astropy.table import Table
     hdu = fits.open(args.file)
     head0 = hdu[0].header
     if args.list:
@@ -40,9 +39,8 @@ def main(args):
     # Setup for PYPIT imports
     from pypit import pyputils
     msgs = pyputils.get_dummy_logger()
-    from pypit import arparse as settings  # Has to come after the logger
     from pypit import ginga as pyp_ginga
-    from pypit import armasters
+    import pdb as debugger
 
     # One detector, sky sub for now
     names = [hdu[i].name for i in range(len(hdu))]
@@ -53,6 +51,7 @@ def main(args):
     viewer, ch = pyp_ginga.show_image(skysub, chname='DET-{:02d}'.format(args.det))
 
     # Add slits
+    '''
     testing = False
     if testing:
         mdir = 'MF_lris_blue/'
@@ -75,4 +74,5 @@ def main(args):
             tbl = Table(hdu.data)
             trace = tbl['obj_trace']
             pyp_ginga.show_trace(viewer, ch, trace, hdu.name)
+    '''
 

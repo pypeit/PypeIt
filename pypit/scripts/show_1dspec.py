@@ -47,8 +47,8 @@ def main(args, unit_test=False):
     spec = arload.load_1dspec(args.file, exten=args.exten, extract=args.extract, objname=args.obj, flux=args.flux)
 
     if unit_test is False:
-        from PyQt4 import QtGui
-        app = QtGui.QApplication(sys.argv)
+        from PyQt5.QtWidgets import QApplication
+        app = QApplication(sys.argv)
 
     gui = XSpecGui(spec, unit_test=unit_test)
     if unit_test is False:

@@ -11,8 +11,8 @@ def parser(options=None):
 
     import argparse
 
-    parser = argparse.ArgumentParser(description='Script to coadd a set of spec1D files and 1 or more slits and 1 or more objects')
-    parser.add_argument("infile", type=str, help="Input file")
+    parser = argparse.ArgumentParser(description='Script to coadd a set of spec1D files and 1 or more slits and 1 or more objects. Current defaults use Optimal + Fluxed extraction. [v1.1]')
+    parser.add_argument("infile", type=str, help="Input file (YAML)")
 
     if options is None:
         args = parser.parse_args()
@@ -41,7 +41,7 @@ def main(args, unit_test=False):
     files = []
     for ifl in filelist:
         if '*' in ifl:
-            files.append(glob.glob(ifl))
+            files += glob.glob(ifl)
         else:
             files += [ifl]
     fdict = {}
@@ -58,10 +58,22 @@ def main(args, unit_test=False):
         gparam = coadd_dict.pop('global')
     else:
         gparam = {}
+    # Extraction
+    if 'extract' in coadd_dict.keys():
+        ex_value = coadd_dict.pop('extract')
+    else:
+        ex_value = 'opt'
+    # Fluxed data?
+    if 'flux' in coadd_dict.keys():
+        flux_value = coadd_dict.pop('flux')
+    else:
+        flux_value = True
     # Loop on sources
     for key in coadd_dict.keys():
         iobj = coadd_dict[key]['object']
         outfile = coadd_dict[key]['outfile']
+        if unit_test:
+            return gparam, ex_value, flux_value, iobj, outfile, files
 
         # Loop on spec1d files
         gdfiles = []
@@ -78,7 +90,7 @@ def main(args, unit_test=False):
             else:
                 raise ValueError("Multiple matches to object {:s} in file {:s}".format(iobj,key))
         # Load spectra
-        spectra = arcoadd.load_spec(gdfiles, iextensions=extensions)#, extract='box')
+        spectra = arcoadd.load_spec(gdfiles, iextensions=extensions, extract=ex_value, flux=flux_value)
         exten = outfile.split('.')[-1]  # Allow for hdf or fits or whatever
         qafile = outfile.replace(exten,'pdf')
         # Coadd!

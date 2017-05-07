@@ -154,7 +154,8 @@ def setup_param(slf, sc, det, fitsdict):
         wv_cen=0.,           # Estimate of central wavelength
         wvmnx=[2900.,12000.],# Guess at wavelength range
         disp_toler=0.1,      # 10% tolerance
-        match_toler=3.,      # Matcing tolerance (pixels)
+        match_toler=3.,      # Matching tolerance (pixels)
+        min_ampl=300.,       # Minimum amplitude
         func='legendre',     # Function for fitting
         n_first=1,           # Order of polynomial for first fit
         n_final=4,           # Order of polynomial for final fit
@@ -236,7 +237,7 @@ def setup_param(slf, sc, det, fitsdict):
         arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['WAVELEN']
         lamps = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
         if disperser == '600/7500':
-            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['n_first']=3 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
             arcparam['wvmnx'][1] = 11000.
@@ -247,9 +248,11 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['wvmnx'][1] = 12000.
         elif disperser == '400/8500':
             arcparam['n_first']=2 # Too much curvature for 1st order
-            arcparam['disp']=1.16 # Ang per pixel (unbinned)
+            arcparam['disp']=1.19 # Ang per pixel (unbinned)
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
             arcparam['wvmnx'][1] = 11000.
+            arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
+            arcparam['nsig_rej_final'] = 5.
         elif disperser == '900/5500':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.53 # Ang per pixel (unbinned)
@@ -441,11 +444,6 @@ def simple_calib(slf, det, get_poly=False):
         # Fit with rejection
         xfit, yfit = tcent[ifit], all_ids[ifit]
         mask, fit = arutils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej'], minv=fmin, maxv=fmax)
-        # DEBUG
-        if msgs._debug['arc']:
-            debugger.xpcol(xfit,yfit)
-            #wave = arutils.func_val(fit, np.arange(slf._msarc.shape[0]), aparm['func'], min=fmin, max=fmax)
-            #xdb.xplot(xfit,yfit,scatter=True,xtwo=np.arange(slf._msarc.shape[0]), ytwo=wave)
         # Reject but keep originals (until final fit)
         ifit = list(ifit[mask == 0]) + sv_ifit
         # Find new points (should we allow removal of the originals?)
@@ -492,10 +490,6 @@ def simple_calib(slf, det, get_poly=False):
         msarc = slf._msarc[det-1]
         wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
             'legendre', minv=fmin, maxv=fmax)
-        debugger.xplot(xfit,yfit, scatter=True,
-            xtwo=np.arange(msarc.shape[0])/float(msarc.shape[0]),
-            ytwo=wave)
-        debugger.xpcol(xfit*msarc.shape[0], yfit)
         debugger.set_trace()
 
         #debugger.xplot(xfit, np.ones(len(xfit)), scatter=True,
@@ -521,6 +515,12 @@ def simple_calib(slf, det, get_poly=False):
     # QA
     if not msgs._debug['no_qa']:
         arqa.arc_fit_qa(slf, final_fit)
+    # RMS
+    rms_ang = arutils.calc_fit_rms(xfit, yfit, fit, aparm['func'], minv=fmin, maxv=fmax)
+    wave = arutils.func_val(fit, np.arange(slf._msarc[det-1].shape[0])/float(slf._msarc[det-1].shape[0]),
+                            aparm['func'], minv=fmin, maxv=fmax)
+    rms_pix = rms_ang/np.median(np.abs(wave-np.roll(wave,1)))
+    msgs.info("Fit RMS = {} pix".format(rms_pix))
     # Return
     return final_fit
 
@@ -551,7 +551,9 @@ def calib_with_arclines(slf, det, get_poly=False, use_basic=False):
         stuff = basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
         status, ngd_match, match_idx, scores, final_fit = stuff
     else:  # Now preferred
-        best_dict, final_fit = semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm) #min_ampl=min_ampl,
+        best_dict, final_fit = semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
+        #if det == 2:
+        #    debugger.set_trace()
     if not msgs._debug['no_qa']:
         arqa.arc_fit_qa(slf, final_fit)
     #
