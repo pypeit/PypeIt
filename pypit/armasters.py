@@ -164,7 +164,7 @@ def save_masters(slf, det, setup):
         # Wavelength fit
         gddict = ltu.jsonify(slf._wvcalib[det-1])
         json_file=master_name('wave_calib', setup)
-        ltu.savejson(json_file, gddict, easy_to_read=True)
+        ltu.savejson(json_file, gddict, easy_to_read=True, overwrite=True)
     if 'tilts'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
         arsave.save_master(slf, slf._tilts[det-1],
                            filename=master_name('tilts', setup),
