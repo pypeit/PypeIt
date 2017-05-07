@@ -4,6 +4,10 @@ from pypit import armsgs
 from pypit import arparse as settings
 from pypit import arsave
 
+try:
+    basestring
+except NameError:  # For Python 3
+    basestring = str
 
 # Logging
 msgs = armsgs.get_logger()
@@ -158,9 +162,7 @@ def save_masters(slf, det, setup):
         # Wavelength fit
         gddict = ltu.jsonify(slf._wvcalib[det-1])
         json_file=master_name('wave_calib', setup)
-        with io.open(json_file, 'w', encoding='utf-8') as f:
-            f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4,
-                                       separators=(',', ': '))))
+        ltu.savejson(json_file, gddict, easy_to_read=True)
     if 'tilts'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
         arsave.save_master(slf, slf._tilts[det-1],
                            filename=master_name('tilts', setup),
