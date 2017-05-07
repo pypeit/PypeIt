@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division, print_function
+from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import numpy as np
 from pypit import armsgs
@@ -26,7 +26,6 @@ def comb_frames(frames_arr, det, frametype, weights=None, maskvalue=1048577, pri
     printtype : str (optional)
       The frame type string that should be printed by armsgs. If None, frametype will be used
     """
-
     from pypit import arcycomb
     dnum = settings.get_dnum(det)
     reject = settings.argflag[frametype]['combine']['reject']

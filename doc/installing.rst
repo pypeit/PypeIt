@@ -166,6 +166,11 @@ or::
 
 This should compile all the necessary Cython files, etc.
 
+If your python installation requires root access, you'll need to use sudo with the "-E" option to pass environment variables.
+
+	sudo -E python setup.py develop
+
+
 Tests
 =====
 In order to assess whether PYPIT has been properly installed,
