@@ -787,8 +787,7 @@ def reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=False):
       Standard star frame?
     """
     # Check inputs
-    if not isinstance(scidx, int):
-        debugger.set_trace()
+    if not isinstance(scidx, (int,np.integer)):
         raise IOError("scidx needs to be an int")
     # Convert ADUs to electrons
     sciframe *= gain_frame(slf, det)
