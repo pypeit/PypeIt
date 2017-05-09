@@ -692,7 +692,6 @@ class ScienceExposure:
         if 'wave'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
             msgs.info("Preparing a master wave frame")
             if settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
-                debugger.set_trace()
                 mswave = self._tilts[det - 1] * (self._tilts[det - 1].shape[0]-1.0)
             else:
                 wv_calib = self._wvcalib[det - 1]
