@@ -404,14 +404,10 @@ def match_science(fitsdict, filesort):
             if 'match' not in settings.spect[ftag[ft]].keys() and (not settings.argflag['run']['setup']):
                 debugger.set_trace()
             #if not settings.argflag['run']['setup']:
-            try:
-                chkk = settings.spect[ftag[ft]]['match'].keys()
-            except KeyError:
-                if not settings.argflag['run']['setup']:
-                    msgs.bug("Matching criteria {0:s} is not supported".format(tmtch))
-                else:
-                    msgs.warn("Matching criteria {0:s} not supported for this instrument".format(tmtch))
+            if 'match' not in settings.spect[ftag[ft]].keys():
+                msgs.info("No matching criteria for {0:s} frames with this instrument".format(ftag[ft]))
             else:
+                chkk = settings.spect[ftag[ft]]['match'].keys()
                 for ch in chkk:
                     tmtch = settings.spect[ftag[ft]]['match'][ch]
                     if tmtch == "any":

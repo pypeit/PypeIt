@@ -16,7 +16,8 @@ part of the data reduction process.
 ===========
 
 This section describes the algorithms for coadding extracted,
-"1D" spectra.
+"1D" spectra.  The current defaults use the Optimal extraction
+and fluxed data.
 
 
 Input File

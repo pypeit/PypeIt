@@ -10,6 +10,7 @@ from pypit import pyputils
 
 # CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
 #from pypit import ardebug as debugger
+import pdb as debugger
 
 try:
     basestring
@@ -84,7 +85,14 @@ def show_image(inp, chname='Image', **kwargs):
     viewer = connect_to_ginga()
     ch = viewer.channel(chname)
     name='image'
-    ch.load_np(name, img, 'fits', {})
+    # Header
+    header = {}
+    header['NAXIS1'] = img.shape[1]
+    header['NAXIS2'] = img.shape[0]
+    header['WCS-xIMG'] = 'MF_lris_red/MasterWave_A_02_aa.fits'
+    debugger.set_trace()
+    # Giddy up
+    ch.load_np(name, img, 'fits', header)
     return viewer, ch
 
 
