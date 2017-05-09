@@ -57,76 +57,78 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     cr_mask = 1.0-crmask
     bgfit = np.linspace(0.0, 1.0, sciframe.shape[1])
     bgcorr = np.zeros_like(cr_mask)
-    # Loop on Objects
-    for o in range(nobj):
-        msgs.info("Performing boxcar extraction on object {0:d}/{1:d}".format(o+1,nobj))
-        # Fit the background
-        msgs.info("   Fitting the background")
-        # Trim CRs further
-        bg_mask = np.zeros_like(sciframe)
-        bg_mask[np.where(scitrace['background'][:,:,o]*cr_mask <= 0.)] = 1.
-        mask_sci = np.ma.array(sciframe, mask=bg_mask, fill_value=0.)
-        clip_image = sigma_clip(mask_sci, axis=1, sigma=3.)  # For the mask only
-        # Fit
-        bgframe = arcyutils.func2d_fit_val(bgfit, sciframe, (~clip_image.mask)*scitrace['background'][:,:,o]*cr_mask, bgfitord)
-        # Weights
-        weight = scitrace['object'][:,:,o]
-        sumweight = np.sum(weight, axis=1)
-        # Generate wavelength array (average over the pixels)
-        wvsum = np.sum(slf._mswave[det-1]*weight, axis=1)
-        wvsum /= sumweight
-        # Generate sky spectrum (flux per pixel)
-        skysum = np.sum(skyframe*weight, axis=1)
-        skysum /= sumweight
-        # Total the object flux
-        msgs.info("   Summing object counts")
-        scisum = np.sum((sciframe-bgframe)*weight, axis=1)
-        # Total the variance array
-        msgs.info("   Summing variance array")
-        varsum = np.sum(varframe*weight, axis=1)
-        # Update background correction image
-        tmp = scitrace['background'][:,:,o] + scitrace['object'][:,:,o]
-        gdp = np.where(tmp > 0)
-        bgcorr[gdp] = bgframe[gdp]
-        # Mask
-        boxmask = np.zeros_like(wvsum, dtype=np.int)
-        # Bad detector pixels
-        BPs = np.sum(weight*slf._bpix[det-1], axis=1)
-        bp = BPs > 0.
-        boxmask[bp] += mask_flags['bad_pix']
-        # CR
-        CRs = np.sum(weight*cr_mask, axis=1)
-        cr = CRs > 0.
-        boxmask[cr] += mask_flags['CR']
-        # NAN
-        NANs = np.isnan(scisum)
-        if np.sum(NANs) > 0:
-            msgs.warn("   NANs in the spectrum somehow..")
-            boxmask[NANs] += mask_flags['NANs']
-            scisum[NANs] = 0.
-            varsum[NANs] = 0.
-            skysum[NANs] = 0.
-        # Check on specobjs
-        if not specobjs[o].check_trace(scitrace['traces'][:, o]):
-            debugger.set_trace()
-            msgs.error("Bad match to specobj in boxcar!")
-        # Fill
-        specobjs[o].boxcar['wave'] = wvsum.copy()*u.AA  # Yes, units enter here
-        specobjs[o].boxcar['counts'] = scisum.copy()
-        specobjs[o].boxcar['var'] = varsum.copy()
-        if np.sum(specobjs[o].boxcar['var']) == 0.:
-            debugger.set_trace()
-        specobjs[o].boxcar['sky'] = skysum.copy()  # per pixel
-        specobjs[o].boxcar['mask'] = boxmask.copy()
-        # Find boxcar size
-        slit_sz = []
-        inslit = np.where(weight == 1.)
-        for ii in range(weight.shape[0]):
-            inrow = inslit[0] == ii
-            if np.sum(inrow) > 0:
-                slit_sz.append(np.max(inslit[1][inrow])-np.min(inslit[1][inrow]))
-        slit_pix = np.median(slit_sz)  # Pixels
-        specobjs[o].boxcar['size'] = slit_pix
+    # Loop on Slits
+    for sn in range(nslits):
+        # Loop on Objects
+        for o in range(nobj):
+            msgs.info("Performing boxcar extraction on object {0:d}/{1:d} in slit {2:d}/{3:d}".format(o+1, nobj, sn, nslits))
+            # Fit the background
+            msgs.info("   Fitting the background")
+            # Trim CRs further
+            bg_mask = np.zeros_like(sciframe)
+            bg_mask[np.where(scitrace['background'][:,:,o]*cr_mask <= 0.)] = 1.
+            mask_sci = np.ma.array(sciframe, mask=bg_mask, fill_value=0.)
+            clip_image = sigma_clip(mask_sci, axis=1, sigma=3.)  # For the mask only
+            # Fit
+            bgframe = arcyutils.func2d_fit_val(bgfit, sciframe, (~clip_image.mask)*scitrace['background'][:,:,o]*cr_mask, bgfitord)
+            # Weights
+            weight = scitrace['object'][:,:,o]
+            sumweight = np.sum(weight, axis=1)
+            # Generate wavelength array (average over the pixels)
+            wvsum = np.sum(slf._mswave[det-1]*weight, axis=1)
+            wvsum /= sumweight
+            # Generate sky spectrum (flux per pixel)
+            skysum = np.sum(skyframe*weight, axis=1)
+            skysum /= sumweight
+            # Total the object flux
+            msgs.info("   Summing object counts")
+            scisum = np.sum((sciframe-bgframe)*weight, axis=1)
+            # Total the variance array
+            msgs.info("   Summing variance array")
+            varsum = np.sum(varframe*weight, axis=1)
+            # Update background correction image
+            tmp = scitrace['background'][:,:,o] + scitrace['object'][:,:,o]
+            gdp = np.where(tmp > 0)
+            bgcorr[gdp] = bgframe[gdp]
+            # Mask
+            boxmask = np.zeros_like(wvsum, dtype=np.int)
+            # Bad detector pixels
+            BPs = np.sum(weight*slf._bpix[det-1], axis=1)
+            bp = BPs > 0.
+            boxmask[bp] += mask_flags['bad_pix']
+            # CR
+            CRs = np.sum(weight*cr_mask, axis=1)
+            cr = CRs > 0.
+            boxmask[cr] += mask_flags['CR']
+            # NAN
+            NANs = np.isnan(scisum)
+            if np.sum(NANs) > 0:
+                msgs.warn("   NANs in the spectrum somehow..")
+                boxmask[NANs] += mask_flags['NANs']
+                scisum[NANs] = 0.
+                varsum[NANs] = 0.
+                skysum[NANs] = 0.
+            # Check on specobjs
+            if not specobjs[o].check_trace(scitrace['traces'][:, o]):
+                debugger.set_trace()
+                msgs.error("Bad match to specobj in boxcar!")
+            # Fill
+            specobjs[o].boxcar['wave'] = wvsum.copy()*u.AA  # Yes, units enter here
+            specobjs[o].boxcar['counts'] = scisum.copy()
+            specobjs[o].boxcar['var'] = varsum.copy()
+            if np.sum(specobjs[o].boxcar['var']) == 0.:
+                debugger.set_trace()
+            specobjs[o].boxcar['sky'] = skysum.copy()  # per pixel
+            specobjs[o].boxcar['mask'] = boxmask.copy()
+            # Find boxcar size
+            slit_sz = []
+            inslit = np.where(weight == 1.)
+            for ii in range(weight.shape[0]):
+                inrow = inslit[0] == ii
+                if np.sum(inrow) > 0:
+                    slit_sz.append(np.max(inslit[1][inrow])-np.min(inslit[1][inrow]))
+            slit_pix = np.median(slit_sz)  # Pixels
+            specobjs[o].boxcar['size'] = slit_pix
     # Return
     return bgcorr
 
