@@ -127,7 +127,7 @@ def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
     else:
         msgs.error('Not ready for this method for skysub {:s}'.format(
                 settings.argflag['reduce']['skysub']['method'].lower()))
-    if np.any(np.isnan(bgframe)) > 0:
+    if np.any(np.isnan(bgframe)):
         msgs.warn("NAN in bgframe.  Replacing with 0")
         bad = np.isnan(bgframe)
         bgframe[bad] = 0.

@@ -325,10 +325,10 @@ def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=No
 
     Returns
     -------
-    lordloc : ndarray
-      Locations of the left slit edges (in physical pixel coordinates)
-    rordloc : ndarray
-      Locations of the right slit edges (in physical pixel coordinates)
+    rec_obj_img : ndarray
+      An image containing weights to be used for the object
+    rec_bg_img : ndarray
+      An image containing weights to be used for the background
     """
     # Get the number of objects in the slit
     nobj = len(objreg[0])
