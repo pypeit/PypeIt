@@ -383,11 +383,52 @@ def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=No
     return rec_obj_img, rec_bg_img
 
 
+def trace_object_dict(nobj, traces, object=None, background=None, tracelist=None):
+    """ Creates a list of dictionaries, which contain the object traces in each slit
+
+    Parameters
+    ----------
+    nobj : int
+      Number of objects in this slit
+    traces : numpy ndarray
+      the trace of each object in this slit
+    object: numpy ndarray (optional)
+      An image containing weights to be used for the object.
+    background: numpy ndarray (optional)
+      An image containing weights to be used for the background
+    tracelist: list of dict
+      A list containing a trace dictionary for each slit
+
+    To save memory, the object and background images for multiple slits
+    can be stored in a single object image and single background image.
+    In this case, you must only set object and background for the zeroth
+    slit (with 'None' set for all other slits). In this case, the object
+    and background images must be set according to the slit locations
+    assigned in the slf._slitpix variable.
+
+    Returns
+    -------
+    tracedict : dict
+      A dictionary containing the object trace information
+    """
+    # Create a dictionary with all the properties of the object traces in this slit
+    newdict = dict({})
+    newdict['nobj'] = nobj
+    newdict['traces'] = traces
+    newdict['object'] = object
+    newdict['background'] = background
+    if tracelist is None:
+        tracelist = []
+    tracelist.append(newdict)
+    return tracelist
+
+
 def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
                  triml=None, trimr=None, sigmin=2.0, bgreg=None,
                  maskval=-999999.9, slitn=0, doqa=True,
                  xedge=0.03, fwhm=3.):
     """ Finds objects, and traces their location on the detector
+
     Parameters
     ----------
     slf : Class instance
@@ -574,6 +615,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     # Trace dict
     tracedict = dict({})
     tracedict['nobj'] = nobj
+    tracedict['nslit'] = slf._rordloc[det-1].shape[1]
     tracedict['traces'] = traces
     tracedict['object'] = rec_obj_img
     tracedict['background'] = rec_bg_img
