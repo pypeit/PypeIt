@@ -62,8 +62,8 @@ class SpecObjExp(object):
         self.objtype = objtype
 
         # Generate IDs
-        self.slitid= int(np.round(self.slitcen*1e4))
-        self.objid= int(np.round(xobj*1e3))
+        self.slitid = int(np.round(self.slitcen*1e4))
+        self.objid = int(np.round(xobj*1e3))
 
         # Generate a unique index for this exposure
         #self.idx = '{:02d}'.format(self.setup)
@@ -117,45 +117,43 @@ def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
        Index of file
     det : int
        Detector index 
+    trc_img : list of dict
+       Contains trace info
     ypos : float, optional [0.5]
        Row on trimmed detector (fractional) to define slit (and object)
-    trc_img : dict
-       Contains trace info
 
     Returns
     -------
     specobjs : list
       List of SpecObjExp objects
     """
-    from pypit.armlsd import instconfig
 
     # Init
     specobjs = []
     config = instconfig(det, scidx, fitsdict)
-    yidx = int(np.round(ypos*slf._lordloc[det-1].shape[0]))
-    pixl_slits = slf._lordloc[det-1][yidx, :]
-    pixr_slits = slf._rordloc[det-1][yidx, :]
-    #
-    if trc_img['nobj'] != 0: # Object traces
-        for qq in range(trc_img['traces'].shape[1]): # Loop on objects
-            # Find the slit
-            gds = np.where( (trc_img['traces'][yidx,qq]>pixl_slits) & 
-                (trc_img['traces'][yidx,qq]<pixr_slits))[0]
-            if len(gds) != 1:
-                msgs.error('arspecobj.init_exp: Problem finding the slit')
-            else:
-                islit = gds[0]
-                slitid, slitcen, xslit = get_slitid(slf, det, islit, ypos=ypos)
-            # xobj
-            _, xobj = get_objid(slf, det, islit, qq, trc_img, ypos=ypos)
-            # Generate
-            specobj = SpecObjExp((trc_img['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj, **kwargs)
-            # Add traces
-            specobj.trace = trc_img['traces'][:,qq]
-            # Append
-            specobjs.append(specobj)
-    else:
-        msgs.warn("No objects for specobjs")
+    nslit = len(trc_img)
+    # Loop on slits
+    for sl in range(nslit):
+        specobjs.append([])
+        # Object traces
+        if trc_img[sl]['nobj'] != 0:
+            # Loop on objects
+            for qq in range(trc_img[sl]['traces'].shape[1]):
+                slitid, slitcen, xslit = get_slitid(slf, det, sl, ypos=ypos)
+                # xobj
+                _, xobj = get_objid(slf, det, sl, qq, trc_img, ypos=ypos)
+                # Generate
+                if trc_img[sl]['object'] is None:
+                    specobj = SpecObjExp((trc_img[0]['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj, **kwargs)
+                else:
+                    specobj = SpecObjExp((trc_img[sl]['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj,
+                                         **kwargs)
+                # Add traces
+                specobj.trace = trc_img[sl]['traces'][:, qq]
+                # Append
+                specobjs[sl].append(specobj)
+        else:
+            msgs.warn("No objects for slit {0:d}".format(sl+1))
     # Return
     return specobjs
 
@@ -270,7 +268,7 @@ def get_objid(slf, det, islit, iobj, trc_img, ypos=0.5):
     det : int
     islit : int
     iobj : int
-    trc_img : dict
+    trc_img : list of dict
     ypos : float, optional
 
     Returns
@@ -286,7 +284,7 @@ def get_objid(slf, det, islit, iobj, trc_img, ypos=0.5):
     pixl_slit = slf._lordloc[det-1][yidx, islit]
     pixr_slit = slf._rordloc[det-1][yidx, islit]
     #
-    xobj = (trc_img['traces'][yidx,iobj]-pixl_slit) / (pixr_slit-pixl_slit)
+    xobj = (trc_img[islit]['traces'][yidx,iobj]-pixl_slit) / (pixr_slit-pixl_slit)
     objid= int(np.round(xobj*1e3))
     # Return
     return objid, xobj
@@ -335,13 +333,3 @@ def instconfig(det, scidx, fitsdict):
     config += 'B{:s}'.format(val)
     # Return
     return config
-
-    """
-    msgs.warn("Flat indexing needs to be improved in arsort.setup")
-    fidx = slf._name_flat.index(slf._mspixelflat_name)
-    if fidx > 9:
-        msgs.error("Not ready for that many flats!")
-    aidx = slf._name_flat.index(slf._mspixelflat_name)
-    setup = 10*(aidx+1) + fidx
-    return setup
-    """

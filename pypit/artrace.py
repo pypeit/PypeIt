@@ -408,8 +408,8 @@ def trace_object_dict(nobj, traces, object=None, background=None, tracelist=None
 
     Returns
     -------
-    tracedict : dict
-      A dictionary containing the object trace information
+    tracelist : list of dict
+      A list containing a trace dictionary for each slit
     """
     # Create a dictionary with all the properties of the object traces in this slit
     newdict = dict({})
@@ -426,7 +426,7 @@ def trace_object_dict(nobj, traces, object=None, background=None, tracelist=None
 def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
                  triml=None, trimr=None, sigmin=2.0, bgreg=None,
                  maskval=-999999.9, slitn=0, doqa=True,
-                 xedge=0.03, fwhm=3.):
+                 xedge=0.03, fwhm=3., tracedict=None):
     """ Finds objects, and traces their location on the detector
 
     Parameters
@@ -459,6 +459,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
       Trim objects within xedge % of the slit edge
     doqa : bool
       Should QA be output?
+    tracedict : list of dict
+      A list containing a trace dictionary for each slit
 
     Returns
     -------
@@ -613,12 +615,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
             ginga.show_trace(viewer, ch, traces[:,ii], '{:d}'.format(ii), clear=(ii==0))
         debugger.set_trace()
     # Trace dict
-    tracedict = dict({})
-    tracedict['nobj'] = nobj
-    tracedict['nslit'] = slf._rordloc[det-1].shape[1]
-    tracedict['traces'] = traces
-    tracedict['object'] = rec_obj_img
-    tracedict['background'] = rec_bg_img
+    tracedict = trace_object_dict(nobj, traces, rec_obj_img, rec_bg_img, tracelist=tracedict)
+
     # Save the quality control
     if doqa and (not msgs._debug['no_qa']):
         from pypit.arspecobj import get_objid
