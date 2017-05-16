@@ -24,6 +24,7 @@ def parser(options=None):
 def main(args, unit_test=False):
     """ Runs the XSpecGui on an input file
     """
+    import sys
     import pdb
     import yaml, glob
     from pypit import arcoadd
@@ -79,8 +80,14 @@ def main(args, unit_test=False):
         gdfiles = []
         extensions = []
         gdobj= []
+
+
         for key in fdict:
-            mtch_obj, idx = arspecobj.mtch_obj_to_objects(iobj, fdict[key])
+            if len(iobj) == 1:
+                mtch_obj, idx = arspecobj.mtch_obj_to_objects(iobj, fdict[key])
+            else:
+                ind = files.index(key)
+                mtch_obj, idx = arspecobj.mtch_obj_to_objects(iobj[ind], fdict[key])
             if mtch_obj is None:
                 print("No object {:s} in file {:s}".format(iobj,key))
             elif len(mtch_obj) == 1:
@@ -89,6 +96,7 @@ def main(args, unit_test=False):
                 extensions.append(idx[0]+1)
             else:
                 raise ValueError("Multiple matches to object {:s} in file {:s}".format(iobj,key))
+
         # Load spectra
         spectra = arcoadd.load_spec(gdfiles, iextensions=extensions, extract=ex_value, flux=flux_value)
         exten = outfile.split('.')[-1]  # Allow for hdf or fits or whatever
