@@ -37,6 +37,24 @@ case::
         'object': 'O503-S4701-D01-I0035'
         'outfile': 'tmp.hdf5'
 
+The default behavior of the coadder is to use one object identifier 
+string for all the files to be coadded. There are hard coded tolerance
+values in PYPIT (10 for the object identifier string and 50 for the
+slit identifier string) that work to find the same object across all
+the specified files. However, if the object changes positions along the
+slit over the exposures (e.g., you dithered while observing the object)
+this might not be the best way to coadd since the object identifier 
+string could be very different from exposure to exposure. 
+For this case, there is functionality to specifiy an object identifier
+string for each specified file. The .yaml file would look like this::
+
+    'filenames': ['spec1d_1.fits', 'spec1d_2.fits', 'spec1d_3.fits']
+    'a':
+        'object': ['O290-S1592-D02-I0002', 'O457-S1592-D02-I0003
+        ', 'O626-S1592-D02-I0004']
+        'outfile': 'tmp.hdf5'
+
+
 There is only one object to be coadded in each data frame.
 The 'object' tag is a object identifier string containing the
 object's relative location in the slit (here, 503 with 1000 the
