@@ -72,6 +72,12 @@ def main(args, unit_test=False):
     # Loop on sources
     for key in coadd_dict.keys():
         iobj = coadd_dict[key]['object']
+        # Check iobj input
+        #pdb.set_trace()
+        if isinstance(iobj, list):
+            if len(iobj) != len(files):
+                raise IOError("Input list of object names must have same length as files")
+        #
         outfile = coadd_dict[key]['outfile']
         if unit_test:
             return gparam, ex_value, flux_value, iobj, outfile, files
