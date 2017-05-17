@@ -59,3 +59,15 @@ def test_coadd():
     assert iobj == 'O210-S1467-D02-I0012'
     assert outfile == 'UGC3672A_r.fits'
     assert len(files) == 4
+
+def test_coadd2():
+    """ Test using a list of object names
+    """
+    from pypit.scripts import coadd_1dspec
+    coadd_file = data_path('coadd_UGC3672A_red_objlist.yaml')
+    args = coadd_1dspec.parser([coadd_file])
+    # Main
+    gparam, ex_value, flux_value, iobj, outfile, files = coadd_1dspec.main(args, unit_test=True)
+    # Test
+    assert len(iobj) == len(files)
+
