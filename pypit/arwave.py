@@ -354,16 +354,18 @@ def geomotion_correct(slf, det, fitsdict):
     vel = geomotion_calculate(slf, fitsdict, slf._idx_sci[0])
     vel_corr = np.sqrt((1. + vel/299792.458) / (1. - vel/299792.458))
 
-    # Loop on objects
-    for specobj in slf._specobjs[det-1]:
-        # Loop on extraction methods
-        for attr in ['boxcar', 'optimal']:
-            if not hasattr(specobj, attr):
-                continue
-            if 'wave' in getattr(specobj, attr).keys():
-                msgs.info("Applying {0:s} correction to {1:s} extraction for object:".format(frame, attr) +
-                          msgs.newline() + "{0:s}".format(str(specobj)))
-                getattr(specobj, attr)['wave'] = getattr(specobj, attr)['wave'] * vel_corr
+    # Loop on slits
+    for sl in range(len(slf._specobjs[det-1])):
+        # Loop on objects
+        for specobj in slf._specobjs[det-1][sl]:
+            # Loop on extraction methods
+            for attr in ['boxcar', 'optimal']:
+                if not hasattr(specobj, attr):
+                    continue
+                if 'wave' in getattr(specobj, attr).keys():
+                    msgs.info("Applying {0:s} correction to {1:s} extraction for object:".format(frame, attr) +
+                              msgs.newline() + "{0:s}".format(str(specobj)))
+                    getattr(specobj, attr)['wave'] = getattr(specobj, attr)['wave'] * vel_corr
     # Return
     return vel, vel_corr  # Mainly for debugging
 
