@@ -154,6 +154,7 @@ def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
                 specobjs[sl].append(specobj)
         else:
             msgs.warn("No objects for slit {0:d}".format(sl+1))
+            specobjs[sl].append(None)
     # Return
     return specobjs
 

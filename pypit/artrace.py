@@ -615,7 +615,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
             ginga.show_trace(viewer, ch, traces[:,ii], '{:d}'.format(ii), clear=(ii==0))
         debugger.set_trace()
     # Trace dict
-    tracedict = trace_object_dict(nobj, traces, rec_obj_img, rec_bg_img, tracelist=tracedict)
+    tracedict = trace_object_dict(nobj, traces, object=rec_obj_img, background=rec_bg_img, tracelist=tracedict)
 
     # Save the quality control
     if doqa and (not msgs._debug['no_qa']):

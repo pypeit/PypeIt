@@ -932,8 +932,10 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
     trobjr += slf._lordloc[det - 1]
 
     # Generate an image of pixel weights for each object
-    rec_obj_img = np.zeros(sciframe.shape+(1,))
-    rec_bg_img = np.zeros(sciframe.shape+(1,))
+    msgs.work("Eventually allow ARMED to find multiple objects in the one slit")
+    nobj = 1
+    rec_obj_img = np.zeros(sciframe.shape+(nobj,))
+    rec_bg_img = np.zeros(sciframe.shape+(nobj,))
     for o in range(nord):
         # Prepare object/background regions
         objl = np.array([bgnl[o]])
@@ -950,17 +952,18 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
         rec_bg_img += tbg_img
 
     # Create trace dict
-    scitrace = dict({})
-    scitrace['nobj'] = 1
-    scitrace['traces'] = trccen
-    scitrace['object'] = rec_obj_img
-    scitrace['background'] = rec_bg_img
+    scitrace = artrace.trace_object_dict(nobj, trccen[:, 0].reshape(trccen.shape[0], 1),
+                                         object=rec_obj_img, background=rec_bg_img)
+    for o in range(1, nord):
+        scitrace = artrace.trace_object_dict(nobj, trccen[:, o].reshape(trccen.shape[0], 1),
+                                             tracelist=scitrace)
+
     # Save the quality control
     if not msgs._debug['no_qa']:
         arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, None, root="object_trace", normalize=False)
 
     # Finalize the Sky Background image
-    if settings.argflag['reduce']['skysub']['perform'] and (scitrace['nobj'] > 0) and skysub:
+    if settings.argflag['reduce']['skysub']['perform'] and (nobj > 0) and skysub:
         # Identify background pixels, and generate an image of the sky spectrum in each slit
         bgframe = np.zeros_like(sciframe)
         for o in range(nord):
@@ -1068,8 +1071,8 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
       Contains relevant information from fits header files
     det : int
       Detector index
-    scitrace : dict
-      Dictionary containing object trace parameters
+    scitrace : list of dict
+      List containing dictionaries of the object trace parameters
     standard : bool, optional
       Standard star frame?
     """
@@ -1091,7 +1094,11 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
 
     ###############
     # Extract
-    if scitrace['nobj'] == 0:
+    noobj = True
+    for sl in range(len(scitrace)):
+        if scitrace[sl]['nobj'] != 0:
+            noobj = False
+    if noobj is True:
         msgs.warn("No objects to extract for science frame"+msgs.newline()+fitsdict['filename'][scidx])
         return True
 
@@ -1100,6 +1107,8 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
     bgcorr_box = arextract.boxcar(slf, det, specobjs, sciframe-bgframe,
                                   rawvarframe, bgframe, crmask, scitrace)
 
+    msgs.info("BOXCAR completed successfully")
+    debugger.set_trace()
     # Optimal
     if not standard:
         msgs.info("Attempting optimal extraction with model profile")
