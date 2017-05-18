@@ -1107,8 +1107,6 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
     bgcorr_box = arextract.boxcar(slf, det, specobjs, sciframe-bgframe,
                                   rawvarframe, bgframe, crmask, scitrace)
 
-    msgs.info("BOXCAR completed successfully")
-    debugger.set_trace()
     # Optimal
     if not standard:
         msgs.info("Attempting optimal extraction with model profile")
@@ -1131,7 +1129,8 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
             arqa.flexure(slf, det, flex_dict)
 
     # Correct Earth's motion
-    if settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']:
+    if (settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']) and \
+       (settings.argflag['reduce']['calibrate']['wavelength'] != "pixel"):
         if settings.argflag['science']['extraction']['reuse']:
             msgs.warn("{0:s} correction will not be applied if an extracted science frame exists, and is used".format(settings.argflag['reduce']['calibrate']['refframe']))
         msgs.info("Performing a {0:s} correction".format(settings.argflag['reduce']['calibrate']['refframe']))

@@ -151,7 +151,7 @@ def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
                 # Add traces
                 specobj.trace = trc_img[sl]['traces'][:, qq]
                 # Append
-                specobjs[sl].append(specobj)
+                specobjs[sl].append(copy.deepcopy(specobj))
         else:
             msgs.warn("No objects for slit {0:d}".format(sl+1))
             specobjs[sl].append(None)

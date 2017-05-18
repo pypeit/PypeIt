@@ -38,32 +38,34 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
     # Load extinction data
     extinct = load_extinction_data()
     airmass = fitsdict['airmass'][scidx]
-    # Loop on objects
-    for spobj in slf._specobjs[det-1]:
-        # Loop on extraction modes
-        for extract_type in ['boxcar', 'optimal']:
-            try:
-                extract = getattr(spobj,extract_type)
-            except AttributeError:
-                continue
-            msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() +
-                      "{}".format(spobj))
-            wave = extract['wave']  # for convenience
-            scale = np.zeros(wave.size)
-            # Allow for some extrapolation
-            dwv = slf._sensfunc['wave_max']-slf._sensfunc['wave_min']
-            inds = ((wave >= slf._sensfunc['wave_min']-dwv*MAX_EXTRAP)
-                    & (wave <= slf._sensfunc['wave_max']+dwv*MAX_EXTRAP))
-            mag_func = arutils.func_val(slf._sensfunc['c'], wave[inds],
-                                        slf._sensfunc['func'])
-            sens = 10.0**(0.4*mag_func)
-            # Extinction
-            ext_corr = extinction_correction(wave[inds],airmass,extinct)
-            scale[inds] = sens*ext_corr
-            # Fill
-            extract['flam'] = extract['counts']*scale/fitsdict['exptime'][scidx]
-            extract['flam_var'] = (extract['var']*
-                                   (scale/fitsdict['exptime'][scidx])**2)
+    # Loop on slits
+    for sl in range(len(slf._specobjs[det-1])):
+        # Loop on objects
+        for spobj in slf._specobjs[det-1][sl]:
+            # Loop on extraction modes
+            for extract_type in ['boxcar', 'optimal']:
+                try:
+                    extract = getattr(spobj, extract_type)
+                except AttributeError:
+                    continue
+                msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() +
+                          "{}".format(spobj))
+                wave = extract['wave']  # for convenience
+                scale = np.zeros(wave.size)
+                # Allow for some extrapolation
+                dwv = slf._sensfunc['wave_max']-slf._sensfunc['wave_min']
+                inds = ((wave >= slf._sensfunc['wave_min']-dwv*MAX_EXTRAP)
+                        & (wave <= slf._sensfunc['wave_max']+dwv*MAX_EXTRAP))
+                mag_func = arutils.func_val(slf._sensfunc['c'], wave[inds],
+                                            slf._sensfunc['func'])
+                sens = 10.0**(0.4*mag_func)
+                # Extinction
+                ext_corr = extinction_correction(wave[inds], airmass, extinct)
+                scale[inds] = sens*ext_corr
+                # Fill
+                extract['flam'] = extract['counts']*scale/fitsdict['exptime'][scidx]
+                extract['flam_var'] = (extract['var']*
+                                       (scale/fitsdict['exptime'][scidx])**2)
 
 
 def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):

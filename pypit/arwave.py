@@ -1,5 +1,6 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
+import copy
 import numpy as np
 from scipy import interpolate
 
@@ -253,8 +254,8 @@ def flexure_obj(slf, det):
 
     Returns:
     ----------
-    flex_dict: dict
-      dict on flexure results
+    flex_list: list
+      list of dicts containing flexure results
 
     """
     msgs.work("Consider doing 2 passes in flexure as in LowRedux")
@@ -262,51 +263,53 @@ def flexure_obj(slf, det):
     skyspec_fil, arx_sky = flexure_archive()
 
     # Loop on objects
+    flex_list = []
     flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
                      corr_cen=[], spec_file=skyspec_fil, smooth=[],
                      arx_spec=[], sky_spec=[])
 
-    for specobj in slf._specobjs[det-1]:  # for convenience
+    for sl in range(len(slf._specobjs[det-1])):
+        for specobj in slf._specobjs[det-1][sl]:  # for convenience
 
-        # Using boxcar
-        if settings.argflag['reduce']['flexure']['method'] in ['boxcar', 'slitcen']:
-            sky_wave = specobj.boxcar['wave'].to('AA').value
-            sky_flux = specobj.boxcar['sky']
-        else:
-            msgs.error("Not ready for this flexure method: {}".format(
-                    settings.argflag['reduce']['flexure']))
+            # Using boxcar
+            if settings.argflag['reduce']['flexure']['method'] in ['boxcar', 'slitcen']:
+                sky_wave = specobj.boxcar['wave'].to('AA').value
+                sky_flux = specobj.boxcar['sky']
+            else:
+                msgs.error("Not ready for this flexure method: {}".format(
+                        settings.argflag['reduce']['flexure']))
 
-        # Generate 1D spectrum for object
-        obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave, sky_flux))
+            # Generate 1D spectrum for object
+            obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave, sky_flux))
 
-        # Calculate the shift
-        fdict = flex_shift(slf, det, obj_sky, arx_sky)
+            # Calculate the shift
+            fdict = flex_shift(slf, det, obj_sky, arx_sky)
 
-        # Simple interpolation to apply
-        npix = len(sky_wave)
-        x = np.linspace(0., 1., npix)
-        # Apply
-        for attr in ['boxcar', 'optimal']:
-            if not hasattr(specobj,attr):
-                continue
-            if 'wave' in getattr(specobj, attr).keys():
-                msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) + msgs.newline() +
-                          "{0:s}".format(str(specobj)))
-                f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
-                getattr(specobj, attr)['wave'] = f(x+fdict['shift']/(npix-1))*u.AA
-        # Shift sky spec too
-        cut_sky = fdict['sky_spec']
-        x = np.linspace(0., 1., cut_sky.npix)
-        f = interpolate.interp1d(x, cut_sky.wavelength.value, bounds_error=False, fill_value="extrapolate")
-        twave = f(x+fdict['shift']/(cut_sky.npix-1))*u.AA
-        new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, cut_sky.flux))
+            # Simple interpolation to apply
+            npix = len(sky_wave)
+            x = np.linspace(0., 1., npix)
+            # Apply
+            for attr in ['boxcar', 'optimal']:
+                if not hasattr(specobj, attr):
+                    continue
+                if 'wave' in getattr(specobj, attr).keys():
+                    msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) +
+                              msgs.newline() + "{0:s}".format(str(specobj)))
+                    f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
+                    getattr(specobj, attr)['wave'] = f(x+fdict['shift']/(npix-1))*u.AA
+            # Shift sky spec too
+            cut_sky = fdict['sky_spec']
+            x = np.linspace(0., 1., cut_sky.npix)
+            f = interpolate.interp1d(x, cut_sky.wavelength.value, bounds_error=False, fill_value="extrapolate")
+            twave = f(x + fdict['shift']/(cut_sky.npix-1))*u.AA
+            new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, cut_sky.flux))
 
-        # Update dict
-        for key in ['polyfit','shift','subpix','corr','corr_cen', 'smooth', 'arx_spec']:
-            flex_dict[key].append(fdict[key])
-        flex_dict['sky_spec'].append(new_sky)
-
-    return flex_dict
+            # Update dict
+            for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec']:
+                flex_dict[key].append(fdict[key])
+            flex_dict['sky_spec'].append(new_sky)
+        flex_list.append(copy.deepcopy(flex_dict))
+    return flex_list
 
 
 def geomotion_calculate(slf, fitsdict, idx):
