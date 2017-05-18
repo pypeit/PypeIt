@@ -385,10 +385,16 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
       sensitivity function described by a dict
     """
     # Find brightest object in the exposures
+    # Search over all detectors, all slits, and all objects
     medfx = []
-    for spobj in specobjs:
-        medfx.append(np.median(spobj.boxcar['counts']))
-    std_obj = specobjs[np.argmax(np.array(medfx))]
+    medix = []
+    for det in range(len(specobjs)):
+        for sl in range(len(specobjs[det])):
+            for spobj in specobjs[det][sl]:
+                medfx.append(np.median(spobj.boxcar['counts']))
+                medix.append([det, sl])
+    mxix = medix[np.argmax(np.array(medfx))]
+    std_obj = specobjs[mxix[0]][mxix[1]]
     wave = std_obj.boxcar['wave']
     # Apply Extinction
     extinct = load_extinction_data()
