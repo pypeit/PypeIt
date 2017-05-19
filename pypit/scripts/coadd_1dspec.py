@@ -30,13 +30,17 @@ def main(args, unit_test=False):
     from pypit import arspecobj
     from astropy.io import fits
 
+    if unit_test:
+        dirut = "pypit/tests/"
+    else:
+        dirut = ""
 
     # Load the input file
     with open(args.infile, 'r') as infile:
         coadd_dict = yaml.load(infile)
 
     # Grab object names in the spectra
-    filelist = coadd_dict.pop('filenames')
+    filelist = [dirut + ifl for ifl in coadd_dict.pop('filenames')]
     # Allow for wildcards
     files = []
     for ifl in filelist:
@@ -78,21 +82,21 @@ def main(args, unit_test=False):
         # Loop on spec1d files
         gdfiles = []
         extensions = []
-        gdobj= []
+        gdobj = []
         for key in fdict:
             mtch_obj, idx = arspecobj.mtch_obj_to_objects(iobj, fdict[key])
             if mtch_obj is None:
-                print("No object {:s} in file {:s}".format(iobj,key))
+                print("No object {:s} in file {:s}".format(iobj, key))
             elif len(mtch_obj) == 1:
                 gdfiles.append(key)
                 gdobj += mtch_obj
                 extensions.append(idx[0]+1)
             else:
-                raise ValueError("Multiple matches to object {:s} in file {:s}".format(iobj,key))
+                raise ValueError("Multiple matches to object {:s} in file {:s}".format(iobj, key))
         # Load spectra
         spectra = arcoadd.load_spec(gdfiles, iextensions=extensions, extract=ex_value, flux=flux_value)
         exten = outfile.split('.')[-1]  # Allow for hdf or fits or whatever
-        qafile = outfile.replace(exten,'pdf')
+        qafile = outfile.replace(exten, 'pdf')
         # Coadd!
         arcoadd.coadd_spectra(spectra, qafile=qafile, outfile=outfile, **gparam)
 

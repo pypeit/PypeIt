@@ -45,6 +45,7 @@ def test_view_fits():
     spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
     pargs = view_fits.parser([spec_file, '--list'])
 
+
 def test_coadd():
     from pypit.scripts import coadd_1dspec
     coadd_file = data_path('coadd_UGC3672A_red.yaml')
