@@ -1,5 +1,6 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
+import copy
 import numpy as np
 from astropy import units as u
 from pypit import armsgs
@@ -65,7 +66,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
         nobj = scitrace[sl]['nobj']
         for o in range(nobj):
             msgs.info("Performing boxcar extraction of object {0:d}/{1:d} in slit {2:d}/{3:d}".format(o+1, nobj, sl+1, nslit))
-            if scitrace[sl]['background'] is None:
+            if scitrace[sl]['object'] is None:
                 # The background for all slits is provided in the first extension
                 objreg = scitrace[0]['object'][:, :, o]
             else:
@@ -183,85 +184,93 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
     # Init QA
     #
     sigframe = np.sqrt(varframe)
-    # Loop
-    nobj = scitrace['traces'].shape[1]
-    scitrace['opt_profile'] = []
-    msgs.work("Should probably loop on S/N")
-    for o in range(nobj):
-        # Calculate slit image
-        slit_img = artrace.slit_image(slf, det, scitrace, o)#, tilts=tilts)
-        # Object pixels
-        weight = scitrace['object'][:,:,o].copy()
-        # Identify good rows
-        gdrow = np.where(specobjs[o].boxcar['counts'] > COUNT_LIM)[0]
-        # Normalized image
-        norm_img = sciframe / np.outer(specobjs[o].boxcar['counts'], np.ones(sciframe.shape[1]))
-        # Eliminate rows with CRs (wipes out boxcar)
-        crspec = np.sum(crmask*weight,axis=1)
-        cr_rows = np.where(crspec > 0)[0]
-        weight[cr_rows,:] = 0.
-        #
-        if len(gdrow) > 100:  # Good S/N regime
-            msgs.info("Good S/N for profile")
-            # Eliminate low count regions
-            badrow = np.where(specobjs[o].boxcar['counts'] < COUNT_LIM)[0]
-            weight[badrow,:] = 0.
-            # Extract profile
-            gdprof = (weight > 0) & (sigframe > 0.)
-            slit_val = slit_img[gdprof]
-            flux_val = norm_img[gdprof]
-            #weight_val = sciframe[gdprof]/sigframe[gdprof]  # S/N
-            weight_val = 1./sigframe[gdprof]  # 1/N
-            msgs.work("Weight by S/N in boxcar extraction? [avoid CRs; smooth?]")
-            # Fit
-            fdict = dict(func=settings.argflag['science']['extraction']['profile'], deg=3)
-            if fdict['func'] == 'gaussian':
-                fdict['deg'] = 2
-            elif fdict['func'] == 'moffat':
-                fdict['deg'] = 3
+    # Loop on slits
+    for sl in range(len(specobjs)):
+        # Loop on objects
+        nobj = scitrace[sl]['traces'].shape[1]
+        scitrace[sl]['opt_profile'] = []
+        msgs.work("Should probably loop on S/N")
+        for o in range(nobj):
+            # Get object pixels
+            if scitrace[sl]['background'] is None:
+                # The background for all slits is provided in the first extension
+                objreg = scitrace[0]['object'][:, :, o]
             else:
-                msgs.error("Not ready for this type of object profile")
-            msgs.work("Might give our own guess here instead of using default")
-            guess = None
-            try:
-                mask, gfit = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdict['func'], weights=weight_val, maxone=False, guesses=guess)
-            except RuntimeError:
-                msgs.warn("Bad Profile fit for object={:s}.  Skipping Optimal".format(specobjs[o].idx))
-                scitrace['opt_profile'].append(fdict)
+                objreg = scitrace[sl]['object'][:, :, o]
+            # Calculate slit image
+            slit_img = artrace.slit_image(slf, det, scitrace[sl], o)#, tilts=tilts)
+            # Object pixels
+            weight = objreg.copy()
+            # Identify good rows
+            gdrow = np.where(specobjs[sl][o].boxcar['counts'] > COUNT_LIM)[0]
+            # Normalized image
+            norm_img = sciframe / np.outer(specobjs[sl][o].boxcar['counts'], np.ones(sciframe.shape[1]))
+            # Eliminate rows with CRs (wipes out boxcar)
+            crspec = np.sum(crmask*weight, axis=1)
+            cr_rows = np.where(crspec > 0)[0]
+            weight[cr_rows, :] = 0.
+            #
+            if len(gdrow) > 100:  # Good S/N regime
+                msgs.info("Good S/N for profile")
+                # Eliminate low count regions
+                badrow = np.where(specobjs[sl][o].boxcar['counts'] < COUNT_LIM)[0]
+                weight[badrow, :] = 0.
+                # Extract profile
+                gdprof = (weight > 0) & (sigframe > 0.)
+                slit_val = slit_img[gdprof]
+                flux_val = norm_img[gdprof]
+                #weight_val = sciframe[gdprof]/sigframe[gdprof]  # S/N
+                weight_val = 1./sigframe[gdprof]  # 1/N
+                msgs.work("Weight by S/N in boxcar extraction? [avoid CRs; smooth?]")
+                # Fit
+                fdict = dict(func=settings.argflag['science']['extraction']['profile'], deg=3)
+                if fdict['func'] == 'gaussian':
+                    fdict['deg'] = 2
+                elif fdict['func'] == 'moffat':
+                    fdict['deg'] = 3
+                else:
+                    msgs.error("Not ready for this type of object profile")
+                msgs.work("Might give our own guess here instead of using default")
+                guess = None
+                try:
+                    mask, gfit = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdict['func'], weights=weight_val, maxone=False, guesses=guess)
+                except RuntimeError:
+                    msgs.warn("Bad Profile fit for object={:s}.  Skipping Optimal".format(specobjs[sl][o].idx))
+                    scitrace[sl]['opt_profile'].append(fdict)
+                    continue
+                except ValueError:
+                    debugger.set_trace()  # NaNs in the values?  Check
+                msgs.work("Consider flagging/removing CRs here")
+                # Record
+                fdict['param'] = gfit.copy()
+                fdict['mask'] = mask
+                fdict['slit_val'] = slit_val
+                fdict['flux_val'] = flux_val
+                scitrace[sl]['opt_profile'].append(copy.deepcopy(fdict))
+                specobjs[sl][o].optimal['fwhm'] = fdict['param'][1]  # Pixels
+                if msgs._debug['obj_profile']:
+                    gdp = mask == 0
+                    mn = np.min(slit_val[gdp])
+                    mx = np.max(slit_val[gdp])
+                    xval = np.linspace(mn, mx, 1000)
+                    model = arutils.func_val(gfit, xval, fdict['func'])
+                    import matplotlib.pyplot as plt
+                    plt.clf()
+                    ax = plt.gca()
+                    ax.scatter(slit_val[gdp], flux_val[gdp], marker='.', s=0.7, edgecolor='none', facecolor='black')
+                    ax.plot(xval, model, 'b')
+                    # Gaussian too?
+                    if False:
+                        fdictg = dict(func='gaussian', deg=2)
+                        maskg, gfitg = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdictg['func'], weights=weight_val, maxone=False)
+                        modelg = arutils.func_val(gfitg, xval, fdictg['func'])
+                        ax.plot(xval, modelg, 'r')
+                    plt.show()
+                    debugger.set_trace()
+            elif len(gdrow) > 10:  #
+                msgs.warn("Low extracted flux for obj={:s} in slit {:d}.  Not ready for Optimal".format(specobjs[sl][o].idx,sl+1))
+                scitrace[sl]['opt_profile'].append({})
                 continue
-            except ValueError:
-                debugger.set_trace()  # NaNs in the values?  Check
-            msgs.work("Consider flagging/removing CRs here")
-            # Record
-            fdict['param'] = gfit
-            fdict['mask'] = mask
-            fdict['slit_val'] = slit_val
-            fdict['flux_val'] = flux_val
-            scitrace['opt_profile'].append(fdict)
-            specobjs[o].optimal['fwhm'] = fdict['param'][1] # Pixels
-            if msgs._debug['obj_profile']: #
-                gdp = mask == 0
-                mn = np.min(slit_val[gdp])
-                mx = np.max(slit_val[gdp])
-                xval = np.linspace(mn,mx,1000)
-                model = arutils.func_val(gfit, xval, fdict['func'])
-                import matplotlib.pyplot as plt
-                plt.clf()
-                ax = plt.gca()
-                ax.scatter(slit_val[gdp], flux_val[gdp], marker='.', s=0.7, edgecolor='none', facecolor='black')
-                ax.plot(xval, model, 'b')
-                # Gaussian too?
-                if False:
-                    fdictg = dict(func='gaussian', deg=2)
-                    maskg, gfitg = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdictg['func'], weights=weight_val, maxone=False)
-                    modelg = arutils.func_val(gfitg, xval, fdictg['func'])
-                    ax.plot(xval, modelg, 'r')
-                plt.show()
-                debugger.set_trace()
-        elif len(gdrow) > 10:  #
-            msgs.warn("Low extracted flux for obj={:s}.  Not ready for Optimal".format(specobjs[o].idx))
-            scitrace['opt_profile'].append({})
-            continue
     # QA
     if not msgs._debug['no_qa']:
         arqa.obj_profile_qa(slf, specobjs, scitrace)

@@ -1113,13 +1113,13 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
                                modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
         newvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                                  modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
+                                           modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
         msgs.work("Should update variance image (and trace?) and repeat")
         #
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
                                newvar, bgframe+bgcorr_box, crmask, scitrace)
         finalvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                                           newvar, bgframe+bgcorr_box, crmask, scitrace)
+                                             newvar, bgframe+bgcorr_box, crmask, scitrace)
         slf._modelvarframe[det-1] = finalvar.copy()
 
     # Flexure correction?

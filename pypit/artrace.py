@@ -2560,14 +2560,14 @@ def slit_image(slf, det, scitrace, obj, tilts=None):
     ximg = np.outer(np.ones(tilts.shape[0]), np.arange(tilts.shape[1]))
     dypix = 1./tilts.shape[0]
     #  Trace
-    xtrc = np.round(scitrace['traces'][:,obj]).astype(int)
+    xtrc = np.round(scitrace['traces'][:, obj]).astype(int)
     msgs.work("Use 2D spline to evaluate tilts")
     trc_tilt = tilts[np.arange(tilts.shape[0]), xtrc]
     trc_tilt_img = np.outer(trc_tilt, np.ones(tilts.shape[1]))
     # Slit image
     msgs.work("Should worry about changing plate scale")
     dy = (tilts - trc_tilt_img)/dypix  # Pixels
-    dx = ximg - np.outer(scitrace['traces'][:,obj],np.ones(tilts.shape[1]))
+    dx = ximg - np.outer(scitrace['traces'][:, obj], np.ones(tilts.shape[1]))
     slit_img = np.sqrt(dx**2 - dy**2)
     neg = dx < 0.
     slit_img[neg] *= -1
