@@ -274,12 +274,12 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
     # QA
     if not msgs._debug['no_qa']:
         arqa.obj_profile_qa(slf, specobjs, scitrace)
-    return scitrace['opt_profile']
+    return
 
 
 def optimal_extract(slf, det, specobjs, sciframe, varframe,
                     skyframe, crmask, scitrace,
-                 pickle_file=None, profiles=None):
+                    pickle_file=None, profiles=None):
     """ Preform optimal extraction
     Standard Horne approach
 
