@@ -64,7 +64,8 @@ def test_save1d_fits():
     # Dummy self
     slf = arut.dummy_self()
     slf._specobjs = []
-    slf._specobjs.append([mk_specobj()])
+    slf._specobjs.append([])
+    slf._specobjs[0].append([mk_specobj()])
     # Write to FITS
     arsv.save_1d_spectra_fits(slf)
 
@@ -77,7 +78,8 @@ def test_save1d_hdf5():
     fitsdict = arut.dummy_fitsdict(nfile=1, spectrograph='none')
     # specobj
     slf._specobjs = []
-    slf._specobjs.append([mk_specobj(objid=455), mk_specobj(flux=3., objid=555)])
+    slf._specobjs.append([])
+    slf._specobjs[0].append([mk_specobj(objid=455), mk_specobj(flux=3., objid=555)])
     # Write to HDF5
     arsv.save_1d_spectra_hdf5(slf, fitsdict)
 

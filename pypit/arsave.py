@@ -324,7 +324,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
                  objid=0, slitid=0, det=0, scidx=0,  # specobj IDs
                  FWHM=0.,  # Spatial resolution in arcsec
                  R=0.,     # Spectral resolution (FWHM) in lambda/Dlambda
-                 xslit=(0.,0.))
+                 xslit=(0.,0.), nslit=0)
     tkeys = idict.keys()
     lst = [[idict[tkey]] for tkey in tkeys]
     meta = Table(lst, names=tkeys)
@@ -335,7 +335,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
         det = kk+1
         # Loop on slits
         for sl in range(len(slf._specobjs[det-1])):
-            nspec += len(slf._specobjs[det-1])[sl]
+            nspec += len(slf._specobjs[det-1][sl])
             # Loop on objects
             for specobj in slf._specobjs[det-1][sl]:
                 # Calculate max pixels
@@ -382,7 +382,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
             det = kk+1
             # Loop on slits
             for sl in range(len(slf._specobjs[det - 1])):
-                nspec += len(slf._specobjs[det - 1])[sl]
+                nspec += len(slf._specobjs[det - 1][sl])
                 # Loop on spectra
                 for specobj in slf._specobjs[det-1][sl]:
                     # Check meta
