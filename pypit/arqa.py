@@ -193,6 +193,7 @@ def coaddspec_qa(ispectra, rspec, spec1d, qafile=None):
     plt.close()
     return
 
+
 def flexure(slf, det, flex_list, slit_cen=False):
     """ QA on flexure measurement
 
@@ -451,41 +452,42 @@ def obj_profile_qa(slf, specobjs, scitrace):
     Parameters
     ----------
     """
-    # Setup
-    nobj = scitrace['traces'].shape[1]
-    ncol = min(3,nobj)
-    nrow = nobj // ncol + ((nobj%ncol) > 0)
-    # Plot
-    plt.figure(figsize=(8, 5.0))
-    plt.clf()
-    gs = gridspec.GridSpec(nrow, ncol)
+    for sl in range(len(specobjs)):
+        # Setup
+        nobj = scitrace[sl]['traces'].shape[1]
+        ncol = min(3, nobj)
+        nrow = nobj // ncol + ((nobj % ncol) > 0)
+        # Plot
+        plt.figure(figsize=(8, 5.0))
+        plt.clf()
+        gs = gridspec.GridSpec(nrow, ncol)
 
-    # Plot
-    for o in range(nobj):
-        fdict = scitrace['opt_profile'][o]
-        if 'param' not in fdict.keys():  # Not optimally extracted
-            continue
-        ax = plt.subplot(gs[o//ncol,o%ncol])
+        # Plot
+        for o in range(nobj):
+            fdict = scitrace[sl]['opt_profile'][o]
+            if 'param' not in fdict.keys():  # Not optimally extracted
+                continue
+            ax = plt.subplot(gs[o//ncol, o % ncol])
 
-        # Data
-        gdp = fdict['mask'] == 0
-        ax.scatter(fdict['slit_val'][gdp], fdict['flux_val'][gdp], marker='.',
-                   s=0.5, edgecolor='none')
+            # Data
+            gdp = fdict['mask'] == 0
+            ax.scatter(fdict['slit_val'][gdp], fdict['flux_val'][gdp], marker='.',
+                       s=0.5, edgecolor='none')
 
-        # Fit
-        mn = np.min(fdict['slit_val'][gdp])
-        mx = np.max(fdict['slit_val'][gdp])
-        xval = np.linspace(mn,mx,1000)
-        fit = arutils.func_val(fdict['param'], xval, fdict['func'])
-        ax.plot(xval, fit, 'r')
-        # Axes
-        ax.set_xlim(mn,mx)
-        # Label
-        ax.text(0.02, 0.90, 'Obj={:s}'.format(specobjs[o].idx),
-                transform=ax.transAxes, size='large', ha='left')
+            # Fit
+            mn = np.min(fdict['slit_val'][gdp])
+            mx = np.max(fdict['slit_val'][gdp])
+            xval = np.linspace(mn, mx, 1000)
+            fit = arutils.func_val(fdict['param'], xval, fdict['func'])
+            ax.plot(xval, fit, 'r')
+            # Axes
+            ax.set_xlim(mn,mx)
+            # Label
+            ax.text(0.02, 0.90, 'Obj={:s}'.format(specobjs[sl][o].idx),
+                    transform=ax.transAxes, size='large', ha='left')
 
-    slf._qa.savefig(bbox_inches='tight')
-    #plt.close()
+        slf._qa.savefig(bbox_inches='tight')
+        #plt.close()
 
 
 def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit", maxp=4, desc="", maskval=-999999.9):
