@@ -67,8 +67,10 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
         for o in range(nobj):
             msgs.info("Performing boxcar extraction of object {0:d}/{1:d} in slit {2:d}/{3:d}".format(o+1, nobj, sl+1, nslit))
             if scitrace[sl]['object'] is None:
-                # The background for all slits is provided in the first extension
+                # The object for all slits is provided in the first extension
                 objreg = scitrace[0]['object'][:, :, o]
+                wzro = np.where(slf._slitpix[det - 1] != sl + 1)
+                objreg[wzro] = 0.0
             else:
                 objreg = scitrace[sl]['object'][:, :, o]
             # Fit the background
@@ -76,6 +78,8 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
             if scitrace[sl]['background'] is None:
                 # The background for all slits is provided in the first extension
                 bckreg = scitrace[0]['background'][:, :, o]
+                wzro = np.where(slf._slitpix[det - 1] != sl + 1)
+                bckreg[wzro] = 0.0
             else:
                 bckreg = scitrace[sl]['background'][:, :, o]
             # Trim CRs further
@@ -193,8 +197,10 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
         for o in range(nobj):
             # Get object pixels
             if scitrace[sl]['background'] is None:
-                # The background for all slits is provided in the first extension
+                # The object for all slits is provided in the first extension
                 objreg = scitrace[0]['object'][:, :, o]
+                wzro = np.where(slf._slitpix[det - 1] != sl + 1)
+                objreg[wzro] = 0.0
             else:
                 objreg = scitrace[sl]['object'][:, :, o]
             # Calculate slit image
@@ -312,64 +318,74 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
     cr_mask = 1.0-crmask
     # Object model image
     obj_model = np.zeros_like(varframe)
-    # Loop
-    nobj = scitrace['traces'].shape[1]
-    for o in range(nobj):
-        # Fit dict
-        fit_dict = scitrace['opt_profile'][o]
-        if 'param' not in fit_dict.keys():
-            continue
-        # Slit image
-        slit_img = artrace.slit_image(slf, det, scitrace, o)#, tilts=tilts)
-        #msgs.warn("Turn off tilts")
-        # Object pixels
-        weight = scitrace['object'][:,:,o]
-        gdo = (weight > 0) & (model_ivar > 0)
-        # Profile image
-        prof_img = np.zeros_like(weight)
-        prof_img[gdo] = arutils.func_val(fit_dict['param'], slit_img[gdo],
-                                         fit_dict['func'])
-        # Normalize
-        norm_prof = np.sum(prof_img, axis=1)
-        prof_img /= np.outer(norm_prof + (norm_prof == 0.), np.ones(prof_img.shape[1]))
-        # Mask (1=good)
-        mask = np.zeros_like(prof_img)
-        mask[gdo] = 1.
-        mask *= cr_mask
+    # Loop on slits
+    for sl in range(len(specobjs)):
+        # Loop on objects
+        nobj = scitrace[sl]['traces'].shape[1]
+        for o in range(nobj):
+            # Get object pixels
+            if scitrace[sl]['background'] is None:
+                # The object for all slits is provided in the first extension
+                objreg = scitrace[0]['object'][:, :, o]
+                wzro = np.where(slf._slitpix[det - 1] != sl + 1)
+                objreg[wzro] = 0.0
+            else:
+                objreg = scitrace[sl]['object'][:, :, o]
+            # Fit dict
+            fit_dict = scitrace[sl]['opt_profile'][o]
+            if 'param' not in fit_dict.keys():
+                continue
+            # Slit image
+            slit_img = artrace.slit_image(slf, det, scitrace[sl], o)#, tilts=tilts)
+            #msgs.warn("Turn off tilts")
+            # Object pixels
+            weight = objreg.copy()
+            gdo = (weight > 0) & (model_ivar > 0)
+            # Profile image
+            prof_img = np.zeros_like(weight)
+            prof_img[gdo] = arutils.func_val(fit_dict['param'], slit_img[gdo],
+                                             fit_dict['func'])
+            # Normalize
+            norm_prof = np.sum(prof_img, axis=1)
+            prof_img /= np.outer(norm_prof + (norm_prof == 0.), np.ones(prof_img.shape[1]))
+            # Mask (1=good)
+            mask = np.zeros_like(prof_img)
+            mask[gdo] = 1.
+            mask *= cr_mask
 
-        # Optimal flux
-        opt_num = np.sum(mask * sciframe * model_ivar * prof_img, axis=1)
-        opt_den = np.sum(mask * model_ivar * prof_img**2, axis=1)
-        opt_flux = opt_num / (opt_den + (opt_den == 0.))
-        # Optimal wave
-        opt_num = np.sum(slf._mswave[det-1] * model_ivar * prof_img**2, axis=1)
-        opt_den = np.sum(model_ivar * prof_img**2, axis=1)
-        opt_wave = opt_num / (opt_den + (opt_den == 0.))
-        if np.sum(opt_wave < 1.) > 0:
-            debugger.set_trace()
-            msgs.error("Zero value in wavelength array. Uh-oh")
-        # Optimal ivar
-        opt_num = np.sum(mask * model_ivar * prof_img**2, axis=1)
-        ivar_den = np.sum(mask * prof_img, axis=1)
-        opt_ivar = opt_num * arutils.calc_ivar(ivar_den)
+            # Optimal flux
+            opt_num = np.sum(mask * sciframe * model_ivar * prof_img, axis=1)
+            opt_den = np.sum(mask * model_ivar * prof_img**2, axis=1)
+            opt_flux = opt_num / (opt_den + (opt_den == 0.))
+            # Optimal wave
+            opt_num = np.sum(slf._mswave[det-1] * model_ivar * prof_img**2, axis=1)
+            opt_den = np.sum(model_ivar * prof_img**2, axis=1)
+            opt_wave = opt_num / (opt_den + (opt_den == 0.))
+            if np.sum(opt_wave < 1.) > 0:
+                debugger.set_trace()
+                msgs.error("Zero value in wavelength array. Uh-oh")
+            # Optimal ivar
+            opt_num = np.sum(mask * model_ivar * prof_img**2, axis=1)
+            ivar_den = np.sum(mask * prof_img, axis=1)
+            opt_ivar = opt_num * arutils.calc_ivar(ivar_den)
 
-        # Save
-        specobjs[o].optimal['wave'] = opt_wave.copy()*u.AA  # Yes, units enter here
-        specobjs[o].optimal['counts'] = opt_flux.copy()
-        gdiv = (opt_ivar > 0.) & (ivar_den > 0.)
-        opt_var = np.zeros_like(opt_ivar)
-        opt_var[gdiv] = arutils.calc_ivar(opt_ivar[gdiv])
-        specobjs[o].optimal['var'] = opt_var.copy()
-        #specobjs[o].boxcar['sky'] = skysum  # per pixel
+            # Save
+            specobjs[sl][o].optimal['wave'] = opt_wave.copy()*u.AA  # Yes, units enter here
+            specobjs[sl][o].optimal['counts'] = opt_flux.copy()
+            gdiv = (opt_ivar > 0.) & (ivar_den > 0.)
+            opt_var = np.zeros_like(opt_ivar)
+            opt_var[gdiv] = arutils.calc_ivar(opt_ivar[gdiv])
+            specobjs[sl][o].optimal['var'] = opt_var.copy()
+            #specobjs[o].boxcar['sky'] = skysum  # per pixel
 
-        # Update object model
-        counts_image = np.outer(opt_flux, np.ones(prof_img.shape[1]))
-        obj_model += prof_img * counts_image
-        '''
-        if 'OPTIMAL' in msgs._debug:
-            debugger.set_trace()
-            debugger.xplot(opt_wave, opt_flux, np.sqrt(opt_var))
-        '''
+            # Update object model
+            counts_image = np.outer(opt_flux, np.ones(prof_img.shape[1]))
+            obj_model += prof_img * counts_image
+            '''
+            if 'OPTIMAL' in msgs._debug:
+                debugger.set_trace()
+                debugger.xplot(opt_wave, opt_flux, np.sqrt(opt_var))
+            '''
     # Generate new variance image
     newvar = arproc.variance_frame(slf, det, sciframe, -1,
                                    skyframe=skyframe, objframe=obj_model)
