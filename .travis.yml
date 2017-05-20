@@ -23,7 +23,7 @@ env:
         # overidden underneath. They are defined here in order to save having
         # to repeat them for all configurations.
         - NUMPY_VERSION=1.11
-        - ASTROPY_VERSION=stable
+        - ASTROPY_VERSION=1.3
         - CONDA_INSTALL='conda install -c astropy-ci-extras --yes'
         - PIP_INSTALL='pip install'
 
