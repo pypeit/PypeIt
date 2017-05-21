@@ -50,7 +50,8 @@ def test_coadd():
     coadd_file = data_path('coadd_UGC3672A_red.yaml')
     args = coadd_1dspec.parser([coadd_file])
     # Main
-    gparam, ex_value, flux_value, iobj, outfile, files = coadd_1dspec.main(args, unit_test=True)
+    gparam, ex_value, flux_value, iobj, outfile, files = coadd_1dspec.main(
+        args, unit_test=True, path=data_path('./'))
     # Test
     assert len(gparam) == 0
     assert isinstance(gparam, dict)
@@ -66,12 +67,14 @@ def test_coadd2():
     coadd_file = data_path('coadd_UGC3672A_red_objlist.yaml')
     args = coadd_1dspec.parser([coadd_file])
     # Main
-    gparam, ex_value, flux_value, iobj, outfile, files = coadd_1dspec.main(args, unit_test=True)
+    gparam, ex_value, flux_value, iobj, outfile, files = coadd_1dspec.main(
+        args, unit_test=True, path=data_path('./'))
     # Test
     assert len(iobj) == len(files)
     # Crash it
     coadd_file = data_path('coadd_UGC3672A_red_badlist.yaml')
     args = coadd_1dspec.parser([coadd_file])
     with pytest.raises(IOError):
-        gparam, ex_value, flux_value, iobj, outfile, files = coadd_1dspec.main(args, unit_test=True)
+        gparam, ex_value, flux_value, iobj, outfile, files = coadd_1dspec.main(
+            args, unit_test=True, path=data_path('./'))
 

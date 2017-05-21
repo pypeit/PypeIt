@@ -1,6 +1,6 @@
 'extract': 'opt'
 'flux': True
-'filenames': ['files/spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits', 'files/spec1d_J22*']
+'filenames': ['spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits', 'spec1d_J22*']
 'a':
     'object': 'O210-S1467-D02-I0012'
     'outfile': 'UGC3672A_r.fits'
