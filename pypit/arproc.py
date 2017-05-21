@@ -887,6 +887,8 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
     for o in range(nord):
         trace, error = artrace.trace_weighted(sciframe-bgframe, slf._lordloc[det-1][:, o], slf._rordloc[det-1][:, o],
                                               mask=slf._scimask[det-1], wght="flux")
+        # Convert the trace locations to be a fraction of the slit length,
+        # measured from the left slit edge.
         trace -= slf._lordloc[det-1][:, o]
         trace /= (slf._rordloc[det-1][:, o]-slf._lordloc[det-1][:, o])
         msk, trccoeff[:, o] = arutils.robust_polyfit(trcxfit, trace,
@@ -931,7 +933,12 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
     trobjr *= (slf._rordloc[det - 1] - slf._lordloc[det - 1])
     trobjr += slf._lordloc[det - 1]
 
-    # Generate an image of pixel weights for each object
+    # Generate an image of pixel weights for each object. Each weight can
+    # take any floating point value from 0 to 1 (inclusive). For the rec_obj_img,
+    # a weight of 1 means that the pixel is fully contained within the object
+    # region, and 0 means that the pixel is fully contained within the background
+    # region. The opposite is true for the rec_bg_img array. A pixel that is on
+    # the border of object/background is assigned a value between 0 and 1.
     rec_obj_img = np.zeros(sciframe.shape+(1,))
     rec_bg_img = np.zeros(sciframe.shape+(1,))
     for o in range(nord):
