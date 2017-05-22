@@ -295,7 +295,14 @@ def expand_slits(slf, mstrace, det, ordcen, extord):
 
 
 def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=None, trimr=None):
-    """ Creates an image with weights corresponding to object or background pixels
+    """ Creates an image with weights corresponding to object or background pixels.
+
+    Each weight can take any floating point value from 0 to 1 (inclusive). For the
+    rec_obj_img, a weight of 1 means that the pixel is fully contained within the
+    object region, and 0 means that the pixel is fully contained within the
+    background region. The opposite is true for the rec_bg_img array. A pixel that
+    is on the border of object/background is assigned a value between 0 and 1, based
+    on the percentage overlap with the object/background regions.
 
     Parameters
     ----------
@@ -412,6 +419,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
       Number of pixels to trim from the right slit edge
     sigmin : float
       Significance threshold to eliminate CRs
+    bgreg : int
+      Number of pixels to use in the background region
     maskval : float
       Placeholder value used to mask pixels
     xedge : float
@@ -427,15 +436,18 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     from pypit import arcytrace
     from pypit import arcyutils
     # Find the trace of each object
-    smthby = 7
-    rejhilo = 1
-    bgreg = 20
     tracefunc = settings.argflag['trace']['object']['function']
     traceorder = settings.argflag['trace']['object']['order']
-    if triml is None: triml = trim
-    if trimr is None: trimr = trim
     npix = int(slf._pixwid[det-1][slitn] - triml - trimr)
-    if bgreg is None: bgreg = npix
+    if triml is None:
+        triml = trim
+    if trimr is None:
+        trimr = trim
+    if bgreg is None:
+        bgreg = npix
+    # Store the trace parameters
+    tracepar = dict(smthby=7, rejhilo=1, bgreg=bgreg, triml=triml, trimr=trimr,
+                    tracefunc=tracefunc, traceorder=traceorder)
     # Interpolate the science array onto a new grid (with constant spatial slit length)
     msgs.info("Rectifying science frame")
     xint = np.linspace(0.0, 1.0, sciframe.shape[0])
@@ -443,45 +455,47 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     scispl = interp.RectBivariateSpline(xint, yint, sciframe, bbox=[0.0, 1.0, 0.0, 1.0], kx=1, ky=1, s=0)
     varspl = interp.RectBivariateSpline(xint, yint, varframe, bbox=[0.0, 1.0, 0.0, 1.0], kx=1, ky=1, s=0)
     crmspl = interp.RectBivariateSpline(xint, yint, crmask, bbox=[0.0, 1.0, 0.0, 1.0], kx=1, ky=1, s=0)
-    xx, yy = np.meshgrid(np.linspace(0.0,1.0,sciframe.shape[0]),np.linspace(0.0,1.0,npix), indexing='ij')
+    xx, yy = np.meshgrid(np.linspace(0.0, 1.0, sciframe.shape[0]), np.linspace(0.0, 1.0, npix), indexing='ij')
     ro = (slf._rordloc[det-1][:, slitn] - trimr).reshape((-1, 1)) / (sciframe.shape[1] - 1.0)
     lo = (slf._lordloc[det-1][:, slitn] + triml).reshape((-1, 1)) / (sciframe.shape[1] - 1.0)
     vv = (lo+(ro-lo)*yy).flatten()
     xx = xx.flatten()
-    recsh = (sciframe.shape[0],npix)
+    recsh = (sciframe.shape[0], npix)
     rec_sciframe = scispl.ev(xx, vv).reshape(recsh)
     rec_varframe = varspl.ev(xx, vv).reshape(recsh)
     rec_crmask   = crmspl.ev(xx, vv).reshape(recsh)
     # Update the CR mask to ensure it only contains 1's and 0's
-    rec_crmask[np.where(rec_crmask>0.2)] = 1.0
-    rec_crmask[np.where(rec_crmask<=0.2)] = 0.0
+    rec_crmask[np.where(rec_crmask > 0.2)] = 1.0
+    rec_crmask[np.where(rec_crmask <= 0.2)] = 0.0
     msgs.info("Estimating object profiles")
     # Smooth the S/N frame
+    smthby, rejhilo = tracepar['smthby'], tracepar['rejhilo']
     rec_sigframe_bin = arcyutils.smooth_x(rec_sciframe/np.sqrt(rec_varframe), 1.0-rec_crmask, smthby, rejhilo, maskval)
     #rec_varframe_bin = arcyutils.smooth_x(rec_varframe, 1.0-rec_crmask, smthby, rejhilo, maskval)
     #rec_sigframe_bin = np.sqrt(rec_varframe_bin/(smthby-2.0*rejhilo))
     #sigframe = rec_sciframe_bin*(1.0-rec_crmask)/rec_sigframe_bin
-    ww = np.where(rec_crmask==0.0)
+    ww = np.where(rec_crmask == 0.0)
     med, mad = arutils.robust_meanstd(rec_sigframe_bin[ww])
-    ww = np.where(rec_crmask==1.0)
+    ww = np.where(rec_crmask == 1.0)
     rec_sigframe_bin[ww] = maskval
     srtsig = np.sort(rec_sigframe_bin,axis=1)
-    ww = np.where(srtsig[:,-2] > med + sigmin*mad)
+    ww = np.where(srtsig[:, -2] > med + sigmin*mad)
     mask_sigframe = np.ma.array(rec_sigframe_bin, mask=rec_crmask, fill_value=maskval)
     # Clip image along spatial dimension -- May eliminate bright emission lines
     from astropy.stats import sigma_clip
-    clip_image = sigma_clip(mask_sigframe[ww[0],:], axis=0, sigma=4.)
+    clip_image = sigma_clip(mask_sigframe[ww[0], :], axis=0, sigma=4.)
     # Collapse along the spectral direction to get object profile
     #trcprof = np.ma.mean(mask_sigframe[ww[0],:], axis=0).filled(0.0)
     trcprof = np.ma.mean(clip_image, axis=0).filled(0.0)
     trcxrng = np.arange(npix)/(npix-1.0)
     msgs.info("Identifying objects that are significantly detected")
     # Find significantly detected objects
-    mskpix, coeff = arutils.robust_polyfit(trcxrng, trcprof, 1+npix//40, function='legendre', sigma=2.0, minv=0.0, maxv=1.0)
+    mskpix, coeff = arutils.robust_polyfit(trcxrng, trcprof, 1+npix//40,
+                                           function='legendre', sigma=2.0, minv=0.0, maxv=1.0)
     backg = arutils.func_val(coeff, trcxrng, 'legendre', minv=0.0, maxv=1.0)
     trcprof -= backg
-    wm = np.where(mskpix==0)
-    if wm[0].size==0:
+    wm = np.where(mskpix == 0)
+    if wm[0].size == 0:
         msgs.warn("No objects found")
         return None
     med, mad = arutils.robust_meanstd(trcprof[wm])
@@ -497,13 +511,13 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     gdobj = (xp < (1-xedge)) * (xp > xedge)
     objl = objl[gdobj]
     objr = objr[gdobj]
-    bckl = bckl[:,gdobj]
-    bckr = bckr[:,gdobj]
+    bckl = bckl[:, gdobj]
+    bckr = bckr[:, gdobj]
     if np.sum(~gdobj) > 0:
         msgs.warn("Removed objects near the slit edges")
     #
     nobj = objl.size
-    if nobj==1:
+    if nobj == 1:
         msgs.info("Found {0:d} object".format(objl.size))
         msgs.info("Tracing {0:d} object".format(objl.size))
     else:
@@ -519,21 +533,21 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     allxfit = np.array([])
     clip_image2 = sigma_clip(mask_sigframe, axis=0, sigma=4.)
     for o in range(nobj):
-        xfit = np.arange(objl[o],objr[o]).reshape((1,-1))/(npix-1.0)
+        xfit = np.arange(objl[o], objr[o]).reshape((1, -1))/(npix-1.0)
         #cent = np.ma.sum(mask_sigframe[:,objl[o]:objr[o]]*xfit, axis=1)
         #wght = np.ma.sum(mask_sigframe[:,objl[o]:objr[o]], axis=1)
-        cent = np.ma.sum(clip_image2[:,objl[o]:objr[o]]*xfit, axis=1)
-        wght = np.ma.sum(clip_image2[:,objl[o]:objr[o]], axis=1)
+        cent = np.ma.sum(clip_image2[:, objl[o]:objr[o]]*xfit, axis=1)
+        wght = np.ma.sum(clip_image2[:, objl[o]:objr[o]], axis=1)
         cent /= wght
         centfit = cent.filled(maskval)
         specfit = np.linspace(-1.0, 1.0, sciframe.shape[0])
         w = np.where(centfit != maskval)
         specfit = specfit[w]
         centfit = centfit[w]
-        mskbad, coeffs = arutils.robust_polyfit(specfit,centfit,traceorder,function=tracefunc, minv=-1.0, maxv=1.0)
+        mskbad, coeffs = arutils.robust_polyfit(specfit, centfit, traceorder, function=tracefunc, minv=-1.0, maxv=1.0)
         cval[o] = arutils.func_val(coeffs, np.array([0.0]), tracefunc, minv=-1.0, maxv=1.0)[0]
-        w = np.where(mskbad==0.0)
-        if w[0].size!=0:
+        w = np.where(mskbad == 0.0)
+        if w[0].size != 0:
             allxfit = np.append(allxfit, specfit[w])
             allsfit = np.append(allsfit, centfit[w]-cval[o])
     if nobj == 0:
@@ -541,24 +555,29 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
         return dict(nobj=0, traces=None, object=None, background=None)
     # Tracing
     msgs.info("Performing global trace to all objects")
-    mskbad, coeffs = arutils.robust_polyfit(allxfit,allsfit,traceorder,function=tracefunc, minv=-1.0, maxv=1.0)
+    mskbad, coeffs = arutils.robust_polyfit(allxfit, allsfit, traceorder, function=tracefunc, minv=-1.0, maxv=1.0)
     trcfunc = arutils.func_val(coeffs, np.linspace(-1.0, 1.0, sciframe.shape[0]), tracefunc, minv=-1.0, maxv=1.0)
     msgs.info("Constructing a trace for all objects")
-    trcfunc = trcfunc.reshape((-1,1)).repeat(nobj, axis=1)
+    trcfunc = trcfunc.reshape((-1, 1)).repeat(nobj, axis=1)
     trccopy = trcfunc.copy()
-    for o in range(nobj): trcfunc[:,o] += cval[o]
-    if nobj==1: msgs.info("Converting object trace to detector pixels")
-    else: msgs.info("Converting object traces to detector pixels")
+    for o in range(nobj):
+        trcfunc[:, o] += cval[o]
+    if nobj == 1:
+        msgs.info("Converting object trace to detector pixels")
+    else:
+        msgs.info("Converting object traces to detector pixels")
     ofst = slf._lordloc[det-1][:, slitn].reshape((-1, 1)).repeat(nobj, axis=1) + triml
     diff = (slf._rordloc[det-1][:, slitn].reshape((-1, 1)).repeat(nobj, axis=1)
             - slf._lordloc[det-1][:, slitn].reshape((-1, 1)).repeat(nobj, axis=1))
     # Convert central trace
     traces = ofst + (diff-triml-trimr)*trcfunc
     # Convert left object trace
-    for o in range(nobj): trccopy[:,o] = trcfunc[:,o] - cval[o] + objl[o]/(npix-1.0)
+    for o in range(nobj):
+        trccopy[:, o] = trcfunc[:, o] - cval[o] + objl[o]/(npix-1.0)
     trobjl = ofst + (diff-triml-trimr)*trccopy
     # Convert right object trace
-    for o in range(nobj): trccopy[:,o] = trcfunc[:,o] - cval[o] + objr[o]/(npix-1.0)
+    for o in range(nobj):
+        trccopy[:, o] = trcfunc[:, o] - cval[o] + objr[o]/(npix-1.0)
     trobjr = ofst + (diff-triml-trimr)*trccopy
     # Generate an image of pixel weights for each object
     rec_obj_img, rec_bg_img = trace_objbg_image(slf, det, sciframe, slitn,
@@ -569,11 +588,12 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
         from pypit import ginga
         viewer, ch = ginga.show_image(sciframe)
         for ii in range(nobj):
-            ginga.show_trace(viewer, ch, traces[:,ii], '{:d}'.format(ii), clear=(ii==0))
+            ginga.show_trace(viewer, ch, traces[:, ii], '{:d}'.format(ii), clear=(ii == 0))
         debugger.set_trace()
     # Trace dict
     tracedict = dict({})
     tracedict['nobj'] = nobj
+    tracedict['params'] = tracepar
     tracedict['traces'] = traces
     tracedict['object'] = rec_obj_img
     tracedict['background'] = rec_bg_img
