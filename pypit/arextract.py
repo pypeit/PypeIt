@@ -280,6 +280,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
                 continue
     # QA
     if not msgs._debug['no_qa']:
+        msgs.info("Preparing QA for spatial object profiles")
         arqa.obj_profile_qa(slf, specobjs, scitrace)
     return
 
