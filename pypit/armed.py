@@ -242,8 +242,6 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             msgs.info("Processing science frame")
             arproc.reduce_echelle(slf, sciframe, scidx, fitsdict, det)
 
-        msgs.error("UP TO HERE!!!")
-
         # Close the QA for this object
         slf._qa.close()
 
