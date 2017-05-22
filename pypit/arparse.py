@@ -3520,7 +3520,10 @@ class ARMED(BaseArgFlag):
         """ Parameters that should be used for the 'trace object method' argument.
         Options include:
 
-        pca :  A list containing the order of the polynomials that should be used to fit the object trace principle components
+        pca :  A list containing the order of the polynomials that should be used to fit the object
+               trace principal components. For example, [1,0] will fit 2 principal components, the
+               first PC will be fit with a first order polynomial, the second PC will be fit with a
+               zeroth order polynomial.
 
         Parameters
         ----------

@@ -887,6 +887,8 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
     for o in range(nord):
         trace, error = artrace.trace_weighted(sciframe-bgframe, slf._lordloc[det-1][:, o], slf._rordloc[det-1][:, o],
                                               mask=slf._scimask[det-1], wght="flux")
+        # Convert the trace locations to be a fraction of the slit length,
+        # measured from the left slit edge.
         trace -= slf._lordloc[det-1][:, o]
         trace /= (slf._rordloc[det-1][:, o]-slf._lordloc[det-1][:, o])
         msk, trccoeff[:, o] = arutils.robust_polyfit(trcxfit, trace,
@@ -931,7 +933,12 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
     trobjr *= (slf._rordloc[det - 1] - slf._lordloc[det - 1])
     trobjr += slf._lordloc[det - 1]
 
-    # Generate an image of pixel weights for each object
+    # Generate an image of pixel weights for each object. Each weight can
+    # take any floating point value from 0 to 1 (inclusive). For the rec_obj_img,
+    # a weight of 1 means that the pixel is fully contained within the object
+    # region, and 0 means that the pixel is fully contained within the background
+    # region. The opposite is true for the rec_bg_img array. A pixel that is on
+    # the border of object/background is assigned a value between 0 and 1.
     msgs.work("Eventually allow ARMED to find multiple objects in the one slit")
     nobj = 1
     rec_obj_img = np.zeros(sciframe.shape+(nobj,))
@@ -1019,7 +1026,8 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
 
     ###############
     # Estimate trace of science objects
-    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask, doqa=False)# (not standard))
+    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask,
+                                    bgreg=20, doqa=False)
     if scitrace is None:
         msgs.info("Not performing extraction for science frame"+msgs.newline()+fitsdict['filename'][scidx[0]])
         debugger.set_trace()
@@ -1081,7 +1089,8 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
     # Determine the final trace of the science objects
     if scitrace is None:
         msgs.info("Performing final object trace")
-        scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask, doqa=(not standard))
+        scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask,
+                                        bgreg=20, doqa=(not standard))
     if standard:
         slf._msstd[det-1]['trace'] = scitrace
         specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict, scitrace, objtype='standard')
