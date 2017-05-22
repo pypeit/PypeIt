@@ -390,7 +390,7 @@ def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=No
     return rec_obj_img, rec_bg_img
 
 
-def trace_object_dict(nobj, traces, object=None, background=None, tracelist=None):
+def trace_object_dict(nobj, traces, object=None, background=None, params=None, tracelist=None):
     """ Creates a list of dictionaries, which contain the object traces in each slit
 
     Parameters
@@ -401,9 +401,12 @@ def trace_object_dict(nobj, traces, object=None, background=None, tracelist=None
       the trace of each object in this slit
     object: numpy ndarray (optional)
       An image containing weights to be used for the object.
-    background: numpy ndarray (optional)
+    background : numpy ndarray (optional)
       An image containing weights to be used for the background
-    tracelist: list of dict
+    params : dict
+      A dictionary containing some of the important parameters used in
+      the object tracing.
+    tracelist : list of dict
       A list containing a trace dictionary for each slit
 
     To save memory, the object and background images for multiple slits
@@ -423,6 +426,7 @@ def trace_object_dict(nobj, traces, object=None, background=None, tracelist=None
     newdict['nobj'] = nobj
     newdict['traces'] = traces
     newdict['object'] = object
+    newdict['params'] = params
     newdict['background'] = background
     if tracelist is None:
         tracelist = []
