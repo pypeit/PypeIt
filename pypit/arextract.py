@@ -77,7 +77,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
             msgs.info("   Fitting the background")
             if scitrace[sl]['background'] is None:
                 # The background for all slits is provided in the first extension
-                bckreg = scitrace[0]['background'][:, :, o]
+                bckreg = np.copy(scitrace[0]['background'][:, :, o])
                 wzro = np.where(slf._slitpix[det - 1] != sl + 1)
                 bckreg[wzro] = 0.0
             else:
@@ -198,7 +198,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
             # Get object pixels
             if scitrace[sl]['background'] is None:
                 # The object for all slits is provided in the first extension
-                objreg = scitrace[0]['object'][:, :, o]
+                objreg = np.copy(scitrace[0]['object'][:, :, o])
                 wzro = np.where(slf._slitpix[det - 1] != sl + 1)
                 objreg[wzro] = 0.0
             else:
@@ -326,7 +326,7 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
             # Get object pixels
             if scitrace[sl]['background'] is None:
                 # The object for all slits is provided in the first extension
-                objreg = scitrace[0]['object'][:, :, o]
+                objreg = np.copy(scitrace[0]['object'][:, :, o])
                 wzro = np.where(slf._slitpix[det - 1] != sl + 1)
                 objreg[wzro] = 0.0
             else:
