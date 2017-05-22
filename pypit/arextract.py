@@ -152,7 +152,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
 
 
 def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
-                 scitrace, COUNT_LIM=25., pickle_file=None):
+                 scitrace, COUNT_LIM=25., doqa=True, pickle_file=None):
     """ Derive spatial profiles for each object
     Parameters
     ----------
@@ -279,7 +279,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
                 scitrace[sl]['opt_profile'].append({})
                 continue
     # QA
-    if not msgs._debug['no_qa']:
+    if not msgs._debug['no_qa'] and doqa:
         msgs.info("Preparing QA for spatial object profiles")
         arqa.obj_profile_qa(slf, specobjs, scitrace)
     return

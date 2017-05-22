@@ -1120,7 +1120,7 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
     if not standard:
         msgs.info("Attempting optimal extraction with model profile")
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                               modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
+                               modelvarframe, bgframe+bgcorr_box, crmask, scitrace, doqa=False)
         newvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
                                            modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
         msgs.work("Should update variance image (and trace?) and repeat")
