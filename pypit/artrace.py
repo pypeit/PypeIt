@@ -485,11 +485,11 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     # Find the trace of each object
     tracefunc = settings.argflag['trace']['object']['function']
     traceorder = settings.argflag['trace']['object']['order']
-    npix = int(slf._pixwid[det-1][slitn] - triml - trimr)
     if triml is None:
         triml = trim
     if trimr is None:
         trimr = trim
+    npix = int(slf._pixwid[det-1][slitn] - triml - trimr)
     if bgreg is None:
         bgreg = npix
     # Store the trace parameters
