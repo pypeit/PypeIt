@@ -1038,7 +1038,7 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
         # Perform an iterative background/science extraction
         msgs.info("Finalizing the sky background image")
         trcmask = scitrace['object'].sum(axis=2)
-        trcmask[np.where(trcmask>0.0)] = 1.0
+        trcmask[np.where(trcmask > 0.0)] = 1.0
         bgframe = bg_subtraction(slf, det, sciframe, modelvarframe, crmask, tracemask=trcmask)
         # Redetermine the variance frame based on the new sky model
         modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)

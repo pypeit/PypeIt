@@ -195,6 +195,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
         scitrace[sl]['opt_profile'] = []
         msgs.work("Should probably loop on S/N")
         for o in range(nobj):
+            msgs.info("Deriving spatial profile of object {0:d}/{1:d} in slit {2:d}/{3:d}".format(o+1, nobj, sl+1, len(specobjs)))
             # Get object pixels
             if scitrace[sl]['background'] is None:
                 # The object for all slits is provided in the first extension
@@ -323,6 +324,7 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
         # Loop on objects
         nobj = scitrace[sl]['traces'].shape[1]
         for o in range(nobj):
+            msgs.info("Performing optimal extraction of object {0:d}/{1:d} in slit {2:d}/{3:d}".format(o+1, nobj, sl+1, len(specobjs)))
             # Get object pixels
             if scitrace[sl]['background'] is None:
                 # The object for all slits is provided in the first extension
@@ -361,7 +363,7 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
             opt_num = np.sum(slf._mswave[det-1] * model_ivar * prof_img**2, axis=1)
             opt_den = np.sum(model_ivar * prof_img**2, axis=1)
             opt_wave = opt_num / (opt_den + (opt_den == 0.))
-            if np.sum(opt_wave < 1.) > 0:
+            if (np.sum(opt_wave < 1.) > 0) and settings.argflag["reduce"]["calibrate"]["wavelength"] != "pixel":
                 debugger.set_trace()
                 msgs.error("Zero value in wavelength array. Uh-oh")
             # Optimal ivar
