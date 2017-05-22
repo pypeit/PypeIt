@@ -68,7 +68,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
             msgs.info("Performing boxcar extraction of object {0:d}/{1:d} in slit {2:d}/{3:d}".format(o+1, nobj, sl+1, nslit))
             if scitrace[sl]['object'] is None:
                 # The object for all slits is provided in the first extension
-                objreg = scitrace[0]['object'][:, :, o]
+                objreg = np.copy(scitrace[0]['object'][:, :, o])
                 wzro = np.where(slf._slitpix[det - 1] != sl + 1)
                 objreg[wzro] = 0.0
             else:
