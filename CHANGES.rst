@@ -1,7 +1,7 @@
 0.8 (unreleased)
 ----------------
 
-* First major steps on armechelle
+* First major steps on ARMED echelle data reduction pipeline
 * Coadding; including docs; and tests
 * Now requiring astropy >= v1.3
 * raw_input handling for Python 3
