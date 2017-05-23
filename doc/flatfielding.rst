@@ -34,9 +34,8 @@ an exposure of a quartz lamp through a slit that is longer than that taken for
 the science frame.
 
 If you opt to use a set of flat frames that you have taken for the flat field
-correction, there are currently two implementations to normalize the combined
-input frames (bspline, polyscan). The default option is 'bspline'. You can
-select which method to use with the command::
+correction, the current implementation normalizes the combined
+input frames with a bspline::
 
     reduce flatfield method bspline
 
@@ -52,22 +51,6 @@ the spacing between knots in the spectral direction, in units of pixels.
 If the supplied parameter value is less than 1, PYPIT assumes that this
 represents a fraction of the pixels in the spectral direction, and will
 use this as the knot spacing. The default value is 0.05.
-
-polyscan
---------
-The polyscan method perform a scanning polynomial fit to the pixels along
-the spectral direction. This method is similar in spirit to a Savitzky-Golay
-filter. This method takes three parameters, which can be set with the command::
-
-    reduce flatfield params [3,20,4]
-
-The first value of the array is the order of the polynomial to be used.
-The second value is the number of pixels to use in the fit, and the third
-value is the number of times to repeat the operation (Note: repeating a
-large number of times will increasingly smooth the blaze fits).
-
-Note that this method is not stable near the edges of the detector. If you
-decide to use this method, please check the blaze fits in your QA files.
 
 Blaze information
 =================

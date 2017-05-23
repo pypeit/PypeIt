@@ -274,32 +274,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
             debugger.set_trace()
     #
     msgs.info("Fitting sky background spectrum")
-    if settings.argflag['reduce']['skysub']['method'].lower() == 'polyscan':
-        polypoints = 5
-        nsmth = 15
-        bgmodel = arcyproc.polyscan_fitsky(tilts.copy(), scifrcp.copy(), 1.0/errframe, maskval, polyorder, polypoints, nsmth, repeat)
-        bgpix = bgmodel[whord]
-        sbgpix = bgpix[xargsrt]
-        wbg = np.where(sbgpix != maskval)
-        # Smooth this spectrum
-        polyorder = 1
-        xpix = sxvpix[wbg]
-        maxdiff = np.sort(xpix[1:]-xpix[:-1])[xpix.size-sciframe.shape[0]-1] # only include the next pixel in the fit if it is less than 10x the median difference between all pixels
-        msgs.info("Generating sky background image")
-        #if msgs._debug['sky_sub']:
-        #    debugger.set_trace()
-        #    debugger.xplot(sxvpix[wbg]*tilts.shape[0], sbgpix[wbg], scatter=True)
-        bgscan = arcyutils.polyfit_scan_lim(sxvpix[wbg], sbgpix[wbg].copy(), np.ones(wbg[0].size,dtype=np.float), maskval, polyorder, sciframe.shape[1]/3, repeat, maxdiff)
-        # Restrict to good values
-        gdscan = bgscan != maskval
-        if msgs._debug['sky_sub']:
-            debugger.set_trace()
-            debugger.xplot(sxvpix[wbg[0][gdscan]]*tilts.shape[0], sbgpix[wbg[0][gdscan]], scatter=True)
-        if np.sum(~gdscan) > 0:
-            msgs.warn("At least one masked value in bgscan")
-        # Generate
-        bgframe = np.interp(tilts.flatten(), sxvpix[wbg[0][gdscan]], bgscan[gdscan]).reshape(tilts.shape)
-    elif settings.argflag['reduce']['skysub']['method'].lower() == 'bspline':
+    if settings.argflag['reduce']['skysub']['method'].lower() == 'bspline':
         msgs.info("Using bspline sky subtraction")
         gdp = scifrcp != maskval
         srt = np.argsort(tilts[gdp])
@@ -428,8 +403,6 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
       A 2d array containing the blaze function for each slit
     """
     from pypit import arcyutils
-    from pypit import arcyextract
-    from pypit import arcyproc
     dnum = settings.get_dnum(det)
 
     msgs.info("Normalizing the master flat field frame")
@@ -483,59 +456,6 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             mskord[word] = 1.0
             flat_ext1d[:, o] = np.sum(msflat * mskord, axis=1) / np.sum(mskord, axis=1)
             mskord *= 0.0
-        elif settings.argflag["reduce"]["flatfield"]["method"].lower() == "polyscan":
-            # Rectify this order
-            recframe = arcyextract.rectify(msflat, ordpix, slf._pixcen[det - 1][:, o], slf._lordpix[det - 1][:, o],
-                                           slf._rordpix[det - 1][:, o], slf._pixwid[det - 1][o] + overpix, maskval)
-            polyorder = settings.argflag["reduce"]["flatfield"]["params"][0]
-            polypoints = settings.argflag["reduce"]["flatfield"]["params"][1]
-            repeat = settings.argflag["reduce"]["flatfield"]["params"][2]
-            # Take the median along the spatial dimension
-            flatmed = np.median(recframe, axis=1)
-            # Perform a polynomial fitting scheme to determine the blaze profile
-            xarray = np.arange(flatmed.size, dtype=np.float)
-            weight = flatmed.copy()
-            msgs.work("Routine doesn't support user parameters yet")
-            msgs.bug("Routine doesn't support user parameters yet")
-            blazet = arcyutils.polyfit_scan(xarray, flatmed.copy(), weight, maskval, polyorder, polypoints, repeat)
-             # Remove the masked endpoints
-            outx, outy, outm, lox, hix = arcyproc.remove_maskedends(xarray, flatmed, blazet, maskval)
-            # Inspect the end points and extrapolate from the best fitting end pixels
-            derv = (outm[1:]-outm[:-1])/(outx[1:]-outx[:-1])
-            dervx = 0.5*(outx[1:]+outx[:-1])
-            derv2 = (derv[1:]-derv[:-1])/(dervx[1:]-dervx[:-1])
-            medv = np.median(derv2)
-            madv = 1.4826*np.median(np.abs(derv2-medv))
-            blaze = arcyproc.blaze_fitends(outx, outy, outm, derv2-medv, madv, polyord_blz, polypoints)
-            #plt.plot(xarray,flatmed,'k-',drawstyle='steps')
-            #plt.plot(xarray, blaze, 'r-')
-            #plt.show()
-            #np.savetxt("check_blaze_ord{0:d}.txt".format(o),np.transpose((xarray,flatmed)))
-            # Divide the flat by the fitted flat profile
-            finalblaze = np.ones(recframe.shape[0])
-            finalblaze[lox:hix] = blaze.copy()
-            blazenrm = finalblaze.reshape((finalblaze.size, 1)).repeat(recframe.shape[1], axis=1)
-            recframe /= blazenrm
-            # Store the blaze for this order
-            msblaze[lox:hix,o] = blaze.copy()
-            flat_ext1d[:,o] = flatmed.copy()
-            # Sort the normalized frames along the dispersion direction
-            recsort = np.sort(recframe, axis=0)
-            # Find the mean value, but only consider the "innermost" 50 per cent of pixels (i.e. the pixels closest to 1.0)
-            recmean = arcyproc.scale_blaze(recsort, maskval)
-            #rows = np.arange(recsort.shape[0]/4,(3*recsort.shape[0])/4,dtype=np.int)
-            #w = np.ix_(rows,np.arange(recframe.shape[1]))
-            #recmean = np.mean(recsort[w],axis=0)
-            for i in range(recmean.size):
-                recframe[:, i] /= recmean[i]
-            # Undo the rectification
-            normflat_unrec = arcyextract.rectify_undo(recframe, slf._pixcen[det-1][:,o], slf._lordpix[det-1][:,o],
-                                                      slf._rordpix[det-1][:,o], slf._pixwid[det-1][o], maskval,
-                                                      msflat.shape[0], msflat.shape[1])
-            # Apply the normalized flatfield for this order to the master normalized frame
-            msnormflat = arcyproc.combine_nrmflat(msnormflat, normflat_unrec, slf._pixcen[det-1][:,o],
-                                                  slf._lordpix[det-1][:,o], slf._rordpix[det-1][:,o],
-                                                  slf._pixwid[det-1][o]+overpix, maskval)
         else:
             msgs.error("Flatfield method {0:s} is not supported".format(settings.argflag["reduce"]["flatfield"]["method"]))
     # Send the blaze away to be plotted and saved
