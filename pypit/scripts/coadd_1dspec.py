@@ -21,20 +21,16 @@ def parser(options=None):
     return args
 
 
-def main(args, unit_test=False, path=''):
+def main(args, unit_test=False):
     """ Runs the XSpecGui on an input file
-    path : str, optional
-      Mainly for running the unit test
     """
-    import sys
-    import pdb
     import yaml, glob
     from pypit import arcoadd
     from pypit import arspecobj
     from astropy.io import fits
 
     if unit_test:
-        dirut = "pypit/tests/"
+        dirut = "pypit/tests/files/"
     else:
         dirut = ""
 
@@ -48,9 +44,9 @@ def main(args, unit_test=False, path=''):
     files = []
     for ifl in filelist:
         if '*' in ifl:
-            files += glob.glob(path+ifl)
+            files += glob.glob(ifl)
         else:
-            files += [path+ifl]
+            files += [ifl]
     fdict = {}
     all_obj = []
     for ifile in files:
