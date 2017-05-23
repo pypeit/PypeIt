@@ -7,33 +7,6 @@ cimport numpy as np
 cimport cython
 DTYPE = np.float64
 ctypedef np.float_t DTYPE_t
-ITYPE = np.int64
-ctypedef np.int_t ITYPE_t
-
-cdef extern from "math.h":
-    double csqrt "sqrt" (double)
-    double cexp "exp" (double)
-    double cpow "pow" (double, double)
-    double cmin "fmin" (double, double)
-
-cdef extern from "gsl/gsl_multifit.h":
-    ctypedef struct gsl_matrix:
-        pass
-    ctypedef struct gsl_vector:
-        pass
-    ctypedef struct gsl_multifit_linear_workspace:
-        pass
-    gsl_matrix *gsl_matrix_alloc(int,int)
-    gsl_vector *gsl_vector_alloc(int)
-    gsl_multifit_linear_workspace *gsl_multifit_linear_alloc(int,int)
-    void gsl_matrix_set(gsl_matrix *A,int,int,double)
-    void gsl_vector_set(gsl_vector *v,int,double)
-    double gsl_vector_get(gsl_vector *v,int)
-    void gsl_multifit_linear(gsl_matrix *A, gsl_vector *u, gsl_vector *v, gsl_matrix *B, double *d, gsl_multifit_linear_workspace *w)
-    void gsl_multifit_wlinear(gsl_matrix *A, gsl_vector *e, gsl_vector *u, gsl_vector *v, gsl_matrix *B, double *d, gsl_multifit_linear_workspace *w)
-    void gsl_multifit_linear_free(gsl_multifit_linear_workspace *w)
-    void gsl_matrix_free(gsl_matrix *A)
-    void gsl_vector_free(gsl_vector *v)
 
 
 #@cython.boundscheck(False)
