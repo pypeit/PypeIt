@@ -21,8 +21,10 @@ def parser(options=None):
     return args
 
 
-def main(args, unit_test=False):
+def main(args, unit_test=False, path=''):
     """ Runs the XSpecGui on an input file
+    path : str, optional
+      Mainly for running the unit test
     """
     import sys
     import pdb
@@ -42,9 +44,9 @@ def main(args, unit_test=False):
     files = []
     for ifl in filelist:
         if '*' in ifl:
-            files += glob.glob(ifl)
+            files += glob.glob(path+ifl)
         else:
-            files += [ifl]
+            files += [path+ifl]
     fdict = {}
     all_obj = []
     for ifile in files:
@@ -72,6 +74,12 @@ def main(args, unit_test=False):
     # Loop on sources
     for key in coadd_dict.keys():
         iobj = coadd_dict[key]['object']
+        # Check iobj input
+        #pdb.set_trace()
+        if isinstance(iobj, list):
+            if len(iobj) != len(files):
+                raise IOError("Input list of object names must have same length as files")
+        #
         outfile = coadd_dict[key]['outfile']
         if unit_test:
             return gparam, ex_value, flux_value, iobj, outfile, files
