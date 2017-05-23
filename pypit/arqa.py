@@ -709,10 +709,9 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
     return
 
 
-def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', outfil=None, normalize=True,
-                  use_slitid=None):
-    """
-    Generate a QA plot for the traces
+def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
+                  root='trace', outfil=None, normalize=True, use_slitid=None):
+    """ Generate a QA plot for the slit traces
 
     Parameters
     ----------
@@ -827,3 +826,6 @@ def set_fonts(ax):
         label.set_fontproperties(ticks_font)
     for label in ax.get_xticklabels():
         label.set_fontproperties(ticks_font)
+
+#def set_qa_filename():
+    #
