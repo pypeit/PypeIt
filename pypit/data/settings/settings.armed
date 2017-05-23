@@ -4,8 +4,10 @@
 
 # REDUCTION RULES
 reduce calibrate wavelength pixel   # Temporary until a wavelength calibration routine is implemented.
+reduce calibrate refframe barycentric
 reduce flatfield params [0.05]     # Flat field method parameters (PolyScan: [order,numPixels,repeat], bspline: [spacing])
 reduce flatfield 2dpca 0                # Perform a 2D PCA on the blaze models
+reduce flexure perform False
 reduce slitcen useframe pinhole          # How to trace the slit centre (pinhole, trace), you can also specify a master calibrations file if it exists.
 reduce slitprofile perform True
 
@@ -25,6 +27,8 @@ trace slits tilts method      PCA        # What method should be used to trace t
 trace slits tilts params    [2,1]       # What order polynomials should be used to fit the tilt principle components
 trace slits tilts order  1             # What is the order of the polynomial function to be used for the tilt of an individual arc line
 trace slits tilts disporder  1             # What is the order of the polynomial function to be used to fit the tilts along the dispersion direction
+trace object method PCA        # What method should be used to trace the object (PCA)
+trace object params [1,0]       # What order polynomials should be used to fit the object trace principle components
 
 # PIXEL FLAT FRAMES
 

@@ -1047,6 +1047,17 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed_filename(v, allowed)
         self.update(v)
 
+    def reduce_flexure_perform(self, v):
+        """ Perform a flexure correction?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_bool(v)
+        self.update(v)
+
     def reduce_slitcen_useframe(self, v):
         """ What frame should be used to trace the slit centroid? You can also
         specify a master calibrations file if it exists.
@@ -1688,6 +1699,31 @@ class BaseArgFlag(BaseFunctions):
         if v != 0 and v != 1:
             msgs.error("The argument of {0:s} must be one of".format(get_current_name()) + msgs.newline() +
                        "0 or 1 (if the dispersion axis is along a row or column respectively)")
+        self.update(v)
+
+    def trace_object_function(self, v):
+        """ What function should be used to trace the object in each order?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        allowed = ['polynomial', 'legendre', 'chebyshev']
+        v = key_allowed(v, allowed)
+        self.update(v)
+
+    def trace_object_order(self, v):
+        """ What is the order of the polynomial function to be used to fit the object trace in each order
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_int(v)
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
     def trace_slits_diffpolyorder(self, v):
@@ -3466,6 +3502,35 @@ class ARMED(BaseArgFlag):
         v = key_int(v)
         if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        self.update(v)
+
+    def trace_object_method(self, v):
+        """ What method should be used to trace the object?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        allowed = ['pca', 'spline', 'spca', 'interp', 'perp', 'zero']
+        v = key_allowed(v, allowed)
+        self.update(v)
+
+    def trace_object_params(self, v):
+        """ Parameters that should be used for the 'trace object method' argument.
+        Options include:
+
+        pca :  A list containing the order of the polynomials that should be used to fit the object
+               trace principal components. For example, [1,0] will fit 2 principal components, the
+               first PC will be fit with a first order polynomial, the second PC will be fit with a
+               zeroth order polynomial.
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_list(v)
         self.update(v)
 
     def trace_slits_tilts_disporder(self, v):

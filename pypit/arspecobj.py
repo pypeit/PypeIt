@@ -12,6 +12,7 @@ msgs = armsgs.get_logger()
 
 from pypit import ardebug as debugger
 
+
 class SpecObjExp(object):
     """Class to handle object spectra from a single exposure
     One generates one of these Objects for each spectrum in the exposure
@@ -74,6 +75,7 @@ class SpecObjExp(object):
         self.boxcar = {}   # Boxcar extraction 'wave', 'counts', 'var', 'sky', 'mask', 'flam', 'flam_var'
         self.optimal = {}  # Optimal extraction 'wave', 'counts', 'var', 'sky', 'mask', 'flam', 'flam_var'
         #
+
     def check_trace(self, trace, toler=1.):
         """Check that the input trace matches the defined specobjexp
 

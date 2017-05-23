@@ -691,8 +691,12 @@ class ScienceExposure:
                 settings.argflag['reduce']['masters']['loaded'].append('wave'+settings.argflag['reduce']['masters']['setup'])
         if 'wave'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
             msgs.info("Preparing a master wave frame")
-            wv_calib = self._wvcalib[det-1]
-            mswave = arutils.func_val(wv_calib['fitc'], self._tilts[det-1], wv_calib['function'], minv=wv_calib['fmin'], maxv=wv_calib['fmax'])
+            if settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
+                mswave = self._tilts[det - 1] * (self._tilts[det - 1].shape[0]-1.0)
+            else:
+                wv_calib = self._wvcalib[det - 1]
+                mswave = arutils.func_val(wv_calib['fitc'], self._tilts[det - 1], wv_calib['function'],
+                                          minv=wv_calib['fmin'], maxv=wv_calib['fmax'])
         # Set and then delete the Master Arc frame
         self.SetMasterFrame(mswave, "wave", det)
         del mswave

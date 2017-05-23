@@ -408,7 +408,7 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, root='trace', outfil=None, 
     plt.clf()
     fig = plt.figure(dpi=1200)
 
-    plt.rcParams['font.family']= 'times new roman'
+    plt.rcParams['font.family'] = 'times new roman'
     ticks_font = matplotlib.font_manager.FontProperties(family='times new roman', 
        style='normal', size=16, weight='normal', stretch='normal')
     ax = plt.gca()
@@ -417,7 +417,7 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, root='trace', outfil=None, 
     for label in ax.get_xticklabels() :
         label.set_fontproperties(ticks_font)
     cmm = cm.Greys_r
-    mplt = plt.imshow(nrm_frame,origin='lower', cmap=cmm, extent=(0., frame.shape[1], 0., frame.shape[0]))
+    mplt = plt.imshow(nrm_frame, origin='lower', cmap=cmm, extent=(0., frame.shape[1], 0., frame.shape[0]))
     mplt.set_clim(vmin=sclmin, vmax=sclmax)
 
     # Axes
@@ -428,16 +428,17 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, root='trace', outfil=None, 
     # Traces
     for ii in range(ntrc):
         # Left
-        plt.plot(ltrace[:,ii]+0.5, ycen, 'r--',alpha=0.7)
+        plt.plot(ltrace[:, ii]+0.5, ycen, 'r--', alpha=0.7)
         # Right
-        plt.plot(rtrace[:,ii]+0.5, ycen, 'c--',alpha=0.7)
-        # Label
-        iy = int(frame.shape[0]/2.)
-        #plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
-        lbl = 'O{:03d}'.format(objids[ii])
-        plt.text((ltrace[iy,ii]+rtrace[iy,ii])/2., ycen[iy], lbl, color='green', ha='center')
+        plt.plot(rtrace[:, ii]+0.5, ycen, 'c--', alpha=0.7)
+        if objids is not None:
+            # Label
+            iy = int(frame.shape[0] / 2.)
+            # plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
+            lbl = 'O{:03d}'.format(objids[ii])
+            plt.text((ltrace[iy, ii]+rtrace[iy, ii])/2., ycen[iy], lbl, color='green', ha='center')
 
-    slf._qa.savefig(bbox_inches='tight')
+    slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
     #plt.close()
 
 
@@ -643,7 +644,7 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
                     ipx = 0
                     ipy += 1
                 continue
-            spatval = (word[1] - lordloc[:, ndone+j][word[0]]) / (rordloc[:, ndone+j][word[0]] - lordloc[:, ndone+j][word[0]])
+            spatval = (word[1] + 0.5 - lordloc[:, ndone+j][word[0]]) / (rordloc[:, ndone+j][word[0]] - lordloc[:, ndone+j][word[0]])
             fluxval = mstrace[word]
             mxval = np.max(fluxval)
             modvals = np.zeros(nbins)

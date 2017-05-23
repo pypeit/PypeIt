@@ -50,12 +50,18 @@ def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
     bgframe : ndarray
       An image, the same size as sciframe, that contains
       the background spectrum within the specified slit.
+    nl : int
+      number of pixels from the left slit edge to use as background pixels
+    nr : int
+      number of pixels from the right slit edge to use as background pixels
     """
     # Obtain all pixels that are within the slit edges, and are not masked
     word = np.where((slf._slitpix[det - 1] == slitn + 1) & (slf._scimask[det - 1] == 0))
     if word[0].size == 0:
         msgs.warn("There are no pixels in slit {0:d}".format(slitn))
-        return np.zeros_like(sciframe)
+        debugger.set_trace()
+        nl, nr = 0, 0
+        return np.zeros_like(sciframe), nl, nr
     # Calculate the oversampled object profiles
     xedges, modvals = object_profile(slf, sciframe, slitn, det, refine=refine, factor=3)
     bincent = 0.5*(xedges[1:]+xedges[:-1])
@@ -90,8 +96,9 @@ def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
         nr = npix - np.min(wr[0])
     if nl+nr < 5:
         msgs.warn("The object profile appears to extrapolate to the edge of the detector")
-        msgs.info("A background subtraction will not be performed for slit".format(slitn+1))
-        return np.zeros_like(sciframe)
+        msgs.info("A background subtraction will not be performed for slit {0:d}".format(slitn+1))
+        nl, nr = 0, 0
+        return np.zeros_like(sciframe), nl, nr
     # Find background pixels and fit
     wbgpix = np.where((spatval <= float(nl)/npix) | (spatval >= float(nr)/npix))
     if settings.argflag['reduce']['skysub']['method'].lower() == 'bspline':
@@ -120,11 +127,11 @@ def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
     else:
         msgs.error('Not ready for this method for skysub {:s}'.format(
                 settings.argflag['reduce']['skysub']['method'].lower()))
-    if np.sum(np.isnan(bgframe)) > 0:
+    if np.any(np.isnan(bgframe)):
         msgs.warn("NAN in bgframe.  Replacing with 0")
         bad = np.isnan(bgframe)
         bgframe[bad] = 0.
-    return bgframe
+    return bgframe, nl, nr
 
 
 def badpix(det, frame, sigdev=10.0):
@@ -822,7 +829,8 @@ def reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=False):
     return sciframe, rawvarframe, crmask
 
 
-def reduce_echelle(slf, sciframe, scidx, fitsdict, det, standard=False):
+def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
+                   standard=False, triml=1, trimr=1):
     """ Run standard extraction steps on an echelle frame
 
     Parameters
@@ -837,6 +845,10 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det, standard=False):
       Detector index
     standard : bool, optional
       Standard star frame?
+    triml : int (optional)
+      Number of pixels to trim from the left slit edge
+    trimr : int (optional)
+      Number of pixels to trim from the right slit edge
     """
     msgs.work("Multiprocess this algorithm")
     nspec = sciframe.shape[0]
@@ -844,11 +856,24 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Prepare the frames for tracing and extraction
     sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
     bgframe = np.zeros_like(sciframe)
+    bgnl, bgnr = np.zeros(nord, dtype=np.int), np.zeros(nord, dtype=np.int)
+    skysub = True
     if settings.argflag['reduce']['skysub']['perform']:
         # Identify background pixels, and generate an image of the sky spectrum in each slit
         for o in range(nord):
-            bgframe += background_subtraction(slf, sciframe, rawvarframe, o, det)
-        modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
+            tbgframe, nl, nr = background_subtraction(slf, sciframe, rawvarframe, o, det)
+            bgnl[o], bgnr[o] = nl, nr
+            bgframe += tbgframe
+            if nl == 0 and nr == 0:
+                # If just one slit cannot do sky subtraction, don't do sky subtraction
+                msgs.warn("A sky subtraction will not be performed")
+                skysub = False
+                bgframe = np.zeros_like(sciframe)
+                modelvarframe = rawvarframe.copy()
+                break
+        if skysub:
+            # Provided the for loop above didn't break early, model the variance frame
+            modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
     else:
         modelvarframe = rawvarframe.copy()
         bgframe = np.zeros_like(sciframe)
@@ -857,46 +882,103 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det, standard=False):
         slf._bgframe[det - 1] = bgframe
     # Obtain a first estimate of the object trace then
     # fit the traces and perform a PCA for the refinements
-    trccoeff = np.zeros((settings.argflag['trace']['object']['order'], nord))
+    trccoeff = np.zeros((settings.argflag['trace']['object']['order']+1, nord))
     trcxfit = np.arange(nspec)
     for o in range(nord):
         trace, error = artrace.trace_weighted(sciframe-bgframe, slf._lordloc[det-1][:, o], slf._rordloc[det-1][:, o],
                                               mask=slf._scimask[det-1], wght="flux")
+        # Convert the trace locations to be a fraction of the slit length,
+        # measured from the left slit edge.
+        trace -= slf._lordloc[det-1][:, o]
+        trace /= (slf._rordloc[det-1][:, o]-slf._lordloc[det-1][:, o])
         msk, trccoeff[:, o] = arutils.robust_polyfit(trcxfit, trace,
                                                      settings.argflag['trace']['object']['order'],
                                                      function=settings.argflag['trace']['object']['function'],
                                                      weights=1.0 / error ** 2, minv=0.0, maxv=nspec-1.0)
-    # Identify the orders to be extrapolated during reconstruction
-    orders = 1.0 + np.arange(nord)
-    msgs.info("Performing a PCA on the object trace")
-    ofit = settings.argflag['trace']['object']['pca']['params']
-    lnpc = len(ofit) - 1
-    msgs.work("May need to do a check here to make sure ofit is reasonable")
-    xcen = trcxfit[:, np.newaxis].repeat(nord, axis=1)
-    trccen = arutils.func_val(trccoeff, trcxfit, settings.argflag['trace']['object']['function'],
-                              minv=0.0, maxv=nspec-1.0)
-    fitted, outpar = arpca.basis(xcen, trccen, trccoeff, lnpc, ofit, skipx0=False,
-                                 function=settings.argflag['trace']['object']['function'])
-    if not msgs._debug['no_qa']:
-        arpca.pc_plot(slf, outpar, ofit, pcadesc="PCA of object trace")
-    # Extrapolate the remaining orders requested
-    trccen, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['object']['function'])
-    refine = trccen-trccen[nspec//2, :].reshape((1, nord))
+    refine = 0.0
+    if settings.argflag['trace']['object']['method'] == "pca":
+        # Identify the orders to be extrapolated during reconstruction
+        orders = 1.0 + np.arange(nord)
+        msgs.info("Performing a PCA on the object trace")
+        ofit = settings.argflag['trace']['object']['params']
+        lnpc = len(ofit) - 1
+        msgs.work("May need to do a check here to make sure ofit is reasonable")
+        xcen = trcxfit[:, np.newaxis].repeat(nord, axis=1)
+        trccen = arutils.func_val(trccoeff, trcxfit, settings.argflag['trace']['object']['function'],
+                                  minv=0.0, maxv=nspec-1.0).T
+        fitted, outpar = arpca.basis(xcen, trccen, trccoeff, lnpc, ofit, skipx0=False,
+                                     function=settings.argflag['trace']['object']['function'])
+        if not msgs._debug['no_qa']:
+            arpca.pc_plot(slf, outpar, ofit, pcadesc="PCA of object trace")
+        # Extrapolate the remaining orders requested
+        trccen, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['object']['function'])
+        #refine = trccen-trccen[nspec//2, :].reshape((1, nord))
+    else:
+        msgs.error("Not ready for object trace method:" + msgs.newline() +
+                   settings.argflag['trace']['object']['method'])
+    # Construct the left and right traces of the object profile
+    # The following code ensures that the fraction of the slit
+    # containing the object remains constant along the spectral
+    # direction
+    trcmean = np.mean(trccen, axis=0)
+    trobjl = (trcmean - (1+bgnl)/slf._pixwid[det - 1].astype(np.float)).reshape((1, nord)).repeat(nspec, axis=0)
+    trobjl = trccen - trobjl
+    trobjr = (-trcmean + (slf._pixwid[det - 1]-bgnr-1)/slf._pixwid[det - 1].astype(np.float)).reshape((1, nord)).repeat(nspec, axis=0)
+    trobjr = trccen + trobjr
+    # Convert trccen to the actual trace locations
+    trccen *= (slf._rordloc[det - 1] - slf._lordloc[det - 1])
+    trccen += slf._lordloc[det - 1]
+    trobjl *= (slf._rordloc[det - 1] - slf._lordloc[det - 1])
+    trobjl += slf._lordloc[det - 1]
+    trobjr *= (slf._rordloc[det - 1] - slf._lordloc[det - 1])
+    trobjr += slf._lordloc[det - 1]
 
-    # Estimate trace of science objects
-    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask, doqa=(not standard))
+    # Generate an image of pixel weights for each object. Each weight can
+    # take any floating point value from 0 to 1 (inclusive). For the rec_obj_img,
+    # a weight of 1 means that the pixel is fully contained within the object
+    # region, and 0 means that the pixel is fully contained within the background
+    # region. The opposite is true for the rec_bg_img array. A pixel that is on
+    # the border of object/background is assigned a value between 0 and 1.
+    rec_obj_img = np.zeros(sciframe.shape+(1,))
+    rec_bg_img = np.zeros(sciframe.shape+(1,))
+    for o in range(nord):
+        # Prepare object/background regions
+        objl = np.array([bgnl[o]])
+        objr = np.array([slf._pixwid[det - 1][o]-bgnr[o]-triml-trimr])
+        bckl = np.zeros((slf._pixwid[det - 1][o]-triml-trimr, 1))
+        bckr = np.zeros((slf._pixwid[det - 1][o]-triml-trimr, 1))
+        bckl[:bgnl[o]] = 1
+        if bgnr[o] != 0:
+            bckr[-bgnr[o]:] = 1
+        tobj_img, tbg_img = artrace.trace_objbg_image(slf, det, sciframe-bgframe, o,
+                                                      [objl, objr], [bckl, bckr],
+                                                      triml=triml, trimr=trimr)
+        rec_obj_img += tobj_img
+        rec_bg_img += tbg_img
+
+    # Create trace dict
+    scitrace = dict({})
+    scitrace['nobj'] = 1
+    scitrace['traces'] = trccen
+    scitrace['object'] = rec_obj_img
+    scitrace['background'] = rec_bg_img
+    # Save the quality control
+    if not msgs._debug['no_qa']:
+        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, None, root="object_trace", normalize=False)
 
     # Finalize the Sky Background image
-    if settings.argflag['reduce']['skysub']['perform'] & (scitrace['nobj'] > 0):
+    if settings.argflag['reduce']['skysub']['perform'] and (scitrace['nobj'] > 0) and skysub:
         # Identify background pixels, and generate an image of the sky spectrum in each slit
         bgframe = np.zeros_like(sciframe)
         for o in range(nord):
-            bgframe += background_subtraction(slf, sciframe, rawvarframe, o, det, refine=refine)
+            tbgframe, nl, nr = background_subtraction(slf, sciframe, rawvarframe, o, det, refine=refine)
+            bgnl[o], bgnr[o] = nl, nr
+            bgframe += tbgframe
         modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
 
     # Perform an optimal extraction
-    msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
-    return reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask, standard=standard)
+    return reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask,
+                        scitrace=scitrace, standard=standard)
 
 
 def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
@@ -941,7 +1023,8 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
 
     ###############
     # Estimate trace of science objects
-    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask, doqa=False)# (not standard))
+    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask,
+                                    bgreg=20, doqa=False)
     if scitrace is None:
         msgs.info("Not performing extraction for science frame"+msgs.newline()+fitsdict['filename'][scidx[0]])
         debugger.set_trace()
@@ -973,7 +1056,8 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
     return reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask, standard=standard)
 
 
-def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask, standard=False):
+def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask,
+                 scitrace=None, standard=False):
     """ Run standard extraction steps on a frame
 
     Parameters
@@ -992,14 +1076,18 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
       Contains relevant information from fits header files
     det : int
       Detector index
+    scitrace : dict
+      Dictionary containing object trace parameters
     standard : bool, optional
       Standard star frame?
     """
 
     ###############
     # Determine the final trace of the science objects
-    msgs.info("Final trace")
-    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask, doqa=(not standard))
+    if scitrace is None:
+        msgs.info("Performing final object trace")
+        scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask,
+                                        bgreg=20, doqa=(not standard))
     if standard:
         slf._msstd[det-1]['trace'] = scitrace
         specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict, scitrace, objtype='standard')
@@ -1017,7 +1105,7 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
         return True
 
     # Boxcar
-    msgs.info("Extracting")
+    msgs.info("Performing boxcar extraction")
     bgcorr_box = arextract.boxcar(slf, det, specobjs, sciframe-bgframe,
                                   rawvarframe, bgframe, crmask, scitrace)
 
@@ -1037,22 +1125,20 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
         slf._modelvarframe[det-1] = finalvar.copy()
 
     # Flexure correction?
-    if (settings.argflag['reduce']['flexure']['method'] is not None) and (not standard):
-        flex_dict = arwave.flexure_obj(slf, det)
-        arqa.flexure(slf, det, flex_dict)
+    if settings.argflag['reduce']['flexure']['perform'] and (not standard):
+        if settings.argflag['reduce']['flexure']['method'] is not None:
+            flex_dict = arwave.flexure_obj(slf, det)
+            arqa.flexure(slf, det, flex_dict)
 
     # Correct Earth's motion
     if settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']:
-        if settings.argflag['science']['extraction']['reuse'] == True:
+        if settings.argflag['science']['extraction']['reuse']:
             msgs.warn("{0:s} correction will not be applied if an extracted science frame exists, and is used".format(settings.argflag['reduce']['calibrate']['refframe']))
         msgs.info("Performing a {0:s} correction".format(settings.argflag['reduce']['calibrate']['refframe']))
         # Load the header for the science frame
         arwave.geomotion_correct(slf, det, fitsdict)
     else:
         msgs.info("A heliocentric correction will not be performed")
-
-            ###############
-
 
     # Final
     if not standard:
