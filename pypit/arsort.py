@@ -725,7 +725,10 @@ def make_dirs(fitsdict, filesort):
         else:
             shutil.rmtree(newdir)
             os.mkdir(newdir)
-    else: os.mkdir(newdir)
+            # PNGs too!
+    else:
+        os.mkdir(newdir)
+        os.mkdir(newdir+'/PNGs')
     # Return the name of the science targets
     return sci_targs
 

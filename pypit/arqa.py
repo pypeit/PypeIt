@@ -2,9 +2,12 @@
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-from astropy import units as u
+import inspect
 
 import numpy as np
+
+from astropy import units as u
+
 from pypit.arplot import zscale
 from pypit import armsgs
 from pypit import arutils
@@ -735,6 +738,8 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
       Normalize the flat?  If not, use zscale for output
     """
     # Outfil
+    module = inspect.stack()[0][3]
+    outfile = set_qa_filename(slf, module)
     # if outfil is None:
     #     if '.fits' in root: # Expecting name of msflat FITS file
     #         outfil = root.replace('.fits', '_trc.pdf')
@@ -808,7 +813,10 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
     if desc != "":
         plt.suptitle(desc)
 
-    slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
+    if outfile is None:
+        slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
+    else:
+        plt.savefig(outfile, dpi=1200)
     #pp.savefig()
     #pp.close()
     #plt.close('all')
@@ -827,5 +835,12 @@ def set_fonts(ax):
     for label in ax.get_xticklabels():
         label.set_fontproperties(ticks_font)
 
-#def set_qa_filename():
+def set_qa_filename(slf, module):
     #
+    if module == 'slit_trace_qa':
+        outfile = slf.qaroot+'_slittrc.png'
+    else:
+        msgs.error("NOT READY FOR THIS QA")
+    # Return
+    return outfile
+
