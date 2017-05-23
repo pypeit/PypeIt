@@ -483,59 +483,6 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             mskord[word] = 1.0
             flat_ext1d[:, o] = np.sum(msflat * mskord, axis=1) / np.sum(mskord, axis=1)
             mskord *= 0.0
-        elif settings.argflag["reduce"]["flatfield"]["method"].lower() == "polyscan":
-            # Rectify this order
-            recframe = arcyextract.rectify(msflat, ordpix, slf._pixcen[det - 1][:, o], slf._lordpix[det - 1][:, o],
-                                           slf._rordpix[det - 1][:, o], slf._pixwid[det - 1][o] + overpix, maskval)
-            polyorder = settings.argflag["reduce"]["flatfield"]["params"][0]
-            polypoints = settings.argflag["reduce"]["flatfield"]["params"][1]
-            repeat = settings.argflag["reduce"]["flatfield"]["params"][2]
-            # Take the median along the spatial dimension
-            flatmed = np.median(recframe, axis=1)
-            # Perform a polynomial fitting scheme to determine the blaze profile
-            xarray = np.arange(flatmed.size, dtype=np.float)
-            weight = flatmed.copy()
-            msgs.work("Routine doesn't support user parameters yet")
-            msgs.bug("Routine doesn't support user parameters yet")
-            blazet = arcyutils.polyfit_scan(xarray, flatmed.copy(), weight, maskval, polyorder, polypoints, repeat)
-             # Remove the masked endpoints
-            outx, outy, outm, lox, hix = arcyproc.remove_maskedends(xarray, flatmed, blazet, maskval)
-            # Inspect the end points and extrapolate from the best fitting end pixels
-            derv = (outm[1:]-outm[:-1])/(outx[1:]-outx[:-1])
-            dervx = 0.5*(outx[1:]+outx[:-1])
-            derv2 = (derv[1:]-derv[:-1])/(dervx[1:]-dervx[:-1])
-            medv = np.median(derv2)
-            madv = 1.4826*np.median(np.abs(derv2-medv))
-            blaze = arcyproc.blaze_fitends(outx, outy, outm, derv2-medv, madv, polyord_blz, polypoints)
-            #plt.plot(xarray,flatmed,'k-',drawstyle='steps')
-            #plt.plot(xarray, blaze, 'r-')
-            #plt.show()
-            #np.savetxt("check_blaze_ord{0:d}.txt".format(o),np.transpose((xarray,flatmed)))
-            # Divide the flat by the fitted flat profile
-            finalblaze = np.ones(recframe.shape[0])
-            finalblaze[lox:hix] = blaze.copy()
-            blazenrm = finalblaze.reshape((finalblaze.size, 1)).repeat(recframe.shape[1], axis=1)
-            recframe /= blazenrm
-            # Store the blaze for this order
-            msblaze[lox:hix,o] = blaze.copy()
-            flat_ext1d[:,o] = flatmed.copy()
-            # Sort the normalized frames along the dispersion direction
-            recsort = np.sort(recframe, axis=0)
-            # Find the mean value, but only consider the "innermost" 50 per cent of pixels (i.e. the pixels closest to 1.0)
-            recmean = arcyproc.scale_blaze(recsort, maskval)
-            #rows = np.arange(recsort.shape[0]/4,(3*recsort.shape[0])/4,dtype=np.int)
-            #w = np.ix_(rows,np.arange(recframe.shape[1]))
-            #recmean = np.mean(recsort[w],axis=0)
-            for i in range(recmean.size):
-                recframe[:, i] /= recmean[i]
-            # Undo the rectification
-            normflat_unrec = arcyextract.rectify_undo(recframe, slf._pixcen[det-1][:,o], slf._lordpix[det-1][:,o],
-                                                      slf._rordpix[det-1][:,o], slf._pixwid[det-1][o], maskval,
-                                                      msflat.shape[0], msflat.shape[1])
-            # Apply the normalized flatfield for this order to the master normalized frame
-            msnormflat = arcyproc.combine_nrmflat(msnormflat, normflat_unrec, slf._pixcen[det-1][:,o],
-                                                  slf._lordpix[det-1][:,o], slf._rordpix[det-1][:,o],
-                                                  slf._pixwid[det-1][o]+overpix, maskval)
         else:
             msgs.error("Flatfield method {0:s} is not supported".format(settings.argflag["reduce"]["flatfield"]["method"]))
     # Send the blaze away to be plotted and saved
