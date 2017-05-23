@@ -428,8 +428,6 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
       A 2d array containing the blaze function for each slit
     """
     from pypit import arcyutils
-    from pypit import arcyextract
-    from pypit import arcyproc
     dnum = settings.get_dnum(det)
 
     msgs.info("Normalizing the master flat field frame")
