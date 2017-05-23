@@ -1003,6 +1003,8 @@ class BaseArgFlag(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         allowed = ['bspline']
+        deprecated = ["polyscan"]
+        check_deprecated(v, deprecated)
         v = key_allowed(v, allowed)
         self.update(v)
 
@@ -1207,6 +1209,8 @@ class BaseArgFlag(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         allowed = ['bspline']
+        deprecated = ["polyscan"]
+        check_deprecated(v, deprecated)
         v = key_allowed(v, allowed)
         self.update(v)
 
@@ -3708,6 +3712,38 @@ def get_dnum(det):
       A string used by the settings dictionary
     """
     return 'det{0:02d}'.format(det)
+
+
+def check_deprecated(v, deprecated, upper=False):
+    """ Check if a keyword argument is deprecated.
+
+    Parameters
+    ----------
+    v : str
+      value of a keyword argument
+    deprecated : list
+      list of deprecated values that v might be
+    upper : bool (optional)
+      If True, the allowed list is expected to contain only
+      uppercase strings. If False, the allowed list is expected
+      to contain only lowercase strings.
+
+    Returns
+    -------
+    v : str
+      A string used by the settings dictionary
+    """
+    ll = inspect.currentframe().f_back.f_code.co_name.split('_')
+    func_name = "'" + " ".join(ll) + "'"
+    if upper:
+        v = v.upper()
+    else:
+        v = v.lower()
+    if v in deprecated:
+        msgs.error("The argument of {0:s} is deprecated.".format(func_name) + msgs.newline() +
+                   "Please choose one of the following:" + msgs.newline() +
+                   ", ".join(deprecated))
+    return
 
 
 def key_allowed(v, allowed, upper=False):
