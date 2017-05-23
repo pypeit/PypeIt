@@ -2,7 +2,7 @@
 ----------------
 
 * First major steps on armechelle
-* Coadding
+* Coadding; including docs
 
 
 0.7 (2017-02-07)

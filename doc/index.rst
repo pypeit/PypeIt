@@ -64,6 +64,7 @@ Object Algorithms
    :maxdepth: 2
 
    object_id
+   coadding
 
 Documentation
 +++++++++++++
