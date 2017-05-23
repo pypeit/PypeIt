@@ -2,20 +2,16 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 
 import numpy as np
 from pypit import arpca
+from pypit import arparse as settings
 from pypit import armsgs
 from pypit import arsave
 from pypit import arutils
-from pypit.arplot import get_dimen as get_dimen
 from pypit import ararclines
 from pypit import arqa
 from matplotlib import pyplot as plt
 import os
 
-
-try:
-    from xastropy.xutils import xdebug as debugger
-except:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -60,13 +56,13 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     # Extract a rough spectrum of the arc in each order
     msgs.info("Detecting lines")
     msgs.info("Extracting an approximate arc spectrum at the centre of the chip")
-    if msgs._debug['flexure']:
+    if msgs._debug['flexure'] or (msarc is None):
         ordcen = slf._pixcen
     else:
         ordcen = slf.GetFrame(slf._pixcen, det)
     if censpec is None:
-        #pixcen = np.arange(msarc.shape[slf._dispaxis], dtype=np.int)
-        #ordcen = (msarc.shape[1-slf._dispaxis]/2)*np.ones(msarc.shape[slf._dispaxis],dtype=np.int)
+        #pixcen = np.arange(msarc.shape[0], dtype=np.int)
+        #ordcen = (msarc.shape[1]/2)*np.ones(msarc.shape[0],dtype=np.int)
         #if len(ordcen.shape) != 1: msgs.error("The function artrace.model_tilt should only be used for"+msgs.newline()+"a single spectrum (or order)")
         #ordcen = ordcen.reshape((ordcen.shape[0],1))
         msgs.work("No orders being masked at the moment")
@@ -81,7 +77,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
         ordwid = 0.5*np.abs(slf._lordloc[det-1] - slf._rordloc[det-1])
         msgs.info("Generating a mask of arc line saturation streaks")
         satmask = arcyarc.saturation_mask(msarc, slf._nonlinear[det-1])
-        satsnd = arcyarc.order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int), slf._dispaxis)
+        satsnd = arcyarc.order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int))
     else:
         satsnd = np.zeros_like(ordcen)
     # Detect the location of the arc lines
@@ -92,9 +88,9 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     #####
     # New algorithm for arc line detection
     #pixels=[]
-    siglev = 6.0*slf._argflag['arc']['calibrate']['detection']
+    siglev = 6.0*settings.argflag['arc']['calibrate']['detection']
     bpfit = 5  # order of the polynomial used to fit the background 'continuum'
-    fitp = slf._argflag['arc']['calibrate']['nfitpix']
+    fitp = settings.argflag['arc']['calibrate']['nfitpix']
     if len(censpec.shape) == 3: detns = censpec[:, 0].flatten()
     else: detns = censpec.copy()
     xrng = np.arange(float(detns.size))
@@ -119,16 +115,16 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     sfit = 1.4826*np.abs(detns[w]-yrng[w])
     ct = np.polyfit(xfit, sfit, bpfit)
     yerr = np.polyval(ct, xrng)
-    myerr = np.median(np.sort(yerr)[:yerr.size/2])
+    myerr = np.median(np.sort(yerr)[:yerr.size//2])
     yerr[np.where(yerr < myerr)] = myerr
     # Find all significant detections
     # The last argument is the overall minimum significance level of an arc line detection and the second
     # last argument is the level required by an individual pixel before the neighbourhood of this pixel is searched.
-    tpixt, num = arcyarc.detections_sigma(yprep, yerr, np.zeros(satsnd.shape[0], dtype=np.int), siglev/2.0, siglev)
+    tpixt, num = arcyarc.detections_sigma(yprep, yerr, np.zeros(censpec.shape[0], dtype=np.int), siglev/2.0, siglev)
     pixt = arcyarc.remove_similar(tpixt, num)
     pixt = pixt[np.where(pixt != -1)].astype(np.int)
     tampl, tcent, twid, ngood = arcyarc.fit_arcorder(xrng, yprep, pixt, fitp)
-    w = np.where((np.isnan(twid) == False) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
+    w = np.where((~np.isnan(twid)) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
     # Check the results
     #plt.clf()
     #plt.plot(xrng,yprep,'k-')
@@ -150,13 +146,16 @@ def setup_param(slf, sc, det, fitsdict):
 
     """
     # Defaults
-    arcparam = dict(llist='', 
+    arcparam = dict(llist='',
         disp=0.,             # Ang/unbinned pixel
         b1=0.,               # Pixel fit term (binning independent)
         b2=0.,               # Pixel fit term
+        lamps=[],            # Line lamps on
+        wv_cen=0.,           # Estimate of central wavelength
         wvmnx=[2900.,12000.],# Guess at wavelength range
         disp_toler=0.1,      # 10% tolerance
-        match_toler=3.,      # Matcing tolerance (pixels)
+        match_toler=3.,      # Matching tolerance (pixels)
+        min_ampl=300.,       # Minimum amplitude
         func='legendre',     # Function for fitting
         n_first=1,           # Order of polynomial for first fit
         n_final=4,           # Order of polynomial for final fit
@@ -167,13 +166,13 @@ def setup_param(slf, sc, det, fitsdict):
 
     modify_dict = None
     # Instrument/disperser specific
-    sname = slf._argflag['run']['spectrograph']
-    idx = slf._spect['arc']['index'][sc]
-    disperser = fitsdict["disperser"][idx[0]]
+    sname = settings.argflag['run']['spectrograph']
+    idx = settings.spect['arc']['index'][sc]
+    disperser = fitsdict["dispname"][idx[0]]
     if sname == 'kast_blue':
         # Could have the following depend on lamps that were turned on
         lamps = ['CdI','HgI','HeI']
-        #arcparam['llist'] = slf._argflag['run']['pypitdir'] + 'data/arc_lines/kast_blue.lst'
+        #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_blue.lst'
         if disperser == '600/4310':
             arcparam['disp']=1.02
             arcparam['b1']=6.88935788e-04
@@ -182,8 +181,24 @@ def setup_param(slf, sc, det, fitsdict):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='kast_red':
-        lamps = ['HgI','NeI','ArI']
-        #arcparam['llist'] = slf._argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
+        lamps = ['NeI']
+        #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
+        if disperser == '600/7500':
+            arcparam['disp']=1.30
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['wvmnx'][0] = 5000.
+            arcparam['n_first']=2 # Should be able to lock on
+        elif disperser == '1200/5000':
+            arcparam['disp']=0.63
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['wvmnx'][0] = 5000.
+            arcparam['n_first']=2 # Should be able to lock on
+            arcparam['wv_cen'] = 6600.
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+    elif sname=='kast_red_ret':
+        lamps = ['NeI']
+        #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
         if disperser == '600/7500':
             arcparam['disp']=2.35
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
@@ -197,13 +212,14 @@ def setup_param(slf, sc, det, fitsdict):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='lris_blue':
-        lamps = ['ZnI','CdI','HgI']
+        lamps = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI','CdI','HgI']
         if disperser == '600/4000':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.63 # Ang per pixel (unbinned)
-            arcparam['b1']= 4.54698031e-04 
+            arcparam['b1']= 4.54698031e-04
             arcparam['b2']= -6.86414978e-09
             arcparam['wvmnx'][1] = 6000.
+            arcparam['wv_cen'] = 4000.
         elif disperser == '400/3400':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=1.02
@@ -211,20 +227,32 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['b1']= 2.72694493e-04
             arcparam['b2']= -5.30717321e-09
             arcparam['wvmnx'][1] = 6000.
+        elif disperser == '300/5000':
+            arcparam['n_first'] = 2
+            arcparam['wv_cen'] = 4500.
+            arcparam['disp'] = 1.43
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='lris_red':
+        arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['WAVELEN']
         lamps = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
         if disperser == '600/7500':
+            arcparam['n_first']=3 # Too much curvature for 1st order
+            arcparam['disp']=0.80 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['wvmnx'][1] = 11000.
+        elif disperser == '600/10000':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
-            arcparam['wvmnx'][1] = 9000.
+            arcparam['wvmnx'][1] = 12000.
         elif disperser == '400/8500':
             arcparam['n_first']=2 # Too much curvature for 1st order
-            arcparam['disp']=1.16 # Ang per pixel (unbinned)
+            arcparam['disp']=1.19 # Ang per pixel (unbinned)
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
             arcparam['wvmnx'][1] = 11000.
+            arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
+            arcparam['nsig_rej_final'] = 5.
         elif disperser == '900/5500':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.53 # Ang per pixel (unbinned)
@@ -248,23 +276,23 @@ def setup_param(slf, sc, det, fitsdict):
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     else:
         msgs.error('ararc.setup_param: Not ready for this instrument {:s}!'.format(sname))
-
     # Load linelist
+    if settings.argflag['arc']['calibrate']['lamps'] is not None:
+        arcparam['lamps'] = settings.argflag['arc']['calibrate']['lamps']
+    else:
+        arcparam['lamps'] = lamps
     slmps = lamps[0]
     for lamp in lamps[1:]:
         slmps=slmps+','+lamp
     msgs.info('Loading line list using {:s} lamps'.format(slmps))
     arcparam['llist'] = ararclines.load_arcline_list(slf, idx, lamps, disperser,
         wvmnx=arcparam['wvmnx'], modify_parse_dict=modify_dict)
-    #llist = ascii.read(aparm['llist'],
-    #    format='fixed_width_no_header', comment='#', #data_start=1, 
-    #    names=('wave', 'flag', 'ID'),
-    #    col_starts=(0,12,14), col_ends=(11,13,24))
     # Binning
-    if fitsdict['binning'][idx[0]] in ['2,2']:
-        arcparam['disp'] *= 2
+    binspatial, binspectral = settings.parse_binning(fitsdict['binning'][idx[0]])
+    arcparam['disp'] *= binspectral
     # Return
     return arcparam
+
 
 def simple_calib(slf, det, get_poly=False):
     """Simple calibration algorithm for longslit wavelengths
@@ -298,26 +326,26 @@ def simple_calib(slf, det, get_poly=False):
     llist = aparm['llist']
 
     # IDs were input by hand
-    if slf._argflag['arc']['calibrate']['id_pix'][0] > 0.:
+    if len(settings.argflag['arc']['calibrate']['IDpixels']) > 0:
         # Check that there are at least 5 values
-        pixels = np.array(slf._argflag['arc']['calibrate']['id_pix'])
+        pixels = np.array(settings.argflag['arc']['calibrate']['IDpixels'])
         if np.sum(pixels > 0.) < 5:
             msgs.error("Need to give at least 5 pixel values!")
         #
         msgs.info("Using input lines to seed the wavelength solution")
         # Calculate median offset
         mdiff = [np.min(np.abs(tcent-pix)) for pix in
-                 slf._argflag['arc']['calibrate']['id_pix']]
+                 settings.argflag['arc']['calibrate']['IDpixels']]
         med_poff = np.median(np.array(mdiff))
         msgs.info("Will apply a median offset of {:g} pixels".format(med_poff))
 
         # Match input lines to observed spectrum
-        nid = len(slf._argflag['arc']['calibrate']['id_pix'])
+        nid = len(settings.argflag['arc']['calibrate']['IDpixels'])
         idx_str = np.ones(nid).astype(int)
         ids = np.zeros(nid)
         idsion = np.array(['     ']*nid)
         gd_str = np.arange(nid).astype(int)
-        for jj,pix in enumerate(slf._argflag['arc']['calibrate']['id_pix']):
+        for jj,pix in enumerate(settings.argflag['arc']['calibrate']['IDpixels']):
             diff = np.abs(tcent-pix-med_poff)
             if np.min(diff) > 2.:
                 debugger.set_trace()
@@ -327,11 +355,11 @@ def simple_calib(slf, det, get_poly=False):
             # Set
             idx_str[jj] = imn
             # Take wavelength from linelist instead of input value
-            wdiff = np.abs(llist['wave']-slf._argflag['arc']['calibrate']['id_wave'][jj])
+            wdiff = np.abs(llist['wave']-settings.argflag['arc']['calibrate']['IDwaves'][jj])
             imnw = np.argmin(wdiff)
             if wdiff[imnw] > 0.015:  # Arbitrary tolerance
-                msgs.error("Input id_wave={:g} is not in the linelist.  Fix".format(
-                        slf._argflag['arc']['calibrate']['id_wave'][jj]))
+                msgs.error("Input IDwaves={:g} is not in the linelist.  Fix".format(
+                        settings.argflag['arc']['calibrate']['IDwaves'][jj]))
             else:
                 ids[jj] = llist['wave'][imnw]
                 idsion[jj] = llist['Ion'][imnw]
@@ -406,21 +434,16 @@ def simple_calib(slf, det, get_poly=False):
     all_idsion = np.array(['12345']*len(tcent))
     all_ids[ifit] = ids[gd_str]
     all_idsion[ifit] = idsion[gd_str]
-    # Fit 
+    # Fit
     n_order = aparm['n_first']
     flg_quit = False
-    fmin, fmax = -1., 1. 
+    fmin, fmax = -1., 1.
     msgs.info('Iterative wavelength fitting..')
     while (n_order <= aparm['n_final']) and (flg_quit is False):
         #msgs.info('n_order={:d}'.format(n_order))
         # Fit with rejection
         xfit, yfit = tcent[ifit], all_ids[ifit]
         mask, fit = arutils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej'], minv=fmin, maxv=fmax)
-        # DEBUG
-        if msgs._debug['arc']:
-            debugger.xpcol(xfit,yfit)
-            #wave = arutils.func_val(fit, np.arange(slf._msarc.shape[0]), aparm['func'], min=fmin, max=fmax)
-            #xdb.xplot(xfit,yfit,scatter=True,xtwo=np.arange(slf._msarc.shape[0]), ytwo=wave)
         # Reject but keep originals (until final fit)
         ifit = list(ifit[mask == 0]) + sv_ifit
         # Find new points (should we allow removal of the originals?)
@@ -447,7 +470,7 @@ def simple_calib(slf, det, get_poly=False):
             flg_quit = True
 
     # Final fit (originals can now be rejected)
-    fmin, fmax = 0., 1. 
+    fmin, fmax = 0., 1.
     xfit, yfit = tcent[ifit]/(slf._msarc[det-1].shape[0]-1), all_ids[ifit]
     mask, fit = arutils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej_final'], minv=fmin, maxv=fmax)#, debug=True)
     irej = np.where(mask==1)[0]
@@ -465,12 +488,8 @@ def simple_calib(slf, det, get_poly=False):
     #
     if msgs._debug['arc']:
         msarc = slf._msarc[det-1]
-        wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]), 
+        wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
             'legendre', minv=fmin, maxv=fmax)
-        debugger.xplot(xfit,yfit, scatter=True,
-            xtwo=np.arange(msarc.shape[0])/float(msarc.shape[0]),
-            ytwo=wave)
-        debugger.xpcol(xfit*msarc.shape[0], yfit)
         debugger.set_trace()
 
         #debugger.xplot(xfit, np.ones(len(xfit)), scatter=True,
@@ -492,10 +511,52 @@ def simple_calib(slf, det, get_poly=False):
     final_fit = dict(fitc=fit, function=aparm['func'], xfit=xfit, yfit=yfit,
         ions=ions, fmin=fmin, fmax=fmax, xnorm=float(slf._msarc[det-1].shape[0]),
         xrej=xrej, yrej=yrej, mask=mask, spec=yprep, nrej=aparm['nsig_rej_final'],
-                     shift=0.)
+        shift=0., tcent=tcent)
     # QA
-    arqa.arc_fit_qa(slf, final_fit)
+    if not msgs._debug['no_qa']:
+        arqa.arc_fit_qa(slf, final_fit)
+    # RMS
+    rms_ang = arutils.calc_fit_rms(xfit, yfit, fit, aparm['func'], minv=fmin, maxv=fmax)
+    wave = arutils.func_val(fit, np.arange(slf._msarc[det-1].shape[0])/float(slf._msarc[det-1].shape[0]),
+                            aparm['func'], minv=fmin, maxv=fmax)
+    rms_pix = rms_ang/np.median(np.abs(wave-np.roll(wave,1)))
+    msgs.info("Fit RMS = {} pix".format(rms_pix))
     # Return
+    return final_fit
+
+def calib_with_arclines(slf, det, get_poly=False, use_basic=False):
+    """Simple calibration algorithm for longslit wavelengths
+
+    Uses slf._arcparam to guide the analysis
+
+    Parameters
+    ----------
+    get_poly : bool, optional
+      Pause to record the polynomial pix = b0 + b1*lambda + b2*lambda**2
+
+    Returns
+    -------
+    final_fit : dict
+      Dict of fit info
+    """
+    from arclines.holy.grail import basic, semi_brute
+    # Parameters (just for convenience)
+    aparm = slf._arcparam[det-1]
+    # Extract the arc
+    msgs.work("Detecting lines..")
+    tampl, tcent, twid, w, satsnd, spec = detect_lines(slf, det, slf._msarc[det-1])
+
+    if use_basic:
+        # Go
+        stuff = basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
+        status, ngd_match, match_idx, scores, final_fit = stuff
+    else:  # Now preferred
+        best_dict, final_fit = semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
+        #if det == 2:
+        #    debugger.set_trace()
+    if not msgs._debug['no_qa']:
+        arqa.arc_fit_qa(slf, final_fit)
+    #
     return final_fit
 
 
@@ -514,7 +575,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
     msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")
-    msgs.warn("READ THIS IDEA!!!") 
+    msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")
@@ -523,7 +584,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
     msgs.warn("READ THIS IDEA!!!")
     msgs.warn("READ THIS IDEA!!!")
     msgs.info("Commencing wavelength indentification")
-    fitp = slf._argflag['arc']['calibrate']['nfitpix']
+    fitp = settings.argflag['arc']['calibrate']['nfitpix']
     maskval = -999999.9
     QCplot = True
     plottests = True
@@ -531,10 +592,10 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
 #	plt.clf()
     pixels=[]
     ordsize = np.zeros(slf._arcext.shape[1])
-    siglev = slf._argflag['arc']['calibrate']['detection']
+    siglev = settings.argflag['arc']['calibrate']['detection']
     narclines = 0
     strend = []
-    msgs.warn("Ignoring arc lines with a FWHM > 10 pixels") # Refer to the where statement shortly after the line: 		if slf._argflag['arc']['calibrate']['method'] == 'simple':
+    msgs.warn("Ignoring arc lines with a FWHM > 10 pixels") # Refer to the where statement shortly after the line: 		if settings.argflag['arc']['calibrate']['method'] == 'simple':
     for o in range(slf._arcext.shape[1]):
         pixels.append([])
         fdone=False
@@ -711,12 +772,12 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
         pixt = arcyarc.remove_similar(tpixt, num)
         pixt = pixt[np.where(pixt!=-1)].astype(np.int)
         msgs.info("Fitting {0:d} arc lines in order {1:d}/{2:d}".format(pixt.size,o+1,slf._arcext.shape[1]))
-        if slf._argflag['arc']['calibrate']['method'] == 'simple':
+        if settings.argflag['arc']['calibrate']['method'] == 'simple':
             tampl, tcent, twid, ngood = arcyarc.fit_arcorder(xrng,yprep,pixt,fitp)
             #plt.plot(tcent,2.35*twid,'ro')
             w = np.where((np.isnan(twid)==False) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent>0.0) & (tcent<xrng[-1]))
             pixels[o] = np.array([tampl[w],np.zeros(w[0].size),tcent[w],np.zeros(w[0].size),twid[w],np.zeros(w[0].size)]).T
-        elif slf._argflag['arc']['calibrate']['method'] == 'fit':
+        elif settings.argflag['arc']['calibrate']['method'] == 'fit':
             for i in range(pixt.size):
                 pmin = pixt[i]-(fitp-1)/2
                 pmax = pixt[i]-(fitp-1)/2 + fitp
@@ -736,7 +797,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
                     pixels[o] = np.array([yfit[np.argmin(np.abs(params[2]-xfit))],0.0,params[2],perror[2],params[3],perror[3]]).reshape(1,6)
                     fdone = True
         else:
-            msgs.error("The option '{0:s}' cannot be specified to measure the".format(slf._argflag['arc']['calibrate']['method'])+msgs.newline()+"centroid and width of the arc lines")
+            msgs.error("The option '{0:s}' cannot be specified to measure the".format(settings.argflag['arc']['calibrate']['method'])+msgs.newline()+"centroid and width of the arc lines")
         narclines += pixels[o].shape[0]
     if pixtmp is None:
         msarc_name_p, msarc_name_e = os.path.splitext(filename)
@@ -837,8 +898,8 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
     """
 
     msgs.info("Commencing preliminary arc identification")
-    searchcnt=slf._argflag['arc']['calibrate']['numsearch']
-    sigcut=slf._argflag['arc']['calibrate']['sigmacut']
+    searchcnt=settings.argflag['arc']['calibrate']['numsearch']
+    sigcut=settings.argflag['arc']['calibrate']['sigmacut']
 
     arcpatt = load_arcpattern(slf)
 
@@ -988,7 +1049,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
 # 					srch = True
 # 					break
 # 		running += 1
-# 
+#
 # 	msgs.info("{0:d} values masked in central wavelength identification".format(nmsk))
 # 	msgs.bug("Allow user to manually mask bad orders")
 
@@ -1151,7 +1212,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
 
     #############################
     msgs.info("Deriving full solution for orders with identified lines")
-    pcacoeff = np.zeros((slf._argflag['arc']['calibrate']['polyorderpri']+1,norders))
+    pcacoeff = np.zeros((settings.argflag['arc']['calibrate']['polyorderpri']+1,norders))
     ordrsol, testsol = np.array([],dtype=np.float), np.array([],dtype=np.float)
     maskorder = np.zeros(norders,dtype=np.int)
     prelimfitfunc = "legendre"
@@ -1261,7 +1322,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
     ##########################
     # Temorary while I figure out the auto arc id
     wv = load_arcline(slf)
-    pcacoeff = np.zeros((slf._argflag['arc']['calibrate']['polyorderpri']+1,norders))
+    pcacoeff = np.zeros((settings.argflag['arc']['calibrate']['polyorderpri']+1,norders))
     ordrsol, testsol = np.array([],dtype=np.float), np.array([],dtype=np.float)
     maskorder = np.zeros(norders,dtype=np.int)
     prelimfitfunc = "legendre"
@@ -1355,8 +1416,8 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
         ordrsol = np.append(ordrsol, i)
         testsol = np.append(testsol,np.std(wvclose[wgud]-wvuse[wgud]))
 
-        polyordr = slf._argflag['arc']['calibrate']['polyorderpri']
-        thresh = slf._argflag['arc']['calibrate']['threshold']
+        polyordr = settings.argflag['arc']['calibrate']['polyorderpri']
+        thresh = settings.argflag['arc']['calibrate']['threshold']
         maskbadp = maskbadn.copy()
         while True:
             wgud = np.where(maskbadn==0)
@@ -1436,7 +1497,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
     msgs.work("should xv be the pixel location rather than index (I think it shouldn't be...)")
     waveval = arutils.func_val(pcacoeff,xv,prelimfitfunc, minv=0.0, maxv=maxpix).T
     msgs.bug("May need to do a check here to make sure ofit is reasonable")
-    ofit = slf._argflag['arc']['calibrate']['pcapri']
+    ofit = settings.argflag['arc']['calibrate']['pcapri']
     lnpc = len(ofit)-1
     if np.sum(1.0-extrap_ord) > ofit[0]+1: # Only do a PCA if there are enough good orders
         # Perform a PCA on the prelim wavelength solution
@@ -1447,7 +1508,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
         # If the PCA worked OK, do the following
         msgs.bug("Should something be done here inbetween the two basis calls?")
         fitted, outpar, tmask = arpca.basis(xcen,waveval,pcacoeff,lnpc,ofit,x0in=ordsnd,mask=maskord,skipx0=False,function=prelimfitfunc,retmask=True)
-        arpca.pc_plot(outpar, ofit, plotsdir=slf._argflag['run']['plotsdir'], pcatype="arcs_primary", prefix=prefix)
+        arpca.pc_plot(outpar, ofit, plotsdir=settings.argflag['run']['directory']['qa'], pcatype="arcs_primary", prefix=prefix)
         # Extrapolate the remaining orders requested
         orders = np.arange(norders)
         extrap_arcspri, outpar = arpca.extrapolate(outpar,orders,function=prelimfitfunc)
@@ -1464,7 +1525,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
     # Perform a secondary PCA analysis on the residuals, to determine the second order form of the wavelength solution
     msgs.info("Fitting primary arc residuals for secondary PCA analysis")
     x0=np.arange(extrap_arcspri.shape[0])
-    tcoeff = np.zeros((slf._argflag['arc']['calibrate']['polyordersec']+1,maskorder.size))
+    tcoeff = np.zeros((settings.argflag['arc']['calibrate']['polyordersec']+1,maskorder.size))
     maskord = np.array([],dtype=np.int)
     for ow in range(maskorder.size):
         if maskorder[ow] == 1:
@@ -1472,18 +1533,18 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
             extrap_ord[ow] = 1.0
             continue
         w = np.where(orcorid==ow)
-        if np.size(w[0]) <= slf._argflag['arc']['calibrate']['polyordersec']+2:
+        if np.size(w[0]) <= settings.argflag['arc']['calibrate']['polyordersec']+2:
             extrap_ord[ow] = 1.0
             maskord = np.append(maskord,ow)
         else:
             xfit = pxcorid[w]
             yfit = wvcorid[w] - arutils.spline_interp(xfit,x0,extrap_arcspri[:,ow])
-            tcoeff[:,ow] = arutils.func_fit(xfit,yfit,prelimfitfunc,slf._argflag['arc']['calibrate']['polyordersec'],
+            tcoeff[:,ow] = arutils.func_fit(xfit,yfit,prelimfitfunc,settings.argflag['arc']['calibrate']['polyordersec'],
                                             minv=0.0, maxv=maxpix)
     waveval = arutils.func_val(tcoeff,xv,prelimfitfunc, minv=0.0, maxv=maxpix).T
     msgs.work("May need to do a check here to make sure ofit is reasonable")
     maskord.sort()
-    ofit = slf._argflag['arc']['calibrate']['pcasec']
+    ofit = settings.argflag['arc']['calibrate']['pcasec']
     lnpc = len(ofit)-1
     if np.sum(1.0-extrap_ord) > ofit[0]+1: # Only do a PCA if there are enough good orders
         # Perform a PCA on the tilts
@@ -1494,7 +1555,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
         # If the PCA worked OK, do the following
         msgs.work("Should something be done here inbetween the two basis calls?")
         fitted, outpar = arpca.basis(xcen,waveval,tcoeff,lnpc,ofit,x0in=ordsnd,mask=maskord,skipx0=False,function=prelimfitfunc)
-        arpca.pc_plot(outpar, ofit, plotsdir=slf._argflag['run']['plotsdir'], pcatype="arcs_secondary", prefix=prefix)
+        arpca.pc_plot(outpar, ofit, plotsdir=settings.argflag['run']['directory']['qa'], pcatype="arcs_secondary", prefix=prefix)
         # Extrapolate the remaining orders requested
         orders = np.arange(norders)
         extrap_arcssec, outpar = arpca.extrapolate(outpar,orders,function=prelimfitfunc)
@@ -1556,7 +1617,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
 # 			for k in range(len(fitorder)):
 # 				coeff[k].append(ct[k])
 # 				ordft[k].append(i)
-# 
+#
 # Fit the coefficients
 # 		pstart = []
 # 		for i in range(len(coeff)):
@@ -1569,13 +1630,13 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
 # 					pstart.append(ct[j])
 # 				for k in range(j,fitorder[i]):
 # 					pstart.append(0.0)
-# 
+#
 # 		msgs.info("Commencing preliminary surface fit to identifications")
 # 		m, fail = arfitbase.fit_pcsurf(orcorid, pxcorid, wvcorid, fitorder, p0=pstart, app=np.mean(fmodel/amodel))
-# 
+#
 # 		if fail:
 # 			msgs.error("Failed to fit a polynomial surface to the arc identifications:"+msgs.newline()+m.errmsg)
-# 
+#
 # 		xmodel = np.linspace(0.0,1.0,int(maxpix)).reshape(int(maxpix),1).repeat(norders,axis=1).flatten(1)
 # 		omodel = np.arange(norders,dtype=np.float).reshape(int(norders),1).repeat(int(maxpix),axis=1).flatten(0)
 # 		oindex=np.zeros(fitorder.size,dtype=np.int)
@@ -1602,15 +1663,15 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
 # 				w = np.where(orcorid==i)
 # 				plt.plot(pxcorid[w]*maxpix,wvcorid[w]-ymodel[w]+i,'bx')
 # 			plt.show()
-# 
+#
 # 		msgs.bug("Try it determine the above fitorder automatically to save user input.")
 # For example, keep increasing the orders until the dispersion in the (wvcorid[w]-ymodel[w])
 # values are less than the angstroms per pixel used? Does this overfit the ids?
-# 
+#
 # 		perror = np.sqrt(np.diag(m.covar))
 # 		if np.size(np.where(perror == 0.0)[0]) != 0:
 # 			msgs.error("Error with covariance matrix"+msgs.newline()+"This is usually caused by a over/under flow"+msgs.newline()+"Try using a lower order polynomial, or a legendre polynomial")
-# 
+#
 # Get a set of new model parameters
 # 		nperturb = 10000
 # 		pararr = perturb(m.covar, m.params, nsim=nperturb)
@@ -1685,8 +1746,8 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
 
 
             # Perform the full order fit to this order
-            polyordr = slf._argflag['arc']['calibrate']['polyorderpri']
-            thresh = slf._argflag['arc']['calibrate']['threshold']
+            polyordr = settings.argflag['arc']['calibrate']['polyorderpri']
+            thresh = settings.argflag['arc']['calibrate']['threshold']
             wvuse = wv[ww]
             maskbadp = maskbadn.copy()
             while True:
@@ -1755,7 +1816,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
             # If the PCA worked OK, do the following
             msgs.bug("Should something be done here inbetween the two basis calls?")
             fitted, outpar = arpca.basis(xcen,waveval,pcacoeff,lnpc,ofit,x0in=ordsnd,mask=maskord,skipx0=False,function=prelimfitfunc)
-            #arpca.pc_plot(outpar, ofit, plotsdir=slf._argflag['run']['plotsdir'], pcatype="arcs_prelim")
+            #arpca.pc_plot(outpar, ofit, plotsdir=settings.argflag['run']['directory']['qa'], pcatype="arcs_prelim")
             # Extrapolate the remaining orders requested
             extrap_arcs, outpar = arpca.extrapolate(outpar,orders,function=prelimfitfunc)
             if ocur == stopcrit: break
@@ -1769,7 +1830,7 @@ def calibrate(slf, filename, pixtmp=None, prefix=""):
     msgs.warn("This is temporary code!!!")
     msgs.warn("This is temporary code!!!")
     #fitted, outpar = arpca.basis(xcen,waveval,pcacoeff,lnpc,ofit,x0in=ordsnd,mask=maskord,skipx0=False,function=prelimfitfunc)
-    #arpca.pc_plot(outpar, ofit, plotsdir=slf._argflag['run']['plotsdir'], pcatype="arcs_prelim", prefix=prefix)
+    #arpca.pc_plot(outpar, ofit, plotsdir=settings.argflag['run']['directory']['qa'], pcatype="arcs_prelim", prefix=prefix)
     msgs.work("READ THIS -- More work is required for a satisfactory arc line fit")
     """
     Using the new set of orders with identified lines, perform
@@ -1800,7 +1861,7 @@ def plot_residuals(arcs, pix, wav, ord, plotsdir="Plots", plottype="Arc_Residual
     Saves a few output png files of the Wavelength calibration analysis
     """
     npc = arcs.shape[1]
-    pages, npp = get_dimen(npc,maxp=maxp)
+    pages, npp = arqa.get_dimen(npc,maxp=maxp)
     x0=np.arange(arcs.shape[0])
     # Generate the plots
     ndone=0
@@ -1860,38 +1921,40 @@ def plot_residuals(arcs, pix, wav, ord, plotsdir="Plots", plottype="Arc_Residual
     del f
     return
 
-def load_arcpattern(slf):
+
+def load_arcpattern():
     msgs.info("Loading pattern identification file")
-    prgn_spl = slf._argflag['run']['prognm'].split('/')
+    prgn_spl = settings.argflag['run']['prognm'].split('/')
     fname = ""
     for i in range(0,len(prgn_spl)-1): fname += prgn_spl[i]+"/"
-    fname += slf._argflag['arc']['calibrate']['idfile']
+    fname += settings.argflag['arc']['calibrate']['idfile']
     if os.path.exists(fname):
-        if slf._argflag['arc']['calibrate']['idfile'].split('.')[-1] == 'npy':
+        if settings.argflag['arc']['calibrate']['idfile'].split('.')[-1] == 'npy':
             arcpatt = np.load(fname)
         else:
             try:
                 arcpatt = np.loadtxt(fname)
             except:
-                msgs.error("The following file is an unsupported format:"+msgs.newline()+slf._argflag['arc']['calibrate']['idfile'])
+                msgs.error("The following file is an unsupported format:"+msgs.newline()+settings.argflag['arc']['calibrate']['idfile'])
     else:
         msgs.error("The arc identification file could not be loaded:"+msgs.newline()+fname)
     return arcpatt
 
-def load_arcline(slf, wavenumber=True, vacuum=True):
+
+def load_arcline(wavenumber=True, vacuum=True):
     msgs.info("Loading arc lines file")
-    prgn_spl = slf._argflag['run']['prognm'].split('/')
+    prgn_spl = settings.argflag['run']['prognm'].split('/')
     fname = ""
     for i in range(0,len(prgn_spl)-1): fname += prgn_spl[i]+"/"
-    fname += slf._argflag['arc']['calibrate']['linelist']
+    fname += settings.argflag['arc']['calibrate']['lamps']
     if os.path.exists(fname):
-        if slf._argflag['arc']['calibrate']['linelist'].split('.')[-1] == 'npy':
+        if settings.argflag['arc']['calibrate']['lamps'].split('.')[-1] == 'npy':
             wn = np.load(fname)
         else:
             try:
                 wn = np.loadtxt(fname,unpack=True,usecols=(0,))
             except:
-                msgs.error("The following file is an unsupported format:"+msgs.newline()+slf._argflag['arc']['calibrate']['linelist'])
+                msgs.error("The following file is an unsupported format:"+msgs.newline()+settings.argflag['arc']['calibrate']['lamps'])
     else:
         msgs.error("The arc identification file could not be loaded:"+msgs.newline()+fname)
     # Convert to Angstroms if the input is in wavenumber
@@ -1942,3 +2005,4 @@ def arcord_strdir(maskorder):
                 sord = tsord
                 dirc = tdirc
     return sord, int(ncts), dirc
+

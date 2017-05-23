@@ -65,7 +65,7 @@ cdef extern from "gsl/gsl_rng.h":
 #  B  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def bin_x(np.ndarray[DTYPE_t, ndim=2] array not None,
             int fact, int tcomb):
     # tcomb = 0: median
@@ -91,7 +91,7 @@ def bin_x(np.ndarray[DTYPE_t, ndim=2] array not None,
     return binarr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def bin_x_weight(np.ndarray[DTYPE_t, ndim=2] array not None,
                 np.ndarray[DTYPE_t, ndim=2] weight not None,
                 int fact, double maskval):
@@ -115,7 +115,7 @@ def bin_x_weight(np.ndarray[DTYPE_t, ndim=2] array not None,
     return binarr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def bin_y(np.ndarray[DTYPE_t, ndim=2] array not None,
             int fact, int tcomb):
     # tcomb = 0: median
@@ -141,7 +141,7 @@ def bin_y(np.ndarray[DTYPE_t, ndim=2] array not None,
     return binarr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def bspline_fit(np.ndarray[DTYPE_t, ndim=1] marray not None,
                 np.ndarray[DTYPE_t, ndim=1] xarray not None,
                 np.ndarray[DTYPE_t, ndim=1] yarray not None,
@@ -231,7 +231,7 @@ def bspline_fit(np.ndarray[DTYPE_t, ndim=1] marray not None,
     return model
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def bspline_fitmod(np.ndarray[DTYPE_t, ndim=1] xarray not None,
                     np.ndarray[DTYPE_t, ndim=1] yarray not None,
                     np.ndarray[DTYPE_t, ndim=1] earray not None,
@@ -241,8 +241,7 @@ def bspline_fitmod(np.ndarray[DTYPE_t, ndim=1] xarray not None,
                     np.ndarray[DTYPE_t, ndim=1] dtrc not None,
                     np.ndarray[DTYPE_t, ndim=1] scen not None,
                     np.ndarray[ITYPE_t, ndim=1] dpix not None,
-                    np.ndarray[ITYPE_t, ndim=1] spix not None,
-                    int dispdir):
+                    np.ndarray[ITYPE_t, ndim=1] spix not None):
    
     cdef int nbreak = ncoeffs + 2 - k
     cdef int sz_x, sz_m, i, j
@@ -321,16 +320,10 @@ def bspline_fitmod(np.ndarray[DTYPE_t, ndim=1] xarray not None,
     # Construct the model image
     for p in range(sz_p):
         # get the bottom-left (i.e. the origin) and top-left corner of the pixel
-        if dispdir == 0:
-            dbl = pixmap[dpix[p],spix[p],0] - 0.5*pixmap[dpix[p],spix[p],2]
-            sbl = pixmap[dpix[p],spix[p],1] - 0.5*pixmap[dpix[p],spix[p],3]
-            dtl = pixmap[dpix[p],spix[p],0] + 0.5*pixmap[dpix[p],spix[p],2]
-            stl = pixmap[dpix[p],spix[p],1] + 0.5*pixmap[dpix[p],spix[p],3]
-        else:
-            dbl = pixmap[spix[p],dpix[p],1] - 0.5*pixmap[spix[p],dpix[p],3]
-            sbl = pixmap[spix[p],dpix[p],0] - 0.5*pixmap[spix[p],dpix[p],2]
-            dtl = pixmap[spix[p],dpix[p],1] + 0.5*pixmap[spix[p],dpix[p],3]
-            stl = pixmap[spix[p],dpix[p],0] + 0.5*pixmap[spix[p],dpix[p],2]
+        dbl = pixmap[dpix[p],spix[p],0] - 0.5*pixmap[dpix[p],spix[p],2]
+        sbl = pixmap[dpix[p],spix[p],1] - 0.5*pixmap[dpix[p],spix[p],3]
+        dtl = pixmap[dpix[p],spix[p],0] + 0.5*pixmap[dpix[p],spix[p],2]
+        stl = pixmap[dpix[p],spix[p],1] + 0.5*pixmap[dpix[p],spix[p],3]
         donebl = 0
         donetl = 0
         for b in range(1,sz_b):
@@ -379,10 +372,7 @@ def bspline_fitmod(np.ndarray[DTYPE_t, ndim=1] xarray not None,
         cv = (lb-la)/vb
         svb = csqrt(sva*sva + 1.0) / (sva*sva - 1.0)
         # Finally, calculate the appropriate value for xfit and yfit
-        if dispdir == 0:
-            model[dpix[p],spix[p]] = (la*dva + dvb) + 0.5*(cv*dva)*svb*(pixmap[dpix[p],spix[p],2] + sva*pixmap[dpix[p],spix[p],3])
-        else:
-            model[spix[p],dpix[p]] = (la*dva + dvb) + 0.5*(cv*dva)*svb*(pixmap[spix[p],dpix[p],3] + sva*pixmap[spix[p],dpix[p],2])
+        model[dpix[p],spix[p]] = (la*dva + dvb) + 0.5*(cv*dva)*svb*(pixmap[dpix[p],spix[p],2] + sva*pixmap[dpix[p],spix[p],3])
 # 	for i in range(sz_m):
 # 		gsl_bspline_eval(marray[i], B, bw)
 # 		gsl_multifit_linear_est(B, c, cov, &yi, &yerr)
@@ -408,7 +398,7 @@ def bspline_fitmod(np.ndarray[DTYPE_t, ndim=1] xarray not None,
 #######
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def checkmatch(np.ndarray[DTYPE_t, ndim=2] arrayA not None,
             np.ndarray[DTYPE_t, ndim=2] arrayB not None,
             double maskvalue):
@@ -446,9 +436,8 @@ def checkmatch(np.ndarray[DTYPE_t, ndim=2] arrayA not None,
             chisq += ((ratarr[x]-midv)/errarr[x])**2
     return chisq
 
-@cython.boundscheck(False)
-def crreject(np.ndarray[DTYPE_t, ndim=2] frame not None,
-            int dispdir):
+#@cython.boundscheck(False)
+def crreject(np.ndarray[DTYPE_t, ndim=2] frame not None):
     """
     Identifies cosmic rays as sudden jumps in neighbouring pixel fluxes
     """
@@ -484,7 +473,7 @@ def crreject(np.ndarray[DTYPE_t, ndim=2] frame not None,
 #  F  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def func2d_fit_val(np.ndarray[DTYPE_t, ndim=1] yarr not None,
                     np.ndarray[DTYPE_t, ndim=2] frame not None,
                     np.ndarray[DTYPE_t, ndim=2] weights not None,
@@ -547,7 +536,7 @@ def func2d_fit_val(np.ndarray[DTYPE_t, ndim=1] yarr not None,
 #  G  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def get_splknots(np.ndarray[DTYPE_t, ndim=1] xarr not None,
                     np.ndarray[ITYPE_t, ndim=1] knotarr not None,
                     double minv, double maxv, int num):
@@ -569,7 +558,7 @@ def get_splknots(np.ndarray[DTYPE_t, ndim=1] xarr not None,
     return knots
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def grow_masked(np.ndarray[DTYPE_t, ndim=2] img not None,
               double grow, double growval):
 
@@ -641,7 +630,7 @@ def hough(np.ndarray[DTYPE_t, ndim=2] frame not None,
 #  M  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def mean(np.ndarray[DTYPE_t, ndim=1] array not None):
     cdef int sz_x
     cdef int x
@@ -682,7 +671,7 @@ def mean_weight(np.ndarray[DTYPE_t, ndim=1] array not None,
     return maskval
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def median(np.ndarray[DTYPE_t, ndim=1] array not None):
     cdef int sz_x
     cdef int x, y
@@ -704,7 +693,7 @@ def median(np.ndarray[DTYPE_t, ndim=1] array not None):
         return array[(sz_x-1)/2]
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def mediansort(np.ndarray[DTYPE_t, ndim=1] arrayA not None,
                 np.ndarray[DTYPE_t, ndim=1] arrayB not None,
                 int k):
@@ -743,11 +732,10 @@ def mediansort(np.ndarray[DTYPE_t, ndim=1] arrayA not None,
 #  O  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def order_pixels(np.ndarray[DTYPE_t, ndim=3] pixlocn not None,
                 np.ndarray[DTYPE_t, ndim=2] lord not None,
-                np.ndarray[DTYPE_t, ndim=2] rord not None,
-                int dispdir):
+                np.ndarray[DTYPE_t, ndim=2] rord not None):
     """
     Based on physical pixel locations, determine which pixels are within the orders
     """
@@ -764,20 +752,12 @@ def order_pixels(np.ndarray[DTYPE_t, ndim=3] pixlocn not None,
     for x in range(sz_x):
         for y in range(sz_y):
             for o in range(sz_o):
-                if dispdir == 0:
-                    if (lord[x,o] < rord[x,o]) and (pixlocn[x,y,1]>lord[x,o]) and (pixlocn[x,y,1]<rord[x,o]):
-                        outfr[x,y] = o+1
-                        break # Speed up the routine a little by only assigning a single order to a given pixel
-                    elif (lord[x,o] > rord[x,o]) and (pixlocn[x,y,1]<lord[x,o]) and (pixlocn[x,y,1]>rord[x,o]):
-                        outfr[x,y] = o+1
-                        break # Speed up the routine a little by only assigning a single order to a given pixel
-                else:
-                    if (lord[y,o] < rord[y,o]) and (pixlocn[x,y,0]>lord[y,o]) and (pixlocn[x,y,0]<rord[y,o]):
-                        outfr[x,y] = o+1
-                        break # Speed up the routine a little by only assigning a single order to a given pixel
-                    elif (lord[y,o] > rord[y,o]) and (pixlocn[x,y,0]<lord[y,o]) and (pixlocn[x,y,0]>rord[y,o]):
-                        outfr[x,y] = o+1
-                        break # Speed up the routine a little by only assigning a single order to a given pixel
+                if (lord[x,o] < rord[x,o]) and (pixlocn[x,y,1]>lord[x,o]) and (pixlocn[x,y,1]<rord[x,o]):
+                    outfr[x,y] = o+1
+                    break # Speed up the routine a little by only assigning a single order to a given pixel
+                elif (lord[x,o] > rord[x,o]) and (pixlocn[x,y,1]<lord[x,o]) and (pixlocn[x,y,1]>rord[x,o]):
+                    outfr[x,y] = o+1
+                    break # Speed up the routine a little by only assigning a single order to a given pixel
     return outfr
 
 
@@ -785,7 +765,7 @@ def order_pixels(np.ndarray[DTYPE_t, ndim=3] pixlocn not None,
 #  P  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def polydiff(np.ndarray[DTYPE_t, ndim=1] x not None,
         np.ndarray[DTYPE_t, ndim=1] y not None,
         np.ndarray[DTYPE_t, ndim=1] c not None):
@@ -807,7 +787,7 @@ def polydiff(np.ndarray[DTYPE_t, ndim=1] x not None,
     return md
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def poly_filter(np.ndarray[DTYPE_t, ndim=1] yarray not None,
                 int order, int npix, double maskval):
     """
@@ -850,7 +830,7 @@ def poly_filter(np.ndarray[DTYPE_t, ndim=1] yarray not None,
     return yfilt
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def polyfit_mask(np.ndarray[DTYPE_t, ndim=1] x not None,
                 np.ndarray[DTYPE_t, ndim=1] y not None,
                 np.ndarray[ITYPE_t, ndim=1] mask not None,
@@ -903,7 +883,7 @@ def polyfit_mask(np.ndarray[DTYPE_t, ndim=1] x not None,
     return chisq
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def polyfit(np.ndarray[DTYPE_t, ndim=1] x not None,
         np.ndarray[DTYPE_t, ndim=1] y not None,
         int degree, np.ndarray[DTYPE_t, ndim=1] coeffs not None):
@@ -1167,7 +1147,7 @@ def polyfit_scan_lim(np.ndarray[DTYPE_t, ndim=1] xarr not None,
     return model
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def polyfit_scan_intext(np.ndarray[DTYPE_t, ndim=1] xarr not None,
                         np.ndarray[DTYPE_t, ndim=1] yarr not None,
                         np.ndarray[DTYPE_t, ndim=1] warr not None,
@@ -1316,8 +1296,7 @@ def prepare_bsplfit(np.ndarray[DTYPE_t, ndim=2] arcfr not None,
                     np.ndarray[DTYPE_t, ndim=1] dtrc not None,
                     np.ndarray[DTYPE_t, ndim=1] scen not None,
                     np.ndarray[ITYPE_t, ndim=1] dpix not None,
-                    np.ndarray[ITYPE_t, ndim=1] spix not None,
-                    int dispdir):
+                    np.ndarray[ITYPE_t, ndim=1] spix not None):
 
     cdef int p, b, donebl, donetl
     cdef int sz_p, sz_b
@@ -1333,16 +1312,10 @@ def prepare_bsplfit(np.ndarray[DTYPE_t, ndim=2] arcfr not None,
 
     for p in range(sz_p):
         # get the bottom-left (i.e. the origin) and top-left corner of the pixel
-        if dispdir == 0:
-            dbl = pixmap[dpix[p],spix[p],0] - 0.5*pixmap[dpix[p],spix[p],2]
-            sbl = pixmap[dpix[p],spix[p],1] - 0.5*pixmap[dpix[p],spix[p],3]
-            dtl = pixmap[dpix[p],spix[p],0] + 0.5*pixmap[dpix[p],spix[p],2]
-            stl = pixmap[dpix[p],spix[p],1] + 0.5*pixmap[dpix[p],spix[p],3]
-        else:
-            dbl = pixmap[spix[p],dpix[p],1] - 0.5*pixmap[spix[p],dpix[p],3]
-            sbl = pixmap[spix[p],dpix[p],0] - 0.5*pixmap[spix[p],dpix[p],2]
-            dtl = pixmap[spix[p],dpix[p],1] + 0.5*pixmap[spix[p],dpix[p],3]
-            stl = pixmap[spix[p],dpix[p],0] + 0.5*pixmap[spix[p],dpix[p],2]
+        dbl = pixmap[dpix[p],spix[p],0] - 0.5*pixmap[dpix[p],spix[p],2]
+        sbl = pixmap[dpix[p],spix[p],1] - 0.5*pixmap[dpix[p],spix[p],3]
+        dtl = pixmap[dpix[p],spix[p],0] + 0.5*pixmap[dpix[p],spix[p],2]
+        stl = pixmap[dpix[p],spix[p],1] + 0.5*pixmap[dpix[p],spix[p],3]
         donebl = 0
         donetl = 0
         for b in range(1,sz_b):
@@ -1377,12 +1350,8 @@ def prepare_bsplfit(np.ndarray[DTYPE_t, ndim=2] arcfr not None,
         cv = (lb-la)/vb
         svb = csqrt(sva*sva + 1.0) / (sva*sva - 1.0)
         # Finally, calculate the appropriate value for xfit and yfit
-        if dispdir == 0:
-            xfit[p] = la + 0.5*cv*svb*(pixmap[dpix[p],spix[p],2] + sva*pixmap[dpix[p],spix[p],3])
-            yfit[p] = arcfr[dpix[p],spix[p]]
-        else:
-            xfit[p] = la + 0.5*cv*svb*(pixmap[spix[p],dpix[p],3] + sva*pixmap[spix[p],dpix[p],2])
-            yfit[p] = arcfr[spix[p],dpix[p]]
+        xfit[p] = la + 0.5*cv*svb*(pixmap[dpix[p],spix[p],2] + sva*pixmap[dpix[p],spix[p],3])
+        yfit[p] = arcfr[dpix[p],spix[p]]
     return xfit, yfit
 
 
@@ -1390,7 +1359,7 @@ def prepare_bsplfit(np.ndarray[DTYPE_t, ndim=2] arcfr not None,
 #  Q  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def quicksort(np.ndarray[DTYPE_t, ndim=1] array not None,
                 int k):
 
@@ -1422,7 +1391,7 @@ def quicksort(np.ndarray[DTYPE_t, ndim=1] array not None,
 #  R  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def resample_taper(np.ndarray[DTYPE_t, ndim=1] xnewedg not None,
                     np.ndarray[DTYPE_t, ndim=1] xold not None,
                     np.ndarray[DTYPE_t, ndim=1] yold not None):
@@ -1450,7 +1419,7 @@ def resample_taper(np.ndarray[DTYPE_t, ndim=1] xnewedg not None,
     return ynew
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def robust_regression_full(np.ndarray[DTYPE_t, ndim=1] xarr not None,
                 np.ndarray[DTYPE_t, ndim=1] yarr not None,
                 np.ndarray[ITYPE_t, ndim=2] rarr not None,
@@ -1522,7 +1491,7 @@ def smooth_x(np.ndarray[DTYPE_t, ndim=2] array not None,
     return smtarr
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def spline_interpolate(np.ndarray[DTYPE_t, ndim=1] xnew not None,
                 np.ndarray[DTYPE_t, ndim=1] coeffs not None,
                 double a, double b):
@@ -1556,7 +1525,7 @@ def spline_interpolate(np.ndarray[DTYPE_t, ndim=1] xnew not None,
         ynew[x] = ynew[gl+1] + grd*(xnew[x]-xnew[gl+1])
     return ynew
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def spline_u(double x, int k, double a, double h):
     cdef double t = (x-a)/h - <double>(k-2)
     if t < 0.0: t *= -1.0
@@ -1576,7 +1545,7 @@ def spline_u(double x, int k, double a, double h):
 #  U  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def unband(np.ndarray[DTYPE_t, ndim=2] ab not None,
             int l, int u):
     cdef int i, j, sz_x, sz_y, im, ix

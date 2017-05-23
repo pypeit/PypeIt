@@ -12,8 +12,10 @@ def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse')
     parser.add_argument("file", type=str, help="Spectral file")
     parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
-    parser.add_argument("--exten", type=int, help="FITS extension")
-    parser.add_argument("--optimal", default=False, help="Show Optimal? Default is boxcar", action="store_true")
+    parser.add_argument("--exten", type=int, default=1, help="FITS extension")
+    parser.add_argument("--obj", type=str, help="Object name in lieu of extension, e.g. O424-S1466-D02-I0013")
+    parser.add_argument("--extract", type=str, default='box', help="Extraction method. Default is boxcar. ['box', 'opt']")
+    parser.add_argument("--flux", default=False, action="store_true", help="Show fluxed spectrum?")
 
     if options is None:
         args = parser.parse_args()
@@ -26,35 +28,29 @@ def main(args, unit_test=False):
     """ Runs the XSpecGui on an input file
     """
     import sys
+    from pypit import arload
+    import pdb
 
     # List only?
     if args.list:
-        from astropy.io import fits
-        hdu = fits.open(args.file)
-        print(hdu.info())
-        return
+        print("Showing object names for input file...")
+        spec = arload.load_1dspec(args.file)
+        for key in spec.header.keys():
+            if 'EXT0' in key:
+                print("{} = {}".format(key, spec.header[key]))
+        sys.exit()
 
     from linetools.guis.xspecgui import XSpecGui
+    from pypit import arload
 
-    # Extension
-    exten = (args.exten if hasattr(args, 'exten') else 0)
-
-    # Read spec keywords
-    rsp_kwargs = {}
-    if args.optimal:
-        rsp_kwargs['wave_tag'] = 'opt_wave'
-        rsp_kwargs['flux_tag'] = 'opt_counts'
-        rsp_kwargs['var_tag'] = 'opt_var'
-    else:
-        rsp_kwargs['wave_tag'] = 'box_wave'
-        rsp_kwargs['flux_tag'] = 'box_counts'
-        rsp_kwargs['var_tag'] = 'box_var'
+    # Load spectrum
+    spec = arload.load_1dspec(args.file, exten=args.exten, extract=args.extract, objname=args.obj, flux=args.flux)
 
     if unit_test is False:
-        from PyQt4 import QtGui
-        app = QtGui.QApplication(sys.argv)
+        from PyQt5.QtWidgets import QApplication
+        app = QApplication(sys.argv)
 
-    gui = XSpecGui(args.file, exten=exten, rsp_kwargs=rsp_kwargs, unit_test=unit_test)
+    gui = XSpecGui(spec, unit_test=unit_test)
     if unit_test is False:
         gui.show()
         app.exec_()

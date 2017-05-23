@@ -1,30 +1,30 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import sys
+import os
 import numpy as np
+import yaml
+
+from collections import OrderedDict
+
+from pypit import arparse as settings
 from pypit import armsgs
 from pypit import arsort
 from pypit import arsciexp
+from pypit import arutils
 
 # Logging
 msgs = armsgs.get_logger()
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except ImportError:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 
-def SetupScience(argflag, spect, fitsdict):
+def SetupScience(fitsdict):
     """ Create an exposure class for every science frame
-    Also links to standard star frames
+    Also links to standard star frames and calibrations
 
     Parameters
     ----------
-    argflag : dict
-      Arguments and flags used for reduction
-    spect : dict
-      Properties of the spectrograph.
     fitsdict : dict
       Contains relevant information from fits header files
 
@@ -33,26 +33,107 @@ def SetupScience(argflag, spect, fitsdict):
     sciexp : list
       A list containing all science exposure classes
     """
+    # Init
+    if settings.argflag['run']['calcheck'] or settings.argflag['run']['setup']:
+        do_qa = False
+        bad_to_unknown = True
+    else:
+        do_qa = True
+        bad_to_unknown = False
+    if settings.argflag['run']['setup']:
+        skip_cset = True
+    else:
+        skip_cset = False
     # Sort the data
     msgs.bug("Files and folders should not be deleted -- there should be an option to overwrite files automatically if they already exist, or choose to rename them if necessary")
-    filesort = arsort.sort_data(argflag, spect, fitsdict)
-    # Write out the details of the sorted files
-    if argflag['out']['sorted'] is not None:
-        arsort.sort_write(argflag['out']['sorted'], spect, fitsdict, filesort)
+    filesort = arsort.sort_data(fitsdict, flag_unknown=bad_to_unknown)
+    # Write out the details of the sorted files into a .lst file
+    if settings.argflag['output']['sorted'] is not None:
+        srt_tbl = arsort.sort_write(fitsdict, filesort)
     # Match calibration frames to science frames
-    spect = arsort.match_science(argflag, spect, fitsdict, filesort)
-    # If the user is only debugging, then exit now
-    if argflag['run']['calcheck']:
-        msgs.info("Calibration check complete. Change the 'calcheck' flag to continue with data reduction")
-        sys.exit()
+    arsort.match_science(fitsdict, filesort)
     # Make directory structure for different objects
-    sci_targs = arsort.make_dirs(argflag, fitsdict, filesort)
+    if do_qa:
+        sci_targs = arsort.make_dirs(fitsdict, filesort)
     # Create the list of science exposures
-    numsci = np.size(filesort['science'])
+    numsci = np.size(settings.spect['science']['index'])
     sciexp = []
     for i in range(numsci):
-        sciexp.append(arsciexp.ScienceExposure(i, argflag, spect, fitsdict))
-    return sciexp
+        sciexp.append(arsciexp.ScienceExposure(i, fitsdict, do_qa=do_qa))
+    # Generate setup and group dicts
+    setup_dict = {}
+    # Run through the setups to fill setup_dict
+    setupIDs = []
+    for sc in range(numsci):
+        for kk in range(settings.spect['mosaic']['ndet']):
+            # Use user-supplied setup name (useful for some book-keeping)?
+            try:
+                cname = settings.argflag['setup']['name']
+            except KeyError:
+                cname = None
+            setupID = arsort.instr_setup(sciexp[sc], kk+1, fitsdict, setup_dict, skip_cset=skip_cset, config_name=cname)
+            if kk == 0: # Only save the first detector for run setup
+                setupIDs.append(setupID)
+
+    # Calib IDs
+    group_dict = {}
+    if settings.argflag['run']['setup']: # Collate all matching files
+        for sc,setupID in enumerate(setupIDs):
+            scidx = sciexp[sc]._idx_sci[0]
+            # Set group_key
+            config_key = setupID[0]
+            # Plan init
+            if config_key not in group_dict.keys():
+                group_dict[config_key] = {}
+                for key in filesort.keys():
+                    if key not in ['unknown', 'dark']:
+                        group_dict[config_key][key] = []
+                    group_dict[config_key]['sciobj'] = []
+                    group_dict[config_key]['stdobj'] = []
+            # Fill group_dict too
+            for key in filesort.keys():
+                if key in ['unknown', 'dark', 'failures']:
+                    continue
+                for idx in settings.spect[key]['index'][sc]:
+                    # Only add if new
+                    if fitsdict['filename'][idx] not in group_dict[config_key][key]:
+                        group_dict[config_key][key].append(fitsdict['filename'][idx])
+                        if key == 'standard':  # Add target name
+                            group_dict[config_key]['stdobj'].append(fitsdict['target'][idx])
+                    if key == 'science':  # Add target name
+                        group_dict[config_key]['sciobj'].append(fitsdict['target'][scidx])
+            #debugger.set_trace()
+        # Write .sorted file
+        if len(group_dict) > 0:
+            arsort.write_sorted(srt_tbl, group_dict, setup_dict)
+        else:
+            msgs.warn("No group dict entries and therefore no .sorted file")
+
+    # Write setup -- only if not present
+    setup_file, nexist = arsort.get_setup_file()
+    arsort.write_setup(setup_dict)
+    # Write calib file (if not in setup mode)
+    if not settings.argflag['run']['setup']:
+        arsort.write_calib(setup_dict)
+    # Finish calcheck or setup
+    if settings.argflag['run']['calcheck'] or settings.argflag['run']['setup']:
+        if settings.argflag['run']['calcheck']:
+            msgs.info("Inspect the .calib file: {:s}".format(setup_file))
+            msgs.info("Calibration check complete and successful. Set 'run calcheck False' to continue with data reduction")
+            # Instrument specific (might push into a separate file)
+            if settings.argflag['run']['spectrograph'] in ['lris_blue']:
+                if settings.argflag['reduce']['flatfield']['useframe'] in ['pixelflat']:
+                    msgs.warn("We recommend a slitless flat for your instrument.")
+            return 'calcheck', None
+        elif settings.argflag['run']['setup']:
+            for idx in filesort['failures']:
+                msgs.warn("No Arc found: Skipping object {:s} with file {:s}".format(fitsdict['target'][idx],fitsdict['filename'][idx]))
+            msgs.info("Setup is complete. Change 'run setup' to False to continue with data reduction")
+            msgs.info("Inspect the .setups file: {:s}".format(setup_file))
+            return 'setup', None
+        else:
+            msgs.error("Should not get here")
+    return sciexp, setup_dict
 
 
 def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
@@ -80,7 +161,8 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
     elif ftype == "readnoise": chkarr = sciexp[sc]._idx_rn
     elif ftype == "flat":
         if chktype == "trace": chkarr = sciexp[sc]._idx_trace
-        elif chktype == "pixflat": chkarr = sciexp[sc]._idx_flat
+        elif chktype == "pixelflat": chkarr = sciexp[sc]._idx_flat
+        elif chktype == "pinhole": chkarr = sciexp[sc]._idx_cent
         else:
             msgs.bug("I could not update frame of type {0:s} and subtype {1:s}".format(ftype, chktype))
             return
@@ -93,7 +175,8 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
         for i in range(sc+1, numsci):
             # Check if an *identical* master frame has already been produced
             if chktype == "trace": chkfarr = sciexp[i]._idx_trace
-            elif chktype == "pixflat": chkfarr = sciexp[i]._idx_flat
+            elif chktype == "pixelflat": chkfarr = sciexp[i]._idx_flat
+            elif chktype == "pinhole": chkfarr = sciexp[i]._idx_cent
             else:
                 msgs.bug("I could not update frame of type {0:s} and subtype {1:s}".format(ftype, chktype))
                 return
@@ -102,12 +185,13 @@ def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
                 sciexp[i].SetMasterFrame(sciexp[sc].GetMasterFrame(chktype, det), chktype, det)
         # Now check flats of a different type
         origtype = chktype
-        if chktype == "trace": chktype = "pixflat"
-        elif chktype == "pixflat": chktype = "trace"
+        if chktype == "trace": chktype = "pixelflat"
+        elif chktype == "pixelflat": chktype = "trace"
         for i in range(sc, numsci):
             # Check if an *identical* master frame has already been produced
             if chktype == "trace": chkfarr = sciexp[i]._idx_trace
-            elif chktype == "pixflat": chkfarr = sciexp[i]._idx_flat
+            elif chktype == "pixelflat": chkfarr = sciexp[i]._idx_flat
+            elif chktype == "pinhole": chkfarr = sciexp[i]._idx_cent
             else:
                 msgs.bug("I could not update frame of type {0:s} and subtype {1:s}".format(ftype, chktype))
                 return

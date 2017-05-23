@@ -1,25 +1,23 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import numpy as np
-from scipy import ndimage
 from scipy import interpolate
 
 from linetools.spectra import xspectrum1d
-from astropy.io import fits
+from astropy.coordinates import SkyCoord, solar_system, EarthLocation, ICRS, UnitSphericalRepresentation, CartesianRepresentation
+from astropy.time import Time
 from astropy import units as u
 
 from pypit import ararc
 from pypit import arextract
 from pypit import armsgs
+from pypit import arparse as settings
 from pypit import arutils
 
 # Logging
 msgs = armsgs.get_logger()
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 
 def flex_shift(slf, det, obj_skyspec, arx_skyspec):
@@ -75,9 +73,11 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     if obj_med_sig2 >= arx_med_sig2:
         smooth_sig = np.sqrt(obj_med_sig2-arx_med_sig2)  # Ang
         smooth_sig_pix = smooth_sig / np.median(arx_disp[arx_idx])
+        arx_skyspec = arx_skyspec.gauss_smooth(smooth_sig_pix*2*np.sqrt(2*np.log(2)))
     else:
         msgs.warn("Prefer archival sky spectrum to have higher resolution")
         smooth_sig_pix = 0.
+        msgs.warn("New Sky has higher resolution than Archive.  Not smoothing")
         #smooth_sig = np.sqrt(arx_med_sig**2-obj_med_sig**2)
 
     #Determine region of wavelength overlap
@@ -85,12 +85,12 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     max_wave = min(np.amax(arx_skyspec.wavelength.value), np.amax(obj_skyspec.wavelength.value))
 
     #Smooth higher resolution spectrum by smooth_sig (flux is conserved!)
-    if np.median(obj_res) >= np.median(arx_res):
-        msgs.warn("New Sky has higher resolution than Archive.  Not smoothing")
+#    if np.median(obj_res) >= np.median(arx_res):
+#        msgs.warn("New Sky has higher resolution than Archive.  Not smoothing")
         #obj_sky_newflux = ndimage.gaussian_filter(obj_sky.flux, smooth_sig)
-    else:
+#    else:
         #tmp = ndimage.gaussian_filter(arx_sky.flux, smooth_sig)
-        arx_skyspec = arx_skyspec.gauss_smooth(smooth_sig_pix*2*np.sqrt(2*np.log(2)))
+#        arx_skyspec = arx_skyspec.gauss_smooth(smooth_sig_pix*2*np.sqrt(2*np.log(2)))
         #arx_sky.flux = ndimage.gaussian_filter(arx_sky.flux, smooth_sig)
 
     # Define wavelengths of overlapping spectra
@@ -107,19 +107,40 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
         arx_skyspec = arx_skyspec.rebin(keep_wave)
         obj_skyspec = obj_skyspec.rebin(keep_wave)
 
+    #   Normalize spectra to unit average sky count
+    #norm = (total(sky_obj)/double(nkeep))
+    norm = np.sum(obj_skyspec.flux.value)/obj_skyspec.npix
+    obj_skyspec.flux = obj_skyspec.flux / norm
+    #sky_obj_ivar = sky_obj_ivar*norm^2
+    norm2 = np.sum(arx_skyspec.flux.value)/arx_skyspec.npix
+    arx_skyspec.flux = arx_skyspec.flux / norm2
+
     #deal with bad pixels
     msgs.work("Need to mask bad pixels")
 
     #deal with underlying continuum
-    msgs.work("Need to deal with underlying continuum")
+    msgs.work("Consider taking median first [5 pixel]")
+    everyn = obj_skyspec.npix // 20
+    mask, ct = arutils.robust_polyfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value, 3, function='bspline',
+                                  sigma=3., everyn=everyn)
+    obj_sky_cont = arutils.func_val(ct, obj_skyspec.wavelength.value, 'bspline')
+    obj_sky_flux = obj_skyspec.flux.value - obj_sky_cont
+    mask, ct_arx = arutils.robust_polyfit(arx_skyspec.wavelength.value, arx_skyspec.flux.value, 3, function='bspline',
+                                      sigma=3., everyn=everyn)
+    arx_sky_cont = arutils.func_val(ct_arx, arx_skyspec.wavelength.value, 'bspline')
+    arx_sky_flux = arx_skyspec.flux.value - arx_sky_cont
+
+    # Consider shaprness filtering (e.g. LowRedux)
+    msgs.work("Consider taking median first [5 pixel]")
 
     #Cross correlation of spectra
-    corr = np.correlate(arx_skyspec.flux, obj_skyspec.flux, "same")
+    #corr = np.correlate(arx_skyspec.flux, obj_skyspec.flux, "same")
+    corr = np.correlate(arx_sky_flux, obj_sky_flux, "same")
 
     #Create array around the max of the correlation function for fitting for subpixel max
-    # Restrict to pixels within max_shift of zero lag
-    lag0 = corr.size/2
-    mxshft = slf._argflag['reduce']['flexure']['max_shift']
+    # Restrict to pixels within maxshift of zero lag
+    lag0 = corr.size//2
+    mxshft = settings.argflag['reduce']['flexure']['maxshift']
     max_corr = np.argmax(corr[lag0-mxshft:lag0+mxshft]) + lag0-mxshft
     subpix_grid = np.linspace(max_corr-3., max_corr+3., 7.)
 
@@ -133,7 +154,7 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     #model = (fit[2]*(subpix_grid**2.))+(fit[1]*subpix_grid)+fit[0]
 
     if msgs._debug['flexure']:
-        debugger.xplot(arx_skyspec.wavelength, arx_skyspec.flux, xtwo=obj_skyspec.wavelength, ytwo=obj_skyspec.flux)
+        debugger.xplot(arx_skyspec.wavelength, arx_sky_flux, xtwo=np.roll(obj_skyspec.wavelength,int(-1*shift)), ytwo=obj_sky_flux)
         #debugger.xplot(arx_sky.wavelength, arx_sky.flux, xtwo=np.roll(obj_sky.wavelength.value,9), ytwo=obj_sky.flux*100)
         debugger.set_trace()
 
@@ -146,28 +167,22 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     return flex_dict
 
 
-def flexure_archive(slf, det):
+def flexure_archive():
     """  Load archived sky spectrum
-    Parameters
-    ----------
-    slf
-    det
-
-    Returns
-    -------
-
     """
-    #   latitude = slf._spect['mosaic']['latitude']
-    #   longitude = slf._spect['mosaic']['longitude']
-    root = slf._argflag['run']['pypitdir']
-    if slf._argflag['reduce']['flexure']['archive_spec'] is None:
+    #   latitude = settings.spect['mosaic']['latitude']
+    #   longitude = settings.spect['mosaic']['longitude']
+    root = settings.argflag['run']['pypitdir']
+    if settings.argflag['reduce']['flexure']['spectrum'] is None:
         # Red or blue?
-        if slf._argflag['run']['spectrograph'] in ['kast_blue', 'lris_blue']:
+        if settings.argflag['run']['spectrograph'] in ['kast_blue']:
             skyspec_fil = 'sky_kastb_600.fits'
+        elif settings.argflag['run']['spectrograph'] in ['lris_blue']:
+            skyspec_fil = 'sky_LRISb_600.fits'
         else:
             skyspec_fil = 'paranal_sky.fits'
     else:
-        skyspec_fil = slf._argflag['reduce']['flexure']['archive_spec']
+        skyspec_fil = settings.argflag['reduce']['flexure']['spectrum']
     #
     msgs.info("Using {:s} file for Sky spectrum".format(skyspec_fil))
     arx_sky = xspectrum1d.XSpectrum1D.from_file(root+'/data/sky_spec/'+skyspec_fil)
@@ -188,7 +203,7 @@ def flexure_slit(slf, det):
     det : int
     """
     # Load Archive
-    skyspec_fil, arx_sky = flexure_archive(slf, det)
+    skyspec_fil, arx_sky = flexure_archive()
 
     # Extract
     censpec_wv = arextract.boxcar_cen(slf, det, slf._mswave[det-1])
@@ -244,7 +259,7 @@ def flexure_obj(slf, det):
     """
     msgs.work("Consider doing 2 passes in flexure as in LowRedux")
     # Load Archive
-    skyspec_fil, arx_sky = flexure_archive(slf, det)
+    skyspec_fil, arx_sky = flexure_archive()
 
     # Loop on objects
     flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
@@ -254,12 +269,12 @@ def flexure_obj(slf, det):
     for specobj in slf._specobjs[det-1]:  # for convenience
 
         # Using boxcar
-        if slf._argflag['reduce']['flexure']['spec'] in ['boxcar', 'slit_cen']:
+        if settings.argflag['reduce']['flexure']['method'] in ['boxcar', 'slitcen']:
             sky_wave = specobj.boxcar['wave'].to('AA').value
             sky_flux = specobj.boxcar['sky']
         else:
             msgs.error("Not ready for this flexure method: {}".format(
-                    slf._argflag['reduce']['flexure']))
+                    settings.argflag['reduce']['flexure']))
 
         # Generate 1D spectrum for object
         obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave, sky_flux))
@@ -275,8 +290,8 @@ def flexure_obj(slf, det):
             if not hasattr(specobj,attr):
                 continue
             if 'wave' in getattr(specobj, attr).keys():
-                msgs.info("Applying flexure correction to {:s} extraction for object {:s}".format(
-                    attr, str(specobj)))
+                msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) + msgs.newline() +
+                          "{0:s}".format(str(specobj)))
                 f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
                 getattr(specobj, attr)['wave'] = f(x+fdict['shift']/(npix-1))*u.AA
         # Shift sky spec too
@@ -294,8 +309,108 @@ def flexure_obj(slf, det):
     return flex_dict
 
 
+def geomotion_calculate(slf, fitsdict, idx):
+    """
+    Correct the wavelength calibration solution to the desired reference frame
+    """
+
+    frame = settings.argflag["reduce"]["calibrate"]["refframe"]
+    lat = settings.spect['mosaic']['latitude']
+    lon = settings.spect['mosaic']['longitude']
+    alt = settings.spect['mosaic']['elevation']
+    loc = (lon * u.deg, lat * u.deg, alt * u.m,)
+
+    radec = SkyCoord(fitsdict["ra"][idx], fitsdict["dec"][idx], unit=(u.hourangle, u.deg), frame='fk5')
+    obstime = Time(slf._time.value, format=slf._time.format, scale='utc', location=loc)
+
+    vcorr = geomotion_velocity(obstime, radec, frame=frame)
+    return vcorr
+
+
+def geomotion_correct(slf, det, fitsdict):
+    """ Correct the wavelength of every pixel to a barycentric/heliocentric frame.
+
+    Parameters
+    ----------
+    slf : class
+      Science exposure class
+    det : int
+      Detector index
+    fitsdict : dict
+      Dictionary containing the properties of every fits file
+
+    Returns
+    -------
+    vel : float
+      The velocity correction that should be applied to the wavelength array.
+    vel_corr : float
+      The relativistic velocity correction that should be multiplied by the
+      wavelength array to convert each wavelength into the user-spewcified
+      reference frame.
+
+    """
+    frame = settings.argflag["reduce"]["calibrate"]["refframe"]
+    # Calculate
+    vel = geomotion_calculate(slf, fitsdict, slf._idx_sci[0])
+    vel_corr = np.sqrt((1. + vel/299792.458) / (1. - vel/299792.458))
+
+    # Loop on objects
+    for specobj in slf._specobjs[det-1]:
+        # Loop on extraction methods
+        for attr in ['boxcar', 'optimal']:
+            if not hasattr(specobj, attr):
+                continue
+            if 'wave' in getattr(specobj, attr).keys():
+                msgs.info("Applying {0:s} correction to {1:s} extraction for object:".format(frame, attr) +
+                          msgs.newline() + "{0:s}".format(str(specobj)))
+                getattr(specobj, attr)['wave'] = getattr(specobj, attr)['wave'] * vel_corr
+    # Return
+    return vel, vel_corr  # Mainly for debugging
+
+
+def geomotion_velocity(time, skycoord, frame="heliocentric"):
+    """ Perform a barycentric/heliocentric velocity correction.
+
+    For the correciton, this routine uses the ephemeris:  astropy.coordinates.solar_system_ephemeris.set
+    For more information see `~astropy.coordinates.solar_system_ephemeris`.
+
+    Parameters
+    ----------
+    time : astropy.time.Time
+      The time of observation, including the location.
+    skycoord: astropy.coordinates.SkyCoord
+      The RA and DEC of the pointing, as a SkyCoord quantity.
+    frame : str
+      The reference frame that should be used for the calculation.
+
+    Returns
+    -------
+    vcorr : float
+      The velocity correction that should be added to the original velocity.
+    """
+
+    # Check that the RA/DEC of the object is ICRS compatible
+    if not skycoord.is_transformable_to(ICRS()):
+        msgs.error("Cannot transform RA/DEC of object to the ICRS")
+
+    # Calculate ICRS position and velocity of Earth's geocenter
+    ep, ev = solar_system.get_body_barycentric_posvel('earth', time)
+    # Calculate GCRS position and velocity of observatory
+    op, ov = time.location.get_gcrs_posvel(time)
+    # ICRS and GCRS are axes-aligned. Can add the velocities
+    velocity = ev + ov
+    if frame == "heliocentric":
+        # ICRS position and velocity of the Sun
+        sp, sv = solar_system.get_body_barycentric_posvel('sun', time)
+        velocity += sv
+
+    # Get unit ICRS vector in direction of SkyCoord
+    sc_cartesian = skycoord.icrs.represent_as(UnitSphericalRepresentation).represent_as(CartesianRepresentation)
+    return sc_cartesian.dot(velocity).to(u.km / u.s).value
+
+
 def airtovac(wave):
-    """Convert air-based wavelengths to vacuum
+    """ Convert air-based wavelengths to vacuum
 
     Parameters:
     ----------

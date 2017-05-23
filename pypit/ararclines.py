@@ -6,11 +6,9 @@ import glob, copy
 import yaml
 
 from pypit import armsgs
+from pypit import arparse as settings
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 # Logging
 msgs = armsgs.get_logger()
@@ -30,7 +28,7 @@ def parse_nist(slf,ion):
         from pypit import arutils as arut
         msgs.warn("Using arutils.dummy_self.  Better know what you are doing.")
         slf = arut.dummy_self()
-    root = slf._argflag['run']['pypitdir']
+    root = settings.argflag['run']['pypitdir']
     # Find file
     srch_file = root + '/data/arc_lines/NIST/'+ion+'_vacuum.ascii'
     nist_file = glob.glob(srch_file)
@@ -39,7 +37,7 @@ def parse_nist(slf,ion):
     elif len(nist_file) != 1:
         msgs.error("Multiple NIST files for {:s}".format(srch_file))
     # Read
-    nist_tbl = Table.read(nist_file[0], format='ascii.fixed_width')
+    nist_tbl = Table.read(nist_file[0], format='ascii.fixed_width', comment='#')
     gdrow = nist_tbl['Observed'] > 0.  # Eliminate dummy lines
     nist_tbl = nist_tbl[gdrow]
     # Now unique values only (no duplicates)
@@ -61,6 +59,8 @@ def parse_nist(slf,ion):
     nist_tbl.remove_column('Rel.')
     nist_tbl.remove_column('Ritz')
     nist_tbl.add_column(Column(agdrel,name='RelInt'))
+    nist_tbl.remove_column('Acc.')
+    nist_tbl.remove_column('Type')
     #nist_tbl.add_column(Column([ion]*len(nist_tbl), name='Ion', dtype='S5'))
     nist_tbl.add_column(Column([ion]*len(nist_tbl), name='Ion', dtype='U5'))
     nist_tbl.rename_column('Observed','wave')
@@ -97,7 +97,7 @@ def load_arcline_list(slf, idx, lines, disperser, wvmnx=None, modify_parse_dict=
         from pypit import arutils as arut
         msgs.warn("Using arutils.dummy_self.  Better know what you are doing.")
         slf = arut.dummy_self()
-    root = slf._argflag['run']['pypitdir']
+    root = settings.argflag['run']['pypitdir']
     with open(root+'/data/arc_lines/rejected_lines.yaml', 'r') as infile:
         rej_dict = yaml.load(infile)
     # Loop through the NIST Tables
@@ -151,10 +151,10 @@ def reject_lines(slf, tbl, idx, rej_dict, disperser):
             msk[close] = False
         elif slf == None:
             continue
-        elif slf._argflag['run']['spectrograph'] in rej_dict[wave].keys():
-            if rej_dict[wave][slf._argflag['run']['spectrograph']] == 'all':
+        elif settings.argflag['run']['spectrograph'] in rej_dict[wave].keys():
+            if rej_dict[wave][settings.argflag['run']['spectrograph']] == 'all':
                 msk[close] = False
-            elif disperser in rej_dict[wave][slf._argflag['run']['spectrograph']]:
+            elif disperser in rej_dict[wave][settings.argflag['run']['spectrograph']]:
                 msk[close] = False
     # Return
     return tbl[msk]
@@ -176,7 +176,10 @@ def parse_nist_tbl(tbl,parse_dict):
     '''
     # Parse
     gdI = tbl['RelInt'] >= parse_dict['min_intensity']
-    gdA = tbl['Aki'] >= parse_dict['min_Aki']
+    try:
+        gdA = tbl['Aki'] >= parse_dict['min_Aki']
+    except TypeError:
+        debugger.set_trace()
     gdw = tbl['wave'] >= parse_dict['min_wave']
     # Combine
     allgd = gdI & gdA & gdw

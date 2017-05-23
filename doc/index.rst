@@ -17,18 +17,72 @@ Philosophy
 
 [Your thoughts here]
 
-Contents
-++++++++
+Getting Started
++++++++++++++++
+
+.. toctree::
+   :maxdepth: 1
+
+   installing
+   overview
+
+Running PYPIT
++++++++++++++
 
 .. toctree::
    :maxdepth: 2
 
-   installing
-   setup 
+   cookbook
+   setups
+   pypit_file
+   calcheck
    running
+
+Data Products
++++++++++++++
+
+.. toctree::
+   :maxdepth: 2
+
    outputs
-   scripts
+
+Calibrations
+++++++++++++
+
+.. toctree::
+   :maxdepth: 2
+
+   calibrations
+   bias
+   tracing
    wave_calib
+
+Object Algorithms
++++++++++++++++++
+
+.. toctree::
+   :maxdepth: 2
+
+   object_id
+   coadding
+
+Documentation
++++++++++++++
+
+.. toctree::
+   :maxdepth: 1
+
+   flexure
+   frametype
+   inst_settings
+
+Other
++++++
+
+.. toctree::
+   :maxdepth: 1
+
+   scripts
    api
 
 

@@ -46,7 +46,7 @@ cdef extern from "gsl/gsl_multifit.h":
 #  B  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def background_model(np.ndarray[DTYPE_t, ndim=1] fitfunc not None,
                     np.ndarray[ITYPE_t, ndim=1] xpix not None,
                     np.ndarray[ITYPE_t, ndim=1] ypix not None,
@@ -58,7 +58,7 @@ def background_model(np.ndarray[DTYPE_t, ndim=1] fitfunc not None,
     return model
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def blaze_fitends(np.ndarray[DTYPE_t, ndim=1] xarr not None,
                     np.ndarray[DTYPE_t, ndim=1] yarr not None,
                     np.ndarray[DTYPE_t, ndim=1] marr not None,
@@ -146,13 +146,13 @@ def blaze_fitends(np.ndarray[DTYPE_t, ndim=1] xarr not None,
 #  C  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def combine_nrmflat(np.ndarray[DTYPE_t, ndim=2] msframe not None,
                     np.ndarray[DTYPE_t, ndim=2] frame not None,
                     np.ndarray[ITYPE_t, ndim=1] pixcen not None,
                     np.ndarray[ITYPE_t, ndim=1] pixledg not None,
                     np.ndarray[ITYPE_t, ndim=1] pixredg not None,
-                    int pixwid, double maskval, int dispaxis):
+                    int pixwid, double maskval):
     """
     Replace the master normalized flat frame values with the values for this
     order. If a value already exists in the master frame take the average
@@ -163,8 +163,8 @@ def combine_nrmflat(np.ndarray[DTYPE_t, ndim=2] msframe not None,
     cdef int yidx, ymin, ymax, sz_p
     cdef int shift = pixwid/2
 
-    sz_x  = frame.shape[dispaxis]
-    sz_y  = frame.shape[1-dispaxis]
+    sz_x  = frame.shape[0]
+    sz_y  = frame.shape[1]
     sz_p = 2*shift+1
 
     for x in range(0,sz_x):
@@ -178,16 +178,10 @@ def combine_nrmflat(np.ndarray[DTYPE_t, ndim=2] msframe not None,
             if pixredg[x] <= 0 or pixledg[x] >= sz_y-1 or yidx < 0 or yidx >= sz_y:
                 continue
             else:
-                if dispaxis == 0:
-                    if msframe[x,yidx] != maskval:
-                        msframe[x,yidx] += frame[x,yidx]
-                        msframe[x,yidx] /= 2.0
-                    else: msframe[x,yidx] = frame[x,yidx]
-                else:
-                    if msframe[yidx,x] != maskval:
-                        msframe[yidx,x] += frame[yidx,x]
-                        msframe[yidx,x] /= 2.0
-                    else: msframe[yidx,x] = frame[yidx,x]
+                if msframe[x,yidx] != maskval:
+                    msframe[x,yidx] += frame[x,yidx]
+                    msframe[x,yidx] /= 2.0
+                else: msframe[x,yidx] = frame[x,yidx]
     return msframe
 
 
@@ -195,7 +189,7 @@ def combine_nrmflat(np.ndarray[DTYPE_t, ndim=2] msframe not None,
 #  M  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def cr_screen(np.ndarray[DTYPE_t, ndim=2] frame not None, double maskval):
     """
     Perofrm a masked median filter along the spatial
@@ -289,7 +283,7 @@ def cr_screen(np.ndarray[DTYPE_t, ndim=2] frame not None, double maskval):
 #  P  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def polyfit(np.ndarray[DTYPE_t, ndim=1] x not None,
         np.ndarray[DTYPE_t, ndim=1] y not None,
         int degree, np.ndarray[DTYPE_t, ndim=1] coeffs not None):
@@ -436,8 +430,7 @@ def prepare_bgmodel(np.ndarray[DTYPE_t, ndim=2] arcfr not None,
                     np.ndarray[DTYPE_t, ndim=1] dtrc not None,
                     np.ndarray[DTYPE_t, ndim=1] scen not None,
                     np.ndarray[ITYPE_t, ndim=1] dpix not None,
-                    np.ndarray[ITYPE_t, ndim=1] spix not None,
-                    int dispdir):
+                    np.ndarray[ITYPE_t, ndim=1] spix not None):
 
     cdef int p, b, donebl, donetl
     cdef int sz_p, sz_b
@@ -452,16 +445,10 @@ def prepare_bgmodel(np.ndarray[DTYPE_t, ndim=2] arcfr not None,
 
     for p in range(sz_p):
         # get the bottom-left (i.e. the origin) and top-left corner of the pixel
-        if dispdir == 0:
-            dbl = pixmap[dpix[p],spix[p],0] - 0.5*pixmap[dpix[p],spix[p],2]
-            sbl = pixmap[dpix[p],spix[p],1] - 0.5*pixmap[dpix[p],spix[p],3]
-            dtl = pixmap[dpix[p],spix[p],0] + 0.5*pixmap[dpix[p],spix[p],2]
-            stl = pixmap[dpix[p],spix[p],1] + 0.5*pixmap[dpix[p],spix[p],3]
-        else:
-            dbl = pixmap[spix[p],dpix[p],1] - 0.5*pixmap[spix[p],dpix[p],3]
-            sbl = pixmap[spix[p],dpix[p],0] - 0.5*pixmap[spix[p],dpix[p],2]
-            dtl = pixmap[spix[p],dpix[p],1] + 0.5*pixmap[spix[p],dpix[p],3]
-            stl = pixmap[spix[p],dpix[p],0] + 0.5*pixmap[spix[p],dpix[p],2]
+        dbl = pixmap[dpix[p],spix[p],0] - 0.5*pixmap[dpix[p],spix[p],2]
+        sbl = pixmap[dpix[p],spix[p],1] - 0.5*pixmap[dpix[p],spix[p],3]
+        dtl = pixmap[dpix[p],spix[p],0] + 0.5*pixmap[dpix[p],spix[p],2]
+        stl = pixmap[dpix[p],spix[p],1] + 0.5*pixmap[dpix[p],spix[p],3]
         donebl = 0
         donetl = 0
         for b in range(1,sz_b):
@@ -496,10 +483,7 @@ def prepare_bgmodel(np.ndarray[DTYPE_t, ndim=2] arcfr not None,
         cv = (lb-la)/vb
         svb = csqrt(sva*sva + 1.0) / (sva*sva - 1.0)
         # Finally, calculate the appropriate value for xfit and yfit
-        if dispdir == 0:
-            xfit[p] = la + 0.5*cv*svb*(pixmap[dpix[p],spix[p],2] + sva*pixmap[dpix[p],spix[p],3])
-        else:
-            xfit[p] = la + 0.5*cv*svb*(pixmap[spix[p],dpix[p],3] + sva*pixmap[spix[p],dpix[p],2])
+        xfit[p] = la + 0.5*cv*svb*(pixmap[dpix[p],spix[p],2] + sva*pixmap[dpix[p],spix[p],3])
     return xfit
 
 #######
@@ -511,7 +495,7 @@ def prepare_bgmodel(np.ndarray[DTYPE_t, ndim=2] arcfr not None,
 #  R  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def remove_maskedends(np.ndarray[DTYPE_t, ndim=1] xarr not None,
                     np.ndarray[DTYPE_t, ndim=1] yarr not None,
                     np.ndarray[DTYPE_t, ndim=1] marr not None,
@@ -549,7 +533,7 @@ def remove_maskedends(np.ndarray[DTYPE_t, ndim=1] xarr not None,
 #  S  #
 #######
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def scale_blaze(np.ndarray[DTYPE_t, ndim=2] recsort not None,
                     double maskval):
     cdef int d, sz_d, s, sz_s
@@ -579,7 +563,7 @@ def scale_blaze(np.ndarray[DTYPE_t, ndim=2] recsort not None,
     return recmean
 
 
-@cython.boundscheck(False)
+#@cython.boundscheck(False)
 def smooth_gaussmask(np.ndarray[DTYPE_t, ndim=2] flux not None,
                     double maskval, double nsig):
     """

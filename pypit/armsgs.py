@@ -16,7 +16,7 @@ class Messages:
     http://ascii-table.com/ansi-escape-sequences.php
     """
 
-    def __init__(self, log, debug, verbose, colors=True):
+    def __init__(self, log, debug, verbosity, colors=True):
         """
         Initialize the Message logging class
 
@@ -27,7 +27,7 @@ class Messages:
         debug : dict
           dict used for debugging.
           'LOAD', 'BIAS', 'ARC', 'TRACE'
-        verbose : int (0,1,2)
+        verbosity : int (0,1,2)
           Level of verbosity:
             0 = No output
             1 = Minimal output (default - suitable for the average user)
@@ -53,7 +53,7 @@ class Messages:
         self._debug = debug
         self._last_updated = last_updated
         self._version = version
-        self._verbose = verbose
+        self._verbosity = verbosity
         self.sciexp = None
         # Save the version of the code including last update information to the log file
         if self._log:
@@ -103,15 +103,17 @@ class Messages:
         return header
 
     def usage(self, prognm):
-        stgs_arm = glob(dirname(__file__)+"/settings/settings.arm*")
-        stgs_all = glob(dirname(__file__)+"/settings/settings.*")
+        stgs_arm = glob(dirname(__file__)+"/data/settings/settings.arm*")
+        stgs_all = glob(dirname(__file__)+"/data/settings/settings.*")
         stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
         armlist = basename(stgs_arm[0]).split(".")[-1]
         for i in range(1, len(stgs_arm)):
             armlist += ", " + basename(stgs_arm[i]).split(".")[-1]
         spclist = basename(stgs_spc[0]).split(".")[-1]
-        for i in range(1, len(stgs_spc)):
-            spclist += ", " + basename(stgs_spc[i]).split(".")[-1]
+        for kk,istsp in enumerate(stgs_spc):
+            if (kk == 0) or ('base' in istsp) or ('py' in istsp.split('.')[-1]):
+                continue
+            spclist += ", " + istsp.split(".")[-1]
         spcl = wraptext(spclist, width=60)
         #print("\n#################################################################")
         #print(self.pypitheader(prognm))
@@ -120,7 +122,7 @@ class Messages:
         #print("##  Options: (default values in brackets)")
         #print("##   -c or --cpus      : (all) Number of cpu cores to use")
         #print("##   -h or --help      : Print this message")
-        #print("##   -v or --verbose   : (2) Level of verbosity (0-2)")
+        #print("##   -v or --verbosity : (2) Level of verbosity (0-2)")
         #print("##   -m or --use_masters : Use files in MasterFrames for reduction")
         #print("##   -d or --develop   : Turn develop debugging on")
         #print("##  -------------------------------------------------------------")
@@ -129,8 +131,8 @@ class Messages:
         descs += "\n##   " + armlist
         #print("##  Available spectrographs include:")
         descs += "\n##  Available spectrographs include:"
-        for i in spcl:
-            descs += "\n##   " + i
+        for ispcl in spcl:
+            descs += "\n##   " + ispcl
             #print("##   " + i)
         #print("##  -------------------------------------------------------------")
         #print("##  Last updated: {0:s}".format(self._last_updated))
@@ -159,11 +161,13 @@ class Messages:
         else:
             if self._debug['develop']:
                 from pypit import armasters
+                from pypit import arparse as settings
                 armasters.save_masters(self.sciexp, self.sciexp.det,
-                                   self.sciexp._argflag['masters']['setup'])
+                                       settings.argflag['reduce']['masters']['setup'])
         # Close log
         if self._log:
             self._log.close()
+        return
 
     def signal_handler(self, signalnum, handler):
         """
@@ -222,7 +226,7 @@ class Messages:
         """
         Print a test message
         """
-        if self._verbose == 2:
+        if self._verbosity == 2:
             dbgmsg = self.debugmessage()
             premsg = self._start + self._white_BL + "[TEST]    ::" + self._end + " "
             print(premsg+dbgmsg+msg, file=sys.stderr)
@@ -256,7 +260,7 @@ class Messages:
         """
         Print a work in progress message
         """
-        if self._verbose == 2:
+        if self._debug['develop']:
             dbgmsg = self.debugmessage()
             premsgp = self._start + self._black_CL + "[WORK IN ]::" + self._end + "\n"
             premsgs = self._start + self._yellow_CL + "[PROGRESS]::" + self._end + " "
@@ -360,7 +364,7 @@ def get_logger(init=None):
     ----------
     init : tuple
       For instantiation
-      (log, debug, verbose)
+      (log, debug, verbosity)
 
     Returns
     -------

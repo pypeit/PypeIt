@@ -24,15 +24,16 @@ PYPIT depends on the following list of Python packages.
 
 We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to install and/or update these packages.
 
-* `python <http://www.python.org/>`_ versions 2.7, or 3.3 or later
+* `python <http://www.python.org/>`_ versions 2.7, or 3.5 or later
 * `numpy <http://www.numpy.org/>`_ version 1.10 or later
-* `astropy <http://www.astropy.org/>`_ version 1.1 or later
+* `astropy <http://www.astropy.org/>`_ version 1.3 or later
 * `scipy <http://www.scipy.org/>`_ version 0.17 or later
 * `matplotlib <http://matplotlib.org/>`_  version 1.4 or later
 * `PyQT4 <https://wiki.python.org/moin/PyQt/>`_ version 4 (needed for linetools)
 * `Ginga <https://ginga.readthedocs.io/en/latest/>`_ latest version (highly recommended; essentially required)
 * `h5py <https://www.h5py.org/>`_ version 2.6 (for data I/O)
 *  yaml -- On Python 3 (at least), you may need to install pyyaml
+* `future <https://pypi.python.org/pypi/future/0.6.0>`_ version 0.6
 
 If you are using Anaconda, you can check the presence of these packages with::
 
@@ -110,8 +111,18 @@ well as some alternate installation instructions:
 
 	 #in this example, GSL is installed in '/Users/USERNAME/anaconda/lib/'
 	 cd PYPIT/pypit/
-	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/cleibler/anaconda/lib/libgsl.0.dylib" arcyextract.so
+	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcyextract.so
 	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcyextract.so
+	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcytrace.so
+	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcytrace.so
+	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcycomb.so
+	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcycomb.so
+	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcyproc.so
+	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcyproc.so
+	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcyutils.so
+	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcyutils.so
+	 install_name_tool -change "@rpath/./libgsl.0.dylib" "/Users/USERNAME/anaconda/lib/libgsl.0.dylib" arcyarc.so
+	 install_name_tool -change "@rpath/./libgslcblas.0.dylib" "/Users/USERNAME/anaconda/lib/libgslcblas.0.dylib" arcyarc.so
 	 
 
 **2) Disable System Integrity Protection**
@@ -133,7 +144,6 @@ be replaced with whatever version number you have installed.
 
 Since Homebrew installs programs in /usr/local , which is not
 SIP protected, this should work without additional hacks.
-ASHER CAN YOU WRITE UP SOME INSTRUCTIONS FOR THE HOMEBREW INSTALLATION OF GSL?
 
 
 Installing PYPIT
@@ -155,6 +165,11 @@ or::
 	python setup.py install
 
 This should compile all the necessary Cython files, etc.
+
+If your python installation requires root access, you'll need to use sudo with the "-E" option to pass environment variables.
+
+	sudo -E python setup.py develop
+
 
 Tests
 =====

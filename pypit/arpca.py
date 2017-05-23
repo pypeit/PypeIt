@@ -4,10 +4,16 @@ from matplotlib import pyplot as plt
 import numpy as np
 from pypit import armsgs
 from pypit import arutils
-from pypit.arplot import get_dimen as get_dimen
+from pypit.arqa import get_dimen as get_dimen
+
+from pypit import ardebug as debugger
 
 # Logging
 msgs = armsgs.get_logger()
+
+# Force the default matplotlib plotting parameters
+plt.rcdefaults()
+
 
 def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, mask=None, function='polynomial', retmask=False):
     nrow = xfit.shape[0]
@@ -65,10 +71,10 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
 
     numer = np.sum(sub, axis=0)
     denom = np.sum(outmask, axis=0)
-    x0 = np.zeros(float(ntrace))
-    fitmask = np.zeros(float(ntrace))
+    x0 = np.zeros(ntrace, dtype=np.float)
+    fitmask = np.zeros(ntrace, dtype=np.float)
     #fitmask[mask] = 1
-    x0fit = np.zeros(float(ntrace))
+    x0fit = np.zeros(ntrace, dtype=np.float)
     chisqnu = 0.0
     chisqold = 0.0
     robust = True
@@ -79,7 +85,7 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
             good = np.where(fitmask != 0)[0]
             bad = np.where(fitmask == 0)[0]
             x0[good] = numer[good]/denom[good]
-            imask = np.zeros(float(ntrace))
+            imask = np.zeros(ntrace, dtype=np.float)
             imask[bad] = 1.0
             ttmask, x0res = arutils.robust_polyfit(x0in, x0, pnpc[0], weights=weights, sigma=2.0,
                                                    function=function, minv=x0in[0], maxv=x0in[-1], initialmask=imask)
@@ -268,19 +274,22 @@ def image_basis(img, numpc=0):
     return eigvec, eigval, score
 
 
-def pca2d(img, numpc, mask=None, maskval=-999999.9):
-    img = img.T
-    # Check if the number of principle components is within bounds
-    if (numpc<0) or (numpc > img.shape[0]): numpc = img.shape[0]/2
-    # Obtain the principal components
-    if mask is None:
-        mask = np.zeros_like(img)
-        mask[np.where(img == maskval)] = 1
-    mimg = np.ma.array(img, mask=mask)
-    eigvec, eigval, score = image_basis(mimg, numpc)
+def pca2d(img, numpc):
+    # Compute eigenvalues and eigenvectors of covariance matrix
+    imgsub = (img-np.mean(img.T, axis=1)).T  # subtract the mean (along a column)
+    [latent, coeff] = np.linalg.eig(np.cov(imgsub))
+    p = coeff.shape[1]
+    # Sort the eigenvalues/vectors in ascending order
+    idx = np.argsort(latent)
+    idx = idx[::-1]
+    coeff = coeff[:, idx]
+    if numpc < p:
+        coeff = coeff[:, range(numpc)]
+    # projection of the data in the new space
+    proj = np.dot(coeff.T, imgsub)
     # Reconstruct the image
-    imgpca = np.dot(eigvec, score).T + mimg.mean(axis=0).data
-    return imgpca.astype(np.float).T
+    imgpca = np.dot(coeff, proj).T + np.mean(img, axis=0)
+    return imgpca.astype(np.float)
 
 
 ################################################
@@ -367,6 +376,7 @@ def pc_plot(slf, inpar, ofit, maxp=25, pcadesc="", addOne=True):
                 if addOne: axes[ind].axis([0, nc+1, vmin-0.1*(vmax-vmin), vmax+0.1*(vmax-vmin)])
                 else: axes[ind].axis([0, nc, vmin-0.1*(vmax-vmin), vmax+0.1*(vmax-vmin)])
             axes[ind].set_title("PC {0:d}".format(j+ndone))
+            axes[ind].tick_params(labelsize=8)
             ipx += 1
             if ipx == pages[i][0]:
                 ipx = 0
@@ -378,6 +388,7 @@ def pc_plot(slf, inpar, ofit, maxp=25, pcadesc="", addOne=True):
             elif pages[i][0] == 1: ind = (ipy,)
             else: ind = (ipy, ipx)
             f.delaxes(axes[ind])
+            ipx += 1
             if ipx == pages[i][0]:
                 ipx = 0
                 ipy += 1
@@ -399,73 +410,101 @@ def pc_plot(slf, inpar, ofit, maxp=25, pcadesc="", addOne=True):
     return
 
 
-def pc_plot_arctilt(tiltang, centval, tilts, plotsdir="Plots", pcatype="<unknown>", maxp=25, prefix=""):
-    """
-    Saves a few output png files of the PCA analysis for the arc tilts
+def pc_plot_arctilt(slf, tiltang, centval, tilts, maxp=25, maskval=-999999.9):
+    """ Generate a QA plot for the blaze function fit to each slit
+
+    Parameters
+    ----------
+    slf : class
+      Science Exposure class
+    tiltang : ndarray
+      (m x n) 2D array containing the measured tilts (m) for each slit (n)
+    centval : ndarray
+      (m x n) 2D array containing the pixel location (in the spectral direction) of the measured tilts (m) for each slit (n)
+    tilts : ndarray
+      (m x n) 2D array containing the model tilts (m) for each slit (n)
+    maxp : int, (optional)
+      Maximum number of panels per page
+    maskval : float, (optional)
+      Value used in arrays to indicate a masked value
     """
     npc = tiltang.shape[1]
-    pages, npp = get_dimen(npc,maxp=maxp)
-    x0=np.arange(tilts.shape[0])
+    pages, npp = get_dimen(npc, maxp=maxp)
+    x0 = np.arange(tilts.shape[0])
     # First calculate the min and max values for the plotting axes, to make sure they are all the same
-    ymin, ymax = None, None
-    for i in range(npc):
-        w = np.where(tiltang[:,i]!=-999999.9)
-        if np.size(w[0]) == 0: continue
-        medv = np.median(tiltang[:,i][w])
-        madv = 1.4826*np.median(np.abs(medv-tiltang[:,i][w]))
-        vmin, vmax = medv-3.0*madv, medv+3.0*madv
-        tymin = min(vmin,np.min(tilts[:,i]))
-        tymax = max(vmax,np.max(tilts[:,i]))
-        if ymin is None: ymin = tymin
-        else:
-            if tymin < ymin: ymin = tymin
-        if ymax is None: ymax = tymax
-        else:
-            if tymax > ymax: ymax = tymax
+    w = np.where(tiltang != maskval)
+    medv = np.median(tiltang[w])
+    madv = 1.4826 * np.median(np.abs(medv - tiltang[w]))
+    ymin, ymax = medv - 3.0 * madv, medv + 3.0 * madv
+    ymin = min(ymin, np.min(tilts))
+    ymax = max(ymax, np.max(tilts))
+    # ymin, ymax = None, None
+    # for i in range(npc):
+    #     w = np.where(tiltang[:,i]!=-999999.9)
+    #     if np.size(w[0]) == 0: continue
+    #     medv = np.median(tiltang[:,i][w])
+    #     madv = 1.4826*np.median(np.abs(medv-tiltang[:,i][w]))
+    #     vmin, vmax = medv-3.0*madv, medv+3.0*madv
+    #     tymin = min(vmin,np.min(tilts[:,i]))
+    #     tymax = max(vmax,np.max(tilts[:,i]))
+    #     if ymin is None: ymin = tymin
+    #     else:
+    #         if tymin < ymin: ymin = tymin
+    #     if ymax is None: ymax = tymax
+    #     else:
+    #         if tymax > ymax: ymax = tymax
     # Check that ymin and ymax are set, if not, return without plotting
     if ymin is None or ymax is None:
         msgs.warn("Arc tilt fits were not plotted")
         return
     # Generate the plots
-    ndone=0
+    ndone = 0
     for i in range(len(pages)):
         f, axes = plt.subplots(pages[i][1], pages[i][0])
         ipx, ipy = 0, 0
         for j in range(npp[i]):
-            if pages[i][1] == 1: ind = (ipx)
-            elif pages[i][0] == 1: ind = (ipy)
-            else: ind = (ipy,ipx)
-            w = np.where(tiltang[:,ndone]!=-999999.9)
+            if pages[i][1] == 1:
+                ind = (ipx,)
+            elif pages[i][0] == 1:
+                ind = (ipy,)
+            else:
+                ind = (ipy, ipx)
+            w = np.where(tiltang[:, ndone] != maskval)
             if np.size(w[0]) != 0:
-                axes[ind].plot(centval[:,ndone][w],tiltang[:,ndone][w],'bx')
-                axes[ind].plot(x0,tilts[:,ndone],'r-')
-            axes[ind].axis([0,tilts.shape[0]-1,ymin,ymax])
-            axes[ind].set_title("Order {0:d}".format(1+ndone))
+                axes[ind].plot(centval[:, ndone][w], tiltang[:, ndone][w], 'bx')
+                axes[ind].plot(x0, tilts[:, ndone], 'r-')
+            axes[ind].axis([0, tilts.shape[0]-1, ymin, ymax])
+            axes[ind].set_title("Slit {0:d}".format(1+ndone))
+            axes[ind].tick_params(labelsize=8)
             ipx += 1
             if ipx == pages[i][0]:
                 ipx = 0
                 ipy += 1
             ndone += 1
         # Delete the unnecessary axes
-        for j in range(npp[i],axes.size):
-            if pages[i][1] == 1: ind = (ipx)
-            elif pages[i][0] == 1: ind = (ipy)
-            else: ind = (ipy,ipx)
+        for j in range(npp[i], axes.size):
+            if pages[i][1] == 1:
+                ind = (ipx,)
+            elif pages[i][0] == 1:
+                ind = (ipy,)
+            else:
+                ind = (ipy, ipx)
             f.delaxes(axes[ind])
+            ipx += 1
             if ipx == pages[i][0]:
                 ipx = 0
                 ipy += 1
         # Save the figure
-        if pages[i][1] == 1 or pages[i][0] == 1: ypngsiz = 11.0/axes.size
-        else: ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
+        if pages[i][1] == 1 or pages[i][0] == 1:
+            ypngsiz = 11.0/axes.size
+        else:
+            ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
         f.set_size_inches(11.0, ypngsiz)
         f.tight_layout()
-        if prefix != "":
-            f.savefig("{0:s}/{1:s}_PCA_arc{2:s}_page-{3:d}.png".format(plotsdir,prefix,pcatype,i+1), dpi=200, orientation='landscape')
-        else:
-            f.savefig("{0:s}/PCA_arc{1:s}_page-{2:d}.png".format(plotsdir,pcatype,i+1), dpi=200, orientation='landscape')
-    f.clf()
-    del f
+        slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
+        plt.close()
+        f.clf()
+        del f
     return
 
 

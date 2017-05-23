@@ -12,7 +12,7 @@ import pdb
 # setuptools' sdist command ignores MANIFEST.in
 #
 #from distutils.command.sdist import sdist as DistutilsSdist
-from setuptools import setup
+from setuptools import setup, find_packages
 #
 # DESI support code.
 #
@@ -39,7 +39,7 @@ setup_keywords['url'] = 'https://github.com/pypit/pypit'
 #
 # END OF SETTINGS THAT NEED TO BE CHANGED.
 #
-setup_keywords['version'] = '0.6.dev0' #get_version(setup_keywords['name'])
+setup_keywords['version'] = '0.8.dev0' #get_version(setup_keywords['name'])
 #
 # Use README.rst as long_description.
 #
@@ -60,8 +60,8 @@ setup_keywords['provides'] = [setup_keywords['name']]
 setup_keywords['requires'] = ['Python (>2.7.0)']
 # setup_keywords['install_requires'] = ['Python (>2.7.0)']
 setup_keywords['zip_safe'] = False
-setup_keywords['use_2to3'] = True
-setup_keywords['packages'] = ['pypit'] #find_packages('pypit')
+setup_keywords['use_2to3'] = False
+setup_keywords['packages'] = find_packages()
 #setup_keywords['package_dir'] = {'':''}
 #setup_keywords['cmdclass'] = {'version': DesiVersion, 'test': DesiTest, 'sdist': DistutilsSdist}
 #setup_keywords['test_suite']='{name}.tests.{name}_test_suite.{name}_test_suite'.format(**setup_keywords)

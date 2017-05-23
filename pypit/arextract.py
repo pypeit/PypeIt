@@ -3,6 +3,7 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 import numpy as np
 from astropy import units as u
 from pypit import armsgs
+from pypit import arparse as settings
 from pypit import artrace
 from pypit import arutils
 from pypit import arqa
@@ -10,10 +11,7 @@ from pypit import arqa
 # Logging
 msgs = armsgs.get_logger()
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 # MASK VALUES FROM EXTRACTION
 # 0 
@@ -51,6 +49,9 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
       Correction to the sky background in the object window
     """
     from pypit import arcyutils
+    from astropy.stats import sigma_clip
+
+
     bgfitord = 1  # Polynomial order used to fit the background
     nobj = scitrace['traces'].shape[1]
     cr_mask = 1.0-crmask
@@ -58,10 +59,16 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     bgcorr = np.zeros_like(cr_mask)
     # Loop on Objects
     for o in range(nobj):
-        msgs.info("Performing boxcar extraction on object {0:d}/{1:d}".format(o+1,nobj))
+        msgs.info("Performing boxcar extraction on object {0:d}/{1:d}".format(o+1, nobj))
         # Fit the background
         msgs.info("   Fitting the background")
-        bgframe = arcyutils.func2d_fit_val(bgfit, sciframe, scitrace['background'][:,:,o]*cr_mask, bgfitord)
+        # Trim CRs further
+        bg_mask = np.zeros_like(sciframe)
+        bg_mask[np.where(scitrace['background'][:,:,o]*cr_mask <= 0.)] = 1.
+        mask_sci = np.ma.array(sciframe, mask=bg_mask, fill_value=0.)
+        clip_image = sigma_clip(mask_sci, axis=1, sigma=3.)  # For the mask only
+        # Fit
+        bgframe = arcyutils.func2d_fit_val(bgfit, sciframe, (~clip_image.mask)*scitrace['background'][:,:,o]*cr_mask, bgfitord)
         # Weights
         weight = scitrace['object'][:,:,o]
         sumweight = np.sum(weight, axis=1)
@@ -111,6 +118,15 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
             debugger.set_trace()
         specobjs[o].boxcar['sky'] = skysum.copy()  # per pixel
         specobjs[o].boxcar['mask'] = boxmask.copy()
+        # Find boxcar size
+        slit_sz = []
+        inslit = np.where(weight == 1.)
+        for ii in range(weight.shape[0]):
+            inrow = inslit[0] == ii
+            if np.sum(inrow) > 0:
+                slit_sz.append(np.max(inslit[1][inrow])-np.min(inslit[1][inrow]))
+        slit_pix = np.median(slit_sz)  # Pixels
+        specobjs[o].boxcar['size'] = slit_pix
     # Return
     return bgcorr
 
@@ -183,7 +199,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
             weight_val = 1./sigframe[gdprof]  # 1/N
             msgs.work("Weight by S/N in boxcar extraction? [avoid CRs; smooth?]")
             # Fit
-            fdict = dict(func=slf._argflag['science']['extraction']['profile'], deg=3)
+            fdict = dict(func=settings.argflag['science']['extraction']['profile'], deg=3)
             if fdict['func'] == 'gaussian':
                 fdict['deg'] = 2
             elif fdict['func'] == 'moffat':
@@ -207,6 +223,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
             fdict['slit_val'] = slit_val
             fdict['flux_val'] = flux_val
             scitrace['opt_profile'].append(fdict)
+            specobjs[o].optimal['fwhm'] = fdict['param'][1] # Pixels
             if msgs._debug['obj_profile']: #
                 gdp = mask == 0
                 mn = np.min(slit_val[gdp])
@@ -231,7 +248,8 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
             scitrace['opt_profile'].append({})
             continue
     # QA
-    arqa.obj_profile_qa(slf, specobjs, scitrace)
+    if not msgs._debug['no_qa']:
+        arqa.obj_profile_qa(slf, specobjs, scitrace)
     return scitrace['opt_profile']
 
 
@@ -266,7 +284,7 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
     # Inverse variance
     model_ivar = np.zeros_like(varframe)
     gdvar = varframe > 0.
-    model_ivar[gdvar] = 1./varframe[gdvar]
+    model_ivar[gdvar] = arutils.calc_ivar(varframe[gdvar])
     cr_mask = 1.0-crmask
     # Object model image
     obj_model = np.zeros_like(varframe)
@@ -309,14 +327,14 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
         # Optimal ivar
         opt_num = np.sum(mask * model_ivar * prof_img**2, axis=1)
         ivar_den = np.sum(mask * prof_img, axis=1)
-        opt_ivar = opt_num / (ivar_den + (ivar_den==0.))
+        opt_ivar = opt_num * arutils.calc_ivar(ivar_den)
 
         # Save
         specobjs[o].optimal['wave'] = opt_wave.copy()*u.AA  # Yes, units enter here
         specobjs[o].optimal['counts'] = opt_flux.copy()
         gdiv = (opt_ivar > 0.) & (ivar_den > 0.)
         opt_var = np.zeros_like(opt_ivar)
-        opt_var[gdiv] = 1./opt_ivar[gdiv]
+        opt_var[gdiv] = arutils.calc_ivar(opt_ivar[gdiv])
         specobjs[o].optimal['var'] = opt_var.copy()
         #specobjs[o].boxcar['sky'] = skysum  # per pixel
 

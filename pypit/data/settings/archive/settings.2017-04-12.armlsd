@@ -1,0 +1,26 @@
+## This file is designed to set the default parameters for ARMLSD
+##
+# RUNNING ARMLSD
+
+# REDUCTION RULES
+reduce calibrate nonlinear True          # Perform a non-linear correction
+reduce calibrate flux True       # Perform a flux calibration
+reduce flexure method boxcar      # Perform flexure correction on objects using boxcar extraction.  Options are: None, boxcar, slitcen [this performs flexure correction before extraction of objects]
+reduce flexure maxshift 20      # Maximum allowed flexure shift in pixels (int)
+reduce flexure spectrum None
+
+# ARC FRAMES
+
+# BIAS FRAMES
+
+# TRACE FRAMES (used to trace the slit edges)
+trace slits tilts order  2
+
+# PIXEL FLAT FRAMES (used to correct pixel-to-pixel variations)
+
+# SCIENCE FRAMES
+
+# PINHOLE FRAMES
+
+# OUTPUT
+

@@ -57,8 +57,8 @@ your .pypit setup file.  Here is the recommended approach:
 #. Compare that spectrum with a known one and ID a few lines.  Write down.  Better be using vacuum wavelengths
 #. Add pixel values and wavelengths to your .pypit file, e.g.
 
-   * arc calibrate id_pix 872.062,902.7719,1931.0048,2452.620,3365.25658,3887.125
-   * arc calibrate id_wave 3248.4769,3274.905,4159.763,4610.656,5402.0634,5854.110
+   * arc calibrate IDpixels 872.062,902.7719,1931.0048,2452.620,3365.25658,3887.125
+   * arc calibrate IDwaves 3248.4769,3274.905,4159.763,4610.656,5402.0634,5854.110
 
 Validation
 ==========
@@ -135,4 +135,26 @@ By default, the code will calculate a flexure shift based on the
 extracted sky spectrum (boxcar). See :doc:`flexure` for
 further details.
 
+Wavelength Frame
+================
 
+PYPIT offers several frames of reference that can used for the
+wavelength scale. The first choice is whether you would like the
+data to be calibrated to air or vacuum wavelengths. This option
+is controlled by the argument::
+
+    reduce calibrate wavelength air
+
+where the default value is to calibrate to vacuum. You can also
+specify 'pixel', which will save the pixel values instead of the
+wavelength values (i.e. a wavelength calibration will not be
+performed).
+
+You can also choose if you want the wavelength scale corrected
+to the heliocentric (Sun-centered), barycentric (Solar system
+barycentre), or none (no correction). This option is governed
+by the command::
+
+    reduce calibrate refframe barycentric
+
+where the default value is a heliocentric wavelength scale.

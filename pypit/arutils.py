@@ -13,33 +13,15 @@ from pypit import armsgs
 #from pypit import arcyarc
 import warnings
 
-#from xastropy.xutils import xdebug as xdb
-
 # Logging
 msgs = armsgs.get_logger()
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 try:
-    import ds9
-except ImportError:
-    warnings.warn("ds9 module not installed")
-else:
-    def ds9plot(array):
-        # Set up a ds9 instance
-        d = ds9.ds9()
-        # Load the image
-        d.set_np2arr(array)
-        # Zoom to fit
-        d.set('zoom to fit')
-        # Change the colormap and scaling
-        d.set('cmap gray')
-        d.set('scale log')
-        null = raw_input("TEST PLOT GENERATED: Press enter to continue...")
-        return
+    basestring
+except NameError:  # For Python 3
+    basestring = str
 
 def quicksave(data,fname):
     """
@@ -61,6 +43,7 @@ def bspline_inner_knots(all_knots):
     i0=pos[0]
     i1=pos[-1]
     return all_knots[i0:i1]
+
 
 def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bkspace=None):
     ''' bspline fit to x,y
@@ -87,10 +70,11 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
 
     Returns:
     ---------
-    fit_dict: dict  
-      dict describing the bspline fit 
-    ''' 
+    tck : tuple
+      describes the bspline
+    '''
     #
+    task = 0  # Default of splrep
     if w is None:
         ngd = x.size
         gd = np.arange(ngd)
@@ -98,6 +82,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     else:
         gd = np.where(w > 0.)[0]
         weights = w[gd]
+        ngd = len(gd)
     # Make the knots
     if knots is None:
         if bkspace is not None: 
@@ -107,17 +92,28 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
             tempbkspace = xrnge/(nbkpts-1)
             knots = np.arange(1,nbkpts-1)*tempbkspace + startx
         elif everyn is not None:
-            idx_knots = np.arange(10, ngd-10, everyn) # A knot every good N pixels
+            # A knot every good N pixels
+            idx_knots = np.arange(everyn//2, ngd-everyn//2, everyn)
             knots = x[gd[idx_knots]]
         else:
             msgs.error("No method specified to generate knots")
+    else:
+        task = -1
     # Generate spline
     try:
-        tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, t=knots)
-    except ValueError: # Knot problem
+        tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, xb=xmin, xe=xmax, t=knots, task=task)
+    except ValueError:
+        # Knot problem
         msgs.warn("Problem in the bspline knot")
         debugger.set_trace()
     return tck
+
+
+def calc_ivar(varframe):
+    """ Calculate the inverse variance based on the input array
+    """
+    ivar = (varframe > 0.) / (np.abs(varframe) + (varframe == 0))
+    return ivar
 
 
 def calc_offset(raA, decA, raB, decB, distance=False):
@@ -133,93 +129,172 @@ def calc_offset(raA, decA, raB, decB, distance=False):
         return delRA, delDEC
 
 
-def dummy_fitsdict(nfile=10):
+def dummy_fitsdict(nfile=10, spectrograph='kast_blue', directory='./'):
     """
     Parameters
     ----------
-    nfile : int
+    nfile : int, optional
       Number of files to mimic
+    spectrograph : str, optional
+      Name of spectrograph to mimic
 
     Returns
     -------
 
     """
-    fitsdict = {}
-    fitsdict['date'] = ['2015-01-23T00:54:17.04']*nfile
+    fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
+    fitsdict['utc'] = ['2015-01-23']*nfile
+    fitsdict['directory'] = [directory]*nfile
+    fitsdict['filename'] = ['b{:03d}.fits'.format(i) for i in range(nfile)]
+    fitsdict['date'] = ['2015-01-23T00:{:02d}:11.04'.format(i) for i in range(nfile)]  # Will fail at 60
+    fitsdict['time'] = [(1432085758+i*60)/3600. for i in range(nfile)]
     fitsdict['target'] = ['Dummy']*nfile
-    fitsdict['exptime'] = [300.]*nfile
+    fitsdict['ra'] = ['00:00:00']*nfile
+    fitsdict['dec'] = ['+00:00:00']*nfile
+    fitsdict['exptime'] = [300.] * nfile
+    fitsdict['naxis0'] = [2048] * nfile
+    fitsdict['naxis1'] = [2048] * nfile
+    fitsdict['dispname'] = ['600/4310'] * nfile
+    fitsdict['dichroic'] = ['560'] * nfile
+    fitsdict['dispangle'] = ['none'] * nfile
+    fitsdict["binning"] = ['1x1']*nfile
     #
+    if spectrograph == 'kast_blue':
+        fitsdict['numamplifiers'] = [1] * nfile
+        fitsdict['naxis0'] = [2112] * nfile
+        fitsdict['naxis1'] = [2048] * nfile
+        fitsdict['slitwid'] = [1.] * nfile
+        fitsdict['slitlen'] = ['none'] * nfile
+        # Lamps
+        for i in range(1,17):
+            fitsdict['lampstat{:02d}'.format(i)] = ['off'] * nfile
+        fitsdict['exptime'][0] = 0        # Bias
+        fitsdict['lampstat06'][1] = 'on'  # Arc
+        fitsdict['exptime'][1] = 30       # Arc
+        fitsdict['lampstat01'][2] = 'on'  # Trace, pixel, slit flat
+        fitsdict['lampstat01'][3] = 'on'  # Trace, pixel, slit flat
+        fitsdict['exptime'][2] = 30     # flat
+        fitsdict['exptime'][3] = 30     # flat
+        fitsdict['ra'][4] = '05:06:36.6'  # Standard
+        fitsdict['dec'][4] = '52:52:01.0'
+        fitsdict['ra'][5] = '07:06:23.45' # Random object
+        fitsdict['dec'][5] = '+30:20:50.5'
+        fitsdict['decker'] = ['0.5 arcsec'] * nfile
+    elif spectrograph == 'none':
+        pass
+    # arrays
+    for k in fitsdict.keys():
+        fitsdict[k] = np.array(fitsdict[k])
+    # Return
     return fitsdict
 
 
-def dummy_self(pypitdir=None, inum=0, fitsdict=None, nfile=10):
-    """
-    Generate a dummy self class for testing
+def dummy_self(inum=0, fitsdict=None, nfile=10):
+    """ Generate a dummy self class for testing
     Parameters:
     -----------
-    pypitdir : str, optional
-      Path to the PYPIT main directory
     inum : int, optional
       Index in sciexp
     Returns:
     --------
     slf
     """
-    import pypit
     from pypit import arsciexp
-    from pypit import arload
-    # Dummy dicts
-    spect = arload.load_spect(pypit.__file__, 'kast_blue')
-    kk = 0
-    for jj,key in enumerate(spect.keys()):
-        if key in ['det']:
-            continue
-        if 'index' in spect[key].keys():
-            spect[key]['index'] = [[kk]*nfile]
-            kk += 1
-    argflag = arload.argflag_init()
+    # Dummy fitsdict
     if fitsdict is None:
         fitsdict = dummy_fitsdict(nfile=nfile)
     # Dummy Class
-    slf = arsciexp.ScienceExposure(inum, argflag, spect, fitsdict, do_qa=False)
-    #
-    if pypitdir is None:
-        pypitdir = __file__[0:__file__.rfind('/')]
-    slf._argflag['run']['pypitdir'] = pypitdir
-    slf._argflag['run']['spectrograph'] = 'dummy'
-    slf._argflag['run']['scidir'] = './'
-    #
-    slf._spect['mosaic'] = {}
-    slf._spect['mosaic']['ndet'] = 1
-    slf._spect['det'] = [{'binning':'1x1'}]
-    #
+    slf = arsciexp.ScienceExposure(inum, fitsdict, do_qa=False)
     return slf
 
 
-def erf_func(x):
-    """
-    This is a very good approximation to the erf function.
-    A probability is calculated as such:
-    prob = erf( N / np.sqrt(2.0) )
-    where N is the level of significance.
-    e.g. erf( 1.0 / np.sqrt(2.0) ) = 0.68268947
-    """
-    # Constants
-    a1 =  0.254829592
-    a2 = -0.284496736
-    a3 =  1.421413741
-    a4 = -1.453152027
-    a5 =  1.061405429
-    p  =  0.3275911
-    # Save the sign of x
-    sign = np.ones(x.size)
-    sign[np.where(x<0.0)] *= -1
-    x = np.abs(x)
-    # A&S formula 7.1.26
-    t = 1.0/(1.0 + p*x)
-    y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*np.exp(-x*x)
-    return sign*y
+def dummy_settings(pypitdir=None, nfile=10, spectrograph='kast_blue',
+                   set_idx=True):
+    """ Generate settings classes
+    Parameters
+    ----------
+    pypitdir
+    nfile
+    spectrograph
+    set_idx : bool, optional
+      Set dummy index values for science and calibs
 
+    Returns
+    -------
+
+    """
+    from pypit import arparse
+    # Dummy argflag
+    if spectrograph != 'kast_blue':
+        msgs.error("Only setup for Kast Blue")  # You will need to fuss with scidx
+    argf = arparse.get_argflag_class(("ARMLSD", spectrograph))
+    argf.init_param()
+    if pypitdir is None:
+        pypitdir = __file__[0:__file__.rfind('/')]
+    # Run specific
+    argf.set_param('run pypitdir {0:s}'.format(pypitdir))
+    argf.set_param('run spectrograph {:s}'.format(spectrograph))
+    argf.set_param('run directory science ./')
+    # Dummy spect
+    spect = arparse.get_spect_class(("ARMLSD", spectrograph, "dummy"))
+    lines = spect.load_file(base=True)  # Base spectrograph settings
+    spect.set_paramlist(lines)
+    lines = spect.load_file()
+    spect.set_paramlist(lines)
+    if set_idx:
+        for jj, key in enumerate(spect._spect.keys()):
+            if key in ['det']:
+                continue
+            if 'index' in spect._spect[key].keys():
+                if spectrograph == 'kast_blue':  # Science frames from idx = 5 to 9
+                    assert nfile == 10
+                for kk in [5,6,7,8,9]:
+                    if key == 'science':
+                        spect._spect[key]['index'] += [np.array([kk])]
+                    elif key == 'arc':
+                        spect._spect[key]['index'] += [np.array([1])]
+                    elif key == 'standard':
+                        spect._spect[key]['index'] += [np.array([4])]
+                    elif key == 'bias':
+                        spect._spect[key]['index'] += [np.array([0])]
+                    elif key == 'trace':
+                        spect._spect[key]['index'] += [np.array([2,3])]
+                    elif key == 'pixelflat':
+                        spect._spect[key]['index'] += [np.array([2,3])]
+    arparse.init(argf, spect)
+    return
+
+def dummy_specobj(fitsdict, det=1, extraction=True):
+    """ Generate dummy specobj classes
+    Parameters
+    ----------
+    fitsdict : dict
+      Expecting the fitsdict from dummy_fitsdict
+    Returns
+    -------
+
+    """
+    from astropy import units as u
+    from pypit import arspecobj
+    shape = fitsdict['naxis1'][0], fitsdict['naxis0'][0]
+    config = 'AA'
+    scidx = 5 # Could be wrong
+    xslit = (0.3,0.7) # Center of the detector
+    ypos = 0.5
+    xobjs = [0.4, 0.6]
+    specobjs = []
+    for xobj in xobjs:
+        specobj = arspecobj.SpecObjExp(shape, config, scidx, det, xslit, ypos, xobj)
+        # Dummy extraction?
+        if extraction:
+            npix = 2001
+            specobj.boxcar['wave'] = np.linspace(4000., 6000., npix)*u.AA
+            specobj.boxcar['counts'] = 50.*(specobj.boxcar['wave'].value/5000.)**-1.
+            specobj.boxcar['var']  = specobj.boxcar['counts'].copy()
+        # Append
+        specobjs.append(specobj)
+    # Return
+    return specobjs
 
 def func_der(coeffs, func, nderive=1):
     if func == "polynomial":
@@ -239,12 +314,13 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
 
     Parameters
     ----------
-    x
-    y
+    x : ndarray
+    y : ndarray
     func : str
       polynomial, legendre, chebyshev, bspline, gauss
-    deg
-    minv
+    deg : int
+      degree of the fit
+    minv : float, optional
     maxv
     w
     guesses
@@ -252,6 +328,9 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
 
     Returns
     -------
+    coeff : ndarray or tuple
+      ndarray for standard function fits
+      tuple for bspline
 
     """
     if func == "polynomial":
@@ -333,7 +412,8 @@ def func_val(c, x, func, minv=None, maxv=None):
 
     Parameters
     ----------
-    c
+    c : ndarray
+      coefficients
     x
     func
     minv
@@ -341,6 +421,7 @@ def func_val(c, x, func, minv=None, maxv=None):
 
     Returns
     -------
+    values : ndarray
 
     """
     if func == "polynomial":
@@ -382,6 +463,29 @@ def func_val(c, x, func, minv=None, maxv=None):
     else:
         msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                    "Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
+
+
+def calc_fit_rms(xfit, yfit, fit, func, minv=None, maxv=None):
+    """ Simple RMS calculation
+
+    Parameters
+    ----------
+    xfit : ndarray
+    yfit : ndarray
+    fit : coefficients
+    func : str
+    minv : float, optional
+    maxv : float, optional
+
+    Returns
+    -------
+    rms : float
+
+    """
+    values = func_val(fit, xfit, func, minv=minv, maxv=maxv)
+    rms = np.std(yfit-values)
+    # Return
+    return rms
 
 
 def func_vander(x, func, deg, minv=None, maxv=None):
@@ -495,14 +599,28 @@ def perturb(covar, bparams, nsim=1000):
 
 def polyfitter2d(data, mask=None, order=2):
     x, y = np.meshgrid(np.linspace(0.0, 1.0, data.shape[1]), np.linspace(0.0, 1.0, data.shape[0]))
-    if mask is None or mask.size == 0:
+    if isinstance(mask, (float, int)):
+        # mask is the value that should be masked in data
+        w = np.where(data != mask)
+        xf = x[w].flatten()
+        yf = y[w].flatten()
+        m = polyfit2d(xf, yf, data[w].T.flatten(), order)
+    elif mask is None or mask.size == 0:
+        # There are no masks
         xf = x.flatten()
         yf = y.flatten()
         m = polyfit2d(xf, yf, data.T.flatten(), order)
-    else:
+    elif len(mask.shape) == 1:
+        # mask is applied along one axis
         mskar = np.ones((data.shape[0], data.shape[1]))
-        mskar[mask,:] = 0
+        mskar[mask, :] = 0
         w = np.where(mskar == 1)
+        xf = x[w].flatten()
+        yf = y[w].flatten()
+        m = polyfit2d(xf, yf, data[w].T.flatten(), order)
+    elif mask.shape[0] == data.shape[0] and mask.shape[1] == data.shape[1]:
+        # mask is an array that indicates the masked data
+        w = np.where(mask == 0)
         xf = x[w].flatten()
         yf = y[w].flatten()
         m = polyfit2d(xf, yf, data[w].T.flatten(), order)
@@ -660,6 +778,8 @@ def gauss_fit(x, y, pcen):
     from pypit import arcyarc
     try:
         if np.any(y<0.0):
+            return [0.0, 0.0, 0.0], True
+        if x.size <= 3:
             return [0.0, 0.0, 0.0], True
         ampl, cent, sigm, good = arcyarc.fit_gauss(x, y, np.zeros(3,dtype=np.float), 0, x.size, float(pcen))
         if good == 0:
@@ -839,9 +959,9 @@ def rebin(frame, newshape):
     lenShape = len(shape)
     factor = np.asarray(shape)/np.asarray(newshape)
     evList = ['frame.reshape('] + \
-             ['newshape[%d],factor[%d],'%(i,i) for i in range(lenShape)] + \
-             [')'] + ['.sum(%d)'%(i+1) for i in range(lenShape)] + \
-             ['/factor[%d]'%i for i in range(lenShape)]
+             ['int(newshape[%d]),int(factor[%d]),'% (i, i) for i in range(lenShape)] + \
+             [')'] + ['.sum(%d)' % (i+1) for i in range(lenShape)] + \
+             ['/factor[%d]' % i for i in range(lenShape)]
     return eval(''.join(evList))
 
 
@@ -889,7 +1009,10 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
         yrng = func_val(ct, xarray, function, minv=minv, maxv=maxv)
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
         if xarray.size-np.sum(mask) <= order+2:
-            msgs.warn("More parameters than data points - fit might be undesirable")
+            try:
+                msgs.warn("More parameters than data points - fit might be undesirable")
+            except AttributeError:
+                print("More parameters than data points - fit might be undesirable")
             break  # More data was masked than allowed by order
         if maxone:  # Only remove the most deviant point
             tst = np.abs(yarray[w]-yrng[w])
@@ -1025,3 +1148,131 @@ def subsample(frame):
     coordinates = np.mgrid[slices]
     indices = coordinates.astype('i')
     return frame[tuple(indices)]
+
+def trace_gweight(fimage, xcen, ycen, sigma, invvar=None, maskval=-999999.9):
+    """ Determines the trace centroid by weighting the flux by the integral
+    of a Gaussian over a pixel
+    Port of SDSS trace_gweight algorithm
+
+    Parameters
+    ----------
+    fimage : ndarray
+      image to centroid on
+    xcen : ndarray
+      guess of centroids in x (column) dimension
+    ycen : ndarray (usually int)
+      guess of centroids in y (rows) dimension
+    sigma : float
+      Width of gaussian
+    invvar : ndarray, optional
+    maskval : float, optional
+      Value for masking
+
+    Returns
+    -------
+    xnew : ndarray
+      New estimate for trace in x-dimension
+    xerr : ndarray
+      Error estimate for trace.  Rejected points have maskval
+
+    """
+    # Setup
+    nx = fimage.shape[1]
+    xnew = np.zeros_like(xcen)
+    xerr = maskval*np.ones_like(xnew)
+
+    if invvar is None:
+        invvar = np.ones_like(fimage)
+
+    # More setting up
+    x_int = np.round(xcen).astype(int)
+    nstep = 2*int(3.0*sigma) - 1
+
+    weight = np.zeros_like(xcen)
+    numer  = np.zeros_like(xcen)
+    meanvar = np.zeros_like(xcen)
+    bad = np.zeros_like(xcen).astype(bool)
+
+    for i in range(nstep):
+        xh = x_int - nstep//2 + i
+        xtemp = (xh - xcen - 0.5)/sigma/np.sqrt(2.0)
+        g_int = (erf(xtemp+1./sigma/np.sqrt(2.0)) - erf(xtemp))/2.
+        xs = np.minimum(np.maximum(xh,0),(nx-1))
+        cur_weight = fimage[ycen, xs] * (invvar[ycen, xs] > 0) * g_int * ((xh >= 0) & (xh < nx))
+        weight += cur_weight
+        numer += cur_weight * xh
+        meanvar += cur_weight * cur_weight * (xcen-xh)**2 / (
+                            invvar[ycen, xs] + (invvar[ycen, xs] == 0))
+        bad = np.any([bad, xh < 0, xh >= nx], axis=0)
+
+    # Masking
+    good = (~bad) & (weight > 0)
+    if np.sum(good) > 0:
+        xnew[good] = numer[good]/weight[good]
+        xerr[good] = np.sqrt(meanvar[good])/weight[good]
+    # Return
+    return xnew, xerr
+
+def yamlify(obj, debug=False):
+    """Recursively process an object so it can be serialised for yaml.
+    Based on jsonify in `linetools <https://pypi.python.org/pypi/linetools>`_.
+
+    Note: All string-like keys in :class:`dict` s are converted to
+    :class:`str`.
+
+    Also found in desiutils
+
+    Parameters
+    ----------
+    obj : :class:`object`
+        Any object.
+    debug : :class:`bool`, optional
+        Print extra information if requested.
+
+    Returns
+    -------
+    :class:`object`
+       An object suitable for yaml serialization.  For example
+       :class:`numpy.ndarray` is converted to :class:`list`,
+       :class:`numpy.int64` is converted to :class:`int`, etc.
+    """
+    import numpy as np
+    if isinstance(obj, (np.float64, np.float32)):
+        obj = float(obj)
+    elif isinstance(obj, (np.int32, np.int64, np.int16)):
+        obj = int(obj)
+    elif isinstance(obj, np.bool_):
+        obj = bool(obj)
+    elif isinstance(obj, (np.string_, basestring)):
+        obj = str(obj)
+    # elif isinstance(obj, Quantity):
+    #     obj = dict(value=obj.value, unit=obj.unit.to_string())
+    elif isinstance(obj, np.ndarray):  # Must come after Quantity
+        obj = obj.tolist()
+    elif isinstance(obj, dict):
+        # First convert keys
+        nobj = {}
+        for key, value in obj.items():
+            if isinstance(key, basestring):
+                nobj[str(key)] = value
+            else:
+                nobj[key] = value
+        # Now recursive
+        obj = nobj
+        for key, value in obj.items():
+            obj[key] = yamlify(value, debug=debug)
+    elif isinstance(obj, list):
+        for i, item in enumerate(obj):
+            obj[i] = yamlify(item, debug=debug)
+    elif isinstance(obj, tuple):
+        obj = list(obj)
+        for i, item in enumerate(obj):
+            obj[i] = yamlify(item, debug=debug)
+        obj = tuple(obj)
+    # elif isinstance(obj, Unit):
+    #     obj = obj.name
+    # elif obj is u.dimensionless_unscaled:
+    #     obj = 'dimensionless_unit'
+    if debug:
+        print(type(obj))
+    return obj

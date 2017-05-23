@@ -11,20 +11,19 @@ from astropy.io import fits
 from astropy import units as u
 from astropy import coordinates as coords
 
+from pypit import armsgs
+from pypit import arparse as settings
+
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
 except ImportError:
     pass
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except:
-    import pdb as debugger
+from pypit import ardebug as debugger
 
 # Logging
-#from pypit import armsgs
-from .armsgs import get_logger
-msgs = get_logger()
+msgs = armsgs.get_logger()
+
 
 def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
     """ Apply the sensitivity function to the data
@@ -37,20 +36,21 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
     """
     from pypit import arutils
     # Load extinction data
-    extinct = load_extinction_data(slf)
+    extinct = load_extinction_data()
     airmass = fitsdict['airmass'][scidx]
     # Loop on objects
     for spobj in slf._specobjs[det-1]:
         # Loop on extraction modes
-        for extract_type in ['boxcar']:
+        for extract_type in ['boxcar', 'optimal']:
             try:
                 extract = getattr(spobj,extract_type)
             except AttributeError:
                 continue
-            msgs.info("Fluxing {:s} extraction for {}".format(extract_type, spobj))
+            msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() +
+                      "{}".format(spobj))
             wave = extract['wave']  # for convenience
             scale = np.zeros(wave.size)
-            # Allow for some extrapolation 
+            # Allow for some extrapolation
             dwv = slf._sensfunc['wave_max']-slf._sensfunc['wave_min']
             inds = ((wave >= slf._sensfunc['wave_min']-dwv*MAX_EXTRAP)
                     & (wave <= slf._sensfunc['wave_max']+dwv*MAX_EXTRAP))
@@ -88,7 +88,8 @@ def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
     -------
     """
     from pypit import arutils
-    invvar = (var > 0.)/(var + (var <= 0.))
+    invvar = (var > 0.)/(np.max(var,0))
+    invvar[np.where(var==0.0)] = 0.0
     nx = wave.size
     pos_error = 1./np.sqrt(np.maximum(invvar,0.) + (invvar == 0))
     pos_mask = (flux > pos_error/10.0) & (invvar > 0) & (flux_std > 0.0)
@@ -104,7 +105,7 @@ def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
 
     # Interpolate over masked pixels
     if not nointerp:
-        bad = logivar <= 0. 
+        bad = logivar <= 0.
         if np.sum(bad) > 0:
             f = scipy.interpolate.InterpolatedUnivariateSpline(wave[~bad], magfunc[~bad], k=2)
             magfunc[bad] = f(wave[bad])
@@ -178,7 +179,7 @@ def extinction_correction(wave, airmass, extinct):
         extinct['mag_ext'], bounds_error=False, fill_value=0.)
     mag_ext = f_mag_ext(wave.to('AA').value)
 
-    # Deal with outside wavelengths 
+    # Deal with outside wavelengths
     gdv = np.where(mag_ext > 0.)[0]
     if len(gdv) == 0:
         msgs.error("None of the input wavelengths are in the extinction correction range.  Presumably something was input wrong.")
@@ -194,15 +195,13 @@ def extinction_correction(wave, airmass, extinct):
     return flux_corr
 
 
-def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
+def find_standard_file(radec, toler=20.*u.arcmin, check=False):
     """
     Find a match for the input file to one of the archived
     standard star files (hopefully).  Priority is by order of search.
 
     Parameters
     ----------
-    argflag : dict
-      Arguments and flags used for reduction
     radec : tuple
       ra, dec in string format ('05:06:36.6','52:52:01.0')
     toler : Angle
@@ -231,7 +230,7 @@ def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
     closest = dict(sep=999*u.deg)
     for qq,sset in enumerate(std_sets):
         # Stars
-        path, star_tbl = sset(argflag)
+        path, star_tbl = sset()
         star_coords = SkyCoord(star_tbl['RA_2000'], star_tbl['DEC_2000'],
             unit=(u.hourangle, u.deg))
         # Match
@@ -250,8 +249,8 @@ def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
             mind2d = d2d[imind2d]
             if mind2d < closest['sep']:
                 closest['sep'] = mind2d
-                closest.update(dict(name=star_tbl[int(idx)]['Name'], 
-                    ra=star_tbl[int(idx)]['RA_2000'], 
+                closest.update(dict(name=star_tbl[int(idx)]['Name'],
+                    ra=star_tbl[int(idx)]['RA_2000'],
                     dec=star_tbl[int(idx)]['DEC_2000']))
     # Standard star not found
     if check: return False
@@ -261,7 +260,7 @@ def find_standard_file(argflag, radec, toler=20.*u.arcmin, check=False):
     return None
 
 
-def load_calspec(argflag):
+def load_calspec():
     """
     Load the list of calspec standards
 
@@ -277,21 +276,19 @@ def load_calspec(argflag):
     """
     # Read
     calspec_path = '/data/standards/calspec/'
-    calspec_file = argflag['run']['pypitdir'] + calspec_path + 'calspec_info.txt'
+    calspec_file = settings.argflag['run']['pypitdir'] + calspec_path + 'calspec_info.txt'
     calspec_stds = Table.read(calspec_file, comment='#', format='ascii')
     # Return
     return calspec_path, calspec_stds
 
 
-def load_extinction_data(slf, toler=5.*u.deg):
+def load_extinction_data(toler=5.*u.deg):
     """
     Find the best extinction file to use, based on longitude and latitude
     Loads it and returns a Table
 
     Parameters
     ----------
-    slf : class
-      Includes mosaic lon/lat
     toler : Angle, optional
       Tolerance for matching detector to site (5 deg)
 
@@ -301,10 +298,10 @@ def load_extinction_data(slf, toler=5.*u.deg):
       astropy Table containing the 'wavelength', 'extinct' data for AM=1.
     """
     # Mosaic coord
-    mosaic_coord = SkyCoord(slf._spect['mosaic']['longitude'],
-        slf._spect['mosaic']['latitude'], frame='gcrs', unit=u.deg)
+    mosaic_coord = SkyCoord(settings.spect['mosaic']['longitude'],
+                            settings.spect['mosaic']['latitude'], frame='gcrs', unit=u.deg)
     # Read list
-    extinct_path = slf._argflag['run']['pypitdir']+'/data/extinction/'
+    extinct_path = settings.argflag['run']['pypitdir']+'/data/extinction/'
     extinct_summ = extinct_path+'README'
     extinct_files = Table.read(extinct_summ,comment='#',format='ascii')
     # Coords
@@ -315,7 +312,7 @@ def load_extinction_data(slf, toler=5.*u.deg):
         extinct_file = extinct_files[int(idx)]['File']
         msgs.info("Using {:s} for extinction corrections.".format(extinct_file))
     else:
-        msgs.warn("No file found for extinction corrections.  Applying none") 
+        msgs.warn("No file found for extinction corrections.  Applying none")
         msgs.warn("You should generate a site-specific file")
         return None
     # Read
@@ -326,7 +323,7 @@ def load_extinction_data(slf, toler=5.*u.deg):
     return extinct[['wave','mag_ext']]
 
 
-def load_standard_file(slf, std_dict):
+def load_standard_file(std_dict):
     """
     Load standard star data
 
@@ -343,8 +340,8 @@ def load_standard_file(slf, std_dict):
     std_flux : Quantity array
       Flux of standard star
     """
-    fil = glob.glob(slf._argflag['run']['pypitdir']+
-            std_dict['file']+'*')
+    fil = glob.glob(settings.argflag['run']['pypitdir'] +
+                    std_dict['file']+'*')
     if len(fil) == 0:
         msgs.error("No standard star file: {:s}".format(fil))
     else:
@@ -361,6 +358,7 @@ def load_standard_file(slf, std_dict):
         msgs.error("Bad Standard Star Format")
     return
 
+
 def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=20):
     """
     Generate sensitivity function from current standard star
@@ -373,10 +371,10 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
     specobjs : list
       List of spectra
     BALM_MASK_WID : float
-      Mask parameter for Balmer absorption.  A region equal to 
-      BALM_MASK_WID*resln is masked wher resln is the estimate 
+      Mask parameter for Balmer absorption.  A region equal to
+      BALM_MASK_WID*resln is masked wher resln is the estimate
       for the spectral resolution.
-    nresln : int  
+    nresln : int
       Number of resolution elements for break-point placement
 
     Returns
@@ -391,7 +389,7 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
     std_obj = specobjs[np.argmax(np.array(medfx))]
     wave = std_obj.boxcar['wave']
     # Apply Extinction
-    extinct = load_extinction_data(slf)
+    extinct = load_extinction_data()
     ext_corr = extinction_correction(wave,
         fitsdict['airmass'][scidx], extinct)
     flux_corr = std_obj.boxcar['counts']*ext_corr
@@ -401,10 +399,9 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
     var_corr /= fitsdict['exptime'][scidx]**2
 
     # Grab closest standard within a tolerance
-    std_dict = find_standard_file(slf._argflag, (slf._msstd[0]['RA'],
-                                                 slf._msstd[0]['DEC']))
+    std_dict = find_standard_file((slf._msstd[0]['RA'], slf._msstd[0]['DEC']))
     # Load standard
-    load_standard_file(slf, std_dict)
+    load_standard_file(std_dict)
     # Interpolate onto observed wavelengths
     std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
     xspec = std_xspec.rebin(wave) # Conserves flambda
@@ -420,7 +417,7 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
     # Mask bad pixels
     msk[var_corr <= 0.] = False
 
-    # Mask edges 
+    # Mask edges
     msk[flux_true <= 0.] = False
     msk[:10] = False
     msk[-10:] = False
@@ -428,7 +425,7 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
 
     # Mask Balmer
     # Compute an effective resolution for the standard. This could be improved
-    # to setup an array of breakpoints based on the resolution. At the 
+    # to setup an array of breakpoints based on the resolution. At the
     # moment we are using only one number
     msgs.warn("Should pull resolution from arc line analysis")
     std_res = 2.0*np.median(np.abs(wave - np.roll(wave, 1)))
@@ -436,7 +433,7 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
 
     msgs.info("Masking Balmer")
     lines_balm = np.array([3836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7, 5407.0, 6564.6, 8224.8, 8239.2])*u.AA
-    for line_balm in lines_balm: 
+    for line_balm in lines_balm:
       ibalm = np.abs(wave-line_balm) <= BALM_MASK_WID*resln
       msk[ibalm] = False
 
@@ -451,6 +448,6 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
                              bkspace=resln.value*nresln)
     sens_dict = dict(c=mag_tck, func='bspline',min=None,max=None, std=std_dict)
     # Add in wavemin,wavemax
-    sens_dict['wave_min'] = np.min(wave) 
-    sens_dict['wave_max'] = np.max(wave) 
+    sens_dict['wave_min'] = np.min(wave)
+    sens_dict['wave_max'] = np.max(wave)
     return sens_dict

@@ -1,0 +1,133 @@
+## This file is designed to set the default parameters for ARMLSD
+##
+# RUNNING ARMLSD
+run  ncpus        -1			# Number of CPUs to use (-1 means all bar one CPU, -2 means all bar two CPUs)
+run load settings None        # Load a reduction settings file (Note: this command overwrites all default settings)
+run load spect None           # Load a spectrograph settings file (Note: this command overwrites all default settings)
+run  calcheck     False         # Doesn't reduce the data, just checks to make sure all calibration data are present
+run  setup       False          # Generate a setup file and parse files
+run  directory master   MF      # Root Directory name for master calibration frames
+run  directory science       Science       # Child Directory name for extracted science frames
+run  directory qa     QA         # Child Directory name for quality assurance
+run  qa     False         # Run quality control in real time? (setting this to False will still produce the checks, but won't display the results during the reduction).
+run  preponly     False         # If True, ARMLSD will prepare the calibration frames and will only reduce the science frames when preponly is set to False
+run  stopcheck    False         # If True, ARMLSD will stop and require a user carriage return at every quality control check
+run  useIDname   False         # If True, file sorting will ensure that the idname is made
+
+# REDUCTION RULES
+reduce calibrate nonlinear False          # Perform a non-linear correction
+#reduce calibrate flux True       # Perform a flux calibration
+reduce calibrate refframe heliocentric           # Which reference frame do you want the data in (heliocentric, barycentric, none)?
+reduce calibrate wavelength vacuum          # Wavelength calibrate the data? (air, vacuum, none)
+reduce overscan method savgol       # Method used to fit the overscan (polynomial, savgol)
+reduce overscan params [5,65]       # Parameters used for the overscan method (for polynomial use [#] where # is replaced by the polynomial order, for savgol use [#,$] where # is the order and $ is the window size (should be odd)
+reduce badpix True              # Make a bad pixel mask? (This step requires bias frames)
+reduce flatfield perform True           # Flatfield the data?
+reduce flatfield method bspline      # Method used to flat field the data (PolyScan, bspline)
+reduce flatfield params [20]     # Flat field method parameters (PolyScan: [order,numPixels,repeat], bspline: [spacing])
+reduce flatfield useframe pixelflat          # How to flat field the data (pixelflat, pinhole), you can also specify a master calibrations file if it exists.
+reduce slitcen useframe trace          # How to trace the slit center (pinhole, trace, science), you can also specify a master calibrations file if it exists.
+reduce trace useframe trace          # How to flat field the data (trace), you can also specify a master calibrations file if it exists.
+reduce masters file None         #
+reduce masters loaded []         #
+reduce masters setup None            #
+reduce masters reuse False            # Reuse masters that have already been created (True/False)
+reduce pixel locations None           # If desired, a fits file can be specified (of the appropriate form) to specify the locations of the pixels on the detector
+reduce pixel size 2.5            # The size of the extracted pixels (as an scaled number of Arc FWHM), -1 will not resample
+reduce skysub perform True       # Subtract the sky background from the data?
+reduce skysub method bspline     # Method used for the sky subtraction
+reduce skysub bspline everyn 20  # bspline fitting parameters
+reduce slitprofile perform False    # Determine the spatial slit profile
+reduce trim True                # Trim the frame to isolate the data
+
+# ARC FRAMES
+arc useframe arc               # What filetype should be used for wavelength calibration (arc), you can also specify a master calibrations file if it exists.
+arc combine match -1.0         # Match similar arc frames together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
+arc combine method weightmean           # How should the bias frames be combined (mean, median, weightmean)
+arc combine reject cosmics  -1.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
+arc combine reject lowhigh   [0,0]         # Number of low/high pixels to reject, [low,high]
+arc combine reject level     [3.0,3.0]     # Rejection level (in standard deviations), where <= 0.0 means no rejection [low,high]
+arc combine reject replace    maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
+arc combine satpix       reject        # What to do with saturated pixels (options are: reject, force, nothing)
+arc extract binby      1.0           # Binning factor to use when extracting 1D arc spectrum (does not need to be integer, but should be >1.0)
+arc load extracted     False         # If the master arc has previously been extracted and saved, load the 1D extractions
+arc load calibrated    False         # If the extracted arc have previously been calibrated and saved, load the calibration files
+arc calibrate IDpixels []            # Manually set the pixels to be identified
+arc calibrate IDwaves []             # Manually set the corresponding ID wavelengths
+arc calibrate nfitpix  5             # Number of pixels to fit when deriving the centroid of the arc lines (an odd number is best)
+arc calibrate lamps None           # name of the ions used for the wavelength calibration
+arc calibrate method simple          # What method should be used to fit the individual arc lines (options are: fit, simple); fit is perhaps the most accurate; simple uses a polynomial fit (to the log of a gaussian), is the fastest and is reliable
+arc calibrate detection 6.0         # How significant should the arc line detections be (in units of a standard deviation)
+arc calibrate numsearch 20           # Number of brightest arc lines to search for preliminary identification
+
+# BIAS FRAMES
+#bias useoverscan True                  # Subtract the bias level using the overscan region?
+bias useframe bias                  # How to subtract the detector bias (bias, overscan, dark, none), you can also specify a master calibrations file if it exists.
+bias combine method mean                # How should the bias frames be combined (mean, median, weightmean)
+bias combine reject cosmics 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
+bias combine reject lowhigh  [0,0]         # Number of low/high pixels to reject, [low,high]
+bias combine reject level    [3.0,3.0]     # Rejection level (in standard deviations), where <= 0.0 means no rejection [low,high]
+bias combine reject replace   median        # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
+bias combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
+
+# TRACE FRAMES (used to trace the slit edges)
+trace useframe trace                       # What filetype should be used to trace the slit edges (trace), you can also specify a master calibrations file if it exists.
+trace combine match -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
+trace combine method weightmean          # How should the trace frames be combined (mean, median, weightmean)
+trace combine reject cosmics 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
+trace combine reject lowhigh  [0,0]         # Number of low/high pixels to reject, [low,high]
+trace combine reject level    [3.0,3.0]     # Rejection level (in standard deviations), where <= 0.0 means no rejection [low,high]
+trace combine reject replace   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
+trace combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
+trace dispersion direction  0          # Specify the dispersion direction (0 for row, 1 for column)
+trace slits diffpolyorder  2         # What is the order of the 2D function that should be used to fit the 2d solution for the spatial size of all orders?
+trace slits expand False             # If you trace the slits with a pinhole frame, you should expand the trace edges to the slit edges defined by the trace frame
+trace slits fracignore 0.01           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
+trace slits function    legendre      # What function should be used to trace each order? (polynomial, legendre, chebyshev)
+trace slits maxgap    None          # Maximum gap between slits (None if slits are far apart, or of similar illumination)
+trace slits number      auto          # Manually set the number of slits to identify (>=1). 'auto' or -1 will automatically identify the number of slits.
+trace slits pad 0                     # Number of pixels to consider beyond the slit edges
+trace slits pca type pixel            # Should the PCA be performed using pixel position (pixel) or by spectral order (order). The latter is used for echelle spectroscopy.
+trace slits pca params [3,2,1,0,0,0]        # What order polynomials should be used to fit the principle components
+trace slits pca extrapolate pos     0             # How many extra orders to predict in the positive direction
+trace slits pca extrapolate neg     0             # How many extra orders to predict in the negative direction
+trace slits polyorder  3             # What is the order of the function that should be used?
+trace slits sigdetect  20.0           # Sigma detection threshold for edge detection
+trace slits single []                #
+trace slits tilts idsonly False       # Use only the arc lines that have an identified wavelength to trace tilts
+trace slits tilts method      spline        # What method should be used to trace the tilt of the slit along an order (PCA, spca, spline, interp, perp, zero)
+trace slits tilts params    [1,1,0]       # What order polynomials should be used to fit the tilt principle components
+trace slits tilts order  1             # What is the order of the function to be used for tilts in a given order
+
+# PIXEL FLAT FRAMES (used to correct pixel-to-pixel variations)
+pixelflat useframe pixelflat             # What filetype should be used for pixel-to-pixel calibration (flat), you can also specify a master calibrations file if it exists.
+pixelflat combine match -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
+pixelflat combine method weightmean          # How should the pixel flat frames be combined (mean, median, weightmean)
+pixelflat combine reject cosmics 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
+pixelflat combine reject lowhigh  [0,0]         # Number of low/high pixels to reject, [low,high]
+pixelflat combine reject level    [3.0,3.0]     # Rejection level (in standard deviations), where <= 0.0 means no rejection [low,high]
+pixelflat combine reject replace   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
+pixelflat combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
+
+# SCIENCE FRAMES
+science extraction reuse False        # If the science frame has previously been extracted and saved, load the extractions
+science extraction profile gaussian   # Fitting function used to extract science data, only if the extraction is 2D (options are: gaussian, gaussfunc, moffat, moffatfunc) ### NOTE: options with suffix 'func' fits a function to the pixels whereas those without this suffix takes into account the integrated function within each pixel (and is closer to truth)
+science extraction maxnumber 999      # Maximum number of objects to extract in a science frame
+science extraction manual01 frame None
+science extraction manual01 params None
+
+# PINHOLE FRAMES
+pinhole useframe pinhole             # What frame should be used to trace the slit centroid (based on the average of the left/right edges). Must be one of [pinhole, science]
+pinhole combine match -1.0           # Match similar flatfields together (a successful match is found when the frames are similar to within N-sigma, where N is the argument of this expression)
+pinhole combine method weightmean          # How should the pixel flat frames be combined (mean, median, weightmean)
+pinhole combine reject cosmics 20.0         # Sigma level to reject cosmic rays (<= 0.0 means no CR removal)
+pinhole combine reject lowhigh  [0,0]         # Number of low/high pixels to reject, [low,high]
+pinhole combine reject level    [3.0,3.0]     # Rejection level (in standard deviations), where <= 0.0 means no rejection [low,high]
+pinhole combine reject replace   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
+pinhole combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
+
+# OUTPUT
+output  verbosity      2		   # Level of screen output (0 is No screen output, 1 is low level output, 2 is output everything)
+output  sorted       None          # A filename given to output the details of the sorted files. If None, no output is created.
+output  overwrite    False         # Overwrite any existing output files?
+
