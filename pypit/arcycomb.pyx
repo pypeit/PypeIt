@@ -11,27 +11,6 @@ ctypedef np.float_t DTYPE_t
 cdef extern from "math.h":
     double csqrt "sqrt" (double)
 
-#######
-#  A  #
-#######
-
-
-
-#######
-#  B  #
-#######
-
-
-#######
-#  C  #
-#######
-
-
-#######
-#  M  #
-#######
-
-
 #@cython.boundscheck(False)
 def masked_limitget(np.ndarray[DTYPE_t, ndim=3] array not None,
                   double limvalue,
@@ -396,57 +375,3 @@ def minmax(np.ndarray[DTYPE_t, ndim=3] array not None,
                         temp = array[x,y,n]
             mmarr[x,y] = temp
     return mmarr
-
-#######
-#  N  #
-#######
-
-#######
-#  O  #
-#######
-
-#######
-#  P  #
-#######
-
-#######
-#  Q  #
-#######
-
-#######
-#  R  #
-#######
-
-#######
-#  S  #
-#######
-
-#######
-#  T  #
-#######
-
-#######
-#  U  #
-#######
-
-#######
-#  V  #
-#######
-
-#######
-#  W  #
-#######
-
-#######
-#  X  #
-#######
-
-#######
-#  Y  #
-#######
-
-#######
-#  Z  #
-#######
-
-
