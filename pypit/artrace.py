@@ -544,7 +544,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     wm = np.where(mskpix == 0)
     if wm[0].size == 0:
         msgs.warn("No objects found")
-        return None
+        return trace_object_dict(0, None)
     med, mad = arutils.robust_meanstd(trcprof[wm])
     trcprof -= med
     # Gaussian smooth
@@ -599,7 +599,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
             allsfit = np.append(allsfit, centfit[w]-cval[o])
     if nobj == 0:
         msgs.warn("No objects detected in slit")
-        return dict(nobj=0, traces=None, object=None, background=None)
+        return trace_object_dict(0, None)
     # Tracing
     msgs.info("Performing global trace to all objects")
     mskbad, coeffs = arutils.robust_polyfit(allxfit, allsfit, traceorder, function=tracefunc, minv=-1.0, maxv=1.0)
