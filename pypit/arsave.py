@@ -39,7 +39,7 @@ def save_arcids(fname, pixels):
             ans = ''
             while ans != 'y' and ans != 'n' and ans != 'r':
                 msgs.warn("File %s exists!" % (fname), verbose=settings.argflag['output']['verbosity'])
-                ans = raw_input(msgs.input()+"Overwrite? (y/n)")
+                ans = input(msgs.input()+"Overwrite? (y/n)")
             if ans == 'y': os.remove(fname)
     if ans == 'y':
         msgs.info("Arc IDs saved successfully to file:"+msgs.newline()+fname)
@@ -109,7 +109,7 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
             msgs.warn("This file already exists")
             rmfil=''
             while rmfil != 'n' and rmfil != 'y' and rmfil != 'a':
-                rmfil=raw_input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
+                rmfil=input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
             if rmfil == 'n':
                 msgs.warn("Not saving {0:s} frame:".format(frametype)+msgs.newline()+filename)
             else:
@@ -173,7 +173,7 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
             msgs.warn("This file already exists")
             rmfil = ''
             while rmfil != 'n' and rmfil != 'y' and rmfil != 'a':
-                rmfil = raw_input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
+                rmfil = input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
             if rmfil == 'n':
                 msgs.warn("Not saving master {0:s} frame:".format(frametype)+msgs.newline()+filename)
             else:
@@ -205,7 +205,7 @@ def save_ordloc(slf, fname):
             msgs.warn("This file already exists:"+msgs.newline()+filename)
             rmfil=''
             while rmfil != 'n' and rmfil != 'y' and rmfil != 'a':
-                rmfil=raw_input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
+                rmfil=input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
             if rmfil == 'n':
                 msgs.warn("Not saving left order traces for file:"+msgs.newline()+fname)
             else:
@@ -230,7 +230,7 @@ def save_ordloc(slf, fname):
             msgs.warn("This file already exists:"+msgs.newline()+filename)
             rmfil=''
             while rmfil != 'n' and rmfil != 'y' and rmfil != 'a':
-                rmfil=raw_input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
+                rmfil=input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
             if rmfil == 'n':
                 msgs.warn("Not saving right order traces for file:"+msgs.newline()+fname)
             else:
@@ -262,7 +262,7 @@ def save_tilts(slf, fname):
             msgs.warn("This file already exists:"+msgs.newline()+filename)
             rmfil=''
             while rmfil != 'n' and rmfil != 'y' and rmfil != 'a':
-                rmfil=raw_input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
+                rmfil=input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
             if rmfil == 'n':
                 msgs.warn("Not saving order tilts for file:"+msgs.newline()+fname)
             else:
@@ -287,7 +287,7 @@ def save_tilts(slf, fname):
             msgs.warn("This file already exists:"+msgs.newline()+filename)
             rmfil=''
             while rmfil != 'n' and rmfil != 'y' and rmfil != 'a':
-                rmfil=raw_input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
+                rmfil=input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
             if rmfil == 'n':
                 msgs.warn("Not saving saturation mask for file:"+msgs.newline()+fname)
             else:
