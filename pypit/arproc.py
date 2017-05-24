@@ -196,7 +196,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     xvpix  = tilts[whord]
     scipix = sciframe[whord]
     varpix = varframe[whord]
-    xargsrt = np.argsort(xvpix,kind='mergesort')
+    xargsrt = np.argsort(xvpix, kind='mergesort')
     sxvpix  = xvpix[xargsrt]
     sscipix = scipix[xargsrt]
     svarpix = varpix[xargsrt]
@@ -891,6 +891,7 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
 
     # Finalize the Sky Background image
     if settings.argflag['reduce']['skysub']['perform'] and (nobj > 0) and skysub:
+        msgs.info("Finalizing the sky background image")
         # Identify background pixels, and generate an image of the sky spectrum in each slit
         bgframe = np.zeros_like(sciframe)
         for o in range(nord):
@@ -952,12 +953,25 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
         msgs.info("Not performing extraction for science frame"+msgs.newline()+fitsdict['filename'][scidx[0]])
         debugger.set_trace()
         #continue
+
+    # Make sure that there are objects
+    noobj = True
+    for sl in range(len(scitrace)):
+        if scitrace[sl]['nobj'] != 0:
+            noobj = False
+    if noobj is True:
+        msgs.warn("No objects to extract for science frame" + msgs.newline() + fitsdict['filename'][scidx])
+        return True
+
     ###############
     # Finalize the Sky Background image
-    if settings.argflag['reduce']['skysub']['perform'] & (scitrace['nobj'] > 0):
+    if settings.argflag['reduce']['skysub']['perform']:
         # Perform an iterative background/science extraction
         msgs.info("Finalizing the sky background image")
-        trcmask = scitrace['object'].sum(axis=2)
+        # Create a trace mask of the object
+        trcmask = np.zeros_like(sciframe)
+        for sl in range(len(scitrace)):
+            trcmask += scitrace[sl]['object'].sum(axis=2)
         trcmask[np.where(trcmask > 0.0)] = 1.0
         bgframe = bg_subtraction(slf, det, sciframe, modelvarframe, crmask, tracemask=trcmask)
         # Redetermine the variance frame based on the new sky model
