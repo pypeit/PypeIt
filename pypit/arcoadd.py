@@ -499,7 +499,7 @@ def load_spec(files, iextensions=None, extract='opt', flux=True):
 
     # Load spectra
     spectra_list = []
-    for ii,fname in enumerate(files):
+    for ii, fname in enumerate(files):
         msgs.info("Loading extension {:d} of spectrum {:s}".format(extensions[ii], fname))
         spectrum = arload.load_1dspec(fname, exten=extensions[ii], extract=extract, flux=flux)
         # Polish a bit -- Deal with NAN, inf, and *very* large values that will exceed
