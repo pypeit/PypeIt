@@ -2,9 +2,12 @@
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-from astropy import units as u
+import inspect
 
 import numpy as np
+
+from astropy import units as u
+
 from pypit.arplot import zscale
 from pypit import armsgs
 from pypit import arutils
@@ -709,10 +712,9 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
     return
 
 
-def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', outfil=None, normalize=True,
-                  use_slitid=None):
-    """
-    Generate a QA plot for the traces
+def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
+                  root='trace', outfil=None, normalize=True, use_slitid=None):
+    """ Generate a QA plot for the slit traces
 
     Parameters
     ----------
@@ -736,6 +738,8 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
       Normalize the flat?  If not, use zscale for output
     """
     # Outfil
+    module = inspect.stack()[0][3]
+    outfile = set_qa_filename(slf, module)
     # if outfil is None:
     #     if '.fits' in root: # Expecting name of msflat FITS file
     #         outfil = root.replace('.fits', '_trc.pdf')
@@ -809,10 +813,14 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
     if desc != "":
         plt.suptitle(desc)
 
-    slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
+    if outfile is None:
+        slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
+    else:
+        plt.savefig(outfile, dpi=800)
     #pp.savefig()
     #pp.close()
     #plt.close('all')
+    debugger.set_trace()
 
 
 def set_fonts(ax):
@@ -827,3 +835,14 @@ def set_fonts(ax):
         label.set_fontproperties(ticks_font)
     for label in ax.get_xticklabels():
         label.set_fontproperties(ticks_font)
+
+def set_qa_filename(slf, module):
+
+    # Calib filenames
+    if module == 'slit_trace_qa':
+        outfile = 'QA/PNGs/Slit_Trace_{:s}.png'.format(slf.setup)
+    else:
+        msgs.error("NOT READY FOR THIS QA")
+    # Return
+    return outfile
+

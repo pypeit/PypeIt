@@ -82,6 +82,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
             # Setup
             setup = arsort.instr_setup(slf, det, fitsdict, setup_dict, must_exist=True)
+            slf.setup = setup
             settings.argflag['reduce']['masters']['setup'] = setup
             ###############
             # Generate master bias frame
@@ -143,7 +144,9 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
 
                 # Save QA for slit traces
                 if not msgs._debug['no_qa']:
-                    arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges D{:02d}".format(det), use_slitid=det)
+                    arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
+                                       slf._rordpix[det-1], extord,
+                                       desc="Trace of the slit edges D{:02d}".format(det), use_slitid=det)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
             ###############

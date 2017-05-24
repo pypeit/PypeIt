@@ -643,12 +643,12 @@ def make_dirs(fitsdict, filesort):
             rmdir = ''
             while os.path.exists(newdir):
                 while rmdir != 'n' and rmdir != 'y' and rmdir != 'r':
-                    rmdir = raw_input(msgs.input()+"Remove this directory and it's contents? ([y]es, [n]o, [r]ename) - ")
+                    rmdir = input(msgs.input()+"Remove this directory and it's contents? ([y]es, [n]o, [r]ename) - ")
                 if rmdir == 'n':
                     msgs.warn("Any previous calibration files may be overwritten")
                     break
                 elif rmdir == 'r':
-                    newdir = raw_input(msgs.input()+"Enter a new directory name: ")
+                    newdir = input(msgs.input()+"Enter a new directory name: ")
                 elif rmdir == 'y':
                     shutil.rmtree(newdir)
                     os.mkdir(newdir)
@@ -677,7 +677,7 @@ def make_dirs(fitsdict, filesort):
                 msgs.info("The following directory already exists:"+msgs.newline()+newdir)
                 rmdir = ''
                 while rmdir != 'n' and rmdir != 'y' and rmdir != 'a':
-                    rmdir = raw_input(msgs.input()+"Remove this directory and it's contents? ([y]es, [n]o, or [a]lways) - ")
+                    rmdir = input(msgs.input()+"Remove this directory and it's contents? ([y]es, [n]o, or [a]lways) - ")
                 if rmdir == 'n':
                     msgs.info("Not reducing {0:s}".format(sci_targs[i]))
                     nored = np.append(i)
@@ -701,7 +701,7 @@ def make_dirs(fitsdict, filesort):
             msgs.info("The following directory already exists:"+msgs.newline()+newdir)
             rmdir = ''
             while rmdir != 'n' and rmdir != 'y':
-                rmdir = raw_input(msgs.input()+"Remove this directory and it's contents? ([y]es, [n]o) - ")
+                rmdir = input(msgs.input()+"Remove this directory and it's contents? ([y]es, [n]o) - ")
             if rmdir == 'n':
                 msgs.warn("Any previous calibration files will be overwritten")
             else:
@@ -711,15 +711,17 @@ def make_dirs(fitsdict, filesort):
 #			shutil.rmtree(newdir)
 #			os.mkdir(newdir)
     else: os.mkdir(newdir)
-    # Create a directory where all of the master calibration frames are stored.
-    msgs.info("Creating Plots directory")
+    # Create a directory where all of the QA is stored
+    msgs.info("Creating QA directory")
     newdir = "{0:s}/{1:s}".format(currDIR, settings.argflag['run']['directory']['qa'])
     if os.path.exists(newdir):
+        msgs.warn("Pre-existing QA plots will be overwritten")
+        '''
         if not settings.argflag['output']['overwrite']:
             msgs.info("The following directory already exists:"+msgs.newline()+newdir)
             rmdir=''
             while rmdir != 'n' and rmdir != 'y':
-                rmdir=raw_input(msgs.input()+"Remove this directory and it's contents? ([y]es, [n]o) - ")
+                rmdir=input(msgs.input()+"Remove this directory and it's contents? ([y]es, [n]o) - ")
             if rmdir == 'n':
                 msgs.warn("Any previously made plots will be overwritten")
             else:
@@ -728,7 +730,11 @@ def make_dirs(fitsdict, filesort):
         else:
             shutil.rmtree(newdir)
             os.mkdir(newdir)
-    else: os.mkdir(newdir)
+            os.mkdir(newdir+'/PNGs')
+        '''
+    else:
+        os.mkdir(newdir)
+        os.mkdir(newdir+'/PNGs')
     # Return the name of the science targets
     return sci_targs
 
