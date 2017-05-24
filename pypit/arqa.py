@@ -816,10 +816,11 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
     if outfile is None:
         slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
     else:
-        plt.savefig(outfile, dpi=1200)
+        plt.savefig(outfile, dpi=800)
     #pp.savefig()
     #pp.close()
     #plt.close('all')
+    debugger.set_trace()
 
 
 def set_fonts(ax):
@@ -836,9 +837,10 @@ def set_fonts(ax):
         label.set_fontproperties(ticks_font)
 
 def set_qa_filename(slf, module):
-    #
+
+    # Calib filenames
     if module == 'slit_trace_qa':
-        outfile = slf.qaroot+'_slittrc.png'
+        outfile = 'QA/PNGs/Slit_Trace_{:s}.png'.format(slf.setup)
     else:
         msgs.error("NOT READY FOR THIS QA")
     # Return

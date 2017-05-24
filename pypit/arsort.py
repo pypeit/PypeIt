@@ -725,7 +725,7 @@ def make_dirs(fitsdict, filesort):
         else:
             shutil.rmtree(newdir)
             os.mkdir(newdir)
-            # PNGs too!
+            os.mkdir(newdir+'/PNGs')
     else:
         os.mkdir(newdir)
         os.mkdir(newdir+'/PNGs')

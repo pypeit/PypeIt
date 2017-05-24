@@ -82,6 +82,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
             # Setup
             setup = arsort.instr_setup(slf, det, fitsdict, setup_dict, must_exist=True)
+            slf.setup = setup
             settings.argflag['reduce']['masters']['setup'] = setup
             ###############
             # Generate master bias frame
