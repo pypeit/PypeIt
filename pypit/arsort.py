@@ -711,10 +711,12 @@ def make_dirs(fitsdict, filesort):
 #			shutil.rmtree(newdir)
 #			os.mkdir(newdir)
     else: os.mkdir(newdir)
-    # Create a directory where all of the master calibration frames are stored.
-    msgs.info("Creating Plots directory")
+    # Create a directory where all of the QA is stored
+    msgs.info("Creating QA directory")
     newdir = "{0:s}/{1:s}".format(currDIR, settings.argflag['run']['directory']['qa'])
     if os.path.exists(newdir):
+        msgs.warn("Pre-existing QA plots will be overwritten")
+        '''
         if not settings.argflag['output']['overwrite']:
             msgs.info("The following directory already exists:"+msgs.newline()+newdir)
             rmdir=''
@@ -729,6 +731,7 @@ def make_dirs(fitsdict, filesort):
             shutil.rmtree(newdir)
             os.mkdir(newdir)
             os.mkdir(newdir+'/PNGs')
+        '''
     else:
         os.mkdir(newdir)
         os.mkdir(newdir+'/PNGs')
