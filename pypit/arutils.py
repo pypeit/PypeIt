@@ -516,37 +516,6 @@ def func_vander(x, func, deg, minv=None, maxv=None):
                    "Please choose from 'polynomial', 'legendre', 'chebyshev'")
 
 
-def get_splknots(xarr, yarr, num, minv=None, maxv=None, maxknots=None):
-    """
-    Determine the best location for the knots of the scipy function LSQUnivariateSpline
-    :param xarr, yarr: Input (x,y) arrays which are used to highlight were the strongest gradients are in the fitted
-                        function. yarr should be a reduced (in size) and approximate representation of the data being
-                        fitted, and xarr should be the corresponding x values.
-    :param yarr: Input array which is used to highlight were the strongest gradients are in the fitted function.
-                    This array should be a reduced (in size) and approximate representation of the data being fitted
-    :param num: Number of knot locations to use
-    :param minv: The minimum x-value of the knots
-    :param maxv: The maximum x-value of the knots
-    :return: knots
-    """
-    from pypit import arcyutils
-    # First determine the derivative
-    if minv is None: minv = np.min(xarr)
-    if maxv is None: maxv = np.max(xarr)
-    tck = interpolate.splrep(xarr, np.sqrt(np.abs(yarr)), xb=minv, xe=maxv, s=0)
-    deriv = np.abs(interpolate.splev(xarr, tck, der=2))
-    drvsum = np.cumsum(np.abs(deriv))
-    drvsum *= num/drvsum[-1] # drvsum represents the cumulative number of knots to be placed at a given coordinate.
-    # Now undo the cumulative sum
-    drv = np.append(drvsum[0], drvsum[1:]-drvsum[:-1])
-    drv = np.ceil(drv).astype(np.int)
-    drv[np.where(drv<2)] = 2
-    if maxknots is not None: drv[np.where(drv>maxknots)] = maxknots
-    knots = arcyutils.get_splknots(xarr, drv, minv, maxv, np.sum(drv))
-    msgs.info("Generated {0:d} knots".format(knots.size))
-    return knots
-
-
 def mask_polyfit(xarray,yarray,order,maxone=True,sigma=3.0):
     mask = np.zeros(xarray.size,dtype=np.int)
     mskcnt=0
@@ -1094,60 +1063,13 @@ def robust_regression(x, y, ordr, outfrac, maxiter=100, function='polynomial', m
     return tc
 
 
-def spline_coeffs(a, b, y, alpha=0.0, beta=0.0):
-    """
-    Return spline coefficients
-    a : float
-        lower bound of the grid.
-    b : float
-        upper bound of the grid.
-    y : ndarray
-        actual function value at grid points.
-    c : (y.shape[0] + 2, ) ndarray, optional
-        ndarry to be written
-    alpha : float
-        Second-order derivative at a. Default is 0.
-    beta : float
-        Second-order derivative at b. Default is 0.
-    """
-    from pypit import arcyutils
-    n = y.shape[0] - 1
-    h = (b - a)/n
-
-    c = np.zeros(n + 3)
-    c[1] = 1.0/6.0 * (y[0] - (alpha * h**2)/6.0)
-    c[n + 1] = 1.0/6.0 * (y[n] - (beta * h**2)/6.0)
-
-    # ab matrix here is just compressed banded matrix
-    ab = np.ones((3, n - 1))
-    ab[0, 0] = 0
-    ab[1, :] = 4
-    ab[-1, -1] = 0
-
-    B = y[1:-1].copy()
-    B[0] -= c[1]
-    B[-1] -=  c[n + 1]
-
-    c[2:-2] = np.linalg.solve(arcyutils.unband(ab, 1, 1), B)
-    c[0] = alpha * h**2/6 + 2 * c[1] - c[2]
-    c[-1] = beta * h**2/6 + 2 * c[-2] - c[-3]
-    return c
-
-
-def spline_interp(xnew,xold,yold):
-    from pypit import arcyutils
-    # Calculate the coefficients
-    c = spline_coeffs(xold[0], xold[-1], yold)
-    ynew = arcyutils.spline_interpolate(xnew, c, xold[0], xold[-1])
-    return ynew
-
-
 def subsample(frame):
     newshape = (2*frame.shape[0], 2*frame.shape[1])
     slices = [slice(0, old, float(old)/new) for old, new in zip(frame.shape, newshape)]
     coordinates = np.mgrid[slices]
     indices = coordinates.astype('i')
     return frame[tuple(indices)]
+
 
 def trace_gweight(fimage, xcen, ycen, sigma, invvar=None, maskval=-999999.9):
     """ Determines the trace centroid by weighting the flux by the integral

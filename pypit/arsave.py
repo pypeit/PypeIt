@@ -18,6 +18,9 @@ from pypit import arparse as settings
 
 from pypit import ardebug as debugger
 
+try: input = raw_input
+except NameError: pass
+
 # Logging
 msgs = armsgs.get_logger()
 
