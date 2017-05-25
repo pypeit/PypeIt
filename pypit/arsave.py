@@ -340,7 +340,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
         if slf._specobjs[det-1] is None:
             continue
         if detref is None:
-            detref = det
+            detref = det-1
         # Loop on slits
         for sl in range(len(slf._specobjs[det-1])):
             nspec += len(slf._specobjs[det-1][sl])
