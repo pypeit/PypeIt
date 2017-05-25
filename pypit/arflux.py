@@ -38,32 +38,34 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
     # Load extinction data
     extinct = load_extinction_data()
     airmass = fitsdict['airmass'][scidx]
-    # Loop on objects
-    for spobj in slf._specobjs[det-1]:
-        # Loop on extraction modes
-        for extract_type in ['boxcar', 'optimal']:
-            try:
-                extract = getattr(spobj,extract_type)
-            except AttributeError:
-                continue
-            msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() +
-                      "{}".format(spobj))
-            wave = extract['wave']  # for convenience
-            scale = np.zeros(wave.size)
-            # Allow for some extrapolation
-            dwv = slf._sensfunc['wave_max']-slf._sensfunc['wave_min']
-            inds = ((wave >= slf._sensfunc['wave_min']-dwv*MAX_EXTRAP)
-                    & (wave <= slf._sensfunc['wave_max']+dwv*MAX_EXTRAP))
-            mag_func = arutils.func_val(slf._sensfunc['c'], wave[inds],
-                                        slf._sensfunc['func'])
-            sens = 10.0**(0.4*mag_func)
-            # Extinction
-            ext_corr = extinction_correction(wave[inds],airmass,extinct)
-            scale[inds] = sens*ext_corr
-            # Fill
-            extract['flam'] = extract['counts']*scale/fitsdict['exptime'][scidx]
-            extract['flam_var'] = (extract['var']*
-                                   (scale/fitsdict['exptime'][scidx])**2)
+    # Loop on slits
+    for sl in range(len(slf._specobjs[det-1])):
+        # Loop on objects
+        for spobj in slf._specobjs[det-1][sl]:
+            # Loop on extraction modes
+            for extract_type in ['boxcar', 'optimal']:
+                try:
+                    extract = getattr(spobj, extract_type)
+                except AttributeError:
+                    continue
+                msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() +
+                          "{}".format(spobj))
+                wave = extract['wave']  # for convenience
+                scale = np.zeros(wave.size)
+                # Allow for some extrapolation
+                dwv = slf._sensfunc['wave_max']-slf._sensfunc['wave_min']
+                inds = ((wave >= slf._sensfunc['wave_min']-dwv*MAX_EXTRAP)
+                        & (wave <= slf._sensfunc['wave_max']+dwv*MAX_EXTRAP))
+                mag_func = arutils.func_val(slf._sensfunc['c'], wave[inds],
+                                            slf._sensfunc['func'])
+                sens = 10.0**(0.4*mag_func)
+                # Extinction
+                ext_corr = extinction_correction(wave[inds], airmass, extinct)
+                scale[inds] = sens*ext_corr
+                # Fill
+                extract['flam'] = extract['counts']*scale/fitsdict['exptime'][scidx]
+                extract['flam_var'] = (extract['var']*
+                                       (scale/fitsdict['exptime'][scidx])**2)
 
 
 def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
@@ -383,15 +385,21 @@ def generate_sensfunc(slf, scidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=2
       sensitivity function described by a dict
     """
     # Find brightest object in the exposures
+    # Search over all slits (over all detectors), and all objects
     medfx = []
-    for spobj in specobjs:
-        medfx.append(np.median(spobj.boxcar['counts']))
-    std_obj = specobjs[np.argmax(np.array(medfx))]
+    medix = []
+    for sl in range(len(specobjs)):
+        indx = 0
+        for spobj in specobjs[sl]:
+            medfx.append(np.median(spobj.boxcar['counts']))
+            medix.append([sl, indx])
+            indx += 1
+    mxix = medix[np.argmax(np.array(medfx))]
+    std_obj = specobjs[mxix[0]][mxix[1]]
     wave = std_obj.boxcar['wave']
     # Apply Extinction
     extinct = load_extinction_data()
-    ext_corr = extinction_correction(wave,
-        fitsdict['airmass'][scidx], extinct)
+    ext_corr = extinction_correction(wave, fitsdict['airmass'][scidx], extinct)
     flux_corr = std_obj.boxcar['counts']*ext_corr
     var_corr = std_obj.boxcar['var']*ext_corr**2
     # Convert to electrons / s

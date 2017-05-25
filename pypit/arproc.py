@@ -196,7 +196,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     xvpix  = tilts[whord]
     scipix = sciframe[whord]
     varpix = varframe[whord]
-    xargsrt = np.argsort(xvpix,kind='mergesort')
+    xargsrt = np.argsort(xvpix, kind='mergesort')
     sxvpix  = xvpix[xargsrt]
     sscipix = scipix[xargsrt]
     svarpix = varpix[xargsrt]
@@ -274,32 +274,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
             debugger.set_trace()
     #
     msgs.info("Fitting sky background spectrum")
-    if settings.argflag['reduce']['skysub']['method'].lower() == 'polyscan':
-        polypoints = 5
-        nsmth = 15
-        bgmodel = arcyproc.polyscan_fitsky(tilts.copy(), scifrcp.copy(), 1.0/errframe, maskval, polyorder, polypoints, nsmth, repeat)
-        bgpix = bgmodel[whord]
-        sbgpix = bgpix[xargsrt]
-        wbg = np.where(sbgpix != maskval)
-        # Smooth this spectrum
-        polyorder = 1
-        xpix = sxvpix[wbg]
-        maxdiff = np.sort(xpix[1:]-xpix[:-1])[xpix.size-sciframe.shape[0]-1] # only include the next pixel in the fit if it is less than 10x the median difference between all pixels
-        msgs.info("Generating sky background image")
-        #if msgs._debug['sky_sub']:
-        #    debugger.set_trace()
-        #    debugger.xplot(sxvpix[wbg]*tilts.shape[0], sbgpix[wbg], scatter=True)
-        bgscan = arcyutils.polyfit_scan_lim(sxvpix[wbg], sbgpix[wbg].copy(), np.ones(wbg[0].size,dtype=np.float), maskval, polyorder, sciframe.shape[1]/3, repeat, maxdiff)
-        # Restrict to good values
-        gdscan = bgscan != maskval
-        if msgs._debug['sky_sub']:
-            debugger.set_trace()
-            debugger.xplot(sxvpix[wbg[0][gdscan]]*tilts.shape[0], sbgpix[wbg[0][gdscan]], scatter=True)
-        if np.sum(~gdscan) > 0:
-            msgs.warn("At least one masked value in bgscan")
-        # Generate
-        bgframe = np.interp(tilts.flatten(), sxvpix[wbg[0][gdscan]], bgscan[gdscan]).reshape(tilts.shape)
-    elif settings.argflag['reduce']['skysub']['method'].lower() == 'bspline':
+    if settings.argflag['reduce']['skysub']['method'].lower() == 'bspline':
         msgs.info("Using bspline sky subtraction")
         gdp = scifrcp != maskval
         srt = np.argsort(tilts[gdp])
@@ -428,8 +403,6 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
       A 2d array containing the blaze function for each slit
     """
     from pypit import arcyutils
-    from pypit import arcyextract
-    from pypit import arcyproc
     dnum = settings.get_dnum(det)
 
     msgs.info("Normalizing the master flat field frame")
@@ -483,59 +456,6 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
             mskord[word] = 1.0
             flat_ext1d[:, o] = np.sum(msflat * mskord, axis=1) / np.sum(mskord, axis=1)
             mskord *= 0.0
-        elif settings.argflag["reduce"]["flatfield"]["method"].lower() == "polyscan":
-            # Rectify this order
-            recframe = arcyextract.rectify(msflat, ordpix, slf._pixcen[det - 1][:, o], slf._lordpix[det - 1][:, o],
-                                           slf._rordpix[det - 1][:, o], slf._pixwid[det - 1][o] + overpix, maskval)
-            polyorder = settings.argflag["reduce"]["flatfield"]["params"][0]
-            polypoints = settings.argflag["reduce"]["flatfield"]["params"][1]
-            repeat = settings.argflag["reduce"]["flatfield"]["params"][2]
-            # Take the median along the spatial dimension
-            flatmed = np.median(recframe, axis=1)
-            # Perform a polynomial fitting scheme to determine the blaze profile
-            xarray = np.arange(flatmed.size, dtype=np.float)
-            weight = flatmed.copy()
-            msgs.work("Routine doesn't support user parameters yet")
-            msgs.bug("Routine doesn't support user parameters yet")
-            blazet = arcyutils.polyfit_scan(xarray, flatmed.copy(), weight, maskval, polyorder, polypoints, repeat)
-             # Remove the masked endpoints
-            outx, outy, outm, lox, hix = arcyproc.remove_maskedends(xarray, flatmed, blazet, maskval)
-            # Inspect the end points and extrapolate from the best fitting end pixels
-            derv = (outm[1:]-outm[:-1])/(outx[1:]-outx[:-1])
-            dervx = 0.5*(outx[1:]+outx[:-1])
-            derv2 = (derv[1:]-derv[:-1])/(dervx[1:]-dervx[:-1])
-            medv = np.median(derv2)
-            madv = 1.4826*np.median(np.abs(derv2-medv))
-            blaze = arcyproc.blaze_fitends(outx, outy, outm, derv2-medv, madv, polyord_blz, polypoints)
-            #plt.plot(xarray,flatmed,'k-',drawstyle='steps')
-            #plt.plot(xarray, blaze, 'r-')
-            #plt.show()
-            #np.savetxt("check_blaze_ord{0:d}.txt".format(o),np.transpose((xarray,flatmed)))
-            # Divide the flat by the fitted flat profile
-            finalblaze = np.ones(recframe.shape[0])
-            finalblaze[lox:hix] = blaze.copy()
-            blazenrm = finalblaze.reshape((finalblaze.size, 1)).repeat(recframe.shape[1], axis=1)
-            recframe /= blazenrm
-            # Store the blaze for this order
-            msblaze[lox:hix,o] = blaze.copy()
-            flat_ext1d[:,o] = flatmed.copy()
-            # Sort the normalized frames along the dispersion direction
-            recsort = np.sort(recframe, axis=0)
-            # Find the mean value, but only consider the "innermost" 50 per cent of pixels (i.e. the pixels closest to 1.0)
-            recmean = arcyproc.scale_blaze(recsort, maskval)
-            #rows = np.arange(recsort.shape[0]/4,(3*recsort.shape[0])/4,dtype=np.int)
-            #w = np.ix_(rows,np.arange(recframe.shape[1]))
-            #recmean = np.mean(recsort[w],axis=0)
-            for i in range(recmean.size):
-                recframe[:, i] /= recmean[i]
-            # Undo the rectification
-            normflat_unrec = arcyextract.rectify_undo(recframe, slf._pixcen[det-1][:,o], slf._lordpix[det-1][:,o],
-                                                      slf._rordpix[det-1][:,o], slf._pixwid[det-1][o], maskval,
-                                                      msflat.shape[0], msflat.shape[1])
-            # Apply the normalized flatfield for this order to the master normalized frame
-            msnormflat = arcyproc.combine_nrmflat(msnormflat, normflat_unrec, slf._pixcen[det-1][:,o],
-                                                  slf._lordpix[det-1][:,o], slf._rordpix[det-1][:,o],
-                                                  slf._pixwid[det-1][o]+overpix, maskval)
         else:
             msgs.error("Flatfield method {0:s} is not supported".format(settings.argflag["reduce"]["flatfield"]["method"]))
     # Send the blaze away to be plotted and saved
@@ -939,8 +859,10 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
     # region, and 0 means that the pixel is fully contained within the background
     # region. The opposite is true for the rec_bg_img array. A pixel that is on
     # the border of object/background is assigned a value between 0 and 1.
-    rec_obj_img = np.zeros(sciframe.shape+(1,))
-    rec_bg_img = np.zeros(sciframe.shape+(1,))
+    msgs.work("Eventually allow ARMED to find multiple objects in the one slit")
+    nobj = 1
+    rec_obj_img = np.zeros(sciframe.shape+(nobj,))
+    rec_bg_img = np.zeros(sciframe.shape+(nobj,))
     for o in range(nord):
         # Prepare object/background regions
         objl = np.array([bgnl[o]])
@@ -957,17 +879,19 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
         rec_bg_img += tbg_img
 
     # Create trace dict
-    scitrace = dict({})
-    scitrace['nobj'] = 1
-    scitrace['traces'] = trccen
-    scitrace['object'] = rec_obj_img
-    scitrace['background'] = rec_bg_img
+    scitrace = artrace.trace_object_dict(nobj, trccen[:, 0].reshape(trccen.shape[0], 1),
+                                         object=rec_obj_img, background=rec_bg_img)
+    for o in range(1, nord):
+        scitrace = artrace.trace_object_dict(nobj, trccen[:, o].reshape(trccen.shape[0], 1),
+                                             tracelist=scitrace)
+
     # Save the quality control
     if not msgs._debug['no_qa']:
         arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, None, root="object_trace", normalize=False)
 
     # Finalize the Sky Background image
-    if settings.argflag['reduce']['skysub']['perform'] and (scitrace['nobj'] > 0) and skysub:
+    if settings.argflag['reduce']['skysub']['perform'] and (nobj > 0) and skysub:
+        msgs.info("Finalizing the sky background image")
         # Identify background pixels, and generate an image of the sky spectrum in each slit
         bgframe = np.zeros_like(sciframe)
         for o in range(nord):
@@ -1029,13 +953,26 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
         msgs.info("Not performing extraction for science frame"+msgs.newline()+fitsdict['filename'][scidx[0]])
         debugger.set_trace()
         #continue
+
+    # Make sure that there are objects
+    noobj = True
+    for sl in range(len(scitrace)):
+        if scitrace[sl]['nobj'] != 0:
+            noobj = False
+    if noobj is True:
+        msgs.warn("No objects to extract for science frame" + msgs.newline() + fitsdict['filename'][scidx])
+        return True
+
     ###############
     # Finalize the Sky Background image
-    if settings.argflag['reduce']['skysub']['perform'] & (scitrace['nobj'] > 0):
+    if settings.argflag['reduce']['skysub']['perform']:
         # Perform an iterative background/science extraction
         msgs.info("Finalizing the sky background image")
-        trcmask = scitrace['object'].sum(axis=2)
-        trcmask[np.where(trcmask>0.0)] = 1.0
+        # Create a trace mask of the object
+        trcmask = np.zeros_like(sciframe)
+        for sl in range(len(scitrace)):
+            trcmask += scitrace[sl]['object'].sum(axis=2)
+        trcmask[np.where(trcmask > 0.0)] = 1.0
         bgframe = bg_subtraction(slf, det, sciframe, modelvarframe, crmask, tracemask=trcmask)
         # Redetermine the variance frame based on the new sky model
         modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
@@ -1076,8 +1013,8 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
       Contains relevant information from fits header files
     det : int
       Detector index
-    scitrace : dict
-      Dictionary containing object trace parameters
+    scitrace : list of dict
+      List containing dictionaries of the object trace parameters
     standard : bool, optional
       Standard star frame?
     """
@@ -1100,7 +1037,11 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
 
     ###############
     # Extract
-    if scitrace['nobj'] == 0:
+    noobj = True
+    for sl in range(len(scitrace)):
+        if scitrace[sl]['nobj'] != 0:
+            noobj = False
+    if noobj is True:
         msgs.warn("No objects to extract for science frame"+msgs.newline()+fitsdict['filename'][scidx])
         return True
 
@@ -1113,15 +1054,15 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
     if not standard:
         msgs.info("Attempting optimal extraction with model profile")
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                               modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
+                               modelvarframe, bgframe+bgcorr_box, crmask, scitrace, doqa=False)
         newvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                                  modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
+                                           modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
         msgs.work("Should update variance image (and trace?) and repeat")
         #
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
                                newvar, bgframe+bgcorr_box, crmask, scitrace)
         finalvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                                           newvar, bgframe+bgcorr_box, crmask, scitrace)
+                                             newvar, bgframe+bgcorr_box, crmask, scitrace)
         slf._modelvarframe[det-1] = finalvar.copy()
 
     # Flexure correction?
@@ -1131,12 +1072,16 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
             arqa.flexure(slf, det, flex_dict)
 
     # Correct Earth's motion
-    if settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']:
+    if (settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']) and \
+       (settings.argflag['reduce']['calibrate']['wavelength'] != "pixel"):
         if settings.argflag['science']['extraction']['reuse']:
             msgs.warn("{0:s} correction will not be applied if an extracted science frame exists, and is used".format(settings.argflag['reduce']['calibrate']['refframe']))
-        msgs.info("Performing a {0:s} correction".format(settings.argflag['reduce']['calibrate']['refframe']))
-        # Load the header for the science frame
-        arwave.geomotion_correct(slf, det, fitsdict)
+        if slf._specobjs[det-1] is not None:
+            msgs.info("Performing a {0:s} correction".format(settings.argflag['reduce']['calibrate']['refframe']))
+            arwave.geomotion_correct(slf, det, fitsdict)
+        else:
+            msgs.info("There are no objects on detector {0:d} to perform a {1:s} correction".format(
+                det, settings.argflag['reduce']['calibrate']['refframe']))
     else:
         msgs.info("A heliocentric correction will not be performed")
 

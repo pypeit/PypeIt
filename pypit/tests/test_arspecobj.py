@@ -35,6 +35,7 @@ def test_objnm_to_dict():
     assert len(idict2['O']) == 2
     assert idict2['O'] == [968, 967]
 
+
 def test_findobj():
     from pypit import arspecobj as aspobj
     objects = ['O968-S5387-D01-I0026', 'O967-S5397-D01-I0027']
@@ -44,4 +45,16 @@ def test_findobj():
     # Now hit only 1
     mtch_obj2, _ = aspobj.mtch_obj_to_objects('O965-S5338-D01-I0028', objects)
     assert mtch_obj2[0] == 'O968-S5387-D01-I0026'
+
+
+def test_instr_config():
+    from pypit import arspecobj as aspobj
+    # Make dummy fitsdict
+    fitsdict = {'slitwid': [0.5], 'dichroic': ['d55'],
+                 'dispname': ['B600/400'], 'dispangle': [11000.]}
+    det, scidx = 1, 0
+    #
+    config = aspobj.instconfig(det, scidx, fitsdict)
+    # Test
+    assert config == 'S05-D55-G600400-T110000-B11'
 

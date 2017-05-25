@@ -10,6 +10,7 @@ import pytest
 import glob
 
 from pypit import pyputils
+from pypit.scripts import coadd_1dspec
 
 msgs = pyputils.get_dummy_logger()
 
@@ -45,12 +46,13 @@ def test_view_fits():
     spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
     pargs = view_fits.parser([spec_file, '--list'])
 
+
 def test_coadd():
-    from pypit.scripts import coadd_1dspec
     coadd_file = data_path('coadd_UGC3672A_red.yaml')
     args = coadd_1dspec.parser([coadd_file])
     # Main
-    gparam, ex_value, flux_value, iobj, outfile, files = coadd_1dspec.main(args, unit_test=True)
+    gparam, ex_value, flux_value, iobj, outfile, files = coadd_1dspec.main(
+        args, unit_test=True, path=data_path('./'))
     # Test
     assert len(gparam) == 0
     assert isinstance(gparam, dict)
@@ -59,3 +61,21 @@ def test_coadd():
     assert iobj == 'O210-S1467-D02-I0012'
     assert outfile == 'UGC3672A_r.fits'
     assert len(files) == 4
+
+
+def test_coadd2():
+    """ Test using a list of object names
+    """
+    coadd_file = data_path('coadd_UGC3672A_red_objlist.yaml')
+    args = coadd_1dspec.parser([coadd_file])
+    # Main
+    gparam, ex_value, flux_value, iobj, outfile, files = coadd_1dspec.main(
+        args, unit_test=True, path=data_path('./'))
+    # Test
+    assert len(iobj) == len(files)
+    # Crash it
+    coadd_file = data_path('coadd_UGC3672A_red_badlist.yaml')
+    args = coadd_1dspec.parser([coadd_file])
+    with pytest.raises(IOError):
+        gparam, ex_value, flux_value, iobj, outfile, files = coadd_1dspec.main(
+            args, unit_test=True, path=data_path('./'))

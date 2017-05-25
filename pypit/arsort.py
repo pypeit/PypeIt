@@ -25,6 +25,9 @@ try:
 except NameError:
     basestring = str
 
+try: input = raw_input
+except NameError: pass
+
 # Logging
 msgs = armsgs.get_logger()
 

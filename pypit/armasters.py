@@ -41,6 +41,7 @@ class MasterFrames:
         self._msarc = [None for all in range(ndet)]         # Master Arc
         self._msbias = [None for all in range(ndet)]        # Master Bias
         self._mstrace = [None for all in range(ndet)]       # Master Trace
+        self._mspinhole = [None for all in range(ndet)]       # Master Pinhole
         self._mspixelflat = [None for all in range(ndet)]     # Master pixel flat
         self._mspixelflatnrm = [None for all in range(ndet)]  # Normalized Master pixel flat
         self._msblaze = [None for all in range(ndet)]       # Blaze function
@@ -67,6 +68,7 @@ def master_name(ftype, setup, mdir=None):
     name_dict = dict(bias='{:s}/MasterBias_{:s}.fits'.format(mdir, setup),
                      badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir, setup),
                      trace='{:s}/MasterTrace_{:s}.fits'.format(mdir, setup),
+                     pinhole='{:s}/MasterPinhole_{:s}.fits'.format(mdir, setup),
                      normpixelflat='{:s}/MasterFlatField_{:s}.fits'.format(mdir, setup),
                      arc='{:s}/MasterArc_{:s}.fits'.format(mdir, setup),
                      wave='{:s}/MasterWave_{:s}.fits'.format(mdir, setup),
@@ -151,6 +153,11 @@ def save_masters(slf, det, setup):
         arsave.save_master(slf, slf._mspixelflatnrm[det-1],
                            filename=master_name('normpixelflat', setup),
                            frametype='normpixelflat')
+    # Pinhole Flat
+    if 'pinhole'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+        arsave.save_master(slf, slf._mspinhole[det-1],
+                           filename=master_name('pinhole', setup),
+                           frametype='pinhole')
     # Arc/Wave
     if 'arc'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
         arsave.save_master(slf, slf._msarc[det-1],

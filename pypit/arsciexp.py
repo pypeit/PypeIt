@@ -730,7 +730,7 @@ class ScienceExposure:
             mswv_calib_name = armasters.master_name('wave_calib', settings.argflag['reduce']['masters']['setup'])
             try:
                 wv_calib = arload.load_master(mswv_calib_name, frametype="wv_calib")
-            except IOError:
+            except (IOError, ValueError):
                 msgs.warn("No MasterWave1D data found {:s}".format(mswv_calib_name))
             else:
                 settings.argflag['reduce']['masters']['loaded'].append('wave_calib'+settings.argflag['reduce']['masters']['setup'])
