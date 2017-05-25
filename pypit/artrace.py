@@ -390,11 +390,56 @@ def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=No
     return rec_obj_img, rec_bg_img
 
 
+def trace_object_dict(nobj, traces, object=None, background=None, params=None, tracelist=None):
+    """ Creates a list of dictionaries, which contain the object traces in each slit
+
+    Parameters
+    ----------
+    nobj : int
+      Number of objects in this slit
+    traces : numpy ndarray
+      the trace of each object in this slit
+    object: numpy ndarray (optional)
+      An image containing weights to be used for the object.
+    background : numpy ndarray (optional)
+      An image containing weights to be used for the background
+    params : dict
+      A dictionary containing some of the important parameters used in
+      the object tracing.
+    tracelist : list of dict
+      A list containing a trace dictionary for each slit
+
+    To save memory, the object and background images for multiple slits
+    can be stored in a single object image and single background image.
+    In this case, you must only set object and background for the zeroth
+    slit (with 'None' set for all other slits). In this case, the object
+    and background images must be set according to the slit locations
+    assigned in the slf._slitpix variable.
+
+    Returns
+    -------
+    tracelist : list of dict
+      A list containing a trace dictionary for each slit
+    """
+    # Create a dictionary with all the properties of the object traces in this slit
+    newdict = dict({})
+    newdict['nobj'] = nobj
+    newdict['traces'] = traces
+    newdict['object'] = object
+    newdict['params'] = params
+    newdict['background'] = background
+    if tracelist is None:
+        tracelist = []
+    tracelist.append(newdict)
+    return tracelist
+
+
 def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
                  triml=None, trimr=None, sigmin=2.0, bgreg=None,
                  maskval=-999999.9, slitn=0, doqa=True,
-                 xedge=0.03, fwhm=3.):
+                 xedge=0.03, fwhm=3., tracedict=None):
     """ Finds objects, and traces their location on the detector
+
     Parameters
     ----------
     slf : Class instance
@@ -427,6 +472,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
       Trim objects within xedge % of the slit edge
     doqa : bool
       Should QA be output?
+    tracedict : list of dict
+      A list containing a trace dictionary for each slit
 
     Returns
     -------
@@ -497,7 +544,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     wm = np.where(mskpix == 0)
     if wm[0].size == 0:
         msgs.warn("No objects found")
-        return None
+        return trace_object_dict(0, None)
     med, mad = arutils.robust_meanstd(trcprof[wm])
     trcprof -= med
     # Gaussian smooth
@@ -552,7 +599,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
             allsfit = np.append(allsfit, centfit[w]-cval[o])
     if nobj == 0:
         msgs.warn("No objects detected in slit")
-        return dict(nobj=0, traces=None, object=None, background=None)
+        return trace_object_dict(0, None)
     # Tracing
     msgs.info("Performing global trace to all objects")
     mskbad, coeffs = arutils.robust_polyfit(allxfit, allsfit, traceorder, function=tracefunc, minv=-1.0, maxv=1.0)
@@ -591,12 +638,9 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
             ginga.show_trace(viewer, ch, traces[:, ii], '{:d}'.format(ii), clear=(ii == 0))
         debugger.set_trace()
     # Trace dict
-    tracedict = dict({})
-    tracedict['nobj'] = nobj
-    tracedict['params'] = tracepar
-    tracedict['traces'] = traces
-    tracedict['object'] = rec_obj_img
-    tracedict['background'] = rec_bg_img
+    tracedict = trace_object_dict(nobj, traces, object=rec_obj_img, background=rec_bg_img,
+                                  params=tracepar, tracelist=tracedict)
+
     # Save the quality control
     if doqa and (not msgs._debug['no_qa']):
         from pypit.arspecobj import get_objid
@@ -2540,14 +2584,14 @@ def slit_image(slf, det, scitrace, obj, tilts=None):
     ximg = np.outer(np.ones(tilts.shape[0]), np.arange(tilts.shape[1]))
     dypix = 1./tilts.shape[0]
     #  Trace
-    xtrc = np.round(scitrace['traces'][:,obj]).astype(int)
+    xtrc = np.round(scitrace['traces'][:, obj]).astype(int)
     msgs.work("Use 2D spline to evaluate tilts")
     trc_tilt = tilts[np.arange(tilts.shape[0]), xtrc]
     trc_tilt_img = np.outer(trc_tilt, np.ones(tilts.shape[1]))
     # Slit image
     msgs.work("Should worry about changing plate scale")
     dy = (tilts - trc_tilt_img)/dypix  # Pixels
-    dx = ximg - np.outer(scitrace['traces'][:,obj],np.ones(tilts.shape[1]))
+    dx = ximg - np.outer(scitrace['traces'][:, obj], np.ones(tilts.shape[1]))
     slit_img = np.sqrt(dx**2 - dy**2)
     neg = dx < 0.
     slit_img[neg] *= -1

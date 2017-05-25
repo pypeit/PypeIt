@@ -316,7 +316,7 @@ def load_master(name, exten=0, frametype='<None>'):
         msgs.info("Loading a pre-existing master calibration frame")
         try:
             hdu = pyfits.open(name)
-        except:
+        except IOError:
             msgs.error("Master calibration file does not exist:"+msgs.newline()+name)
         msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
         head = hdu[0].header

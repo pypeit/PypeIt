@@ -7,6 +7,7 @@ from pypit import pyputils
 from pypit import armsgs
 msgs = pyputils.get_dummy_logger()
 
+
 def parser(options=None):
 
     import argparse
@@ -26,13 +27,10 @@ def main(args, unit_test=False, path=''):
     path : str, optional
       Mainly for running the unit test
     """
-    import sys
-    import pdb
     import yaml, glob
     from pypit import arcoadd
     from pypit import arspecobj
     from astropy.io import fits
-
 
     # Load the input file
     with open(args.infile, 'r') as infile:
@@ -48,7 +46,6 @@ def main(args, unit_test=False, path=''):
         else:
             files += [path+ifl]
     fdict = {}
-    all_obj = []
     for ifile in files:
         # Open file
         hdulist = fits.open(ifile)
@@ -87,28 +84,26 @@ def main(args, unit_test=False, path=''):
         # Loop on spec1d files
         gdfiles = []
         extensions = []
-        gdobj= []
+        gdobj = []
 
-
-        for key in fdict:
+        for fkey in fdict:
             if len(iobj) == 1:
-                mtch_obj, idx = arspecobj.mtch_obj_to_objects(iobj, fdict[key])
+                mtch_obj, idx = arspecobj.mtch_obj_to_objects(iobj, fdict[fkey])
             else:
-                ind = files.index(key)
-                mtch_obj, idx = arspecobj.mtch_obj_to_objects(iobj[ind], fdict[key])
+                ind = files.index(fkey)
+                mtch_obj, idx = arspecobj.mtch_obj_to_objects(iobj[ind], fdict[fkey])
             if mtch_obj is None:
-                print("No object {:s} in file {:s}".format(iobj,key))
+                print("No object {:s} in file {:s}".format(iobj, fkey))
             elif len(mtch_obj) == 1:
-                gdfiles.append(key)
+                gdfiles.append(fkey)
                 gdobj += mtch_obj
                 extensions.append(idx[0]+1)
             else:
-                raise ValueError("Multiple matches to object {:s} in file {:s}".format(iobj,key))
+                raise ValueError("Multiple matches to object {:s} in file {:s}".format(iobj, fkey))
 
         # Load spectra
         spectra = arcoadd.load_spec(gdfiles, iextensions=extensions, extract=ex_value, flux=flux_value)
         exten = outfile.split('.')[-1]  # Allow for hdf or fits or whatever
-        qafile = outfile.replace(exten,'pdf')
+        qafile = outfile.replace(exten, 'pdf')
         # Coadd!
         arcoadd.coadd_spectra(spectra, qafile=qafile, outfile=outfile, **gparam)
-

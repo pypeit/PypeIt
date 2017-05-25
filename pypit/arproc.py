@@ -196,7 +196,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     xvpix  = tilts[whord]
     scipix = sciframe[whord]
     varpix = varframe[whord]
-    xargsrt = np.argsort(xvpix,kind='mergesort')
+    xargsrt = np.argsort(xvpix, kind='mergesort')
     sxvpix  = xvpix[xargsrt]
     sscipix = scipix[xargsrt]
     svarpix = varpix[xargsrt]
@@ -859,8 +859,10 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
     # region, and 0 means that the pixel is fully contained within the background
     # region. The opposite is true for the rec_bg_img array. A pixel that is on
     # the border of object/background is assigned a value between 0 and 1.
-    rec_obj_img = np.zeros(sciframe.shape+(1,))
-    rec_bg_img = np.zeros(sciframe.shape+(1,))
+    msgs.work("Eventually allow ARMED to find multiple objects in the one slit")
+    nobj = 1
+    rec_obj_img = np.zeros(sciframe.shape+(nobj,))
+    rec_bg_img = np.zeros(sciframe.shape+(nobj,))
     for o in range(nord):
         # Prepare object/background regions
         objl = np.array([bgnl[o]])
@@ -877,17 +879,19 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
         rec_bg_img += tbg_img
 
     # Create trace dict
-    scitrace = dict({})
-    scitrace['nobj'] = 1
-    scitrace['traces'] = trccen
-    scitrace['object'] = rec_obj_img
-    scitrace['background'] = rec_bg_img
+    scitrace = artrace.trace_object_dict(nobj, trccen[:, 0].reshape(trccen.shape[0], 1),
+                                         object=rec_obj_img, background=rec_bg_img)
+    for o in range(1, nord):
+        scitrace = artrace.trace_object_dict(nobj, trccen[:, o].reshape(trccen.shape[0], 1),
+                                             tracelist=scitrace)
+
     # Save the quality control
     if not msgs._debug['no_qa']:
         arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, None, root="object_trace", normalize=False)
 
     # Finalize the Sky Background image
-    if settings.argflag['reduce']['skysub']['perform'] and (scitrace['nobj'] > 0) and skysub:
+    if settings.argflag['reduce']['skysub']['perform'] and (nobj > 0) and skysub:
+        msgs.info("Finalizing the sky background image")
         # Identify background pixels, and generate an image of the sky spectrum in each slit
         bgframe = np.zeros_like(sciframe)
         for o in range(nord):
@@ -949,13 +953,26 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
         msgs.info("Not performing extraction for science frame"+msgs.newline()+fitsdict['filename'][scidx[0]])
         debugger.set_trace()
         #continue
+
+    # Make sure that there are objects
+    noobj = True
+    for sl in range(len(scitrace)):
+        if scitrace[sl]['nobj'] != 0:
+            noobj = False
+    if noobj is True:
+        msgs.warn("No objects to extract for science frame" + msgs.newline() + fitsdict['filename'][scidx])
+        return True
+
     ###############
     # Finalize the Sky Background image
-    if settings.argflag['reduce']['skysub']['perform'] & (scitrace['nobj'] > 0):
+    if settings.argflag['reduce']['skysub']['perform']:
         # Perform an iterative background/science extraction
         msgs.info("Finalizing the sky background image")
-        trcmask = scitrace['object'].sum(axis=2)
-        trcmask[np.where(trcmask>0.0)] = 1.0
+        # Create a trace mask of the object
+        trcmask = np.zeros_like(sciframe)
+        for sl in range(len(scitrace)):
+            trcmask += scitrace[sl]['object'].sum(axis=2)
+        trcmask[np.where(trcmask > 0.0)] = 1.0
         bgframe = bg_subtraction(slf, det, sciframe, modelvarframe, crmask, tracemask=trcmask)
         # Redetermine the variance frame based on the new sky model
         modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
@@ -996,8 +1013,8 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
       Contains relevant information from fits header files
     det : int
       Detector index
-    scitrace : dict
-      Dictionary containing object trace parameters
+    scitrace : list of dict
+      List containing dictionaries of the object trace parameters
     standard : bool, optional
       Standard star frame?
     """
@@ -1020,7 +1037,11 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
 
     ###############
     # Extract
-    if scitrace['nobj'] == 0:
+    noobj = True
+    for sl in range(len(scitrace)):
+        if scitrace[sl]['nobj'] != 0:
+            noobj = False
+    if noobj is True:
         msgs.warn("No objects to extract for science frame"+msgs.newline()+fitsdict['filename'][scidx])
         return True
 
@@ -1033,15 +1054,15 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
     if not standard:
         msgs.info("Attempting optimal extraction with model profile")
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                               modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
+                               modelvarframe, bgframe+bgcorr_box, crmask, scitrace, doqa=False)
         newvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                                  modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
+                                           modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
         msgs.work("Should update variance image (and trace?) and repeat")
         #
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
                                newvar, bgframe+bgcorr_box, crmask, scitrace)
         finalvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                                           newvar, bgframe+bgcorr_box, crmask, scitrace)
+                                             newvar, bgframe+bgcorr_box, crmask, scitrace)
         slf._modelvarframe[det-1] = finalvar.copy()
 
     # Flexure correction?
@@ -1051,12 +1072,16 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
             arqa.flexure(slf, det, flex_dict)
 
     # Correct Earth's motion
-    if settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']:
+    if (settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']) and \
+       (settings.argflag['reduce']['calibrate']['wavelength'] != "pixel"):
         if settings.argflag['science']['extraction']['reuse']:
             msgs.warn("{0:s} correction will not be applied if an extracted science frame exists, and is used".format(settings.argflag['reduce']['calibrate']['refframe']))
-        msgs.info("Performing a {0:s} correction".format(settings.argflag['reduce']['calibrate']['refframe']))
-        # Load the header for the science frame
-        arwave.geomotion_correct(slf, det, fitsdict)
+        if slf._specobjs[det-1] is not None:
+            msgs.info("Performing a {0:s} correction".format(settings.argflag['reduce']['calibrate']['refframe']))
+            arwave.geomotion_correct(slf, det, fitsdict)
+        else:
+            msgs.info("There are no objects on detector {0:d} to perform a {1:s} correction".format(
+                det, settings.argflag['reduce']['calibrate']['refframe']))
     else:
         msgs.info("A heliocentric correction will not be performed")
 
