@@ -604,7 +604,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
         for ii in range(nobj):
             objid, xobj = get_objid(slf, det, slitn, ii, tracedict)
             objids.append(objid)
-        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, objids, root="object_trace", normalize=False)
+        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, objids,
+                          root="object_trace", normalize=False)
     # Return
     return tracedict
 

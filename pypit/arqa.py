@@ -358,7 +358,8 @@ def get_dimen(x, maxp=25):
     return pages, npp
 
 
-def obj_trace_qa(slf, frame, ltrace, rtrace, objids, root='trace', outfil=None, normalize=True):
+def obj_trace_qa(slf, frame, ltrace, rtrace, objids,
+                 root='trace', normalize=True, desc=""):
     """ Generate a QA plot for the object trace
 
     Parameters
@@ -369,20 +370,16 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, root='trace', outfil=None, 
       Left edge traces
     rtrace : ndarray
       Right edge traces
+    desc : str, optional
+      Title
     root : str, optional
       Root name for generating output file, e.g. msflat_01blue_000.fits
-    outfil : str, optional
-      Output file
     normalize : bool, optional
       Normalize the flat?  If not, use zscale for output
     """
-    # Outfil
-    if outfil is None:
-        if 'fits' in root: # Expecting name of msflat FITS file
-            outfil = root.replace('.fits', '_trc.pdf')
-            outfil = outfil.replace('MasterFrames', 'Plots')
-        else:
-            outfil = root+'.pdf'
+    module = inspect.stack()[0][3]
+    outfile = set_qa_filename(slf, module)
+    #
     ntrc = ltrace.shape[1]
     ycen = np.arange(frame.shape[0])
     # Normalize flux in the traces
@@ -440,9 +437,18 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, root='trace', outfil=None, 
             # plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
             lbl = 'O{:03d}'.format(objids[ii])
             plt.text((ltrace[iy, ii]+rtrace[iy, ii])/2., ycen[iy], lbl, color='green', ha='center')
+    # Title
+    tstamp = gen_timestamp()
+    if desc == "":
+        plt.suptitle(tstamp)
+    else:
+        plt.suptitle(desc+'\n'+tstamp)
 
-    slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
+    if False:
+        slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
     #plt.close()
+    plt.savefig(outfile, dpi=800)
+    debugger.set_trace()
 
 
 def obj_profile_qa(slf, specobjs, scitrace):
@@ -810,18 +816,17 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
         else:
             lbl = '{0:d}'.format(ii+1)
         plt.text(0.5*(ltrace[iy, ii]+rtrace[iy, ii]), ycen[iy], lbl, color='green', ha='center', size='small')
-    if desc != "":
-        plt.suptitle(desc)
-
-    if outfile is None:
-        slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
+    # Title
+    tstamp = gen_timestamp()
+    if desc == "":
+        plt.suptitle(tstamp)
     else:
-        plt.savefig(outfile, dpi=800)
-    #pp.savefig()
-    #pp.close()
-    #plt.close('all')
-    debugger.set_trace()
+        plt.suptitle(desc+'\n'+tstamp)
 
+    # Write
+    if False:
+        slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
+    plt.savefig(outfile, dpi=800)
 
 def set_fonts(ax):
     """ Set axes fonts
@@ -838,11 +843,26 @@ def set_fonts(ax):
 
 def set_qa_filename(slf, module):
 
-    # Calib filenames
     if module == 'slit_trace_qa':
         outfile = 'QA/PNGs/Slit_Trace_{:s}.png'.format(slf.setup)
+    elif module == 'obj_trace_qa':
+        debugger.set_trace()
+        outfile = 'QA/PNGs/{1:s}_obj_trace.png'.format(slf._basename)
     else:
         msgs.error("NOT READY FOR THIS QA")
     # Return
     return outfile
 
+def gen_timestamp():
+    """ Generate a simple time stamp including the current user
+    Returns
+    -------
+    timestamp : str
+      user_datetime
+    """
+    import datetime
+    tstamp = datetime.datetime.today().strftime('%Y-%b-%d-T%Hh%Mm%Ss')
+    import getpass
+    user = getpass.getuser()
+    # Return
+    return '{:s}_{:s}'.format(user, tstamp)
