@@ -230,7 +230,10 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
         for kk in range(settings.spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
-            arflux.apply_sensfunc(slf, det, scidx, fitsdict)
+            if slf._specobjs[det-1] is not None:
+                arflux.apply_sensfunc(slf, det, scidx, fitsdict)
+            else:
+                msgs.info("There are no objects on detector {0:d} to apply a flux calibration".format(det))
 
         # Write 1D spectra
         save_format = 'fits'

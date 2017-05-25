@@ -56,15 +56,15 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
         if sciext.ndim != 2 or sciext.shape != sky.shape:
             msgs.error("Could not save extraction"+msgs.newline() +
                        "science and sky frames have different dimensions or shape")
-        tsavdat = sciext[:,:,np.newaxis]
-        tsavdat = np.append(tsavdat,sky[:,:,np.newaxis],axis=2)
+        tsavdat = sciext[:, :, np.newaxis]
+        tsavdat = np.append(tsavdat, sky[:, :, np.newaxis], axis=2)
         if scierr is not None:
             if skyerr is None:
                 msgs.error("An error frame is missing for the sky")
-            savdat = tsavdat[:,:,:,np.newaxis]
-            tsaverr = scierr[:,:,np.newaxis]
-            tsaverr = np.append(tsaverr,skyerr[:,:,np.newaxis],axis=2)
-            savdat = np.append(savdat,tsaverr[:,:,:,np.newaxis],axis=3)
+            savdat = tsavdat[:, :, :, np.newaxis]
+            tsaverr = scierr[:, :, np.newaxis]
+            tsaverr = np.append(tsaverr, skyerr[:, :, np.newaxis], axis=2)
+            savdat = np.append(savdat, tsaverr[:, :, :, np.newaxis], axis=3)
         else:
             savdat = tsavdat
 
@@ -83,21 +83,21 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
             hdrname = "CDELT{0:03d}".format(i+1)
             hdulist[0].header[hdrname] = (np.log10(1.0 + settings.argflag['reduce']['pixelsize']/299792.458), 'ARMED: log10(1+pixsize/c)'.format(frametype))
             hdrname = "CRVAL{0:03d}".format(i+1)
-            hdulist[0].header[hdrname] = (np.log10(wave[0,i]), 'ARMED: log10(lambda_0)'.format(frametype))
+            hdulist[0].header[hdrname] = (np.log10(wave[0, i]), 'ARMED: log10(lambda_0)'.format(frametype))
             hdrname = "CLINV{0:03d}".format(i+1)
-            hdulist[0].header[hdrname] = (wave[0,i], 'ARMED: lambda_0'.format(frametype))
+            hdulist[0].header[hdrname] = (wave[0, i], 'ARMED: lambda_0'.format(frametype))
             hdrname = "CRPIX{0:03d}".format(i+1)
             hdulist[0].header[hdrname] = (0.0, 'ARMED: Offset=0.0'.format(frametype))
             hdrname = "CNPIX{0:03d}".format(i+1)
-            hdulist[0].header[hdrname] = (np.size(np.where(wave[:,i]!=-999999.9)[0]), 'ARMED: Offset=0.0'.format(frametype))
+            hdulist[0].header[hdrname] = (np.size(np.where(wave[:, i] != -999999.9)[0]), 'ARMED: Offset=0.0'.format(frametype))
     if extprops is not None:
         kys = extprops.keys()
         for j in range(len(kys)):
             hkey = kys[j][:5].upper()
-            if np.ndim(extprops[kys[j]])==1 and np.size(extprops[kys[j]]==sciext.shape[1]):
+            if np.ndim(extprops[kys[j]]) == 1 and np.size(extprops[kys[j]] == sciext.shape[1]):
                 for i in range(sciext.shape[1]):
-                    hdrname = "{0:s}{1:03d}".format(hkey,i+1)
-                    hdulist[0].header[hdrname] = (extprops[kys[j]][i], 'ARMED: {0:s} for order {1:d}'.format(kys[j],i+1))
+                    hdrname = "{0:s}{1:03d}".format(hkey, i+1)
+                    hdulist[0].header[hdrname] = (extprops[kys[j]][i], 'ARMED: {0:s} for order {1:d}'.format(kys[j], i+1))
     # Write the file to disk
     if os.path.exists(filename):
         if settings.argflag['output']['overwrite'] == True:
@@ -109,7 +109,7 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
             msgs.warn("This file already exists")
             rmfil=''
             while rmfil != 'n' and rmfil != 'y' and rmfil != 'a':
-                rmfil=raw_input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
+                rmfil = raw_input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
             if rmfil == 'n':
                 msgs.warn("Not saving {0:s} frame:".format(frametype)+msgs.newline()+filename)
             else:
@@ -320,7 +320,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
         msgs.error("NOT IMPLEMENTED")
     # Open file
     outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.hdf5'.format(slf._basename)
-    hdf = h5py.File(outfile,'w')
+    hdf = h5py.File(outfile, 'w')
 
     # Meta Table
     idict = dict(RA=0., DEC=0.,  # J2000
@@ -334,8 +334,13 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
 
     # Calculate number of objects and totalpix
     nspec, totpix = 0, 0
+    detref = None
     for kk in range(settings.spect['mosaic']['ndet']):
         det = kk+1
+        if slf._specobjs[det-1] is None:
+            continue
+        if detref is None:
+            detref = det
         # Loop on slits
         for sl in range(len(slf._specobjs[det-1])):
             nspec += len(slf._specobjs[det-1][sl])
@@ -357,20 +362,20 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     # Make a Header from fitsdict
     hdict = {}
     for key in fitsdict.keys():
-        hdict[key] = fitsdict[key][slf._specobjs[0][0][0].scidx]  # Hopefully this is the right index
+        hdict[key] = fitsdict[key][slf._specobjs[detref][0][0].scidx]  # Hopefully this is the right index
     d = ltu.jsonify(hdict)
     hdf['header'] = json.dumps(d)
 
     # Loop on extraction methods
     for ex_method in ['boxcar', 'optimal']:
         # Check for extraction type
-        if not hasattr(slf._specobjs[0][0][0], ex_method):
+        if not hasattr(slf._specobjs[detref][0][0], ex_method):
             continue
         method_grp = hdf.create_group(ex_method)
 
         # Data arrays are always MaskedArray
         dtypes = []
-        for key in getattr(slf._specobjs[0][0][0], ex_method).keys():
+        for key in getattr(slf._specobjs[detref][0][0], ex_method).keys():
             dtype = 'float64' if key == 'wave' else 'float32'
             dtypes.append((str(key), dtype, (totpix)))
         dtypes.append((str('obj_trace'), 'float32', (totpix)))
@@ -383,6 +388,8 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
         count = 0
         for kk in range(settings.spect['mosaic']['ndet']):
             det = kk+1
+            if slf._specobjs[det - 1] is None:
+                continue
             # Loop on slits
             for sl in range(len(slf._specobjs[det - 1])):
                 nspec += len(slf._specobjs[det - 1][sl])
@@ -428,6 +435,8 @@ def save_1d_spectra_fits(slf, clobber=True):
     ext = 0
     for kk in range(settings.spect['mosaic']['ndet']):
         det = kk+1
+        if slf._specobjs[det-1] is None:
+            continue
         # Loop on slits
         for sl in range(len(slf._specobjs[det-1])):
             # Loop on spectra
@@ -488,6 +497,8 @@ def save_obj_info(slf, fitsdict, clobber=True):
     # Loop on detectors
     for kk in range(settings.spect['mosaic']['ndet']):
         det = kk+1
+        if slf._specobjs[det-1] is None:
+            continue
         dnum = settings.get_dnum(det)
         # Loop on slits
         for sl in range(len(slf._specobjs[det-1])):

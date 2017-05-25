@@ -1076,9 +1076,12 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
        (settings.argflag['reduce']['calibrate']['wavelength'] != "pixel"):
         if settings.argflag['science']['extraction']['reuse']:
             msgs.warn("{0:s} correction will not be applied if an extracted science frame exists, and is used".format(settings.argflag['reduce']['calibrate']['refframe']))
-        msgs.info("Performing a {0:s} correction".format(settings.argflag['reduce']['calibrate']['refframe']))
-        # Load the header for the science frame
-        arwave.geomotion_correct(slf, det, fitsdict)
+        if slf._specobjs[det-1] is not None:
+            msgs.info("Performing a {0:s} correction".format(settings.argflag['reduce']['calibrate']['refframe']))
+            arwave.geomotion_correct(slf, det, fitsdict)
+        else:
+            msgs.info("There are no objects on detector {0:d} to perform a {1:s} correction".format(
+                det, settings.argflag['reduce']['calibrate']['refframe']))
     else:
         msgs.info("A heliocentric correction will not be performed")
 
