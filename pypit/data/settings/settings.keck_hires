@@ -1,8 +1,5 @@
 Current status:
 Still need to fill out red detector datasec oscansec
-Some keyword properties missing
-check 04.CCDNAME
-
 
 ### Mosaic properties
 mosaic ndet 3                         # Number of detectors in the mosaic
@@ -57,12 +54,12 @@ det03 oscansec01 [:,:]   # Either the overscan sections or the header keyword wh
 det03 suffix _red                  # Suffix to be appended to all saved calibration and extraction frames
 
 ### Checks to perform
-check 02.NAXIS 2                    # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
-check 02.CCDNAME 17-7-1    # Check the CCD name
-check 03.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
-check 03.CCDNAME 17-7-6                # Check the CCD name
-check 04.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
-check 04.CCDNAME blah
+check 02.NAXIS 2                      # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 03.NAXIS 2                      # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 04.NAXIS 2                      # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 02.CCDNAME 17-7-1               # Check the CCD name
+check 03.CCDNAME 17-7-6               # Check the CCD name
+check 04.CCDNAME 2-2-1                # Check the CCD name
 
 ### Keyword Identifiers
 keyword target 01.OBJECT                # Header keyword for the name given by the observer to a given frame
@@ -72,14 +69,14 @@ keyword date 01.DATE-OBS                # The date of the observation (in the fo
 keyword equinox 01.EQUINOX              # The equinox to use
 keyword ra 01.RA                        # Right Ascension of the target
 keyword dec 01.DEC                      # Declination of the target
-keyword airmass 01.                     # Airmass at start of observation
+keyword airmass 01.AIRMASS              # Airmass at start of observation
 keyword naxis0 01.NAXIS2                # Number of pixels along the zeroth axis
 keyword naxis1 01.NAXIS1                # Number of pixels along the first axis
-keyword binning 01.                     # Binning
+keyword binning 01.BINNING              # Binning
 keyword exptime 01.EXPTIME              # Exposure time keyword
 keyword filter1 01.LFILNAME             # Filter 1
 keyword filter2 01.FIL1NAME             # Filter 2
-keyword hatch 01.                       # Hatch
+keyword hatch None                      # Hatch
 keyword decker 01.DECKNAME              # Which decker is being used
 keyword lamps 01.LAMPNAME               # Which lamp is being used
 keyword slitwid 01.SLITWID              # Slit Width
@@ -88,7 +85,7 @@ keyword detrot None                     # Detector Rotation angle
 keyword dichroic None                   # Dichroic name
 keyword echangle 01.ECHANGL             # Echelle angle
 keyword dispname 01.XDISPERS            # Cross-disperser name
-keyword dispangle None                  # Cross-disperser angle
+keyword dispangle 01.XDANGL             # Cross-disperser angle
 
 ### Fits properties
 fits timeunit mjd                     # The unit of keyword+time (s=seconds, m=minutes, h=hours, mjd=MJD, dt=datetime)
@@ -103,7 +100,7 @@ fits headext04 3                    # Extension number of header (one for each h
 science check condition1 lampstat01=Off&lampstat02=Off&lampstat03=Off&lampstat04=Off
 
 ### Standard Star frames
-standard idname None               # Header key value of science frame for header keyword keyword+idname
+standard idname None                 # Header key value of science frame for header keyword keyword+idname
 standard number 0                    # Number of standard star frames to use
 
 ### Bias/Dark frames
