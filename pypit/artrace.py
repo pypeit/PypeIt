@@ -20,8 +20,7 @@ from pypit import ardebug as debugger
 
 
 def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
-    """
-    This routine will traces the locations of the slit edges
+    """This routine will trace the locations of the slit edges
 
     Parameters
     ----------
