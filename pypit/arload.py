@@ -198,13 +198,12 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
     for i in range(np.size(ind)):
         # Instrument specific read
         if settings.argflag['run']['spectrograph'] in ['lris_blue', 'lris_red']:
-            temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
+            temp, _, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         # elif settings.argflag['run']['spectrograph'] in ['deimos']:
         #     temp, head0, _ = ardeimos.read_deimos(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         else:
             hdulist = pyfits.open(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]])
-            temp = hdulist[settings.spect['fits']['dataext']].data
-            head0 = hdulist[0].header
+            temp = hdulist[settings.spect['fits']['dataext']+(det-1)].data
         temp = temp.astype(np.float)  # Let us avoid uint16
         if settings.argflag['trace']['dispersion']['direction'] == 1:
             temp = temp.T
