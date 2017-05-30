@@ -553,7 +553,6 @@ def calib_with_arclines(slf, det, get_poly=False, use_basic=False):
         stuff = basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
         status, ngd_match, match_idx, scores, final_fit = stuff
     else:  # Now preferred
-        debugger.set_trace()
         best_dict, final_fit = semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
         #if det == 2:
         #    debugger.set_trace()
