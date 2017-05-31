@@ -233,7 +233,10 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
         for kk in range(settings.spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
-            arflux.apply_sensfunc(slf, det, scidx, fitsdict)
+            if slf._specobjs[det-1] is not None:
+                arflux.apply_sensfunc(slf, det, scidx, fitsdict)
+            else:
+                msgs.info("There are no objects on detector {0:d} to apply a flux calibration".format(det))
 
         # Write 1D spectra
         save_format = 'fits'
@@ -249,57 +252,3 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         # Free up some memory by replacing the reduced ScienceExposure class
         sciexp[sc] = None
     return status
-
-
-def instconfig(det, scidx, fitsdict):
-    """ Returns a unique config string for the current slf
-
-    Parameters
-    ----------
-    det : int
-    scidx : int
-       Exposure index (max=9999)
-    fitsdict : dict
-    """
-    from collections import OrderedDict
-    config_dict = OrderedDict()
-    config_dict['S'] = 'slitwid'
-    config_dict['D'] = 'dichroic'
-    config_dict['G'] = 'dispname'
-    config_dict['T'] = 'dispangle'
-    #
-    config = ''
-    for key in config_dict.keys():
-        try:
-            comp = str(fitsdict[config_dict[key]][scidx])
-        except KeyError:
-            comp = '0'
-        #
-        val = ''
-        for s in comp:
-            if s.isdigit():
-                val = val + s
-        config = config + key+'{:s}-'.format(val)
-    # Binning
-    try:
-        binning = settings.spect['det'][det-1]['binning']
-    except KeyError:
-        msgs.warn("Assuming 1x1 binning for your detector")
-        binning = '1x1'
-    val = ''
-    for s in binning:
-        if s.isdigit():
-            val = val + s
-    config = config + 'B{:s}'.format(val)
-    # Return
-    return config
-
-    """
-    msgs.warn("Flat indexing needs to be improved in arsort.setup")
-    fidx = slf._name_flat.index(slf._mspixelflat_name)
-    if fidx > 9:
-        msgs.error("Not ready for that many flats!")
-    aidx = slf._name_flat.index(slf._mspixelflat_name)
-    setup = 10*(aidx+1) + fidx
-    return setup
-    """

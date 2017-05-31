@@ -46,6 +46,7 @@ def test_view_fits():
     spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
     pargs = view_fits.parser([spec_file, '--list'])
 
+
 def test_coadd():
     coadd_file = data_path('coadd_UGC3672A_red.yaml')
     args = coadd_1dspec.parser([coadd_file])
@@ -60,6 +61,7 @@ def test_coadd():
     assert iobj == 'O210-S1467-D02-I0012'
     assert outfile == 'UGC3672A_r.fits'
     assert len(files) == 4
+
 
 def test_coadd2():
     """ Test using a list of object names
@@ -77,4 +79,3 @@ def test_coadd2():
     with pytest.raises(IOError):
         gparam, ex_value, flux_value, iobj, outfile, files = coadd_1dspec.main(
             args, unit_test=True, path=data_path('./'))
-

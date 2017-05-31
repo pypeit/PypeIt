@@ -56,15 +56,15 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
         if sciext.ndim != 2 or sciext.shape != sky.shape:
             msgs.error("Could not save extraction"+msgs.newline() +
                        "science and sky frames have different dimensions or shape")
-        tsavdat = sciext[:,:,np.newaxis]
-        tsavdat = np.append(tsavdat,sky[:,:,np.newaxis],axis=2)
+        tsavdat = sciext[:, :, np.newaxis]
+        tsavdat = np.append(tsavdat, sky[:, :, np.newaxis], axis=2)
         if scierr is not None:
             if skyerr is None:
                 msgs.error("An error frame is missing for the sky")
-            savdat = tsavdat[:,:,:,np.newaxis]
-            tsaverr = scierr[:,:,np.newaxis]
-            tsaverr = np.append(tsaverr,skyerr[:,:,np.newaxis],axis=2)
-            savdat = np.append(savdat,tsaverr[:,:,:,np.newaxis],axis=3)
+            savdat = tsavdat[:, :, :, np.newaxis]
+            tsaverr = scierr[:, :, np.newaxis]
+            tsaverr = np.append(tsaverr, skyerr[:, :, np.newaxis], axis=2)
+            savdat = np.append(savdat, tsaverr[:, :, :, np.newaxis], axis=3)
         else:
             savdat = tsavdat
 
@@ -83,21 +83,21 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
             hdrname = "CDELT{0:03d}".format(i+1)
             hdulist[0].header[hdrname] = (np.log10(1.0 + settings.argflag['reduce']['pixelsize']/299792.458), 'ARMED: log10(1+pixsize/c)'.format(frametype))
             hdrname = "CRVAL{0:03d}".format(i+1)
-            hdulist[0].header[hdrname] = (np.log10(wave[0,i]), 'ARMED: log10(lambda_0)'.format(frametype))
+            hdulist[0].header[hdrname] = (np.log10(wave[0, i]), 'ARMED: log10(lambda_0)'.format(frametype))
             hdrname = "CLINV{0:03d}".format(i+1)
-            hdulist[0].header[hdrname] = (wave[0,i], 'ARMED: lambda_0'.format(frametype))
+            hdulist[0].header[hdrname] = (wave[0, i], 'ARMED: lambda_0'.format(frametype))
             hdrname = "CRPIX{0:03d}".format(i+1)
             hdulist[0].header[hdrname] = (0.0, 'ARMED: Offset=0.0'.format(frametype))
             hdrname = "CNPIX{0:03d}".format(i+1)
-            hdulist[0].header[hdrname] = (np.size(np.where(wave[:,i]!=-999999.9)[0]), 'ARMED: Offset=0.0'.format(frametype))
+            hdulist[0].header[hdrname] = (np.size(np.where(wave[:, i] != -999999.9)[0]), 'ARMED: Offset=0.0'.format(frametype))
     if extprops is not None:
         kys = extprops.keys()
         for j in range(len(kys)):
             hkey = kys[j][:5].upper()
-            if np.ndim(extprops[kys[j]])==1 and np.size(extprops[kys[j]]==sciext.shape[1]):
+            if np.ndim(extprops[kys[j]]) == 1 and np.size(extprops[kys[j]] == sciext.shape[1]):
                 for i in range(sciext.shape[1]):
-                    hdrname = "{0:s}{1:03d}".format(hkey,i+1)
-                    hdulist[0].header[hdrname] = (extprops[kys[j]][i], 'ARMED: {0:s} for order {1:d}'.format(kys[j],i+1))
+                    hdrname = "{0:s}{1:03d}".format(hkey, i+1)
+                    hdulist[0].header[hdrname] = (extprops[kys[j]][i], 'ARMED: {0:s} for order {1:d}'.format(kys[j], i+1))
     # Write the file to disk
     if os.path.exists(filename):
         if settings.argflag['output']['overwrite'] == True:
@@ -320,34 +320,41 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
         msgs.error("NOT IMPLEMENTED")
     # Open file
     outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.hdf5'.format(slf._basename)
-    hdf = h5py.File(outfile,'w')
+    hdf = h5py.File(outfile, 'w')
 
     # Meta Table
     idict = dict(RA=0., DEC=0.,  # J2000
                  objid=0, slitid=0, det=0, scidx=0,  # specobj IDs
                  FWHM=0.,  # Spatial resolution in arcsec
                  R=0.,     # Spectral resolution (FWHM) in lambda/Dlambda
-                 xslit=(0.,0.))
+                 xslit=(0.,0.), nslit=0)
     tkeys = idict.keys()
     lst = [[idict[tkey]] for tkey in tkeys]
     meta = Table(lst, names=tkeys)
 
     # Calculate number of objects and totalpix
     nspec, totpix = 0, 0
+    detref = None
     for kk in range(settings.spect['mosaic']['ndet']):
         det = kk+1
-        nspec += len(slf._specobjs[det-1])
-        # Loop on objects
-        for specobj in slf._specobjs[det-1]:
-            # Calculate max pixels
-            totpix = max(totpix, specobj.trace.size)
-            # Update meta
-            tdict = dict(RA=0., DEC=0.,  # J2000
-                 objid=specobj.objid, slitid=specobj.slitid, det=det, scidx=specobj.scidx,  # specobj IDs
-                 FWHM=0.,  # Spatial resolution in arcsec
-                 R=0.,     # Spectral resolution (FWHM) in lambda/Dlambda
-                 xslit=specobj.xslit)
-            meta.add_row(tdict)
+        if slf._specobjs[det-1] is None:
+            continue
+        if detref is None:
+            detref = det-1
+        # Loop on slits
+        for sl in range(len(slf._specobjs[det-1])):
+            nspec += len(slf._specobjs[det-1][sl])
+            # Loop on objects
+            for specobj in slf._specobjs[det-1][sl]:
+                # Calculate max pixels
+                totpix = max(totpix, specobj.trace.size)
+                # Update meta
+                tdict = dict(RA=0., DEC=0.,  # J2000
+                             objid=specobj.objid, slitid=specobj.slitid, det=det, scidx=specobj.scidx,  # specobj IDs
+                             FWHM=0.,  # Spatial resolution in arcsec
+                             R=0.,     # Spectral resolution (FWHM) in lambda/Dlambda
+                             xslit=specobj.xslit, nslit=sl+1)  # Slit position and number
+                meta.add_row(tdict)
     # Remove dummy row and write
     meta = meta[1:]
     hdf['meta'] = meta
@@ -355,50 +362,54 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     # Make a Header from fitsdict
     hdict = {}
     for key in fitsdict.keys():
-        hdict[key] = fitsdict[key][slf._specobjs[0][0].scidx]  # Hopefully this is the right index
+        hdict[key] = fitsdict[key][slf._specobjs[detref][0][0].scidx]  # Hopefully this is the right index
     d = ltu.jsonify(hdict)
     hdf['header'] = json.dumps(d)
 
     # Loop on extraction methods
     for ex_method in ['boxcar', 'optimal']:
         # Check for extraction type
-        if not hasattr(slf._specobjs[0][0], ex_method):
+        if not hasattr(slf._specobjs[detref][0][0], ex_method):
             continue
         method_grp = hdf.create_group(ex_method)
 
         # Data arrays are always MaskedArray
         dtypes = []
-        for key in getattr(slf._specobjs[det-1][0], ex_method).keys():
+        for key in getattr(slf._specobjs[detref][0][0], ex_method).keys():
             dtype = 'float64' if key == 'wave' else 'float32'
             dtypes.append((str(key), dtype, (totpix)))
         dtypes.append((str('obj_trace'), 'float32', (totpix)))
         data = np.ma.empty((1,), dtype=dtypes)
         # Setup in hdf5
         spec_set = hdf[str(ex_method)].create_dataset('spec', data=data, chunks=True,
-                                         maxshape=(None,), compression='gzip')
+                                                      maxshape=(None,), compression='gzip')
         spec_set.resize((nspec,))
         # Fill (and make meta)
         count = 0
         for kk in range(settings.spect['mosaic']['ndet']):
             det = kk+1
-            nspec += len(slf._specobjs[det-1])
-            # Loop on spectra
-            for specobj in slf._specobjs[det-1]:
-                # Check meta
-                assert meta['objid'][count] == specobj.objid
-                # Trace
-                data['obj_trace'][0][:len(specobj.trace)] = specobj.trace
-                # Rest
-                sdict = getattr(specobj, ex_method)
-                for key in sdict.keys():
-                    npix = len(sdict[key])
-                    try:
-                        data[key][0][:npix] = sdict[key].value
-                    except AttributeError:
-                        data[key][0][:npix] = sdict[key]
-                # Write
-                spec_set[count] = data
-                count += 1
+            if slf._specobjs[det - 1] is None:
+                continue
+            # Loop on slits
+            for sl in range(len(slf._specobjs[det - 1])):
+                nspec += len(slf._specobjs[det - 1][sl])
+                # Loop on spectra
+                for specobj in slf._specobjs[det-1][sl]:
+                    # Check meta
+                    assert meta['objid'][count] == specobj.objid
+                    # Trace
+                    data['obj_trace'][0][:len(specobj.trace)] = specobj.trace
+                    # Rest
+                    sdict = getattr(specobj, ex_method)
+                    for key in sdict.keys():
+                        npix = len(sdict[key])
+                        try:
+                            data[key][0][:npix] = sdict[key].value
+                        except AttributeError:
+                            data[key][0][:npix] = sdict[key]
+                    # Write
+                    spec_set[count] = data
+                    count += 1
     #
     hdf.close()
 
@@ -424,47 +435,52 @@ def save_1d_spectra_fits(slf, clobber=True):
     ext = 0
     for kk in range(settings.spect['mosaic']['ndet']):
         det = kk+1
-        # Loop on spectra
-        for specobj in slf._specobjs[det-1]:
-            ext += 1
-            # Add header keyword
-            keywd = 'EXT{:04d}'.format(ext)
-            prihdu.header[keywd] = specobj.idx
-            # Add Spectrum Table
-            cols = []
-            # Trace
-            cols += [pyfits.Column(array=specobj.trace, name=str('obj_trace'), format=specobj.trace.dtype)]
-            # Boxcar
-            for key in specobj.boxcar.keys():
-                # Skip some
-                if key in ['size']:
-                    continue
-                if isinstance(specobj.boxcar[key], Quantity):
-                    cols += [pyfits.Column(array=specobj.boxcar[key].value,
-                                         name=str('box_'+key), format=specobj.boxcar[key].value.dtype)]
-                else:
-                    cols += [pyfits.Column(array=specobj.boxcar[key],
-                                         name=str('box_'+key), format=specobj.boxcar[key].dtype)]
-            # Optimal
-            for key in specobj.optimal.keys():
-                # Skip some
-                if key in ['fwhm']:
-                    continue
-                # Generate column
-                if isinstance(specobj.optimal[key], Quantity):
-                    cols += [pyfits.Column(array=specobj.optimal[key].value,
-                                           name=str('opt_'+key), format=specobj.optimal[key].value.dtype)]
-                else:
-                    cols += [pyfits.Column(array=specobj.optimal[key],
-                                           name=str('opt_'+key), format=specobj.optimal[key].dtype)]
-            # Finish
-            coldefs = pyfits.ColDefs(cols)
-            tbhdu = pyfits.BinTableHDU.from_columns(coldefs)
-            tbhdu.name = specobj.idx
-            hdus += [tbhdu]
+        if slf._specobjs[det-1] is None:
+            continue
+        # Loop on slits
+        for sl in range(len(slf._specobjs[det-1])):
+            # Loop on spectra
+            for specobj in slf._specobjs[det-1][sl]:
+                ext += 1
+                # Add header keyword
+                keywd = 'EXT{:04d}'.format(ext)
+                prihdu.header[keywd] = specobj.idx
+                # Add Spectrum Table
+                cols = []
+                # Trace
+                cols += [pyfits.Column(array=specobj.trace, name=str('obj_trace'), format=specobj.trace.dtype)]
+                # Boxcar
+                for key in specobj.boxcar.keys():
+                    # Skip some
+                    if key in ['size']:
+                        continue
+                    if isinstance(specobj.boxcar[key], Quantity):
+                        cols += [pyfits.Column(array=specobj.boxcar[key].value,
+                                             name=str('box_'+key), format=specobj.boxcar[key].value.dtype)]
+                    else:
+                        cols += [pyfits.Column(array=specobj.boxcar[key],
+                                             name=str('box_'+key), format=specobj.boxcar[key].dtype)]
+                # Optimal
+                for key in specobj.optimal.keys():
+                    # Skip some
+                    if key in ['fwhm']:
+                        continue
+                    # Generate column
+                    if isinstance(specobj.optimal[key], Quantity):
+                        cols += [pyfits.Column(array=specobj.optimal[key].value,
+                                               name=str('opt_'+key), format=specobj.optimal[key].value.dtype)]
+                    else:
+                        cols += [pyfits.Column(array=specobj.optimal[key],
+                                               name=str('opt_'+key), format=specobj.optimal[key].dtype)]
+                # Finish
+                coldefs = pyfits.ColDefs(cols)
+                tbhdu = pyfits.BinTableHDU.from_columns(coldefs)
+                tbhdu.name = specobj.idx
+                hdus += [tbhdu]
     # Finish
     hdulist = pyfits.HDUList(hdus)
     hdulist.writeto(settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename), overwrite=clobber)
+
 
 #def write_sensitivity():
     #sensfunc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.yaml".format(os.getcwd(), settings.argflag['run']['directory']['master'], slf._fitsdict['target'][scidx[0]], 0, "sensfunc")
@@ -474,40 +490,48 @@ def save_1d_spectra_fits(slf, clobber=True):
     #with io.open(sensfunc_name, 'w', encoding='utf-8') as f:
     #    f.write(unicode(json.dumps(slf._sensfunc, sort_keys=True, indent=4, separators=(',', ': '))))
 
+
 def save_obj_info(slf, fitsdict, clobber=True):
     # Lists for a Table
-    names, boxsize, opt_fwhm, s2n = [], [], [], []
+    slits, names, boxsize, opt_fwhm, s2n = [], [], [], [], []
     # Loop on detectors
     for kk in range(settings.spect['mosaic']['ndet']):
         det = kk+1
+        if slf._specobjs[det-1] is None:
+            continue
         dnum = settings.get_dnum(det)
-        # Loop on spectra
-        for specobj in slf._specobjs[det-1]:
-            # Append
-            names.append(specobj.idx)
-            # Boxcar width
-            if 'size' in specobj.boxcar.keys():
-                slit_pix = specobj.boxcar['size']
-                # Convert to arcsec
-                binspatial, binspectral = settings.parse_binning(fitsdict['binning'][specobj.scidx])
-                boxsize.append(slit_pix*binspatial*settings.spect[dnum]['platescale'])
-            else:
-                boxsize.append(0.)
-            # Optimal profile (FWHM)
-            if 'fwhm' in specobj.optimal.keys():
-                binspatial, binspectral = settings.parse_binning(fitsdict['binning'][specobj.scidx])
-                opt_fwhm.append(specobj.optimal['fwhm']*binspatial*settings.spect[dnum]['platescale'])
-            else:
-                opt_fwhm.append(0.)
-            # S2N -- default to boxcar
-            sext = (specobj.boxcar if (len(specobj.boxcar) > 0) else specobj.optimal)
-            ivar = arutils.calc_ivar(sext['var'])
-            is2n = np.median(sext['counts']*np.sqrt(ivar))
-            s2n.append(is2n)
+        # Loop on slits
+        for sl in range(len(slf._specobjs[det-1])):
+            # Loop on spectra
+            for specobj in slf._specobjs[det-1][sl]:
+                # Append
+                names.append(specobj.idx)
+                slits.append(sl+1)
+                # Boxcar width
+                if 'size' in specobj.boxcar.keys():
+                    slit_pix = specobj.boxcar['size']
+                    # Convert to arcsec
+                    binspatial, binspectral = settings.parse_binning(fitsdict['binning'][specobj.scidx])
+                    boxsize.append(slit_pix*binspatial*settings.spect[dnum]['platescale'])
+                else:
+                    boxsize.append(0.)
+                # Optimal profile (FWHM)
+                if 'fwhm' in specobj.optimal.keys():
+                    binspatial, binspectral = settings.parse_binning(fitsdict['binning'][specobj.scidx])
+                    opt_fwhm.append(specobj.optimal['fwhm']*binspatial*settings.spect[dnum]['platescale'])
+                else:
+                    opt_fwhm.append(0.)
+                # S2N -- default to boxcar
+                sext = (specobj.boxcar if (len(specobj.boxcar) > 0) else specobj.optimal)
+                ivar = arutils.calc_ivar(sext['var'])
+                is2n = np.median(sext['counts']*np.sqrt(ivar))
+                s2n.append(is2n)
 
     # Generate the table, if we have at least one source
     if len(names) > 0:
         obj_tbl = Table()
+        obj_tbl['slit'] = slits
+        obj_tbl['slit'].format = 'd'
         obj_tbl['name'] = names
         obj_tbl['box_width'] = boxsize
         obj_tbl['box_width'].format = '.2f'
@@ -519,6 +543,7 @@ def save_obj_info(slf, fitsdict, clobber=True):
         obj_tbl['s2n'].format = '.2f'
         # Write
         obj_tbl.write(settings.argflag['run']['directory']['science']+'/objinfo_{:s}.txt'.format(slf._basename), format='ascii.fixed_width', overwrite=True)
+
 
 def save_2d_images(slf, fitsdict, clobber=True):
     """ Write 2D images to the hard drive
