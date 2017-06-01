@@ -416,7 +416,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 
 
-def save_1d_spectra_fits(slf, clobber=True):
+def save_1d_spectra_fits(slf, standard=False, clobber=True):
     """ Write 1D spectra to a multi-extension FITS file
 
     Parameters
@@ -430,11 +430,14 @@ def save_1d_spectra_fits(slf, clobber=True):
     # Primary header
     prihdu = pyfits.PrimaryHDU()
     hdus = [prihdu]
-
     # Loop on detectors
     ext = 0
     for kk in range(settings.spect['mosaic']['ndet']):
         det = kk+1
+
+        if standard:
+            specobjs = slf._msstd[det-1]['spobjs']
+
         if slf._specobjs[det-1] is None:
             continue
         # Loop on slits
@@ -445,6 +448,9 @@ def save_1d_spectra_fits(slf, clobber=True):
                 # Add header keyword
                 keywd = 'EXT{:04d}'.format(ext)
                 prihdu.header[keywd] = specobj.idx
+
+                debugger.set_trace()
+
                 # Add Spectrum Table
                 cols = []
                 # Trace
