@@ -211,7 +211,8 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             # Using model sky, calculate a flexure correction
 
         # Close the QA for this object
-        slf._qa.close()
+        if not msgs._debug['no_qa']:
+            slf._qa.close()
 
         ###############
         # Flux

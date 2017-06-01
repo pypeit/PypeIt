@@ -33,11 +33,12 @@ def main(args, unit_test=False):
 
     # List only?
     if args.list:
+        from astropy.io import fits
         print("Showing object names for input file...")
-        spec = arload.load_1dspec(args.file)
-        for key in spec.header.keys():
-            if 'EXT0' in key:
-                print("{} = {}".format(key, spec.header[key]))
+        hdu = fits.open(args.file)
+        for ii in range(1,len(hdu)):
+            name = hdu[ii].name
+            print("EXT{:07d} = {}".format(ii, name))
         sys.exit()
 
     from linetools.guis.xspecgui import XSpecGui
