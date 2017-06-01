@@ -403,20 +403,16 @@ def generate_sensfunc(slf, stdidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=
     flux_corr = std_obj.boxcar['counts']*ext_corr
     var_corr = std_obj.boxcar['var']*ext_corr**2
     # Convert to electrons / s
-    debugger.set_trace()
     flux_corr /= fitsdict['exptime'][stdidx]
     var_corr /= fitsdict['exptime'][stdidx]**2
 
     # Grab closest standard within a tolerance
     std_dict = find_standard_file((slf._msstd[0]['RA'], slf._msstd[0]['DEC']))
-    debugger.set_trace()
     # Load standard
     load_standard_file(std_dict)
-    debugger.set_trace()
     # Interpolate onto observed wavelengths
     std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
     xspec = std_xspec.rebin(wave) # Conserves flambda
-    debugger.set_trace()
     #flux_interp = scipy.interpolate.interp1d(std_dict['wave'],
     #    std_dict['flux'], bounds_error=False, fill_value=0.)
     #flux_true = flux_interp(wave.to('AA').value)

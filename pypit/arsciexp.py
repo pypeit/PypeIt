@@ -806,10 +806,11 @@ class ScienceExposure:
             #
             all_specobj += self._msstd[det-1]['spobjs']
         # Save to disk
-        outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format( fitsdict['filename'][ind[0]].split('.')[0])
+        outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(
+            fitsdict['filename'][ind[0]].split('.')[0])
         arsave.save_1d_spectra_fits(self, standard=True, outfile=outfile)
         # If standard, generate a sensitivity function
-        sensfunc = arflux.generate_sensfunc(self, ind, all_specobj, fitsdict)
+        sensfunc = arflux.generate_sensfunc(self, ind[0], all_specobj, fitsdict)
         # Set the sensitivity function
         self.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
         return True
