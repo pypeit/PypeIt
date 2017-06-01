@@ -805,6 +805,7 @@ class ScienceExposure:
             #
             all_specobj += self._msstd[det-1]['spobjs']
 #        debugger.set_trace()
+        arsave.save_1d_spectra_fits(slf)
         # If standard, generate a sensitivity function
         sensfunc = arflux.generate_sensfunc(self, scidx, all_specobj, fitsdict)
         # Set the sensitivity function
