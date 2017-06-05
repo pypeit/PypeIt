@@ -112,8 +112,6 @@ def main(args, unit_test=False, path=''):
                         #In case the boxcar extract is also absent
                         msgs.error("Object {:s} in file {:s} doesn't have a boxcar extraction either. Co-addition cannot be performed".format(mtch_obj[0],fkey))
                     ex_value = 'box'
-                
-                    msgs.error()
                 gdfiles.append(fkey)
                 gdobj += mtch_obj
                 extensions.append(idx[0]+1)
