@@ -4,7 +4,8 @@
 Wrapper to the linetools XSpecGUI
 """
 from pypit import pyputils
-from pypit import armsgs
+import pdb
+
 msgs = pyputils.get_dummy_logger()
 from numpy import isnan
 
@@ -87,7 +88,7 @@ def main(args, unit_test=False, path=''):
         gdobj = []
 
         for fkey in fdict:
-            if len(iobj) == 1:
+            if not isinstance(iobj, list) == 1:  # Simple single object
                 mtch_obj, idx = arspecobj.mtch_obj_to_objects(iobj, fdict[fkey])
             else:
                 ind = files.index(fkey)
@@ -97,14 +98,12 @@ def main(args, unit_test=False, path=''):
             elif len(mtch_obj) == 1:
                 #Check if optimal extraction is present in all  objects. If not, warn the user and set ex_value to 'box'.
                 hdulist = fits.open(fkey)
-                try:
-                    #In case the optimal extraction array is a NaN array
+                try: #In case the optimal extraction array is a NaN array
                     obj_opt_flam = hdulist[mtch_obj[0]].data['OPT_FLAM']
                     if any(isnan(obj_opt_flam)):
                         msgs.warn("Object {:s} in file {:s} has a NaN array for optimal extraction. Boxcar will be used instead.".format(mtch_obj[0],fkey))
                         ex_value = 'box'
-                except KeyError:
-                    #In case the array is absent altogether.
+                except KeyError: #In case the array is absent altogether.
                     msgs.warn("Object {:s} in file {:s} doesn't have an optimal extraction. Boxcar will be used instead.".format(mtch_obj[0],fkey))
                     try:
                         hdulist[mtch_obj[0]].data['BOX_FLAM']
