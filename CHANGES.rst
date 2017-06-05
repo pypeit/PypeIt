@@ -7,6 +7,8 @@
 * Now requiring astropy >= v1.3
 * raw_input handling for Python 3
 * coadd_ammendment
+* fix local background logic error in slit masking
+
 0.7 (2017-02-07)
 ----------------
 
