@@ -14,13 +14,14 @@ det01 ysize 1.0                       # The size of a pixel in the y-direction a
 det01 platescale 0.135                # arcsec per pixel in the spatial dimension for an unbinned pixel
 det01 darkcurr 3.8                    # Dark current (e-/hour)
 det01 saturation 65535.0              # The detector Saturation level
-det01 nonlinear 0.8                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det01 nonlinear 0.8                   # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det01 numamplifiers 1                 # Number of amplifiers
-det01 gain 1.9                  # Gain (e-/ADU) values for the 2 amplifiers
-det01 ronoise 2.8                 # RN (e-) for the 2 amplifiers
+det01 gain 1.9                        # Gain (e-/ADU) values for the 2 amplifiers
+det01 ronoise 2.8                     # RN (e-) for the 2 amplifiers
+det01 dataext01 1                     # Extension number of the data
 det01 datasec01 [0:2048,6:1030]       # Either the data sections or the header keyword where the valid data sections can be obtained
 det01 oscansec01 [0:2048,1030:1070]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
-det01 suffix _blue                  # Suffix to be appended to all saved calibration and extraction frames
+det01 suffix _blue                    # Suffix to be appended to all saved calibration and extraction frames
 
 det02 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
 det02 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
@@ -28,13 +29,14 @@ det02 ysize 1.0                       # The size of a pixel in the y-direction a
 det02 platescale 0.135                # arcsec per pixel in the spatial dimension for an unbinned pixel
 det02 darkcurr 4.4                    # Dark current (e-/hour)
 det02 saturation 65535.0              # The detector Saturation level
-det02 nonlinear 0.8                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det02 nonlinear 0.8                   # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det02 numamplifiers 1                 # Number of amplifiers
-det02 gain 2.2                  # Gain (e-/ADU) values for the 2 amplifiers
-det02 ronoise 3.1                 # RN (e-) for the 2 amplifiers
+det02 gain 2.2                        # Gain (e-/ADU) values for the 2 amplifiers
+det02 ronoise 3.1                     # RN (e-) for the 2 amplifiers
+det02 dataext01 2                     # Extension number of the data
 det02 datasec01 [0:2048,6:1032]       # Either the data sections or the header keyword where the valid data sections can be obtained
 det02 oscansec01 [0:2048,1032:1070]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
-det02 suffix _green                  # Suffix to be appended to all saved calibration and extraction frames
+det02 suffix _green                   # Suffix to be appended to all saved calibration and extraction frames
 
 det03 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
 det03 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
@@ -42,13 +44,14 @@ det03 ysize 1.0                       # The size of a pixel in the y-direction a
 det03 platescale 0.135                # arcsec per pixel in the spatial dimension for an unbinned pixel
 det03 darkcurr 2.2                    # Dark current (e-/hour)
 det03 saturation 65535.0              # The detector Saturation level
-det03 nonlinear 0.8                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det03 nonlinear 0.8                   # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det03 numamplifiers 1                 # Number of amplifiers
-det03 gain 2.2                  # Gain (e-/ADU) values for the 2 amplifiers
-det03 ronoise 3.1                 # RN (e-) for the 2 amplifiers
+det03 gain 2.2                        # Gain (e-/ADU) values for the 2 amplifiers
+det03 ronoise 3.1                     # RN (e-) for the 2 amplifiers
+det03 dataext01 3                     # Extension number of the data
 det03 datasec01 [0:2048,6:1030]       # Either the data sections or the header keyword where the valid data sections can be obtained
 det03 oscansec01 [0:2048,1030:1070]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
-det03 suffix _red                  # Suffix to be appended to all saved calibration and extraction frames
+det03 suffix _red                     # Suffix to be appended to all saved calibration and extraction frames
 
 ### Checks to perform
 check 02.NAXIS 2                      # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
