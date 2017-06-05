@@ -62,6 +62,9 @@ right edge), the slit ID which is relative on the detector (4701),
 the detector number (01), and the science index (0035), in
 one of the files.
 
+Any other tags within the object block are taken as keywords
+to algorithms that are listed below (:ref:`coadd_obj_keys`).
+
 The list of object identifiers in a given spec1d file can be
 output with the pypit_show_1dspec script, e.g.::
 
@@ -90,6 +93,7 @@ The adjustable parameters and options are:
 
 Wavelength Rebinning
 --------------------
+
 ==================   =======================  ==================================================
 Parameter            Option                   Description
 ==================   =======================  ==================================================
@@ -122,6 +126,20 @@ scale_method         default: auto            scale the flux arrays based on the
 --                   median                   scale the flux arrays by the median flux value
                                               of each spectra
 ==================   =======================  ==================================================
+
+.. _coadd_obj_keys:
+
+Object Keywords
+---------------
+
+Here are other keywords that one may wish to set
+for individual objects:
+
+============= =============================== ==== =============================================
+Keyword        Method                         Type Description
+============= =============================== ==== =============================================
+otol          arspecobj.mtch_obj_to_objects() int  Tolerance for matching object ID number
+============= =============================== ==== =============================================
 
 Running the Coadd Code
 ++++++++++++++++++++++

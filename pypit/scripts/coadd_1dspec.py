@@ -4,7 +4,7 @@
 Wrapper to the linetools XSpecGUI
 """
 from pypit import pyputils
-import pdb
+import pdb as debugger
 
 msgs = pyputils.get_dummy_logger()
 from numpy import isnan
@@ -46,6 +46,11 @@ def main(args, unit_test=False, path=''):
             files += glob.glob(path+ifl)
         else:
             files += [path+ifl]
+    # Load spectra
+    if len(files) == 0:
+        msgs.error("No files match your input list")
+    else:
+        msgs.info("Coadding {:d} data frames".format(len(files)))
     fdict = {}
     for ifile in files:
         # Open file
@@ -82,17 +87,26 @@ def main(args, unit_test=False, path=''):
         if unit_test:
             return gparam, ex_value, flux_value, iobj, outfile, files
 
+        # Generate keywords
+        kwargs = {}
+        for next_key in coadd_dict[key].keys():
+            if next_key not in ['object', 'outfile']:
+                kwargs[next_key] = coadd_dict[key][next_key]
+
         # Loop on spec1d files
         gdfiles = []
         extensions = []
         gdobj = []
 
         for fkey in fdict:
+            # Input as str or list
             if not isinstance(iobj, list) == 1:  # Simple single object
-                mtch_obj, idx = arspecobj.mtch_obj_to_objects(iobj, fdict[fkey])
+                use_obj = iobj
             else:
                 ind = files.index(fkey)
-                mtch_obj, idx = arspecobj.mtch_obj_to_objects(iobj[ind], fdict[fkey])
+                use_obj = iobj[ind]
+            # Find object indices
+            mtch_obj, idx = arspecobj.mtch_obj_to_objects(use_obj, fdict[fkey], **kwargs)
             if mtch_obj is None:
                 print("No object {:s} in file {:s}".format(iobj, fkey))
             elif len(mtch_obj) == 1:
@@ -118,8 +132,13 @@ def main(args, unit_test=False, path=''):
                 raise ValueError("Multiple matches to object {:s} in file {:s}".format(iobj, fkey))
 
         # Load spectra
-        spectra = arcoadd.load_spec(gdfiles, iextensions=extensions, extract=ex_value, flux=flux_value)
+        if len(gdfiles) == 0:
+            msgs.error("No files match your input criteria")
+
+        spectra = arcoadd.load_spec(gdfiles, iextensions=extensions,
+                                    extract=ex_value, flux=flux_value)
         exten = outfile.split('.')[-1]  # Allow for hdf or fits or whatever
         qafile = outfile.replace(exten, 'pdf')
         # Coadd!
         arcoadd.coadd_spectra(spectra, qafile=qafile, outfile=outfile, **gparam)
+
