@@ -594,7 +594,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     spec1d = one_d_coadd(rspec, weights)
 
     # Standard deviation
-    std_dev, _ = get_std_dev(rspec, spec1d)
+    std_dev, _ = get_std_dev(rspec, spec1d, **kwargs)
     msgs.info("Initial std_dev = {:g}".format(std_dev))
 
     iters = 0
