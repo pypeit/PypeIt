@@ -97,8 +97,14 @@ def main(args, unit_test=False, path=''):
             elif len(mtch_obj) == 1:
                 #Check if optimal extraction is present in all  objects. If not, warn the user and set ex_value to 'box'.
                 hdulist = fits.open(fkey)
-                obj_opt_flam = hdulist[mtch_obj[0]].data['OPT_FLAM']
-                if any(isnan(obj_opt_flam)):
+                try:
+                #In case the optimal extraction array is a NaN array
+                    obj_opt_flam = hdulist[mtch_obj[0]].data['OPT_FLAM']
+                    if any(isnan(obj_opt_flam)):
+                        msgs.warn("Object {:s} in file {:s} has a NaN array for optimal extraction. Boxcar will be used instead.".format(mtch_obj[0],fkey))
+                        ex_value = 'box'
+                except KeyError:
+                #In case the array is absent altogether.
                     msgs.warn("Object {:s} in file {:s} doesn't have an optimal extraction. Boxcar will be used instead.".format(mtch_obj[0],fkey))
                     ex_value = 'box'
                 gdfiles.append(fkey)
