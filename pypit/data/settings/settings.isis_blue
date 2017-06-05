@@ -19,6 +19,7 @@ det01 nonlinear 0.76                  # Percentage of detector range which is li
 det01 numamplifiers 1                 # Number of amplifiers
 #det01 datasec01 TRIMSEC              # Either the data sections or the header keyword where the valid data sections can be obtained
 #det01 oscansec01 BIASSEC             # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+det01 dataext01 1                     # Extension number of the data
 det01 datasec01 [1:4030,:]            # Either the data sections or the header keyword where the valid data sections can be obtained (Avoids bad region at top)
 det01 oscansec01 [4105:4190,98:483]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
 det01 suffix _blue                    # Suffix to be appended to all saved calibration and extraction frames
@@ -47,7 +48,6 @@ keyword lamps 01.CAGLAMPS              # Lamps being used
 #keyword echangle 01.GRATNG_O          # Echelle angle
 
 ### Fits properties
-fits dataext 1                      # Extension number of data
 fits numhead 2                      # How many headers need to be read in for a given file
 fits headext01 0                    # Extension number of header (one for each headnum, starting with 01)
 fits headext02 1                    # Extension number of header (one for each headnum, starting with 01)
