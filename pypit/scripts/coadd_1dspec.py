@@ -6,7 +6,7 @@ Wrapper to the linetools XSpecGUI
 from pypit import pyputils
 from pypit import armsgs
 msgs = pyputils.get_dummy_logger()
-
+from numpy import isnan
 
 def parser(options=None):
 
@@ -95,6 +95,23 @@ def main(args, unit_test=False, path=''):
             if mtch_obj is None:
                 print("No object {:s} in file {:s}".format(iobj, fkey))
             elif len(mtch_obj) == 1:
+                #Check if optimal extraction is present in all  objects. If not, warn the user and set ex_value to 'box'.
+                hdulist = fits.open(fkey)
+                try:
+                    #In case the optimal extraction array is a NaN array
+                    obj_opt_flam = hdulist[mtch_obj[0]].data['OPT_FLAM']
+                    if any(isnan(obj_opt_flam)):
+                        msgs.warn("Object {:s} in file {:s} has a NaN array for optimal extraction. Boxcar will be used instead.".format(mtch_obj[0],fkey))
+                        ex_value = 'box'
+                except KeyError:
+                    #In case the array is absent altogether.
+                    msgs.warn("Object {:s} in file {:s} doesn't have an optimal extraction. Boxcar will be used instead.".format(mtch_obj[0],fkey))
+                    try:
+                        hdulist[mtch_obj[0]].data['BOX_FLAM']
+                    except KeyError:
+                        #In case the boxcar extract is also absent
+                        msgs.error("Object {:s} in file {:s} doesn't have a boxcar extraction either. Co-addition cannot be performed".format(mtch_obj[0],fkey))
+                    ex_value = 'box'
                 gdfiles.append(fkey)
                 gdobj += mtch_obj
                 extensions.append(idx[0]+1)
