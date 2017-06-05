@@ -193,7 +193,8 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
         return temp
 
     msgs.info("Loading individual {0:s} frames".format(frametype))
-    dnum = settings.get_dnum(det) # Get detector number
+    # Get detector number
+    dnum = settings.get_dnum(det)
     if np.size(ind) == 0:
         msgs.warn("No {0:s} frames to load".format(frametype))
         return None
