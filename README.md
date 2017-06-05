@@ -1,5 +1,8 @@
 # PYPIT
-The Python Spectroscopic Data Reduction Pipeline
+The Python Spectroscopic Data Reduction Pipeline.  For
+documentation visit:
+
+http://pypit.readthedocs.io
 
 # Instruments Served
 * Keck/LRIS 
