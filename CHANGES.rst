@@ -8,6 +8,7 @@
 * raw_input handling for Python 3
 * coadd handling of bad input
 * coadd bug fix
+* fix local background logic error in slit masking
 
 0.7 (2017-02-07)
 ----------------
