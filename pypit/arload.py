@@ -193,6 +193,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
         return temp
 
     msgs.info("Loading individual {0:s} frames".format(frametype))
+    dnum = settings.get_dnum(det) # Get detector number
     if np.size(ind) == 0:
         msgs.warn("No {0:s} frames to load".format(frametype))
         return None
@@ -203,7 +204,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
             temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         else:
             hdulist = pyfits.open(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]])
-            temp = hdulist[settings.spect['fits']['dataext']].data
+            temp = hdulist[settings.spect[dnum]['dataext01']].data
             head0 = hdulist[0].header
         temp = temp.astype(np.float)  # Let us avoid uint16
         if settings.argflag['trace']['dispersion']['direction'] == 1:
