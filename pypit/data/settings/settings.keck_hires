@@ -73,7 +73,9 @@ keyword binning 01.BINNING              # Binning
 keyword exptime 01.EXPTIME              # Exposure time keyword
 keyword filter1 01.LFILNAME             # Filter 1
 keyword filter2 01.FIL1NAME             # Filter 2
-keyword hatch 01.SHCLSCNT               # Hatch  (bit of a hack - should use HATOPEN)
+keyword hatch 01.HATOPEN                # Hatch
+keyword shutopen 01.SHOPNCNT            # Number of times the shutter was opened
+keyword shutclose 01.SHCLOCNT           # Number of times the shutter was closed
 keyword decker 01.DECKNAME              # Which decker is being used
 keyword lamps 01.LAMPNAME               # Which lamp is being used
 keyword slitwid 01.SLITWID              # Slit Width
@@ -95,25 +97,25 @@ fits headext04 3                    # Extension number of header (one for each h
 
 ### Science frames
 science check condition1 lamps=none
-science check condition2 exptime>=1   # Check that an exposure has been taken
+science check condition2 exptime>0   # Check that an exposure has been taken
 
 ### Standard Star frames
 standard idname None                 # Header key value of science frame for header keyword keyword+idname
 standard number 0                    # Number of standard star frames to use
 standard check condition1 lamps=none
-standard check condition2 exptime>=1   # Check that an exposure has been taken
+standard check condition2 exptime>0   # Check that an exposure has been taken
 
 ### Bias frames
 bias idname Bias                    # Header key value of flat frame for header keyword keyword+idname
 bias number 0                       # Number of bias frames to use
 bias check condition1 exptime=0     # Check the exposure time is less than 1 second
-bias check condition2 hatch=0       # Check the shutter hasn't been opened
+bias check condition2 shutopen=0&shutclose=0       # Check the shutter hasn't been opened/closed
 bias match naxis0 =0                # Match the row binning of bias and science frames
 bias match naxis1 =0                # Match the column binning of bias and science frames
 
 ### Dark frames
 dark check condition1 exptime>0     # Check the exposure time is less than 1 second
-dark check condition2 hatch=0       # Check the shutter hasn't been opened
+dark check condition2 shutopen=0&shutclose=0       # Check the shutter hasn't been opened/closed
 dark match naxis0 =0                # Match the row binning of bias and science frames
 dark match naxis1 =0                # Match the column binning of bias and science frames
 

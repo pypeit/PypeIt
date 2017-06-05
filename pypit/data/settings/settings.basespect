@@ -46,6 +46,8 @@ keyword exptime 01.EXPTIME             # Exposure time keyword
 keyword filter1 None                   # Filter 1
 keyword filter2 None                   # Filter 2
 keyword hatch None                     # Hatch
+keyword shutopen None                  # Shutter opened
+keyword shutclose None                 # Shutter closed
 keyword decker 01.SLITNAME             # Which decker/slit/mask is being used
 keyword lamps None                     # Lamps being used
 keyword slitwid None                   # Slit Width
