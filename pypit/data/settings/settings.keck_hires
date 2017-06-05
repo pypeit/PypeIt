@@ -1,13 +1,10 @@
-Current status:
-Still need to fill out red detector datasec oscansec
-
 ### Mosaic properties
 mosaic ndet 3                         # Number of detectors in the mosaic
 mosaic latitude 19.82658656           # Latitude of the telescope
 mosaic longitude +155.4722            # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
 mosaic elevation 4160.0               # Elevation of the telescope (in m)
 mosaic reduction ARMED                # Which reduction pipeline should be used for this instrument
-mosaic minexp 0.0                     # Minimum exposure time (s)
+mosaic minexp 1.0                     # Minimum exposure time (s)
 mosaic camera HIRES                   # Camera name
 
 ### Detector properties
@@ -49,8 +46,8 @@ det03 nonlinear 0.8                  # Percentage of detector range which is lin
 det03 numamplifiers 1                 # Number of amplifiers
 det03 gain 2.2                  # Gain (e-/ADU) values for the 2 amplifiers
 det03 ronoise 3.1                 # RN (e-) for the 2 amplifiers
-det03 datasec01 [:,:]       # Either the data sections or the header keyword where the valid data sections can be obtained
-det03 oscansec01 [:,:]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+det03 datasec01 [0:2048,6:1030]       # Either the data sections or the header keyword where the valid data sections can be obtained
+det03 oscansec01 [0:2048,1030:1070]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
 det03 suffix _red                  # Suffix to be appended to all saved calibration and extraction frames
 
 ### Checks to perform
@@ -70,13 +67,13 @@ keyword equinox 01.EQUINOX              # The equinox to use
 keyword ra 01.RA                        # Right Ascension of the target
 keyword dec 01.DEC                      # Declination of the target
 keyword airmass 01.AIRMASS              # Airmass at start of observation
-keyword naxis0 01.NAXIS2                # Number of pixels along the zeroth axis
-keyword naxis1 01.NAXIS1                # Number of pixels along the first axis
+keyword naxis0 02.NAXIS2                # Number of pixels along the zeroth axis
+keyword naxis1 02.NAXIS1                # Number of pixels along the first axis
 keyword binning 01.BINNING              # Binning
 keyword exptime 01.EXPTIME              # Exposure time keyword
 keyword filter1 01.LFILNAME             # Filter 1
 keyword filter2 01.FIL1NAME             # Filter 2
-keyword hatch None                      # Hatch
+keyword hatch 01.SHOPNCNT               # Hatch  (bit of a hack - should use HATOPEN)
 keyword decker 01.DECKNAME              # Which decker is being used
 keyword lamps 01.LAMPNAME               # Which lamp is being used
 keyword slitwid 01.SLITWID              # Slit Width
@@ -97,60 +94,83 @@ fits headext03 2                    # Extension number of header (one for each h
 fits headext04 3                    # Extension number of header (one for each headnum, starting with 01)
 
 ### Science frames
-science check condition1 lampstat01=Off&lampstat02=Off&lampstat03=Off&lampstat04=Off
+science check condition1 lamps=none
+science check condition2 exptime>=1   # Check that an exposure has been taken
 
 ### Standard Star frames
 standard idname None                 # Header key value of science frame for header keyword keyword+idname
 standard number 0                    # Number of standard star frames to use
+science check condition1 lamps=none
+standard check condition2 exptime>=1   # Check that an exposure has been taken
 
-### Bias/Dark frames
+### Bias frames
+bias idname Bias                    # Header key value of flat frame for header keyword keyword+idname
 bias number 0                       # Number of bias frames to use
-bias check condition1 exptime<=1    # Check the exposure time is less than 1 second
+bias check condition1 exptime=0     # Check the exposure time is less than 1 second
+bias check condition2 hatch=0       # Check the shutter hasn't been opened
 bias match naxis0 =0                # Match the row binning of bias and science frames
 bias match naxis1 =0                # Match the column binning of bias and science frames
 
+### Dark frames
+dark check condition1 exptime>0     # Check the exposure time is less than 1 second
+dark check condition2 hatch=0       # Check the shutter hasn't been opened
+dark match naxis0 =0                # Match the row binning of bias and science frames
+dark match naxis1 =0                # Match the column binning of bias and science frames
+
 ### Pixel Flat frames
-pixelflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
+pixelflat idname IntFlat               # Header key value of flat frame for header keyword keyword+idname
 pixelflat number 5                    # Number of flat frames to use
-pixelflat check condition1 lampstat01=On|lampstat02=On
-pixelflat check condition2 decker!=Pinhole   # Check that the decker name is not set to Pinhole
+pixelflat check condition1 lamps=quartz1|lamps=quartz2
+pixelflat check condition2 decker!=D5   # Check that the decker name is set to Pinhole
 pixelflat match naxis0 =0             # Match the row binning of flats with science
 pixelflat match naxis1 =0             # Match the column binning of flats with science
-pixelflat match slitlen %,:),1,>=0    # Make sure the slit length for blaze flats and science frames
+pixelflat match decker ''             # Check the same decker as the science frame was used
+pixelflat match dispname ''           # Check the same cross disperser as the science frame was used
+pixelflat match dispangle |<=0.002    # Match the cross-disperser angle
+pixelflat match echangle |<=0.002     # Match the echelle angle
 
 ### Pinhole frames
-pinhole idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
-pinhole number 2                    # Number of flat frames to use
-pinhole check condition1 lampstat01=On|lampstat02=On
-pinhole check condition2 decker=Pinhole   # Check that the decker name is set to Pinhole
+pinhole idname IntFlat               # Header key value of flat frame for header keyword keyword+idname
+pinhole number 3                    # Number of flat frames to use
+pinhole check condition1 lamps=quartz1|lamps=quartz2
+pinhole check condition2 decker=D5   # Check that the decker name is set to Pinhole
 pinhole match naxis0 =0             # Match the row binning of flats with science
 pinhole match naxis1 =0             # Match the column binning of flats with science
+pinhole match dispname ''           # Check the same cross disperser as the science frame was used
+pinhole match dispangle |<=0.002    # Match the cross-disperser angle
+pinhole match echangle |<=0.002     # Match the echelle angle
 
 ### Trace frames
-trace idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
+trace idname IntFlat               # Header key value of flat frame for header keyword keyword+idname
 trace number 5                    # Number of flat frames to use
-trace check condition1 lampstat01=On|lampstat02=On
-trace check condition2 decker!=Pinhole        # Check that the decker name is not set to Pinhole
+trace check condition1 lamps=quartz1|lamps=quartz2
+trace check condition2 decker!=D5   # Check that the decker name is set to Pinhole
 trace match naxis0 =0             # Match the row binning of flats with science
 trace match naxis1 =0             # Match the column binning of flats with science
-trace match slitlen %,:),1,=0    # Match the Decker for trace flats and science frames
+trace match decker ''             # Check the same decker as the science frame was used
+trace match dispname ''           # Check the same cross disperser as the science frame was used
+trace match dispangle |<=0.002    # Match the cross-disperser angle
+trace match echangle |<=0.002     # Match the echelle angle
 
 ### Arc frames
-arc idname OBJECT                   # Header key value of arc frame for header keyword keyword+idname
+arc idname Line                   # Header key value of arc frame for header keyword keyword+idname
 arc number 1                        # Number of arc frames to use
-arc check condition1 lampstat03=On|lampstat04=On
+arc check condition1 lamps=ThAr1|lamps=ThAr2
 arc match naxis0 =0                 # Match the row binning of arcs with science
 arc match naxis1 =0                 # Match the column binning of arcs with science
-arc match slitlen %,:|),1,=0         # Match the slit length for arcs and science frames
+arc match decker ''             # Check the same decker as the science frame was used
+arc match dispname ''           # Check the same cross disperser as the science frame was used
+arc match dispangle |<=0.002    # Match the cross-disperser angle
+arc match echangle |<=0.002     # Match the echelle angle
 
 # Make some changes to the arguments and flags
-settings reduce flatfield 2dpca 4
+#settings reduce flatfield 2dpca 4
 settings trace dispersion direction 0
 settings bias useframe overscan
 settings trace slits polyorder  7
-settings trace slits pca extrapolate pos 0
-settings trace slits pca extrapolate neg 0
-settings trace slits pca params [8,4,2,2,2,1,0,0]
+settings trace slits pca extrapolate pos 3
+settings trace slits pca extrapolate neg 3
+settings trace slits pca params [5,2,2,1,1,0,0]
 settings trace slits tilts params [3,3,1]
 settings trace slits tilts disporder 2
 settings trace slits pad 1
