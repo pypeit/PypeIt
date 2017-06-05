@@ -524,13 +524,20 @@ def get_std_dev(irspec, ispec1d):
     """
     Parameters
     ----------
-    irspec
-    ispec1d
+    irspec : XSpectrum1D
+      Array of spectra
+    ispec1d : XSpectrum1D
+      Coadded spectum
 
     Returns
     -------
-
+    std_dev : float
+      Standard devitation in good pixels
+      TODO : Should restrict to higher S/N pixels
+    dev_sig: ndarray
+      Deviate, relative to sigma
     """
+    msgs.work("We should restrict this to high S/N regions in the spectrum")
     # Only calculate on regions with 2 or more spectra
     msk = ~irspec.data['flux'].mask
     sum_msk = np.sum(msk, axis=0)
