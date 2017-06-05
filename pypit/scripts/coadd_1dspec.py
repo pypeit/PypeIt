@@ -4,7 +4,8 @@
 Wrapper to the linetools XSpecGUI
 """
 from pypit import pyputils
-from pypit import armsgs
+import pdb
+
 msgs = pyputils.get_dummy_logger()
 
 
@@ -72,7 +73,6 @@ def main(args, unit_test=False, path=''):
     for key in coadd_dict.keys():
         iobj = coadd_dict[key]['object']
         # Check iobj input
-        #pdb.set_trace()
         if isinstance(iobj, list):
             if len(iobj) != len(files):
                 raise IOError("Input list of object names must have same length as files")
