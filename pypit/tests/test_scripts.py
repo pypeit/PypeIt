@@ -51,7 +51,7 @@ def test_coadd():
     coadd_file = data_path('coadd_UGC3672A_red.yaml')
     args = coadd_1dspec.parser([coadd_file])
     # Main
-    gparam, ex_value, flux_value, iobj, outfile, files = coadd_1dspec.main(
+    gparam, ex_value, flux_value, iobj, outfile, files, obj_kwargs = coadd_1dspec.main(
         args, unit_test=True, path=data_path('./'))
     # Test
     assert len(gparam) == 0
@@ -61,6 +61,8 @@ def test_coadd():
     assert iobj == 'O210-S1467-D02-I0012'
     assert outfile == 'UGC3672A_r.fits'
     assert len(files) == 4
+    assert isinstance(obj_kwargs, dict)
+    assert 'otol' in list(obj_kwargs.keys())
 
 
 def test_coadd2():
@@ -69,7 +71,7 @@ def test_coadd2():
     coadd_file = data_path('coadd_UGC3672A_red_objlist.yaml')
     args = coadd_1dspec.parser([coadd_file])
     # Main
-    gparam, ex_value, flux_value, iobj, outfile, files = coadd_1dspec.main(
+    gparam, ex_value, flux_value, iobj, outfile, files, obj_kwargs, = coadd_1dspec.main(
         args, unit_test=True, path=data_path('./'))
     # Test
     assert len(iobj) == len(files)
@@ -77,5 +79,5 @@ def test_coadd2():
     coadd_file = data_path('coadd_UGC3672A_red_badlist.yaml')
     args = coadd_1dspec.parser([coadd_file])
     with pytest.raises(IOError):
-        gparam, ex_value, flux_value, iobj, outfile, files = coadd_1dspec.main(
+        gparam, ex_value, flux_value, iobj, outfile, files, _ = coadd_1dspec.main(
             args, unit_test=True, path=data_path('./'))

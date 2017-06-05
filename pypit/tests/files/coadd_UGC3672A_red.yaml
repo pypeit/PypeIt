@@ -4,3 +4,4 @@
 'a':
     'object': 'O210-S1467-D02-I0012'
     'outfile': 'UGC3672A_r.fits'
+    'otol': 10
