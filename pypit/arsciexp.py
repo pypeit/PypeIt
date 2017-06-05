@@ -753,7 +753,7 @@ class ScienceExposure:
         del wv_calib
         return True
 
-    def MasterStandard(self, scidx, fitsdict):
+    def MasterStandard(self, fitsdict):
         """
         Generate Master Standard frame for a given detector
         and generates a sensitivity function
@@ -795,6 +795,7 @@ class ScienceExposure:
             if kk == 0:
                 self._msstd[det-1]['RA'] = fitsdict['ra'][ind[0]]
                 self._msstd[det-1]['DEC'] = fitsdict['dec'][ind[0]]
+                self._msstd[det - 1]['spobjs'] = None
             #debugger.set_trace()
             if settings.spect["mosaic"]["reduction"] == "ARMLSD":
                 arproc.reduce_multislit(self, sciframe, ind[0], fitsdict, det, standard=True)
@@ -803,8 +804,8 @@ class ScienceExposure:
             else:
                 msgs.error("Not ready for reduction type {0:s}".format(settings.spect["mosaic"]["reduction"]))
 
-            #
-            all_specobj += self._msstd[det-1]['spobjs']
+            if self._msstd[det-1]['spobjs'] is not None:
+                all_specobj += self._msstd[det-1]['spobjs']
         # Save to disk
         outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(
             fitsdict['filename'][ind[0]].split('.')[0])
