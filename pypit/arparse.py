@@ -2958,6 +2958,28 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
+    def keyword_shutopen(self, v):
+        """ Shutter opened
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_keyword(v)
+        self.update(v)
+
+    def keyword_shutclose(self, v):
+        """ Shutter closed
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_keyword(v)
+        self.update(v)
+
     def keyword_time(self, v):
         """ The time stamp of the observation (i.e. decimal MJD)
 
