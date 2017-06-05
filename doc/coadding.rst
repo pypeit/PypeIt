@@ -62,8 +62,9 @@ right edge), the slit ID which is relative on the detector (4701),
 the detector number (01), and the science index (0035), in
 one of the files.
 
-Any other tags within the object block are taken as keywords
-to algorithms that are listed below (:ref:`coadd_obj_keys`).
+One can also set local parameters for coadding.
+Common keywords for coadding algorithms are
+listed below (:ref:`more_coadd_keys`).
 
 The list of object identifiers in a given spec1d file can be
 output with the pypit_show_1dspec script, e.g.::
@@ -80,7 +81,8 @@ position. 'outfile' is the filename of the coadded spectrum produced.
 Additional Coadding Parameters
 ++++++++++++++++++++++++++++++
 You can adjust the default methods by which PYPIT coadds
-spectra by adding a dict named 'global'::
+spectra by adding a dict named 'global' or a 'local' dict
+in the object block::
 
     'filenames': ['spec1d_1.fits', 'spec1d_2.fits', 'spec1d_3.fits']
     'global':
@@ -88,6 +90,8 @@ spectra by adding a dict named 'global'::
     'a':
         'object': 'O503-S4701-D01-I0035'
         'outfile': 'tmp.hdf5'
+        'local':
+            'otol': 10
 
 The adjustable parameters and options are:
 
@@ -127,9 +131,9 @@ scale_method         default: auto            scale the flux arrays based on the
                                               of each spectra
 ==================   =======================  ==================================================
 
-.. _coadd_obj_keys:
+.. _more_coadd_keys:
 
-Object Keywords
+More Keywords
 ---------------
 
 Here are other keywords that one may wish to set

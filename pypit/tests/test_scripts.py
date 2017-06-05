@@ -51,18 +51,19 @@ def test_coadd():
     coadd_file = data_path('coadd_UGC3672A_red.yaml')
     args = coadd_1dspec.parser([coadd_file])
     # Main
-    gparam, ex_value, flux_value, iobj, outfile, files, obj_kwargs = coadd_1dspec.main(
+    gparam, ex_value, flux_value, iobj, outfile, files, local_kwargs = coadd_1dspec.main(
         args, unit_test=True, path=data_path('./'))
     # Test
-    assert len(gparam) == 0
+    assert len(gparam) == 2
     assert isinstance(gparam, dict)
     assert ex_value == 'opt'
     assert flux_value is True
     assert iobj == 'O210-S1467-D02-I0012'
     assert outfile == 'UGC3672A_r.fits'
     assert len(files) == 4
-    assert isinstance(obj_kwargs, dict)
-    assert 'otol' in list(obj_kwargs.keys())
+    assert isinstance(local_kwargs, dict)
+    assert 'otol' in list(local_kwargs.keys())
+    assert 'scale_method' in list(gparam.keys())
 
 
 def test_coadd2():

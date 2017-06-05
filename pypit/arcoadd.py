@@ -520,7 +520,7 @@ def load_spec(files, iextensions=None, extract='opt', flux=True):
     return spectra
 
 
-def get_std_dev(irspec, ispec1d, s2n_min=2.):
+def get_std_dev(irspec, ispec1d, s2n_min=2., **kwargs):
     """
     Parameters
     ----------
