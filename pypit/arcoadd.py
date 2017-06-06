@@ -520,7 +520,7 @@ def load_spec(files, iextensions=None, extract='opt', flux=True):
     return spectra
 
 
-def get_std_dev(irspec, ispec1d, s2n_min=2., **kwargs):
+def get_std_dev(irspec, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
     """
     Parameters
     ----------
@@ -530,6 +530,8 @@ def get_std_dev(irspec, ispec1d, s2n_min=2., **kwargs):
       Coadded spectum
     s2n_min : float, optional
       Minimum S/N for calculating std_dev
+    wvmnx : tuple, optional
+      Limit analysis to a wavelength interval
 
     Returns
     -------
@@ -542,13 +544,20 @@ def get_std_dev(irspec, ispec1d, s2n_min=2., **kwargs):
     msgs.work("We should restrict this to high S/N regions in the spectrum")
     # Mask on S/N_min
     msk = ~irspec.data['flux'].mask.copy()  # TRUE = GOOD HERE!!
-    bad_s2n = (irspec.data['flux'] / irspec.data['sig']) < s2n_min
+    bad_s2n = np.where((irspec.data['flux'] / irspec.data['sig']) < s2n_min)
     msk[bad_s2n] = False
+    # Limit by wavelength?
+    wvmnx = (5600., 6800.)
+    if wvmnx is not None:
+        bad_wv = np.any([(irspec.data['wave'] < wvmnx[0]), (irspec.data['wave'] > wvmnx[1])], axis=0)
+        msk[bad_wv] = False
     # Only calculate on regions with 2 or more spectra
     sum_msk = np.sum(msk, axis=0)
     gdp = sum_msk > 1
     # Here we go [note that dev_sig is still a masked array so we compress it after]
-    dev_sig = (irspec.data['flux'][:,gdp] - ispec1d.flux[gdp]) / (irspec.data['sig'][:,gdp]**2 + ispec1d.sig[gdp]**2)
+    dev_sig = (irspec.data['flux'][:,gdp] - ispec1d.flux[gdp]) / np.sqrt(
+        irspec.data['sig'][:,gdp]**2 + ispec1d.sig[gdp]**2)
+    debugger.set_trace()
     std_dev = np.std(astropy.stats.sigma_clip(dev_sig.compressed(), sigma=5, iters=2))
     return std_dev, dev_sig.compressed()
 
