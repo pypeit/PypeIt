@@ -547,8 +547,8 @@ def get_std_dev(irspec, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
     bad_s2n = np.where((irspec.data['flux'] / irspec.data['sig']) < s2n_min)
     msk[bad_s2n] = False
     # Limit by wavelength?
-    #wvmnx = (5600., 6800.)
     if wvmnx is not None:
+        msgs.info("Restricting std_dev calculation to wavelengths {}".format(wvmnx))
         bad_wv = np.any([(irspec.data['wave'] < wvmnx[0]), (irspec.data['wave'] > wvmnx[1])], axis=0)
         msk[bad_wv] = False
     # Only calculate on regions with 2 or more spectra
@@ -707,7 +707,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
         # Coadd anew
         spec1d = one_d_coadd(rspec, weights)
         # Calculate std_dev
-        std_dev, _ = get_std_dev(rspec, spec1d)
+        std_dev, _ = get_std_dev(rspec, spec1d, **kwargs)
         #var_corr = var_corr * std_dev
         msgs.info("Desired variance correction: {:g}".format(var_corr))
         msgs.info("New standard deviation: {:g}".format(std_dev))
