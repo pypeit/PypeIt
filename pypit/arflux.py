@@ -25,7 +25,7 @@ from pypit import ardebug as debugger
 msgs = armsgs.get_logger()
 
 
-def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
+def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
     """ Apply the sensitivity function to the data
     We also correct for extinction.
 
@@ -38,10 +38,15 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05):
     # Load extinction data
     extinct = load_extinction_data()
     airmass = fitsdict['airmass'][scidx]
+    # Allow application to standard
+    if standard:
+        specobjs = slf._msstd[det-1]['spobjs']
+    else:
+        specobjs = slf._specobjs[det-1]
     # Loop on slits
-    for sl in range(len(slf._specobjs[det-1])):
+    for sl in range(len(specobjs)):
         # Loop on objects
-        for spobj in slf._specobjs[det-1][sl]:
+        for spobj in specobjs:
             # Loop on extraction modes
             for extract_type in ['boxcar', 'optimal']:
                 try:

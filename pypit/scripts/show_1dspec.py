@@ -44,7 +44,8 @@ def main(args, unit_test=False):
     from pypit import arload
 
     # Load spectrum
-    spec = arload.load_1dspec(args.file, exten=args.exten, extract=args.extract, objname=args.obj, flux=args.flux)
+    spec = arload.load_1dspec(args.file, exten=args.exten, extract=args.extract,
+                              objname=args.obj, flux=args.flux)
 
     if unit_test is False:
         from PyQt5.QtWidgets import QApplication
