@@ -1227,13 +1227,15 @@ def slit_profile(slf, mstrace, det, ntcky=None):
             mask, sltspl = arutils.robust_polyfit(spatval[srt], sprof_fit[srt], 3, function='bspline',
                                                   sigma=5., maxone=False, xmin=xb, xmax=xe, knots=tckx)
             slt_flat = arutils.func_val(sltspl, spatval, 'bspline')
+            sltnrmval = arutils.func_val(sltspl, 0.5, 'bspline')
         else:
             mask, sltspl = arutils.robust_polyfit(spatval[srt], sprof_fit[srt], 2, function='polynomial',
                                                   sigma=5., maxone=False)
             slt_flat = arutils.func_val(sltspl, spatval, 'polynomial')
+            sltnrmval = arutils.func_val(sltspl, 0.5, 'polynomial')
         modvals = blz_flat * slt_flat
         # Normalize to the value at the centre of the slit
-        nrmvals = blz_flat * arutils.func_val(sltspl, 0.5, 'bspline')
+        nrmvals = blz_flat * sltnrmval
         if settings.argflag["reduce"]["slitprofile"]["perform"]:
             # Leave slit_profiles as ones if the slitprofile is not being determined, otherwise, set the model.
             slit_profiles[word] = modvals/nrmvals
