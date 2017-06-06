@@ -148,8 +148,10 @@ def load_headers(datlines):
                 fitsdict[kw].append(value)
             elif isinstance(value, basestring) or typv is np.string_:
                 fitsdict[kw].append(value.strip())
+            elif typv is bool or typv is np.bool_:
+                fitsdict[kw].append(value)
             else:
-                msgs.bug("I didn't expect useful headers to contain type {0:s}".format(typv).replace('<type ','').replace('>',''))
+                msgs.bug("I didn't expect a useful header ({0:s}) to contain type {1:s}".format(kw, typv).replace('<type ','').replace('>',''))
 
         msgs.info("Successfully loaded headers for file:"+msgs.newline()+datlines[i])
     # Convert the fitsdict arrays into numpy arrays
@@ -191,6 +193,8 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
         return temp
 
     msgs.info("Loading individual {0:s} frames".format(frametype))
+    # Get detector number
+    dnum = settings.get_dnum(det)
     if np.size(ind) == 0:
         msgs.warn("No {0:s} frames to load".format(frametype))
         return None
@@ -201,7 +205,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
             temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         else:
             hdulist = pyfits.open(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]])
-            temp = hdulist[settings.spect['fits']['dataext']].data
+            temp = hdulist[settings.spect[dnum]['dataext01']].data
             head0 = hdulist[0].header
         temp = temp.astype(np.float)  # Let us avoid uint16
         if settings.argflag['trace']['dispersion']['direction'] == 1:

@@ -2125,7 +2125,7 @@ class BaseSpect(BaseFunctions):
                 # Determine if there are options that need to be passed to this function
                 options = ""
                 nmbr = [["det"],   # Suffix on 1st arg
-                        ["datasec", "oscansec", "lampname", "lampstat", "headext"],    # Suffix on 2nd arg
+                        ["dataext", "datasec", "oscansec", "lampname", "lampstat", "headext"],    # Suffix on 2nd arg
                         ["condition"]]    # Suffix on 3rd arg
                 ltr = "a"
                 for nn in range(len(nmbr)):
@@ -2379,6 +2379,20 @@ class BaseSpect(BaseFunctions):
             msgs.error("The argument of {0:s} must be a detector section".format(cname))
         self.update(v, ll=cname.split('_'))
 
+    def det_dataext(self, v, anmbr=1, bnmbr=1):
+        """ Extension number of data
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        cname = get_nmbr_name(anmbr=anmbr, bnmbr=bnmbr)
+        v = key_int(v)
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(cname))
+        self.update(v, ll=cname.split('_'))
+
     def det_oscansec(self, v, anmbr=1, bnmbr=1):
         """ Either the overscan sections or the header keyword where the
         valid overscan sections can be obtained.
@@ -2572,19 +2586,6 @@ class BaseSpect(BaseFunctions):
         v = key_float(v)
         #if v <= 0.0:
         #    msgs.error("The calibration time window must be > 0.0")
-        self.update(v)
-
-    def fits_dataext(self, v):
-        """ Extension number of data
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        v = key_int(v)
-        if v < 0:
-            msgs.error("The fits data extension number must be >= 0")
         self.update(v)
 
     def fits_headext(self, v, bnmbr=1):
@@ -2949,6 +2950,28 @@ class BaseSpect(BaseFunctions):
 
     def keyword_slitlen(self, v):
         """ Slit Length
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_keyword(v)
+        self.update(v)
+
+    def keyword_shutopen(self, v):
+        """ Shutter opened
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_keyword(v)
+        self.update(v)
+
+    def keyword_shutclose(self, v):
+        """ Shutter closed
 
         Parameters
         ----------
