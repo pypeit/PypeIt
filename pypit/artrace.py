@@ -1279,7 +1279,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
         if not msgs._debug['no_qa']:
             arpca.pc_plot(slf, outpar, ofit, pcadesc=pcadesc)
         # Extrapolate the remaining orders requested
-        orders = 1.0+np.arange(totord)
+        orders = 1+np.arange(totord)
         extrap_cent, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
         # Fit a function for the difference between left and right edges.
         diff_coeff, diff_fit = arutils.polyfitter2d(rcent-lcent, mask=maskord,
@@ -1438,8 +1438,8 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
     from pypit import arcytrace
     # Refine the orders in the positive direction
     i = extord[1]
-    hiord = phys_to_pix(extrap_cent[:,-i-2], locations, 1)
-    nxord = phys_to_pix(extrap_cent[:,-i-1], locations, 1)
+    hiord = phys_to_pix(extrap_cent[:, -i-2], locations, 1)
+    nxord = phys_to_pix(extrap_cent[:, -i-1], locations, 1)
     mask = np.ones(orders.size)
     mask[0:extord[0]] = 0.0
     mask[-extord[1]:] = 0.0
@@ -1449,11 +1449,11 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
         loord = hiord
         hiord = nxord
         nxord = phys_to_pix(extrap_cent[:,-i], locations, 1)
-        minarrL = arcytrace.minbetween(binarr, loord, hiord) # Minimum counts between loord and hiord
+        minarrL = arcytrace.minbetween(binarr, loord, hiord)  # Minimum counts between loord and hiord
         minarrR = arcytrace.minbetween(binarr, hiord, nxord)
         minarr = 0.5*(minarrL+minarrR)
         srchz = np.abs(extfit[:,-i]-extfit[:,-i-1])/3.0
-        lopos = phys_to_pix(extfit[:,-i]-srchz, locations, 1) # The pixel indices for the bottom of the search window
+        lopos = phys_to_pix(extfit[:,-i]-srchz, locations, 1)  # The pixel indices for the bottom of the search window
         numsrch = np.int(np.max(np.round(2.0*srchz-extrap_diff[:,-i])))
         diffarr = np.round(extrap_diff[:,-i]).astype(np.int)
         shift = arcytrace.find_shift(binarr, minarr, lopos, diffarr, numsrch)
@@ -1982,11 +1982,13 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
 
     # Now model the tilt for each slit
     tiltang, centval = None, None
+    slitcnt = 0
     for o in range(norders):
         if maskslit[o] == 1:
             continue
         # Determine the tilts for this slit
-        trcdict = trace_tilt(slf, det, msarc, o, censpec=arccen[:, o])
+        trcdict = trace_tilt(slf, det, msarc, o, censpec=arccen[:, slitcnt])
+        slitcnt += 1
         if trcdict is None:
             # No arc lines were available to determine the spectral tilt
             continue
