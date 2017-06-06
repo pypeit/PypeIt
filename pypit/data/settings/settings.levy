@@ -111,6 +111,7 @@ arc match slitlen %,:|),1,=0         # Match the slit length for arcs and scienc
 settings reduce flatfield 2dpca 4
 settings trace dispersion direction 0
 settings bias useframe overscan
+settings trace useframe pinhole
 settings trace slits polyorder  7
 settings trace slits pca extrapolate pos 0
 settings trace slits pca extrapolate neg 0
