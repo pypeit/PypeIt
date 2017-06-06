@@ -28,7 +28,6 @@ def main(args, unit_test=False):
     """ Runs the XSpecGui on an input file
     """
     import sys
-    from pypit import arload
     import pdb
 
     # List only?
