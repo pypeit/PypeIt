@@ -520,13 +520,43 @@ def load_spec(files, iextensions=None, extract='opt', flux=True):
     return spectra
 
 
-def get_std_dev(irspec, ispec1d):
+def get_std_dev(irspec, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
+    """
+    Parameters
+    ----------
+    irspec : XSpectrum1D
+      Array of spectra
+    ispec1d : XSpectrum1D
+      Coadded spectum
+    s2n_min : float, optional
+      Minimum S/N for calculating std_dev
+    wvmnx : tuple, optional
+      Limit analysis to a wavelength interval
+
+    Returns
+    -------
+    std_dev : float
+      Standard devitation in good pixels
+      TODO : Should restrict to higher S/N pixels
+    dev_sig: ndarray
+      Deviate, relative to sigma
+    """
+    msgs.work("We should restrict this to high S/N regions in the spectrum")
+    # Mask on S/N_min
+    msk = ~irspec.data['flux'].mask.copy()  # TRUE = GOOD HERE!!
+    bad_s2n = np.where((irspec.data['flux'] / irspec.data['sig']) < s2n_min)
+    msk[bad_s2n] = False
+    # Limit by wavelength?
+    if wvmnx is not None:
+        msgs.info("Restricting std_dev calculation to wavelengths {}".format(wvmnx))
+        bad_wv = np.any([(irspec.data['wave'] < wvmnx[0]), (irspec.data['wave'] > wvmnx[1])], axis=0)
+        msk[bad_wv] = False
     # Only calculate on regions with 2 or more spectra
-    msk = ~irspec.data['flux'].mask
     sum_msk = np.sum(msk, axis=0)
     gdp = sum_msk > 1
     # Here we go [note that dev_sig is still a masked array so we compress it after]
-    dev_sig = (irspec.data['flux'][:,gdp] - ispec1d.flux[gdp]) / (irspec.data['sig'][:,gdp]**2 + ispec1d.sig[gdp]**2)
+    dev_sig = (irspec.data['flux'][:,gdp] - ispec1d.flux[gdp]) / np.sqrt(
+        irspec.data['sig'][:,gdp]**2 + ispec1d.sig[gdp]**2)
     std_dev = np.std(astropy.stats.sigma_clip(dev_sig.compressed(), sigma=5, iters=2))
     return std_dev, dev_sig.compressed()
 
@@ -571,7 +601,8 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     # Initial coadd
     spec1d = one_d_coadd(rspec, weights)
 
-    std_dev, _ = get_std_dev(rspec, spec1d)
+    # Standard deviation
+    std_dev, _ = get_std_dev(rspec, spec1d, **kwargs)
     msgs.info("Initial std_dev = {:g}".format(std_dev))
 
     iters = 0
@@ -676,7 +707,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
         # Coadd anew
         spec1d = one_d_coadd(rspec, weights)
         # Calculate std_dev
-        std_dev, _ = get_std_dev(rspec, spec1d)
+        std_dev, _ = get_std_dev(rspec, spec1d, **kwargs)
         #var_corr = var_corr * std_dev
         msgs.info("Desired variance correction: {:g}".format(var_corr))
         msgs.info("New standard deviation: {:g}".format(std_dev))
@@ -694,6 +725,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
 
     # QA
     if qafile is not None:
+        msgs.info("Writing QA file: {:s}".format(qafile))
         arqa.coaddspec_qa(spectra, rspec, spec1d, qafile=qafile)
 
     # Write to disk?
