@@ -46,7 +46,7 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
     # Loop on slits
     for sl in range(len(specobjs)):
         # Loop on objects
-        for spobj in specobjs:
+        for spobj in specobjs[sl]:
             # Loop on extraction modes
             for extract_type in ['boxcar', 'optimal']:
                 try:
