@@ -547,7 +547,7 @@ def get_std_dev(irspec, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
     bad_s2n = np.where((irspec.data['flux'] / irspec.data['sig']) < s2n_min)
     msk[bad_s2n] = False
     # Limit by wavelength?
-    wvmnx = (5600., 6800.)
+    #wvmnx = (5600., 6800.)
     if wvmnx is not None:
         bad_wv = np.any([(irspec.data['wave'] < wvmnx[0]), (irspec.data['wave'] > wvmnx[1])], axis=0)
         msk[bad_wv] = False
@@ -557,7 +557,6 @@ def get_std_dev(irspec, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
     # Here we go [note that dev_sig is still a masked array so we compress it after]
     dev_sig = (irspec.data['flux'][:,gdp] - ispec1d.flux[gdp]) / np.sqrt(
         irspec.data['sig'][:,gdp]**2 + ispec1d.sig[gdp]**2)
-    debugger.set_trace()
     std_dev = np.std(astropy.stats.sigma_clip(dev_sig.compressed(), sigma=5, iters=2))
     return std_dev, dev_sig.compressed()
 
