@@ -1207,7 +1207,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         srt = np.argsort(specval[wsp])
         # Only perform a bspline if there are enough pixels for the specified knots
         if tcky.size >= 2:
-            xb, xe = min(specval[wsp][srt][0], tcky[0]), max(specval[wsp][srt][-1], tcky[-1])
+            xb, xe = min(np.min(specval), tcky[0]), max(np.max(specval), tcky[-1])
             mask, blzspl = arutils.robust_polyfit(specval[wsp][srt], fluxval[wsp][srt], 3, function='bspline',
                                                   sigma=5., maxone=False, xmin=xb, xmax=xe, knots=tcky)
             blz_flat = arutils.func_val(blzspl, specval, 'bspline')
@@ -1221,16 +1221,15 @@ def slit_profile(slf, mstrace, det, ntcky=None):
 
         # Calculate the slit profile
         sprof_fit = fluxval / (blz_flat + (blz_flat == 0.0))
-        spatval = spatval[np.where(wcchip & (blz_flat != 0.0))]
-        sprof_fit = sprof_fit[np.where(wcchip & (blz_flat != 0.0))]
-        tckx = np.linspace(min(0.0, np.min(spatval)), max(1.0, np.max(spatval)), ntckx)
-        tckx = tckx[np.where((tckx > np.min(spatval)) & (tckx < np.max(spatval)))]
-        srt = np.argsort(spatval)
+        wch = np.where(wcchip)
+        tckx = np.linspace(min(0.0, np.min(spatval[wch])), max(1.0, np.max(spatval[wch])), ntckx)
+        tckx = tckx[np.where((tckx > np.min(spatval[wch])) & (tckx < np.max(spatval[wch])))]
+        srt = np.argsort(spatval[wch])
         # Only perform a bspline if there are enough pixels for the specified knots
         if tckx.size >= 2:
             #debugger.set_trace()
-            xb, xe = min(spatval[srt][0], tckx[0]), max(spatval[srt][-1], tckx[-1])
-            mask, sltspl = arutils.robust_polyfit(spatval[srt], sprof_fit[srt], 3, function='bspline',
+            xb, xe = min(np.min(spatval), tckx[0]), max(np.max(spatval), tckx[-1])
+            mask, sltspl = arutils.robust_polyfit(spatval[wch][srt], sprof_fit[wch][srt], 3, function='bspline',
                                                   sigma=5., maxone=False, xmin=xb, xmax=xe, knots=tckx)
             slt_flat = arutils.func_val(sltspl, spatval, 'bspline')
             sltnrmval = arutils.func_val(sltspl, 0.5, 'bspline')
