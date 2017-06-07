@@ -192,7 +192,7 @@ def objnm_to_dict(objnm):
     return odict
 
 
-def mtch_obj_to_objects(iobj, objects, stol=50, otol=10):
+def mtch_obj_to_objects(iobj, objects, stol=50, otol=10, **kwargs):
     """
     Parameters
     ----------

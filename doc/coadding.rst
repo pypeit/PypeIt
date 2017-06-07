@@ -62,6 +62,10 @@ right edge), the slit ID which is relative on the detector (4701),
 the detector number (01), and the science index (0035), in
 one of the files.
 
+One can also set local parameters for coadding.
+Common keywords for coadding algorithms are
+listed below (:ref:`more_coadd_keys`).
+
 The list of object identifiers in a given spec1d file can be
 output with the pypit_show_1dspec script, e.g.::
 
@@ -77,7 +81,8 @@ position. 'outfile' is the filename of the coadded spectrum produced.
 Additional Coadding Parameters
 ++++++++++++++++++++++++++++++
 You can adjust the default methods by which PYPIT coadds
-spectra by adding a dict named 'global'::
+spectra by adding a dict named 'global' or a 'local' dict
+in the object block::
 
     'filenames': ['spec1d_1.fits', 'spec1d_2.fits', 'spec1d_3.fits']
     'global':
@@ -85,11 +90,14 @@ spectra by adding a dict named 'global'::
     'a':
         'object': 'O503-S4701-D01-I0035'
         'outfile': 'tmp.hdf5'
+        'local':
+            'otol': 10
 
 The adjustable parameters and options are:
 
 Wavelength Rebinning
 --------------------
+
 ==================   =======================  ==================================================
 Parameter            Option                   Description
 ==================   =======================  ==================================================
@@ -122,6 +130,20 @@ scale_method         default: auto            scale the flux arrays based on the
 --                   median                   scale the flux arrays by the median flux value
                                               of each spectra
 ==================   =======================  ==================================================
+
+.. _more_coadd_keys:
+
+More Keywords
+---------------
+
+Here are other keywords that one may wish to set
+for individual objects:
+
+============= =============================== ==== =============================================
+Keyword        Method                         Type Description
+============= =============================== ==== =============================================
+otol          arspecobj.mtch_obj_to_objects() int  Tolerance for matching object ID number
+============= =============================== ==== =============================================
 
 Running the Coadd Code
 ++++++++++++++++++++++
