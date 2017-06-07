@@ -4,9 +4,10 @@
 Wrapper to the linetools XSpecGUI
 """
 from pypit import pyputils
-from pypit import armsgs
-msgs = pyputils.get_dummy_logger()
+import pdb as debugger
 
+msgs = pyputils.get_dummy_logger()
+from numpy import isnan
 
 def parser(options=None):
 
@@ -45,6 +46,11 @@ def main(args, unit_test=False, path=''):
             files += glob.glob(path+ifl)
         else:
             files += [path+ifl]
+    # Load spectra
+    if len(files) == 0:
+        msgs.error("No files match your input list")
+    else:
+        msgs.info("Coadding {:d} data frames".format(len(files)))
     fdict = {}
     for ifile in files:
         # Open file
@@ -58,6 +64,7 @@ def main(args, unit_test=False, path=''):
         gparam = coadd_dict.pop('global')
     else:
         gparam = {}
+    sv_gparam = gparam.copy()
     # Extraction
     if 'extract' in coadd_dict.keys():
         ex_value = coadd_dict.pop('extract')
@@ -68,18 +75,31 @@ def main(args, unit_test=False, path=''):
         flux_value = coadd_dict.pop('flux')
     else:
         flux_value = True
+
     # Loop on sources
     for key in coadd_dict.keys():
+        # Re-init gparam
+        gparam = sv_gparam.copy()
         iobj = coadd_dict[key]['object']
         # Check iobj input
-        #pdb.set_trace()
         if isinstance(iobj, list):
             if len(iobj) != len(files):
                 raise IOError("Input list of object names must have same length as files")
         #
         outfile = coadd_dict[key]['outfile']
+
+        # Generate local keywords
+        try:
+            local_kwargs = coadd_dict[key]['local']
+        except KeyError:
+            local_kwargs = {}
+        else:
+            for lkey in local_kwargs:
+                gparam[lkey] = local_kwargs[lkey]
+
         if unit_test:
-            return gparam, ex_value, flux_value, iobj, outfile, files
+            return gparam, ex_value, flux_value, iobj, outfile, files, local_kwargs
+
 
         # Loop on spec1d files
         gdfiles = []
@@ -87,14 +107,32 @@ def main(args, unit_test=False, path=''):
         gdobj = []
 
         for fkey in fdict:
-            if len(iobj) == 1:
-                mtch_obj, idx = arspecobj.mtch_obj_to_objects(iobj, fdict[fkey])
+            # Input as str or list
+            if not isinstance(iobj, list) == 1:  # Simple single object
+                use_obj = iobj
             else:
                 ind = files.index(fkey)
-                mtch_obj, idx = arspecobj.mtch_obj_to_objects(iobj[ind], fdict[fkey])
+                use_obj = iobj[ind]
+            # Find object indices
+            mtch_obj, idx = arspecobj.mtch_obj_to_objects(use_obj, fdict[fkey], **local_kwargs)
             if mtch_obj is None:
                 print("No object {:s} in file {:s}".format(iobj, fkey))
             elif len(mtch_obj) == 1:
+                #Check if optimal extraction is present in all  objects. If not, warn the user and set ex_value to 'box'.
+                hdulist = fits.open(fkey)
+                try: #In case the optimal extraction array is a NaN array
+                    obj_opt_flam = hdulist[mtch_obj[0]].data['OPT_FLAM']
+                    if any(isnan(obj_opt_flam)):
+                        msgs.warn("Object {:s} in file {:s} has a NaN array for optimal extraction. Boxcar will be used instead.".format(mtch_obj[0],fkey))
+                        ex_value = 'box'
+                except KeyError: #In case the array is absent altogether.
+                    msgs.warn("Object {:s} in file {:s} doesn't have an optimal extraction. Boxcar will be used instead.".format(mtch_obj[0],fkey))
+                    try:
+                        hdulist[mtch_obj[0]].data['BOX_FLAM']
+                    except KeyError:
+                        #In case the boxcar extract is also absent
+                        msgs.error("Object {:s} in file {:s} doesn't have a boxcar extraction either. Co-addition cannot be performed".format(mtch_obj[0],fkey))
+                    ex_value = 'box'
                 gdfiles.append(fkey)
                 gdobj += mtch_obj
                 extensions.append(idx[0]+1)
@@ -102,8 +140,13 @@ def main(args, unit_test=False, path=''):
                 raise ValueError("Multiple matches to object {:s} in file {:s}".format(iobj, fkey))
 
         # Load spectra
-        spectra = arcoadd.load_spec(gdfiles, iextensions=extensions, extract=ex_value, flux=flux_value)
+        if len(gdfiles) == 0:
+            msgs.error("No files match your input criteria")
+
+        spectra = arcoadd.load_spec(gdfiles, iextensions=extensions,
+                                    extract=ex_value, flux=flux_value)
         exten = outfile.split('.')[-1]  # Allow for hdf or fits or whatever
         qafile = outfile.replace(exten, 'pdf')
         # Coadd!
         arcoadd.coadd_spectra(spectra, qafile=qafile, outfile=outfile, **gparam)
+

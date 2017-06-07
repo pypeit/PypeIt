@@ -52,15 +52,15 @@ def sort_data(fitsdict, flag_unknown=False):
     msgs.info("Sorting files")
     numfiles = fitsdict['filename'].size
     # Set the filetype dictionary
-    ftag = dict({'science': np.array([], dtype=np.int),
-                 'standard': np.array([], dtype=np.int),
-                 'bias': np.array([], dtype=np.int),
-                 'dark': np.array([], dtype=np.int),
-                 'pinhole': np.array([], dtype=np.int),
-                 'pixelflat': np.array([], dtype=np.int),
-                 'trace': np.array([], dtype=np.int),
-                 'unknown': np.array([], dtype=np.int),
-                 'arc': np.array([], dtype=np.int)})
+    ftag = dict(science=np.array([], dtype=np.int),
+                standard=np.array([], dtype=np.int),
+                bias=np.array([], dtype=np.int),
+                dark=np.array([], dtype=np.int),
+                pinhole=np.array([], dtype=np.int),
+                pixelflat=np.array([], dtype=np.int),
+                trace=np.array([], dtype=np.int),
+                unknown=np.array([], dtype=np.int),
+                arc=np.array([], dtype=np.int))
     if len(settings.ftdict) > 0:
         for ifile,ftypes in settings.ftdict.items():
             idx = np.where(fitsdict['filename'] == ifile)[0]
@@ -82,7 +82,6 @@ def sort_data(fitsdict, flag_unknown=False):
         # Self identification
         if settings.argflag['run']['useIDname']:
             w = np.where(fitsdict['idname'] == settings.spect[fkey[i]]['idname'])[0]
-            msgs.info("Sorting files")
         else:
             w = np.arange(numfiles)
         n = np.arange(numfiles)
@@ -176,8 +175,8 @@ def sort_data(fitsdict, flag_unknown=False):
         else:
             msgs.error("Check these files and your settings.{0:s} file before continuing".format(settings.argflag['run']['spectrograph']))
     # Now identify the dark frames
-    wdark = np.where((filarr[np.where(fkey == 'bias')[0],:] == 1).flatten() &
-        (fitsdict['exptime'].astype(np.float64) > settings.spect['mosaic']['minexp']))[0]
+    wdark = np.where((filarr[np.where(fkey == 'bias')[0], :] == 1).flatten() &
+                     (fitsdict['exptime'].astype(np.float64) > settings.spect['mosaic']['minexp']))[0]
     ftag['dark'] = wdark
     # Store the frames in the ftag array
     for i in range(len(fkey)):
