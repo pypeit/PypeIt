@@ -41,8 +41,12 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
     outfil : str, optional
       Name of output file
     """
+    # Outfil
+    module = inspect.stack()[0][3]
+    outfile = set_qa_filename(slf, module)
+    #
     arc_spec = fit['spec']
-    if outfil is not None:
+    if outfil is not None:  # Will deprecate
         pp = PdfPages(outfil)
 
     # Begin
@@ -82,6 +86,8 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
         if outfil is not None:
             pp.savefig(bbox_inches='tight')
             pp.close()
+        else:
+            plt.savefig(outfile, dpi=800)
         plt.close()
         return
 
@@ -124,11 +130,14 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
     if slf is not None:
-        slf._qa.savefig(bbox_inches='tight')
-    else:
+        if False:
+            slf._qa.savefig(bbox_inches='tight')
+        else:
+            plt.savefig(outfile, dpi=800)
+            plt.close()
+    else:  # FOR ARCLINES MATCH script
         pp.savefig(bbox_inches='tight')
         pp.close()
-    #plt.close('all')
     return
 
 
@@ -499,8 +508,10 @@ def obj_profile_qa(slf, specobjs, scitrace):
         #plt.close()
 
 
-def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit", maxp=4, desc="", maskval=-999999.9):
+def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit",
+                   maxp=4, desc="", maskval=-999999.9):
     """ Generate a QA plot for the blaze function fit to each slit
+    Or the arc line tilts
 
     Parameters
     ----------
@@ -523,6 +534,16 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit", ma
     maskval : float, (optional)
       Value used in arrays to indicate a masked value
     """
+    # Outfil
+    module = inspect.stack()[0][3]
+    if 'Arc' in desc:
+        module += '_Arc'
+    elif 'Blaze' in desc:
+        module += '_Blaze'
+    else:
+        msgs.error("Should not get here")
+    outroot = set_qa_filename(slf, module)
+    #
     npix, nord = ydata.shape
     pages, npp = get_dimen(nord, maxp=maxp)
     if xdata is None: xdata = np.arange(npix).reshape((npix, 1)).repeat(nord, axis=1)
@@ -599,8 +620,12 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit", ma
                 pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
             f.suptitle(desc + pgtxt, y=1.02, size=16)
         f.tight_layout()
-        slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
-        #plt.close()
+        if False:
+            slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
+        else:
+            outfile = outroot+'{:03d}.png'.format(i)
+            plt.savefig(outfile, dpi=800)
+            plt.close()
         f.clf()
     del f
     return
@@ -833,6 +858,8 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
     if False:
         slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
     plt.savefig(outfile, dpi=800)
+    plt.close()
+
 
 def set_fonts(ax):
     """ Set axes fonts
@@ -849,14 +876,30 @@ def set_fonts(ax):
 
 
 def set_qa_filename(slf, module):
+    """
+    Parameters
+    ----------
+    slf
+    module : str
+      Describes the QA routine
+
+    Returns
+    -------
+    outfile : str
+      Filename
+    """
 
     if module == 'slit_trace_qa':
         outfile = 'QA/PNGs/Slit_Trace_{:s}.png'.format(slf.setup)
+    elif module == 'arc_fit_qa':
+        outfile = 'QA/PNGs/Arc_1dfit_{:s}.png'.format(slf.setup)
+    elif module == 'plot_orderfits_Arc':  # This is root for multiple PNGs
+        outfile = 'QA/PNGs/Arc_tilts_{:s}_'.format(slf.setup)
     elif module == 'obj_trace_qa':
         debugger.set_trace()
         outfile = 'QA/PNGs/{1:s}_obj_trace.png'.format(slf._basename)
     else:
-        msgs.error("NOT READY FOR THIS QA")
+        msgs.error("NOT READY FOR THIS QA: {:s}".format(module))
     # Return
     return outfile
 

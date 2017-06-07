@@ -2404,8 +2404,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
     xdat[np.where(xdat != maskval)] *= (msarc.shape[1] - 1.0)
 
     msgs.info("Plotting arc tilt QA")
-    if not msgs._debug['no_qa']:
-        arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
+    arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
                         textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
     return tilts, satmask, outpar
 
