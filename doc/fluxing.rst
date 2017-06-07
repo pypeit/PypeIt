@@ -18,7 +18,7 @@ calibrations, specifically, generating the sensitivity function.
 Fluxing Output
 ==============
 The resulting fluxed spectrum, :math:`\rm f_\lambda`, is given
-in units of 1e-17 :math:`\rm ergs/s/cm^2/\AA` and is stored in
+in units of :math:`10^{-17}\,\rm ergs/s/cm^2/Angstrom` and is stored in
 the 'box_flam' extension of the extracted 1D spectrum. If an
 optimal extraction was succesful, there also exists an 'opt_flam'
 extension in the 1D spectrum.
