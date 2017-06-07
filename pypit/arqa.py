@@ -847,6 +847,7 @@ def set_fonts(ax):
     for label in ax.get_xticklabels():
         label.set_fontproperties(ticks_font)
 
+
 def set_qa_filename(slf, module):
 
     if module == 'slit_trace_qa':
@@ -858,6 +859,7 @@ def set_qa_filename(slf, module):
         msgs.error("NOT READY FOR THIS QA")
     # Return
     return outfile
+
 
 def gen_timestamp():
     """ Generate a simple time stamp including the current user
