@@ -1196,15 +1196,18 @@ def slit_profile(slf, mstrace, det, ntcky=None):
             # The slit profile is not needed, so just do the quickest possible fit
             ntckx = 3
 
+        # Only use pixels where at least half the slit is on the chip
+        cordloc = 0.5 * (lordloc[word[0]] + rordloc[word[0]])
+        wcchip = ((cordloc > 0.0) & (cordloc < mstrace.shape[1]-1.0))
+
         # Derive the blaze function
-        wsp = np.where((spatval > 0.25) & (spatval < 0.75))
+        wsp = np.where((spatval > 0.25) & (spatval < 0.75) & wcchip)
         tcky = np.linspace(min(0.0, np.min(specval[wsp])), max(1.0, np.max(specval[wsp])), ntcky)
         tcky = tcky[np.where((tcky > np.min(specval[wsp])) & (tcky < np.max(specval[wsp])))]
         srt = np.argsort(specval[wsp])
         # Only perform a bspline if there are enough pixels for the specified knots
         if tcky.size >= 2:
             xb, xe = min(specval[wsp][srt][0], tcky[0]), max(specval[wsp][srt][-1], tcky[-1])
-            #debugger.set_trace()
             mask, blzspl = arutils.robust_polyfit(specval[wsp][srt], fluxval[wsp][srt], 3, function='bspline',
                                                   sigma=5., maxone=False, xmin=xb, xmax=xe, knots=tcky)
             blz_flat = arutils.func_val(blzspl, specval, 'bspline')
@@ -1218,11 +1221,14 @@ def slit_profile(slf, mstrace, det, ntcky=None):
 
         # Calculate the slit profile
         sprof_fit = fluxval / (blz_flat + (blz_flat == 0.0))
+        spatval = spatval[np.where(wcchip & (blz_flat != 0.0))]
+        sprof_fit = sprof_fit[np.where(wcchip & (blz_flat != 0.0))]
         tckx = np.linspace(min(0.0, np.min(spatval)), max(1.0, np.max(spatval)), ntckx)
         tckx = tckx[np.where((tckx > np.min(spatval)) & (tckx < np.max(spatval)))]
         srt = np.argsort(spatval)
         # Only perform a bspline if there are enough pixels for the specified knots
-        if tcky.size >= 2:
+        if tckx.size >= 2:
+            #debugger.set_trace()
             xb, xe = min(spatval[srt][0], tckx[0]), max(spatval[srt][-1], tckx[-1])
             mask, sltspl = arutils.robust_polyfit(spatval[srt], sprof_fit[srt], 3, function='bspline',
                                                   sigma=5., maxone=False, xmin=xb, xmax=xe, knots=tckx)
