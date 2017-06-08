@@ -1217,7 +1217,12 @@ def slit_profile(slf, mstrace, det, ntcky=None):
                                                   sigma=5., maxone=False)
             blz_flat = arutils.func_val(blzspl, specval, 'polynomial')
             msblaze[:, o] = arutils.func_val(blzspl, np.linspace(0.0, 1.0, msblaze.shape[0]), 'polynomial')
-        blazeext[:, o] = mstrace[(np.arange(mstrace.shape[0]), np.round(0.5*(lordloc+rordloc)).astype(np.int),)]
+
+        # Extract a spectrum of the trace frame
+        xext = np.arange(mstrace.shape[0])
+        yext = np.round(0.5 * (lordloc + rordloc)).astype(np.int)
+        wcc = np.where((yext > 0) & (yext < mstrace.shape[1] - 1.0))
+        blazeext[wcc[0], o] = mstrace[(xext[wcc], yext[wcc],)]
 
         # Calculate the slit profile
         sprof_fit = fluxval / (blz_flat + (blz_flat == 0.0))
