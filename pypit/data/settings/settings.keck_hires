@@ -173,10 +173,10 @@ arc match echangle |<=0.002     # Match the echelle angle
 settings trace dispersion direction 0
 settings bias useframe overscan
 settings trace slits polyorder  7
-settings trace slits pca extrapolate pos 3
-settings trace slits pca extrapolate neg 3
-settings trace slits pca params [5,2,2,1,1,0,0]
-settings trace slits tilts params [3,3,1]
+settings trace slits pca extrapolate pos 2
+settings trace slits pca extrapolate neg 2
+settings trace slits pca params [5,2,1,1,0,0,0]
+settings trace slits tilts params [0,2,1]
 settings trace slits tilts disporder 2
 settings trace slits pad 1
 settings trace object params [1,3]

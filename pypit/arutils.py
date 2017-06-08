@@ -90,7 +90,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
             startx = np.min(x[gd])
             nbkpts = max(int(xrnge/bkspace) + 1,2)
             tempbkspace = xrnge/(nbkpts-1)
-            knots = np.arange(1,nbkpts-1)*tempbkspace + startx
+            knots = np.arange(1, nbkpts-1)*tempbkspace + startx
         elif everyn is not None:
             # A knot every good N pixels
             idx_knots = np.arange(everyn//2, ngd-everyn//2, everyn)
@@ -263,6 +263,7 @@ def dummy_settings(pypitdir=None, nfile=10, spectrograph='kast_blue',
                         spect._spect[key]['index'] += [np.array([2,3])]
     arparse.init(argf, spect)
     return
+
 
 def dummy_specobj(fitsdict, det=1, extraction=True):
     """ Generate dummy specobj classes
