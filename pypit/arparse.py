@@ -1998,7 +1998,7 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['trace']
+        allowed = ['trace', 'pinhole']
         v = key_none_allowed_filename(v, allowed)
         self.update(v)
 

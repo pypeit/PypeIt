@@ -3,6 +3,7 @@
 
 * First major steps on ARMED echelle data reduction pipeline
 * APF/Levy and Keck/HIRES settings files generated
+* Updates to blaze function and slit profile fitting
 * Initial support for multislit reduction
 * Coadding; including docs; and tests
 * Now requiring astropy >= v1.3

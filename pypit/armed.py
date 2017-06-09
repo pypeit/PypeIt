@@ -118,16 +118,25 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             ###############
             # Determine the edges of the spectrum (spatial)
             if ('trace'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']):
-                if not msgs._debug['develop']:
-                    ###############
-                    # Determine the centroid of the spectrum (spatial)
-                    lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mspinhole[det-1], det,
-                                                                   pcadesc="PCA trace of the slit edges")
+                if True:#not msgs._debug['develop']:
+                    msgs.info("Tracing slit edges with a {0:s} frame".format(settings.argflag['trace']['useframe']))
+                    if settings.argflag['trace']['useframe'] == 'pinhole':
+                        ###############
+                        # Determine the centroid of the spectrum (spatial)
+                        lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mspinhole[det-1], det,
+                                                                       pcadesc="PCA trace of the slit edges")
 
-                    # Using the order centroid, expand the order edges until the edge of the science slit is found
-                    if settings.argflag['trace']['slits']['expand']:
-                        lordloc, rordloc = artrace.expand_slits(slf, slf._mstrace[det-1], det,
-                                                                0.5*(lordloc+rordloc), extord)
+                        # Using the order centroid, expand the order edges until the edge of the science slit is found
+                        if settings.argflag['trace']['slits']['expand']:
+                            lordloc, rordloc = artrace.expand_slits(slf, slf._mstrace[det-1], det,
+                                                                    0.5*(lordloc+rordloc), extord)
+                    elif settings.argflag['trace']['useframe'] == 'trace':
+                        ###############
+                        # Determine the edges of the slit using a trace frame
+                        lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det,
+                                                                       pcadesc="PCA trace of the slit edges")
+                    else:
+                        msgs.error("Cannot trace slit edges using {0:s}".format(settings.argflag['trace']['useframe']))
                 else:
                     lordloc, rordloc, extord = np.load("lordloc.npy"), np.load("rordloc.npy"), np.load("extord.npy")
 
@@ -243,7 +252,8 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             arproc.reduce_echelle(slf, sciframe, scidx, fitsdict, det)
 
         # Close the QA for this object
-        slf._qa.close()
+        if not msgs._debug['no_qa']:
+            slf._qa.close()
 
         # Write 1D spectra
         save_format = 'fits'

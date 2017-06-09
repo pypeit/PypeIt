@@ -49,10 +49,13 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
         for spobj in specobjs[sl]:
             # Loop on extraction modes
             for extract_type in ['boxcar', 'optimal']:
-                try:
-                    extract = getattr(spobj, extract_type)
-                except AttributeError:
+                extract = getattr(spobj, extract_type)
+                if len(extract) == 0:
                     continue
+#                try:
+#                    extract = getattr(spobj, extract_type)
+#                except AttributeError:
+#                    continue
                 msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() +
                           "{}".format(spobj))
                 wave = extract['wave']  # for convenience
