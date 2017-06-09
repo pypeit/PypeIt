@@ -95,7 +95,7 @@ def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
         # no longer decreases as you move towards the slit edge
         nr = npix - np.min(wr[0])
     if nl+nr < 5:
-        msgs.warn("The object profile appears to extrapolate to the edge of the detector")
+        msgs.warn("The object profile appears to extrapolate to the edge of the slit")
         msgs.info("A background subtraction will not be performed for slit {0:d}".format(slitn+1))
         nl, nr = 0, 0
         return np.zeros_like(sciframe), nl, nr
@@ -781,16 +781,21 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
     if settings.argflag['reduce']['skysub']['perform']:
         # Identify background pixels, and generate an image of the sky spectrum in each slit
         for o in range(nord):
+            word = np.where((slf._slitpix[det - 1] == o + 1) & (slf._scimask[det - 1] == 0))
+            if word[0].size == 0:
+                msgs.warn("There are no pixels in slit {0:d}".format(o+1))
+                continue
             tbgframe, nl, nr = background_subtraction(slf, sciframe, rawvarframe, o, det)
             bgnl[o], bgnr[o] = nl, nr
             bgframe += tbgframe
             if nl == 0 and nr == 0:
+                pass
                 # If just one slit cannot do sky subtraction, don't do sky subtraction
-                msgs.warn("A sky subtraction will not be performed")
-                skysub = False
-                bgframe = np.zeros_like(sciframe)
-                modelvarframe = rawvarframe.copy()
-                break
+                # msgs.warn("A sky subtraction will not be performed")
+                # skysub = False
+                # bgframe = np.zeros_like(sciframe)
+                # modelvarframe = rawvarframe.copy()
+                # break
         if skysub:
             # Provided the for loop above didn't break early, model the variance frame
             modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
@@ -1202,6 +1207,9 @@ def slit_profile(slf, mstrace, det, ntcky=None):
 
         # Derive the blaze function
         wsp = np.where((spatval > 0.25) & (spatval < 0.75) & wcchip)
+        if wsp[0].size <= (ntcky+1)*(2*slf._pixwid[det - 1][o]+1):
+            msgs.warn("There are not enough pixels in slit {0:d}".format(o+1))
+            continue
         tcky = np.linspace(min(0.0, np.min(specval[wsp])), max(1.0, np.max(specval[wsp])), ntcky)
         tcky = tcky[np.where((tcky > np.min(specval[wsp])) & (tcky < np.max(specval[wsp])))]
         srt = np.argsort(specval[wsp])
