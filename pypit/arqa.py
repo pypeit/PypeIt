@@ -895,6 +895,8 @@ def set_qa_filename(slf, module):
         outfile = 'QA/PNGs/Arc_1dfit_{:s}.png'.format(slf.setup)
     elif module == 'plot_orderfits_Arc':  # This is root for multiple PNGs
         outfile = 'QA/PNGs/Arc_tilts_{:s}_'.format(slf.setup)
+    elif module == 'plot_orderfits_Blaze':  # This is root for multiple PNGs
+        outfile = 'QA/PNGs/Blaze_{:s}_'.format(slf.setup)
     elif module == 'obj_trace_qa':
         debugger.set_trace()
         outfile = 'QA/PNGs/{1:s}_obj_trace.png'.format(slf._basename)
