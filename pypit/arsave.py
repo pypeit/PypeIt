@@ -416,13 +416,14 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 
 
-def save_1d_spectra_fits(slf, clobber=True):
+def save_1d_spectra_fits(slf, standard=False, clobber=True, outfile=None):
     """ Write 1D spectra to a multi-extension FITS file
 
     Parameters
     ----------
     slf
     clobber : bool, optional
+    outfile : str, optional
 
     Returns
     -------
@@ -430,21 +431,27 @@ def save_1d_spectra_fits(slf, clobber=True):
     # Primary header
     prihdu = pyfits.PrimaryHDU()
     hdus = [prihdu]
-
     # Loop on detectors
     ext = 0
     for kk in range(settings.spect['mosaic']['ndet']):
         det = kk+1
-        if slf._specobjs[det-1] is None:
+
+        # Allow writing of standard
+        if standard:
+            specobjs = slf._msstd[det-1]['spobjs']
+        else:
+            specobjs = slf._specobjs[det-1]
+        if specobjs is None:
             continue
         # Loop on slits
-        for sl in range(len(slf._specobjs[det-1])):
+        for sl in range(len(specobjs)):
             # Loop on spectra
-            for specobj in slf._specobjs[det-1][sl]:
+            for specobj in specobjs[sl]:
                 ext += 1
                 # Add header keyword
                 keywd = 'EXT{:04d}'.format(ext)
                 prihdu.header[keywd] = specobj.idx
+
                 # Add Spectrum Table
                 cols = []
                 # Trace
@@ -479,7 +486,9 @@ def save_1d_spectra_fits(slf, clobber=True):
                 hdus += [tbhdu]
     # Finish
     hdulist = pyfits.HDUList(hdus)
-    hdulist.writeto(settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename), overwrite=clobber)
+    if outfile is None:
+        outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename)
+    hdulist.writeto(outfile, overwrite=clobber)
 
 
 #def write_sensitivity():
