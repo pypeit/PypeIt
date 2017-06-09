@@ -1338,40 +1338,48 @@ def slit_profile(slf, mstrace, det, ntcky=None):
             hdu.writeto("model_{0:02d}.fits".format(det), overwrite=True)
             hdu = pyfits.PrimaryHDU(diff)
             hdu.writeto("diff_{0:02d}.fits".format(det), overwrite=True)
+
     # If requested, perform a smooth fit and extrapolation to the blaze and slit profiles
-    debugger.set_trace()
-    gds = np.where(extrap_ord == 0)
-    # Interpolate the spectral direction
-    fblz = interp.interp2d(yarr, evarr[gds], blzev[:, gds[0]].T, kind='cubic', bounds_error=False)
-    blznew = fblz(np.linspace(0.0, 1.0, msblaze.shape[0]), evarr).T
-    # Interpolate the spatial direction
-    fslt = interp.interp2d(yarr, evarr[gds], blzev[:, gds[0]].T, kind='cubic', bounds_error=False)
-    sltnew = fslt(np.linspace(0.0, 1.0, n), evarr).T
+    performExtrapolation = True
+    if performExtrapolation:
+        debugger.set_trace()
+        gds = np.where(extrap_ord == 0)
+        # Interpolate the spectral direction
+        fblz = interp.interp2d(yarr, evarr[gds], blzev[:, gds[0]].T, kind='cubic', bounds_error=False)
+        # Interpolate the spatial direction
+        fslt = interp.interp2d(yarr, evarr[gds], blzev[:, gds[0]].T, kind='cubic', bounds_error=False)
 
-    if msgs._debug["slit_profile"]:
-        oplot = 2
-        plt.plot(yarr, blzev[:, oplot], 'k-')
-        plt.plot(np.linspace(0.0, 1.0, msblaze.shape[0]), blznew[:, oplot], 'r-')
-        plt.show()
+        if msgs._debug["slit_profile"]:
+            msblaze = fblz(np.linspace(0.0, 1.0, msblaze.shape[0]), evarr).T
+            # sltnew = fslt(np.linspace(0.0, 1.0, ntckx), evarr).T
+            oplot = 2
+            plt.plot(yarr, blzev[:, oplot], 'k-')
+            plt.plot(np.linspace(0.0, 1.0, msblaze.shape[0]), msblaze[:, oplot], 'r-')
+            plt.show()
 
-    # Sort which orders are masked
-    maskord = np.unique(maskord)
-    maskord.sort()
-    ofit = [4,3,2,1,0]#settings.argflag['reduce']['flatfield']['2dpca']
-    lnpc = len(ofit) - 1
-    if np.sum(1.0 - extrap_ord) > ofit[0] + 1:  # Only do a PCA if there are enough good orders
-        # Perform a PCA on the tilts
-        msgs.info("Performing a PCA on the spectral tilts")
-        ordsnd = np.arange(nslits) + 1.0
-        xcen = np.linspace(yb, ye, msblaze.shape[0])[:, np.newaxis].repeat(nslits, axis=1)
-        fitted, outpar = arpca.basis(xcen, msblaze, coeff_blz, lnpc, ofit, x0in=ordsnd, mask=maskord, skipx0=False,
-                                     function=settings.argflag['trace']['slits']['function'])
-        if not msgs._debug['no_qa']:
-            arpca.pc_plot(slf, outpar, ofit, pcadesc="BLAZE PCA")
-        # Extrapolate the remaining orders requested
-        orders = 1.0 + np.arange(nslits)
-        extrap_blz, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
-    # Re-extract normalized spectra and slit profiles
+        # Extract normalized spectra and slit profiles
+        for o in range(nslits):
+            lordloc = slf._lordloc[det - 1][:, o]
+            rordloc = slf._rordloc[det - 1][:, o]
+            word = np.where(slf._slitpix[det - 1] == o+1)
+            if word[0].size <= (ntcky+1)*(2*slf._pixwid[det - 1][o]+1):
+                msgs.warn("There are not enough pixels in slit {0:d}".format(o+1))
+                extrap_ord[o] = 1.0
+                maskord = np.append(maskord, o)
+                continue
+            spatval = (word[1] - lordloc[word[0]])/(rordloc[word[0]] - lordloc[word[0]])
+            specval = slf._tilts[det-1][word]
+
+            blz_flat = fblz(specval, np.array([o]))
+            slt_flat = fslt(spatval, np.array([o]))
+            modvals = blz_flat * slt_flat
+            msgs.error("up to here... still need to recalculate sltnrmval and mstracenrm")
+            # Normalize to the value at the centre of the slit
+            nrmvals = blz_flat * sltnrmval
+            if settings.argflag["reduce"]["slitprofile"]["perform"]:
+                # Leave slit_profiles as ones if the slitprofile is not being determined, otherwise, set the model.
+                slit_profiles[word] = modvals/nrmvals
+            mstracenrm[word] /= nrmvals
 
     # Return
     return slit_profiles, mstracenrm, extrap_blz, blazeext
