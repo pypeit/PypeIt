@@ -380,6 +380,8 @@ def flatfield(slf, sciframe, flatframe, det, snframe=None,
 def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     """ Normalize the flat-field frame
 
+    *** CAUTION ***  This function might be deprecated.
+
     Parameters
     ----------
     slf : class
@@ -1181,6 +1183,67 @@ def slit_profile(slf, mstrace, det, ntcky=None):
     else:
         if ntcky < 1.0:
             ntcky = int(1.0 / ntcky) + 0.5
+    ntcky = int(ntcky)
+    # Set the number of knots in the spatial direction
+    ntckx = 2 * np.max(slf._pixwid[det - 1])
+    if not settings.argflag["reduce"]["slitprofile"]["perform"]:
+        # The slit profile is not needed, so just do the quickest possible fit
+        ntckx = 3
+
+    # Calculate the extreme bounds of all slits
+    xb, xe = None, None  #  Spatial limits
+    yb, ye = None, None  # Spectral limits
+    for o in range(nslits):
+        lordloc = slf._lordloc[det - 1][:, o]
+        rordloc = slf._rordloc[det - 1][:, o]
+        word = np.where(slf._slitpix[det - 1] == o+1)
+        if word[0].size <= (ntcky+1)*(2*slf._pixwid[det - 1][o]+1):
+            continue
+        spatval = (word[1] - lordloc[word[0]])/(rordloc[word[0]] - lordloc[word[0]])
+        specval = slf._tilts[det-1][word]
+        cordloc = 0.5 * (lordloc[word[0]] + rordloc[word[0]])
+        wcchip = ((cordloc > 0.0) & (cordloc < mstrace.shape[1]-1.0))
+        # Get spectral limits
+        wsp = np.where((spatval > 0.25) & (spatval < 0.75) & wcchip)
+        if wsp[0].size <= (ntcky+1)*(2*slf._pixwid[det - 1][o]+1):
+            continue
+        tcky = np.linspace(min(0.0, np.min(specval[wsp])), max(1.0, np.max(specval[wsp])), ntcky)
+        tcky = tcky[np.where((tcky > np.min(specval[wsp])) & (tcky < np.max(specval[wsp])))]
+        if tcky.size >= 2:
+            tb, te = min(np.min(specval), tcky[0]), max(np.max(specval), tcky[-1])
+            if yb is None:
+                yb = tb
+            elif tb < yb:
+                yb = tb
+            if ye is None:
+                ye = te
+            elif te > ye:
+                ye = te
+        # Get spatial limits
+        wch = np.where(wcchip)
+        tckx = np.linspace(min(0.0, np.min(spatval[wch])), max(1.0, np.max(spatval[wch])), ntckx)
+        tckx = tckx[np.where((tckx > np.min(spatval[wch])) & (tckx < np.max(spatval[wch])))]
+        if tckx.size >= 2:
+            tb, te = min(np.min(spatval), tckx[0]), max(np.max(spatval), tckx[-1])
+            if xb is None:
+                xb = tb
+            elif tb < xb:
+                xb = tb
+            if xe is None:
+                xe = te
+            elif te > xe:
+                xe = te
+
+    # Initialize arrays of masked orders
+    maskord = np.array([], dtype=np.int)
+    extrap_ord = np.zeros(nslits)
+    evarr = np.arange(nslits)
+    xarr = np.linspace(xb, xe, ntckx)
+    yarr = np.linspace(yb, ye, msblaze.shape[0])
+    sltev = np.zeros((ntckx, nslits))
+    blzev = np.zeros((msblaze.shape[0], nslits))
+
+    # Calculate the slit and blaze profiles
     msgs.work("Multiprocess this step")
     for o in range(nslits):
         if settings.argflag["reduce"]["slitprofile"]["perform"]:
@@ -1192,14 +1255,12 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         word = np.where(slf._slitpix[det - 1] == o+1)
         if word[0].size <= (ntcky+1)*(2*slf._pixwid[det - 1][o]+1):
             msgs.warn("There are not enough pixels in slit {0:d}".format(o+1))
+            extrap_ord[o] = 1.0
+            maskord = np.append(maskord, o)
             continue
         spatval = (word[1] - lordloc[word[0]])/(rordloc[word[0]] - lordloc[word[0]])
         specval = slf._tilts[det-1][word]
         fluxval = mstrace[word]
-        ntckx = 2*slf._pixwid[det - 1][o]
-        if not settings.argflag["reduce"]["slitprofile"]["perform"]:
-            # The slit profile is not needed, so just do the quickest possible fit
-            ntckx = 3
 
         # Only use pixels where at least half the slit is on the chip
         cordloc = 0.5 * (lordloc[word[0]] + rordloc[word[0]])
@@ -1209,22 +1270,26 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         wsp = np.where((spatval > 0.25) & (spatval < 0.75) & wcchip)
         if wsp[0].size <= (ntcky+1)*(2*slf._pixwid[det - 1][o]+1):
             msgs.warn("There are not enough pixels in slit {0:d}".format(o+1))
+            extrap_ord[o] = 1.0
+            maskord = np.append(maskord, o)
             continue
         tcky = np.linspace(min(0.0, np.min(specval[wsp])), max(1.0, np.max(specval[wsp])), ntcky)
         tcky = tcky[np.where((tcky > np.min(specval[wsp])) & (tcky < np.max(specval[wsp])))]
         srt = np.argsort(specval[wsp])
         # Only perform a bspline if there are enough pixels for the specified knots
         if tcky.size >= 2:
-            xb, xe = min(np.min(specval), tcky[0]), max(np.max(specval), tcky[-1])
             mask, blzspl = arutils.robust_polyfit(specval[wsp][srt], fluxval[wsp][srt], 3, function='bspline',
-                                                  sigma=5., maxone=False, xmin=xb, xmax=xe, knots=tcky)
+                                                  sigma=5., maxone=False, xmin=yb, xmax=ye, knots=tcky)
             blz_flat = arutils.func_val(blzspl, specval, 'bspline')
             msblaze[:, o] = arutils.func_val(blzspl, np.linspace(0.0, 1.0, msblaze.shape[0]), 'bspline')
+            blzev[:, o] = arutils.func_val(blzspl, yarr, 'bspline')
         else:
             mask, blzspl = arutils.robust_polyfit(specval[wsp][srt], fluxval[wsp][srt], 2, function='polynomial',
                                                   sigma=5., maxone=False)
             blz_flat = arutils.func_val(blzspl, specval, 'polynomial')
             msblaze[:, o] = arutils.func_val(blzspl, np.linspace(0.0, 1.0, msblaze.shape[0]), 'polynomial')
+            extrap_ord[o] = 1.0
+            maskord = np.append(maskord, o)
 
         # Extract a spectrum of the trace frame
         xext = np.arange(mstrace.shape[0])
@@ -1240,17 +1305,20 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         srt = np.argsort(spatval[wch])
         # Only perform a bspline if there are enough pixels for the specified knots
         if tckx.size >= 2:
-            #debugger.set_trace()
             xb, xe = min(np.min(spatval), tckx[0]), max(np.max(spatval), tckx[-1])
             mask, sltspl = arutils.robust_polyfit(spatval[wch][srt], sprof_fit[wch][srt], 3, function='bspline',
                                                   sigma=5., maxone=False, xmin=xb, xmax=xe, knots=tckx)
             slt_flat = arutils.func_val(sltspl, spatval, 'bspline')
             sltnrmval = arutils.func_val(sltspl, 0.5, 'bspline')
+            sltev[:, o] = arutils.func_val(sltspl, xarr, 'bspline')
         else:
             mask, sltspl = arutils.robust_polyfit(spatval[srt], sprof_fit[srt], 2, function='polynomial',
                                                   sigma=5., maxone=False)
             slt_flat = arutils.func_val(sltspl, spatval, 'polynomial')
             sltnrmval = arutils.func_val(sltspl, 0.5, 'polynomial')
+            extrap_ord[o] = 1.0
+            maskord = np.append(maskord, o)
+
         modvals = blz_flat * slt_flat
         # Normalize to the value at the centre of the slit
         nrmvals = blz_flat * sltnrmval
@@ -1258,7 +1326,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
             # Leave slit_profiles as ones if the slitprofile is not being determined, otherwise, set the model.
             slit_profiles[word] = modvals/nrmvals
         mstracenrm[word] /= nrmvals
-        if msgs._debug['slit_profile'] and o == 30:
+        if msgs._debug['slit_profile']:
             debugger.set_trace()
             model = np.zeros_like(mstrace)
             model[word] = modvals
@@ -1270,8 +1338,43 @@ def slit_profile(slf, mstrace, det, ntcky=None):
             hdu.writeto("model_{0:02d}.fits".format(det), overwrite=True)
             hdu = pyfits.PrimaryHDU(diff)
             hdu.writeto("diff_{0:02d}.fits".format(det), overwrite=True)
+    # If requested, perform a smooth fit and extrapolation to the blaze and slit profiles
+    debugger.set_trace()
+    gds = np.where(extrap_ord == 0)
+    # Interpolate the spectral direction
+    fblz = interp.interp2d(yarr, evarr[gds], blzev[:, gds[0]].T, kind='cubic', bounds_error=False)
+    blznew = fblz(np.linspace(0.0, 1.0, msblaze.shape[0]), evarr).T
+    # Interpolate the spatial direction
+    fslt = interp.interp2d(yarr, evarr[gds], blzev[:, gds[0]].T, kind='cubic', bounds_error=False)
+    sltnew = fslt(np.linspace(0.0, 1.0, n), evarr).T
+
+    if msgs._debug["slit_profile"]:
+        oplot = 2
+        plt.plot(yarr, blzev[:, oplot], 'k-')
+        plt.plot(np.linspace(0.0, 1.0, msblaze.shape[0]), blznew[:, oplot], 'r-')
+        plt.show()
+
+    # Sort which orders are masked
+    maskord = np.unique(maskord)
+    maskord.sort()
+    ofit = [4,3,2,1,0]#settings.argflag['reduce']['flatfield']['2dpca']
+    lnpc = len(ofit) - 1
+    if np.sum(1.0 - extrap_ord) > ofit[0] + 1:  # Only do a PCA if there are enough good orders
+        # Perform a PCA on the tilts
+        msgs.info("Performing a PCA on the spectral tilts")
+        ordsnd = np.arange(nslits) + 1.0
+        xcen = np.linspace(yb, ye, msblaze.shape[0])[:, np.newaxis].repeat(nslits, axis=1)
+        fitted, outpar = arpca.basis(xcen, msblaze, coeff_blz, lnpc, ofit, x0in=ordsnd, mask=maskord, skipx0=False,
+                                     function=settings.argflag['trace']['slits']['function'])
+        if not msgs._debug['no_qa']:
+            arpca.pc_plot(slf, outpar, ofit, pcadesc="BLAZE PCA")
+        # Extrapolate the remaining orders requested
+        orders = 1.0 + np.arange(nslits)
+        extrap_blz, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
+    # Re-extract normalized spectra and slit profiles
+
     # Return
-    return slit_profiles, mstracenrm, msblaze, blazeext
+    return slit_profiles, mstracenrm, extrap_blz, blazeext
 
 
 def sn_frame(slf, sciframe, idx):
