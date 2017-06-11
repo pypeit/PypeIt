@@ -943,3 +943,32 @@ def gen_timestamp():
     return '{:s}_{:s}'.format(user, tstamp)
 
 
+def html_header(title):
+    """ 
+    Parameters
+    ----------
+    title : str, optional
+
+    Returns
+    -------
+
+    """
+    head = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    head += '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">\n'
+
+
+    head += '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n'
+    head += '<head>\n'
+    head += '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />\n'
+    head += '<title>{:s}</title>\n'.format(title)
+    head += '<meta name="keywords" content="" />\n'
+    head += '<meta name="description" content="" />\n'
+    head += '<script type="text/javascript" src="jquery/jquery-1.4.2.min.js"></script>\n'
+    head += '<script type="text/javascript" src="jquery/jquery.slidertron-0.1.js"></script>\n'
+    head += '<link href="style.css" rel="stylesheet" type="text/css" media="screen" />\n'
+
+    head += '</head>\n'
+
+    return head
+
+

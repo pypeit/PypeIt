@@ -111,14 +111,15 @@ def SetupScience(fitsdict):
 
     # Write setup -- only if not present
     setup_file, nexist = arsort.get_setup_file()
-    arsort.write_setup(setup_dict)
     # Write calib file (if not in setup mode)
     if not settings.argflag['run']['setup']:
-        arsort.write_calib(setup_dict)
+        calib_file = arsort.write_calib(setup_dict)
+    else:
+        arsort.write_setup(setup_dict)
     # Finish calcheck or setup
     if settings.argflag['run']['calcheck'] or settings.argflag['run']['setup']:
         if settings.argflag['run']['calcheck']:
-            msgs.info("Inspect the .calib file: {:s}".format(setup_file))
+            msgs.info("Inspect the .calib file: {:s}".format(calib_file))
             msgs.info("*********************************************************")
             msgs.info("Calibration check complete and successful!")
             msgs.info("Set 'run calcheck False' to continue with data reduction")
@@ -131,7 +132,7 @@ def SetupScience(fitsdict):
         elif settings.argflag['run']['setup']:
             for idx in filesort['failures']:
                 msgs.warn("No Arc found: Skipping object {:s} with file {:s}".format(fitsdict['target'][idx],fitsdict['filename'][idx]))
-            msgs.info("Setup is complete. Change 'run setup' to False to continue with data reduction")
+            msgs.info("Setup is complete.")
             msgs.info("Inspect the .setups file: {:s}".format(setup_file))
             return 'setup', None
         else:

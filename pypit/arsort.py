@@ -1040,6 +1040,8 @@ def write_calib(setup_dict):
     ydict = arutils.yamlify(setup_dict)
     with open(calib_file, 'w') as yamlf:
         yamlf.write(yaml.dump(ydict))
+    # Return
+    return calib_file
 
 def write_setup(setup_dict, use_json=False):
     """ Output setup_dict to hard drive
