@@ -642,13 +642,13 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
                                   params=tracepar, tracelist=tracedict)
 
     # Save the quality control
-    if doqa and (not msgs._debug['no_qa']):
+    if doqa: # and (not msgs._debug['no_qa']):
         from pypit.arspecobj import get_objid
         objids = []
         for ii in range(nobj):
             objid, xobj = get_objid(slf, det, slitn, ii, tracedict)
             objids.append(objid)
-        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, objids,
+        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, objids, det,
                           root="object_trace", normalize=False)
     # Return
     return tracedict

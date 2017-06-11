@@ -206,6 +206,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             sciframe = sciframe[:, :, 0]
             # Extract
             msgs.info("Processing science frame")
+            debugger.set_trace()
             arproc.reduce_multislit(slf, sciframe, scidx, fitsdict, det)
 
             ###############
@@ -224,7 +225,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         msgs.info("Waited until last detector to process")
 
         msgs.work("Need to check for existing sensfunc")
-        update = slf.MasterStandard(scidx, fitsdict)
+        update = slf.MasterStandard(fitsdict)
         if update and reuseMaster:
             armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
         #

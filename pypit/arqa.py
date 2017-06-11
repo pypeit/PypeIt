@@ -222,6 +222,9 @@ def flexure(slf, det, flex_list, slit_cen=False):
     -------
 
     """
+    # Outfile
+    module = inspect.stack()[0][3]
+    #
     for sl in range(len(slf._specobjs[det-1])):
         # Setup
         if slit_cen:
@@ -237,6 +240,10 @@ def flexure(slf, det, flex_list, slit_cen=False):
 
         # Get the flexure dictionary
         flex_dict = flex_list[sl]
+
+        # Outfile
+        outfile = set_qa_filename(slf, module, det=det,
+            slit=slf._specobjs[det-1][sl][0].slitid)
 
         plt.figure(figsize=(8, 5.0))
         plt.clf()
@@ -271,7 +278,8 @@ def flexure(slf, det, flex_list, slit_cen=False):
 
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        slf._qa.savefig(bbox_inches='tight')
+        if False:
+            slf._qa.savefig(bbox_inches='tight')
         plt.close()
 
         # Sky line QA (just one object)
@@ -372,7 +380,7 @@ def get_dimen(x, maxp=25):
     return pages, npp
 
 
-def obj_trace_qa(slf, frame, ltrace, rtrace, objids,
+def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
                  root='trace', normalize=True, desc=""):
     """ Generate a QA plot for the object trace
 
@@ -384,6 +392,8 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids,
       Left edge traces
     rtrace : ndarray
       Right edge traces
+    objids : list
+    det : int
     desc : str, optional
       Title
     root : str, optional
@@ -392,7 +402,7 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids,
       Normalize the flat?  If not, use zscale for output
     """
     module = inspect.stack()[0][3]
-    outfile = set_qa_filename(slf, module)
+    outfile = set_qa_filename(slf, module, det=det)
     #
     ntrc = ltrace.shape[1]
     ycen = np.arange(frame.shape[0])
@@ -440,6 +450,8 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids,
     plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
 
     # Traces
+    iy_mid = int(frame.shape[0] / 2.)
+    iy = np.linspace(iy_mid,frame.shape[0]*0.9,ntrc).astype(int)
     for ii in range(ntrc):
         # Left
         plt.plot(ltrace[:, ii]+0.5, ycen, 'r--', alpha=0.7)
@@ -447,10 +459,10 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids,
         plt.plot(rtrace[:, ii]+0.5, ycen, 'c--', alpha=0.7)
         if objids is not None:
             # Label
-            iy = int(frame.shape[0] / 2.)
             # plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
             lbl = 'O{:03d}'.format(objids[ii])
-            plt.text((ltrace[iy, ii]+rtrace[iy, ii])/2., ycen[iy], lbl, color='green', ha='center')
+            plt.text((ltrace[iy[ii], ii]+rtrace[iy[ii], ii])/2., ycen[iy[ii]],
+                lbl, color='green', ha='center')
     # Title
     tstamp = gen_timestamp()
     if desc == "":
@@ -460,21 +472,23 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids,
 
     if False:
         slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
-    #plt.close()
     plt.savefig(outfile, dpi=800)
-    debugger.set_trace()
+    plt.close()
 
 
-def obj_profile_qa(slf, specobjs, scitrace):
+def obj_profile_qa(slf, specobjs, scitrace, det):
     """ Generate a QA plot for the object spatial profile
     Parameters
     ----------
     """
+    module = inspect.stack()[0][3]
     for sl in range(len(specobjs)):
         # Setup
         nobj = scitrace[sl]['traces'].shape[1]
         ncol = min(3, nobj)
         nrow = nobj // ncol + ((nobj % ncol) > 0)
+        # Outfile
+        outfile = set_qa_filename(slf, module, det=det, slit=specobjs[sl][0].slitid)
         # Plot
         plt.figure(figsize=(8, 5.0))
         plt.clf()
@@ -502,10 +516,12 @@ def obj_profile_qa(slf, specobjs, scitrace):
             ax.set_xlim(mn,mx)
             # Label
             ax.text(0.02, 0.90, 'Obj={:s}'.format(specobjs[sl][o].idx),
-                    transform=ax.transAxes, size='large', ha='left')
+                    transform=ax.transAxes, ha='left', size='medium')
 
-        slf._qa.savefig(bbox_inches='tight')
-        #plt.close()
+        if False:
+            slf._qa.savefig(bbox_inches='tight')
+        plt.savefig(outfile, dpi=800)
+        plt.close()
 
 
 def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit",
@@ -624,7 +640,7 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit",
             slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
         else:
             outfile = outroot+'{:03d}.png'.format(i)
-            plt.savefig(outfile, dpi=800)
+            plt.savefig(outfile, dpi=200)
             plt.close()
         f.clf()
     del f
@@ -875,13 +891,15 @@ def set_fonts(ax):
         label.set_fontproperties(ticks_font)
 
 
-def set_qa_filename(slf, module):
+def set_qa_filename(slf, module, det=None, slit=None):
     """
     Parameters
     ----------
     slf
     module : str
       Describes the QA routine
+    det : int, optional
+    slit : int, optional
 
     Returns
     -------
@@ -898,8 +916,12 @@ def set_qa_filename(slf, module):
     elif module == 'plot_orderfits_Blaze':  # This is root for multiple PNGs
         outfile = 'QA/PNGs/Blaze_{:s}_'.format(slf.setup)
     elif module == 'obj_trace_qa':
+        outfile = 'QA/PNGs/{:s}_D{:02d}_obj_trace.png'.format(slf._basename, det)
+    elif module == 'obj_profile_qa':
+        outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_obj_prof.png'.format(slf._basename, det, slit)
+    elif module == 'flexure':
         debugger.set_trace()
-        outfile = 'QA/PNGs/{1:s}_obj_trace.png'.format(slf._basename)
+        outfile = 'QA/PNGs/{:s}_flexure.png'.format(slf._basename)
     else:
         msgs.error("NOT READY FOR THIS QA: {:s}".format(module))
     # Return
