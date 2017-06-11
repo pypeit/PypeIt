@@ -516,11 +516,11 @@ def obj_profile_qa(slf, specobjs, scitrace, det):
             ax.set_xlim(mn,mx)
             # Label
             ax.text(0.02, 0.90, 'Obj={:s}'.format(specobjs[sl][o].idx),
-                    transform=ax.transAxes, ha='left', size='medium')
+                    transform=ax.transAxes, ha='left', size='small')
 
         if False:
             slf._qa.savefig(bbox_inches='tight')
-        plt.savefig(outfile, dpi=800)
+        plt.savefig(outfile, dpi=500)
         plt.close()
 
 
@@ -941,3 +941,5 @@ def gen_timestamp():
     user = getpass.getuser()
     # Return
     return '{:s}_{:s}'.format(user, tstamp)
+
+
