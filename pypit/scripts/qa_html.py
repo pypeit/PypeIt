@@ -9,6 +9,7 @@ import pdb as debugger
 msgs = pyputils.get_dummy_logger()
 from numpy import isnan
 
+
 def parser(options=None):
 
     import argparse
@@ -31,12 +32,54 @@ def main(args, unit_test=False, path=''):
     """
     import yaml, glob
     from pypit import arqa
-    from pypit.pypit import load_input
 
-    # Parse PYPIT file (for setup)
-    pyp_dict = load_input(args.pypit_file, msgs)
-    debugger.set_trace()
-
+    # Flags
+    flg_MF, flg_exp = False, False
     if args.type == 'MF':
-        arqa.init_mf_html()
+        flg_MF = True
+    elif args.type == 'exp':
+        flg_exp = True
+    elif args.type == 'all':
+        flg_exp, flg_MF = True, True
+
+    # Master Frame
+    if flg_MF:
+        # Read calib file
+        calib_file = args.pypit_file.replace('.pypit', '.calib')
+        with open(calib_file, 'r') as infile:
+            calib_dict = yaml.load(infile)
+        # Parse
+        setup = list(calib_dict.keys())[0]
+        dets, cbsets = [], []
+        for key in calib_dict[setup].keys():
+            if key == '--':
+                continue
+            try:
+                dets.append(int(key))
+            except ValueError:
+                cbsets.append(key)
+        debugger.set_trace()
+        #
+        MF_filename = 'QA/MF_{:s}.html'.format(setup)
+        links = ''
+        body = ''
+        with open(MF_filename,'w') as f:
+            # Start
+            arqa.html_mf_init(f, 'QA  Setup {:s}: MasterFrame files'.format(setup))
+            # Loop on calib_sets
+            for cbset in cbsets:
+                for det in dets:
+                    # Run
+                    new_links, new_body = arqa.html_mf_pngs(setup, cbset, det)
+                    # Save
+                    links += new_links
+                    body += new_body
+            # Write links
+            f.write(links)
+            # Write rest of body
+            f.write(body)
+            # Finish
+            f.write(arqa.html_end())
+        #
+        print("Wrote: {:s}".format(MF_filename))
 

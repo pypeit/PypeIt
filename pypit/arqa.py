@@ -5,6 +5,7 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 import inspect
 
 import numpy as np
+import glob
 
 from astropy import units as u
 
@@ -17,6 +18,11 @@ from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
 from matplotlib.backends.backend_pdf import PdfPages
+
+try:
+    basestring
+except NameError:  # For Python 3
+    basestring = str
 
 msgs = armsgs.get_logger()
 
@@ -895,7 +901,8 @@ def set_qa_filename(slf, module, det=None, slit=None):
     """
     Parameters
     ----------
-    slf
+    slf : SciExposure or str
+      If str, it contains the setup name or basename
     module : str
       Describes the QA routine
     det : int, optional
@@ -906,7 +913,6 @@ def set_qa_filename(slf, module, det=None, slit=None):
     outfile : str
       Filename
     """
-
     if module == 'slit_trace_qa':
         outfile = 'QA/PNGs/Slit_Trace_{:s}.png'.format(slf.setup)
     elif module == 'arc_fit_qa':
@@ -958,7 +964,9 @@ def html_header(title):
 
 
     head += '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n'
+    head += '\n'
     head += '<head>\n'
+    head += '\n'
     head += '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />\n'
     head += '<title>{:s}</title>\n'.format(title)
     head += '<meta name="keywords" content="" />\n'
@@ -966,9 +974,46 @@ def html_header(title):
     head += '<script type="text/javascript" src="jquery/jquery-1.4.2.min.js"></script>\n'
     head += '<script type="text/javascript" src="jquery/jquery.slidertron-0.1.js"></script>\n'
     head += '<link href="style.css" rel="stylesheet" type="text/css" media="screen" />\n'
-
+    head += '\n'
     head += '</head>\n'
 
+    # Begin the Body
+    head += '<body>\n'
+    head += '<h1>{:s}</h1>\n'.format(title)
+    head += '<hr>'
+
     return head
+
+def html_end():
+    end = '</body>\n'
+    end += '</html>\n'
+
+    return end
+
+def html_mf_init(f, title):
+    head = html_header(title)
+    f.write(head)
+
+def html_mf_pngs(setup, cbset, det, qa_root = 'QA/PNGs/'):
+    """ 
+    Parameters
+    ----------
+    setup : str
+    cbset : str
+    det : int
+    qa_root : str, optional
+
+    Returns
+    -------
+    links : str
+    body : str
+
+    """
+    # QA root
+    # Search for PNGs
+    idval = '{:s}_{:02d}_{:s}'.format(setup, cbset, det)
+    # Slit
+    slit_png = glob.glob(set_qa_filename(None, 'slit_trace_qa'))
+
 
 
