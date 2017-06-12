@@ -58,10 +58,10 @@ def main(args, unit_test=False, path=''):
                 dets.append(int(key))
             except ValueError:
                 cbsets.append(key)
-        debugger.set_trace()
         #
         MF_filename = 'QA/MF_{:s}.html'.format(setup)
-        links = ''
+        links = '<h2>Quick Links</h2>\n'
+        links += '<ul>\n'
         body = ''
         with open(MF_filename,'w') as f:
             # Start
@@ -76,6 +76,8 @@ def main(args, unit_test=False, path=''):
                     body += new_body
             # Write links
             f.write(links)
+            f.write('</ul>\n')
+            f.write('<hr>\n')
             # Write rest of body
             f.write(body)
             # Finish

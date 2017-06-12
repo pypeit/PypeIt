@@ -979,7 +979,7 @@ def html_header(title):
     # Begin the Body
     head += '<body>\n'
     head += '<h1>{:s}</h1>\n'.format(title)
-    head += '<hr>'
+    head += '<hr>\n'
 
     return head
 
@@ -1008,11 +1008,30 @@ def html_mf_pngs(setup, cbset, det, qa_root = 'QA/PNGs/'):
     body : str
 
     """
+    links = ''
+    body = ''
     # QA root
     # Search for PNGs
-    idval = '{:s}_{:02d}_{:s}'.format(setup, cbset, det)
-    # Slit
-    slit_png = glob.glob(set_qa_filename(None, 'slit_trace_qa'))
+    idval = '{:s}_{:02d}_{:s}'.format(setup, det, cbset)
+    # Slit Trace
+    slit_pngs = glob.glob(set_qa_filename(idval, 'slit_trace_qa'))
+    if len(slit_pngs) > 0:
+        href="strace_{:s}".format(idval)
+        # Link
+        links += '<li><a class="reference internal" href="#{:s}">Slit Trace {:s}</a></li>\n'.format(href, idval)
+        # Body
+        body += '<div class="section" id="{:s}">\n'.format(href)
+        body += '<h2> Slit Trace {:s} </h2>\n'.format(idval)
+        for png in slit_pngs:
+            # Remove QA
+            ifnd = png.find('QA/')
+            if ifnd < 0:
+                msgs.error("QA is expected to be in the path!")
+            body += '<img class ="research" src="{:s}" width="100%" height="auto"/>\n'.format(png[ifnd+3:])
+        body += '</div>\n'
+
+    # Return
+    return links, body
 
 
 
