@@ -43,7 +43,7 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
     """
     # Outfil
     module = inspect.stack()[0][3]
-    outfile = set_qa_filename(slf, module)
+    outfile = set_qa_filename(slf.setup, module)
     #
     arc_spec = fit['spec']
     if outfil is not None:  # Will deprecate
@@ -242,7 +242,7 @@ def flexure(slf, det, flex_list, slit_cen=False):
         flex_dict = flex_list[sl]
 
         # Outfile
-        outfile = set_qa_filename(slf, module, det=det,
+        outfile = set_qa_filename(slf._basename, module, det=det,
             slit=slf._specobjs[det-1][sl][0].slitid)
 
         plt.figure(figsize=(8, 5.0))
@@ -402,7 +402,7 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
       Normalize the flat?  If not, use zscale for output
     """
     module = inspect.stack()[0][3]
-    outfile = set_qa_filename(slf, module, det=det)
+    outfile = set_qa_filename(slf._basename, module, det=det)
     #
     ntrc = ltrace.shape[1]
     ycen = np.arange(frame.shape[0])
@@ -488,7 +488,7 @@ def obj_profile_qa(slf, specobjs, scitrace, det):
         ncol = min(3, nobj)
         nrow = nobj // ncol + ((nobj % ncol) > 0)
         # Outfile
-        outfile = set_qa_filename(slf, module, det=det, slit=specobjs[sl][0].slitid)
+        outfile = set_qa_filename(slf._basename, module, det=det, slit=specobjs[sl][0].slitid)
         # Plot
         plt.figure(figsize=(8, 5.0))
         plt.clf()
@@ -558,7 +558,7 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit",
         module += '_Blaze'
     else:
         msgs.error("Should not get here")
-    outroot = set_qa_filename(slf, module)
+    outroot = set_qa_filename(slf.setup, module)
     #
     npix, nord = ydata.shape
     pages, npp = get_dimen(nord, maxp=maxp)
@@ -792,7 +792,7 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
     """
     # Outfil
     module = inspect.stack()[0][3]
-    outfile = set_qa_filename(slf, module)
+    outfile = set_qa_filename(slf.setup, module)
     # if outfil is None:
     #     if '.fits' in root: # Expecting name of msflat FITS file
     #         outfil = root.replace('.fits', '_trc.pdf')
@@ -891,11 +891,12 @@ def set_fonts(ax):
         label.set_fontproperties(ticks_font)
 
 
-def set_qa_filename(slf, module, det=None, slit=None):
+def set_qa_filename(root, module, det=None, slit=None):
     """
     Parameters
     ----------
-    slf
+    root : str
+      Root name
     module : str
       Describes the QA routine
     det : int, optional
@@ -906,22 +907,20 @@ def set_qa_filename(slf, module, det=None, slit=None):
     outfile : str
       Filename
     """
-
     if module == 'slit_trace_qa':
-        outfile = 'QA/PNGs/Slit_Trace_{:s}.png'.format(slf.setup)
+        outfile = 'QA/PNGs/Slit_Trace_{:s}.png'.format(root)
     elif module == 'arc_fit_qa':
-        outfile = 'QA/PNGs/Arc_1dfit_{:s}.png'.format(slf.setup)
+        outfile = 'QA/PNGs/Arc_1dfit_{:s}.png'.format(root)
     elif module == 'plot_orderfits_Arc':  # This is root for multiple PNGs
-        outfile = 'QA/PNGs/Arc_tilts_{:s}_'.format(slf.setup)
+        outfile = 'QA/PNGs/Arc_tilts_{:s}_'.format(root)
     elif module == 'plot_orderfits_Blaze':  # This is root for multiple PNGs
-        outfile = 'QA/PNGs/Blaze_{:s}_'.format(slf.setup)
+        outfile = 'QA/PNGs/Blaze_{:s}_'.format(root)
     elif module == 'obj_trace_qa':
-        outfile = 'QA/PNGs/{:s}_D{:02d}_obj_trace.png'.format(slf._basename, det)
+        outfile = 'QA/PNGs/{:s}_D{:02d}_obj_trace.png'.format(root, det)
     elif module == 'obj_profile_qa':
-        outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_obj_prof.png'.format(slf._basename, det, slit)
+        outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_obj_prof.png'.format(root, det, slit)
     elif module == 'flexure':
-        debugger.set_trace()
-        outfile = 'QA/PNGs/{:s}_flexure.png'.format(slf._basename)
+        outfile = 'QA/PNGs/{:s}_flexure.png'.format(root)
     else:
         msgs.error("NOT READY FOR THIS QA: {:s}".format(module))
     # Return
