@@ -1408,41 +1408,57 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
     msblaze : ndarray
       A model of the blaze function of each slit
     """
+    #################
+    # Parameters to include in settings file
+    fitfunc = "legendre"
     ordfit = 7
     ofit = [5, 2, 1, 1, 0, 0, 0]
-    # Perform a PCA on the spectral (i.e. blaze) function
-    specfit = np.arange(mstrace.shape[0])
+    #################
+
     nslits = extrap_slit.size
     gds = np.where(extrap_slit == 0)
+    maskord = np.where(extrap_slit == 1)
+    specfit = np.arange(mstrace.shape[0])
+
+    # Perform a PCA on the spectral (i.e. blaze) function
     # Calculate the mean blaze function of all good orders
     blzmean = np.mean(msblaze[:, gds[0]], axis=1)
     blzmean /= np.max(blzmean)
-    msblaze /= blzmean.reshape((blzmean.size, 1))
+    blzmean = blzmean.reshape((blzmean.size, 1))
+    msblaze /= blzmean
     # Fit the blaze functions
+    fitcoeff = np.ones((ordfit, nslits))
     for o in range(nslits):
         if extrap_slit[o] == 1:
             continue
         wmask = np.where(msblaze[:, o] != 0.0)[0]
         null, bcoeff = arutils.robust_polyfit(specfit[wmask], msblaze[wmask, o],
-                                              ordfit, sigma=2.0)
+                                              ordfit, fitfunc, sigma=2.0,
+                                              minv=0.0, maxv=mstrace.shape[0])
+        fitcoeff[:, o] = bcoeff
 
     lnpc = len(ofit) - 1
-    if np.sum(1.0 - extrap_slit) > ofit[0] + 1:  # Only do a PCA if there are enough good orders
+    xv = np.arange(mstrace.shape[0])
+    blzval = arutils.func_val(fitcoeff, xv, fitfunc,
+                               minv=0.0, maxv=mstrace.shape[0] - 1).T
+    # Only do a PCA if there are enough good orders
+    if np.sum(1.0 - extrap_slit) > ofit[0] + 1:
         # Perform a PCA on the tilts
         msgs.info("Performing a PCA on the spectral blaze function")
         ordsnd = np.arange(nslits) + 1.0
         xcen = xv[:, np.newaxis].repeat(nslits, axis=1)
-        fitted, outpar = arpca.basis(xcen, tiltval, tcoeff, lnpc, ofit, x0in=ordsnd, mask=maskord, skipx0=False,
-                                     function=settings.argflag['trace']['slits']['function'])
+        fitted, outpar = arpca.basis(xcen, blzval, fitcoeff, lnpc, ofit, x0in=ordsnd, mask=maskord, skipx0=False,
+                                     function=fitfunc)
         if not msgs._debug['no_qa']:
-            arpca.pc_plot(slf, outpar, ofit, pcadesc=pcadesc)
+            arpca.pc_plot(slf, outpar, ofit, pcadesc="PCA of blaze function fits")
         # Extrapolate the remaining orders requested
-        orders = 1.0 + np.arange(norders)
-        extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
-        tilts = extrap_tilt
-        if not msgs._debug['no_qa']:
-            arpca.pc_plot_arctilt(slf, tiltang, centval, tilts)
-    return slit_profile, mstracenrm, msblaze
+        orders = 1.0 + np.arange(nslits)
+        extrap_blz, outpar = arpca.extrapolate(outpar, orders, function=fitfunc)
+        extrap_blz *= blzmean
+
+    # Perform a PCA on the spatial (i.e. slit) profile
+
+    return slit_profile, mstracenrm, extrap_blz
 
 
 def sn_frame(slf, sciframe, idx):
