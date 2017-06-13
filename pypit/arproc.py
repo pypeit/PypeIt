@@ -1235,8 +1235,9 @@ def slit_profile(slf, mstrace, det, ntcky=None):
                 xe = te
 
     # Initialize arrays of masked orders
+    allonchip = np.ones(nslits, dtype=np.int)
     maskord = np.array([], dtype=np.int)
-    extrap_ord = np.zeros(nslits)
+    extrap_ord = np.zeros(nslits, dtype=np.int)
     evarr = np.arange(nslits)
     xarr = np.linspace(xb, xe, ntckx)
     yarr = np.linspace(yb, ye, msblaze.shape[0])
@@ -1296,6 +1297,8 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         yext = np.round(0.5 * (lordloc + rordloc)).astype(np.int)
         wcc = np.where((yext > 0) & (yext < mstrace.shape[1] - 1.0))
         blazeext[wcc[0], o] = mstrace[(xext[wcc], yext[wcc],)]
+        if wcc[0].size != mstrace.shape[0]:
+            allonchip[o] = 0
 
         # Calculate the slit profile
         sprof_fit = fluxval / (blz_flat + (blz_flat == 0.0))
@@ -1343,14 +1346,15 @@ def slit_profile(slf, mstrace, det, ntcky=None):
     performExtrapolation = True
     if performExtrapolation:
         debugger.set_trace()
-        gds = np.where(extrap_ord == 0)
+        gds = np.where((extrap_ord == 0) & (allonchip == 1))
         # Interpolate the spectral direction
         fblz = interp.interp2d(yarr, evarr[gds], blzev[:, gds[0]].T, kind='cubic', bounds_error=False)
         # Interpolate the spatial direction
-        fslt = interp.interp2d(yarr, evarr[gds], blzev[:, gds[0]].T, kind='cubic', bounds_error=False)
+        fslt = interp.interp2d(xarr, evarr[gds], sltev[:, gds[0]].T, kind='cubic', bounds_error=False)
+
+        msblaze = fblz(np.linspace(0.0, 1.0, mstrace.shape[0]), evarr).T
 
         if msgs._debug["slit_profile"]:
-            msblaze = fblz(np.linspace(0.0, 1.0, msblaze.shape[0]), evarr).T
             # sltnew = fslt(np.linspace(0.0, 1.0, ntckx), evarr).T
             oplot = 2
             plt.plot(yarr, blzev[:, oplot], 'k-')
@@ -1358,6 +1362,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
             plt.show()
 
         # Extract normalized spectra and slit profiles
+        mstracenrm = mstrace.copy()
         for o in range(nslits):
             lordloc = slf._lordloc[det - 1][:, o]
             rordloc = slf._rordloc[det - 1][:, o]
@@ -1372,8 +1377,8 @@ def slit_profile(slf, mstrace, det, ntcky=None):
 
             blz_flat = fblz(specval, np.array([o]))
             slt_flat = fslt(spatval, np.array([o]))
+            sltnrmval = fslt(np.array([0.5]), np.array([o]))
             modvals = blz_flat * slt_flat
-            msgs.error("up to here... still need to recalculate sltnrmval and mstracenrm")
             # Normalize to the value at the centre of the slit
             nrmvals = blz_flat * sltnrmval
             if settings.argflag["reduce"]["slitprofile"]["perform"]:
@@ -1382,7 +1387,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
             mstracenrm[word] /= nrmvals
 
     # Return
-    return slit_profiles, mstracenrm, extrap_blz, blazeext
+    return slit_profiles, mstracenrm, msblaze, blazeext
 
 
 def sn_frame(slf, sciframe, idx):
