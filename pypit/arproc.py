@@ -1158,6 +1158,9 @@ def slit_profile(slf, mstrace, det, ntcky=None):
       A model of the blaze function of each slit
     blazeext : ndarray
       The blaze function extracted down the centre of the slit
+    extrap_slit : ndarray
+      Mask indicating if a slit is well-determined (0) or poor (1). If the latter, the slit profile
+      and blaze function for those slits should be extrapolated or determined from another means
     """
     dnum = settings.get_dnum(det)
     nslits = slf._lordloc[det - 1].shape[1]
@@ -1279,6 +1282,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         srt = np.argsort(specval[wsp])
         # Only perform a bspline if there are enough pixels for the specified knots
         if tcky.size >= 2:
+            yb, ye = min(np.min(specval), tcky[0]), max(np.max(specval), tcky[-1])
             mask, blzspl = arutils.robust_polyfit(specval[wsp][srt], fluxval[wsp][srt], 3, function='bspline',
                                                   sigma=5., maxone=False, xmin=yb, xmax=ye, knots=tcky)
             blz_flat = arutils.func_val(blzspl, specval, 'bspline')
@@ -1384,7 +1388,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
             mstracenrm[word] /= nrmvals
     """
     # Return
-    return slit_profiles, mstracenrm, msblaze, blazeext
+    return slit_profiles, mstracenrm, msblaze, blazeext, extrap_ord
 
 
 def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
@@ -1417,9 +1421,10 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
 
     nslits = extrap_slit.size
     gds = np.where(extrap_slit == 0)
-    maskord = np.where(extrap_slit == 1)
+    maskord = np.where(extrap_slit == 1)[0]
     specfit = np.arange(mstrace.shape[0])
-
+    nspec = np.max(slf._pixwid[det - 1])*10
+    specbins = np.linspace(-0.25, 1.25, nspec + 1)
     # Perform a PCA on the spectral (i.e. blaze) function
     # Calculate the mean blaze function of all good orders
     blzmean = np.mean(msblaze[:, gds[0]], axis=1)
@@ -1427,20 +1432,20 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
     blzmean = blzmean.reshape((blzmean.size, 1))
     msblaze /= blzmean
     # Fit the blaze functions
-    fitcoeff = np.ones((ordfit, nslits))
+    fitcoeff = np.ones((ordfit+1, nslits))
     for o in range(nslits):
         if extrap_slit[o] == 1:
             continue
         wmask = np.where(msblaze[:, o] != 0.0)[0]
         null, bcoeff = arutils.robust_polyfit(specfit[wmask], msblaze[wmask, o],
-                                              ordfit, fitfunc, sigma=2.0,
+                                              ordfit, function=fitfunc, sigma=2.0,
                                               minv=0.0, maxv=mstrace.shape[0])
         fitcoeff[:, o] = bcoeff
 
     lnpc = len(ofit) - 1
     xv = np.arange(mstrace.shape[0])
     blzval = arutils.func_val(fitcoeff, xv, fitfunc,
-                               minv=0.0, maxv=mstrace.shape[0] - 1).T
+                              minv=0.0, maxv=mstrace.shape[0] - 1).T
     # Only do a PCA if there are enough good orders
     if np.sum(1.0 - extrap_slit) > ofit[0] + 1:
         # Perform a PCA on the tilts
@@ -1455,10 +1460,36 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
         orders = 1.0 + np.arange(nslits)
         extrap_blz, outpar = arpca.extrapolate(outpar, orders, function=fitfunc)
         extrap_blz *= blzmean
+    else:
+        msgs.warn("Could not perform a PCA on the order blaze function" + msgs.newline() +
+                  "Not enough well-traced orders")
+        msgs.info("Using direct determination of the blaze function instead")
+        extrap_blz = msblaze
 
+    """
     # Perform a PCA on the spatial (i.e. slit) profile
+    for o in range(nslits):
+        if extrap_slit[o] == 1:
+            continue
+        word = np.where(slf._slitpix[det - 1] == o)
+        spatval = (word[1] + 0.5 - slf._lordloc[det-1][:, o][word[0]]) /\
+                  (slf._rordloc[det-1][:, o][word[0]] - slf._lordloc[det-1][:, o][word[0]])
+    fluxval = mstrace[word]
+    modvals = np.zeros(nspec)
+    cnts, xedges, yedges = np.histogram2d(spatval, fluxval, bins=specbins)
+    groups = np.digitize(spatval, xedges)
+    modelw = model[word]
+    for mm in range(1, xedges.size):
+        modvals[mm - 1] = modelw[groups == mm].mean()
+    # Calculate the spatial profile of all good orders
+    blzmean = np.mean(msblaze[:, gds[0]], axis=1)
+    blzmean /= np.max(blzmean)
+    blzmean = blzmean.reshape((blzmean.size, 1))
+    msblaze /= blzmean
+    """
 
-    return slit_profile, mstracenrm, extrap_blz
+    #return slit_profile, mstracenrm, extrap_blz
+    return extrap_blz
 
 
 def sn_frame(slf, sciframe, idx):
