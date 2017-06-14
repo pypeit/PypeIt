@@ -1370,8 +1370,10 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
     #################
     # Parameters to include in settings file
     fitfunc = "legendre"
-    ordfit = 6
-    ofit = [2, 3, 2, 2, 1, 0, 0]
+#    ordfit = 6
+#    ofit = [2, 2, 2, 2, 1, 0, 0]
+    ordfit = 4
+    ofit = [2, 3, 3, 2, 2]
     #################
 
     nslits = extrap_slit.size
@@ -1396,7 +1398,7 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
             else:
                 lorr = +1  # Go right
         else:
-            blzmxval[0, o] = np.mean(mstrace[wch[0], cordloc[wch]])
+            blzmxval[0, o] = np.median(mstrace[wch[0], cordloc[wch]])
         if lorr == -1:
             # A full order has been found, go back and fill in the gaps
             for i in range(1, o):
@@ -1404,17 +1406,17 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
                                (slf._rordloc[det-1][:, o-i] < mstrace.shape[1] - 1.0))
                 # Calculate the previous order flux
                 cordloc = np.round(0.5 * (slf._lordloc[det-1][:, o-i+1] + slf._rordloc[det-1][:, o-i+1])).astype(np.int)
-                prval = np.mean(mstrace[wch[0], cordloc[wch]])
+                prval = np.median(mstrace[wch[0], cordloc[wch]])
                 # Calculate the current order flux
                 cordloc = np.round(0.5 * (slf._lordloc[det-1][:, o-i] + slf._rordloc[det-1][:, o-i])).astype(np.int)
-                mnval = np.mean(mstrace[wch[0], cordloc[wch]])
+                mnval = np.median(mstrace[wch[0], cordloc[wch]])
                 blzmxval[0, o-i] = blzmxval[0, o-i+1] * (mnval / prval)
             lorr = 0
         elif lorr == +1:
             # Calibrate the current order with the previous one
-            mnval = np.mean(mstrace[wch[0], cordloc[wch]])
+            mnval = np.median(mstrace[wch[0], cordloc[wch]])
             cordloc = np.round(0.5 * (slf._lordloc[det - 1][:, o-1] + slf._rordloc[det - 1][:, o-1])).astype(np.int)
-            blzmxval[0, o] = blzmxval[0, o-1] * (mnval / np.mean(mstrace[wch[0], cordloc[wch]]))
+            blzmxval[0, o] = blzmxval[0, o-1] * (mnval / np.median(mstrace[wch[0], cordloc[wch]]))
             lorr = 0
 
     # Calculate the mean blaze function of all good orders
@@ -1459,6 +1461,7 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
         msgs.info("Using direct determination of the blaze function instead")
         extrap_blz = msblaze
 
+    # Apply this new blaze function to the trace frame to determine the slit profiles
     """
     # Perform a PCA on the spatial (i.e. slit) profile
     for o in range(nslits):
