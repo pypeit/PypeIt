@@ -661,7 +661,7 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
                 modelw = model[word]
                 for mm in range(1, xedges.size):
                     modvals[mm-1] = modelw[groups == mm].mean()
-                axes[ind].plot(0.5*(xedges[1:]+xedges[:-1]), modvals, 'g-', linewidth=2.0)
+                axes[ind].plot(0.5*(xedges[1:]+xedges[:-1]), modvals, 'b-', linewidth=2.0)
                 axes[ind].plot([0.0, 0.0], [0.0, mxval], 'r-')
                 axes[ind].plot([1.0, 1.0], [0.0, mxval], 'r-')
             else:
@@ -670,7 +670,7 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
                 modelw = model[word]
                 for mm in range(1, xedges.size):
                     modvals[mm-1] = modelw[groups == mm].mean()
-                axes.plot(0.5*(xedges[1:]+xedges[:-1]), modvals, 'g-', linewidth=2.0)
+                axes.plot(0.5*(xedges[1:]+xedges[:-1]), modvals, 'b-', linewidth=2.0)
                 axes.plot([0.0, 0.0], [0.0, mxval], 'r-')
                 axes.plot([1.0, 1.0], [0.0, mxval], 'r-')
             if axesIdx:
