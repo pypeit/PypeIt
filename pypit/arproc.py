@@ -1346,7 +1346,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
     return slit_profiles, mstracenrm, msblaze, blazeext, extrap_slit
 
 
-def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
+def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
     """ Perform a PCA analysis on the spatial slit profile and blaze function.
 
     Parameters
@@ -1357,21 +1357,26 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
       An image containing the slit profile
     det : int
       Detector index
+    msblaze : ndarray
+      A model of the blaze function of each slit
+    extrap_slit : ndarray
+      Mask indicating if a slit is well-determined (0) or poor (1). If the latter, the slit profile
+      and blaze function for those slits should be extrapolated or determined from another means
+    slit_profiles : ndarray
+      An image containing the slit profile
 
     Returns
     -------
-    slit_profile : ndarray
+    slit_profiles : ndarray
       An image containing the slit profile
     mstracenrm : ndarray
       The input trace frame, normalized by the blaze function (but still contains the slit profile)
-    msblaze : ndarray
+    extrap_blz : ndarray
       A model of the blaze function of each slit
     """
     #################
     # Parameters to include in settings file
     fitfunc = "legendre"
-#    ordfit = 6
-#    ofit = [2, 2, 2, 2, 1, 0, 0]
     ordfit = 4
     ofit = [2, 3, 3, 2, 2]
     #################
@@ -1386,6 +1391,8 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
     blzmxval = np.ones((1, nslits))
     lorr = 0
     for o in range(0, nslits):
+        # if extrap_slit[o] == 1:
+        #     continue
         # Find which pixels are on the slit
         wch = np.where((slf._lordloc[det-1][:, o] > 0.0) &
                        (slf._rordloc[det - 1][:, o] < mstrace.shape[1]-1.0))
@@ -1417,6 +1424,7 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
             mnval = np.median(mstrace[wch[0], cordloc[wch]])
             cordloc = np.round(0.5 * (slf._lordloc[det - 1][:, o-1] + slf._rordloc[det - 1][:, o-1])).astype(np.int)
             blzmxval[0, o] = blzmxval[0, o-1] * (mnval / np.median(mstrace[wch[0], cordloc[wch]]))
+            #debugger.set_trace()
             lorr = 0
 
     # Calculate the mean blaze function of all good orders
@@ -1461,31 +1469,76 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
         msgs.info("Using direct determination of the blaze function instead")
         extrap_blz = msblaze
 
-    # Apply this new blaze function to the trace frame to determine the slit profiles
+    # Normalize the trace frame, but don't remove the slit profile
+    mstracenrm = mstrace.copy()
+    for o in range(nslits):
+        word = np.where(slf._slitpix[det - 1] == o+1)
+        specval = slf._tilts[det-1][word]
+        blzspl = interp.interp1d(np.linspace(0.0, 1.0, mstrace.shape[0]), extrap_blz[:, o],
+                                 kind="linear", fill_value="extrapolate")
+        mstracenrm[word] /= blzspl(specval)
+
     """
     # Perform a PCA on the spatial (i.e. slit) profile
     for o in range(nslits):
         if extrap_slit[o] == 1:
             continue
-        word = np.where(slf._slitpix[det - 1] == o)
+        word = np.where(slf._slitpix[det - 1] == o+1)
         spatval = (word[1] + 0.5 - slf._lordloc[det-1][:, o][word[0]]) /\
                   (slf._rordloc[det-1][:, o][word[0]] - slf._lordloc[det-1][:, o][word[0]])
-    fluxval = mstrace[word]
-    modvals = np.zeros(nspec)
-    cnts, xedges, yedges = np.histogram2d(spatval, fluxval, bins=specbins)
-    groups = np.digitize(spatval, xedges)
-    modelw = model[word]
-    for mm in range(1, xedges.size):
-        modvals[mm - 1] = modelw[groups == mm].mean()
+        fluxval = mstrace[word]
+        modvals = np.zeros(nspec)
+        groups = np.digitize(spatval, specbins)
+        modelw = slit_profiles[word]
+        for mm in range(1, specbins.size):
+            modvals[mm - 1] = modelw[groups == mm].mean()
+        msslits
     # Calculate the spatial profile of all good orders
     blzmean = np.mean(msblaze[:, gds[0]], axis=1)
     blzmean /= np.max(blzmean)
     blzmean = blzmean.reshape((blzmean.size, 1))
     msblaze /= blzmean
-    """
 
-    #return slit_profile, mstracenrm, extrap_blz
-    return extrap_blz
+
+
+
+    # Fit the spatial profiles
+    fitcoeff = np.ones((ordfit+1, nslits))
+    for o in range(nslits):
+        if extrap_slit[o] == 1:
+            continue
+        wmask = np.where(msblaze[:, o] != 0.0)[0]
+        null, bcoeff = arutils.robust_polyfit(specfit[wmask], msblaze[wmask, o],
+                                              ordfit, function=fitfunc, sigma=2.0,
+                                              minv=0.0, maxv=mstrace.shape[0])
+        fitcoeff[:, o] = bcoeff
+
+    lnpc = len(ofit) - 1
+    xv = np.arange(mstrace.shape[0])
+    blzval = arutils.func_val(fitcoeff, xv, fitfunc,
+                              minv=0.0, maxv=mstrace.shape[0] - 1).T
+    # Only do a PCA if there are enough good orders
+    if np.sum(1.0 - extrap_slit) > ofit[0] + 1:
+        # Perform a PCA on the tilts
+        msgs.info("Performing a PCA on the spectral blaze function")
+        ordsnd = np.arange(nslits) + 1.0
+        xcen = xv[:, np.newaxis].repeat(nslits, axis=1)
+        fitted, outpar = arpca.basis(xcen, blzval, fitcoeff, lnpc, ofit, x0in=ordsnd, mask=maskord, skipx0=False,
+                                     function=fitfunc)
+        if not msgs._debug['no_qa']:
+            arpca.pc_plot(slf, outpar, ofit, pcadesc="PCA of blaze function fits")
+        # Extrapolate the remaining orders requested
+        orders = 1.0 + np.arange(nslits)
+        extrap_blz, outpar = arpca.extrapolate(outpar, orders, function=fitfunc)
+        extrap_blz *= blzmean
+        extrap_blz *= blzmxval
+    else:
+        msgs.warn("Could not perform a PCA on the order blaze function" + msgs.newline() +
+                  "Not enough well-traced orders")
+        msgs.info("Using direct determination of the blaze function instead")
+        extrap_blz = msblaze
+    """
+    return slit_profiles, mstracenrm, extrap_blz
 
 
 def sn_frame(slf, sciframe, idx):

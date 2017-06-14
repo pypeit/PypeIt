@@ -424,7 +424,7 @@ class ScienceExposure:
                     slit_profiles, mstracenrm, msblaze, flat_ext1d, extrap_slit = \
                         arproc.slit_profile(self, self.GetMasterFrame("pixelflat", det),
                                             det, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
-                    msblaze = arproc.slit_profile_pca(self, self.GetMasterFrame("pixelflat", det), det, msblaze, extrap_slit)
+                    slit_profiles, mstracenrm, msblaze = arproc.slit_profile_pca(self, self.GetMasterFrame("pixelflat", det), det, msblaze, extrap_slit, slit_profiles)
                     mspixelflatnrm = mstracenrm.copy()
                     winpp = np.where(slit_profiles != 0.0)
                     mspixelflatnrm[winpp] /= slit_profiles[winpp]
@@ -484,7 +484,7 @@ class ScienceExposure:
                     msgs.info("Normalizing the pixel flat")
                     slit_profiles, mstracenrm, msblaze, flat_ext1d, extrap_slit = \
                         arproc.slit_profile(self, mspixelflat, det, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
-                    msblaze = arproc.slit_profile_pca(self, mspixelflat, det, msblaze, extrap_slit)
+                    slit_profiles, mstracenrm, msblaze = arproc.slit_profile_pca(self, mspixelflat, det, msblaze, extrap_slit, slit_profiles)
                     # mspixelflatnrm, msblaze = arproc.flatnorm(self, det, self.GetMasterFrame("pixelflat", det),
                     #                                         overpix=0, plotdesc="Blaze function")
                     mspixelflatnrm = mstracenrm.copy()
