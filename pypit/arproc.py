@@ -1247,7 +1247,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
     sltev = np.zeros((ntckx, nslits))
     blzev = np.zeros((msblaze.shape[0], nslits))
     """
-    extrap_ord = np.zeros(nslits, dtype=np.int)
+    extrap_slit = np.zeros(nslits, dtype=np.int)
 
     # Calculate the slit and blaze profiles
     msgs.work("Multiprocess this step")
@@ -1261,7 +1261,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         word = np.where(slf._slitpix[det - 1] == o+1)
         if word[0].size <= (ntcky+1)*(2*slf._pixwid[det - 1][o]+1):
             msgs.warn("There are not enough pixels in slit {0:d}".format(o+1))
-            extrap_ord[o] = 1.0
+            extrap_slit[o] = 1.0
             continue
         spatval = (word[1] - lordloc[word[0]])/(rordloc[word[0]] - lordloc[word[0]])
         specval = slf._tilts[det-1][word]
@@ -1275,7 +1275,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         wsp = np.where((spatval > 0.25) & (spatval < 0.75) & wcchip)
         if wsp[0].size <= (ntcky+1)*(2*slf._pixwid[det - 1][o]+1):
             msgs.warn("There are not enough pixels in slit {0:d}".format(o+1))
-            extrap_ord[o] = 1.0
+            extrap_slit[o] = 1.0
             continue
         tcky = np.linspace(min(0.0, np.min(specval[wsp])), max(1.0, np.max(specval[wsp])), ntcky)
         tcky = tcky[np.where((tcky > np.min(specval[wsp])) & (tcky < np.max(specval[wsp])))]
@@ -1292,15 +1292,15 @@ def slit_profile(slf, mstrace, det, ntcky=None):
                                                   sigma=5., maxone=False)
             blz_flat = arutils.func_val(blzspl, specval, 'polynomial')
             msblaze[:, o] = arutils.func_val(blzspl, np.linspace(0.0, 1.0, msblaze.shape[0]), 'polynomial')
-            extrap_ord[o] = 1.0
+            extrap_slit[o] = 1.0
 
         # Extract a spectrum of the trace frame
         xext = np.arange(mstrace.shape[0])
         yext = np.round(0.5 * (lordloc + rordloc)).astype(np.int)
         wcc = np.where((yext > 0) & (yext < mstrace.shape[1] - 1.0))
         blazeext[wcc[0], o] = mstrace[(xext[wcc], yext[wcc],)]
-#        if wcc[0].size != mstrace.shape[0]:
-#            allonchip[o] = 0
+        if wcc[0].size != mstrace.shape[0]:
+            extrap_slit[o] = 1.0
 
         # Calculate the slit profile
         sprof_fit = fluxval / (blz_flat + (blz_flat == 0.0))
@@ -1320,7 +1320,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
                                                   sigma=5., maxone=False)
             slt_flat = arutils.func_val(sltspl, spatval, 'polynomial')
             sltnrmval = arutils.func_val(sltspl, 0.5, 'polynomial')
-            extrap_ord[o] = 1.0
+            extrap_slit[o] = 1.0
 
         modvals = blz_flat * slt_flat
         # Normalize to the value at the centre of the slit
@@ -1388,7 +1388,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
             mstracenrm[word] /= nrmvals
     """
     # Return
-    return slit_profiles, mstracenrm, msblaze, blazeext, extrap_ord
+    return slit_profiles, mstracenrm, msblaze, blazeext, extrap_slit
 
 
 def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
@@ -1415,8 +1415,8 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
     #################
     # Parameters to include in settings file
     fitfunc = "legendre"
-    ordfit = 7
-    ofit = [5, 2, 1, 1, 0, 0, 0]
+    ordfit = 3
+    ofit = [2, 2, 2, 2]
     #################
 
     nslits = extrap_slit.size
@@ -1431,6 +1431,8 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
     blzmean /= np.max(blzmean)
     blzmean = blzmean.reshape((blzmean.size, 1))
     msblaze /= blzmean
+    blzmxvl = np.max(msblaze, axis=0).reshape((1, msblaze.shape[1]))
+    msblaze /= blzmxvl
     # Fit the blaze functions
     fitcoeff = np.ones((ordfit+1, nslits))
     for o in range(nslits):
@@ -1459,6 +1461,7 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
         # Extrapolate the remaining orders requested
         orders = 1.0 + np.arange(nslits)
         extrap_blz, outpar = arpca.extrapolate(outpar, orders, function=fitfunc)
+        extrap_blz *= blzmxvl
         extrap_blz *= blzmean
     else:
         msgs.warn("Could not perform a PCA on the order blaze function" + msgs.newline() +
