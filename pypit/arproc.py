@@ -1342,51 +1342,6 @@ def slit_profile(slf, mstrace, det, ntcky=None):
             hdu = pyfits.PrimaryHDU(diff)
             hdu.writeto("diff_{0:02d}.fits".format(det), overwrite=True)
 
-    # If requested, perform a smooth fit and extrapolation to the blaze and slit profiles
-    """
-    performExtrapolation = False
-    if performExtrapolation:
-        debugger.set_trace()
-        gds = np.where((extrap_ord == 0) & (allonchip == 1))
-        # Interpolate the spectral direction
-        fblz = interp.interp2d(yarr, evarr[gds], blzev[:, gds[0]].T, kind='cubic', bounds_error=False)
-        # Interpolate the spatial direction
-        fslt = interp.interp2d(xarr, evarr[gds], sltev[:, gds[0]].T, kind='cubic', bounds_error=False)
-
-        msblaze = fblz(np.linspace(0.0, 1.0, mstrace.shape[0]), evarr).T
-
-        if msgs._debug["slit_profile"]:
-            # sltnew = fslt(np.linspace(0.0, 1.0, ntckx), evarr).T
-            oplot = 2
-            plt.plot(yarr, blzev[:, oplot], 'k-')
-            plt.plot(np.linspace(0.0, 1.0, msblaze.shape[0]), msblaze[:, oplot], 'r-')
-            plt.show()
-
-        # Extract normalized spectra and slit profiles
-        mstracenrm = mstrace.copy()
-        for o in range(nslits):
-            lordloc = slf._lordloc[det - 1][:, o]
-            rordloc = slf._rordloc[det - 1][:, o]
-            word = np.where(slf._slitpix[det - 1] == o+1)
-            if word[0].size <= (ntcky+1)*(2*slf._pixwid[det - 1][o]+1):
-                msgs.warn("There are not enough pixels in slit {0:d}".format(o+1))
-                extrap_ord[o] = 1.0
-                maskord = np.append(maskord, o)
-                continue
-            spatval = (word[1] - lordloc[word[0]])/(rordloc[word[0]] - lordloc[word[0]])
-            specval = slf._tilts[det-1][word]
-
-            blz_flat = fblz(specval, np.array([o]))
-            slt_flat = fslt(spatval, np.array([o]))
-            sltnrmval = fslt(np.array([0.5]), np.array([o]))
-            modvals = blz_flat * slt_flat
-            # Normalize to the value at the centre of the slit
-            nrmvals = blz_flat * sltnrmval
-            if settings.argflag["reduce"]["slitprofile"]["perform"]:
-                # Leave slit_profiles as ones if the slitprofile is not being determined, otherwise, set the model.
-                slit_profiles[word] = modvals/nrmvals
-            mstracenrm[word] /= nrmvals
-    """
     # Return
     return slit_profiles, mstracenrm, msblaze, blazeext, extrap_slit
 
@@ -1415,8 +1370,8 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
     #################
     # Parameters to include in settings file
     fitfunc = "legendre"
-    ordfit = 3
-    ofit = [2, 2, 2, 2]
+    ordfit = 6
+    ofit = [2, 3, 2, 2, 1, 0, 0]
     #################
 
     nslits = extrap_slit.size
@@ -1426,13 +1381,48 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
     nspec = np.max(slf._pixwid[det - 1])*10
     specbins = np.linspace(-0.25, 1.25, nspec + 1)
     # Perform a PCA on the spectral (i.e. blaze) function
+    blzmxval = np.ones((1, nslits))
+    lorr = 0
+    for o in range(0, nslits):
+        # Find which pixels are on the slit
+        wch = np.where((slf._lordloc[det-1][:, o] > 0.0) &
+                       (slf._rordloc[det - 1][:, o] < mstrace.shape[1]-1.0))
+        cordloc = np.round(0.5 * (slf._lordloc[det - 1][:, o] + slf._rordloc[det - 1][:, o])).astype(np.int)
+        if wch[0].size < mstrace.shape[0]:
+            # The entire order is not on the chip
+            if cordloc[int(0.5*mstrace.shape[0])] < mstrace.shape[1]/2:
+                lorr = -1  # Once a full order is found, go left
+                continue
+            else:
+                lorr = +1  # Go right
+        else:
+            blzmxval[0, o] = np.mean(mstrace[wch[0], cordloc[wch]])
+        if lorr == -1:
+            # A full order has been found, go back and fill in the gaps
+            for i in range(1, o):
+                wch = np.where((slf._lordloc[det-1][:, o-i] > 0.0) &
+                               (slf._rordloc[det-1][:, o-i] < mstrace.shape[1] - 1.0))
+                # Calculate the previous order flux
+                cordloc = np.round(0.5 * (slf._lordloc[det-1][:, o-i+1] + slf._rordloc[det-1][:, o-i+1])).astype(np.int)
+                prval = np.mean(mstrace[wch[0], cordloc[wch]])
+                # Calculate the current order flux
+                cordloc = np.round(0.5 * (slf._lordloc[det-1][:, o-i] + slf._rordloc[det-1][:, o-i])).astype(np.int)
+                mnval = np.mean(mstrace[wch[0], cordloc[wch]])
+                blzmxval[0, o-i] = blzmxval[0, o-i+1] * (mnval / prval)
+            lorr = 0
+        elif lorr == +1:
+            # Calibrate the current order with the previous one
+            mnval = np.mean(mstrace[wch[0], cordloc[wch]])
+            cordloc = np.round(0.5 * (slf._lordloc[det - 1][:, o-1] + slf._rordloc[det - 1][:, o-1])).astype(np.int)
+            blzmxval[0, o] = blzmxval[0, o-1] * (mnval / np.mean(mstrace[wch[0], cordloc[wch]]))
+            lorr = 0
+
     # Calculate the mean blaze function of all good orders
     blzmean = np.mean(msblaze[:, gds[0]], axis=1)
     blzmean /= np.max(blzmean)
     blzmean = blzmean.reshape((blzmean.size, 1))
     msblaze /= blzmean
-    blzmxvl = np.max(msblaze, axis=0).reshape((1, msblaze.shape[1]))
-    msblaze /= blzmxvl
+    msblaze /= blzmxval
     # Fit the blaze functions
     fitcoeff = np.ones((ordfit+1, nslits))
     for o in range(nslits):
@@ -1461,8 +1451,8 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit):
         # Extrapolate the remaining orders requested
         orders = 1.0 + np.arange(nslits)
         extrap_blz, outpar = arpca.extrapolate(outpar, orders, function=fitfunc)
-        extrap_blz *= blzmxvl
         extrap_blz *= blzmean
+        extrap_blz *= blzmxval
     else:
         msgs.warn("Could not perform a PCA on the order blaze function" + msgs.newline() +
                   "Not enough well-traced orders")
