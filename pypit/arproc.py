@@ -1483,7 +1483,7 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
 
     # Now perform a PCA on the spatial (i.e. slit) profile
     # First generate the original model of the spatial slit profiles
-    msslits = np.zeros((nspec, nslits))
+    msslits = np.ones((nspec, nslits))
     for o in range(nslits):
         if extrap_slit[o] == 1:
             continue
@@ -1493,11 +1493,12 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
         groups = np.digitize(spatval, spatbins)
         modelw = slit_profiles[word]
         for mm in range(1, spatbins.size):
-            msslits[mm - 1, o] = modelw[groups == mm].mean()
+            tmp = modelw[groups == mm]
+            if tmp.size != 0.0:
+                msslits[mm - 1, o] = tmp.mean()
 
     # Calculate the spatial profile of all good orders
     sltmean = np.mean(msslits[:, gds[0]], axis=1)
-    sltmean /= np.max(sltmean)
     sltmean = sltmean.reshape((sltmean.size, 1))
     msslits /= sltmean
 
@@ -1519,9 +1520,10 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
     # Only do a PCA if there are enough good orders
     if np.sum(1.0 - extrap_slit) > ofit[0] + 1:
         # Perform a PCA on the tilts
-        msgs.info("Performing a PCA on the spectral blaze function")
+        msgs.info("Performing a PCA on the spatial slit profiles")
         ordsnd = np.arange(nslits) + 1.0
         xcen = spatfit[:, np.newaxis].repeat(nslits, axis=1)
+        debugger.set_trace()
         fitted, outpar = arpca.basis(xcen, sltval, fitcoeff, lnpc, ofit, x0in=ordsnd, mask=maskord, skipx0=False,
                                      function=fitfunc)
         if not msgs._debug['no_qa']:
@@ -1531,9 +1533,9 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
         extrap_slt, outpar = arpca.extrapolate(outpar, orders, function=fitfunc)
         extrap_slt *= sltmean
     else:
-        msgs.warn("Could not perform a PCA on the order blaze function" + msgs.newline() +
+        msgs.warn("Could not perform a PCA on the spatial slit profiles" + msgs.newline() +
                   "Not enough well-traced orders")
-        msgs.info("Using direct determination of the blaze function instead")
+        msgs.info("Using direct determination of the slit profiles instead")
         extrap_slt = msslits*sltmean
 
     # Normalize the trace frame, but don't remove the slit profile
