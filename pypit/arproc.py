@@ -1413,17 +1413,20 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
                                (slf._rordloc[det-1][:, o-i] < mstrace.shape[1] - 1.0))
                 # Calculate the previous order flux
                 cordloc = np.round(0.5 * (slf._lordloc[det-1][:, o-i+1] + slf._rordloc[det-1][:, o-i+1])).astype(np.int)
-                prval = np.median(mstrace[wch[0], cordloc[wch]])
+                prval = mstrace[wch[0], cordloc[wch]]
                 # Calculate the current order flux
                 cordloc = np.round(0.5 * (slf._lordloc[det-1][:, o-i] + slf._rordloc[det-1][:, o-i])).astype(np.int)
-                mnval = np.median(mstrace[wch[0], cordloc[wch]])
-                blzmxval[0, o-i] = blzmxval[0, o-i+1] * (mnval / prval)
+                mnval = mstrace[wch[0], cordloc[wch]]
+                wnz = np.where(prval != 0.0)
+                blzmxval[0, o-i] = blzmxval[0, o-i+1] * np.median(mnval[wnz] / prval[wnz])
             lorr = 0
         elif lorr == +1:
             # Calibrate the current order with the previous one
-            mnval = np.median(mstrace[wch[0], cordloc[wch]])
+            mnval = mstrace[wch[0], cordloc[wch]]
             cordloc = np.round(0.5 * (slf._lordloc[det - 1][:, o-1] + slf._rordloc[det - 1][:, o-1])).astype(np.int)
-            blzmxval[0, o] = blzmxval[0, o-1] * (mnval / np.median(mstrace[wch[0], cordloc[wch]]))
+            prval = mstrace[wch[0], cordloc[wch]]
+            wnz = np.where(prval != 0.0)
+            blzmxval[0, o] = blzmxval[0, o-1] * np.median(mnval[wnz] / prval[wnz])
             #debugger.set_trace()
             lorr = 0
 
