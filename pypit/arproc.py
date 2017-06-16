@@ -1076,7 +1076,8 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
     if settings.argflag['reduce']['flexure']['perform'] and (not standard):
         if settings.argflag['reduce']['flexure']['method'] is not None:
             flex_dict = arwave.flexure_obj(slf, det)
-            arqa.flexure(slf, det, flex_dict)
+            if not msgs._debug['no_qa']:
+                arqa.flexure(slf, det, flex_dict)
 
     # Correct Earth's motion
     if (settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']) and \
