@@ -1193,60 +1193,6 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         # The slit profile is not needed, so just do the quickest possible fit
         ntckx = 3
 
-    """
-    # Calculate the extreme bounds of all slits
-    xb, xe = None, None  #  Spatial limits
-    yb, ye = None, None  # Spectral limits
-    for o in range(nslits):
-        lordloc = slf._lordloc[det - 1][:, o]
-        rordloc = slf._rordloc[det - 1][:, o]
-        word = np.where(slf._slitpix[det - 1] == o+1)
-        if word[0].size <= (ntcky+1)*(2*slf._pixwid[det - 1][o]+1):
-            continue
-        spatval = (word[1] - lordloc[word[0]])/(rordloc[word[0]] - lordloc[word[0]])
-        specval = slf._tilts[det-1][word]
-        cordloc = 0.5 * (lordloc[word[0]] + rordloc[word[0]])
-        wcchip = ((cordloc > 0.0) & (cordloc < mstrace.shape[1]-1.0))
-        # Get spectral limits
-        wsp = np.where((spatval > 0.25) & (spatval < 0.75) & wcchip)
-        if wsp[0].size <= (ntcky+1)*(2*slf._pixwid[det - 1][o]+1):
-            continue
-        tcky = np.linspace(min(0.0, np.min(specval[wsp])), max(1.0, np.max(specval[wsp])), ntcky)
-        tcky = tcky[np.where((tcky > np.min(specval[wsp])) & (tcky < np.max(specval[wsp])))]
-        if tcky.size >= 2:
-            tb, te = min(np.min(specval), tcky[0]), max(np.max(specval), tcky[-1])
-            if yb is None:
-                yb = tb
-            elif tb < yb:
-                yb = tb
-            if ye is None:
-                ye = te
-            elif te > ye:
-                ye = te
-        # Get spatial limits
-        wch = np.where(wcchip)
-        tckx = np.linspace(min(0.0, np.min(spatval[wch])), max(1.0, np.max(spatval[wch])), ntckx)
-        tckx = tckx[np.where((tckx > np.min(spatval[wch])) & (tckx < np.max(spatval[wch])))]
-        if tckx.size >= 2:
-            tb, te = min(np.min(spatval), tckx[0]), max(np.max(spatval), tckx[-1])
-            if xb is None:
-                xb = tb
-            elif tb < xb:
-                xb = tb
-            if xe is None:
-                xe = te
-            elif te > xe:
-                xe = te
-
-    # Initialize arrays of masked orders
-    allonchip = np.ones(nslits, dtype=np.int)
-    maskord = np.array([], dtype=np.int)
-    evarr = np.arange(nslits)
-    xarr = np.linspace(xb, xe, ntckx)
-    yarr = np.linspace(yb, ye, msblaze.shape[0])
-    sltev = np.zeros((ntckx, nslits))
-    blzev = np.zeros((msblaze.shape[0], nslits))
-    """
     extrap_slit = np.zeros(nslits, dtype=np.int)
 
     # Calculate the slit and blaze profiles
@@ -1379,6 +1325,8 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
     fitfunc = "legendre"
     ordfit = 4
     ofit = [2, 3, 3, 2, 2]
+    sordfit = 2
+    sofit = [1, 3, 1]
     #################
 
     nslits = extrap_slit.size
@@ -1483,7 +1431,7 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
 
     # Now perform a PCA on the spatial (i.e. slit) profile
     # First generate the original model of the spatial slit profiles
-    msslits = np.ones((nspec, nslits))
+    msslits = np.zeros((nspec, nslits))
     mskslit = np.ones((nspec, nslits))
     for o in range(nslits):
         if extrap_slit[o] == 1:
@@ -1503,43 +1451,43 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
     # Calculate the spatial profile of all good orders
     sltmean = np.mean(msslits[:, gds[0]], axis=1)
     sltmean = sltmean.reshape((sltmean.size, 1))
-    msslits /= sltmean
+    msslits /= (sltmean + (sltmean == 0))
 
     # Fit the spatial profiles
     spatfit = 0.5*(spatbins[1:]+spatbins[:-1])
-    fitcoeff = np.ones((ordfit+1, nslits))
+    fitcoeff = np.ones((sordfit+1, nslits))
     for o in range(nslits):
         if extrap_slit[o] == 1:
             continue
-        wmask = np.where(mskslit[:, o] != 0.0)[0]
+        wmask = np.where(mskslit[:, o] == 1.0)[0]
         null, bcoeff = arutils.robust_polyfit(spatfit[wmask], msslits[wmask, o],
-                                              ordfit, function=fitfunc, sigma=2.0,
+                                              sordfit, function=fitfunc, sigma=2.0,
                                               minv=spatfit[0], maxv=spatfit[-1])
         fitcoeff[:, o] = bcoeff
 
-    lnpc = len(ofit) - 1
+    lnpc = len(sofit) - 1
     sltval = arutils.func_val(fitcoeff, spatfit, fitfunc,
                               minv=spatfit[0], maxv=spatfit[-1]).T
     # Only do a PCA if there are enough good orders
-    if np.sum(1.0 - extrap_slit) > ofit[0] + 1:
+    if np.sum(1.0 - extrap_slit) > sofit[0] + 1:
         # Perform a PCA on the tilts
         msgs.info("Performing a PCA on the spatial slit profiles")
         ordsnd = np.arange(nslits) + 1.0
         xcen = spatfit[:, np.newaxis].repeat(nslits, axis=1)
-        debugger.set_trace()
-        fitted, outpar = arpca.basis(xcen, sltval, fitcoeff, lnpc, ofit, x0in=ordsnd, mask=maskord, skipx0=False,
+        fitted, outpar = arpca.basis(xcen, sltval, fitcoeff, lnpc, sofit, x0in=ordsnd, mask=maskord, skipx0=False,
                                      function=fitfunc)
         if not msgs._debug['no_qa']:
-            arpca.pc_plot(slf, outpar, ofit, pcadesc="PCA of slit profile fits")
+            arpca.pc_plot(slf, outpar, sofit, pcadesc="PCA of slit profile fits")
         # Extrapolate the remaining orders requested
         orders = 1.0 + np.arange(nslits)
         extrap_slt, outpar = arpca.extrapolate(outpar, orders, function=fitfunc)
         extrap_slt *= sltmean
+        extrap_slt *= mskslit
     else:
         msgs.warn("Could not perform a PCA on the spatial slit profiles" + msgs.newline() +
                   "Not enough well-traced orders")
         msgs.info("Using direct determination of the slit profiles instead")
-        extrap_slt = msslits*sltmean
+        extrap_slt = (msslits*mskslit)*sltmean
 
     # Normalize the trace frame, but don't remove the slit profile
     slit_profiles = np.ones_like(mstrace)
