@@ -209,7 +209,10 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                 if 'slitprof'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
                     # First time slit profile is derived
                     msgs.info("Calculating slit profile from master trace frame")
-                    slit_profiles, mstracenrm, msblaze, flat_ext1d = arproc.slit_profile(slf, slf._mstrace[det - 1], det)
+                    slit_profiles, mstracenrm, msblaze, flat_ext1d, extrap_slit = arproc.slit_profile(slf, slf._mstrace[det - 1], det)
+                    # If some slit profiles/blaze functions need to be extrapolated, do that now
+                    if np.sum(extrap_slit) != 0.0:
+                        slit_profiles, mstracenrm, msblaze = arproc.slit_profile_pca(slf, slf._mstrace[det - 1], det, msblaze, extrap_slit)
                     slf.SetFrame(slf._slitprof, slit_profiles, det)
                     slf.SetFrame(slf._msblaze, msblaze, det)
                     # Prepare some QA for the average slit profile along the slit
