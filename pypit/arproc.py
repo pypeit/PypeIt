@@ -1484,6 +1484,7 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
     # Now perform a PCA on the spatial (i.e. slit) profile
     # First generate the original model of the spatial slit profiles
     msslits = np.ones((nspec, nslits))
+    mskslit = np.ones((nspec, nslits))
     for o in range(nslits):
         if extrap_slit[o] == 1:
             continue
@@ -1496,6 +1497,8 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
             tmp = modelw[groups == mm]
             if tmp.size != 0.0:
                 msslits[mm - 1, o] = tmp.mean()
+            else:
+                mskslit[mm - 1, o] = 0.0
 
     # Calculate the spatial profile of all good orders
     sltmean = np.mean(msslits[:, gds[0]], axis=1)
@@ -1508,7 +1511,7 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
     for o in range(nslits):
         if extrap_slit[o] == 1:
             continue
-        wmask = np.where(msslits[:, o] != 0.0)[0]
+        wmask = np.where(mskslit[:, o] != 0.0)[0]
         null, bcoeff = arutils.robust_polyfit(spatfit[wmask], msslits[wmask, o],
                                               ordfit, function=fitfunc, sigma=2.0,
                                               minv=spatfit[0], maxv=spatfit[-1])
