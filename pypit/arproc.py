@@ -818,14 +818,23 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
         if trace is None:
             extrap_slit[o] = 1
             continue
+        # Find only the good pixels
+        w = np.where((error != 0.0) & (~np.isnan(error)))
+        if w[0].size <= 2*settings.argflag['trace']['object']['order']:
+            extrap_slit[o] = 1
+            continue
         # Convert the trace locations to be a fraction of the slit length,
         # measured from the left slit edge.
         trace -= slf._lordloc[det-1][:, o]
         trace /= (slf._rordloc[det-1][:, o]-slf._lordloc[det-1][:, o])
-        msk, trccoeff[:, o] = arutils.robust_polyfit(trcxfit, trace,
+        try:
+            msk, trccoeff[:, o] = arutils.robust_polyfit(trcxfit[w], trace[w],
                                                      settings.argflag['trace']['object']['order'],
                                                      function=settings.argflag['trace']['object']['function'],
-                                                     weights=1.0 / error ** 2, minv=0.0, maxv=nspec-1.0)
+                                                     weights=1.0 / error[w] ** 2, minv=0.0, maxv=nspec-1.0)
+        except:
+            msgs.info("arproc.reduce_echelle")
+            debugger.set_trace()
     refine = 0.0
     if settings.argflag['trace']['object']['method'] == "pca":
         # Identify the orders to be extrapolated during reconstruction

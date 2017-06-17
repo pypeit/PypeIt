@@ -1871,11 +1871,12 @@ def trace_weighted(frame, ltrace, rtrace, mask=None, wght="flux"):
     extwght[rwhr] *= -rdiff[rwhr]
     # Apply mask
     if mask is not None:
-        extwght[np.where(mask[:,lidx:ridx+1] != 0)] *= 0.0
+        extwght[np.where(mask[:, lidx:ridx+1] != 0)] *= 0.0
     # Determine the weighted trace
     wghtsum = np.sum(extwght, axis=1)
-    trace = np.sum(idxarr*extwght, axis=1)/wghtsum
-    error = np.sqrt(np.sum((idxarr-trace.reshape(nspec, 1))**2 * extwght, axis=1)/wghtsum)
+    wfact = 1.0/(wghtsum + (wghtsum == 0.0))
+    trace = np.sum(idxarr*extwght, axis=1) * wfact * (wghtsum != 0)
+    error = np.sqrt(np.sum((idxarr-trace.reshape(nspec, 1))**2 * extwght, axis=1) * wfact)
     return trace, error
 
 
