@@ -1839,8 +1839,14 @@ def trace_weighted(frame, ltrace, rtrace, mask=None, wght="flux"):
     ridx = int(np.floor(np.max(rtrace)))+1
     if lidx < 0:
         lidx = 0
+    elif lidx >= nspat:
+        msgs.info("Slit is off the detector - not tracing")
+        return None, None
     if ridx >= nspat:
         ridx = nspat-1
+    elif ridx <= 0:
+        msgs.info("Slit is off the detector - not tracing")
+        return None, None
     extfram = frame[:, lidx:ridx+1]
     if isinstance(wght, (str, unicode)):
         if wght == "flux":

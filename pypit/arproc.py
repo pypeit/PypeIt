@@ -811,9 +811,13 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
     # fit the traces and perform a PCA for the refinements
     trccoeff = np.zeros((settings.argflag['trace']['object']['order']+1, nord))
     trcxfit = np.arange(nspec)
+    extrap_slit = np.zeros(nord)
     for o in range(nord):
         trace, error = artrace.trace_weighted(sciframe-bgframe, slf._lordloc[det-1][:, o], slf._rordloc[det-1][:, o],
                                               mask=slf._scimask[det-1], wght="flux")
+        if trace is None:
+            extrap_slit[o] = 1
+            continue
         # Convert the trace locations to be a fraction of the slit length,
         # measured from the left slit edge.
         trace -= slf._lordloc[det-1][:, o]
@@ -829,17 +833,24 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
         msgs.info("Performing a PCA on the object trace")
         ofit = settings.argflag['trace']['object']['params']
         lnpc = len(ofit) - 1
-        msgs.work("May need to do a check here to make sure ofit is reasonable")
+        maskord = np.where(extrap_slit == 1)[0]
+
         xcen = trcxfit[:, np.newaxis].repeat(nord, axis=1)
         trccen = arutils.func_val(trccoeff, trcxfit, settings.argflag['trace']['object']['function'],
                                   minv=0.0, maxv=nspec-1.0).T
-        fitted, outpar = arpca.basis(xcen, trccen, trccoeff, lnpc, ofit, skipx0=False,
-                                     function=settings.argflag['trace']['object']['function'])
-        if not msgs._debug['no_qa']:
-            arpca.pc_plot(slf, outpar, ofit, pcadesc="PCA of object trace")
-        # Extrapolate the remaining orders requested
-        trccen, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['object']['function'])
-        #refine = trccen-trccen[nspec//2, :].reshape((1, nord))
+        if np.sum(1.0 - extrap_slit) > ofit[0] + 1:
+            fitted, outpar = arpca.basis(xcen, trccen, trccoeff, lnpc, ofit, skipx0=False, mask=maskord,
+                                         function=settings.argflag['trace']['object']['function'])
+            if not msgs._debug['no_qa']:
+                arpca.pc_plot(slf, outpar, ofit, pcadesc="PCA of object trace")
+            # Extrapolate the remaining orders requested
+            trccen, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['object']['function'])
+            #refine = trccen-trccen[nspec//2, :].reshape((1, nord))
+        else:
+            msgs.warn("Could not perform a PCA on the object trace" + msgs.newline() +
+                      "Not enough well-traced orders")
+            msgs.info("Using direct determination of the object trace instead")
+            pass
     else:
         msgs.error("Not ready for object trace method:" + msgs.newline() +
                    settings.argflag['trace']['object']['method'])
