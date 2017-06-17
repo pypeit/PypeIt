@@ -60,6 +60,8 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     # Loop on Slits
     for sl in range(nslit):
         word = np.where(slf._slitpix[det - 1] == sl + 1)
+        if word[0].size == 0:
+            continue
         mask_slit = np.zeros(sciframe.shape, dtype=np.float)
         mask_slit[word] = 1.0
         # Loop on Objects
