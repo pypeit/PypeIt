@@ -1376,6 +1376,21 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
         lcen = lcent[ww, :].T.copy()
         rcen = rcent[ww, :].T.copy()
         extrapord = np.zeros(lcen.shape[1], dtype=np.bool)
+
+    # Remove any slits that are completely off the detector
+    nslit = lcen.shape[1]
+    mask = np.zeros(nslit)
+    for o in range(nslit):
+        if np.min(lcen[:, o]) > mstrace.shape[1]:
+            mask[o] = 1
+            msgs.info("Slit {0:d} is off the detector - ignoring this slit".format(o+1))
+        elif np.max(rcen[:, o]) < 0:
+            mask[o] = 1
+            msgs.info("Slit {0:d} is off the detector - ignoring this slit".format(o + 1))
+    wok = np.where(mask == 0)[0]
+    lcen = lcen[:, wok]
+    rcen = rcen[:, wok]
+
     # Interpolate the best solutions for all orders with a cubic spline
     #msgs.info("Interpolating the best solutions for all orders with a cubic spline")
     # zmin, zmax = arplot.zscale(binarr)
