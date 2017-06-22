@@ -993,14 +993,14 @@ def html_mf_init(f, title):
     head = html_header(title)
     f.write(head)
 
-def html_mf_pngs(setup, cbset, det, qa_root = 'QA/PNGs/'):
+
+def html_mf_pngs(setup, cbset, det):
     """ 
     Parameters
     ----------
     setup : str
     cbset : str
     det : int
-    qa_root : str, optional
 
     Returns
     -------
@@ -1013,22 +1013,37 @@ def html_mf_pngs(setup, cbset, det, qa_root = 'QA/PNGs/'):
     # QA root
     # Search for PNGs
     idval = '{:s}_{:02d}_{:s}'.format(setup, det, cbset)
-    # Slit Trace
-    slit_pngs = glob.glob(set_qa_filename(idval, 'slit_trace_qa'))
-    if len(slit_pngs) > 0:
-        href="strace_{:s}".format(idval)
-        # Link
-        links += '<li><a class="reference internal" href="#{:s}">Slit Trace {:s}</a></li>\n'.format(href, idval)
-        # Body
-        body += '<div class="section" id="{:s}">\n'.format(href)
-        body += '<h2> Slit Trace {:s} </h2>\n'.format(idval)
-        for png in slit_pngs:
-            # Remove QA
-            ifnd = png.find('QA/')
-            if ifnd < 0:
-                msgs.error("QA is expected to be in the path!")
-            body += '<img class ="research" src="{:s}" width="100%" height="auto"/>\n'.format(png[ifnd+3:])
-        body += '</div>\n'
+
+    # Organize the outputs
+    html_dict = {}
+    html_dict['strace'] = dict(fname='slit_trace_qa', ext='',
+        href='strace', label='Slit Trace')
+    html_dict['blaze'] = dict(fname='plot_orderfits_Blaze', ext='*.png',
+                               href='blaze', label='Blaze')
+    html_dict['arc_fit'] = dict(fname='arc_fit_qa', ext='',
+                              href='arc_fit', label='Arc 1D Fit')
+    html_dict['arc_tilt'] = dict(fname='plot_orderfits_Arc', ext='*.png',
+                              href='arc_tilts', label='Arc Tilts')
+
+    # Generate HTML
+    for key in ['strace', 'blaze', 'arc_fit', 'arc_tilt']:
+        png_root = set_qa_filename(idval, html_dict[key]['fname'])
+        pngs = glob.glob(png_root+html_dict[key]['ext'])
+        if len(pngs) > 0:
+            href="{:s}_{:s}".format(html_dict[key]['href'], idval)
+            # Link
+            links += '<li><a class="reference internal" href="#{:s}">{:s} {:s}</a></li>\n'.format(href, html_dict[key]['label'], idval)
+            # Body
+            body += '<div class="section" id="{:s}">\n'.format(href)
+            body += '<h2> {:s} {:s} </h2>\n'.format(html_dict[key]['label'], idval)
+            for png in pngs:
+                # Remove QA
+                ifnd = png.find('QA/')
+                if ifnd < 0:
+                    msgs.error("QA is expected to be in the path!")
+                body += '<img class ="research" src="{:s}" width="100%" height="auto"/>\n'.format(png[ifnd+3:])
+            body += '</div>\n'
+
 
     # Return
     return links, body
