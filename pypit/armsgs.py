@@ -161,7 +161,7 @@ class Messages:
         except AttributeError:
             pass
         # Master Frames
-        if self._debug['develop']:
+        if self._debug['develop'] and (self.sciexp is not None):
             from pypit import armasters
             from pypit import arparse as settings
             armasters.save_masters(self.sciexp, self.sciexp.det,
