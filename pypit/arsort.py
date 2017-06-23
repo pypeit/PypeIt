@@ -731,6 +731,9 @@ def make_dirs(fitsdict, filesort):
             os.mkdir(newdir)
             os.mkdir(newdir+'/PNGs')
         '''
+        if not os.path.exists(newdir+'/PNGs'):
+            pass
+            #os.mkdir(newdir+'/PNGs')
     else:
         os.mkdir(newdir)
         os.mkdir(newdir+'/PNGs')

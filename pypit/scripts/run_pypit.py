@@ -105,3 +105,5 @@ def main(args):
             # Get armsgs instance to terminate
             from pypit.armsgs import get_logger
             get_logger().close()
+            return 1
+    return 0

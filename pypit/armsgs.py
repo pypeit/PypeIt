@@ -167,8 +167,9 @@ class Messages:
             armasters.save_masters(self.sciexp, self.sciexp.det,
                                    settings.argflag['reduce']['masters']['setup'])
         # QA HTML
-        arqa.gen_mf_html(self.pypit_file)
-        arqa.gen_exp_html()
+        if self.pypit_file is not None:  # Likely testing
+            arqa.gen_mf_html(self.pypit_file)
+            arqa.gen_exp_html()
         # Close log
         if self._log:
             self._log.close()
