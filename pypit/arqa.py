@@ -1368,4 +1368,79 @@ def html_exp_pngs(exp_name, det):
     # Return
     return links, body
 
+def gen_mf_html(pypit_file):
+    """ Generate the HTML for a MasterFrame set
+    Parameters
+    ----------
+    pypit_file : str
 
+    Returns
+    -------
+
+    """
+    import yaml
+    # Read calib file
+    calib_file = pypit_file.replace('.pypit', '.calib')
+    with open(calib_file, 'r') as infile:
+        calib_dict = yaml.load(infile)
+    # Parse
+    setup = list(calib_dict.keys())[0]
+    dets, cbsets = [], []
+    for key in calib_dict[setup].keys():
+        if key == '--':
+            continue
+        try:
+            dets.append(int(key))
+        except ValueError:
+            cbsets.append(key)
+    # Generate MF file
+    MF_filename = 'QA/MF_{:s}.html'.format(setup)
+    body = ''
+    with open(MF_filename,'w') as f:
+        # Start
+        links = html_init(f, 'QA  Setup {:s}: MasterFrame files'.format(setup))
+        # Loop on calib_sets
+        for cbset in cbsets:
+            for det in dets:
+                # Run
+                new_links, new_body = html_mf_pngs(setup, cbset, det)
+                # Save
+                links += new_links
+                body += new_body
+        # End
+        html_end(f, body, links)
+    #
+    print("Wrote: {:s}".format(MF_filename))
+
+def gen_exp_html():
+    # Find all obj_trace files -- Not fool proof but ok
+    obj_files = glob.glob('QA/PNGs/*obj_trace.png')
+    # Parse for names
+    names = []
+    for obj_file in obj_files:
+        i0 = obj_file.rfind('/')+1
+        i1 = obj_file.rfind('_D')
+        name = obj_file[i0:i1]
+        names.append(name)
+    uni_names = np.unique(names)
+    # Loop
+    for uni_name in uni_names:
+        # Generate MF file
+        exp_filename = 'QA/{:s}.html'.format(uni_name)
+        body = ''
+        with open(exp_filename,'w') as f:
+            # Start
+            links = html_init(f, 'QA for {:s}'.format(uni_name))
+            # Loop on detector
+            for det in range(1,99):
+                # Run
+                new_links, new_body = html_exp_pngs(uni_name, det)
+                # Save
+                links += new_links
+                body += new_body
+            # End
+            html_end(f, body, links)
+        try:
+            msgs.info("Wrote: {:s}".format(exp_filename))
+        except:
+            pass

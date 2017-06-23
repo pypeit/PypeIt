@@ -1070,7 +1070,6 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
         if settings.argflag['reduce']['flexure']['method'] is not None:
             flex_dict = arwave.flexure_obj(slf, det)
             #if not msgs._debug['no_qa']:
-            debugger.set_trace()
             arqa.flexure(slf, det, flex_dict)
 
     # Correct Earth's motion

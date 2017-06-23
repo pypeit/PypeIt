@@ -55,6 +55,7 @@ class Messages:
         self._version = version
         self._verbosity = verbosity
         self.sciexp = None
+        self.pypit_file = None
         # Save the version of the code including last update information to the log file
         if self._log:
             self._log.write("------------------------------------------------------\n\n")
@@ -153,17 +154,21 @@ class Messages:
         """
         Close the log file and QA PDFs before the code exits
         """
+        from pypit import arqa
         # Close PDFs
         try:
             self.sciexp._qa.close()
         except AttributeError:
             pass
-        else:
-            if self._debug['develop']:
-                from pypit import armasters
-                from pypit import arparse as settings
-                armasters.save_masters(self.sciexp, self.sciexp.det,
-                                       settings.argflag['reduce']['masters']['setup'])
+        # Master Frames
+        if self._debug['develop']:
+            from pypit import armasters
+            from pypit import arparse as settings
+            armasters.save_masters(self.sciexp, self.sciexp.det,
+                                   settings.argflag['reduce']['masters']['setup'])
+        # QA HTML
+        arqa.gen_mf_html(self.pypit_file)
+        arqa.gen_exp_html()
         # Close log
         if self._log:
             self._log.close()
