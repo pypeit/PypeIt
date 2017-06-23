@@ -2058,8 +2058,9 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
         orders = 1.0 + np.arange(norders)
         extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
         tilts = extrap_tilt
-        if not msgs._debug['no_qa']:
-            arpca.pc_plot_arctilt(slf, tiltang, centval, tilts)
+        #if not msgs._debug['no_qa']:
+        #arpca.pc_plot_arctilt(slf, tiltang, centval, tilts)
+        arqa.pca_arctilt(slf, tiltang, centval, tilts)
     else:
         outpar = None
         msgs.warn("Could not perform a PCA when tracing the order tilts" + msgs.newline() +
@@ -2256,8 +2257,8 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             fitted, outpar = arpca.basis(xcen, tiltval, tcoeff, lnpc, ofit, weights=None,
                                          x0in=ordsnd, mask=maskrw, skipx0=False,
                                          function=settings.argflag['trace']['slits']['function'])
-            if not msgs._debug['no_qa']:
-                arpca.pc_plot(slf, outpar, ofit, pcadesc="Spectral Tilts PCA", addOne=False)
+            #if not msgs._debug['no_qa']:
+            arqa.pca_plot(slf, outpar, ofit, 'Arc', pcadesc="Spectral Tilt PCA", addOne=False)
             # Extrapolate the remaining orders requested
             orders = np.linspace(0.0, 1.0, msarc.shape[0])
             extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])

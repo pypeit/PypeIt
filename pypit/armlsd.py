@@ -206,15 +206,14 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             sciframe = sciframe[:, :, 0]
             # Extract
             msgs.info("Processing science frame")
-            debugger.set_trace()
             arproc.reduce_multislit(slf, sciframe, scidx, fitsdict, det)
 
             ###############
             # Using model sky, calculate a flexure correction
 
         # Close the QA for this object
-        if not msgs._debug['no_qa']:
-            slf._qa.close()
+        #if not msgs._debug['no_qa']:
+        #    slf._qa.close()
 
         ###############
         # Flux

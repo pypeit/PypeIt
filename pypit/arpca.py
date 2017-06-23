@@ -292,8 +292,6 @@ def pca2d(img, numpc):
     return imgpca.astype(np.float)
 
 
-################################################
-
 def pc_plot(slf, inpar, ofit, maxp=25, pcadesc="", addOne=True):
     """
     Saves quality control plots for a PCA analysis
