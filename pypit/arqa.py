@@ -1338,9 +1338,13 @@ def html_exp_pngs(exp_name, det):
                                href='otrace', label='Object Traces')
     html_dict['prof'] = dict(fname='obj_profile_qa', ext='', slit=True,
                               href='oprofile', label='Object Profiles')
+    html_dict['flex_corr'] = dict(fname='flexure_corr', ext='', slit=True,
+                             href='flex_corr', label='Flexure Cross Correlation')
+    html_dict['flex_sky'] = dict(fname='flexure_sky', ext='', slit=True,
+                                  href='flex_sky', label='Flexure Sky')
 
     # Generate HTML
-    for key in ['trace', 'prof']:
+    for key in ['trace', 'prof', 'flex_corr', 'flex_sky']:
         png_root = set_qa_filename(exp_name, html_dict[key]['fname'], det=det, slit=9999)
         if html_dict[key]['slit']:  # Kludge to handle multiple slits
             png_root = png_root.replace('S9999', 'S*')
