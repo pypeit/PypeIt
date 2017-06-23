@@ -983,19 +983,40 @@ def html_header(title):
 
     return head
 
-def html_end():
+def html_end(f, body, links=None):
+    """ Fill in the HTML file and end it
+    Parameters
+    ----------
+    f : file
+    body : str
+    links : str, optional
+    """
+    # Write links
+    if links is not None:
+        f.write(links)
+        f.write('</ul>\n')
+        f.write('<hr>\n')
+    # Write body
+    f.write(body)
+    # Finish
     end = '</body>\n'
     end += '</html>\n'
+    f.write(end)
 
     return end
 
-def html_mf_init(f, title):
+
+def html_init(f, title):
     head = html_header(title)
     f.write(head)
+    # Init links
+    links = '<h2>Quick Links</h2>\n'
+    links += '<ul>\n'
+    return links
 
 
 def html_mf_pngs(setup, cbset, det):
-    """ 
+    """ Geneate HTML for MasterFrame PNGs
     Parameters
     ----------
     setup : str
@@ -1034,6 +1055,7 @@ def html_mf_pngs(setup, cbset, det):
             # Link
             links += '<li><a class="reference internal" href="#{:s}">{:s} {:s}</a></li>\n'.format(href, html_dict[key]['label'], idval)
             # Body
+            body += '<hr>\n'
             body += '<div class="section" id="{:s}">\n'.format(href)
             body += '<h2> {:s} {:s} </h2>\n'.format(html_dict[key]['label'], idval)
             for png in pngs:
@@ -1044,9 +1066,54 @@ def html_mf_pngs(setup, cbset, det):
                 body += '<img class ="research" src="{:s}" width="100%" height="auto"/>\n'.format(png[ifnd+3:])
             body += '</div>\n'
 
-
     # Return
     return links, body
 
+
+def html_exp_pngs(exp_name, det):
+    """ 
+    Parameters
+    ----------
+    exp_name : str
+    det : int
+
+    Returns
+    -------
+    links : str
+    body : str
+
+    """
+    import os
+    links = ''
+    body = ''
+    # QA root
+
+    # Organize the outputs
+    html_dict = {}
+    html_dict['trace'] = dict(fname='obj_trace_qa', ext='',
+                               href='otrace', label='Object Traces')
+
+    # Generate HTML
+    for key in ['trace']:
+        png_root = set_qa_filename(exp_name, html_dict[key]['fname'], det=det)
+        pngs = glob.glob(png_root+html_dict[key]['ext'])
+        if len(pngs) > 0:
+            href="{:s}_{:02d}".format(html_dict[key]['href'], det)
+            # Link
+            links += '<li><a class="reference internal" href="#{:s}">{:s} {:02d}</a></li>\n'.format(href, html_dict[key]['label'], det)
+            # Body
+            body += '<hr>\n'
+            body += '<div class="section" id="{:s}">\n'.format(href)
+            body += '<h2> {:s} {:02d} </h2>\n'.format(html_dict[key]['label'], det)
+            for png in pngs:
+                # Remove QA
+                ifnd = png.find('QA/')
+                if ifnd < 0:
+                    msgs.error("QA is expected to be in the path!")
+                body += '<img class ="research" src="{:s}" width="100%" height="auto"/>\n'.format(png[ifnd+3:])
+            body += '</div>\n'
+
+    # Return
+    return links, body
 
 
