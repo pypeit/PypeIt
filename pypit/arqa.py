@@ -1090,12 +1090,16 @@ def html_exp_pngs(exp_name, det):
 
     # Organize the outputs
     html_dict = {}
-    html_dict['trace'] = dict(fname='obj_trace_qa', ext='',
+    html_dict['trace'] = dict(fname='obj_trace_qa', ext='', slit=False,
                                href='otrace', label='Object Traces')
+    html_dict['prof'] = dict(fname='obj_profile_qa', ext='', slit=True,
+                              href='oprofile', label='Object Profiles')
 
     # Generate HTML
-    for key in ['trace']:
-        png_root = set_qa_filename(exp_name, html_dict[key]['fname'], det=det)
+    for key in ['trace', 'prof']:
+        png_root = set_qa_filename(exp_name, html_dict[key]['fname'], det=det, slit=9999)
+        if html_dict[key]['slit']:  # Kludge to handle multiple slits
+            png_root = png_root.replace('S9999', 'S*')
         pngs = glob.glob(png_root+html_dict[key]['ext'])
         if len(pngs) > 0:
             href="{:s}_{:02d}".format(html_dict[key]['href'], det)
