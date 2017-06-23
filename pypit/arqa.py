@@ -1410,7 +1410,7 @@ def gen_mf_html(pypit_file):
         # End
         html_end(f, body, links)
     #
-    print("Wrote: {:s}".format(MF_filename))
+    msgs.info("Wrote: {:s}".format(MF_filename))
 
 def gen_exp_html():
     # Find all obj_trace files -- Not fool proof but ok
