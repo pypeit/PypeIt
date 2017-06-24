@@ -3464,6 +3464,17 @@ class ARMLSD(BaseArgFlag):
         v = key_bool(v)
         self.update(v)
 
+    def reduce_detnum(self, v):
+        """ Should a flux calibration be performed?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_int(v)
+        self.update(v)
+
 
     def reduce_flexure_maxshift(self, v):
         """ Maximum allowed flexure shift in pixels

@@ -654,7 +654,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     return tracedict
 
 
-def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
+def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     """
     This routine traces the locations of the slit edges
 
@@ -672,6 +672,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
       Mostly useful for echelle data where the slit edges are bent relative to
       the pixel columns. Do not set this keyword to True if slit edges are
       almost aligned with the pixel columns.
+    min_sqm : float, optional
+      Minimum error used when detecting a slit edge
 
     Returns
     -------
@@ -729,6 +731,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     else:
         # Even better would be to fit the filt/sqrt(abs(binarr)) array with a Gaussian near the maximum in each column
         msgs.info("Detecting slit edges")
+        # Generate sigma image
         sqmstrace = np.sqrt(np.abs(binarr))
         for ii in range(medrep):
             sqmstrace = ndimage.median_filter(sqmstrace, size=(3, 7))
@@ -739,7 +742,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
         filt = ndimage.sobel(sqmstrace, axis=1, mode='nearest')
         msgs.info("Applying bad pixel mask")
         filt *= (1.0 - binbpx)  # Apply to the bad pixel mask
-        siglev = np.sign(filt)*(filt**2)/sqmstrace
+        siglev = np.sign(filt)*(filt**2)/np.maximum(sqmstrace, min_sqm)
         tedges = np.zeros(binarr.shape, dtype=np.float)
         wl = np.where(siglev > +settings.argflag['trace']['slits']['sigdetect'])  # A positive gradient is a left edge
         wr = np.where(siglev < -settings.argflag['trace']['slits']['sigdetect'])  # A negative gradient is a right edge
@@ -1028,6 +1031,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
                                minv=0, maxv=binarr.shape[0]-1)
 
     msgs.info("Fitting left slit traces")
+    debugger.set_trace()
     lcoeff = np.zeros((1+settings.argflag['trace']['slits']['polyorder'], lmax-lmin+1))
     ldiffarr = np.zeros(lmax-lmin+1)
     lwghtarr = np.zeros(lmax-lmin+1)
@@ -1072,6 +1076,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
                                minv=0, maxv=binarr.shape[0]-1)
 
     msgs.info("Fitting right slit traces")
+    debugger.set_trace()
     rcoeff = np.zeros((1+settings.argflag['trace']['slits']['polyorder'], rmax-rmin+1))
     rdiffarr = np.zeros(rmax-rmin+1)
     rwghtarr = np.zeros(rmax-rmin+1)
@@ -1095,6 +1100,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
                                                        function=settings.argflag['trace']['slits']['function'],
                                                        minv=minvf, maxv=maxvf)
     # Check if no further work is needed (i.e. there only exists one order)
+    debugger.set_trace()
     if (lmax+1-lmin == 1) and (rmax+1-rmin == 1):
         # Just a single order has been identified (i.e. probably longslit)
         msgs.info("Only one slit was identified. Should be a longslit.")

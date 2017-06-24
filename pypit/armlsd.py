@@ -75,6 +75,9 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         # Loop on Detectors
         for kk in range(settings.spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
+            if 'detnum' in settings.argflag['reduce'].keys():
+                if det != settings.argflag['reduce']['detnum']:
+                    continue
             slf.det = det
             ###############
             # Get data sections
