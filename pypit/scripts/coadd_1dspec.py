@@ -70,6 +70,7 @@ def main(args, unit_test=False, path=''):
         ex_value = coadd_dict.pop('extract')
     else:
         ex_value = 'opt'
+    msgs.info("Using {:s} extraction".format(ex_value))
     # Fluxed data?
     if 'flux' in coadd_dict.keys():
         flux_value = coadd_dict.pop('flux')
@@ -118,7 +119,8 @@ def main(args, unit_test=False, path=''):
             if mtch_obj is None:
                 print("No object {:s} in file {:s}".format(iobj, fkey))
             elif len(mtch_obj) == 1:
-                #Check if optimal extraction is present in all  objects. If not, warn the user and set ex_value to 'box'.
+                #Check if optimal extraction is present in all  objects.
+                # If not, warn the user and set ex_value to 'box'.
                 hdulist = fits.open(fkey)
                 try: #In case the optimal extraction array is a NaN array
                     obj_opt_flam = hdulist[mtch_obj[0]].data['OPT_FLAM']
