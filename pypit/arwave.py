@@ -102,19 +102,23 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     #Rebin both spectra onto overlapped wavelength range
     if len(keep_idx) <= 50:
         msgs.error("Not enough overlap between sky spectra")
-
     else: #rebin onto object ALWAYS
         keep_wave = obj_skyspec.wavelength[keep_idx]
         arx_skyspec = arx_skyspec.rebin(keep_wave)
         obj_skyspec = obj_skyspec.rebin(keep_wave)
+        # Trim edges (rebinning is junk there)
+        arx_skyspec.data['flux'][0,:2] = 0.
+        arx_skyspec.data['flux'][0,-2:] = 0.
+        obj_skyspec.data['flux'][0,:2] = 0.
+        obj_skyspec.data['flux'][0,-2:] = 0.
 
     #   Normalize spectra to unit average sky count
-    #norm = (total(sky_obj)/double(nkeep))
     norm = np.sum(obj_skyspec.flux.value)/obj_skyspec.npix
     obj_skyspec.flux = obj_skyspec.flux / norm
-    #sky_obj_ivar = sky_obj_ivar*norm^2
     norm2 = np.sum(arx_skyspec.flux.value)/arx_skyspec.npix
     arx_skyspec.flux = arx_skyspec.flux / norm2
+    if (norm < 0.) or (norm2 < 0.):
+        msgs.error("Bad normalization in flexure. Crashing out..")
 
     #deal with bad pixels
     msgs.work("Need to mask bad pixels")
@@ -155,7 +159,7 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     #model = (fit[2]*(subpix_grid**2.))+(fit[1]*subpix_grid)+fit[0]
 
     if msgs._debug['flexure']:
-        debugger.xplot(arx_skyspec.wavelength, arx_sky_flux, xtwo=np.roll(obj_skyspec.wavelength,int(-1*shift)), ytwo=obj_sky_flux)
+        debugger.plot1d(arx_skyspec.wavelength, arx_sky_flux, xtwo=np.roll(obj_skyspec.wavelength,int(-1*shift)), ytwo=obj_sky_flux)
         #debugger.xplot(arx_sky.wavelength, arx_sky.flux, xtwo=np.roll(obj_sky.wavelength.value,9), ytwo=obj_sky.flux*100)
         debugger.set_trace()
 
@@ -242,7 +246,7 @@ def flexure_slit(slf, det):
 
 
 def flexure_obj(slf, det):
-    """Correct wavelengths for flexure
+    """Correct wavelengths for flexure, object by object
 
     Parameters:
     ----------
