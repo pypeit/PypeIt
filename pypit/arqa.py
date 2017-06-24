@@ -35,7 +35,7 @@ ticks_font = matplotlib.font_manager.FontProperties(family='times new roman',
 from pypit import ardebug as debugger
 
 
-def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
+def arc_fit_qa(slf, fit, outfile=None, ids_only=False, title=None):
     """
     QA for Arc spectrum
 
@@ -49,11 +49,10 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
     """
     # Outfil
     module = inspect.stack()[0][3]
-    outfile = set_qa_filename(slf.setup, module)
+    if outfile is None:
+        outfile = set_qa_filename(slf.setup, module)
     #
     arc_spec = fit['spec']
-    if outfil is not None:  # Will deprecate
-        pp = PdfPages(outfil)
 
     # Begin
     if not ids_only:
@@ -135,15 +134,8 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
 
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    if slf is not None:
-        if False:
-            slf._qa.savefig(bbox_inches='tight')
-        else:
-            plt.savefig(outfile, dpi=800)
-            plt.close()
-    else:  # FOR ARCLINES MATCH script
-        pp.savefig(bbox_inches='tight')
-        pp.close()
+    plt.savefig(outfile, dpi=800)
+    plt.close()
     return
 
 
