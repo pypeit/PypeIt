@@ -50,8 +50,11 @@ def main(args, unit_test=False):
     if unit_test is False:
         from PyQt5.QtWidgets import QApplication
         app = QApplication(sys.argv)
+        # Screen dimensions
+        width = app.desktop().screenGeometry().width()
+        scale = 2. * (width/3200.)
 
-    gui = XSpecGui(spec, unit_test=unit_test)
+    gui = XSpecGui(spec, unit_test=unit_test, screen_scale=scale)
     if unit_test is False:
         gui.show()
         app.exec_()

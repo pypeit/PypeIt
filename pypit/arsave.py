@@ -604,6 +604,10 @@ def save_2d_images(slf, fitsdict, clobber=True):
     ext = 0
     for kk in range(settings.spect['mosaic']['ndet']):
         det = kk+1
+        # Specified detector number?
+        if 'detnum' in settings.argflag['reduce'].keys():
+            if det != settings.argflag['reduce']['detnum']:
+                continue
 
         # Processed frame
         ext += 1
