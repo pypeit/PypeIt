@@ -190,12 +190,17 @@ def coaddspec_qa(ispectra, rspec, spec1d, qafile=None):
     ax.bar(edges[:-1], hist, width=((xmax-xmin)/float(n_bins)), alpha=0.5)
 
     # Coadd on individual
+    # yrange
+    medf = np.median(spec1d.flux)
+    ylim = (medf/10., 2*medf)
+    # Plot
     ax = plt.subplot(gs[1])
     for idx in range(ispectra.nspec):
         ispectra.select = idx
         ax.plot(ispectra.wavelength, ispectra.flux, alpha=0.5)#, label='individual exposure')
 
     ax.plot(spec1d.wavelength, spec1d.flux, color='black', label='coadded spectrum')
+    ax.set_ylim(ylim)
     debug=False
     if debug:
         ax.set_ylim(0., 180.)
