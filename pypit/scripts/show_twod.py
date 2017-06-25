@@ -8,6 +8,7 @@
 This script enables the viewing of a processed FITS file
 with extras.  Run above the Science/ folder.
 """
+import pdb as debugger
 
 def parser(options=None):
     import argparse
@@ -38,6 +39,9 @@ def main(args):
 
     # Setup for PYPIT imports
     from pypit import pyputils
+    from pypit import armasters
+    from pypit.arspecobj import get_slitid
+    from astropy.table import Table
     msgs = pyputils.get_dummy_logger()
     from pypit import ginga as pyp_ginga
     import pdb as debugger
@@ -51,7 +55,6 @@ def main(args):
     viewer, ch = pyp_ginga.show_image(skysub, chname='DET-{:02d}'.format(args.det))
 
     # Add slits
-    '''
     testing = False
     if testing:
         mdir = 'MF_lris_blue/'
@@ -63,7 +66,10 @@ def main(args):
     trc_hdu = fits.open(trc_file)
     lordloc = trc_hdu[1].data  # Should check name
     rordloc = trc_hdu[2].data  # Should check name
-    pyp_ginga.show_slits(viewer, ch, lordloc, rordloc)#, args.det)
+    # Get slit ids
+    stup = (trc_hdu[0].data.shape, lordloc, rordloc)
+    slit_ids = [get_slitid(stup, None, ii)[0] for ii in range(lordloc.shape[1])]
+    pyp_ginga.show_slits(viewer, ch, lordloc, rordloc, slit_ids)#, args.det)
 
     # Object traces
     spec1d_file = args.file.replace('spec2d', 'spec1d')
@@ -73,6 +79,6 @@ def main(args):
         if det_nm in hdu.name:
             tbl = Table(hdu.data)
             trace = tbl['obj_trace']
-            pyp_ginga.show_trace(viewer, ch, trace, hdu.name)
-    '''
+            obj_id = hdu.name.split('-')[0]
+            pyp_ginga.show_trace(viewer, ch, trace, obj_id, color='green') #hdu.name)
 
