@@ -147,7 +147,7 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
     return
 
 
-def coaddspec_qa(ispectra, rspec, spec1d, qafile=None):
+def coaddspec_qa(ispectra, rspec, spec1d, qafile=None, yscale=2.):
     """  QA plot for 1D coadd of spectra
 
     Parameters
@@ -158,6 +158,8 @@ def coaddspec_qa(ispectra, rspec, spec1d, qafile=None):
       Rebinned spectra with updated variance
     spec1d : XSpectrum1D
       Final coadd
+    yscale : float, optional
+      Scale median flux by this parameter for the spectral plot
 
     """
     from pypit.arcoadd import get_std_dev as gsd
@@ -192,7 +194,7 @@ def coaddspec_qa(ispectra, rspec, spec1d, qafile=None):
     # Coadd on individual
     # yrange
     medf = np.median(spec1d.flux)
-    ylim = (medf/10., 2*medf)
+    ylim = (medf/10., yscale*medf)
     # Plot
     ax = plt.subplot(gs[1])
     for idx in range(ispectra.nspec):
