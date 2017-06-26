@@ -553,6 +553,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     # Define all 5 sigma deviations as objects (should make the 5 user-defined)
     #objl, objr, bckl, bckr = arcytrace.find_objects(smth_prof, bgreg, mad)
     objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
+    if msgs._debug['trace_obj']:
+        debugger.set_trace()
     # Remove objects within x percent of the slit edge
     xp = (objr+objl)/float(trcprof.size)/2.
     gdobj = (xp < (1-xedge)) * (xp > xedge)

@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division, print_function
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
 import astropy.io.fits as pyfits
@@ -318,7 +318,7 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
     x : ndarray
     y : ndarray
     func : str
-      polynomial, legendre, chebyshev, bspline, gauss
+      polynomial, legendre, chebyshev, bspline, gaussian
     deg : int
       degree of the fit
     minv : float, optional
@@ -1199,3 +1199,83 @@ def yamlify(obj, debug=False):
     if debug:
         print(type(obj))
     return obj
+
+###########
+def fit_min(xarr, yarr, xguess, width=None):
+
+    errcode = 0
+    # Edges
+    if width is None:
+        xleft, xright = np.min(xarr), np.max(xarr)
+    else:
+        xleft = xguess - width
+        xright = xguess + width
+    idx = np.where((xarr >= xleft) & (xarr <= xright))[0]
+
+    # Setup
+    thisx = xarr[idx]
+    thisy = yarr[idx]
+
+    # Fit with Gaussian
+    coeff = func_fit(thisx-xguess, thisy, 'gaussian', 3)
+    sigma = coeff[2]
+    xbest = xguess + coeff[1]
+
+    # Could/should add a bunch of sanity checks
+    # Insist on it being a minimum
+    if coeff[0] > 0.:
+        errcode = -4
+    if (xbest < xleft) or (xbest > xright):
+        errcode = -6
+    # Return
+    return xbest
+
+
+def find_nminima(yflux, xvec=None, nfind=10, nsmooth=3, minsep=3):
+    """ 
+    Parameters
+    ----------
+    yflux
+    xvec : ndarray
+      Assumed to be ascending
+    nfind
+    nsmooth
+
+    Returns
+    -------
+
+    """
+    # Imports
+    from astropy.convolution import convolve, Gaussian1DKernel
+    # Init
+    if xvec is None:
+        xvec = np.arange(len(yflux))
+    # Gaussian smooth
+    if nsmooth is not None:
+        yflux = convolve(yflux, Gaussian1DKernel(nsmooth))#, **kwargs)
+
+    # ycopy, yderiv, ydone
+    ycopy = yflux.copy()
+    yderiv = np.roll(ycopy,1)-ycopy
+    yderiv[0] = 0.
+    ydone = np.max(ycopy)
+
+    # Find first one
+    peaks = []
+    npeak = 0
+    for kk in range(nfind):
+        imin = np.argmin(ycopy)
+        xbest = fit_min(xvec, ycopy, xvec[imin], width=5)
+        # Save
+        if npeak == 0:
+            peaks.append(xbest)
+        else:  # Check it is minsep away
+            xmin = np.min(np.abs(np.array(peaks-xbest)))
+            if xmin > minsep:
+                peaks.append(xbest)
+        #
+        noldpeak = npeak
+        npeak = len(peaks)
+        # Block out pixels within minsep
+        debugger.set_trace()
+
