@@ -81,6 +81,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
             # Setup
             setup = arsort.instr_setup(slf, det, fitsdict, setup_dict, must_exist=True)
+            slf.setup = setup
             settings.argflag['reduce']['masters']['setup'] = setup
             ###############
             # Generate master bias frame
@@ -141,8 +142,9 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._slitpix, slitpix, det)
 
                 # Save QA for slit traces
-                if not msgs._debug['no_qa']:
-                    arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det-1], extord, desc="Trace of the slit edges D{:02d}".format(det), use_slitid=det)
+                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
+                                       slf._rordpix[det-1], extord,
+                                       desc="Trace of the slit edges D{:02d}".format(det), use_slitid=det)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
             ###############
@@ -209,10 +211,6 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             ###############
             # Using model sky, calculate a flexure correction
 
-        # Close the QA for this object
-        if not msgs._debug['no_qa']:
-            slf._qa.close()
-
         ###############
         # Flux
         ###############
@@ -222,7 +220,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         msgs.info("Waited until last detector to process")
 
         msgs.work("Need to check for existing sensfunc")
-        update = slf.MasterStandard(scidx, fitsdict)
+        update = slf.MasterStandard(fitsdict)
         if update and reuseMaster:
             armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
         #

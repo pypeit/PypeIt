@@ -642,13 +642,14 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
                                   params=tracepar, tracelist=tracedict)
 
     # Save the quality control
-    if doqa and (not msgs._debug['no_qa']):
+    if doqa: # and (not msgs._debug['no_qa']):
         from pypit.arspecobj import get_objid
         objids = []
         for ii in range(nobj):
             objid, xobj = get_objid(slf, det, slitn, ii, tracedict)
             objids.append(objid)
-        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, objids, root="object_trace", normalize=False)
+        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, objids, det,
+                          root="object_trace", normalize=False)
     # Return
     return tracedict
 
@@ -2057,8 +2058,9 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
         orders = 1.0 + np.arange(norders)
         extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
         tilts = extrap_tilt
-        if not msgs._debug['no_qa']:
-            arpca.pc_plot_arctilt(slf, tiltang, centval, tilts)
+        #if not msgs._debug['no_qa']:
+        #arpca.pc_plot_arctilt(slf, tiltang, centval, tilts)
+        arqa.pca_arctilt(slf, tiltang, centval, tilts)
     else:
         outpar = None
         msgs.warn("Could not perform a PCA when tracing the order tilts" + msgs.newline() +
@@ -2255,8 +2257,8 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             fitted, outpar = arpca.basis(xcen, tiltval, tcoeff, lnpc, ofit, weights=None,
                                          x0in=ordsnd, mask=maskrw, skipx0=False,
                                          function=settings.argflag['trace']['slits']['function'])
-            if not msgs._debug['no_qa']:
-                arpca.pc_plot(slf, outpar, ofit, pcadesc="Spectral Tilts PCA", addOne=False)
+            #if not msgs._debug['no_qa']:
+            arqa.pca_plot(slf, outpar, ofit, 'Arc', pcadesc="Spectral Tilt PCA", addOne=False)
             # Extrapolate the remaining orders requested
             orders = np.linspace(0.0, 1.0, msarc.shape[0])
             extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
@@ -2405,8 +2407,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
     xdat[np.where(xdat != maskval)] *= (msarc.shape[1] - 1.0)
 
     msgs.info("Plotting arc tilt QA")
-    if not msgs._debug['no_qa']:
-        arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
+    arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
                         textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
     return tilts, satmask, outpar
 
