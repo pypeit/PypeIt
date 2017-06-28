@@ -155,11 +155,6 @@ class Messages:
         Close the log file and QA PDFs before the code exits
         """
         from pypit import arqa
-        # Close PDFs
-        try:
-            self.sciexp._qa.close()
-        except AttributeError:
-            pass
         # Master Frames
         if self._debug['develop'] and (self.sciexp is not None):
             from pypit import armasters
@@ -168,8 +163,12 @@ class Messages:
                                    settings.argflag['reduce']['masters']['setup'])
         # QA HTML
         if self.pypit_file is not None:  # Likely testing
-            arqa.gen_mf_html(self.pypit_file)
-            arqa.gen_exp_html()
+            try:
+                arqa.gen_mf_html(self.pypit_file)
+            except:  # Likely crashed real early
+                pass
+            else:
+                arqa.gen_exp_html()
         # Close log
         if self._log:
             self._log.close()

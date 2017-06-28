@@ -176,12 +176,16 @@ def sn_weight(spectra, debug=False):
         Weights to be applied to the spectra
     """
     # Setup
-    fluxes = spectra.data['flux']
-    sigs = spectra.data['sig']
-    wave = spectra.data['wave'][0,:]
+    fluxes = spectra.data['flux'].copy()
+    sigs = spectra.data['sig'].copy()
+    wave = spectra.data['wave'][0,:].copy()
+    # Mask
+    mask = sigs <= 0.
+    fluxes.mask = mask
+    sigs.mask = mask
 
     # Calculate
-    sn_val = fluxes * (1./sigs)  # Taking flux**2 biases negative values
+    sn_val = fluxes* (1./sigs)  # Taking flux**2 biases negative values
     sn_sigclip = astropy.stats.sigma_clip(sn_val, sigma=3, iters=5)
     sn = np.mean(sn_sigclip, axis=1).compressed()
     sn2 = sn**2 #S/N^2 value for each spectrum

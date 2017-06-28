@@ -12,6 +12,7 @@
 * coadd bug fix on obj name
 * Init local (i.e. object dependent) parameters in coadding
 * fix local background logic error in slit masking
+* Refactor QA PDF to PNG+HTML
 
 
 0.7 (2017-02-07)

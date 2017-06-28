@@ -35,7 +35,7 @@ ticks_font = matplotlib.font_manager.FontProperties(family='times new roman',
 from pypit import ardebug as debugger
 
 
-def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
+def arc_fit_qa(slf, fit, outfile=None, ids_only=False, title=None):
     """
     QA for Arc spectrum
 
@@ -44,16 +44,16 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
     fit : Wavelength fit
     arc_spec : ndarray
       Arc spectrum
-    outfil : str, optional
+    outfile : str, optional
       Name of output file
     """
+    # Grab the named of the method
+    method = inspect.stack()[0][3]
     # Outfil
-    module = inspect.stack()[0][3]
-    outfile = set_qa_filename(slf.setup, module)
+    if outfile is None:
+        outfile = set_qa_filename(slf.setup, method)
     #
     arc_spec = fit['spec']
-    if outfil is not None:  # Will deprecate
-        pp = PdfPages(outfil)
 
     # Begin
     if not ids_only:
@@ -135,15 +135,8 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
 
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    if slf is not None:
-        if False:
-            slf._qa.savefig(bbox_inches='tight')
-        else:
-            plt.savefig(outfile, dpi=800)
-            plt.close()
-    else:  # FOR ARCLINES MATCH script
-        pp.savefig(bbox_inches='tight')
-        pp.close()
+    plt.savefig(outfile, dpi=800)
+    plt.close()
     return
 
 
@@ -235,8 +228,8 @@ def flexure(slf, det, flex_list, slit_cen=False):
     -------
 
     """
-    # Outfile
-    module = inspect.stack()[0][3]
+    # Grab the named of the method
+    method = inspect.stack()[0][3]
     #
     for sl in range(len(slf._specobjs[det-1])):
         # Setup
@@ -255,7 +248,7 @@ def flexure(slf, det, flex_list, slit_cen=False):
         flex_dict = flex_list[sl]
 
         # Outfile
-        outfile = set_qa_filename(slf._basename, module+'_corr', det=det,
+        outfile = set_qa_filename(slf._basename, method+'_corr', det=det,
             slit=slf._specobjs[det-1][sl][0].slitid)
 
         plt.figure(figsize=(8, 5.0))
@@ -319,7 +312,7 @@ def flexure(slf, det, flex_list, slit_cen=False):
             gdsky = gdsky[idx]
 
         # Outfile
-        outfile = set_qa_filename(slf._basename, module+'_sky', det=det,
+        outfile = set_qa_filename(slf._basename, method+'_sky', det=det,
                                   slit=slf._specobjs[det-1][sl][0].slitid)
         # Figure
         plt.figure(figsize=(8, 5.0))
@@ -387,8 +380,10 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
     normalize : bool, optional
       Normalize the flat?  If not, use zscale for output
     """
-    module = inspect.stack()[0][3]
-    outfile = set_qa_filename(slf._basename, module, det=det)
+    # Grab the named of the method
+    method = inspect.stack()[0][3]
+    # Outfile name
+    outfile = set_qa_filename(slf._basename, method, det=det)
     #
     ntrc = ltrace.shape[1]
     ycen = np.arange(frame.shape[0])
@@ -467,14 +462,14 @@ def obj_profile_qa(slf, specobjs, scitrace, det):
     Parameters
     ----------
     """
-    module = inspect.stack()[0][3]
+    method = inspect.stack()[0][3]
     for sl in range(len(specobjs)):
         # Setup
         nobj = scitrace[sl]['traces'].shape[1]
         ncol = min(3, nobj)
         nrow = nobj // ncol + ((nobj % ncol) > 0)
         # Outfile
-        outfile = set_qa_filename(slf._basename, module, det=det, slit=specobjs[sl][0].slitid)
+        outfile = set_qa_filename(slf._basename, method, det=det, slit=specobjs[sl][0].slitid)
         # Plot
         plt.figure(figsize=(8, 5.0))
         plt.clf()
@@ -537,14 +532,14 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit",
       Value used in arrays to indicate a masked value
     """
     # Outfil
-    module = inspect.stack()[0][3]
+    method = inspect.stack()[0][3]
     if 'Arc' in desc:
-        module += '_Arc'
+        method += '_Arc'
     elif 'Blaze' in desc:
-        module += '_Blaze'
+        method += '_Blaze'
     else:
-        msgs.error("Should not get here")
-    outroot = set_qa_filename(slf.setup, module)
+        msgs.bug("Unknown type of order fits.  Currently prepared for Arc and Blaze")
+    outroot = set_qa_filename(slf.setup, method)
     #
     npix, nord = ydata.shape
     pages, npp = get_dimen(nord, maxp=maxp)
@@ -752,7 +747,7 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
 
 
 def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
-                  root='trace', outfil=None, normalize=True, use_slitid=None):
+                  root='trace', normalize=True, use_slitid=None):
     """ Generate a QA plot for the slit traces
 
     Parameters
@@ -771,14 +766,12 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
       A description to be used as a title for the page
     root : str, optional
       Root name for generating output file, e.g. msflat_01blue_000.fits
-    outfil : str, optional
-      Output file
     normalize: bool, optional
       Normalize the flat?  If not, use zscale for output
     """
     # Outfil
-    module = inspect.stack()[0][3]
-    outfile = set_qa_filename(slf.setup, module)
+    method = inspect.stack()[0][3]
+    outfile = set_qa_filename(slf.setup, method)
     # if outfil is None:
     #     if '.fits' in root: # Expecting name of msflat FITS file
     #         outfil = root.replace('.fits', '_trc.pdf')
@@ -881,8 +874,8 @@ def pca_plot(slf, inpar, ofit, prefix, maxp=25, pcadesc="", addOne=True):
 
     """
     # Setup
-    module = inspect.stack()[0][3]
-    outroot = set_qa_filename(slf.setup, module, prefix=prefix)
+    method = inspect.stack()[0][3]
+    outroot = set_qa_filename(slf.setup, method, prefix=prefix)
     npc = inpar['npc']+1
     pages, npp = get_dimen(npc, maxp=maxp)
     #
@@ -1017,8 +1010,8 @@ def pca_arctilt(slf, tiltang, centval, tilts, maxp=25, maskval=-999999.9):
     maskval : float, (optional)
       Value used in arrays to indicate a masked value
     """
-    module = inspect.stack()[0][3]
-    outroot = set_qa_filename(slf.setup, module)
+    method = inspect.stack()[0][3]
+    outroot = set_qa_filename(slf.setup, method)
     #
     npc = tiltang.shape[1]
     pages, npp = get_dimen(npc, maxp=maxp)
@@ -1103,13 +1096,13 @@ def set_fonts(ax):
         label.set_fontproperties(ticks_font)
 
 
-def set_qa_filename(root, module, det=None, slit=None, prefix=None):
+def set_qa_filename(root, method, det=None, slit=None, prefix=None):
     """
     Parameters
     ----------
     root : str
       Root name
-    module : str
+    method : str
       Describes the QA routine
     det : int, optional
     slit : int, optional
@@ -1121,28 +1114,28 @@ def set_qa_filename(root, module, det=None, slit=None, prefix=None):
     outfile : str
       Filename
     """
-    if module == 'slit_trace_qa':
+    if method == 'slit_trace_qa':
         outfile = 'QA/PNGs/Slit_Trace_{:s}.png'.format(root)
-    elif module == 'arc_fit_qa':
+    elif method == 'arc_fit_qa':
         outfile = 'QA/PNGs/Arc_1dfit_{:s}.png'.format(root)
-    elif module == 'plot_orderfits_Arc':  # This is root for multiple PNGs
+    elif method == 'plot_orderfits_Arc':  # This is root for multiple PNGs
         outfile = 'QA/PNGs/Arc_tilts_{:s}_'.format(root)
-    elif module == 'pca_plot':  # This is root for multiple PNGs
+    elif method == 'pca_plot':  # This is root for multiple PNGs
         outfile = 'QA/PNGs/{:s}_pca_{:s}_'.format(prefix, root)
-    elif module == 'pca_arctilt':  # This is root for multiple PNGs
+    elif method == 'pca_arctilt':  # This is root for multiple PNGs
         outfile = 'QA/PNGs/Arc_pca_{:s}_'.format(root)
-    elif module == 'plot_orderfits_Blaze':  # This is root for multiple PNGs
+    elif method == 'plot_orderfits_Blaze':  # This is root for multiple PNGs
         outfile = 'QA/PNGs/Blaze_{:s}_'.format(root)
-    elif module == 'obj_trace_qa':
+    elif method == 'obj_trace_qa':
         outfile = 'QA/PNGs/{:s}_D{:02d}_obj_trace.png'.format(root, det)
-    elif module == 'obj_profile_qa':
+    elif method == 'obj_profile_qa':
         outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_obj_prof.png'.format(root, det, slit)
-    elif module == 'flexure_corr':
+    elif method == 'flexure_corr':
         outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_flex_corr.png'.format(root, det, slit)
-    elif module == 'flexure_sky':
+    elif method == 'flexure_sky':
         outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_flex_sky.png'.format(root, det, slit)
     else:
-        msgs.error("NOT READY FOR THIS QA: {:s}".format(module))
+        msgs.error("NOT READY FOR THIS QA: {:s}".format(method))
     # Return
     return outfile
 

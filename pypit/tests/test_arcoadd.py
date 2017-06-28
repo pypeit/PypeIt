@@ -76,7 +76,7 @@ def dummy_spectra(s2n=10., seed=1234, wvmnx=None, npix=None):
         #slist.append(spec.add_noise(seed=seed))
         slist.append(dummy_spectrum(wave=wave, s2n=s2n, rstate=rstate))
     # Collate
-    dspec = collate(slist)
+    dspec = collate(slist, masking='edges')
     #
     return dspec
 
@@ -178,13 +178,13 @@ def test_scale():
     sv_high = rspec.copy()
     sn2, weights = arco.sn_weight(rspec)
     _, _ = arco.scale_spectra(rspec, sn2, hand_scale=[3., 5., 10.], scale_method='hand')
-    np.testing.assert_allclose(np.median(rspec.flux.value), 3., atol=0.01)  # Noise is random
+    np.testing.assert_allclose(np.median(rspec.flux.value[rspec.sig>0.]), 3., atol=0.01)  # Noise is random
     # Median
     rspec = sv_high.copy()
     sn2, weights = arco.sn_weight(rspec)
     _, mthd = arco.scale_spectra(rspec, sn2, scale_method='median')
     assert mthd == 'median'
-    np.testing.assert_allclose(np.median(rspec.flux.value), 1., atol=0.01)  # Noise is random
+    np.testing.assert_allclose(np.median(rspec.flux.value[rspec.sig>0.]), 1., atol=0.01)  # Noise is random
     #  Auto-none
     dspec = dummy_spectra(s2n=0.1)
     rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
