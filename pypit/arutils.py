@@ -1220,7 +1220,11 @@ def fit_min(xarr, yarr, xguess, width=None):
     guess = np.max(thisy), 0., width/2.
 
     # Fit with Gaussian
-    coeff = func_fit(thisx-xguess, thisy, 'gaussian', 3, guesses=guess)
+    try:
+        coeff = func_fit(thisx-xguess, thisy, 'gaussian', 3, guesses=guess)
+    except RuntimeError:  # Bad fit
+        errcode = -1
+        return xguess, 0., errcode
     sigma = coeff[2]
     xbest = xguess + coeff[1]
 
@@ -1231,10 +1235,10 @@ def fit_min(xarr, yarr, xguess, width=None):
     if (xbest < xleft) or (xbest > xright):
         errcode = -6
     # Return
-    return xbest, sigma
+    return xbest, sigma, errcode
 
 
-def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5):
+def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, debug=False):
     """ 
     Parameters
     ----------
@@ -1268,7 +1272,7 @@ def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5):
     npeak = 0
     for kk in range(nfind):
         imin = np.argmin(ycopy)
-        xbest, sigma = fit_min(xvec, ycopy, xvec[imin], width=5)
+        xbest, sigma, errcode = fit_min(xvec, ycopy, xvec[imin], width=5)
         #
         noldpeak = npeak
         npeak = len(peaks)
@@ -1286,14 +1290,14 @@ def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5):
             ix2 = len(xvec)
         ycopy[ix1:ix2] = ydone
         # Save
-        if npeak == 0:
+        if npeak == 0:  # Always grab at least one
             peaks.append(xbest)
             sigmas.append(sigma)
             ledges.append(ix1)
             redges.append(ix2)
         else:  # Check it is minsep away (seems like it will always be)
             xmin = np.min(np.abs(np.array(peaks-xbest)))
-            if xmin > minsep:
+            if (xmin > minsep) & (errcode >= 0):
                 peaks.append(xbest)
                 sigmas.append(sigma)
                 ledges.append(ix1)

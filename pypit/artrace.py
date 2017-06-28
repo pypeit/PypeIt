@@ -2617,7 +2617,7 @@ def slit_image(slf, det, scitrace, obj, tilts=None):
 
 
 def find_obj_minima(trcprof, fwhm=3., nsmooth=3, nfind=8, xedge=0.03,
-        sig_thresh=5., peakthresh=None, triml=2, trimr=2):
+        sig_thresh=5., peakthresh=None, triml=2, trimr=2, debug=False):
     from astropy.convolution import convolve, Gaussian1DKernel
     from astropy.stats import sigma_clip
     npix = trcprof.size
