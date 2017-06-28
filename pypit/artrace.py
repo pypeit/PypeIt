@@ -552,7 +552,13 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     #smth_prof = gaussian_filter1d(trcprof, fwhm/2.35)
     # Define all 5 sigma deviations as objects (should make the 5 user-defined)
     #objl, objr, bckl, bckr = arcytrace.find_objects(smth_prof, bgreg, mad)
-    objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
+    if 'find' in settings.argflag['trace']['object'].keys():
+        if settings.argflag['trace']['object']['find'] != 'nminima':
+            msgs.bug("Only nminima is an option right now")
+        trcprof2 = np.ma.mean(rec_sciframe, axis=0).filled(0.0)
+        objl, objr, bckl, bckr = find_obj_minima(trcprof2, triml=triml, trimr=trimr)
+    else:
+        objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
     if msgs._debug['trace_obj']:
         debugger.set_trace()
     # Remove objects within x percent of the slit edge
@@ -2608,3 +2614,58 @@ def slit_image(slf, det, scitrace, obj, tilts=None):
     slit_img[neg] *= -1
     # Return
     return slit_img
+
+
+def find_obj_minima(trcprof, fwhm=3., nsmooth=3, nfind=8, xedge=0.03,
+        sig_thresh=5., peakthresh=None, triml=2, trimr=2):
+    from astropy.convolution import convolve, Gaussian1DKernel
+    from astropy.stats import sigma_clip
+    npix = trcprof.size
+    # Smooth
+    yflux = convolve(-1*trcprof, Gaussian1DKernel(nsmooth))
+    #
+    xvec = np.arange(len(yflux))
+    # Find peaks
+    peaks, sigmas, ledges, redges = arutils.find_nminima(yflux, xvec, minsep=fwhm, nfind=nfind)
+    fint = interp.interp1d(xvec, yflux, bounds_error=False, fill_value=0.)
+    ypeaks = -1.*fint(peaks)
+    # Sky background (for significance)
+    imask = xvec == xvec
+    for ipeak in peaks:  # Mask out for sky determination
+        ibad = np.abs(xvec-ipeak) < fwhm
+        imask[ibad] = False
+    clip_yflux = sigma_clip(yflux[imask], axis=0, sigma=2.5)
+    sky_std = np.std(clip_yflux)
+    # Toss out peaks near edges
+    xp = peaks/float(npix)/2.
+    gdobj = (xp < (1-xedge)) * (xp > xedge)
+    # Keep those above the threshold
+    if np.sum(gdobj) > 1:
+        threshold = sig_thresh*sky_std
+        if peakthresh is not None:
+            threshold = max(threshold, peakthresh*max(ypeaks[gdobj]))
+        # Parse again
+        gdthresh = (ypeaks > threshold)
+        if np.any(gdthresh):  # Parse if at least one is bright enough
+            gdobj = gdobj & gdthresh
+    # Setup for finish
+    nobj = np.sum(gdobj)
+    objl = ledges[gdobj]  # Might need to set these by threshold
+    objr = redges[gdobj]
+    bck_mask = np.ones_like(trcprof).astype(int)
+    # Mask out objects
+    for ledge, redge in zip(objl,objr):
+        bck_mask[ledge:redge+1] = 0
+    # Mask out edges
+    bck_mask[0:triml] = 0
+    bck_mask[-trimr:] = 0
+    bckl = np.outer(bck_mask, np.ones(nobj))
+    bckr = bckl.copy()
+    idx = np.arange(npix).astype(int)
+    for kk,iobjr in enumerate(objr):
+        pos = idx > iobjr
+        bckl[pos,kk] = 0
+        neg = idx < objl[kk]
+        bckr[neg,kk] = 0
+    # Return
+    return objl, objr, bckl, bckr

@@ -324,7 +324,7 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
     minv : float, optional
     maxv
     w
-    guesses
+    guesses : tuple
     kwargs
 
     Returns
@@ -1216,8 +1216,11 @@ def fit_min(xarr, yarr, xguess, width=None):
     thisx = xarr[idx]
     thisy = yarr[idx]
 
+    # Guess for Gaussian
+    guess = np.max(thisy), 0., width/2.
+
     # Fit with Gaussian
-    coeff = func_fit(thisx-xguess, thisy, 'gaussian', 3)
+    coeff = func_fit(thisx-xguess, thisy, 'gaussian', 3, guesses=guess)
     sigma = coeff[2]
     xbest = xguess + coeff[1]
 
@@ -1228,10 +1231,10 @@ def fit_min(xarr, yarr, xguess, width=None):
     if (xbest < xleft) or (xbest > xright):
         errcode = -6
     # Return
-    return xbest
+    return xbest, sigma
 
 
-def find_nminima(yflux, xvec=None, nfind=10, nsmooth=3, minsep=3):
+def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5):
     """ 
     Parameters
     ----------
@@ -1261,21 +1264,42 @@ def find_nminima(yflux, xvec=None, nfind=10, nsmooth=3, minsep=3):
     ydone = np.max(ycopy)
 
     # Find first one
-    peaks = []
+    peaks, sigmas, ledges, redges = [], [], [], []
     npeak = 0
     for kk in range(nfind):
         imin = np.argmin(ycopy)
-        xbest = fit_min(xvec, ycopy, xvec[imin], width=5)
-        # Save
-        if npeak == 0:
-            peaks.append(xbest)
-        else:  # Check it is minsep away
-            xmin = np.min(np.abs(np.array(peaks-xbest)))
-            if xmin > minsep:
-                peaks.append(xbest)
+        xbest, sigma = fit_min(xvec, ycopy, xvec[imin], width=5)
         #
         noldpeak = npeak
         npeak = len(peaks)
-        # Block out pixels within minsep
-        debugger.set_trace()
+        # Find edges and
+        # Block out pixels within minsep and 2*minsep
+        x1 = (xvec < xvec[imin]-minsep) & (np.roll(yderiv,1) < 0.)
+        if np.any(x1):
+            ix1 = np.where(x1)[0][-1]
+        else:
+            ix1 = 0
+        x2 = (xvec > xvec[imin]+minsep) & (yderiv > 0.)  # Scans until increasing
+        if np.any(x2):
+            ix2 = np.where(x2)[0][0]
+        else:
+            ix2 = len(xvec)
+        ycopy[ix1:ix2] = ydone
+        # Save
+        if npeak == 0:
+            peaks.append(xbest)
+            sigmas.append(sigma)
+            ledges.append(ix1)
+            redges.append(ix2)
+        else:  # Check it is minsep away (seems like it will always be)
+            xmin = np.min(np.abs(np.array(peaks-xbest)))
+            if xmin > minsep:
+                peaks.append(xbest)
+                sigmas.append(sigma)
+                ledges.append(ix1)
+                redges.append(ix2)
+        # Any more to look for?
+        if not np.any(ycopy < ydone):
+            npeak = nfind
+    return np.array(peaks), np.array(sigmas), np.array(ledges), np.array(redges)
 

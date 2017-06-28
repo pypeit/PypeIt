@@ -1716,6 +1716,18 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
+    def trace_object_find(self, v):
+        """ What method should be used to find the objects?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        allowed = ['standard', 'nminima']
+        v = key_allowed(v, allowed)
+        self.update(v)
+
     def trace_object_order(self, v):
         """ What is the order of the polynomial function to be used to fit the object trace in each order
 
