@@ -392,7 +392,7 @@ def scale_spectra(spectra, sn2, iref=0, scale_method='auto', hand_scale=None,
     return scales, omethod
 
 
-def clean_cr(spectra, n_grow_mask=1, nsig=5.):
+def clean_cr(spectra, n_grow_mask=1, nsig=5., debug=False, **kwargs):
     """ Sigma-clips the flux arrays to remove obvious CR
 
     Parameters
@@ -438,6 +438,11 @@ def clean_cr(spectra, n_grow_mask=1, nsig=5.):
             cr1 = grow_mask(cr1, n_grow=n_grow_mask)
         msgs.info("Rejecting {:d} CRs in exposure 1".format(np.sum(cr1)))
         spectra.add_to_mask(cr1)
+        # Debug?
+        if debug:
+            debugger.plot1d(spectra.data['wave'][0,:],
+                        spectra.data['flux'][0,:], spectra.data['flux'][1,:])
+            debugger.set_trace()
     else:
         # Median of the masked arrays -- Only good for 3 or more spectra
         refflux = np.ma.median(spectra.data['flux'],axis=0)
@@ -633,7 +638,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     # -- Do this before sn2 and weights
     # -- Or be sure to reset the weights mask accordingly
     if do_cr:
-        clean_cr(rspec)
+        clean_cr(rspec, **kwargs)
 
     # S/N**2, weights
     sn2, weights = sn_weight(rspec)
