@@ -8,8 +8,7 @@ import scipy.interpolate
 from  scipy.signal import medfilt
 
 from astropy import units as u
-from astropy.io import fits
-from linetools.spectra import xspectrum1d
+from astropy.stats import sigma_clipped_stats
 
 from pypit import arload
 from pypit import armsgs
@@ -241,12 +240,22 @@ def grow_mask(initial_mask, n_grow=1):
     """
     if not isinstance(n_grow, int):
         msgs.error("n_grow must be an integer")
+    # Init
+    grow_mask = np.ma.copy(initial_mask)
+    npix = grow_mask.size
+
+    # Loop on spectra
+    bad_pix = np.where(initial_mask)[0]
+    for idx in bad_pix:
+        msk_p = idx + np.arange(-1*n_grow, n_grow+1)
+        # Restrict
+        gdp = (msk_p >= 0) & (msk_p < npix)
+        # Apply
+        grow_mask[msk_p[gdp]] = True
+    '''
     #
     bad_pix_spec = np.where(initial_mask == True)[0]
     bad_pix_loc = np.where(initial_mask == True)[1]
-    
-    grow_mask = np.ma.copy(initial_mask)
-    npix = grow_mask.shape[1]
     
     if len(bad_pix_spec) > 0:
         for i in range(0, len(bad_pix_spec)):
@@ -254,6 +263,7 @@ def grow_mask(initial_mask, n_grow=1):
                 msk_p = bad_pix_loc[i] + np.arange(-1*n_grow, n_grow+1)
                 gdp = (msk_p >= 0) & (msk_p < npix)
                 grow_mask[bad_pix_spec[i]][msk_p[gdp]] = True
+    '''
     # Return
     return grow_mask
 
@@ -278,7 +288,6 @@ def median_flux(spec, mask=None, nsig=3., niter=5, **kwargs):
     -------
     med_spec, std_spec
     """
-    from astropy.stats import sigma_clipped_stats
     #goodpix = WHERE(refivar GT 0.0 AND finite(refflux) AND finite(refivar) $
     #            AND refmask EQ 1 AND refivar LT 1.0d8)
     mean_spec, med_spec, std_spec = sigma_clipped_stats(spec.flux, sigma=nsig, iters=niter, **kwargs)
@@ -407,21 +416,49 @@ def clean_cr(spectra, n_grow_mask=1, nsig=5.):
     new_mask = first_mask.copy()
     new_mask[:] = False
 
-    # Median of the masked arrays
-    refflux = np.ma.median(spectra.data['flux'],axis=0)
-    diff = spectra.data['flux']-refflux
+    if spectra.nspec == 2:
+        msgs.info("Only 2 exposures.  Using custom procedure")
+        # Simple scaling
+        med_flux = spectra.data['flux'][0,:] / spectra.data['flux'][1,:]
+        mn_scale, med_scale, std_scale = sigma_clipped_stats(med_flux)
+        diff = spectra.data['flux'][0,:]-spectra.data['flux'][1,:]*med_scale
+        # Spec0?
+        spectra.select = 0
+        cr0 = diff > nsig*np.sqrt(spectra.data['sig'][0,:]**2 + med_scale**2 *
+            spectra.data['sig'][1,:]**2)
+        if n_grow_mask > 0:
+            cr0 = grow_mask(cr0, n_grow=n_grow_mask)
+        msgs.info("Rejecting {:d} CRs in exposure 0".format(np.sum(cr0)))
+        spectra.add_to_mask(cr0)
+        # Spec1?
+        spectra.select = 1
+        cr1 = (-1*diff) > nsig*np.sqrt(spectra.data['sig'][0,:]**2 + med_scale**2 *
+                                  spectra.data['sig'][1,:]**2)
+        if n_grow_mask > 0:
+            cr1 = grow_mask(cr1, n_grow=n_grow_mask)
+        msgs.info("Rejecting {:d} CRs in exposure 1".format(np.sum(cr1)))
+        spectra.add_to_mask(cr1)
+    else:
+        # Median of the masked arrays -- Only good for 3 or more spectra
+        refflux = np.ma.median(spectra.data['flux'],axis=0)
+        diff = spectra.data['flux']-refflux
 
-    # Loop on spectra
-    for ispec in range(spectra.nspec):
-        spectra.select = ispec
-        ivar = spectra.ivar
-        chi2 = (diff[ispec].compressed())**2 * ivar
-        badchi = (ivar > 0.0) & (chi2 > nsig**2)
-        nbad = np.sum(badchi)
-        if nbad > 0:
-            spectra.add_to_mask(badchi, compressed=True)
-            msgs.info("Rejecting {:d} CRs in exposure {:d}".format(nbad,ispec))
+        # Loop on spectra
+        for ispec in range(spectra.nspec):
+            spectra.select = ispec
+            ivar = spectra.ivar
+            chi2 = (diff[ispec].compressed())**2 * ivar
+            badchi = (ivar > 0.0) & (chi2 > nsig**2)
+            nbad = np.sum(badchi)
+            if nbad > 0:
+                # Grow?
+                if n_grow_mask > 0:
+                    badchi = grow_mask(badchi, n_grow=n_grow_mask)
+                # Mask
+                spectra.add_to_mask(badchi, compressed=True)
+                msgs.info("Rejecting {:d} CRs in exposure {:d}".format(nbad,ispec))
 
+    '''
     # Grow new mask
     if n_grow_mask > 0:
         new_mask = grow_mask(new_mask, n_grow=n_grow_mask)
@@ -430,6 +467,8 @@ def clean_cr(spectra, n_grow_mask=1, nsig=5.):
     final_mask = first_mask & new_mask
 
     return final_mask
+    '''
+    return
 
 
 def one_d_coadd(spectra, weights):
