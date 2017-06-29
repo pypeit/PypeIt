@@ -140,7 +140,7 @@ def arc_fit_qa(slf, fit, outfile=None, ids_only=False, title=None):
     return
 
 
-def coaddspec_qa(ispectra, rspec, spec1d, qafile=None, yscale=2.):
+def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=2.):
     """  QA plot for 1D coadd of spectra
 
     Parameters
@@ -167,7 +167,7 @@ def coaddspec_qa(ispectra, rspec, spec1d, qafile=None, yscale=2.):
     gs = gridspec.GridSpec(1,2)
 
     # Deviate
-    std_dev, dev_sig = gsd(rspec, spec1d)
+    std_dev, dev_sig = gsd(rspec, rmask, spec1d)
     #dev_sig = (rspec.data['flux'] - spec1d.flux) / (rspec.data['sig']**2 + spec1d.sig**2)
     #std_dev = np.std(sigma_clip(dev_sig, sigma=5, iters=2))
     flat_dev_sig = dev_sig.flatten()
