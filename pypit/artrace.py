@@ -2622,11 +2622,14 @@ def find_obj_minima(trcprof, fwhm=3., nsmooth=3, nfind=8, xedge=0.03,
     from astropy.stats import sigma_clip
     npix = trcprof.size
     # Smooth
-    yflux = convolve(-1*trcprof, Gaussian1DKernel(nsmooth))
+    if nsmooth > 0:
+        yflux = convolve(-1*trcprof, Gaussian1DKernel(nsmooth))
+    else:
+        yflux = -1*trcprof
     #
     xvec = np.arange(len(yflux))
     # Find peaks
-    peaks, sigmas, ledges, redges = arutils.find_nminima(yflux, xvec, minsep=fwhm, nfind=nfind)
+    peaks, sigmas, ledges, redges = arutils.find_nminima(yflux, xvec, minsep=fwhm, nfind=nfind, width=int(fwhm))
     fint = interp.interp1d(xvec, yflux, bounds_error=False, fill_value=0.)
     ypeaks = -1.*fint(peaks)
     # Sky background (for significance)

@@ -19,6 +19,17 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
+def test_very_close_obj():
+    """ Find objects with minima algorithm
+    """
+    # Read trace example
+    tbl = Table.read(data_path('real_close_trace.fits'))
+    trcprof = tbl['trc'].data.astype(np.float64)
+    # Call
+    objl, objr, bckl, bckr = artrace.find_obj_minima(trcprof, fwhm=3., nsmooth=0)
+    assert objl[1] == 55
+
+
 def test_objstd():
     # Read trace example
     tbl = Table.read(data_path('trc.fits'))
@@ -37,8 +48,8 @@ def test_objmin():
     tbl = Table.read(data_path('trc.fits'))
     trcprof = tbl['trc'].data.astype(np.float64)
     # Call
-    obj = artrace.find_obj_minima(trcprof, fwhm=3.5)
-    assert len(obj) == 3
+    objl, objr, bckl, bckr = artrace.find_obj_minima(trcprof, fwhm=3.5)
+    assert len(objl) == 3
 
 
 def test_npeaks():

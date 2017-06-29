@@ -1238,7 +1238,7 @@ def fit_min(xarr, yarr, xguess, width=None):
     return xbest, sigma, errcode
 
 
-def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, debug=False):
+def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5, debug=False):
     """ 
     Parameters
     ----------
@@ -1265,6 +1265,7 @@ def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, debug=False
     ycopy = yflux.copy()
     yderiv = np.roll(ycopy,1)-ycopy
     yderiv[0] = 0.
+    yderiv[-1] = 0.
     ydone = np.max(ycopy)
 
     # Find first one
@@ -1272,7 +1273,7 @@ def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, debug=False
     npeak = 0
     for kk in range(nfind):
         imin = np.argmin(ycopy)
-        xbest, sigma, errcode = fit_min(xvec, ycopy, xvec[imin], width=5)
+        xbest, sigma, errcode = fit_min(xvec, ycopy, xvec[imin], width=width)
         #
         noldpeak = npeak
         npeak = len(peaks)
@@ -1294,14 +1295,14 @@ def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, debug=False
             peaks.append(xbest)
             sigmas.append(sigma)
             ledges.append(ix1)
-            redges.append(ix2)
+            redges.append(ix2-1)
         else:  # Check it is minsep away (seems like it will always be)
             xmin = np.min(np.abs(np.array(peaks-xbest)))
             if (xmin > minsep) & (errcode >= 0):
                 peaks.append(xbest)
                 sigmas.append(sigma)
                 ledges.append(ix1)
-                redges.append(ix2)
+                redges.append(ix2-1)
         # Any more to look for?
         if not np.any(ycopy < ydone):
             npeak = nfind
