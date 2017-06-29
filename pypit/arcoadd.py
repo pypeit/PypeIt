@@ -710,10 +710,10 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
 
     # Single spectrum?
     if spectra.nspec == 1:
-        msgs.info('Only one spectrum.  Writing if desired and ending..')
+        msgs.info('Only one spectrum.  Writing, as desired, and ending..')
         if outfile is not None:
             write_to_disk(spectra, outfile)
-        return
+        return spectra
 
     # Final wavelength array
     new_wave = new_wave_grid(spectra.data['wave'], method=wave_grid_method, **kwargs)
@@ -871,9 +871,12 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     # Write to disk?
     if outfile is not None:
         write_to_disk(spec1d, outfile)
-    return
+    return spec1d
+
 
 def write_to_disk(spec1d, outfile):
+    """ Small method to write file to disk
+    """
     msgs.work("Need to include header info")
     if '.hdf5' in outfile:
         spec1d.write_to_hdf5(outfile)
