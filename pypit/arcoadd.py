@@ -157,8 +157,28 @@ def gauss1(x, parameters):
                    
     return norm * x_mask * np.exp(-0.5 * u * x_mask)
 
+def unpack_spec(spectra):
+    """ Assumes the wavelengths are already aligned
+    Parameters
+    ----------
+    spectra
 
-def sn_weight(spectra, debug=False):
+    Returns
+    -------
+    fluxes : ndarray (nspec, npix)
+      Any masked values (there should be none) are set to 0.
+    sigs : ndarray (nspec, npix)
+    wave : ndarray (npix)
+
+    """
+    fluxes = spectra.data['flux'].filled(0.)
+    sigs = spectra.data['sig'].filled(0.)
+    wave = np.array(spectra.data['wave'][0,:])
+    # Return
+    return fluxes, sigs, wave
+
+
+def sn_weight(spectra, smask, debug=False):
     """ Calculate the S/N of each input spectrum and
     create an array of weights by which to weight the
     spectra by in coadding.
@@ -167,6 +187,8 @@ def sn_weight(spectra, debug=False):
     ----------
     spectra : XSpectrum1D
         New wavelength grid
+    smask : ndarray
+        Bool mask of spectra
 
     Returns
     -------
@@ -176,16 +198,13 @@ def sn_weight(spectra, debug=False):
         Weights to be applied to the spectra
     """
     # Setup
-    fluxes = spectra.data['flux'].copy()
-    sigs = spectra.data['sig'].copy()
-    wave = spectra.data['wave'][0,:].copy()
-    # Mask
-    mask = sigs <= 0.
-    fluxes.mask = mask
-    sigs.mask = mask
+    fluxes, sigs, wave = unpack_spec(spectra)
+    # Mask locally
+    fluxes = np.ma.array(fluxes, mask=smask)
+    sigs = np.ma.array(sigs, mask=smask)
 
     # Calculate
-    sn_val = fluxes* (1./sigs)  # Taking flux**2 biases negative values
+    sn_val = fluxes*(1./sigs)  # Taking flux**2 biases negative values
     sn_sigclip = astropy.stats.sigma_clip(sn_val, sigma=3, iters=5)
     sn = np.mean(sn_sigclip, axis=1).compressed()
     sn2 = sn**2 #S/N^2 value for each spectrum
@@ -215,8 +234,10 @@ def sn_weight(spectra, debug=False):
         for spec in range(fluxes.shape[0]):
             weights[spec] = scipy.ndimage.filters.convolve(sn_med1[spec], yvals)**2
 
-    # Give weights the same mask (important later)
-    weights.mask = fluxes.mask
+    # Give weights the same mask
+    weights.mask = smask
+    # and then fill with zeros
+    weights = weights.filled(0.)
 
     # Finish
     return sn2, weights
@@ -252,23 +273,43 @@ def grow_mask(initial_mask, n_grow=1):
         gdp = (msk_p >= 0) & (msk_p < npix)
         # Apply
         grow_mask[msk_p[gdp]] = True
-    '''
-    #
-    bad_pix_spec = np.where(initial_mask == True)[0]
-    bad_pix_loc = np.where(initial_mask == True)[1]
-    
-    if len(bad_pix_spec) > 0:
-        for i in range(0, len(bad_pix_spec)):
-            if initial_mask[bad_pix_spec[i]][bad_pix_loc[i]]:
-                msk_p = bad_pix_loc[i] + np.arange(-1*n_grow, n_grow+1)
-                gdp = (msk_p >= 0) & (msk_p < npix)
-                grow_mask[bad_pix_spec[i]][msk_p[gdp]] = True
-    '''
     # Return
     return grow_mask
 
 
-def median_flux(spec, mask=None, nsig=3., niter=5, **kwargs):
+def median_ratio_flux(spec, smask, ispec, iref, nsig=3., niter=5, **kwargs):
+    """ Calculate the median ratio between two spectra
+    Parameters
+    ----------
+    spec
+    smask
+    ispec
+    iref
+    nsig
+    niter
+    kwargs
+
+    Returns
+    -------
+    med_scale : float
+      Median of reference spectrum to input spectrum
+    """
+    # Setup
+    fluxes, sigs, wave = unpack_spec(spec)
+    # Mask
+    okm = ~smask[iref,:] & ~smask[ispec,:]
+    # Insist on positive values
+    okf = (fluxes[iref,:] > 0.) & (fluxes[ispec,:] > 0)
+    allok = okm & okf
+    # Ratio
+    med_flux = fluxes[iref,allok] / fluxes[ispec,allok]
+    # Clip
+    mn_scale, med_scale, std_scale = sigma_clipped_stats(med_flux, sigma=nsig, iters=niter, **kwargs)
+    # Return
+    return med_scale
+
+
+def median_flux(spec, smask, nsig=3., niter=5, **kwargs):
     """ Calculate the characteristic, median flux of a spectrum
 
     Parameters
@@ -288,19 +329,25 @@ def median_flux(spec, mask=None, nsig=3., niter=5, **kwargs):
     -------
     med_spec, std_spec
     """
+    debugger.set_trace()   # This routine is not so useful
+    # Setup
+    fluxes, sigs, wave = unpack_spec(spec)
+    # Mask locally
+    mfluxes = np.ma.array(fluxes, mask=smask)
     #goodpix = WHERE(refivar GT 0.0 AND finite(refflux) AND finite(refivar) $
     #            AND refmask EQ 1 AND refivar LT 1.0d8)
-    mean_spec, med_spec, std_spec = sigma_clipped_stats(spec.flux, sigma=nsig, iters=niter, **kwargs)
+    mean_spec, med_spec, std_spec = sigma_clipped_stats(mfluxes, sigma=nsig, iters=niter, **kwargs)
     # Clip a bit
     #badpix = np.any([spec.flux.value < 0.5*np.abs(med_spec)])
-    badpix = spec.flux.value < 0.5*np.abs(med_spec)
-    mean_spec, med_spec, std_spec = sigma_clipped_stats(spec.flux.value, mask=badpix,
+    badpix = mfluxes.filled(0.) < 0.5*np.abs(med_spec)
+    mean_spec, med_spec, std_spec = sigma_clipped_stats(mfluxes.filled(0.), mask=badpix,
                                                         sigma=nsig, iters=niter, **kwargs)
+    debugger.set_trace()
     # Return
     return med_spec, std_spec
 
 
-def scale_spectra(spectra, sn2, iref=0, scale_method='auto', hand_scale=None,
+def scale_spectra(spectra, smask, sn2, iref=0, scale_method='auto', hand_scale=None,
                   SN_MAX_MEDSCALE=2., SN_MIN_MEDSCALE=0.5, **kwargs):
     """
     Parameters
@@ -325,7 +372,7 @@ def scale_spectra(spectra, sn2, iref=0, scale_method='auto', hand_scale=None,
     Returns
     -------
     scales : list of float or ndarray
-      Scale value (or arrays) applied to the data
+      Scale value (or arrays) that was applied to the data
     omethod : str
       Method applied (mainly useful if auto was adopted)
        'hand'
@@ -336,10 +383,10 @@ def scale_spectra(spectra, sn2, iref=0, scale_method='auto', hand_scale=None,
     med_ref = None
     rms_sn = np.sqrt(np.mean(sn2)) # Root Mean S/N**2 value for all spectra
     # Check for wavelength registration
-    gdp = np.all(~spectra.data['flux'].mask, axis=0)
-    gidx = np.where(gdp)[0]
-    if not np.isclose(spectra.data['wave'][0,gidx[0]],spectra.data['wave'][1,gidx[0]]):
-        msgs.error("Input spectra are not registered!")
+    #gdp = np.all(~spectra.data['flux'].mask, axis=0)
+    #gidx = np.where(gdp)[0]
+    #if not np.isclose(spectra.data['wave'][0,gidx[0]],spectra.data['wave'][1,gidx[0]]):
+    #    msgs.error("Input spectra are not registered!")
     # Loop on exposures
     scales = []
     for qq in range(spectra.nspec):
@@ -354,16 +401,14 @@ def scale_spectra(spectra, sn2, iref=0, scale_method='auto', hand_scale=None,
             scales.append(hand_scale[qq])
             #
         elif ((rms_sn <= SN_MAX_MEDSCALE) and (rms_sn > SN_MIN_MEDSCALE)) or scale_method=='median':
-            omethod = 'median'
-            # Reference
-            if med_ref is None:
-                spectra.select = iref
-                med_ref, std_ref = median_flux(spectra)
-            # Calc
-            spectra.select = qq
-            med_spec, std_spec = median_flux(spectra)
+            omethod = 'median_flux'
+            if qq == iref:
+                scales.append(1.)
+                continue
+            # Median ratio (reference to spectrum)
+            med_scale = median_ratio_flux(spectra, smask, qq, iref)
             # Apply
-            med_scale= np.minimum(med_ref/med_spec, 10.0)
+            med_scale= np.minimum(med_scale, 10.0)
             spectra.data['flux'][qq,:] *= med_scale
             spectra.data['sig'][qq,:] *= med_scale
             #
@@ -372,16 +417,14 @@ def scale_spectra(spectra, sn2, iref=0, scale_method='auto', hand_scale=None,
             omethod = 'none_SN'
         elif (rms_sn > SN_MAX_MEDSCALE) or scale_method=='poly':
             msgs.work("Should be using poly here, not median")
-            omethod = 'median'
-            # Reference
-            if med_ref is None:
-                spectra.select = iref
-                med_ref, std_ref = median_flux(spectra)
-            # Calc
-            spectra.select = qq
-            med_spec, std_spec = median_flux(spectra)
+            omethod = 'median_flux'
+            if qq == iref:
+                scales.append(1.)
+                continue
+            # Median ratio (reference to spectrum)
+            med_scale = median_ratio_flux(spectra, smask, qq, iref)
             # Apply
-            med_scale= np.minimum(med_ref/med_spec, 10.0)
+            med_scale= np.minimum(med_scale, 10.0)
             spectra.data['flux'][qq,:] *= med_scale
             spectra.data['sig'][qq,:] *= med_scale
             #
@@ -392,36 +435,31 @@ def scale_spectra(spectra, sn2, iref=0, scale_method='auto', hand_scale=None,
     return scales, omethod
 
 
-def clean_cr(spectra, n_grow_mask=1, nsig=5.):
+def clean_cr(spectra, smask, n_grow_mask=1, nsig=5., nrej_low=5., debug=False, **kwargs):
     """ Sigma-clips the flux arrays to remove obvious CR
 
     Parameters
     ----------
     spectra :
+    smask : ndarray
+      Data mask
     n_grow_mask : int, optional
         Number of pixels to grow the initial mask by
         on each side. Defaults to 1 pixel
     nsig : float, optional
-      Number of sigma for rejection
+      Number of sigma for rejection for CRs
 
     Returns
     -------
-    final_mask : ndarray
-        Final mask for the flux + variance arrays
     """
-    # This mask may include masked pixels (including padded ones)
-    #   We should *not* grow those
-    first_mask = spectra.data['flux'].mask.copy()
-    # New mask
-    new_mask = first_mask.copy()
-    new_mask[:] = False
+    # Init
+    fluxes, sigs, wave = unpack_spec(spectra)
+    npix = wave.size
 
     if spectra.nspec == 2:
         msgs.info("Only 2 exposures.  Using custom procedure")
-        # Simple scaling
-        med_flux = spectra.data['flux'][0,:] / spectra.data['flux'][1,:]
-        mn_scale, med_scale, std_scale = sigma_clipped_stats(med_flux)
-        diff = spectra.data['flux'][0,:]-spectra.data['flux'][1,:]*med_scale
+        '''
+        diff = fluxes[0,:] - fluxes[1,:]*med_scale
         # Spec0?
         spectra.select = 0
         cr0 = diff > nsig*np.sqrt(spectra.data['sig'][0,:]**2 + med_scale**2 *
@@ -436,18 +474,62 @@ def clean_cr(spectra, n_grow_mask=1, nsig=5.):
                                   spectra.data['sig'][1,:]**2)
         if n_grow_mask > 0:
             cr1 = grow_mask(cr1, n_grow=n_grow_mask)
-        msgs.info("Rejecting {:d} CRs in exposure 1".format(np.sum(cr1)))
         spectra.add_to_mask(cr1)
+        msgs.info("Rejecting {:d} CRs in exposure 1".format(np.sum(cr1)))
+        '''
+        # b-spline approach
+        # Package Data for convenience
+        waves = spectra.data['wave'].flatten()  # Packed 0,1
+        flux = fluxes.flatten()
+        sig = sigs.flatten()
+        #
+        gd = np.where(sig > 0.)[0]
+        srt = np.argsort(waves[gd])
+        idx = gd[srt]
+        mask, spl = arutils.robust_polyfit(waves[idx], flux[idx], 3, function='bspline',
+                weights=1./sig[gd][srt], sigma=3., maxone=False, everyn=6)
+        # Reject CR (with grow)
+        spec_fit = arutils.func_val(spl, wave, 'bspline')
+        for ii in range(2):
+            diff = fluxes[ii,:] - spec_fit
+            cr = (diff > nsig*sigs[ii,:]) & (sigs[ii,:]>0.)
+            if False:
+                debugger.plot1d(spectra.data['wave'][0,:], spectra.data['flux'][ii,:], spec_fit, xtwo=spectra.data['wave'][0,cr], ytwo=spectra.data['flux'][ii,cr], mtwo='s')
+            if n_grow_mask > 0:
+                cr = grow_mask(cr, n_grow=n_grow_mask)
+            # Mask
+            smask[ii,cr] = True
+            msgs.info("Cleaning {:d} CRs in exposure {:d}".format(np.sum(cr),ii))
+        # Reject Low
+        if nrej_low > 0.:
+            for ii in range(2):
+                diff = spec_fit - fluxes[ii,:]
+                rej_low = (diff > nrej_low*sigs[ii,:]) & (sigs[ii,:]>0.)
+                if False:
+                    debugger.plot1d(spectra.data['wave'][0,:], spectra.data['flux'][ii,:], spec_fit, xtwo=spectra.data['wave'][0,rej_low], ytwo=spectra.data['flux'][ii,rej_low], mtwo='s')
+                msgs.info("Removing {:d} low values in exposure {:d}".format(np.sum(rej_low),ii))
+                smask[ii,rej_low] = True
+        # Check
+        if False:
+            gd0 = ~smask[0,:]
+            gd1 = ~smask[1,:]
+            debugger.plot1d(wave[gd0], fluxes[0,gd0], xtwo=wave[gd1], ytwo=fluxes[1,gd1])
+            debugger.set_trace()
+
     else:
-        # Median of the masked arrays -- Only good for 3 or more spectra
-        refflux = np.ma.median(spectra.data['flux'],axis=0)
-        diff = spectra.data['flux']-refflux
+        # Median of the masked array -- Only good for 3 or more spectra
+        mflux = np.ma.array(fluxes, mask=smask)
+        refflux = np.ma.median(mflux,axis=0)
+        diff = fluxes - refflux.filled(0.)
 
         # Loop on spectra
         for ispec in range(spectra.nspec):
-            spectra.select = ispec
-            ivar = spectra.ivar
-            chi2 = (diff[ispec].compressed())**2 * ivar
+            # Generate ivar
+            gds = (~smask[ispec,:]) & (sigs[ispec,:] > 0.)
+            ivar = np.zeros(npix)
+            ivar[gds] = 1./sigs[ispec,gds]**2
+            #
+            chi2 = diff[ispec]**2 * ivar
             badchi = (ivar > 0.0) & (chi2 > nsig**2)
             nbad = np.sum(badchi)
             if nbad > 0:
@@ -455,23 +537,13 @@ def clean_cr(spectra, n_grow_mask=1, nsig=5.):
                 if n_grow_mask > 0:
                     badchi = grow_mask(badchi, n_grow=n_grow_mask)
                 # Mask
-                spectra.add_to_mask(badchi, compressed=True)
+                smask[ispec,badchi] = True
                 msgs.info("Rejecting {:d} CRs in exposure {:d}".format(nbad,ispec))
-
-    '''
-    # Grow new mask
-    if n_grow_mask > 0:
-        new_mask = grow_mask(new_mask, n_grow=n_grow_mask)
-
-    # Final mask
-    final_mask = first_mask & new_mask
-
-    return final_mask
-    '''
+    # Return
     return
 
 
-def one_d_coadd(spectra, weights):
+def one_d_coadd(spectra, smask, weights, debug=False, **kwargs):
     """ Performs a weighted coadd of the spectra in 1D.
 
     Parameters
@@ -486,27 +558,32 @@ def one_d_coadd(spectra, weights):
 
     """
     from linetools.spectra.xspectrum1d import XSpectrum1D
-    # Sum weights
-    sum_weights = np.ma.sum(weights, axis=0)
-
     # Setup
-    fluxes = spectra.data['flux']
-    variances = spectra.data['sig']**2
-    inv_variances = 1./variances
+    fluxes, sigs, wave = unpack_spec(spectra)
+    variances = (sigs > 0.) * sigs**2
+    inv_variances = (sigs > 0.)/(sigs**2 + (sigs==0.))
+
+    # Sum weights
+    mweights = np.ma.array(weights, mask=smask)
+    sum_weights = np.ma.sum(mweights, axis=0).filled(0.)
+
 
     # Coadd
-    new_flux = np.ma.sum(weights*fluxes, axis=0) / (sum_weights + (sum_weights == 0.0).astype(int))
+    new_flux = np.ma.sum(mweights*fluxes, axis=0) / (sum_weights + (sum_weights == 0.0).astype(int))
     var = (variances != 0.0).astype(float) / (inv_variances + (inv_variances == 0.0).astype(float))
-    new_var = np.ma.sum((weights**2.)*var, axis=0) / ((sum_weights + (sum_weights == 0.0).astype(int))**2.)
+    new_var = np.ma.sum((mweights**2.)*var, axis=0) / ((sum_weights + (sum_weights == 0.0).astype(int))**2.)
 
     # Replace masked values with zeros
     new_flux = new_flux.filled(0.)
     new_sig = np.sqrt(new_var.filled(0.))
 
-    # New obj
-    wv = np.array(spectra.data['wave'][0,:])
-    new_spec = XSpectrum1D.from_tuple((wv, new_flux, new_sig), masking='none')
+    # New obj (for passing around)
+    new_spec = XSpectrum1D.from_tuple((wave, new_flux, new_sig), masking='none')
 
+    if False:
+        debugger.plot1d(wave, new_flux, new_sig)
+        debugger.set_trace()
+    # Return
     return new_spec
 
 
@@ -563,7 +640,7 @@ def load_spec(files, iextensions=None, extract='opt', flux=True):
     return spectra
 
 
-def get_std_dev(irspec, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
+def get_std_dev(irspec, rmask, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
     """
     Parameters
     ----------
@@ -571,6 +648,7 @@ def get_std_dev(irspec, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
       Array of spectra
     ispec1d : XSpectrum1D
       Coadded spectum
+    rmask : ndarray
     s2n_min : float, optional
       Minimum S/N for calculating std_dev
     wvmnx : tuple, optional
@@ -584,24 +662,31 @@ def get_std_dev(irspec, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
     dev_sig: ndarray
       Deviate, relative to sigma
     """
+    # Setup
+    fluxes, sigs, wave = unpack_spec(irspec)
+    iflux = ispec1d.data['flux'][0,:].filled(0.)
+    isig = ispec1d.data['sig'][0,:].filled(0.)
+    cmask = rmask.copy()  # Starting mask
+    # Mask locally
+    mfluxes = np.ma.array(fluxes, mask=rmask)
+    msigs = np.ma.array(sigs, mask=rmask)
+    #
     msgs.work("We should restrict this to high S/N regions in the spectrum")
     # Mask on S/N_min
-    msk = ~irspec.data['flux'].mask.copy()  # TRUE = GOOD HERE!!
-    bad_s2n = np.where((irspec.data['flux'] / irspec.data['sig']) < s2n_min)
-    msk[bad_s2n] = False
+    bad_s2n = np.where(mfluxes/msigs < s2n_min)
+    cmask[bad_s2n] = True
     # Limit by wavelength?
     if wvmnx is not None:
         msgs.info("Restricting std_dev calculation to wavelengths {}".format(wvmnx))
-        bad_wv = np.any([(irspec.data['wave'] < wvmnx[0]), (irspec.data['wave'] > wvmnx[1])], axis=0)
-        msk[bad_wv] = False
+        bad_wv = np.any([(wave < wvmnx[0]), (wave > wvmnx[1])], axis=0)
+        cmask[bad_wv] = True
     # Only calculate on regions with 2 or more spectra
-    sum_msk = np.sum(msk, axis=0)
-    gdp = sum_msk > 1
-    # Here we go [note that dev_sig is still a masked array so we compress it after]
-    dev_sig = (irspec.data['flux'][:,gdp] - ispec1d.flux[gdp]) / np.sqrt(
-        irspec.data['sig'][:,gdp]**2 + ispec1d.sig[gdp]**2)
-    std_dev = np.std(astropy.stats.sigma_clip(dev_sig.compressed(), sigma=5, iters=2))
-    return std_dev, dev_sig.compressed()
+    sum_msk = np.sum(~cmask, axis=0)
+    gdp = (sum_msk > 1) & (isig > 0.)
+    # Here we go
+    dev_sig = (fluxes[:,gdp] - iflux[gdp]) / np.sqrt(sigs[:,gdp]**2 + isig[gdp]**2)
+    std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=5, iters=2))
+    return std_dev, dev_sig
 
 
 def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
@@ -621,59 +706,67 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     """
     # Init
     if niter <= 0:
-        msgs.error('Not prepared for no iterations')
+        msgs.error('Not prepared for zero iterations')
+
+    # Single spectrum?
+    if spectra.nspec == 1:
+        msgs.info('Only one spectrum.  Writing, as desired, and ending..')
+        if outfile is not None:
+            write_to_disk(spectra, outfile)
+        return spectra
+
     # Final wavelength array
     new_wave = new_wave_grid(spectra.data['wave'], method=wave_grid_method, **kwargs)
 
     # Rebin
     rspec = spectra.rebin(new_wave*u.AA, all=True, do_sig=True, grow_bad_sig=True, masking='none')
-    pre_mask = rspec.data['flux'].mask.copy()
 
-    # Clean bad CR
-    # -- Do this before sn2 and weights
-    # -- Or be sure to reset the weights mask accordingly
-    if do_cr:
-        clean_cr(rspec)
+    # Define mask -- THIS IS THE ONLY ONE TO USE
+    rmask = rspec.data['sig'].filled(0.) <= 0.
 
     # S/N**2, weights
-    sn2, weights = sn_weight(rspec)
+    sn2, weights = sn_weight(rspec, rmask)
 
-    # Scale (modifies rspec)
-    scales, omethod = scale_spectra(rspec, sn2, scale_method=scale_method, **kwargs)
+    # Scale (modifies rspec in place)
+    scales, omethod = scale_spectra(rspec, rmask, sn2, scale_method=scale_method, **kwargs)
+
+    # Clean bad CR :: Should be run *after* scaling
+    if do_cr:
+        clean_cr(rspec, rmask, **kwargs)
 
     # Initial coadd
-    spec1d = one_d_coadd(rspec, weights)
+    spec1d = one_d_coadd(rspec, rmask, weights)
 
-    # Standard deviation
-    std_dev, _ = get_std_dev(rspec, spec1d, **kwargs)
+    # Init standard deviation
+    std_dev, _ = get_std_dev(rspec, rmask, spec1d, **kwargs)
     msgs.info("Initial std_dev = {:g}".format(std_dev))
 
     iters = 0
     std_dev = 0.
     var_corr = 1.
 
+    # Scale the standard deviation
     while np.absolute(std_dev - 1.) >= 0.1 and iters < niter:
         iters += 1
         msgs.info("Iterating on coadding... iter={:d}".format(iters))
 
-        # Setup (strip out masks)
+        # Setup (strip out masks, if any)
         tspec = spec1d.copy()
         tspec.unmask()
-        newvar = tspec.data['sig'][0,:].compressed()**2  # JFH Interpolates over bad values?
-        newflux = tspec.data['flux'][0,:].compressed()
+        newvar = tspec.data['sig'][0,:].filled(0.)**2  # JFH Interpolates over bad values?
+        newflux = tspec.data['flux'][0,:].filled(0.)
         newflux_now = newflux  # JFH interpolates
         # Convenient for coadding
         uspec = rspec.copy()
         uspec.unmask()
 
-        # Loop on images to updated noise model for rejection
+        # Loop on images to update noise model for rejection
         for qq in range(rspec.nspec):
 
             # Grab full spectrum (unmasked)
-            flux = uspec.data['flux'][qq,:].compressed()
-            sig = uspec.data['sig'][qq,:].compressed()
+            flux = uspec.data['flux'][qq,:].filled(0.)
+            sig = uspec.data['sig'][qq,:].filled(0.)
             ivar = np.zeros_like(sig)
-            mask = rspec.data['flux'].mask[qq,:]
             gd = sig > 0.
             ivar[gd] = 1./sig[gd]**2
 
@@ -699,6 +792,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
             if do_offset:
                 diff1 = flux-newflux_now
                 #idum = np.where(arrmask[*, j] EQ 0, nnotmask)
+                debugger.set_trace() # GET THE MASK RIGHT!
                 nnotmask = np.sum(~mask)
                 nmed_diff = np.maximum(nnotmask//20, 10)
                 #; take out the smoothly varying piece
@@ -719,7 +813,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
             else:
                 offset = 0.
             chi2 = (flux-newflux_now - offset)**2*ivar_real
-            goodchi = (~mask) & (ivar_real > 0.0) & (chi2 <= 36.0) # AND masklam, ngd)
+            goodchi = (~rmask[qq,:]) & (ivar_real > 0.0) & (chi2 <= 36.0) # AND masklam, ngd)
             ngd = np.sum(goodchi)
             if ngd == 0:
                 goodchi = np.array([True]*flux.size)
@@ -736,21 +830,24 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
             sigrej_eff = sigrej_final*one_sigma
             chi2_cap = (flux-newflux_now - offset)**2*ivar_cap
             # Grow??
-            chi_mask = (chi2_cap > sigrej_eff**2) & (~mask)
+            chi_mask = (chi2_cap > sigrej_eff**2) & (~rmask[qq,:])
             nrej = np.sum(chi_mask)
             # Apply
             if nrej > 0:
                 msgs.info("Rejecting {:d} pixels in exposure {:d}".format(nrej,qq))
-                rspec.add_to_mask(chi_mask)
+                print(rspec.data['wave'][qq,chi_mask])
+                rmask[qq,chi_mask] = True
+                #rspec.select = qq
+                #rspec.add_to_mask(chi_mask)
             #outmask[*, j] = (arrmask[*, j] EQ 1) OR (chi2_cap GT sigrej_eff^2)
 
         # Incorporate saving of each dev/sig panel onto one page? Currently only saves last fit
         #qa_plots(wavelengths, masked_fluxes, masked_vars, new_wave, new_flux, new_var)
 
         # Coadd anew
-        spec1d = one_d_coadd(rspec, weights)
+        spec1d = one_d_coadd(rspec, rmask, weights, **kwargs)
         # Calculate std_dev
-        std_dev, _ = get_std_dev(rspec, spec1d, **kwargs)
+        std_dev, _ = get_std_dev(rspec, rmask, spec1d, **kwargs)
         #var_corr = var_corr * std_dev
         msgs.info("Desired variance correction: {:g}".format(var_corr))
         msgs.info("New standard deviation: {:g}".format(std_dev))
@@ -758,7 +855,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
             msgs.info("Correcting variance")
             for ispec in range(rspec.nspec):
                 rspec.data['sig'][ispec] *= np.sqrt(std_dev)
-            spec1d = one_d_coadd(rspec, weights)
+            spec1d = one_d_coadd(rspec, rmask, weights)
 
     if iters == 0:
         msgs.warn("No iterations on coadding done")
@@ -769,16 +866,21 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     # QA
     if qafile is not None:
         msgs.info("Writing QA file: {:s}".format(qafile))
-        arqa.coaddspec_qa(spectra, rspec, spec1d, qafile=qafile)
+        arqa.coaddspec_qa(spectra, rspec, rmask, spec1d, qafile=qafile)
 
     # Write to disk?
     if outfile is not None:
-        msgs.work("Need to include header info")
-        if '.hdf5' in outfile:
-            spec1d.write_to_hdf5(outfile)
-        elif '.fits' in outfile:
-            spec1d.write_to_fits(outfile)
+        write_to_disk(spec1d, outfile)
+    return spec1d
 
+
+def write_to_disk(spec1d, outfile):
+    """ Small method to write file to disk
+    """
+    msgs.work("Need to include header info")
+    if '.hdf5' in outfile:
+        spec1d.write_to_hdf5(outfile)
+    elif '.fits' in outfile:
+        spec1d.write_to_fits(outfile)
     return
-
 
