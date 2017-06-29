@@ -555,8 +555,12 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     if 'find' in settings.argflag['trace']['object'].keys():
         if settings.argflag['trace']['object']['find'] != 'nminima':
             msgs.bug("Only nminima is an option right now")
+        try:
+            nsmooth = settings.argflag['trace']['object']['nsmooth']
+        except KeyError:
+            nsmooth = 3
         trcprof2 = np.ma.mean(rec_sciframe, axis=0).filled(0.0)
-        objl, objr, bckl, bckr = find_obj_minima(trcprof2, triml=triml, trimr=trimr)
+        objl, objr, bckl, bckr = find_obj_minima(trcprof2, triml=triml, trimr=trimr, nsmooth=nsmooth)
     else:
         objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
     if msgs._debug['trace_obj']:
