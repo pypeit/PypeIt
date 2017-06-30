@@ -1754,6 +1754,19 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
+    def trace_object_xedge(self, v):
+        """ How close to the edge can one find an object?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_float(v)
+        if (v < 0) or (v>1):
+            msgs.error("The argument of {0:s} must be <1 and >= 0".format(get_current_name()))
+        self.update(v)
+
     def trace_slits_diffpolyorder(self, v):
         """ What is the order of the 2D function that should be used to fit
         the 2D solution for the spatial size of all slits?

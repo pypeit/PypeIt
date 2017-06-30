@@ -492,9 +492,12 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     npix = int(slf._pixwid[det-1][slitn] - triml - trimr)
     if bgreg is None:
         bgreg = npix
+    # Setup
+    if 'xedge' in settings.argflag['trace']['object'].keys():
+        xedge = settings.argflag['trace']['object']['xedge']
     # Store the trace parameters
     tracepar = dict(smthby=7, rejhilo=1, bgreg=bgreg, triml=triml, trimr=trimr,
-                    tracefunc=tracefunc, traceorder=traceorder)
+                    tracefunc=tracefunc, traceorder=traceorder, xedge=xedge)
     # Interpolate the science array onto a new grid (with constant spatial slit length)
     msgs.info("Rectifying science frame")
     xint = np.linspace(0.0, 1.0, sciframe.shape[0])
@@ -833,11 +836,19 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
             msgs.error("Unable to trace any edges"+msgs.newline()+"try a different method to trace the order edges")
     elif rcnt == 0:
         msgs.warn("Unable to find a right edge. Adding one in.")
-        edgearr[:, -1] = 2*ednum
+        # Respecting the BPM (using first column where there is no mask)
+        sum_bpm = np.sum(binbpx, axis=0)
+        gdi1 = np.max(np.where(sum_bpm == 0)[0])
+        # Apply
+        edgearr[:, gdi1] = 2*ednum
         rcnt = 1
     elif lcnt == 0:
         msgs.warn("Unable to find a left edge. Adding one in.")
-        edgearr[:, 0] = -2*ednum
+        # Respecting the BPM (using first column where there is no mask)
+        sum_bpm = np.sum(binbpx, axis=0)
+        gdi0 = np.min(np.where(sum_bpm == 0)[0])
+        # Apply
+        edgearr[:, gdi0] = -2*ednum
         lcnt = 1
     msgs.info("Assigning slit edge traces")
     # Find the most common set of edges
@@ -1043,7 +1054,6 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
                                minv=0, maxv=binarr.shape[0]-1)
 
     msgs.info("Fitting left slit traces")
-    debugger.set_trace()
     lcoeff = np.zeros((1+settings.argflag['trace']['slits']['polyorder'], lmax-lmin+1))
     ldiffarr = np.zeros(lmax-lmin+1)
     lwghtarr = np.zeros(lmax-lmin+1)
@@ -1088,7 +1098,6 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
                                minv=0, maxv=binarr.shape[0]-1)
 
     msgs.info("Fitting right slit traces")
-    debugger.set_trace()
     rcoeff = np.zeros((1+settings.argflag['trace']['slits']['polyorder'], rmax-rmin+1))
     rdiffarr = np.zeros(rmax-rmin+1)
     rwghtarr = np.zeros(rmax-rmin+1)
@@ -1112,7 +1121,6 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
                                                        function=settings.argflag['trace']['slits']['function'],
                                                        minv=minvf, maxv=maxvf)
     # Check if no further work is needed (i.e. there only exists one order)
-    debugger.set_trace()
     if (lmax+1-lmin == 1) and (rmax+1-rmin == 1):
         # Just a single order has been identified (i.e. probably longslit)
         msgs.info("Only one slit was identified. Should be a longslit.")
@@ -1632,13 +1640,6 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             badlines += 1
             trcdict = pad_dict(trcdict)
             continue
-        '''
-        if j == 74:  # KLUDGE!!!!
-            aduse[j] = False
-            badlines += 1
-            trcdict = pad_dict(trcdict)
-            continue
-        '''
         # Get the size of the slit
         sz = int(np.floor(np.abs(slf._rordloc[det-1][arcdet[j], slitnum]-slf._lordloc[det-1][arcdet[j], slitnum])/2.0)) - 2
         xtfit = np.zeros(2*sz+1)
@@ -2275,7 +2276,6 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             fitted, outpar = arpca.basis(xcen, tiltval, tcoeff, lnpc, ofit, weights=None,
                                          x0in=ordsnd, mask=maskrw, skipx0=False,
                                          function=settings.argflag['trace']['slits']['function'])
-            #if not msgs._debug['no_qa']:
             arqa.pca_plot(slf, outpar, ofit, 'Arc', pcadesc="Spectral Tilt PCA", addOne=False)
             # Extrapolate the remaining orders requested
             orders = np.linspace(0.0, 1.0, msarc.shape[0])

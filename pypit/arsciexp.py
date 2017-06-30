@@ -817,7 +817,7 @@ class ScienceExposure:
         # Save to disk
         outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(
             fitsdict['filename'][ind[0]].split('.')[0])
-        arsave.save_1d_spectra_fits(self, standard=True, outfile=outfile)
+        arsave.save_1d_spectra_fits(self, fitsdict, standard=True, outfile=outfile)
         return True
 
     '''

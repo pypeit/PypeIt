@@ -416,7 +416,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 
 
-def save_1d_spectra_fits(slf, standard=False, clobber=True, outfile=None):
+def save_1d_spectra_fits(slf, fitsdict, standard=False, clobber=True, outfile=None):
     """ Write 1D spectra to a multi-extension FITS file
 
     Parameters
@@ -428,8 +428,16 @@ def save_1d_spectra_fits(slf, standard=False, clobber=True, outfile=None):
     Returns
     -------
     """
-    # Primary header
+    # Primary hdu
     prihdu = pyfits.PrimaryHDU()
+    # Add critical data to header
+    idx = slf._idx_sci[0]
+    prihdu.header['RA'] = fitsdict['ra'][idx]
+    prihdu.header['DEC'] = fitsdict['dec'][idx]
+    prihdu.header['EXPTIME'] = fitsdict['exptime'][idx]
+    prihdu.header['MJD-OBS'] = fitsdict['time'][idx]
+    prihdu.header['DATE'] = fitsdict['date'][idx]
+    # Begin hdu list
     hdus = [prihdu]
     # Loop on detectors
     ext = 0

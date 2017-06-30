@@ -239,7 +239,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         # Write 1D spectra
         save_format = 'fits'
         if save_format == 'fits':
-            arsave.save_1d_spectra_fits(slf)
+            arsave.save_1d_spectra_fits(slf, fitsdict)
         elif save_format == 'hdf5':
             arsave.save_1d_spectra_hdf5(slf)
         else:

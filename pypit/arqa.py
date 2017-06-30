@@ -652,6 +652,9 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
     desc : str, (optional)
       A description added to the top of each page
     """
+    # Outfile
+    method = inspect.stack()[0][3]
+    outroot = set_qa_filename(slf.setup, method)
 
     npix, nord = lordloc.shape
     nbins = 40
@@ -739,7 +742,10 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
                 pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
             f.suptitle(desc + pgtxt, y=1.02, size=16)
         f.tight_layout()
-        slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
+        outfile = outroot+'{:03d}.png'.format(i)
+        plt.savefig(outfile, dpi=200)
+        plt.close()
+        #slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
         #plt.close()
         f.clf()
     del f
@@ -769,7 +775,7 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
     normalize: bool, optional
       Normalize the flat?  If not, use zscale for output
     """
-    # Outfil
+    # Outfile
     method = inspect.stack()[0][3]
     outfile = set_qa_filename(slf.setup, method)
     # if outfil is None:
@@ -1116,6 +1122,8 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None):
     """
     if method == 'slit_trace_qa':
         outfile = 'QA/PNGs/Slit_Trace_{:s}.png'.format(root)
+    elif method == 'slit_profile':
+        outfile = 'QA/PNGs/Slit_Profile_{:s}_'.format(root)
     elif method == 'arc_fit_qa':
         outfile = 'QA/PNGs/Arc_1dfit_{:s}.png'.format(root)
     elif method == 'plot_orderfits_Arc':  # This is root for multiple PNGs
@@ -1281,6 +1289,8 @@ def html_mf_pngs(setup, cbset, det):
     html_dict = {}
     html_dict['strace'] = dict(fname='slit_trace_qa', ext='',
         href='strace', label='Slit Trace')
+    html_dict['sprof'] = dict(fname='slit_profile', ext='*.png',
+                              href='sprof', label='Slit Profile')
     html_dict['blaze'] = dict(fname='plot_orderfits_Blaze', ext='*.png',
                                href='blaze', label='Blaze')
     html_dict['arc_fit'] = dict(fname='arc_fit_qa', ext='',
@@ -1291,7 +1301,7 @@ def html_mf_pngs(setup, cbset, det):
                                  href='arc_pca', label='Arc Tilt PCA')
 
     # Generate HTML
-    for key in ['strace', 'blaze', 'arc_fit', 'arc_pca', 'arc_tilt']:
+    for key in ['strace', 'sprof', 'blaze', 'arc_fit', 'arc_pca', 'arc_tilt']:
         png_root = set_qa_filename(idval, html_dict[key]['fname'])
         pngs = glob.glob(png_root+html_dict[key]['ext'])
         if len(pngs) > 0:
