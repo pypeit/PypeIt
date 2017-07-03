@@ -2077,8 +2077,6 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
         orders = 1.0 + np.arange(norders)
         extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
         tilts = extrap_tilt
-        #if not msgs._debug['no_qa']:
-        #arpca.pc_plot_arctilt(slf, tiltang, centval, tilts)
         arqa.pca_arctilt(slf, tiltang, centval, tilts)
     else:
         outpar = None

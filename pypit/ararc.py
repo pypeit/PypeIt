@@ -555,7 +555,6 @@ def calib_with_arclines(slf, det, get_poly=False, use_basic=False):
         best_dict, final_fit = semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
         #if det == 2:
         #    debugger.set_trace()
-    if not msgs._debug['no_qa']:
-        arqa.arc_fit_qa(slf, final_fit)
+    arqa.arc_fit_qa(slf, final_fit)
     #
     return final_fit

@@ -17,7 +17,6 @@ import matplotlib
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
-from matplotlib.backends.backend_pdf import PdfPages
 
 try:
     basestring
@@ -89,11 +88,7 @@ def arc_fit_qa(slf, fit, outfile=None, ids_only=False, title=None):
                      size='x-large', ha='left')#, bbox={'facecolor':'white'})
     if ids_only:
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        if outfil is not None:
-            pp.savefig(bbox_inches='tight')
-            pp.close()
-        else:
-            plt.savefig(outfile, dpi=800)
+        plt.savefig(outfile, dpi=800)
         plt.close()
         return
 
@@ -155,6 +150,7 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=2.):
       Scale median flux by this parameter for the spectral plot
 
     """
+    from matplotlib.backends.backend_pdf import PdfPages
     from pypit.arcoadd import get_std_dev as gsd
     from scipy.stats import norm
     from astropy.stats import sigma_clip
@@ -348,9 +344,7 @@ def flexure(slf, det, flex_list, slit_cen=False):
                    handletextpad=0.3, fontsize='small', numpoints=1)
 
         # Finish
-        plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        if False:
-            slf._qa.savefig(bbox_inches='tight')
+        #slf._qa.savefig(bbox_inches='tight')
         plt.savefig(outfile, dpi=800)
         plt.close()
         #plt.close()
@@ -1080,10 +1074,10 @@ def pca_arctilt(slf, tiltang, centval, tilts, maxp=25, maskval=-999999.9):
         if False:
             slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
         outfile = outroot+'{:02d}.png'.format(i)
-        f.savefig(outfile, dpi=200)
+        plt.savefig(outfile, dpi=200)
         plt.close()
-        f.clf()
-        del f
+        #f.clf()
+        #del f
     return
 
 
