@@ -548,6 +548,8 @@ def match_science(fitsdict, filesort):
                         filesort['failures'].append(iSCI[i])
                         settings.spect['science']['index'].pop(-1)
                         break
+                    elif settings.argflag['reduce']['masters']['reuse']:
+                        msgs.warn("No arc frame for {0:s}, but will use MasterFrames".format(fitsdict['target'][iSCI[i]]))
                     else:
                         msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
             else:
