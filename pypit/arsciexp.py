@@ -811,6 +811,8 @@ class ScienceExposure:
         sensfunc = arflux.generate_sensfunc(self, ind[0], all_specobj, fitsdict)
         # Set the sensitivity function
         self.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
+        # Save
+        armasters.save_sensfunc(self, settings.argflag['reduce']['masters']['setup'])
         # Apply to Standard
         arflux.apply_sensfunc(self, det, ind[0], fitsdict, standard=True)
         # Save to disk

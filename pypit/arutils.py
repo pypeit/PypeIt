@@ -1160,6 +1160,8 @@ def yamlify(obj, debug=False):
        :class:`numpy.int64` is converted to :class:`int`, etc.
     """
     import numpy as np
+    from astropy.units import Quantity
+
     if isinstance(obj, (np.float64, np.float32)):
         obj = float(obj)
     elif isinstance(obj, (np.int32, np.int64, np.int16)):
@@ -1168,8 +1170,11 @@ def yamlify(obj, debug=False):
         obj = bool(obj)
     elif isinstance(obj, (np.string_, basestring)):
         obj = str(obj)
-    # elif isinstance(obj, Quantity):
-    #     obj = dict(value=obj.value, unit=obj.unit.to_string())
+    elif isinstance(obj, Quantity):
+        try:
+            obj = obj.value.tolist()
+        except AttributeError:
+            obj = obj.value
     elif isinstance(obj, np.ndarray):  # Must come after Quantity
         obj = obj.tolist()
     elif isinstance(obj, dict):
