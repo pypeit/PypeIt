@@ -11,13 +11,11 @@ from pypit import pyputils
 import pypit
 msgs = pyputils.get_dummy_logger()
 
-#from xastropy.xutils import afits as xafits
-#from xastropy.xutils import xdebug as xdb
-
 #def data_path(filename):
 #    data_dir = os.path.join(os.path.dirname(__file__), 'files')
 #    return os.path.join(data_dir, filename)
 
+# def test_load_specobj -- See test_arload.py
 
 def test_objnm_to_dict():
     from pypit import arspecobj as aspobj

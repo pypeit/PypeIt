@@ -376,6 +376,7 @@ def generate_sensfunc(slf, stdidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=
 
     Parameters
     ----------
+    slf : 
     stdidx : int
       index for standard  (may not be necessary) -- Differs from scidx!!
     specobjs : list

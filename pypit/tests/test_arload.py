@@ -28,6 +28,12 @@ def test_load_headers():
     assert len(headers) == 2
     assert headers[0][0]['OBJECT'] == 'Arcs'
 
+def test_load_specobj():
+    spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
+    specobjs = arl.load_specobj(spec_file)
+    # Test
+    assert isinstance(specobjs, list)
+    assert len(specobjs[0].boxcar['counts']) == 1199
 
 def test_load_1dspec():
     from linetools.spectra.xspectrum1d import XSpectrum1D

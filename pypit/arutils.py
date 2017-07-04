@@ -158,6 +158,7 @@ def dummy_fitsdict(nfile=10, spectrograph='kast_blue', directory='./'):
     fitsdict['dichroic'] = ['560'] * nfile
     fitsdict['dispangle'] = ['none'] * nfile
     fitsdict["binning"] = ['1x1']*nfile
+    fitsdict["airmass"] = [1.0]*nfile
     #
     if spectrograph == 'kast_blue':
         fitsdict['numamplifiers'] = [1] * nfile
@@ -177,6 +178,7 @@ def dummy_fitsdict(nfile=10, spectrograph='kast_blue', directory='./'):
         fitsdict['exptime'][3] = 30     # flat
         fitsdict['ra'][4] = '05:06:36.6'  # Standard
         fitsdict['dec'][4] = '52:52:01.0'
+        fitsdict['airmass'][4] = 1.2
         fitsdict['ra'][5] = '07:06:23.45' # Random object
         fitsdict['dec'][5] = '+30:20:50.5'
         fitsdict['decker'] = ['0.5 arcsec'] * nfile
