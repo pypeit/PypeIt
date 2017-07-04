@@ -21,6 +21,13 @@ standard star's counts per second. This is then multiplied to the
 science object's counts per second to yield a fluxed science
 spectrum.
 
+The sensitivity function is written to disk as a YAML file
+in the MasterFrames folder with prefix MasterSensFunc.
+There is only one file per setup (not per detector).  If one
+has a previous file, this can be placed in the MasterFrames
+folder to be loaded (one must turn on MasterFrame usage, e.g.
+with the -m flag on run_pypit).
+
 Fluxing Output
 ==============
 
