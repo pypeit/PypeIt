@@ -327,7 +327,7 @@ def load_master(name, exten=0, frametype='<None>'):
         data = hdu[exten].data.astype(np.float)
         return data, head
         #return np.array(infile[0].data, dtype=np.float)
-    else:
+    elif frametype == 'wave_calib':
         from linetools import utils as ltu
         msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
         if frametype == 'wv_calib':
@@ -340,6 +340,9 @@ def load_master(name, exten=0, frametype='<None>'):
             data = hdu[exten].data.astype(np.float)
             return data, head
         #return np.array(pyfits.getdata(name, 0), dtype=np.float)
+    elif frametype == 'sensfunc':
+    else:
+        msgs.bug("Bad frametype for MastersFrame")
 
 
 def load_ordloc(fname):

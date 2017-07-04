@@ -18,6 +18,7 @@ from pypit import armsgs
 from pypit import arproc
 from pypit import arsort
 from pypit import arutils
+from pypit import arsave
 
 from pypit import ardebug as debugger
 
@@ -770,52 +771,59 @@ class ScienceExposure:
         -------
         boolean : bool
         """
-        from pypit import arsave
+        if self._sensfunc is not None:
+            msgs.info("Using existing sensitivity function.")
+            sensfunc = self._sensfunc
+        else:
+            # Attempt to load the Master Frame
+            if settings.argflag['reduce']['masters']['reuse']:
+                sfunc_name = armasters.master_name('sensfunc',
+                    settings.argflag['reduce']['masters']['setup'])
+                try:
+                    sensfunc = arload.load_master(sfunc_name, frametype="sensfunc")
+                except (IOError, ValueError):
+                    msgs.warn("No MasterSensFunc data found {:s}".format(sfunc_name))
+                else:
+                    settings.argflag['reduce']['masters']['loaded'].append('sensfunc'+settings.argflag['reduce']['masters']['setup'][0])
+            else:
+                # Grab the standard star frames
+                msgs.info("Preparing the standard")
+                ind = self._idx_std
+                msgs.warn("Taking only the first standard frame for now")
+                ind = [ind[0]]
+                # Extract
+                all_specobj = []
+                for kk in range(settings.spect['mosaic']['ndet']):
+                    det = kk+1
+                    # Load the frame(s)
+                    frame = arload.load_frames(fitsdict, ind, det, frametype='standard',
+                                               msbias=self._msbias[det-1])
+                    sciframe = frame[:, :, 0]
+                    # Save RA/DEC
+                    if kk == 0:
+                        self._msstd[det-1]['RA'] = fitsdict['ra'][ind[0]]
+                        self._msstd[det-1]['DEC'] = fitsdict['dec'][ind[0]]
+                        self._msstd[det - 1]['spobjs'] = None
+                    if settings.spect["mosaic"]["reduction"] == "ARMLSD":
+                        arproc.reduce_multislit(self, sciframe, ind[0], fitsdict, det, standard=True)
+                    elif settings.spect["mosaic"]["reduction"] == "ARMED":
+                        arproc.reduce_echelle(self, sciframe, ind[0], fitsdict, det, standard=True)
+                    else:
+                        msgs.error("Not ready for reduction type {0:s}".format(settings.spect["mosaic"]["reduction"]))
 
-        if len(self._msstd[0]) != 0:
-            msgs.info("Using existing standard frame")
-            return False
-        #
-        msgs.info("Preparing the standard")
-        # Get all of the pixel flat frames for this science frame
-        ind = self._idx_std
-        msgs.warn("Taking only the first standard frame for now")
-        ind = [ind[0]]
-        # Extract
-        all_specobj = []
+                    if self._msstd[det-1]['spobjs'] is not None:
+                        all_specobj += self._msstd[det-1]['spobjs']
+                # If standard, generate a sensitivity function
+                sensfunc = arflux.generate_sensfunc(self, ind[0], all_specobj, fitsdict)
+                # Set the sensitivity function
+                self.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
+                # Save
+                armasters.save_sensfunc(self, settings.argflag['reduce']['masters']['setup'])
+        # Apply to Standard
         for kk in range(settings.spect['mosaic']['ndet']):
             det = kk+1
-            # Load the frame(s)
-#            set_trace()
-            frame = arload.load_frames(fitsdict, ind, det, frametype='standard',
-                                       msbias=self._msbias[det-1])
-#            msgs.warn("Taking only the first standard frame for now")
-#            ind = ind[0]
-            sciframe = frame[:, :, 0]
-            # Save RA/DEC
-            if kk == 0:
-                self._msstd[det-1]['RA'] = fitsdict['ra'][ind[0]]
-                self._msstd[det-1]['DEC'] = fitsdict['dec'][ind[0]]
-                self._msstd[det - 1]['spobjs'] = None
-            #debugger.set_trace()
-            if settings.spect["mosaic"]["reduction"] == "ARMLSD":
-                arproc.reduce_multislit(self, sciframe, ind[0], fitsdict, det, standard=True)
-            elif settings.spect["mosaic"]["reduction"] == "ARMED":
-                arproc.reduce_echelle(self, sciframe, ind[0], fitsdict, det, standard=True)
-            else:
-                msgs.error("Not ready for reduction type {0:s}".format(settings.spect["mosaic"]["reduction"]))
-
-            if self._msstd[det-1]['spobjs'] is not None:
-                all_specobj += self._msstd[det-1]['spobjs']
-        # If standard, generate a sensitivity function
-        sensfunc = arflux.generate_sensfunc(self, ind[0], all_specobj, fitsdict)
-        # Set the sensitivity function
-        self.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
-        # Save
-        armasters.save_sensfunc(self, settings.argflag['reduce']['masters']['setup'])
-        # Apply to Standard
-        arflux.apply_sensfunc(self, det, ind[0], fitsdict, standard=True)
-        # Save to disk
+            arflux.apply_sensfunc(self, det, self._idx_sci[0], fitsdict, standard=True)
+        # Save standard star spectrum to disk
         outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(
             fitsdict['filename'][ind[0]].split('.')[0])
         arsave.save_1d_spectra_fits(self, standard=True, outfile=outfile)
