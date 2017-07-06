@@ -78,6 +78,19 @@ The coadding algorithm will attempt to match this object identifier
 to those in each data file, within some tolerance on object and slit
 position. 'outfile' is the filename of the coadded spectrum produced.
 
+Spectral Parameters
++++++++++++++++++++
+
+By default, the algorithm will combine the optimally extracted,
+fluxed spectra from each exposure.  You may modify the extraction
+method, e.g.::
+
+    'extract': 'box'
+
+and/or the flux method::
+
+    'flux': 'counts'
+
 Additional Coadding Parameters
 ++++++++++++++++++++++++++++++
 You can adjust the default methods by which PYPIT coadds
