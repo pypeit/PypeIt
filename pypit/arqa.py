@@ -140,7 +140,7 @@ def arc_fit_qa(slf, fit, outfile=None, ids_only=False, title=None):
     return
 
 
-def coaddspec_qa(ispectra, rspec, spec1d, qafile=None):
+def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=2.):
     """  QA plot for 1D coadd of spectra
 
     Parameters
@@ -151,6 +151,8 @@ def coaddspec_qa(ispectra, rspec, spec1d, qafile=None):
       Rebinned spectra with updated variance
     spec1d : XSpectrum1D
       Final coadd
+    yscale : float, optional
+      Scale median flux by this parameter for the spectral plot
 
     """
     from pypit.arcoadd import get_std_dev as gsd
@@ -165,7 +167,7 @@ def coaddspec_qa(ispectra, rspec, spec1d, qafile=None):
     gs = gridspec.GridSpec(1,2)
 
     # Deviate
-    std_dev, dev_sig = gsd(rspec, spec1d)
+    std_dev, dev_sig = gsd(rspec, rmask, spec1d)
     #dev_sig = (rspec.data['flux'] - spec1d.flux) / (rspec.data['sig']**2 + spec1d.sig**2)
     #std_dev = np.std(sigma_clip(dev_sig, sigma=5, iters=2))
     flat_dev_sig = dev_sig.flatten()
@@ -183,12 +185,17 @@ def coaddspec_qa(ispectra, rspec, spec1d, qafile=None):
     ax.bar(edges[:-1], hist, width=((xmax-xmin)/float(n_bins)), alpha=0.5)
 
     # Coadd on individual
+    # yrange
+    medf = np.median(spec1d.flux)
+    ylim = (medf/10., yscale*medf)
+    # Plot
     ax = plt.subplot(gs[1])
     for idx in range(ispectra.nspec):
         ispectra.select = idx
         ax.plot(ispectra.wavelength, ispectra.flux, alpha=0.5)#, label='individual exposure')
 
     ax.plot(spec1d.wavelength, spec1d.flux, color='black', label='coadded spectrum')
+    ax.set_ylim(ylim)
     debug=False
     if debug:
         ax.set_ylim(0., 180.)

@@ -7,6 +7,7 @@ import os
 import pytest
 
 from astropy import units as u
+from linetools.spectra.utils import collate
 
 from pypit import pyputils
 msgs = pyputils.get_dummy_logger()
@@ -58,7 +59,6 @@ def dummy_spectra(s2n=10., seed=1234, wvmnx=None, npix=None):
 
     """
     rstate=np.random.RandomState(seed)
-    from linetools.spectra.utils import collate
     if wvmnx is None:
         wvmnx = [[5000., 6000.],
                 [4000.5, 5800.5],
@@ -134,6 +134,7 @@ def test_new_wave_grid():
     np.testing.assert_allclose(pix_wave[-1], 6303.0)
 
 
+'''
 def test_median_flux():
     """ Test median flux algorithm """
     from pypit import arcoadd as arco
@@ -143,6 +144,20 @@ def test_median_flux():
     med_flux, std_flux = arco.median_flux(spec)
     np.testing.assert_allclose(med_flux, 1.0, atol=0.05)  # Noise is random
     np.testing.assert_allclose(std_flux, 0.095, atol=0.004)  # Noise is random
+'''
+
+def test_median_ratio_flux():
+    """ Test median ratio flux algorithm """
+    from pypit import arcoadd as arco
+    # Setup
+    spec1 = dummy_spectrum(s2n=10)
+    spec2 = dummy_spectrum(s2n=10)
+    spec2.data['flux'][0,:] *= 2.
+    spec = collate([spec1,spec2])
+    smask = spec.data['sig'].filled(0.) <= 0.
+    # Put in a bad pixel
+    med_flux = arco.median_ratio_flux(spec, smask, 1, 0)
+    np.testing.assert_allclose(med_flux, 0.5, atol=0.05)
 
 
 def test_sn_weight():
@@ -152,19 +167,22 @@ def test_sn_weight():
     dspec = dummy_spectra(s2n=0.3, seed=1234)
     cat_wave = arco.new_wave_grid(dspec.data['wave'], wave_method='concatenate')
     rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
-    sn2, weights = arco.sn_weight(rspec)
+    smask = rspec.data['sig'].filled(0.) <= 0.
+    sn2, weights = arco.sn_weight(rspec, smask)
     np.testing.assert_allclose(sn2[0], 0.095, atol=0.1)  # Noise is random
     #  Low S/N first
     dspec = dummy_spectra(s2n=3., seed=1234)
     cat_wave = arco.new_wave_grid(dspec.data['wave'], wave_method='concatenate')
     rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
-    sn2, weights = arco.sn_weight(rspec)
+    smask = rspec.data['sig'].filled(0.) <= 0.
+    sn2, weights = arco.sn_weight(rspec, smask)
     np.testing.assert_allclose(sn2[0], 8.6, atol=0.1)  # Noise is random
     #  High S/N now
     dspec2 = dummy_spectra(s2n=10., seed=1234)
     cat_wave = arco.new_wave_grid(dspec2.data['wave'], wave_method='concatenate')
     rspec2 = dspec2.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
-    sn2, weights = arco.sn_weight(rspec2)
+    smask = rspec2.data['sig'].filled(0.) <= 0.
+    sn2, weights = arco.sn_weight(rspec2, smask)
     np.testing.assert_allclose(sn2[0], 98.0, atol=0.1)  # Noise is random
 
 
@@ -175,57 +193,58 @@ def test_scale():
     dspec = dummy_spectra(s2n=10.)
     cat_wave = arco.new_wave_grid(dspec.data['wave'], wave_method='concatenate')
     rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
+    smask = rspec.data['sig'].filled(0.) <= 0.
     sv_high = rspec.copy()
-    sn2, weights = arco.sn_weight(rspec)
-    _, _ = arco.scale_spectra(rspec, sn2, hand_scale=[3., 5., 10.], scale_method='hand')
+    sn2, weights = arco.sn_weight(rspec, smask)
+    _, _ = arco.scale_spectra(rspec, smask, sn2, hand_scale=[3., 5., 10.], scale_method='hand')
     np.testing.assert_allclose(np.median(rspec.flux.value[rspec.sig>0.]), 3., atol=0.01)  # Noise is random
     # Median
     rspec = sv_high.copy()
-    sn2, weights = arco.sn_weight(rspec)
-    _, mthd = arco.scale_spectra(rspec, sn2, scale_method='median')
-    assert mthd == 'median'
+    sn2, weights = arco.sn_weight(rspec, smask)
+    _, mthd = arco.scale_spectra(rspec, smask, sn2, scale_method='median')
+    assert mthd == 'median_flux'
     np.testing.assert_allclose(np.median(rspec.flux.value[rspec.sig>0.]), 1., atol=0.01)  # Noise is random
     #  Auto-none
     dspec = dummy_spectra(s2n=0.1)
     rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
-    sn2, weights = arco.sn_weight(rspec)
-    an_scls, an_mthd = arco.scale_spectra(rspec, sn2)
+    sn2, weights = arco.sn_weight(rspec, smask)
+    an_scls, an_mthd = arco.scale_spectra(rspec, smask, sn2)
     assert an_mthd == 'none_SN'
     #  Auto-median
     dspec = dummy_spectra(s2n=1.5)
     rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
     rspec.data['flux'][1,:] *= 10.
     rspec.data['sig'][1,:] *= 10.
-    sn2, weights = arco.sn_weight(rspec)
-    am_scls, am_mthd = arco.scale_spectra(rspec, sn2, scale_method='median')
-    assert am_mthd == 'median'
+    sn2, weights = arco.sn_weight(rspec, smask)
+    am_scls, am_mthd = arco.scale_spectra(rspec, smask, sn2, scale_method='median')
+    assert am_mthd == 'median_flux'
     np.testing.assert_allclose(am_scls[1], 0.1, atol=0.01)
 
 
 def test_grow_mask():
-    """ Test grow_mask method"""
+    """ Test grow_mask method.  Now works on 1d spectra"""
     from pypit import arcoadd as arco
     # Setup
-    dspec = dummy_spectra(s2n=10.)
-    mask = np.ma.getmaskarray(dspec.data['wave'])
+    dspec = dummy_spectrum(s2n=10.)
+    mask = np.ma.getmaskarray(dspec.data['wave'][0,:])
     mask[:] = False
     # Set some
-    mask[0, 100] = True
-    mask[1, 0] = True
-    mask[2, -1] = True
+    mask[0] = True
+    mask[50] = True
+    mask[500] = True
     # Grow
     new_mask = arco.grow_mask(mask, n_grow=1)
     # Test
-    badp = np.where(new_mask[0,:])[0]
-    assert np.all(badp == np.array([99,100,101]))
-    badpb = np.where(new_mask[1,:])[0]
-    assert np.all(badpb == np.array([0,1]))
-    badpc = np.where(new_mask[2,:])[0]
-    assert np.all(badpc == np.array([1098,1099]))
+    badp = np.where(new_mask)[0]
+    assert np.all(badp == np.array([0,1,49,50,51,499,500,501]))
+    #badpb = np.where(new_mask[1,:])[0]
+    #assert np.all(badpb == np.array([0,1]))
+    #badpc = np.where(new_mask[2,:])[0]
+    #assert np.all(badpc == np.array([1098,1099]))
     # Grow 2
     new_mask2 = arco.grow_mask(mask, n_grow=2)
-    badp2 = np.where(new_mask2[0,:])[0]
-    assert np.all(badp2 == np.array([98,99,100,101,102]))
+    badp2 = np.where(new_mask2)[0]
+    assert len(badp2) == 13
 
 
 def test_1dcoadd():
@@ -235,9 +254,10 @@ def test_1dcoadd():
     dspec = dummy_spectra(s2n=10.)
     cat_wave = arco.new_wave_grid(dspec.data['wave'], wave_method='concatenate')
     rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
-    sn2, weights = arco.sn_weight(rspec)
+    smask = rspec.data['sig'].filled(0.) <= 0.
+    sn2, weights = arco.sn_weight(rspec, smask)
     # Coadd
-    spec1d = arco.one_d_coadd(rspec, weights)
+    spec1d = arco.one_d_coadd(rspec, smask, weights)
     assert spec1d.npix == 1740
 
 def test_cleancr():
@@ -249,7 +269,9 @@ def test_cleancr():
     dspec.data['sig'][0, 700] *= 500.
     cat_wave = arco.new_wave_grid(dspec.data['wave'], wave_method='concatenate')
     rspec = dspec.rebin(cat_wave*u.AA, all=True, do_sig=True, masking='none')
-    arco.clean_cr(rspec)
+    #
+    smask = rspec.data['sig'].filled(0.) <= 0.
+    arco.clean_cr(rspec, smask)
 
 
 def test_coadd():
