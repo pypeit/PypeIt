@@ -18,6 +18,7 @@ from pypit import armsgs
 from pypit import arproc
 from pypit import arsort
 from pypit import arutils
+from pypit import arsave
 
 from pypit import ardebug as debugger
 
@@ -93,6 +94,7 @@ class ScienceExposure:
         self._mspixelflatnrm = [None for all in range(ndet)]  # Normalized Master pixel flat
         self._msblaze = [None for all in range(ndet)]       # Blaze function
         self._msstd = [{} for all in range(ndet)]           # Master Standard dict
+        self._sensfunc = None                               # Sensitivity function
         # Initialize the Master Calibration frame names
         self._msarc_name = [None for all in range(ndet)]      # Master Arc Name
         self._msbias_name = [None for all in range(ndet)]     # Master Bias Name
@@ -770,14 +772,24 @@ class ScienceExposure:
         -------
         boolean : bool
         """
-        from pypit import arsave
-
-        if len(self._msstd[0]) != 0:
-            msgs.info("Using existing standard frame")
+        if self._sensfunc is not None:
+            msgs.info("Using existing sensitivity function.")
             return False
-        #
+        # Attempt to load the Master Frame
+        if settings.argflag['reduce']['masters']['reuse']:
+            sfunc_name = armasters.master_name('sensfunc',
+                settings.argflag['reduce']['masters']['setup'])
+            try:
+                sensfunc = arload.load_master(sfunc_name, frametype="sensfunc")
+            except (IOError, ValueError):
+                msgs.warn("No MasterSensFunc data found {:s}".format(sfunc_name))
+            else:
+                msgs.info("Loaded sensitivity function from {:s}".format(sfunc_name))
+                settings.argflag['reduce']['masters']['loaded'].append('sensfunc'+settings.argflag['reduce']['masters']['setup'][0])
+                self._sensfunc = sensfunc.copy()
+                return True
+        # Grab the standard star frames
         msgs.info("Preparing the standard")
-        # Get all of the pixel flat frames for this science frame
         ind = self._idx_std
         msgs.warn("Taking only the first standard frame for now")
         ind = [ind[0]]
@@ -798,7 +810,6 @@ class ScienceExposure:
                 msgs.warn("If your standard wasnt on this detector, you will have trouble..")
                 if det != settings.argflag['reduce']['detnum']:
                     continue
-            #debugger.set_trace()
             if settings.spect["mosaic"]["reduction"] == "ARMLSD":
                 arproc.reduce_multislit(self, sciframe, ind[0], fitsdict, det, standard=True)
             elif settings.spect["mosaic"]["reduction"] == "ARMED":
@@ -813,8 +824,12 @@ class ScienceExposure:
         # Set the sensitivity function
         self.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
         # Apply to Standard
-        arflux.apply_sensfunc(self, det, ind[0], fitsdict, standard=True)
-        # Save to disk
+        for kk in range(settings.spect['mosaic']['ndet']):
+            det = kk + 1  # Detectors indexed from 1
+            arflux.apply_sensfunc(self, det, ind[0], fitsdict, standard=True)
+        # Save
+        armasters.save_sensfunc(self, settings.argflag['reduce']['masters']['setup'])
+        # Save standard star spectrum to disk
         outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(
             fitsdict['filename'][ind[0]].split('.')[0])
         arsave.save_1d_spectra_fits(self, fitsdict, standard=True, outfile=outfile)

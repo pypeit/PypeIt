@@ -309,6 +309,7 @@ def median_ratio_flux(spec, smask, ispec, iref, nsig=3., niter=5, **kwargs):
     return med_scale
 
 
+'''
 def median_flux(spec, smask, nsig=3., niter=5, **kwargs):
     """ Calculate the characteristic, median flux of a spectrum
 
@@ -346,6 +347,7 @@ def median_flux(spec, smask, nsig=3., niter=5, **kwargs):
     # Return
     return med_spec, std_spec
 
+'''
 
 def scale_spectra(spectra, smask, sn2, iref=0, scale_method='auto', hand_scale=None,
                   SN_MAX_MEDSCALE=2., SN_MIN_MEDSCALE=0.5, **kwargs):

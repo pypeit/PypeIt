@@ -316,18 +316,7 @@ def load_master(name, exten=0, frametype='<None>'):
     frame : ndarray
       The data from the master calibration frame
     """
-    if frametype is None:
-        msgs.info("Loading a pre-existing master calibration frame")
-        try:
-            hdu = pyfits.open(name)
-        except IOError:
-            msgs.error("Master calibration file does not exist:"+msgs.newline()+name)
-        msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
-        head = hdu[0].header
-        data = hdu[exten].data.astype(np.float)
-        return data, head
-        #return np.array(infile[0].data, dtype=np.float)
-    else:
+    if frametype == 'wv_calib':
         from linetools import utils as ltu
         msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
         if frametype == 'wv_calib':
@@ -340,6 +329,24 @@ def load_master(name, exten=0, frametype='<None>'):
             data = hdu[exten].data.astype(np.float)
             return data, head
         #return np.array(pyfits.getdata(name, 0), dtype=np.float)
+    elif frametype == 'sensfunc':
+        import yaml
+        from astropy import units as u
+        with open(name, 'r') as f:
+            sensfunc = yaml.load(f)
+        sensfunc['wave_max'] = sensfunc['wave_max']*u.AA
+        sensfunc['wave_min'] = sensfunc['wave_min']*u.AA
+        return sensfunc
+    else:
+        msgs.info("Loading a pre-existing master calibration frame")
+        try:
+            hdu = pyfits.open(name)
+        except IOError:
+            msgs.error("Master calibration file does not exist:"+msgs.newline()+name)
+        msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
+        head = hdu[0].header
+        data = hdu[exten].data.astype(np.float)
+        return data, head
 
 
 def load_ordloc(fname):
@@ -353,6 +360,58 @@ def load_ordloc(fname):
     rtrace = np.array(pyfits.getdata(rname, 0),dtype=np.float)
     msgs.info("Loaded right order locations for frame:"+msgs.newline()+fname)
     return ltrace, rtrace
+
+
+def load_specobj(fname):
+    """ Load a spec1d file into a list of SpecObjExp objects
+    Parameters
+    ----------
+    fname : str
+
+    Returns
+    -------
+    specobjs : list of SpecObjExp
+    """
+    from astropy.table import Table
+    from astropy import units as u
+    from pypit import arspecobj
+    speckeys = ['wave', 'sky', 'mask', 'flam', 'flam_var', 'var', 'counts']
+    #
+    specobjs = []
+    from astropy.io import fits
+    hdulist = fits.open(fname)
+    for hdu in hdulist:
+        if hdu.name == 'PRIMARY':
+            continue
+        # Parse name
+        objp = hdu.name.split('-')
+        # Load data
+        spec = Table(hdu.data)
+        shape = (len(spec), 1024)  # 2nd number is dummy
+        # Init
+        specobj = arspecobj.SpecObjExp(shape, 'dum_config', int(objp[-1][1:]),
+            int(objp[-2][1:]), [float(objp[1][1:])/10000.]*2, 0.5,
+            float(objp[0][1:])/1000., 'unknown')
+        # Add spectrum
+        if 'box_counts' in spec.keys():
+            for skey in speckeys:
+                try:
+                    specobj.boxcar[skey] = spec['box_{:s}'.format(skey)].data
+                except KeyError:
+                    pass
+            # Add units on wave
+            specobj.boxcar['wave'] = specobj.boxcar['wave'] * u.AA
+
+        if 'opt_counts' in spec.keys():
+            for skey in speckeys:
+                try:
+                    specobj.optimal[skey] = spec['opt_{:s}'.format(skey)].data
+                except KeyError:
+                    pass
+        # Append
+        specobjs.append(specobj)
+    # Return
+    return specobjs
 
 
 def load_tilts(fname):

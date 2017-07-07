@@ -3,6 +3,7 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 from pypit import armsgs
 from pypit import arparse as settings
 from pypit import arsave
+from pypit import arutils
 
 try:
     basestring
@@ -45,6 +46,7 @@ class MasterFrames:
         self._mspixelflat = [None for all in range(ndet)]     # Master pixel flat
         self._mspixelflatnrm = [None for all in range(ndet)]  # Normalized Master pixel flat
         self._msblaze = [None for all in range(ndet)]       # Blaze function
+        self._sensfunc = [None for all in range(ndet)]       # Sensitivity function
         # Initialize the Master Calibration frame names
         self._msarc_name = [None for all in range(ndet)]      # Master Arc Name
         self._msbias_name = [None for all in range(ndet)]     # Master Bias Name
@@ -75,6 +77,7 @@ def master_name(ftype, setup, mdir=None):
                      wave_calib='{:s}/MasterWaveCalib_{:s}.json'.format(mdir, setup),
                      tilts='{:s}/MasterTilts_{:s}.fits'.format(mdir, setup),
                      slitprof='{:s}/MasterSlitProfile_{:s}.fits'.format(mdir, setup),
+                     sensfunc='{:s}/MasterSensFunc_{:s}.yaml'.format(mdir, setup[0]),
                      )
     return name_dict[ftype]
 
@@ -185,6 +188,24 @@ def save_masters(slf, det, setup):
         arsave.save_master(slf, slf._slitprof[det - 1],
                            filename=master_name('slitprof', setup),
                            frametype='slit profile')
+
+
+def save_sensfunc(slf, setup):
+    """ Make YAML friendly and write to disk
+    Separate routine as this process is detector independent
+    
+    Parameters
+    ----------
+    slf
+    setup : str
+    """
+    # Sensitivity Function
+    if 'sensfunc' + settings.argflag['reduce']['masters']['setup'][0] not in settings.argflag['reduce']['masters']['loaded']:
+        import yaml
+        # yamlify
+        ysens = arutils.yamlify(slf._sensfunc)
+        with open(master_name('sensfunc', setup), 'w') as yamlf:
+            yamlf.write(yaml.dump(ysens))
 
 
 def user_master_name(mdir, input_name):
