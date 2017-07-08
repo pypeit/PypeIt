@@ -319,16 +319,8 @@ def load_master(name, exten=0, frametype='<None>'):
     if frametype == 'wv_calib':
         from linetools import utils as ltu
         msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
-        if frametype == 'wv_calib':
-            ldict = ltu.loadjson(name)
-            return ldict
-        else:
-            # Load
-            hdu = pyfits.open(name)
-            head = hdu[0].header
-            data = hdu[exten].data.astype(np.float)
-            return data, head
-        #return np.array(pyfits.getdata(name, 0), dtype=np.float)
+        ldict = ltu.loadjson(name)
+        return ldict
     elif frametype == 'sensfunc':
         import yaml
         from astropy import units as u
