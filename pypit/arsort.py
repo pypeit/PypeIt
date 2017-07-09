@@ -522,20 +522,29 @@ def match_science(fitsdict, filesort):
                 # Errors for insufficient PIXELFLAT frames
                 if ftag[ft] == 'pixelflat' and settings.argflag['reduce']['flatfield']['perform'] and (
                     settings.argflag['reduce']['flatfield']['useframe'] == 'pixelflat'):
-                    msgs.warn("Either include more frames or reduce the required amount with:" + msgs.newline() +
-                              "pixelflat number XX" + msgs.newline() +
-                              "in the spect read/end block")
-                    msgs.warn("Or specify a pixelflat file with --  reduce flatfield useframe file_name")
-                    msgs.error("Unable to continue")
+                    if settings.argflag['reduce']['masters']['reuse']:
+                        msgs.warn("Fewer pixelflat frames than expected for {0:s}, but will use MasterFrames".format(fitsdict['target'][iSCI[i]]))
+                    else:
+                        msgs.warn("Either include more frames or reduce the required amount with:" + msgs.newline() +
+                                  "pixelflat number XX" + msgs.newline() +
+                                  "in the spect read/end block")
+                        msgs.warn("Or specify a pixelflat file with --  reduce flatfield useframe file_name")
+                        msgs.error("Unable to continue")
                 # Errors for insufficient PINHOLE frames
                 if ftag[ft] == 'pinhole':
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient TRACE frames
                 if ftag[ft] == 'trace' and settings.argflag['reduce']['flatfield']['perform']:
-                    msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
+                    if settings.argflag['reduce']['masters']['reuse']:
+                        msgs.warn("Fewer traceflat frames than expected for {0:s}, but will use MasterFrames".format(fitsdict['target'][iSCI[i]]))
+                    else:
+                        msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient standard frames
                 if ftag[ft] == 'standard' and settings.argflag['reduce']['calibrate']['flux']:
-                    msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
+                    if settings.argflag['reduce']['masters']['reuse']:
+                        msgs.warn("No standard star frames for {0:s}, but will use MasterFrames".format(fitsdict['target'][iSCI[i]]))
+                    else:
+                        msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient ARC frames
                 if ftag[ft] == 'arc' and settings.argflag['reduce']['calibrate']:
                     if settings.argflag['run']['setup']:
