@@ -60,8 +60,14 @@ def SetupScience(fitsdict):
     sciexp = []
     for i in range(numsci):
         sciexp.append(arsciexp.ScienceExposure(i, fitsdict, do_qa=do_qa))
+
     # Generate setup and group dicts
     setup_dict = {}
+    if settings.argflag['reduce']['masters']['force']:
+        # Check that setup was input
+        if len(settings.argflag['reduce']['masters']['setup']) == 0:
+            msgs.error("Need to specify   reduce masters setup   in your PYPIT file!")
+        return sciexp, setup_dict
     # Run through the setups to fill setup_dict
     setupIDs = []
     for sc in range(numsci):

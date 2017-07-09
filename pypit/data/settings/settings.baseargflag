@@ -32,7 +32,8 @@ reduce trace useframe trace          # How to flat field the data (trace), you c
 reduce masters file None         #
 reduce masters loaded []         #
 reduce masters setup None            #
-reduce masters reuse False            # Reuse masters that have already been created (True/False)
+reduce masters reuse False       # Reuse masters that have already been created (True/False)
+reduce masters force False       # Only use master frame files for the reduction (True/False)
 reduce pixel locations None           # If desired, a fits file can be specified (of the appropriate form) to specify the locations of the pixels on the detector
 reduce pixel size 2.5            # The size of the extracted pixels (as an scaled number of Arc FWHM), -1 will not resample
 reduce skysub perform True       # Subtract the sky background from the data?

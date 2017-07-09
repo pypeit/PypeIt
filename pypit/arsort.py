@@ -522,7 +522,7 @@ def match_science(fitsdict, filesort):
                 # Errors for insufficient PIXELFLAT frames
                 if ftag[ft] == 'pixelflat' and settings.argflag['reduce']['flatfield']['perform'] and (
                     settings.argflag['reduce']['flatfield']['useframe'] == 'pixelflat'):
-                    if settings.argflag['reduce']['masters']['reuse']:
+                    if settings.argflag['reduce']['masters']['force']:
                         msgs.warn("Fewer pixelflat frames than expected for {0:s}, but will use MasterFrames".format(fitsdict['target'][iSCI[i]]))
                     else:
                         msgs.warn("Either include more frames or reduce the required amount with:" + msgs.newline() +
@@ -535,13 +535,13 @@ def match_science(fitsdict, filesort):
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient TRACE frames
                 if ftag[ft] == 'trace' and settings.argflag['reduce']['flatfield']['perform']:
-                    if settings.argflag['reduce']['masters']['reuse']:
+                    if settings.argflag['reduce']['masters']['force']:
                         msgs.warn("Fewer traceflat frames than expected for {0:s}, but will use MasterFrames".format(fitsdict['target'][iSCI[i]]))
                     else:
                         msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient standard frames
                 if ftag[ft] == 'standard' and settings.argflag['reduce']['calibrate']['flux']:
-                    if settings.argflag['reduce']['masters']['reuse']:
+                    if settings.argflag['reduce']['masters']['force']:
                         msgs.warn("No standard star frames for {0:s}, but will use MasterFrames".format(fitsdict['target'][iSCI[i]]))
                     else:
                         msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
@@ -557,7 +557,7 @@ def match_science(fitsdict, filesort):
                         filesort['failures'].append(iSCI[i])
                         settings.spect['science']['index'].pop(-1)
                         break
-                    elif settings.argflag['reduce']['masters']['reuse']:
+                    elif settings.argflag['reduce']['masters']['force']:
                         msgs.warn("No arc frame for {0:s}, but will use MasterFrames".format(fitsdict['target'][iSCI[i]]))
                     else:
                         msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
@@ -881,6 +881,11 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
       Full setup ID, e.g. A_01_aa
     """
     dnum = settings.get_dnum(det)
+    # MasterFrame force?  If so, use user input setup updating detector
+    if settings.argflag['reduce']['masters']['force']:
+        input_setup = settings.argflag['reduce']['masters']['setup']
+        setup = '{:s}_{:02d}_{:s}'.format(input_setup[0],det,input_setup[-2:])
+        return setup
     # Labels
     cfig_str = string.ascii_uppercase
     cstr = '--'
@@ -964,7 +969,9 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
     else:
         calib_key = '--'
 
-    return '{:s}_{:s}_{:s}'.format(setup, dkey, calib_key)
+    # Finish and return
+    setup = '{:s}_{:s}_{:s}'.format(setup, dkey, calib_key)
+    return setup
 
 
 def get_setup_file(spectrograph=None):

@@ -35,19 +35,27 @@ class ScienceExposure:
 
         # Set indices used for frame combination
         self._idx_sci = settings.spect['science']['index'][snum]
-        self._idx_arcs = settings.spect['arc']['index'][snum]
-        self._idx_std = settings.spect['standard']['index'][snum]
-        if settings.argflag['bias']['useframe'] == 'bias': self._idx_bias = settings.spect['bias']['index'][snum]
-        elif settings.argflag['bias']['useframe'] == 'dark':  self._idx_bias = settings.spect['dark']['index'][snum]
-        else: self._idx_bias = []
-        if settings.argflag['reduce']['trace']['useframe'] == 'trace': self._idx_trace = settings.spect['trace']['index'][snum]
-        else: self._idx_trace = []
-        if settings.argflag['reduce']['flatfield']['useframe'] == 'pixelflat': self._idx_flat = settings.spect['pixelflat']['index'][snum]
-        elif settings.argflag['reduce']['flatfield']['useframe'] == 'trace': self._idx_flat = settings.spect['trace']['index'][snum]
-        else: self._idx_flat = []
-        if settings.argflag['reduce']['slitcen']['useframe'] == 'trace': self._idx_cent = settings.spect['trace']['index'][snum]
-        elif settings.argflag['reduce']['slitcen']['useframe'] == 'pinhole': self._idx_cent = settings.spect['pinhole']['index'][snum]
-        else: self._idx_cent = []
+        if settings.argflag['reduce']['masters']['force']:
+            self._idx_bias = []
+            self._idx_flat = []
+            self._idx_cent = []
+            self._idx_trace = []
+            self._idx_arcs = []
+            self._idx_std = []
+        else:
+            self._idx_arcs = settings.spect['arc']['index'][snum]
+            self._idx_std = settings.spect['standard']['index'][snum]
+            if settings.argflag['bias']['useframe'] == 'bias': self._idx_bias = settings.spect['bias']['index'][snum]
+            elif settings.argflag['bias']['useframe'] == 'dark':  self._idx_bias = settings.spect['dark']['index'][snum]
+            else: self._idx_bias = []
+            if settings.argflag['reduce']['trace']['useframe'] == 'trace': self._idx_trace = settings.spect['trace']['index'][snum]
+            else: self._idx_trace = []
+            if settings.argflag['reduce']['flatfield']['useframe'] == 'pixelflat': self._idx_flat = settings.spect['pixelflat']['index'][snum]
+            elif settings.argflag['reduce']['flatfield']['useframe'] == 'trace': self._idx_flat = settings.spect['trace']['index'][snum]
+            else: self._idx_flat = []
+            if settings.argflag['reduce']['slitcen']['useframe'] == 'trace': self._idx_cent = settings.spect['trace']['index'][snum]
+            elif settings.argflag['reduce']['slitcen']['useframe'] == 'pinhole': self._idx_cent = settings.spect['pinhole']['index'][snum]
+            else: self._idx_cent = []
         self.sc = snum
 
         # Set the base name and extract other names that will be used for output files
@@ -253,25 +261,13 @@ class ScienceExposure:
         dnum = settings.get_dnum(det)
 
         if self._msarc[det-1] is not None:
-            msgs.info("An identical master arc frame already exists")
+            msgs.info("A master arc frame already exists for this frame")
             return False
         if settings.argflag['arc']['useframe'] in ['arc']:
-            # Attempt to load the Master Frame
-            if settings.argflag['reduce']['masters']['reuse']:
-                msarc_name = armasters.master_name('arc', settings.argflag['reduce']['masters']['setup'])
-                try:
-                    msarc, head = arload.load_master(msarc_name, frametype="arc")
-                except IOError:
-                    msgs.warn("No MasterArc frame found {:s}".format(msarc_name))
-                else:
-                    self._transpose = head['transp']
-                    if self._transpose:  # Need to setup for flipping
-                        settings.argflag['trace']['dispersion']['direction'] = 1
-                    else:
-                        settings.argflag['trace']['dispersion']['direction'] = 0
-                    # Append as loaded
-                    settings.argflag['reduce']['masters']['loaded'].append('arc'+settings.argflag['reduce']['masters']['setup'])
-            if 'arc'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+            # Master Frame
+            try:
+                msarc = armasters.get_master_frame("arc")
+            except IOError:
                 msgs.info("Preparing a master arc frame")
                 ind = self._idx_arcs
                 # Load the arc frames
@@ -293,20 +289,13 @@ class ScienceExposure:
                 else:
                     msarc = arcomb.comb_frames(frames, det, 'arc')
                 del frames
-            # # Derive a suitable name for the master arc frame
-            # msarc_name = "{0:s}/{1:s}/msarc{2:s}_{3:03d}.fits".format(os.getcwd(),settings.argflag['run']['directory']['master'],settings.spect["det"][det-1]["suffix"],len(self._done_arcs))
-            # self._tltprefix = os.path.splitext(os.path.basename(msarc_name))[0]
-            # # Send the data away to be saved
-            # arsave.save_master(self, msarc, filename=msarc_name, frametype='arc', ind=ind)
-            # # Store the files used and the master bias name in case it can be used during the later reduction processes
-            # self._done_arcs.append(ind)
-            # self._name_arcs.append(msarc_name)
-        else:
+        else: # Use input frame name located in MasterFrame directory
             msarc_name = settings.argflag['run']['directory']['master']+'/'+settings.argflag['arc']['useframe']
-            msarc, head = arload.load_master(msarc_name, frametype=None)
+            msarc, _ = arload.load_master(msarc_name, frametype=None)
         # Set and then delete the Master Arc frame
         self.SetMasterFrame(msarc, "arc", det)
         del msarc
+        debugger.set_trace()
         return True
 
     def MasterBias(self, fitsdict, det):
