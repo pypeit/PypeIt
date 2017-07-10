@@ -84,6 +84,19 @@ def master_name(ftype, setup, mdir=None):
     return name_dict[ftype]
 
 def get_master_frame(slf, mftype, det=None):
+    """ If a MasterFrame exists, load it
+    And peform some extra steps for specific calibrations
+    Parameters
+    ----------
+    slf
+    mftype : str
+    det : int, optional
+
+    Returns
+    -------
+    msfile : ndarray or dict
+
+    """
 
     setup = settings.argflag['reduce']['masters']['setup']
     # Were MasterFrames even desired?
