@@ -194,22 +194,14 @@ class ScienceExposure:
         """
         bpix = None
         if settings.argflag['reduce']['badpix'] == 'bias':
-            if settings.argflag['reduce']['masters']['reuse']:
-                # Attempt to load the Master Frame
-                bpix_name = armasters.master_name('badpix', settings.argflag['reduce']['masters']['setup'])
-                try:
-                    bpix, head = arload.load_master(bpix_name, frametype="badpix")
-                except IOError:
-                    msgs.warn("No MasterBadPix frame found {:s}".format(bpix_name))
-                else:
-                    settings.argflag['reduce']['masters']['loaded'].append('badpix'+settings.argflag['reduce']['masters']['setup'])
-            if 'badpix'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+            try:
+                bpix = armasters.get_master_frame(self, "badpix")
+            except IOError:
                 msgs.info("Preparing a bad pixel mask")
                 # Get all of the bias frames for this science frame
                 if len(self._idx_bias) == 0:
                     msgs.warn("No bias frames available to determine bad pixel mask")
                     msgs.info("Not preparing a bad pixel mask")
-                    #self._bpix = None
                     return False
                 # Load the Bias frames
                 bpix = arproc.badpix(self, det, self.GetMasterFrame('bias', det))
@@ -220,7 +212,9 @@ class ScienceExposure:
             else:
                 msgs.info("Not preparing a bad pixel mask")
                 return False
+        # Save
         self.SetFrame(self._bpix, bpix, det)
+        armasters.save_masters(self, det, mftype='badpix')
         del bpix
         return True
 
@@ -295,6 +289,7 @@ class ScienceExposure:
 
         # Set and then delete the Master Arc frame
         self.SetMasterFrame(msarc, "arc", det)
+        armasters.save_masters(self, det, mftype='arc')
         del msarc
         return True
 
@@ -320,17 +315,9 @@ class ScienceExposure:
             msgs.info("An identical master {0:s} frame already exists".format(settings.argflag['bias']['useframe']))
             return False
         elif settings.argflag['bias']['useframe'] in ['bias', 'dark']:
-            # Load from hard-drive?
-            if settings.argflag['reduce']['masters']['reuse']:
-                # Attempt to load the Master Frame
-                msbias_name = armasters.master_name('bias', settings.argflag['reduce']['masters']['setup'])
-                try:
-                    msbias, head = arload.load_master(msbias_name, frametype="bias")
-                except IOError:
-                    msgs.warn("No MasterBias frame found {:s}".format(msbias_name))
-                else:
-                    settings.argflag['reduce']['masters']['loaded'].append('bias'+settings.argflag['reduce']['masters']['setup'])
-            if 'bias'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+            try:
+                msbias = armasters.get_master_frame(self, "bias")
+            except IOError:
                 msgs.info("Preparing a master {0:s} frame".format(settings.argflag['bias']['useframe']))
                 # Get all of the bias frames for this science frame
                 ind = self._idx_bias
@@ -351,6 +338,7 @@ class ScienceExposure:
             settings.argflag['reduce']['masters']['loaded'].append('bias')
         # Set and then delete the Master Bias frame
         self.SetMasterFrame(msbias, "bias", det)
+        armasters.save_masters(self, det, mftype='bias')
 
         del msbias
         return True
@@ -501,6 +489,7 @@ class ScienceExposure:
         # Set Master Frames
         self.SetMasterFrame(mspixelflat, "pixelflat", det)
         self.SetMasterFrame(mspixelflatnrm, "normpixelflat", det)
+        armasters.save_masters(self, det, mftype='normpixelflat')
         return True
 
     def MasterPinhole(self, fitsdict, det):
@@ -525,18 +514,9 @@ class ScienceExposure:
             msgs.info("An identical master pinhole frame already exists")
             return False
         if settings.argflag['reduce']['slitcen']['useframe'] in ['trace', 'pinhole']:
-            if settings.argflag['reduce']['masters']['reuse']:
-                # Attempt to load the Master Frame
-                mspinhole_name = armasters.master_name('pinhole', settings.argflag['reduce']['masters']['setup'])
-                try:
-                    mspinhole, head = arload.load_master(mspinhole_name, frametype="pinhole")
-                except IOError:
-                    msgs.warn("No MasterPinhole frame found {:s}".format(mspinhole_name))
-                else:
-                    settings.argflag['reduce']['masters']['loaded'].append(
-                        'pinhole' + settings.argflag['reduce']['masters']['setup'])
-            if 'pinhole' + settings.argflag['reduce']['masters']['setup'] not in \
-                    settings.argflag['reduce']['masters']['loaded']:
+            try:
+                mspinhole = armasters.get_master_frame(self, "pinhole")
+            except IOError:
                 msgs.info("Preparing a master pinhole frame with {0:s}".format(
                     settings.argflag['reduce']['slitcen']['useframe']))
                 ind = self._idx_cent
@@ -567,6 +547,7 @@ class ScienceExposure:
             debugger.set_trace()  # NEED TO LOAD EXTRAS AS ABOVE
         # Set and then delete the Master Trace frame
         self.SetMasterFrame(mspinhole, "pinhole", det)
+        armasters.save_masters(self, det, mftype='pinhole')
         del mspinhole
         return True
 
@@ -643,16 +624,9 @@ class ScienceExposure:
         if self._mswave[det-1] is not None:
             msgs.info("An identical master arc frame already exists")
             return False
-        # Attempt to load the Master Frame
-        if settings.argflag['reduce']['masters']['reuse']:
-            mswave_name = armasters.master_name('wave', settings.argflag['reduce']['masters']['setup'])
-            try:
-                mswave, head = arload.load_master(mswave_name, frametype="arc")
-            except IOError:
-                msgs.warn("No MasterWave frame found {:s}".format(mswave_name))
-            else:
-                settings.argflag['reduce']['masters']['loaded'].append('wave'+settings.argflag['reduce']['masters']['setup'])
-        if 'wave'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+        try:
+            mswave = armasters.get_master_frame(self, "wave")
+        except IOError:
             msgs.info("Preparing a master wave frame")
             if settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
                 mswave = self._tilts[det - 1] * (self._tilts[det - 1].shape[0]-1.0)
@@ -662,6 +636,7 @@ class ScienceExposure:
                                           minv=wv_calib['fmin'], maxv=wv_calib['fmax'])
         # Set and then delete the Master Arc frame
         self.SetMasterFrame(mswave, "wave", det)
+        armasters.save_masters(self, det, mftype='wave')
         del mswave
         return True
 
@@ -695,19 +670,19 @@ class ScienceExposure:
             if settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
                 msgs.info("A wavelength calibration will not be performed")
             else:
-                if 'wv_calib' + settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
-                    # Setup arc parameters (e.g. linelist)
-                    arcparam = ararc.setup_param(self, sc, det, fitsdict)
-                    self.SetFrame(self._arcparam, arcparam, det)
-                    ###############
-                    # Extract arc and identify lines
-                    if settings.argflag['arc']['calibrate']['method'] == 'simple':
-                        wv_calib = ararc.simple_calib(self, det)
-                    elif settings.argflag['arc']['calibrate']['method'] == 'arclines':
-                        wv_calib = ararc.calib_with_arclines(self, det)
+                # Setup arc parameters (e.g. linelist)
+                arcparam = ararc.setup_param(self, sc, det, fitsdict)
+                self.SetFrame(self._arcparam, arcparam, det)
+                ###############
+                # Extract arc and identify lines
+                if settings.argflag['arc']['calibrate']['method'] == 'simple':
+                    wv_calib = ararc.simple_calib(self, det)
+                elif settings.argflag['arc']['calibrate']['method'] == 'arclines':
+                    wv_calib = ararc.calib_with_arclines(self, det)
         # Set
         if wv_calib is not None:
             self.SetFrame(self._wvcalib, wv_calib, det)
+            armasters.save_masters(self, det, mftype='wv_calib')
         del wv_calib
         return True
 
@@ -731,64 +706,58 @@ class ScienceExposure:
             msgs.info("Using existing sensitivity function.")
             return False
         # Attempt to load the Master Frame
-        if settings.argflag['reduce']['masters']['reuse']:
-            sfunc_name = armasters.master_name('sensfunc',
-                settings.argflag['reduce']['masters']['setup'])
-            try:
-                sensfunc = arload.load_master(sfunc_name, frametype="sensfunc")
-            except (IOError, ValueError):
-                msgs.warn("No MasterSensFunc data found {:s}".format(sfunc_name))
-            else:
-                msgs.info("Loaded sensitivity function from {:s}".format(sfunc_name))
-                settings.argflag['reduce']['masters']['loaded'].append('sensfunc'+settings.argflag['reduce']['masters']['setup'][0])
-                self._sensfunc = sensfunc.copy()
-                return True
-        # Grab the standard star frames
-        msgs.info("Preparing the standard")
-        ind = self._idx_std
-        msgs.warn("Taking only the first standard frame for now")
-        ind = [ind[0]]
-        # Extract
-        all_specobj = []
-        for kk in range(settings.spect['mosaic']['ndet']):
-            det = kk+1
-            # Load the frame(s)
-            frame = arload.load_frames(fitsdict, ind, det, frametype='standard',
-                                       msbias=self._msbias[det-1])
-            sciframe = frame[:, :, 0] # First exposure
-            # Save RA/DEC
-            self._msstd[det-1]['RA'] = fitsdict['ra'][ind[0]]
-            self._msstd[det-1]['DEC'] = fitsdict['dec'][ind[0]]
-            self._msstd[det-1]['spobjs'] = None
-            # Use this detector? Need to check this after setting RA/DEC above
-            if 'detnum' in settings.argflag['reduce'].keys():
-                msgs.warn("If your standard wasnt on this detector, you will have trouble..")
-                if det != settings.argflag['reduce']['detnum']:
-                    continue
-            if settings.spect["mosaic"]["reduction"] == "ARMLSD":
-                arproc.reduce_multislit(self, sciframe, ind[0], fitsdict, det, standard=True)
-            elif settings.spect["mosaic"]["reduction"] == "ARMED":
-                arproc.reduce_echelle(self, sciframe, ind[0], fitsdict, det, standard=True)
-            else:
-                msgs.error("Not ready for reduction type {0:s}".format(settings.spect["mosaic"]["reduction"]))
+        try:
+            sensfunc = armasters.get_master_frame(self, "sensfunc")
+        except IOError:
+            # Grab the standard star frames
+            msgs.info("Preparing the standard")
+            ind = self._idx_std
+            msgs.warn("Taking only the first standard frame for now")
+            ind = [ind[0]]
+            # Extract
+            all_specobj = []
+            for kk in range(settings.spect['mosaic']['ndet']):
+                det = kk+1
+                # Load the frame(s)
+                frame = arload.load_frames(fitsdict, ind, det, frametype='standard',
+                                           msbias=self._msbias[det-1])
+                sciframe = frame[:, :, 0] # First exposure
+                # Save RA/DEC
+                self._msstd[det-1]['RA'] = fitsdict['ra'][ind[0]]
+                self._msstd[det-1]['DEC'] = fitsdict['dec'][ind[0]]
+                self._msstd[det-1]['spobjs'] = None
+                # Use this detector? Need to check this after setting RA/DEC above
+                if 'detnum' in settings.argflag['reduce'].keys():
+                    msgs.warn("If your standard wasnt on this detector, you will have trouble..")
+                    if det != settings.argflag['reduce']['detnum']:
+                        continue
+                if settings.spect["mosaic"]["reduction"] == "ARMLSD":
+                    arproc.reduce_multislit(self, sciframe, ind[0], fitsdict, det, standard=True)
+                elif settings.spect["mosaic"]["reduction"] == "ARMED":
+                    arproc.reduce_echelle(self, sciframe, ind[0], fitsdict, det, standard=True)
+                else:
+                    msgs.error("Not ready for reduction type {0:s}".format(settings.spect["mosaic"]["reduction"]))
 
-            if self._msstd[det-1]['spobjs'] is not None:
-                all_specobj += self._msstd[det-1]['spobjs']
-        # If standard, generate a sensitivity function
-        sensfunc = arflux.generate_sensfunc(self, ind[0], all_specobj, fitsdict)
-        # Set the sensitivity function
-        self.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
-        # Apply to Standard
-        for kk in range(settings.spect['mosaic']['ndet']):
-            det = kk + 1  # Detectors indexed from 1
-            arflux.apply_sensfunc(self, det, ind[0], fitsdict, standard=True)
-        # Save
-        armasters.save_sensfunc(self, settings.argflag['reduce']['masters']['setup'])
-        # Save standard star spectrum to disk
-        outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(
-            fitsdict['filename'][ind[0]].split('.')[0])
-        arsave.save_1d_spectra_fits(self, fitsdict, standard=True, outfile=outfile)
-        return True
+                if self._msstd[det-1]['spobjs'] is not None:
+                    all_specobj += self._msstd[det-1]['spobjs']
+            # If standard, generate a sensitivity function
+            sensfunc = arflux.generate_sensfunc(self, ind[0], all_specobj, fitsdict)
+            # Set the sensitivity function
+            self.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
+            # Apply to Standard
+            for kk in range(settings.spect['mosaic']['ndet']):
+                det = kk + 1  # Detectors indexed from 1
+                arflux.apply_sensfunc(self, det, ind[0], fitsdict, standard=True)
+            # Save
+            armasters.save_sensfunc(self, settings.argflag['reduce']['masters']['setup'])
+            # Save standard star spectrum to disk
+            outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(
+                fitsdict['filename'][ind[0]].split('.')[0])
+            arsave.save_1d_spectra_fits(self, fitsdict, standard=True, outfile=outfile)
+            return True
+        else:
+            self._sensfunc = sensfunc.copy()
+            return True
 
     '''
     def Setup(self):
