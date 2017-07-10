@@ -143,7 +143,8 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 msgs.info("Identifying the pixels belonging to each slit")
                 slitpix = arproc.slit_pixels(slf, slf._mstrace[det-1].shape, det)
                 slf.SetFrame(slf._slitpix, slitpix, det)
-
+                # Save to disk
+                armasters.save_masters(slf, det, mftype='trace')
                 # Save QA for slit traces
                 arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
                                        slf._rordpix[det-1], extord,
@@ -198,7 +199,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             # Write setup
             #setup = arsort.calib_setup(sc, det, fitsdict, setup_dict, write=True)
             # Write MasterFrames (currently per detector)
-            armasters.save_masters(slf, det, setup)
+            #armasters.save_masters(slf, det, setup)
 
             ###############
             # Load the science frame and from this generate a Poisson error frame
