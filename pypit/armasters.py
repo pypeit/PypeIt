@@ -1,5 +1,6 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
+import numpy as np
 from pypit import armsgs
 from pypit import arload
 from pypit import arparse as settings
@@ -75,14 +76,14 @@ def master_name(ftype, setup, mdir=None):
                      normpixelflat='{:s}/MasterFlatField_{:s}.fits'.format(mdir, setup),
                      arc='{:s}/MasterArc_{:s}.fits'.format(mdir, setup),
                      wave='{:s}/MasterWave_{:s}.fits'.format(mdir, setup),
-                     wave_calib='{:s}/MasterWaveCalib_{:s}.json'.format(mdir, setup),
+                     wv_calib='{:s}/MasterWaveCalib_{:s}.json'.format(mdir, setup),
                      tilts='{:s}/MasterTilts_{:s}.fits'.format(mdir, setup),
                      slitprof='{:s}/MasterSlitProfile_{:s}.fits'.format(mdir, setup),
                      sensfunc='{:s}/MasterSensFunc_{:s}.yaml'.format(mdir, setup[0]),
                      )
     return name_dict[ftype]
 
-def get_master_frame(mftype):
+def get_master_frame(slf, mftype, det=None):
 
     setup = settings.argflag['reduce']['masters']['setup']
     # Were MasterFrames even desired?
@@ -95,11 +96,26 @@ def get_master_frame(mftype):
             raise IOError
         else:  # Extras
             if mftype == 'arc':
-                transpose = head['transp']
-                if transpose:  # Need to setup for flipping
+                slf._transpose = head['transp']
+                if slf._transpose:  # Need to setup for flipping
                     settings.argflag['trace']['dispersion']['direction'] = 1
                 else:
                     settings.argflag['trace']['dispersion']['direction'] = 0
+            elif mftype == 'trace':
+                lordloc, _ = arload.load_master(ms_name, frametype="trace", exten=1)
+                rordloc, _ = arload.load_master(ms_name, frametype="trace", exten=2)
+                pixcen, _ = arload.load_master(ms_name, frametype="trace", exten=3)
+                pixwid, _ = arload.load_master(ms_name, frametype="trace", exten=4)
+                lordpix, _ = arload.load_master(ms_name, frametype="trace", exten=5)
+                rordpix, _ = arload.load_master(ms_name, frametype="trace", exten=6)
+                slitpix, _ = arload.load_master(ms_name, frametype="trace", exten=7)
+                slf.SetFrame(slf._lordloc, lordloc, det)
+                slf.SetFrame(slf._rordloc, rordloc, det)
+                slf.SetFrame(slf._pixcen, pixcen.astype(np.int), det)
+                slf.SetFrame(slf._pixwid, pixwid.astype(np.int), det)
+                slf.SetFrame(slf._lordpix, lordpix.astype(np.int), det)
+                slf.SetFrame(slf._rordpix, rordpix.astype(np.int), det)
+                slf.SetFrame(slf._slitpix, slitpix.astype(np.int), det)
             # Append as loaded
             settings.argflag['reduce']['masters']['loaded'].append(mftype+setup)
             return msfile
@@ -164,7 +180,7 @@ def save_masters(slf, det, mftype='all'):
                            frametype='wave')
         # Wavelength fit
         gddict = ltu.jsonify(slf._wvcalib[det-1])
-        json_file = master_name('wave_calib', setup)
+        json_file = master_name('wv_calib', setup)
         if gddict is not None:
             ltu.savejson(json_file, gddict, easy_to_read=True, overwrite=True)
         else:

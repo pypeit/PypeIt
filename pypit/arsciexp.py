@@ -266,7 +266,7 @@ class ScienceExposure:
         if settings.argflag['arc']['useframe'] in ['arc']:
             # Master Frame
             try:
-                msarc = armasters.get_master_frame("arc")
+                msarc = armasters.get_master_frame(self, "arc")
             except IOError:
                 msgs.info("Preparing a master arc frame")
                 ind = self._idx_arcs
@@ -292,10 +292,10 @@ class ScienceExposure:
         else: # Use input frame name located in MasterFrame directory
             msarc_name = settings.argflag['run']['directory']['master']+'/'+settings.argflag['arc']['useframe']
             msarc, _ = arload.load_master(msarc_name, frametype=None)
+
         # Set and then delete the Master Arc frame
         self.SetMasterFrame(msarc, "arc", det)
         del msarc
-        debugger.set_trace()
         return True
 
     def MasterBias(self, fitsdict, det):
@@ -435,19 +435,11 @@ class ScienceExposure:
                         arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
                 return False
             ###############
-            # Generate a master pixel flat frame
+            # Generate/load a master pixel flat frame
             if settings.argflag['reduce']['flatfield']['useframe'] in ['pixelflat', 'trace']:
-                if settings.argflag['reduce']['masters']['reuse']:
-                    # Attempt to load the Master Frame
-                    msflat_name = armasters.master_name('normpixelflat', settings.argflag['reduce']['masters']['setup'])
-                    try:
-                        mspixelflatnrm, head = arload.load_master(msflat_name, frametype="normpixelflat")
-                    except IOError:
-                        msgs.warn("No MasterFlatField frame found {:s}".format(msflat_name))
-                    else:
-                        settings.argflag['reduce']['masters']['loaded'].append('normpixelflat'+settings.argflag['reduce']['masters']['setup'])
-                        mspixelflat = mspixelflatnrm
-                if 'normpixelflat'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+                try:
+                    mspixelflatnrm = armasters.get_master_frame(self, "normpixelflat")
+                except IOError:
                     msgs.info("Preparing a master pixel flat frame with {0:s}".format(settings.argflag['reduce']['flatfield']['useframe']))
                     # Get all of the pixel flat frames for this science frame
                     ind = self._idx_flat
@@ -493,6 +485,8 @@ class ScienceExposure:
                                               self._slitpix[det - 1], desc="Slit profile")
                         msgs.info("Saving blaze function QA")
                         arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
+                else:
+                    mspixelflat = mspixelflatnrm
             else:  # It must be the name of a file the user wishes to load
                 mspixelflat_name = armasters.user_master_name(settings.argflag['run']['directory']['master'],
                                                               settings.argflag['reduce']['flatfield']['useframe'])
@@ -598,32 +592,9 @@ class ScienceExposure:
             msgs.info("An identical master trace frame already exists")
             return False
         if settings.argflag['reduce']['trace']['useframe'] in ['trace']:
-            if settings.argflag['reduce']['masters']['reuse']:
-                # Attempt to load the Master Frame
-                mstrace_name = armasters.master_name('trace', settings.argflag['reduce']['masters']['setup'])
-                try:
-                    mstrace, head = arload.load_master(mstrace_name, frametype="trace")
-                except IOError:
-                    msgs.warn("No MasterTrace frame found {:s}".format(mstrace_name))
-                else:
-                    # Extras
-                    lordloc, _ = arload.load_master(mstrace_name, frametype="trace", exten=1)
-                    rordloc, _ = arload.load_master(mstrace_name, frametype="trace", exten=2)
-                    pixcen, _ = arload.load_master(mstrace_name, frametype="trace", exten=3)
-                    pixwid, _ = arload.load_master(mstrace_name, frametype="trace", exten=4)
-                    lordpix, _ = arload.load_master(mstrace_name, frametype="trace", exten=5)
-                    rordpix, _ = arload.load_master(mstrace_name, frametype="trace", exten=6)
-                    slitpix, _ = arload.load_master(mstrace_name, frametype="trace", exten=7)
-                    self.SetFrame(self._lordloc, lordloc, det)
-                    self.SetFrame(self._rordloc, rordloc, det)
-                    self.SetFrame(self._pixcen, pixcen.astype(np.int), det)
-                    self.SetFrame(self._pixwid, pixwid.astype(np.int), det)
-                    self.SetFrame(self._lordpix, lordpix.astype(np.int), det)
-                    self.SetFrame(self._rordpix, rordpix.astype(np.int), det)
-                    self.SetFrame(self._slitpix, slitpix.astype(np.int), det)
-                    #
-                    settings.argflag['reduce']['masters']['loaded'].append('trace'+settings.argflag['reduce']['masters']['setup'])
-            if 'trace'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+            try:
+                mstrace = armasters.get_master_frame(self, "trace", det=det)
+            except IOError:
                 msgs.info("Preparing a master trace frame with {0:s}".format(settings.argflag['reduce']['trace']['useframe']))
                 ind = self._idx_trace
                 # Load the frames for tracing
@@ -646,8 +617,8 @@ class ScienceExposure:
                 del frames
         else: # It must be the name of a file the user wishes to load
             mstrace_name = settings.argflag['run']['directory']['master']+'/'+settings.argflag['reduce']['trace']['useframe']
-            mstrace, head = arload.load_master(mstrace_name, frametype=None)
-            debugger.set_trace()  # NEED TO LOAD EXTRAS AS ABOVE
+            mstrace, _ = arload.load_master(mstrace_name, frametype=None)
+            debugger.set_trace()  # NEED TO LOAD EXTRAS AS ABOVE;  SHOULD MODIFY get_master_frame()
         # Set and then delete the Master Trace frame
         self.SetMasterFrame(mstrace, "trace", det)
         del mstrace
@@ -718,27 +689,22 @@ class ScienceExposure:
         else:
             wv_calib = None
         # Attempt to load the Master Frame
-        if settings.argflag['reduce']['masters']['reuse']:
-            mswv_calib_name = armasters.master_name('wave_calib', settings.argflag['reduce']['masters']['setup'])
-            try:
-                wv_calib = arload.load_master(mswv_calib_name, frametype="wv_calib")
-            except (IOError, ValueError):
-                msgs.warn("No MasterWave1D data found {:s}".format(mswv_calib_name))
+        try:
+            wv_calib = armasters.get_master_frame(self, "wv_calib")
+        except IOError:
+            if settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
+                msgs.info("A wavelength calibration will not be performed")
             else:
-                settings.argflag['reduce']['masters']['loaded'].append('wave_calib'+settings.argflag['reduce']['masters']['setup'])
-        if settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
-            msgs.info("A wavelength calibration will not be performed")
-        else:
-            if 'wave_calib' + settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
-                # Setup arc parameters (e.g. linelist)
-                arcparam = ararc.setup_param(self, sc, det, fitsdict)
-                self.SetFrame(self._arcparam, arcparam, det)
-                ###############
-                # Extract arc and identify lines
-                if settings.argflag['arc']['calibrate']['method'] == 'simple':
-                    wv_calib = ararc.simple_calib(self, det)
-                elif settings.argflag['arc']['calibrate']['method'] == 'arclines':
-                    wv_calib = ararc.calib_with_arclines(self, det)
+                if 'wv_calib' + settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+                    # Setup arc parameters (e.g. linelist)
+                    arcparam = ararc.setup_param(self, sc, det, fitsdict)
+                    self.SetFrame(self._arcparam, arcparam, det)
+                    ###############
+                    # Extract arc and identify lines
+                    if settings.argflag['arc']['calibrate']['method'] == 'simple':
+                        wv_calib = ararc.simple_calib(self, det)
+                    elif settings.argflag['arc']['calibrate']['method'] == 'arclines':
+                        wv_calib = ararc.calib_with_arclines(self, det)
         # Set
         if wv_calib is not None:
             self.SetFrame(self._wvcalib, wv_calib, det)

@@ -313,14 +313,15 @@ def load_master(name, exten=0, frametype='<None>'):
 
     Returns
     -------
-    frame : ndarray
+    frame : ndarray or dict
       The data from the master calibration frame
+    head : str (or None)
     """
     if frametype == 'wv_calib':
         from linetools import utils as ltu
         msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
         ldict = ltu.loadjson(name)
-        return ldict
+        return ldict, None
     elif frametype == 'sensfunc':
         import yaml
         from astropy import units as u
@@ -328,7 +329,7 @@ def load_master(name, exten=0, frametype='<None>'):
             sensfunc = yaml.load(f)
         sensfunc['wave_max'] = sensfunc['wave_max']*u.AA
         sensfunc['wave_min'] = sensfunc['wave_min']*u.AA
-        return sensfunc
+        return sensfunc, None
     else:
         msgs.info("Loading a pre-existing master calibration frame")
         try:
