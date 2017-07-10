@@ -160,21 +160,17 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             ###############
             # Derive the spectral tilt
             if slf._tilts[det-1] is None:
-                if settings.argflag['reduce']['masters']['reuse']:
-                    mstilt_name = armasters.master_name('tilts', settings.argflag['reduce']['masters']['setup'])
-                    try:
-                        tilts, head = arload.load_master(mstilt_name, frametype="tilts")
-                    except IOError:
-                        pass
-                    else:
-                        slf.SetFrame(slf._tilts, tilts, det)
-                        settings.argflag['reduce']['masters']['loaded'].append('tilts'+settings.argflag['reduce']['masters']['setup'])
-                if 'tilts'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+                try:
+                    tilts = armasters.get_master_frame(slf, "tilts")
+                except IOError:
                     # First time tilts are derived for this arc frame --> derive the order tilts
                     tilts, satmask, outpar = artrace.multislit_tilt(slf, slf._msarc[det-1], det)
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
+                    armasters.save_masters(slf, det, mftype='tilts')
+                else:
+                    slf.SetFrame(slf._tilts, tilts, det)
 
             ###############
             # Prepare the pixel flat field frame

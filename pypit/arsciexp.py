@@ -410,11 +410,13 @@ class ScienceExposure:
                     winpp = np.where(slit_profiles != 0.0)
                     mspixelflatnrm[winpp] /= slit_profiles[winpp]
                     self.SetMasterFrame(mspixelflatnrm, "normpixelflat", det)
+                    armasters.save_masters(self, det, mftype='normpixelflat')
                     if np.array_equal(self._idx_flat, self._idx_trace):
                         # The flat field frame is also being used to trace the slit edges and determine the slit
                         # profile. Avoid recalculating the slit profile and blaze function and save them here.
                         self.SetFrame(self._msblaze, msblaze, det)
                         self.SetFrame(self._slitprof, slit_profiles, det)
+                        armasters.save_masters(self, det, mftype='slitprof')
                         if settings.argflag["reduce"]["slitprofile"]["perform"]:
                             msgs.info("Preparing QA of each slit profile")
                             arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
@@ -467,6 +469,7 @@ class ScienceExposure:
                         # profile. Avoid recalculating the slit profile and blaze function and save them here.
                         self.SetFrame(self._msblaze, msblaze, det)
                         self.SetFrame(self._slitprof, slit_profiles, det)
+                        armasters.save_masters(self, det, mftype='slitprof')
                         if settings.argflag["reduce"]["slitprofile"]["perform"]:
                             msgs.info("Preparing QA of each slit profile")
                             arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
