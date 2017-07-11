@@ -1,23 +1,18 @@
 .. highlight:: rest
 
-*******************
-Coadding of Spectra
-*******************
+****************
+Coadd 1D Spectra
+****************
 
-This document will describe how to combine the spectra
+This document will describe how to combine the 1D spectra
 from multiple exposures of the same object.
 
 PYPIT currently only offers the coadding of spectra in
 1D and must be done outside of the data reduction pipeline,
-i.e. PYPIT will not automatically coadd your spectra as
+i.e. PYPIT will *not* coadd your spectra as
 part of the data reduction process.
 
-1D Coadding
-===========
-
-This section describes the algorithms for coadding extracted,
-"1D" spectra.  The current defaults use the Optimal extraction
-and fluxed data.
+The current defaults use the Optimal extraction and fluxed data.
 
 Coadd 1dspec
 ++++++++++++
@@ -121,6 +116,9 @@ employed depends on the number of input spectra.
 Note that most of the challenges associated with the coadding
 are related to CR identification, especially for cases
 of only two input spectra.
+
+The main parameters driving the CR algorithms are
+described in :ref:`cosmic_ray_keys`.
 
 Two Spectra
 -----------
