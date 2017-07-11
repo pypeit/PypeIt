@@ -125,13 +125,42 @@ of only two input spectra.
 Two Spectra
 -----------
 
+While it is possible to clean a significant fraction of
+any lingering CR's given 2 exposures, results are mixed
+and depend on the S/N ratio of the data and the presence
+of strong emission lines.  We have now implemented
+three approaches, described below.
+
+The default is `bspline` which is likely best for low S/N data.
+The algorithm may be modified with the cr_two_alg parameter.
+
+.. _cr_diff:
+
+diff
+****
+
+This algorithm compares the difference between the
+spectra and clips those that are `cr_nsig` away from
+the standard deviation.
+
+ratio
+*****
+
+Similar to :ref:`cr_diff` above, but the ratio is also compared.
+This may be the best algorithm for high S/N data with
+strong emission lines.
+
+bspline
+*******
+
 A b-spline is fit to all of the pixels of the 2 spectra.
 By default, a breakpoint spacing of 6 pixels is used.
 Very narrow and bright emission lines may be rejected
 with this spacing and a lower value should be used
 (see :ref:`cosmic_ray_keys`).  Of course, lowering
 the spacing will increase the likelihood of including
-cosmic rays.
+cosmic rays.  This algorithm is best suited for lower
+S/N spectra.
 
 
 Three+ Spectra
@@ -203,10 +232,12 @@ Cosmic Ray
 ==================   =======================  ===================================================
 Parameter            Option                   Description
 ==================   =======================  ===================================================
-cr_everyn            default: 6               For CR cleaning of 2 spectra, this sets the
+cr_everyn            int; default=6           For CR cleaning of 2 spectra, this sets the
                                               spacing of the b-spline break points.  Use a lower
                                               number to avoid clipping narrow emission/absorption
                                               lines, e.g. 4
+cr_nsig              float; default=7.        Number of sigma which defines a CR
+cr_two_alg           str; default=bspline     Algorithm to adopt for cleaning only 2 spectra
 ==================   =======================  ===================================================
 
 .. _more_coadd_keys:
