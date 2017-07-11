@@ -994,6 +994,20 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
+    def reduce_detnum(self, v):
+        """ Reduce only the input detector of the array
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        if v.lower() == 'none':
+            v = None
+        else:
+            v = key_int(v)
+        self.update(v)
+
     def reduce_flatfield_method(self, v):
         """ Specify the method that should be used to normalize the flat field
 
@@ -3502,19 +3516,6 @@ class ARMLSD(BaseArgFlag):
         v = key_bool(v)
         self.update(v)
 
-    def reduce_detnum(self, v):
-        """ Reduce only the input detector of the array
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        if v.lower() == 'none':
-            v = None
-        else:
-            v = key_int(v)
-        self.update(v)
 
 
     def reduce_flexure_maxshift(self, v):

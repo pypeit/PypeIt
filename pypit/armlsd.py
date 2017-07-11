@@ -78,6 +78,8 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             if settings.argflag['reduce']['detnum'] is not None:
                 if det != settings.argflag['reduce']['detnum']:
                     continue
+                else:
+                    msgs.warn("Restricting the reduction to detector {:d}".format(det))
             slf.det = det
             ###############
             # Get data sections

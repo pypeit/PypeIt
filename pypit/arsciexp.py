@@ -806,7 +806,7 @@ class ScienceExposure:
             self._msstd[det-1]['DEC'] = fitsdict['dec'][ind[0]]
             self._msstd[det-1]['spobjs'] = None
             # Use this detector? Need to check this after setting RA/DEC above
-            if 'detnum' in settings.argflag['reduce'].keys():
+            if settings.argflag['reduce']['detnum'] is not None:
                 msgs.warn("If your standard wasnt on this detector, you will have trouble..")
                 if det != settings.argflag['reduce']['detnum']:
                     continue

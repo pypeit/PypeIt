@@ -19,6 +19,7 @@ reduce calibrate nonlinear False          # Perform a non-linear correction
 #reduce calibrate flux True       # Perform a flux calibration
 reduce calibrate refframe heliocentric           # Which reference frame do you want the data in (heliocentric, barycentric, none)?
 reduce calibrate wavelength vacuum          # Wavelength calibrate the data? (air, vacuum, none)
+reduce detnum None                  # Restrict reduction to a single detector
 reduce overscan method savgol       # Method used to fit the overscan (polynomial, savgol)
 reduce overscan params [5,65]       # Parameters used for the overscan method (for polynomial use [#] where # is replaced by the polynomial order, for savgol use [#,$] where # is the order and $ is the window size (should be odd)
 reduce badpix True              # Make a bad pixel mask? (This step requires bias frames)
