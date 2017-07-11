@@ -12,7 +12,8 @@ PYPIT currently only offers the coadding of spectra in
 i.e. PYPIT will *not* coadd your spectra as
 part of the data reduction process.
 
-The current defaults use the Optimal extraction and fluxed data.
+The current defaults use the Optimal extraction
+and fluxed data.
 
 Coadd 1dspec
 ++++++++++++
