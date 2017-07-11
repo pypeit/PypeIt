@@ -19,6 +19,27 @@ This section describes the algorithms for coadding extracted,
 "1D" spectra.  The current defaults use the Optimal extraction
 and fluxed data.
 
+Coadd 1dspec
+++++++++++++
+
+The primary script is called `pypit_coadd_1dspec` and takes
+an input YAML file to guide the process.  Here is the usage::
+
+    wolverine> pypit_coadd_1dspec -h
+    usage: pypit_coadd_1dspec [-h] [--debug] infile
+
+    Script to coadd a set of spec1D files and 1 or more slits and 1 or more
+    objects. Current defaults use Optimal + Fluxed extraction. [v1.1]
+
+    positional arguments:
+      infile      Input file (YAML)
+
+    optional arguments:
+      -h, --help  show this help message and exit
+      --debug     Turn debugging on
+
+Turning on debugging will generate a series of diagnostic plots
+and likely hit as set_trace in the code.
 
 Input File
 ++++++++++
@@ -97,6 +118,9 @@ Cosmic Ray Cleaning
 By default, the script will attempt to identify additional,
 lingering cosmic rays in the spectrum.  The algorithm
 employed depends on the number of input spectra.
+Note that most of the challenges associated with the coadding
+are related to CR identification, especially for cases
+of only two input spectra.
 
 Two Spectra
 -----------
