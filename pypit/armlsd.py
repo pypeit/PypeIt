@@ -219,7 +219,6 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         msgs.info("Assuming one star per detector mosaic")
         msgs.info("Waited until last detector to process")
 
-        msgs.work("Need to check for existing sensfunc")
         update = slf.MasterStandard(fitsdict)
         if update and reuseMaster:
             armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
