@@ -86,7 +86,8 @@ find           N/A         standard,nminima         Algorithm to use for finding
 nsmooth        nminima     int; default=3           Parameter for Gaussian smoothing when the nminima
                                                     algorithm is used
 xedge          Any         float; default=0.03      Ignore any objects within xedge of the edge of the
-                                                    slit
+                                                    slit.  One may lower this value to recover an
+                                                    object very close to the edge.
 ============== =========== =======================  ==================================================
 
 

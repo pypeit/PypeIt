@@ -3503,14 +3503,17 @@ class ARMLSD(BaseArgFlag):
         self.update(v)
 
     def reduce_detnum(self, v):
-        """ Should a flux calibration be performed?
+        """ Reduce only the input detector of the array
 
         Parameters
         ----------
         v : str
           value of the keyword argument given by the name of this function
         """
-        v = key_int(v)
+        if v.lower() == 'none':
+            v = None
+        else:
+            v = key_int(v)
         self.update(v)
 
 
