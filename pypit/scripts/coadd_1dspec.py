@@ -15,6 +15,7 @@ def parser(options=None):
 
     parser = argparse.ArgumentParser(description='Script to coadd a set of spec1D files and 1 or more slits and 1 or more objects. Current defaults use Optimal + Fluxed extraction. [v1.1]')
     parser.add_argument("infile", type=str, help="Input file (YAML)")
+    parser.add_argument("--debug", default=False, action='store_true', help="Turn debugging on")
 
     if options is None:
         args = parser.parse_args()

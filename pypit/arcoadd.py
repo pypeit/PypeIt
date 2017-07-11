@@ -437,7 +437,8 @@ def scale_spectra(spectra, smask, sn2, iref=0, scale_method='auto', hand_scale=N
     return scales, omethod
 
 
-def clean_cr(spectra, smask, n_grow_mask=1, nsig=5., nrej_low=5., debug=False, **kwargs):
+def clean_cr(spectra, smask, n_grow_mask=1, nsig=5., nrej_low=5.,
+    debug=False, cr_everyn=6, cr_bsigma=5., **kwargs):
     """ Sigma-clips the flux arrays to remove obvious CR
 
     Parameters
@@ -488,14 +489,15 @@ def clean_cr(spectra, smask, n_grow_mask=1, nsig=5., nrej_low=5., debug=False, *
         gd = np.where(sig > 0.)[0]
         srt = np.argsort(waves[gd])
         idx = gd[srt]
+        # The following may eliminate bright, narrow emission lines
         mask, spl = arutils.robust_polyfit(waves[idx], flux[idx], 3, function='bspline',
-                weights=1./sig[gd][srt], sigma=3., maxone=False, everyn=6)
+                weights=1./sig[gd][srt], sigma=cr_bsigma, maxone=False, everyn=cr_everyn)
         # Reject CR (with grow)
         spec_fit = arutils.func_val(spl, wave, 'bspline')
         for ii in range(2):
             diff = fluxes[ii,:] - spec_fit
             cr = (diff > nsig*sigs[ii,:]) & (sigs[ii,:]>0.)
-            if False:
+            if debug:
                 debugger.plot1d(spectra.data['wave'][0,:], spectra.data['flux'][ii,:], spec_fit, xtwo=spectra.data['wave'][0,cr], ytwo=spectra.data['flux'][ii,cr], mtwo='s')
             if n_grow_mask > 0:
                 cr = grow_mask(cr, n_grow=n_grow_mask)
@@ -512,7 +514,7 @@ def clean_cr(spectra, smask, n_grow_mask=1, nsig=5., nrej_low=5., debug=False, *
                 msgs.info("Removing {:d} low values in exposure {:d}".format(np.sum(rej_low),ii))
                 smask[ii,rej_low] = True
         # Check
-        if False:
+        if debug:
             gd0 = ~smask[0,:]
             gd1 = ~smask[1,:]
             debugger.plot1d(wave[gd0], fluxes[0,gd0], xtwo=wave[gd1], ytwo=fluxes[1,gd1])

@@ -91,6 +91,32 @@ and/or the flux method::
 
     'flux': 'counts'
 
+Cosmic Ray Cleaning
++++++++++++++++++++
+
+By default, the script will attempt to identify additional,
+lingering cosmic rays in the spectrum.  The algorithm
+employed depends on the number of input spectra.
+
+Two Spectra
+-----------
+
+A b-spline is fit to all of the pixels of the 2 spectra.
+By default, a breakpoint spacing of 6 pixels is used.
+Very narrow and bright emission lines may be rejected
+with this spacing and a lower value should be used
+(see :ref:`cosmic_ray_keys`).  Of course, lowering
+the spacing will increase the likelihood of including
+cosmic rays.
+
+
+Three+ Spectra
+--------------
+
+For three or more spectra, the algorithm derives a median
+spectrum from the data and identifies cosmic rays or other
+deviant pixels from large deviations off the median.
+
 Additional Coadding Parameters
 ++++++++++++++++++++++++++++++
 You can adjust the default methods by which PYPIT coadds
@@ -127,6 +153,7 @@ wave_grid_method     default: concatenate     create a new wavelength grid onto 
 
 Flux Scaling
 ------------
+
 ==================   =======================  ==================================================
 Parameter            Option                   Description
 ==================   =======================  ==================================================
@@ -144,10 +171,24 @@ scale_method         default: auto            scale the flux arrays based on the
                                               of each spectra
 ==================   =======================  ==================================================
 
+.. _cosmic_ray_keys:
+
+Cosmic Ray
+----------
+
+==================   =======================  ===================================================
+Parameter            Option                   Description
+==================   =======================  ===================================================
+cr_everyn            default: 6               For CR cleaning of 2 spectra, this sets the
+                                              spacing of the b-spline break points.  Use a lower
+                                              number to avoid clipping narrow emission/absorption
+                                              lines, e.g. 4
+==================   =======================  ===================================================
+
 .. _more_coadd_keys:
 
 More Keywords
----------------
+-------------
 
 Here are other keywords that one may wish to set
 for individual objects:
