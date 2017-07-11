@@ -81,8 +81,6 @@ trace combine reject level    [3.0,3.0]     # Rejection level (in standard devia
 trace combine reject replace   maxnonsat     # What to do if all pixels are rejected (options are: min, max, mean, median, weightmean, maxnonsat)
 trace combine satpix      reject        # What to do with saturated pixels (options are: reject, force, nothing)
 trace dispersion direction  0          # Specify the dispersion direction (0 for row, 1 for column)
-trace object order 2                # What is the order of the polynomial function to be used to fit the object trace in each slit
-trace object function legendre      # What function should be used to trace the object in each slit? (polynomial, legendre, chebyshev)
 trace slits diffpolyorder  2         # What is the order of the 2D function that should be used to fit the 2d solution for the spatial size of all orders?
 trace slits expand False             # If you trace the slits with a pinhole frame, you should expand the trace edges to the slit edges defined by the trace frame
 trace slits fracignore 0.01           # If an order spans less than this fraction over the detector, it will be reconstructed and not fitted
@@ -101,6 +99,13 @@ trace slits tilts idsonly False       # Use only the arc lines that have an iden
 trace slits tilts method      spline        # What method should be used to trace the tilt of the slit along an order (PCA, spca, spline, interp, perp, zero)
 trace slits tilts params    [1,1,0]       # What order polynomials should be used to fit the tilt principle components
 trace slits tilts order  1             # What is the order of the function to be used for tilts in a given order
+
+# TRACE OBJECT (parameters for finding + tracing object flux)
+trace object order 2                # What is the order of the polynomial function to be used to fit the object trace in each slit
+trace object function legendre      # What function should be used to trace the object in each slit? (polynomial, legendre, chebyshev)
+trace object find standard          # What algorithm to use for finding objects [standard, nminima]
+trace object nsmooth 3              # Parameter for Gaussian smoothing when the nminima algorithm is used
+trace object xedge 0.03             # Ignore any objects within xedge of the edge of the slit
 
 # PIXEL FLAT FRAMES (used to correct pixel-to-pixel variations)
 pixelflat useframe pixelflat             # What filetype should be used for pixel-to-pixel calibration (flat), you can also specify a master calibrations file if it exists.
