@@ -65,6 +65,8 @@ def main(args, unit_test=False, path=''):
         gparam = coadd_dict.pop('global')
     else:
         gparam = {}
+    if args.debug:
+        gparam['debug'] = True
     sv_gparam = gparam.copy()
     # Extraction
     if 'extract' in coadd_dict.keys():
