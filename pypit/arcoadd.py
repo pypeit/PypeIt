@@ -461,7 +461,7 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
 
     if spectra.nspec == 2:
         msgs.info("Only 2 exposures.  Using custom procedure")
-        if cr_two_alg == 'diff': # b-spline approach
+        if cr_two_alg == 'diff':
             diff = fluxes[0,:] - fluxes[1,:]
             # Robust mean/median
             med, mad = arutils.robust_meanstd(diff)
@@ -481,7 +481,7 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
             if debug:
                 debugger.plot1d(wave, fluxes[1,:], xtwo=wave[cr1], ytwo=fluxes[1,cr1], mtwo='s')
             msgs.info("Rejecting {:d} CRs in exposure 1".format(np.sum(cr1)))
-        elif cr_two_alg == 'ratio': # b-spline approach
+        elif cr_two_alg == 'ratio':
             diff = fluxes[0,:] - fluxes[1,:]
             rtio = fluxes[0,:] / fluxes[1,:]
             # Robust mean/median
@@ -503,7 +503,7 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
             if debug:
                 debugger.plot1d(wave, fluxes[1,:], xtwo=wave[cr1], ytwo=fluxes[1,cr1], mtwo='s')
             msgs.info("Rejecting {:d} CRs in exposure 1".format(np.sum(cr1)))
-        elif cr_two_alg == 'bspline': # b-spline approach
+        elif cr_two_alg == 'bspline':
             # Package Data for convenience
             waves = spectra.data['wave'].flatten()  # Packed 0,1
             flux = fluxes.flatten()
