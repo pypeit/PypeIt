@@ -437,7 +437,8 @@ def scale_spectra(spectra, smask, sn2, iref=0, scale_method='auto', hand_scale=N
     return scales, omethod
 
 
-def clean_cr(spectra, smask, n_grow_mask=1, nsig=5., nrej_low=5., debug=False, **kwargs):
+def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
+    debug=False, cr_everyn=6, cr_bsigma=5., cr_two_alg='bspline', **kwargs):
     """ Sigma-clips the flux arrays to remove obvious CR
 
     Parameters
@@ -448,7 +449,7 @@ def clean_cr(spectra, smask, n_grow_mask=1, nsig=5., nrej_low=5., debug=False, *
     n_grow_mask : int, optional
         Number of pixels to grow the initial mask by
         on each side. Defaults to 1 pixel
-    nsig : float, optional
+    cr_nsig : float, optional
       Number of sigma for rejection for CRs
 
     Returns
@@ -460,66 +461,92 @@ def clean_cr(spectra, smask, n_grow_mask=1, nsig=5., nrej_low=5., debug=False, *
 
     if spectra.nspec == 2:
         msgs.info("Only 2 exposures.  Using custom procedure")
-        '''
-        diff = fluxes[0,:] - fluxes[1,:]*med_scale
-        # Spec0?
-        spectra.select = 0
-        cr0 = diff > nsig*np.sqrt(spectra.data['sig'][0,:]**2 + med_scale**2 *
-            spectra.data['sig'][1,:]**2)
-        if n_grow_mask > 0:
-            cr0 = grow_mask(cr0, n_grow=n_grow_mask)
-        msgs.info("Rejecting {:d} CRs in exposure 0".format(np.sum(cr0)))
-        spectra.add_to_mask(cr0)
-        # Spec1?
-        spectra.select = 1
-        cr1 = (-1*diff) > nsig*np.sqrt(spectra.data['sig'][0,:]**2 + med_scale**2 *
-                                  spectra.data['sig'][1,:]**2)
-        if n_grow_mask > 0:
-            cr1 = grow_mask(cr1, n_grow=n_grow_mask)
-        spectra.add_to_mask(cr1)
-        msgs.info("Rejecting {:d} CRs in exposure 1".format(np.sum(cr1)))
-        '''
-        # b-spline approach
-        # Package Data for convenience
-        waves = spectra.data['wave'].flatten()  # Packed 0,1
-        flux = fluxes.flatten()
-        sig = sigs.flatten()
-        #
-        gd = np.where(sig > 0.)[0]
-        srt = np.argsort(waves[gd])
-        idx = gd[srt]
-        mask, spl = arutils.robust_polyfit(waves[idx], flux[idx], 3, function='bspline',
-                weights=1./sig[gd][srt], sigma=3., maxone=False, everyn=6)
-        # Reject CR (with grow)
-        spec_fit = arutils.func_val(spl, wave, 'bspline')
-        for ii in range(2):
-            diff = fluxes[ii,:] - spec_fit
-            cr = (diff > nsig*sigs[ii,:]) & (sigs[ii,:]>0.)
-            if False:
-                debugger.plot1d(spectra.data['wave'][0,:], spectra.data['flux'][ii,:], spec_fit, xtwo=spectra.data['wave'][0,cr], ytwo=spectra.data['flux'][ii,cr], mtwo='s')
+        if cr_two_alg == 'diff':
+            diff = fluxes[0,:] - fluxes[1,:]
+            # Robust mean/median
+            med, mad = arutils.robust_meanstd(diff)
+            # Spec0?
+            cr0 = (diff-med) > cr_nsig*mad
             if n_grow_mask > 0:
-                cr = grow_mask(cr, n_grow=n_grow_mask)
-            # Mask
-            smask[ii,cr] = True
-            msgs.info("Cleaning {:d} CRs in exposure {:d}".format(np.sum(cr),ii))
-        # Reject Low
-        if nrej_low > 0.:
+                cr0 = grow_mask(cr0, n_grow=n_grow_mask)
+            msgs.info("Rejecting {:d} CRs in exposure 0".format(np.sum(cr0)))
+            smask[0,cr0] = True
+            if debug:
+                debugger.plot1d(wave, fluxes[0,:], xtwo=wave[cr0], ytwo=fluxes[0,cr0], mtwo='s')
+            # Spec1?
+            cr1 = (-1*(diff-med)) > cr_nsig*mad
+            if n_grow_mask > 0:
+                cr1 = grow_mask(cr1, n_grow=n_grow_mask)
+            smask[1,cr1] = True
+            if debug:
+                debugger.plot1d(wave, fluxes[1,:], xtwo=wave[cr1], ytwo=fluxes[1,cr1], mtwo='s')
+            msgs.info("Rejecting {:d} CRs in exposure 1".format(np.sum(cr1)))
+        elif cr_two_alg == 'ratio':
+            diff = fluxes[0,:] - fluxes[1,:]
+            rtio = fluxes[0,:] / fluxes[1,:]
+            # Robust mean/median
+            rmed, rmad = arutils.robust_meanstd(rtio)
+            dmed, dmad = arutils.robust_meanstd(diff)
+            # Spec0?            med, mad = arutils.robust_meanstd(diff)
+            cr0 = ((rtio-rmed) > cr_nsig*rmad) & ((diff-dmed) > cr_nsig*dmad)
+            if n_grow_mask > 0:
+                cr0 = grow_mask(cr0, n_grow=n_grow_mask)
+            msgs.info("Rejecting {:d} CRs in exposure 0".format(np.sum(cr0)))
+            smask[0,cr0] = True
+            if debug:
+                debugger.plot1d(wave, fluxes[0,:], xtwo=wave[cr0], ytwo=fluxes[0,cr0], mtwo='s')
+            # Spec1?
+            cr1 = (-1*(rtio-rmed) > cr_nsig*rmad) & (-1*(diff-dmed) > cr_nsig*dmad)
+            if n_grow_mask > 0:
+                cr1 = grow_mask(cr1, n_grow=n_grow_mask)
+            smask[1,cr1] = True
+            if debug:
+                debugger.plot1d(wave, fluxes[1,:], xtwo=wave[cr1], ytwo=fluxes[1,cr1], mtwo='s')
+            msgs.info("Rejecting {:d} CRs in exposure 1".format(np.sum(cr1)))
+        elif cr_two_alg == 'bspline':
+            # Package Data for convenience
+            waves = spectra.data['wave'].flatten()  # Packed 0,1
+            flux = fluxes.flatten()
+            sig = sigs.flatten()
+            #
+            gd = np.where(sig > 0.)[0]
+            srt = np.argsort(waves[gd])
+            idx = gd[srt]
+            # The following may eliminate bright, narrow emission lines
+            mask, spl = arutils.robust_polyfit(waves[idx], flux[idx], 3, function='bspline',
+                    weights=1./sig[gd][srt], sigma=cr_bsigma, maxone=False, everyn=cr_everyn)
+            # Reject CR (with grow)
+            spec_fit = arutils.func_val(spl, wave, 'bspline')
             for ii in range(2):
-                diff = spec_fit - fluxes[ii,:]
-                rej_low = (diff > nrej_low*sigs[ii,:]) & (sigs[ii,:]>0.)
-                if False:
-                    debugger.plot1d(spectra.data['wave'][0,:], spectra.data['flux'][ii,:], spec_fit, xtwo=spectra.data['wave'][0,rej_low], ytwo=spectra.data['flux'][ii,rej_low], mtwo='s')
-                msgs.info("Removing {:d} low values in exposure {:d}".format(np.sum(rej_low),ii))
-                smask[ii,rej_low] = True
+                diff = fluxes[ii,:] - spec_fit
+                cr = (diff > cr_nsig*sigs[ii,:]) & (sigs[ii,:]>0.)
+                if debug:
+                    debugger.plot1d(spectra.data['wave'][0,:], spectra.data['flux'][ii,:], spec_fit, xtwo=spectra.data['wave'][0,cr], ytwo=spectra.data['flux'][ii,cr], mtwo='s')
+                if n_grow_mask > 0:
+                    cr = grow_mask(cr, n_grow=n_grow_mask)
+                # Mask
+                smask[ii,cr] = True
+                msgs.info("Cleaning {:d} CRs in exposure {:d}".format(np.sum(cr),ii))
+            # Reject Low
+            if nrej_low > 0.:
+                for ii in range(2):
+                    diff = spec_fit - fluxes[ii,:]
+                    rej_low = (diff > nrej_low*sigs[ii,:]) & (sigs[ii,:]>0.)
+                    if False:
+                        debugger.plot1d(spectra.data['wave'][0,:], spectra.data['flux'][ii,:], spec_fit, xtwo=spectra.data['wave'][0,rej_low], ytwo=spectra.data['flux'][ii,rej_low], mtwo='s')
+                    msgs.info("Removing {:d} low values in exposure {:d}".format(np.sum(rej_low),ii))
+                    smask[ii,rej_low] = True
+            else:
+                msgs.error("Bad algorithm for combining two spectra!")
         # Check
-        if False:
+        if debug:
             gd0 = ~smask[0,:]
             gd1 = ~smask[1,:]
             debugger.plot1d(wave[gd0], fluxes[0,gd0], xtwo=wave[gd1], ytwo=fluxes[1,gd1])
             debugger.set_trace()
 
     else:
-        # Median of the masked array -- Only good for 3 or more spectra
+        # Median of the masked array -- Best for 3 or more spectra
         mflux = np.ma.array(fluxes, mask=smask)
         refflux = np.ma.median(mflux,axis=0)
         diff = fluxes - refflux.filled(0.)
@@ -532,7 +559,7 @@ def clean_cr(spectra, smask, n_grow_mask=1, nsig=5., nrej_low=5., debug=False, *
             ivar[gds] = 1./sigs[ispec,gds]**2
             #
             chi2 = diff[ispec]**2 * ivar
-            badchi = (ivar > 0.0) & (chi2 > nsig**2)
+            badchi = (ivar > 0.0) & (chi2 > cr_nsig**2)
             nbad = np.sum(badchi)
             if nbad > 0:
                 # Grow?
