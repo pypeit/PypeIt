@@ -10,7 +10,10 @@ This script runs PYPIT
 """
 
 import pypit.scripts.run_pypit as run_pypit
+import sys
 
 if __name__ == '__main__':
     args = run_pypit.parser()
-    run_pypit.main(args)
+    rtval = run_pypit.main(args)
+    sys.exit(rtval)
+

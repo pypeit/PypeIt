@@ -411,7 +411,7 @@ def simple_calib(slf, det, get_poly=False):
             if msgs._debug['arc']:
                 msgs.warn('You should probably try your best to ID lines now.')
                 debugger.set_trace()
-                debugger.xplot(yprep)
+                debugger.plot1d(yprep)
             else:
                 msgs.error('Insufficient lines to auto-fit.')
 
@@ -514,8 +514,7 @@ def simple_calib(slf, det, get_poly=False):
         xrej=xrej, yrej=yrej, mask=mask, spec=yprep, nrej=aparm['nsig_rej_final'],
         shift=0., tcent=tcent)
     # QA
-    if not msgs._debug['no_qa']:
-        arqa.arc_fit_qa(slf, final_fit)
+    arqa.arc_fit_qa(slf, final_fit)
     # RMS
     rms_ang = arutils.calc_fit_rms(xfit, yfit, fit, aparm['func'], minv=fmin, maxv=fmax)
     wave = arutils.func_val(fit, np.arange(slf._msarc[det-1].shape[0])/float(slf._msarc[det-1].shape[0]),

@@ -15,6 +15,7 @@ def parser(options=None):
 
     parser = argparse.ArgumentParser(description='Script to coadd a set of spec1D files and 1 or more slits and 1 or more objects. Current defaults use Optimal + Fluxed extraction. [v1.1]')
     parser.add_argument("infile", type=str, help="Input file (YAML)")
+    parser.add_argument("--debug", default=False, action='store_true', help="Turn debugging on")
 
     if options is None:
         args = parser.parse_args()
@@ -64,12 +65,15 @@ def main(args, unit_test=False, path=''):
         gparam = coadd_dict.pop('global')
     else:
         gparam = {}
+    if args.debug:
+        gparam['debug'] = True
     sv_gparam = gparam.copy()
     # Extraction
     if 'extract' in coadd_dict.keys():
         ex_value = coadd_dict.pop('extract')
     else:
         ex_value = 'opt'
+    msgs.info("Using {:s} extraction".format(ex_value))
     # Fluxed data?
     if 'flux' in coadd_dict.keys():
         flux_value = coadd_dict.pop('flux')
@@ -118,7 +122,8 @@ def main(args, unit_test=False, path=''):
             if mtch_obj is None:
                 print("No object {:s} in file {:s}".format(iobj, fkey))
             elif len(mtch_obj) == 1:
-                #Check if optimal extraction is present in all  objects. If not, warn the user and set ex_value to 'box'.
+                #Check if optimal extraction is present in all  objects.
+                # If not, warn the user and set ex_value to 'box'.
                 hdulist = fits.open(fkey)
                 try: #In case the optimal extraction array is a NaN array
                     obj_opt_flam = hdulist[mtch_obj[0]].data['OPT_FLAM']

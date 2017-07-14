@@ -78,6 +78,7 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
             # Setup
             setup = arsort.instr_setup(slf, det, fitsdict, setup_dict, must_exist=True)
+            slf.setup = setup
             settings.argflag['reduce']['masters']['setup'] = setup
             ###############
             # Generate master bias frame
@@ -159,8 +160,7 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._slitpix, slitpix, det)
 
                 # Save QA for slit traces
-                if not msgs._debug['no_qa']:
-                    arqa.slit_trace_qa(slf, slf._mstrace[det - 1], slf._lordpix[det - 1], slf._rordpix[det - 1], extord,
+                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det - 1], extord,
                                        desc="Trace of the slit edges", normalize=False)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
@@ -216,12 +216,11 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                     slf.SetFrame(slf._slitprof, slit_profiles, det)
                     slf.SetFrame(slf._msblaze, msblaze, det)
                     # Prepare some QA for the average slit profile along the slit
-                    if not msgs._debug['no_qa']:
-                        msgs.info("Preparing QA of each slit profile")
-                        arqa.slit_profile(slf, mstracenrm, slit_profiles, slf._lordloc[det - 1], slf._rordloc[det - 1],
-                                          slf._slitpix[det - 1], desc="Slit profile")
-                        msgs.info("Saving blaze function QA")
-                        arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc="Blaze function", textplt="Order")
+                    msgs.info("Preparing QA of each slit profile")
+                    arqa.slit_profile(slf, mstracenrm, slit_profiles, slf._lordloc[det - 1], slf._rordloc[det - 1],
+                                      slf._slitpix[det - 1], desc="Slit profile")
+                    msgs.info("Saving blaze function QA")
+                    arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc="Blaze function", textplt="Order")
 
             ###############
             # Generate/load a master wave frame
@@ -253,10 +252,6 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             # Extract
             msgs.info("Processing science frame")
             arproc.reduce_echelle(slf, sciframe, scidx, fitsdict, det)
-
-        # Close the QA for this object
-        if not msgs._debug['no_qa']:
-            slf._qa.close()
 
         # Write 1D spectra
         save_format = 'fits'

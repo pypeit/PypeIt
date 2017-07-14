@@ -56,7 +56,7 @@ def plot1d(*args, **kwargs):
         print('x_guis.simple_splot: No arguments!')
         return
 
-    if not isinstance(args[0],np.ndarray):
+    if not isinstance(args[0], np.ndarray):
         print('x_guis: Input array is not a numpy.ndarray!')
         return
 

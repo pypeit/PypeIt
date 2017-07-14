@@ -12,6 +12,9 @@
 * coadd bug fix on obj name
 * Init local (i.e. object dependent) parameters in coadding
 * fix local background logic error in slit masking
+* Refactor QA PDF to PNG+HTML
+* Enable archiving/loading sensitivity function
+* Add new cosmic ray algorithms for coadding (especially pairs of spectra)
 
 
 0.7 (2017-02-07)

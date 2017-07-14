@@ -43,6 +43,9 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
         specobjs = slf._msstd[det-1]['spobjs']
     else:
         specobjs = slf._specobjs[det-1]
+    if specobjs is None:
+        msgs.warn("No objects extracted.  Nothing to apply flux standard to.")
+        return
     # Loop on slits
     for sl in range(len(specobjs)):
         # Loop on objects
@@ -376,6 +379,7 @@ def generate_sensfunc(slf, stdidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=
 
     Parameters
     ----------
+    slf : 
     stdidx : int
       index for standard  (may not be necessary) -- Differs from scidx!!
     specobjs : list

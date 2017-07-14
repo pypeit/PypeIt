@@ -1,24 +1,41 @@
 .. highlight:: rest
 
-*******************
-Coadding of Spectra
-*******************
+****************
+Coadd 1D Spectra
+****************
 
-This document will describe how to combine the spectra
+This document will describe how to combine the 1D spectra
 from multiple exposures of the same object.
 
 PYPIT currently only offers the coadding of spectra in
 1D and must be done outside of the data reduction pipeline,
-i.e. PYPIT will not automatically coadd your spectra as
+i.e. PYPIT will *not* coadd your spectra as
 part of the data reduction process.
 
-1D Coadding
-===========
-
-This section describes the algorithms for coadding extracted,
-"1D" spectra.  The current defaults use the Optimal extraction
+The current defaults use the Optimal extraction
 and fluxed data.
 
+Coadd 1dspec
+++++++++++++
+
+The primary script is called `pypit_coadd_1dspec` and takes
+an input YAML file to guide the process.  Here is the usage::
+
+    wolverine> pypit_coadd_1dspec -h
+    usage: pypit_coadd_1dspec [-h] [--debug] infile
+
+    Script to coadd a set of spec1D files and 1 or more slits and 1 or more
+    objects. Current defaults use Optimal + Fluxed extraction. [v1.1]
+
+    positional arguments:
+      infile      Input file (YAML)
+
+    optional arguments:
+      -h, --help  show this help message and exit
+      --debug     Turn debugging on
+
+Turning on debugging will generate a series of diagnostic plots
+and likely hit as set_trace in the code.
 
 Input File
 ++++++++++
@@ -78,6 +95,80 @@ The coadding algorithm will attempt to match this object identifier
 to those in each data file, within some tolerance on object and slit
 position. 'outfile' is the filename of the coadded spectrum produced.
 
+Spectral Parameters
++++++++++++++++++++
+
+By default, the algorithm will combine the optimally extracted,
+fluxed spectra from each exposure.  You may modify the extraction
+method, e.g.::
+
+    'extract': 'box'
+
+and/or the flux method::
+
+    'flux': 'counts'
+
+Cosmic Ray Cleaning
++++++++++++++++++++
+
+By default, the script will attempt to identify additional,
+lingering cosmic rays in the spectrum.  The algorithm
+employed depends on the number of input spectra.
+Note that most of the challenges associated with the coadding
+are related to CR identification, especially for cases
+of only two input spectra.
+
+The main parameters driving the CR algorithms are
+described in :ref:`cosmic_ray_keys`.
+
+Two Spectra
+-----------
+
+While it is possible to clean a significant fraction of
+any lingering CR's given 2 exposures, results are mixed
+and depend on the S/N ratio of the data and the presence
+of strong emission lines.  We have now implemented
+three approaches, described below.
+
+The default is `bspline` which is likely best for low S/N data.
+The algorithm may be modified with the cr_two_alg parameter.
+
+.. _cr_diff:
+
+diff
+****
+
+This algorithm compares the difference between the
+spectra and clips those that are `cr_nsig` away from
+the standard deviation.
+
+ratio
+*****
+
+Similar to :ref:`cr_diff` above, but the ratio is also compared.
+This may be the best algorithm for high S/N data with
+strong emission lines.
+
+bspline
+*******
+
+A b-spline is fit to all of the pixels of the 2 spectra.
+By default, a breakpoint spacing of 6 pixels is used.
+Very narrow and bright emission lines may be rejected
+with this spacing and a lower value should be used
+(see :ref:`cosmic_ray_keys`).  Of course, lowering
+the spacing will increase the likelihood of including
+cosmic rays.  This algorithm is best suited for lower
+S/N spectra.
+
+
+Three+ Spectra
+--------------
+
+For three or more spectra, the algorithm derives a median
+spectrum from the data and identifies cosmic rays or other
+deviant pixels from large deviations off the median.
+
 Additional Coadding Parameters
 ++++++++++++++++++++++++++++++
 You can adjust the default methods by which PYPIT coadds
@@ -114,6 +205,7 @@ wave_grid_method     default: concatenate     create a new wavelength grid onto 
 
 Flux Scaling
 ------------
+
 ==================   =======================  ==================================================
 Parameter            Option                   Description
 ==================   =======================  ==================================================
@@ -131,10 +223,26 @@ scale_method         default: auto            scale the flux arrays based on the
                                               of each spectra
 ==================   =======================  ==================================================
 
+.. _cosmic_ray_keys:
+
+Cosmic Ray
+----------
+
+==================   =======================  ===================================================
+Parameter            Option                   Description
+==================   =======================  ===================================================
+cr_everyn            int; default=6           For CR cleaning of 2 spectra, this sets the
+                                              spacing of the b-spline break points.  Use a lower
+                                              number to avoid clipping narrow emission/absorption
+                                              lines, e.g. 4
+cr_nsig              float; default=7.        Number of sigma which defines a CR
+cr_two_alg           str; default=bspline     Algorithm to adopt for cleaning only 2 spectra
+==================   =======================  ===================================================
+
 .. _more_coadd_keys:
 
 More Keywords
----------------
+-------------
 
 Here are other keywords that one may wish to set
 for individual objects:

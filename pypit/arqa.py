@@ -2,9 +2,13 @@
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-from astropy import units as u
+import inspect
 
 import numpy as np
+import glob
+
+from astropy import units as u
+
 from pypit.arplot import zscale
 from pypit import armsgs
 from pypit import arutils
@@ -14,6 +18,11 @@ from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
 from matplotlib.backends.backend_pdf import PdfPages
+
+try:
+    basestring
+except NameError:  # For Python 3
+    basestring = str
 
 msgs = armsgs.get_logger()
 
@@ -26,7 +35,7 @@ ticks_font = matplotlib.font_manager.FontProperties(family='times new roman',
 from pypit import ardebug as debugger
 
 
-def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
+def arc_fit_qa(slf, fit, outfile=None, ids_only=False, title=None):
     """
     QA for Arc spectrum
 
@@ -35,12 +44,16 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
     fit : Wavelength fit
     arc_spec : ndarray
       Arc spectrum
-    outfil : str, optional
+    outfile : str, optional
       Name of output file
     """
+    # Grab the named of the method
+    method = inspect.stack()[0][3]
+    # Outfil
+    if outfile is None:
+        outfile = set_qa_filename(slf.setup, method)
+    #
     arc_spec = fit['spec']
-    if outfil is not None:
-        pp = PdfPages(outfil)
 
     # Begin
     if not ids_only:
@@ -79,6 +92,8 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
         if outfil is not None:
             pp.savefig(bbox_inches='tight')
             pp.close()
+        else:
+            plt.savefig(outfile, dpi=800)
         plt.close()
         return
 
@@ -120,16 +135,12 @@ def arc_fit_qa(slf, fit, outfil=None, ids_only=False, title=None):
 
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    if slf is not None:
-        slf._qa.savefig(bbox_inches='tight')
-    else:
-        pp.savefig(bbox_inches='tight')
-        pp.close()
-    #plt.close('all')
+    plt.savefig(outfile, dpi=800)
+    plt.close()
     return
 
 
-def coaddspec_qa(ispectra, rspec, spec1d, qafile=None):
+def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=2.):
     """  QA plot for 1D coadd of spectra
 
     Parameters
@@ -140,6 +151,8 @@ def coaddspec_qa(ispectra, rspec, spec1d, qafile=None):
       Rebinned spectra with updated variance
     spec1d : XSpectrum1D
       Final coadd
+    yscale : float, optional
+      Scale median flux by this parameter for the spectral plot
 
     """
     from pypit.arcoadd import get_std_dev as gsd
@@ -154,7 +167,7 @@ def coaddspec_qa(ispectra, rspec, spec1d, qafile=None):
     gs = gridspec.GridSpec(1,2)
 
     # Deviate
-    std_dev, dev_sig = gsd(rspec, spec1d)
+    std_dev, dev_sig = gsd(rspec, rmask, spec1d)
     #dev_sig = (rspec.data['flux'] - spec1d.flux) / (rspec.data['sig']**2 + spec1d.sig**2)
     #std_dev = np.std(sigma_clip(dev_sig, sigma=5, iters=2))
     flat_dev_sig = dev_sig.flatten()
@@ -172,12 +185,17 @@ def coaddspec_qa(ispectra, rspec, spec1d, qafile=None):
     ax.bar(edges[:-1], hist, width=((xmax-xmin)/float(n_bins)), alpha=0.5)
 
     # Coadd on individual
+    # yrange
+    medf = np.median(spec1d.flux)
+    ylim = (medf/10., yscale*medf)
+    # Plot
     ax = plt.subplot(gs[1])
     for idx in range(ispectra.nspec):
         ispectra.select = idx
         ax.plot(ispectra.wavelength, ispectra.flux, alpha=0.5)#, label='individual exposure')
 
     ax.plot(spec1d.wavelength, spec1d.flux, color='black', label='coadded spectrum')
+    ax.set_ylim(ylim)
     debug=False
     if debug:
         ax.set_ylim(0., 180.)
@@ -210,6 +228,9 @@ def flexure(slf, det, flex_list, slit_cen=False):
     -------
 
     """
+    # Grab the named of the method
+    method = inspect.stack()[0][3]
+    #
     for sl in range(len(slf._specobjs[det-1])):
         # Setup
         if slit_cen:
@@ -225,6 +246,10 @@ def flexure(slf, det, flex_list, slit_cen=False):
 
         # Get the flexure dictionary
         flex_dict = flex_list[sl]
+
+        # Outfile
+        outfile = set_qa_filename(slf._basename, method+'_corr', det=det,
+            slit=slf._specobjs[det-1][sl][0].slitid)
 
         plt.figure(figsize=(8, 5.0))
         plt.clf()
@@ -259,7 +284,9 @@ def flexure(slf, det, flex_list, slit_cen=False):
 
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        slf._qa.savefig(bbox_inches='tight')
+        if False:
+            slf._qa.savefig(bbox_inches='tight')
+        plt.savefig(outfile, dpi=600)
         plt.close()
 
         # Sky line QA (just one object)
@@ -284,6 +311,9 @@ def flexure(slf, det, flex_list, slit_cen=False):
             idx = np.array([0, 1, len(gdsky)//2, len(gdsky)//2+1, -2, -1])
             gdsky = gdsky[idx]
 
+        # Outfile
+        outfile = set_qa_filename(slf._basename, method+'_sky', det=det,
+                                  slit=slf._specobjs[det-1][sl][0].slitid)
         # Figure
         plt.figure(figsize=(8, 5.0))
         plt.clf()
@@ -319,48 +349,18 @@ def flexure(slf, det, flex_list, slit_cen=False):
 
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        slf._qa.savefig(bbox_inches='tight')
+        if False:
+            slf._qa.savefig(bbox_inches='tight')
+        plt.savefig(outfile, dpi=800)
+        plt.close()
         #plt.close()
 
     return
 
 
-def get_dimen(x, maxp=25):
-    """ Assign the plotting dimensions to be the "most square"
 
-    Parameters
-    ----------
-    x : int
-      An integer that equals the number of panels to be plot
-    maxp : int (optional)
-      The maximum number of panels to plot on a single page
-
-    Returns
-    -------
-    pages : list
-      The number of panels in the x and y direction on each page
-    npp : list
-      The number of panels on each page
-    """
-    pages, npp = [], []
-    xr = x
-    while xr > 0:
-        if xr > maxp:
-            xt = maxp
-        else:
-            xt = xr
-        ypg = int(np.sqrt(np.float(xt)))
-        if int(xt) % ypg == 0:
-            xpg = int(xt)/ypg
-        else:
-            xpg = 1 + int(xt)/ypg
-        pages.append([int(xpg), int(ypg)])
-        npp.append(int(xt))
-        xr -= xt
-    return pages, npp
-
-
-def obj_trace_qa(slf, frame, ltrace, rtrace, objids, root='trace', outfil=None, normalize=True):
+def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
+                 root='trace', normalize=True, desc=""):
     """ Generate a QA plot for the object trace
 
     Parameters
@@ -371,20 +371,20 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, root='trace', outfil=None, 
       Left edge traces
     rtrace : ndarray
       Right edge traces
+    objids : list
+    det : int
+    desc : str, optional
+      Title
     root : str, optional
       Root name for generating output file, e.g. msflat_01blue_000.fits
-    outfil : str, optional
-      Output file
     normalize : bool, optional
       Normalize the flat?  If not, use zscale for output
     """
-    # Outfil
-    if outfil is None:
-        if 'fits' in root: # Expecting name of msflat FITS file
-            outfil = root.replace('.fits', '_trc.pdf')
-            outfil = outfil.replace('MasterFrames', 'Plots')
-        else:
-            outfil = root+'.pdf'
+    # Grab the named of the method
+    method = inspect.stack()[0][3]
+    # Outfile name
+    outfile = set_qa_filename(slf._basename, method, det=det)
+    #
     ntrc = ltrace.shape[1]
     ycen = np.arange(frame.shape[0])
     # Normalize flux in the traces
@@ -431,6 +431,8 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, root='trace', outfil=None, 
     plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
 
     # Traces
+    iy_mid = int(frame.shape[0] / 2.)
+    iy = np.linspace(iy_mid,frame.shape[0]*0.9,ntrc).astype(int)
     for ii in range(ntrc):
         # Left
         plt.plot(ltrace[:, ii]+0.5, ycen, 'r--', alpha=0.7)
@@ -438,25 +440,36 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, root='trace', outfil=None, 
         plt.plot(rtrace[:, ii]+0.5, ycen, 'c--', alpha=0.7)
         if objids is not None:
             # Label
-            iy = int(frame.shape[0] / 2.)
             # plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
             lbl = 'O{:03d}'.format(objids[ii])
-            plt.text((ltrace[iy, ii]+rtrace[iy, ii])/2., ycen[iy], lbl, color='green', ha='center')
+            plt.text((ltrace[iy[ii], ii]+rtrace[iy[ii], ii])/2., ycen[iy[ii]],
+                lbl, color='green', ha='center')
+    # Title
+    tstamp = gen_timestamp()
+    if desc == "":
+        plt.suptitle(tstamp)
+    else:
+        plt.suptitle(desc+'\n'+tstamp)
 
-    slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
-    #plt.close()
+    if False:
+        slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
+    plt.savefig(outfile, dpi=800)
+    plt.close()
 
 
-def obj_profile_qa(slf, specobjs, scitrace):
+def obj_profile_qa(slf, specobjs, scitrace, det):
     """ Generate a QA plot for the object spatial profile
     Parameters
     ----------
     """
+    method = inspect.stack()[0][3]
     for sl in range(len(specobjs)):
         # Setup
         nobj = scitrace[sl]['traces'].shape[1]
         ncol = min(3, nobj)
         nrow = nobj // ncol + ((nobj % ncol) > 0)
+        # Outfile
+        outfile = set_qa_filename(slf._basename, method, det=det, slit=specobjs[sl][0].slitid)
         # Plot
         plt.figure(figsize=(8, 5.0))
         plt.clf()
@@ -484,14 +497,18 @@ def obj_profile_qa(slf, specobjs, scitrace):
             ax.set_xlim(mn,mx)
             # Label
             ax.text(0.02, 0.90, 'Obj={:s}'.format(specobjs[sl][o].idx),
-                    transform=ax.transAxes, size='large', ha='left')
+                    transform=ax.transAxes, ha='left', size='small')
 
-        slf._qa.savefig(bbox_inches='tight')
-        #plt.close()
+        if False:
+            slf._qa.savefig(bbox_inches='tight')
+        plt.savefig(outfile, dpi=500)
+        plt.close()
 
 
-def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit", maxp=4, desc="", maskval=-999999.9):
+def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit",
+                   maxp=4, desc="", maskval=-999999.9):
     """ Generate a QA plot for the blaze function fit to each slit
+    Or the arc line tilts
 
     Parameters
     ----------
@@ -514,6 +531,16 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit", ma
     maskval : float, (optional)
       Value used in arrays to indicate a masked value
     """
+    # Outfil
+    method = inspect.stack()[0][3]
+    if 'Arc' in desc:
+        method += '_Arc'
+    elif 'Blaze' in desc:
+        method += '_Blaze'
+    else:
+        msgs.bug("Unknown type of order fits.  Currently prepared for Arc and Blaze")
+    outroot = set_qa_filename(slf.setup, method)
+    #
     npix, nord = ydata.shape
     pages, npp = get_dimen(nord, maxp=maxp)
     if xdata is None: xdata = np.arange(npix).reshape((npix, 1)).repeat(nord, axis=1)
@@ -590,8 +617,12 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit", ma
                 pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
             f.suptitle(desc + pgtxt, y=1.02, size=16)
         f.tight_layout()
-        slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
-        #plt.close()
+        if False:
+            slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
+        else:
+            outfile = outroot+'{:03d}.png'.format(i)
+            plt.savefig(outfile, dpi=200)
+            plt.close()
         f.clf()
     del f
     return
@@ -716,10 +747,9 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
     return
 
 
-def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', outfil=None, normalize=True,
-                  use_slitid=None):
-    """
-    Generate a QA plot for the traces
+def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
+                  root='trace', normalize=True, use_slitid=None):
+    """ Generate a QA plot for the slit traces
 
     Parameters
     ----------
@@ -737,12 +767,12 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
       A description to be used as a title for the page
     root : str, optional
       Root name for generating output file, e.g. msflat_01blue_000.fits
-    outfil : str, optional
-      Output file
     normalize: bool, optional
       Normalize the flat?  If not, use zscale for output
     """
     # Outfil
+    method = inspect.stack()[0][3]
+    outfile = set_qa_filename(slf.setup, method)
     # if outfil is None:
     #     if '.fits' in root: # Expecting name of msflat FITS file
     #         outfil = root.replace('.fits', '_trc.pdf')
@@ -813,13 +843,244 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="", root='trace', ou
         else:
             lbl = '{0:d}'.format(ii+1)
         plt.text(0.5*(ltrace[iy, ii]+rtrace[iy, ii]), ycen[iy], lbl, color='green', ha='center', size='small')
-    if desc != "":
-        plt.suptitle(desc)
+    # Title
+    tstamp = gen_timestamp()
+    if desc == "":
+        plt.suptitle(tstamp)
+    else:
+        plt.suptitle(desc+'\n'+tstamp)
 
-    slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
-    #pp.savefig()
-    #pp.close()
-    #plt.close('all')
+    # Write
+    if False:
+        slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
+    plt.savefig(outfile, dpi=800)
+    plt.close()
+
+
+def pca_plot(slf, inpar, ofit, prefix, maxp=25, pcadesc="", addOne=True):
+    """ Saves quality control plots for a PCA analysis
+    Parameters
+    ----------
+    slf
+    inpar
+    ofit
+    prefix : str
+      prefix for the filenames
+    maxp
+    pcadesc
+    addOne
+
+    Returns
+    -------
+
+    """
+    # Setup
+    method = inspect.stack()[0][3]
+    outroot = set_qa_filename(slf.setup, method, prefix=prefix)
+    npc = inpar['npc']+1
+    pages, npp = get_dimen(npc, maxp=maxp)
+    #
+    x0 = inpar['x0']
+    ordernum = inpar['x0in']
+    x0fit = inpar['x0fit']
+    usetrc = inpar['usetrc']
+    hidden = inpar['hidden']
+    high_fit = inpar['high_fit']
+    nc = np.max(ordernum[usetrc])
+    # Loop through all pages and plot the results
+    ndone = 0
+    for i in range(len(pages)):
+        plt.clf()
+        f, axes = plt.subplots(pages[i][1], pages[i][0])
+        ipx, ipy = 0, 0
+        if i == 0:
+            if pages[i][1] == 1: ind = (0,)
+            elif pages[i][0] == 1: ind = (0,)
+            else: ind = (0,0)
+            axes[ind].plot(ordernum[usetrc], x0[usetrc], 'bx')
+            axes[ind].plot(ordernum, x0fit, 'k-')
+            amn, amx = np.min(x0fit), np.max(x0fit)
+            diff = x0[usetrc]-x0fit[usetrc]
+            tdiffv = np.median(diff)
+            mdiffv = 1.4826*np.median(np.abs(tdiffv-diff))
+            amn -= 2.0*mdiffv
+            amx += 2.0*mdiffv
+            mval = amn-0.15*(amx-amn)
+            dmin, dmax = tdiffv-2.0*mdiffv, tdiffv+2.0*mdiffv
+            diff = mval + diff*0.20*(amx-amn)/(dmax-dmin)
+            wign = np.where(np.abs(diff-np.median(diff))<4.0*1.4826*np.median(np.abs(diff-np.median(diff))))[0]
+            dmin, dmax = np.min(diff[wign]), np.max(diff[wign])
+            axes[ind].plot(ordernum[usetrc], diff, 'rx')
+            if addOne:
+                axes[ind].plot([0, nc+1], [mval,mval], 'k-')
+                axes[ind].axis([0, nc+1, dmin-0.5*(dmax-dmin), amx + 0.05*(amx-amn)])
+            else:
+                axes[ind].plot([0, nc], [mval, mval], 'k-')
+                axes[ind].axis([0, nc, dmin-0.5*(dmax-dmin), amx + 0.05*(amx-amn)])
+            axes[ind].set_title("Mean Value")
+            ipx += 1
+            if ipx == pages[i][0]:
+                ipx = 0
+                ipy += 1
+            npp[0] -= 1
+        for j in range(npp[i]):
+            if pages[i][1] == 1: ind = (ipx,)
+            elif pages[i][0] == 1: ind = (ipy,)
+            else: ind = (ipy, ipx)
+            axes[ind].plot(ordernum[usetrc], hidden[j+ndone,:], 'bx')
+            axes[ind].plot(ordernum, high_fit[:,j+ndone], 'k-')
+            vmin, vmax = np.min(hidden[j+ndone,:]), np.max(hidden[j+ndone,:])
+            if ofit[1+j+ndone] != -1:
+                cmn, cmx = np.min(high_fit[:,j+ndone]), np.max(high_fit[:,j+ndone])
+                diff = hidden[j+ndone,:]-high_fit[:,j+ndone][usetrc]
+                tdiffv = np.median(diff)
+                mdiffv = 1.4826*np.median(np.abs(tdiffv-diff))
+                cmn -= 2.0*mdiffv
+                cmx += 2.0*mdiffv
+                mval = cmn-0.15*(cmx-cmn)
+                dmin, dmax = tdiffv-2.0*mdiffv, tdiffv+2.0*mdiffv
+                #dmin, dmax = np.min(diff), np.max(diff)
+                diff = mval + diff*0.20*(cmx-cmn)/(dmax-dmin)
+                wign = np.where(np.abs(diff-np.median(diff))<4.0*1.4826*np.median(np.abs(diff-np.median(diff))))[0]
+                dmin, dmax = np.min(diff[wign]), np.max(diff[wign])
+                #vmin, vmax = np.min(hidden[j+ndone,:][wign]), np.max(hidden[j+ndone,:][wign])
+                axes[ind].plot(ordernum[usetrc], diff, 'rx')
+                axes[ind].plot([0, 1+nc], [mval, mval], 'k-')
+#				ymin = np.min([(3.0*dmin-dmax)/2.0,vmin-0.1*(vmax-dmin),dmin-0.1*(vmax-dmin)])
+#				ymax = np.max([np.max(high_fit[:,j+ndone]),vmax+0.1*(vmax-dmin),dmax+0.1*(vmax-dmin)])
+                ymin = dmin-0.5*(dmax-dmin)
+                ymax = cmx + 0.05*(cmx-cmn)
+                if addOne: axes[ind].axis([0, nc+1, ymin, ymax])
+                else: axes[ind].axis([0, nc, ymin, ymax])
+            else:
+                if addOne: axes[ind].axis([0, nc+1, vmin-0.1*(vmax-vmin), vmax+0.1*(vmax-vmin)])
+                else: axes[ind].axis([0, nc, vmin-0.1*(vmax-vmin), vmax+0.1*(vmax-vmin)])
+            axes[ind].set_title("PC {0:d}".format(j+ndone))
+            axes[ind].tick_params(labelsize=8)
+            ipx += 1
+            if ipx == pages[i][0]:
+                ipx = 0
+                ipy += 1
+        if i == 0: npp[0] = npp[0] + 1
+        # Delete the unnecessary axes
+        for j in range(npp[i], axes.size):
+            if pages[i][1] == 1: ind = (ipx,)
+            elif pages[i][0] == 1: ind = (ipy,)
+            else: ind = (ipy, ipx)
+            f.delaxes(axes[ind])
+            ipx += 1
+            if ipx == pages[i][0]:
+                ipx = 0
+                ipy += 1
+        ndone += npp[i]
+        # Save the figure
+        if pages[i][1] == 1 or pages[i][0] == 1: ypngsiz = 11.0/axes.size
+        else: ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
+        f.set_size_inches(11.0, ypngsiz)
+        if pcadesc != "":
+            pgtxt = ""
+            if len(pages) != 1:
+                pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
+            f.suptitle(pcadesc + pgtxt, y=1.02, size=16)
+        f.tight_layout()
+        if False:
+            slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
+        outfile = outroot+'{:02d}.png'.format(i)
+        f.savefig(outfile, dpi=200)
+        plt.close()
+        f.clf()
+    del f
+    return
+
+
+def pca_arctilt(slf, tiltang, centval, tilts, maxp=25, maskval=-999999.9):
+    """ Generate a QA plot for the blaze function fit to each slit
+
+    Parameters
+    ----------
+    slf : class
+      Science Exposure class
+    tiltang : ndarray
+      (m x n) 2D array containing the measured tilts (m) for each slit (n)
+    centval : ndarray
+      (m x n) 2D array containing the pixel location (in the spectral direction) of the measured tilts (m) for each slit (n)
+    tilts : ndarray
+      (m x n) 2D array containing the model tilts (m) for each slit (n)
+    maxp : int, (optional)
+      Maximum number of panels per page
+    maskval : float, (optional)
+      Value used in arrays to indicate a masked value
+    """
+    method = inspect.stack()[0][3]
+    outroot = set_qa_filename(slf.setup, method)
+    #
+    npc = tiltang.shape[1]
+    pages, npp = get_dimen(npc, maxp=maxp)
+    x0 = np.arange(tilts.shape[0])
+    # First calculate the min and max values for the plotting axes, to make sure they are all the same
+    w = np.where(tiltang != maskval)
+    medv = np.median(tiltang[w])
+    madv = 1.4826 * np.median(np.abs(medv - tiltang[w]))
+    ymin, ymax = medv - 3.0 * madv, medv + 3.0 * madv
+    ymin = min(ymin, np.min(tilts))
+    ymax = max(ymax, np.max(tilts))
+    # Check that ymin and ymax are set, if not, return without plotting
+    if ymin is None or ymax is None:
+        msgs.warn("Arc tilt fits were not plotted")
+        return
+    # Generate the plots
+    ndone = 0
+    for i in range(len(pages)):
+        f, axes = plt.subplots(pages[i][1], pages[i][0])
+        ipx, ipy = 0, 0
+        for j in range(npp[i]):
+            if pages[i][1] == 1:
+                ind = (ipx,)
+            elif pages[i][0] == 1:
+                ind = (ipy,)
+            else:
+                ind = (ipy, ipx)
+            w = np.where(tiltang[:, ndone] != maskval)
+            if np.size(w[0]) != 0:
+                axes[ind].plot(centval[:, ndone][w], tiltang[:, ndone][w], 'bx')
+                axes[ind].plot(x0, tilts[:, ndone], 'r-')
+            axes[ind].axis([0, tilts.shape[0]-1, ymin, ymax])
+            axes[ind].set_title("Slit {0:d}".format(1+ndone))
+            axes[ind].tick_params(labelsize=8)
+            ipx += 1
+            if ipx == pages[i][0]:
+                ipx = 0
+                ipy += 1
+            ndone += 1
+        # Delete the unnecessary axes
+        for j in range(npp[i], axes.size):
+            if pages[i][1] == 1:
+                ind = (ipx,)
+            elif pages[i][0] == 1:
+                ind = (ipy,)
+            else:
+                ind = (ipy, ipx)
+            f.delaxes(axes[ind])
+            ipx += 1
+            if ipx == pages[i][0]:
+                ipx = 0
+                ipy += 1
+        # Save the figure
+        if pages[i][1] == 1 or pages[i][0] == 1:
+            ypngsiz = 11.0/axes.size
+        else:
+            ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
+        f.set_size_inches(11.0, ypngsiz)
+        f.tight_layout()
+        if False:
+            slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
+        outfile = outroot+'{:02d}.png'.format(i)
+        f.savefig(outfile, dpi=200)
+        plt.close()
+        f.clf()
+        del f
+    return
+
 
 
 def set_fonts(ax):
@@ -834,3 +1095,353 @@ def set_fonts(ax):
         label.set_fontproperties(ticks_font)
     for label in ax.get_xticklabels():
         label.set_fontproperties(ticks_font)
+
+
+def set_qa_filename(root, method, det=None, slit=None, prefix=None):
+    """
+    Parameters
+    ----------
+    root : str
+      Root name
+    method : str
+      Describes the QA routine
+    det : int, optional
+    slit : int, optional
+    prefix : str, optional
+      start the name of the QA file
+
+    Returns
+    -------
+    outfile : str
+      Filename
+    """
+    if method == 'slit_trace_qa':
+        outfile = 'QA/PNGs/Slit_Trace_{:s}.png'.format(root)
+    elif method == 'arc_fit_qa':
+        outfile = 'QA/PNGs/Arc_1dfit_{:s}.png'.format(root)
+    elif method == 'plot_orderfits_Arc':  # This is root for multiple PNGs
+        outfile = 'QA/PNGs/Arc_tilts_{:s}_'.format(root)
+    elif method == 'pca_plot':  # This is root for multiple PNGs
+        outfile = 'QA/PNGs/{:s}_pca_{:s}_'.format(prefix, root)
+    elif method == 'pca_arctilt':  # This is root for multiple PNGs
+        outfile = 'QA/PNGs/Arc_pca_{:s}_'.format(root)
+    elif method == 'plot_orderfits_Blaze':  # This is root for multiple PNGs
+        outfile = 'QA/PNGs/Blaze_{:s}_'.format(root)
+    elif method == 'obj_trace_qa':
+        outfile = 'QA/PNGs/{:s}_D{:02d}_obj_trace.png'.format(root, det)
+    elif method == 'obj_profile_qa':
+        outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_obj_prof.png'.format(root, det, slit)
+    elif method == 'flexure_corr':
+        outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_flex_corr.png'.format(root, det, slit)
+    elif method == 'flexure_sky':
+        outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_flex_sky.png'.format(root, det, slit)
+    else:
+        msgs.error("NOT READY FOR THIS QA: {:s}".format(method))
+    # Return
+    return outfile
+
+
+def get_dimen(x, maxp=25):
+    """ Assign the plotting dimensions to be the "most square"
+
+    Parameters
+    ----------
+    x : int
+      An integer that equals the number of panels to be plot
+    maxp : int (optional)
+      The maximum number of panels to plot on a single page
+
+    Returns
+    -------
+    pages : list
+      The number of panels in the x and y direction on each page
+    npp : list
+      The number of panels on each page
+    """
+    pages, npp = [], []
+    xr = x
+    while xr > 0:
+        if xr > maxp:
+            xt = maxp
+        else:
+            xt = xr
+        ypg = int(np.sqrt(np.float(xt)))
+        if int(xt) % ypg == 0:
+            xpg = int(xt)/ypg
+        else:
+            xpg = 1 + int(xt)/ypg
+        pages.append([int(xpg), int(ypg)])
+        npp.append(int(xt))
+        xr -= xt
+    return pages, npp
+
+
+def gen_timestamp():
+    """ Generate a simple time stamp including the current user
+    Returns
+    -------
+    timestamp : str
+      user_datetime
+    """
+    import datetime
+    tstamp = datetime.datetime.today().strftime('%Y-%b-%d-T%Hh%Mm%Ss')
+    import getpass
+    user = getpass.getuser()
+    # Return
+    return '{:s}_{:s}'.format(user, tstamp)
+
+
+def html_header(title):
+    """ 
+    Parameters
+    ----------
+    title : str, optional
+
+    Returns
+    -------
+
+    """
+    head = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    head += '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">\n'
+
+
+    head += '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n'
+    head += '\n'
+    head += '<head>\n'
+    head += '\n'
+    head += '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />\n'
+    head += '<title>{:s}</title>\n'.format(title)
+    head += '<meta name="keywords" content="" />\n'
+    head += '<meta name="description" content="" />\n'
+    head += '<script type="text/javascript" src="jquery/jquery-1.4.2.min.js"></script>\n'
+    head += '<script type="text/javascript" src="jquery/jquery.slidertron-0.1.js"></script>\n'
+    head += '<link href="style.css" rel="stylesheet" type="text/css" media="screen" />\n'
+    head += '\n'
+    head += '</head>\n'
+
+    # Begin the Body
+    head += '<body>\n'
+    head += '<h1>{:s}</h1>\n'.format(title)
+    head += '<hr>\n'
+
+    return head
+
+def html_end(f, body, links=None):
+    """ Fill in the HTML file and end it
+    Parameters
+    ----------
+    f : file
+    body : str
+    links : str, optional
+    """
+    # Write links
+    if links is not None:
+        f.write(links)
+        f.write('</ul>\n')
+        f.write('<hr>\n')
+    # Write body
+    f.write(body)
+    # Finish
+    end = '</body>\n'
+    end += '</html>\n'
+    f.write(end)
+
+    return end
+
+
+def html_init(f, title):
+    head = html_header(title)
+    f.write(head)
+    # Init links
+    links = '<h2>Quick Links</h2>\n'
+    links += '<ul>\n'
+    return links
+
+
+def html_mf_pngs(setup, cbset, det):
+    """ Geneate HTML for MasterFrame PNGs
+    Parameters
+    ----------
+    setup : str
+    cbset : str
+    det : int
+
+    Returns
+    -------
+    links : str
+    body : str
+
+    """
+    links = ''
+    body = ''
+    # QA root
+    # Search for PNGs
+    idval = '{:s}_{:02d}_{:s}'.format(setup, det, cbset)
+
+    # Organize the outputs
+    html_dict = {}
+    html_dict['strace'] = dict(fname='slit_trace_qa', ext='',
+        href='strace', label='Slit Trace')
+    html_dict['blaze'] = dict(fname='plot_orderfits_Blaze', ext='*.png',
+                               href='blaze', label='Blaze')
+    html_dict['arc_fit'] = dict(fname='arc_fit_qa', ext='',
+                              href='arc_fit', label='Arc 1D Fit')
+    html_dict['arc_tilt'] = dict(fname='plot_orderfits_Arc', ext='*.png',
+                              href='arc_tilts', label='Arc Tilts')
+    html_dict['arc_pca'] = dict(fname='pca_arctilt', ext='*.png',
+                                 href='arc_pca', label='Arc Tilt PCA')
+
+    # Generate HTML
+    for key in ['strace', 'blaze', 'arc_fit', 'arc_pca', 'arc_tilt']:
+        png_root = set_qa_filename(idval, html_dict[key]['fname'])
+        pngs = glob.glob(png_root+html_dict[key]['ext'])
+        if len(pngs) > 0:
+            href="{:s}_{:s}".format(html_dict[key]['href'], idval)
+            # Link
+            links += '<li><a class="reference internal" href="#{:s}">{:s} {:s}</a></li>\n'.format(href, html_dict[key]['label'], idval)
+            # Body
+            body += '<hr>\n'
+            body += '<div class="section" id="{:s}">\n'.format(href)
+            body += '<h2> {:s} {:s} </h2>\n'.format(html_dict[key]['label'], idval)
+            for png in pngs:
+                # Remove QA
+                ifnd = png.find('QA/')
+                if ifnd < 0:
+                    msgs.error("QA is expected to be in the path!")
+                body += '<img class ="research" src="{:s}" width="100%" height="auto"/>\n'.format(png[ifnd+3:])
+            body += '</div>\n'
+
+    # Return
+    return links, body
+
+
+def html_exp_pngs(exp_name, det):
+    """ 
+    Parameters
+    ----------
+    exp_name : str
+    det : int
+
+    Returns
+    -------
+    links : str
+    body : str
+
+    """
+    import os
+    links = ''
+    body = ''
+    # QA root
+
+    # Organize the outputs
+    html_dict = {}
+    html_dict['trace'] = dict(fname='obj_trace_qa', ext='', slit=False,
+                               href='otrace', label='Object Traces')
+    html_dict['prof'] = dict(fname='obj_profile_qa', ext='', slit=True,
+                              href='oprofile', label='Object Profiles')
+    html_dict['flex_corr'] = dict(fname='flexure_corr', ext='', slit=True,
+                             href='flex_corr', label='Flexure Cross Correlation')
+    html_dict['flex_sky'] = dict(fname='flexure_sky', ext='', slit=True,
+                                  href='flex_sky', label='Flexure Sky')
+
+    # Generate HTML
+    for key in ['trace', 'prof', 'flex_corr', 'flex_sky']:
+        png_root = set_qa_filename(exp_name, html_dict[key]['fname'], det=det, slit=9999)
+        if html_dict[key]['slit']:  # Kludge to handle multiple slits
+            png_root = png_root.replace('S9999', 'S*')
+        pngs = glob.glob(png_root+html_dict[key]['ext'])
+        if len(pngs) > 0:
+            href="{:s}_{:02d}".format(html_dict[key]['href'], det)
+            # Link
+            links += '<li><a class="reference internal" href="#{:s}">{:s} {:02d}</a></li>\n'.format(href, html_dict[key]['label'], det)
+            # Body
+            body += '<hr>\n'
+            body += '<div class="section" id="{:s}">\n'.format(href)
+            body += '<h2> {:s} {:02d} </h2>\n'.format(html_dict[key]['label'], det)
+            for png in pngs:
+                # Remove QA
+                ifnd = png.find('QA/')
+                if ifnd < 0:
+                    msgs.error("QA is expected to be in the path!")
+                body += '<img class ="research" src="{:s}" width="100%" height="auto"/>\n'.format(png[ifnd+3:])
+            body += '</div>\n'
+
+    # Return
+    return links, body
+
+def gen_mf_html(pypit_file):
+    """ Generate the HTML for a MasterFrame set
+    Parameters
+    ----------
+    pypit_file : str
+
+    Returns
+    -------
+
+    """
+    import yaml
+    # Read calib file
+    calib_file = pypit_file.replace('.pypit', '.calib')
+    with open(calib_file, 'r') as infile:
+        calib_dict = yaml.load(infile)
+    # Parse
+    setup = list(calib_dict.keys())[0]
+    dets, cbsets = [], []
+    for key in calib_dict[setup].keys():
+        if key == '--':
+            continue
+        try:
+            dets.append(int(key))
+        except ValueError:
+            cbsets.append(key)
+    # Generate MF file
+    MF_filename = 'QA/MF_{:s}.html'.format(setup)
+    body = ''
+    with open(MF_filename,'w') as f:
+        # Start
+        links = html_init(f, 'QA  Setup {:s}: MasterFrame files'.format(setup))
+        # Loop on calib_sets
+        for cbset in cbsets:
+            for det in dets:
+                # Run
+                new_links, new_body = html_mf_pngs(setup, cbset, det)
+                # Save
+                links += new_links
+                body += new_body
+        # End
+        html_end(f, body, links)
+    #
+    msgs.info("Wrote: {:s}".format(MF_filename))
+
+def gen_exp_html():
+    # Find all obj_trace files -- Not fool proof but ok
+    obj_files = glob.glob('QA/PNGs/*obj_trace.png')
+    # Parse for names
+    names = []
+    for obj_file in obj_files:
+        i0 = obj_file.rfind('/')+1
+        i1 = obj_file.rfind('_D')
+        name = obj_file[i0:i1]
+        names.append(name)
+    uni_names = np.unique(names)
+    # Loop
+    for uni_name in uni_names:
+        # Generate MF file
+        exp_filename = 'QA/{:s}.html'.format(uni_name)
+        body = ''
+        with open(exp_filename,'w') as f:
+            # Start
+            links = html_init(f, 'QA for {:s}'.format(uni_name))
+            # Loop on detector
+            for det in range(1,99):
+                # Run
+                new_links, new_body = html_exp_pngs(uni_name, det)
+                # Save
+                links += new_links
+                body += new_body
+            # End
+            html_end(f, body, links)
+        try:
+            msgs.info("Wrote: {:s}".format(exp_filename))
+        except:
+            pass

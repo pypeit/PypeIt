@@ -66,6 +66,7 @@ def test_coadd():
     assert 'scale_method' in list(gparam.keys())
 
 
+
 def test_coadd2():
     """ Test using a list of object names
     """

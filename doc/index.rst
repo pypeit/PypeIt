@@ -45,6 +45,7 @@ Data Products
    :maxdepth: 2
 
    outputs
+   qa
 
 Calibrations
 ++++++++++++
