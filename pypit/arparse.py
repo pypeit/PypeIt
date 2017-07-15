@@ -196,7 +196,7 @@ class BaseArgFlag(BaseFunctions):
           The value of the keyword argument provided by lst (when lst is of type list).
         """
         members = [x for x, y in inspect.getmembers(self, predicate=inspect.ismethod)]
-        if type(lst) is str:
+        if isinstance(lst, basestring):
             lst = lst.split()
             value = None  # Force the value to be None
         else:
