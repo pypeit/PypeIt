@@ -19,6 +19,8 @@
 * Begin writing header (e.g. RA/DEC) info to spec1d files
 * Fix bug in applying BPM for finding slit edges
 * Update Ginga hooks
+* Enable archiving/loading sensitivity function
+* Add new cosmic ray algorithms for coadding (especially pairs of spectra)
 
 
 0.7 (2017-02-07)
