@@ -3691,7 +3691,7 @@ def get_nmbr_name(anmbr=None, bnmbr=None, cnmbr=None):
     return "_".join(cspl)
 
 
-def load_sections(string):
+def load_sections(string, fmt_iraf=True):
     """
     From the input string, return the coordinate sections
 
@@ -3718,7 +3718,17 @@ def load_sections(string):
         xyarry = [0, 0]
     else:
         xyarry = xyrng[1].split(':')
-    return [[int(xyarrx[0]), int(xyarrx[1])], [int(xyarry[0]), int(xyarry[1])]]
+    if fmt_iraf:
+        xmin = max(0, int(xyarry[0])-1)
+        xmax = int(xyarry[1])
+        ymin = max(0, int(xyarrx[0])-1)
+        ymax = int(xyarrx[1])
+    else:
+        xmin = max(0, int(xyarrx[0]))
+        xmax = int(xyarrx[1])
+        ymin = max(0, int(xyarry[0]))
+        ymax = int(xyarry[1])
+    return [[xmin, xmax], [ymin, ymax]]
 
 
 def get_dnum(det):
