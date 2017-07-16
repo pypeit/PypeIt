@@ -15,7 +15,8 @@
 * Refactor QA PDF to PNG+HTML
 * Enable archiving/loading sensitivity function
 * Add new cosmic ray algorithms for coadding (especially pairs of spectra)
-
+* Switched settings files to allow IRAF style data sections to be defined
+* Allowed data sections to be extracted from header information
 
 0.7 (2017-02-07)
 ----------------
