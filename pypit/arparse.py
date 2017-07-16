@@ -3949,17 +3949,12 @@ def key_keyword(v, force_format=True):
     v : str
       A value used by the settings dictionary
     """
-    valid = True  # Test if the input value satisifies the header format
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
     func_name = "'" + " ".join(ll) + "'"
     if v.lower() == "none":
         v = None
     else:
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
-            valid = False
+        valid = is_keyword(v)
         if not valid and force_format:
             msgs.error("The argument of {0:s} must be of the form:".format(func_name) + msgs.newline() +
                        "##.NAME" + msgs.newline() +
@@ -4184,6 +4179,28 @@ def combine_satpixs():
     """
     methods = ['reject', 'force', 'nothing']
     return methods
+
+
+def is_keyword(v):
+    """ Check if a value is of the format required to be a call to a header keyword
+
+    Parameters
+    ----------
+    v : str
+      Value to be tested
+
+    Returns
+    -------
+    valid : bool
+      True if 'v' has the correct format to be a header keyword, False otherwise.
+    """
+    valid = True
+    try:
+        vspl = v.split(".")
+        int(vspl[0])
+    except ValueError:
+        valid = False
+    return valid
 
 
 def parse_binning(binning):

@@ -153,6 +153,8 @@ def load_headers(datlines):
             else:
                 msgs.bug("I didn't expect a useful header ({0:s}) to contain type {1:s}".format(kw, typv).replace('<type ','').replace('>',''))
 
+        # Check if any other settings require header values to be loaded
+
         msgs.info("Successfully loaded headers for file:"+msgs.newline()+datlines[i])
     # Convert the fitsdict arrays into numpy arrays
     for k in fitsdict.keys():
