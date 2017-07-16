@@ -2373,10 +2373,14 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         cname = get_nmbr_name(anmbr=anmbr, bnmbr=bnmbr)
-        try:
-            v = load_sections(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be a detector section".format(cname))
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            try:
+                v = load_sections(v)
+            except ValueError:
+                msgs.error("The argument of {0:s} must be a detector section".format(cname))
         self.update(v, ll=cname.split('_'))
 
     def det_dataext(self, v, anmbr=1, bnmbr=1):
@@ -2403,10 +2407,14 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         cname = get_nmbr_name(anmbr=anmbr, bnmbr=bnmbr)
-        try:
-            v = load_sections(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be detector section".format(cname))
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            try:
+                v = load_sections(v)
+            except ValueError:
+                msgs.error("The argument of {0:s} must be detector section".format(cname))
         self.update(v, ll=cname.split('_'))
 
     def det_darkcurr(self, v, anmbr=1):
@@ -3927,7 +3935,7 @@ def key_int(v):
     return v
 
 
-def key_keyword(v):
+def key_keyword(v, force_format=True):
     """ Check that a keyword argument satisfies the form required
     for specifying a header keyword.
 
@@ -3941,6 +3949,7 @@ def key_keyword(v):
     v : str
       A value used by the settings dictionary
     """
+    valid = True  # Test if the input value satisifies the header format
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
     func_name = "'" + " ".join(ll) + "'"
     if v.lower() == "none":
@@ -3950,10 +3959,16 @@ def key_keyword(v):
             vspl = v.split(".")
             int(vspl[0])
         except ValueError:
+            valid = False
+        if not valid and force_format:
             msgs.error("The argument of {0:s} must be of the form:".format(func_name) + msgs.newline() +
                        "##.NAME" + msgs.newline() +
                        "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                        "and NAME is the header keyword name")
+        elif valid and force_format:
+            return v
+        else:
+            return v, valid
     return v
 
 
