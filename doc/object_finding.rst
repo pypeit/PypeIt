@@ -14,7 +14,7 @@ Object identification is a challenging process to
 code, especially to allow for a large dynamic range
 between bright continuum sources and faint emission
 line sources.   Our general philosophy has been to
-err on the faint side, i.e. aggressively
+err on the faint side, i.e.
 detect sources aggressively with the side-effect of
 including false positives.
 

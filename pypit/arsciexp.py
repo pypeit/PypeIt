@@ -54,11 +54,12 @@ class ScienceExposure:
         #  Also parses the time input
         self.SetBaseName(fitsdict)
 
+        # Velocity correction (e.g. heliocentric)
+        self.vel_correction = 0.
+
         # Initialize the QA for this science exposure
         qafn = "{0:s}/QA_{1:s}.pdf".format(settings.argflag['run']['directory']['qa'], self._basename)
         self.qaroot = "{0:s}/PNGs/QA_{1:s}".format(settings.argflag['run']['directory']['qa'], self._basename)
-        #if do_qa and not msgs._debug['no_qa']:
-        #    self._qa = PdfPages(qafn)
 
         # Initialize Variables
         ndet = settings.spect['mosaic']['ndet']

@@ -28,6 +28,9 @@ def test_very_close_obj():
     # Call
     objl, objr, bckl, bckr = artrace.find_obj_minima(trcprof, fwhm=3., nsmooth=0)
     assert objl[1] == 55
+    assert objr[1] == 63
+    assert bckl.shape == (278,6)
+    assert bckr.shape == (278,6)
 
 
 def test_objstd():
@@ -39,6 +42,8 @@ def test_objstd():
     mad = 0.03
     objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
     assert len(objl) == 5
+    assert objl[1] == 36
+    assert objr[1] == 82
 
 
 def test_objmin():
@@ -50,6 +55,8 @@ def test_objmin():
     # Call
     objl, objr, bckl, bckr = artrace.find_obj_minima(trcprof, fwhm=3.5)
     assert len(objl) == 3
+    assert objl[1] == 63
+    assert objr[1] == 90
 
 
 def test_npeaks():
@@ -60,6 +67,9 @@ def test_npeaks():
     trc = tbl['trc'].data
     # Call
     peaks, sigmas, ledges, redges = arutils.find_nminima(-1*trc, nsmooth=3)
+    np.testing.assert_allclose(peaks, np.array([  4.86511462e+01,  -4.53105168e-03,   7.17466301e+01,
+         1.67786437e+02,   1.35216283e+02,   1.88809673e+02,
+         2.13649812e+02,   2.62738738e+02]), atol=1e-9)
 
 
 

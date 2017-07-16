@@ -117,8 +117,14 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     obj_skyspec.flux = obj_skyspec.flux / norm
     norm2 = np.sum(arx_skyspec.flux.value)/arx_skyspec.npix
     arx_skyspec.flux = arx_skyspec.flux / norm2
-    if (norm < 0.) or (norm2 < 0.):
-        msgs.error("Bad normalization in flexure. Crashing out..")
+    if (norm < 0.):
+        msgs.warn("Bad normalization of object in flexure algorithm")
+        msgs.warn("Will try the median")
+        norm = np.median(obj_skyspec.flux.value)
+        if (norm < 0.):
+            msgs.error("Improper sky spectrum for flexure.  Is it too faint??")
+    if (norm2 < 0.):
+        msgs.error("Bad normalization of archive in flexure. You are probably using wavelengths well beyond the archive.")
 
     #deal with bad pixels
     msgs.work("Need to mask bad pixels")
@@ -352,7 +358,7 @@ def geomotion_correct(slf, det, fitsdict):
       The velocity correction that should be applied to the wavelength array.
     vel_corr : float
       The relativistic velocity correction that should be multiplied by the
-      wavelength array to convert each wavelength into the user-spewcified
+      wavelength array to convert each wavelength into the user-specified
       reference frame.
 
     """
@@ -360,8 +366,10 @@ def geomotion_correct(slf, det, fitsdict):
     # Calculate
     vel = geomotion_calculate(slf, fitsdict, slf._idx_sci[0])
     vel_corr = np.sqrt((1. + vel/299792.458) / (1. - vel/299792.458))
+    # Save
+    slf.vel_correction = vel
 
-    # Loop on slits
+    # Loop on slits to apply
     for sl in range(len(slf._specobjs[det-1])):
         # Loop on objects
         for specobj in slf._specobjs[det-1][sl]:

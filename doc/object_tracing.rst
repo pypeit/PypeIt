@@ -5,13 +5,13 @@ Object Tracing
 **************
 
 This document describes how the code traces
-each object found within a slit/order.
+each object found within a slit.
 
 Parameters
 ==========
 
 The following table describes parameters related to tracing the
-objects down the slit/order.  These parameters also follow a
+objects down the slit.  These parameters also follow a
 prefix of `trace object`.
 
 ============== ==============================  ==================================================

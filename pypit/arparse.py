@@ -1002,10 +1002,7 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        if v.lower() == 'none':
-            v = None
-        else:
-            v = key_int(v)
+        v = key_none_int(v)
         self.update(v)
 
     def reduce_flatfield_method(self, v):
@@ -4138,6 +4135,25 @@ def key_none_allowed_filename(v, allowed):
         msgs.info("Assuming the following is the name of a file:" + msgs.newline() + v)
     return v
 
+def key_none_int(v):
+    """ Check if a keyword argument is set to None. If not,
+    assume the supplied value is an int.
+
+    Parameters
+    ----------
+    v : str
+      value of a keyword argument
+
+    Returns
+    -------
+    v : list
+      A value used by the settings dictionary
+    """
+    if v.lower() == "none":
+        v = None
+    else:
+        v = key_int(v)
+    return v
 
 def key_none_list(v):
     """ Check if a keyword argument is set to None. If not,

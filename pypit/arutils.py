@@ -1245,7 +1245,7 @@ def fit_min(xarr, yarr, xguess, width=None):
     return xbest, sigma, errcode
 
 
-def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5, debug=False):
+def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5):
     """ Find minima in an input 1D array
     Parameters
     ----------

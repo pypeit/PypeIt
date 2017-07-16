@@ -280,8 +280,6 @@ def flexure(slf, det, flex_list, slit_cen=False):
 
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        if False:
-            slf._qa.savefig(bbox_inches='tight')
         plt.savefig(outfile, dpi=600)
         plt.close()
 
@@ -344,7 +342,6 @@ def flexure(slf, det, flex_list, slit_cen=False):
                    handletextpad=0.3, fontsize='small', numpoints=1)
 
         # Finish
-        #slf._qa.savefig(bbox_inches='tight')
         plt.savefig(outfile, dpi=800)
         plt.close()
         #plt.close()
@@ -445,8 +442,6 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
     else:
         plt.suptitle(desc+'\n'+tstamp)
 
-    if False:
-        slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
     plt.savefig(outfile, dpi=800)
     plt.close()
 
@@ -493,8 +488,6 @@ def obj_profile_qa(slf, specobjs, scitrace, det):
             ax.text(0.02, 0.90, 'Obj={:s}'.format(specobjs[sl][o].idx),
                     transform=ax.transAxes, ha='left', size='small')
 
-        if False:
-            slf._qa.savefig(bbox_inches='tight')
         plt.savefig(outfile, dpi=500)
         plt.close()
 
@@ -611,12 +604,9 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit",
                 pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
             f.suptitle(desc + pgtxt, y=1.02, size=16)
         f.tight_layout()
-        if False:
-            slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
-        else:
-            outfile = outroot+'{:03d}.png'.format(i)
-            plt.savefig(outfile, dpi=200)
-            plt.close()
+        outfile = outroot+'{:03d}.png'.format(i)
+        plt.savefig(outfile, dpi=200)
+        plt.close()
         f.clf()
     del f
     return
@@ -739,8 +729,6 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
         outfile = outroot+'{:03d}.png'.format(i)
         plt.savefig(outfile, dpi=200)
         plt.close()
-        #slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
-        #plt.close()
         f.clf()
     del f
     return
@@ -850,8 +838,6 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
         plt.suptitle(desc+'\n'+tstamp)
 
     # Write
-    if False:
-        slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
     plt.savefig(outfile, dpi=800)
     plt.close()
 
@@ -982,8 +968,6 @@ def pca_plot(slf, inpar, ofit, prefix, maxp=25, pcadesc="", addOne=True):
                 pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
             f.suptitle(pcadesc + pgtxt, y=1.02, size=16)
         f.tight_layout()
-        if False:
-            slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
         outfile = outroot+'{:02d}.png'.format(i)
         f.savefig(outfile, dpi=200)
         plt.close()
@@ -1071,8 +1055,6 @@ def pca_arctilt(slf, tiltang, centval, tilts, maxp=25, maskval=-999999.9):
             ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
         f.set_size_inches(11.0, ypngsiz)
         f.tight_layout()
-        if False:
-            slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
         outfile = outroot+'{:02d}.png'.format(i)
         plt.savefig(outfile, dpi=200)
         plt.close()
