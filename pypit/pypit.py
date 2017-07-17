@@ -196,7 +196,12 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
 
     # Load the important information from the fits headers
     from pypit import arload
-    fitsdict = arload.load_headers(datlines)
+    fitsdict, updates = arload.load_headers(datlines)
+
+    # If some settings were updated because of the fits headers, globalize the settings again
+    if len(updates) != 0:
+        spect.set_paramlist(updates)
+        arparse.init(argf, spect)
 
     # If the dispersion direction is 1, flip the axes
     if arparse.argflag['trace']['dispersion']['direction'] == 1:

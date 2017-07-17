@@ -1,4 +1,5 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
+from future.utils import iteritems
 
 import os
 import astropy.io.fits as pyfits
@@ -39,6 +40,22 @@ def load_headers(datlines):
     fitsdict : dict
       The relevant header information of all fits files
     """
+    def generate_updates(dct, keylst, keys, whddict, headarr):
+        """ Generate a list of settings to be updated
+        """
+        for (key, value) in iteritems(dct):
+            keys += [str(key)]
+            if isinstance(value, dict):
+                generate_updates(value, keylst, keys, whddict, headarr)
+            else:
+                tfrhd = int(value.split('.')[0]) - 1
+                kchk = '.'.join(value.split('.')[1:])
+                frhd = whddict['{0:02d}'.format(tfrhd)]
+                hdrval = headarr[frhd][kchk]
+                keylst += [str(' ').join(keys) + str(" ") +
+                           str("{0}\n".format(hdrval).replace(" ", ""))]
+            del keys[-1]
+
     chks = settings.spect['check'].keys()
     keys = settings.spect['keyword'].keys()
     fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
@@ -154,6 +171,10 @@ def load_headers(datlines):
                 msgs.bug("I didn't expect a useful header ({0:s}) to contain type {1:s}".format(kw, typv).replace('<type ','').replace('>',''))
 
         # Check if any other settings require header values to be loaded
+        msgs.info("Checking spectrograph settings for required header information")
+        keylst = []
+        generate_updates(settings.spect.copy(), keylst, [], whddict, headarr)
+        debugger.set_trace()
 
         msgs.info("Successfully loaded headers for file:"+msgs.newline()+datlines[i])
     # Convert the fitsdict arrays into numpy arrays
@@ -167,7 +188,7 @@ def load_headers(datlines):
                    "Please check that the settings file matches the data.")
     # Return
     fitsdict['headers'] = allhead
-    return fitsdict
+    return fitsdict, keylst
 
 
 def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
