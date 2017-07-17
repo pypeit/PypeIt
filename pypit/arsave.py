@@ -625,14 +625,16 @@ def save_2d_images(slf, fitsdict, clobber=True):
     for kk in range(settings.spect['mosaic']['ndet']):
         det = kk+1
         # Specified detector number?
-        if 'detnum' in settings.argflag['reduce'].keys():
+        if settings.argflag['reduce']['detnum'] is not None:
             if det != settings.argflag['reduce']['detnum']:
                 continue
+            else:
+                msgs.warn("Restricting the reduction to detector {:d}".format(det))
 
         # Processed frame
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
-        prihdu.header[keywd] = 'DET{:d}-Processed'.format(det)
+        prihdu.header[keywd] = 'DET{:02d}-Processed'.format(det)
         hdu = pyfits.ImageHDU(slf._sciframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
@@ -640,7 +642,7 @@ def save_2d_images(slf, fitsdict, clobber=True):
         # Variance
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
-        prihdu.header[keywd] = 'DET{:d}-Var'.format(det)
+        prihdu.header[keywd] = 'DET{:02d}-Var'.format(det)
         hdu = pyfits.ImageHDU(slf._modelvarframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
@@ -648,7 +650,7 @@ def save_2d_images(slf, fitsdict, clobber=True):
         # Background subtracted
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
-        prihdu.header[keywd] = 'DET{:d}-Skysub'.format(det)
+        prihdu.header[keywd] = 'DET{:02d}-Skysub'.format(det)
         hdu = pyfits.ImageHDU(slf._sciframe[det-1]-slf._bgframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)

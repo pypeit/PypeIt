@@ -53,7 +53,7 @@ def connect_to_ginga(host='localhost', port=9000):
     return viewer
 
 
-def show_image(inp, chname='Image', **kwargs):
+def show_image(inp, chname='Image', wcs_img=None, **kwargs):
     """ Displays input image in Ginga viewer
     Supersedes method in xastropy
 
@@ -61,6 +61,8 @@ def show_image(inp, chname='Image', **kwargs):
     ----------
     inp : str or ndarray (2D)
       If str, assumes the image is written to disk
+    wcs_img : str, optional
+      If included, use this in WCS.  Mainly to show wavelength array
 
     Returns
     -------
@@ -89,7 +91,9 @@ def show_image(inp, chname='Image', **kwargs):
     header = {}
     header['NAXIS1'] = img.shape[1]
     header['NAXIS2'] = img.shape[0]
-    header['WCS-XIMG'] = '/home/xavier/REDUX/Keck/LRIS/2017mar20/lris_red_setup_C/MF_lris_red/MasterWave_C_02_aa.fits'
+    if wcs_img is not None:
+        header['WCS-XIMG'] = wcs_img
+        #header['WCS-XIMG'] = '/home/xavier/REDUX/Keck/LRIS/2017mar20/lris_red_setup_C/MF_lris_red/MasterWave_C_02_aa.fits'
     # Giddy up
     ch.load_np(name, img, 'fits', header)
     return viewer, ch

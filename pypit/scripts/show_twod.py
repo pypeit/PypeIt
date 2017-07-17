@@ -30,6 +30,7 @@ def parser(options=None):
 def main(args):
 
     # List only?
+    import os
     from astropy.io import fits
     hdu = fits.open(args.file)
     head0 = hdu[0].header
@@ -48,11 +49,14 @@ def main(args):
 
     # One detector, sky sub for now
     names = [hdu[i].name for i in range(len(hdu))]
-    exten = names.index('DET{:d}-SKYSUB'.format(args.det))
+    exten = names.index('DET{:02d}-SKYSUB'.format(args.det))
+    #exten = names.index('DET{:02d}-SKYSUB'.format(args.det))
     skysub = hdu[exten].data
 
     # Show Image
-    viewer, ch = pyp_ginga.show_image(skysub, chname='DET-{:02d}'.format(args.det))
+    cwd = os.getcwd()
+    wcs_img = cwd+'/'+head0['PYPMFDIR']+'/MasterWave_'+'{:s}_{:02d}_{:s}.fits'.format(head0['PYPCNFIG'], args.det, head0['PYPCALIB'])
+    viewer, ch = pyp_ginga.show_image(skysub, chname='DET-{:02d}'.format(args.det), wcs_img=wcs_img)
 
     # Add slits
     testing = False
