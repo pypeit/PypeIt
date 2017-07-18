@@ -220,7 +220,7 @@ def save_sensfunc(slf, setup):
     setup : str
     """
     # Sensitivity Function
-    if 'sensfunc' + settings.argflag['reduce']['masters']['setup'][0] not in settings.argflag['reduce']['masters']['loaded']:
+    if 'sensfunc' + settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
         import yaml
         # yamlify
         ysens = arutils.yamlify(slf._sensfunc)

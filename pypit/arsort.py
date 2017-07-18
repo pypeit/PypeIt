@@ -884,7 +884,8 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
     # MasterFrame force?  If so, use user input setup updating detector
     if settings.argflag['reduce']['masters']['force']:
         input_setup = settings.argflag['reduce']['masters']['setup']
-        setup = '{:s}_{:02d}_{:s}'.format(input_setup[0],det,input_setup[-2:])
+        sdet = settings.get_dnum(det, prefix=None)
+        setup = '{:s}_{:s}_{:s}'.format(input_setup[0],sdet,input_setup[-2:])
         return setup
     # Labels
     cfig_str = string.ascii_uppercase
