@@ -19,6 +19,7 @@ def parser(options=None):
     parser.add_argument('file', type = str, default = None, help = 'PYPIT spec2d file')
     parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
     parser.add_argument('--det', default=1, type=int, help="Detector")
+    parser.add_argument("--old_format", default=False, help="Old naming convention?", action="store_true")
 
     if options is None:
         args = parser.parse_args()
@@ -53,7 +54,10 @@ def main(args):
 
     # One detector, sky sub for now
     names = [hdu[i].name for i in range(len(hdu))]
-    exten = names.index('DET{:s}-SKYSUB'.format(sdet))
+    if args.old_format:
+        exten = names.index('DET{:d}-SKYSUB'.format(args.det))
+    else:
+        exten = names.index('DET{:s}-SKYSUB'.format(sdet))
     skysub = hdu[exten].data
 
     # Show Image
