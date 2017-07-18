@@ -3771,20 +3771,32 @@ def load_sections(string):
     return [[int(xyarrx[0]), int(xyarrx[1])], [int(xyarry[0]), int(xyarry[1])]]
 
 
-def get_dnum(det):
+def get_dnum(det, caps=False, prefix=True):
     """ Convert a detector index into a string used by the settings dictionary
+    or other bits of code.  Best to keep at two digits
 
     Parameters
     ----------
     det : int
       Detector index
+    caps : bool, optional
+      Return all caps?
+    prefix : bool, optional
+      Include the prefix?
 
     Returns
     -------
     dnum : str
       A string used by the settings dictionary
     """
-    return 'det{0:02d}'.format(det)
+    dnum = '{0:02d}'.format(det)
+    if prefix:
+        if caps:
+            dnum = 'DET'+dnum
+        else:
+            dnum = 'det'+dnum
+    # Return
+    return dnum
 
 
 def check_deprecated(v, deprecated, upper=False):
