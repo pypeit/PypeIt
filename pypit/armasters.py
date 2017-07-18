@@ -79,7 +79,7 @@ def master_name(ftype, setup, mdir=None):
                      wv_calib='{:s}/MasterWaveCalib_{:s}.json'.format(mdir, setup),
                      tilts='{:s}/MasterTilts_{:s}.fits'.format(mdir, setup),
                      slitprof='{:s}/MasterSlitProfile_{:s}.fits'.format(mdir, setup),
-                     sensfunc='{:s}/MasterSensFunc_{:s}.yaml'.format(mdir, setup[0]),
+                     sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.yaml'.format(mdir, setup[0], setup[-2:]),
                      )
     return name_dict[ftype]
 

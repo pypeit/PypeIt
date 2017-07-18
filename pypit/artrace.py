@@ -555,17 +555,14 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     #smth_prof = gaussian_filter1d(trcprof, fwhm/2.35)
     # Define all 5 sigma deviations as objects (should make the 5 user-defined)
     #objl, objr, bckl, bckr = arcytrace.find_objects(smth_prof, bgreg, mad)
-    if 'find' in settings.argflag['trace']['object'].keys():
-        if settings.argflag['trace']['object']['find'] != 'nminima':
-            msgs.bug("Only nminima is an option right now")
-        try:
-            nsmooth = settings.argflag['trace']['object']['nsmooth']
-        except KeyError:
-            nsmooth = 3
+    if settings.argflag['trace']['object']['find'] == 'nminima':
+        nsmooth = settings.argflag['trace']['object']['nsmooth']
         trcprof2 = np.ma.mean(rec_sciframe, axis=0).filled(0.0)
         objl, objr, bckl, bckr = find_obj_minima(trcprof2, triml=triml, trimr=trimr, nsmooth=nsmooth)
-    else:
+    elif settings.argflag['trace']['object']['find'] == 'standard':
         objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
+    else:
+        msgs.error("Bad object identification algorithm!!")
     if msgs._debug['trace_obj']:
         debugger.set_trace()
     # Remove objects within x percent of the slit edge
@@ -2620,6 +2617,39 @@ def slit_image(slf, det, scitrace, obj, tilts=None):
 
 def find_obj_minima(trcprof, fwhm=3., nsmooth=3, nfind=8, xedge=0.03,
         sig_thresh=5., peakthresh=None, triml=2, trimr=2, debug=False):
+    ''' Find objects using a ported version of nminima from IDL (idlutils) 
+    
+    Parameters
+    ----------
+    trcprof : ndarray
+      1D array of the slit profile including objects
+    fwhm : float, optional
+      FWHM estimate of the seeing
+    nsmooth : int, optional
+      Kernel in pixels for Gaussian smoothing of trcprof
+    nfind : int, optional
+      Number of sources to identify
+    xedge : float, optional
+      Fraction of the slit on each edge to ignore peaks within
+    sig_thresh : float, optional
+      Number of sigma to reject when fitting
+    peakthresh : float, optional
+      Include objects whose peak exceeds this fraction of the highest peak
+    triml : int, optional
+    trimr : int, optional
+    debug : bool, optional
+
+    Returns
+    -------
+    objl : ndarray  (npeak)
+      Left edges for each peak found
+    objr : ndarray  (npeak)
+      Right edges for each peak found
+    bckl : ndarray (npeak, npix)
+      Background regions in the slit, left of the peak
+    bckr : ndarray (npeak, npix)
+      Background regions in the slit, right of the peak
+    '''
     from astropy.convolution import convolve, Gaussian1DKernel
     from astropy.stats import sigma_clip
     npix = trcprof.size

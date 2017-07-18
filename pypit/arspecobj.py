@@ -69,7 +69,8 @@ class SpecObjExp(object):
         #self.idx = '{:02d}'.format(self.setup)
         self.idx = 'O{:03d}'.format(self.objid)
         self.idx += '-S{:04d}'.format(self.slitid)
-        self.idx += '-D{:02d}'.format(self.det)
+        sdet = settings.get_dnum(det, prefix=False)
+        self.idx += '-D{:s}'.format(sdet)
         self.idx += '-I{:04d}'.format(self.scidx)
 
         # Items that are generally filled
@@ -102,8 +103,9 @@ class SpecObjExp(object):
     # Printing
     def __repr__(self):
         # Generate sets string
-        return ('<SpecObjExp: {:s} == Setup {:s} Object at {:g} in Slit at {:g} with det={:d}, scidx={:d} and objtype={:s}>'.format(
-                self.idx, self.config, self.xobj, self.slitcen, self.det, self.scidx, self.objtype))
+        sdet = settings.get_dnum(self.det, prefix=False)
+        return ('<SpecObjExp: {:s} == Setup {:s} Object at {:g} in Slit at {:g} with det={:s}, scidx={:d} and objtype={:s}>'.format(
+                self.idx, self.config, self.xobj, self.slitcen, sdet, self.scidx, self.objtype))
 
 
 def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):

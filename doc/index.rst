@@ -64,7 +64,8 @@ Object Algorithms
 .. toctree::
    :maxdepth: 2
 
-   object_id
+   object_finding
+   object_tracing
    coadding
 
 Documentation

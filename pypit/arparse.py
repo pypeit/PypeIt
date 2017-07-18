@@ -196,7 +196,7 @@ class BaseArgFlag(BaseFunctions):
           The value of the keyword argument provided by lst (when lst is of type list).
         """
         members = [x for x, y in inspect.getmembers(self, predicate=inspect.ismethod)]
-        if type(lst) is str:
+        if isinstance(lst, basestring):
             lst = lst.split()
             value = None  # Force the value to be None
         else:
@@ -992,6 +992,17 @@ class BaseArgFlag(BaseFunctions):
         """
         allowed = ['air', 'vacuum', 'pixel']
         v = key_allowed(v, allowed)
+        self.update(v)
+
+    def reduce_detnum(self, v):
+        """ Reduce only the input detector of the array
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_none_int(v)
         self.update(v)
 
     def reduce_flatfield_method(self, v):
@@ -3514,16 +3525,6 @@ class ARMLSD(BaseArgFlag):
         v = key_bool(v)
         self.update(v)
 
-    def reduce_detnum(self, v):
-        """ Should a flux calibration be performed?
-
-        Parameters
-        ----------
-        v : str
-          value of the keyword argument given by the name of this function
-        """
-        v = key_int(v)
-        self.update(v)
 
 
     def reduce_flexure_maxshift(self, v):
@@ -3782,20 +3783,32 @@ def load_sections(string):
     return [[int(xyarrx[0]), int(xyarrx[1])], [int(xyarry[0]), int(xyarry[1])]]
 
 
-def get_dnum(det):
+def get_dnum(det, caps=False, prefix=True):
     """ Convert a detector index into a string used by the settings dictionary
+    or other bits of code.  Best to keep at two digits
 
     Parameters
     ----------
     det : int
       Detector index
+    caps : bool, optional
+      Return all caps?
+    prefix : bool, optional
+      Include the prefix?
 
     Returns
     -------
     dnum : str
       A string used by the settings dictionary
     """
-    return 'det{0:02d}'.format(det)
+    dnum = '{0:02d}'.format(det)
+    if prefix:
+        if caps:
+            dnum = 'DET'+dnum
+        else:
+            dnum = 'det'+dnum
+    # Return
+    return dnum
 
 
 def check_deprecated(v, deprecated, upper=False):
@@ -4146,6 +4159,25 @@ def key_none_allowed_filename(v, allowed):
         msgs.info("Assuming the following is the name of a file:" + msgs.newline() + v)
     return v
 
+def key_none_int(v):
+    """ Check if a keyword argument is set to None. If not,
+    assume the supplied value is an int.
+
+    Parameters
+    ----------
+    v : str
+      value of a keyword argument
+
+    Returns
+    -------
+    v : list
+      A value used by the settings dictionary
+    """
+    if v.lower() == "none":
+        v = None
+    else:
+        v = key_int(v)
+    return v
 
 def key_none_list(v):
     """ Check if a keyword argument is set to None. If not,

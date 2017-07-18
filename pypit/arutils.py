@@ -1245,19 +1245,34 @@ def fit_min(xarr, yarr, xguess, width=None):
     return xbest, sigma, errcode
 
 
-def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5, debug=False):
-    """ 
+def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5):
+    """ Find minima in an input 1D array
     Parameters
     ----------
-    yflux
-    xvec : ndarray
+    yflux : ndarray
+    xvec : ndarray, optional
       Assumed to be ascending
-    nfind
-    nsmooth
+    nfind : int, optional
+      Number of peaks to find in the input array
+    nsmooth : int, optional
+      Smooth by a Gaussian with kenrel of nsmooth
+    minsep : int, optional
+      Minimum separation between peaks
+    width : int, optional
+      Width around a putative peak to fit a Gaussian
 
     Returns
     -------
-
+    peaks: ndarray
+      x values of the peaks 
+    sigmas: ndarray
+      sigma widths of the Gaussian fits to each peak
+    ledges: ndarray
+      left edges of each peak;  defined to be at least minsep away
+      from the peak and where the slope of the data switches 
+    redges: ndarray
+      right edges of each peak;  defined to be at least minsep away
+      from the peak and where the slope of the data switches 
     """
     # Imports
     from astropy.convolution import convolve, Gaussian1DKernel
