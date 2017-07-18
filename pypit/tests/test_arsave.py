@@ -61,13 +61,14 @@ def test_save1d_fits():
     """ save1d to FITS and HDF5
     """
     arut.dummy_settings()
+    fitsdict = arut.dummy_fitsdict(nfile=10, spectrograph='kast_blue', directory=data_path(''))
     # Dummy self
     slf = arut.dummy_self()
     slf._specobjs = []
     slf._specobjs.append([])
     slf._specobjs[0].append([mk_specobj()])
     # Write to FITS
-    arsv.save_1d_spectra_fits(slf)
+    arsv.save_1d_spectra_fits(slf, fitsdict)
 
 
 def test_save1d_hdf5():

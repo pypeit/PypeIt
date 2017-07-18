@@ -946,7 +946,7 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
         slf._bgframe[det - 1] = bgframe
 
     ###############
-    # Estimate trace of science objects
+    # Find objects and estimate their traces
     scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask,
                                     bgreg=20, doqa=False)
     if scitrace is None:

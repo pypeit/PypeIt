@@ -53,7 +53,7 @@ def connect_to_ginga(host='localhost', port=9000):
     return viewer
 
 
-def show_image(inp, chname='Image', **kwargs):
+def show_image(inp, chname='Image', wcs_img=None, **kwargs):
     """ Displays input image in Ginga viewer
     Supersedes method in xastropy
 
@@ -61,6 +61,8 @@ def show_image(inp, chname='Image', **kwargs):
     ----------
     inp : str or ndarray (2D)
       If str, assumes the image is written to disk
+    wcs_img : str, optional
+      If included, use this in WCS.  Mainly to show wavelength array
 
     Returns
     -------
@@ -89,13 +91,15 @@ def show_image(inp, chname='Image', **kwargs):
     header = {}
     header['NAXIS1'] = img.shape[1]
     header['NAXIS2'] = img.shape[0]
-    header['WCS-xIMG'] = 'MF_lris_red/MasterWave_A_02_aa.fits'
+    if wcs_img is not None:
+        header['WCS-XIMG'] = wcs_img
+        #header['WCS-XIMG'] = '/home/xavier/REDUX/Keck/LRIS/2017mar20/lris_red_setup_C/MF_lris_red/MasterWave_C_02_aa.fits'
     # Giddy up
     ch.load_np(name, img, 'fits', header)
     return viewer, ch
 
 
-def show_slits(viewer, ch, lordloc, rordloc):
+def show_slits(viewer, ch, lordloc, rordloc, slit_ids):
     """ Overplot slits on image in Ginga
     Parameters
     ----------
@@ -103,6 +107,7 @@ def show_slits(viewer, ch, lordloc, rordloc):
     ch
     lordloc
     rordloc
+    slit_ids : list of int
 
     Returns
     -------
@@ -113,18 +118,19 @@ def show_slits(viewer, ch, lordloc, rordloc):
     canvas.clear()
     # y-axis
     y = (np.arange(lordloc.shape[0])).tolist()
-    ohf = lordloc.shape[0] // 2
+    #ohf = lordloc.shape[0] // 2
+    tthrd = int(2*lordloc.shape[0]/3.)
     # Loop on slits
     for slit in range(lordloc.shape[1]):
         # Left
-        points = zip(lordloc[:,slit].tolist(),y)
+        points = list(zip(lordloc[:,slit].tolist(),y))
         canvas.add('path', points, color='cyan')
         # Right
-        points = zip(rordloc[:,slit].tolist(),y)
+        points = list(zip(rordloc[:,slit].tolist(),y))
         canvas.add('path', points, color='cyan')
         # Text -- Should use the 'real' name
-        canvas.add('text', float(lordloc[ohf,slit]), float(y[ohf]),
-                   '{:d}'.format(slit), color='cyan')
+        canvas.add('text', float(lordloc[tthrd,slit]), float(y[tthrd]),
+                   'S{:d}'.format(slit_ids[slit]), color='cyan')
 
 def show_trace(viewer, ch, trace, trc_name, color='blue', clear=False):
     # Canvas
@@ -133,7 +139,7 @@ def show_trace(viewer, ch, trace, trc_name, color='blue', clear=False):
         canvas.clear()
     # Show
     y = (np.arange(trace.size)).tolist()
-    points = zip(trace.tolist(),y)
+    points = list(zip(trace.tolist(),y))
     canvas.add('path', points, color=color)
     # Text
     ohf = trace.size // 2
@@ -188,7 +194,7 @@ def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0.):
         y = (np.arange(msarc.shape[0]) + yoff).tolist()
         # Left
         for edge in [0,1]:
-            points = zip(sedges[edge].tolist(),y)
+            points = list(zip(sedges[edge].tolist(),y))
             canvas.add('path', points, color='cyan')
     # ALTERNATE for comparing methods
     if 'save_yt' in trcdict.keys():

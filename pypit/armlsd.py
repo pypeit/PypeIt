@@ -75,6 +75,11 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         # Loop on Detectors
         for kk in range(settings.spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
+            if settings.argflag['reduce']['detnum'] is not None:
+                if det != settings.argflag['reduce']['detnum']:
+                    continue
+                else:
+                    msgs.warn("Restricting the reduction to detector {:d}".format(det))
             slf.det = det
             ###############
             # Get data sections
@@ -235,7 +240,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         # Write 1D spectra
         save_format = 'fits'
         if save_format == 'fits':
-            arsave.save_1d_spectra_fits(slf)
+            arsave.save_1d_spectra_fits(slf, fitsdict)
         elif save_format == 'hdf5':
             arsave.save_1d_spectra_hdf5(slf)
         else:
