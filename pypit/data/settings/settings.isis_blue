@@ -21,8 +21,8 @@ det01 numamplifiers 1                 # Number of amplifiers
 #det01 datasec01 TRIMSEC              # Either the data sections or the header keyword where the valid data sections can be obtained
 #det01 oscansec01 BIASSEC             # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
 det01 dataext01 1                     # Extension number of the data
-det01 datasec01 [1:4030,:]            # Either the data sections or the header keyword where the valid data sections can be obtained (Avoids bad region at top)
-det01 oscansec01 [4105:4190,98:483]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+det01 datasec01 [:,0:4030]            # Either the data sections or the header keyword where the valid data sections can be obtained (Avoids bad region at top)
+det01 oscansec01 [99:483,4106:4190]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
 det01 suffix _blue                    # Suffix to be appended to all saved calibration and extraction frames
 
 ### Checks to perform  (white space is removed)
