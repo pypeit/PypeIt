@@ -182,7 +182,6 @@ def load_headers(datlines):
     # Just use the header info from the last file
     keylst = []
     generate_updates(settings.spect.copy(), keylst, [], whddict, headarr)
-    debugger.set_trace()
 
     # Convert the fitsdict arrays into numpy arrays
     for k in fitsdict.keys():
