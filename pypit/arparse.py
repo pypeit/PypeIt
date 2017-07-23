@@ -2582,14 +2582,10 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         cname = get_nmbr_name(anmbr=anmbr)
-        # Check if the argument is a call to a header keyword
-        v, valid = key_keyword(v, force_format=False)
-        # If not, assume it's a manual entry
-        if not valid:
-            v = key_float(v)
-            if v <= 0.0:
-                msgs.error("The argument of {0:s} must be > 0.0".format(cname))
-            self.update(v, ll=cname.split('_'))
+        v = key_float(v)
+        if v <= 0.0:
+            msgs.error("The argument of {0:s} must be > 0.0".format(cname))
+        self.update(v, ll=cname.split('_'))
 
     def det_suffix(self, v, anmbr=1):
         """ Suffix to be appended to all saved calibration and extraction frames
@@ -3128,11 +3124,7 @@ class BaseSpect(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        # Check if the argument is a call to a header keyword
-        v, valid = key_keyword(v, force_format=False)
-        # If not, assume it's a manual entry
-        if not valid:
-            v = key_int(v)
+        v = key_int(v)
         self.update(v)
 
     def mosaic_minexp(self, v):
@@ -3143,11 +3135,7 @@ class BaseSpect(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        # Check if the argument is a call to a header keyword
-        v, valid = key_keyword(v, force_format=False)
-        # If not, assume it's a manual entry
-        if not valid:
-            v = key_float(v)
+        v = key_float(v)
         self.update(v)
 
     def mosaic_reduction(self, v):
@@ -4312,11 +4300,27 @@ def is_keyword(v):
       True if 'v' has the correct format to be a header keyword, False otherwise.
     """
     valid = True
+    if ("," in v) or ("." not in v):
+        # Either an array or doesn't have the header keyword format (i.e. a fullstop)
+        return False
+    # Test if the first element is an integer
     try:
         vspl = v.split(".")
         int(vspl[0])
     except ValueError:
         valid = False
+    # Test if there are two parts to the expression
+    if len(vspl) != 2:
+        return False
+    # Test if the second element is a string
+    try:
+        if valid is True:
+            int(vspl[1])
+            # Input value must be a floating point number
+            valid = False
+    except ValueError:
+        # Input value must be a string
+        valid = True
     return valid
 
 
