@@ -2475,9 +2475,13 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         cname = get_nmbr_name(anmbr=anmbr)
-        v = key_float(v)
-        if v < 0.0:
-            msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            v = key_float(v)
+            if v < 0.0:
+                msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
         self.update(v, ll=cname.split('_'))
 
     def det_gain(self, v, anmbr=1):
@@ -2489,14 +2493,18 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         cname = get_nmbr_name(anmbr=anmbr)
-        try:
-            v = v.split(",")
-            for i in range(len(v)):
-                v[i] = float(v[i])
-                if v[i] <= 0.0:
-                    msgs.error("Each argument of {0:s} must be > 0.0".format(cname))
-        except ValueError:
-            msgs.error("Each argument of {0:s} must be of type float".format(cname))
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            try:
+                v = v.split(",")
+                for i in range(len(v)):
+                    v[i] = float(v[i])
+                    if v[i] <= 0.0:
+                        msgs.error("Each argument of {0:s} must be > 0.0".format(cname))
+            except ValueError:
+                msgs.error("Each argument of {0:s} must be of type float".format(cname))
         self.update(v, ll=cname.split('_'))
 
     def det_ronoise(self, v, anmbr=1):
@@ -2508,14 +2516,18 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         cname = get_nmbr_name(anmbr=anmbr)
-        try:
-            v = v.split(",")
-            for i in range(len(v)):
-                v[i] = float(v[i])
-                if v[i] <= 0.0:
-                    msgs.error("Each argument of {0:s} must be > 0.0".format(cname))
-        except ValueError:
-            msgs.error("Each argument of {0:s} must be of type float".format(cname))
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            try:
+                v = v.split(",")
+                for i in range(len(v)):
+                    v[i] = float(v[i])
+                    if v[i] <= 0.0:
+                        msgs.error("Each argument of {0:s} must be > 0.0".format(cname))
+            except ValueError:
+                msgs.error("Each argument of {0:s} must be of type float".format(cname))
         self.update(v, ll=cname.split('_'))
 
     def det_nonlinear(self, v, anmbr=1):
@@ -2570,10 +2582,14 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         cname = get_nmbr_name(anmbr=anmbr)
-        v = key_float(v)
-        if v <= 0.0:
-            msgs.error("The argument of {0:s} must be > 0.0".format(cname))
-        self.update(v, ll=cname.split('_'))
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            v = key_float(v)
+            if v <= 0.0:
+                msgs.error("The argument of {0:s} must be > 0.0".format(cname))
+            self.update(v, ll=cname.split('_'))
 
     def det_suffix(self, v, anmbr=1):
         """ Suffix to be appended to all saved calibration and extraction frames
@@ -3067,7 +3083,11 @@ class BaseSpect(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        v = key_float(v)
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            v = key_float(v)
         self.update(v)
 
     def mosaic_latitude(self, v):
@@ -3078,7 +3098,11 @@ class BaseSpect(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        v = key_float(v)
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            v = key_float(v)
         self.update(v)
 
     def mosaic_longitude(self, v):
@@ -3089,7 +3113,11 @@ class BaseSpect(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        v = key_float(v)
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            v = key_float(v)
         self.update(v)
 
     def mosaic_ndet(self, v):
@@ -3100,7 +3128,11 @@ class BaseSpect(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        v = key_int(v)
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            v = key_int(v)
         self.update(v)
 
     def mosaic_minexp(self, v):
@@ -3111,7 +3143,11 @@ class BaseSpect(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        v = key_float(v)
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            v = key_float(v)
         self.update(v)
 
     def mosaic_reduction(self, v):
