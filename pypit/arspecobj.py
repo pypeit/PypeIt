@@ -69,7 +69,8 @@ class SpecObjExp(object):
         #self.idx = '{:02d}'.format(self.setup)
         self.idx = 'O{:03d}'.format(self.objid)
         self.idx += '-S{:04d}'.format(self.slitid)
-        self.idx += '-D{:02d}'.format(self.det)
+        sdet = settings.get_dnum(det, prefix=False)
+        self.idx += '-D{:s}'.format(sdet)
         self.idx += '-I{:04d}'.format(self.scidx)
 
         # Items that are generally filled
@@ -102,8 +103,9 @@ class SpecObjExp(object):
     # Printing
     def __repr__(self):
         # Generate sets string
-        return ('<SpecObjExp: {:s} == Setup {:s} Object at {:g} in Slit at {:g} with det={:d}, scidx={:d} and objtype={:s}>'.format(
-                self.idx, self.config, self.xobj, self.slitcen, self.det, self.scidx, self.objtype))
+        sdet = settings.get_dnum(self.det, prefix=False)
+        return ('<SpecObjExp: {:s} == Setup {:s} Object at {:g} in Slit at {:g} with det={:s}, scidx={:d} and objtype={:s}>'.format(
+                self.idx, self.config, self.xobj, self.slitcen, sdet, self.scidx, self.objtype))
 
 
 def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
@@ -231,7 +233,7 @@ def get_slitid(slf, det, islit, ypos=0.5):
     """ Convert slit position to a slitid
     Parameters
     ----------
-    slf
+    slf : SciExpObj or tuple
     det : int
     islit : int
     ypos : float, optional
@@ -245,12 +247,17 @@ def get_slitid(slf, det, islit, ypos=0.5):
     xslit : tuple
       left, right positions of the slit edges
     """
-    shape = slf._mstrace[det-1].shape
+    if isinstance(slf, tuple):
+        shape, lordloc, rordloc = slf
+    else:
+        shape = slf._mstrace[det-1].shape
+        lordloc = slf._lordloc[det-1]
+        rordloc = slf._rordloc[det-1]
     # Index at ypos
-    yidx = int(np.round(ypos*slf._lordloc[det-1].shape[0]))
+    yidx = int(np.round(ypos*lordloc.shape[0]))
     # Slit at yidx
-    pixl_slit = slf._lordloc[det-1][yidx, islit]
-    pixr_slit = slf._rordloc[det-1][yidx, islit]
+    pixl_slit = lordloc[yidx, islit]
+    pixr_slit = rordloc[yidx, islit]
     # Relative to full image
     xl_slit = pixl_slit/shape[1]
     xr_slit = pixr_slit/shape[1]

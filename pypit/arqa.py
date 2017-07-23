@@ -17,7 +17,6 @@ import matplotlib
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as cm
-from matplotlib.backends.backend_pdf import PdfPages
 
 try:
     basestring
@@ -89,11 +88,7 @@ def arc_fit_qa(slf, fit, outfile=None, ids_only=False, title=None):
                      size='x-large', ha='left')#, bbox={'facecolor':'white'})
     if ids_only:
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        if outfil is not None:
-            pp.savefig(bbox_inches='tight')
-            pp.close()
-        else:
-            plt.savefig(outfile, dpi=800)
+        plt.savefig(outfile, dpi=800)
         plt.close()
         return
 
@@ -155,6 +150,7 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=2.):
       Scale median flux by this parameter for the spectral plot
 
     """
+    from matplotlib.backends.backend_pdf import PdfPages
     from pypit.arcoadd import get_std_dev as gsd
     from scipy.stats import norm
     from astropy.stats import sigma_clip
@@ -284,8 +280,6 @@ def flexure(slf, det, flex_list, slit_cen=False):
 
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        if False:
-            slf._qa.savefig(bbox_inches='tight')
         plt.savefig(outfile, dpi=600)
         plt.close()
 
@@ -348,9 +342,6 @@ def flexure(slf, det, flex_list, slit_cen=False):
                    handletextpad=0.3, fontsize='small', numpoints=1)
 
         # Finish
-        plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        if False:
-            slf._qa.savefig(bbox_inches='tight')
         plt.savefig(outfile, dpi=800)
         plt.close()
         #plt.close()
@@ -451,8 +442,6 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
     else:
         plt.suptitle(desc+'\n'+tstamp)
 
-    if False:
-        slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
     plt.savefig(outfile, dpi=800)
     plt.close()
 
@@ -499,8 +488,6 @@ def obj_profile_qa(slf, specobjs, scitrace, det):
             ax.text(0.02, 0.90, 'Obj={:s}'.format(specobjs[sl][o].idx),
                     transform=ax.transAxes, ha='left', size='small')
 
-        if False:
-            slf._qa.savefig(bbox_inches='tight')
         plt.savefig(outfile, dpi=500)
         plt.close()
 
@@ -617,12 +604,9 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit",
                 pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
             f.suptitle(desc + pgtxt, y=1.02, size=16)
         f.tight_layout()
-        if False:
-            slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
-        else:
-            outfile = outroot+'{:03d}.png'.format(i)
-            plt.savefig(outfile, dpi=200)
-            plt.close()
+        outfile = outroot+'{:03d}.png'.format(i)
+        plt.savefig(outfile, dpi=200)
+        plt.close()
         f.clf()
     del f
     return
@@ -652,6 +636,9 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
     desc : str, (optional)
       A description added to the top of each page
     """
+    # Outfile
+    method = inspect.stack()[0][3]
+    outroot = set_qa_filename(slf.setup, method)
 
     npix, nord = lordloc.shape
     nbins = 40
@@ -739,8 +726,9 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
                 pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
             f.suptitle(desc + pgtxt, y=1.02, size=16)
         f.tight_layout()
-        slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
-        #plt.close()
+        outfile = outroot+'{:03d}.png'.format(i)
+        plt.savefig(outfile, dpi=200)
+        plt.close()
         f.clf()
     del f
     return
@@ -769,7 +757,7 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
     normalize: bool, optional
       Normalize the flat?  If not, use zscale for output
     """
-    # Outfil
+    # Outfile
     method = inspect.stack()[0][3]
     outfile = set_qa_filename(slf.setup, method)
     # if outfil is None:
@@ -850,8 +838,6 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
         plt.suptitle(desc+'\n'+tstamp)
 
     # Write
-    if False:
-        slf._qa.savefig(dpi=1200, orientation='portrait', bbox_inches='tight')
     plt.savefig(outfile, dpi=800)
     plt.close()
 
@@ -982,8 +968,6 @@ def pca_plot(slf, inpar, ofit, prefix, maxp=25, pcadesc="", addOne=True):
                 pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
             f.suptitle(pcadesc + pgtxt, y=1.02, size=16)
         f.tight_layout()
-        if False:
-            slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
         outfile = outroot+'{:02d}.png'.format(i)
         f.savefig(outfile, dpi=200)
         plt.close()
@@ -1071,13 +1055,11 @@ def pca_arctilt(slf, tiltang, centval, tilts, maxp=25, maskval=-999999.9):
             ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
         f.set_size_inches(11.0, ypngsiz)
         f.tight_layout()
-        if False:
-            slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
         outfile = outroot+'{:02d}.png'.format(i)
-        f.savefig(outfile, dpi=200)
+        plt.savefig(outfile, dpi=200)
         plt.close()
-        f.clf()
-        del f
+        #f.clf()
+        #del f
     return
 
 
@@ -1116,6 +1098,8 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None):
     """
     if method == 'slit_trace_qa':
         outfile = 'QA/PNGs/Slit_Trace_{:s}.png'.format(root)
+    elif method == 'slit_profile':
+        outfile = 'QA/PNGs/Slit_Profile_{:s}_'.format(root)
     elif method == 'arc_fit_qa':
         outfile = 'QA/PNGs/Arc_1dfit_{:s}.png'.format(root)
     elif method == 'plot_orderfits_Arc':  # This is root for multiple PNGs
@@ -1281,6 +1265,8 @@ def html_mf_pngs(setup, cbset, det):
     html_dict = {}
     html_dict['strace'] = dict(fname='slit_trace_qa', ext='',
         href='strace', label='Slit Trace')
+    html_dict['sprof'] = dict(fname='slit_profile', ext='*.png',
+                              href='sprof', label='Slit Profile')
     html_dict['blaze'] = dict(fname='plot_orderfits_Blaze', ext='*.png',
                                href='blaze', label='Blaze')
     html_dict['arc_fit'] = dict(fname='arc_fit_qa', ext='',
@@ -1291,7 +1277,7 @@ def html_mf_pngs(setup, cbset, det):
                                  href='arc_pca', label='Arc Tilt PCA')
 
     # Generate HTML
-    for key in ['strace', 'blaze', 'arc_fit', 'arc_pca', 'arc_tilt']:
+    for key in ['strace', 'sprof', 'blaze', 'arc_fit', 'arc_pca', 'arc_tilt']:
         png_root = set_qa_filename(idval, html_dict[key]['fname'])
         pngs = glob.glob(png_root+html_dict[key]['ext'])
         if len(pngs) > 0:

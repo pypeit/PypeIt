@@ -416,7 +416,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 
 
-def save_1d_spectra_fits(slf, standard=False, clobber=True, outfile=None):
+def save_1d_spectra_fits(slf, fitsdict, standard=False, clobber=True, outfile=None):
     """ Write 1D spectra to a multi-extension FITS file
 
     Parameters
@@ -428,10 +428,25 @@ def save_1d_spectra_fits(slf, standard=False, clobber=True, outfile=None):
     Returns
     -------
     """
-    # Primary header
+    # Primary hdu
     prihdu = pyfits.PrimaryHDU()
     hdus = [prihdu]
+    # Add critical data to header
+    idx = slf._idx_sci[0]
+    prihdu.header['RA'] = fitsdict['ra'][idx]
+    prihdu.header['DEC'] = fitsdict['dec'][idx]
+    prihdu.header['EXPTIME'] = fitsdict['exptime'][idx]
+    prihdu.header['MJD-OBS'] = fitsdict['time'][idx]
+    prihdu.header['DATE'] = fitsdict['date'][idx]
+    prihdu.header['TARGET'] = fitsdict['target'][idx]
+    prihdu.header['LON-OBS'] = settings.spect['mosaic']['longitude']
+    prihdu.header['LAT-OBS'] = settings.spect['mosaic']['latitude']
+    prihdu.header['ALT-OBS'] = settings.spect['mosaic']['elevation']
+    prihdu.header['VEL-TYPE'] = settings.argflag['reduce']['calibrate']['refframe']
+    prihdu.header['VEL'] = slf.vel_correction
+
     # Loop on detectors
+    npix = 0
     ext = 0
     for kk in range(settings.spect['mosaic']['ndet']):
         det = kk+1
@@ -456,6 +471,8 @@ def save_1d_spectra_fits(slf, standard=False, clobber=True, outfile=None):
                 cols = []
                 # Trace
                 cols += [pyfits.Column(array=specobj.trace, name=str('obj_trace'), format=specobj.trace.dtype)]
+                if ext == 1:
+                    npix = len(specobj.trace)
                 # Boxcar
                 for key in specobj.boxcar.keys():
                     # Skip some
@@ -484,6 +501,9 @@ def save_1d_spectra_fits(slf, standard=False, clobber=True, outfile=None):
                 tbhdu = pyfits.BinTableHDU.from_columns(coldefs)
                 tbhdu.name = specobj.idx
                 hdus += [tbhdu]
+    # A few more for the header
+    prihdu.header['NSPEC'] = ext
+    prihdu.header['NPIX'] = npix
     # Finish
     hdulist = pyfits.HDUList(hdus)
     if outfile is None:
@@ -604,11 +624,18 @@ def save_2d_images(slf, fitsdict, clobber=True):
     ext = 0
     for kk in range(settings.spect['mosaic']['ndet']):
         det = kk+1
+        sdet = settings.get_dnum(det, caps=True)  # e.g. DET02
+        # Specified detector number?
+        if settings.argflag['reduce']['detnum'] is not None:
+            if det != settings.argflag['reduce']['detnum']:
+                continue
+            else:
+                msgs.warn("Restricting the reduction to detector {:d}".format(det))
 
         # Processed frame
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
-        prihdu.header[keywd] = 'DET{:d}-Processed'.format(det)
+        prihdu.header[keywd] = '{:s}-Processed'.format(sdet)
         hdu = pyfits.ImageHDU(slf._sciframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
@@ -616,7 +643,7 @@ def save_2d_images(slf, fitsdict, clobber=True):
         # Variance
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
-        prihdu.header[keywd] = 'DET{:d}-Var'.format(det)
+        prihdu.header[keywd] = '{:s}-Var'.format(sdet)
         hdu = pyfits.ImageHDU(slf._modelvarframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
@@ -624,7 +651,7 @@ def save_2d_images(slf, fitsdict, clobber=True):
         # Background subtracted
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
-        prihdu.header[keywd] = 'DET{:d}-Skysub'.format(det)
+        prihdu.header[keywd] = '{:s}-Skysub'.format(sdet)
         hdu = pyfits.ImageHDU(slf._sciframe[det-1]-slf._bgframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
