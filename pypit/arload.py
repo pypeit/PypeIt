@@ -57,7 +57,7 @@ def load_headers(datlines):
                         keylst += [str(' ').join(keys) + str(" ") +
                                    str("{0}\n".format(hdrval).replace(" ", ""))]
                         keylst[-1] = keylst[-1].split()
-                except (AttributeError, ValueError):
+                except (AttributeError, ValueError, KeyError):
                     pass
             del keys[-1]
 
