@@ -4304,8 +4304,8 @@ def is_keyword(v):
         # Either an array or doesn't have the header keyword format (i.e. a fullstop)
         return False
     # Test if the first element is an integer
+    vspl = v.split(".")
     try:
-        vspl = v.split(".")
         int(vspl[0])
     except ValueError:
         valid = False
