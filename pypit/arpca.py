@@ -1,10 +1,12 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
+import inspect
+
 from matplotlib import pyplot as plt
 import numpy as np
 from pypit import armsgs
 from pypit import arutils
-from pypit.arqa import get_dimen as get_dimen
+from pypit.arqa import get_dimen, set_qa_filename
 
 from pypit import ardebug as debugger
 
@@ -296,6 +298,9 @@ def pc_plot(slf, inpar, ofit, maxp=25, pcadesc="", addOne=True):
     """
     Saves quality control plots for a PCA analysis
     """
+    method = inspect.stack()[1][3]
+    outroot = set_qa_filename(slf.setup, method)
+
     npc = inpar['npc']+1
     pages, npp = get_dimen(npc, maxp=maxp)
     x0 = inpar['x0']
@@ -401,7 +406,8 @@ def pc_plot(slf, inpar, ofit, maxp=25, pcadesc="", addOne=True):
                 pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
             f.suptitle(pcadesc + pgtxt, y=1.02, size=16)
         f.tight_layout()
-        slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
+        outfile = outroot+'{:03d}.png'.format(i)
+        plt.savefig(outfile, dpi=200, orientation='landscape', bbox_inches='tight')
         plt.close()
         f.clf()
     del f
@@ -426,6 +432,9 @@ def pc_plot_arctilt(slf, tiltang, centval, tilts, maxp=25, maskval=-999999.9):
     maskval : float, (optional)
       Value used in arrays to indicate a masked value
     """
+    method = inspect.stack()[0][3]
+    outroot = set_qa_filename(slf.setup, method)
+
     npc = tiltang.shape[1]
     pages, npp = get_dimen(npc, maxp=maxp)
     x0 = np.arange(tilts.shape[0])
@@ -499,7 +508,8 @@ def pc_plot_arctilt(slf, tiltang, centval, tilts, maxp=25, maskval=-999999.9):
             ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
         f.set_size_inches(11.0, ypngsiz)
         f.tight_layout()
-        slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
+        outfile = outroot+'{:03d}.png'.format(i)
+        plt.savefig(outfile, dpi=200, orientation='landscape', bbox_inches='tight')
         plt.close()
         f.clf()
         del f
