@@ -279,7 +279,8 @@ def sort_write(fitsdict, filesort, space=3):
             elif typv is float or typv is np.float_:
                 prdtp.append("double")
             else:
-                msgs.bug("I didn't expect useful headers to contain type {0:s}".format(typv).replace('<type ', '').replace('>', ''))
+                msgs.bug("I didn't expect useful headers to contain type {!s:s}".format(typv).replace('<type ', '').replace('>', ''))
+                debugger.set_trace()
 
     '''
     # Open a VOTable for writing
