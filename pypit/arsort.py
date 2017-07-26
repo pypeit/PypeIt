@@ -280,7 +280,6 @@ def sort_write(fitsdict, filesort, space=3):
                 prdtp.append("double")
             else:
                 msgs.bug("I didn't expect useful headers to contain type {!s:s}".format(typv).replace('<type ', '').replace('>', ''))
-                debugger.set_trace()
 
     '''
     # Open a VOTable for writing
