@@ -1301,7 +1301,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         fitted, outpar = arpca.basis(xcen, slitcen, coeffs, lnpc, ofit, x0in=ordsnd, mask=maskord,
                                      skipx0=False, function=settings.argflag['trace']['slits']['function'])
         if not msgs._debug['no_qa']:
-            arpca.pc_plot(slf, outpar, ofit, pcadesc=pcadesc)
+            arqa.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc)
         # Extrapolate the remaining orders requested
         orders = 1+np.arange(totord)
         extrap_cent, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
@@ -1369,7 +1369,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
                                          x0in=ordsnd, mask=maskrw, skipx0=False,
                                          function=settings.argflag['trace']['slits']['function'])
             if not msgs._debug['no_qa']:
-                arpca.pc_plot(slf, outpar, ofit, pcadesc=pcadesc, addOne=False)
+                arqa.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc, addOne=False)
             # Now extrapolate to the whole detector
             pixpos = np.arange(binarr.shape[1])
             extrap_trc, outpar = arpca.extrapolate(outpar, pixpos,

@@ -1097,7 +1097,7 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None):
     outfile : str
       Filename
     """
-    if method == 'slit_trace_qa' or method == 'trace_slits':
+    if method == 'slit_trace_qa':
         outfile = 'QA/PNGs/Slit_Trace_{:s}.png'.format(root)
     elif method == 'slit_profile':
         outfile = 'QA/PNGs/Slit_Profile_{:s}_'.format(root)
