@@ -754,6 +754,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         filt = ndimage.sobel(sqmstrace, axis=1, mode='nearest')
         msgs.info("Applying bad pixel mask")
         filt *= (1.0 - binbpx)  # Apply to the bad pixel mask
+        #siglev = np.sign(filt) * (filt ** 2) / sqmstrace
         siglev = np.sign(filt)*(filt**2)/np.maximum(sqmstrace, min_sqm)
         tedges = np.zeros(binarr.shape, dtype=np.float)
         wl = np.where(siglev > +settings.argflag['trace']['slits']['sigdetect'])  # A positive gradient is a left edge
