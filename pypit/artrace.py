@@ -492,9 +492,12 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     npix = int(slf._pixwid[det-1][slitn] - triml - trimr)
     if bgreg is None:
         bgreg = npix
+    # Setup
+    if 'xedge' in settings.argflag['trace']['object'].keys():
+        xedge = settings.argflag['trace']['object']['xedge']
     # Store the trace parameters
     tracepar = dict(smthby=7, rejhilo=1, bgreg=bgreg, triml=triml, trimr=trimr,
-                    tracefunc=tracefunc, traceorder=traceorder)
+                    tracefunc=tracefunc, traceorder=traceorder, xedge=xedge)
     # Interpolate the science array onto a new grid (with constant spatial slit length)
     msgs.info("Rectifying science frame")
     xint = np.linspace(0.0, 1.0, sciframe.shape[0])
@@ -552,7 +555,16 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     #smth_prof = gaussian_filter1d(trcprof, fwhm/2.35)
     # Define all 5 sigma deviations as objects (should make the 5 user-defined)
     #objl, objr, bckl, bckr = arcytrace.find_objects(smth_prof, bgreg, mad)
-    objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
+    if settings.argflag['trace']['object']['find'] == 'nminima':
+        nsmooth = settings.argflag['trace']['object']['nsmooth']
+        trcprof2 = np.ma.mean(rec_sciframe, axis=0).filled(0.0)
+        objl, objr, bckl, bckr = find_obj_minima(trcprof2, triml=triml, trimr=trimr, nsmooth=nsmooth)
+    elif settings.argflag['trace']['object']['find'] == 'standard':
+        objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
+    else:
+        msgs.error("Bad object identification algorithm!!")
+    if msgs._debug['trace_obj']:
+        debugger.set_trace()
     # Remove objects within x percent of the slit edge
     xp = (objr+objl)/float(trcprof.size)/2.
     gdobj = (xp < (1-xedge)) * (xp > xedge)
@@ -654,7 +666,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     return tracedict
 
 
-def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
+def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     """
     This routine traces the locations of the slit edges
 
@@ -672,6 +684,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
       Mostly useful for echelle data where the slit edges are bent relative to
       the pixel columns. Do not set this keyword to True if slit edges are
       almost aligned with the pixel columns.
+    min_sqm : float, optional
+      Minimum error used when detecting a slit edge
 
     Returns
     -------
@@ -729,6 +743,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
     else:
         # Even better would be to fit the filt/sqrt(abs(binarr)) array with a Gaussian near the maximum in each column
         msgs.info("Detecting slit edges")
+        # Generate sigma image
         sqmstrace = np.sqrt(np.abs(binarr))
         for ii in range(medrep):
             sqmstrace = ndimage.median_filter(sqmstrace, size=(3, 7))
@@ -739,7 +754,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
         filt = ndimage.sobel(sqmstrace, axis=1, mode='nearest')
         msgs.info("Applying bad pixel mask")
         filt *= (1.0 - binbpx)  # Apply to the bad pixel mask
-        siglev = np.sign(filt)*(filt**2)/sqmstrace
+        siglev = np.sign(filt)*(filt**2)/np.maximum(sqmstrace, min_sqm)
         tedges = np.zeros(binarr.shape, dtype=np.float)
         wl = np.where(siglev > +settings.argflag['trace']['slits']['sigdetect'])  # A positive gradient is a left edge
         wr = np.where(siglev < -settings.argflag['trace']['slits']['sigdetect'])  # A negative gradient is a right edge
@@ -818,11 +833,19 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False):
             msgs.error("Unable to trace any edges"+msgs.newline()+"try a different method to trace the order edges")
     elif rcnt == 0:
         msgs.warn("Unable to find a right edge. Adding one in.")
-        edgearr[:, -1] = 2*ednum
+        # Respecting the BPM (using first column where there is no mask)
+        sum_bpm = np.sum(binbpx, axis=0)
+        gdi1 = np.max(np.where(sum_bpm == 0)[0])
+        # Apply
+        edgearr[:, gdi1] = 2*ednum
         rcnt = 1
     elif lcnt == 0:
         msgs.warn("Unable to find a left edge. Adding one in.")
-        edgearr[:, 0] = -2*ednum
+        # Respecting the BPM (using first column where there is no mask)
+        sum_bpm = np.sum(binbpx, axis=0)
+        gdi0 = np.min(np.where(sum_bpm == 0)[0])
+        # Apply
+        edgearr[:, gdi0] = -2*ednum
         lcnt = 1
     msgs.info("Assigning slit edge traces")
     # Find the most common set of edges
@@ -1629,13 +1652,6 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             badlines += 1
             trcdict = pad_dict(trcdict)
             continue
-        '''
-        if j == 74:  # KLUDGE!!!!
-            aduse[j] = False
-            badlines += 1
-            trcdict = pad_dict(trcdict)
-            continue
-        '''
         # Get the size of the slit
         sz = int(np.floor(np.abs(slf._rordloc[det-1][arcdet[j], slitnum]-slf._lordloc[det-1][arcdet[j], slitnum])/2.0)) - 2
         xtfit = np.zeros(2*sz+1)
@@ -2080,8 +2096,6 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
         orders = 1.0 + np.arange(norders)
         extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
         tilts = extrap_tilt
-        #if not msgs._debug['no_qa']:
-        #arpca.pc_plot_arctilt(slf, tiltang, centval, tilts)
         arqa.pca_arctilt(slf, tiltang, centval, tilts)
     else:
         outpar = None
@@ -2279,7 +2293,6 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             fitted, outpar = arpca.basis(xcen, tiltval, tcoeff, lnpc, ofit, weights=None,
                                          x0in=ordsnd, mask=maskrw, skipx0=False,
                                          function=settings.argflag['trace']['slits']['function'])
-            #if not msgs._debug['no_qa']:
             arqa.pca_plot(slf, outpar, ofit, 'Arc', pcadesc="Spectral Tilt PCA", addOne=False)
             # Extrapolate the remaining orders requested
             orders = np.linspace(0.0, 1.0, msarc.shape[0])
@@ -2622,3 +2635,94 @@ def slit_image(slf, det, scitrace, obj, tilts=None):
     slit_img[neg] *= -1
     # Return
     return slit_img
+
+
+def find_obj_minima(trcprof, fwhm=3., nsmooth=3, nfind=8, xedge=0.03,
+        sig_thresh=5., peakthresh=None, triml=2, trimr=2, debug=False):
+    ''' Find objects using a ported version of nminima from IDL (idlutils) 
+    
+    Parameters
+    ----------
+    trcprof : ndarray
+      1D array of the slit profile including objects
+    fwhm : float, optional
+      FWHM estimate of the seeing
+    nsmooth : int, optional
+      Kernel in pixels for Gaussian smoothing of trcprof
+    nfind : int, optional
+      Number of sources to identify
+    xedge : float, optional
+      Fraction of the slit on each edge to ignore peaks within
+    sig_thresh : float, optional
+      Number of sigma to reject when fitting
+    peakthresh : float, optional
+      Include objects whose peak exceeds this fraction of the highest peak
+    triml : int, optional
+    trimr : int, optional
+    debug : bool, optional
+
+    Returns
+    -------
+    objl : ndarray  (npeak)
+      Left edges for each peak found
+    objr : ndarray  (npeak)
+      Right edges for each peak found
+    bckl : ndarray (npeak, npix)
+      Background regions in the slit, left of the peak
+    bckr : ndarray (npeak, npix)
+      Background regions in the slit, right of the peak
+    '''
+    from astropy.convolution import convolve, Gaussian1DKernel
+    from astropy.stats import sigma_clip
+    npix = trcprof.size
+    # Smooth
+    if nsmooth > 0:
+        yflux = convolve(-1*trcprof, Gaussian1DKernel(nsmooth))
+    else:
+        yflux = -1*trcprof
+    #
+    xvec = np.arange(len(yflux))
+    # Find peaks
+    peaks, sigmas, ledges, redges = arutils.find_nminima(yflux, xvec, minsep=fwhm, nfind=nfind, width=int(fwhm))
+    fint = interp.interp1d(xvec, yflux, bounds_error=False, fill_value=0.)
+    ypeaks = -1.*fint(peaks)
+    # Sky background (for significance)
+    imask = xvec == xvec
+    for ipeak in peaks:  # Mask out for sky determination
+        ibad = np.abs(xvec-ipeak) < fwhm
+        imask[ibad] = False
+    clip_yflux = sigma_clip(yflux[imask], axis=0, sigma=2.5)
+    sky_std = np.std(clip_yflux)
+    # Toss out peaks near edges
+    xp = peaks/float(npix)/2.
+    gdobj = (xp < (1-xedge)) * (xp > xedge)
+    # Keep those above the threshold
+    if np.sum(gdobj) > 1:
+        threshold = sig_thresh*sky_std
+        if peakthresh is not None:
+            threshold = max(threshold, peakthresh*max(ypeaks[gdobj]))
+        # Parse again
+        gdthresh = (ypeaks > threshold)
+        if np.any(gdthresh):  # Parse if at least one is bright enough
+            gdobj = gdobj & gdthresh
+    # Setup for finish
+    nobj = np.sum(gdobj)
+    objl = ledges[gdobj]  # Might need to set these by threshold
+    objr = redges[gdobj]
+    bck_mask = np.ones_like(trcprof).astype(int)
+    # Mask out objects
+    for ledge, redge in zip(objl,objr):
+        bck_mask[ledge:redge+1] = 0
+    # Mask out edges
+    bck_mask[0:triml] = 0
+    bck_mask[-trimr:] = 0
+    bckl = np.outer(bck_mask, np.ones(nobj))
+    bckr = bckl.copy()
+    idx = np.arange(npix).astype(int)
+    for kk,iobjr in enumerate(objr):
+        pos = idx > iobjr
+        bckl[pos,kk] = 0
+        neg = idx < objl[kk]
+        bckr[neg,kk] = 0
+    # Return
+    return objl, objr, bckl, bckr

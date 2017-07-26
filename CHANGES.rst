@@ -13,6 +13,12 @@
 * Init local (i.e. object dependent) parameters in coadding
 * fix local background logic error in slit masking
 * Refactor QA PDF to PNG+HTML
+* Add nminima object finding
+* Add new parameters for object finding, reduce specific detectors
+* Add slit profile QA
+* Begin writing header (e.g. RA/DEC) info to spec1d files
+* Fix bug in applying BPM for finding slit edges
+* Update Ginga hooks
 * Enable archiving/loading sensitivity function
 * Add new cosmic ray algorithms for coadding (especially pairs of spectra)
 

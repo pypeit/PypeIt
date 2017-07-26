@@ -54,11 +54,12 @@ class ScienceExposure:
         #  Also parses the time input
         self.SetBaseName(fitsdict)
 
+        # Velocity correction (e.g. heliocentric)
+        self.vel_correction = 0.
+
         # Initialize the QA for this science exposure
         qafn = "{0:s}/QA_{1:s}.pdf".format(settings.argflag['run']['directory']['qa'], self._basename)
         self.qaroot = "{0:s}/PNGs/QA_{1:s}".format(settings.argflag['run']['directory']['qa'], self._basename)
-        #if do_qa and not msgs._debug['no_qa']:
-        #    self._qa = PdfPages(qafn)
 
         # Initialize Variables
         ndet = settings.spect['mosaic']['ndet']
@@ -802,12 +803,16 @@ class ScienceExposure:
             # Load the frame(s)
             frame = arload.load_frames(fitsdict, ind, det, frametype='standard',
                                        msbias=self._msbias[det-1])
-            sciframe = frame[:, :, 0]
+            sciframe = frame[:, :, 0] # First exposure
             # Save RA/DEC
-            if kk == 0:
-                self._msstd[det-1]['RA'] = fitsdict['ra'][ind[0]]
-                self._msstd[det-1]['DEC'] = fitsdict['dec'][ind[0]]
-                self._msstd[det - 1]['spobjs'] = None
+            self._msstd[det-1]['RA'] = fitsdict['ra'][ind[0]]
+            self._msstd[det-1]['DEC'] = fitsdict['dec'][ind[0]]
+            self._msstd[det-1]['spobjs'] = None
+            # Use this detector? Need to check this after setting RA/DEC above
+            if settings.argflag['reduce']['detnum'] is not None:
+                msgs.warn("If your standard wasnt on this detector, you will have trouble..")
+                if det != settings.argflag['reduce']['detnum']:
+                    continue
             if settings.spect["mosaic"]["reduction"] == "ARMLSD":
                 arproc.reduce_multislit(self, sciframe, ind[0], fitsdict, det, standard=True)
             elif settings.spect["mosaic"]["reduction"] == "ARMED":
@@ -830,7 +835,7 @@ class ScienceExposure:
         # Save standard star spectrum to disk
         outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(
             fitsdict['filename'][ind[0]].split('.')[0])
-        arsave.save_1d_spectra_fits(self, standard=True, outfile=outfile)
+        arsave.save_1d_spectra_fits(self, fitsdict, standard=True, outfile=outfile)
         return True
 
     '''
