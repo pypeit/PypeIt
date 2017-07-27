@@ -851,7 +851,7 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
             fitted, outpar = arpca.basis(xcen, trccen, trccoeff, lnpc, ofit, skipx0=False, mask=maskord,
                                          function=settings.argflag['trace']['object']['function'])
             if not msgs._debug['no_qa']:
-                arpca.pc_plot(slf, outpar, ofit, pcadesc="PCA of object trace")
+                arqa.pca_plot(slf, outpar, ofit, "Object_Trace", pcadesc="PCA of object trace")
             # Extrapolate the remaining orders requested
             trccen, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['object']['function'])
             #refine = trccen-trccen[nspec//2, :].reshape((1, nord))
@@ -914,7 +914,8 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
 
     # Save the quality control
     if not msgs._debug['no_qa']:
-        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, None, root="object_trace", normalize=False)
+        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, None, det,
+                          root="object_trace", normalize=False)
 
     # Finalize the Sky Background image
     if settings.argflag['reduce']['skysub']['perform'] and (nobj > 0) and skysub:

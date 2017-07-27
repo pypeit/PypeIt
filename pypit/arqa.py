@@ -349,7 +349,6 @@ def flexure(slf, det, flex_list, slit_cen=False):
     return
 
 
-
 def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
                  root='trace', normalize=True, desc=""):
     """ Generate a QA plot for the object trace
@@ -968,7 +967,7 @@ def pca_plot(slf, inpar, ofit, prefix, maxp=25, pcadesc="", addOne=True):
             if len(pages) != 1:
                 pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
             f.suptitle(pcadesc + pgtxt, y=1.02, size=16)
-        f.tight_layout()
+        #f.tight_layout()
         outfile = outroot+'{:02d}.png'.format(i)
         f.savefig(outfile, dpi=200)
         plt.close()
