@@ -17,7 +17,7 @@ msgs = armsgs.get_logger()
 plt.rcdefaults()
 
 
-def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, mask=None, function='polynomial', retmask=False):
+def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, mask=None, function='polynomial'):
     nrow = xfit.shape[0]
     ntrace = xfit.shape[1]
     if x0in is None:
@@ -57,14 +57,15 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
         #     continue
         # coeff0 = arutils.robust_regression(x0in[usetrace], hidden[i-1,:], pnpc[i], 0.1, function=function, min=x0in[0], max=x0in[-1])
         if weights is not None:
-            tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1,:], pnpc[i],
+            tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1, :], pnpc[i],
                                                    weights=weights[usetrace], sigma=2.0, function=function,
                                                    minv=x0in[0], maxv=x0in[-1])
         else:
-            tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1,:], pnpc[i],
-                                                   sigma=2.0, function=function, minv=x0in[0], maxv=x0in[-1])
+            tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1, :], pnpc[i],
+                                                   sigma=2.0, function=function,
+                                                   minv=x0in[0], maxv=x0in[-1])
         coeffstr.append(coeff0)
-        high_order_matrix[:,i-1] = arutils.func_val(coeff0, x0in, function, minv=x0in[0], maxv=x0in[-1])
+        high_order_matrix[:, i-1] = arutils.func_val(coeff0, x0in, function, minv=x0in[0], maxv=x0in[-1])
     # high_order_matrix[:,1] = arutils.func_val(coeff1, x0in, function)
     high_fit = high_order_matrix.copy()
 
@@ -125,10 +126,7 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
     x3fit = np.dot(eigv,high_order_matrix.T) + np.outer(x0fit,np.ones(nrow)).T
     outpar = dict({'high_fit': high_fit, 'x0': x0, 'x0in': x0in, 'x0fit': x0fit, 'x0res': x0res, 'x0mask': fitmask,
                    'hidden': hidden, 'usetrc': usetrace, 'eigv': eigv, 'npc': npc, 'coeffstr': coeffstr})
-    if retmask:
-        return x3fit, outpar, tmask
-    else:
-        return x3fit, outpar
+    return x3fit, outpar
 
 
 def do_pca(data, cov=False):
