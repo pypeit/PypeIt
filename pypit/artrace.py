@@ -1258,6 +1258,10 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
             lnmbrarr = np.append(lnmbrarr, np.zeros(armax-almax))
             lwghtarr = np.append(lwghtarr, np.zeros(armax-almax))
 
+    # import astropy.io.fits as pyfits
+    # hdu = pyfits.PrimaryHDU(edgearr)
+    # hdu.writeto("edgearr_{0:02d}.fits".format(det))
+
     # Now consider traces where both the left and right edges are detected
     ordunq = np.unique(edgearr)
     lunqt = ordunq[np.where(ordunq < 0)[0]]
