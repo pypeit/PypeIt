@@ -1252,7 +1252,8 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         if tcky.size >= 2:
             yb, ye = min(np.min(specval), tcky[0]), max(np.max(specval), tcky[-1])
             mask, blzspl = arutils.robust_polyfit(specval[wsp][srt], fluxval[wsp][srt], 3, function='bspline',
-                                                  sigma=5., maxone=False, xmin=yb, xmax=ye, knots=tcky)
+                                                  sigma=5., maxone=False, xmin=yb, xmax=ye,
+                                                  everyn=specval[wsp].size//tcky.size)  # knots=tcky)
             blz_flat = arutils.func_val(blzspl, specval, 'bspline')
             msblaze[:, o] = arutils.func_val(blzspl, np.linspace(0.0, 1.0, msblaze.shape[0]), 'bspline')
         else:
@@ -1280,7 +1281,8 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         if tckx.size >= 2:
             xb, xe = min(np.min(spatval), tckx[0]), max(np.max(spatval), tckx[-1])
             mask, sltspl = arutils.robust_polyfit(spatval[wch][srt], sprof_fit[wch][srt], 3, function='bspline',
-                                                  sigma=5., maxone=False, xmin=xb, xmax=xe, knots=tckx)
+                                                  sigma=5., maxone=False, xmin=xb, xmax=xe,
+                                                  everyn=spatval[wch].size//tckx.size)  #, knots=tckx)
             slt_flat = arutils.func_val(sltspl, spatval, 'bspline')
             sltnrmval = arutils.func_val(sltspl, 0.5, 'bspline')
         else:

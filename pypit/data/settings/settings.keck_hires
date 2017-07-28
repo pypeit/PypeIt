@@ -176,7 +176,7 @@ settings trace slits fracignore 0.7
 settings trace slits polyorder  7
 settings trace slits pca extrapolate pos 3
 settings trace slits pca extrapolate neg 3
-settings trace slits pca params [4,2,1,1,0,0,0]
+settings trace slits pca params [5,2,1,1,0,0,0]
 settings trace slits tilts params [0,2,1]
 settings trace slits tilts disporder 2
 settings trace slits pad 1
