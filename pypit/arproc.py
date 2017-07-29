@@ -1397,7 +1397,7 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
         finalsel = np.logical_and(sp > sigcliplow, finalsel)
 
         # Unmask saturated pixels:
-        if satpix != None:
+        if satpix is not None:
             msgs.info("Masking saturated stars")
             finalsel = np.logical_and(np.logical_not(satpix), finalsel)
 
