@@ -73,9 +73,13 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         if reloadMaster and (sc > 0):
             settings.argflag['reduce']['masters']['reuse'] = True
         # Loop on Detectors
-        #for kk in range(1,settings.spect['mosaic']['ndet']):
         for kk in range(settings.spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
+            if settings.argflag['reduce']['detnum'] is not None:
+                if det != settings.argflag['reduce']['detnum']:
+                    continue
+                else:
+                    msgs.warn("Restricting the reduction to detector {:d}".format(det))
             slf.det = det
             ###############
             # Get data sections
@@ -143,8 +147,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._slitpix, slitpix, det)
 
                 # Save QA for slit traces
-                if not msgs._debug['no_qa']:
-                    arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
+                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
                                        slf._rordpix[det-1], extord,
                                        desc="Trace of the slit edges D{:02d}".format(det), use_slitid=det)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
@@ -213,9 +216,6 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             ###############
             # Using model sky, calculate a flexure correction
 
-        # Close the QA for this object
-        slf._qa.close()
-
         ###############
         # Flux
         ###############
@@ -224,8 +224,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         msgs.info("Assuming one star per detector mosaic")
         msgs.info("Waited until last detector to process")
 
-        msgs.work("Need to check for existing sensfunc")
-        update = slf.MasterStandard(scidx, fitsdict)
+        update = slf.MasterStandard(fitsdict)
         if update and reuseMaster:
             armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
         #
@@ -241,7 +240,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         # Write 1D spectra
         save_format = 'fits'
         if save_format == 'fits':
-            arsave.save_1d_spectra_fits(slf)
+            arsave.save_1d_spectra_fits(slf, fitsdict)
         elif save_format == 'hdf5':
             arsave.save_1d_spectra_hdf5(slf)
         else:

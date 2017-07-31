@@ -61,6 +61,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     if debug is None:
         debug = ardebug.init()
     msgs = armsgs.get_logger((logname, debug, verbosity))
+    msgs.pypit_file = redname
 
     # This needs to be loaded after msgs
     from pypit import arparse
@@ -232,7 +233,12 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
         status = armed.ARMED(fitsdict)
     # Check for successful reduction
     if status == 0:
+        from pypit import arqa
         msgs.info("Data reduction complete")
+        # QA HTML
+        msgs.info("Generating QA HTML")
+        arqa.gen_mf_html(redname)
+        arqa.gen_exp_html()
     elif status == 1:
         msgs.info("Setup complete")
     elif status == 2:

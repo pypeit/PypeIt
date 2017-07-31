@@ -884,6 +884,31 @@ def match_edges(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
     return lcnt-2*ednum, rcnt-2*ednum
 
 
+@cython.boundscheck(False)
+def minbetween(np.ndarray[DTYPE_t, ndim=2] mstrace not None,
+                np.ndarray[ITYPE_t, ndim=1] loord not None,
+                np.ndarray[ITYPE_t, ndim=1] hiord not None):
+    cdef int sz_x, sz_y
+    cdef int x, y, ymin, ymax
+
+    sz_x = mstrace.shape[0]
+    sz_y = mstrace.shape[1]
+
+    cdef np.ndarray[DTYPE_t, ndim=1] minarr = np.zeros(sz_x, dtype=DTYPE)
+
+    for x in range(sz_x):
+        ymin = loord[x]
+        ymax = hiord[x]
+        if ymin < 0: ymin = 0
+        elif ymax > sz_y: ymax = sz_y
+        for y in range(ymin,ymax):
+            if mstrace[x,y] < minarr[x] and mstrace[x,y] > 0.0:
+                minarr[x] = mstrace[x,y]
+            elif minarr[x] == 0.0:
+                minarr[x] = mstrace[x,y]
+    return minarr
+
+
 #@cython.boundscheck(False)
 def phys_to_pix(np.ndarray[DTYPE_t, ndim=2] array not None,
         np.ndarray[DTYPE_t, ndim=1] diff not None):

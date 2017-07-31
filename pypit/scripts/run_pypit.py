@@ -19,7 +19,7 @@ debug = ardebug.init()
 #debug['develop'] = True
 #debug['arc'] = True
 #debug['sky_sub'] = True
-debug['trace'] = True
+#debug['trace'] = True
 #debug['obj_profile'] = True
 #debug['trace_obj'] = True
 #debug['tilts'] = True
@@ -56,6 +56,7 @@ def main(args):
 
     import sys, os
     from pypit import pypit
+    from pypit.scripts import qa_html
     import traceback
 
     # Import PYPIT routines
@@ -104,3 +105,5 @@ def main(args):
             # Get armsgs instance to terminate
             from pypit.armsgs import get_logger
             get_logger().close()
+            return 1
+    return 0

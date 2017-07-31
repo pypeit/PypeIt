@@ -946,7 +946,7 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
         slf._bgframe[det - 1] = bgframe
 
     ###############
-    # Estimate trace of science objects
+    # Find objects and estimate their traces
     scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask,
                                     bgreg=20, doqa=False)
     if scitrace is None:
@@ -985,8 +985,8 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Flexure down the slit? -- Not currently recommended
     if settings.argflag['reduce']['flexure']['method'] == 'slitcen':
         flex_dict = arwave.flexure_slit(slf, det)
-        if not msgs._debug['no_qa']:
-            arqa.flexure(slf, det, flex_dict, slit_cen=True)
+        #if not msgs._debug['no_qa']:
+        arqa.flexure(slf, det, flex_dict, slit_cen=True)
 
     # Perform an optimal extraction
     msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
@@ -1069,6 +1069,7 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
     if settings.argflag['reduce']['flexure']['perform'] and (not standard):
         if settings.argflag['reduce']['flexure']['method'] is not None:
             flex_dict = arwave.flexure_obj(slf, det)
+            #if not msgs._debug['no_qa']:
             arqa.flexure(slf, det, flex_dict)
 
     # Correct Earth's motion
@@ -1195,28 +1196,57 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         if not settings.argflag["reduce"]["slitprofile"]["perform"]:
             # The slit profile is not needed, so just do the quickest possible fit
             ntckx = 3
-        tckx = np.linspace(np.min(spatval), np.max(spatval), ntckx)
-        tcky = np.linspace(np.min(specval), np.max(specval), ntcky)
+
+        # Only use pixels where at least half the slit is on the chip
+        cordloc = 0.5 * (lordloc[word[0]] + rordloc[word[0]])
+        wcchip = ((cordloc > 0.0) & (cordloc < mstrace.shape[1]-1.0))
 
         # Derive the blaze function
-        wsp = np.where((spatval > 0.25) & (spatval < 0.75))
+        wsp = np.where((spatval > 0.25) & (spatval < 0.75) & wcchip)
+        tcky = np.linspace(min(0.0, np.min(specval[wsp])), max(1.0, np.max(specval[wsp])), ntcky)
+        tcky = tcky[np.where((tcky > np.min(specval[wsp])) & (tcky < np.max(specval[wsp])))]
         srt = np.argsort(specval[wsp])
-        xb, xe = min(specval[wsp][srt][0], tcky[0]), max(specval[wsp][srt][-1], tcky[-1])
-        mask, blzspl = arutils.robust_polyfit(specval[wsp][srt], fluxval[wsp][srt], 3, function='bspline',
-                                              sigma=5., maxone=False, xmin=xb, xmax=xe, knots=tcky[1:-1])
-        blz_flat = arutils.func_val(blzspl, specval, 'bspline')
-        msblaze[:, o] = arutils.func_val(blzspl, np.linspace(0.0, 1.0, msblaze.shape[0]), 'bspline')
-        blazeext[:, o] = mstrace[(np.arange(mstrace.shape[0]), np.round(0.5*(lordloc+rordloc)).astype(np.int),)]
+        # Only perform a bspline if there are enough pixels for the specified knots
+        if tcky.size >= 2:
+            xb, xe = min(np.min(specval), tcky[0]), max(np.max(specval), tcky[-1])
+            mask, blzspl = arutils.robust_polyfit(specval[wsp][srt], fluxval[wsp][srt], 3, function='bspline',
+                                                  sigma=5., maxone=False, xmin=xb, xmax=xe, knots=tcky)
+            blz_flat = arutils.func_val(blzspl, specval, 'bspline')
+            msblaze[:, o] = arutils.func_val(blzspl, np.linspace(0.0, 1.0, msblaze.shape[0]), 'bspline')
+        else:
+            mask, blzspl = arutils.robust_polyfit(specval[wsp][srt], fluxval[wsp][srt], 2, function='polynomial',
+                                                  sigma=5., maxone=False)
+            blz_flat = arutils.func_val(blzspl, specval, 'polynomial')
+            msblaze[:, o] = arutils.func_val(blzspl, np.linspace(0.0, 1.0, msblaze.shape[0]), 'polynomial')
+
+        # Extract a spectrum of the trace frame
+        xext = np.arange(mstrace.shape[0])
+        yext = np.round(0.5 * (lordloc + rordloc)).astype(np.int)
+        wcc = np.where((yext > 0) & (yext < mstrace.shape[1] - 1.0))
+        blazeext[wcc[0], o] = mstrace[(xext[wcc], yext[wcc],)]
+
         # Calculate the slit profile
         sprof_fit = fluxval / (blz_flat + (blz_flat == 0.0))
-        srt = np.argsort(spatval)
-        xb, xe = min(spatval[srt][0], tckx[0]), max(spatval[srt][-1], tckx[-1])
-        mask, sltspl = arutils.robust_polyfit(spatval[srt], sprof_fit[srt], 3, function='bspline',
-                                              sigma=5., maxone=False, xmin=xb, xmax=xe, knots=tckx[1:-1])
-        slt_flat = arutils.func_val(sltspl, spatval, 'bspline')
+        wch = np.where(wcchip)
+        tckx = np.linspace(min(0.0, np.min(spatval[wch])), max(1.0, np.max(spatval[wch])), ntckx)
+        tckx = tckx[np.where((tckx > np.min(spatval[wch])) & (tckx < np.max(spatval[wch])))]
+        srt = np.argsort(spatval[wch])
+        # Only perform a bspline if there are enough pixels for the specified knots
+        if tckx.size >= 2:
+            #debugger.set_trace()
+            xb, xe = min(np.min(spatval), tckx[0]), max(np.max(spatval), tckx[-1])
+            mask, sltspl = arutils.robust_polyfit(spatval[wch][srt], sprof_fit[wch][srt], 3, function='bspline',
+                                                  sigma=5., maxone=False, xmin=xb, xmax=xe, knots=tckx)
+            slt_flat = arutils.func_val(sltspl, spatval, 'bspline')
+            sltnrmval = arutils.func_val(sltspl, 0.5, 'bspline')
+        else:
+            mask, sltspl = arutils.robust_polyfit(spatval[srt], sprof_fit[srt], 2, function='polynomial',
+                                                  sigma=5., maxone=False)
+            slt_flat = arutils.func_val(sltspl, spatval, 'polynomial')
+            sltnrmval = arutils.func_val(sltspl, 0.5, 'polynomial')
         modvals = blz_flat * slt_flat
         # Normalize to the value at the centre of the slit
-        nrmvals = blz_flat * arutils.func_val(sltspl, 0.5, 'bspline')
+        nrmvals = blz_flat * sltnrmval
         if settings.argflag["reduce"]["slitprofile"]["perform"]:
             # Leave slit_profiles as ones if the slitprofile is not being determined, otherwise, set the model.
             slit_profiles[word] = modvals/nrmvals
@@ -1367,7 +1397,7 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
         finalsel = np.logical_and(sp > sigcliplow, finalsel)
 
         # Unmask saturated pixels:
-        if satpix != None:
+        if satpix is not None:
             msgs.info("Masking saturated stars")
             finalsel = np.logical_and(np.logical_not(satpix), finalsel)
 

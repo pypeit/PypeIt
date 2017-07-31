@@ -52,15 +52,15 @@ def sort_data(fitsdict, flag_unknown=False):
     msgs.info("Sorting files")
     numfiles = fitsdict['filename'].size
     # Set the filetype dictionary
-    ftag = dict({'science': np.array([], dtype=np.int),
-                 'standard': np.array([], dtype=np.int),
-                 'bias': np.array([], dtype=np.int),
-                 'dark': np.array([], dtype=np.int),
-                 'pinhole': np.array([], dtype=np.int),
-                 'pixelflat': np.array([], dtype=np.int),
-                 'trace': np.array([], dtype=np.int),
-                 'unknown': np.array([], dtype=np.int),
-                 'arc': np.array([], dtype=np.int)})
+    ftag = dict(science=np.array([], dtype=np.int),
+                standard=np.array([], dtype=np.int),
+                bias=np.array([], dtype=np.int),
+                dark=np.array([], dtype=np.int),
+                pinhole=np.array([], dtype=np.int),
+                pixelflat=np.array([], dtype=np.int),
+                trace=np.array([], dtype=np.int),
+                unknown=np.array([], dtype=np.int),
+                arc=np.array([], dtype=np.int))
     if len(settings.ftdict) > 0:
         for ifile,ftypes in settings.ftdict.items():
             idx = np.where(fitsdict['filename'] == ifile)[0]
@@ -82,7 +82,6 @@ def sort_data(fitsdict, flag_unknown=False):
         # Self identification
         if settings.argflag['run']['useIDname']:
             w = np.where(fitsdict['idname'] == settings.spect[fkey[i]]['idname'])[0]
-            msgs.info("Sorting files")
         else:
             w = np.arange(numfiles)
         n = np.arange(numfiles)
@@ -176,8 +175,8 @@ def sort_data(fitsdict, flag_unknown=False):
         else:
             msgs.error("Check these files and your settings.{0:s} file before continuing".format(settings.argflag['run']['spectrograph']))
     # Now identify the dark frames
-    wdark = np.where((filarr[np.where(fkey == 'bias')[0],:] == 1).flatten() &
-        (fitsdict['exptime'].astype(np.float64) > settings.spect['mosaic']['minexp']))[0]
+    wdark = np.where((filarr[np.where(fkey == 'bias')[0], :] == 1).flatten() &
+                     (fitsdict['exptime'].astype(np.float64) > settings.spect['mosaic']['minexp']))[0]
     ftag['dark'] = wdark
     # Store the frames in the ftag array
     for i in range(len(fkey)):
@@ -523,20 +522,29 @@ def match_science(fitsdict, filesort):
                 # Errors for insufficient PIXELFLAT frames
                 if ftag[ft] == 'pixelflat' and settings.argflag['reduce']['flatfield']['perform'] and (
                     settings.argflag['reduce']['flatfield']['useframe'] == 'pixelflat'):
-                    msgs.warn("Either include more frames or reduce the required amount with:" + msgs.newline() +
-                              "pixelflat number XX" + msgs.newline() +
-                              "in the spect read/end block")
-                    msgs.warn("Or specify a pixelflat file with --  reduce flatfield useframe file_name")
-                    msgs.error("Unable to continue")
+                    if settings.argflag['reduce']['masters']['reuse']:
+                        msgs.warn("Fewer pixelflat frames than expected for {0:s}, but will use MasterFrames".format(fitsdict['target'][iSCI[i]]))
+                    else:
+                        msgs.warn("Either include more frames or reduce the required amount with:" + msgs.newline() +
+                                  "pixelflat number XX" + msgs.newline() +
+                                  "in the spect read/end block")
+                        msgs.warn("Or specify a pixelflat file with --  reduce flatfield useframe file_name")
+                        msgs.error("Unable to continue")
                 # Errors for insufficient PINHOLE frames
                 if ftag[ft] == 'pinhole':
                     msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient TRACE frames
                 if ftag[ft] == 'trace' and settings.argflag['reduce']['flatfield']['perform']:
-                    msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
+                    if settings.argflag['reduce']['masters']['reuse']:
+                        msgs.warn("Fewer traceflat frames than expected for {0:s}, but will use MasterFrames".format(fitsdict['target'][iSCI[i]]))
+                    else:
+                        msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient standard frames
                 if ftag[ft] == 'standard' and settings.argflag['reduce']['calibrate']['flux']:
-                    msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
+                    if settings.argflag['reduce']['masters']['reuse']:
+                        msgs.warn("No standard star frames for {0:s}, but will use MasterFrames".format(fitsdict['target'][iSCI[i]]))
+                    else:
+                        msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
                 # Errors for insufficient ARC frames
                 if ftag[ft] == 'arc' and settings.argflag['reduce']['calibrate']:
                     if settings.argflag['run']['setup']:
@@ -549,6 +557,8 @@ def match_science(fitsdict, filesort):
                         filesort['failures'].append(iSCI[i])
                         settings.spect['science']['index'].pop(-1)
                         break
+                    elif settings.argflag['reduce']['masters']['reuse']:
+                        msgs.warn("No arc frame for {0:s}, but will use MasterFrames".format(fitsdict['target'][iSCI[i]]))
                     else:
                         msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
             else:
@@ -732,6 +742,8 @@ def make_dirs(fitsdict, filesort):
             os.mkdir(newdir)
             os.mkdir(newdir+'/PNGs')
         '''
+        if not os.path.exists(newdir+'/PNGs'):
+            os.mkdir(newdir+'/PNGs')
     else:
         os.mkdir(newdir)
         os.mkdir(newdir+'/PNGs')
@@ -1041,6 +1053,8 @@ def write_calib(setup_dict):
     ydict = arutils.yamlify(setup_dict)
     with open(calib_file, 'w') as yamlf:
         yamlf.write(yaml.dump(ydict))
+    # Return
+    return calib_file
 
 def write_setup(setup_dict, use_json=False):
     """ Output setup_dict to hard drive

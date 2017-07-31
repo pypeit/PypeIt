@@ -178,6 +178,7 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['b1']=6.88935788e-04
             arcparam['b2']=-2.38634231e-08
             arcparam['wvmnx'][1] = 6000.
+            arcparam['wv_cen'] = 4250.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='kast_red':
@@ -410,7 +411,7 @@ def simple_calib(slf, det, get_poly=False):
             if msgs._debug['arc']:
                 msgs.warn('You should probably try your best to ID lines now.')
                 debugger.set_trace()
-                debugger.xplot(yprep)
+                debugger.plot1d(yprep)
             else:
                 msgs.error('Insufficient lines to auto-fit.')
 
@@ -513,8 +514,7 @@ def simple_calib(slf, det, get_poly=False):
         xrej=xrej, yrej=yrej, mask=mask, spec=yprep, nrej=aparm['nsig_rej_final'],
         shift=0., tcent=tcent)
     # QA
-    if not msgs._debug['no_qa']:
-        arqa.arc_fit_qa(slf, final_fit)
+    arqa.arc_fit_qa(slf, final_fit)
     # RMS
     rms_ang = arutils.calc_fit_rms(xfit, yfit, fit, aparm['func'], minv=fmin, maxv=fmax)
     wave = arutils.func_val(fit, np.arange(slf._msarc[det-1].shape[0])/float(slf._msarc[det-1].shape[0]),
@@ -555,7 +555,6 @@ def calib_with_arclines(slf, det, get_poly=False, use_basic=False):
         best_dict, final_fit = semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
         #if det == 2:
         #    debugger.set_trace()
-    if not msgs._debug['no_qa']:
-        arqa.arc_fit_qa(slf, final_fit)
+    arqa.arc_fit_qa(slf, final_fit)
     #
     return final_fit

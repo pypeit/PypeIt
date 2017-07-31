@@ -18,6 +18,7 @@ from pypit import armsgs
 from pypit import arproc
 from pypit import arsort
 from pypit import arutils
+from pypit import arsave
 
 from pypit import ardebug as debugger
 
@@ -53,11 +54,12 @@ class ScienceExposure:
         #  Also parses the time input
         self.SetBaseName(fitsdict)
 
+        # Velocity correction (e.g. heliocentric)
+        self.vel_correction = 0.
+
         # Initialize the QA for this science exposure
         qafn = "{0:s}/QA_{1:s}.pdf".format(settings.argflag['run']['directory']['qa'], self._basename)
         self.qaroot = "{0:s}/PNGs/QA_{1:s}".format(settings.argflag['run']['directory']['qa'], self._basename)
-        if do_qa and not msgs._debug['no_qa']:
-            self._qa = PdfPages(qafn)
 
         # Initialize Variables
         ndet = settings.spect['mosaic']['ndet']
@@ -93,6 +95,7 @@ class ScienceExposure:
         self._mspixelflatnrm = [None for all in range(ndet)]  # Normalized Master pixel flat
         self._msblaze = [None for all in range(ndet)]       # Blaze function
         self._msstd = [{} for all in range(ndet)]           # Master Standard dict
+        self._sensfunc = None                               # Sensitivity function
         # Initialize the Master Calibration frame names
         self._msarc_name = [None for all in range(ndet)]      # Master Arc Name
         self._msbias_name = [None for all in range(ndet)]     # Master Bias Name
@@ -754,7 +757,7 @@ class ScienceExposure:
         del wv_calib
         return True
 
-    def MasterStandard(self, scidx, fitsdict):
+    def MasterStandard(self, fitsdict):
         """
         Generate Master Standard frame for a given detector
         and generates a sensitivity function
@@ -770,13 +773,24 @@ class ScienceExposure:
         -------
         boolean : bool
         """
-
-        if len(self._msstd[0]) != 0:
-            msgs.info("Using existing standard frame")
+        if self._sensfunc is not None:
+            msgs.info("Using existing sensitivity function.")
             return False
-        #
+        # Attempt to load the Master Frame
+        if settings.argflag['reduce']['masters']['reuse']:
+            sfunc_name = armasters.master_name('sensfunc',
+                settings.argflag['reduce']['masters']['setup'])
+            try:
+                sensfunc = arload.load_master(sfunc_name, frametype="sensfunc")
+            except (IOError, ValueError):
+                msgs.warn("No MasterSensFunc data found {:s}".format(sfunc_name))
+            else:
+                msgs.info("Loaded sensitivity function from {:s}".format(sfunc_name))
+                settings.argflag['reduce']['masters']['loaded'].append('sensfunc'+settings.argflag['reduce']['masters']['setup'][0])
+                self._sensfunc = sensfunc.copy()
+                return True
+        # Grab the standard star frames
         msgs.info("Preparing the standard")
-        # Get all of the pixel flat frames for this science frame
         ind = self._idx_std
         msgs.warn("Taking only the first standard frame for now")
         ind = [ind[0]]
@@ -785,17 +799,18 @@ class ScienceExposure:
         for kk in range(settings.spect['mosaic']['ndet']):
             det = kk+1
             # Load the frame(s)
-#            set_trace()
             frame = arload.load_frames(fitsdict, ind, det, frametype='standard',
                                        msbias=self._msbias[det-1])
-#            msgs.warn("Taking only the first standard frame for now")
-#            ind = ind[0]
-            sciframe = frame[:, :, 0]
+            sciframe = frame[:, :, 0] # First exposure
             # Save RA/DEC
-            if kk == 0:
-                self._msstd[det-1]['RA'] = fitsdict['ra'][ind[0]]
-                self._msstd[det-1]['DEC'] = fitsdict['dec'][ind[0]]
-            #debugger.set_trace()
+            self._msstd[det-1]['RA'] = fitsdict['ra'][ind[0]]
+            self._msstd[det-1]['DEC'] = fitsdict['dec'][ind[0]]
+            self._msstd[det-1]['spobjs'] = None
+            # Use this detector? Need to check this after setting RA/DEC above
+            if settings.argflag['reduce']['detnum'] is not None:
+                msgs.warn("If your standard wasnt on this detector, you will have trouble..")
+                if det != settings.argflag['reduce']['detnum']:
+                    continue
             if settings.spect["mosaic"]["reduction"] == "ARMLSD":
                 arproc.reduce_multislit(self, sciframe, ind[0], fitsdict, det, standard=True)
             elif settings.spect["mosaic"]["reduction"] == "ARMED":
@@ -803,13 +818,22 @@ class ScienceExposure:
             else:
                 msgs.error("Not ready for reduction type {0:s}".format(settings.spect["mosaic"]["reduction"]))
 
-            #
-            all_specobj += self._msstd[det-1]['spobjs']
-#        debugger.set_trace()
+            if self._msstd[det-1]['spobjs'] is not None:
+                all_specobj += self._msstd[det-1]['spobjs']
         # If standard, generate a sensitivity function
-        sensfunc = arflux.generate_sensfunc(self, scidx, all_specobj, fitsdict)
+        sensfunc = arflux.generate_sensfunc(self, ind[0], all_specobj, fitsdict)
         # Set the sensitivity function
         self.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
+        # Apply to Standard
+        for kk in range(settings.spect['mosaic']['ndet']):
+            det = kk + 1  # Detectors indexed from 1
+            arflux.apply_sensfunc(self, det, ind[0], fitsdict, standard=True)
+        # Save
+        armasters.save_sensfunc(self, settings.argflag['reduce']['masters']['setup'])
+        # Save standard star spectrum to disk
+        outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(
+            fitsdict['filename'][ind[0]].split('.')[0])
+        arsave.save_1d_spectra_fits(self, fitsdict, standard=True, outfile=outfile)
         return True
 
     '''

@@ -28,29 +28,33 @@ def main(args, unit_test=False):
     """ Runs the XSpecGui on an input file
     """
     import sys
-    from pypit import arload
     import pdb
 
     # List only?
     if args.list:
+        from astropy.io import fits
         print("Showing object names for input file...")
-        spec = arload.load_1dspec(args.file)
-        for key in spec.header.keys():
-            if 'EXT0' in key:
-                print("{} = {}".format(key, spec.header[key]))
+        hdu = fits.open(args.file)
+        for ii in range(1,len(hdu)):
+            name = hdu[ii].name
+            print("EXT{:07d} = {}".format(ii, name))
         sys.exit()
 
     from linetools.guis.xspecgui import XSpecGui
     from pypit import arload
 
     # Load spectrum
-    spec = arload.load_1dspec(args.file, exten=args.exten, extract=args.extract, objname=args.obj, flux=args.flux)
+    spec = arload.load_1dspec(args.file, exten=args.exten, extract=args.extract,
+                              objname=args.obj, flux=args.flux)
 
     if unit_test is False:
         from PyQt5.QtWidgets import QApplication
         app = QApplication(sys.argv)
+        # Screen dimensions
+        width = app.desktop().screenGeometry().width()
+        scale = 2. * (width/3200.)
 
-    gui = XSpecGui(spec, unit_test=unit_test)
+    gui = XSpecGui(spec, unit_test=unit_test, screen_scale=scale)
     if unit_test is False:
         gui.show()
         app.exec_()

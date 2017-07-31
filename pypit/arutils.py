@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division, print_function
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
 import astropy.io.fits as pyfits
@@ -90,7 +90,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
             startx = np.min(x[gd])
             nbkpts = max(int(xrnge/bkspace) + 1,2)
             tempbkspace = xrnge/(nbkpts-1)
-            knots = np.arange(1,nbkpts-1)*tempbkspace + startx
+            knots = np.arange(1, nbkpts-1)*tempbkspace + startx
         elif everyn is not None:
             # A knot every good N pixels
             idx_knots = np.arange(everyn//2, ngd-everyn//2, everyn)
@@ -158,6 +158,7 @@ def dummy_fitsdict(nfile=10, spectrograph='kast_blue', directory='./'):
     fitsdict['dichroic'] = ['560'] * nfile
     fitsdict['dispangle'] = ['none'] * nfile
     fitsdict["binning"] = ['1x1']*nfile
+    fitsdict["airmass"] = [1.0]*nfile
     #
     if spectrograph == 'kast_blue':
         fitsdict['numamplifiers'] = [1] * nfile
@@ -177,6 +178,7 @@ def dummy_fitsdict(nfile=10, spectrograph='kast_blue', directory='./'):
         fitsdict['exptime'][3] = 30     # flat
         fitsdict['ra'][4] = '05:06:36.6'  # Standard
         fitsdict['dec'][4] = '52:52:01.0'
+        fitsdict['airmass'][4] = 1.2
         fitsdict['ra'][5] = '07:06:23.45' # Random object
         fitsdict['dec'][5] = '+30:20:50.5'
         fitsdict['decker'] = ['0.5 arcsec'] * nfile
@@ -264,6 +266,7 @@ def dummy_settings(pypitdir=None, nfile=10, spectrograph='kast_blue',
     arparse.init(argf, spect)
     return
 
+
 def dummy_specobj(fitsdict, det=1, extraction=True):
     """ Generate dummy specobj classes
     Parameters
@@ -317,13 +320,13 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
     x : ndarray
     y : ndarray
     func : str
-      polynomial, legendre, chebyshev, bspline, gauss
+      polynomial, legendre, chebyshev, bspline, gaussian
     deg : int
       degree of the fit
     minv : float, optional
     maxv
     w
-    guesses
+    guesses : tuple
     kwargs
 
     Returns
@@ -1159,6 +1162,8 @@ def yamlify(obj, debug=False):
        :class:`numpy.int64` is converted to :class:`int`, etc.
     """
     import numpy as np
+    from astropy.units import Quantity
+
     if isinstance(obj, (np.float64, np.float32)):
         obj = float(obj)
     elif isinstance(obj, (np.int32, np.int64, np.int16)):
@@ -1167,8 +1172,11 @@ def yamlify(obj, debug=False):
         obj = bool(obj)
     elif isinstance(obj, (np.string_, basestring)):
         obj = str(obj)
-    # elif isinstance(obj, Quantity):
-    #     obj = dict(value=obj.value, unit=obj.unit.to_string())
+    elif isinstance(obj, Quantity):
+        try:
+            obj = obj.value.tolist()
+        except AttributeError:
+            obj = obj.value
     elif isinstance(obj, np.ndarray):  # Must come after Quantity
         obj = obj.tolist()
     elif isinstance(obj, dict):
@@ -1198,3 +1206,127 @@ def yamlify(obj, debug=False):
     if debug:
         print(type(obj))
     return obj
+
+###########
+def fit_min(xarr, yarr, xguess, width=None):
+
+    errcode = 0
+    # Edges
+    if width is None:
+        xleft, xright = np.min(xarr), np.max(xarr)
+    else:
+        xleft = xguess - width
+        xright = xguess + width
+    idx = np.where((xarr >= xleft) & (xarr <= xright))[0]
+
+    # Setup
+    thisx = xarr[idx]
+    thisy = yarr[idx]
+
+    # Guess for Gaussian
+    guess = np.max(thisy), 0., width/2.
+
+    # Fit with Gaussian
+    try:
+        coeff = func_fit(thisx-xguess, thisy, 'gaussian', 3, guesses=guess)
+    except RuntimeError:  # Bad fit
+        errcode = -1
+        return xguess, 0., errcode
+    sigma = coeff[2]
+    xbest = xguess + coeff[1]
+
+    # Could/should add a bunch of sanity checks
+    # Insist on it being a minimum
+    if coeff[0] > 0.:
+        errcode = -4
+    if (xbest < xleft) or (xbest > xright):
+        errcode = -6
+    # Return
+    return xbest, sigma, errcode
+
+
+def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5):
+    """ Find minima in an input 1D array
+    Parameters
+    ----------
+    yflux : ndarray
+    xvec : ndarray, optional
+      Assumed to be ascending
+    nfind : int, optional
+      Number of peaks to find in the input array
+    nsmooth : int, optional
+      Smooth by a Gaussian with kenrel of nsmooth
+    minsep : int, optional
+      Minimum separation between peaks
+    width : int, optional
+      Width around a putative peak to fit a Gaussian
+
+    Returns
+    -------
+    peaks: ndarray
+      x values of the peaks 
+    sigmas: ndarray
+      sigma widths of the Gaussian fits to each peak
+    ledges: ndarray
+      left edges of each peak;  defined to be at least minsep away
+      from the peak and where the slope of the data switches 
+    redges: ndarray
+      right edges of each peak;  defined to be at least minsep away
+      from the peak and where the slope of the data switches 
+    """
+    # Imports
+    from astropy.convolution import convolve, Gaussian1DKernel
+    # Init
+    if xvec is None:
+        xvec = np.arange(len(yflux))
+    # Gaussian smooth
+    if nsmooth is not None:
+        yflux = convolve(yflux, Gaussian1DKernel(nsmooth))#, **kwargs)
+
+    # ycopy, yderiv, ydone
+    ycopy = yflux.copy()
+    yderiv = np.roll(ycopy,1)-ycopy
+    yderiv[0] = 0.
+    yderiv[-1] = 0.
+    ydone = np.max(ycopy)
+
+    # Find first one
+    peaks, sigmas, ledges, redges = [], [], [], []
+    npeak = 0
+    for kk in range(nfind):
+        imin = np.argmin(ycopy)
+        xbest, sigma, errcode = fit_min(xvec, ycopy, xvec[imin], width=width)
+        #
+        noldpeak = npeak
+        npeak = len(peaks)
+        # Find edges and
+        # Block out pixels within minsep and 2*minsep
+        x1 = (xvec < xvec[imin]-minsep) & (np.roll(yderiv,1) < 0.)
+        if np.any(x1):
+            ix1 = np.where(x1)[0][-1]
+        else:
+            ix1 = 0
+        x2 = (xvec > xvec[imin]+minsep) & (yderiv > 0.)  # Scans until increasing
+        if np.any(x2):
+            ix2 = np.where(x2)[0][0]
+        else:
+            ix2 = len(xvec)
+        ycopy[ix1:ix2] = ydone
+        # Save
+        if npeak == 0:  # Always grab at least one
+            peaks.append(xbest)
+            sigmas.append(sigma)
+            ledges.append(ix1)
+            redges.append(ix2-1)
+        else:  # Check it is minsep away (seems like it will always be)
+            xmin = np.min(np.abs(np.array(peaks-xbest)))
+            if (xmin > minsep) & (errcode >= 0):
+                peaks.append(xbest)
+                sigmas.append(sigma)
+                ledges.append(ix1)
+                redges.append(ix2-1)
+        # Any more to look for?
+        if not np.any(ycopy < ydone):
+            npeak = nfind
+    return np.array(peaks), np.array(sigmas), np.array(ledges), np.array(redges)
+

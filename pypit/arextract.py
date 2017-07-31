@@ -84,7 +84,8 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
                 bckreg = scitrace[sl]['background'][:, :, o]
             # Trim CRs further
             bg_mask = np.zeros_like(sciframe)
-            bg_mask[np.where((bckreg*cr_mask <= 0.) & (slf._slitpix[det - 1] == sl + 1))] = 1.
+            bg_mask[np.where((bckreg*cr_mask <= 0.))] = 1.
+            bg_mask[np.where((slf._slitpix[det - 1] != sl + 1))] = 1.
             mask_sci = np.ma.array(sciframe, mask=bg_mask, fill_value=0.)
             clip_image = sigma_clip(mask_sci, axis=1, sigma=3.)  # For the mask only
             # Fit
@@ -279,9 +280,9 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
                 scitrace[sl]['opt_profile'].append({})
                 continue
     # QA
-    if not msgs._debug['no_qa'] and doqa:
+    if doqa: #not msgs._debug['no_qa'] and doqa:
         msgs.info("Preparing QA for spatial object profiles")
-        arqa.obj_profile_qa(slf, specobjs, scitrace)
+        arqa.obj_profile_qa(slf, specobjs, scitrace, det)
     return
 
 

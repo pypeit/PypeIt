@@ -72,12 +72,18 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
         # Loop on Detectors
         for kk in range(settings.spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
+            if settings.argflag['reduce']['detnum'] is not None:
+                if det != settings.argflag['reduce']['detnum']:
+                    continue
+                else:
+                    msgs.warn("Restricting the reduction to detector {:d}".format(det))
             slf.det = det
             ###############
             # Get data sections
             arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
             # Setup
             setup = arsort.instr_setup(slf, det, fitsdict, setup_dict, must_exist=True)
+            slf.setup = setup
             settings.argflag['reduce']['masters']['setup'] = setup
             ###############
             # Generate master bias frame
@@ -118,16 +124,25 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             ###############
             # Determine the edges of the spectrum (spatial)
             if ('trace'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']):
-                if not msgs._debug['develop']:
-                    ###############
-                    # Determine the centroid of the spectrum (spatial)
-                    lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mspinhole[det-1], det,
-                                                                   pcadesc="PCA trace of the slit edges")
+                if True:#not msgs._debug['develop']:
+                    msgs.info("Tracing slit edges with a {0:s} frame".format(settings.argflag['trace']['useframe']))
+                    if settings.argflag['trace']['useframe'] == 'pinhole':
+                        ###############
+                        # Determine the centroid of the spectrum (spatial)
+                        lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mspinhole[det-1], det,
+                                                                       pcadesc="PCA trace of the slit edges")
 
-                    # Using the order centroid, expand the order edges until the edge of the science slit is found
-                    if settings.argflag['trace']['slits']['expand']:
-                        lordloc, rordloc = artrace.expand_slits(slf, slf._mstrace[det-1], det,
-                                                                0.5*(lordloc+rordloc), extord)
+                        # Using the order centroid, expand the order edges until the edge of the science slit is found
+                        if settings.argflag['trace']['slits']['expand']:
+                            lordloc, rordloc = artrace.expand_slits(slf, slf._mstrace[det-1], det,
+                                                                    0.5*(lordloc+rordloc), extord)
+                    elif settings.argflag['trace']['useframe'] == 'trace':
+                        ###############
+                        # Determine the edges of the slit using a trace frame
+                        lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det,
+                                                                       pcadesc="PCA trace of the slit edges")
+                    else:
+                        msgs.error("Cannot trace slit edges using {0:s}".format(settings.argflag['trace']['useframe']))
                 else:
                     lordloc, rordloc, extord = np.load("lordloc.npy"), np.load("rordloc.npy"), np.load("extord.npy")
 
@@ -150,8 +165,7 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._slitpix, slitpix, det)
 
                 # Save QA for slit traces
-                if not msgs._debug['no_qa']:
-                    arqa.slit_trace_qa(slf, slf._mstrace[det - 1], slf._lordpix[det - 1], slf._rordpix[det - 1], extord,
+                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det - 1], extord,
                                        desc="Trace of the slit edges", normalize=False)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
@@ -204,12 +218,11 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                     slf.SetFrame(slf._slitprof, slit_profiles, det)
                     slf.SetFrame(slf._msblaze, msblaze, det)
                     # Prepare some QA for the average slit profile along the slit
-                    if not msgs._debug['no_qa']:
-                        msgs.info("Preparing QA of each slit profile")
-                        arqa.slit_profile(slf, mstracenrm, slit_profiles, slf._lordloc[det - 1], slf._rordloc[det - 1],
-                                          slf._slitpix[det - 1], desc="Slit profile")
-                        msgs.info("Saving blaze function QA")
-                        arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc="Blaze function", textplt="Order")
+                    msgs.info("Preparing QA of each slit profile")
+                    arqa.slit_profile(slf, mstracenrm, slit_profiles, slf._lordloc[det - 1], slf._rordloc[det - 1],
+                                      slf._slitpix[det - 1], desc="Slit profile")
+                    msgs.info("Saving blaze function QA")
+                    arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc="Blaze function", textplt="Order")
 
             ###############
             # Generate/load a master wave frame
@@ -242,13 +255,10 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             msgs.info("Processing science frame")
             arproc.reduce_echelle(slf, sciframe, scidx, fitsdict, det)
 
-        # Close the QA for this object
-        slf._qa.close()
-
         # Write 1D spectra
         save_format = 'fits'
         if save_format == 'fits':
-            arsave.save_1d_spectra_fits(slf)
+            arsave.save_1d_spectra_fits(slf, fitsdict)
         elif save_format == 'hdf5':
             arsave.save_1d_spectra_hdf5(slf)
         else:

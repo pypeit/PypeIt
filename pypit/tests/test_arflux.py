@@ -8,22 +8,52 @@ import os, pdb
 import pytest
 
 from astropy import units as u
+from astropy.units import Quantity
 
-from pypit import arparse as settings
 from pypit import pyputils
-import pypit
 msgs = pyputils.get_dummy_logger()
+from pypit import arparse as settings
+from pypit import arflux as arflx
+from pypit import arload
+from pypit import arutils
+from pypit import armasters
 
 #from xastropy.xutils import afits as xafits
 #from xastropy.xutils import xdebug as xdb
 
-#def data_path(filename):
-#    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-#    return os.path.join(data_dir, filename)
+def data_path(filename):
+    data_dir = os.path.join(os.path.dirname(__file__), 'files')
+    return os.path.join(data_dir, filename)
+
+
+def test_gen_sensfunc():
+    # Load a random spectrum for the sensitivity function
+    sfile = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
+    specobjs = arload.load_specobj(sfile)
+    # Settings, etc.
+    arutils.dummy_settings()
+    settings.argflag['run']['spectrograph'] = 'kast_blue'
+    settings.argflag['reduce']['masters']['setup'] = 'C_01_aa'
+    settings.spect['arc'] = {}
+    settings.spect['arc']['index'] = [[0]]
+    fitsdict = arutils.dummy_fitsdict()
+    slf = arutils.dummy_self()
+    slf._msstd[0]['RA'] = '05:06:36.6'
+    slf._msstd[0]['DEC'] = '52:52:01.0'
+    # Generate
+    slf._sensfunc = arflx.generate_sensfunc(slf, 4, [specobjs], fitsdict)
+    # Save
+    try:
+        os.mkdir('MF_kast_blue')
+    except FileExistsError:
+        pass
+    armasters.save_sensfunc(slf, 'C_01_aa')
+    # Test
+    assert isinstance(slf._sensfunc, dict)
+    assert isinstance(slf._sensfunc['wave_min'], Quantity)
 
 
 def test_find_standard():
-    from pypit import arflux as arflx
     # G191b2b
     std_ra = '05:06:36.6'
     std_dec = '52:52:01.0'
@@ -42,7 +72,6 @@ def test_find_standard():
 
 
 def test_load_extinction():
-    from pypit import arflux as arflx
     # Dummy self
     settings.spect['mosaic']['latitude'] = 37.3413889
     settings.spect['mosaic']['longitude'] = 121.6428
@@ -60,7 +89,6 @@ def test_load_extinction():
 
 
 def test_extinction_correction():
-    from pypit import arflux as arflx
     # Dummy self
     settings.spect['mosaic']['latitude'] = 37.3413889
     settings.spect['mosaic']['longitude'] = 121.6428
