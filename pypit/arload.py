@@ -11,6 +11,8 @@ from pypit import arlris
 #from multiprocessing import Pool as mpPool
 #from multiprocessing.pool import ApplyResult
 #import arutils
+from IPython import embed
+
 
 try:
     basestring

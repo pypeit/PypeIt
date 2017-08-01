@@ -210,7 +210,7 @@ keyword filter1 01.DWFILNAM             # Order-blocking filter name
 keyword filter2 None
 keyword decker 01.SLMSKNAM             # Slitmask name
 keyword hatch 01.HATCHPOS	       # [open/closed] state of hatch
-keyword detrot 01.ROTATVAL	       # Rotator angle
+keyword detrot 01.ROTATVAL	       # Detector rotation angle
 keyword lamps 01.LAMPS		       # [On/Off] state of lamps, e.g, 'Off' if no lamps, 'Kr Xe Ar Ne' if those lamps are on
 
 # This is a crude hack until we have a general way of dealing with reading in multiple chips.
@@ -219,6 +219,14 @@ keyword naxis0 02.NAXIS2               # Number of pixels along the zeroth axis
 keyword naxis1 02.NAXIS1               # Number of pixels along the first axis
 
 # need to figure out how to represent these DEIMOS specific-header keys
+
+keyword dichroic None                  # Dichroic name
+keyword dispname 01.GRATENAM           # Grating name
+keyword dispangle 01.G3TLTWAV 	       # Central wavelength
+# This is a hack since for DEIMOS you need to know whether you are using grating in position
+# 3 or 4, which is indicated by the GRATEPOS keyword. This should be fixed somehow. 
+
+
 # keyword grating 01.GRATENAM	       # Grating name
 # keyword gratpos 01.GRATEPOS	       # Position of grating
 # keyword g3tltwav 01.G3TLTWAV	       # Central wavelength for position 3
@@ -234,7 +242,7 @@ keyword naxis1 02.NAXIS1               # Number of pixels along the first axis
 
 fits timeunit mjd                   # The unit of keyword+time (s=seconds, m=minutes, h=hours, or any of the astropy Time formats)
 fits calwin 12.0                    # The window of time in hours to search for calibration frames for a science frame
-fits dataext 1                      # Extension number of data
+#fits dataext 1                      # Extension number of data
 fits numhead 9                      # How many headers need to be read in for a given file
 fits headext01 0                    # Extension number of header (one for each headnum, starting with 01)
 fits headext02 1                    # Extension number of header (one for each headnum, starting with 01)

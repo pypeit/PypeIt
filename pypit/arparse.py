@@ -19,6 +19,9 @@ msgs = armsgs.get_logger()
 # Initialize the settings variables
 argflag, spect = None, None
 
+from IPython import embed
+
+
 try:
     basestring
 except NameError:  # For Python 3
@@ -153,6 +156,8 @@ class BaseArgFlag(BaseFunctions):
         # Pipeline specific
         lines = self.load_file()
         self.set_paramlist(lines)
+
+
 
     def save(self):
         """ Save the arguments and flags settings used for a given reduction
