@@ -1685,11 +1685,11 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
                 break
             # yfit = msarc[pcen-nspecfit:pcen+nspecfit+1,ordcen[arcdet[j],0]+k]
             yfit = msarc[pcen-nspecfit:pcen+nspecfit+1, ordcen[arcdet[j], slitnum]+k-nsmth:ordcen[arcdet[j], slitnum]+k+nsmth+1]
-            if len(yfit.shape) == 2:
-                yfit = np.median(yfit, axis=1)
             if np.size(yfit) == 0:
                 offchip = True
                 break
+            if len(yfit.shape) == 2:
+                yfit = np.median(yfit, axis=1)
             # wgd = np.where((yfit<satval)&(yfit!=maskval))
             wgd = np.where(yfit == maskval)
             if wgd[0].size != 0:

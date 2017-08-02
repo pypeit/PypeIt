@@ -183,7 +183,7 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                     tilts = armasters.get_master_frame(slf, "tilts")
                 except IOError:
                     # First time tilts are derived for this arc frame --> derive the order tilts
-                    tilts, satmask, outpar = artrace.multislit_tilt(slf, slf._msarc[det - 1], det)
+                    tilts, satmask, outpar = artrace.echelle_tilt(slf, slf._msarc[det - 1], det)
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
