@@ -226,14 +226,14 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
                 badrow = np.where(specobjs[sl][o].boxcar['counts'] < COUNT_LIM)[0]
                 weight[badrow, :] = 0.
                 # Extract profile
-                gdprof = (weight > 0) & (sigframe > 0.)
+                gdprof = (weight > 0) & (sigframe > 0.) & (~np.isnan(slit_img))  # slit_img=nan if the slit is partially on the chip
                 slit_val = slit_img[gdprof]
                 flux_val = norm_img[gdprof]
                 #weight_val = sciframe[gdprof]/sigframe[gdprof]  # S/N
                 weight_val = 1./sigframe[gdprof]  # 1/N
                 msgs.work("Weight by S/N in boxcar extraction? [avoid CRs; smooth?]")
                 # Fit
-                fdict = dict(func=settings.argflag['science']['extraction']['profile'], deg=3)
+                fdict = dict(func=settings.argflag['science']['extraction']['profile'], deg=3, extrap=False)
                 if fdict['func'] == 'gaussian':
                     fdict['deg'] = 2
                 elif fdict['func'] == 'moffat':
@@ -242,11 +242,21 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
                     msgs.error("Not ready for this type of object profile")
                 msgs.work("Might give our own guess here instead of using default")
                 guess = None
+                # Check if there are enough pixels in the slit to perform fit
+                if slit_val.size <= fdict['deg'] + 1:
+                    msgs.warn("Not enough pixels to determine profile of object={:s}." + msgs.newline() +
+                              "Skipping Optimal".format(specobjs[sl][o].idx))
+                    fdict['extrap'] = True
+                    scitrace[sl]['opt_profile'].append(copy.deepcopy(fdict))
+                    continue
+                # Fit the profile
                 try:
                     mask, gfit = arutils.robust_polyfit(slit_val, flux_val, fdict['deg'], function=fdict['func'], weights=weight_val, maxone=False, guesses=guess)
                 except RuntimeError:
-                    msgs.warn("Bad Profile fit for object={:s}.  Skipping Optimal".format(specobjs[sl][o].idx))
-                    scitrace[sl]['opt_profile'].append(fdict)
+                    msgs.warn("Bad Profile fit for object={:s}." + msgs.newline() +
+                              "Skipping Optimal".format(specobjs[sl][o].idx))
+                    fdict['extrap'] = True
+                    scitrace[sl]['opt_profile'].append(copy.deepcopy(fdict))
                     continue
                 except ValueError:
                     debugger.set_trace()  # NaNs in the values?  Check
