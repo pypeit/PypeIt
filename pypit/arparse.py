@@ -1108,6 +1108,18 @@ class BaseArgFlag(BaseFunctions):
             v = ''
         self.update(v)
 
+    def reduce_masters_force(self, v):
+        """ Use only MasterFrame files for the reduction.
+        The specific setup must also be provided in the PYPIT file
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_bool(v)
+        self.update(v)
+
     def reduce_masters_loaded(self, v):
         """
 
@@ -1120,7 +1132,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def reduce_masters_reuse(self, v):
-        """
+        """ If a MasterFrame file exists, use it instead of remaking the calib file
 
         Parameters
         ----------

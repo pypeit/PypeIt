@@ -53,7 +53,10 @@ def main(args):
 
     # One detector, sky sub for now
     names = [hdu[i].name for i in range(len(hdu))]
-    exten = names.index('DET{:s}-SKYSUB'.format(sdet))
+    try:
+        exten = names.index('DET{:s}-SKYSUB'.format(sdet))
+    except ValueError:  # Backwards compatability
+        exten = names.index('DET{:d}-SKYSUB'.format(args.det))
     skysub = hdu[exten].data
 
     # Show Image

@@ -60,8 +60,25 @@ def SetupScience(fitsdict):
     sciexp = []
     for i in range(numsci):
         sciexp.append(arsciexp.ScienceExposure(i, fitsdict, do_qa=do_qa))
+
     # Generate setup and group dicts
     setup_dict = {}
+    if settings.argflag['reduce']['masters']['force']:
+        # Check that setup was input
+        if len(settings.argflag['reduce']['masters']['setup']) == 0:
+            msgs.error("Need to specify   reduce masters setup   in your PYPIT file!")
+        # setup_dict
+        setup = settings.argflag['reduce']['masters']['setup']
+        setup_dict = {}
+        setup_dict[setup[0]] = {}
+        for ii in range(1,20): # Dummy detectors
+            setup_dict[setup[0]]['{:02d}'.format(ii)] = dict(binning='1x1')
+        setup_dict[setup[0]][setup[-2:]] = {}
+        iSCI = filesort['science']
+        setup_dict[setup[0]][setup[-2:]]['sci'] = [fitsdict['filename'][i] for i in iSCI]
+        # Write
+        calib_file = arsort.write_calib(setup_dict)
+        return sciexp, setup_dict
     # Run through the setups to fill setup_dict
     setupIDs = []
     for sc in range(numsci):
