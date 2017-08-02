@@ -1245,6 +1245,8 @@ def slit_profile(slf, mstrace, det, ntcky=None):
             msgs.warn("There are not enough pixels in slit {0:d}".format(o+1))
             extrap_slit[o] = 1.0
             continue
+        if (np.min(word[0]) > 0) or (np.max(word[0]) < mstrace.shape[0]-1):
+            extrap_slit[o] = 1.0
         tcky = np.linspace(min(0.0, np.min(specval[wsp])), max(1.0, np.max(specval[wsp])), ntcky)
         tcky = tcky[np.where((tcky > np.min(specval[wsp])) & (tcky < np.max(specval[wsp])))]
         srt = np.argsort(specval[wsp])
@@ -1380,7 +1382,7 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
             blzmxval[0, o] = np.median(mstrace[wch[0], cordloc[wch]])
         if lorr == -1:
             # A full order has been found, go back and fill in the gaps
-            for i in range(1, o):
+            for i in range(1, o+1):
                 wch = np.where((slf._lordloc[det-1][:, o-i] > 0.0) &
                                (slf._rordloc[det-1][:, o-i] < mstrace.shape[1] - 1.0))
                 # Calculate the previous order flux
@@ -1399,8 +1401,17 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
             prval = mstrace[wch[0], cordloc[wch]]
             wnz = np.where(prval != 0.0)
             blzmxval[0, o] = blzmxval[0, o-1] * np.median(mnval[wnz] / prval[wnz])
-            #debugger.set_trace()
             lorr = 0
+
+    # Check for nan values (i.e. when median is given a zero element array)
+    blznan = np.isnan(blzmxval[0, :])
+    if np.any(blznan):
+        # Find the acceptable values and linearly interpolate
+        blzx = np.arange(nslits)
+        wnnan = np.where(~blznan)
+        fblz = interp.interp1d(blzx[wnnan], blzmxval[0, wnnan],
+                               kind="linear", bounds_error=False, fill_value="extrapolate")
+        blzmxval = fblz(blzx).reshape(blzmxval.shape)
 
     # Calculate the mean blaze function of all good orders
     blzmean = np.mean(msblaze[:, gds[0]], axis=1)
