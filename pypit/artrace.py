@@ -81,7 +81,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
             # Calculate the offset
             offs = binarr.shape[1]
             # Add these into edgehist
-            edgehist[offs] = ww[0].size
+            edgehist[offs] = np.sum(binarr[ww])#ww[0].size
             # And a fudge to give this edge detection some width (for peak finding, below)
             edgehist[offs-1] = 1 + ww[0].size/2
             edgehist[offs+1] = 1 + ww[0].size/2
@@ -94,7 +94,8 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
                 break
             shft = www[1] - ww[1][www[0]]  # Calculate the shift between right edges
             shft += offs  # Apply the offset to the edgehist arr
-            arcytrace.edge_sum(edgehist, shft)
+            #np.add.at(edgehist, shft, 1)
+            np.add.at(edgehist, shft, binarr[ww[0], :][www])
             # Smooth the histogram with a Gaussian of standard deviation 1 pixel to reduce noise
             smedgehist = ndimage.uniform_filter1d(edgehist, 3)
             # Identify peaks (which indicate the locations of the right slit edges)
@@ -103,13 +104,15 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
             arrcen = smedgehist[2:-2]
             arrrgt = smedgehist[3:-1]
             arrrfr = smedgehist[4:]
+#            wpk = np.where((arrcen >= arrlft) & (arrcen > arrrgt) &  # Exactly one of these should be >=
+#                           ((arrlft > arrlfr) | (arrrgt > arrrfr)))[0]
             wpk = np.where((arrcen >= arrlft) & (arrcen > arrrgt) &  # Exactly one of these should be >=
                            ((arrlft > arrlfr) | (arrrgt > arrrfr)))[0]
             if wpk.size == 0:
                 # No more peaks
                 break
             if wpk.size != 1:
-                wpkmsk = arcytrace.prune_peaks(smedgehist, wpk, np.where(wpk+2 == offs)[0][0])
+                wpkmsk = prune_peaks(smedgehist, wpk, np.where(wpk+2 == offs)[0][0])
                 wpk = wpk[np.where(wpkmsk == 1)]
             if wpk.size == 0:
                 # After pruning, there are no more peaks
@@ -119,11 +122,12 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
             if np.all(pedges[:, 1]-pedges[:, 0] == 0):
                 # Remaining peaks have no width
                 break
-            if msgs._debug['trace'] and False:
+            if False:#msgs._debug['trace'] and False:
                 plt.clf()
                 plt.plot(arrcen, 'k-', drawstyle='steps')
                 plt.plot(wpk, np.zeros(wpk.size), 'ro')
                 plt.show()
+                debugger.set_trace()
             # Label all edge ids (in the original edgearr) that are located in each peak with the same number
             for ii in range(pks.size):
                 shbad = np.zeros(edgearr.shape)
@@ -153,7 +157,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
                                                       settings.argflag['trace']['slits']['function'],
                                                       minv=0, maxv=binarr.shape[0]-1)
                     diff = 50 + np.round(diff).astype(np.int)
-                    arcytrace.edge_sum(smallhist, diff)
+                    np.add.at(smallhist, diff, 1)
                     meddiff[vv] = np.median(diff)
                 # Find the peaks of this distribution
                 wspk = np.where((smallhist[1:-1] >= smallhist[2:]) & (smallhist[1:-1] > smallhist[:-2]))[0]
@@ -2602,6 +2606,63 @@ def phys_to_pix(array, pixlocn, axis):
     else:
         pixarr = arcytrace.phys_to_pix(array, diff)
     return pixarr
+
+
+def prune_peaks(hist, pks, pkidx):
+    """
+    Identify the most well defined peaks
+
+    Parameters
+    ----------
+    hist : ndarray
+      Histogram of detections
+    pks : ndarray
+      Indices of candidate peak locations
+    pkidx : int
+      Index of highest peak
+
+    Returns
+    -------
+    msk : ndarray
+      An mask of good peaks (1) and bad peaks (0)
+    """
+
+    sz_i = pks.shape[0]
+
+    msk = np.zeros(sz_i, dtype=np.int)
+
+    lgd = 1  # Was the previously inspected peak a good one?
+    for ii in range(0, sz_i-1):
+        cnt = 0
+        for jj in range(pks[ii], pks[ii+1]):
+            if hist[jj] == 0:
+                cnt += 1
+        if cnt < 2:
+            # If the difference is unacceptable, both peaks are bad
+            msk[ii] = 0
+            msk[ii+1] = 0
+            lgd = 0
+        else:
+            # If the difference is acceptable, the right peak is acceptable,
+            # the left peak is acceptable if it was not previously labelled as unacceptable
+            if lgd == 1:
+                msk[ii] = 1
+            msk[ii+1] = 1
+            lgd = 1
+    # Now only consider the peaks closest to the highest peak
+    lgd = 1
+    for ii in range(pkidx, sz_i):
+        if msk[ii] == 0:
+            lgd = 0
+        elif lgd == 0:
+            msk[ii] = 0
+    lgd = 1
+    for ii in range(0, pkidx):
+        if msk[pkidx-ii] == 0:
+            lgd = 0
+        elif lgd == 0:
+            msk[pkidx-ii] = 0
+    return msk
 
 
 def slit_image(slf, det, scitrace, obj, tilts=None):
