@@ -2628,8 +2628,10 @@ def slit_image(slf, det, scitrace, obj, tilts=None):
     dypix = 1./tilts.shape[0]
     #  Trace
     xtrc = np.round(scitrace['traces'][:, obj]).astype(int)
+    wch = np.where((xtrc >= 0) & (xtrc <= tilts.shape[1]-1))
     msgs.work("Use 2D spline to evaluate tilts")
-    trc_tilt = tilts[np.arange(tilts.shape[0]), xtrc]
+    trc_tilt = np.zeros(tilts.shape[0], dtype=np.float)
+    trc_tilt[wch] = tilts[np.arange(tilts.shape[0])[wch], xtrc[wch]]
     trc_tilt_img = np.outer(trc_tilt, np.ones(tilts.shape[1]))
     # Slit image
     msgs.work("Should worry about changing plate scale")
