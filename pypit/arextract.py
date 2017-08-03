@@ -244,8 +244,8 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
                 guess = None
                 # Check if there are enough pixels in the slit to perform fit
                 if slit_val.size <= fdict['deg'] + 1:
-                    msgs.warn("Not enough pixels to determine profile of object={:s}." + msgs.newline() +
-                              "Skipping Optimal".format(specobjs[sl][o].idx))
+                    msgs.warn("Not enough pixels to determine profile of object={0:s} in slit {1:d}".format(specobjs[sl][o].idx, sl+1) + msgs.newline() +
+                              "Skipping Optimal")
                     fdict['extrap'] = True
                     scitrace[sl]['opt_profile'].append(copy.deepcopy(fdict))
                     continue
