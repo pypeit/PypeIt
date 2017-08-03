@@ -293,19 +293,6 @@ def dual_edge(np.ndarray[ITYPE_t, ndim=2] edgearr not None,
 
 
 #@cython.boundscheck(False)
-def edge_sum(np.ndarray[ITYPE_t, ndim=1] edghist not None,
-            np.ndarray[ITYPE_t, ndim=1] sumarr not None):
-    cdef int s, sz_s
-
-    sz_s = sumarr.shape[0]
-
-    # Find which slit edge id is the most common
-    for s in range(sz_s):
-        edghist[sumarr[s]] += 1
-    return edghist
-
-
-#@cython.boundscheck(False)
 def expand_slits(np.ndarray[DTYPE_t, ndim=2] msedge not None,
                  np.ndarray[ITYPE_t, ndim=2] ordcen not None,
                  np.ndarray[ITYPE_t, ndim=1] extord not None):
@@ -936,55 +923,6 @@ def phys_to_pix(np.ndarray[DTYPE_t, ndim=2] array not None,
                 if array[a,n]-diff[d] < 0.0: break
             pixarr[a,n] = mind
     return pixarr
-
-
-#@cython.boundscheck(False)
-def prune_peaks(np.ndarray[ITYPE_t, ndim=1] hist not None,
-                np.ndarray[ITYPE_t, ndim=1] pks not None,
-                int pkidx):
-    """
-    Identify the most well defined peaks
-    """
-
-    cdef int ii, jj, sz_i, cnt, lgd
-
-    sz_i = pks.shape[0]
-
-    cdef np.ndarray[ITYPE_t, ndim=1] msk = np.zeros(sz_i, dtype=ITYPE)
-
-    lgd = 1  # Was the previously inspected peak a good one?
-    for ii in range(0, sz_i-1):
-        cnt = 0
-        for jj in range(pks[ii], pks[ii+1]):
-            if hist[jj] == 0:
-                cnt += 1
-        #if cnt < (pks[ii+1] - pks[ii])/2:
-        if cnt < 2:
-            # If the difference is unacceptable, both peaks are bad
-            msk[ii] = 0
-            msk[ii+1] = 0
-            lgd = 0
-        else:
-            # If the difference is acceptable, the right peak is acceptable,
-            # the left peak is acceptable if it was not previously labelled as unacceptable
-            if lgd == 1:
-                msk[ii] = 1
-            msk[ii+1] = 1
-            lgd = 1
-    # Now only consider the peaks closest to the highest peak
-    lgd = 1
-    for ii in range(pkidx, sz_i):
-        if msk[ii] == 0:
-            lgd = 0
-        elif lgd == 0:
-            msk[ii] = 0
-    lgd = 1
-    for ii in range(0, pkidx):
-        if msk[pkidx-ii] == 0:
-            lgd = 0
-        elif lgd == 0:
-            msk[pkidx-ii] = 0
-    return msk
 
 
 #@cython.boundscheck(False)
