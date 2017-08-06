@@ -764,16 +764,18 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         wr = np.where(siglev < -settings.argflag['trace']['slits']['sigdetect'])  # A negative gradient is a right edge
         tedges[wl] = -1.0
         tedges[wr] = +1.0
-        # import astropy.io.fits as pyfits
-        # hdu = pyfits.PrimaryHDU(filt)
-        # hdu.writeto("filt_{0:02d}.fits".format(det))
-        # hdu = pyfits.PrimaryHDU(sqmstrace)
-        # hdu.writeto("sqmstrace_{0:02d}.fits".format(det))
-        # hdu = pyfits.PrimaryHDU(binarr)
-        # hdu.writeto("binarr_{0:02d}.fits".format(det))
-        # hdu = pyfits.PrimaryHDU(siglev)
-        # hdu.writeto("siglev_{0:02d}.fits".format(det))
-        nedgear = arcytrace.clean_edges(siglev, tedges)
+        import astropy.io.fits as pyfits
+        hdu = pyfits.PrimaryHDU(filt)
+        hdu.writeto("filt_{0:02d}.fits".format(det), overwrite=True)
+        hdu = pyfits.PrimaryHDU(sqmstrace)
+        hdu.writeto("sqmstrace_{0:02d}.fits".format(det), overwrite=True)
+        hdu = pyfits.PrimaryHDU(binarr)
+        hdu.writeto("binarr_{0:02d}.fits".format(det), overwrite=True)
+        hdu = pyfits.PrimaryHDU(siglev)
+        hdu.writeto("siglev_{0:02d}.fits".format(det), overwrite=True)
+        debugger.set_trace()
+        nedgear = clean_edges(siglev, tedges)
+        #nedgear = arcytrace.clean_edges(siglev, tedges)
         if maskBadRows:
             msgs.info("Searching for bad pixel rows")
             edgsum = np.sum(nedgear, axis=0)
