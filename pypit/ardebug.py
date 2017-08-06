@@ -11,7 +11,7 @@ def init():
     debug : dict
         default debug dict
     """
-    debug = dict(develop=True,
+    debug = dict(develop=False,
                  arc=False,
                  obj_profile=False,
                  slit_profile=False,
