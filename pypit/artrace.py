@@ -773,13 +773,12 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         hdu.writeto("binarr_{0:02d}.fits".format(det), overwrite=True)
         hdu = pyfits.PrimaryHDU(siglev)
         hdu.writeto("siglev_{0:02d}.fits".format(det), overwrite=True)
-        debugger.set_trace()
         # Clean the edges
-        wcl = np.where((ndimage.maximum_filter1d(siglev, 10, axis=1) == siglev) & (tedges == 1))
-        wcr = np.where((ndimage.minimum_filter1d(siglev, 10, axis=1) == siglev) & (tedges == -1))
+        wcl = np.where((ndimage.maximum_filter1d(siglev, 10, axis=1) == siglev) & (tedges == -1))
+        wcr = np.where((ndimage.minimum_filter1d(siglev, 10, axis=1) == siglev) & (tedges == +1))
         nedgear = np.zeros(siglev.shape, dtype=np.int)
-        nedgear[wcl] = 1
-        nedgear[wcr] = -1
+        nedgear[wcl] = -1
+        nedgear[wcr] = +1
         #nedgear = arcytrace.clean_edges(siglev, tedges)
         if maskBadRows:
             msgs.info("Searching for bad pixel rows")
