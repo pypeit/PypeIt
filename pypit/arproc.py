@@ -695,7 +695,11 @@ def object_profile(slf, sciframe, slitn, det, refine=0.0, factor=3):
     # For each oversampled pixel, calculate the median flux
     msgs.work("It might be a good idea to use a weighted mean (where weights=flux), instead of the median here")
     for mm in range(1, xedges.size):
-        profile[mm - 1] = np.median(flxfr[groups == mm])
+        medpix = flxfr[groups == mm]
+        if medpix.size == 0:
+            profile[mm - 1] = 0.0
+        else:
+            profile[mm - 1] = np.median(medpix)
     return xedges, profile
 
 
