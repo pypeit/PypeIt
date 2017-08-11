@@ -102,5 +102,6 @@ arc match naxis1 =0                 # Match the shape of arcs with science
 arc match dispname ''              # Match the disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
 
 # Make some changes to the arguments and flags
-settings trace dispersion direction 1
 settings reduce calibrate wavelength pixel
+settings trace dispersion direction 1
+settings trace slits tilts params [1,1,1]
