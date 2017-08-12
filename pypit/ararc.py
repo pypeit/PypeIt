@@ -275,6 +275,18 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+    elif sname == 'dolores':
+        lamps = ['NeI', 'HgI']
+        if disperser == 'LR-R':
+            arcparam['n_first'] = 2  # Too much curvature for 1st order
+            arcparam['disp'] = 2.61  # Ang per pixel (unbinned)
+            arcparam['disp_toler'] = 0.1  # Ang per pixel (unbinned)
+            arcparam['wvmnx'][0] = 4470.0
+            arcparam['wvmnx'][1] = 10073.0
+            arcparam['wv_cen'] = 7400.
+            arcparam['b1'] = 1. / arcparam['disp'] / slf._msarc[det - 1].shape[0]
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     else:
         msgs.error('ararc.setup_param: Not ready for this instrument {:s}!'.format(sname))
     # Load linelist
