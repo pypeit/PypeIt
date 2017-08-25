@@ -551,7 +551,7 @@ class ScienceExposure:
             debugger.set_trace()  # NEED TO LOAD EXTRAS AS ABOVE
         # Set and then delete the Master Trace frame
         self.SetMasterFrame(mspinhole, "pinhole", det)
-        armasters.save_masters(self, det, mftype='pinhole')
+        #armasters.save_masters(self, det, mftype='pinhole')
         del mspinhole
         return True
 

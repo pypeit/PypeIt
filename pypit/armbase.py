@@ -11,7 +11,7 @@ from pypit import arparse as settings
 from pypit import armsgs
 from pypit import arsort
 from pypit import arsciexp
-from pypit import arutils
+from pypit import arparse
 
 # Logging
 msgs = armsgs.get_logger()
@@ -72,7 +72,7 @@ def SetupScience(fitsdict):
         setup_dict = {}
         setup_dict[setup[0]] = {}
         for ii in range(1,20): # Dummy detectors
-            setup_dict[setup[0]]['{:02d}'.format(ii)] = dict(binning='1x1')
+            setup_dict[setup[0]][arparse.get_dnum(ii)] = dict(binning='1x1')
         setup_dict[setup[0]][setup[-2:]] = {}
         iSCI = filesort['science']
         setup_dict[setup[0]][setup[-2:]]['sci'] = [fitsdict['filename'][i] for i in iSCI]

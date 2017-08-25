@@ -1121,7 +1121,8 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def reduce_masters_loaded(self, v):
-        """
+        """ This generates a dummy list that is populated as the
+        master frames are generated.  It should not be set by the user.
 
         Parameters
         ----------
@@ -1143,7 +1144,9 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def reduce_masters_setup(self, v):
-        """
+        """Setup name to be used in tandem with reduce_masters_force, e.g. C_02_aa
+        The detector number is ignored but the other information must match the
+        Master Frames in the master frame folder
 
         Parameters
         ----------
