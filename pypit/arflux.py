@@ -472,7 +472,7 @@ def generate_sensfunc(slf, stdidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=
 
     # Fit in magnitudes
     var_corr[msk == False] = -1.
-    mag_tck = bspline_magfit(wave.value, flux_corr, var_corr, flux_true, bkspace=resln.value*nresln, nointerp=True)
+    mag_tck = bspline_magfit(wave.value, flux_corr, var_corr, flux_true, bkspace=resln.value*nresln)
     sens_dict = dict(c=mag_tck, func='bspline',min=None,max=None, std=std_dict)
     # Add in wavemin,wavemax
     sens_dict['wave_min'] = np.min(wave)
