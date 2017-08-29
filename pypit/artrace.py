@@ -557,7 +557,7 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     #objl, objr, bckl, bckr = arcytrace.find_objects(smth_prof, bgreg, mad)
     if settings.argflag['trace']['object']['find'] == 'nminima':
         nsmooth = settings.argflag['trace']['object']['nsmooth']
-        trcprof2 = np.ma.mean(rec_sciframe, axis=0).filled(0.0)
+        trcprof2 = np.mean(rec_sciframe, axis=0)
         objl, objr, bckl, bckr = find_obj_minima(trcprof2, triml=triml, trimr=trimr, nsmooth=nsmooth)
     elif settings.argflag['trace']['object']['find'] == 'standard':
         objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)

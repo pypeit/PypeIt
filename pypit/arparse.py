@@ -1108,8 +1108,21 @@ class BaseArgFlag(BaseFunctions):
             v = ''
         self.update(v)
 
-    def reduce_masters_loaded(self, v):
+    def reduce_masters_force(self, v):
+        """ Use only MasterFrame files for the reduction.
+        The specific setup must also be provided in the PYPIT file
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
         """
+        v = key_bool(v)
+        self.update(v)
+
+    def reduce_masters_loaded(self, v):
+        """ This generates a dummy list that is populated as the
+        master frames are generated.  It should not be set by the user.
 
         Parameters
         ----------
@@ -1120,7 +1133,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def reduce_masters_reuse(self, v):
-        """
+        """ If a MasterFrame file exists, use it instead of remaking the calib file
 
         Parameters
         ----------
@@ -1131,7 +1144,9 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def reduce_masters_setup(self, v):
-        """
+        """Setup name to be used in tandem with reduce_masters_force, e.g. C_02_aa
+        The detector number is ignored but the other information must match the
+        Master Frames in the master frame folder
 
         Parameters
         ----------
