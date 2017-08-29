@@ -35,9 +35,9 @@ def quicksave(data,fname):
     return
 
 def bspline_inner_knots(all_knots):
-    '''Trim to the inner knots.  Used in bspline_magfit
+    """Trim to the inner knots.  Used in bspline_magfit
     Might be useful elsewhere
-    '''
+    """
     diff = all_knots - np.roll(all_knots,1)
     pos = np.where(diff>0.)[0]
     i0=pos[0]
@@ -63,6 +63,8 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
       Maximum value in the array  [both must be set to normalize]
     w: ndarray, optional
       weights to be used in the fitting (weights = 1/sigma)
+    knots: ndarray, optional
+      Internal knots only.  External ones are added by scipy
     everyn: int 
       Knot everyn good pixels, if used
     bkspace: float 
@@ -103,7 +105,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     try:
         tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, xb=xmin, xe=xmax, t=knots, task=task)
     except ValueError:
-        # Knot problem
+        # Knot problem (usually)
         msgs.warn("Problem in the bspline knot")
         debugger.set_trace()
     return tck
