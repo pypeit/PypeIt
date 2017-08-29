@@ -21,6 +21,7 @@
 * Update Ginga hooks
 * Enable archiving/loading sensitivity function
 * Add new cosmic ray algorithms for coadding (especially pairs of spectra)
+* Added support for TNG+Dolores long slit spectrograph
 
 
 0.7 (2017-02-07)
