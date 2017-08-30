@@ -8,6 +8,7 @@ http://pypit.readthedocs.io
 * Keck/LRIS 
 * Lick/Kast 
 * WHT/ISIS
+* TNG/Dolores
 * Keck/DEIMOS (coming soon)
 * Lick/APF (planned)
 

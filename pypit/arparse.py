@@ -3779,10 +3779,18 @@ def load_sections(string):
         xyarrx = [0, 0]
     else:
         xyarrx = xyrng[0].split(':')
+        # If a lower/upper limit on the array slicing is not given (e.g. [:100] has no lower index specified),
+        # set the lower/upper limit to be the first/last index.
+        if len(xyarrx[0]) == 0: xyarrx[0] = 0
+        if len(xyarrx[1]) == 0: xyarrx[1] = -1
     if xyrng[1] == ":":
         xyarry = [0, 0]
     else:
         xyarry = xyrng[1].split(':')
+        # If a lower/upper limit on the array slicing is not given (e.g. [5:] has no upper index specified),
+        # set the lower/upper limit to be the first/last index.
+        if len(xyarry[0]) == 0: xyarry[0] = 0
+        if len(xyarry[1]) == 0: xyarry[1] = -1
     return [[int(xyarrx[0]), int(xyarrx[1])], [int(xyarry[0]), int(xyarry[1])]]
 
 
