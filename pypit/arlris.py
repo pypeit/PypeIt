@@ -9,6 +9,8 @@ from pypit import armsgs
 from pypit.arparse import load_sections
 
 from pypit import ardebug as debugger
+from IPython import embed
+
 
 try:
     basestring

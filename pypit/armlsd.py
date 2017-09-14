@@ -81,6 +81,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 else:
                     msgs.warn("Restricting the reduction to detector {:d}".format(det))
             slf.det = det
+            debugger.set_trace()
             ###############
             # Get data sections
             arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)

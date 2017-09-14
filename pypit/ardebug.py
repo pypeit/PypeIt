@@ -145,4 +145,4 @@ def plot1d(*args, **kwargs):
         plt.show()
     return
 
-from pdb import *
+from ipdb import *

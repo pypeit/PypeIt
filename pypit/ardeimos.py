@@ -5,11 +5,15 @@ from __future__ import absolute_import, division, print_function
 
 import glob
 import numpy as np
-from astropy.io import fits
+#from astropy.io import fits
+import astropy.io.fits as pyfits
+
 
 from pypit import armsgs
 from pypit.arparse import load_sections
 from pypit import ardebug as debugger
+from IPython import embed
+
 
 # Logging
 msgs = armsgs.get_logger()
@@ -64,7 +68,8 @@ def read_deimos(raw_file, det, trim=False):
     xbin, ybin = [int(ibin) for ibin in binning.split(',')]
 
     # First read over the header info to determine the size of the output array...
-    n_ext = len(hdu)-1  # Number of extensions (usually 4)
+    #n_ext = len(hdu)-1  # Number of extensions (usually 4)
+    n_ext = 8
     xcol = []
     xmax = -np.inf
     ymax = -np.inf
@@ -106,7 +111,6 @@ def read_deimos(raw_file, det, trim=False):
 
     # Deal with detectors
     assert det in np.arange(1, 9)
-    n_ext = 8
     det_idx = det - 1
     ndet = 1
     
@@ -135,7 +139,7 @@ def read_deimos(raw_file, det, trim=False):
     for kk, i in enumerate(order[det_idx]):
 
         # grab complete extension...
-        data, predata, postdata, x1, y1 = lris_read_amp(hdu, i+1)
+        data, predata, postdata, x1, y1 = deimos_read_amp(hdu, i+1)
                             #, linebias=linebias, nobias=nobias, $
                             #x1=x1, x2=x2, y1=y1, y2=y2, gaindata=gaindata)
         # insert components into output array...
@@ -322,9 +326,9 @@ class DEIMOS_slits(object):
         '''
 
         if isinstance(hdulist, str):
-            hdulist = fits.open(hdulist)
+            hdulist = pyfits.open(hdulist)
         else:
-            assert isinstance(hdulist, fits.hdu.hdulist.HDUList)
+            assert isinstance(hdulist, pyfits.hdu.hdulist.HDUList)
         
         # mask attributes
         self.plate_scale = plate_scale

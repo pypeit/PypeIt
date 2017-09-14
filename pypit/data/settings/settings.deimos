@@ -31,7 +31,8 @@
 # Detector mosaic properties
 ############################
 
-mosaic ndet 8                         # Number of detectors in the mosaic
+#mosaic ndet 8                         # Number of detectors in the mosaic
+mosaic ndet 1                         # Number of detectors in the mosaic
 mosaic longitude 155.47833            # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
 mosaic latitude 19.82833              # Latitude of the telescope
 mosaic elevation 4160.0               # Elevation of the telescope (in m)
@@ -162,8 +163,9 @@ det08 suffix _08
 # Fits header sanity checks
 ###########################
 
-check 01.INSTRUME DEIMOS: real science mosaic CCD subsystem with PowerPC in VME crate
+#check 01.INSTRUME DEIMOS: real science mosaic CCD subsystem with PowerPC in VME crate
 
+check 01.INSTRUME DEIMOS
 # verify that all eight HDUs past the mosaic HDU have 2D images
 check 02.NAXIS 2
 check 03.NAXIS 2
