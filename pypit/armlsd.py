@@ -24,6 +24,7 @@ msgs = armsgs.get_logger()
 
 
 def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
+
     """
     Automatic Reduction and Modeling of Long Slit Data
 
@@ -66,6 +67,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
 
     # Start reducing the data
     for sc in range(numsci):
+
         slf = sciexp[sc]
         scidx = slf._idx_sci[0]
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
@@ -219,23 +221,24 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         ###############
         # Flux
         ###############
-        # Standard star (is this a calibration, e.g. goes above?)
-        msgs.info("Processing standard star")
-        msgs.info("Assuming one star per detector mosaic")
-        msgs.info("Waited until last detector to process")
+        if(settings.argflag['reduce']['calibrate']['flux']==True):
+            # Standard star (is this a calibration, e.g. goes above?)
+            msgs.info("Processing standard star")
+            msgs.info("Assuming one star per detector mosaic")
+            msgs.info("Waited until last detector to process")
 
-        update = slf.MasterStandard(fitsdict)
-        if update and reuseMaster:
-            armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
-        #
-        msgs.work("Consider using archived sensitivity if not found")
-        msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
-        for kk in range(settings.spect['mosaic']['ndet']):
-            det = kk + 1  # Detectors indexed from 1
-            if slf._specobjs[det-1] is not None:
-                arflux.apply_sensfunc(slf, det, scidx, fitsdict)
-            else:
-                msgs.info("There are no objects on detector {0:d} to apply a flux calibration".format(det))
+            update = slf.MasterStandard(fitsdict)
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
+            #
+            msgs.work("Consider using archived sensitivity if not found")
+            msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
+            for kk in range(settings.spect['mosaic']['ndet']):
+                det = kk + 1  # Detectors indexed from 1
+                if slf._specobjs[det-1] is not None:
+                    arflux.apply_sensfunc(slf, det, scidx, fitsdict)
+                else:
+                    msgs.info("There are no objects on detector {0:d} to apply a flux calibration".format(det))
 
         # Write 1D spectra
         save_format = 'fits'

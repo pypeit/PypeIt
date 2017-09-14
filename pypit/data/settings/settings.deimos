@@ -27,6 +27,7 @@
 #    flat, use the canbe option).
 #
 
+
 ############################
 # Detector mosaic properties
 ############################
@@ -59,6 +60,7 @@ det01 xgap 0.0                        # Gap between the square detector pixels (
 det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
 det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
 det01 darkcurr 4.19                   # Dark current (e-/hour)
+det01 platescale 0.1185                # arcsec per pixel in the spatial dimension for an unbinned pixel
 det01 ronoise 2.570                   # Read-out noise (e-)
 det01 gain 1.226                      # Gain (e-/ADU) values
 det01 saturation 65535.0              # The detector Saturation level
@@ -72,6 +74,7 @@ det02 xgap 0.0                        # Gap between the square detector pixels (
 det02 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
 det02 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
 det02 darkcurr 3.46                   # Dark current (e-/hour)
+det02 platescale 0.1185               # arcsec per pixel in the spatial dimension for an unbinned pixel
 det02 ronoise 2.491                   # Read-out noise (e-)
 det02 gain 1.188                      # Gain (e-/ADU) values
 det02 saturation 65535.0              # The detector Saturation level
@@ -85,6 +88,7 @@ det03 xgap 0.0                        # Gap between the square detector pixels (
 det03 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
 det03 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
 det03 darkcurr 4.03                   # Dark current (e-/hour)
+det03 platescale 0.1185                # arcsec per pixel in the spatial dimension for an unbinned pixel
 det03 ronoise 2.618                   # Read-out noise (e-)
 det03 gain 1.248                      # Gain (e-/ADU) values
 det03 saturation 65535.0              # The detector Saturation level
@@ -98,6 +102,7 @@ det04 xgap 0.0                        # Gap between the square detector pixels (
 det04 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
 det04 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
 det04 darkcurr 3.80                   # Dark current (e-/hour)
+det04 platescale 0.1185                # arcsec per pixel in the spatial dimension for an unbinned pixel
 det04 ronoise 2.557                   # Read-out noise (e-)
 det04 gain 1.220                      # Gain (e-/ADU) values
 det04 saturation 65535.0              # The detector Saturation level
@@ -111,6 +116,7 @@ det05 xgap 0.0                        # Gap between the square detector pixels (
 det05 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
 det05 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
 det05 darkcurr 4.71                   # Dark current (e-/hour)
+det05 platescale 0.1185                # arcsec per pixel in the spatial dimension for an unbinned pixel
 det05 ronoise 2.482                   # Read-out noise (e-)
 det05 gain 1.184                      # Gain (e-/ADU) values
 det05 saturation 65535.0              # The detector Saturation level
@@ -124,6 +130,7 @@ det06 xgap 0.0                        # Gap between the square detector pixels (
 det06 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
 det06 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
 det06 darkcurr 4.28                   # Dark current (e-/hour)
+det06 platescale 0.1185                # arcsec per pixel in the spatial dimension for an unbinned pixel
 det06 ronoise 2.469                   # Read-out noise (e-)
 det06 gain 1.177                      # Gain (e-/ADU) values
 det06 saturation 65535.0              # The detector Saturation level
@@ -137,6 +144,7 @@ det07 xgap 0.0                        # Gap between the square detector pixels (
 det07 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
 det07 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
 det07 darkcurr 3.33                   # Dark current (e-/hour)
+det07 platescale 0.1185                # arcsec per pixel in the spatial dimension for an unbinned pixel
 det07 ronoise 2.518                   # Read-out noise (e-)
 det07 gain 1.201                      # Gain (e-/ADU) values
 det07 saturation 65535.0              # The detector Saturation level
@@ -150,6 +158,7 @@ det08 xgap 0.0                        # Gap between the square detector pixels (
 det08 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
 det08 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
 det08 darkcurr 3.69                   # Dark current (e-/hour)
+det08 platescale 0.1185                # arcsec per pixel in the spatial dimension for an unbinned pixel
 det08 ronoise 2.580                   # Read-out noise (e-)
 det08 gain 1.230                      # Gain (e-/ADU) values
 det08 saturation 65535.0              # The detector Saturation level

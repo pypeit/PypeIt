@@ -85,8 +85,8 @@ def read_deimos(raw_file):
     nx=data.shape[0]
     ny=data.shape[1]
 
-    dsec = '[{:d}:{:d},{:d}:{:d}]'.format(postpix+1, nx-precol, y1_dat, y2_dat)  # Eliminate lines
-    osec = '[{:d}:{:d},{:d}:{:d}]'.format(1, postpix, y1_dat, y2_dat)  # Eliminate lines
-    return data, head0, (dsec, osec)
+    dsec = '[{:d}:{:d},{:d}:{:d}]'.format(y1_dat-1, y2_dat,postpix, nx-precol)  # Eliminate lines
+    osec = '[{:d}:{:d},{:d}:{:d}]'.format(y1_dat-1, y2_dat,0, postpix)  # Eliminate lines
+    return data.T, head0, (dsec, osec)
 
 

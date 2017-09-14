@@ -752,7 +752,9 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         sqmstrace[(sqmstrace < 1.0) & (sqmstrace >= 0.0)] = 1.0
         sqmstrace[(sqmstrace > -1.0) & (sqmstrace <= 0.0)] = -1.0
         # Apply a Sobel filter
-        filt = ndimage.sobel(sqmstrace, axis=1, mode='nearest')
+        #filt = ndimage.sobel(sqmstrace, axis=1, mode='nearest')
+        filt = ndimage.sobel(sqmstrace, axis=1, mode='constant')
+        # changed by JFH 09/13 this fixes a bug where slits that run off a detector were not getting identified
         msgs.info("Applying bad pixel mask")
         filt *= (1.0 - binbpx)  # Apply to the bad pixel mask
         siglev = np.sign(filt)*(filt**2)/np.maximum(sqmstrace, min_sqm)
@@ -1020,6 +1022,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         #msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings.argflag['trace']['slits']['fracignore'], int(edgearr.shape[0]*binby)))
         msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings.argflag['trace']['slits']['fracignore'], int(edgearr.shape[0])))
         fracpix = int(settings.argflag['trace']['slits']['fracignore']*edgearr.shape[0])
+        #debugger.set_trace()
         lnc, lxc, rnc, rxc, ldarr, rdarr = arcytrace.ignore_orders(edgearr, fracpix, lmin, lmax, rmin, rmax)
         lmin += lnc
         rmin += rnc
