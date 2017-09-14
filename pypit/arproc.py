@@ -8,6 +8,7 @@ import scipy.interpolate as interp
 from matplotlib import pyplot as plt
 from pypit import arextract
 from pypit import arlris
+from pypit import ardeimos_jfh
 from pypit import armsgs
 from pypit import artrace
 from pypit import arutils
@@ -586,21 +587,19 @@ def get_datasec_trimmed(slf, fitsdict, det, scidx):
             oscansec = "oscansec{0:02d}".format(kk+1)
             settings.spect[dnum][oscansec] = settings.load_sections(secs[1][kk])
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
-    elif settings.argflag['run']['spectrograph'] in ['deimos']
+    elif settings.argflag['run']['spectrograph'] in ['deimos']:
         msgs.info("Parsing datasec and oscansec from headers")
-        temp, head0, secs = ardeimos_jfh.read_lris(fitsdict['directory'][scidx] + fitsdict['filename'][scidx])
+        temp, head0, secs = ardeimos_jfh.read_deimos(fitsdict['directory'][scidx] + fitsdict['filename'][scidx])
         # Naxis
         fitsdict['naxis0'][scidx] = temp.shape[0]
         fitsdict['naxis1'][scidx] = temp.shape[1]
         # Loop on amplifiers
-        for kk in range(settings.spect[dnum]['numamplifiers']):
-            datasec = "datasec{0:02d}".format(kk + 1)
-            settings.spect[dnum][datasec] = settings.load_sections(secs[0][kk])
-            oscansec = "oscansec{0:02d}".format(kk + 1)
-            settings.spect[dnum][oscansec] = settings.load_sections(secs[1][kk])
+        datasec = "datasec{0:02d}".format(1)
+        settings.spect[dnum][datasec] = settings.load_sections(secs[0])
+        oscansec = "oscansec{0:02d}".format(1)
+        settings.spect[dnum][oscansec] = settings.load_sections(secs[1])
     # For convenience
     naxis0, naxis1 = int(fitsdict['naxis0'][scidx]), int(fitsdict['naxis1'][scidx])
-    debugger.set_trace()
     # Initialize the returned array
     retarr = np.zeros((naxis0, naxis1))
     for i in range(settings.spect[dnum]['numamplifiers']):
