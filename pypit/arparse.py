@@ -977,8 +977,10 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['heliocentric', 'barycentric']
+        allowed = ['topocentric', 'heliocentric', 'barycentric']
         v = key_none_allowed(v, allowed)
+        if v == "topocentric":
+            v = None
         self.update(v)
 
     def reduce_calibrate_wavelength(self, v):
