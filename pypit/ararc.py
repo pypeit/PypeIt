@@ -96,7 +96,8 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     xrng = np.arange(float(detns.size))
     yrng = np.zeros(detns.size)
     mask = np.zeros(detns.size, dtype=np.int)
-    mskcnt = 0
+    mask[np.where(detns < 0.0)] = 1.0
+    mskcnt = np.sum(mask)
     while True:
         w = np.where(mask == 0)
         xfit = xrng[w]
@@ -104,7 +105,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
         ct = np.polyfit(xfit, yfit, bpfit)
         yrng = np.polyval(ct, xrng)
         sigmed = 1.4826*np.median(np.abs(detns[w]-yrng[w]))
-        w = np.where(detns > yrng+1.5*sigmed)
+        w = np.where(detns > yrng+1.0*sigmed)
         mask[w] = 1
         if mskcnt == np.sum(mask):
             break  # No new values have been included in the mask
@@ -120,9 +121,10 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     # Find all significant detections
     # The last argument is the overall minimum significance level of an arc line detection and the second
     # last argument is the level required by an individual pixel before the neighbourhood of this pixel is searched.
-    pixt = np.where((yprep/yerr>0.0) & (yprep>np.roll(yprep,1)) & (yprep>=np.roll(yprep,-1))
-                                      & (np.roll(yprep,1)>np.roll(yprep,2)) & (np.roll(yprep,-1)>np.roll(yprep,-2))
-                                      & (np.roll(yprep,2)>np.roll(yprep,3)) & (np.roll(yprep,-2)>np.roll(yprep,-3)))[0]
+    pixt = np.where((yprep/yerr > 0.0) &
+                    (yprep > np.roll(yprep, 1)) & (yprep >= np.roll(yprep, -1)) &
+                    (np.roll(yprep, 1) > np.roll(yprep, 2)) & (np.roll(yprep, -1) > np.roll(yprep, -2)) &
+                    (np.roll(yprep, 2) > np.roll(yprep, 3)) & (np.roll(yprep, -2) > np.roll(yprep, -3)))[0]
     tampl, tcent, twid, ngood = arcyarc.fit_arcorder(xrng, yprep, pixt, fitp)
     w = np.where((~np.isnan(twid)) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
     # Check the results
