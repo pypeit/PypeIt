@@ -93,7 +93,7 @@ The models supplied with PYPIT are,
 
 ================================   ===========
 Filename                           Description
-================================    ===========
+================================   ===========
 paranal_sky.fits 
 sky_LRISb_400.fits                 Mauna Kea sky observed with LRISb and the 400/3400 grism
 sky_LRISb_600.fits                 Mauna Kea sky observed with LRISb and the 600/4000 grism [Default for lris_blue]
