@@ -89,17 +89,17 @@ following line under the ''Reduce'' block in your .pypit file::
 
     reduce flexure spectrum <Name of sky model>
 
-The models supplied with PYPIT are
+The models supplied with PYPIT are,
 
-==================                 ===========
+================================   ===========
 Filename                           Description
-==================                 ===========
+================================    ===========
 paranal_sky.fits 
 sky_LRISb_400.fits                 Mauna Kea sky observed with LRISb and the 400/3400 grism
 sky_LRISb_600.fits                 Mauna Kea sky observed with LRISb and the 600/4000 grism [Default for lris_blue]
 sky_kastb_600.fits                 Mt. Hamilton sky observed with Kastb and the 600 grism [Default for kast_blue]
 sky_LRISr_600_7500_5460_7950.fits
-==================                 ===========
+=================================  ===========
 
 Other
 =====
