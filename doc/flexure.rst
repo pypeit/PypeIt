@@ -49,13 +49,13 @@ By default in ARMLSD, a flexure correction is performed
 on the boxcar extraction of the sky.  This may be disabled
 by the following setting in the .pypit file::
 
-    reduce flexure spec None
+    reduce flexure spectrum None
 
 
 One can alternatively use the optimal extraction (if it is
 performed) with::
 
-    reduce flexure spec optimal
+    reduce flexure spectrum optimal
 
 By default, the maximum shift allowed in pixels is 20.  If
 you suspect a higher shift is required (e.g. results are poor),
@@ -82,7 +82,7 @@ currently is to use the one that best matches as an optional parameter
 You can select a separate model with by setting archive_spec
 in the .pypit file::
 
-    reduce flexure archive_spec filename
+    reduce flexure spectrum filename
 
 The additional models supplied with PYPIT are
 
