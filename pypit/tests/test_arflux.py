@@ -7,6 +7,11 @@ import sys
 import os, pdb
 import pytest
 
+try:
+    tsterror = FileExistsError
+except NameError:
+    FileExistsError = OSError
+
 from astropy import units as u
 from astropy.units import Quantity
 
