@@ -14,6 +14,13 @@ Basic Algorithms
 These notes will describe the algorithms used to perform
 wavelength calibration with PYPIT.
 
+
+Adjusting How PYPIT Runs
+========================
+
+Limit tilt analysis to only the arc lines identified in 1D wavelength solution
+- In 'Reduce' block in pypit file trace slits tilts idsonly True 
+
 Line Lists
 ==========
 
