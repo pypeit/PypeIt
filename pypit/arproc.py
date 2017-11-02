@@ -1284,7 +1284,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         tckx = tckx[np.where((tckx > np.min(spatval[wch])) & (tckx < np.max(spatval[wch])))]
         srt = np.argsort(spatval[wch])
         # Only perform a bspline if there are enough pixels for the specified knots
-        if tckx.size >= 2:
+        if tckx.size >= 1:
             xb, xe = min(np.min(spatval), tckx[0]), max(np.max(spatval), tckx[-1])
             mask, sltspl = arutils.robust_polyfit(spatval[wch][srt], sprof_fit[wch][srt], 3, function='bspline',
                                                   sigma=5., maxone=False, xmin=xb, xmax=xe,
@@ -1416,6 +1416,9 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
         fblz = interp.interp1d(blzx[wnnan], blzmxval[0, wnnan],
                                kind="linear", bounds_error=False, fill_value="extrapolate")
         blzmxval = fblz(blzx).reshape(blzmxval.shape)
+    elif np.all(blznan):
+        msgs.bug("All of the blaze values are NaN... debug")
+        debugger.set_trace()
 
     # Calculate the mean blaze function of all good orders
     blzmean = np.mean(msblaze[:, gds[0]], axis=1)
