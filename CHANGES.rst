@@ -26,6 +26,7 @@
 * Update line detection algorithm
 * Updated flexure documentation
 * Updated docs:added standards.rst, and make a small correction in using script pypit_setup in setup.rst
+* Fixed travis
 
 0.7 (2017-02-07)
 ----------------
