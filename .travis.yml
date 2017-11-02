@@ -1,5 +1,15 @@
-language: python
+# Mimicing Kirkby's speclit travis file
+#
+# We set the language to c because python isn't supported on the MacOS X nodes
+# on Travis. However, the language ends up being irrelevant anyway, since we
+# install Python ourselves using conda.
+language: c
 
+os:
+    - linux
+
+# Setting sudo to false opts in to Travis-CI container-based builds.
+sudo: false
 
 # The apt packages below are needed for sphinx builds, which can no longer
 # be installed with sudo apt-get.
@@ -11,68 +21,108 @@ addons:
             - dvipng
             - libgsl0-dev
 
-python:
-    - 2.7
-    - 3.5
-    - 3.6
-
-    # This is just for "egg_info".  All other builds are explicitly given in the matrix
 env:
     global:
+
         # The following versions are the 'default' for tests, unless
-        # overidden underneath. They are defined here in order to save having
+        # overridden underneath. They are defined here in order to save having
         # to repeat them for all configurations.
-        - NUMPY_VERSION=1.11
-        - ASTROPY_VERSION=1.3
-        - CONDA_INSTALL='conda install -c astropy-ci-extras --yes'
-        - PIP_INSTALL='pip install'
+        - FOLDERNAME='pypit'
+        - PYTHON_VERSION=3.6
+        - ASTROPY_VERSION=stable
+        - NUMPY_VERSION=stable
+        - MAIN_CMD='python setup.py'
+        - SETUP_CMD='test'
+        - CONDA_DEPENDENCIES='scipy h5py pyyaml matplotlib future Cython'
+        - PIP_DEPENDENCIES=''
+        - EVENT_TYPE='pull_request push'
+        - TASK='test'
+
+        # Conda packages for affiliated packages are hosted in channel
+        # "astropy" while builds for astropy LTS with recent numpy versions
+        # are in astropy-ci-extras. If your package uses either of these,
+        # add the channels to CONDA_CHANNELS along with any other channels
+        # you want to use.
+        - CONDA_CHANNELS='astropy-ci-extras'
+
+        # If there are matplotlib or other GUI tests, uncomment the following
+        # line to use the X virtual framebuffer.
+        - SETUP_XVFB=True
 
     matrix:
-        - SETUP_CMD='egg_info'
+      # Extra context is a way to override options that the user normally
+      # specifies during the questions phase of the cookiecutter setup. The keys
+      # being overridden here must exist in the cookiecutter.json
+      # See https://cookiecutter.readthedocs.io/en/0.9.1/advanced_usage.html#injecting-extra-context
+      #- EXTRA_CONTEXT=''
+      #- EXTRA_CONTEXT='include_example_cython_code=y'
+      #- EXTRA_CONTEXT="package_name=AstropyProject" FOLDERNAME='AstropyProject'
+      #- EXTRA_CONTEXT='_parent_project=sunpy'
+      #- TASK='render' EXTRA_CONTEXT='include_example_cython_code=y initialize_git_repo=n'
+      - PYTHON_VERSION=2.7 SETUP_CMD='egg_info'
+      - PYTHON_VERSION=3.6 SETUP_CMD='egg_info'
 
 matrix:
-    include:
 
-        # Do a coverage test in Python 2.
-        #- python: 2.7
+    # Don't wait for allowed failures
+    fast_finish: true
+
+    include:
+        # Try MacOS X
+        #- os: osx
+        #  env: SETUP_CMD='test'
+
+        # Do a coverage test.
+        #- os: linux
         #  env: SETUP_CMD='test --coverage'
 
         # Check for sphinx doc build warnings - we do this first because it
-        # may run for a long time. Add -w flag to fail on any warning.
-        #- python: 2.7
-        #  env: SETUP_CMD='build_sphinx'
-        #- python: 3.4
-        #  env: SETUP_CMD='build_sphinx -w'
+        # may run for a long time
+        #- os: linux
+        #  env: SETUP_CMD='build_docs -w'
 
+        # Now try Astropy dev and LTS vesions with the latest 3.x and 2.7.
+        #- os: linux
+        #  env: PYTHON_VERSION=2.7 ASTROPY_VERSION=development
+        #       EVENT_TYPE='pull_request push cron'
+        - os: linux
+          env: ASTROPY_VERSION=development
+               EVENT_TYPE='pull_request push cron'
+        - os: linux
+          env: PYTHON_VERSION=2.7 ASTROPY_VERSION=lts
+        - os: linux
+          env: ASTROPY_VERSION=lts
 
-        # Try Astropy development version
-        #- python: 2.7
-        #  env: ASTROPY_VERSION=development SETUP_CMD='test'
-        #- python: 3.3
-        #  env: ASTROPY_VERSION=development SETUP_CMD='test'
+        # Try all python versions and Numpy versions. Since we can assume that
+        # the Numpy developers have taken care of testing Numpy with different
+        # versions of Python, we can vary Python and Numpy versions at the same
+        # time.
 
-        # Try all python versions with the latest numpy
-        #- python: 2.6
-        #  env: SETUP_CMD='test'
-        - python: 2.7
-          env: SETUP_CMD='test'
-        #- python: 3.3
-        #  env: SETUP_CMD='test'
-        - python: 3.5
-          env: SETUP_CMD='test'
-        - python: 3.6
-          env: SETUP_CMD='test'
+        - os: linux
+          env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.11
+        #- os: linux
+        #  env: PYTHON_VERSION=3.3 NUMPY_VERSION=1.8
+        #- os: linux
+        #  env: PYTHON_VERSION=3.4 NUMPY_VERSION=1.9
+        #- os: linux
+        #  env: PYTHON_VERSION=3.5 NUMPY_VERSION=1.10
+        - os: linux
+          env: NUMPY_VERSION=1.11
 
-        # Try older numpy versions.
-        #- python: 2.7
-        #  env: NUMPY_VERSION=1.9 SETUP_CMD='test'
-        # Skip these, because the require astropy versions < 1.0
-        #- python: 2.7
-        #  env: NUMPY_VERSION=1.8 SETUP_CMD='test'
-        #- python: 2.7
-        #  env: NUMPY_VERSION=1.7 SETUP_CMD='test'
-        #- python: 2.7
-        #  env: NUMPY_VERSION=1.6 SETUP_CMD='test'
+        # Try numpy pre-release
+        - os: linux
+          env: NUMPY_VERSION=prerelease
+               EVENT_TYPE='pull_request push cron'
+
+        # Do a PEP8 test with pycodestyle
+        - os: linux
+          env: MAIN_CMD='pycodestyle packagename --count' SETUP_CMD=''
+
+    allow_failures:
+        # Do a PEP8 test with pycodestyle
+        # (allow to fail unless your code completely compliant)
+        - os: linux
+          env: MAIN_CMD='pycodestyle packagename --count' SETUP_CMD=''
 
 before_install:
 
@@ -97,54 +147,15 @@ before_install:
 
 install:
 
-    # CONDA
-    - conda create --yes -n test -c astropy-ci-extras python=$TRAVIS_PYTHON_VERSION
-    - source activate test
-    - $CONDA_INSTALL numpy=$NUMPY_VERSION Cython # NEEDED FOR CYTHON
-
-    # CORE DEPENDENCIES
-    - if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION pytest pip Cython jinja2; fi
-    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL pytest-xdist; fi
-
-    # ASTROPY
-    #- if [[ $SETUP_CMD != egg_info ]] && [[ $ASTROPY_VERSION == development ]]; then $PIP_INSTALL git+http://github.com/astropy/astropy.git#egg=astropy; fi
-    #- if [[ $SETUP_CMD != egg_info ]] && [[ $ASTROPY_VERSION == stable ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION astropy; fi
-    - if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION astropy=$ASTROPY_VERSION; fi
-
-    # OPTIONAL DEPENDENCIES
-    # Here you can add any dependencies your package may have. You can use
-    # conda for packages available through conda, or pip for any other
-    # packages. You should leave the `numpy=$NUMPY_VERSION` in the `conda`
-    # install since this ensures Numpy does not get automatically upgraded.
-    - if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION scipy; fi
-    - if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION h5py; fi
-    - if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION pyyaml; fi
-    #- if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION mpmath; fi
+    - git clone git://github.com/astropy/ci-helpers.git
+    - source ci-helpers/travis/setup_conda_$TRAVIS_OS_NAME.sh
     - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/linetools/linetools.git; fi
-    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL future; fi
-    - if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION matplotlib; fi
-
-    # DOCUMENTATION DEPENDENCIES
-    # build_sphinx needs sphinx and matplotlib (for plot_directive). Note that
-    # this matplotlib will *not* work with py 3.x, but our sphinx build is
-    # currently 2.7, so that's fine
-    - if [[ $SETUP_CMD == build_sphinx* ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION Sphinx=1.3; fi
-
-    # COVERAGE DEPENDENCIES
-    #- if [[ $SETUP_CMD == 'test --coverage' ]]; then $PIP_INSTALL coverage coveralls; fi
-    - if [[ $SETUP_CMD == 'test --coverage' ]]; then $PIP_INSTALL coverage==3.7.1 coveralls; fi
-
-before_script:
-  - export SYSTEM_GSL=yes
-  - pkg-config --exists gsl
-  - pkg-config --modversion gsl
-  - pkg-config --libs gsl
+    - conda install numpy
+    - conda install Cython
 
 script:
-   - python setup.py $SETUP_CMD
+    - $MAIN_CMD $SETUP_CMD
+
 
 after_success:
-    # If coveralls.io is set up for this package, uncomment the line
-    # below and replace "packagename" with the name of your package.
-    # The coveragerc file may be customized as needed for your package.
     - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls --rcfile='pypit/tests/coveragerc'; fi
