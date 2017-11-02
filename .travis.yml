@@ -138,7 +138,6 @@ before_install:
     - conda config --set always_yes yes --set changeps1 no
     - conda update --yes conda
     - conda install -c https://conda.anaconda.org/asmeurer gsl
-    - conda install numpy
 
     # UPDATE APT-GET LISTINGS
     - sudo apt-get update
@@ -151,6 +150,7 @@ install:
     - git clone git://github.com/astropy/ci-helpers.git
     - source ci-helpers/travis/setup_conda_$TRAVIS_OS_NAME.sh
     - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/linetools/linetools.git; fi
+    - conda install numpy
 
 script:
     - $MAIN_CMD $SETUP_CMD
