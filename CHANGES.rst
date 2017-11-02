@@ -24,6 +24,7 @@
 * Added support for TNG+Dolores long slit spectrograph
 * Started removing cython code
 * Update line detection algorithm
+* Updated flexure documentation
 * Fixed travis
 
 0.7 (2017-02-07)
