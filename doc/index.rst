@@ -57,6 +57,7 @@ Calibrations
    bias
    tracing
    wave_calib
+   standards
 
 Object Algorithms
 +++++++++++++++++
