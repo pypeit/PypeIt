@@ -1,5 +1,14 @@
-Incomplete list of the calspec standards:
-=========================================
+**************
+Standard Stars
+**************
+
+calspec standards
+=================
+
+The following table is an incomplete list
+of the standard stars we are using from
+the dataset known as calspec, originally
+maintained by STScI.
 
 ========================== ============= ============== ==============
   File                      Name            RA_2000      DEC_2000
