@@ -12,7 +12,7 @@ Flow
 ----
 
 Here is the code flow for the
-`pypit-setup`_ script::
+:ref:`pypit-setup`_ script::
 
    ├── pypit_setup
    |  ├── pyputils.make_pypit_file()
