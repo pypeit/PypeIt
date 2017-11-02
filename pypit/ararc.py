@@ -392,7 +392,7 @@ def simple_calib(slf, det, get_poly=False):
         srt = np.argsort(tampl)
         idx_str = srt[-aparm['Nstrong']:]
         idx_str.sort()
-        dpix_obs = np.zeros((aparm['Nstrong'],aparm['Nstrong']))
+        dpix_obs = np.zeros((aparm['Nstrong'], aparm['Nstrong']))
         for kk,idx in enumerate(idx_str):
             dpix_obs[kk,:] = np.array(tcent[idx] - tcent[idx_str])
 

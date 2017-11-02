@@ -60,7 +60,7 @@ arc calibrate IDwaves []             # Manually set the corresponding ID wavelen
 arc calibrate nfitpix  5             # Number of pixels to fit when deriving the centroid of the arc lines (an odd number is best)
 arc calibrate lamps None           # name of the ions used for the wavelength calibration
 arc calibrate method simple          # What method should be used to fit the individual arc lines (options are: fit, simple); fit is perhaps the most accurate; simple uses a polynomial fit (to the log of a gaussian), is the fastest and is reliable
-arc calibrate detection 6.0         # How significant should the arc line detections be (in units of a standard deviation)
+arc calibrate detection 1.0         # How significant should the arc line detections be (in units of a standard deviation)
 arc calibrate numsearch 20           # Number of brightest arc lines to search for preliminary identification
 
 # BIAS FRAMES
