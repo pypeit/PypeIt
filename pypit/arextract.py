@@ -291,6 +291,10 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
                 msgs.warn("Low extracted flux for obj={:s} in slit {:d}.  Not ready for Optimal".format(specobjs[sl][o].idx,sl+1))
                 scitrace[sl]['opt_profile'].append({})
                 continue
+            elif len(gdrow) >= 0:  # limit is ">= 0" to avoid crash for gdrow=0
+                msgs.warn("Low extracted flux for obj={:s} in slit {:d}.  Not ready for Optimal".format(specobjs[sl][o].idx, sl + 1))
+                scitrace[sl]['opt_profile'].append({})
+                continue
     # QA
     if doqa: #not msgs._debug['no_qa'] and doqa:
         msgs.info("Preparing QA for spatial object profiles")

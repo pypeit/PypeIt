@@ -63,7 +63,8 @@ def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
         nl, nr = 0, 0
         return np.zeros_like(sciframe), nl, nr
     # Calculate the oversampled object profiles
-    xedges, modvals = object_profile(slf, sciframe, slitn, det, refine=refine, factor=3)
+    oversampling_factor = 3 # should be an integer according to the description in object_profile()
+    xedges, modvals = object_profile(slf, sciframe, slitn, det, refine=refine, factor=oversampling_factor)
     bincent = 0.5*(xedges[1:]+xedges[:-1])
     npix = slf._pixwid[det - 1][slitn]
     tilts = slf._tilts[det - 1].copy()
@@ -89,18 +90,29 @@ def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
     if wl[0].size != 0:
         # This is the index of the first time where the object profile
         # no longer decreases as you move towards the slit edge
-        nl = np.max(wl[0])
+        nl_index = np.max(wl[0])
+        # Calculate nl, defined as:
+        # "number of pixels from the left slit edge to use as background pixels",
+        # which is just nl_index with the sampling factor taken out
+        nl_index_origscale = int(nl_index/oversampling_factor+0.5)
+        nl = nl_index_origscale
     if wr[0].size != 0:
         # This is the index of the first time where the object profile
         # no longer decreases as you move towards the slit edge
-        nr = npix - np.min(wr[0])
+        nr_index = np.min(wr[0])
+        # Calculate nr, defined as:
+        # "number of pixels from the right slit edge to use as background pixels",
+        # which is npix minus nr_index with the sampling factor taken out
+        nr_index_origscale = int(nr_index/oversampling_factor+0.5)
+        nr = npix - nr_index_origscale
     if nl+nr < 5:
         msgs.warn("The object profile appears to extrapolate to the edge of the slit")
         msgs.info("A background subtraction will not be performed for slit {0:d}".format(slitn+1))
         nl, nr = 0, 0
         return np.zeros_like(sciframe), nl, nr
     # Find background pixels and fit
-    wbgpix = np.where((spatval <= float(nl)/npix) | (spatval >= float(nr)/npix))
+    wbgpix_spatval = np.where((spatval <= float(nl)/npix) | (spatval >= float(npix-nr)/npix)) # this cannot be used to index the 2D array tilts
+    wbgpix = (word[0][wbgpix_spatval], word[1][wbgpix_spatval]) # this may be approproate for indexing the 2D array tilts
     if settings.argflag['reduce']['skysub']['method'].lower() == 'bspline':
         msgs.info("Using bspline sky subtraction")
         srt = np.argsort(tilts[wbgpix])
@@ -1417,7 +1429,7 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
                                kind="linear", bounds_error=False, fill_value="extrapolate")
         blzmxval = fblz(blzx).reshape(blzmxval.shape)
     elif np.all(blznan):
-        msgs.bug("All of the blaze values are NaN... debug")
+        msgs.bug("All of the blaze values are NaN... time to debug")
         debugger.set_trace()
 
     # Calculate the mean blaze function of all good orders
