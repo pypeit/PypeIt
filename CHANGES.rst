@@ -22,7 +22,9 @@
 * Enable archiving/loading sensitivity function
 * Add new cosmic ray algorithms for coadding (especially pairs of spectra)
 * Added support for TNG+Dolores long slit spectrograph
-* Removed several pieces of cython code
+* Started removing cython code
+* Update line detection algorithm
+* Updated flexure documentation
 * Updated slit trace algorithm
 
 0.7 (2017-02-07)
