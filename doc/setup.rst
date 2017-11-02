@@ -251,6 +251,6 @@ After making modifications,
 remove the existing .setup file and rerun the pypit_setup
 script on the modified .pypit file, e.g.::
 
-    pypit_setup -pyp_file lris_blue_2016-Nov-23.pypit lris_blue
+    pypit_setup -pypit_file lris_blue_2016-Nov-23.pypit lris_blue
 
 
