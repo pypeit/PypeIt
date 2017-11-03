@@ -121,7 +121,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     # Find all significant detections
     # The last argument is the overall minimum significance level of an arc line detection and the second
     # last argument is the level required by an individual pixel before the neighbourhood of this pixel is searched.
-    pixt = np.where((yprep/yerr > 0.0) &
+    pixt = np.where((yprep/yerr > 0.0) & (yprep < slf._nonlinear[det-1]) &
                     (yprep > np.roll(yprep, 1)) & (yprep >= np.roll(yprep, -1)) &
                     (np.roll(yprep, 1) > np.roll(yprep, 2)) & (np.roll(yprep, -1) > np.roll(yprep, -2)) &
                     (np.roll(yprep, 2) > np.roll(yprep, 3)) & (np.roll(yprep, -2) > np.roll(yprep, -3)))[0]
