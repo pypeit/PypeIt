@@ -121,10 +121,11 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     # Find all significant detections
     # The last argument is the overall minimum significance level of an arc line detection and the second
     # last argument is the level required by an individual pixel before the neighbourhood of this pixel is searched.
-    pixt = np.where((yprep/yerr > 0.0) & (yprep < slf._nonlinear[det-1]) &
+    pixt = np.where((yprep/yerr > 0.0) &# (yprep < slf._nonlinear[det-1]) &
                     (yprep > np.roll(yprep, 1)) & (yprep >= np.roll(yprep, -1)) &
                     (np.roll(yprep, 1) > np.roll(yprep, 2)) & (np.roll(yprep, -1) > np.roll(yprep, -2)) &
-                    (np.roll(yprep, 2) > np.roll(yprep, 3)) & (np.roll(yprep, -2) > np.roll(yprep, -3)))[0]
+                    (np.roll(yprep, 2) > np.roll(yprep, 3)) & (np.roll(yprep, -2) > np.roll(yprep, -3)) &
+                    (np.roll(yprep, 3) > np.roll(yprep, 4)) & (np.roll(yprep, -3) > np.roll(yprep, -4)))[0]
     tampl, tcent, twid, ngood = arcyarc.fit_arcorder(xrng, yprep, pixt, fitp)
     w = np.where((~np.isnan(twid)) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
     # Check the results
@@ -162,15 +163,15 @@ def setup_param(slf, sc, det, fitsdict):
         n_first=1,           # Order of polynomial for first fit
         n_final=4,           # Order of polynomial for final fit
         nsig_rej=2.,         # Number of sigma for rejection
-        nsig_rej_final=3.0,  # Number of sigma for rejection (final fit)
+        nsig_rej_final=2.0,  # Number of sigma for rejection (final fit)
         Nstrong=13)          # Number of lines for auto-analysis
-
 
     modify_dict = None
     # Instrument/disperser specific
     sname = settings.argflag['run']['spectrograph']
     idx = settings.spect['arc']['index'][sc]
     disperser = fitsdict["dispname"][idx[0]]
+    binspatial, binspectral = settings.parse_binning(fitsdict['binning'][idx[0]])
     if sname == 'kast_blue':
         # Could have the following depend on lamps that were turned on
         lamps = ['CdI','HgI','HeI']
@@ -188,12 +189,12 @@ def setup_param(slf, sc, det, fitsdict):
         #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
         if disperser == '600/7500':
             arcparam['disp']=1.30
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
             arcparam['wvmnx'][0] = 5000.
             arcparam['n_first']=2 # Should be able to lock on
         elif disperser == '1200/5000':
             arcparam['disp']=0.63
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
             arcparam['wvmnx'][0] = 5000.
             arcparam['n_first']=2 # Should be able to lock on
             arcparam['wv_cen'] = 6600.
@@ -204,12 +205,12 @@ def setup_param(slf, sc, det, fitsdict):
         #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
         if disperser == '600/7500':
             arcparam['disp']=2.35
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
             arcparam['wvmnx'][0] = 5000.
             arcparam['n_first']=2 # Should be able to lock on
         elif disperser == '1200/5000':
             arcparam['disp']=1.17
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
             arcparam['wvmnx'][0] = 5000.
             arcparam['n_first']=2 # Should be able to lock on
         else:
@@ -240,26 +241,28 @@ def setup_param(slf, sc, det, fitsdict):
         arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['WAVELEN']
         lamps = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
         if disperser == '600/7500':
-            arcparam['n_first']=3 # Too much curvature for 1st order
+            arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['disp_toler']=0.05 # Tolerance of dispersion
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
             arcparam['wvmnx'][1] = 11000.
+            arcparam['Nstrong'] = 30
         elif disperser == '600/10000':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
             arcparam['wvmnx'][1] = 12000.
         elif disperser == '400/8500':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=1.19 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
             arcparam['wvmnx'][1] = 11000.
             arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
             arcparam['nsig_rej_final'] = 5.
         elif disperser == '900/5500':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.53 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
             arcparam['wvmnx'][1] = 7000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
@@ -286,7 +289,7 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['wvmnx'][0] = 4470.0
             arcparam['wvmnx'][1] = 10073.0
             arcparam['wv_cen'] = 7400.
-            arcparam['b1'] = 1. / arcparam['disp'] / slf._msarc[det - 1].shape[0]
+            arcparam['b1'] = 1. / arcparam['disp'] / slf._msarc[det - 1].shape[0] / binspectral
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     else:
@@ -303,8 +306,8 @@ def setup_param(slf, sc, det, fitsdict):
     arcparam['llist'] = ararclines.load_arcline_list(slf, idx, lamps, disperser,
         wvmnx=arcparam['wvmnx'], modify_parse_dict=modify_dict)
     # Binning
-    binspatial, binspectral = settings.parse_binning(fitsdict['binning'][idx[0]])
     arcparam['disp'] *= binspectral
+
     # Return
     return arcparam
 
