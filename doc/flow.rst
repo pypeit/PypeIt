@@ -11,8 +11,7 @@ Setup
 Flow
 ----
 
-Here is the code flow for the
-:ref:`pypit-setup`_ script::
+Here is the code flow for the :ref:`pypit-setup` script::
 
    ├── pypit_setup
    |  ├── pyputils.make_pypit_file()
