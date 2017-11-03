@@ -24,6 +24,7 @@
 * Added support for TNG+Dolores long slit spectrograph
 * Started removing cython code
 * Update line detection algorithm
+* Added documentation for tilt tracing
 
 0.7 (2017-02-07)
 ----------------
