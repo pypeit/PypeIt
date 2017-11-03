@@ -24,7 +24,9 @@
 * Added support for TNG+Dolores long slit spectrograph
 * Started removing cython code
 * Update line detection algorithm
-* Added documentation for tilt tracing
+* Updated flexure and tilt tracing documentation
+* Updated docs:added standards.rst, and make a small correction in using script pypit_setup in setup.rst
+* Fixed travis
 
 0.7 (2017-02-07)
 ----------------
