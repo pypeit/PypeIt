@@ -208,7 +208,7 @@ class ScienceExposure:
                 bpix = arproc.badpix(self, det, self.GetMasterFrame('bias', det))
         else:
             # Instrument dependent
-            if settings.argflag['run']['spectrograph'] in ['lris_red']:
+            if settings.argflag['run']['spectrograph'] in ['keck_lris_red']:
                 bpix = arlris.bpm(self, 'red', fitsdict, det)
             else:
                 msgs.info("Not preparing a bad pixel mask")

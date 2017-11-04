@@ -585,7 +585,7 @@ def get_datasec_trimmed(slf, fitsdict, det, scidx):
     dnum = settings.get_dnum(det)
 
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
-    if settings.argflag['run']['spectrograph'] in ['lris_blue', 'lris_red']:
+    if settings.argflag['run']['spectrograph'] in ['keck_lris_blue', 'keck_lris_red']:
         msgs.info("Parsing datasec and oscansec from headers")
         temp, head0, secs = arlris.read_lris(fitsdict['directory'][scidx]+
                                              fitsdict['filename'][scidx],

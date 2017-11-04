@@ -186,9 +186,9 @@ def flexure_archive():
     root = settings.argflag['run']['pypitdir']
     if settings.argflag['reduce']['flexure']['spectrum'] is None:
         # Red or blue?
-        if settings.argflag['run']['spectrograph'] in ['kast_blue']:
+        if settings.argflag['run']['spectrograph'] in ['shane_kast_blue']:
             skyspec_fil = 'sky_kastb_600.fits'
-        elif settings.argflag['run']['spectrograph'] in ['lris_blue']:
+        elif settings.argflag['run']['spectrograph'] in ['keck_lris_blue']:
             skyspec_fil = 'sky_LRISb_600.fits'
         else:
             skyspec_fil = 'paranal_sky.fits'

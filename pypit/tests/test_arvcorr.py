@@ -49,7 +49,7 @@ def test_geocorrect(fitsdict):
     """
     """
     # Initialize some settings
-    arutils.dummy_settings(spectrograph='kast_blue')#, set_idx=False)
+    arutils.dummy_settings(spectrograph='shane_kast_blue')#, set_idx=False)
     # Load Dummy self
     slf = arutils.dummy_self(fitsdict=fitsdict)
     # Specobjs

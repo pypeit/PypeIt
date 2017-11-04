@@ -172,7 +172,7 @@ def setup_param(slf, sc, det, fitsdict):
     idx = settings.spect['arc']['index'][sc]
     disperser = fitsdict["dispname"][idx[0]]
     binspatial, binspectral = settings.parse_binning(fitsdict['binning'][idx[0]])
-    if sname == 'kast_blue':
+    if sname == 'shane_kast_blue':
         # Could have the following depend on lamps that were turned on
         lamps = ['CdI','HgI','HeI']
         #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_blue.lst'
@@ -184,7 +184,7 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['wv_cen'] = 4250.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-    elif sname=='kast_red':
+    elif sname=='shane_kast_red':
         lamps = ['NeI']
         #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
         if disperser == '600/7500':
@@ -200,7 +200,7 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['wv_cen'] = 6600.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-    elif sname=='kast_red_ret':
+    elif sname=='shane_kast_red_ret':
         lamps = ['NeI']
         #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
         if disperser == '600/7500':
@@ -215,7 +215,7 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['n_first']=2 # Should be able to lock on
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-    elif sname=='lris_blue':
+    elif sname=='keck_lris_blue':
         lamps = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI','CdI','HgI']
         if disperser == '600/4000':
             arcparam['n_first']=2 # Too much curvature for 1st order
@@ -237,7 +237,7 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['disp'] = 1.43
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-    elif sname=='lris_red':
+    elif sname=='keck_lris_red':
         arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['WAVELEN']
         lamps = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
         if disperser == '600/7500':
@@ -266,7 +266,7 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['wvmnx'][1] = 7000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-    elif sname=='isis_blue':
+    elif sname=='wht_isis_blue':
         modify_dict = dict(NeI={'min_wave': 3000.,'min_intensity': 299,
                                 'min_Aki': 0.},ArI={'min_intensity': 399.})
         lamps=['CuI','NeI','ArI']
@@ -280,7 +280,7 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-    elif sname == 'dolores':
+    elif sname == 'tng_dolores':
         lamps = ['NeI', 'HgI']
         if disperser == 'LR-R':
             arcparam['n_first'] = 2  # Too much curvature for 1st order
