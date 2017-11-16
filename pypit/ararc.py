@@ -121,11 +121,12 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     # Find all significant detections
     # The last argument is the overall minimum significance level of an arc line detection and the second
     # last argument is the level required by an individual pixel before the neighbourhood of this pixel is searched.
-    pixt = np.where((yprep/yerr > 0.0) &# (yprep < slf._nonlinear[det-1]) &
+    pixt = np.where((yprep/yerr > 0.0) &  # (yprep < slf._nonlinear[det-1]) &
                     (yprep > np.roll(yprep, 1)) & (yprep >= np.roll(yprep, -1)) &
-                    (np.roll(yprep, 1) > np.roll(yprep, 2)) & (np.roll(yprep, -1) > np.roll(yprep, -2)) &
-                    (np.roll(yprep, 2) > np.roll(yprep, 3)) & (np.roll(yprep, -2) > np.roll(yprep, -3)) &
-                    (np.roll(yprep, 3) > np.roll(yprep, 4)) & (np.roll(yprep, -3) > np.roll(yprep, -4)))[0]
+                    (np.roll(yprep, 1) > np.roll(yprep, 2)) & (np.roll(yprep, -1) > np.roll(yprep, -2)) &#)[0]
+                    (np.roll(yprep, 2) > np.roll(yprep, 3)) & (np.roll(yprep, -2) > np.roll(yprep, -3)))[0]
+#                    (np.roll(yprep, 3) > np.roll(yprep, 4)) & (np.roll(yprep, -3) > np.roll(yprep, -4)) & # )[0]
+#                    (np.roll(yprep, 4) > np.roll(yprep, 5)) & (np.roll(yprep, -4) > np.roll(yprep, -5)))[0]
     tampl, tcent, twid, ngood = arcyarc.fit_arcorder(xrng, yprep, pixt, fitp)
     w = np.where((~np.isnan(twid)) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
     # Check the results
@@ -163,7 +164,7 @@ def setup_param(slf, sc, det, fitsdict):
         n_first=1,           # Order of polynomial for first fit
         n_final=4,           # Order of polynomial for final fit
         nsig_rej=2.,         # Number of sigma for rejection
-        nsig_rej_final=2.0,  # Number of sigma for rejection (final fit)
+        nsig_rej_final=3.0,  # Number of sigma for rejection (final fit)
         Nstrong=13)          # Number of lines for auto-analysis
 
     modify_dict = None
@@ -342,6 +343,10 @@ def simple_calib(slf, det, get_poly=False):
 
     # Read Arc linelist
     llist = aparm['llist']
+
+    # np.savetxt("lines.wav", llist['wave'].data)
+    # np.savetxt("lines.pix", tcent)
+    # debugger.set_trace()
 
     # IDs were input by hand
     if len(settings.argflag['arc']['calibrate']['IDpixels']) > 0:
@@ -557,14 +562,16 @@ def calib_with_arclines(slf, det, get_poly=False, use_basic=False):
     final_fit : dict
       Dict of fit info
     """
-    from arclines.holy.grail import basic, semi_brute
+    from arclines.holy.grail import basic, semi_brute, general
     # Parameters (just for convenience)
     aparm = slf._arcparam[det-1]
     # Extract the arc
     msgs.work("Detecting lines..")
     tampl, tcent, twid, w, satsnd, spec = detect_lines(slf, det, slf._msarc[det-1])
 
-    if use_basic:
+    if True:
+        best_dict, final_fit = general(spec, aparm['lamps'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
+    elif use_basic:
         # Go
         stuff = basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
         status, ngd_match, match_idx, scores, final_fit = stuff
