@@ -1,0 +1,141 @@
+### Detector properties
+mosaic ndet 2                         # Number of detectors in the mosaic
+mosaic longitude 155.47833            # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+mosaic latitude 19.82833              # Latitude of the telescope
+mosaic elevation 4160.0               # Elevation of the telescope (in m)
+mosaic minexp 1.0                     # Minimum exposure time (s)
+mosaic reduction ARMLSD               # Which reduction pipeline should be used for this instrument
+mosaic camera LRISr                   # Which reduction pipeline should be used for this instrument
+
+det01 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
+det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
+det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)
+det01 darkcurr 0.0                    # Dark current (e-/hour)
+det01 platescale 0.135                # arcsec per pixel in the spatial dimension for an unbinned pixel
+det01 saturation 65535.0              # The detector Saturation level
+det01 nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det01 numamplifiers 2                 # Number of amplifiers
+det01 gain 1.255,1.18                 # Gain (e-/ADU) values for the 2 amplifers
+det01 ronoise 4.64,4.76               # RN (e-) for the 2 amplifers
+det01 suffix _01red                   # Suffix to be appended to all saved calibration and extraction frames
+## PULL THE FOLLOWING FROM THE HEADER WHEN POSSIBLE (FOR BINNING ESPECIALLY)##
+det02 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
+det02 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
+det02 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)
+det02 platescale 0.135                # arcsec per pixel in the spatial dimension for an unbinned pixel
+det02 darkcurr 0.0                    # Dark current (e-/hour)
+det02 saturation 65535.0              # The detector Saturation level
+det02 nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det02 numamplifiers 2                 # Number of amplifiers
+det02 gain 1.191,1.162                # Gain (e-/ADU) values for the 2 amplifers
+det02 ronoise 4.54,4.62               # RN (e-) for the 2 amplifers
+det02 suffix _02red                   # Suffix to be appended to all saved calibration and extraction frames
+
+
+### Checks to perform
+check 01.INSTRUME LRIS                 # THIS IS A MUST! It checks the instrument
+check 02.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 03.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 04.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 05.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 02.CCDGEOM LBNL Thick High-Resistivity   # Check the CCD name (replace any spaces with underscores)
+check 02.CCDNAME 19-3                  # Check the CCD name (replace any spaces with underscores)
+check 04.CCDNAME 19-2                  # Check the CCD name (replace any spaces with underscores)
+
+### Keyword Identifiers
+keyword target 01.TARGNAME             # Header keyword for the name given by the observer to a given frame
+keyword exptime 01.ELAPTIME            # Exposure time keyword
+keyword filter1 01.BLUFILT             # Filter 1
+keyword hatch 01.TRAPDOOR              # Hatch
+keyword lampname01 MERCURY             # Name of a lamp
+keyword lampstat01 01.MERCURY          # Status of a lamp
+keyword lampname02 NEON                # Name of a lamp
+keyword lampstat02 01.NEON             # Status of a lamp
+keyword lampname03 ARGON               # Name of a lamp
+keyword lampstat03 01.ARGON            # Status of a lamp
+keyword lampname04 CADMIUM             # Name of a lamp
+keyword lampstat04 01.CADMIUM          # Status of a lamp
+keyword lampname05 ZINC                # Name of a lamp
+keyword lampstat05 01.ZINC             # Status of a lamp
+keyword lampname06 KRYPTON             # Name of a lamp
+keyword lampstat06 01.KRYPTON          # Status of a lamp
+keyword lampname07 XENON               # Name of a lamp
+keyword lampstat07 01.XENON            # Status of a lamp
+keyword lampname08 FEARGON             # Name of a lamp
+keyword lampstat08 01.FEARGON          # Status of a lamp
+keyword lampname09 DEUTERIUM           # Name of a lamp
+keyword lampstat09 01.DEUTERI          # Status of a lamp
+keyword lampname10 FLAMP1              # Name of a lamp
+keyword lampstat10 01.FLAMP1           # Status of a lamp
+keyword lampname11 FLAMP2              # Name of a lamp
+keyword lampstat11 01.FLAMP2           # Status of a lamp
+keyword lampname12 HALOGEN             # Name of a lamp
+keyword lampstat12 01.HALOGEN          # Status of a lamp
+keyword dispname 01.GRANAME            # Grating name
+keyword dispangle 01.GRANGLE           # Grating angle
+
+### Fits properties
+fits numhead 5                      # How many headers need to be read in for a given file
+fits headext01 0                    # Extension number of header (one for each headnum, starting with 01)
+fits headext02 1                    # Extension number of header (one for each headnum, starting with 01)
+fits headext03 2                    # Extension number of header (one for each headnum, starting with 01)
+fits headext04 3                    # Extension number of header (one for each headnum, starting with 01)
+fits headext05 4                    # Extension number of header (one for each headnum, starting with 01)
+fits numlamps 12                    # How many lamps are there listed in the header
+
+### Science frames
+science check condition1 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off
+science check condition2 hatch=open # Required for science
+science check condition3 exptime>29 # Arbitrary exptime limit
+
+### Standard Star frames
+standard check condition1 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off
+standard check condition2 hatch=open # Required for standard
+standard match dispname ''             # Check the same decker as the science frame was used
+standard match dichroic ''             # Check the same decker as the science frame was used
+standard match binning ''             # Match the shape of standard and science frames
+standard match dispangle |<=0.02        # Match the grating angle (no idea if this is reasonable for LRISr)
+
+### Bias/Dark frames
+bias check condition1 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off
+bias check condition2 hatch=closed  # Required for bias
+bias check condition3 exptime<1     # Required for bias
+bias match binning ''             		# Match the shape of standard and science frames
+
+### Pixel Flat frames -- Dome Flat required
+pixelflat number 3                    # Number of flat frames to use
+pixelflat check condition1 hatch=open   # Required for pixel flats
+pixelflat check condition2 exptime<30   # Avoid stars
+pixelflat check condition3 lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on
+pixelflat match binning ''             		# Match the shape of standard and science frames
+pixelflat match decker ''             # Check the same decker as the science frame was used
+pixelflat match dichroic ''             # Check the same decker as the science frame was used
+pixelflat match dispname ''             # Check the same decker as the science frame was used
+pixelflat match dispangle |<=0.02        # Match the grating angle (no idea if this is reasonable for LRISr)
+
+### Pinhole frames
+pinhole check condition1 exptime>999999 # Avoids any pinhole frames
+
+### Dark frames
+dark check condition1 exptime>999999 # Avoids any dark frames
+
+### Trace frames
+trace check condition1 hatch=open   # Required for blaze flats
+trace check condition2 exptime<30   # Avoid stars
+trace check condition3 lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on
+trace match binning ''                 # Match the shape of trace with science
+trace match decker ''             # Check the same decker as the science frame was used
+trace match dichroic ''             # Check the same decker as the science frame was used
+trace match dispname ''             # Check the same decker as the science frame was used
+trace match dispangle |<=0.02        # Match the grating angle (no idea if this is reasonable for LRISr)
+
+### Arc frames
+arc check condition1 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on|lampstat06=on|lampstat07=on|lampstat08=on
+arc check condition2 hatch=closed # Required for arcs
+arc match binning ''                 # Match the shape of arcs with science
+arc match dichroic ''             # Check the same decker as the science frame was used
+arc match dispname ''             # Check the same decker as the science frame was used
+arc match dispangle |<=0.02           # Match the grating angle (no idea if this is reasonable for LRISr)
+
+# Make some changes to the arguments and flags
+settings trace dispersion direction 0
