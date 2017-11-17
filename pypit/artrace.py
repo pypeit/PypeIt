@@ -441,7 +441,7 @@ def trace_object_dict(nobj, traces, object=None, background=None, params=None, t
 def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
                  triml=None, trimr=None, sigmin=2.0, bgreg=None,
                  maskval=-999999.9, slitn=0, doqa=True,
-                 xedge=0.03, fwhm=3., tracedict=None):
+                 xedge=0.03, fwhm=3., tracedict=None, standard=False):
     """ Finds objects, and traces their location on the detector
 
     Parameters
@@ -580,6 +580,31 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
         msgs.warn("Removed objects near the slit edges")
     #
     nobj = objl.size
+
+    if settings.argflag['science']['extraction']['manual01']['params'] is not None and not standard:
+        msgs.info('Manual extraction desired. Rejecting all automatically detected objects for now.')
+        # Work on: Instead of rejecting all objects, prepend the manual extraction object?
+
+        if settings.argflag['science']['extraction']['manual01']['params'][0] == det:
+            nobj = 1
+            cent_spatial_manual = settings.argflag['science']['extraction']['manual01']['params'][1]
+            # Entered into .pypit file in this format: [det, x_pixel_location, y_pixel_location,[x_range, y_range]]
+            # 1 or x_pixel_location is spatial pixel; 2 or y_pixel_location is dispersion/spectral pixel
+            width_spatial_manual = settings.argflag['science']['extraction']['manual01']['params'][3][0]
+            objl = np.array([int(cent_spatial_manual - slf._lordloc[det - 1][cent_spatial_manual]) - width_spatial_manual])
+            objr = np.array([int(cent_spatial_manual - slf._lordloc[det - 1][cent_spatial_manual]) + width_spatial_manual])
+            bckl = np.zeros((trcprof.shape[0], objl.shape[0]))
+            bckr = np.zeros((trcprof.shape[0], objl.shape[0]))
+
+            for o in range(nobj):
+                for x in range(1, bgreg + 1):
+                    if objl[o] - x >= 0:
+                        bckl[objl[o] - x, o] = 1
+                    if objr[o] + x <= trcprof.shape[0] - 1:
+                        bckr[objr[o] + x, o] = 1
+        else:
+            nobj = 0
+
     if nobj == 1:
         msgs.info("Found {0:d} object".format(objl.size))
         msgs.info("Tracing {0:d} object".format(objl.size))
