@@ -37,79 +37,6 @@ cdef extern from "gsl/gsl_multifit.h":
 
 
 #@cython.boundscheck(False)
-def detections_sigma(np.ndarray[DTYPE_t, ndim=1] pixels not None,
-                    np.ndarray[DTYPE_t, ndim=1] errors not None,
-                    np.ndarray[ITYPE_t, ndim=1] satmask not None,
-                    double thresh, double detect):
-    cdef int sz_p, flag
-    cdef int p, c, d, npc, inum
-    cdef double psum, esum, mnum
-
-    sz_p = pixels.shape[0]
-    cdef np.ndarray[ITYPE_t, ndim=1] pixcen = np.zeros(sz_p, dtype=ITYPE)
-
-    c = 0
-    npc = 0
-    p = 1
-    pixcen[0] = -1
-    while p < sz_p-1:
-        pixcen[p] = -1
-        # If you have a saturated pixel, ignore it
-        if satmask[p] == 1:
-            c = 0
-            while satmask[p+c] == 1:
-                pixcen[p+c] = -1
-                c += 1
-                if p+c >= sz_p:
-                    break
-            p += c
-            if p >= sz_p: break
-            else: continue
-        if pixels[p]/errors[p] >= thresh and pixels[p+1] > pixels[p]:
-            psum = pixels[p]
-            esum = errors[p]*errors[p]
-            mnum = pixels[p]
-            inum = p
-            c=1
-            while pixels[p-c] < pixels[p-c+1]:
-                psum += pixels[p-c]
-                esum += errors[p-c]*errors[p-c]
-                c += 1
-                if p-c < 0: break
-                if pixels[p-c] <= 0.0: break
-            d=1
-            flag = 0
-            while True:
-                # Test if the peak of the emission line has been reached, and we are now decreasing in flux.
-                if p+d >= (sz_p-1):
-                    break
-                if pixels[p+d] > pixels[p+d-1] and pixels[p+d] > pixels[p+d+1]:
-                    flag = 1
-                pixcen[p+d] = -1
-                psum += pixels[p+d]
-                esum += errors[p+d]*errors[p+d]
-                if pixels[p+d]>mnum:
-                    mnum = pixels[p+d]
-                    inum = p+d
-                d += 1
-                if p+d >= sz_p:
-                    break
-                if pixels[p+d] > pixels[p+d-1] and flag == 1: break
-                if pixels[p+d] <= 0.0: break
-            p += d
-            #print p, npc, psum, csqrt(esum), c, d, psum/csqrt(esum)
-            if psum/csqrt(esum) >= detect and d+c >= 6:
-                pixcen[npc] = inum
-                npc += 1
-                psum = 0.0
-            if p >= sz_p: break
-        else:
-            p += 1
-            if p >= sz_p: break
-    return pixcen, npc
-
-
-#@cython.boundscheck(False)
 def fit_arcorder(np.ndarray[DTYPE_t, ndim=1] xarray not None,
                 np.ndarray[DTYPE_t, ndim=1] yarray not None,
                 np.ndarray[ITYPE_t, ndim=1] pixt not None,
@@ -287,37 +214,6 @@ def order_saturation(np.ndarray[ITYPE_t, ndim=2] satmask not None,
                     ordsat[y,o] = 1
                     break
     return ordsat
-
-
-#@cython.boundscheck(False)
-def remove_similar(np.ndarray[ITYPE_t, ndim=1] array not None,
-                    int numl):
-
-    cdef int i, ii, sz_i, skipone
-
-    ii=0
-    sz_i = array.shape[0]
-
-    cdef np.ndarray[ITYPE_t, ndim=1] outarr = np.zeros(sz_i, dtype=ITYPE)
-
-    skipone = 0
-    for i in range(sz_i-1):
-        if skipone == 1:
-            skipone = 0
-            continue
-        if array[i+1]-array[i] > 5:
-            outarr[ii] = array[i]
-            ii += 1
-        else:
-            outarr[ii] = array[i]
-            ii += 1
-            skipone=1
-    if skipone == 0:
-        outarr[ii] = array[sz_i-1]
-        ii += 1
-    for i in range(ii,sz_i):
-        outarr[i] = -1
-    return outarr
 
 
 #@cython.boundscheck(False)

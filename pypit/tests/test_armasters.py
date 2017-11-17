@@ -18,10 +18,10 @@ from pypit import armasters
 def test_master_name():
     """ Test master name method
     """
-    types = ['bias', 'badpix', 'trace', 'normpixelflat', 'arc', 'wave', 'wave_calib', 'tilts']
+    types = ['bias', 'badpix', 'trace', 'normpixelflat', 'arc', 'wave', 'wv_calib', 'tilts']
     suff = ['Bias', 'BadPix', 'Trace', 'FlatField', 'Arc', 'Wave', 'WaveCalib', 'Tilts']
     for isuff,itype in zip(suff,types):
-        if itype == 'wave_calib':
+        if itype == 'wv_calib':
             exten = 'json'
         else:
             exten = 'fits'

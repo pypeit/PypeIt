@@ -39,6 +39,7 @@ def parser(options=None):
     parser.add_argument("-v", "--verbosity", type=int, default=2, help="(2) Level of verbosity (0-2)")
     parser.add_argument("-m", "--use_masters", default=False, action='store_true', help="Load previously generated MasterFrames")
     parser.add_argument("-d", "--develop", default=False, action='store_true', help="Turn develop debugging on")
+    parser.add_argument("--devtest", default=False, action='store_true', help="Running development tests")
     parser.add_argument("--debug_arc", default=False, action='store_true', help="Turn wavelength/arc debugging on")
     #parser.add_argument("-q", "--quick", default=False, help="Quick reduction", action="store_true")
     #parser.add_argument("-c", "--cpus", default=False, help="Number of CPUs for parallel processing", action="store_true")
@@ -80,11 +81,11 @@ def main(args):
     # Execute the reduction, and catch any bugs for printout
     if debug['develop']:
         pypit.PYPIT(args.pypit_file, progname=pypit.__file__, quick=qck, ncpus=cpu, verbosity=args.verbosity,
-              use_masters=args.use_masters, logname=logname, debug=debug)
+              use_masters=args.use_masters, devtest=args.devtest, logname=logname, debug=debug)
     else:
         try:
             pypit.PYPIT(args.pypit_file, progname=pypit.__file__, quick=qck, ncpus=cpu, verbosity=args.verbosity,
-                  use_masters=args.use_masters, logname=logname, debug=debug)
+                  use_masters=args.use_masters, devtest=args.devtest, logname=logname, debug=debug)
         except:
             # There is a bug in the code, print the file and line number of the error.
             et, ev, tb = sys.exc_info()

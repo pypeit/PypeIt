@@ -11,7 +11,7 @@ from pypit import arparse as settings
 from pypit import armsgs
 from pypit import arsort
 from pypit import arsciexp
-from pypit import arutils
+from pypit import arparse
 
 # Logging
 msgs = armsgs.get_logger()
@@ -60,8 +60,25 @@ def SetupScience(fitsdict):
     sciexp = []
     for i in range(numsci):
         sciexp.append(arsciexp.ScienceExposure(i, fitsdict, do_qa=do_qa))
+
     # Generate setup and group dicts
     setup_dict = {}
+    if settings.argflag['reduce']['masters']['force']:
+        # Check that setup was input
+        if len(settings.argflag['reduce']['masters']['setup']) == 0:
+            msgs.error("Need to specify   reduce masters setup   in your PYPIT file!")
+        # setup_dict
+        setup = settings.argflag['reduce']['masters']['setup']
+        setup_dict = {}
+        setup_dict[setup[0]] = {}
+        for ii in range(1,20): # Dummy detectors
+            setup_dict[setup[0]][arparse.get_dnum(ii)] = dict(binning='1x1')
+        setup_dict[setup[0]][setup[-2:]] = {}
+        iSCI = filesort['science']
+        setup_dict[setup[0]][setup[-2:]]['sci'] = [fitsdict['filename'][i] for i in iSCI]
+        # Write
+        calib_file = arsort.write_calib(setup_dict)
+        return sciexp, setup_dict
     # Run through the setups to fill setup_dict
     setupIDs = []
     for sc in range(numsci):
@@ -125,7 +142,7 @@ def SetupScience(fitsdict):
             msgs.info("Set 'run calcheck False' to continue with data reduction")
             msgs.info("*********************************************************")
             # Instrument specific (might push into a separate file)
-            if settings.argflag['run']['spectrograph'] in ['lris_blue']:
+            if settings.argflag['run']['spectrograph'] in ['keck_lris_blue']:
                 if settings.argflag['reduce']['flatfield']['useframe'] in ['pixelflat']:
                     msgs.warn("We recommend a slitless flat for your instrument.")
             return 'calcheck', None

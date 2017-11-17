@@ -155,12 +155,6 @@ class Messages:
         Close the log file and QA PDFs before the code exits
         """
         from pypit import arqa
-        # Master Frames
-        if self._debug['develop'] and (self.sciexp is not None):
-            from pypit import armasters
-            from pypit import arparse as settings
-            armasters.save_masters(self.sciexp, self.sciexp.det,
-                                   settings.argflag['reduce']['masters']['setup'])
         # QA HTML
         if self.pypit_file is not None:  # Likely testing
             try:
@@ -198,7 +192,7 @@ class Messages:
         # Print command line usage
         if usage:
             self.usage(None)
-        sys.exit()
+        sys.exit(1)
 
     def info(self, msg):
         """

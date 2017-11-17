@@ -122,7 +122,7 @@ def load_headers(datlines):
             fitsdict['utc'].append(None)
             msgs.warn("UTC is not listed as a header keyword in file:"+msgs.newline()+datlines[i])
         # Read binning-dependent detector properties here? (maybe read speed too)
-        #if settings.argflag['run']['spectrograph'] in ['lris_blue']:
+        #if settings.argflag['run']['spectrograph'] in ['keck_lris_blue']:
         #    arlris.set_det(fitsdict, headarr[k])
         # Now get the rest of the keywords
         for kw in keys:
@@ -230,7 +230,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
     msgs.work("Implement multiprocessing here (better -- at the moment it's slower than not) to speed up data reading")
     for i in range(np.size(ind)):
         # Instrument specific read
-        if settings.argflag['run']['spectrograph'] in ['lris_blue', 'lris_red']:
+        if settings.argflag['run']['spectrograph'] in ['keck_lris_blue', 'keck_lris_red']:
             temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         else:
             hdulist = pyfits.open(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]])
@@ -342,14 +342,15 @@ def load_master(name, exten=0, frametype='<None>'):
 
     Returns
     -------
-    frame : ndarray
+    frame : ndarray or dict
       The data from the master calibration frame
+    head : str (or None)
     """
     if frametype == 'wv_calib':
         from linetools import utils as ltu
         msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
         ldict = ltu.loadjson(name)
-        return ldict
+        return ldict, None
     elif frametype == 'sensfunc':
         import yaml
         from astropy import units as u
@@ -357,13 +358,16 @@ def load_master(name, exten=0, frametype='<None>'):
             sensfunc = yaml.load(f)
         sensfunc['wave_max'] = sensfunc['wave_max']*u.AA
         sensfunc['wave_min'] = sensfunc['wave_min']*u.AA
-        return sensfunc
+        return sensfunc, None
     else:
         msgs.info("Loading a pre-existing master calibration frame")
         try:
             hdu = pyfits.open(name)
         except IOError:
-            msgs.error("Master calibration file does not exist:"+msgs.newline()+name)
+            if settings.argflag['reduce']['masters']['force']:
+                msgs.error("Master calibration file does not exist:"+msgs.newline()+name)
+            else:
+                msgs.error("Could not properly ready Master calibration file:"+msgs.newline()+name)
         msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
         head = hdu[0].header
         data = hdu[exten].data.astype(np.float)

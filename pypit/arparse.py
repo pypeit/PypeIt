@@ -977,8 +977,10 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['heliocentric', 'barycentric']
+        allowed = ['topocentric', 'heliocentric', 'barycentric']
         v = key_none_allowed(v, allowed)
+        if v == "topocentric":
+            v = None
         self.update(v)
 
     def reduce_calibrate_wavelength(self, v):
@@ -1108,8 +1110,21 @@ class BaseArgFlag(BaseFunctions):
             v = ''
         self.update(v)
 
-    def reduce_masters_loaded(self, v):
+    def reduce_masters_force(self, v):
+        """ Use only MasterFrame files for the reduction.
+        The specific setup must also be provided in the PYPIT file
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
         """
+        v = key_bool(v)
+        self.update(v)
+
+    def reduce_masters_loaded(self, v):
+        """ This generates a dummy list that is populated as the
+        master frames are generated.  It should not be set by the user.
 
         Parameters
         ----------
@@ -1120,7 +1135,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def reduce_masters_reuse(self, v):
-        """
+        """ If a MasterFrame file exists, use it instead of remaking the calib file
 
         Parameters
         ----------
@@ -1131,7 +1146,9 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def reduce_masters_setup(self, v):
-        """
+        """Setup name to be used in tandem with reduce_masters_force, e.g. C_02_aa
+        The detector number is ignored but the other information must match the
+        Master Frames in the master frame folder
 
         Parameters
         ----------
@@ -3796,10 +3813,18 @@ def load_sections(string, fmt_iraf=True):
         xyarrx = [0, 0]
     else:
         xyarrx = xyrng[0].split(':')
+        # If a lower/upper limit on the array slicing is not given (e.g. [:100] has no lower index specified),
+        # set the lower/upper limit to be the first/last index.
+        if len(xyarrx[0]) == 0: xyarrx[0] = 0
+        if len(xyarrx[1]) == 0: xyarrx[1] = -1
     if xyrng[1] == ":":
         xyarry = [0, 0]
     else:
         xyarry = xyrng[1].split(':')
+        # If a lower/upper limit on the array slicing is not given (e.g. [5:] has no upper index specified),
+        # set the lower/upper limit to be the first/last index.
+        if len(xyarry[0]) == 0: xyarry[0] = 0
+        if len(xyarry[1]) == 0: xyarry[1] = -1
     if fmt_iraf:
         xmin = max(0, int(xyarry[0])-1)
         xmax = int(xyarry[1])

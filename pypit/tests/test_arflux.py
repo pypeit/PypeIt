@@ -7,6 +7,11 @@ import sys
 import os, pdb
 import pytest
 
+try:
+    tsterror = FileExistsError
+except NameError:
+    FileExistsError = OSError
+
 from astropy import units as u
 from astropy.units import Quantity
 
@@ -32,7 +37,7 @@ def test_gen_sensfunc():
     specobjs = arload.load_specobj(sfile)
     # Settings, etc.
     arutils.dummy_settings()
-    settings.argflag['run']['spectrograph'] = 'kast_blue'
+    settings.argflag['run']['spectrograph'] = 'shane_kast_blue'
     settings.argflag['reduce']['masters']['setup'] = 'C_01_aa'
     settings.spect['arc'] = {}
     settings.spect['arc']['index'] = [[0]]

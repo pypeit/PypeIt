@@ -21,7 +21,7 @@ def fitsdict():
 def test_ampsec(fitsdict):
     """ Test sort_data
     """
-    arutils.dummy_settings(spectrograph='kast_blue')
+    arutils.dummy_settings(spectrograph='shane_kast_blue')
     slf = arutils.dummy_self()
     # Run
     det, scidx = 1, 5

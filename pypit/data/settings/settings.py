@@ -148,7 +148,7 @@ def spect_diff_and_dup():
     basespect.set_paramlist(base_lines)
 
     # ARMLSD instruments
-    for specname in ['kast_blue', 'kast_red', 'lris_blue', 'lris_red', 'isis_blue']:
+    for specname in ['shane_kast_blue', 'shane_kast_red', 'keck_lris_blue', 'keck_lris_red', 'wht_isis_blue']:
         msgs.info("===============================================")
         msgs.info("Working on {:s}".format(specname))
         spect = arparse.get_spect_class(('ARMLSD', specname, ".tmp"))

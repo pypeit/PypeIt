@@ -102,4 +102,5 @@ arc match naxis1 =0                 # Match the shape of arcs with science
 arc match dispangle |<=1              # Match the disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
 
 # Make some changes to the arguments and flags
+settings arc calibrate method simple
 settings trace dispersion direction 0

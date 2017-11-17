@@ -19,6 +19,7 @@ kast_red        Lick 3m     Kast dual spectrometer; red camera
 lris_blue       Keck        LRIS spectrometer; blue camera
 lris_red        Keck        LRIS spectrometer; red camera
 isis_blue       WHT         ISIS spectrometer; blue camera?
+dolores         TNG         DOLORES (LRS) spectrograph; LR-R
 =============== =========   ===================================
 
 

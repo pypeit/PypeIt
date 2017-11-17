@@ -27,7 +27,7 @@ def test_setup_param():
     arut.dummy_settings()
     # Load Dummy self
     slf = arut.dummy_self()
-    settings.argflag['run']['spectrograph'] = 'kast_blue'
+    settings.argflag['run']['spectrograph'] = 'shane_kast_blue'
     settings.spect['arc'] = {}
     settings.spect['arc']['index'] = [[0]]
     fitsdict = arut.dummy_fitsdict()
