@@ -20,10 +20,10 @@ det01 gain 1.2,1.2                    # Inverse gain (e-/ADU)
 det01 ronoise 3.7,3.7                 # Read-out noise (e-)
 det01 suffix _blue                    # Suffix to be appended to all saved calibration and extraction frames
 det01 dataext01 0                     # Extension number of the data
-det01 datasec01 [1:1024,:]        # Either the data sections or the header keyword where the valid data sections can be obtained
-det01 oscansec01 [2050:2080,:]    # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
-det01 datasec02 [1025:2048,:]     # Either the data sections or the header keyword where the valid data sections can be obtained
-det01 oscansec02 [2081:2111,:]    # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+det01 datasec01 [0:1024,:]        # Either the data sections or the header keyword where the valid data sections can be obtained
+det01 oscansec01 [2049:2080,:]    # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+det01 datasec02 [1024:2048,:]     # Either the data sections or the header keyword where the valid data sections can be obtained
+det01 oscansec02 [2080:2111,:]    # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
 
 ### Checks to perform
 check 01.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
