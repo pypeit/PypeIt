@@ -18,8 +18,8 @@ det01 saturation 65535.0              # The detector Saturation level
 det01 nonlinear 0.8                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det01 numamplifiers 1                 # Number of amplifiers
 det01 dataext01 0                     # Extension number of the data
-det01 datasec01 [0:4608,0:2047]       # Either the data sections or the header keyword where the valid data sections can be obtained
-det01 oscansec01 [0:4608,2049:2080]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+det01 datasec01 [1:2047,1:4608]       # Either the data sections or the header keyword where the valid data sections can be obtained
+det01 oscansec01 [2050:2080,1:4608]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
 det01 suffix None                    # Suffix to be appended to all saved calibration and extraction frames
 
 ### Checks to perform
