@@ -104,8 +104,6 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
             arrcen = smedgehist[2:-2]
             arrrgt = smedgehist[3:-1]
             arrrfr = smedgehist[4:]
-#            wpk = np.where((arrcen >= arrlft) & (arrcen > arrrgt) &  # Exactly one of these should be >=
-#                           ((arrlft > arrlfr) | (arrrgt > arrrfr)))[0]
             wpk = np.where((arrcen >= arrlft) & (arrcen > arrrgt) &  # Exactly one of these should be >=
                            ((arrlft > arrlfr) | (arrrgt > arrrfr)))[0]
             if wpk.size == 0:
@@ -122,7 +120,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
             if np.all(pedges[:, 1]-pedges[:, 0] == 0):
                 # Remaining peaks have no width
                 break
-            if False:#msgs._debug['trace'] and False:
+            if msgs._debug['trace']:
                 plt.clf()
                 plt.plot(arrcen, 'k-', drawstyle='steps')
                 plt.plot(wpk, np.zeros(wpk.size), 'ro')

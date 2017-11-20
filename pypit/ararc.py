@@ -48,7 +48,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
       An index array indicating which detections are the most reliable.
     satsnd : ndarray
       A mask indicating where which pixels contain saturation streaks
-    yprep : ndarray
+    detns : ndarray
       The spectrum used to find detections. This spectrum has
       had any "continuum" emission subtracted off
     """
@@ -82,60 +82,30 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
         satsnd = np.zeros_like(ordcen)
     # Detect the location of the arc lines
     msgs.info("Detecting the strongest, nonsaturated lines")
-    #####
-    # Old algorithm for arc line detection
-#   arcdet = arcyarc.detections_allorders(censpec, satsnd)
-    #####
-    # New algorithm for arc line detection
-    #pixels=[]
-    siglev = settings.argflag['arc']['calibrate']['detection']
-    bpfit = 5  # order of the polynomial used to fit the background 'continuum'
+
     fitp = settings.argflag['arc']['calibrate']['nfitpix']
-    if len(censpec.shape) == 3: detns = censpec[:, 0].flatten()
-    else: detns = censpec.copy()
+    if len(censpec.shape) == 3:
+        detns = censpec[:, 0].flatten()
+    else:
+        detns = censpec.copy()
     xrng = np.arange(float(detns.size))
-    yrng = np.zeros(detns.size)
-    mask = np.zeros(detns.size, dtype=np.int)
-    mask[np.where(detns < 0.0)] = 1.0
-    mskcnt = np.sum(mask)
-    while True:
-        w = np.where(mask == 0)
-        xfit = xrng[w]
-        yfit = detns[w]
-        ct = np.polyfit(xfit, yfit, bpfit)
-        yrng = np.polyval(ct, xrng)
-        sigmed = 1.4826*np.median(np.abs(detns[w]-yrng[w]))
-        w = np.where(detns > yrng + siglev*sigmed)
-        mask[w] = 1
-        if mskcnt == np.sum(mask):
-            break  # No new values have been included in the mask
-        mskcnt = np.sum(mask)
-    w = np.where(mask == 0)
-    xfit = xrng[w]
-    yprep = detns - yrng
-    sfit = 1.4826*np.abs(detns[w]-yrng[w])
-    ct = np.polyfit(xfit, sfit, bpfit)
-    yerr = np.polyval(ct, xrng)
-    myerr = np.median(np.sort(yerr)[:yerr.size//2])
-    yerr[np.where(yerr < myerr)] = myerr
+
     # Find all significant detections
-    # The last argument is the overall minimum significance level of an arc line detection and the second
-    # last argument is the level required by an individual pixel before the neighbourhood of this pixel is searched.
-    pixt = np.where((yprep/yerr > 0.0) &  # (yprep < slf._nonlinear[det-1]) &
-                    (yprep > np.roll(yprep, 1)) & (yprep >= np.roll(yprep, -1)) &
-                    (np.roll(yprep, 1) > np.roll(yprep, 2)) & (np.roll(yprep, -1) > np.roll(yprep, -2)) &#)[0]
-                    (np.roll(yprep, 2) > np.roll(yprep, 3)) & (np.roll(yprep, -2) > np.roll(yprep, -3)))[0]
-#                    (np.roll(yprep, 3) > np.roll(yprep, 4)) & (np.roll(yprep, -3) > np.roll(yprep, -4)) & # )[0]
-#                    (np.roll(yprep, 4) > np.roll(yprep, 5)) & (np.roll(yprep, -4) > np.roll(yprep, -5)))[0]
-    tampl, tcent, twid, ngood = arcyarc.fit_arcorder(xrng, yprep, pixt, fitp)
+    pixt = np.where((detns > 0.0) &  # (detns < slf._nonlinear[det-1]) &
+                    (detns > np.roll(detns, 1)) & (detns >= np.roll(detns, -1)) &
+                    (np.roll(detns, 1) > np.roll(detns, 2)) & (np.roll(detns, -1) > np.roll(detns, -2)) &#)[0]
+                    (np.roll(detns, 2) > np.roll(detns, 3)) & (np.roll(detns, -2) > np.roll(detns, -3)))[0]
+#                    (np.roll(detns, 3) > np.roll(detns, 4)) & (np.roll(detns, -3) > np.roll(detns, -4)) & # )[0]
+#                    (np.roll(detns, 4) > np.roll(detns, 5)) & (np.roll(detns, -4) > np.roll(detns, -5)))[0]
+    tampl, tcent, twid, ngood = arcyarc.fit_arcorder(xrng, detns, pixt, fitp)
     w = np.where((~np.isnan(twid)) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
     # Check the results
     #plt.clf()
-    #plt.plot(xrng,yprep,'k-')
+    #plt.plot(xrng,detns,'k-')
     #plt.plot(tcent,tampl,'ro')
     #plt.show()
     # Return
-    return tampl, tcent, twid, w, satsnd, yprep
+    return tampl, tcent, twid, w, satsnd, detns
 
 
 def setup_param(slf, sc, det, fitsdict):
@@ -242,12 +212,10 @@ def setup_param(slf, sc, det, fitsdict):
         arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['WAVELEN']
         lamps = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
         if disperser == '600/7500':
-            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['n_first']=3 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
-            arcparam['disp_toler']=0.05 # Tolerance of dispersion
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
             arcparam['wvmnx'][1] = 11000.
-            arcparam['Nstrong'] = 30
         elif disperser == '600/10000':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
@@ -343,10 +311,6 @@ def simple_calib(slf, det, get_poly=False):
 
     # Read Arc linelist
     llist = aparm['llist']
-
-    # np.savetxt("lines.wav", llist['wave'].data)
-    # np.savetxt("lines.pix", tcent)
-    # debugger.set_trace()
 
     # IDs were input by hand
     if len(settings.argflag['arc']['calibrate']['IDpixels']) > 0:
@@ -547,7 +511,7 @@ def simple_calib(slf, det, get_poly=False):
     return final_fit
 
 
-def calib_with_arclines(slf, det, get_poly=False, use_basic=False):
+def calib_with_arclines(slf, det, get_poly=False, use_method="general"):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
@@ -566,19 +530,17 @@ def calib_with_arclines(slf, det, get_poly=False, use_basic=False):
     # Parameters (just for convenience)
     aparm = slf._arcparam[det-1]
     # Extract the arc
-    msgs.work("Detecting lines..")
+    msgs.work("Detecting lines")
     tampl, tcent, twid, w, satsnd, spec = detect_lines(slf, det, slf._msarc[det-1])
 
-    if True:
-        best_dict, final_fit = general(spec, aparm['lamps'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
-    elif use_basic:
-        # Go
+    if use_method == "semi-brute":
+        best_dict, final_fit = semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
+    elif use_method == "basic":
         stuff = basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
         status, ngd_match, match_idx, scores, final_fit = stuff
-    else:  # Now preferred
-        best_dict, final_fit = semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
-        #if det == 2:
-        #    debugger.set_trace()
+    else:
+        # Now preferred
+        best_dict, final_fit = general(spec, aparm['lamps'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
     arqa.arc_fit_qa(slf, final_fit)
     #
     return final_fit
