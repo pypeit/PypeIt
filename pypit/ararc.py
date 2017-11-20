@@ -541,7 +541,7 @@ def simple_calib(slf, det, get_poly=False):
     return final_fit
 
 
-def calib_with_arclines(slf, det, get_poly=False, use_basic=False):
+def calib_with_arclines(slf, det, get_poly=False, use_method="general"):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
@@ -560,19 +560,17 @@ def calib_with_arclines(slf, det, get_poly=False, use_basic=False):
     # Parameters (just for convenience)
     aparm = slf._arcparam[det-1]
     # Extract the arc
-    msgs.work("Detecting lines..")
+    msgs.work("Detecting lines")
     tampl, tcent, twid, w, satsnd, spec = detect_lines(slf, det, slf._msarc[det-1])
 
-    if True:
-        best_dict, final_fit = general(spec, aparm['lamps'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
-    elif use_basic:
-        # Go
+    if use_method == "semi-brute":
+        best_dict, final_fit = semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
+    elif use_method == "basic":
         stuff = basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
         status, ngd_match, match_idx, scores, final_fit = stuff
-    else:  # Now preferred
-        best_dict, final_fit = semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
-        #if det == 2:
-        #    debugger.set_trace()
+    else:
+        # Now preferred
+        best_dict, final_fit = general(spec, aparm['lamps'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
     arqa.arc_fit_qa(slf, final_fit)
     #
     return final_fit
