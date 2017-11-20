@@ -242,12 +242,10 @@ def setup_param(slf, sc, det, fitsdict):
         arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['WAVELEN']
         lamps = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
         if disperser == '600/7500':
-            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['n_first']=3 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
-            arcparam['disp_toler']=0.05 # Tolerance of dispersion
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
             arcparam['wvmnx'][1] = 11000.
-            arcparam['Nstrong'] = 30
         elif disperser == '600/10000':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
@@ -343,10 +341,6 @@ def simple_calib(slf, det, get_poly=False):
 
     # Read Arc linelist
     llist = aparm['llist']
-
-    # np.savetxt("lines.wav", llist['wave'].data)
-    # np.savetxt("lines.pix", tcent)
-    # debugger.set_trace()
 
     # IDs were input by hand
     if len(settings.argflag['arc']['calibrate']['IDpixels']) > 0:
