@@ -96,7 +96,7 @@ trace slits pca extrapolate pos     0             # How many extra orders to pre
 trace slits pca extrapolate neg     0             # How many extra orders to predict in the negative direction
 trace slits polyorder  3             # What is the order of the function that should be used?
 trace slits sigdetect  20.0           # Sigma detection threshold for edge detection
-trace slits single []                # Pixel location(s) of left and right edges of trace [left_det01, right_det01], or [[left_det01,right_det01,left_det02,right_det02]]
+trace slits single []                #
 trace slits tilts idsonly False       # Use only the arc lines that have an identified wavelength to trace tilts
 trace slits tilts method      spline        # What method should be used to trace the tilt of the slit along an order (PCA, spca, spline, interp, perp, zero)
 trace slits tilts params    [1,1,0]       # What order polynomials should be used to fit the tilt principle components
@@ -124,7 +124,7 @@ science extraction reuse False        # If the science frame has previously been
 science extraction profile gaussian   # Fitting function used to extract science data, only if the extraction is 2D (options are: gaussian, gaussfunc, moffat, moffatfunc) ### NOTE: options with suffix 'func' fits a function to the pixels whereas those without this suffix takes into account the integrated function within each pixel (and is closer to truth)
 science extraction maxnumber 999      # Maximum number of objects to extract in a science frame
 science extraction manual01 frame None
-science extraction manual01 params None # Info for desired extraction [det,x_pixel_location, y_pixel_location,[x_range,y_range]]
+science extraction manual01 params None
 
 # PINHOLE FRAMES
 pinhole useframe pinhole             # What frame should be used to trace the slit centroid (based on the average of the left/right edges). Must be one of [pinhole, science]

@@ -961,7 +961,7 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
     ###############
     # Find objects and estimate their traces
     scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask,
-                                    bgreg=20, doqa=False)
+                                    bgreg=20, doqa=False, standard=standard)
     if scitrace is None:
         msgs.info("Not performing extraction for science frame"+msgs.newline()+fitsdict['filename'][scidx[0]])
         debugger.set_trace()
@@ -1037,7 +1037,7 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
     if scitrace is None:
         msgs.info("Performing final object trace")
         scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask,
-                                        bgreg=20, doqa=(not standard))
+                                        bgreg=20, doqa=(not standard), standard=standard)
     if standard:
         slf._msstd[det-1]['trace'] = scitrace
         specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict, scitrace, objtype='standard')

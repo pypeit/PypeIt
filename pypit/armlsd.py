@@ -88,8 +88,8 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
             # Setup
             setup = arsort.instr_setup(slf, det, fitsdict, setup_dict, must_exist=True)
-            slf.setup = setup
             settings.argflag['reduce']['masters']['setup'] = setup
+            slf.setup = setup
             ###############
             # Generate master bias frame
             update = slf.MasterBias(fitsdict, det)
@@ -147,7 +147,8 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 msgs.info("Identifying the pixels belonging to each slit")
                 slitpix = arproc.slit_pixels(slf, slf._mstrace[det-1].shape, det)
                 slf.SetFrame(slf._slitpix, slitpix, det)
-
+                # Save to disk
+                armasters.save_masters(slf, det, mftype='trace')
                 # Save QA for slit traces
                 arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
                                        slf._rordpix[det-1], extord,
@@ -163,21 +164,17 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             ###############
             # Derive the spectral tilt
             if slf._tilts[det-1] is None:
-                if settings.argflag['reduce']['masters']['reuse']:
-                    mstilt_name = armasters.master_name('tilts', settings.argflag['reduce']['masters']['setup'])
-                    try:
-                        tilts, head = arload.load_master(mstilt_name, frametype="tilts")
-                    except IOError:
-                        pass
-                    else:
-                        slf.SetFrame(slf._tilts, tilts, det)
-                        settings.argflag['reduce']['masters']['loaded'].append('tilts'+settings.argflag['reduce']['masters']['setup'])
-                if 'tilts'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
+                try:
+                    tilts = armasters.get_master_frame(slf, "tilts")
+                except IOError:
                     # First time tilts are derived for this arc frame --> derive the order tilts
                     tilts, satmask, outpar = artrace.multislit_tilt(slf, slf._msarc[det-1], det)
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
+                    armasters.save_masters(slf, det, mftype='tilts')
+                else:
+                    slf.SetFrame(slf._tilts, tilts, det)
 
             ###############
             # Prepare the pixel flat field frame
@@ -202,7 +199,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             # Write setup
             #setup = arsort.calib_setup(sc, det, fitsdict, setup_dict, write=True)
             # Write MasterFrames (currently per detector)
-            armasters.save_masters(slf, det, setup)
+            #armasters.save_masters(slf, det, setup)
 
             ###############
             # Load the science frame and from this generate a Poisson error frame

@@ -79,7 +79,7 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
                                        (scale/fitsdict['exptime'][scidx])**2)
 
 
-def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
+def bspline_magfit(wave, flux, var, flux_std, **kwargs):
     """
     Perform a bspline fit to the flux ratio of standard to
     observed counts.  Used to generate a sensitivity function.
@@ -93,8 +93,6 @@ def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
       variance
     flux_std : Quantity array
       standard star true flux (erg/s/cm^2/A)
-    nointer : bool, optional [False]
-      Skip interpolation over bad points (not recommended)?
     **kwargs : keywords for robust_polyfit
 
     Returns
@@ -116,6 +114,7 @@ def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
     magfunc = np.minimum(magfunc,25.0)
     sensfunc = 10.0**(0.4*magfunc)*pos_mask
 
+    ''' Ported from LowRedux but this is a bad idea (and wasn't used there anyhow)
     # Interpolate over masked pixels
     if not nointerp:
         bad = logivar <= 0.
@@ -124,6 +123,7 @@ def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
             magfunc[bad] = f(wave[bad])
             fi = scipy.interpolate.InterpolatedUnivariateSpline(wave[~bad], logivar[~bad], k=2)
             logivar[bad] = fi(wave[bad])
+    '''
 
     #  First iteration
     mask, tck = arutils.robust_polyfit(wave, magfunc, 3, function='bspline', weights=np.sqrt(logivar), **kwargs)
@@ -135,6 +135,7 @@ def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
     residual_ivar = (modelfit1*flux/(sensfunc + (sensfunc == 0.0)))**2*invvar
     residual_ivar = residual_ivar*new_mask
 
+    ''' Ported from LowRedux but this is a bad idea (and wasn't used there anyhow)
     # Interpolate over masked pixels
     if not nointerp:
         if np.sum(bad) > 0:
@@ -142,12 +143,14 @@ def bspline_magfit(wave, flux, var, flux_std, nointerp=False, **kwargs):
             residual[bad] = f(wave[bad])
             fi = scipy.interpolate.InterpolatedUnivariateSpline(wave[~bad], residual_ivar[~bad], k=2)
             residual_ivar[bad] = fi(wave[bad])
+    '''
 
     #  Now do one more fit to the ratio of data/model - 1.
     # Fuss with the knots first ()
     inner_knots = arutils.bspline_inner_knots(tck[0])
     #
-    mask, tck_residual = arutils.robust_polyfit(wave, residual, 3, function='bspline', weights=np.sqrt(residual_ivar), knots=inner_knots, **kwargs)
+    mask, tck_residual = arutils.robust_polyfit(wave, residual, 3, function='bspline',
+                                                weights=np.sqrt(residual_ivar), knots=inner_knots, **kwargs)
     if tck_residual[1].size != tck[1].size:
         msgs.error('Problem with bspline knots in bspline_magfit')
     #bset_residual = bspline_iterfit(wave, residual, weights=np.sqrt(residual_ivar), knots = tck[0])
@@ -462,10 +465,14 @@ def generate_sensfunc(slf, stdidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=
     tell = np.any([((wave >= 7580.0*u.AA) & (wave <= 7750.0*u.AA)), ((wave >= 7160.0*u.AA) & (wave <= 7340.0*u.AA)),((wave >= 6860.0*u.AA)  & (wave <= 6930.0*u.AA))],axis=0)
     msk[tell] = False
 
+    # Mask
+    msgs.info("Masking Below the atmospheric cutoff")
+    atms_cutoff = wave <= 3000.0*u.AA
+    msk[atms_cutoff] = False
+
     # Fit in magnitudes
     var_corr[msk == False] = -1.
-    mag_tck = bspline_magfit(wave.value, flux_corr, var_corr, flux_true,
-                             bkspace=resln.value*nresln)
+    mag_tck = bspline_magfit(wave.value, flux_corr, var_corr, flux_true, bkspace=resln.value*nresln)
     sens_dict = dict(c=mag_tck, func='bspline',min=None,max=None, std=std_dict)
     # Add in wavemin,wavemax
     sens_dict['wave_min'] = np.min(wave)

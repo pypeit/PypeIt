@@ -20,7 +20,7 @@ from IPython import embed
 
 
 def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosity=1,
-          use_masters=False, logname=None):
+          use_masters=False, devtest=False, logname=None):
     """ Main driver of the PYPIT code. Default settings and
     user-specified changes are made, and passed to the
     appropriate code for data reduction.
@@ -48,6 +48,8 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
         2 = All output
     use_masters : bool, optional
       Load calibration files from MasterFrames directory, if they exist
+    devtest : bool, optional
+      Running PYPIT-Development suite;  will turn instrument-specific options
     logname : str or None
           The name of an ascii log file which is used to
           save the output details of the reduction
@@ -173,6 +175,12 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     if use_masters:
         argf.set_param('reduce masters reuse True')
     msgs.work("Make appropriate changes to quick reduction")
+    # Load Development suite changes
+    if devtest:
+        msgs.info("Loading instrument specific argurment for Development Suite tests")
+        from pypit import ardevtest
+        ardevtest.set_param(argf, specname)
+
     if quick:
         # If a quick reduction has been requested, make sure the requested pipeline
         # is the quick implementation (if it exists), otherwise run the standard pipeline.
