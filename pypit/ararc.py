@@ -88,7 +88,8 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
         detns = censpec[:, 0].flatten()
     else:
         detns = censpec.copy()
-    xrng = np.arange(float(detns.size))
+    detns = detns.astype(np.float)
+    xrng = np.arange(detns.size, dtype=np.float)
 
     # Find all significant detections
     pixt = np.where((detns > 0.0) &  # (detns < slf._nonlinear[det-1]) &
