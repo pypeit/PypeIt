@@ -67,7 +67,7 @@ def main(args):
     # Add slits
     testing = False
     if testing:
-        mdir = 'MF_lris_blue/'
+        mdir = 'MF_keck_lris_blue/'
         setup = 'A_{:s}_aa'.format(sdet)
     else:
         mdir = head0['PYPMFDIR']+'/'

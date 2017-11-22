@@ -100,7 +100,7 @@ def load_headers(datlines):
             fitsdict['utc'].append(None)
             msgs.warn("UTC is not listed as a header keyword in file:"+msgs.newline()+datlines[i])
         # Read binning-dependent detector properties here? (maybe read speed too)
-        #if settings.argflag['run']['spectrograph'] in ['lris_blue']:
+        #if settings.argflag['run']['spectrograph'] in ['keck_lris_blue']:
         #    arlris.set_det(fitsdict, headarr[k])
         # Now get the rest of the keywords
         for kw in keys:
@@ -201,7 +201,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
     msgs.work("Implement multiprocessing here (better -- at the moment it's slower than not) to speed up data reading")
     for i in range(np.size(ind)):
         # Instrument specific read
-        if settings.argflag['run']['spectrograph'] in ['lris_blue', 'lris_red']:
+        if settings.argflag['run']['spectrograph'] in ['keck_lris_blue', 'keck_lris_red']:
             temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         else:
             hdulist = pyfits.open(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]])
