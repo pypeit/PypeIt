@@ -98,7 +98,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
                     (np.roll(detns, 2) > np.roll(detns, 3)) & (np.roll(detns, -2) > np.roll(detns, -3)))[0]
 #                    (np.roll(detns, 3) > np.roll(detns, 4)) & (np.roll(detns, -3) > np.roll(detns, -4)) & # )[0]
 #                    (np.roll(detns, 4) > np.roll(detns, 5)) & (np.roll(detns, -4) > np.roll(detns, -5)))[0]
-    tampl, tcent, twid = arcyarc.fit_arcorder(xrng, detns, pixt, fitp)
+    tampl, tcent, twid = fit_arcspec(xrng, detns, pixt, fitp)
     w = np.where((~np.isnan(twid)) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
     # Check the results
     #plt.clf()
