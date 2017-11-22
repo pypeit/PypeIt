@@ -57,7 +57,7 @@ Troubleshooting
 Problem with bspline knot
 -------------------------
 Things sometimes go wrong the fluxing and it commonly has to do with 
-the bspline aglorithm. If you reach a stop in the code with a message
+the bspline algorithm. If you reach a stop in the code with a message
 that says "Problem with bspline knot" there are a couple things to check:
 
     - There are instances where there isn't data 
@@ -66,7 +66,7 @@ that says "Problem with bspline knot" there are a couple things to check:
         reduce skysub bspline everyn NUM
       where you adjust NUM. 
     - If your observation of the standard star is taken with a setup that 
-      goes beyond the wavelength range of the version in data/standards/calspec
+      goes beyond the wavelength range of the version in data/standards/calspec.
     - If the wavelength solution is really bad it can manifest as problem in 
       bspline knot. If the issue isn't the spacing or wavelength coverage check
       the QA files to see if there is an issue in the wavelength solution. If 
