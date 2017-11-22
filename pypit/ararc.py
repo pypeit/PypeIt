@@ -98,7 +98,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
                     (np.roll(detns, 2) > np.roll(detns, 3)) & (np.roll(detns, -2) > np.roll(detns, -3)))[0]
 #                    (np.roll(detns, 3) > np.roll(detns, 4)) & (np.roll(detns, -3) > np.roll(detns, -4)) & # )[0]
 #                    (np.roll(detns, 4) > np.roll(detns, 5)) & (np.roll(detns, -4) > np.roll(detns, -5)))[0]
-    tampl, tcent, twid, ngood = arcyarc.fit_arcorder(xrng, detns, pixt, fitp)
+    tampl, tcent, twid = arcyarc.fit_arcorder(xrng, detns, pixt, fitp)
     w = np.where((~np.isnan(twid)) & (twid > 0.0) & (twid < 10.0/2.35) & (tcent > 0.0) & (tcent < xrng[-1]))
     # Check the results
     #plt.clf()
@@ -107,6 +107,30 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     #plt.show()
     # Return
     return tampl, tcent, twid, w, satsnd, detns
+
+
+def fit_arcspec(xarray, yarray, pixt, fitp):
+
+    # Setup the arrays with fit parameters
+    sz_p = pixt.size
+    sz_a = yarray.size
+    ampl, cent, widt = -1.0*np.ones(sz_p, dtype=np.float),\
+                       -1.0*np.ones(sz_p, dtype=np.float),\
+                       -1.0*np.ones(sz_p, dtype=np.float)
+
+    for p in range(sz_p):
+        pmin = pixt[p]-(fitp-1)/2
+        pmax = pixt[p]-(fitp-1)/2 + fitp
+        if pmin < 0: pmin=0
+        if pmax > sz_a: pmax = sz_a
+        if pmin == pmax: continue
+        if pixt[p]-pmin <= 1 or pmax-pixt[p]<=1: continue # Probably won't be a good solution
+        # Fit the gaussian
+        popt = arutils.func_fit(xarray, yarray, "gaussian", 3)
+        ampl[p] = popt[0]
+        cent[p] = popt[1]
+        widt[p] = popt[2]
+    return ampl, cent, widt
 
 
 def setup_param(slf, sc, det, fitsdict):
