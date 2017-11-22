@@ -119,14 +119,18 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
                        -1.0*np.ones(sz_p, dtype=np.float)
 
     for p in range(sz_p):
-        pmin = pixt[p]-(fitp-1)/2
-        pmax = pixt[p]-(fitp-1)/2 + fitp
-        if pmin < 0: pmin=0
-        if pmax > sz_a: pmax = sz_a
-        if pmin == pmax: continue
-        if pixt[p]-pmin <= 1 or pmax-pixt[p]<=1: continue # Probably won't be a good solution
+        pmin = pixt[p]-(fitp-1)//2
+        pmax = pixt[p]-(fitp-1)//2 + fitp
+        if pmin < 0:
+            pmin = 0
+        if pmax > sz_a:
+            pmax = sz_a
+        if pmin == pmax:
+            continue
+        if pixt[p]-pmin <= 1 or pmax-pixt[p] <= 1:
+            continue  # Probably won't be a good solution
         # Fit the gaussian
-        popt = arutils.func_fit(xarray, yarray, "gaussian", 3)
+        popt = arutils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3)
         ampl[p] = popt[0]
         cent[p] = popt[1]
         widt[p] = popt[2]
