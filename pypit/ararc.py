@@ -136,6 +136,7 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
             cent[p] = popt[1]
             widt[p] = popt[2]
         except RuntimeError:
+            msgs.warn("An arc line that could not be fit was rejected")
             pass
     return ampl, cent, widt
 

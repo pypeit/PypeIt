@@ -3802,6 +3802,9 @@ def load_sections(string, fmt_iraf=True):
       x2 = right pixel
       y1 = bottom pixel
       y2 = top pixel
+    fmt_iraf : bool
+      Is the variable string in IRAF format (True) or
+      python format (False)
 
     Returns
     -------
@@ -4054,11 +4057,20 @@ def key_keyword(v, force_format=True):
     ----------
     v : str
       value of a keyword argument
+    force_format : bool
+      If True, v can only have the format of a header keyword.
+      If False, v can take the form of a header keyword, or a
+      user-specified value. In the latter case, the boolean
+      variable 'valid' is returned so the parent function
+      knows if the supplied value of v should be dealt with as
+      a manual entry or as a header keyword.
 
     Returns
     -------
     v : str
       A value used by the settings dictionary
+    valid : bool
+      Is the input a valid header keyword format
     """
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
     func_name = "'" + " ".join(ll) + "'"
