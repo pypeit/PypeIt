@@ -19,9 +19,9 @@ det01 saturation 65535.               # The detector Saturation level
 det01 nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det01 numamplifiers 1                 # Number of amplifiers
 det01 dataext01 1                     # Extension number of the data
-#det01 datasec01 02.TRIMSEC            # Either the data sections or the header keyword where the valid data sections can be obtained (Avoids bad region at top)
-det01 datasec01 [:,2:4030]            # Either the data sections or the header keyword where the valid data sections can be obtained (Avoids bad region at top)
-det01 oscansec01 02.BIASSEC           # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+#det01 datasec01 02.TRIMSEC            # Either the data sections (IRAF format) or the header keyword where the valid data sections can be obtained (Avoids bad region at top)
+det01 datasec01 [:,2:4030]            # Either the data sections (IRAF format) or the header keyword where the valid data sections can be obtained (Avoids bad region at top)
+det01 oscansec01 02.BIASSEC           # Either the overscan sections (IRAF format) or the header keyword where the valid overscan sections can be obtained
 det01 suffix _blue                    # Suffix to be appended to all saved calibration and extraction frames
 
 ### Checks to perform  (white space is removed)
