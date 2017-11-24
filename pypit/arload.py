@@ -1,4 +1,5 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
+from future.utils import iteritems
 
 import os
 import astropy.io.fits as pyfits
@@ -39,6 +40,27 @@ def load_headers(datlines):
     fitsdict : dict
       The relevant header information of all fits files
     """
+    def generate_updates(dct, keylst, keys, whddict, headarr):
+        """ Generate a list of settings to be updated
+        """
+        for (key, value) in iteritems(dct):
+            keys += [str(key)]
+            if isinstance(value, dict):
+                generate_updates(value, keylst, keys, whddict, headarr)
+            else:
+                try:
+                    tfrhd = int(value.split('.')[0]) - 1
+                    kchk = '.'.join(value.split('.')[1:])
+                    frhd = whddict['{0:02d}'.format(tfrhd)]
+                    hdrval = headarr[frhd][kchk]
+                    if keys[0] not in ["check", "keyword"]:
+                        keylst += [str(' ').join(keys) + str(" ") +
+                                   str("{0}\n".format(hdrval).replace(" ", ""))]
+                        keylst[-1] = keylst[-1].split()
+                except (AttributeError, ValueError, KeyError):
+                    pass
+            del keys[-1]
+
     chks = settings.spect['check'].keys()
     keys = settings.spect['keyword'].keys()
     fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
@@ -100,7 +122,7 @@ def load_headers(datlines):
             fitsdict['utc'].append(None)
             msgs.warn("UTC is not listed as a header keyword in file:"+msgs.newline()+datlines[i])
         # Read binning-dependent detector properties here? (maybe read speed too)
-        #if settings.argflag['run']['spectrograph'] in ['lris_blue']:
+        #if settings.argflag['run']['spectrograph'] in ['keck_lris_blue']:
         #    arlris.set_det(fitsdict, headarr[k])
         # Now get the rest of the keywords
         for kw in keys:
@@ -153,7 +175,14 @@ def load_headers(datlines):
             else:
                 msgs.bug("I didn't expect a useful header ({0:s}) to contain type {1:s}".format(kw, typv).replace('<type ','').replace('>',''))
 
-        msgs.info("Successfully loaded headers for file:"+msgs.newline()+datlines[i])
+        msgs.info("Successfully loaded headers for file:" + msgs.newline() + datlines[i])
+
+    # Check if any other settings require header values to be loaded
+    msgs.info("Checking spectrograph settings for required header information")
+    # Just use the header info from the last file
+    keylst = []
+    generate_updates(settings.spect.copy(), keylst, [], whddict, headarr)
+
     # Convert the fitsdict arrays into numpy arrays
     for k in fitsdict.keys():
         fitsdict[k] = np.array(fitsdict[k])
@@ -165,7 +194,7 @@ def load_headers(datlines):
                    "Please check that the settings file matches the data.")
     # Return
     fitsdict['headers'] = allhead
-    return fitsdict
+    return fitsdict, keylst
 
 
 def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
@@ -201,7 +230,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
     msgs.work("Implement multiprocessing here (better -- at the moment it's slower than not) to speed up data reading")
     for i in range(np.size(ind)):
         # Instrument specific read
-        if settings.argflag['run']['spectrograph'] in ['lris_blue', 'lris_red']:
+        if settings.argflag['run']['spectrograph'] in ['keck_lris_blue', 'keck_lris_red']:
             temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         else:
             hdulist = pyfits.open(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]])

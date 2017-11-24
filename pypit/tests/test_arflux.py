@@ -37,7 +37,7 @@ def test_gen_sensfunc():
     specobjs = arload.load_specobj(sfile)
     # Settings, etc.
     arutils.dummy_settings()
-    settings.argflag['run']['spectrograph'] = 'kast_blue'
+    settings.argflag['run']['spectrograph'] = 'shane_kast_blue'
     settings.argflag['reduce']['masters']['setup'] = 'C_01_aa'
     settings.spect['arc'] = {}
     settings.spect['arc']['index'] = [[0]]
@@ -49,7 +49,7 @@ def test_gen_sensfunc():
     slf._sensfunc = arflx.generate_sensfunc(slf, 4, [specobjs], fitsdict)
     # Save
     try:
-        os.mkdir('MF_kast_blue')
+        os.mkdir('MF_shane_kast_blue')
     except FileExistsError:
         pass
     armasters.save_sensfunc(slf, 'C_01_aa')

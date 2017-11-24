@@ -14,6 +14,13 @@ Basic Algorithms
 These notes will describe the algorithms used to perform
 wavelength calibration with PYPIT.
 
+
+Adjusting How PYPIT Runs
+========================
+
+Limit tilt analysis to only the arc lines identified in 1D wavelength solution::
+    trace slits tilts idsonly True 
+
 Line Lists
 ==========
 
@@ -152,8 +159,9 @@ performed).
 
 You can also choose if you want the wavelength scale corrected
 to the heliocentric (Sun-centered), barycentric (Solar system
-barycentre), or none (no correction). This option is governed
-by the command::
+barycentre), or topocentric (telescope centered). None is also
+an option, but this defaults to topocentric. This option
+is governed by the command::
 
     reduce calibrate refframe barycentric
 

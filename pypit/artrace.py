@@ -18,6 +18,11 @@ msgs = armsgs.get_logger()
 
 from pypit import ardebug as debugger
 
+try:
+    ustr = unicode
+except NameError:
+    ustr = str
+
 
 def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
     """
@@ -81,7 +86,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
             # Calculate the offset
             offs = binarr.shape[1]
             # Add these into edgehist
-            edgehist[offs] = ww[0].size
+            edgehist[offs] = np.sum(binarr[ww])#ww[0].size
             # And a fudge to give this edge detection some width (for peak finding, below)
             edgehist[offs-1] = 1 + ww[0].size/2
             edgehist[offs+1] = 1 + ww[0].size/2
@@ -94,7 +99,8 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
                 break
             shft = www[1] - ww[1][www[0]]  # Calculate the shift between right edges
             shft += offs  # Apply the offset to the edgehist arr
-            arcytrace.edge_sum(edgehist, shft)
+            #np.add.at(edgehist, shft, 1)
+            np.add.at(edgehist, shft, binarr[ww[0], :][www])
             # Smooth the histogram with a Gaussian of standard deviation 1 pixel to reduce noise
             smedgehist = ndimage.uniform_filter1d(edgehist, 3)
             # Identify peaks (which indicate the locations of the right slit edges)
@@ -109,7 +115,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
                 # No more peaks
                 break
             if wpk.size != 1:
-                wpkmsk = arcytrace.prune_peaks(smedgehist, wpk, np.where(wpk+2 == offs)[0][0])
+                wpkmsk = prune_peaks(smedgehist, wpk, np.where(wpk+2 == offs)[0][0])
                 wpk = wpk[np.where(wpkmsk == 1)]
             if wpk.size == 0:
                 # After pruning, there are no more peaks
@@ -119,11 +125,12 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
             if np.all(pedges[:, 1]-pedges[:, 0] == 0):
                 # Remaining peaks have no width
                 break
-            if msgs._debug['trace'] and False:
+            if msgs._debug['trace']:
                 plt.clf()
                 plt.plot(arrcen, 'k-', drawstyle='steps')
                 plt.plot(wpk, np.zeros(wpk.size), 'ro')
                 plt.show()
+                debugger.set_trace()
             # Label all edge ids (in the original edgearr) that are located in each peak with the same number
             for ii in range(pks.size):
                 shbad = np.zeros(edgearr.shape)
@@ -153,7 +160,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
                                                       settings.argflag['trace']['slits']['function'],
                                                       minv=0, maxv=binarr.shape[0]-1)
                     diff = 50 + np.round(diff).astype(np.int)
-                    arcytrace.edge_sum(smallhist, diff)
+                    np.add.at(smallhist, diff, 1)
                     meddiff[vv] = np.median(diff)
                 # Find the peaks of this distribution
                 wspk = np.where((smallhist[1:-1] >= smallhist[2:]) & (smallhist[1:-1] > smallhist[:-2]))[0]
@@ -437,7 +444,7 @@ def trace_object_dict(nobj, traces, object=None, background=None, params=None, t
 def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
                  triml=None, trimr=None, sigmin=2.0, bgreg=None,
                  maskval=-999999.9, slitn=0, doqa=True,
-                 xedge=0.03, fwhm=3., tracedict=None):
+                 xedge=0.03, fwhm=3., tracedict=None, standard=False):
     """ Finds objects, and traces their location on the detector
 
     Parameters
@@ -576,6 +583,31 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
         msgs.warn("Removed objects near the slit edges")
     #
     nobj = objl.size
+
+    if settings.argflag['science']['extraction']['manual01']['params'] is not None and not standard:
+        msgs.info('Manual extraction desired. Rejecting all automatically detected objects for now.')
+        # Work on: Instead of rejecting all objects, prepend the manual extraction object?
+
+        if settings.argflag['science']['extraction']['manual01']['params'][0] == det:
+            nobj = 1
+            cent_spatial_manual = settings.argflag['science']['extraction']['manual01']['params'][1]
+            # Entered into .pypit file in this format: [det, x_pixel_location, y_pixel_location,[x_range, y_range]]
+            # 1 or x_pixel_location is spatial pixel; 2 or y_pixel_location is dispersion/spectral pixel
+            width_spatial_manual = settings.argflag['science']['extraction']['manual01']['params'][3][0]
+            objl = np.array([int(cent_spatial_manual - slf._lordloc[det - 1][cent_spatial_manual]) - width_spatial_manual])
+            objr = np.array([int(cent_spatial_manual - slf._lordloc[det - 1][cent_spatial_manual]) + width_spatial_manual])
+            bckl = np.zeros((trcprof.shape[0], objl.shape[0]))
+            bckr = np.zeros((trcprof.shape[0], objl.shape[0]))
+
+            for o in range(nobj):
+                for x in range(1, bgreg + 1):
+                    if objl[o] - x >= 0:
+                        bckl[objl[o] - x, o] = 1
+                    if objr[o] + x <= trcprof.shape[0] - 1:
+                        bckr[objr[o] + x, o] = 1
+        else:
+            nobj = 0
+
     if nobj == 1:
         msgs.info("Found {0:d} object".format(objl.size))
         msgs.info("Tracing {0:d} object".format(objl.size))
@@ -760,16 +792,22 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         wr = np.where(siglev < -settings.argflag['trace']['slits']['sigdetect'])  # A negative gradient is a right edge
         tedges[wl] = -1.0
         tedges[wr] = +1.0
-        # import astropy.io.fits as pyfits
-        # hdu = pyfits.PrimaryHDU(filt)
-        # hdu.writeto("filt_{0:02d}.fits".format(det))
-        # hdu = pyfits.PrimaryHDU(sqmstrace)
-        # hdu.writeto("sqmstrace_{0:02d}.fits".format(det))
-        # hdu = pyfits.PrimaryHDU(binarr)
-        # hdu.writeto("binarr_{0:02d}.fits".format(det))
-        # hdu = pyfits.PrimaryHDU(siglev)
-        # hdu.writeto("siglev_{0:02d}.fits".format(det))
-        nedgear = arcytrace.clean_edges(siglev, tedges)
+        import astropy.io.fits as pyfits
+        hdu = pyfits.PrimaryHDU(filt)
+        hdu.writeto("filt_{0:02d}.fits".format(det), overwrite=True)
+        hdu = pyfits.PrimaryHDU(sqmstrace)
+        hdu.writeto("sqmstrace_{0:02d}.fits".format(det), overwrite=True)
+        hdu = pyfits.PrimaryHDU(binarr)
+        hdu.writeto("binarr_{0:02d}.fits".format(det), overwrite=True)
+        hdu = pyfits.PrimaryHDU(siglev)
+        hdu.writeto("siglev_{0:02d}.fits".format(det), overwrite=True)
+        # Clean the edges
+        wcl = np.where((ndimage.maximum_filter1d(siglev, 10, axis=1) == siglev) & (tedges == -1))
+        wcr = np.where((ndimage.minimum_filter1d(siglev, 10, axis=1) == siglev) & (tedges == +1))
+        nedgear = np.zeros(siglev.shape, dtype=np.int)
+        nedgear[wcl] = -1
+        nedgear[wcr] = +1
+        #nedgear = arcytrace.clean_edges(siglev, tedges)
         if maskBadRows:
             msgs.info("Searching for bad pixel rows")
             edgsum = np.sum(nedgear, axis=0)
@@ -1258,6 +1296,10 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
             lnmbrarr = np.append(lnmbrarr, np.zeros(armax-almax))
             lwghtarr = np.append(lwghtarr, np.zeros(armax-almax))
 
+    # import astropy.io.fits as pyfits
+    # hdu = pyfits.PrimaryHDU(edgearr)
+    # hdu.writeto("edgearr_{0:02d}.fits".format(det))
+
     # Now consider traces where both the left and right edges are detected
     ordunq = np.unique(edgearr)
     lunqt = ordunq[np.where(ordunq < 0)[0]]
@@ -1301,7 +1343,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         fitted, outpar = arpca.basis(xcen, slitcen, coeffs, lnpc, ofit, x0in=ordsnd, mask=maskord,
                                      skipx0=False, function=settings.argflag['trace']['slits']['function'])
         if not msgs._debug['no_qa']:
-            arpca.pc_plot(slf, outpar, ofit, pcadesc=pcadesc)
+            arqa.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc)
         # Extrapolate the remaining orders requested
         orders = 1+np.arange(totord)
         extrap_cent, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
@@ -1369,7 +1411,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
                                          x0in=ordsnd, mask=maskrw, skipx0=False,
                                          function=settings.argflag['trace']['slits']['function'])
             if not msgs._debug['no_qa']:
-                arpca.pc_plot(slf, outpar, ofit, pcadesc=pcadesc, addOne=False)
+                arqa.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc, addOne=False)
             # Now extrapolate to the whole detector
             pixpos = np.arange(binarr.shape[1])
             extrap_trc, outpar = arpca.extrapolate(outpar, pixpos,
@@ -1400,6 +1442,21 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         lcen = lcent[ww, :].T.copy()
         rcen = rcent[ww, :].T.copy()
         extrapord = np.zeros(lcen.shape[1], dtype=np.bool)
+
+    # Remove any slits that are completely off the detector
+    nslit = lcen.shape[1]
+    mask = np.zeros(nslit)
+    for o in range(nslit):
+        if np.min(lcen[:, o]) > mstrace.shape[1]:
+            mask[o] = 1
+            msgs.info("Slit {0:d} is off the detector - ignoring this slit".format(o+1))
+        elif np.max(rcen[:, o]) < 0:
+            mask[o] = 1
+            msgs.info("Slit {0:d} is off the detector - ignoring this slit".format(o + 1))
+    wok = np.where(mask == 0)[0]
+    lcen = lcen[:, wok]
+    rcen = rcen[:, wok]
+
     # Interpolate the best solutions for all orders with a cubic spline
     #msgs.info("Interpolating the best solutions for all orders with a cubic spline")
     # zmin, zmax = arplot.zscale(binarr)
@@ -1666,11 +1723,11 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
                 break
             # yfit = msarc[pcen-nspecfit:pcen+nspecfit+1,ordcen[arcdet[j],0]+k]
             yfit = msarc[pcen-nspecfit:pcen+nspecfit+1, ordcen[arcdet[j], slitnum]+k-nsmth:ordcen[arcdet[j], slitnum]+k+nsmth+1]
-            if len(yfit.shape) == 2:
-                yfit = np.median(yfit, axis=1)
             if np.size(yfit) == 0:
                 offchip = True
                 break
+            if len(yfit.shape) == 2:
+                yfit = np.median(yfit, axis=1)
             # wgd = np.where((yfit<satval)&(yfit!=maskval))
             wgd = np.where(yfit == maskval)
             if wgd[0].size != 0:
@@ -1856,10 +1913,16 @@ def trace_weighted(frame, ltrace, rtrace, mask=None, wght="flux"):
     ridx = int(np.floor(np.max(rtrace)))+1
     if lidx < 0:
         lidx = 0
+    elif lidx >= nspat:
+        msgs.info("Slit is off the detector - not tracing")
+        return None, None
     if ridx >= nspat:
         ridx = nspat-1
+    elif ridx <= 0:
+        msgs.info("Slit is off the detector - not tracing")
+        return None, None
     extfram = frame[:, lidx:ridx+1]
-    if isinstance(wght, (str, unicode)):
+    if isinstance(wght, (str, ustr)):
         if wght == "flux":
             extwght = extfram.copy()
         elif wght == "uniform":
@@ -1882,11 +1945,12 @@ def trace_weighted(frame, ltrace, rtrace, mask=None, wght="flux"):
     extwght[rwhr] *= -rdiff[rwhr]
     # Apply mask
     if mask is not None:
-        extwght[np.where(mask[:,lidx:ridx+1] != 0)] *= 0.0
+        extwght[np.where(mask[:, lidx:ridx+1] != 0)] *= 0.0
     # Determine the weighted trace
     wghtsum = np.sum(extwght, axis=1)
-    trace = np.sum(idxarr*extwght, axis=1)/wghtsum
-    error = np.sqrt(np.sum((idxarr-trace.reshape(nspec, 1))**2 * extwght, axis=1)/wghtsum)
+    wfact = 1.0/(wghtsum + (wghtsum == 0.0))
+    trace = np.sum(idxarr*extwght, axis=1) * wfact * (wghtsum != 0)
+    error = np.sqrt(np.sum((idxarr-trace.reshape(nspec, 1))**2 * extwght, axis=1) * wfact)
     return trace, error
 
 
@@ -2069,7 +2133,8 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
         fitted, outpar = arpca.basis(xcen, tiltval, tcoeff, lnpc, ofit, x0in=ordsnd, mask=maskord, skipx0=False,
                                      function=settings.argflag['trace']['slits']['function'])
         if not msgs._debug['no_qa']:
-            arpca.pc_plot(slf, outpar, ofit, pcadesc=pcadesc)
+            #pcadesc = "Spectral Tilt PCA"
+            arqa.pca_plot(slf, outpar, ofit, 'Arc', pcadesc=pcadesc, addOne=False)
         # Extrapolate the remaining orders requested
         orders = 1.0 + np.arange(norders)
         extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
@@ -2577,6 +2642,63 @@ def phys_to_pix(array, pixlocn, axis):
     return pixarr
 
 
+def prune_peaks(hist, pks, pkidx):
+    """
+    Identify the most well defined peaks
+
+    Parameters
+    ----------
+    hist : ndarray
+      Histogram of detections
+    pks : ndarray
+      Indices of candidate peak locations
+    pkidx : int
+      Index of highest peak
+
+    Returns
+    -------
+    msk : ndarray
+      An mask of good peaks (1) and bad peaks (0)
+    """
+
+    sz_i = pks.shape[0]
+
+    msk = np.zeros(sz_i, dtype=np.int)
+
+    lgd = 1  # Was the previously inspected peak a good one?
+    for ii in range(0, sz_i-1):
+        cnt = 0
+        for jj in range(pks[ii], pks[ii+1]):
+            if hist[jj] == 0:
+                cnt += 1
+        if cnt < 2:
+            # If the difference is unacceptable, both peaks are bad
+            msk[ii] = 0
+            msk[ii+1] = 0
+            lgd = 0
+        else:
+            # If the difference is acceptable, the right peak is acceptable,
+            # the left peak is acceptable if it was not previously labelled as unacceptable
+            if lgd == 1:
+                msk[ii] = 1
+            msk[ii+1] = 1
+            lgd = 1
+    # Now only consider the peaks closest to the highest peak
+    lgd = 1
+    for ii in range(pkidx, sz_i):
+        if msk[ii] == 0:
+            lgd = 0
+        elif lgd == 0:
+            msk[ii] = 0
+    lgd = 1
+    for ii in range(0, pkidx):
+        if msk[pkidx-ii] == 0:
+            lgd = 0
+        elif lgd == 0:
+            msk[pkidx-ii] = 0
+    return msk
+
+
 def slit_image(slf, det, scitrace, obj, tilts=None):
     """ Generate slit image for a given object
     Ignores changing plate scale (for now)
@@ -2601,8 +2723,10 @@ def slit_image(slf, det, scitrace, obj, tilts=None):
     dypix = 1./tilts.shape[0]
     #  Trace
     xtrc = np.round(scitrace['traces'][:, obj]).astype(int)
+    wch = np.where((xtrc >= 0) & (xtrc <= tilts.shape[1]-1))
     msgs.work("Use 2D spline to evaluate tilts")
-    trc_tilt = tilts[np.arange(tilts.shape[0]), xtrc]
+    trc_tilt = np.zeros(tilts.shape[0], dtype=np.float)
+    trc_tilt[wch] = tilts[np.arange(tilts.shape[0])[wch], xtrc[wch]]
     trc_tilt_img = np.outer(trc_tilt, np.ones(tilts.shape[1]))
     # Slit image
     msgs.work("Should worry about changing plate scale")

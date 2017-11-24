@@ -142,7 +142,7 @@ def SetupScience(fitsdict):
             msgs.info("Set 'run calcheck False' to continue with data reduction")
             msgs.info("*********************************************************")
             # Instrument specific (might push into a separate file)
-            if settings.argflag['run']['spectrograph'] in ['lris_blue']:
+            if settings.argflag['run']['spectrograph'] in ['keck_lris_blue']:
                 if settings.argflag['reduce']['flatfield']['useframe'] in ['pixelflat']:
                     msgs.warn("We recommend a slitless flat for your instrument.")
             return 'calcheck', None
