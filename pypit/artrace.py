@@ -18,6 +18,11 @@ msgs = armsgs.get_logger()
 
 from pypit import ardebug as debugger
 
+try:
+    ustr = unicode
+except NameError:
+    ustr = str
+
 
 def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
     """
@@ -1917,7 +1922,7 @@ def trace_weighted(frame, ltrace, rtrace, mask=None, wght="flux"):
         msgs.info("Slit is off the detector - not tracing")
         return None, None
     extfram = frame[:, lidx:ridx+1]
-    if isinstance(wght, (str, unicode)):
+    if isinstance(wght, (str, ustr)):
         if wght == "flux":
             extwght = extfram.copy()
         elif wght == "uniform":

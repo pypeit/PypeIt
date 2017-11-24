@@ -18,6 +18,7 @@ from pypit import arparse as settings
 def fitsdict():
     return arutils.dummy_fitsdict()
 
+
 def test_ampsec(fitsdict):
     """ Test sort_data
     """
@@ -28,8 +29,7 @@ def test_ampsec(fitsdict):
     arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
     # Test
     assert slf._datasec[det-1].shape == (2112, 2048)
-    assert np.sum(np.isclose(slf._datasec[0],1)) == 2162688  # Data region
-    assert np.sum(np.isclose(slf._datasec[0],2)) == 2162688  #   second amp
+    assert np.sum(np.isclose(slf._datasec[0], 1)) == 2162688  # Data region
+    assert np.sum(np.isclose(slf._datasec[0], 2)) == 2162688  # second amp
     assert settings.spect['det01']['oscansec01'] == [[0, 0], [2049, 2080]]
     assert settings.spect['det01']['datasec01'] == [[0, 0], [0, 1024]]
-

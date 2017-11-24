@@ -30,6 +30,8 @@
 * Updated slit trace algorithm
 * Improved arc line detection algorithm
 * Added functionality for fully automated wavelength calibration with arclines
+* Switched settings files to allow IRAF style data sections to be defined
+* Allowed data sections to be extracted from header information
 
 0.7 (2017-02-07)
 ----------------

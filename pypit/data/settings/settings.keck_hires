@@ -19,8 +19,8 @@ det01 numamplifiers 1                 # Number of amplifiers
 det01 gain 1.9                        # Gain (e-/ADU) values for the 2 amplifiers
 det01 ronoise 2.8                     # RN (e-) for the 2 amplifiers
 det01 dataext01 1                     # Extension number of the data
-det01 datasec01 [0:2048,6:1030]       # Either the data sections or the header keyword where the valid data sections can be obtained
-det01 oscansec01 [0:2048,1030:1070]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+det01 datasec01 02.DATASEC   #[7:1030,1:2048]       # Either the data sections (IRAF format) or the header keyword where the valid data sections can be obtained
+det01 oscansec01 [1031:1070,1:2048]   # Either the overscan sections (IRAF format) or the header keyword where the valid overscan sections can be obtained
 det01 suffix _blue                    # Suffix to be appended to all saved calibration and extraction frames
 
 det02 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
@@ -34,8 +34,8 @@ det02 numamplifiers 1                 # Number of amplifiers
 det02 gain 2.2                        # Gain (e-/ADU) values for the 2 amplifiers
 det02 ronoise 3.1                     # RN (e-) for the 2 amplifiers
 det02 dataext01 2                     # Extension number of the data
-det02 datasec01 [0:2048,6:1032]       # Either the data sections or the header keyword where the valid data sections can be obtained
-det02 oscansec01 [0:2048,1032:1070]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+det02 datasec01 03.DATASEC   #[7:1032,1:2048]       # Either the data sections (IRAF format) or the header keyword where the valid data sections can be obtained
+det02 oscansec01 [1033:1070,1:2048]   # Either the overscan sections (IRAF format) or the header keyword where the valid overscan sections can be obtained
 det02 suffix _green                   # Suffix to be appended to all saved calibration and extraction frames
 
 det03 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
@@ -49,8 +49,8 @@ det03 numamplifiers 1                 # Number of amplifiers
 det03 gain 2.2                        # Gain (e-/ADU) values for the 2 amplifiers
 det03 ronoise 3.1                     # RN (e-) for the 2 amplifiers
 det03 dataext01 3                     # Extension number of the data
-det03 datasec01 [0:2048,6:1030]       # Either the data sections or the header keyword where the valid data sections can be obtained
-det03 oscansec01 [0:2048,1030:1070]   # Either the overscan sections or the header keyword where the valid overscan sections can be obtained
+det03 datasec01 04.DATASEC  #[7:1030,1:2048]       # Either the data sections (IRAF format) or the header keyword where the valid data sections can be obtained
+det03 oscansec01 [1031:1070,1:2048]   # Either the overscan sections (IRAF format) or the header keyword where the valid overscan sections can be obtained
 det03 suffix _red                     # Suffix to be appended to all saved calibration and extraction frames
 
 ### Checks to perform

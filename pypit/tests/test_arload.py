@@ -22,7 +22,7 @@ def data_path(filename):
 def test_load_headers():
     arutils.dummy_settings(spectrograph='shane_kast_blue', set_idx=False)
     kast_files = [data_path('b1.fits.gz'), data_path('b27.fits.gz')]
-    fitsdict = arl.load_headers(kast_files)
+    fitsdict, updates = arl.load_headers(kast_files)
     # Test
     headers = fitsdict['headers']
     assert len(headers) == 2

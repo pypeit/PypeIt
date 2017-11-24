@@ -130,10 +130,13 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
         if pixt[p]-pmin <= 1 or pmax-pixt[p] <= 1:
             continue  # Probably won't be a good solution
         # Fit the gaussian
-        popt = arutils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3)
-        ampl[p] = popt[0]
-        cent[p] = popt[1]
-        widt[p] = popt[2]
+        try:
+            popt = arutils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3)
+            ampl[p] = popt[0]
+            cent[p] = popt[1]
+            widt[p] = popt[2]
+        except RuntimeError:
+            pass
     return ampl, cent, widt
 
 
