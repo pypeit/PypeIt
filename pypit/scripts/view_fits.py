@@ -16,6 +16,7 @@ def parser(options=None):
     parser.add_argument('file', type = str, default = None, help = 'FITS file')
     parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
     parser.add_argument('--raw_lris', action="store_true")
+    parser.add_argument('--raw_deimos', action="store_true")
     parser.add_argument('--exten', type=int, help="FITS extension")
 
     if options is None:
@@ -67,10 +68,22 @@ def main(args):
         hdulist.writeto(kludge_fil,clobber=True)
         args.file = kludge_fil
 
+    # RAW_LRIS??
+    if args.raw_deimos:
+        #
+        img, head, _ = ardeimos_jfh.read_deimos(args.file)
+        # Generate hdu
+        hdu = fits.PrimaryHDU(img)
+        hdulist = fits.HDUList([hdu])
+        # Write
+        msgs.warn('Writing kludge file to {:s}'.format(kludge_fil))
+        hdulist.writeto(kludge_fil,clobber=True)
+        args.file = kludge_fil
+
     # Spawn ginga
     subprocess.call(["ginga", args.file])
 
-    if args.raw_lris:
+    if args.raw_lris or args.raw_deimos:
         msgs.warn('Removing kludge file {:s}'.format(kludge_fil))
         subprocess.call(["rm", args.file])
 
