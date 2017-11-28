@@ -43,6 +43,7 @@ def main(args):
     msgs = pyputils.get_dummy_logger()
 
     from pypit import arlris
+    from pypit import ardeimos
 
     # Extension
     if args.exten is not None:
@@ -68,10 +69,10 @@ def main(args):
         hdulist.writeto(kludge_fil,clobber=True)
         args.file = kludge_fil
 
-    # RAW_LRIS??
+    # RAW_DEIMOS??
     if args.raw_deimos:
         #
-        img, head, _ = ardeimos_jfh.read_deimos(args.file)
+        img, head, _ = ardeimos.read_deimos(args.file)
         # Generate hdu
         hdu = fits.PrimaryHDU(img)
         hdulist = fits.HDUList([hdu])

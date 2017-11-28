@@ -66,43 +66,89 @@ def read_deimos(raw_file):
     postpix = head0['POSTPIX']
     preline = head0['PRELINE']
     postline = head0['POSTLINE']
+    detlsize = head0['DETLSIZE']
+    x0, x_npix, y0, y_npix = np.array(load_sections(detlsize)).flatten()
+
+    # Create final image
+    image = np.zeros((x_npix,y_npix))
 
     # Setup for datasec, oscansec
     dsec = []
     osec = []
 
+
     # get the x and y binning factors...
     binning = head0['BINNING']
+    if binning != '1,1':
+        msgs.error("This binning for DEIMOS might not work.  But it might..")
+
     xbin, ybin = [int(ibin) for ibin in binning.split(',')]
 
-    datsec = hdu[7].header['DATASEC']
-    detsec = hdu[7].header['DETSEC']
-    x1_dat, x2_dat, y1_dat, y2_dat = np.array(load_sections(datsec)).flatten()
-    x1_det, x2_det, y1_det, y2_det = np.array(load_sections(detsec)).flatten()
+    nchip = 8
+    ii = 2048
+    jj = 4096
 
-    # This rotates the image to be increasing wavelength to the top
-    data = np.rot90((hdu[7].data).T,k=2)
-    nx=data.shape[0]
-    ny=data.shape[1]
+    for tt in range(nchip):
+        data, oscan, idsec, iosec = deimos_read_1chip(hdu, tt+1)
 
-    dsec = '[{:d}:{:d},{:d}:{:d}]'.format(y1_dat-1, y2_dat,postpix, nx-precol)  # Eliminate lines
-    osec = '[{:d}:{:d},{:d}:{:d}]'.format(y1_dat-1, y2_dat,0, postpix)  # Eliminate lines
-    return data.T, head0, (dsec, osec)
+        # Sections
+        dsec.append(idsec)
+        osec.append(iosec)
 
+        #if n_elements(nobias) eq 0 then nobias = 0
+        # Fill the image up
+        if (tt+1) == 1:
+            image[0:jj, 0:ii] = data
+        elif (tt+1) == 2:
+            image[0:jj, ii:2*ii] = data
+        elif (tt+1) == 3:
+            image[0:jj, 2*ii:3*ii] = data
+        elif (tt+1) == 4:
+            image[0:jj, 3*ii:4*ii] = data
+        elif (tt+1) == 5:
+            image[jj:2*jj,0:ii] = data
+        elif (tt+1) == 6:
+            image[jj:2*jj,ii:2*ii] = data
+        elif (tt+1) == 7:
+            image[jj:2*jj,2*ii:3*ii] = data
+        elif (tt+1) == 8:
+            image[jj:2*jj,3*ii:4*ii] = data
+    # Return
+    return image, head0, (dsec,osec)
 
 def deimos_read_1chip(hdu,chipno):
 
     # Extract datasec from header
     datsec = hdu[chipno].header['DATASEC']
     detsec = hdu[chipno].header['DETSEC']
+    postpix = hdu[0].header['POSTPIX']
+    precol = hdu[0].header['PRECOL']
 
     x1_dat, x2_dat, y1_dat, y2_dat = np.array(load_sections(datsec)).flatten()
     x1_det, x2_det, y1_det, y2_det = np.array(load_sections(detsec)).flatten()
 
     # This rotates the image to be increasing wavelength to the top
-    data = np.rot90((hdu[chipno].data).T,k=2)
-    nx=data.shape[0]
-    ny=data.shape[1]
+    #data = np.rot90((hdu[chipno].data).T, k=2)
+    #nx=data.shape[0]
+    #ny=data.shape[1]
 
-    dsec = '[{:d}:{:d},{:d}:{:d}]'.format(y1_dat-1, y2_dat,postpix, nx-precol)  # Eliminate lines
-    osec = '[{:d}:{:d},{:d}:{:d}]'.format(y1_dat-1, y2_dat,0, postpix)  # Eliminate lines
+
+    # Science data
+    fullimage = hdu[chipno].data
+    data = fullimage[x1_dat:x2_dat,y1_dat:y2_dat]
+
+    # Overscan
+    oscan = fullimage[:,y2_dat:]
+
+    # Flip as needed
+    if x1_det > x2_det:
+        data = np.flipud(data)
+        oscan = np.flipud(oscan)
+    if y1_det > y2_det:
+        data = np.fliplr(data)
+        oscan = np.fliplr(oscan)
+
+    dsec = '[{:d}:{:d},{:d}:{:d}]'.format(y1_dat, y2_dat, x1_dat, x2_dat)  # Eliminate lines
+    osec = '[{:d}:{:d},{:d}:{:d}]'.format(y2_dat, data.shape[0], x1_dat, x2_dat)  # Eliminate lines
+
+    return data, oscan, dsec, osec
