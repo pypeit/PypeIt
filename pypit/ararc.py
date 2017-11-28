@@ -589,8 +589,7 @@ def calib_with_arclines(slf, det, get_poly=False, use_method="general"):
     elif use_method == "basic":
         stuff = basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
         status, ngd_match, match_idx, scores, final_fit = stuff
-    else:
-        # Now preferred
+    else: # Now preferred
         best_dict, final_fit = general(spec, aparm['lamps'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
     arqa.arc_fit_qa(slf, final_fit)
     #

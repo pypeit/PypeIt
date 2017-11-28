@@ -79,6 +79,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             det = kk + 1  # Detectors indexed from 1
             if settings.argflag['reduce']['detnum'] is not None:
                 if det != settings.argflag['reduce']['detnum']:
+                    msgs.warn("Skipping detector {:d}".format(det))
                     continue
                 else:
                     msgs.warn("Restricting the reduction to detector {:d}".format(det))

@@ -32,8 +32,7 @@
 # Detector mosaic properties
 ############################
 
-#mosaic ndet 8                         # Number of detectors in the mosaic
-mosaic ndet 1                         # Number of detectors in the mosaic
+mosaic ndet 8                         # Number of detectors in the mosaic
 mosaic longitude 155.47833            # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
 mosaic latitude 19.82833              # Latitude of the telescope
 mosaic elevation 4160.0               # Elevation of the telescope (in m)
