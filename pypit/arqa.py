@@ -349,7 +349,6 @@ def flexure(slf, det, flex_list, slit_cen=False):
     return
 
 
-
 def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
                  root='trace', normalize=True, desc=""):
     """ Generate a QA plot for the object trace
@@ -642,6 +641,7 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
 
     npix, nord = lordloc.shape
     nbins = 40
+    bins = np.linspace(-0.25, 1.25, nbins+1)
     pages, npp = get_dimen(nord, maxp=maxp)
     # Loop through all pages and plot the results
     ndone = 0
@@ -670,24 +670,24 @@ def slit_profile(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit"
                 continue
             spatval = (word[1] + 0.5 - lordloc[:, ndone+j][word[0]]) / (rordloc[:, ndone+j][word[0]] - lordloc[:, ndone+j][word[0]])
             fluxval = mstrace[word]
-            mxval = np.max(fluxval)
+            mxval = 1.25
             modvals = np.zeros(nbins)
             if axesIdx:
-                cnts, xedges, yedges, null = axes[ind].hist2d(spatval, fluxval, bins=nbins, cmap=plt.cm.Greys)
+                cnts, xedges, yedges, null = axes[ind].hist2d(spatval, fluxval, bins=bins, cmap=plt.cm.gist_heat_r)
                 groups = np.digitize(spatval, xedges)
                 modelw = model[word]
                 for mm in range(1, xedges.size):
                     modvals[mm-1] = modelw[groups == mm].mean()
-                axes[ind].plot(0.5*(xedges[1:]+xedges[:-1]), modvals, 'g-', linewidth=2.0)
+                axes[ind].plot(0.5*(xedges[1:]+xedges[:-1]), modvals, 'b-', linewidth=2.0)
                 axes[ind].plot([0.0, 0.0], [0.0, mxval], 'r-')
                 axes[ind].plot([1.0, 1.0], [0.0, mxval], 'r-')
             else:
-                cnts, xedges, yedges, null = axes.hist2d(spatval, fluxval, bins=nbins, cmap=plt.cm.Greys)
+                cnts, xedges, yedges, null = axes.hist2d(spatval, fluxval, bins=bins, cmap=plt.cm.gist_heat_r)
                 groups = np.digitize(spatval, xedges)
                 modelw = model[word]
                 for mm in range(1, xedges.size):
                     modvals[mm-1] = modelw[groups == mm].mean()
-                axes.plot(0.5*(xedges[1:]+xedges[:-1]), modvals, 'g-', linewidth=2.0)
+                axes.plot(0.5*(xedges[1:]+xedges[:-1]), modvals, 'b-', linewidth=2.0)
                 axes.plot([0.0, 0.0], [0.0, mxval], 'r-')
                 axes.plot([1.0, 1.0], [0.0, mxval], 'r-')
             if axesIdx:

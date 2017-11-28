@@ -81,7 +81,7 @@ def read_lris(raw_file, det=None, TRIM=False):
         detsec = theader['DETSEC']
         if detsec != '0':
             # parse the DETSEC keyword to determine the size of the array.
-            x1, x2, y1, y2 = np.array(load_sections(detsec)).flatten()
+            x1, x2, y1, y2 = np.array(load_sections(detsec, fmt_iraf=False)).flatten()
 
             # find the range of detector space occupied by the data
             # [xmin:xmax,ymin:ymax]
@@ -267,11 +267,11 @@ def lris_read_amp(inp, ext):
     # parse the DETSEC keyword to determine the size of the array.
     header = hdu[ext].header
     detsec = header['DETSEC']
-    x1, x2, y1, y2 = np.array(load_sections(detsec)).flatten()
+    x1, x2, y1, y2 = np.array(load_sections(detsec, fmt_iraf=False)).flatten()
 
     # parse the DATASEC keyword to determine the size of the science region (unbinned)
     datasec = header['DATASEC']
-    xdata1, xdata2, ydata1, ydata2 = np.array(load_sections(datasec)).flatten()
+    xdata1, xdata2, ydata1, ydata2 = np.array(load_sections(datasec, fmt_iraf=False)).flatten()
 
     # grab the components...
     predata = temp[0:precol, :]

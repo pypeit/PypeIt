@@ -22,7 +22,7 @@ def set_param(argf, specname):
     argf :
     specname : str
     """
-    if specname == 'lris_red':
+    if specname == 'keck_lris_red':
         argf.set_param('arc calibrate method arclines')
     # Return
     return

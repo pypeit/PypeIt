@@ -131,7 +131,7 @@ def calc_offset(raA, decA, raB, decB, distance=False):
         return delRA, delDEC
 
 
-def dummy_fitsdict(nfile=10, spectrograph='kast_blue', directory='./'):
+def dummy_fitsdict(nfile=10, spectrograph='shane_kast_blue', directory='./'):
     """
     Parameters
     ----------
@@ -162,7 +162,7 @@ def dummy_fitsdict(nfile=10, spectrograph='kast_blue', directory='./'):
     fitsdict["binning"] = ['1x1']*nfile
     fitsdict["airmass"] = [1.0]*nfile
     #
-    if spectrograph == 'kast_blue':
+    if spectrograph == 'shane_kast_blue':
         fitsdict['numamplifiers'] = [1] * nfile
         fitsdict['naxis0'] = [2112] * nfile
         fitsdict['naxis1'] = [2048] * nfile
@@ -212,7 +212,7 @@ def dummy_self(inum=0, fitsdict=None, nfile=10):
     return slf
 
 
-def dummy_settings(pypitdir=None, nfile=10, spectrograph='kast_blue',
+def dummy_settings(pypitdir=None, nfile=10, spectrograph='shane_kast_blue',
                    set_idx=True):
     """ Generate settings classes
     Parameters
@@ -229,7 +229,7 @@ def dummy_settings(pypitdir=None, nfile=10, spectrograph='kast_blue',
     """
     from pypit import arparse
     # Dummy argflag
-    if spectrograph != 'kast_blue':
+    if spectrograph != 'shane_kast_blue':
         msgs.error("Only setup for Kast Blue")  # You will need to fuss with scidx
     argf = arparse.get_argflag_class(("ARMLSD", spectrograph))
     argf.init_param()
@@ -250,7 +250,7 @@ def dummy_settings(pypitdir=None, nfile=10, spectrograph='kast_blue',
             if key in ['det']:
                 continue
             if 'index' in spect._spect[key].keys():
-                if spectrograph == 'kast_blue':  # Science frames from idx = 5 to 9
+                if spectrograph == 'shane_kast_blue':  # Science frames from idx = 5 to 9
                     assert nfile == 10
                 for kk in [5,6,7,8,9]:
                     if key == 'science':

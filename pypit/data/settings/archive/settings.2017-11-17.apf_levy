@@ -1,0 +1,122 @@
+### Mosaic properties
+mosaic ndet 1                         # Number of detectors in the mosaic
+mosaic latitude 37.34138889           # Latitude of the telescope
+mosaic longitude +121.642778          # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+mosaic elevation 1283.0               # Elevation of the telescope (in m)
+mosaic reduction ARMED                # Which reduction pipeline should be used for this instrument
+mosaic minexp 0.0                     # Minimum exposure time (s)
+mosaic camera LEVY                    # Camera name
+
+### Detector properties
+det01 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
+det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
+det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)
+det01 darkcurr 0.0                    # Dark current (e-/hour)
+det01 ronoise 3.0                    # Read-out noise (e-)
+det01 gain 1.031                        # Inverse gain (e-/ADU)
+det01 saturation 65535.0              # The detector Saturation level
+det01 nonlinear 0.8                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det01 numamplifiers 1                 # Number of amplifiers
+det01 dataext01 0                     # Extension number of the data
+det01 datasec01 [1:2047,1:4608]       # Either the data sections (IRAF format) or the header keyword where the valid data sections can be obtained
+det01 oscansec01 [2050:2080,1:4608]   # Either the overscan sections (IRAF format) or the header keyword where the valid overscan sections can be obtained
+det01 suffix None                    # Suffix to be appended to all saved calibration and extraction frames
+
+### Checks to perform
+check 01.NAXIS 2                    # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 01.DSENSOR e2v 2kx4k 42-90    # Check the CCD name
+
+### Keyword Identifiers
+keyword target 01.OBJECT               # Header keyword for the name given by the observer to a given frame
+keyword idname 01.OBSTYPE              # The keyword that identifies the frame type (i.e. bias, flat, etc.)
+keyword time 01.TSEC                   # The time stamp of the observation (i.e. decimal MJD)
+keyword date 01.DATE                   # The date of the observation (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
+keyword equinox None                   # The equinox to use
+keyword ra 01.RA                       # Right Ascension of the target
+keyword dec 01.DEC                     # Declination of the target
+keyword airmass 01.AIRMASS             # Airmass at start of observation
+keyword naxis0 01.NAXIS2               # Number of pixels along the zeroth axis
+keyword naxis1 01.NAXIS1               # Number of pixels along the first axis
+keyword binning 01.CBIN                # Binning
+keyword exptime 01.EXPTIME             # Exposure time keyword
+keyword filter1 None                   # Filter 1
+keyword filter2 None                   # Filter 2
+keyword hatch None                     # Hatch
+keyword decker 01.DECKRNAM             # Which decker is being used
+keyword lamps 01.CSRCNAM               # Which lamp is being used
+keyword lampstat01 01.HALOGEN1         # Status of a lamp
+keyword lampstat02 01.HALOGEN2         # Status of a lamp
+keyword lampstat03 01.THORIUM1         # Status of a lamp
+keyword lampstat04 01.THORIUM2         # Status of a lamp
+keyword slitwid None                   # Slit Width
+keyword slitlen 01.DECKRNAM            # Slit Length
+keyword detrot None                    # Detector Rotation angle
+keyword dichroic None                  # Dichroic name
+keyword echangle None                  # Echelle angle
+keyword dispname None                  # Cross-disperser name
+keyword dispangle None                 # Cross-disperser angle
+
+### Fits properties
+fits timeunit s                     # The unit of keyword+time (s=seconds, m=minutes, h=hours, mjd=MJD, dt=datetime)
+fits calwin 12.0                    # The window of time in hours to search for calibration frames for a science frame
+
+### Science frames
+science check condition1 lampstat01=Off&lampstat02=Off&lampstat03=Off&lampstat04=Off
+
+### Standard Star frames
+standard idname None               # Header key value of science frame for header keyword keyword+idname
+standard number 0                    # Number of standard star frames to use
+
+### Bias/Dark frames
+bias number 0                       # Number of bias frames to use
+bias check condition1 exptime<=1    # Check the exposure time is less than 1 second
+bias match naxis0 =0                # Match the row binning of bias and science frames
+bias match naxis1 =0                # Match the column binning of bias and science frames
+
+### Pixel Flat frames
+pixelflat idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
+pixelflat number 5                    # Number of flat frames to use
+pixelflat check condition1 lampstat01=On|lampstat02=On
+pixelflat check condition2 decker!=Pinhole   # Check that the decker name is not set to Pinhole
+pixelflat match naxis0 =0             # Match the row binning of flats with science
+pixelflat match naxis1 =0             # Match the column binning of flats with science
+pixelflat match slitlen %,:),1,>=0    # Make sure the slit length for blaze flats and science frames
+
+### Pinhole frames
+pinhole idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
+pinhole number 2                    # Number of flat frames to use
+pinhole check condition1 lampstat01=On|lampstat02=On
+pinhole check condition2 decker=Pinhole   # Check that the decker name is set to Pinhole
+pinhole match naxis0 =0             # Match the row binning of flats with science
+pinhole match naxis1 =0             # Match the column binning of flats with science
+
+### Trace frames
+trace idname OBJECT               # Header key value of flat frame for header keyword keyword+idname
+trace number 5                    # Number of flat frames to use
+trace check condition1 lampstat01=On|lampstat02=On
+trace check condition2 decker!=Pinhole        # Check that the decker name is not set to Pinhole
+trace match naxis0 =0             # Match the row binning of flats with science
+trace match naxis1 =0             # Match the column binning of flats with science
+trace match slitlen %,:),1,=0    # Match the Decker for trace flats and science frames
+
+### Arc frames
+arc idname OBJECT                   # Header key value of arc frame for header keyword keyword+idname
+arc number 1                        # Number of arc frames to use
+arc check condition1 lampstat03=On|lampstat04=On
+arc match naxis0 =0                 # Match the row binning of arcs with science
+arc match naxis1 =0                 # Match the column binning of arcs with science
+arc match slitlen %,:|),1,=0         # Match the slit length for arcs and science frames
+
+# Make some changes to the arguments and flags
+settings reduce flatfield 2dpca 4
+settings trace dispersion direction 0
+settings bias useframe overscan
+settings trace useframe pinhole
+settings trace slits polyorder  7
+settings trace slits pca extrapolate pos 0
+settings trace slits pca extrapolate neg 0
+settings trace slits pca params [8,4,2,2,2,1,0,0]
+settings trace slits tilts params [3,3,1]
+settings trace slits tilts disporder 2
+settings trace slits pad 1
+settings trace object params [1,3]

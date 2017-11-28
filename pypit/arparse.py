@@ -982,8 +982,10 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        allowed = ['heliocentric', 'barycentric']
+        allowed = ['topocentric', 'heliocentric', 'barycentric']
         v = key_none_allowed(v, allowed)
+        if v == "topocentric":
+            v = None
         self.update(v)
 
     def reduce_calibrate_wavelength(self, v):
@@ -2442,10 +2444,14 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         cname = get_nmbr_name(anmbr=anmbr, bnmbr=bnmbr)
-        try:
-            v = load_sections(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be a detector section".format(cname))
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            try:
+                v = load_sections(v)
+            except ValueError:
+                msgs.error("The argument of {0:s} must be a detector section".format(cname))
         self.update(v, ll=cname.split('_'))
 
     def det_dataext(self, v, anmbr=1, bnmbr=1):
@@ -2472,10 +2478,14 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         cname = get_nmbr_name(anmbr=anmbr, bnmbr=bnmbr)
-        try:
-            v = load_sections(v)
-        except ValueError:
-            msgs.error("The argument of {0:s} must be detector section".format(cname))
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            try:
+                v = load_sections(v)
+            except ValueError:
+                msgs.error("The argument of {0:s} must be detector section".format(cname))
         self.update(v, ll=cname.split('_'))
 
     def det_darkcurr(self, v, anmbr=1):
@@ -2487,9 +2497,13 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         cname = get_nmbr_name(anmbr=anmbr)
-        v = key_float(v)
-        if v < 0.0:
-            msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            v = key_float(v)
+            if v < 0.0:
+                msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
         self.update(v, ll=cname.split('_'))
 
     def det_gain(self, v, anmbr=1):
@@ -2501,14 +2515,18 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         cname = get_nmbr_name(anmbr=anmbr)
-        try:
-            v = v.split(",")
-            for i in range(len(v)):
-                v[i] = float(v[i])
-                if v[i] <= 0.0:
-                    msgs.error("Each argument of {0:s} must be > 0.0".format(cname))
-        except ValueError:
-            msgs.error("Each argument of {0:s} must be of type float".format(cname))
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            try:
+                v = v.split(",")
+                for i in range(len(v)):
+                    v[i] = float(v[i])
+                    if v[i] <= 0.0:
+                        msgs.error("Each argument of {0:s} must be > 0.0".format(cname))
+            except ValueError:
+                msgs.error("Each argument of {0:s} must be of type float".format(cname))
         self.update(v, ll=cname.split('_'))
 
     def det_ronoise(self, v, anmbr=1):
@@ -2520,14 +2538,18 @@ class BaseSpect(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         cname = get_nmbr_name(anmbr=anmbr)
-        try:
-            v = v.split(",")
-            for i in range(len(v)):
-                v[i] = float(v[i])
-                if v[i] <= 0.0:
-                    msgs.error("Each argument of {0:s} must be > 0.0".format(cname))
-        except ValueError:
-            msgs.error("Each argument of {0:s} must be of type float".format(cname))
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            try:
+                v = v.split(",")
+                for i in range(len(v)):
+                    v[i] = float(v[i])
+                    if v[i] <= 0.0:
+                        msgs.error("Each argument of {0:s} must be > 0.0".format(cname))
+            except ValueError:
+                msgs.error("Each argument of {0:s} must be of type float".format(cname))
         self.update(v, ll=cname.split('_'))
 
     def det_nonlinear(self, v, anmbr=1):
@@ -3079,7 +3101,11 @@ class BaseSpect(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        v = key_float(v)
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            v = key_float(v)
         self.update(v)
 
     def mosaic_latitude(self, v):
@@ -3090,7 +3116,11 @@ class BaseSpect(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        v = key_float(v)
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            v = key_float(v)
         self.update(v)
 
     def mosaic_longitude(self, v):
@@ -3101,7 +3131,11 @@ class BaseSpect(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        v = key_float(v)
+        # Check if the argument is a call to a header keyword
+        v, valid = key_keyword(v, force_format=False)
+        # If not, assume it's a manual entry
+        if not valid:
+            v = key_float(v)
         self.update(v)
 
     def mosaic_ndet(self, v):
@@ -3761,7 +3795,7 @@ def get_nmbr_name(anmbr=None, bnmbr=None, cnmbr=None):
     return "_".join(cspl)
 
 
-def load_sections(string):
+def load_sections(string, fmt_iraf=True):
     """
     From the input string, return the coordinate sections
 
@@ -3773,6 +3807,9 @@ def load_sections(string):
       x2 = right pixel
       y1 = bottom pixel
       y2 = top pixel
+    fmt_iraf : bool
+      Is the variable string in IRAF format (True) or
+      python format (False)
 
     Returns
     -------
@@ -3796,7 +3833,17 @@ def load_sections(string):
         # set the lower/upper limit to be the first/last index.
         if len(xyarry[0]) == 0: xyarry[0] = 0
         if len(xyarry[1]) == 0: xyarry[1] = -1
-    return [[int(xyarrx[0]), int(xyarrx[1])], [int(xyarry[0]), int(xyarry[1])]]
+    if fmt_iraf:
+        xmin = max(0, int(xyarry[0])-1)
+        xmax = int(xyarry[1])
+        ymin = max(0, int(xyarrx[0])-1)
+        ymax = int(xyarrx[1])
+    else:
+        xmin = max(0, int(xyarrx[0]))
+        xmax = int(xyarrx[1])
+        ymin = max(0, int(xyarry[0]))
+        ymax = int(xyarry[1])
+    return [[xmin, xmax], [ymin, ymax]]
 
 
 def get_dnum(det, caps=False, prefix=True):
@@ -4007,7 +4054,7 @@ def key_int(v):
     return v
 
 
-def key_keyword(v):
+def key_keyword(v, force_format=True):
     """ Check that a keyword argument satisfies the form required
     for specifying a header keyword.
 
@@ -4015,25 +4062,36 @@ def key_keyword(v):
     ----------
     v : str
       value of a keyword argument
+    force_format : bool
+      If True, v can only have the format of a header keyword.
+      If False, v can take the form of a header keyword, or a
+      user-specified value. In the latter case, the boolean
+      variable 'valid' is returned so the parent function
+      knows if the supplied value of v should be dealt with as
+      a manual entry or as a header keyword.
 
     Returns
     -------
     v : str
       A value used by the settings dictionary
+    valid : bool
+      Is the input a valid header keyword format
     """
     ll = inspect.currentframe().f_back.f_code.co_name.split('_')
     func_name = "'" + " ".join(ll) + "'"
     if v.lower() == "none":
         v = None
     else:
-        try:
-            vspl = v.split(".")
-            int(vspl[0])
-        except ValueError:
+        valid = is_keyword(v)
+        if not valid and force_format:
             msgs.error("The argument of {0:s} must be of the form:".format(func_name) + msgs.newline() +
                        "##.NAME" + msgs.newline() +
                        "where ## is the fits extension (see command: fits headext##)," + msgs.newline() +
                        "and NAME is the header keyword name")
+        elif valid and force_format:
+            return v
+        else:
+            return v, valid
     return v
 
 
@@ -4268,6 +4326,44 @@ def combine_satpixs():
     """
     methods = ['reject', 'force', 'nothing']
     return methods
+
+
+def is_keyword(v):
+    """ Check if a value is of the format required to be a call to a header keyword
+
+    Parameters
+    ----------
+    v : str
+      Value to be tested
+
+    Returns
+    -------
+    valid : bool
+      True if 'v' has the correct format to be a header keyword, False otherwise.
+    """
+    valid = True
+    if ("," in v) or ("." not in v):
+        # Either an array or doesn't have the header keyword format (i.e. a fullstop)
+        return False
+    # Test if the first element is an integer
+    vspl = v.split(".")
+    try:
+        int(vspl[0])
+    except ValueError:
+        valid = False
+    # Test if there are two parts to the expression
+    if len(vspl) != 2:
+        return False
+    # Test if the second element is a string
+    try:
+        if valid is True:
+            int(vspl[1])
+            # Input value must be a floating point number
+            valid = False
+    except ValueError:
+        # Input value must be a string
+        valid = True
+    return valid
 
 
 def parse_binning(binning):

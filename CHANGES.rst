@@ -2,7 +2,7 @@
 ----------------
 
 * First major steps on ARMED echelle data reduction pipeline
-* APF/Levy and Keck/HIRES settings files generated
+* APF/Levy and Keck/HIRES implemented
 * Updates to blaze function and slit profile fitting
 * Initial support for multislit reduction
 * Coadding; including docs; and tests
@@ -27,6 +27,11 @@
 * Updated flexure and tilt tracing documentation
 * Updated docs:added standards.rst, and make a small correction in using script pypit_setup in setup.rst
 * Fixed travis
+* Updated slit trace algorithm
+* Improved arc line detection algorithm
+* Added functionality for fully automated wavelength calibration with arclines
+* Switched settings files to allow IRAF style data sections to be defined
+* Allowed data sections to be extracted from header information
 
 0.7 (2017-02-07)
 ----------------
