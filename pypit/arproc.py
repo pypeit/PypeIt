@@ -8,7 +8,7 @@ import scipy.interpolate as interp
 from matplotlib import pyplot as plt
 from pypit import arextract
 from pypit import arlris
-from pypit import ardeimos_jfh
+from pypit import ardeimos
 from pypit import armsgs
 from pypit import artrace
 from pypit import arutils
@@ -603,7 +603,7 @@ def get_datasec_trimmed(slf, fitsdict, det, scidx):
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
     elif settings.argflag['run']['spectrograph'] in ['deimos']:
         msgs.info("Parsing datasec and oscansec from headers")
-        temp, head0, secs = ardeimos_jfh.read_deimos(fitsdict['directory'][scidx] + fitsdict['filename'][scidx])
+        temp, head0, secs = ardeimos.read_deimos(fitsdict['directory'][scidx] + fitsdict['filename'][scidx])
         # Naxis
         fitsdict['naxis0'][scidx] = temp.shape[0]
         fitsdict['naxis1'][scidx] = temp.shape[1]
