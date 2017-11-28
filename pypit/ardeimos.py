@@ -70,7 +70,7 @@ def read_deimos(raw_file):
     x0, x_npix, y0, y_npix = np.array(load_sections(detlsize)).flatten()
 
     # Create final image
-    image = np.zeros((x_npix,y_npix))
+    image = np.zeros((x_npix,y_npix+4*postpix))
 
     # Setup for datasec, oscansec
     dsec = []
@@ -89,30 +89,33 @@ def read_deimos(raw_file):
     jj = 4096
 
     for tt in range(nchip):
-        data, oscan, idsec, iosec = deimos_read_1chip(hdu, tt+1)
+        data, oscan = deimos_read_1chip(hdu, tt+1)
 
-        # Sections
-        dsec.append(idsec)
-        osec.append(iosec)
 
         #if n_elements(nobias) eq 0 then nobias = 0
         # Fill the image up
-        if (tt+1) == 1:
-            image[0:jj, 0:ii] = data
-        elif (tt+1) == 2:
-            image[0:jj, ii:2*ii] = data
-        elif (tt+1) == 3:
-            image[0:jj, 2*ii:3*ii] = data
-        elif (tt+1) == 4:
-            image[0:jj, 3*ii:4*ii] = data
-        elif (tt+1) == 5:
-            image[jj:2*jj,0:ii] = data
-        elif (tt+1) == 6:
-            image[jj:2*jj,ii:2*ii] = data
-        elif (tt+1) == 7:
-            image[jj:2*jj,2*ii:3*ii] = data
-        elif (tt+1) == 8:
-            image[jj:2*jj,3*ii:4*ii] = data
+
+        # y indices
+        if tt < 4:
+            y1, y2 = 0, jj
+        else:
+            y1, y2 = jj, 2*jj
+        o_y1, o_y2 = y1, y2
+
+        # x
+        x1, x2 = (tt%4)*ii, (tt%4 + 1)*ii
+        o_x1 = 4*ii + (tt%4)*postpix
+        o_x2 = o_x1 + postpix
+
+        # Fill
+        image[y1:y2, x1:x2] = data
+        image[o_y1:o_y2, o_x1:o_x2] = oscan
+
+        # Sections
+        idsec = '[{:d}:{:d},{:d}:{:d}]'.format(y1, y2, x1, x2)
+        iosec = '[{:d}:{:d},{:d}:{:d}]'.format(o_y1, o_y2, o_x1, o_x2)
+        dsec.append(idsec)
+        osec.append(iosec)
     # Return
     return image, head0, (dsec,osec)
 
@@ -148,7 +151,5 @@ def deimos_read_1chip(hdu,chipno):
         data = np.fliplr(data)
         oscan = np.fliplr(oscan)
 
-    dsec = '[{:d}:{:d},{:d}:{:d}]'.format(y1_dat, y2_dat, x1_dat, x2_dat)  # Eliminate lines
-    osec = '[{:d}:{:d},{:d}:{:d}]'.format(y2_dat, data.shape[0], x1_dat, x2_dat)  # Eliminate lines
 
-    return data, oscan, dsec, osec
+    return data, oscan
