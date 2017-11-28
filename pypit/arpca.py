@@ -1,10 +1,12 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
+import inspect
+
 from matplotlib import pyplot as plt
 import numpy as np
 from pypit import armsgs
 from pypit import arutils
-from pypit.arqa import get_dimen as get_dimen
+from pypit.arqa import get_dimen, set_qa_filename
 
 from pypit import ardebug as debugger
 
@@ -15,7 +17,7 @@ msgs = armsgs.get_logger()
 plt.rcdefaults()
 
 
-def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, mask=None, function='polynomial', retmask=False):
+def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, mask=None, function='polynomial'):
     nrow = xfit.shape[0]
     ntrace = xfit.shape[1]
     if x0in is None:
@@ -55,14 +57,15 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
         #     continue
         # coeff0 = arutils.robust_regression(x0in[usetrace], hidden[i-1,:], pnpc[i], 0.1, function=function, min=x0in[0], max=x0in[-1])
         if weights is not None:
-            tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1,:], pnpc[i],
+            tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1, :], pnpc[i],
                                                    weights=weights[usetrace], sigma=2.0, function=function,
                                                    minv=x0in[0], maxv=x0in[-1])
         else:
-            tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1,:], pnpc[i],
-                                                   sigma=2.0, function=function, minv=x0in[0], maxv=x0in[-1])
+            tmask, coeff0 = arutils.robust_polyfit(x0in[usetrace], hidden[i-1, :], pnpc[i],
+                                                   sigma=2.0, function=function,
+                                                   minv=x0in[0], maxv=x0in[-1])
         coeffstr.append(coeff0)
-        high_order_matrix[:,i-1] = arutils.func_val(coeff0, x0in, function, minv=x0in[0], maxv=x0in[-1])
+        high_order_matrix[:, i-1] = arutils.func_val(coeff0, x0in, function, minv=x0in[0], maxv=x0in[-1])
     # high_order_matrix[:,1] = arutils.func_val(coeff1, x0in, function)
     high_fit = high_order_matrix.copy()
 
@@ -123,10 +126,7 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
     x3fit = np.dot(eigv,high_order_matrix.T) + np.outer(x0fit,np.ones(nrow)).T
     outpar = dict({'high_fit': high_fit, 'x0': x0, 'x0in': x0in, 'x0fit': x0fit, 'x0res': x0res, 'x0mask': fitmask,
                    'hidden': hidden, 'usetrc': usetrace, 'eigv': eigv, 'npc': npc, 'coeffstr': coeffstr})
-    if retmask:
-        return x3fit, outpar, tmask
-    else:
-        return x3fit, outpar
+    return x3fit, outpar
 
 
 def do_pca(data, cov=False):
@@ -290,220 +290,6 @@ def pca2d(img, numpc):
     # Reconstruct the image
     imgpca = np.dot(coeff, proj).T + np.mean(img, axis=0)
     return imgpca.astype(np.float)
-
-
-def pc_plot(slf, inpar, ofit, maxp=25, pcadesc="", addOne=True):
-    """
-    Saves quality control plots for a PCA analysis
-    """
-    npc = inpar['npc']+1
-    pages, npp = get_dimen(npc, maxp=maxp)
-    x0 = inpar['x0']
-    ordernum = inpar['x0in']
-    x0fit = inpar['x0fit']
-    usetrc = inpar['usetrc']
-    hidden = inpar['hidden']
-    high_fit = inpar['high_fit']
-    nc = np.max(ordernum[usetrc])
-    # Loop through all pages and plot the results
-    ndone = 0
-    for i in range(len(pages)):
-        plt.clf()
-        f, axes = plt.subplots(pages[i][1], pages[i][0])
-        ipx, ipy = 0, 0
-        if i == 0:
-            if pages[i][1] == 1: ind = (0,)
-            elif pages[i][0] == 1: ind = (0,)
-            else: ind = (0,0)
-            axes[ind].plot(ordernum[usetrc], x0[usetrc], 'bx')
-            axes[ind].plot(ordernum, x0fit, 'k-')
-            amn, amx = np.min(x0fit), np.max(x0fit)
-            diff = x0[usetrc]-x0fit[usetrc]
-            tdiffv = np.median(diff)
-            mdiffv = 1.4826*np.median(np.abs(tdiffv-diff))
-            amn -= 2.0*mdiffv
-            amx += 2.0*mdiffv
-            mval = amn-0.15*(amx-amn)
-            dmin, dmax = tdiffv-2.0*mdiffv, tdiffv+2.0*mdiffv
-            diff = mval + diff*0.20*(amx-amn)/(dmax-dmin)
-            wign = np.where(np.abs(diff-np.median(diff))<4.0*1.4826*np.median(np.abs(diff-np.median(diff))))[0]
-            dmin, dmax = np.min(diff[wign]), np.max(diff[wign])
-            axes[ind].plot(ordernum[usetrc], diff, 'rx')
-            if addOne:
-                axes[ind].plot([0, nc+1], [mval,mval], 'k-')
-                axes[ind].axis([0, nc+1, dmin-0.5*(dmax-dmin), amx + 0.05*(amx-amn)])
-            else:
-                axes[ind].plot([0, nc], [mval, mval], 'k-')
-                axes[ind].axis([0, nc, dmin-0.5*(dmax-dmin), amx + 0.05*(amx-amn)])
-            axes[ind].set_title("Mean Value")
-            ipx += 1
-            if ipx == pages[i][0]:
-                ipx = 0
-                ipy += 1
-            npp[0] -= 1
-        for j in range(npp[i]):
-            if pages[i][1] == 1: ind = (ipx,)
-            elif pages[i][0] == 1: ind = (ipy,)
-            else: ind = (ipy, ipx)
-            axes[ind].plot(ordernum[usetrc], hidden[j+ndone,:], 'bx')
-            axes[ind].plot(ordernum, high_fit[:,j+ndone], 'k-')
-            vmin, vmax = np.min(hidden[j+ndone,:]), np.max(hidden[j+ndone,:])
-            if ofit[1+j+ndone] != -1:
-                cmn, cmx = np.min(high_fit[:,j+ndone]), np.max(high_fit[:,j+ndone])
-                diff = hidden[j+ndone,:]-high_fit[:,j+ndone][usetrc]
-                tdiffv = np.median(diff)
-                mdiffv = 1.4826*np.median(np.abs(tdiffv-diff))
-                cmn -= 2.0*mdiffv
-                cmx += 2.0*mdiffv
-                mval = cmn-0.15*(cmx-cmn)
-                dmin, dmax = tdiffv-2.0*mdiffv, tdiffv+2.0*mdiffv
-                #dmin, dmax = np.min(diff), np.max(diff)
-                diff = mval + diff*0.20*(cmx-cmn)/(dmax-dmin)
-                wign = np.where(np.abs(diff-np.median(diff))<4.0*1.4826*np.median(np.abs(diff-np.median(diff))))[0]
-                dmin, dmax = np.min(diff[wign]), np.max(diff[wign])
-                #vmin, vmax = np.min(hidden[j+ndone,:][wign]), np.max(hidden[j+ndone,:][wign])
-                axes[ind].plot(ordernum[usetrc], diff, 'rx')
-                axes[ind].plot([0, 1+nc], [mval, mval], 'k-')
-#				ymin = np.min([(3.0*dmin-dmax)/2.0,vmin-0.1*(vmax-dmin),dmin-0.1*(vmax-dmin)])
-#				ymax = np.max([np.max(high_fit[:,j+ndone]),vmax+0.1*(vmax-dmin),dmax+0.1*(vmax-dmin)])
-                ymin = dmin-0.5*(dmax-dmin)
-                ymax = cmx + 0.05*(cmx-cmn)
-                if addOne: axes[ind].axis([0, nc+1, ymin, ymax])
-                else: axes[ind].axis([0, nc, ymin, ymax])
-            else:
-                if addOne: axes[ind].axis([0, nc+1, vmin-0.1*(vmax-vmin), vmax+0.1*(vmax-vmin)])
-                else: axes[ind].axis([0, nc, vmin-0.1*(vmax-vmin), vmax+0.1*(vmax-vmin)])
-            axes[ind].set_title("PC {0:d}".format(j+ndone))
-            axes[ind].tick_params(labelsize=8)
-            ipx += 1
-            if ipx == pages[i][0]:
-                ipx = 0
-                ipy += 1
-        if i == 0: npp[0] = npp[0] + 1
-        # Delete the unnecessary axes
-        for j in range(npp[i], axes.size):
-            if pages[i][1] == 1: ind = (ipx,)
-            elif pages[i][0] == 1: ind = (ipy,)
-            else: ind = (ipy, ipx)
-            f.delaxes(axes[ind])
-            ipx += 1
-            if ipx == pages[i][0]:
-                ipx = 0
-                ipy += 1
-        ndone += npp[i]
-        # Save the figure
-        if pages[i][1] == 1 or pages[i][0] == 1: ypngsiz = 11.0/axes.size
-        else: ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
-        f.set_size_inches(11.0, ypngsiz)
-        if pcadesc != "":
-            pgtxt = ""
-            if len(pages) != 1:
-                pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
-            f.suptitle(pcadesc + pgtxt, y=1.02, size=16)
-        f.tight_layout()
-        slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
-        plt.close()
-        f.clf()
-    del f
-    return
-
-
-def pc_plot_arctilt(slf, tiltang, centval, tilts, maxp=25, maskval=-999999.9):
-    """ Generate a QA plot for the blaze function fit to each slit
-
-    Parameters
-    ----------
-    slf : class
-      Science Exposure class
-    tiltang : ndarray
-      (m x n) 2D array containing the measured tilts (m) for each slit (n)
-    centval : ndarray
-      (m x n) 2D array containing the pixel location (in the spectral direction) of the measured tilts (m) for each slit (n)
-    tilts : ndarray
-      (m x n) 2D array containing the model tilts (m) for each slit (n)
-    maxp : int, (optional)
-      Maximum number of panels per page
-    maskval : float, (optional)
-      Value used in arrays to indicate a masked value
-    """
-    npc = tiltang.shape[1]
-    pages, npp = get_dimen(npc, maxp=maxp)
-    x0 = np.arange(tilts.shape[0])
-    # First calculate the min and max values for the plotting axes, to make sure they are all the same
-    w = np.where(tiltang != maskval)
-    medv = np.median(tiltang[w])
-    madv = 1.4826 * np.median(np.abs(medv - tiltang[w]))
-    ymin, ymax = medv - 3.0 * madv, medv + 3.0 * madv
-    ymin = min(ymin, np.min(tilts))
-    ymax = max(ymax, np.max(tilts))
-    # ymin, ymax = None, None
-    # for i in range(npc):
-    #     w = np.where(tiltang[:,i]!=-999999.9)
-    #     if np.size(w[0]) == 0: continue
-    #     medv = np.median(tiltang[:,i][w])
-    #     madv = 1.4826*np.median(np.abs(medv-tiltang[:,i][w]))
-    #     vmin, vmax = medv-3.0*madv, medv+3.0*madv
-    #     tymin = min(vmin,np.min(tilts[:,i]))
-    #     tymax = max(vmax,np.max(tilts[:,i]))
-    #     if ymin is None: ymin = tymin
-    #     else:
-    #         if tymin < ymin: ymin = tymin
-    #     if ymax is None: ymax = tymax
-    #     else:
-    #         if tymax > ymax: ymax = tymax
-    # Check that ymin and ymax are set, if not, return without plotting
-    if ymin is None or ymax is None:
-        msgs.warn("Arc tilt fits were not plotted")
-        return
-    # Generate the plots
-    ndone = 0
-    for i in range(len(pages)):
-        f, axes = plt.subplots(pages[i][1], pages[i][0])
-        ipx, ipy = 0, 0
-        for j in range(npp[i]):
-            if pages[i][1] == 1:
-                ind = (ipx,)
-            elif pages[i][0] == 1:
-                ind = (ipy,)
-            else:
-                ind = (ipy, ipx)
-            w = np.where(tiltang[:, ndone] != maskval)
-            if np.size(w[0]) != 0:
-                axes[ind].plot(centval[:, ndone][w], tiltang[:, ndone][w], 'bx')
-                axes[ind].plot(x0, tilts[:, ndone], 'r-')
-            axes[ind].axis([0, tilts.shape[0]-1, ymin, ymax])
-            axes[ind].set_title("Slit {0:d}".format(1+ndone))
-            axes[ind].tick_params(labelsize=8)
-            ipx += 1
-            if ipx == pages[i][0]:
-                ipx = 0
-                ipy += 1
-            ndone += 1
-        # Delete the unnecessary axes
-        for j in range(npp[i], axes.size):
-            if pages[i][1] == 1:
-                ind = (ipx,)
-            elif pages[i][0] == 1:
-                ind = (ipy,)
-            else:
-                ind = (ipy, ipx)
-            f.delaxes(axes[ind])
-            ipx += 1
-            if ipx == pages[i][0]:
-                ipx = 0
-                ipy += 1
-        # Save the figure
-        if pages[i][1] == 1 or pages[i][0] == 1:
-            ypngsiz = 11.0/axes.size
-        else:
-            ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
-        f.set_size_inches(11.0, ypngsiz)
-        f.tight_layout()
-        slf._qa.savefig(dpi=200, orientation='landscape', bbox_inches='tight')
-        plt.close()
-        f.clf()
-        del f
-    return
 
 
 def pc_plot_extcenwid(tempcen, cenwid, binval, plotsdir="Plots", pcatype="<unknown>", maxp=25, prefix=""):

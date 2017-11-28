@@ -192,7 +192,7 @@ class Messages:
         # Print command line usage
         if usage:
             self.usage(None)
-        sys.exit()
+        sys.exit(1)
 
     def info(self, msg):
         """

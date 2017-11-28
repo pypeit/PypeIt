@@ -34,52 +34,6 @@ cdef extern from "gsl/gsl_multifit.h":
 
 
 #@cython.boundscheck(False)
-def clean_edges(np.ndarray[DTYPE_t, ndim=2] diff not None,
-                np.ndarray[DTYPE_t, ndim=2] tedges not None):
-    cdef int sz_x, sz_y
-    cdef int x, y
-    cdef int ldct, rdct, ymax
-    cdef double lmax, rmax
-
-    sz_x = tedges.shape[0]
-    sz_y = tedges.shape[1]
-
-    # Set up the array which marks the edge detections
-    cdef np.ndarray[ITYPE_t, ndim=2] edgdet = np.zeros((sz_x, sz_y), dtype=ITYPE)
-
-    for x in range(sz_x):
-        ldct = 0
-        rdct = 0
-        for y in range(sz_y):
-            if tedges[x, y] == -1.0:
-                if ldct == 1:
-                    if diff[x, y] > lmax:  # Recall, diff is very positive for significant left edge detections
-                        lmax = diff[x, y]
-                        ymax = y
-                else:
-                    lmax = diff[x, y]
-                    ymax = y
-                    ldct = 1
-            elif tedges[x, y] == 1.0:
-                if rdct == 1:
-                    if diff[x, y] < rmax:  # Recall, diff is very negative for significant right edge detections
-                        rmax = diff[x, y]
-                        ymax = y
-                else:
-                    rmax = diff[x, y]
-                    ymax = y
-                    rdct = 1
-            else:
-                if ldct == 1:
-                    edgdet[x, ymax] = -1
-                    ldct = 0
-                elif rdct == 1:
-                    edgdet[x, ymax] = +1
-                    rdct = 0
-    return edgdet
-
-
-#@cython.boundscheck(False)
 def close_edges(np.ndarray[ITYPE_t, ndim=2] edgdet not None,
                 np.ndarray[ITYPE_t, ndim=1] dets not None,
                 int npix):
@@ -290,19 +244,6 @@ def dual_edge(np.ndarray[ITYPE_t, ndim=2] edgearr not None,
                     edgearrcp[wx[ee], wy[ee]-shft] = newval
 
     return
-
-
-#@cython.boundscheck(False)
-def edge_sum(np.ndarray[ITYPE_t, ndim=1] edghist not None,
-            np.ndarray[ITYPE_t, ndim=1] sumarr not None):
-    cdef int s, sz_s
-
-    sz_s = sumarr.shape[0]
-
-    # Find which slit edge id is the most common
-    for s in range(sz_s):
-        edghist[sumarr[s]] += 1
-    return edghist
 
 
 #@cython.boundscheck(False)
@@ -936,55 +877,6 @@ def phys_to_pix(np.ndarray[DTYPE_t, ndim=2] array not None,
                 if array[a,n]-diff[d] < 0.0: break
             pixarr[a,n] = mind
     return pixarr
-
-
-#@cython.boundscheck(False)
-def prune_peaks(np.ndarray[ITYPE_t, ndim=1] hist not None,
-                np.ndarray[ITYPE_t, ndim=1] pks not None,
-                int pkidx):
-    """
-    Identify the most well defined peaks
-    """
-
-    cdef int ii, jj, sz_i, cnt, lgd
-
-    sz_i = pks.shape[0]
-
-    cdef np.ndarray[ITYPE_t, ndim=1] msk = np.zeros(sz_i, dtype=ITYPE)
-
-    lgd = 1  # Was the previously inspected peak a good one?
-    for ii in range(0, sz_i-1):
-        cnt = 0
-        for jj in range(pks[ii], pks[ii+1]):
-            if hist[jj] == 0:
-                cnt += 1
-        #if cnt < (pks[ii+1] - pks[ii])/2:
-        if cnt < 2:
-            # If the difference is unacceptable, both peaks are bad
-            msk[ii] = 0
-            msk[ii+1] = 0
-            lgd = 0
-        else:
-            # If the difference is acceptable, the right peak is acceptable,
-            # the left peak is acceptable if it was not previously labelled as unacceptable
-            if lgd == 1:
-                msk[ii] = 1
-            msk[ii+1] = 1
-            lgd = 1
-    # Now only consider the peaks closest to the highest peak
-    lgd = 1
-    for ii in range(pkidx, sz_i):
-        if msk[ii] == 0:
-            lgd = 0
-        elif lgd == 0:
-            msk[ii] = 0
-    lgd = 1
-    for ii in range(0, pkidx):
-        if msk[pkidx-ii] == 0:
-            lgd = 0
-        elif lgd == 0:
-            msk[pkidx-ii] = 0
-    return msk
 
 
 #@cython.boundscheck(False)

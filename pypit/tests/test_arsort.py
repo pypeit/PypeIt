@@ -22,7 +22,7 @@ def fitsdict():
 def test_sort_data(fitsdict):
     """ Test sort_data
     """
-    arutils.dummy_settings(spectrograph='kast_blue', set_idx=False)
+    arutils.dummy_settings(spectrograph='shane_kast_blue', set_idx=False)
     # Sort
     filesort = arsort.sort_data(fitsdict)
     assert filesort['bias'][0] == 0
@@ -35,7 +35,7 @@ def test_sort_data(fitsdict):
 def test_user_frametype(fitsdict):
     """ Test setting frametype manually
     """
-    arutils.dummy_settings(spectrograph='kast_blue', set_idx=False)
+    arutils.dummy_settings(spectrograph='shane_kast_blue', set_idx=False)
     # Modify settings -- WARNING: THIS IS GLOBAL!
     settings.spect['set'] = {}
     settings.spect['set']['standard'] = ['b009.fits']
@@ -47,7 +47,7 @@ def test_user_frametype(fitsdict):
 def test_match_science(fitsdict):
     """ Test match_science routine
     """
-    arutils.dummy_settings(spectrograph='kast_blue', set_idx=False)
+    arutils.dummy_settings(spectrograph='shane_kast_blue', set_idx=False)
     # Load
     settings.argflag['run']['setup'] = True  # Over-ride default numbers
     filesort = arsort.sort_data(fitsdict)
@@ -61,7 +61,7 @@ def test_match_science(fitsdict):
 def test_neg_match_science(fitsdict):
     """ Test using negative number for calibs
     """
-    arutils.dummy_settings(spectrograph='kast_blue', set_idx=False)
+    arutils.dummy_settings(spectrograph='shane_kast_blue', set_idx=False)
     # Load
     filesort = arsort.sort_data(fitsdict)
     # Use negative number
@@ -76,7 +76,7 @@ def test_instr_setup(fitsdict):
     """ Test instrument setup naming convention
     """
     from pypit import arsciexp
-    arutils.dummy_settings(spectrograph='kast_blue', set_idx=False)
+    arutils.dummy_settings(spectrograph='shane_kast_blue', set_idx=False)
     # Load
     settings.argflag['run']['setup'] = True # Over-ride default numbers
     filesort = arsort.sort_data(fitsdict)

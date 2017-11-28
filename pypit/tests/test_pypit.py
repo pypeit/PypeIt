@@ -16,7 +16,7 @@ def test_load_input():
     from pypit import pypit
     # Generate a PYPIT file
     pyp_file = data_path('test.pypit')
-    pyputils.make_pypit_file(pyp_file, 'kast_blue', [data_path('b*fits.gz')])
+    pyputils.make_pypit_file(pyp_file, 'shane_kast_blue', [data_path('b*fits.gz')])
     pyp_dict = pypit.load_input(pyp_file, msgs)
     parlines, datlines, spclines, dfnames = [pyp_dict[ii] for ii in ['par','dat','spc','dfn']]
     # Test
