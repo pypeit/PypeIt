@@ -66,8 +66,8 @@ det01 gain 1.226                      # Gain (e-/ADU) values
 det01 saturation 65535.0              # The detector Saturation level
 det01 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det01 numamplifiers 1                 # Number of amplifiers
-det01 datasec01 [:,12:2060]           
-det01 oscansec01 [:,0:12]
+# det01 datasec01 [:,12:2060]
+# det01 oscansec01 [:,0:12]
 det01 suffix _01
 
 det02 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
@@ -80,8 +80,8 @@ det02 gain 1.188                      # Gain (e-/ADU) values
 det02 saturation 65535.0              # The detector Saturation level
 det02 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det02 numamplifiers 1                 # Number of amplifiers
-det02 datasec01 [:,12:2060]           
-det02 oscansec01 [:,0:12]
+# det02 datasec01 [:,12:2060]
+# det02 oscansec01 [:,0:12]
 det02 suffix _02
 
 det03 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
@@ -94,8 +94,8 @@ det03 gain 1.248                      # Gain (e-/ADU) values
 det03 saturation 65535.0              # The detector Saturation level
 det03 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det03 numamplifiers 1                 # Number of amplifiers
-det03 datasec01 [:,12:2060]           
-det03 oscansec01 [:,0:12]
+# det03 datasec01 [:,12:2060]
+# det03 oscansec01 [:,0:12]
 det03 suffix _03
 
 det04 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
@@ -108,8 +108,8 @@ det04 gain 1.220                      # Gain (e-/ADU) values
 det04 saturation 65535.0              # The detector Saturation level
 det04 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det04 numamplifiers 1                 # Number of amplifiers
-det04 datasec01 [:,12:2060]           
-det04 oscansec01 [:,0:12]
+# det04 datasec01 [:,12:2060]
+# det04 oscansec01 [:,0:12]
 det04 suffix _04
 
 det05 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
@@ -122,8 +122,8 @@ det05 gain 1.184                      # Gain (e-/ADU) values
 det05 saturation 65535.0              # The detector Saturation level
 det05 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det05 numamplifiers 1                 # Number of amplifiers
-det05 datasec01 [:,12:2060]           
-det05 oscansec01 [:,0:12]
+# det05 datasec01 [:,12:2060]
+# det05 oscansec01 [:,0:12]
 det05 suffix _05
 
 det06 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
@@ -136,8 +136,8 @@ det06 gain 1.177                      # Gain (e-/ADU) values
 det06 saturation 65535.0              # The detector Saturation level
 det06 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det06 numamplifiers 1                 # Number of amplifiers
-det06 datasec01 [:,12:2060]           
-det06 oscansec01 [:,0:12]
+# det06 datasec01 [:,12:2060]
+# det06 oscansec01 [:,0:12]
 det06 suffix _06
 
 det07 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
@@ -150,8 +150,8 @@ det07 gain 1.201                      # Gain (e-/ADU) values
 det07 saturation 65535.0              # The detector Saturation level
 det07 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det07 numamplifiers 1                 # Number of amplifiers
-det07 datasec01 [:,12:2060]           
-det07 oscansec01 [:,0:12]
+# det07 datasec01 [:,12:2060]
+# det07 oscansec01 [:,0:12]
 det07 suffix _07
 
 det08 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
@@ -164,8 +164,8 @@ det08 gain 1.230                      # Gain (e-/ADU) values
 det08 saturation 65535.0              # The detector Saturation level
 det08 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
 det08 numamplifiers 1                 # Number of amplifiers
-det08 datasec01 [:,12:2060]           
-det08 oscansec01 [:,0:12]
+# det08 datasec01 [:,12:2060]
+# det08 oscansec01 [:,0:12]
 det08 suffix _08
 
 ###########################
@@ -360,3 +360,10 @@ arc check condition2 hatch=closed   # Required for arcs
 arc match binning ''                 # Match the shape of arcs with science
 arc match decker ''
 arc match filter1 ''
+
+### Pinhole frames
+pinhole check condition1 exptime>999999 # Avoids any pinhole frames
+
+### Dark frames
+dark check condition1 exptime>999999 # Avoids any dark frames
+

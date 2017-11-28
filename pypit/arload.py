@@ -9,7 +9,7 @@ from pypit import arparse as settings
 from pypit import armsgs
 from pypit import arproc
 from pypit import arlris
-from pypit import ardeimos_jfh
+from pypit import ardeimos
 #from multiprocessing import Pool as mpPool
 #from multiprocessing.pool import ApplyResult
 #import arutils
@@ -237,7 +237,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
         if settings.argflag['run']['spectrograph'] in ['keck_lris_blue', 'keck_lris_red']:
             temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         elif settings.argflag['run']['spectrograph'] in ['deimos']:
-            temp, head0, _ = ardeimos_jfh.read_deimos(fitsdict['directory'][ind[i]] + fitsdict['filename'][ind[i]])
+            temp, head0, _ = ardeimos.read_deimos(fitsdict['directory'][ind[i]] + fitsdict['filename'][ind[i]])
         else:
             hdulist = pyfits.open(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]])
             temp = hdulist[settings.spect[dnum]['dataext01']].data

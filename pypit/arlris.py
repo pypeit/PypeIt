@@ -211,6 +211,7 @@ def read_lris(raw_file, det=None, TRIM=False):
     head0['BZERO'] = 32768-obzero
 
     # Return, transposing array back to goofy Python indexing
+    debugger.set_trace()
     return array.T, head0, (dsec, osec)
 
 

@@ -608,10 +608,11 @@ def get_datasec_trimmed(slf, fitsdict, det, scidx):
         fitsdict['naxis0'][scidx] = temp.shape[0]
         fitsdict['naxis1'][scidx] = temp.shape[1]
         # Loop on amplifiers
-        datasec = "datasec{0:02d}".format(1)
-        settings.spect[dnum][datasec] = settings.load_sections(secs[0])
-        oscansec = "oscansec{0:02d}".format(1)
-        settings.spect[dnum][oscansec] = settings.load_sections(secs[1])
+        for kk in range(settings.spect[dnum]['numamplifiers']):
+            datasec = "datasec{0:02d}".format(kk+1)
+            settings.spect[dnum][datasec] = settings.load_sections(secs[0][kk], fmt_iraf=False)
+            oscansec = "oscansec{0:02d}".format(kk+1)
+            settings.spect[dnum][oscansec] = settings.load_sections(secs[1][kk], fmt_iraf=False)
     # For convenience
     naxis0, naxis1 = int(fitsdict['naxis0'][scidx]), int(fitsdict['naxis1'][scidx])
     # Initialize the returned array
