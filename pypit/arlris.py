@@ -131,7 +131,6 @@ def read_lris(raw_file, det=None, TRIM=False):
     array = np.zeros( (nx, ny) )
     order = np.argsort(np.array(xcol))
 
-
     # insert extensions into master image...
     for kk, i in enumerate(order[det_idx]):
 
@@ -211,7 +210,8 @@ def read_lris(raw_file, det=None, TRIM=False):
     head0['BZERO'] = 32768-obzero
 
     # Return, transposing array back to goofy Python indexing
-    debugger.set_trace()
+#    from IPython import embed
+#    embed()
     return array.T, head0, (dsec, osec)
 
 
