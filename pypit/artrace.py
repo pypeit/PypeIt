@@ -17,7 +17,6 @@ from collections import Counter
 msgs = armsgs.get_logger()
 
 from pypit import ardebug as debugger
-from IPython import embed
 
 
 try:
@@ -1100,6 +1099,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     offs = cenmodl[int(binarr.shape[0]/2)]
 #    lfail = np.array([])
 #    minvf, maxvf = slf._pixlocn[det-1][0, 0, 0], slf._pixlocn[det-1][-1, 0, 0]
+    from IPython import embed
+    embed()
     for i in range(lmin, lmax+1):
         w = np.where(edgearr == -i)
         if np.size(w[0]) <= settings.argflag['trace']['slits']['polyorder']+2:
@@ -2462,7 +2463,6 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
                 debugger.set_trace()
         elif settings.argflag['trace']['slits']['tilts']['method'].lower() == "pca":
             tilts = polytilts.copy()
-
 
     # Now do the QA
     msgs.info("Preparing arc tilt QA data")
