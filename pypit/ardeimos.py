@@ -76,7 +76,6 @@ def read_deimos(raw_file):
     dsec = []
     osec = []
 
-
     # get the x and y binning factors...
     binning = head0['BINNING']
     if binning != '1,1':
