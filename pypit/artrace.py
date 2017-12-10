@@ -734,7 +734,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
 
     msgs.info("Preparing trace frame for slit detection")
     # Generate a binned (or smoothed) version of the trace frame
-    binarr = ndimage.uniform_filter(mstrace, size=(3, 1))
+    binarr = ndimage.uniform_filter(mstrace, size=(3, 1),mode='mirror')
     binbpx = slf._bpix[det-1].copy()
     plxbin = slf._pixlocn[det-1][:, :, 0].copy()
     plybin = slf._pixlocn[det-1][:, :, 1].copy()
@@ -850,6 +850,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
 
     # Assign a number to each of the edges
     msgs.info("Matching slit edges")
+#    from IPython import embed
+#    embed()
     lcnt, rcnt = arcytrace.match_edges(edgearr, ednum)
     if lcnt >= ednum or rcnt >= ednum:
         msgs.error("Found more edges than allowed by ednum. Set ednum to a larger number.")
@@ -1099,8 +1101,6 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     offs = cenmodl[int(binarr.shape[0]/2)]
 #    lfail = np.array([])
 #    minvf, maxvf = slf._pixlocn[det-1][0, 0, 0], slf._pixlocn[det-1][-1, 0, 0]
-    from IPython import embed
-    embed()
     for i in range(lmin, lmax+1):
         w = np.where(edgearr == -i)
         if np.size(w[0]) <= settings.argflag['trace']['slits']['polyorder']+2:

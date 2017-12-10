@@ -78,7 +78,9 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         for kk in range(settings.spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             if settings.argflag['reduce']['detnum'] is not None:
-                if det != settings.argflag['reduce']['detnum']:
+                # if det != settings.argflag['reduce']['detnum']:
+                # JFH changed to allow multiple detectors for DEIMOS
+                if det not in map(int,settings.argflag['reduce']['detnum']):
                     msgs.warn("Skipping detector {:d}".format(det))
                     continue
                 else:

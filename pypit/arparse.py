@@ -1009,7 +1009,9 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        v = key_none_int(v)
+#        v = key_none_int(v)
+        v = key_none_list(v)
+
         self.update(v)
 
     def reduce_flatfield_method(self, v):
