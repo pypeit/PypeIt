@@ -366,3 +366,7 @@ pinhole check condition1 exptime>999999 # Avoids any pinhole frames
 ### Dark frames
 dark check condition1 exptime>999999 # Avoids any dark frames
 
+
+
+# Make some changes to the arguments and flags
+settings trace slits sigdetect 100.0
