@@ -533,7 +533,6 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     #sigframe = rec_sciframe_bin*(1.0-rec_crmask)/rec_sigframe_bin
     ww = np.where(rec_crmask == 0.0)
     med, mad = arutils.robust_meanstd(rec_sigframe_bin[ww])
-    debugger.set_trace()
     ww = np.where(rec_crmask == 1.0)
     rec_sigframe_bin[ww] = maskval
     srtsig = np.sort(rec_sigframe_bin,axis=1)
@@ -615,7 +614,6 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     else:
         msgs.info("Found {0:d} objects".format(objl.size))
         msgs.info("Tracing {0:d} objects".format(objl.size))
-    debugger.set_trace()
     # Max obj
     if nobj > settings.argflag['science']['extraction']['maxnumber']:
         nobj = settings.argflag['science']['extraction']['maxnumber']
@@ -2743,7 +2741,7 @@ def slit_image(slf, det, scitrace, obj, tilts=None):
 
 def find_obj_minima(trcprof, fwhm=3., nsmooth=3, nfind=8, xedge=0.03,
         sig_thresh=5., peakthresh=None, triml=2, trimr=2, debug=False):
-    ''' Find objects using a ported version of nminima from IDL (idlutils) 
+    ''' Find objects using a ported version of nminima from IDL (idlutils)
     
     Parameters
     ----------
