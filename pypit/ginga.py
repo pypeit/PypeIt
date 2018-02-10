@@ -99,19 +99,19 @@ def show_image(inp, chname='Image', wcs_img=None, **kwargs):
     return viewer, ch
 
 
-def show_slits(viewer, ch, lordloc, rordloc, slit_ids):
+def show_slits(viewer, ch, lordloc, rordloc, slit_ids, rotate=False, pstep=1):
     """ Overplot slits on image in Ginga
     Parameters
     ----------
     viewer
     ch
-    lordloc
-    rordloc
+    lordloc : ndarray
+    rordloc : ndarray
     slit_ids : list of int
-
-    Returns
-    -------
-
+    rotate : bool, optional
+      Allow for a rotated image
+    pstep : int
+      Show every pstep point of the edges
     """
     # Canvas
     canvas = viewer.canvas(ch._chname)
@@ -122,15 +122,19 @@ def show_slits(viewer, ch, lordloc, rordloc, slit_ids):
     tthrd = int(2*lordloc.shape[0]/3.)
     # Loop on slits
     for slit in range(lordloc.shape[1]):
-        # Left
-        points = list(zip(lordloc[:,slit].tolist(),y))
-        canvas.add('path', points, color='cyan')
-        # Right
-        points = list(zip(rordloc[:,slit].tolist(),y))
-        canvas.add('path', points, color='cyan')
+        # Edges
+        for item in [lordloc, rordloc]:
+            if rotate:
+                points = list(zip(y[::pstep],item[::pstep,slit].tolist()))
+            else:
+                points = list(zip(item[::pstep,slit].tolist(),y[::pstep]))
+            canvas.add('path', points, color='cyan')
         # Text -- Should use the 'real' name
-        canvas.add('text', float(lordloc[tthrd,slit]), float(y[tthrd]),
-                   'S{:d}'.format(slit_ids[slit]), color='cyan')
+        if rotate:
+            xt, yt = float(y[tthrd]), float(lordloc[tthrd,slit])
+        else:
+            xt, yt = float(lordloc[tthrd,slit]), float(y[tthrd])
+        canvas.add('text', xt, yt, 'S{:d}'.format(slit_ids[slit]), color='cyan')
 
 def show_trace(viewer, ch, trace, trc_name, color='blue', clear=False):
     # Canvas
