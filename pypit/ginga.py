@@ -136,19 +136,31 @@ def show_slits(viewer, ch, lordloc, rordloc, slit_ids, rotate=False, pstep=1):
             xt, yt = float(lordloc[tthrd,slit]), float(y[tthrd])
         canvas.add('text', xt, yt, 'S{:d}'.format(slit_ids[slit]), color='cyan')
 
-def show_trace(viewer, ch, trace, trc_name, color='blue', clear=False):
+def show_trace(viewer, ch, trace, trc_name, color='blue', clear=False,
+               rotate=False, pstep=1):
+    """
+    rotate : bool, optional
+      Allow for a rotated image
+    pstep : int
+      Show every pstep point of the edges
+    """
     # Canvas
     canvas = viewer.canvas(ch._chname)
     if clear:
         canvas.clear()
     # Show
-    y = (np.arange(trace.size)).tolist()
-    points = list(zip(trace.tolist(),y))
+    y = (np.arange(trace.size)[::pstep]).tolist()
+    xy = [trace[::pstep].tolist(), y]
+    if rotate:
+        xy[0], xy[1] = xy[1], xy[0]
+    points = list(zip(xy[0], xy[1]))
     canvas.add('path', points, color=color)
     # Text
-    ohf = trace.size // 2
-    canvas.add('text', float(trace[ohf]), float(y[ohf]), trc_name,
-               rot_deg=90., color=color, fontsize=17.)
+    ohf = trace.size // (2*pstep)
+    xyt = [float(trace[ohf]), float(y[ohf])]
+    if rotate:
+        xyt[0], xyt[1] = xyt[1], xyt[0]
+    canvas.add('text', xyt[0], xyt[1], trc_name, rot_deg=90., color=color, fontsize=17.)
 
 def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0.):
     """  Display arc image and overlay the arcline tilt measurements
