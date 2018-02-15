@@ -525,6 +525,11 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     rec_crmask[np.where(rec_crmask > 0.2)] = 1.0
     rec_crmask[np.where(rec_crmask <= 0.2)] = 0.0
     msgs.info("Estimating object profiles")
+    # Avoid any 0's in varframe
+    zero_var = rec_varframe == 0.
+    if np.any(zero_var):
+        rec_varframe[zero_var] = 1.
+        rec_crmask[zero_var] = 1.
     # Smooth the S/N frame
     smthby, rejhilo = tracepar['smthby'], tracepar['rejhilo']
     rec_sigframe_bin = arcyutils.smooth_x(rec_sciframe/np.sqrt(rec_varframe), 1.0-rec_crmask, smthby, rejhilo, maskval)
