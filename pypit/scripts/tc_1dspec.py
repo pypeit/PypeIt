@@ -147,21 +147,17 @@ def tcorrect_data(fscale, data, tran):
 def main(args, unit_test=False, path=''):
     import glob
     import yaml
+    import os.path
 
     # Load the input file
-    with open(args.infile, 'r') as fname:
-        print(fname)
-        tmp = arload.load_1dspec(fname, exten=1)
-
-        data = np.zeros((len(tmp.wavelength.value), 3))
-        data[:,0] = tmp.wavelength.value
-        data[:,1] = tmp.flux.value
+    data = arload.load_1dspec(args.infile, exten=1)
 
     print(data)
 
-if __name__=='__main__':
-    #data = get_data('m31_b225_coadd_red.fits')
-    tran = get_transmission(data)
-    fscale = get_fscale(data, tran)
-    tcorrect_data(fscale, data, tran)
+#if __name__=='__main__':
+#    data = get_data('m31_b225_coadd_red.fits')
+#    tran = get_transmission(data)
+#    fscale = get_fscale(data, tran)
+#    tcorrect_data(fscale, data, tran)
+
 
