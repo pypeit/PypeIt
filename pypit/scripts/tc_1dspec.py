@@ -5,7 +5,7 @@ from pdb as debugger
 
 msgs = pyputils.get_dummy_logger()
 
-def parser(options=None):i
+def parser(options=None):
 
     description = (
                   'Script to telluric correct a spec!D file. '
@@ -13,6 +13,7 @@ def parser(options=None):i
                   )
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("infile", type=str, help="Input file (YAML)")
+    parser.add_argument("atm_tran", type=str, help="Atmospheric transmission spectrum")
     parser.add_argument("--debug", default=False, i
                         action='store_true', help="Turn debugging on")
 
@@ -53,7 +54,7 @@ def get_transmission(data):
     with default inputs.
     """
 
-    tmp = np.loadtxt('pieter_transmission.dat')
+    tmp = np.loadtxt('../data/atmospheric_transmission/maunakea.dat')
 
     # Convert transmission spectrum to angstroms
     # and clip it to wavelength range of data
@@ -63,7 +64,7 @@ def get_transmission(data):
 
     # Convolve the atm. transsissiom spectrum to LRIS_R resolution
     res         = get_lrisr_resolution(trans.wavelength.value)
-    fwhm_pix    = get_kernel(trans, inval=20000., outval=res)
+    fwhm_pix    = pyputils.get_fwhm_pix(trans, inval=20000., outval=res)
 
     smooth_spec = np.zeros((len(trans.wavelength.value)))
     for i, fp in enumerate(fwhm_pix):
@@ -97,13 +98,7 @@ def get_fscale(data, tran):
     tmp_tran[:,0] = tran[:,0][i]
     tmp_tran[:,1] = tran[:,1][i]/poly
 
-    """
-    plt.plot(tmp_data[:,0], tmp_data[:,1], color='k')
-    plt.plot(tmp_tran[:,0], tmp_tran[:,1], color='r')
-    plt.show()
-    """
-
-    soln = minimize(opposite_lnlike_tf, 1,
+    soln = minimize(pyputis.opposite_lnlike_tf, 1,
                     args=(tmp_data, tmp_tran))
 
     return soln['x'][0]
@@ -142,3 +137,9 @@ def tcorrect_data(fscale, data, tran):
 def main(args, unit_test=False, path=''):
     import glob
     import yaml
+
+    data = get_data('m31_b225_coadd_red.fits')
+    tran = get_transmission(data)
+    fscale = get_fscale(data, tran)
+    tcorrect_data(fscale, data, tran)
+
