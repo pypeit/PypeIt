@@ -79,6 +79,10 @@ satisfies the standard conditions to be a standard if it
 lies with 20arcmin of the PYPIT approved list
 of :doc:`standards`.
 
+A file that satisfies all conditions of being a *bias*
+frame yet has an exposure time exceeding the minimum
+value for the detector is typed as a *dark*.
+
 
 Modifying a frametype
 =====================
