@@ -45,6 +45,7 @@ Here is the code flow for the :ref:`pypit-setup` script::
    |  |  ├── armbase.SetupScience(fitsdict)
    |  |  |  ├── arsort.sort_data()
    |  |  |  |  ├── find_standard_file()
+   |  |  |  |  ++ Generates filesort dict
    |  |  |  ├── arsort.match_science()
    |  |  |  |  ++ Written to settings.spect[ftag]['index']
    |  |  |  ├── arsciexp.ScienceExposure()
@@ -62,6 +63,7 @@ Items
 
 Items created and carried around::
 
+    filesort
     fitsdict
     settings.spect
     settings.argf
