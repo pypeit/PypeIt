@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
-from pypit import pyputils
-from pdb as debugger
+from pypit import arutils
+from pypit import arload
+from linetools.spectra.xspectrum1d import XSpectrum1D
+import numpy as np
+#from pdb as debugger
 
-msgs = pyputils.get_dummy_logger()
+#msgs = pyputils.get_dummy_logger()
 
 def parser(options=None):
 
@@ -14,8 +17,8 @@ def parser(options=None):
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("infile", type=str, help="Input file (YAML)")
     parser.add_argument("atm_tran", type=str, help="Atmospheric transmission spectrum")
-    parser.add_argument("--debug", default=False, i
-                        action='store_true', help="Turn debugging on")
+    #parser.add_argument("--debug", default=False, i
+    #                    action='store_true', help="Turn debugging on")
 
     if options is None:
         args = parser.parse_args()
@@ -64,7 +67,7 @@ def get_transmission(data):
 
     # Convolve the atm. transsissiom spectrum to LRIS_R resolution
     res         = get_lrisr_resolution(trans.wavelength.value)
-    fwhm_pix    = pyputils.get_fwhm_pix(trans, inval=20000., outval=res)
+    fwhm_pix    = arutils.get_fwhm_pix(trans, inval=20000., outval=res)
 
     smooth_spec = np.zeros((len(trans.wavelength.value)))
     for i, fp in enumerate(fwhm_pix):
@@ -81,6 +84,8 @@ def get_transmission(data):
     return model
 
 def get_fscale(data, tran):
+    from numpy.polynomial.chebyshev import chebfit, chebval
+    from scipy.optimize import minimize
 
     i = ((data[:,0] >= 9250) &
          (data[:,0] <= 9650))
@@ -98,13 +103,16 @@ def get_fscale(data, tran):
     tmp_tran[:,0] = tran[:,0][i]
     tmp_tran[:,1] = tran[:,1][i]/poly
 
-    soln = minimize(pyputis.opposite_lnlike_tf, 1,
+    soln = minimize(arutils.opposite_lnlike_tf, 1,
                     args=(tmp_data, tmp_tran))
 
     return soln['x'][0]
 
 def tcorrect_data(fscale, data, tran):
-    template = get_template(fscale, tran)
+    from copy import deepcopy
+    import matplotlib.pyplot as plt
+
+    template = arutils.get_atm_template(fscale, tran[:,1])
 
     tc_data      = deepcopy(data)
     tc_data[:,1] = data[:,1]/template
@@ -134,7 +142,8 @@ def tcorrect_data(fscale, data, tran):
     plt.tight_layout()
     plt.show()
 
-def main(args, unit_test=False, path=''):
+#def main(args, unit_test=False, path=''):
+if __name__=='__main__':
     import glob
     import yaml
 
