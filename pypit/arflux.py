@@ -382,7 +382,7 @@ def generate_sensfunc(slf, stdidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=
 
     Parameters
     ----------
-    slf : 
+    slf :
     stdidx : int
       index for standard  (may not be necessary) -- Differs from scidx!!
     specobjs : list
@@ -462,7 +462,10 @@ def generate_sensfunc(slf, stdidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=
 
     #; Mask telluric absorption
     msgs.info("Masking Telluric")
-    tell = np.any([((wave >= 7580.0*u.AA) & (wave <= 7750.0*u.AA)), ((wave >= 7160.0*u.AA) & (wave <= 7340.0*u.AA)),((wave >= 6860.0*u.AA)  & (wave <= 6930.0*u.AA))],axis=0)
+    tell = np.any([((wave >= 7580.0*u.AA) & (wave <= 7750.0*u.AA)),
+                   ((wave >= 7160.0*u.AA) & (wave <= 7340.0*u.AA)),
+                   ((wave >= 6860.0*u.AA) & (wave <= 6930.0*u.AA))],
+                   axis=0)
     msk[tell] = False
 
     # Mask
@@ -478,3 +481,19 @@ def generate_sensfunc(slf, stdidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=
     sens_dict['wave_min'] = np.min(wave)
     sens_dict['wave_max'] = np.max(wave)
     return sens_dict
+
+def lrisr_800_10000_r(wavelength):
+    """This comes from P. van Dokkum's fit
+    to the sky lines
+    Parameters
+    ----------
+    wavelength: ndarray
+    Returns
+    -------
+    Resolution: ndarray
+    """
+    l9   = (wavelength - 9000.)/1000.
+    resr = 1.26-0.128*l9+0.168*l9**2+0.1173*l9**3
+    resr = resr/wavelength*3.E5 # km s^-1
+
+    return np.array(resr)
