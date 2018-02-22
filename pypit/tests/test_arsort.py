@@ -8,6 +8,7 @@ msgs = pyputils.get_dummy_logger(develop=True)
 from pypit import arsort
 from pypit import arutils
 from pypit import arparse as settings
+from pypit.armsgs import PypitError
 
 #def data_path(filename):
 #    data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -94,6 +95,15 @@ def test_neg_match_science(fitsdict):
     settings.spect['trace']['number'] = -1
     _ = arsort.match_science(fitsdict, filesort)
     assert len(settings.spect['trace']['index'][1]) == 2
+
+
+def test_match_science_errors(fitsdict):
+    arutils.dummy_settings(spectrograph='shane_kast_blue', set_idx=False)
+    # Load
+    filesort = arsort.sort_data(fitsdict)
+    settings.spect['trace']['number'] = 10
+    with pytest.raises(PypitError):
+        _ = arsort.match_science(fitsdict, filesort)
 
 
 def test_instr_setup(fitsdict):
