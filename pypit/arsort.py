@@ -1,3 +1,4 @@
+""" Routines for sorting data to be reduced by PYPIT"""
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import os
@@ -8,16 +9,17 @@ import string
 import numpy as np
 import yaml
 
-from pypit import armsgs
-from pypit import arparse as settings
-from pypit import arutils
-from pypit.arflux import find_standard_file
 from astropy.io.votable.tree import VOTableFile, Resource, Table, Field
 from astropy.table import Table as tTable, Column
 from astropy import units as u
 
 from linetools import utils as ltu
 
+from pypit import armsgs
+from pypit import arparse as settings
+from pypit import arutils
+from pypit.arflux import find_standard_file
+from pypit import armeta
 from pypit import ardebug as debugger
 
 try:
@@ -47,20 +49,16 @@ def sort_data(fitsdict, flag_unknown=False):
     -------
     ftag : dict
       A dictionary of filetypes
+      Each key is a file type and contains an array of the file indices that qualify
     """
     msgs.bug("There appears to be a bug with the assignment of arc frames when only one science frame is supplied")
     msgs.info("Sorting files")
     numfiles = fitsdict['filename'].size
     # Set the filetype dictionary
-    ftag = dict(science=np.array([], dtype=np.int),
-                standard=np.array([], dtype=np.int),
-                bias=np.array([], dtype=np.int),
-                dark=np.array([], dtype=np.int),
-                pinhole=np.array([], dtype=np.int),
-                pixelflat=np.array([], dtype=np.int),
-                trace=np.array([], dtype=np.int),
-                unknown=np.array([], dtype=np.int),
-                arc=np.array([], dtype=np.int))
+    ftag = {}
+    for ftype in armeta.allowed_file_types():
+        ftag[ftype] = np.array([], dtype=np.int)
+    # Set all filetypes by hand?
     if len(settings.ftdict) > 0:
         for ifile,ftypes in settings.ftdict.items():
             idx = np.where(fitsdict['filename'] == ifile)[0]
@@ -71,89 +69,60 @@ def sort_data(fitsdict, flag_unknown=False):
         for key in ftag.keys():
             ftag[key].sort()
         return ftag
-    fkey = np.array(list(ftag.keys()))  # For Python 3 compatability
+    #  Prepare to type
+    fkeys = np.array(list(ftag.keys()))
     # Create an array where 1 means it is a certain type of frame and 0 means it isn't.
-    filarr = np.zeros((len(fkey), numfiles), dtype=np.int)
-    setarr = np.zeros((len(fkey), numfiles), dtype=np.int)
+    filarr = np.zeros((fkeys.size, numfiles), dtype=np.int)
+    setarr = np.zeros((fkeys.size, numfiles), dtype=np.int)
+
     # Identify the frames:
-    for i in range(len(fkey)):
-        if fkey[i] == 'unknown':
+    # Loop on file type
+    for i, fkey in enumerate(fkeys):
+        if fkey == 'unknown':
             continue
-        # Self identification
+        # Self identification (typically from Header; not recommended)
         if settings.argflag['run']['useIDname']:
-            w = np.where(fitsdict['idname'] == settings.spect[fkey[i]]['idname'])[0]
+            w = np.where(fitsdict['idname'] == settings.spect[fkey]['idname'])[0]
         else:
             w = np.arange(numfiles)
         n = np.arange(numfiles)
         n = np.intersect1d(n, w)
+        debugger.set_trace()
         # Perform additional checks in order to make sure this identification is true
-        if 'check' in settings.spect[fkey[i]].keys():
-            chkk = settings.spect[fkey[i]]['check'].keys()
-            for ch in chkk:
-                if ch[0:9] == 'condition':
-                    # Deal with a conditional argument
-                    conds = re.split("(\||\&)", settings.spect[fkey[i]]['check'][ch])
-                    ntmp = chk_condition(fitsdict, conds[0])
-                    # And more
-                    for cn in range((len(conds)-1)//2):
-                        if conds[2*cn+1] == "|":
-                            ntmp = ntmp | chk_condition(fitsdict, conds[2*cn+2])
-                        elif conds[2*cn+1] == "&":
-                            ntmp = ntmp & chk_condition(fitsdict, conds[2*cn+2])
-                    w = np.where(ntmp)[0]
-                else:
-                    if fitsdict[ch].dtype.char == 'S':  # Numpy string array
-                        # Strip numpy string array of all whitespace
-                        w = np.where(np.char.strip(fitsdict[ch]) == settings.spect[fkey[i]]['check'][ch])[0]
-                    else:
-                        w = np.where(fitsdict[ch] == settings.spect[fkey[i]]['check'][ch])[0]
-                n = np.intersect1d(n, w)
-        # Assign these filetypes
+        if 'check' in settings.spect[fkey].keys():
+            n = chk_all_conditions(n, fkey, fitsdict)
+
+        # Assign these images to the filetype
         filarr[i, :][n] = 1
         # Check if these files can also be another type
-        if settings.spect[fkey[i]]['canbe'] is not None:
-            for cb in settings.spect[fkey[i]]['canbe']:
+        #  e.g. some frames are used for pixelflat and slit tracing
+        if settings.spect[fkey]['canbe'] is not None:
+            for cb in settings.spect[fkey]['canbe']:
                 # Assign these filetypes
-                fa = np.where(fkey == cb)[0]
+                fa = np.where(fkeys == cb)[0]
                 if np.size(fa) == 1:
                     filarr[fa[0], :][n] = 1
                 else:
                     msgs.error("Unknown type for argument 'canbe': {0:s}".format(cb))
-#		# Check for filetype clashes
-#		bdf=np.where(np.sum(filarr,axis=0)[n] != 0)[0]
-#		if np.size(bdf) != 0:
-#			msgs.info("Clash with file identifications when assigning frames as type {0:s}:".format(fkey[i]))
-#			# Check if this clash is allowed:
-#			clashfound=False
-#			for b in range(np.size(bdf)):
-#				# For each file with a clash, get all frames that have been assigned to it
-#				tarr = np.where(filarr[:,n[bdf[b]]]==1)[0]
-#				for a in tarr:
-#					if settings.spect[fkey[i]]['canbe'] is None:
-#						print "{0:s} can only be of type: {1:s}, and is marked as {2:s}".format(fitsdict['filename'][n[bdf[b]]],fkey[i],fkey[a])
-#						clashfound=True
-#					elif fkey[a] not in settings.spect[fkey[i]]['canbe']:
-#						print "{0:s}  current filetype: {1:s}".format(fitsdict['filename'][n[bdf[b]]],fkey[a])
-#						clashfound=True
-#			if clashfound: msgs.error("Check these files and your settings.{0:s} file before continuing.".format(settings.argflag['run']['spectrograph'])+msgs.newline()+"You can use the 'canbe' option to allow one frame to have multiple types.")
-#			else: msgs.info("Clash permitted")
+
     # Identify the standard stars
     # Find the nearest standard star to each science frame
-    wscistd = np.where(filarr[np.where(fkey == 'standard')[0], :].flatten() == 1)[0]
+    wscistd = np.where(filarr[np.where(fkeys == 'standard')[0], :].flatten() == 1)[0]
     for i in range(wscistd.size):
         radec = (fitsdict['ra'][wscistd[i]], fitsdict['dec'][wscistd[i]])
         if fitsdict['ra'][wscistd[i]] == 'None':
             msgs.warn("No RA and DEC information for file:" + msgs.newline() + fitsdict['filename'][wscistd[i]])
             msgs.warn("The above file could be a twilight flat frame that was" + msgs.newline() +
                       "missed by the automatic identification.")
-            filarr[np.where(fkey == 'standard')[0], wscistd[i]] = 0
+            filarr[np.where(fkeys == 'standard')[0], wscistd[i]] = 0
             continue
         # If an object exists within 20 arcmins of a listed standard, then it is probably a standard star
         foundstd = find_standard_file(radec, toler=20.*u.arcmin, check=True)
         if foundstd:
-            filarr[np.where(fkey == 'science')[0], wscistd[i]] = 0
+            filarr[np.where(fkeys == 'science')[0], wscistd[i]] = 0
         else:
-            filarr[np.where(fkey == 'standard')[0], wscistd[i]] = 0
+            filarr[np.where(fkeys == 'standard')[0], wscistd[i]] = 0
+
     # Make any forced changes
     msgs.info("Making forced file identification changes")
     skeys = settings.spect['set'].keys()
@@ -161,9 +130,9 @@ def sort_data(fitsdict, flag_unknown=False):
         for j in settings.spect['set'][sk]:
             w = np.where(fitsdict['filename']==j)[0]
             filarr[:,w]=0
-            setarr[np.where(fkey==sk)[0],w]=1
-            del w
+            setarr[np.where(fkeys==sk)[0],w]=1
     filarr = filarr + setarr
+
     # Check that all files have an identification
     badfiles = np.where(np.sum(filarr, axis=0) == 0)[0]
     if np.size(badfiles) != 0:
@@ -171,15 +140,15 @@ def sort_data(fitsdict, flag_unknown=False):
         for i in range(np.size(badfiles)):
             msgs.info(fitsdict['filename'][badfiles[i]])
         if flag_unknown:
-            filarr[np.where(fkey == 'unknown')[0],badfiles] = 1
+            filarr[np.where(fkeys == 'unknown')[0],badfiles] = 1
         else:
             msgs.error("Check these files and your settings.{0:s} file before continuing".format(settings.argflag['run']['spectrograph']))
     # Now identify the dark frames
-    wdark = np.where((filarr[np.where(fkey == 'bias')[0], :] == 1).flatten() &
+    wdark = np.where((filarr[np.where(fkeys == 'bias')[0], :] == 1).flatten() &
                      (fitsdict['exptime'].astype(np.float64) > settings.spect['mosaic']['minexp']))[0]
     ftag['dark'] = wdark
     # Store the frames in the ftag array
-    for i in range(len(fkey)):
+    for i in range(len(fkeys)):
         ftag[fkey[i]] = np.where(filarr[i,:] == 1)[0]
     # Finally check there are no duplicates (the arrays will automatically sort with np.unique)
     msgs.info("Finalising frame sorting, and removing duplicates")
@@ -192,6 +161,45 @@ def sort_data(fitsdict, flag_unknown=False):
     # Return ftag!
     msgs.info("Sorting completed successfully")
     return ftag
+
+
+def chk_all_conditions(n, fkey, fitsdict):
+    """ Loop on the conditions for this given file type
+    Parameters
+    ----------
+    n : ndarray
+      Indices of images satisfying the filetype thus far
+    fkey : str
+      File type
+    fitsdict : dict
+
+    Returns
+    -------
+    n : ndarray
+      Indices of images also satisfying the check conditions
+    """
+    chkk = settings.spect[fkey]['check'].keys()
+    for ch in chkk:
+        if ch[0:9] == 'condition':
+            # Deal with a conditional argument
+            conds = re.split("(\||\&)", settings.spect[fkey]['check'][ch])
+            ntmp = chk_condition(fitsdict, conds[0])
+            # And more
+            for cn in range((len(conds)-1)//2):
+                if conds[2*cn+1] == "|":
+                    ntmp = ntmp | chk_condition(fitsdict, conds[2*cn+2])
+                elif conds[2*cn+1] == "&":
+                    ntmp = ntmp & chk_condition(fitsdict, conds[2*cn+2])
+            w = np.where(ntmp)[0]
+        else:
+            if fitsdict[ch].dtype.char == 'S':  # Numpy string array
+                # Strip numpy string array of all whitespace
+                w = np.where(np.char.strip(fitsdict[ch]) == settings.spect[fkey]['check'][ch])[0]
+            else:
+                w = np.where(fitsdict[ch] == settings.spect[fkey]['check'][ch])[0]
+        n = np.intersect1d(n, w)
+    # Return
+    return n
 
 
 def chk_condition(fitsdict, cond):
