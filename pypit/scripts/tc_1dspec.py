@@ -143,12 +143,39 @@ def tcorrect_data(fscale, data, tran):
     plt.tight_layout()
     plt.show()
 
-#def main(args, unit_test=False, path=''):
-if __name__=='__main__':
+def main(args, unit_test=False, path=''):
     import glob
     import yaml
 
-    data = get_data('m31_b225_coadd_red.fits')
+    # Load the input file
+    with open(args.infile, 'r') as infile:
+        tc_dict = yaml.load(infile)
+
+    # Grab object names in the spectra
+    filelist = coadd_dict.pop('filenames')
+    # Allow for wildcards
+    files = []
+    for ifl in filelist:
+        if '*' in ifl:
+            files += glob.glob(path+ifl)
+        else:
+            files += [path+ifl]
+    # Load spectra
+    if len(files) == 0:
+        msgs.error("No files match your input list")
+    else:
+        msgs.info("Coadding {:d} data frames".format(len(files)))
+    fdict = {}
+    for ifile in files:
+        # Open file
+        hdulist = fits.open(ifile)
+        # Grab objects
+        objects = [hdu.name for hdu in hdulist][1:]
+        fdict[ifile] = objects
+
+
+if __name__=='__main__':
+    #data = get_data('m31_b225_coadd_red.fits')
     tran = get_transmission(data)
     fscale = get_fscale(data, tran)
     tcorrect_data(fscale, data, tran)
