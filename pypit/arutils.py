@@ -1382,5 +1382,38 @@ def opposite_lnlike_tf(theta, data, trans):
     i = ((data[:,0] >= 9320) & (data[:,0] <= 9380))
     return -1. * lnlike_tf(theta, data, trans)
 
+def get_fwhm_pix(sp, inval=10000., outval=150):
+    """ Find FWHM (pix) to convolve a spec1D by
+    Parameters
+    ----------
+    sp:     XSpectrum1D object
+        Spectrum to be convolved
+    inval:  int
+        Resolution of sp (R)
+    outval: float
+        Resolution to convolve sp to (km/s)
+    Returns
+    -------
+    fwhm_dff: ndarray
+        Array of FWHM (pix) values to convolve
+        a spectrum by
+    """
+    clight = 299792.458
 
+    # Get FWHM of spectrum we're smoothing
+    # (assuming resolution is in R)
+
+    fwhm_in_ = sp.wavelength.value/inval
+    psize    = np.diff(sp.wavelength.value)
+    psize    = np.append(psize, sp.wavelength[-1].value - sp.wavelength[-2].value)
+
+    # Get FWHM of resolution we're smooth too
+    # (assuming resolution is in km/s)
+
+    fwhm_out = outval*2.*np.sqrt(2*np.log(2))
+    fwhm_out = (fwhm_out / clight) * sp.wavelength.value
+
+    fwhm_diff = (fwhm_out - fwhm_in_)/psize
+
+    return fwhm_diff
 
