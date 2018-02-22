@@ -87,8 +87,7 @@ def get_fscale(data, tran):
     from numpy.polynomial.chebyshev import chebfit, chebval
     from scipy.optimize import minimize
 
-    i = ((data[:,0] >= 9250) &
-         (data[:,0] <= 9650))
+    i = ((data[:,0] >= 9250) & (data[:,0] <= 9650))
 
     coef = chebfit(data[:,0][i], data[:,1][i], 4)
     poly = chebval(data[:,0][i], coef)
@@ -108,6 +107,8 @@ def get_fscale(data, tran):
 
     return soln['x'][0]
 
+# This function will eventuall write out a fits/hdf5 file
+# and QA plots
 def tcorrect_data(fscale, data, tran):
     from copy import deepcopy
     import matplotlib.pyplot as plt
