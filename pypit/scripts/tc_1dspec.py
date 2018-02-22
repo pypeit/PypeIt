@@ -42,18 +42,6 @@ def get_lrisr_resolution(wavelength):
 
     return np.array(resr)
 
-# This function needs to be replaced
-def get_data(fname):
-
-    tmp = arload.load_1dspec(fname, exten=1)
-
-    data = np.zeros((len(tmp.wavelength.value), 3))
-    data[:,0] = tmp.wavelength.value
-    data[:,1] = tmp.flux.value
-    data[:,2] = tmp.sig.value
-
-    return data
-
 def get_transmission(atm_file, data):
     """
     This transmission spectrum comes from the ESO SkyCalc,
