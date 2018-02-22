@@ -1400,16 +1400,13 @@ def get_fwhm_pix(sp, inval=10000., outval=150):
     """
     clight = 299792.458
 
-    # Get FWHM of spectrum we're smoothing
-    # (assuming resolution is in R)
-
+    # Get FWHM of spectrum being smoothed
     fwhm_in_ = sp.wavelength.value/inval
     psize    = np.diff(sp.wavelength.value)
-    psize    = np.append(psize, sp.wavelength[-1].value - sp.wavelength[-2].value)
+    psize    = np.append(psize,
+                    sp.wavelength[-1].value - sp.wavelength[-2].value)
 
-    # Get FWHM of resolution we're smooth too
-    # (assuming resolution is in km/s)
-
+    # Get FWHM of resolution thaat spectrum is to be smoothed to
     fwhm_out = outval*2.*np.sqrt(2*np.log(2))
     fwhm_out = (fwhm_out / clight) * sp.wavelength.value
 
