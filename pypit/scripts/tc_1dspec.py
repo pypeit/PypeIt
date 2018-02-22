@@ -9,13 +9,14 @@ import numpy as np
 #msgs = pyputils.get_dummy_logger()
 
 def parser(options=None):
+    import argparse
 
     description = (
                   'Script to telluric correct a spec!D file. '
                   'Currently only works for LRIS 800/10000 grating.'
                   )
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument("infile", type=str, help="Input file (YAML)")
+    parser.add_argument("infile", type=str, help="Input file (fits)")
     parser.add_argument("atm_tran", type=str, help="Atmospheric transmission spectrum")
     #parser.add_argument("--debug", default=False, i
     #                    action='store_true', help="Turn debugging on")
@@ -148,31 +149,15 @@ def main(args, unit_test=False, path=''):
     import yaml
 
     # Load the input file
-    with open(args.infile, 'r') as infile:
-        tc_dict = yaml.load(infile)
+    with open(args.infile, 'r') as fname:
+        print(fname)
+        tmp = arload.load_1dspec(fname, exten=1)
 
-    # Grab object names in the spectra
-    filelist = coadd_dict.pop('filenames')
-    # Allow for wildcards
-    files = []
-    for ifl in filelist:
-        if '*' in ifl:
-            files += glob.glob(path+ifl)
-        else:
-            files += [path+ifl]
-    # Load spectra
-    if len(files) == 0:
-        msgs.error("No files match your input list")
-    else:
-        msgs.info("Coadding {:d} data frames".format(len(files)))
-    fdict = {}
-    for ifile in files:
-        # Open file
-        hdulist = fits.open(ifile)
-        # Grab objects
-        objects = [hdu.name for hdu in hdulist][1:]
-        fdict[ifile] = objects
+        data = np.zeros((len(tmp.wavelength.value), 3))
+        data[:,0] = tmp.wavelength.value
+        data[:,1] = tmp.flux.value
 
+    print(data)
 
 if __name__=='__main__':
     #data = get_data('m31_b225_coadd_red.fits')
