@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
+import sys
+import numpy as np
 from pypit import arutils
 from pypit import arload
 from linetools.spectra.xspectrum1d import XSpectrum1D
-import numpy as np
 from pkg_resources import resource_filename
 #from pdb as debugger
 
@@ -64,8 +65,8 @@ def get_transmission(atm_file, data):
 
     # Convert transmission spectrum to angstroms
     # and clip it to wavelength range of data
-    i = ((tmp[:,0]*10 >= min(data[:,0])) &
-         (tmp[:,0]*10 <= max(data[:,0])))
+    i = ((tmp[:,0]*10 >= min(data.wavelength.value)) &
+         (tmp[:,0]*10 <= max(data.wavelength.value)))
     trans = XSpectrum1D.from_tuple((tmp[:,0][i]*10, tmp[:,1][i]))
 
     # Convolve the atm. transsissiom spectrum to LRIS_R resolution
@@ -79,9 +80,9 @@ def get_transmission(atm_file, data):
 
     # Get model transmission on same wavelength grid
     # as data
-    model = np.zeros((len(data[:,0]), 2))
-    model[:,0] = data[:,0]
-    model[:,1] = np.interp(data[:,0],
+    model = np.zeros((len(data.wavelength.value), 2))
+    model[:,0] = data.wavelength.value
+    model[:,1] = np.interp(data.wavelength.value,
                            trans.wavelength.value, smooth_spec)
 
     return model
@@ -90,14 +91,14 @@ def get_fscale(data, tran):
     from numpy.polynomial.chebyshev import chebfit, chebval
     from scipy.optimize import minimize
 
-    i = ((data[:,0] >= 9250) & (data[:,0] <= 9650))
+    i = ((data.wavelength.value >= 9250) & (data.wavelength.value <= 9650))
 
-    coef = chebfit(data[:,0][i], data[:,1][i], 4)
-    poly = chebval(data[:,0][i], coef)
-    tmp_data = np.zeros((len(data[:,0][i]), 3))
-    tmp_data[:,0] = data[:,0][i]
-    tmp_data[:,1] = data[:,1][i]/poly
-    tmp_data[:,2] = data[:,2][i]
+    coef = chebfit(data.wavelength.value[i], data.flux.value[i], 4)
+    poly = chebval(data.wavelength.value[i], coef)
+    tmp_data = np.zeros((len(data.wavelength.value[i]), 3))
+    tmp_data[:,0] = data.wavelength.value[i]
+    tmp_data[:,1] = data.flux.value[i]/poly
+    tmp_data[:,2] = data.sig.value[i]
 
     coef = chebfit(tran[:,0][i], tran[:,1][i], 4)
     poly = chebval(tran[:,0][i], coef)
@@ -118,25 +119,26 @@ def tcorrect_data(fscale, data, tran):
 
     template = arutils.get_atm_template(fscale, tran[:,1])
 
-    tc_data      = deepcopy(data)
-    tc_data[:,1] = data[:,1]/template
+    tc_data      = np.zeros((len(data.wavelength.value), 2))
+    tc_data[:,0] = data.wavelength.value
+    tc_data[:,1] = data.flux.value/template
 
     fig = plt.figure(figsize=(10,4))
     ax1 = plt.subplot(1,2,1)
     ax2 = plt.subplot(1,2,2)
 
-    i = ((data[:,0] >= 8050) & (data[:,0] <= 8400))
-    ax1.plot(data[:,0][i], data[:,1][i]/np.median(data[:,1][i]) + 0.1,
+    i = ((data.wavelength.value >= 8050) & (data.wavelength.value <= 8400))
+    ax1.plot(data.wavelength.value[i], data.flux.value[i]/np.median(data.flux.value[i]) + 0.1,
              color='k', label='Data')
-    ax1.plot(data[:,0][i], template[i]/np.median(template[i]),
+    ax1.plot(data.wavelength.value[i], template[i]/np.median(template[i]),
              color='r', label='Atm Model')
     ax1.plot(tc_data[:,0][i], tc_data[:,1][i]/np.median(tc_data[:,1][i]) - 0.12,
              color='b', label='TC Data')
 
-    i = ((data[:,0] >= 8900) & (data[:,0] <= 9200))
-    ax2.plot(data[:,0][i], data[:,1][i]/np.median(data[:,1][i]) + 0.1,
+    i = ((data.wavelength.value >= 8900) & (data.wavelength.value <= 9200))
+    ax2.plot(data.wavelength.value[i], data.flux.value[i]/np.median(data.flux.value[i]) + 0.1,
              color='k', label='Data')
-    ax2.plot(data[:,0][i], template[i]/np.median(template[i]),
+    ax2.plot(data.wavelength.value[i], template[i]/np.median(template[i]),
              color='r', label='Atm Model')
     ax2.plot(tc_data[:,0][i], tc_data[:,1][i]/np.median(tc_data[:,1][i]) - 0.12,
              color='b', label='TC Data')
@@ -156,11 +158,4 @@ def main(args, unit_test=False, path=''):
     tran = get_transmission(args.atm_tran, data)
     fscale = get_fscale(data, tran)
     tcorrect_data(fscale, data, tran)
-
-#if __name__=='__main__':
-#    data = get_data('m31_b225_coadd_red.fits')
-#    tran = get_transmission(data)
-#    fscale = get_fscale(data, tran)
-#    tcorrect_data(fscale, data, tran)
-
 
