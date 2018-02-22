@@ -233,7 +233,12 @@ def chk_condition(fitsdict, cond):
         ntmp = fitsdict[tcond[0]] >= float(tcond[1])
     elif "!=" in cond:
         tcond = cond.split("!=")
-        ntmp = fitsdict[tcond[0]] != tcond[1]
+        if 'int' in fitsdict[tcond[0]].dtype.name:
+            ntmp = fitsdict[tcond[0]] != int(tcond[1])
+        elif 'float' in fitsdict[tcond[0]].dtype.name:
+            ntmp = fitsdict[tcond[0]] != float(tcond[1])
+        else:
+            ntmp = fitsdict[tcond[0]] != tcond[1]
     elif "<" in cond:
         tcond = cond.split("<")
         ntmp = fitsdict[tcond[0]] < float(tcond[1])
@@ -373,20 +378,22 @@ def match_science(fitsdict, filesort):
     """
 
     msgs.info("Matching calibrations to Science frames")
-    ftag = ['arc', 'standard', 'bias', 'dark', 'pixelflat', 'pinhole', 'trace']  # arc *must* be first
-    setup_ftag = dict(standard=0, bias=0, dark=0, pixelflat=0, pinhole=0, trace=0, arc=1)
+    # Init
+    ftag = armeta.allowed_file_types()
+    assert ftag[0] == 'arc'
+    for item in ['science', 'unknown']: # Remove undesired
+        ftag.remove(item)
+    setup_ftag = {}
+    for item in ftag:
+        setup_ftag[item] = 0
+    setup_ftag['arc'] = 1
+    # More setup
     nfiles = fitsdict['filename'].size
-    iARC = filesort['arc']
     iSCI = filesort['science']
-    iSTD = filesort['standard']
-    iBIA = filesort['bias']
-    iDRK = filesort['dark']
-    iPFL = filesort['pixelflat']
-    iBFL = filesort['pinhole']
-    iTRC = filesort['trace']
+    iARR = [filesort[itag] for itag in ftag]
     filesort['failures'] = []
-    iARR = [iARC, iSTD, iBIA, iDRK, iPFL, iBFL, iTRC]
     nSCI = iSCI.size
+    # Loop on science frames
     i = 0
     while i < nSCI:
         msgs.info("Matching calibrations to {:s}: {:s}".format(
@@ -396,26 +403,25 @@ def match_science(fitsdict, filesort):
         for ft in range(len(ftag)):
             # Some checks first to make sure we need to find matching frames
             if ftag[ft] == 'dark' and settings.argflag['bias']['useframe'] != 'dark':
-                msgs.info("  Dark frames not required")
+                msgs.info("  Dark frames not required.  Not matching..")
                 continue
             if ftag[ft] == 'bias' and settings.argflag['bias']['useframe'] != 'bias' and not settings.argflag['reduce']['badpix']:
-                msgs.info("  Bias frames not required")
+                msgs.info("  Bias frames not required.  Not matching..")
                 continue
-            # How many frames are required
+            # How many matching frames are required?  This is instrument specific
             if settings.argflag['run']['setup']:
                 numfr = setup_ftag[ftag[ft]]
             else:
                 numfr = settings.spect[ftag[ft]]['number']
             if (numfr == 0) and (not settings.argflag['run']['setup']):
                 settings.spect[ftag[ft]]['index'].append(np.array([]))
-                msgs.info("No {0:s} frames are required".format(ftag[ft]))
+                msgs.info("No {0:s} frames are required.  Not matching..".format(ftag[ft]))
                 continue
             # Now go ahead and match the frames
             n = np.arange(nfiles)
             if 'match' not in settings.spect[ftag[ft]].keys() and (not settings.argflag['run']['setup']):
-                debugger.set_trace()
-            #if not settings.argflag['run']['setup']:
-            if 'match' not in settings.spect[ftag[ft]].keys():
+                msgs.error("Need match criteria for {0:s}!!".format(ftag[ft]))
+            elif 'match' not in settings.spect[ftag[ft]].keys():
                 msgs.info("No matching criteria for {0:s} frames with this instrument".format(ftag[ft]))
             else:
                 chkk = settings.spect[ftag[ft]]['match'].keys()

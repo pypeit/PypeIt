@@ -19,6 +19,26 @@ def fitsdict():
     return arutils.dummy_fitsdict()
 
 
+def test_chk_condition(fitsdict):
+    # Lamp (str)
+    cond = 'lampstat06=on'
+    ntmp = arsort.chk_condition(fitsdict, cond)
+    assert np.sum(ntmp) == 1
+    # exptime (float)
+    cond = 'exptime>30'
+    ntmp = arsort.chk_condition(fitsdict, cond)
+    assert np.sum(ntmp) == 6
+    cond = 'exptime<30'
+    ntmp = arsort.chk_condition(fitsdict, cond)
+    assert np.sum(ntmp) == 1
+    cond = 'exptime<=30'
+    ntmp = arsort.chk_condition(fitsdict, cond)
+    assert np.sum(ntmp) == 4
+    cond = 'exptime!=30'
+    ntmp = arsort.chk_condition(fitsdict, cond)
+    assert np.sum(ntmp) == 7
+
+
 def test_sort_data(fitsdict):
     """ Test sort_data
     """
