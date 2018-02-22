@@ -364,6 +364,109 @@ def sort_write(fitsdict, filesort, space=3):
     ascii_tbl[asciiord].write(ascii_name, format='ascii.fixed_width')
     return ascii_tbl
 
+def match_logic(ch, tmtch, fitsdict, idx):
+    """ Perform logic on matching with fitsdict
+    Parameters
+    ----------
+    ch : str
+      Header card alias, eg. exptime
+    tmtch : str
+      Defines the logic
+      any
+      ''
+      >, <, >=, <=, =, !=
+
+
+    Returns
+    -------
+    w : ndarray, int
+      indices that match the criterion
+      None is returned if there is nothing to match
+    """
+    if tmtch == "any":
+        w = np.arange(len(fitsdict['filename'])).astype(int)
+    elif tmtch == "''":
+        w = np.where(fitsdict[ch] == fitsdict[ch][idx])[0]
+    elif tmtch[0] == '=':
+        mtch = np.float64(fitsdict[ch][idx]) + np.float64(tmtch[1:])
+        w = np.where((fitsdict[ch]).astype(np.float64) == mtch)[0]
+    elif tmtch[0] == '<':
+        if tmtch[1] == '=':
+            mtch = np.float64(fitsdict[ch][idx]) + np.float64(tmtch[2:])
+            w = np.where((fitsdict[ch]).astype(np.float64) <= mtch)[0]
+        else:
+            mtch = np.float64(fitsdict[ch][idx]) + np.float64(tmtch[1:])
+            w = np.where((fitsdict[ch]).astype(np.float64) < mtch)[0]
+    elif tmtch[0] == '>':
+        if tmtch[1] == '=':
+            mtch = np.float64(fitsdict[ch][idx]) + np.float64(tmtch[2:])
+            w = np.where((fitsdict[ch]).astype(np.float64) >= mtch)[0]
+        else:
+            mtch = np.float64(fitsdict[ch][idx]) + np.float64(tmtch[1:])
+            w = np.where((fitsdict[ch]).astype(np.float64) > mtch)[0]
+    elif tmtch[0] == '|':
+        if tmtch[1] == '=':
+            mtch = np.float64(tmtch[2:])
+            w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][idx])) == mtch)[0]
+        elif tmtch[1] == '<':
+            if tmtch[2] == '=':
+                mtch = np.float64(tmtch[3:])
+                w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][idx])) <= mtch)[0]
+            else:
+                mtch = np.float64(tmtch[2:])
+                w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][idx])) < mtch)[0]
+        elif tmtch[1] == '>':
+            if tmtch[2] == '=':
+                mtch = np.float64(tmtch[3:])
+                w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][idx])) >= mtch)[0]
+            else:
+                mtch = np.float64(tmtch[2:])
+                w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][idx])) > mtch)[0]
+    elif tmtch[0:2] == '%,':  # Splitting a header keyword
+        splcom = tmtch.split(',')
+        try:
+            spltxt, argtxt, valtxt = splcom[1], np.int(splcom[2]), splcom[3]
+            tspl = []
+            for sp in fitsdict[ch]:
+                tmpspl = str(re.escape(spltxt)).replace("\\|", "|")
+                tmpspl = re.split(tmpspl, sp)
+                if len(tmpspl) < argtxt+1:
+                    tspl.append("-9999999")
+                else:
+                    tspl.append(tmpspl[argtxt])
+            tspl = np.array(tspl)
+            #                        debugger.set_trace()
+            tmpspl = str(re.escape(spltxt)).replace("\\|", "|")
+            tmpspl = re.split(tmpspl, fitsdict[ch][idx])
+            if len(tmpspl) < argtxt + 1:
+                return None
+            else:
+                scispl = tmpspl[argtxt]
+            if valtxt == "''":
+                w = np.where(tspl == scispl)[0]
+            elif valtxt[0] == '=':
+                mtch = np.float64(scispl) + np.float64(valtxt[1:])
+                w = np.where(tspl.astype(np.float64) == mtch)[0]
+            elif valtxt[0] == '<':
+                if valtxt[1] == '=':
+                    mtch = np.float64(scispl) + np.float64(valtxt[2:])
+                    w = np.where(tspl.astype(np.float64) <= mtch)[0]
+                else:
+                    mtch = np.float64(scispl) + np.float64(valtxt[1:])
+                    w = np.where(tspl.astype(np.float64) < mtch)[0]
+            elif valtxt[0] == '>':
+                if valtxt[1] == '=':
+                    mtch = np.float64(scispl) + np.float64(valtxt[2:])
+                    w = np.where(tspl.astype(np.float64) >= mtch)[0]
+                else:
+                    mtch = np.float64(scispl) + np.float64(valtxt[1:])
+                    w = np.where(tspl.astype(np.float64) > mtch)[0]
+        except:
+            debugger.set_trace()
+            return None
+    # Return
+    return w
+
 
 def match_science(fitsdict, filesort):
     """
@@ -375,6 +478,13 @@ def match_science(fitsdict, filesort):
       Contains relevant information from fits header files
     filesort : dict
       Details of the sorted files
+
+    Returns
+    -------
+    cal_indx : list
+      A list of dict's, one per science exposure, that contains the
+      indices of the matched calibration files (and the science frame too)
+      This is intended to replace settings.spect[ftag]['index']
     """
 
     msgs.info("Matching calibrations to Science frames")
@@ -393,13 +503,21 @@ def match_science(fitsdict, filesort):
     iARR = [filesort[itag] for itag in ftag]
     filesort['failures'] = []
     nSCI = iSCI.size
+    tmp = {}
+    for iftag in ftag:
+        tmp[iftag] = []
+    cal_index = []
+    for kk in range(nSCI):
+        cal_index.append(tmp.copy())
     # Loop on science frames
     i = 0
     while i < nSCI:
         msgs.info("Matching calibrations to {:s}: {:s}".format(
                 fitsdict['target'][iSCI[i]], fitsdict['filename'][iSCI[i]]))
+        # Science index (trivial)
         settings.spect['science']['index'].append(np.array([iSCI[i]]))
-        # Find nearby calibration frames
+        cal_index[i]['science'] = np.array([iSCI[i]])
+        # Find matching (and nearby) calibration frames
         for ft in range(len(ftag)):
             # Some checks first to make sure we need to find matching frames
             if ftag[ft] == 'dark' and settings.argflag['bias']['useframe'] != 'dark':
@@ -415,6 +533,7 @@ def match_science(fitsdict, filesort):
                 numfr = settings.spect[ftag[ft]]['number']
             if (numfr == 0) and (not settings.argflag['run']['setup']):
                 settings.spect[ftag[ft]]['index'].append(np.array([]))
+                cal_index[i][ftag[ft]] = np.array([])
                 msgs.info("No {0:s} frames are required.  Not matching..".format(ftag[ft]))
                 continue
             # Now go ahead and match the frames
@@ -427,88 +546,9 @@ def match_science(fitsdict, filesort):
                 chkk = settings.spect[ftag[ft]]['match'].keys()
                 for ch in chkk:
                     tmtch = settings.spect[ftag[ft]]['match'][ch]
-                    if tmtch == "any":
-                        w = np.arange(len(fitsdict['filename'])).astype(int)
-                    elif tmtch == "''":
-                        w = np.where(fitsdict[ch] == fitsdict[ch][iSCI[i]])[0]
-                    elif tmtch[0] == '=':
-                        mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[1:])
-                        w = np.where((fitsdict[ch]).astype(np.float64) == mtch)[0]
-                    elif tmtch[0] == '<':
-                        if tmtch[1] == '=':
-                            mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[2:])
-                            w = np.where((fitsdict[ch]).astype(np.float64) <= mtch)[0]
-                        else:
-                            mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[1:])
-                            w = np.where((fitsdict[ch]).astype(np.float64) < mtch)[0]
-                    elif tmtch[0] == '>':
-                        if tmtch[1] == '=':
-                            mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[2:])
-                            w = np.where((fitsdict[ch]).astype(np.float64) >= mtch)[0]
-                        else:
-                            mtch = np.float64(fitsdict[ch][iSCI[i]]) + np.float64(tmtch[1:])
-                            w = np.where((fitsdict[ch]).astype(np.float64) > mtch)[0]
-                    elif tmtch[0] == '|':
-                        if tmtch[1] == '=':
-                            mtch = np.float64(tmtch[2:])
-                            w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) == mtch)[0]
-                        elif tmtch[1] == '<':
-                            if tmtch[2] == '=':
-                                mtch = np.float64(tmtch[3:])
-                                w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) <= mtch)[0]
-                            else:
-                                mtch = np.float64(tmtch[2:])
-                                w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) < mtch)[0]
-                        elif tmtch[1] == '>':
-                            if tmtch[2] == '=':
-                                mtch = np.float64(tmtch[3:])
-                                w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) >= mtch)[0]
-                            else:
-                                mtch = np.float64(tmtch[2:])
-                                w = np.where(np.abs((fitsdict[ch]).astype(np.float64)-np.float64(fitsdict[ch][iSCI[i]])) > mtch)[0]
-                    elif tmtch[0:2] == '%,':  # Splitting a header keyword
-                        splcom = tmtch.split(',')
-                        try:
-                            spltxt, argtxt, valtxt = splcom[1], np.int(splcom[2]), splcom[3]
-                            tspl = []
-                            for sp in fitsdict[ch]:
-                                tmpspl = str(re.escape(spltxt)).replace("\\|", "|")
-                                tmpspl = re.split(tmpspl, sp)
-                                if len(tmpspl) < argtxt+1:
-                                    tspl.append("-9999999")
-                                else:
-                                    tspl.append(tmpspl[argtxt])
-                            tspl = np.array(tspl)
-    #                        debugger.set_trace()
-                            tmpspl = str(re.escape(spltxt)).replace("\\|", "|")
-                            tmpspl = re.split(tmpspl, fitsdict[ch][iSCI[i]])
-                            if len(tmpspl) < argtxt + 1:
-                                continue
-                            else:
-                                scispl = tmpspl[argtxt]
-                            if valtxt == "''":
-                                w = np.where(tspl == scispl)[0]
-                            elif valtxt[0] == '=':
-                                mtch = np.float64(scispl) + np.float64(valtxt[1:])
-                                w = np.where(tspl.astype(np.float64) == mtch)[0]
-                            elif valtxt[0] == '<':
-                                if valtxt[1] == '=':
-                                    mtch = np.float64(scispl) + np.float64(valtxt[2:])
-                                    w = np.where(tspl.astype(np.float64) <= mtch)[0]
-                                else:
-                                    mtch = np.float64(scispl) + np.float64(valtxt[1:])
-                                    w = np.where(tspl.astype(np.float64) < mtch)[0]
-                            elif valtxt[0] == '>':
-                                if valtxt[1] == '=':
-                                    mtch = np.float64(scispl) + np.float64(valtxt[2:])
-                                    w = np.where(tspl.astype(np.float64) >= mtch)[0]
-                                else:
-                                    mtch = np.float64(scispl) + np.float64(valtxt[1:])
-                                    w = np.where(tspl.astype(np.float64) > mtch)[0]
-                        except:
-                            debugger.set_trace()
-                            continue
-                    n = np.intersect1d(n, w)  # n corresponds to all frames with matching instrument setup to science frames
+                    w = match_logic(ch, tmtch, fitsdict, iSCI[i])
+                    if w is not None:
+                        n = np.intersect1d(n, w)  # n corresponds to all frames with matching instrument setup to science frames
             # Find the time difference between the calibrations and science frames
             if settings.spect['fits']['calwin'] > 0.0:
                 tdiff = np.abs(fitsdict['time'][n].astype(np.float64)-np.float64(fitsdict['time'][iSCI[i]]))
@@ -524,70 +564,85 @@ def match_science(fitsdict, filesort):
                         np.size(n), ftag[ft], fitsdict['target'][iSCI[i]], numfr, areis))
                 else:
                     msgs.info("  Found {0:d} {1:s} frames for {2:s} ({3:d} {4:s} required)".format(np.size(n), ftag[ft], fitsdict['target'][iSCI[i]], numfr, areis))
+
             # Have we identified enough of these calibration frames to continue?
             if np.size(n) < np.abs(numfr):
-                msgs.warn("  Only {0:d}/{1:d} {2:s} frames for {3:s}".format(np.size(n), numfr, ftag[ft],
-                                                                             fitsdict['target'][iSCI[i]]))
-                # Errors for insufficient BIAS frames
-                if settings.argflag['bias']['useframe'].lower() == ftag[ft]:
-                    msgs.warn("Expecting to use bias frames for bias subtraction. But insufficient frames found.")
-                    msgs.warn("Either include more frames or modify bias method" + msgs.newline() +
-                              "  e.g.:   bias useframe overscan")
-                    msgs.error("Unable to continue")
-                # Errors for insufficient PIXELFLAT frames
-                if ftag[ft] == 'pixelflat' and settings.argflag['reduce']['flatfield']['perform'] and (
-                    settings.argflag['reduce']['flatfield']['useframe'] == 'pixelflat'):
-                    if settings.argflag['reduce']['masters']['force']:
-                        msgs.warn("Fewer pixelflat frames than expected for {0:s}, but will use MasterFrames".format(fitsdict['target'][iSCI[i]]))
-                    else:
-                        msgs.warn("Either include more frames or reduce the required amount with:" + msgs.newline() +
-                                  "pixelflat number XX" + msgs.newline() +
-                                  "in the spect read/end block")
-                        msgs.warn("Or specify a pixelflat file with --  reduce flatfield useframe file_name")
-                        msgs.error("Unable to continue")
-                # Errors for insufficient PINHOLE frames
-                if ftag[ft] == 'pinhole':
-                    msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
-                # Errors for insufficient TRACE frames
-                if ftag[ft] == 'trace' and settings.argflag['reduce']['flatfield']['perform']:
-                    if settings.argflag['reduce']['masters']['force']:
-                        msgs.warn("Fewer traceflat frames than expected for {0:s}, but will use MasterFrames".format(fitsdict['target'][iSCI[i]]))
-                    else:
-                        msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
-                # Errors for insufficient standard frames
-                if ftag[ft] == 'standard' and settings.argflag['reduce']['calibrate']['flux']:
-                    if settings.argflag['reduce']['masters']['force']:
-                        msgs.warn("No standard star frames for {0:s}, but will use MasterFrames".format(fitsdict['target'][iSCI[i]]))
-                    else:
-                        msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
-                # Errors for insufficient ARC frames
-                if ftag[ft] == 'arc' and settings.argflag['reduce']['calibrate']:
-                    if settings.argflag['run']['setup']:
-                        msgs.warn("No arc frame for {0:s}. Removing it from list of science frames".format(fitsdict['target'][iSCI[i]]))
-                        msgs.warn("Add an arc and rerun one if you wish to reduce this with PYPIT!!")
-                        # Remove
-                        #tmp = list(filesort['science'])
-                        #tmp.pop(tmp.index(iSCI[i]))
-                        #filesort['science'] = np.array(tmp)
-                        filesort['failures'].append(iSCI[i])
-                        settings.spect['science']['index'].pop(-1)
-                        break
-                    elif settings.argflag['reduce']['masters']['force']:
-                        msgs.warn("No arc frame for {0:s}, but will use MasterFrames".format(fitsdict['target'][iSCI[i]]))
-                    else:
-                        msgs.error("Unable to continue without more {0:s} frames".format(ftag[ft]))
+                code = match_warnings(ftag[ft], n.size, numfr, fitsdict, iSCI[i], filesort, cal_index[i])
+                if code == 'break':
+                    break
             else:
                 # Select the closest calibration frames to the science frame
                 tdiff = np.abs(fitsdict['time'][n].astype(np.float64)-np.float64(fitsdict['time'][iSCI[i]]))
                 wa = np.argsort(tdiff)
                 if (settings.argflag['run']['setup']) or (numfr < 0):
                     settings.spect[ftag[ft]]['index'].append(n[wa].copy())
+                    cal_index[i][ftag[ft]] = n[wa].copy()
                 else:
                     settings.spect[ftag[ft]]['index'].append(n[wa[:numfr]].copy())
+                    cal_index[i][ftag[ft]] = n[wa[:numfr]].copy()
         i += 1
     msgs.info("Science frames successfully matched to calibration frames")
-    return
+    return cal_index
 
+
+def match_warnings(ftag, nmatch, numfr, fitsdict, idx, filesort, cindex):
+    """ Give warnings related to matching calibration files to science
+    Returns
+    -------
+    code : str or None
+      None = no further action required
+    """
+    msgs.warn("  Only {0:d}/{1:d} {2:s} frames for {3:s}".format(nmatch, numfr, ftag,
+                                                                 fitsdict['target'][idx]))
+    # Errors for insufficient BIAS frames
+    if settings.argflag['bias']['useframe'].lower() == ftag:
+        msgs.warn("Expecting to use bias frames for bias subtraction. But insufficient frames found.")
+        msgs.warn("Either include more frames or modify bias method" + msgs.newline() +
+                  "  e.g.:   bias useframe overscan")
+        msgs.error("Unable to continue")
+    # Errors for insufficient PIXELFLAT frames
+    if ftag == 'pixelflat' and settings.argflag['reduce']['flatfield']['perform'] and (
+                settings.argflag['reduce']['flatfield']['useframe'] == 'pixelflat'):
+        if settings.argflag['reduce']['masters']['force']:
+            msgs.warn("Fewer pixelflat frames than expected for {0:s}, but will use MasterFrames".format(fitsdict['target'][idx]))
+        else:
+            msgs.warn("Either include more frames or reduce the required amount with:" + msgs.newline() +
+                      "pixelflat number XX" + msgs.newline() +
+                      "in the spect read/end block")
+            msgs.warn("Or specify a pixelflat file with --  reduce flatfield useframe file_name")
+            msgs.error("Unable to continue")
+    # Errors for insufficient PINHOLE frames
+    if ftag == 'pinhole':
+        msgs.error("Unable to continue without more {0:s} frames".format(ftag))
+    # Errors for insufficient TRACE frames
+    if ftag == 'trace' and settings.argflag['reduce']['flatfield']['perform']:
+        if settings.argflag['reduce']['masters']['force']:
+            msgs.warn("Fewer traceflat frames than expected for {0:s}, but will use MasterFrames".format(fitsdict['target'][idx]))
+        else:
+            msgs.error("Unable to continue without more {0:s} frames".format(ftag))
+    # Errors for insufficient standard frames
+    if ftag == 'standard' and settings.argflag['reduce']['calibrate']['flux']:
+        if settings.argflag['reduce']['masters']['force']:
+            msgs.warn("No standard star frames for {0:s}, but will use MasterFrames".format(fitsdict['target'][idx]))
+        else:
+            msgs.error("Unable to continue without more {0:s} frames".format(ftag))
+    # Errors for insufficient ARC frames
+    if ftag == 'arc' and settings.argflag['reduce']['calibrate']:
+        if settings.argflag['run']['setup']:
+            msgs.warn("No arc frame for {0:s}. Removing it from list of science frames".format(fitsdict['target'][idx]))
+            msgs.warn("Add an arc and rerun one if you wish to reduce this with PYPIT!!")
+            # Remove
+            #tmp = list(filesort['science'])
+            #tmp.pop(tmp.index(idx))
+            #filesort['science'] = np.array(tmp)
+            filesort['failures'].append(idx)
+            settings.spect['science']['index'].pop(-1)
+            cindex['science'].pop(-1)
+            return 'break'
+        elif settings.argflag['reduce']['masters']['force']:
+            msgs.warn("No arc frame for {0:s}, but will use MasterFrames".format(fitsdict['target'][idx]))
+        else:
+            msgs.error("Unable to continue without more {0:s} frames".format(ftag))
 
 def match_frames(frames, criteria, frametype='<None>', satlevel=None):
     """

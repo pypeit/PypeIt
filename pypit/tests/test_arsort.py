@@ -72,10 +72,14 @@ def test_match_science(fitsdict):
     settings.argflag['run']['setup'] = True  # Over-ride default numbers
     filesort = arsort.sort_data(fitsdict)
     # Match and test
-    arsort.match_science(fitsdict, filesort)
+    cal_index = arsort.match_science(fitsdict, filesort)
     assert settings.spect['arc']['index'][1][0] == 1
     assert settings.spect['standard']['index'][1][0] == 4
     assert len(settings.spect['trace']['index'][0]) == 2
+    # cal_index
+    assert cal_index[1]['arc'][0] == 1
+    assert cal_index[1]['standard'][0] == 4
+    assert len(cal_index[0]['trace']) == 2
 
 
 def test_neg_match_science(fitsdict):
@@ -88,7 +92,7 @@ def test_neg_match_science(fitsdict):
     for ftype in ['arc', 'pixelflat', 'trace', 'bias']:
         settings.spect[ftype]['number'] = 1
     settings.spect['trace']['number'] = -1
-    arsort.match_science(fitsdict, filesort)
+    _ = arsort.match_science(fitsdict, filesort)
     assert len(settings.spect['trace']['index'][1]) == 2
 
 

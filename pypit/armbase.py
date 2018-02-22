@@ -51,7 +51,7 @@ def SetupScience(fitsdict):
     if settings.argflag['output']['sorted'] is not None:
         srt_tbl = arsort.sort_write(fitsdict, filesort)
     # Match calibration frames to science frames
-    arsort.match_science(fitsdict, filesort)
+    _ = arsort.match_science(fitsdict, filesort)
     # Make directory structure for different objects
     if do_qa:
         sci_targs = arsort.make_dirs(fitsdict, filesort)
