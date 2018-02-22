@@ -11,7 +11,7 @@ from pypit import armbase
 from pypit import armsgs
 from pypit import arproc
 from pypit import arsave
-from pypit import arsort
+from pypit import arsetup
 from pypit import artrace
 from pypit import arqa
 
@@ -48,7 +48,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     status = 0
 
     # Create a list of science exposure classes
-    sciexp, setup_dict = armbase.SetupScience(fitsdict)
+    sciexp, setup_dict = armbase.setup_science(fitsdict)
     if sciexp == 'setup':
         status = 1
         return status
@@ -85,7 +85,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             # Get data sections
             arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
             # Setup
-            setup = arsort.instr_setup(slf, det, fitsdict, setup_dict, must_exist=True)
+            setup = arsetup.instr_setup(slf, det, fitsdict, setup_dict, must_exist=True)
             settings.argflag['reduce']['masters']['setup'] = setup
             slf.setup = setup
             ###############

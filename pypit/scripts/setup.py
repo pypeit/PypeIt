@@ -107,7 +107,7 @@ def main(args):
             parlines[jj] = '\n'
 
     # Generate .pypit files and sub-folders
-    all_setups, all_setuplines, all_setupfiles = arsort.load_sorted(sorted_file)
+    all_setups, all_setuplines, all_setupfiles = arsetup.load_sorted(sorted_file)
     for setup, setuplines,setupfiles in zip(all_setups, all_setuplines,all_setupfiles):
         root = args.spectrograph+'_setup_'
         # Make the dir

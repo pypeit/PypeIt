@@ -3,12 +3,10 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 import sys
 import os
 import numpy as np
-import yaml
-
-from collections import OrderedDict
 
 from pypit import arparse as settings
 from pypit import armsgs
+from pypit import arsetup
 from pypit import arsort
 from pypit import arsciexp
 from pypit import arparse
@@ -19,7 +17,7 @@ msgs = armsgs.get_logger()
 from pypit import ardebug as debugger
 
 
-def SetupScience(fitsdict):
+def setup_science(fitsdict):
     """ Create an exposure class for every science frame
     Also links to standard star frames and calibrations
 
@@ -44,29 +42,32 @@ def SetupScience(fitsdict):
         skip_cset = True
     else:
         skip_cset = False
+
     # Sort the data
     msgs.bug("Files and folders should not be deleted -- there should be an option to overwrite files automatically if they already exist, or choose to rename them if necessary")
     filesort = arsort.sort_data(fitsdict, flag_unknown=bad_to_unknown)
     # Write out the details of the sorted files into a .lst file
     if settings.argflag['output']['sorted'] is not None:
         srt_tbl = arsort.sort_write(fitsdict, filesort)
+
     # Match calibration frames to science frames
     _ = arsort.match_science(fitsdict, filesort)
     # Make directory structure for different objects
     if do_qa:
         sci_targs = arsort.make_dirs(fitsdict, filesort)
+
     # Create the list of science exposures
     numsci = np.size(settings.spect['science']['index'])
     sciexp = []
     for i in range(numsci):
         sciexp.append(arsciexp.ScienceExposure(i, fitsdict, do_qa=do_qa))
 
-    # Generate setup and group dicts
+    # Generate setup dict
     setup_dict = {}
     if settings.argflag['reduce']['masters']['force']:
         # Check that setup was input
         if len(settings.argflag['reduce']['masters']['setup']) == 0:
-            msgs.error("Need to specify   reduce masters setup   in your PYPIT file!")
+            msgs.error("Need to specify --  reduce masters setup  -- in your PYPIT file!")
         # setup_dict
         setup = settings.argflag['reduce']['masters']['setup']
         setup_dict = {}
@@ -77,8 +78,9 @@ def SetupScience(fitsdict):
         iSCI = filesort['science']
         setup_dict[setup[0]][setup[-2:]]['sci'] = [fitsdict['filename'][i] for i in iSCI]
         # Write
-        calib_file = arsort.write_calib(setup_dict)
+        calib_file = arsetup.write_calib(setup_dict)
         return sciexp, setup_dict
+
     # Run through the setups to fill setup_dict
     setupIDs = []
     for sc in range(numsci):
@@ -88,7 +90,7 @@ def SetupScience(fitsdict):
                 cname = settings.argflag['setup']['name']
             except KeyError:
                 cname = None
-            setupID = arsort.instr_setup(sciexp[sc], kk+1, fitsdict, setup_dict, skip_cset=skip_cset, config_name=cname)
+            setupID = arsetup.instr_setup(sciexp[sc], kk+1, fitsdict, setup_dict, skip_cset=skip_cset, config_name=cname)
             if kk == 0: # Only save the first detector for run setup
                 setupIDs.append(setupID)
 
@@ -122,17 +124,17 @@ def SetupScience(fitsdict):
             #debugger.set_trace()
         # Write .sorted file
         if len(group_dict) > 0:
-            arsort.write_sorted(srt_tbl, group_dict, setup_dict)
+            arsetup.write_sorted(srt_tbl, group_dict, setup_dict)
         else:
             msgs.warn("No group dict entries and therefore no .sorted file")
 
     # Write setup -- only if not present
-    setup_file, nexist = arsort.get_setup_file()
+    setup_file, nexist = arsetup.get_setup_file()
     # Write calib file (if not in setup mode)
     if not settings.argflag['run']['setup']:
-        calib_file = arsort.write_calib(setup_dict)
+        calib_file = arsetup.write_calib(setup_dict)
     else:
-        arsort.write_setup(setup_dict)
+        arsetup.write_setup(setup_dict)
     # Finish calcheck or setup
     if settings.argflag['run']['calcheck'] or settings.argflag['run']['setup']:
         if settings.argflag['run']['calcheck']:
