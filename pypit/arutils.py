@@ -1333,8 +1333,7 @@ def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5):
     return np.array(peaks), np.array(sigmas), np.array(ledges), np.array(redges)
 
 def get_atm_template(theta, trans):
-    """
-    Scales the original transmission spectrum
+    """ Scales the original transmission spectrum
     Parameters
     ----------
     theta: float
@@ -1349,7 +1348,18 @@ def get_atm_template(theta, trans):
     return 1 + theta*(trans - 1)
 
 def lnlike_tf(theta, data, trans):
-
+    """ Liklihood function to maximize the fit between
+    the data and the template
+    Parameters
+    ----------
+    theta: float
+        Scale factor
+    data: 3D ndarray
+    tran: 2D ndaarray
+    Returns
+    -------
+    liklihood: float
+    """
     i = ((data[:,0] >= 9320) & (data[:,0] <= 9380))
     tmp = get_atm_template(theta, trans[:,1])
 
@@ -1357,6 +1367,19 @@ def lnlike_tf(theta, data, trans):
             + (data[:,1][i] - tmp[i])**2 / data[:,2][i]**2))
 
 def opposite_lnlike_tf(theta, data, trans):
+    """ Opposite of the liklihood function, to be used with
+    minimization algorithms
+    Parameters
+    ----------
+    theta: float
+        Scale factor
+    data: 3D ndarray
+    tran: 2D ndaarray
+    Returns
+    -------
+    opposite liklihood: float
+    """
+    i = ((data[:,0] >= 9320) & (data[:,0] <= 9380))
     return -1. * lnlike_tf(theta, data, trans)
 
 
