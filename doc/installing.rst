@@ -25,7 +25,7 @@ PYPIT depends on the following list of Python packages.
 We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to install and/or update these packages.
 
 * `python <http://www.python.org/>`_ versions 2.7, or 3.5 or later
-* `numpy <http://www.numpy.org/>`_ version 1.10 or later
+* `numpy <http://www.numpy.org/>`_ version 1.13 or later
 * `astropy <http://www.astropy.org/>`_ version 1.3 or later
 * `scipy <http://www.scipy.org/>`_ version 0.17 or later
 * `matplotlib <http://matplotlib.org/>`_  version 1.4 or later
@@ -60,6 +60,7 @@ also required for PYPIT.
 Linetools is a package designed for the analysis of 1-D spectra.
 The installation steps for linetools are provided
 `here <http://linetools.readthedocs.io/en/latest/install.html/>`_.
+Do not try to use pip install.
 
 According to the linetools documentation page, "If you wish to have
 full functionality of the GUIs and are using MacOSX, then you probably
