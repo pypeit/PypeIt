@@ -87,7 +87,6 @@ def sort_data(fitsdict, flag_unknown=False):
             w = np.arange(numfiles)
         n = np.arange(numfiles)
         n = np.intersect1d(n, w)
-        debugger.set_trace()
         # Perform additional checks in order to make sure this identification is true
         if 'check' in settings.spect[fkey].keys():
             n = chk_all_conditions(n, fkey, fitsdict)
@@ -143,13 +142,15 @@ def sort_data(fitsdict, flag_unknown=False):
             filarr[np.where(fkeys == 'unknown')[0],badfiles] = 1
         else:
             msgs.error("Check these files and your settings.{0:s} file before continuing".format(settings.argflag['run']['spectrograph']))
+
     # Now identify the dark frames
     wdark = np.where((filarr[np.where(fkeys == 'bias')[0], :] == 1).flatten() &
                      (fitsdict['exptime'].astype(np.float64) > settings.spect['mosaic']['minexp']))[0]
     ftag['dark'] = wdark
+
     # Store the frames in the ftag array
-    for i in range(len(fkeys)):
-        ftag[fkey[i]] = np.where(filarr[i,:] == 1)[0]
+    for i,fkey in enumerate(fkeys):
+        ftag[fkey] = np.where(filarr[i,:] == 1)[0]
     # Finally check there are no duplicates (the arrays will automatically sort with np.unique)
     msgs.info("Finalising frame sorting, and removing duplicates")
     for key in ftag.keys():
