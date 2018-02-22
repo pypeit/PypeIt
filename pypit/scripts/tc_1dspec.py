@@ -4,6 +4,7 @@ from pypit import arutils
 from pypit import arload
 from linetools.spectra.xspectrum1d import XSpectrum1D
 import numpy as np
+from pkg_resources import resource_filename
 #from pdb as debugger
 
 #msgs = pyputils.get_dummy_logger()
@@ -52,13 +53,14 @@ def get_data(fname):
 
     return data
 
-def get_transmission(data):
+def get_transmission(atm_file, data):
     """
     This transmission spectrum comes from the ESO SkyCalc,
     with default inputs.
     """
 
-    tmp = np.loadtxt('../data/atmospheric_transmission/maunakea.dat')
+    fname = resource_filename('pypit', 'data/extinction/{}'.format(atm_file))
+    tmp = np.loadtxt(fname)
 
     # Convert transmission spectrum to angstroms
     # and clip it to wavelength range of data
@@ -151,8 +153,9 @@ def main(args, unit_test=False, path=''):
 
     # Load the input file
     data = arload.load_1dspec(args.infile, exten=1)
-
-    print(data)
+    tran = get_transmission(args.atm_tran, data)
+    fscale = get_fscale(data, tran)
+    tcorrect_data(fscale, data, tran)
 
 #if __name__=='__main__':
 #    data = get_data('m31_b225_coadd_red.fits')
