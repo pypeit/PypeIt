@@ -64,15 +64,18 @@ def dummy_setup_dict(filesort, fitsdict):
 
 
 def calib_set(isetup_dict, sciexp, fitsdict):
-    """
-    Ordering is 'aa', 'ab', ...
+    """ Generate a calibration dataset string
+
     Parameters
     ----------
-    isetup_dict
-    cset
+    isetup_dict : dict
+    sciexp
+    fitsdict : dict
 
     Returns
     -------
+    cb_str : str
+      Ordering is 'aa', 'ab', ...
 
     """
     cb_strs = []
@@ -324,21 +327,6 @@ def get_setup_file(spectrograph=None):
     else:
         msgs.error("Found more than one .setup file in the working directory.  Limit to one.")
 
-
-def compare_setup(s1, s2):
-    """ Compare two setup dicts
-    Parameters
-    ----------
-    s1
-    s2
-
-    Returns
-    -------
-
-    """
-    pass
-    #for key in s1.keys():
-    #    for key2 in s1[key]
 
 def load_setup(**kwargs):
     """ Load setup from the disk

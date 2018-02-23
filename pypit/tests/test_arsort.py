@@ -109,6 +109,7 @@ def test_match_science_errors(fitsdict):
 
 def test_instr_setup(fitsdict):
     """ Test instrument setup naming convention
+    Tickles most of the arsetup methods
     """
     from pypit import arsciexp
     arutils.dummy_settings(spectrograph='shane_kast_blue', set_idx=False)
