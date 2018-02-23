@@ -89,6 +89,8 @@ def setup_science(fitsdict):
             if kk == 0: # Only save the first detector for run setup
                 setupIDs.append(setupID)
 
+    debugger.set_trace()
+
     # Calib IDs
     group_dict = {}
     if settings.argflag['run']['setup']: # Collate all matching files

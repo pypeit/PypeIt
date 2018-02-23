@@ -75,7 +75,7 @@ and may over-ride user settings.
 Internals
 =========
 
-See :ref:`internal_setup` for a definition of the
+See :ref:`internal_setup_dict` for a definition of the
 object used interally.
 
 Outputs

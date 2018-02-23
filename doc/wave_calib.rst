@@ -166,3 +166,4 @@ is governed by the command::
     reduce calibrate refframe barycentric
 
 where the default value is a heliocentric wavelength scale.
+More details are provided in :doc:`heliocorr`.
