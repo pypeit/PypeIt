@@ -12,7 +12,9 @@ Flow
 ----
 
 Below is the code flow for the :ref:`pypit-setup` script.  The
-following are nearly all function names or object methods::
+following are nearly all function names or object methods.
+The module name is typically the first item, e.g. arparse.init
+is a method in arparse.py.  Here goes::
 
    ├── pypit_setup
    |  ├── pyputils.make_pypit_file(pypit_file, spectrograph, dfnames)
