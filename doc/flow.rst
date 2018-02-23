@@ -11,30 +11,30 @@ Setup
 Flow
 ----
 
-Here is the code flow for the :ref:`pypit-setup` script::
+Below is the code flow for the :ref:`pypit-setup` script.  The
+following are nearly all function names or object methods::
 
    ├── pypit_setup
-   |  ├── pyputils.make_pypit_file()
-   |  ├── run_pypit.parser()
-   |  ├── pypit.PYPIT()
-   |  |  ├── load_input()
+   |  ├── pyputils.make_pypit_file(pypit_file, spectrograph, dfnames)
+   |  ├── run_pypit.parser(options)
+   |  ├── pypit.PYPIT(args)
+   |  |  ├── load_input(pypit_file)
    |  |  |  ++ generates pyp_dict
    |  |  ├── arparse.get_argflag_class()
    |  |  |  ++ generates argf Class
    |  |  ├── argf.init_param()
-   |  |  ├── argf.set_param()
-   |  |  ├── plines = argf.load_lines()
+   |  |  ├── plines = argf.load_lines(parlines)
    |  |  ├── argf.set_paramlist(plines)
    |  |  ├── arparse.get_spect_class()
    |  |  |  ++ generates spect Class
    |  |  ├── spect.load_file(base=True)  # default
-   |  |  ├── spect.set_paramlist()
+   |  |  ├── spect.set_paramlist(lines)
    |  |  ├── spect.load_file()  # instrument specific
-   |  |  ├── spect.set_paramlist()
-   |  |  ├── spect.set_paramlist()   # using pyp_dict
-   |  |  ├── spect.load_lines()      # command line
-   |  |  ├── spect.save()
+   |  |  ├── spect.set_paramlist(lines)
+   |  |  ├── spect.set_paramlist(plines)   # using pyp_dict
+   |  |  ├── spect.load_lines(spclines)      # command line
    |  |  ├── argf.save()
+   |  |  ├── spect.save()
    |  |  ├── arparse.init(argf, spect)  # Saved into settings.
    |  |  ├── # fitsdict created
    |  |  ├── fitsdict = arload.load_headers(datlines)
@@ -43,15 +43,15 @@ Here is the code flow for the :ref:`pypit-setup` script::
    |  |  ├── # Flip dispersion direction (if needed)
    |  ├── ARMLSD  # This is formally below PYPIT, but I want to reduce the indentation here
    |  |  ├── armbase.SetupScience(fitsdict)
-   |  |  |  ├── arsort.sort_data()
+   |  |  |  ├── filesort = arsort.sort_data(fitsdict)
    |  |  |  |  ├── find_standard_file()
    |  |  |  |  ++ Generates filesort dict
-   |  |  |  ├── arsort.match_science()
+   |  |  |  ├── arsort.match_science(fitsdict, filesort)
    |  |  |  |  ++ Written to settings.spect[ftag]['index']
-   |  |  |  ├── arsciexp.ScienceExposure()
+   |  |  |  ├── arsciexp.ScienceExposure(i, fitsdict)
    |  |  |  |  ++ Generates sciexp list of ScienceExposure objects
    |  |  |  ++ setup_dict generated
-   |  |  |  ├── arsort.instr_setup()
+   |  |  |  ├── arsort.instr_setup(sciexp, kk+1, fitsdict, setup_dict)
    |  |  |  |  ++ Generates setupIDs
    |  |  |  ++ group_dict generated
    |  |  |  ├── arsort.write_sorted(group_dict, setup_dict)
