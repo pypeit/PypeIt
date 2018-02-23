@@ -14,12 +14,15 @@ def parser(options=None):
     import argparse
 
     description = (
-                  'Script to telluric correct a spec!D file. '
-                  'Currently only works for LRIS 800/10000 grating.'
+                  'Script to telluric correct a '
+                  'spec1D file. Currently only works '
+                  'for LRIS 800/10000 grating.'
                   )
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument("infile", type=str, help="Input file (fits)")
-    parser.add_argument("atm_tran", type=str, help="Atmospheric transmission spectrum")
+    parser.add_argument("infile", type=str,
+                        help="Input file (fits)")
+    parser.add_argument("atm_tran", type=str,
+                        help="Filename of transmission spectrum")
     #parser.add_argument("--debug", default=False, i
     #                    action='store_true', help="Turn debugging on")
 
@@ -42,8 +45,9 @@ def get_transmission(atm_file, data):
     model: 2D ndarray
     """
 
-    fname = resource_filename('pypit', 'data/extinction/{}'.format(atm_file))
-    tmp = np.loadtxt(fname)
+    floc  = ('data/extinction/{}'.format(atm_file))
+    fname = resource_filename('pypit', floc)
+    tmp   = np.loadtxt(fname)
 
     # Convert transmission spectrum to angstroms
     # and clip it to wavelength range of data
@@ -69,13 +73,17 @@ def get_transmission(atm_file, data):
 
     return model
 
-def get_fscale(data, tran):
+def get_fscale(data, tran, l1=9250, l2=9650):
     """ Determine the best scale factor by minimizing the
     differences between the data and the transmission template
     Parameters
     ----------
     data: XSpectrum1D object
     tran: 2D ndarray
+    l1: int
+        Lower limit of range over which to do the normalization
+    l2: int
+        Upper limit of range over which to do the normalization
     Returns
     -------
     fscale: float
@@ -84,7 +92,8 @@ def get_fscale(data, tran):
     from numpy.polynomial.chebyshev import chebfit, chebval
     from scipy.optimize import minimize
 
-    i = ((data.wavelength.value >= 9250) & (data.wavelength.value <= 9650))
+    i = ((data.wavelength.value >= l1) &
+         (data.wavelength.value <= l2))
 
     coef = chebfit(data.wavelength.value[i], data.flux.value[i], 4)
     poly = chebval(data.wavelength.value[i], coef)
