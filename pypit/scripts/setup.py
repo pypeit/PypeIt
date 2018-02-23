@@ -87,7 +87,7 @@ def main(args):
 
     # Read master file
     from pypit import pyputils
-    from pypit import arsort
+    from pypit import arsetup
     msgs = pyputils.get_dummy_logger()
     pyp_dict = load_input(pyp_file, msgs)
     parlines, datlines, spclines, dfnames = [pyp_dict[ii] for ii in ['par','dat','spc','dfn']]

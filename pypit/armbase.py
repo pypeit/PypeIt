@@ -20,6 +20,7 @@ from pypit import ardebug as debugger
 def setup_science(fitsdict):
     """ Create an exposure class for every science frame
     Also links to standard star frames and calibrations
+    Also enables check for calibrations
 
     Parameters
     ----------
@@ -89,36 +90,10 @@ def setup_science(fitsdict):
             if kk == 0: # Only save the first detector for run setup
                 setupIDs.append(setupID)
 
-    debugger.set_trace()
-
-    # Calib IDs
-    group_dict = {}
+    # .sorted Table (setup only)
     if settings.argflag['run']['setup']: # Collate all matching files
-        for sc,setupID in enumerate(setupIDs):
-            scidx = sciexp[sc]._idx_sci[0]
-            # Set group_key
-            config_key = setupID[0]
-            # Plan init
-            if config_key not in group_dict.keys():
-                group_dict[config_key] = {}
-                for key in filesort.keys():
-                    if key not in ['unknown', 'dark']:
-                        group_dict[config_key][key] = []
-                    group_dict[config_key]['sciobj'] = []
-                    group_dict[config_key]['stdobj'] = []
-            # Fill group_dict too
-            for key in filesort.keys():
-                if key in ['unknown', 'dark', 'failures']:
-                    continue
-                for idx in settings.spect[key]['index'][sc]:
-                    # Only add if new
-                    if fitsdict['filename'][idx] not in group_dict[config_key][key]:
-                        group_dict[config_key][key].append(fitsdict['filename'][idx])
-                        if key == 'standard':  # Add target name
-                            group_dict[config_key]['stdobj'].append(fitsdict['target'][idx])
-                    if key == 'science':  # Add target name
-                        group_dict[config_key]['sciobj'].append(fitsdict['target'][scidx])
-            #debugger.set_trace()
+        # Build
+        group_dict = arsetup.build_group_dict(filesort, setupIDs, sciexp, fitsdict, setup_dict)
         # Write .sorted file
         if len(group_dict) > 0:
             arsetup.write_sorted(srt_tbl, group_dict, setup_dict)
@@ -127,11 +102,13 @@ def setup_science(fitsdict):
 
     # Write setup -- only if not present
     setup_file, nexist = arsetup.get_setup_file()
-    # Write calib file (if not in setup mode)
+
+    # Write calib file (not in setup mode) or setup file (in setup mode)
     if not settings.argflag['run']['setup']:
         calib_file = arsetup.write_calib(setup_dict)
     else:
         arsetup.write_setup(setup_dict)
+
     # Finish calcheck or setup
     if settings.argflag['run']['calcheck'] or settings.argflag['run']['setup']:
         if settings.argflag['run']['calcheck']:
@@ -153,6 +130,7 @@ def setup_science(fitsdict):
             return 'setup', None
         else:
             msgs.error("Should not get here")
+    # Return
     return sciexp, setup_dict
 
 

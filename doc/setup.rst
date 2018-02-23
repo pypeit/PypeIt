@@ -178,26 +178,26 @@ More information is provided than in the .sorted file.
 
 .. _groupings:
 
-Groupings
----------
+.. Groupings
+.. ---------
 
-A .group file is generated which describes how PYPIT will
+.. A .group file is generated which describes how PYPIT will
 group calibrations, science, and standard star frames when
 performing the reduction.  If there are incorrect or undesired
 calibration files listed, these should be suppressed with
 the Settings File (alternatively one can remove them from the raw data
 folder, but we *recommend* against this practice).
 
-Setups that only differ by detector are grouped together in
+.. Setups that only differ by detector are grouped together in
 the .group file. For example, '01_02' is a single instrument configuration
 with two detectors.  The next configuration would likely
 be named '03_04', etc.
 
-Here is example output of a .group file for Kast (which has
+.. Here is example output of a .group file for Kast (which has
 only 1 detector per spectrograph)::
 
-    '01':
-      arc: [b1.fits.gz]
+..     '01':
+..       arc: [b1.fits.gz]
       bias: [b23.fits.gz, b22.fits.gz, b21.fits.gz]
       pixelflat: [b13.fits.gz, b12.fits.gz, b11.fits.gz]
       science: [b27.fits.gz, b28.fits.gz, b29.fits.gz]
@@ -207,10 +207,10 @@ only 1 detector per spectrograph)::
       stdobj: [Feige 66]
       pinhole: []
 
-Here is one for LRISb which has two detectors::
+.. Here is one for LRISb which has two detectors::
 
-    '01_02':
-      arc: [LB.20160406.11620.fits, LB.20160406.11483.fits]
+..     '01_02':
+..      arc: [LB.20160406.11620.fits, LB.20160406.11483.fits]
       bias: []
       pixelflat: [LB.20160406.19768.fits, LB.20160406.18944.fits, LB.20160406.18889.fits,
         LB.20160406.18831.fits, LB.20160406.18780.fits, LB.20160406.18731.fits, LB.20160406.18679.fits,

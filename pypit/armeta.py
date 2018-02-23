@@ -13,7 +13,7 @@ def allowed_file_types():
     ftype_list : list
     """
     # Define
-    ftype_list = [     # NOTE:  arc must be
+    ftype_list = [     # NOTE:  arc must be listed first!
         'arc',         # Exposure of one or more arc calibration lamps for wavelength calibration
         'bias',        # Exposure for assessing detector bias (usually 0s)
         'dark',        # Exposure for assessing detector dark current

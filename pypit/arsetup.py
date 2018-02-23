@@ -1164,6 +1164,7 @@ def write_calib(setup_dict):
     # Return
     return calib_file
 
+
 def write_setup(setup_dict, use_json=False):
     """ Output setup_dict to hard drive
 
@@ -1279,3 +1280,35 @@ def write_sorted(srt_tbl, group_dict, setup_dict):
         subtbl.write(ff, format='ascii.fixed_width')
     ff.write('##end\n')
     ff.close()
+
+
+def build_group_dict(filesort, setupIDs, sciexp, fitsdict, setup_dict):
+
+    group_dict = {}
+    for sc,setupID in enumerate(setupIDs):
+        scidx = sciexp[sc]._idx_sci[0]
+        # Set group_key
+        config_key = setupID[0]
+        # Plan init
+        if config_key not in group_dict.keys():
+            group_dict[config_key] = {}
+            for key in filesort.keys():
+                if key not in ['unknown', 'dark']:
+                    group_dict[config_key][key] = []
+                group_dict[config_key]['sciobj'] = []
+                group_dict[config_key]['stdobj'] = []
+        # Fill group_dict too
+        for key in filesort.keys():
+            if key in ['unknown', 'dark', 'failures']:
+                continue
+            for idx in settings.spect[key]['index'][sc]:
+                # Only add if new
+                if fitsdict['filename'][idx] not in group_dict[config_key][key]:
+                    group_dict[config_key][key].append(fitsdict['filename'][idx])
+                    if key == 'standard':  # Add target name
+                        group_dict[config_key]['stdobj'].append(fitsdict['target'][idx])
+                if key == 'science':  # Add target name
+                    group_dict[config_key]['sciobj'].append(fitsdict['target'][scidx])
+                    #debugger.set_trace()
+
+    return group_dict
