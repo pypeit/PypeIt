@@ -3,7 +3,7 @@
 import sys
 import numpy as np
 from pypit import arutils
-from pypit import arload
+from pypit import arload, arflux
 from linetools.spectra.xspectrum1d import XSpectrum1D
 from pkg_resources import resource_filename
 #from pdb as debugger
@@ -29,19 +29,6 @@ def parser(options=None):
         args = parser.parse_args(options)
     return args
 
-# This function needs to be replaced
-def get_lrisr_resolution(wavelength):
-    """
-    This comes from P. van Dokkum's fit
-    to the sky lines
-    """
-
-    l9   = (wavelength - 9000.)/1000.
-    resr = 1.26-0.128*l9+0.168*l9**2+0.1173*l9**3
-    resr = resr/wavelength*3.E5 # km s^-1
-
-    return np.array(resr)
-
 def get_transmission(atm_file, data):
     """
     This transmission spectrum comes from the ESO SkyCalc,
@@ -58,7 +45,7 @@ def get_transmission(atm_file, data):
     trans = XSpectrum1D.from_tuple((tmp[:,0][i]*10, tmp[:,1][i]))
 
     # Convolve the atm. transsissiom spectrum to LRIS_R resolution
-    res         = get_lrisr_resolution(trans.wavelength.value)
+    res         = arflux.lrisr_800_10000_r(trans.wavelength.value)
     fwhm_pix    = arutils.get_fwhm_pix(trans, inval=20000., outval=res)
 
     smooth_spec = np.zeros((len(trans.wavelength.value)))
