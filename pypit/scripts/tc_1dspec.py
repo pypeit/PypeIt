@@ -5,7 +5,6 @@ import numpy as np
 from pypit import arutils
 from pypit import arload, arflux
 from linetools.spectra.xspectrum1d import XSpectrum1D
-from pkg_resources import resource_filename
 #from pdb as debugger
 
 #msgs = pyputils.get_dummy_logger()
@@ -31,47 +30,6 @@ def parser(options=None):
     else:
         args = parser.parse_args(options)
     return args
-
-def get_transmission(atm_file, data):
-    """ Convolve the atmospheric absorption model to the
-    resolution and wavelengthg gird of the data.
-    Parameters
-    ----------
-    atm_file: string
-        filename passed through script call
-    data: XSpectrum1d object
-    Returns
-    -------
-    model: 2D ndarray
-    """
-
-    floc  = ('data/extinction/{}'.format(atm_file))
-    fname = resource_filename('pypit', floc)
-    tmp   = np.loadtxt(fname)
-
-    # Convert transmission spectrum to angstroms
-    # and clip it to wavelength range of data
-    i = ((tmp[:,0]*10 >= min(data.wavelength.value)) &
-         (tmp[:,0]*10 <= max(data.wavelength.value)))
-    trans = XSpectrum1D.from_tuple((tmp[:,0][i]*10, tmp[:,1][i]))
-
-    # Convolve the atm. transsissiom spectrum to LRIS_R resolution
-    res         = arflux.lrisr_800_10000_r(trans.wavelength.value)
-    fwhm_pix    = arutils.get_fwhm_pix(trans, inval=20000., outval=res)
-
-    smooth_spec = np.zeros((len(trans.wavelength.value)))
-    for i, fp in enumerate(fwhm_pix):
-        tmp = trans.gauss_smooth(fp)
-        smooth_spec[i] = tmp.flux.value[i]
-
-    # Get model transmission on same wavelength grid
-    # as data
-    model = np.zeros((len(data.wavelength.value), 2))
-    model[:,0] = data.wavelength.value
-    model[:,1] = np.interp(data.wavelength.value,
-                           trans.wavelength.value, smooth_spec)
-
-    return model
 
 def get_fscale(data, tran, l1=9250, l2=9650):
     """ Determine the best scale factor by minimizing the
@@ -157,7 +115,7 @@ def main(args, unit_test=False, path=''):
 
     # Load the input file
     data = arload.load_1dspec(args.infile, exten=1)
-    tran = get_transmission(args.atm_tran, data)
+    tran = arflux.get_transmission(args.atm_tran, data)
     fscale = get_fscale(data, tran)
     tcorrect_data(fscale, data, tran)
 
