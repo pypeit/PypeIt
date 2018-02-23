@@ -91,9 +91,9 @@ def setup_science(fitsdict):
                 setupIDs.append(setupID)
 
     # .sorted Table (setup only)
-    if settings.argflag['run']['setup']: # Collate all matching files
+    if settings.argflag['run']['setup']:  # Collate all matching files
         # Build
-        group_dict = arsetup.build_group_dict(filesort, setupIDs, sciexp, fitsdict, setup_dict)
+        group_dict = arsetup.build_group_dict(filesort, setupIDs, sciexp, fitsdict)
         # Write .sorted file
         if len(group_dict) > 0:
             arsetup.write_sorted(srt_tbl, group_dict, setup_dict)
