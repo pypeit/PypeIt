@@ -291,7 +291,6 @@ def expand_slits(slf, mstrace, det, ordcen, extord):
     # Calculate the pixel locations of th eorder edges
     pixcen = phys_to_pix(ordcen, slf._pixlocn[det - 1], 1)
     msgs.info("Expanding slit traces to slit edges")
-    exit()
     mordwid, pordwid = arcytrace.expand_slits(mstrace, pixcen, extord.astype(np.int))
     # Fit a function for the difference between left edge and the centre trace
     ldiff_coeff, ldiff_fit = arutils.polyfitter2d(mordwid, mask=-1,
@@ -801,8 +800,8 @@ def new_find_objects(profile, bgreg, stddev):
     bgl = np.zeros((sz_x,obj), dtype=bool)
     bgr = np.zeros((sz_x,obj), dtype=bool)
     for i in range(obj):
-        bgl[s[i]:objl[i]] = True
-        bgr[objl[i]+1:e[i]] = True
+        bgl[s[i]:objl[i],i] = True
+        bgr[objl[i]+1:e[i],i] = True
 
     # Return source region limits and background regions that do not
     # have sources
