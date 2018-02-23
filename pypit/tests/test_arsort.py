@@ -1,4 +1,4 @@
-# Module to run tests on arsort
+# Module to run tests on arsort and arsetup
 
 import pytest
 
@@ -6,6 +6,7 @@ import numpy as np
 from pypit import pyputils
 msgs = pyputils.get_dummy_logger(develop=True)
 from pypit import arsort
+from pypit import arsetup
 from pypit import arutils
 from pypit import arparse as settings
 from pypit.armsgs import PypitError
@@ -120,18 +121,18 @@ def test_instr_setup(fitsdict):
     sciexp = arsciexp.ScienceExposure(0, fitsdict, do_qa=False)
     # Get an ID
     setup_dict = {}
-    setupID = arsort.instr_setup(sciexp, 1, fitsdict, setup_dict)
+    setupID = arsetup.instr_setup(sciexp, 1, fitsdict, setup_dict)
     assert setupID == 'A_01_aa'
     # Should get same thing
-    setupID = arsort.instr_setup(sciexp, 1, fitsdict, setup_dict)
+    setupID = arsetup.instr_setup(sciexp, 1, fitsdict, setup_dict)
     assert setupID == 'A_01_aa'
     # New det (fake out kast_blue)
     settings.spect['det02'] = dict(numamplifiers=1)
-    setupID2 = arsort.instr_setup(sciexp, 2, fitsdict, setup_dict)
+    setupID2 = arsetup.instr_setup(sciexp, 2, fitsdict, setup_dict)
     assert setupID2 == 'A_02_aa'
     # New calib set
     settings.spect['arc']['index'][1] = np.array([9])  # Not really an arc, but ok
     sciexp1 = arsciexp.ScienceExposure(1, fitsdict, do_qa=False)
-    setupID3 = arsort.instr_setup(sciexp1, 1, fitsdict, setup_dict)
+    setupID3 = arsetup.instr_setup(sciexp1, 1, fitsdict, setup_dict)
     assert setupID3 == 'A_01_ab'
     assert setup_dict['A']['ab']['arcs'][0] == 'b009.fits'

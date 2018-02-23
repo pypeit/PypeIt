@@ -20,6 +20,7 @@ from pypit import arparse as settings
 from pypit import arutils
 from pypit.arflux import find_standard_file
 from pypit import armeta
+from pypit import arparse
 from pypit import ardebug as debugger
 
 try:
@@ -32,6 +33,34 @@ except NameError: pass
 
 # Logging
 msgs = armsgs.get_logger()
+
+
+def dummy_setup_dict(filesort, fitsdict):
+    """ Generates a dummy setup_dict
+
+    Parameters
+    ----------
+    filesort : dict
+    fitsdict : dict
+
+    Returns
+    -------
+    setup_dict : dicg
+    """
+    # setup_dict
+    setup = settings.argflag['reduce']['masters']['setup']
+    setup_dict = {}
+    setup_dict[setup[0]] = {}
+    # Fill with dummy dicts
+    for ii in range(1,20): # Dummy detectors
+        setup_dict[setup[0]][arparse.get_dnum(ii)] = dict(binning='1x1')
+    setup_dict[setup[0]][setup[-2:]] = {}
+    iSCI = filesort['science']
+    # Fill up filenames
+    setup_dict[setup[0]][setup[-2:]]['sci'] = [fitsdict['filename'][i] for i in iSCI]
+    # Write
+    calib_file = write_calib(setup_dict)
+    return setup_dict
 
 
 def sort_data(fitsdict, flag_unknown=False):
@@ -949,6 +978,7 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
     -------
     setup : str
       Full setup ID, e.g. A_01_aa
+    Also fills entries in setup_dict
     """
     dnum = settings.get_dnum(det)
     # MasterFrame force?  If so, use user input setup updating detector

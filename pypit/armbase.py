@@ -64,21 +64,15 @@ def setup_science(fitsdict):
 
     # Generate setup dict
     setup_dict = {}
+
+    # Run with masters?
     if settings.argflag['reduce']['masters']['force']:
         # Check that setup was input
         if len(settings.argflag['reduce']['masters']['setup']) == 0:
             msgs.error("Need to specify --  reduce masters setup  -- in your PYPIT file!")
-        # setup_dict
-        setup = settings.argflag['reduce']['masters']['setup']
-        setup_dict = {}
-        setup_dict[setup[0]] = {}
-        for ii in range(1,20): # Dummy detectors
-            setup_dict[setup[0]][arparse.get_dnum(ii)] = dict(binning='1x1')
-        setup_dict[setup[0]][setup[-2:]] = {}
-        iSCI = filesort['science']
-        setup_dict[setup[0]][setup[-2:]]['sci'] = [fitsdict['filename'][i] for i in iSCI]
-        # Write
-        calib_file = arsetup.write_calib(setup_dict)
+        # Generate a dummy setup_dict
+        setup_dict = arsetup.dummy_setup_dict(filesort, fitsdict)
+        # Return
         return sciexp, setup_dict
 
     # Run through the setups to fill setup_dict
@@ -90,7 +84,8 @@ def setup_science(fitsdict):
                 cname = settings.argflag['setup']['name']
             except KeyError:
                 cname = None
-            setupID = arsetup.instr_setup(sciexp[sc], kk+1, fitsdict, setup_dict, skip_cset=skip_cset, config_name=cname)
+            setupID = arsetup.instr_setup(sciexp[sc], kk+1, fitsdict, setup_dict,
+                                          skip_cset=skip_cset, config_name=cname)
             if kk == 0: # Only save the first detector for run setup
                 setupIDs.append(setupID)
 

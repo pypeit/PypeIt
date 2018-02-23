@@ -72,6 +72,12 @@ and add `run setup True` to the file.
 Note that both of these options set default values in the codes
 and may over-ride user settings.
 
+Internals
+=========
+
+See :ref:`internal_setup` for a definition of the
+object used interally.
+
 Outputs
 =======
 

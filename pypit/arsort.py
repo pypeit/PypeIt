@@ -47,7 +47,7 @@ def sort_data(fitsdict, flag_unknown=False):
 
     Returns
     -------
-    ftag : dict
+    filesort : dict
       A dictionary of filetypes
       Each key is a file type and contains an array of the file indices that qualify
     """
@@ -55,22 +55,22 @@ def sort_data(fitsdict, flag_unknown=False):
     msgs.info("Sorting files")
     numfiles = fitsdict['filename'].size
     # Set the filetype dictionary
-    ftag = {}
+    filesort = {}
     for ftype in armeta.allowed_file_types():
-        ftag[ftype] = np.array([], dtype=np.int)
+        filesort[ftype] = np.array([], dtype=np.int)
     # Set all filetypes by hand?
     if len(settings.ftdict) > 0:
         for ifile,ftypes in settings.ftdict.items():
             idx = np.where(fitsdict['filename'] == ifile)[0]
             sptypes = ftypes.split(',')
             for iftype in sptypes:
-                ftag[iftype] = np.concatenate([ftag[iftype], idx])
+                filesort[iftype] = np.concatenate([filesort[iftype], idx])
         # Sort
-        for key in ftag.keys():
-            ftag[key].sort()
-        return ftag
+        for key in filesort.keys():
+            filesort[key].sort()
+        return filesort
     #  Prepare to type
-    fkeys = np.array(list(ftag.keys()))
+    fkeys = np.array(list(filesort.keys()))
     # Create an array where 1 means it is a certain type of frame and 0 means it isn't.
     filarr = np.zeros((fkeys.size, numfiles), dtype=np.int)
     setarr = np.zeros((fkeys.size, numfiles), dtype=np.int)
@@ -146,22 +146,22 @@ def sort_data(fitsdict, flag_unknown=False):
     # Now identify the dark frames
     wdark = np.where((filarr[np.where(fkeys == 'bias')[0], :] == 1).flatten() &
                      (fitsdict['exptime'].astype(np.float64) > settings.spect['mosaic']['minexp']))[0]
-    ftag['dark'] = wdark
+    filesort['dark'] = wdark
 
-    # Store the frames in the ftag array
+    # Store the frames in the filesort array
     for i,fkey in enumerate(fkeys):
-        ftag[fkey] = np.where(filarr[i,:] == 1)[0]
+        filesort[fkey] = np.where(filarr[i,:] == 1)[0]
     # Finally check there are no duplicates (the arrays will automatically sort with np.unique)
     msgs.info("Finalising frame sorting, and removing duplicates")
-    for key in ftag.keys():
-        ftag[key] = np.unique(ftag[key])
-        if np.size(ftag[key]) == 1:
-            msgs.info("Found {0:d} {1:s} frame".format(np.size(ftag[key]),key))
+    for key in filesort.keys():
+        filesort[key] = np.unique(filesort[key])
+        if np.size(filesort[key]) == 1:
+            msgs.info("Found {0:d} {1:s} frame".format(np.size(filesort[key]),key))
         else:
-            msgs.info("Found {0:d} {1:s} frames".format(np.size(ftag[key]),key))
-    # Return ftag!
+            msgs.info("Found {0:d} {1:s} frames".format(np.size(filesort[key]),key))
+    # Return filesort!
     msgs.info("Sorting completed successfully")
-    return ftag
+    return filesort
 
 
 def chk_all_conditions(n, fkey, fitsdict):
