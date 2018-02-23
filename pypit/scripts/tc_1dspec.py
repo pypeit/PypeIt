@@ -30,9 +30,16 @@ def parser(options=None):
     return args
 
 def get_transmission(atm_file, data):
-    """
-    This transmission spectrum comes from the ESO SkyCalc,
-    with default inputs.
+    """ Convolve the atmospheric absorption model to the
+    resolution and wavelengthg gird of the data.
+    Parameters
+    ----------
+    atm_file: string
+        filename passed through script call
+    data: XSpectrum1d object
+    Returns
+    -------
+    model: 2D ndarray
     """
 
     fname = resource_filename('pypit', 'data/extinction/{}'.format(atm_file))
@@ -63,6 +70,17 @@ def get_transmission(atm_file, data):
     return model
 
 def get_fscale(data, tran):
+    """ Determine the best scale factor by minimizing the
+    differences between the data and the transmission template
+    Parameters
+    ----------
+    data: XSpectrum1D object
+    tran: 2D ndarray
+    Returns
+    -------
+    fscale: float
+        The scale factor of bestfit template
+    """
     from numpy.polynomial.chebyshev import chebfit, chebval
     from scipy.optimize import minimize
 
