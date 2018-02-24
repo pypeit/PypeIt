@@ -155,7 +155,9 @@ is controlled by the argument::
 where the default value is to calibrate to vacuum. You can also
 specify 'pixel', which will save the pixel values instead of the
 wavelength values (i.e. a wavelength calibration will not be
-performed).
+performed).  The calibration follows the Ciddor schema
+(Ciddor 1996, Applied Optics 62, 958).
+
 
 You can also choose if you want the wavelength scale corrected
 to the heliocentric (Sun-centered), barycentric (Solar system
