@@ -360,7 +360,10 @@ def sort_write(fitsdict, filesort, space=3):
         ftypes.append(addval)
     ascii_tbl['frametype'] = ftypes
     # Write
-    ascii_name = settings.argflag['output']['sorted']+'.lst'
+    if settings.argflag['run']['setup']:
+        ascii_name = settings.argflag['run']['redname'].replace('.pypit', '.lst')
+    else:
+        ascii_name = settings.argflag['output']['sorted']+'.lst'
     ascii_tbl[asciiord].write(ascii_name, format='ascii.fixed_width')
     return ascii_tbl
 

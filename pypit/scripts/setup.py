@@ -56,11 +56,15 @@ def main(args):
         print(armeta.instr_list())
         raise IOError("Consult the documentation for further info.")
 
+    # setup_files dir
+    outdir = './setup_files'
+    if not os.path.isdir(outdir):
+        os.mkdir(outdir)
 
     # Generate a dummy .pypit file
     date = str(datetime.date.today().strftime('%Y-%b-%d'))
     root = args.spectrograph+'_'+date
-    pyp_file = args.redux_path+root+'.pypit'
+    pyp_file = args.redux_path+outdir+'/'+root+'.pypit'
     # Generate
     dfname = "{:s}*{:s}*".format(args.files_root, args.extension)
     # parlines
@@ -71,6 +75,7 @@ def main(args):
     pyputils.make_pypit_file(pyp_file, args.spectrograph,
                           [dfname], setup_script=True, parlines=parlines)
     print("Wrote {:s}".format(pyp_file))
+
 
     # Run
     pinp = [pyp_file]
