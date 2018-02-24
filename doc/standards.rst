@@ -12,8 +12,13 @@ defunct STScI calspec package.
 
 .. _standard_list:
 
-Incomplete list of the calspec standards:
-=========================================
+calspec standards
+=================
+
+The following table is an incomplete list
+of the standard stars we are using from
+the dataset known as calspec, originally
+maintained by STScI.
 
 
 ========================== ============= ============== ==============

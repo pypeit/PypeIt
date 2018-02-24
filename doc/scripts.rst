@@ -10,6 +10,8 @@ been installed directly into your path (e.g. ~/anaconda/bin).
 Pipeline Scripts
 ++++++++++++++++
 
+.. _pypit-setup:
+
 pypit_setup
 ===========
 
