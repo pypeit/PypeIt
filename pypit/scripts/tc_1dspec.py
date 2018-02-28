@@ -128,11 +128,19 @@ def main(args, unit_test=False, path=''):
 
         atm_tran = tc_dict['transmission']
         files    = tc_dict['filenames']
+        if 'region' in tc_dict.keys():
+            if tc_dict['region'] is not None:
+                l1 = tc_dict['region'][0]
+                l2 = tc_dict['region'][1]
 
     for fname in files.keys():
         exten  = tc_dict['filenames'][fname]
         data   = arload.load_1dspec(fname, exten=exten)
         tran   = arflux.get_transmission(atm_tran, data)
-        fscale = get_fscale(data, tran)
+        try:
+            assert (l1 in locals() and l2 in locals())
+            fscale = get_fscale(data, tran, l1=l1, l2=l2)
+        except:
+            fscale = get_fscale(data, tran)
         tcorrect_data(fscale, data, tran)
 
