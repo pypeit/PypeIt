@@ -119,15 +119,15 @@ def main(args, unit_test=False, path=''):
         try:
             assert (tc_dict['grating'] == '600/10000')
         except AssertionError:
-            error_message = ('ERROR: \n'
-                             'Telluric correction only '
+            error_message = ('Telluric correction only '
                              'valid for LRIS 600/10000 '
                              'grating currently. Please '
                              'open an issue on GitHub for '
                              'other gratings. \n '
                             )
             print(error_message)
-    #data = arload.load_1dspec(args.infile, exten=1)
+            raise
+        data = arload.load_1dspec(args.infile, exten=1)
     #tran = arflux.get_transmission(args.atm_tran, data)
     #fscale = get_fscale(data, tran)
     #tcorrect_data(fscale, data, tran)
