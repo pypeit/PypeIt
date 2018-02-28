@@ -15,11 +15,11 @@ def parser(options=None):
     description = (
                   'Script to telluric correct a '
                   'spec1D file. Currently only works '
-                  'for LRIS 800/10000 grating.'
+                  'for LRIS 600/10000 grating.'
                   )
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("infile", type=str,
-                        help="Input file (fits)")
+                        help="Input file (YAML)")
     parser.add_argument("atm_tran", type=str,
                         help="Filename of transmission spectrum")
     #parser.add_argument("--debug", default=False, i
@@ -113,9 +113,11 @@ def main(args, unit_test=False, path=''):
     import yaml
     import os.path
 
-    # Load the input file
-    data = arload.load_1dspec(args.infile, exten=1)
-    tran = arflux.get_transmission(args.atm_tran, data)
-    fscale = get_fscale(data, tran)
-    tcorrect_data(fscale, data, tran)
+    with open(args.infile, 'r') as infile:
+        tc_dict = yaml.load(infile)
+        print(tc_dict)
+    #data = arload.load_1dspec(args.infile, exten=1)
+    #tran = arflux.get_transmission(args.atm_tran, data)
+    #fscale = get_fscale(data, tran)
+    #tcorrect_data(fscale, data, tran)
 
