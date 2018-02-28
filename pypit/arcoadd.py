@@ -718,7 +718,6 @@ def get_std_dev(irspec, rmask, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
     # Here we go
     dev_sig = (fluxes[:,gdp] - iflux[gdp]) / np.sqrt(sigs[:,gdp]**2 + isig[gdp]**2)
     std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=5, iters=2))
-    debugger.set_trace()
     return std_dev, dev_sig
 
 
