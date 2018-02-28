@@ -127,7 +127,11 @@ def main(args, unit_test=False, path=''):
                             )
             print(error_message)
             raise
-        data = arload.load_1dspec(args.infile, exten=1)
+        for fname in tc_dict['filenames'].keys():
+            exten = tc_dict['filenames'][fname]
+            print(fname, exten)
+            data  = arload.load_1dspec(fname, exten=exten)
+            print(data)
     #tran = arflux.get_transmission(args.atm_tran, data)
     #fscale = get_fscale(data, tran)
     #tcorrect_data(fscale, data, tran)
