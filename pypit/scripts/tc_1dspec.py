@@ -20,8 +20,6 @@ def parser(options=None):
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("infile", type=str,
                         help="Input file (YAML)")
-    parser.add_argument("atm_tran", type=str,
-                        help="Filename of transmission spectrum")
     #parser.add_argument("--debug", default=False, i
     #                    action='store_true', help="Turn debugging on")
 
@@ -127,12 +125,14 @@ def main(args, unit_test=False, path=''):
                             )
             print(error_message)
             raise
-        for fname in tc_dict['filenames'].keys():
-            exten = tc_dict['filenames'][fname]
-            print(fname, exten)
-            data  = arload.load_1dspec(fname, exten=exten)
-            print(data)
-    #tran = arflux.get_transmission(args.atm_tran, data)
-    #fscale = get_fscale(data, tran)
-    #tcorrect_data(fscale, data, tran)
+
+        atm_tran = tc_dict['transmission']
+        files    = tc_dict['filenames']
+
+    for fname in files.keys():
+        exten  = tc_dict['filenames'][fname]
+        data   = arload.load_1dspec(fname, exten=exten)
+        tran   = arflux.get_transmission(atm_tran, data)
+        fscale = get_fscale(data, tran)
+        tcorrect_data(fscale, data, tran)
 
