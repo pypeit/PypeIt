@@ -68,6 +68,7 @@ Object Algorithms
    object_finding
    object_tracing
    coadding
+   telluric_correction
 
 Documentation
 +++++++++++++
