@@ -571,10 +571,10 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     elif settings.argflag['trace']['object']['find'] == 'standard':
 #        print('calling find_objects')
 #        t = time.clock()
-#        objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
+        objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
 #        print('Old find_objects: {0} seconds'.format(time.clock() - t))
 #        t = time.clock()
-        objl, objr, bckl, bckr = new_find_objects(trcprof, bgreg, mad)
+#        objl, objr, bckl, bckr = new_find_objects(trcprof, bgreg, mad)
 #        print('New find_objects: {0} seconds'.format(time.clock() - t))
     else:
         msgs.error("Bad object identification algorithm!!")
@@ -1174,11 +1174,10 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
 
 #        print('calling ignore_orders')
 #        t = time.clock()
-#        lnc, lxc, rnc, rxc, ldarr, rdarr = arcytrace.ignore_orders(edgearr, fracpix, lmin, lmax, rmin, rmax)
+        lnc, lxc, rnc, rxc, ldarr, rdarr = arcytrace.ignore_orders(edgearr, fracpix, lmin, lmax, rmin, rmax)
 #        print('Old ignore_orders: {0} seconds'.format(time.clock() - t))
 #        t = time.clock()
-        lnc, lxc, rnc, rxc, ldarr, rdarr = new_ignore_orders(edgearr, fracpix, lmin, lmax, rmin,
-                                                             rmax)
+#        lnc, lxc, rnc, rxc, ldarr, rdarr = new_ignore_orders(edgearr, fracpix, lmin, lmax, rmin, rmax)
 #        print('New ignore_orders: {0} seconds'.format(time.clock() - t))
 
         lmin += lnc
