@@ -1721,8 +1721,8 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
 #    t = time.clock()
 #    new_sigimg  = new_cr_screen(filty,0.0)
 #    print('New cr_screen: {0} seconds'.format(time.clock() - t))
-    sigimg  = arcyproc.cr_screen(filty,0.0)
-#    sigimg  = new_cr_screen(filty)
+#    sigimg  = arcyproc.cr_screen(filty,0.0)
+    sigimg  = new_cr_screen(filty)
 
 #    print(sigimg.shape)
 #    print(new_sigimg.shape)

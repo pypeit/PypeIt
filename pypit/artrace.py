@@ -571,10 +571,10 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     elif settings.argflag['trace']['object']['find'] == 'standard':
 #        print('calling find_objects')
 #        t = time.clock()
-        objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
+#        objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
 #        print('Old find_objects: {0} seconds'.format(time.clock() - t))
 #        t = time.clock()
-#        objl, objr, bckl, bckr = new_find_objects(trcprof, bgreg, mad)
+        objl, objr, bckl, bckr = new_find_objects(trcprof, bgreg, mad)
 #        print('New find_objects: {0} seconds'.format(time.clock() - t))
     else:
         msgs.error("Bad object identification algorithm!!")
@@ -711,13 +711,16 @@ def new_ignore_orders(edgdet, fracpix, lmin, lmax, rmin, rmax):
     sz_x = edgdet.shape[0]
     sz_y = edgdet.shape[1]
 
-    larr = np.zeros((2,lmax-lmin+1), dtype=int)
-    rarr = np.zeros((2,rmax-rmin+1), dtype=int)
-
+    lsize = lmax-lmin+1
+    larr = np.zeros((2,lsize), dtype=int)
     larr[0,:] = sz_x
+
+    rsize = rmax-rmin+1
+    rarr = np.zeros((2,rsize), dtype=int)
     rarr[0,:] = sz_x
 
-    # TODO: Can I remove the loop?
+    # TODO: Can I remove the loop?  Or maybe just iterate through the
+    # smallest dimension of edgdet?
     for x in range(sz_x):
         indx = edgdet[x,:] < 0
         if np.any(indx):
@@ -729,24 +732,23 @@ def new_ignore_orders(edgdet, fracpix, lmin, lmax, rmin, rmax):
             rarr[1,edgdet[x,indx]-rmin] = np.clip(rarr[1,edgdet[x,indx]-rmin], x, None)
 
     # Go through the array once more to remove pixels that do not cover fracpix
-    lt_zero = (edgdet < 0)
-    if np.any(lt_zero):
-        indx = larr[1,-edgdet[lt_zero]-lmin] - larr[0,-edgdet[lt_zero]-lmin] < fracpix
-        edgdet[lt_zero][indx] = 0
-
-    gt_zero = edgdet > 0
-    if np.any(gt_zero):
-        indx = rarr[1,edgdet[gt_zero]-rmin] - rarr[0,edgdet[gt_zero]-rmin] < fracpix
-        edgdet[gt_zero][indx] = 0
+    edgdet = edgdet.ravel()
+    lt_zero = np.arange(edgdet.size)[edgdet < 0]
+    if len(lt_zero) > 0:
+        edgdet[lt_zero[larr[1,-edgdet[lt_zero]-lmin]-larr[0,-edgdet[lt_zero]-lmin] < fracpix]] = 0
+    gt_zero = np.arange(edgdet.size)[edgdet > 0]
+    if len(gt_zero) > 0:
+        edgdet[gt_zero[rarr[1,edgdet[gt_zero]-rmin]-rarr[0,edgdet[gt_zero]-rmin] < fracpix]] = 0
+    edgdet = edgdet.reshape(sz_x,sz_y)
 
     # Check if lmin, lmax, rmin, and rmax need to be changed
-    lindx = np.arange(larr.shape[1])[larr[1,:]-larr[0,:] > fracpix]
+    lindx = np.arange(lsize)[larr[1,:]-larr[0,:] > fracpix]
     lnc = lindx[0]
-    lxc = lindx[-1]-lmax+lmin
+    lxc = lsize-1-lindx[-1]
 
-    rindx = np.arange(rarr.shape[1])[rarr[1,:]-rarr[0,:] > fracpix]
+    rindx = np.arange(rsize)[rarr[1,:]-rarr[0,:] > fracpix]
     rnc = rindx[0]
-    rxc = rindx[-1]-rmax+rmin
+    rxc = rsize-1-rindx[-1]
 
     return lnc, lxc, rnc, rxc, larr, rarr
 
@@ -1174,10 +1176,11 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
 
 #        print('calling ignore_orders')
 #        t = time.clock()
-        lnc, lxc, rnc, rxc, ldarr, rdarr = arcytrace.ignore_orders(edgearr, fracpix, lmin, lmax, rmin, rmax)
+#        lnc, lxc, rnc, rxc, ldarr, rdarr = arcytrace.ignore_orders(edgearr, fracpix, lmin, lmax, rmin, rmax)
 #        print('Old ignore_orders: {0} seconds'.format(time.clock() - t))
 #        t = time.clock()
-#        lnc, lxc, rnc, rxc, ldarr, rdarr = new_ignore_orders(edgearr, fracpix, lmin, lmax, rmin, rmax)
+        lnc, lxc, rnc, rxc, ldarr, rdarr = new_ignore_orders(edgearr, fracpix, lmin, lmax, rmin,
+                                                             rmax)
 #        print('New ignore_orders: {0} seconds'.format(time.clock() - t))
 
         lmin += lnc
