@@ -1,5 +1,6 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
+import time
 import numpy as np
 import copy
 from pypit import arqa
@@ -121,7 +122,17 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
                 # After pruning, there are no more peaks
                 break
             pks = wpk+2  # Shifted by 2 because of the peak finding algorithm above
+            print('calling find_peak_limits')
+
+            t = time.clock()
             pedges = arcytrace.find_peak_limits(smedgehist, pks)
+            print('Old find_peak_limits: {0} seconds'.format(time.clock() - t))
+            print(pedges.shape)
+            print(pedges[:,0])
+            t = time.clock()
+            pedges = new_find_peak_limits(smedgehist, pks)
+            print('New find_peak_limits: {0} seconds'.format(time.clock() - t))
+            exit()
             if np.all(pedges[:, 1]-pedges[:, 0] == 0):
                 # Remaining peaks have no width
                 break
@@ -572,7 +583,13 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
         trcprof2 = np.mean(rec_sciframe, axis=0)
         objl, objr, bckl, bckr = find_obj_minima(trcprof2, triml=triml, trimr=trimr, nsmooth=nsmooth)
     elif settings.argflag['trace']['object']['find'] == 'standard':
-        objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
+#        print('calling find_objects')
+#        t = time.clock()
+#        objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
+#        print('Old find_objects: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
+        objl, objr, bckl, bckr = new_find_objects(trcprof, bgreg, mad)
+#        print('New find_objects: {0} seconds'.format(time.clock() - t))
     else:
         msgs.error("Bad object identification algorithm!!")
     if msgs._debug['trace_obj']:
@@ -701,6 +718,175 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
                           root="object_trace", normalize=False)
     # Return
     return tracedict
+
+
+def new_find_objects(profile, bgreg, stddev):
+    """
+    Find significantly detected objects in the profile array
+    For all objects found, the background regions will be defined.
+    """
+    # Input profile must be a vector
+    if len(profile.shape) != 1:
+        raise ValueError('Input profile array must be 1D.')
+    # Get the length of the array
+    sz_x = profile.size
+    # Copy it to a masked array for processing
+    # TODO: Assumes input is NOT a masked array
+    _profile = np.ma.MaskedArray(profile.copy())
+
+    # Peaks are found as having flux at > 5 sigma and background is
+    # where the flux is not greater than 3 sigma
+    gt_5_sigma = profile > 5*stddev
+    not_gt_3_sigma = np.invert(profile > 3*stddev)
+
+    # Define the object centroids array
+    objl = np.zeros(sz_x, dtype=int)
+    objr = np.zeros(sz_x, dtype=int)
+    has_obj = np.zeros(sz_x, dtype=bool)
+
+    obj = 0
+    while np.any(gt_5_sigma & np.invert(_profile.mask)):
+        # Find next maximum flux point
+        imax = np.ma.argmax(_profile)
+        maxv = _profile[imax]
+        # Find the valid source pixels around the peak
+        f = np.arange(sz_x)[np.roll(not_gt_3_sigma, -imax)]
+        objl[obj] = imax-sz_x+f[-1]
+        objr[obj] = f[0]+imax
+        # Mask source pixels and increment for next iteration
+        has_obj[objl[obj]:objr[obj]+1] = True
+        _profile[objl[obj]:objr[obj]+1] = np.ma.masked
+        obj += 1
+
+    # The background is the region away from sources up to the provided
+    # region size.  Starting pixel for the left limit...
+    s = objl[:obj]-bgreg
+    s[s < 0] = 0
+    # ... and ending pixel for the right limit.
+    e = objr[:obj]+1+bgreg
+    e[e > sz_x] = sz_x
+    # Flag the possible background regions
+    bgl = np.zeros((sz_x,obj), dtype=bool)
+    bgr = np.zeros((sz_x,obj), dtype=bool)
+    for i in range(obj):
+        bgl[s[i]:objl[i],i] = True
+        bgr[objl[i]+1:e[i],i] = True
+
+    # Return source region limits and background regions that do not
+    # have sources
+    return objl[:obj], objr[:obj], (bgl & np.invert(has_obj)[:,None]).astype(int), \
+                    (bgr & np.invert(has_obj)[:,None]).astype(int)
+
+
+def new_find_peak_limits(hist, pks):
+    """
+    Find all values between the zeros of hist
+
+    hist and pks are expected to be 1d vectors
+
+    """
+
+    sz_i = pks.shape[0]
+    sz_h = hist.shape[0]
+
+    edges = np.zeros((sz_i,2), dtype=int)
+
+    indx = np.ma.MaskedArray(np.array([np.arange(sz_h)]*sz_i),
+                             mask=(hist == 0)[None,:] | (np.arange(sz_h)[None,:] > pks[:,None]))
+
+    plt.imshow(indx, origin='lower', interpolation='nearest', aspect='auto')
+    plt.show()
+
+    print(hist)
+
+    print(pks[0])
+    print(indx[0,np.invert(indx.mask[0,:])])
+
+    print(pks[1])
+    print(indx[1,np.invert(indx.mask[1,:])])
+    exit()
+    print(sz_i, sz_h)
+    print(pks)
+    print(indx.shape)
+    edges[:,0] = np.ma.amin(indx, axis=1)
+    print(edges[:,0])
+    exit()
+
+    hi_indx = hist_ne_0[None,:] & (np.arange(sz_h)[None,:] > pks[:,None])
+
+
+    for ii in range(0, sz_i):
+
+        indx = (hist != 0) & (np.arange(sz_h) <= pks[ii])
+
+        # Search below the peak
+        lim = pks[ii]
+        while True:
+            if lim < 0:
+                break
+            if hist[lim] == 0:
+                break
+            lim -= 1
+        # Store the limit
+        edges[ii, 0] = lim
+        # Search above the peak
+        lim = pks[ii]
+        while True:
+            if lim > sz_h-1:
+                break
+            if hist[lim] == 0:
+                break
+            lim += 1
+        # Store the limit
+        edges[ii, 1] = lim
+    return edges
+
+
+def new_ignore_orders(edgdet, fracpix, lmin, lmax, rmin, rmax):
+
+    sz_x = edgdet.shape[0]
+    sz_y = edgdet.shape[1]
+
+    lsize = lmax-lmin+1
+    larr = np.zeros((2,lsize), dtype=int)
+    larr[0,:] = sz_x
+
+    rsize = rmax-rmin+1
+    rarr = np.zeros((2,rsize), dtype=int)
+    rarr[0,:] = sz_x
+
+    # TODO: Can I remove the loop?  Or maybe just iterate through the
+    # smallest dimension of edgdet?
+    for x in range(sz_x):
+        indx = edgdet[x,:] < 0
+        if np.any(indx):
+            larr[0,-edgdet[x,indx]-lmin] = np.clip(larr[0,-edgdet[x,indx]-lmin], None, x)
+            larr[1,-edgdet[x,indx]-lmin] = np.clip(larr[1,-edgdet[x,indx]-lmin], x, None)
+        indx = edgdet[x,:] > 0
+        if np.any(indx):
+            rarr[0,edgdet[x,indx]-rmin] = np.clip(rarr[0,edgdet[x,indx]-rmin], None, x)
+            rarr[1,edgdet[x,indx]-rmin] = np.clip(rarr[1,edgdet[x,indx]-rmin], x, None)
+
+    # Go through the array once more to remove pixels that do not cover fracpix
+    edgdet = edgdet.ravel()
+    lt_zero = np.arange(edgdet.size)[edgdet < 0]
+    if len(lt_zero) > 0:
+        edgdet[lt_zero[larr[1,-edgdet[lt_zero]-lmin]-larr[0,-edgdet[lt_zero]-lmin] < fracpix]] = 0
+    gt_zero = np.arange(edgdet.size)[edgdet > 0]
+    if len(gt_zero) > 0:
+        edgdet[gt_zero[rarr[1,edgdet[gt_zero]-rmin]-rarr[0,edgdet[gt_zero]-rmin] < fracpix]] = 0
+    edgdet = edgdet.reshape(sz_x,sz_y)
+
+    # Check if lmin, lmax, rmin, and rmax need to be changed
+    lindx = np.arange(lsize)[larr[1,:]-larr[0,:] > fracpix]
+    lnc = lindx[0]
+    lxc = lsize-1-lindx[-1]
+
+    rindx = np.arange(rsize)[rarr[1,:]-rarr[0,:] > fracpix]
+    rnc = rindx[0]
+    rxc = rsize-1-rindx[-1]
+
+    return lnc, lxc, rnc, rxc, larr, rarr
 
 
 def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
@@ -912,6 +1098,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         assign_slits(binarr, edgearrcp, lor=+1)
     if settings.argflag['trace']['slits']['maxgap'] is not None:
         vals = np.sort(np.unique(edgearrcp[np.where(edgearrcp != 0)]))
+        print('calling close_edges')
+        exit()
         hasedge = arcytrace.close_edges(edgearrcp, vals, int(settings.argflag['trace']['slits']['maxgap']))
         # Find all duplicate edges
         edgedup = vals[np.where(hasedge == 1)]
@@ -996,10 +1184,14 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
                 wvla = np.unique(edgearr[wdup][wdda])
                 wvlb = np.unique(edgearr[wdup][wddb])
                 # Now generate the dual edge
+                print('calling dual_edge')
+                exit()
                 arcytrace.dual_edge(edgearr, edgearrcp, wdup[0], wdup[1], wvla, wvlb, shadj,
                                     int(settings.argflag['trace']['slits']['maxgap']), edgedup[jj])
         # Now introduce new edge locations
         vals = np.sort(np.unique(edgearrcp[np.where(edgearrcp != 0)]))
+        print('calling close_slits')
+        exit()
         edgearrcp = arcytrace.close_slits(binarr, edgearrcp, vals, int(settings.argflag['trace']['slits']['maxgap']))
     # Update edgearr
     edgearr = edgearrcp.copy()
@@ -1062,7 +1254,16 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         #msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings.argflag['trace']['slits']['fracignore'], int(edgearr.shape[0]*binby)))
         msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings.argflag['trace']['slits']['fracignore'], int(edgearr.shape[0])))
         fracpix = int(settings.argflag['trace']['slits']['fracignore']*edgearr.shape[0])
-        lnc, lxc, rnc, rxc, ldarr, rdarr = arcytrace.ignore_orders(edgearr, fracpix, lmin, lmax, rmin, rmax)
+
+#        print('calling ignore_orders')
+#        t = time.clock()
+#        lnc, lxc, rnc, rxc, ldarr, rdarr = arcytrace.ignore_orders(edgearr, fracpix, lmin, lmax, rmin, rmax)
+#        print('Old ignore_orders: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
+        lnc, lxc, rnc, rxc, ldarr, rdarr = new_ignore_orders(edgearr, fracpix, lmin, lmax, rmin,
+                                                             rmax)
+#        print('New ignore_orders: {0} seconds'.format(time.clock() - t))
+
         lmin += lnc
         rmin += rnc
         lmax -= lxc
@@ -1205,6 +1406,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     if mnvalp > mnvalm:
         lvp = (arutils.func_val(lcoeff[:, lval+1-lmin], xv, settings.argflag['trace']['slits']['function'],
                                 minv=minvf, maxv=maxvf)+0.5).astype(np.int)
+        print('calling find_between')
+        exit()
         edgbtwn = arcytrace.find_between(edgearr, lv, lvp, 1)
         # edgbtwn is a 3 element array that determines what is between two adjacent left edges
         # edgbtwn[0] is the next right order along, from left order lval
@@ -1542,6 +1745,8 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
         lopos = phys_to_pix(extfit[:,-i]-srchz, locations, 1)  # The pixel indices for the bottom of the search window
         numsrch = np.int(np.max(np.round(2.0*srchz-extrap_diff[:,-i])))
         diffarr = np.round(extrap_diff[:,-i]).astype(np.int)
+        print('calling find_shift')
+        exit()
         shift = arcytrace.find_shift(binarr, minarr, lopos, diffarr, numsrch)
         relshift = np.mean(shift+extrap_diff[:,-i]/2-srchz)
         if shift == -1:
@@ -1569,6 +1774,8 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
         lopos = phys_to_pix(extfit[:,i-1]-srchz, locations, 1)
         numsrch = np.int(np.max(np.round(2.0*srchz-extrap_diff[:,i-1])))
         diffarr = np.round(extrap_diff[:,i-1]).astype(np.int)
+        print('calling find_shift')
+        exit()
         shift = arcytrace.find_shift(binarr, minarr, lopos, diffarr, numsrch)
         relshift = np.mean(shift+extrap_diff[:,i-1]/2-srchz)
         if shift == -1:
@@ -2515,6 +2722,8 @@ def get_censpec(slf, frame, det, gen_satmask=False):
     if gen_satmask:
         msgs.info("Generating a mask of arc line saturation streaks")
         satmask = arcyarc.saturation_mask(frame, settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])
+        print('calling order saturation')
+        exit()
         satsnd = arcyarc.order_saturation(satmask, (ordcen+0.5).astype(np.int), (ordwid+0.5).astype(np.int))
     # Extract a rough spectrum of the arc in each slit
     msgs.info("Extracting an approximate arc spectrum at the centre of each slit")
