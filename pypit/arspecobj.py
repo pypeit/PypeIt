@@ -109,7 +109,7 @@ class SpecObjExp(object):
 
 
 def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
-    """Generate a list of SpecObjExp objects for a given exposure
+    """ Generate a list of SpecObjExp objects for a given exposure
 
     Parameters
     ----------
