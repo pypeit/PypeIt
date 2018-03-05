@@ -144,7 +144,8 @@ def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
         # Object traces
         if trc_img[sl]['nobj'] != 0:
             # Loop on objects
-            for qq in range(trc_img[sl]['nobj']):
+            #for qq in range(trc_img[sl]['nobj']):
+            for qq in range(trc_img[sl]['traces'].shape[1]):
                 slitid, slitcen, xslit = get_slitid(slf, det, sl, ypos=ypos)
                 # xobj
                 _, xobj = get_objid(slf, det, sl, qq, trc_img, ypos=ypos)
