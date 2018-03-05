@@ -32,6 +32,7 @@
 * Added functionality for fully automated wavelength calibration with arclines
 * Switched settings files to allow IRAF style data sections to be defined
 * Allowed data sections to be extracted from header information
+* Significant refactor of routines related to pypit_setup
 
 0.7 (2017-02-07)
 ----------------
