@@ -69,10 +69,18 @@ def get_fscale(data, tran, l1=9250, l2=9650):
 
     return soln['x'][0]
 
-# This function will eventuall write out a fits/hdf5 file
-# and QA plots
-def tcorrect_data(fscale, data, tran):
-    from copy import deepcopy
+def tcorrect_data(fscale, data, tran, original):
+    """ Correct the full spectrum
+    Parameters
+    ----------
+    fscale: float
+    data: XSpectrum1d object
+    tran: 2D ndarray
+    original: fits
+        The original fits file
+    Returns
+    -------
+    """
     import matplotlib.pyplot as plt
 
     template = arutils.get_atm_template(fscale, tran[:,1])
@@ -81,30 +89,14 @@ def tcorrect_data(fscale, data, tran):
     tc_data[:,0] = data.wavelength.value
     tc_data[:,1] = data.flux.value/template
 
-    fig = plt.figure(figsize=(10,4))
-    ax1 = plt.subplot(1,2,1)
-    ax2 = plt.subplot(1,2,2)
+    # Need to copy original header in here
+    c1 = fits.Column(name='wave', array=tc_data[:,0], format='K')
+    c2 = fits.Column(name='o_flux', array=data.flux.value, format='K')
+    c3 = fits.Column(name='tc_flux', array=tc_data[:,1], format='K')
+    c4 = fits.Column(name='error', array=data.sig.value, format='K')
+    t  = fits.BinTableHDU.from_columns([c1, c2, c3])
+    t.writeto('')
 
-    i = ((data.wavelength.value >= 8050) & (data.wavelength.value <= 8400))
-    ax1.plot(data.wavelength.value[i], data.flux.value[i]/np.median(data.flux.value[i]) + 0.1,
-             color='k', label='Data')
-    ax1.plot(data.wavelength.value[i], template[i]/np.median(template[i]),
-             color='r', label='Atm Model')
-    ax1.plot(tc_data[:,0][i], tc_data[:,1][i]/np.median(tc_data[:,1][i]) - 0.12,
-             color='b', label='TC Data')
-
-    i = ((data.wavelength.value >= 8900) & (data.wavelength.value <= 9200))
-    ax2.plot(data.wavelength.value[i], data.flux.value[i]/np.median(data.flux.value[i]) + 0.1,
-             color='k', label='Data')
-    ax2.plot(data.wavelength.value[i], template[i]/np.median(template[i]),
-             color='r', label='Atm Model')
-    ax2.plot(tc_data[:,0][i], tc_data[:,1][i]/np.median(tc_data[:,1][i]) - 0.12,
-             color='b', label='TC Data')
-
-    ax1.legend()
-
-    plt.tight_layout()
-    plt.show()
 
 def main(args, unit_test=False, path=''):
     import glob
@@ -142,5 +134,5 @@ def main(args, unit_test=False, path=''):
             fscale = get_fscale(data, tran, l1=l1, l2=l2)
         except:
             fscale = get_fscale(data, tran)
-        tcorrect_data(fscale, data, tran)
+        tcorrect_data(fscale, data, tran, fname)
 
