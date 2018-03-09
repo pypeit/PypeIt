@@ -154,13 +154,13 @@ def show_trace(viewer, ch, trace, trc_name, color='blue', clear=False,
     if rotate:
         xy[0], xy[1] = xy[1], xy[0]
     points = list(zip(xy[0], xy[1]))
-    canvas.add('path', points, color=color)
+    canvas.add(str('path'), points, color=str(color))
     # Text
     ohf = trace.size // (2*pstep)
     xyt = [float(trace[ohf]), float(y[ohf])]
     if rotate:
         xyt[0], xyt[1] = xyt[1], xyt[0]
-    canvas.add('text', xyt[0], xyt[1], trc_name, rot_deg=90., color=color, fontsize=17.)
+    canvas.add(str('text'), xyt[0], xyt[1], trc_name, rot_deg=90., color=str(color), fontsize=17.)
 
 def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0.):
     """  Display arc image and overlay the arcline tilt measurements
