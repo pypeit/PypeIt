@@ -444,7 +444,7 @@ def trace_object_dict(nobj, traces, object=None, background=None, params=None, t
 def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
                  triml=None, trimr=None, sigmin=2.0, bgreg=None,
                  maskval=-999999.9, slitn=0, doqa=True,
-                 xedge=0.03, tracedict=None, standard=False):
+                 xedge=0.03, tracedict=None, standard=False, debug=False):
     """ Finds objects, and traces their location on the detector
 
     Parameters

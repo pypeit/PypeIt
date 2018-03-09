@@ -128,13 +128,13 @@ def show_slits(viewer, ch, lordloc, rordloc, slit_ids, rotate=False, pstep=1):
                 points = list(zip(y[::pstep],item[::pstep,slit].tolist()))
             else:
                 points = list(zip(item[::pstep,slit].tolist(),y[::pstep]))
-            canvas.add('path', points, color='cyan')
+            canvas.add(str('path'), points, color=str('cyan'))
         # Text -- Should use the 'real' name
         if rotate:
             xt, yt = float(y[tthrd]), float(lordloc[tthrd,slit])
         else:
             xt, yt = float(lordloc[tthrd,slit]), float(y[tthrd])
-        canvas.add('text', xt, yt, 'S{:d}'.format(slit_ids[slit]), color='cyan')
+        canvas.add(str('text'), xt, yt, str('S{:d}'.format(slit_ids[slit])), color=str('cyan'))
 
 def show_trace(viewer, ch, trace, trc_name, color='blue', clear=False,
                rotate=False, pstep=1):
