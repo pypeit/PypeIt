@@ -1,5 +1,7 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
+import time
+from matplotlib import pyplot as plt
 import copy
 import numpy as np
 from astropy import units as u
@@ -92,7 +94,53 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
             mask_sci = np.ma.array(sciframe, mask=bg_mask, fill_value=0.)
             clip_image = sigma_clip(mask_sci, axis=1, sigma=3.)  # For the mask only
             # Fit
-            bgframe = arcyutils.func2d_fit_val(bgfit, sciframe, (~clip_image.mask)*bckreg*cr_mask, bgfitord)
+            print('calling func2d_fit_val')
+            t = time.clock()
+            _bgframe = arcyutils.func2d_fit_val(bgfit, sciframe,
+                                                (~clip_image.mask)*bckreg*cr_mask, bgfitord)
+            print('Old func2d_fit_val: {0} seconds'.format(time.clock() - t))
+            t = time.clock()
+            bgframe = new_func2d_fit_val(sciframe, bgfitord, x=bgfit,
+                                         w=(~clip_image.mask)*bckreg*cr_mask)
+            print('New func2d_fit_val: {0} seconds'.format(time.clock() - t))
+            # Some fits are really wonky ... in both methods
+#            if np.sum(bgframe != _bgframe) != 0:
+#                plt.imshow(np.ma.log10(sciframe), origin='lower', interpolation='nearest',
+#                           aspect='auto')
+#                plt.colorbar()
+#                plt.show()
+#                w=(~clip_image.mask)*bckreg*cr_mask
+#                plt.imshow(np.ma.log10(sciframe*w), origin='lower', interpolation='nearest',
+#                           aspect='auto')
+#                plt.colorbar()
+#                plt.show()
+#                plt.imshow(np.ma.log10(_bgframe), origin='lower',
+#                           interpolation='nearest', aspect='auto')
+#                plt.colorbar()
+#                plt.show()
+#                plt.imshow(np.ma.log10(bgframe), origin='lower',
+#                           interpolation='nearest', aspect='auto')
+#                plt.colorbar()
+#                plt.show()
+#                plt.imshow(np.ma.log10(np.absolute(bgframe-_bgframe)), origin='lower',
+#                           interpolation='nearest', aspect='auto')
+#                plt.colorbar()
+#                plt.show()
+#                plt.imshow(np.ma.log10(np.ma.divide(bgframe,_bgframe)), origin='lower',
+#                           interpolation='nearest', aspect='auto')
+#                plt.colorbar()
+#                plt.show()
+#
+#                d = np.amax(np.absolute(bgframe-_bgframe), axis=1)
+#                i = np.argmax(d)
+#                plt.plot(bgfit, sciframe[i,:])
+#                plt.plot(bgfit, sciframe[i,:]*w[i,:])
+#                plt.plot(bgfit, bgframe[i,:])
+#                plt.plot(bgfit, _bgframe[i,:])
+#                plt.show()
+#
+#            assert np.sum(bgframe != _bgframe) == 0, 'Difference between old and new func2d_fit_val'
+
             # Weights
             weight = objreg*mask_slit
             sumweight = np.sum(weight, axis=1)
@@ -457,3 +505,60 @@ def boxcar_cen(slf, det, img):
         censpec = censpec[:, 0].flatten()
     # Return
     return censpec
+
+
+def new_func2d_fit_val(y, order, x=None, w=None):
+    """
+    Fit a polynomial to each column in y.
+
+    if y is 2D, always fit along columns
+
+    test if y is a MaskedArray
+    """
+    # Check input
+    if y.ndim > 2:
+        msgs.error('y cannot have more than 2 dimensions.')
+
+    _y = np.atleast_2d(y)
+    ny, npix = _y.shape
+
+    # Set the x coordinates
+    if x is None:
+        _x = np.linspace(-1,1,npix)
+    else:
+        if x.ndim != 1:
+            msgs.error('x must be a vector')
+        if x.size != npix:
+            msgs.error('Input x must match y vector or column length.')
+        _x = x.copy()
+
+    # Generate the Vandermonde matrix
+    vand = np.polynomial.polynomial.polyvander(_x, order)
+
+    # Fit with appropriate weighting
+    if w is None:
+        # Fit without weights
+        c = np.linalg.lstsq(vand, _y.T)[0]
+        ym = np.sum(c[:,:,None] * vand.T[:,None,:], axis=0)
+    elif w.ndim == 1:
+        # Fit with the same weight for each vector
+        _vand = w[:,None] * vand
+        __y = w[None,:] * _y
+        c = np.linalg.lstsq(_vand, __y.T)[0]
+        ym = np.sum(c[:,:,None] * vand.T[:,None,:], axis=0)
+    else:
+        # Fit with different weights for each vector
+        if w.shape != y.shape:
+            msgs.error('Input w must match y axis length or y shape.')
+        # Prep the output model
+        ym = np.empty(_y.shape, dtype=float)
+        __y = w * _y
+        for i in range(ny):
+            # Fit with the same weight for each vector
+            _vand = w[i,:,None] * vand
+            c = np.linalg.lstsq(_vand, __y[i,:])[0]
+            ym[i,:] = np.sum(c[:,None] * vand.T[:,:], axis=0)
+
+    # Return the model with the appropriate shape
+    return ym if y.ndim == 2 else ym[0,:]
+
