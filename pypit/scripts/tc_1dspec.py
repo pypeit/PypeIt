@@ -2,6 +2,7 @@
 
 import sys
 import numpy as np
+from astropy.io import fits
 from pypit import arutils
 from pypit import arload, arflux
 from linetools.spectra.xspectrum1d import XSpectrum1D
@@ -81,6 +82,7 @@ def tcorrect_data(fscale, data, tran, original):
     Returns
     -------
     """
+    #from pkg_resources import resource_filename
     import matplotlib.pyplot as plt
 
     template = arutils.get_atm_template(fscale, tran[:,1])
@@ -90,12 +92,18 @@ def tcorrect_data(fscale, data, tran, original):
     tc_data[:,1] = data.flux.value/template
 
     # Need to copy original header in here
+    with fits.open(original) as hdu:
+        header = hdu[0].header
+    primary_hdu = fits.PrimaryHDU(header=header)
+
     c1 = fits.Column(name='wave', array=tc_data[:,0], format='K')
     c2 = fits.Column(name='o_flux', array=data.flux.value, format='K')
     c3 = fits.Column(name='tc_flux', array=tc_data[:,1], format='K')
     c4 = fits.Column(name='error', array=data.sig.value, format='K')
-    t  = fits.BinTableHDU.from_columns([c1, c2, c3])
-    t.writeto('')
+    t  = fits.BinTableHDU.from_columns([c1, c2, c3, c4])
+
+    # Save to directory that script is being run in
+    t.writeto(original.strip('.fits') + '_tc.fits')
 
 
 def main(args, unit_test=False, path=''):
