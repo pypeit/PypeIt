@@ -444,7 +444,7 @@ def trace_object_dict(nobj, traces, object=None, background=None, params=None, t
 def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
                  triml=None, trimr=None, sigmin=2.0, bgreg=None,
                  maskval=-999999.9, slitn=0, doqa=True,
-                 xedge=0.03, fwhm=3., tracedict=None, standard=False):
+                 xedge=0.03, tracedict=None, standard=False, debug=False):
     """ Finds objects, and traces their location on the detector
 
     Parameters
@@ -525,6 +525,11 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     rec_crmask[np.where(rec_crmask > 0.2)] = 1.0
     rec_crmask[np.where(rec_crmask <= 0.2)] = 0.0
     msgs.info("Estimating object profiles")
+    # Avoid any 0's in varframe
+    zero_var = rec_varframe == 0.
+    if np.any(zero_var):
+        rec_varframe[zero_var] = 1.
+        rec_crmask[zero_var] = 1.
     # Smooth the S/N frame
     smthby, rejhilo = tracepar['smthby'], tracepar['rejhilo']
     rec_sigframe_bin = arcyutils.smooth_x(rec_sciframe/np.sqrt(rec_varframe), 1.0-rec_crmask, smthby, rejhilo, maskval)
@@ -2741,7 +2746,7 @@ def slit_image(slf, det, scitrace, obj, tilts=None):
 
 def find_obj_minima(trcprof, fwhm=3., nsmooth=3, nfind=8, xedge=0.03,
         sig_thresh=5., peakthresh=None, triml=2, trimr=2, debug=False):
-    ''' Find objects using a ported version of nminima from IDL (idlutils) 
+    ''' Find objects using a ported version of nminima from IDL (idlutils)
     
     Parameters
     ----------

@@ -166,7 +166,8 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=2.):
     std_dev, dev_sig = gsd(rspec, rmask, spec1d)
     #dev_sig = (rspec.data['flux'] - spec1d.flux) / (rspec.data['sig']**2 + spec1d.sig**2)
     #std_dev = np.std(sigma_clip(dev_sig, sigma=5, iters=2))
-    flat_dev_sig = dev_sig.flatten()
+    if dev_sig is not None:
+        flat_dev_sig = dev_sig.flatten()
 
     xmin = -10
     xmax = 10
@@ -174,11 +175,12 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=2.):
 
     # Deviation
     ax = plt.subplot(gs[0])
-    hist, edges = np.histogram(flat_dev_sig, range=(xmin, xmax), bins=n_bins)
-    area = len(flat_dev_sig)*((xmax-xmin)/float(n_bins))
-    xppf = np.linspace(norm.ppf(0.0001), norm.ppf(0.9999), 100)
-    ax.plot(xppf, area*norm.pdf(xppf), color='black', linewidth=2.0)
-    ax.bar(edges[:-1], hist, width=((xmax-xmin)/float(n_bins)), alpha=0.5)
+    if dev_sig is not None:
+        hist, edges = np.histogram(flat_dev_sig, range=(xmin, xmax), bins=n_bins)
+        area = len(flat_dev_sig)*((xmax-xmin)/float(n_bins))
+        xppf = np.linspace(norm.ppf(0.0001), norm.ppf(0.9999), 100)
+        ax.plot(xppf, area*norm.pdf(xppf), color='black', linewidth=2.0)
+        ax.bar(edges[:-1], hist, width=((xmax-xmin)/float(n_bins)), alpha=0.5)
 
     # Coadd on individual
     # yrange
