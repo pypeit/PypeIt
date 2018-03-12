@@ -22,6 +22,9 @@ from pypit import ardebug as debugger
 # Logging
 msgs = armsgs.get_logger()
 
+#KBW TESTING
+import time
+
 
 def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
     """ Generate a frame containing the background sky spectrum
@@ -1710,7 +1713,35 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
     filt  = ndimage.sobel(sciframe, axis=1, mode='constant')
     filty = ndimage.sobel(filt/np.sqrt(np.abs(sciframe)), axis=0, mode='constant')
     filty[np.where(np.isnan(filty))]=0.0
-    sigimg  = arcyproc.cr_screen(filty,0.0)
+
+#    t = time.clock()
+#    sigimg  = arcyproc.cr_screen(filty,0.0)
+#    print('Old cr_screen: {0} seconds'.format(time.clock() - t))
+#
+#    t = time.clock()
+#    new_sigimg  = new_cr_screen(filty,0.0)
+#    print('New cr_screen: {0} seconds'.format(time.clock() - t))
+#    sigimg  = arcyproc.cr_screen(filty,0.0)
+    sigimg  = new_cr_screen(filty)
+
+#    print(sigimg.shape)
+#    print(new_sigimg.shape)
+#    print(np.ma.mean(np.ma.log10(sigimg)))
+#    print(np.ma.mean(np.ma.log10(new_sigimg)))
+#    print(np.ma.mean(np.ma.log10(sigimg)-np.ma.log10(new_sigimg)))
+#
+#    plt.imshow(np.ma.log10(sigimg), origin='lower', interpolation='nearest', aspect='auto')
+#    plt.colorbar()
+#    plt.show()
+#
+#    plt.imshow(np.ma.log10(new_sigimg), origin='lower', interpolation='nearest', aspect='auto')
+#    plt.colorbar()
+#    plt.show()
+#
+#    plt.imshow(np.ma.log10(new_sigimg)-np.ma.log10(sigimg), origin='lower', interpolation='nearest', aspect='auto')
+#    plt.colorbar()
+#    plt.show()
+
     sigsmth = ndimage.filters.gaussian_filter(sigimg,1.5)
     sigsmth[np.where(np.isnan(sigsmth))]=0.0
     sigmask = np.cast['bool'](np.zeros(sciframe.shape))
@@ -1719,6 +1750,50 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
     msgs.info("Growing cosmic ray mask by 1 pixel")
     crmask = arcyutils.grow_masked(crmask.astype(np.float), grow, 1.0)
     return crmask
+
+
+def new_cr_screen(a, mask_value=0.0, spatial_axis=1):
+    r"""
+    Calculate the significance of pixel deviations from the median along
+    the spatial direction.
+
+    No type checking is performed of the input array; however, the
+    function assumes floating point values.
+
+    Args:
+        a (numpy.ndarray): Input 2D array
+        mask_value (float): (**Optional**) Values to ignore during the
+            calculation of the median.  Default is 0.0.
+        spatial_axis (int): (**Optional**) Axis along which to calculate
+            the median.  Default is 1.
+
+    Returns:
+        numpy.ndarray: Returns a map of :math:`|\Delta_{i,j}|/\sigma_j`,
+        where :math:`\Delta_{i,j}` is the difference between the pixel
+        value and the median along axis :math:`i` and :math:`\sigma_j`
+        is robustly determined using the median absolute deviation,
+        :math:`sigma_j = 1.4826 MAD`.
+
+    Raises:
+        ValueError: Raised if the input array is not two dimensional or
+            if the selected axis is neither 0 nor 1.
+    """
+    # Check input
+    if len(a.shape) != 2:
+        raise ValueError('Input array must be two-dimensional.')
+    if spatial_axis not in [0,1]:
+        raise ValueError('Spatial axis must be 0 or 1.')
+
+    # Mask the pixels equal to mask value: should use np.isclose()
+    _a = np.ma.MaskedArray(a, mask=(a==mask_value))
+    # Get the median along the spatial axis
+    meda = np.ma.median(_a, axis=spatial_axis)
+    # Get a robust measure of the standard deviation using the median
+    # absolute deviation; 1.4826 factor is the ratio of sigma/MAD
+    d = np.absolute(_a - meda[:,None])
+    mada = 1.4826*np.ma.median(d, axis=spatial_axis)
+    # Return the ratio of the difference to the standard deviation
+    return np.ma.divide(d, mada[:,None]).filled(0.0)
 
 
 def gain_frame(slf, det):
