@@ -679,6 +679,8 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     rec_obj_img, rec_bg_img = trace_objbg_image(slf, det, sciframe, slitn,
                                                 [objl, objr], [bckl, bckr],
                                                 triml=triml, trimr=trimr)
+    if debug:
+        debugger.set_trace()
     # Check object traces in ginga
     if msgs._debug['trace_obj']:
         from pypit import ginga
