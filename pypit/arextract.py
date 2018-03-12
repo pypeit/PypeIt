@@ -552,9 +552,10 @@ def new_func2d_fit_val(y, order, x=None, w=None):
             msgs.error('Input w must match y axis length or y shape.')
         # Prep the output model
         ym = np.empty(_y.shape, dtype=float)
+        # Weight the data
         __y = w * _y
         for i in range(ny):
-            # Fit with the same weight for each vector
+            # Weight the Vandermonde matrix for this y vector
             _vand = w[i,:,None] * vand
             c = np.linalg.lstsq(_vand, __y[i,:])[0]
             ym[i,:] = np.sum(c[:,None] * vand.T[:,:], axis=0)

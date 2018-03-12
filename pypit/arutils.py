@@ -730,8 +730,6 @@ def gauss_lsqfit(x,y,pcen):
     if np.any(y<0.0):
         return [0.0, 0.0, 0.0], True
     # Obtain a quick first guess at the parameters
-    print('calling fit_gauss')
-    exit()
     ampl, cent, sigm, good = arcyarc.fit_gauss(x, y, np.zeros(3,dtype=np.float), 0, x.size, float(pcen))
     if good == 0:
         return [0.0, 0.0, 0.0], True
@@ -757,8 +755,6 @@ def gauss_fit(x, y, pcen):
             return [0.0, 0.0, 0.0], True
         if x.size <= 3:
             return [0.0, 0.0, 0.0], True
-        print('calling fit_gauss')
-        exit()
         ampl, cent, sigm, good = arcyarc.fit_gauss(x, y, np.zeros(3,dtype=np.float), 0, x.size, float(pcen))
         if good == 0:
             return [0.0, 0.0, 0.0], True
