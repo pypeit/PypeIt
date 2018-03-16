@@ -5,7 +5,7 @@
 # REDUCTION RULES
 #reduce calibrate wavelength pixel # Temporary until a wavelength calibration routine is implemented.
 
-
+reduce calibrate sensfunc archival None       # Perform a flux calibration using an archival sensitivity function 
 reduce calibrate nonlinear False # Perform a non-linear correction
 reduce calibrate flux False #True       # Perform a flux calibration
 reduce flexure method boxcar     # Perform flexure correction on objects using boxcar extraction.  Options are: None, boxcar, slitcen [this performs flexure correction before extraction of objects]

@@ -3569,6 +3569,16 @@ class ARMLSD(BaseArgFlag):
         v = key_bool(v)
         self.update(v)
 
+    def reduce_calibrate_sensfunc_archival(self, v):
+        """ Should a flux calibration be performed?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        self.update(v)
+
 
 
     def reduce_flexure_maxshift(self, v):

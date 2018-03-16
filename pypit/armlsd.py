@@ -3,6 +3,7 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import numpy as np
+import yaml
 from pypit import arparse as settings
 from pypit import arflux
 from pypit import arload
@@ -14,6 +15,8 @@ from pypit import arsave
 from pypit import arsort
 from pypit import artrace
 from pypit import arqa
+from astropy import units as u
+
 
 from linetools import utils as ltu
 
@@ -227,11 +230,19 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             msgs.info("Assuming one star per detector mosaic")
             msgs.info("Waited until last detector to process")
 
-            update = slf.MasterStandard(fitsdict)
-            if update and reuseMaster:
-                armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
-            #
-            msgs.work("Consider using archived sensitivity if not found")
+            if(settings.argflag['reduce']['calibrate']['sensfunc']['archival']=='None'):
+                update = slf.MasterStandard(fitsdict)
+                if update and reuseMaster:
+                    armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
+            else:
+                sensfunc = yaml.load(open(settings.argflag['reduce']['calibrate']['sensfunc']['archival']))
+                # Yaml does not do quantities, so make the sensfunc min/max wave quantities
+                sensfunc['wave_max']*=u.angstrom
+                sensfunc['wave_min']*=u.angstrom
+                slf.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
+                msgs.info("Using archival sensfunc {:s}".format(settings.argflag['reduce']['calibrate']['sensfunc']['archival']))
+
+            #msgs.work("Consider using archived sensitivity if not found") JFH implementing this below
             msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
             for kk in range(settings.spect['mosaic']['ndet']):
                 det = kk + 1  # Detectors indexed from 1
