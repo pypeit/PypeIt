@@ -92,6 +92,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
             mask_sci = np.ma.array(sciframe, mask=bg_mask, fill_value=0.)
             clip_image = sigma_clip(mask_sci, axis=1, sigma=3.)  # For the mask only
             # Fit
+            debugger.set_trace()
             bgframe = arcyutils.func2d_fit_val(bgfit, sciframe, (~clip_image.mask)*bckreg*cr_mask, bgfitord)
             # Weights
             weight = objreg*mask_slit

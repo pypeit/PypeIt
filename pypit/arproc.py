@@ -1579,7 +1579,7 @@ def sn_frame(slf, sciframe, idx):
 
 
 def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-999999.9,
-             simple_var=False):
+             simple_var=False, varframe=None):
     """
     Identify cosmic rays using the L.A.Cosmic algorithm
     U{http://www.astro.yale.edu/dokkum/lacosmic/}
