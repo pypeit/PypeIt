@@ -1627,10 +1627,13 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
         msgs.info("Creating noise model")
         # Build a custom noise map, and compare  this to the laplacian
         m5 = ndimage.filters.median_filter(scicopy, size=5, mode='mirror')
-        if simple_var:
-            noise = np.sqrt(np.abs(m5)) #variance_frame(slf, det, m5, scidx, fitsdict))
+        if varframe is None:
+            if simple_var:
+                noise = np.sqrt(np.abs(m5)) #variance_frame(slf, det, m5, scidx, fitsdict))
+            else:
+                noise = np.sqrt(variance_frame(slf, det, m5, scidx, fitsdict))
         else:
-            noise = np.sqrt(variance_frame(slf, det, m5, scidx, fitsdict))
+            noise = np.sqrt(varframe)
         msgs.info("Calculating Laplacian signal to noise ratio")
 
         # Laplacian S/N
