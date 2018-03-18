@@ -817,9 +817,6 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     # Final wavelength array
     new_wave = new_wave_grid(spectra.data['wave'], wave_method=wave_grid_method, **kwargs)
 
-    # Bspline CR
-    #bspline_cr(spectra)
-
     # Rebin
     rspec = spectra.rebin(new_wave*u.AA, all=True, do_sig=True, grow_bad_sig=True, masking='none')
 

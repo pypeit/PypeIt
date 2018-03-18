@@ -427,6 +427,9 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
     # Generate new variance image
     newvar = arproc.variance_frame(slf, det, sciframe, -1,
                                    skyframe=skyframe, objframe=obj_model)
+    badpix = model_ivar <= 0.
+    newvar[badpix] = 0.
+
     # Return
     return newvar
 
