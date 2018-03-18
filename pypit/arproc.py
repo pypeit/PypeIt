@@ -1579,7 +1579,7 @@ def sn_frame(slf, sciframe, idx):
 
 
 def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-999999.9,
-             simple_var=False, varframe=None):
+             simple_var=False, varframe=None, remove_compact_obj=True):
     """
     Identify cosmic rays using the L.A.Cosmic algorithm
     U{http://www.astro.yale.edu/dokkum/lacosmic/}
@@ -1669,8 +1669,12 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
         msgs.info("Removing suspected compact bright objects")
 
         # Now we have our better selection of cosmics :
-        cosmics = np.logical_and(candidates, sp/f > objlim)
+        if remove_compact_obj:
+            cosmics = np.logical_and(candidates, sp/f > objlim)
+        else:
+            cosmics = candidates
         nbcosmics = np.sum(cosmics)
+        #debugger.set_trace()
 
         msgs.info("{0:5d} remaining candidate pixels".format(nbcosmics))
 
@@ -1708,6 +1712,7 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
 
         msgs.info("Iteration {0:d} -- {1:d} pixels identified as cosmic rays ({2:d} new)".format(i, ncrp, nnew))
         if ncrp == 0: break
+    #debugger.set_trace()
     # Additional algorithms (not traditionally implemented by LA cosmic) to remove some false positives.
     msgs.work("The following algorithm would be better on the rectified, tilts-corrected image")
     filt  = ndimage.sobel(sciframe, axis=1, mode='constant')
