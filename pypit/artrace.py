@@ -612,7 +612,6 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
                         bckr[objr[o] + x, o] = 1
         else:
             nobj = 0
-
     if nobj == 1:
         msgs.info("Found {0:d} object".format(objl.size))
         msgs.info("Tracing {0:d} object".format(objl.size))
@@ -679,8 +678,6 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     rec_obj_img, rec_bg_img = trace_objbg_image(slf, det, sciframe, slitn,
                                                 [objl, objr], [bckl, bckr],
                                                 triml=triml, trimr=trimr)
-    if debug:
-        debugger.set_trace()
     # Check object traces in ginga
     if msgs._debug['trace_obj']:
         from pypit import ginga
