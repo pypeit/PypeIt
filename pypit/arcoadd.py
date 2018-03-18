@@ -157,11 +157,14 @@ def gauss1(x, parameters):
                    
     return norm * x_mask * np.exp(-0.5 * u * x_mask)
 
-def unpack_spec(spectra):
-    """ Assumes the wavelengths are already aligned
+def unpack_spec(spectra, all_wave=False):
+    """ Unpack the spectra.  Default is to give only one wavelength array
+
     Parameters
     ----------
     spectra
+    all_wave : bool, optional
+      Return all the wavelength arrays
 
     Returns
     -------
@@ -173,7 +176,11 @@ def unpack_spec(spectra):
     """
     fluxes = spectra.data['flux'].filled(0.)
     sigs = spectra.data['sig'].filled(0.)
-    wave = np.array(spectra.data['wave'][0,:])
+    if all_wave:
+        wave = spectra.data['wave'].filled(0.)
+    else:
+        wave = np.array(spectra.data['wave'][0,:])
+
     # Return
     return fluxes, sigs, wave
 
@@ -437,6 +444,58 @@ def scale_spectra(spectra, smask, sn2, iref=0, scale_method='auto', hand_scale=N
     return scales, omethod
 
 
+def bspline_cr(spectra, n_grow_mask=1, cr_nsig=5.):
+    """ Experimental and not so successful..
+
+    Parameters
+    ----------
+    spectra
+    n_grow_mask
+    cr_nsig
+
+    Returns
+    -------
+
+    """
+    # Unpack
+    fluxes, sigs, wave = unpack_spec(spectra, all_wave=True)
+
+    # Concatenate
+    all_f = fluxes.flatten()
+    all_s = sigs.flatten()
+    all_w = wave.flatten()
+
+    # Sort
+    srt = np.argsort(all_w)
+
+    # Bad pix
+    goodp = all_s[srt] > 0.
+
+    # Fit
+    mask, bspl = arutils.robust_polyfit(all_w[srt][goodp], all_f[srt][goodp], 3,
+                                        function='bspline', sigma=cr_nsig, everyn=2*spectra.nspec,
+                                        weights=1./np.sqrt(all_s[srt][goodp]), maxone=False)
+    # Plot?
+    debug = True
+    if debug:
+        from matplotlib import pyplot as plt
+        plt.clf()
+        ax = plt.gca()
+        ax.scatter(all_w[srt][goodp], all_f[srt][goodp], color='k')
+        #
+        x = np.linspace(np.min(all_w), np.max(all_w), 30000)
+        y = arutils.func_val(bspl, x, 'bspline')
+        ax.plot(x,y)
+        # Masked
+        ax.scatter(all_w[srt][goodp][mask==1], all_f[srt][goodp][mask==1], color='r')
+        # Range
+        stdf = np.std(all_f[srt][goodp])
+        ax.set_ylim(-2*stdf, 3*stdf)
+        plt.show()
+        debugger.set_trace()
+
+    debugger.set_trace()
+
 def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
     debug=False, cr_everyn=6, cr_bsigma=5., cr_two_alg='bspline', **kwargs):
     """ Sigma-clips the flux arrays to remove obvious CR
@@ -458,6 +517,15 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
     # Init
     fluxes, sigs, wave = unpack_spec(spectra)
     npix = wave.size
+
+    def rej_bad(smask, badchi, n_grow_mask, ispec):
+        # Grow?
+        if n_grow_mask > 0:
+            badchi = grow_mask(badchi, n_grow=n_grow_mask)
+        # Mask
+        smask[ispec,badchi] = True
+        msgs.info("Rejecting {:d} CRs in exposure {:d}".format(np.sum(badchi),ispec))
+        return
 
     if spectra.nspec == 2:
         msgs.info("Only 2 exposures.  Using custom procedure")
@@ -557,17 +625,16 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
             gds = (~smask[ispec,:]) & (sigs[ispec,:] > 0.)
             ivar = np.zeros(npix)
             ivar[gds] = 1./sigs[ispec,gds]**2
-            #
+            # Single pixel events
             chi2 = diff[ispec]**2 * ivar
             badchi = (ivar > 0.0) & (chi2 > cr_nsig**2)
-            nbad = np.sum(badchi)
-            if nbad > 0:
-                # Grow?
-                if n_grow_mask > 0:
-                    badchi = grow_mask(badchi, n_grow=n_grow_mask)
-                # Mask
-                smask[ispec,badchi] = True
-                msgs.info("Rejecting {:d} CRs in exposure {:d}".format(nbad,ispec))
+            if np.any(badchi) > 0:
+                rej_bad(smask, badchi, n_grow_mask, ispec)
+            # Dual pixels [CRs usually affect 2 (or more) pixels]
+            tchi2 = chi2 + np.roll(chi2,1)
+            badchi = (ivar > 0.0) & (tchi2 > 2*cr_nsig**2)
+            if np.any(badchi) > 0:
+                rej_bad(smask, badchi, n_grow_mask, ispec)
     # Return
     return
 
@@ -749,6 +816,9 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
 
     # Final wavelength array
     new_wave = new_wave_grid(spectra.data['wave'], wave_method=wave_grid_method, **kwargs)
+
+    # Bspline CR
+    #bspline_cr(spectra)
 
     # Rebin
     rspec = spectra.rebin(new_wave*u.AA, all=True, do_sig=True, grow_bad_sig=True, masking='none')
