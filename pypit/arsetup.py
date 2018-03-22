@@ -45,7 +45,7 @@ def dummy_setup_dict(filesort, fitsdict):
 
     Returns
     -------
-    setup_dict : dicg
+    setup_dict : dict
     """
     # setup_dict
     setup = settings.argflag['reduce']['masters']['setup']
@@ -152,7 +152,7 @@ def det_setup(isetup_dict, ddict):
       May be new or previously used
 
     """
-    det_str = [str('{:02d}'.format(i+1)) for i in range(99)]
+    det_str = [settings.get_dnum(i+1, prefix=False) for i in range(99)]
     # Init
     for dkey in det_str:
         mtch = True

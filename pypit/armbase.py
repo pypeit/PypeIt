@@ -70,7 +70,7 @@ def setup_science(fitsdict):
     if settings.argflag['reduce']['masters']['force']:
         # Check that setup was input
         if len(settings.argflag['reduce']['masters']['setup']) == 0:
-            msgs.error("Need to specify --  reduce masters setup  -- in your PYPIT file!")
+            msgs.error("You need to specify the following parameter in your PYPIT file:"+msgs.newline()+"reduce masters setup")
         # Generate a dummy setup_dict
         setup_dict = arsetup.dummy_setup_dict(filesort, fitsdict)
         # Return
