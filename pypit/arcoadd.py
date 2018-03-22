@@ -98,7 +98,7 @@ def new_wave_grid(waves, wave_method='iref', iref=0, A_pix=None, v_pix=None, **k
 
     elif wave_method == 'concatenate':  # Concatenate
         # Setup
-        loglam = np.log10(waves)
+        loglam = np.log10(waves) # This deals with padding (0's) just fine, i.e. they get masked..
         nspec = waves.shape[0]
         newloglam = loglam[iref, :].compressed()  # Deals with mask
         # Loop
@@ -712,6 +712,9 @@ def get_std_dev(irspec, rmask, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
     # Only calculate on regions with 2 or more spectra
     sum_msk = np.sum(~cmask, axis=0)
     gdp = (sum_msk > 1) & (isig > 0.)
+    if not np.any(gdp):
+        msgs.warn("No pixels satisfying s2n_min in std_dev")
+        return 1., None
     # Here we go
     dev_sig = (fluxes[:,gdp] - iflux[gdp]) / np.sqrt(sigs[:,gdp]**2 + isig[gdp]**2)
     std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=5, iters=2))
@@ -745,7 +748,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
         return spectra
 
     # Final wavelength array
-    new_wave = new_wave_grid(spectra.data['wave'], method=wave_grid_method, **kwargs)
+    new_wave = new_wave_grid(spectra.data['wave'], wave_method=wave_grid_method, **kwargs)
 
     # Rebin
     rspec = spectra.rebin(new_wave*u.AA, all=True, do_sig=True, grow_bad_sig=True, masking='none')
