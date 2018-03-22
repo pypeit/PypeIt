@@ -92,31 +92,31 @@ def comb_frames(frames_arr, det, frametype, weights=None, maskvalue=1048577, pri
         allrej_arr = np.median(frames_arr, axis=2)
     elif reject['replace'] == 'weightmean':
         msgs.work("No weights are implemented yet")
-        print('calling masked_weightmean')
-        _allrej_arr = frames_arr.copy()
-        t = time.clock()
-        _allrej_arr = arcycomb.masked_weightmean(_allrej_arr, maskvalue)
-        print('Old masked_weightmean: {0} seconds'.format(time.clock() - t))
+#        print('calling masked_weightmean')
+#        _allrej_arr = frames_arr.copy()
+#        t = time.clock()
+#        _allrej_arr = arcycomb.masked_weightmean(_allrej_arr, maskvalue)
+#        print('Old masked_weightmean: {0} seconds'.format(time.clock() - t))
         __allrej_arr = frames_arr.copy()
-        t = time.clock()
+#        t = time.clock()
         __allrej_arr = new_masked_weightmean(__allrej_arr, maskvalue)
-        print('New masked_weightmean: {0} seconds'.format(time.clock() - t))
-        print(__allrej_arr.shape)
-        assert np.sum(__allrej_arr != _allrej_arr) == 0, \
-                    'Difference between old and new masked_weightmean'
+#        print('New masked_weightmean: {0} seconds'.format(time.clock() - t))
+#        print(__allrej_arr.shape)
+#        assert np.sum(__allrej_arr != _allrej_arr) == 0, \
+#                    'Difference between old and new masked_weightmean'
         allrej_arr = __allrej_arr
 ##        allrej_arr = arcycomb.masked_weightmean(frames_arr, maskvalue)
 #        allrej_arr = new_masked_weightmean(frames_arr, maskvalue)
     elif reject['replace'] == 'maxnonsat':
-        print('calling maxnonsat')
-        _allrej_arr = frames_arr.copy()
-        t = time.clock()
-        _allrej_arr = arcycomb.maxnonsat(_allrej_arr, saturation)
-        print('Old maxnonsat: {0} seconds'.format(time.clock() - t))
+#        print('calling maxnonsat')
+#        _allrej_arr = frames_arr.copy()
+#        t = time.clock()
+#        _allrej_arr = arcycomb.maxnonsat(_allrej_arr, saturation)
+#        print('Old maxnonsat: {0} seconds'.format(time.clock() - t))
         __allrej_arr = frames_arr.copy()
-        t = time.clock()
+#        t = time.clock()
         __allrej_arr = new_maxnonsat(__allrej_arr, saturation)
-        print('New maxnonsat: {0} seconds'.format(time.clock() - t))
+#        print('New maxnonsat: {0} seconds'.format(time.clock() - t))
 #       Bug in arcycomb.maxnonsat ?
 #        assert np.sum(__allrej_arr != _allrej_arr) == 0, 'Difference between old and new maxnonsat'
         allrej_arr = __allrej_arr
@@ -228,31 +228,31 @@ def comb_frames(frames_arr, det, frametype, weights=None, maskvalue=1048577, pri
 #        frames_arr = arcycomb.masked_median(frames_arr, maskvalue)
         frames_arr = np.ma.median(np.ma.MaskedArray(frames_arr, mask=frames_arr==maskvalue), axis=2)
     elif method == 'weightmean':
-        print('calling masked_weightmean')
-        _frames_arr = frames_arr.copy()
-        t = time.clock()
-        _frames_arr = arcycomb.masked_weightmean(_frames_arr, maskvalue)
-        print('Old masked_weightmean: {0} seconds'.format(time.clock() - t))
+#        print('calling masked_weightmean')
+#        _frames_arr = frames_arr.copy()
+#        t = time.clock()
+#        _frames_arr = arcycomb.masked_weightmean(_frames_arr, maskvalue)
+#        print('Old masked_weightmean: {0} seconds'.format(time.clock() - t))
         __frames_arr = frames_arr.copy()
-        t = time.clock()
+#        t = time.clock()
         __frames_arr = new_masked_weightmean(__frames_arr, maskvalue)
-        print('New masked_weightmean: {0} seconds'.format(time.clock() - t))
-        print(__frames_arr.shape)
-
-        if np.sum(np.absolute(__frames_arr-_frames_arr) > 1e-10) != 0:
-            print(np.sum(np.absolute(__frames_arr-_frames_arr) > 1e-10))
-            plt.imshow(_frames_arr, origin='lower', interpolation='nearest', aspect='auto')
-            plt.show()
-            plt.imshow(__frames_arr, origin='lower', interpolation='nearest', aspect='auto')
-            plt.show()
-            plt.imshow(_frames_arr - __frames_arr, origin='lower', interpolation='nearest', aspect='auto')
-            plt.show()
-            plt.imshow(np.ma.divide(_frames_arr,__frames_arr) - 1, origin='lower', interpolation='nearest', aspect='auto')
-            plt.colorbar()
-            plt.show()
-                    
-        assert np.sum( np.absolute(__frames_arr-_frames_arr) > 1e-10 ) == 0, \
-                    'Difference between old and new masked_weightmean'
+#        print('New masked_weightmean: {0} seconds'.format(time.clock() - t))
+#        print(__frames_arr.shape)
+#
+#        if np.sum(np.absolute(__frames_arr-_frames_arr) > 1e-10) != 0:
+#            print(np.sum(np.absolute(__frames_arr-_frames_arr) > 1e-10))
+#            plt.imshow(_frames_arr, origin='lower', interpolation='nearest', aspect='auto')
+#            plt.show()
+#            plt.imshow(__frames_arr, origin='lower', interpolation='nearest', aspect='auto')
+#            plt.show()
+#            plt.imshow(_frames_arr - __frames_arr, origin='lower', interpolation='nearest', aspect='auto')
+#            plt.show()
+#            plt.imshow(np.ma.divide(_frames_arr,__frames_arr) - 1, origin='lower', interpolation='nearest', aspect='auto')
+#            plt.colorbar()
+#            plt.show()
+#                    
+#        assert np.sum( np.absolute(__frames_arr-_frames_arr) > 1e-10 ) == 0, \
+#                    'Difference between old and new masked_weightmean'
         frames_arr = __frames_arr
     else:
         msgs.error("Combination type '{0:s}' is unknown".format(method))

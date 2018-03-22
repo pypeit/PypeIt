@@ -196,19 +196,19 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     errframe = np.sqrt(varframe)
     # Find which pixels are within the order edges
     msgs.info("Identifying pixels within each order")
-    print('calling order_pixels')
-    t = time.clock()
-    _ordpix = arcyutils.order_pixels(slf._pixlocn[det-1],
-                                     slf._lordloc[det-1]*0.95+slf._rordloc[det-1]*0.05,
-                                     slf._lordloc[det-1]*0.05+slf._rordloc[det-1]*0.95)
-    print('Old order_pixels: {0} seconds'.format(time.clock() - t))
-    t = time.clock()
+#    print('calling order_pixels')
+#    t = time.clock()
+#    _ordpix = arcyutils.order_pixels(slf._pixlocn[det-1],
+#                                     slf._lordloc[det-1]*0.95+slf._rordloc[det-1]*0.05,
+#                                     slf._lordloc[det-1]*0.05+slf._rordloc[det-1]*0.95)
+#    print('Old order_pixels: {0} seconds'.format(time.clock() - t))
+#    t = time.clock()
     ordpix = new_order_pixels(slf._pixlocn[det-1],
                               slf._lordloc[det-1]*0.95+slf._rordloc[det-1]*0.05,
                               slf._lordloc[det-1]*0.05+slf._rordloc[det-1]*0.95)
-    print('New order_pixels: {0} seconds'.format(time.clock() - t))
-    assert np.sum(_ordpix != ordpix) == 0, \
-                    'Difference between old and new order_pixels'
+#    print('New order_pixels: {0} seconds'.format(time.clock() - t))
+#    assert np.sum(_ordpix != ordpix) == 0, \
+#                    'Difference between old and new order_pixels'
 
     msgs.info("Applying bad pixel mask")
     ordpix *= (1-slf._bpix[det-1].astype(np.int)) * (1-crpix.astype(np.int))
@@ -451,15 +451,15 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     # Find which pixels are within the order edges
     msgs.info("Identifying pixels within each order")
 
-    print('calling order_pixels')
-    t = time.clock()
-    _ordpix = arcyutils.order_pixels(slf._pixlocn[det-1], slf._lordloc[det-1], slf._rordloc[det-1])
-    print('Old order_pixels: {0} seconds'.format(time.clock() - t))
-    t = time.clock()
+#    print('calling order_pixels')
+#    t = time.clock()
+#    _ordpix = arcyutils.order_pixels(slf._pixlocn[det-1], slf._lordloc[det-1], slf._rordloc[det-1])
+#    print('Old order_pixels: {0} seconds'.format(time.clock() - t))
+#    t = time.clock()
     ordpix = new_order_pixels(slf._pixlocn[det-1], slf._lordloc[det-1], slf._rordloc[det-1])
-    print('New order_pixels: {0} seconds'.format(time.clock() - t))
-    assert np.sum(_ordpix != ordpix) == 0, \
-                    'Difference between old and new order_pixels'
+#    print('New order_pixels: {0} seconds'.format(time.clock() - t))
+#    assert np.sum(_ordpix != ordpix) == 0, \
+#                    'Difference between old and new order_pixels'
 
     msgs.info("Applying bad pixel mask")
     ordpix *= (1-slf._bpix[det-1].astype(np.int))
@@ -1186,17 +1186,17 @@ def slit_pixels(slf, frameshape, det):
     for o in range(nslits):
         lordloc = slf._lordloc[det - 1][:, o]
         rordloc = slf._rordloc[det - 1][:, o]
-        print('calling locate_order')
-        t = time.clock()
-        _ordloc = arcytrace.locate_order(lordloc, rordloc, frameshape[0], frameshape[1],
-                                         settings.argflag['trace']['slits']['pad'])
-        print('Old locate_order: {0} seconds'.format(time.clock() - t))
-        t = time.clock()
+#        print('calling locate_order')
+#        t = time.clock()
+#        _ordloc = arcytrace.locate_order(lordloc, rordloc, frameshape[0], frameshape[1],
+#                                         settings.argflag['trace']['slits']['pad'])
+#        print('Old locate_order: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
         ordloc = new_locate_order(lordloc, rordloc, frameshape[0], frameshape[1],
                                   settings.argflag['trace']['slits']['pad'])
-        print('New locate_order: {0} seconds'.format(time.clock() - t))
-        assert np.sum(_ordloc != ordloc) == 0, \
-                    'Difference between old and new locate_order'
+#        print('New locate_order: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_ordloc != ordloc) == 0, \
+#                    'Difference between old and new locate_order'
         word = np.where(ordloc != 0)
         if word[0].size == 0:
             msgs.warn("There are no pixels in slit {0:d}".format(o + 1))
@@ -1836,14 +1836,14 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
     sigmask[np.where(sigsmth>sigclip)] = True
     crmask = np.logical_and(crmask, sigmask)
     msgs.info("Growing cosmic ray mask by 1 pixel")
-    print('calling grow_masked')
-    t = time.clock()
-    _crmask = arcyutils.grow_masked(crmask.astype(np.float), grow, 1.0)
-    print('Old grow_masked: {0} seconds'.format(time.clock() - t))
-    t = time.clock()
+#    print('calling grow_masked')
+#    t = time.clock()
+#    _crmask = arcyutils.grow_masked(crmask.astype(np.float), grow, 1.0)
+#    print('Old grow_masked: {0} seconds'.format(time.clock() - t))
+#    t = time.clock()
     crmask = new_grow_masked(crmask.astype(np.float), grow, 1.0)
-    print('New grow_masked: {0} seconds'.format(time.clock() - t))
-    assert np.sum(_crmask != crmask) == 0, 'Difference between old and new grow_masked'
+#    print('New grow_masked: {0} seconds'.format(time.clock() - t))
+#    assert np.sum(_crmask != crmask) == 0, 'Difference between old and new grow_masked'
 
     return crmask
 

@@ -77,23 +77,23 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     if MK_SATMASK:
         ordwid = 0.5*np.abs(slf._lordloc[det-1] - slf._rordloc[det-1])
         msgs.info("Generating a mask of arc line saturation streaks")
-        print('calling saturation_mask')
-        t = time.clock()
-        _satmask = arcyarc.saturation_mask(msarc, slf._nonlinear[det-1])
-        print('Old saturation_mask: {0} seconds'.format(time.clock() - t))
-        t = time.clock()
+#        print('calling saturation_mask')
+#        t = time.clock()
+#        _satmask = arcyarc.saturation_mask(msarc, slf._nonlinear[det-1])
+#        print('Old saturation_mask: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
         satmask = new_saturation_mask(msarc, slf._nonlinear[det-1])
-        print('New saturation_mask: {0} seconds'.format(time.clock() - t))
-        assert np.sum(_satmask != satmask) == 0, 'Difference between old and new saturation_mask'
+#        print('New saturation_mask: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_satmask != satmask) == 0, 'Difference between old and new saturation_mask'
 
-        print('calling order_saturation')
-        t = time.clock()
-        _satsnd = arcyarc.order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int))
-        print('Old order_saturation: {0} seconds'.format(time.clock() - t))
-        t = time.clock()
+#        print('calling order_saturation')
+#        t = time.clock()
+#        _satsnd = arcyarc.order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int))
+#        print('Old order_saturation: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
         satsnd = new_order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int))
-        print('New order_saturation: {0} seconds'.format(time.clock() - t))
-        assert np.sum(_satsnd != satsnd) == 0, 'Difference between old and new order_saturation'
+#        print('New order_saturation: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_satsnd != satsnd) == 0, 'Difference between old and new order_saturation'
     else:
         satsnd = np.zeros_like(ordcen)
     # Detect the location of the arc lines

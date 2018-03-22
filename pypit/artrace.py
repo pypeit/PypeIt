@@ -124,15 +124,15 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
                 # After pruning, there are no more peaks
                 break
             pks = wpk+2  # Shifted by 2 because of the peak finding algorithm above
-            print('calling find_peak_limits')
-            t = time.clock()
-            _pedges = arcytrace.find_peak_limits(smedgehist, pks)
-            print('Old find_peak_limits: {0} seconds'.format(time.clock() - t))
-            t = time.clock()
+#            print('calling find_peak_limits')
+#            t = time.clock()
+#            _pedges = arcytrace.find_peak_limits(smedgehist, pks)
+#            print('Old find_peak_limits: {0} seconds'.format(time.clock() - t))
+#            t = time.clock()
             pedges = new_find_peak_limits(smedgehist, pks)
-            print('New find_peak_limits: {0} seconds'.format(time.clock() - t))
-            assert np.sum(_pedges != pedges) == 0, \
-                    'Difference between old and new find_peak_limits'
+#            print('New find_peak_limits: {0} seconds'.format(time.clock() - t))
+#            assert np.sum(_pedges != pedges) == 0, \
+#                    'Difference between old and new find_peak_limits'
 
             if np.all(pedges[:, 1]-pedges[:, 0] == 0):
                 # Remaining peaks have no width
@@ -301,7 +301,7 @@ def expand_slits(slf, mstrace, det, ordcen, extord):
     # Calculate the pixel locations of th eorder edges
     pixcen = phys_to_pix(ordcen, slf._pixlocn[det - 1], 1)
     msgs.info("Expanding slit traces to slit edges")
-    exit()
+#    exit()
     mordwid, pordwid = arcytrace.expand_slits(mstrace, pixcen, extord.astype(np.int))
     # Fit a function for the difference between left edge and the centre trace
     ldiff_coeff, ldiff_fit = arutils.polyfitter2d(mordwid, mask=-1,
@@ -545,16 +545,16 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
         rec_crmask[zero_var] = 1.
     # Smooth the S/N frame
     smthby, rejhilo = tracepar['smthby'], tracepar['rejhilo']
-    print('calling smooth_x')
-    t = time.clock()
-    _rec_sigframe_bin = arcyutils.smooth_x(rec_sciframe/np.sqrt(rec_varframe), 1.0-rec_crmask,
-                                           smthby, rejhilo, maskval)
-    print('Old smooth_x: {0} seconds'.format(time.clock() - t))
+#    print('calling smooth_x')
+#    t = time.clock()
+#    _rec_sigframe_bin = arcyutils.smooth_x(rec_sciframe/np.sqrt(rec_varframe), 1.0-rec_crmask,
+#                                           smthby, rejhilo, maskval)
+#    print('Old smooth_x: {0} seconds'.format(time.clock() - t))
     tmp = np.ma.MaskedArray(rec_sciframe/np.sqrt(rec_varframe), mask=rec_crmask.astype(bool))
-    # TODO: Add rejection to BoxcarFilter?
-    t = time.clock()
+#    # TODO: Add rejection to BoxcarFilter?
+#    t = time.clock()
     rec_sigframe_bin = BoxcarFilter(smthby).smooth(tmp.T).T
-    print('BoxcarFilter: {0} seconds'.format(time.clock() - t))
+#    print('BoxcarFilter: {0} seconds'.format(time.clock() - t))
 #    t = time.clock()
 #    rec_sigframe_bin = new_smooth_x(rec_sciframe/np.sqrt(rec_varframe), 1.0-rec_crmask, smthby,
 #                                    rejhilo, maskval)
@@ -629,13 +629,13 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
         trcprof2 = np.mean(rec_sciframe, axis=0)
         objl, objr, bckl, bckr = find_obj_minima(trcprof2, triml=triml, trimr=trimr, nsmooth=nsmooth)
     elif settings.argflag['trace']['object']['find'] == 'standard':
-        print('calling find_objects')
-        t = time.clock()
-        _objl, _objr, _bckl, _bckr = arcytrace.find_objects(trcprof, bgreg, mad)
-        print('Old find_objects: {0} seconds'.format(time.clock() - t))
-        t = time.clock()
+#        print('calling find_objects')
+#        t = time.clock()
+#        _objl, _objr, _bckl, _bckr = arcytrace.find_objects(trcprof, bgreg, mad)
+#        print('Old find_objects: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
         objl, objr, bckl, bckr = new_find_objects(trcprof, bgreg, mad)
-        print('New find_objects: {0} seconds'.format(time.clock() - t))
+#        print('New find_objects: {0} seconds'.format(time.clock() - t))
 #        print('objl:', objl)
 #        print('_objl:', _objl)
 #        print('objr:', objr)
@@ -644,10 +644,10 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
 #        print(_objr.shape, objr.shape)
 #        print(np.sum(_objl != objl))
 #        print(np.sum(_objr != objr))
-        assert np.sum(_objl != objl) == 0, 'Difference between old and new find_objects, objl'
-        assert np.sum(_objr != objr) == 0, 'Difference between old and new find_objects, objr'
-        assert np.sum(_bckl != bckl) == 0, 'Difference between old and new find_objects, bckl'
-        assert np.sum(_bckr != bckr) == 0, 'Difference between old and new find_objects, bckr'
+#        assert np.sum(_objl != objl) == 0, 'Difference between old and new find_objects, objl'
+#        assert np.sum(_objr != objr) == 0, 'Difference between old and new find_objects, objr'
+#        assert np.sum(_bckl != bckl) == 0, 'Difference between old and new find_objects, bckl'
+#        assert np.sum(_bckr != bckr) == 0, 'Difference between old and new find_objects, bckr'
 #        objl, objr, bckl, bckr = new_find_objects(trcprof, bgreg, mad)
 
     else:
@@ -1394,23 +1394,23 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     # Assign a number to each of the edges
     msgs.info("Matching slit edges")
 
-    _edgearr = edgearr.copy()
-    t = time.clock()
-    _lcnt, _rcnt = arcytrace.match_edges(_edgearr, ednum)
-    print('Old match_edges: {0} seconds'.format(time.clock() - t))
+#    _edgearr = edgearr.copy()
+#    t = time.clock()
+#    _lcnt, _rcnt = arcytrace.match_edges(_edgearr, ednum)
+#    print('Old match_edges: {0} seconds'.format(time.clock() - t))
     __edgearr = edgearr.copy()
-    t = time.clock()
+#    t = time.clock()
     lcnt, rcnt = new_match_edges(__edgearr, ednum)
-    print('New match_edges: {0} seconds'.format(time.clock() - t))
+#    print('New match_edges: {0} seconds'.format(time.clock() - t))
 #    print(lcnt, _lcnt, rcnt, _rcnt)
 #    print(np.sum(__edgearr != _edgearr))
 #    plt.imshow(_edgearr, origin='lower', interpolation='nearest', aspect='auto')
 #    plt.show()
 #    plt.imshow(__edgearr, origin='lower', interpolation='nearest', aspect='auto')
 #    plt.show()
-    assert np.sum(_lcnt != lcnt) == 0, 'Difference between old and new match_edges, lcnt'
-    assert np.sum(_rcnt != rcnt) == 0, 'Difference between old and new match_edges, rcnt'
-    assert np.sum(__edgearr != _edgearr) == 0, 'Difference between old and new match_edges, edgearr'
+#    assert np.sum(_lcnt != lcnt) == 0, 'Difference between old and new match_edges, lcnt'
+#    assert np.sum(_rcnt != rcnt) == 0, 'Difference between old and new match_edges, rcnt'
+#    assert np.sum(__edgearr != _edgearr) == 0, 'Difference between old and new match_edges, edgearr'
     edgearr = __edgearr
 
     if lcnt >= ednum or rcnt >= ednum:
@@ -1471,8 +1471,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         assign_slits(binarr, edgearrcp, lor=+1)
     if settings.argflag['trace']['slits']['maxgap'] is not None:
         vals = np.sort(np.unique(edgearrcp[np.where(edgearrcp != 0)]))
-        print('calling close_edges')
-        exit()
+#        print('calling close_edges')
+#        exit()
         hasedge = arcytrace.close_edges(edgearrcp, vals, int(settings.argflag['trace']['slits']['maxgap']))
         # Find all duplicate edges
         edgedup = vals[np.where(hasedge == 1)]
@@ -1557,14 +1557,14 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
                 wvla = np.unique(edgearr[wdup][wdda])
                 wvlb = np.unique(edgearr[wdup][wddb])
                 # Now generate the dual edge
-                print('calling dual_edge')
-                exit()
+#                print('calling dual_edge')
+#                exit()
                 arcytrace.dual_edge(edgearr, edgearrcp, wdup[0], wdup[1], wvla, wvlb, shadj,
                                     int(settings.argflag['trace']['slits']['maxgap']), edgedup[jj])
         # Now introduce new edge locations
         vals = np.sort(np.unique(edgearrcp[np.where(edgearrcp != 0)]))
-        print('calling close_slits')
-        exit()
+#        print('calling close_slits')
+#        exit()
         edgearrcp = arcytrace.close_slits(binarr, edgearrcp, vals, int(settings.argflag['trace']['slits']['maxgap']))
     # Update edgearr
     edgearr = edgearrcp.copy()
@@ -1628,23 +1628,23 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings.argflag['trace']['slits']['fracignore'], int(edgearr.shape[0])))
         fracpix = int(settings.argflag['trace']['slits']['fracignore']*edgearr.shape[0])
 
-        print('calling ignore_orders')
-        t = time.clock()
-        _edgearr = edgearr.copy()
-        _lnc, _lxc, _rnc, _rxc, _ldarr, _rdarr = arcytrace.ignore_orders(_edgearr, fracpix, lmin, lmax, rmin, rmax)
-        print('Old ignore_orders: {0} seconds'.format(time.clock() - t))
-        t = time.clock()
+#        print('calling ignore_orders')
+#        t = time.clock()
+#        _edgearr = edgearr.copy()
+#        _lnc, _lxc, _rnc, _rxc, _ldarr, _rdarr = arcytrace.ignore_orders(_edgearr, fracpix, lmin, lmax, rmin, rmax)
+#        print('Old ignore_orders: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
         __edgearr = edgearr.copy()
         lnc, lxc, rnc, rxc, ldarr, rdarr = new_ignore_orders(__edgearr, fracpix, lmin, lmax, rmin,
                                                              rmax)
-        print('New ignore_orders: {0} seconds'.format(time.clock() - t))
-        assert np.sum(_lnc != lnc) == 0, 'Difference between old and new ignore_orders, lnc'
-        assert np.sum(_lxc != lxc) == 0, 'Difference between old and new ignore_orders, lxc'
-        assert np.sum(_rnc != rnc) == 0, 'Difference between old and new ignore_orders, rnc'
-        assert np.sum(_rxc != rxc) == 0, 'Difference between old and new ignore_orders, rxc'
-        assert np.sum(_ldarr != ldarr) == 0, 'Difference between old and new ignore_orders, ldarr'
-        assert np.sum(_rdarr != rdarr) == 0, 'Difference between old and new ignore_orders, rdarr'
-        assert np.sum(__edgearr != _edgearr) == 0, 'Difference between old and new ignore_orders, edgearr'
+#        print('New ignore_orders: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_lnc != lnc) == 0, 'Difference between old and new ignore_orders, lnc'
+#        assert np.sum(_lxc != lxc) == 0, 'Difference between old and new ignore_orders, lxc'
+#        assert np.sum(_rnc != rnc) == 0, 'Difference between old and new ignore_orders, rnc'
+#        assert np.sum(_rxc != rxc) == 0, 'Difference between old and new ignore_orders, rxc'
+#        assert np.sum(_ldarr != ldarr) == 0, 'Difference between old and new ignore_orders, ldarr'
+#        assert np.sum(_rdarr != rdarr) == 0, 'Difference between old and new ignore_orders, rdarr'
+#        assert np.sum(__edgearr != _edgearr) == 0, 'Difference between old and new ignore_orders, edgearr'
 
         edgearr = __edgearr
 
@@ -1790,13 +1790,13 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     if mnvalp > mnvalm:
         lvp = (arutils.func_val(lcoeff[:, lval+1-lmin], xv, settings.argflag['trace']['slits']['function'],
                                 minv=minvf, maxv=maxvf)+0.5).astype(np.int)
-        t = time.clock()
-        _edgbtwn = arcytrace.find_between(edgearr, lv, lvp, 1)
-        print('Old find_between: {0} seconds'.format(time.clock() - t))
-        t = time.clock()
+#        t = time.clock()
+#        _edgbtwn = arcytrace.find_between(edgearr, lv, lvp, 1)
+#        print('Old find_between: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
         edgbtwn = new_find_between(edgearr, lv, lvp, 1)
-        print('New find_between: {0} seconds'.format(time.clock() - t))
-        assert np.sum(_edgbtwn != edgbtwn) == 0, 'Difference between old and new find_between'
+#        print('New find_between: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_edgbtwn != edgbtwn) == 0, 'Difference between old and new find_between'
 
         # edgbtwn is a 3 element array that determines what is between two adjacent left edges
         # edgbtwn[0] is the next right order along, from left order lval
@@ -1811,13 +1811,13 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     else:
         lvp = (arutils.func_val(lcoeff[:, lval-1-lmin], xv, settings.argflag['trace']['slits']['function'],
                                 minv=minvf, maxv=maxvf)+0.5).astype(np.int)
-        t = time.clock()
-        _edgbtwn = arcytrace.find_between(edgearr, lvp, lv, -1)
-        print('Old find_between: {0} seconds'.format(time.clock() - t))
-        t = time.clock()
+#        t = time.clock()
+#        _edgbtwn = arcytrace.find_between(edgearr, lvp, lv, -1)
+#        print('Old find_between: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
         edgbtwn = new_find_between(edgearr, lvp, lv, -1)
-        assert np.sum(_edgbtwn != edgbtwn) == 0, 'Difference between old and new find_between'
-        print('New find_between: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_edgbtwn != edgbtwn) == 0, 'Difference between old and new find_between'
+#        print('New find_between: {0} seconds'.format(time.clock() - t))
 
         if edgbtwn[0] == -1 and edgbtwn[1] == -1:
             rsub = edgbtwn[2]-(lval-1)  # There's an order overlap
@@ -2136,19 +2136,19 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
         nxord = phys_to_pix(extrap_cent[:,-i], locations, 1)
 
         # Minimum counts between loord and hiord
-        print('calling minbetween')
-        t = time.clock()
-        _minarrL = arcytrace.minbetween(binarr, loord, hiord)
-        _minarrR = arcytrace.minbetween(binarr, hiord, nxord)
-        print('Old minbetween: {0} seconds'.format(time.clock() - t))
-        t = time.clock()
+#        print('calling minbetween')
+#        t = time.clock()
+#        _minarrL = arcytrace.minbetween(binarr, loord, hiord)
+#        _minarrR = arcytrace.minbetween(binarr, hiord, nxord)
+#        print('Old minbetween: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
         minarrL = new_minbetween(binarr, loord, hiord)
         minarrR = new_minbetween(binarr, hiord, nxord)
-        print('New minbetween: {0} seconds'.format(time.clock() - t))
-        assert np.sum(_minarrL != minarrL) == 0, \
-                'Difference between old and new minbetween, minarrL'
-        assert np.sum(_minarrR != minarrR) == 0, \
-                'Difference between old and new minbetween, minarrR'
+#        print('New minbetween: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_minarrL != minarrL) == 0, \
+#                'Difference between old and new minbetween, minarrL'
+#        assert np.sum(_minarrR != minarrR) == 0, \
+#                'Difference between old and new minbetween, minarrR'
 
         minarr = 0.5*(minarrL+minarrR)
         srchz = np.abs(extfit[:,-i]-extfit[:,-i-1])/3.0
@@ -2156,14 +2156,14 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
         numsrch = np.int(np.max(np.round(2.0*srchz-extrap_diff[:,-i])))
         diffarr = np.round(extrap_diff[:,-i]).astype(np.int)
 
-        print('calling find_shift')
-        t = time.clock()
-        _shift = arcytrace.find_shift(binarr, minarr, lopos, diffarr, numsrch)
-        print('Old find_shift: {0} seconds'.format(time.clock() - t))
-        t = time.clock()
+#        print('calling find_shift')
+#        t = time.clock()
+#        _shift = arcytrace.find_shift(binarr, minarr, lopos, diffarr, numsrch)
+#        print('Old find_shift: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
         shift = new_find_shift(binarr, minarr, lopos, diffarr, numsrch)
-        print('New find_shift: {0} seconds'.format(time.clock() - t))
-        assert np.sum(_shift != shift) == 0, 'Difference between old and new find_shift, shift'
+#        print('New find_shift: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_shift != shift) == 0, 'Difference between old and new find_shift, shift'
 
         relshift = np.mean(shift+extrap_diff[:,-i]/2-srchz)
         if shift == -1:
@@ -2187,28 +2187,28 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
         hiord = loord
         loord = phys_to_pix(extfit[:,i], locations, 1)
 
-        print('calling minbetween')
-        t = time.clock()
-        _minarr = arcytrace.minbetween(binarr,loord, hiord)
-        print('Old minbetween: {0} seconds'.format(time.clock() - t))
-        t = time.clock()
+#        print('calling minbetween')
+#        t = time.clock()
+#        _minarr = arcytrace.minbetween(binarr,loord, hiord)
+#        print('Old minbetween: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
         minarr = new_minbetween(binarr,loord, hiord)
-        print('New minbetween: {0} seconds'.format(time.clock() - t))
-        assert np.sum(_minarr != minarr) == 0, 'Difference between old and new minbetween, minarr'
+#        print('New minbetween: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_minarr != minarr) == 0, 'Difference between old and new minbetween, minarr'
 
         srchz = np.abs(extfit[:,i]-extfit[:,i-1])/3.0
         lopos = phys_to_pix(extfit[:,i-1]-srchz, locations, 1)
         numsrch = np.int(np.max(np.round(2.0*srchz-extrap_diff[:,i-1])))
         diffarr = np.round(extrap_diff[:,i-1]).astype(np.int)
 
-        print('calling find_shift')
-        t = time.clock()
-        _shift = arcytrace.find_shift(binarr, minarr, lopos, diffarr, numsrch)
-        print('Old find_shift: {0} seconds'.format(time.clock() - t))
-        t = time.clock()
+#        print('calling find_shift')
+#        t = time.clock()
+#        _shift = arcytrace.find_shift(binarr, minarr, lopos, diffarr, numsrch)
+#        print('Old find_shift: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
         shift = new_find_shift(binarr, minarr, lopos, diffarr, numsrch)
-        print('New find_shift: {0} seconds'.format(time.clock() - t))
-        assert np.sum(_shift != shift) == 0, 'Difference between old and new find_shift, shift'
+#        print('New find_shift: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_shift != shift) == 0, 'Difference between old and new find_shift, shift'
 
         relshift = np.mean(shift+extrap_diff[:,i-1]/2-srchz)
         if shift == -1:
@@ -2810,16 +2810,16 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
             tilts = np.zeros_like(slf._lordloc)
 
     # Generate tilts image
-    print('calling tilts_image')
-    t = time.clock()
-    _tiltsimg = arcytrace.tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1],
-                                     settings.argflag['trace']['slits']['pad'], msarc.shape[1])
-    print('Old tilts_image: {0} seconds'.format(time.clock() - t))
-    t = time.clock()
+#    print('calling tilts_image')
+#    t = time.clock()
+#    _tiltsimg = arcytrace.tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1],
+#                                     settings.argflag['trace']['slits']['pad'], msarc.shape[1])
+#    print('Old tilts_image: {0} seconds'.format(time.clock() - t))
+#    t = time.clock()
     tiltsimg = new_tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1],
                                 settings.argflag['trace']['slits']['pad'], msarc.shape[1])
-    print('New tilts_image: {0} seconds'.format(time.clock() - t))
-    assert np.sum(_tiltsimg != tiltsimg) == 0, 'Difference between old and new tilts_image'
+#    print('New tilts_image: {0} seconds'.format(time.clock() - t))
+#    assert np.sum(_tiltsimg != tiltsimg) == 0, 'Difference between old and new tilts_image'
 
     return tiltsimg, satmask, outpar
 
@@ -3163,39 +3163,39 @@ def get_censpec(slf, frame, det, gen_satmask=False):
     ordwid = 0.5*np.abs(slf._lordloc[det-1]-slf._rordloc[det-1])
     if gen_satmask:
         msgs.info("Generating a mask of arc line saturation streaks")
-        t = time.clock()
-        _satmask = arcyarc.saturation_mask(frame,
-                            settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])
-        print('Old saturation_mask: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
+#        _satmask = arcyarc.saturation_mask(frame,
+#                            settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])
+#        print('Old saturation_mask: {0} seconds'.format(time.clock() - t))
         satmask = ararc.new_saturation_mask(frame,
                             settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])
-        print('New saturation_mask: {0} seconds'.format(time.clock() - t))
-        # Allow for minor differences
-        if np.sum(_satmask != satmask) > 0.1*np.prod(satmask.shape):
-            plt.imshow(_satmask, origin='lower', interpolation='nearest', aspect='auto')
-            plt.colorbar()
-            plt.show()
-            plt.imshow(satmask, origin='lower', interpolation='nearest', aspect='auto')
-            plt.colorbar()
-            plt.show()
-            plt.imshow(_satmask-satmask, origin='lower', interpolation='nearest', aspect='auto')
-            plt.colorbar()
-            plt.show()
+#        print('New saturation_mask: {0} seconds'.format(time.clock() - t))
+#        # Allow for minor differences
+#        if np.sum(_satmask != satmask) > 0.1*np.prod(satmask.shape):
+#            plt.imshow(_satmask, origin='lower', interpolation='nearest', aspect='auto')
+#            plt.colorbar()
+#            plt.show()
+#            plt.imshow(satmask, origin='lower', interpolation='nearest', aspect='auto')
+#            plt.colorbar()
+#            plt.show()
+#            plt.imshow(_satmask-satmask, origin='lower', interpolation='nearest', aspect='auto')
+#            plt.colorbar()
+#            plt.show()
+#
+#        assert np.sum(_satmask != satmask) < 0.1*np.prod(satmask.shape), \
+#                    'Old and new saturation_mask are too different'
 
-        assert np.sum(_satmask != satmask) < 0.1*np.prod(satmask.shape), \
-                    'Old and new saturation_mask are too different'
-
-        print('calling order saturation')
-        t = time.clock()
-        _satsnd = arcyarc.order_saturation(satmask, (ordcen+0.5).astype(int),
-                                          (ordwid+0.5).astype(int))
-        print('Old order_saturation: {0} seconds'.format(time.clock() - t))
-        t = time.clock()
+#        print('calling order saturation')
+#        t = time.clock()
+#        _satsnd = arcyarc.order_saturation(satmask, (ordcen+0.5).astype(int),
+#                                          (ordwid+0.5).astype(int))
+#        print('Old order_saturation: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
         satsnd = ararc.new_order_saturation(satmask, (ordcen+0.5).astype(int),
                                              (ordwid+0.5).astype(int))
-        print('New order_saturation: {0} seconds'.format(time.clock() - t))
-        assert np.sum(_satsnd != satsnd) == 0, \
-                    'Difference between old and new order_saturation, satsnd'
+#        print('New order_saturation: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_satsnd != satsnd) == 0, \
+#                    'Difference between old and new order_saturation, satsnd'
 
     # Extract a rough spectrum of the arc in each slit
     msgs.info("Extracting an approximate arc spectrum at the centre of each slit")
@@ -3319,15 +3319,15 @@ def phys_to_pix(array, pixlocn, axis):
 
     diff = pixlocn[:,0,0] if axis == 0 else pixlocn[0,:,1]
 
-    print('calling phys_to_pix')
-    t = time.clock()
-    _pixarr = arcytrace.phys_to_pix(np.array([array]).T, diff).flatten() \
-                if len(np.shape(array)) == 1 else arcytrace.phys_to_pix(array, diff)
-    print('Old phys_to_pix: {0} seconds'.format(time.clock() - t))
-    t = time.clock()
+#    print('calling phys_to_pix')
+#    t = time.clock()
+#    _pixarr = arcytrace.phys_to_pix(np.array([array]).T, diff).flatten() \
+#                if len(np.shape(array)) == 1 else arcytrace.phys_to_pix(array, diff)
+#    print('Old phys_to_pix: {0} seconds'.format(time.clock() - t))
+#    t = time.clock()
     pixarr = new_phys_to_pix(array, diff)
-    print('New phys_to_pix: {0} seconds'.format(time.clock() - t))
-    assert np.sum(_pixarr != pixarr) == 0, 'Difference between old and new phys_to_pix, pixarr'
+#    print('New phys_to_pix: {0} seconds'.format(time.clock() - t))
+#    assert np.sum(_pixarr != pixarr) == 0, 'Difference between old and new phys_to_pix, pixarr'
 
     return pixarr
 
