@@ -1788,14 +1788,14 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
     # Old cr_screen can yield nan pixels, new one does not, meaning that
     # there are differences between the returned arrays.  For all
     # non-nan pixels, the two algorithms are identical.
-    print('calling cr_screen')
-    t = time.clock()
-    _sigimg  = arcyproc.cr_screen(filty,0.0)
-    print('Old cr_screen: {0} seconds'.format(time.clock() - t))
+#    print('calling cr_screen')
+#    t = time.clock()
+#    _sigimg  = arcyproc.cr_screen(filty,0.0)
+#    print('Old cr_screen: {0} seconds'.format(time.clock() - t))
 #    print(np.sum(np.invert(np.isfinite(_sigimg))))
-    t = time.clock()
+#    t = time.clock()
     sigimg  = new_cr_screen(filty)
-    print('New cr_screen: {0} seconds'.format(time.clock() - t))
+#    print('New cr_screen: {0} seconds'.format(time.clock() - t))
 #    print(np.sum(np.invert(np.isfinite(sigimg))))
 #    if np.sum(_sigimg != sigimg) != 0:
 #        plt.imshow(_sigimg, origin='lower', interpolation='nearest', aspect='auto')
