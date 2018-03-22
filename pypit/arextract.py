@@ -93,15 +93,15 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
             mask_sci = np.ma.array(sciframe, mask=bg_mask, fill_value=0.)
             clip_image = sigma_clip(mask_sci, axis=1, sigma=3.)  # For the mask only
             # Fit
-            print('calling func2d_fit_val')
-            t = time.clock()
-            _bgframe = arcyutils.func2d_fit_val(bgfit, sciframe,
-                                                (~clip_image.mask)*bckreg*cr_mask, bgfitord)
-            print('Old func2d_fit_val: {0} seconds'.format(time.clock() - t))
-            t = time.clock()
+#            print('calling func2d_fit_val')
+#            t = time.clock()
+#            _bgframe = arcyutils.func2d_fit_val(bgfit, sciframe,
+#                                                (~clip_image.mask)*bckreg*cr_mask, bgfitord)
+#            print('Old func2d_fit_val: {0} seconds'.format(time.clock() - t))
+#            t = time.clock()
             bgframe = new_func2d_fit_val(sciframe, bgfitord, x=bgfit,
                                          w=(~clip_image.mask)*bckreg*cr_mask)
-            print('New func2d_fit_val: {0} seconds'.format(time.clock() - t))
+#            print('New func2d_fit_val: {0} seconds'.format(time.clock() - t))
             # Some fits are really wonky ... in both methods
 #            if np.sum(bgframe != _bgframe) != 0:
 #                plt.imshow(np.ma.log10(sciframe), origin='lower', interpolation='nearest',
