@@ -32,6 +32,7 @@
 * Added functionality for fully automated wavelength calibration with arclines
 * Switched settings files to allow IRAF style data sections to be defined
 * Allowed data sections to be extracted from header information
+* Significant refactor of routines related to pypit_setup
 * Various small improvements, primarly to handle Gemini/GMOS data [not yet fully supported in PYPIT]
 
 0.7 (2017-02-07)
