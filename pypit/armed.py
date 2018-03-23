@@ -7,7 +7,8 @@ from pypit import arparse as settings
 from pypit import arload
 from pypit import armasters
 from pypit import armbase
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import arproc
 from pypit import arsave
 from pypit import arsort
@@ -17,7 +18,7 @@ from pypit import arqa
 from pypit import ardebug as debugger
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 
 def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):

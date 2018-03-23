@@ -2,12 +2,13 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 
 import time
 import numpy as np
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import arparse as settings
 from matplotlib import pyplot as plt
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 def comb_frames(frames_arr, det, frametype, weights=None, maskvalue=1048577, printtype=None):
     """ Combine several frames

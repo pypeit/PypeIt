@@ -14,7 +14,8 @@ from pypit import arcomb
 from pypit import arflux
 from pypit import arlris
 from pypit import armasters
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import arproc
 from pypit import arsort
 from pypit import arutils
@@ -23,7 +24,7 @@ from pypit import arsave
 from pypit import ardebug as debugger
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 
 class ScienceExposure:

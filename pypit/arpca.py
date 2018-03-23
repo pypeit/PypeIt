@@ -4,14 +4,16 @@ import inspect
 
 from matplotlib import pyplot as plt
 import numpy as np
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import arutils
-from pypit.arqa import get_dimen, set_qa_filename
+#from pypit.arqa import get_dimen, set_qa_filename
+from pypit import arqa
 
 from pypit import ardebug as debugger
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 # Force the default matplotlib plotting parameters
 plt.rcdefaults()
@@ -297,7 +299,7 @@ def pc_plot_extcenwid(tempcen, cenwid, binval, plotsdir="Plots", pcatype="<unkno
     Saves a few output png files of the PCA analysis for the target centroid/width definition
     """
     npc = tempcen.shape[1]
-    pages, npp = get_dimen(npc,maxp=maxp)
+    pages, npp = arqa.get_dimen(npc,maxp=maxp)
     x0=binval*np.arange(cenwid.shape[0])
     # First calculate the min and max values for the plotting axes, to make sure they are all the same
     ymin, ymax = None, None

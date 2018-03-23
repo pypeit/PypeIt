@@ -3,7 +3,8 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 import numpy as np
 from pypit import arpca
 from pypit import arparse as settings
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import arsave
 from pypit import arutils
 from pypit import ararclines
@@ -15,7 +16,7 @@ import time
 from pypit import ardebug as debugger
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 
 def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):

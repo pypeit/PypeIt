@@ -32,6 +32,9 @@
 * Added functionality for fully automated wavelength calibration with arclines
 * Switched settings files to allow IRAF style data sections to be defined
 * Allowed data sections to be extracted from header information
+* Removed majority of cython functionality
+* Moved logging to be a package object using the main __init__.py file
+* Begin to adhere to PEP8 (mostly)
 
 0.7 (2017-02-07)
 ----------------

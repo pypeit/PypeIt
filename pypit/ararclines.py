@@ -5,13 +5,14 @@ from astropy.table import Table, Column, vstack
 import glob, copy
 import yaml
 
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import arparse as settings
 
 from pypit import ardebug as debugger
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 
 def parse_nist(slf,ion):

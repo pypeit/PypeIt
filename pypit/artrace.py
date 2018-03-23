@@ -5,7 +5,8 @@ import numpy as np
 import copy
 from pypit import arqa
 from pypit import ararc
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import arutils
 from pypit import arpca
 from pypit import arparse as settings
@@ -17,7 +18,7 @@ from collections import Counter
 from pypit.filter import BoxcarFilter
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 from pypit import ardebug as debugger
 
