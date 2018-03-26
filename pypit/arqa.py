@@ -7,31 +7,32 @@ import inspect
 import numpy as np
 import glob
 
-from astropy import units as u
+from scipy.stats import norm
+from astropy.stats import sigma_clip
+from astropy import units
 
-from pypit.arplot import zscale
-from pypit import armsgs
-from pypit import arutils
-
-import matplotlib
 from matplotlib import pyplot as plt
-import matplotlib.gridspec as gridspec
-import matplotlib.cm as cm
+from matplotlib import gridspec, cm, font_manager
+from matplotlib.backends.backend_pdf import PdfPages
+
+#from pypit import armsgs
+from pypit import msgs
+from pypit import arutils
+from pypit.arcoadd import get_std_dev as gsd
+from pypit.arplot import zscale
 
 try:
     basestring
 except NameError:  # For Python 3
     basestring = str
 
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 # Force the default matplotlib plotting parameters
 plt.rcdefaults()
 plt.rcParams['font.family']= 'times new roman'
-ticks_font = matplotlib.font_manager.FontProperties(family='times new roman',
-                                                    style='normal', size=16, weight='normal', stretch='normal')
-
-from pypit import ardebug as debugger
+ticks_font = font_manager.FontProperties(family='times new roman', style='normal', size=16,
+                                         weight='normal', stretch='normal')
 
 
 def arc_fit_qa(slf, fit, outfile=None, ids_only=False, title=None):
@@ -150,7 +151,6 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=2.):
       Scale median flux by this parameter for the spectral plot
 
     """
-    from matplotlib.backends.backend_pdf import PdfPages
     from pypit.arcoadd import get_std_dev as gsd
     from scipy.stats import norm
     from astropy.stats import sigma_clip
@@ -295,8 +295,8 @@ def flexure(slf, det, flex_list, slit_cen=False):
         # Sky lines
         sky_lines = np.array([3370.0, 3914.0, 4046.56, 4358.34, 5577.338, 6300.304,
                   7340.885, 7993.332, 8430.174, 8919.610, 9439.660,
-                  10013.99, 10372.88])*u.AA
-        dwv = 20.*u.AA
+                  10013.99, 10372.88])*units.AA
+        dwv = 20.*units.AA
         gdsky = np.where((sky_lines > sky_spec.wvmin) & (sky_lines < sky_spec.wvmax))[0]
         if len(gdsky) == 0:
             msgs.warn("No sky lines for Flexure QA")
@@ -404,7 +404,7 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
     fig = plt.figure(dpi=1200)
 
     plt.rcParams['font.family'] = 'times new roman'
-    ticks_font = matplotlib.font_manager.FontProperties(family='times new roman', 
+    ticks_font = font_manager.FontProperties(family='times new roman', 
        style='normal', size=16, weight='normal', stretch='normal')
     ax = plt.gca()
     for label in ax.get_yticklabels() :
@@ -1430,3 +1430,16 @@ def gen_exp_html():
             msgs.info("Wrote: {:s}".format(exp_filename))
         except:
             pass
+
+
+def close_qa(pypit_file):
+    if pypit_file is None:
+        return
+    try:
+        gen_mf_html(pypit_file)
+    except:  # Likely crashed real early
+        pass
+    else:
+        gen_exp_html()
+
+    

@@ -11,12 +11,13 @@ from astropy import units as u
 
 from pypit import ararc
 from pypit import arextract
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import arparse as settings
 from pypit import arutils
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 from pypit import ardebug as debugger
 

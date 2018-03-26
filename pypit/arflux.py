@@ -11,7 +11,8 @@ from astropy.io import fits
 from astropy import units as u
 from astropy import coordinates as coords
 
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import arparse as settings
 
 try:
@@ -22,7 +23,7 @@ except ImportError:
 from pypit import ardebug as debugger
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 
 def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):

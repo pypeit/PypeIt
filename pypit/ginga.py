@@ -5,7 +5,8 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 import os
 import numpy as np
 
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import pyputils
 
 # CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
@@ -18,7 +19,7 @@ except NameError:
     basestring = str
 
 # Logging
-msgs = armsgs.get_logger()   # THESE MAY NOT WORK..
+#msgs = armsgs.get_logger()   # THESE MAY NOT WORK..
 '''
 if msgs is None:  # For usage outside of PYPIT
     msgs = pyputils.get_dummy_logger()

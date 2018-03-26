@@ -11,14 +11,15 @@ from astropy import units as u
 from astropy.stats import sigma_clipped_stats
 
 from pypit import arload
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import arqa
 from pypit import arutils
 
 from pypit import ardebug as debugger
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 # TODO
     # Shift spectra

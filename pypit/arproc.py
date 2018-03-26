@@ -8,7 +8,8 @@ import scipy.interpolate as interp
 from matplotlib import pyplot as plt
 from pypit import arextract
 from pypit import arlris
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import artrace
 from pypit import arutils
 from pypit import arparse as settings
@@ -20,7 +21,7 @@ from pypit import arwave
 from pypit import ardebug as debugger
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 #KBW TESTING
 import time
