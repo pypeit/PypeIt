@@ -25,6 +25,9 @@ from pypit import __version__, __last_updated__
 
 #pypit_logger = None
 
+class PypitError(Exception):
+    pass
+
 class Messages:
     """
     Create coloured text for messages printed to screen.
@@ -254,7 +257,8 @@ class Messages:
         # Print command line usage
         if usage:
             self.usage(None)
-
+        #
+        raise PypitError("PYPIT ENDS")
         sys.exit(1)
 
     def info(self, msg):

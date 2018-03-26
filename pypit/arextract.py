@@ -22,8 +22,9 @@ from pypit import ardebug as debugger
 # 2**0 = Flagged as bad detector pixel
 # 2**1 = Flagged as affected by Cosmic Ray 
 # 2**5 = Flagged as NAN (from something gone wrong)
+# 2**6 = Entire region masked
 
-mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5)
+mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5, bad_row=2**6)
 
 
 def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
@@ -62,7 +63,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     bgcorr = np.zeros_like(cr_mask)
     # Loop on Slits
     for sl in range(nslit):
-        word = np.where(slf._slitpix[det - 1] == sl + 1)
+        word = np.where((slf._slitpix[det - 1] == sl + 1) & (varframe > 0.))
         if word[0].size == 0:
             continue
         mask_slit = np.zeros(sciframe.shape, dtype=np.float)
@@ -144,6 +145,11 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
             # Weights
             weight = objreg*mask_slit
             sumweight = np.sum(weight, axis=1)
+            # Deal with fully masked regions
+            fully_masked = sumweight == 0.
+            if np.any(fully_masked):
+                weight[fully_masked,:] = 1.
+                sumweight[fully_masked] = weight.shape[1]
             # Generate wavelength array (average over the pixels)
             wvsum = np.sum(slf._mswave[det-1]*weight, axis=1)
             wvsum /= sumweight
@@ -170,9 +176,15 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
             CRs = np.sum(weight*cr_mask, axis=1)
             cr = CRs > 0.
             boxmask[cr] += mask_flags['CR']
+            # Fully masked
+            if np.any(fully_masked):
+                boxmask[fully_masked] += mask_flags['bad_row']
+                scisum[fully_masked] = 0.
+                varsum[fully_masked] = 0.
+                skysum[fully_masked] = 0.
             # NAN
             NANs = np.isnan(scisum)
-            if np.sum(NANs) > 0:
+            if np.any(NANs):
                 msgs.warn("   NANs in the spectrum somehow...")
                 boxmask[NANs] += mask_flags['NANs']
                 scisum[NANs] = 0.
@@ -430,6 +442,12 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
             opt_num = np.sum(slf._mswave[det-1] * model_ivar * prof_img**2, axis=1)
             opt_den = np.sum(model_ivar * prof_img**2, axis=1)
             opt_wave = opt_num / (opt_den + (opt_den == 0.))
+            # Replace fully masked rows with mean wavelength (they will have zero flux and ivar)
+            full_mask = opt_num == 0.
+            if np.any(full_mask):
+                msgs.warn("Replacing fully masked regions with mean wavelengths")
+                mnwv = np.mean(slf._mswave[det-1], axis=1)
+                opt_wave[full_mask] = mnwv[full_mask]
             if (np.sum(opt_wave < 1.) > 0) and settings.argflag["reduce"]["calibrate"]["wavelength"] != "pixel":
                 debugger.set_trace()
                 msgs.error("Zero value in wavelength array. Uh-oh")

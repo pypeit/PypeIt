@@ -281,7 +281,7 @@ def test_coadd():
     dspec = dummy_spectra(s2n=10.)
     dspec.data['flux'][0, 700] *= 1000.  # One bad pixel
     dspec.data['sig'][0, 700] *= 500.
-    arco.coadd_spectra(dspec, wave_method='concatenate')
+    arco.coadd_spectra(dspec, wave_grid_method='concatenate')
 
 
 def test_coadd_qa():

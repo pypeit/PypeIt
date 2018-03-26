@@ -32,6 +32,8 @@
 * Added functionality for fully automated wavelength calibration with arclines
 * Switched settings files to allow IRAF style data sections to be defined
 * Allowed data sections to be extracted from header information
+* Significant refactor of routines related to pypit_setup
+* Various small improvements, primarly to handle Gemini/GMOS data [not yet fully supported in PYPIT]
 * Removed majority of cython functionality
 * Moved logging to be a package object using the main __init__.py file
 * Begin to adhere to PEP8 (mostly)

@@ -26,6 +26,9 @@ from pypit import ardebug as debugger
 #KBW TESTING
 import time
 
+#KBW TESTING
+import time
+
 
 def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
     """ Generate a frame containing the background sky spectrum

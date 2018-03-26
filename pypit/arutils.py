@@ -108,7 +108,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     except ValueError:
         # Knot problem (usually)
         msgs.warn("Problem in the bspline knot")
-        debugger.set_trace()
+        raise ValueError("Crashing out of bspline fitting")
     return tck
 
 
