@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # These need to be outside of the def's
-from pypit.ginga import show_image
-from pypit.ginga import chk_arc_tilts
+#from pypit.ginga import show_image
+#from pypit.ginga import chk_arc_tilts
 
 def init():
     """

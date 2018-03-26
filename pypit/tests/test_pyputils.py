@@ -13,12 +13,12 @@ from pypit import pyputils
 #    data_dir = os.path.join(os.path.dirname(__file__), 'files')
 #    return os.path.join(data_dir, filename)
 
-from pypit import __version__, __last_update__
+from pypit import __version__, __last_updated__
 
 def test_version():
     # Dummy self
 #    ver,upd = pyputils.get_version()
-    ver,upd = __version__, __last_update__
+    ver,upd = __version__, __last_updated__
     assert isinstance(ver,basestring)
 
 
