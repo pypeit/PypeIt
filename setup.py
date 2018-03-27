@@ -19,11 +19,11 @@ from setuptools import setup, find_packages
 #from desiutil.setup import DesiTest, DesiVersion, get_version
 
 # Check dependencies
+from distutils.version import LooseVersion
 class VersionError(Exception):
     pass
 
 minimum_versions = {'scipy': '0.17.0'}
-
 
 def version_check():
     """
