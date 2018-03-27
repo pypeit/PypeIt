@@ -19,9 +19,25 @@ from setuptools import setup, find_packages
 #from desiutil.setup import DesiTest, DesiVersion, get_version
 
 # Check dependencies
+class VersionError(Exception):
+    pass
+
+minimum_versions = {'scipy': '0.17.0'}
+
+
+def version_check():
+    """
+    Raises an error if there is a mismatched dependency.
+    """
+    # loop through dependencies and versions
+    for dep, ver in minimum_versions.items():
+        if LooseVersion(globals()[dep].__version__) < LooseVersion(ver):
+            raise VersionError('Update ' + dep + ' to at least version ' + ver + '!')
+
 if sys.argv[1] != 'egg_info':
-    from pypit import archeck
-    archeck.version_check()
+#    from pypit import archeck
+#    archeck.version_check()
+    version_check()
 
 #
 # Begin setup
