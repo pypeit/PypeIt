@@ -45,7 +45,8 @@ def get_extensions():
                                      include_dirs=[numpy.get_include(), include_gsl_dir],
                                      library_dirs=[lib_gsl_dir],
                                      libraries=['gsl','gslcblas']))
-    return cythonize(ext_modules)
+#    return cythonize(ext_modules)
+    return ext_modules
 # ----------------------------------------------------------------------
 
 
@@ -116,7 +117,7 @@ def run_setup(data_files, scripts, packages, ext_modules, install_requires):
           requires=[ 'Python (>2.7.0)' ],                               # *
           zip_safe=False,                                               # *
           use_2to3=False,                                               # *
-          setup_requires=[ 'pytest-runner' ],                           # *
+          setup_requires=[ 'pytest-runner', 'cython>=0.27' ],           # *
           tests_require=[ 'pytest' ],                                   # *
           ext_modules=ext_modules,                                      # only needed for cython
           cmdclass={'build_ext': build_ext},                            # only needed for cython
