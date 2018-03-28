@@ -382,7 +382,7 @@ def generate_sensfunc(slf, stdidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=
 
     Parameters
     ----------
-    slf : 
+    slf :
     stdidx : int
       index for standard  (may not be necessary) -- Differs from scidx!!
     specobjs : list
@@ -462,7 +462,10 @@ def generate_sensfunc(slf, stdidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=
 
     #; Mask telluric absorption
     msgs.info("Masking Telluric")
-    tell = np.any([((wave >= 7580.0*u.AA) & (wave <= 7750.0*u.AA)), ((wave >= 7160.0*u.AA) & (wave <= 7340.0*u.AA)),((wave >= 6860.0*u.AA)  & (wave <= 6930.0*u.AA))],axis=0)
+    tell = np.any([((wave >= 7580.0*u.AA) & (wave <= 7750.0*u.AA)),
+                   ((wave >= 7160.0*u.AA) & (wave <= 7340.0*u.AA)),
+                   ((wave >= 6860.0*u.AA) & (wave <= 6930.0*u.AA))],
+                   axis=0)
     msk[tell] = False
 
     # Mask
@@ -478,3 +481,62 @@ def generate_sensfunc(slf, stdidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=
     sens_dict['wave_min'] = np.min(wave)
     sens_dict['wave_max'] = np.max(wave)
     return sens_dict
+
+def lrisr_800_10000_r(wavelength):
+    """This comes from P. van Dokkum's fit
+    to the sky lines
+    Parameters
+    ----------
+    wavelength: ndarray
+    Returns
+    -------
+    Resolution: ndarray
+    """
+    l9   = (wavelength - 9000.)/1000.
+    resr = 1.26-0.128*l9+0.168*l9**2+0.1173*l9**3
+    resr = resr/wavelength*3.E5 # km s^-1
+
+    return np.array(resr)
+
+def get_transmission(atm_file, data):
+    """ Convolve the atmospheric absorption model to the
+    resolution and wavelengthg gird of the data.
+    Parameters
+    ----------
+    atm_file: string
+        filename passed through script call
+    data: XSpectrum1d object
+    Returns
+    -------
+    model: 2D ndarray
+    """
+    from pkg_resources import resource_filename
+    from pypit import arutils
+
+    floc  = ('data/extinction/{}'.format(atm_file))
+    fname = resource_filename('pypit', floc)
+    tmp   = np.loadtxt(fname)
+
+    # Convert transmission spectrum to angstroms
+    # and clip it to wavelength range of data
+    i = ((tmp[:,0]*10 >= min(data.wavelength.value)) &
+         (tmp[:,0]*10 <= max(data.wavelength.value)))
+    trans = XSpectrum1D.from_tuple((tmp[:,0][i]*10, tmp[:,1][i]))
+
+    # Convolve the atm. transsissiom spectrum to LRIS_R resolution
+    res         = lrisr_800_10000_r(trans.wavelength.value)
+    fwhm_pix    = arutils.get_fwhm_pix(trans, inval=20000., outval=res)
+
+    smooth_spec = np.zeros((len(trans.wavelength.value)))
+    for i, fp in enumerate(fwhm_pix):
+        tmp = trans.gauss_smooth(fp)
+        smooth_spec[i] = tmp.flux.value[i]
+
+    # Get model transmission on same wavelength grid
+    # as data
+    model = np.zeros((len(data.wavelength.value), 2))
+    model[:,0] = data.wavelength.value
+    model[:,1] = np.interp(data.wavelength.value,
+                           trans.wavelength.value, smooth_spec)
+
+    return model

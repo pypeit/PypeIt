@@ -55,7 +55,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     y: ndarray
     func: str
       Name of the fitting function:  polynomial, legendre, chebyshev, bspline
-    deg: int 
+    deg: int
       deg of the spline.  Default=3 (cubic)
     xmin: float, optional
       Minimum value in the array  [both must be set to normalize]
@@ -65,9 +65,9 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
       weights to be used in the fitting (weights = 1/sigma)
     knots: ndarray, optional
       Internal knots only.  External ones are added by scipy
-    everyn: int 
+    everyn: int
       Knot everyn good pixels, if used
-    bkspace: float 
+    bkspace: float
       Spacing of breakpoints in units of x
 
     Returns:
@@ -87,7 +87,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
         ngd = len(gd)
     # Make the knots
     if knots is None:
-        if bkspace is not None: 
+        if bkspace is not None:
             xrnge = (np.max(x[gd]) - np.min(x[gd]))
             startx = np.min(x[gd])
             nbkpts = max(int(xrnge/bkspace) + 1,2)
@@ -1266,15 +1266,15 @@ def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5):
     Returns
     -------
     peaks: ndarray
-      x values of the peaks 
+      x values of the peaks
     sigmas: ndarray
       sigma widths of the Gaussian fits to each peak
     ledges: ndarray
       left edges of each peak;  defined to be at least minsep away
-      from the peak and where the slope of the data switches 
+      from the peak and where the slope of the data switches
     redges: ndarray
       right edges of each peak;  defined to be at least minsep away
-      from the peak and where the slope of the data switches 
+      from the peak and where the slope of the data switches
     """
     # Imports
     from astropy.convolution import convolve, Gaussian1DKernel
@@ -1331,4 +1331,86 @@ def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5):
         if not np.any(ycopy < ydone):
             npeak = nfind
     return np.array(peaks), np.array(sigmas), np.array(ledges), np.array(redges)
+
+def get_atm_template(theta, trans):
+    """ Scales the original transmission spectrum
+    Parameters
+    ----------
+    theta: float
+        Scale factor
+    trans: ndarray
+        Atm. transmission spectrum
+
+    Returns
+    -------
+    template: ndarray
+    """
+    return 1 + theta*(trans - 1)
+
+def lnlike_tf(theta, data, trans):
+    """ Liklihood function to maximize the fit between
+    the data and the template
+    Parameters
+    ----------
+    theta: float
+        Scale factor
+    data: 3D ndarray
+    tran: 2D ndaarray
+    Returns
+    -------
+    liklihood: float
+    """
+    i = ((data[:,0] >= 9320) & (data[:,0] <= 9380))
+    tmp = get_atm_template(theta, trans[:,1])
+
+    return (-0.5 * np.sum(np.log(2 * np.pi * data[:,2][i]**2)
+            + (data[:,1][i] - tmp[i])**2 / data[:,2][i]**2))
+
+def opposite_lnlike_tf(theta, data, trans):
+    """ Opposite of the liklihood function, to be used with
+    minimization algorithms
+    Parameters
+    ----------
+    theta: float
+        Scale factor
+    data: 3D ndarray
+    tran: 2D ndaarray
+    Returns
+    -------
+    opposite liklihood: float
+    """
+    i = ((data[:,0] >= 9320) & (data[:,0] <= 9380))
+    return -1. * lnlike_tf(theta, data, trans)
+
+def get_fwhm_pix(sp, inval=10000., outval=150):
+    """ Find FWHM (pix) to convolve a spec1D by
+    Parameters
+    ----------
+    sp:     XSpectrum1D object
+        Spectrum to be convolved
+    inval:  int
+        Resolution of sp (R)
+    outval: float
+        Resolution to convolve sp to (km/s)
+    Returns
+    -------
+    fwhm_dff: ndarray
+        Array of FWHM (pix) values to convolve
+        a spectrum by
+    """
+    clight = 299792.458
+
+    # Get FWHM of spectrum being smoothed
+    fwhm_in_ = sp.wavelength.value/inval
+    psize    = np.diff(sp.wavelength.value)
+    psize    = np.append(psize,
+                    sp.wavelength[-1].value - sp.wavelength[-2].value)
+
+    # Get FWHM of resolution thaat spectrum is to be smoothed to
+    fwhm_out = outval*2.*np.sqrt(2*np.log(2))
+    fwhm_out = (fwhm_out / clight) * sp.wavelength.value
+
+    fwhm_diff = (fwhm_out - fwhm_in_)/psize
+
+    return fwhm_diff
 
