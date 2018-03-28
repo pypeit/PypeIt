@@ -6,7 +6,7 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from __future__ import unicode_literals
+#from __future__ import unicode_literals
 
 import sys
 import os
@@ -38,8 +38,9 @@ def get_extensions():
     cython_files = glob.glob('pypit/*.pyx')
     ext_modules = []
     for f in cython_files:
-        _f = f.split('.')[0].split('/')[1]
-        ext_modules.append(Extension('pypit.'+_f, [f],
+        name = ('pypit.'+f.split('.')[0].split('/')[1])
+        sources = [f]
+        ext_modules.append(Extension(name, sources,
                                      include_dirs=[numpy.get_include(), include_gsl_dir],
                                      library_dirs=[lib_gsl_dir],
                                      libraries=['gsl','gslcblas']))
