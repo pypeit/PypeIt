@@ -1,0 +1,29 @@
+# Required packages for PYPIT
+#
+# TODO: Make linetools and arclines pip installable so that they can be
+# added here, or add them as submodule dependencies in extern/ directory
+#
+# Users
+numpy>=1.11.2
+scipy>=0.18.1
+matplotlib>=1.5.3
+astropy>=1.2.1
+Cython>=0.27.3
+PyYAML>=3.11
+future>=0.16.0
+
+# PyQt5>=5.10 ?
+
+# linetools
+# arclines
+
+# Develop
+ginga>=2.7.0
+h5py>=2.7.1
+pytest>=3.0.7
+# pickle?
+
+# Documentation
+sphinx>=1.6
+
+
