@@ -16,6 +16,7 @@ from setuptools import setup, find_packages
 
 # For building in Cython functions -------------------------------------
 import numpy
+from Cython.Build import cythonize
 from Cython.Distutils import build_ext
 from distutils.extension import Extension
 
@@ -44,7 +45,7 @@ def get_extensions():
                                      include_dirs=[numpy.get_include(), include_gsl_dir],
                                      library_dirs=[lib_gsl_dir],
                                      libraries=['gsl','gslcblas']))
-    return ext_modules
+    return cythonize(ext_modules)
 # ----------------------------------------------------------------------
 
 
