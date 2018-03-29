@@ -29,7 +29,9 @@ msgs = armsgs.Messages()
 # is requested by the user
 # TODO: Is this necessary?  As far as I can tell, close_qa() doesn't
 # actually close any already opened qa files
-from pypit.arqa import close_qa
+
+# TODO: Causes circular imports
+# from pypit.arqa import close_qa
 
 # Send all signals to messages to be dealt with (i.e. someone hits ctrl+c)
 def signal_handler(signalnum, handler):
@@ -38,7 +40,7 @@ def signal_handler(signalnum, handler):
     """
     if signalnum == 2:
         msgs.info('Ctrl+C was pressed. Ending processes...')
-        close_qa(msgs.pypit_file)
+#         close_qa(msgs.pypit_file)
         msgs.close()
         sys.exit()
 
