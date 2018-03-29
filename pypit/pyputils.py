@@ -11,6 +11,8 @@ import os
 from pypit import armsgs
 from pypit import ardebug
 
+from pypit import __version__, __last_updated__
+
 # this_file = realpath(__file__)
 # this_path = this_file[:this_file.rfind('/')]
 
@@ -52,7 +54,8 @@ def get_dummy_logger(develop=False):
     """
     debug = ardebug.init()
     debug['develop'] = develop
-    return armsgs.Messages(log=None, debug=debug, verbosity=0)
+    return armsgs.Messages(log=None, debug=debug, verbosity=0, pypit_version=__version__,
+                           pypit_updated=__last_updated__)
 
 #    from pypit import ardebug
 #    from pypit import armsgs as pyparm

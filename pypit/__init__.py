@@ -5,20 +5,25 @@ The current main purpose of this is to provide package-level globals
 that can be imported by submodules.
 """
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+# Imports for signal and log handling
+import sys
+import signal
+import warnings
+
 # Set version
 __version__ = '0.8.0.dev0'
 # TODO: Do we need this?  A release should be tied to a date, and the
 # date information could be put in the CHANGES.rst
 __last_updated__ = '23Mar2018'
 
-# Imports for singal and log handling
-import sys
-import signal
-import warnings
-
 # Import and instantiate the logger
 from pypit import armsgs
-msgs = armsgs.Messages()
+msgs = armsgs.Messages(pypit_version=__version__, pypit_updated=__last_updated__)
 
 # Import the close_qa method so that it can be called when a hard stop
 # is requested by the user

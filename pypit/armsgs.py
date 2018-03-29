@@ -21,7 +21,7 @@ import scipy
 import numpy
 import astropy
 
-from pypit import __version__, __last_updated__
+# from pypit import __version__, __last_updated__
 
 #pypit_logger = None
 
@@ -51,14 +51,15 @@ class Messages:
       If true, the screen output will have colors, otherwise
       normal screen output will be displayed
     """
-    def __init__(self, log=None, debug=None, verbosity=None, colors=True):
+    def __init__(self, log=None, debug=None, verbosity=None, colors=True,
+                 pypit_version=None, pypit_updated=None):
 
         # Initialize other variables
         # TODO: debug could just be develop=True or False
         self._debug = debug
-        self._last_updated = __last_updated__
-        self._version = __version__
         self._verbosity = 1 if verbosity is None else verbosity
+        self._last_updated = pypit_updated
+        self._version = pypit_version
 
         # TODO: Why are these two necessary?  It would seem better to
         # provide Messages with member functions that can operate on

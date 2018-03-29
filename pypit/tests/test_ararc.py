@@ -1,12 +1,15 @@
 # Module to run tests on ararclines
-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 import os
 import numpy as np
 import pytest
 
 from pypit import pyputils
-msgs = pyputils.get_dummy_logger()
+#msgs = pyputils.get_dummy_logger()
 from pypit import arparse as settings
 from pypit import ararc as pyarc
 from pypit import arutils as arut
