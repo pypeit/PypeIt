@@ -21,7 +21,7 @@ import scipy
 import numpy
 import astropy
 
-# from pypit import __version__, __last_updated__
+from pypit import __version__, __last_updated__
 
 #pypit_logger = None
 
@@ -51,15 +51,14 @@ class Messages:
       If true, the screen output will have colors, otherwise
       normal screen output will be displayed
     """
-    def __init__(self, log=None, debug=None, verbosity=None, colors=True,
-                 pypit_version=None, pypit_updated=None):
+    def __init__(self, log=None, debug=None, verbosity=None, colors=True):
 
         # Initialize other variables
         # TODO: debug could just be develop=True or False
         self._debug = debug
         self._verbosity = 1 if verbosity is None else verbosity
-        self._last_updated = pypit_updated
-        self._version = pypit_version
+        self._last_updated = __last_updated__
+        self._version = __version__
 
         # TODO: Why are these two necessary?  It would seem better to
         # provide Messages with member functions that can operate on
@@ -131,9 +130,9 @@ class Messages:
         self._log = open(log, 'w')
 
         self._log.write("------------------------------------------------------\n\n")
-        self._log.write("PYPIT was last updated {0:s}\n".format(__last_updated__))
+        self._log.write("PYPIT was last updated {0:s}\n".format(self._last_updated))
         self._log.write("This log was generated with version {0:s} of PYPIT\n\n".format(
-                                                                                    __version__))
+                                                                                    self._version))
         self._log.write("You are using scipy version={:s}\n".format(scipy.__version__))
         self._log.write("You are using numpy version={:s}\n".format(numpy.__version__))
         self._log.write("You are using astropy version={:s}\n\n".format(astropy.__version__))

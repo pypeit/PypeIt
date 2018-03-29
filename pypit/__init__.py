@@ -23,7 +23,7 @@ __last_updated__ = '23Mar2018'
 
 # Import and instantiate the logger
 from pypit import armsgs
-msgs = armsgs.Messages(pypit_version=__version__, pypit_updated=__last_updated__)
+msgs = armsgs.Messages()
 
 # Import the close_qa method so that it can be called when a hard stop
 # is requested by the user
