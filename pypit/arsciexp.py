@@ -394,8 +394,6 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-        from pypit import arqa
-
         if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
             # If the master pixelflat is already made, use it
             if self._mspixelflat[det-1] is not None:
@@ -422,10 +420,14 @@ class ScienceExposure:
                         armasters.save_masters(self, det, mftype='slitprof')
                         if settings.argflag["reduce"]["slitprofile"]["perform"]:
                             msgs.info("Preparing QA of each slit profile")
-                            arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
-                                              self._slitpix[det - 1], desc="Slit profile")
+#                            arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
+#                                              self._slitpix[det - 1], desc="Slit profile")
+                            arproc.slit_profile_qa(self, mstracenrm, slit_profiles,
+                                                   self._lordloc[det - 1], self._rordloc[det - 1],
+                                                   self._slitpix[det - 1], desc="Slit profile")
                         msgs.info("Saving blaze function QA")
-                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
+#                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
+                        artrace.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
                 return False
             ###############
             # Generate/load a master pixel flat frame
@@ -476,10 +478,14 @@ class ScienceExposure:
                         armasters.save_masters(self, det, mftype='slitprof')
                         if settings.argflag["reduce"]["slitprofile"]["perform"]:
                             msgs.info("Preparing QA of each slit profile")
-                            arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
-                                              self._slitpix[det - 1], desc="Slit profile")
+#                            arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
+#                                              self._slitpix[det - 1], desc="Slit profile")
+                            arproc.slit_profile_qa(self, mstracenrm, slit_profiles,
+                                                   self._lordloc[det - 1], self._rordloc[det - 1],
+                                                   self._slitpix[det - 1], desc="Slit profile")
                         msgs.info("Saving blaze function QA")
-                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
+#                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
+                        artrace.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
                 else:
                     mspixelflat = mspixelflatnrm
             else:  # It must be the name of a file the user wishes to load

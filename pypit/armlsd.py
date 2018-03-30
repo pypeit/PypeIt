@@ -14,7 +14,7 @@ from pypit import arproc
 from pypit import arsave
 from pypit import arsetup
 from pypit import artrace
-from pypit import arqa
+#from pypit import arqa
 
 from linetools import utils as ltu
 
@@ -149,9 +149,13 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 # Save to disk
                 armasters.save_masters(slf, det, mftype='trace')
                 # Save QA for slit traces
-                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
-                                       slf._rordpix[det-1], extord,
-                                       desc="Trace of the slit edges D{:02d}".format(det), use_slitid=det)
+#                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
+#                                       slf._rordpix[det-1], extord,
+#                                       desc="Trace of the slit edges D{:02d}".format(det), use_slitid=det)
+                artrace.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
+                                      slf._rordpix[det-1], extord,
+                                      desc="Trace of the slit edges D{:02d}".format(det),
+                                      use_slitid=det)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
             ###############
