@@ -1,26 +1,34 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import time
-import numpy as np
+import inspect
 import copy
-from pypit import arqa
-from pypit import ararc
-#from pypit import armsgs
+from collections import Counter
+
+import numpy as np
+import scipy.interpolate as interp
+import scipy.ndimage as ndimage
+import matplotlib.pyplot as plt
+from matplotlib import gridspec, cm, font_manager
+
+from astropy.io import fits
+from astropy.stats import sigma_clip
+from astropy.convolution import convolve, Gaussian1DKernel
+
 from pypit import msgs
+from pypit import arqa
+from pypit import arplot
+from pypit import ararc
 from pypit import arutils
 from pypit import arpca
 from pypit import arparse as settings
-import matplotlib.pyplot as plt
-import scipy.interpolate as interp
-import scipy.ndimage as ndimage
-from collections import Counter
-
 from pypit.filter import BoxcarFilter
-
-# Logging
-#msgs = armsgs.get_logger()
-
+from pypit import arspecobj
 from pypit import ardebug as debugger
+from pypit import ginga
+
+from pypit import arcyarc
+from pypit import arcytrace
 
 try:
     ustr = unicode
@@ -48,7 +56,6 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
     edgearr : numpy ndarray
       An array of negative/positive numbers (left/right edges respectively) and zeros (no edge)
     """
-    from pypit import arcytrace
 
     if lor == -1:
         lortxt = "left"
@@ -297,7 +304,6 @@ def expand_slits(slf, mstrace, det, ordcen, extord):
     rordloc : ndarray
       Locations of the right slit edges (in physical pixel coordinates)
     """
-    from pypit import arcytrace
 
     # Calculate the pixel locations of th eorder edges
     pixcen = phys_to_pix(ordcen, slf._pixlocn[det - 1], 1)
@@ -501,8 +507,6 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     tracedict : dict
       A dictionary containing the object trace information
     """
-    from pypit import arcytrace
-    from pypit import arcyutils
     # Find the trace of each object
     tracefunc = settings.argflag['trace']['object']['function']
     traceorder = settings.argflag['trace']['object']['order']
@@ -602,7 +606,6 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     ww = np.where(srtsig[:, -2] > med + sigmin*mad)
     mask_sigframe = np.ma.array(rec_sigframe_bin, mask=rec_crmask, fill_value=maskval)
     # Clip image along spatial dimension -- May eliminate bright emission lines
-    from astropy.stats import sigma_clip
     clip_image = sigma_clip(mask_sigframe[ww[0], :], axis=0, sigma=4.)
     # Collapse along the spectral direction to get object profile
     #trcprof = np.ma.mean(mask_sigframe[ww[0],:], axis=0).filled(0.0)
@@ -759,7 +762,6 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
                                                 triml=triml, trimr=trimr)
     # Check object traces in ginga
     if msgs._debug['trace_obj']:
-        from pypit import ginga
         viewer, ch = ginga.show_image(sciframe)
         for ii in range(nobj):
             ginga.show_trace(viewer, ch, traces[:, ii], '{:d}'.format(ii), clear=(ii == 0))
@@ -770,15 +772,244 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
 
     # Save the quality control
     if doqa: # and (not msgs._debug['no_qa']):
-        from pypit.arspecobj import get_objid
         objids = []
         for ii in range(nobj):
-            objid, xobj = get_objid(slf, det, slitn, ii, tracedict)
+            objid, xobj = arspecobj.get_objid(slf, det, slitn, ii, tracedict)
             objids.append(objid)
-        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, objids, det,
-                          root="object_trace", normalize=False)
+#        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, objids, det,
+#                          root="object_trace", normalize=False)
+        obj_trace_qa(slf, sciframe, trobjl, trobjr, objids, det, root="object_trace",
+                     normalize=False)
     # Return
     return tracedict
+
+
+def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
+                 root='trace', normalize=True, desc=""):
+    """ Generate a QA plot for the object trace
+
+    Parameters
+    ----------
+    frame : ndarray
+      image
+    ltrace : ndarray
+      Left edge traces
+    rtrace : ndarray
+      Right edge traces
+    objids : list
+    det : int
+    desc : str, optional
+      Title
+    root : str, optional
+      Root name for generating output file, e.g. msflat_01blue_000.fits
+    normalize : bool, optional
+      Normalize the flat?  If not, use zscale for output
+    """
+
+    plt.rcdefaults()
+
+    # Grab the named of the method
+    method = inspect.stack()[0][3]
+    # Outfile name
+    outfile = arqa.set_qa_filename(slf._basename, method, det=det)
+    #
+    ntrc = ltrace.shape[1]
+    ycen = np.arange(frame.shape[0])
+    # Normalize flux in the traces
+    if normalize:
+        nrm_frame = np.zeros_like(frame)
+        for ii in range(ntrc):
+            xtrc = (ltrace[:,ii] + rtrace[:,ii])/2.
+            ixtrc = np.round(xtrc).astype(int)
+            # Simple 'extraction'
+            dumi = np.zeros( (frame.shape[0],3) )
+            for jj in range(3):
+                dumi[:,jj] = frame[ycen,ixtrc-1+jj]
+            trc = np.median(dumi, axis=1)
+            # Find portion of the image and normalize
+            for yy in ycen:
+                xi = max(0, int(ltrace[yy,ii])-3)
+                xe = min(frame.shape[1],int(rtrace[yy,ii])+3)
+                # Fill + normalize
+                nrm_frame[yy, xi:xe] = frame[yy,xi:xe] / trc[yy]
+        sclmin, sclmax = 0.4, 1.1
+    else:
+        nrm_frame = frame.copy()
+        sclmin, sclmax = arplot.zscale(nrm_frame)
+
+    # Plot
+    plt.clf()
+    fig = plt.figure(dpi=1200)
+
+    plt.rcParams['font.family'] = 'times new roman'
+    ticks_font = font_manager.FontProperties(family='times new roman', 
+       style='normal', size=16, weight='normal', stretch='normal')
+    ax = plt.gca()
+    for label in ax.get_yticklabels() :
+        label.set_fontproperties(ticks_font)
+    for label in ax.get_xticklabels() :
+        label.set_fontproperties(ticks_font)
+    cmm = cm.Greys_r
+    mplt = plt.imshow(nrm_frame, origin='lower', cmap=cmm, extent=(0., frame.shape[1], 0., frame.shape[0]))
+    mplt.set_clim(vmin=sclmin, vmax=sclmax)
+
+    # Axes
+    plt.xlim(0., frame.shape[1])
+    plt.ylim(0., frame.shape[0])
+    plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
+
+    # Traces
+    iy_mid = int(frame.shape[0] / 2.)
+    iy = np.linspace(iy_mid,frame.shape[0]*0.9,ntrc).astype(int)
+    for ii in range(ntrc):
+        # Left
+        plt.plot(ltrace[:, ii]+0.5, ycen, 'r--', alpha=0.7)
+        # Right
+        plt.plot(rtrace[:, ii]+0.5, ycen, 'c--', alpha=0.7)
+        if objids is not None:
+            # Label
+            # plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
+            lbl = 'O{:03d}'.format(objids[ii])
+            plt.text((ltrace[iy[ii], ii]+rtrace[iy[ii], ii])/2., ycen[iy[ii]],
+                lbl, color='green', ha='center')
+    # Title
+    tstamp = arqa.gen_timestamp()
+    if desc == "":
+        plt.suptitle(tstamp)
+    else:
+        plt.suptitle(desc+'\n'+tstamp)
+
+    plt.savefig(outfile, dpi=800)
+    plt.close()
+
+    plt.rcdefaults()
+
+
+def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit",
+                   maxp=4, desc="", maskval=-999999.9):
+    """ Generate a QA plot for the blaze function fit to each slit
+    Or the arc line tilts
+
+    Parameters
+    ----------
+    slf : class
+      Science Exposure class
+    model : ndarray
+      (m x n) 2D array containing the model blaze function (m) of a flat frame for each slit (n)
+    ydata : ndarray
+      (m x n) 2D array containing the extracted 1D spectrum (m) of a flat frame for each slit (n)
+    xdata : ndarray, optional
+      x values of the data points
+    xmodl : ndarry, optional
+      x values of the model points
+    textplt : str, optional
+      A string printed above each panel
+    maxp : int, (optional)
+      Maximum number of panels per page
+    desc : str, (optional)
+      A description added to the top of each page
+    maskval : float, (optional)
+      Value used in arrays to indicate a masked value
+    """
+
+    plt.rcdefaults()
+    plt.rcParams['font.family']= 'times new roman'
+    
+    # Outfil
+    method = inspect.stack()[0][3]
+    if 'Arc' in desc:
+        method += '_Arc'
+    elif 'Blaze' in desc:
+        method += '_Blaze'
+    else:
+        msgs.bug("Unknown type of order fits.  Currently prepared for Arc and Blaze")
+    outroot = arqa.set_qa_filename(slf.setup, method)
+    #
+    npix, nord = ydata.shape
+    pages, npp = arqa.get_dimen(nord, maxp=maxp)
+    if xdata is None: xdata = np.arange(npix).reshape((npix, 1)).repeat(nord, axis=1)
+    if xmodl is None: xmodl = np.arange(model.shape[0])
+    # Loop through all pages and plot the results
+    ndone = 0
+    axesIdx = True
+    for i in range(len(pages)):
+        f, axes = plt.subplots(pages[i][1], pages[i][0])
+        ipx, ipy = 0, 0
+        for j in range(npp[i]):
+            if pages[i][0] == 1 and pages[i][1] == 1: axesIdx = False
+            elif pages[i][1] == 1: ind = (ipx,)
+            elif pages[i][0] == 1: ind = (ipy,)
+            else: ind = (ipy, ipx)
+            if axesIdx:
+                axes[ind].plot(xdata[:,ndone+j], ydata[:,ndone+j], 'bx', drawstyle='steps')
+                axes[ind].plot(xmodl, model[:,ndone+j], 'r-')
+            else:
+                axes.plot(xdata[:,ndone+j], ydata[:,ndone+j], 'bx', drawstyle='steps')
+                axes.plot(xmodl, model[:,ndone+j], 'r-')
+            ytmp = ydata[:,ndone+j]
+            gdy = ytmp != maskval
+            ytmp = ytmp[gdy]
+            if ytmp.size != 0:
+                amn = min(np.min(ytmp), np.min(model[gdy,ndone+j]))
+            else:
+                amn = np.min(model[:,ndone+j])
+            if ytmp.size != 0:
+                amx = max(np.max(ytmp), np.max(model[gdy,ndone+j]))
+            else: amx = np.max(model[:,ndone+j])
+            # Restrict to good pixels
+            xtmp = xdata[:,ndone+j]
+            gdx = xtmp != maskval
+            xtmp = xtmp[gdx]
+            if xtmp.size == 0:
+                xmn = np.min(xmodl)
+                xmx = np.max(xmodl)
+            else:
+                xmn = np.min(xtmp)
+                xmx = np.max(xtmp)
+                #xmn = min(np.min(xtmp), np.min(xmodl))
+                #xmx = max(np.max(xtmp), np.max(xmodl))
+            if axesIdx:
+                axes[ind].axis([xmn, xmx, amn-1, amx+1])
+                axes[ind].set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
+            else:
+                axes.axis([xmn, xmx, amn, amx])
+                axes.set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
+            ipx += 1
+            if ipx == pages[i][0]:
+                ipx = 0
+                ipy += 1
+        # Delete the unnecessary axes
+        if axesIdx:
+            for j in range(npp[i], axes.size):
+                if pages[i][1] == 1: ind = (ipx,)
+                elif pages[i][0] == 1: ind = (ipy,)
+                else: ind = (ipy, ipx)
+                f.delaxes(axes[ind])
+                if ipx == pages[i][0]:
+                    ipx = 0
+                    ipy += 1
+        ndone += npp[i]
+        # Save the figure
+        if axesIdx: axsz = axes.size
+        else: axsz = 1.0
+        if pages[i][1] == 1 or pages[i][0] == 1: ypngsiz = 11.0/axsz
+        else: ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
+        f.set_size_inches(11.0, ypngsiz)
+        if desc != "":
+            pgtxt = ""
+            if len(pages) != 1:
+                pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
+            f.suptitle(desc + pgtxt, y=1.02, size=16)
+        f.tight_layout()
+        outfile = outroot+'{:03d}.png'.format(i)
+        plt.savefig(outfile, dpi=200)
+        plt.close()
+        f.clf()
+    del f
+
+    plt.rcdefaults()
+
+    return
 
 
 def new_find_between(edgdet, ledgem, ledgep, dirc):
@@ -1244,6 +1475,121 @@ def new_tilts_image(tilts, lordloc, rordloc, pad, sz_y):
     return tiltsimg
 
 
+def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
+                  root='trace', normalize=True, use_slitid=None):
+    """ Generate a QA plot for the slit traces
+
+    Parameters
+    ----------
+    slf : class
+      An instance of the Science Exposure Class
+    frame : ndarray
+      trace image
+    ltrace : ndarray
+      Left slit edge traces
+    rtrace : ndarray
+      Right slit edge traces
+    extslit : ndarray
+      Mask of extrapolated slits (True = extrapolated)
+    desc : str, optional
+      A description to be used as a title for the page
+    root : str, optional
+      Root name for generating output file, e.g. msflat_01blue_000.fits
+    normalize: bool, optional
+      Normalize the flat?  If not, use zscale for output
+    """
+
+    plt.rcdefaults()
+    plt.rcParams['font.family']= 'times new roman'
+    ticks_font = font_manager.FontProperties(family='times new roman', style='normal', size=16,
+                                             weight='normal', stretch='normal')
+
+    # Outfile
+    method = inspect.stack()[0][3]
+    outfile = arqa.set_qa_filename(slf.setup, method)
+    # if outfil is None:
+    #     if '.fits' in root: # Expecting name of msflat FITS file
+    #         outfil = root.replace('.fits', '_trc.pdf')
+    #         outfil = outfil.replace('MasterFrames', 'Plots')
+    #     else:
+    #         outfil = root+'.pdf'
+    ntrc = ltrace.shape[1]
+    ycen = np.arange(frame.shape[0])
+    # Normalize flux in the traces
+    if normalize:
+        nrm_frame = np.zeros_like(frame)
+        for ii in range(ntrc):
+            xtrc = (ltrace[:, ii] + rtrace[:, ii])/2.
+            ixtrc = np.round(xtrc).astype(int)
+            # Simple 'extraction'
+            dumi = np.zeros((frame.shape[0], 3))
+            for jj in range(3):
+                dumi[:, jj] = frame[ycen, ixtrc-1+jj]
+            trc = np.median(dumi, axis=1)
+            # Find portion of the image and normalize
+            for yy in ycen:
+                xi = max(0, int(ltrace[yy, ii])-3)
+                xe = min(frame.shape[1], int(rtrace[yy, ii])+3)
+                # Fill + normalize
+                nrm_frame[yy, xi:xe] = frame[yy, xi:xe] / trc[yy]
+        sclmin, sclmax = 0.4, 1.1
+    else:
+        nrm_frame = frame.copy()
+        nrm_frame[frame > 0.0] = np.sqrt(nrm_frame[frame > 0.0])
+        sclmin, sclmax = arplot.zscale(nrm_frame)
+
+    # Plot
+    plt.clf()
+
+    ax = plt.gca()
+#    set_fonts(ax)
+    for label in ax.get_yticklabels():
+        label.set_fontproperties(ticks_font)
+    for label in ax.get_xticklabels():
+        label.set_fontproperties(ticks_font)
+    cmm = cm.Greys_r
+    mplt = plt.imshow(nrm_frame, origin='lower', cmap=cmm, interpolation=None,
+                      extent=(0., frame.shape[1], 0., frame.shape[0]))
+    mplt.set_clim(vmin=sclmin, vmax=sclmax)
+
+    # Axes
+    plt.xlim(0., frame.shape[1])
+    plt.ylim(0., frame.shape[0])
+    plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off',
+                    labelbottom='off', labelleft='off')
+
+    # Traces
+    iy = int(frame.shape[0]/2.)
+    for ii in range(ntrc):
+        if extslit[ii] is True:
+            ptyp = ':'
+        else:
+            ptyp = '--'
+        # Left
+        plt.plot(ltrace[:, ii]+0.5, ycen, 'r'+ptyp, linewidth=0.3, alpha=0.7)
+        # Right
+        plt.plot(rtrace[:, ii]+0.5, ycen, 'c'+ptyp, linewidth=0.3, alpha=0.7)
+        # Label
+        if use_slitid:
+            slitid, _, _ = arspecobj.get_slitid(slf, use_slitid, ii, ypos=0.5)
+            lbl = 'S{:04d}'.format(slitid)
+        else:
+            lbl = '{0:d}'.format(ii+1)
+        plt.text(0.5*(ltrace[iy, ii]+rtrace[iy, ii]), ycen[iy], lbl, color='green', ha='center', size='small')
+    # Title
+    tstamp = arqa.gen_timestamp()
+    if desc == "":
+        plt.suptitle(tstamp)
+    else:
+        plt.suptitle(desc+'\n'+tstamp)
+
+    # Write
+    plt.savefig(outfile, dpi=800)
+    plt.close()
+
+    plt.rcdefaults()
+
+
 def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     """
     This routine traces the locations of the slit edges
@@ -1276,7 +1622,6 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     """
     dnum = settings.get_dnum(det)
     ednum = 100000  # A large dummy number used for slit edge assignment. ednum should be larger than the number of edges detected
-    from pypit import arcytrace
 
     msgs.info("Preparing trace frame for slit detection")
     # Generate a binned (or smoothed) version of the trace frame
@@ -1338,14 +1683,13 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         wr = np.where(siglev < -settings.argflag['trace']['slits']['sigdetect'])  # A negative gradient is a right edge
         tedges[wl] = -1.0
         tedges[wr] = +1.0
-        import astropy.io.fits as pyfits
-        hdu = pyfits.PrimaryHDU(filt)
+        hdu = fits.PrimaryHDU(filt)
         hdu.writeto("filt_{0:02d}.fits".format(det), overwrite=True)
-        hdu = pyfits.PrimaryHDU(sqmstrace)
+        hdu = fits.PrimaryHDU(sqmstrace)
         hdu.writeto("sqmstrace_{0:02d}.fits".format(det), overwrite=True)
-        hdu = pyfits.PrimaryHDU(binarr)
+        hdu = fits.PrimaryHDU(binarr)
         hdu.writeto("binarr_{0:02d}.fits".format(det), overwrite=True)
-        hdu = pyfits.PrimaryHDU(siglev)
+        hdu = fits.PrimaryHDU(siglev)
         hdu.writeto("siglev_{0:02d}.fits".format(det), overwrite=True)
         # Clean the edges
         wcl = np.where((ndimage.maximum_filter1d(siglev, 10, axis=1) == siglev) & (tedges == -1))
@@ -1948,7 +2292,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         fitted, outpar = arpca.basis(xcen, slitcen, coeffs, lnpc, ofit, x0in=ordsnd, mask=maskord,
                                      skipx0=False, function=settings.argflag['trace']['slits']['function'])
         if not msgs._debug['no_qa']:
-            arqa.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc)
+#            arqa.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc)
+            arpca.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc)
         # Extrapolate the remaining orders requested
         orders = 1+np.arange(totord)
         extrap_cent, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
@@ -2016,7 +2361,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
                                          x0in=ordsnd, mask=maskrw, skipx0=False,
                                          function=settings.argflag['trace']['slits']['function'])
             if not msgs._debug['no_qa']:
-                arqa.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc, addOne=False)
+#                arqa.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc, addOne=False)
+                arpca.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc, addOne=False)
             # Now extrapolate to the whole detector
             pixpos = np.arange(binarr.shape[1])
             extrap_trc, outpar = arpca.extrapolate(outpar, pixpos,
@@ -2093,7 +2439,6 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
 
     # Illustrate where the orders fall on the detector (physical units)
     if msgs._debug['trace']:
-        from pypit import ginga
         viewer, ch = ginga.show_image(mstrace)
         ginga.show_slits(viewer, ch, lcenint, rcenint)
         debugger.set_trace()
@@ -2121,7 +2466,6 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
     -------
 
     """
-    from pypit import arcytrace
     # Refine the orders in the positive direction
     i = extord[1]
     hiord = phys_to_pix(extrap_cent[:, -i-2], locations, 1)
@@ -2697,8 +3041,6 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
-    from pypit import arcytrace
-
     arccen, maskslit, satmask = get_censpec(slf, msarc, det, gen_satmask=True)
     # If the user sets no tilts, return here
     if settings.argflag['trace']['slits']['tilts']['method'].lower() == "zero":
@@ -2780,12 +3122,14 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
                                      function=settings.argflag['trace']['slits']['function'])
         if not msgs._debug['no_qa']:
             #pcadesc = "Spectral Tilt PCA"
-            arqa.pca_plot(slf, outpar, ofit, 'Arc', pcadesc=pcadesc, addOne=False)
+#            arqa.pca_plot(slf, outpar, ofit, 'Arc', pcadesc=pcadesc, addOne=False)
+            arpca.pca_plot(slf, outpar, ofit, 'Arc', pcadesc=pcadesc, addOne=False)
         # Extrapolate the remaining orders requested
         orders = 1.0 + np.arange(norders)
         extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
         tilts = extrap_tilt
-        arqa.pca_arctilt(slf, tiltang, centval, tilts)
+#        arqa.pca_arctilt(slf, tiltang, centval, tilts)
+        arpca.pca_arctilt(slf, tiltang, centval, tilts)
     else:
         outpar = None
         msgs.warn("Could not perform a PCA when tracing the order tilts" + msgs.newline() +
@@ -2991,7 +3335,8 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             fitted, outpar = arpca.basis(xcen, tiltval, tcoeff, lnpc, ofit, weights=None,
                                          x0in=ordsnd, mask=maskrw, skipx0=False,
                                          function=settings.argflag['trace']['slits']['function'])
-            arqa.pca_plot(slf, outpar, ofit, 'Arc', pcadesc="Spectral Tilt PCA", addOne=False)
+#            arqa.pca_plot(slf, outpar, ofit, 'Arc', pcadesc="Spectral Tilt PCA", addOne=False)
+            arpca.pca_plot(slf, outpar, ofit, 'Arc', pcadesc="Spectral Tilt PCA", addOne=False)
             # Extrapolate the remaining orders requested
             orders = np.linspace(0.0, 1.0, msarc.shape[0])
             extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['slits']['function'])
@@ -3140,8 +3485,10 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
     xdat[np.where(xdat != maskval)] *= (msarc.shape[1] - 1.0)
 
     msgs.info("Plotting arc tilt QA")
-    arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
-                        textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
+#    arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
+#                        textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
+    plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
+                   textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
     return tilts, satmask, outpar
 
 
@@ -3157,7 +3504,6 @@ def get_censpec(slf, frame, det, gen_satmask=False):
     In other words, tilts = y/x according to the docs/get_locations_orderlength.JPG file.
 
     """
-    from pypit import arcyarc
     dnum = settings.get_dnum(det)
 
     ordcen = 0.5*(slf._lordloc[det-1]+slf._rordloc[det-1])
@@ -3316,8 +3662,6 @@ def phys_to_pix(array, pixlocn, axis):
     pixarr : ndarray
       The pixel locations of the input array (as seen on a computer screen)
     """
-    from pypit import arcytrace
-
     diff = pixlocn[:,0,0] if axis == 0 else pixlocn[0,:,1]
 
 #    print('calling phys_to_pix')
@@ -3465,8 +3809,6 @@ def find_obj_minima(trcprof, fwhm=3., nsmooth=3, nfind=8, xedge=0.03,
     bckr : ndarray (npeak, npix)
       Background regions in the slit, right of the peak
     '''
-    from astropy.convolution import convolve, Gaussian1DKernel
-    from astropy.stats import sigma_clip
     npix = trcprof.size
     # Smooth
     if nsmooth > 0:
