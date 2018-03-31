@@ -4,6 +4,9 @@ import numpy as np
 from astropy.table import Table, Column, vstack
 import glob, copy
 import yaml
+from pkg_resources import resource_filename
+
+from arclines.io import load_line_list
 
 #from pypit import armsgs
 from pypit import msgs
@@ -24,6 +27,11 @@ def parse_nist(slf,ion):
     ion : str
       Name of ion
     """
+    nist_path = resource_filename('arclines', 'data/NIST/')
+    line_file = nist_path+'{:s}_vacuum.ascii'.format(ion)
+    nist_tbl = load_line_list(line_file, NIST=True)
+
+    '''
     # Root (for development only)
     if slf is None:
         from pypit import arutils as arut
@@ -65,6 +73,8 @@ def parse_nist(slf,ion):
     #nist_tbl.add_column(Column([ion]*len(nist_tbl), name='Ion', dtype='S5'))
     nist_tbl.add_column(Column([ion]*len(nist_tbl), name='Ion', dtype='U5'))
     nist_tbl.rename_column('Observed','wave')
+    '''
+
     # Return
     return nist_tbl
 
