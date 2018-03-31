@@ -24,6 +24,6 @@ pytest>=3.0.7
 # pickle?
 
 # Documentation
-sphinx>=1.6
+#sphinx>=1.6
 
 
