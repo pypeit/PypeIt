@@ -8,6 +8,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import gridspec, font_manager
 
+import arclines
+#from arclines.holy.grail import basic, semi_brute, general
 
 from pypit import arpca
 from pypit import arparse as settings
@@ -19,7 +21,6 @@ from pypit import arqa
 from pypit import ardebug as debugger
 from pypit import arcyarc
 
-from arclines.holy.grail import basic, semi_brute, general
 
 def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     """
@@ -584,13 +585,13 @@ def calib_with_arclines(slf, det, get_poly=False, use_method="general"):
     tampl, tcent, twid, w, satsnd, spec = detect_lines(slf, det, slf._msarc[det-1])
 
     if use_method == "semi-brute":
-        best_dict, final_fit = semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
+        best_dict, final_fit = arclines.holy.grail.semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
     elif use_method == "basic":
-        stuff = basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
+        stuff = arclines.holy.grail.basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
         status, ngd_match, match_idx, scores, final_fit = stuff
     else:
         # Now preferred
-        best_dict, final_fit = general(spec, aparm['lamps'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
+        best_dict, final_fit = arclines.holy.grail.general(spec, aparm['lamps'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
 #    arqa.arc_fit_qa(slf, final_fit)
     arc_fit_qa(slf, final_fit)
     #
