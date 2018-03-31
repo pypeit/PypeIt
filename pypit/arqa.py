@@ -6,7 +6,9 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 import glob
 import numpy as np
 
-from pypit import msgs
+# CANNOT INCLUDE msgs IN THIS MODULE AS
+#  THE HTML GENERATION OCCURS FROM msgs
+#from pypit import msgs
 
 #try:
 #    basestring
@@ -54,7 +56,7 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None):
     elif method == 'flexure_qa_sky':
         outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_flex_sky.png'.format(root, det, slit)
     else:
-        msgs.error("NOT READY FOR THIS QA: {:s}".format(method))
+        raise IOError("NOT READY FOR THIS QA: {:s}".format(method))
     # Return
     return outfile
 
@@ -227,7 +229,7 @@ def html_mf_pngs(setup, cbset, det):
                 # Remove QA
                 ifnd = png.find('QA/')
                 if ifnd < 0:
-                    msgs.error("QA is expected to be in the path!")
+                    raise ValueError("QA is expected to be in the path!")
                 body += '<img class ="research" src="{:s}" width="100%" height="auto"/>\n'.format(png[ifnd+3:])
             body += '</div>\n'
 
@@ -282,7 +284,7 @@ def html_exp_pngs(exp_name, det):
                 # Remove QA
                 ifnd = png.find('QA/')
                 if ifnd < 0:
-                    msgs.error("QA is expected to be in the path!")
+                    raise ValueError("QA is expected to be in the path!")
                 body += '<img class ="research" src="{:s}" width="100%" height="auto"/>\n'.format(png[ifnd+3:])
             body += '</div>\n'
 
@@ -331,7 +333,7 @@ def gen_mf_html(pypit_file):
         # End
         html_end(f, body, links)
     #
-    msgs.info("Wrote: {:s}".format(MF_filename))
+    print("Wrote: {:s}".format(MF_filename))
 
 def gen_exp_html():
     # Find all obj_trace files -- Not fool proof but ok
@@ -361,10 +363,7 @@ def gen_exp_html():
                 body += new_body
             # End
             html_end(f, body, links)
-        try:
-            msgs.info("Wrote: {:s}".format(exp_filename))
-        except:
-            pass
+        print("Wrote: {:s}".format(exp_filename))
 
 
 def close_qa(pypit_file):

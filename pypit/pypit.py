@@ -17,7 +17,7 @@ except ImportError:
 
 from pypit import ardebug
 from pypit import msgs
-from pypit import archeck
+from pypit import archeck  # THIS IMPORT DOES THE CHECKING.  KEEP IT
 from pypit import arparse
 from pypit import ardevtest
 from pypit.arload import load_headers
@@ -75,12 +75,6 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
 #    msgs = armsgs.get_logger((logname, debug, verbosity))
     msgs.reset(log=logname, debug=debug, verbosity=verbosity)
     msgs.pypit_file = redname
-
-    # version checking
-    try:
-        archeck.version_check()
-    except archeck.VersionError as err:
-        msgs.error(err.message)
 
 # MOVED to __init__.py
 #    # First send all signals to messages to be dealt with (i.e. someone hits ctrl+c)

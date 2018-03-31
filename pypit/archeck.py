@@ -5,7 +5,6 @@ Version checking.
 from __future__ import absolute_import, division, print_function
 
 import pkg_resources
-import os
 
 requirements_file = pkg_resources.resource_filename('pypit', 'requirements.txt')
 install_requires = [line.strip().replace('==', '>=') for line in open(requirements_file)

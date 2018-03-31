@@ -220,16 +220,17 @@ class Messages:
         '''
         Close the log file before the code exits
         '''
+        from pypit import arqa
+        # QA HTML
+        if self.pypit_file is not None:  # Likely testing
+            try:
+                arqa.gen_mf_html(self.pypit_file)
+            except:  # Likely crashed very early
+                pass
+            else:
+                arqa.gen_exp_html()
         return self.reset_log_file(None)
-#        from pypit import arqa  # Circular import!
-#        # QA HTML
-#        if self.pypit_file is not None:  # Likely testing
-#            try:
-#                arqa.gen_mf_html(self.pypit_file)
-#            except:  # Likely crashed real early
-#                pass
-#            else:
-#                arqa.gen_exp_html()
+
 #        # Close log
 #        if self._log:
 #            self._log.close()
