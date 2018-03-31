@@ -8,7 +8,7 @@ numpy>=1.11.2
 scipy>=0.18.1
 matplotlib>=1.5.3
 astropy>=1.2.1
-Cython>=0.27.3
+Cython>=0.26.1
 PyYAML>=3.11
 future>=0.16.0
 

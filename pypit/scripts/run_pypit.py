@@ -16,6 +16,7 @@ import sys
 import argparse
 import traceback
 
+from pypit import archeck
 from pypit import pypit
 from pypit import msgs
 from pypit import ardebug
