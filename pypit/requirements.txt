@@ -18,7 +18,7 @@ future>=0.16.0
 # arclines
 
 # Develop
-ginga>=2.7.0
+#ginga>=2.7.0
 h5py>=2.7.1
 pytest>=3.0.7
 # pickle?
