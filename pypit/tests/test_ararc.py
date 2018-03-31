@@ -10,7 +10,6 @@ import pytest
 
 #from pypit import pyputils
 #msgs = pyputils.get_dummy_logger()
-from linetools.spectra import xspectrum1d
 from pypit import ararc
 from pypit import arutils
 

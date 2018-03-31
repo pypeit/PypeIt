@@ -8,7 +8,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import gridspec, font_manager
 
-from arclines.holy.grail import basic, semi_brute, general
 
 from pypit import arpca
 from pypit import arparse as settings
@@ -19,6 +18,8 @@ from pypit import ararclines
 from pypit import arqa
 from pypit import ardebug as debugger
 from pypit import arcyarc
+
+from arclines.holy.grail import basic, semi_brute, general
 
 def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     """
@@ -710,7 +711,7 @@ def arc_fit_qa(slf, fit, outfile=None, ids_only=False, title=None):
         # Tick mark
         ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], 'g-')
         # label
-        ax_spec.text(x, yline+ysep*1.3, 
+        ax_spec.text(x, yline+ysep*1.3,
             '{:s} {:g}'.format(fit['ions'][kk], fit['yfit'][kk]), ha='center', va='bottom',
             size=idfont, rotation=90., color='green')
     ax_spec.set_xlim(0., len(arc_spec))
@@ -735,7 +736,7 @@ def arc_fit_qa(slf, fit, outfile=None, ids_only=False, title=None):
             edgecolor='gray', facecolor='none')
     # Solution
     xval = np.arange(len(arc_spec))
-    wave = arutils.func_val(fit['fitc'], xval/fit['xnorm'], 'legendre', 
+    wave = arutils.func_val(fit['fitc'], xval/fit['xnorm'], 'legendre',
         minv=fit['fmin'], maxv=fit['fmax'])
     ax_fit.plot(xval, wave, 'r-')
     xmin, xmax = 0., len(arc_spec)
