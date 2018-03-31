@@ -78,24 +78,6 @@ def get_scripts():
     return scripts
 
 
-def chk_requirements():
-    import pkg_resources
-    name = 'pypit/requirements.txt'
-    requirements_file = os.path.join(os.path.dirname(__file__), name)
-    install_requires = [line.strip().replace('==', '>=') for line in open(requirements_file)
-                        if not line.strip().startswith('#') and line.strip() != '']
-    for requirement in install_requires:
-        pkg, version = requirement.split('>=')
-        try:
-            pv = pkg_resources.get_distribution(pkg).version
-        except pkg_resources.DistributionNotFound:
-            raise ImportError("Package: {:s} not installed!".format(pkg))
-        else:
-            if pkg_resources.parse_version(pv) < pkg_resources.parse_version(version):
-                print("Version of package {:s} = {:s}".format(pkg, pv))
-                raise ImportError("You need version >= {:s}".format(version))
-
-
 def get_requirements():
     """ Get the requirements from a system file.  """
     name = 'pypit/requirements.txt'
@@ -167,9 +149,8 @@ if __name__ == '__main__':
     # Include the module extensions; CURRENTLY ONLY NEEDED FOR CYTHON
     ext_modules = get_extensions()
     # Collate the dependencies based on the system text file
-    chk_requirements()
     install_requires = get_requirements()
-    install_requires = []
+    install_requires = []  # Remove this line to enforce actual installation
     # Run setup from setuptools
     run_setup(data_files, scripts, packages, ext_modules, install_requires)
 
