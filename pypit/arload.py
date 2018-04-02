@@ -28,20 +28,22 @@ msgs = armsgs.get_logger()
 
 
 def load_headers(datlines):
-    """
-    Load the header information for each fits file
+    """ Load the header information for each fits file
+    The cards of interest are specified in the instrument settings file
+    A check of specific cards is performed if specified in settings
 
     Parameters
     ----------
     datlines : list
       Input (uncommented) lines specified by the user.
       datlines contains the full data path to every
-      raw exposure listed by the user.
+      raw exposure provided by the user.
 
     Returns
     -------
     fitsdict : dict
       The relevant header information of all fits files
+    keylst : list
     """
     def generate_updates(dct, keylst, keys, whddict, headarr):
         """ Generate a list of settings to be updated
@@ -64,8 +66,9 @@ def load_headers(datlines):
                     pass
             del keys[-1]
 
-    chks = settings.spect['check'].keys()
-    keys = settings.spect['keyword'].keys()
+    chks = list(settings.spect['check'].keys())
+    keys = list(settings.spect['keyword'].keys())
+    # Init
     fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
     whddict = dict({})
     for k in keys:
@@ -73,6 +76,7 @@ def load_headers(datlines):
     allhead = []
     headarr = [None for k in range(settings.spect['fits']['numhead'])]
     numfiles = len(datlines)
+    # Loop on files
     for i in range(numfiles):
         # Try to open the fits file
         try:
@@ -85,7 +89,7 @@ def load_headers(datlines):
                 msgs.warn("Proceeding on the hopes this was a calibration file, otherwise consider removing.")
             else:
                 msgs.error("Error reading header from extension {0:d} of file:".format(settings.spect['fits']['headext{0:02d}'.format(k+1)])+msgs.newline()+datlines[i])
-        # Save
+        # Save the headers into a list
         for k in range(settings.spect['fits']['numhead']):
             tmp = [head.copy() for head in headarr]
             allhead.append(tmp)
@@ -146,7 +150,7 @@ def load_headers(datlines):
                     except KeyError: # Keyword not found in header
                         msgs.warn("{:s} keyword not in header. Setting to None".format(kchk))
                         value=str('None')
-            # Convert the input time into hours
+            # Convert the input time into hours -- Should we really do this here??
             if kw == 'time':
                 if settings.spect['fits']['timeunit']   == 's'  : value = float(value)/3600.0    # Convert seconds to hours
                 elif settings.spect['fits']['timeunit'] == 'm'  : value = float(value)/60.0      # Convert minutes to hours

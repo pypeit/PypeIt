@@ -26,6 +26,7 @@ following is for one instrument in one working directory.
 
 2. Run the :ref:`pypit_setup` script one of the PYPIT-approved :doc:`instruments` (e.g. lris_blue, kast_red)
 
+  - Generates a setup_files/ folder that holds a series of files
   - Generates the instrument PYPIT reduction file [not used further]
   - Generates the instrument .setups file (:doc:`setup`)
   - Generates a .sorted file which lists files sorted by setup
@@ -37,6 +38,7 @@ following is for one instrument in one working directory.
     - If changes were made, rerun :ref:`pypit_setup`
 
   - Now run :ref:`pypit_setup` with the --custom option to generates custom PYPIT reduction files and folders for each setup
+  - This produces one folder per setup and a related custom :doc:`pypit_file`.
 
 4. Prepare the custom :doc:`pypit_file` for reducing a given setup
   - Enter one of the setup folders (e.g. lris_blue_setup_A)

@@ -10,6 +10,7 @@ from pypit import ararclines
 from pypit import arqa
 from matplotlib import pyplot as plt
 import os
+import time
 
 from pypit import ardebug as debugger
 
@@ -76,8 +77,23 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     if MK_SATMASK:
         ordwid = 0.5*np.abs(slf._lordloc[det-1] - slf._rordloc[det-1])
         msgs.info("Generating a mask of arc line saturation streaks")
-        satmask = arcyarc.saturation_mask(msarc, slf._nonlinear[det-1])
-        satsnd = arcyarc.order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int))
+#        print('calling saturation_mask')
+#        t = time.clock()
+#        _satmask = arcyarc.saturation_mask(msarc, slf._nonlinear[det-1])
+#        print('Old saturation_mask: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
+        satmask = new_saturation_mask(msarc, slf._nonlinear[det-1])
+#        print('New saturation_mask: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_satmask != satmask) == 0, 'Difference between old and new saturation_mask'
+
+#        print('calling order_saturation')
+#        t = time.clock()
+#        _satsnd = arcyarc.order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int))
+#        print('Old order_saturation: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
+        satsnd = new_order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int))
+#        print('New order_saturation: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_satsnd != satsnd) == 0, 'Difference between old and new order_saturation'
     else:
         satsnd = np.zeros_like(ordcen)
     # Detect the location of the arc lines
@@ -594,3 +610,72 @@ def calib_with_arclines(slf, det, get_poly=False, use_method="general"):
     arqa.arc_fit_qa(slf, final_fit)
     #
     return final_fit
+
+
+
+def new_order_saturation(satmask, ordcen, ordwid):
+
+    sz_y, sz_x = satmask.shape
+    sz_o = ordcen.shape[1]
+
+    xmin = ordcen - ordwid
+    xmax = ordcen + ordwid + 1
+    xmin[xmin < 0] = 0
+    xmax[xmax >= sz_x] = sz_x
+
+    ordsat = np.zeros((sz_y, sz_o), dtype=int)
+    for o in range(sz_o):
+        for y in range(sz_y):
+            ordsat[y,o] = (xmax[y,o] > xmin[y,o]) & np.any(satmask[y,xmin[y,o]:xmax[y,o]] == 1)
+
+    return ordsat
+
+
+def search_for_saturation_edge(a, x, y, sy, dx, satdown, satlevel, mask):
+    sx = dx
+    localx = a[x+sx,y+sy]
+    while True:
+        mask[x+sx,y+sy] = True
+        sx += dx
+        if x+sx > a.shape[0]-1 or x+sx < 0:
+            break
+        if a[x+sx,y+sy] >= localx/satdown and a[x+sx,y+sy]<satlevel:
+            break
+        localx = a[x+sx,y+sy]
+    return mask
+
+
+def determine_saturation_region(a, x, y, sy, dy, satdown, satlevel, mask):
+    localy = a[x,y+sy]
+    while True:
+        mask[x,y+sy] = True
+        mask = search_for_saturation_edge(a, x, y, sy, 1, satdown, satlevel, mask)
+        mask = search_for_saturation_edge(a, x, y, sy, -1, satdown, satlevel, mask)
+        
+        sy += dy
+        if y+sy > a.shape[1]-1 or y+sy < 0:
+            return mask
+        if a[x,y+sy] >= localy/satdown and a[x,y+sy] < satlevel:
+            return mask
+        localy = a[x,y+sy]
+    
+
+def new_saturation_mask(a, satlevel):
+   
+    mask = np.zeros(a.shape, dtype=bool)
+    a_is_saturated = a >= satlevel
+    if not np.any(a_is_saturated):
+        return mask.astype(int)
+
+    satdown = 1.001
+    sz_x, sz_y = a.shape
+
+    for y in range (0,sz_y):
+        for x in range(0,sz_x):
+            if a_is_saturated[x,y] and not mask[x,y]:
+                mask[x,y] = True
+                mask = determine_saturation_region(a, x, y, 0, 1, satdown, satlevel, mask)
+                mask = determine_saturation_region(a, x, y, -1, -1, satdown, satlevel, mask)
+
+    return mask.astype(int)
+

@@ -58,7 +58,6 @@ def main(args):
 
     import sys, os
     from pypit import pypit
-    from pypit.scripts import qa_html
     import traceback
 
     # Import PYPIT routines

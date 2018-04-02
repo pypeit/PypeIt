@@ -17,8 +17,8 @@ from IPython import embed
 def parser(options=None):
     import argparse
 
-    parser = argparse.ArgumentParser(description="Script to setup a PYPIT run")
-    parser.add_argument("files_root", type=str, help="File path+root or .pypit filename")
+    parser = argparse.ArgumentParser(description="Script to setup a PYPIT run [v2]")
+    parser.add_argument("files_root", type=str, help="File path+root, e.g. /data/Kast/b ")
     parser.add_argument("spectrograph", type=str, help="Name of spectrograph")
     parser.add_argument("-v", "--verbosity", type=int, default=2, help="(2) Level of verbosity (0-2)")
     parser.add_argument("-d", "--develop", default=False, action='store_true', help="Turn develop debugging on")
@@ -44,38 +44,39 @@ def main(args):
     from pypit.scripts import run_pypit
     from pypit import pyputils
     from pypit.pypit import load_input
+    from pypit import armeta
     import os
     import datetime
 
-    '''
-    # Check for existing .setups file
-    setup_files = glob.glob('./{:s}*.setups'.format(args.spectrograph))
-    if len(setup_files) > 0:
-        print("Working directory already includes a .setups file")
-        for ifile in setup_files:
-            print("Remove: {:s}".format(ifile))
-        print("Then you can re-run this script")
-        sys.exit()
-    '''
+    # Check that input spectrograph is supported
+
+    if args.spectrograph not in armeta.instr_list():
+        print("-------------------------------------------------------------")
+        print("Input instrument {:s} is not supported by PYPIT".format(args.spectrograph))
+        print("Here is the list of options: ")
+        print(armeta.instr_list())
+        raise IOError("Consult the documentation for further info.")
+
+    # setup_files dir
+    outdir = args.redux_path+'/setup_files'
+    if not os.path.isdir(outdir):
+        os.mkdir(outdir)
 
     # Generate a dummy .pypit file
-    if not args.pypit_file:
-        # Name
-        date = str(datetime.date.today().strftime('%Y-%b-%d'))
-        root = args.spectrograph+'_'+date
-        pyp_file = args.redux_path+root+'.pypit'
-        # Generate
-        dfname = "{:s}*{:s}*".format(args.files_root, args.extension)
-        # parlines
-        parlines = ['run ncpus 1\n',
-                    'output overwrite True\n']
-        parlines += ["run spectrograph {:s}\n".format(args.spectrograph)]
-        parlines += ["output sorted {:s}\n".format(root)]
-        pyputils.make_pypit_file(pyp_file, args.spectrograph,
-                              [dfname], setup_script=True, parlines=parlines)
-        print("Wrote {:s}".format(pyp_file))
-    else:
-        pyp_file = args.files_root
+    date = str(datetime.date.today().strftime('%Y-%b-%d'))
+    root = args.spectrograph+'_'+date
+    pyp_file = outdir+'/'+root+'.pypit'
+    # Generate
+    dfname = "{:s}*{:s}*".format(args.files_root, args.extension)
+    # parlines
+    parlines = ['run ncpus 1\n',
+                'output overwrite True\n']
+    parlines += ["run spectrograph {:s}\n".format(args.spectrograph)]
+    parlines += ["output sorted {:s}\n".format(root)]
+    pyputils.make_pypit_file(pyp_file, args.spectrograph,
+                          [dfname], setup_script=True, parlines=parlines)
+    print("Wrote {:s}".format(pyp_file))
+
 
     # Run
     pinp = [pyp_file]
@@ -92,7 +93,7 @@ def main(args):
 
     # Read master file
     from pypit import pyputils
-    from pypit import arsort
+    from pypit import arsetup
     msgs = pyputils.get_dummy_logger()
     pyp_dict = load_input(pyp_file, msgs)
     parlines, datlines, spclines, dfnames = [pyp_dict[ii] for ii in ['par','dat','spc','dfn']]
@@ -112,7 +113,7 @@ def main(args):
             parlines[jj] = '\n'
 
     # Generate .pypit files and sub-folders
-    all_setups, all_setuplines, all_setupfiles = arsort.load_sorted(sorted_file)
+    all_setups, all_setuplines, all_setupfiles = arsetup.load_sorted(sorted_file)
     for setup, setuplines,setupfiles in zip(all_setups, all_setuplines,all_setupfiles):
         root = args.spectrograph+'_setup_'
         # Make the dir

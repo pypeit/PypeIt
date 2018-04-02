@@ -1,5 +1,6 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
+import time
 import numpy as np
 import copy
 from pypit import arqa
@@ -12,6 +13,8 @@ import matplotlib.pyplot as plt
 import scipy.interpolate as interp
 import scipy.ndimage as ndimage
 from collections import Counter
+
+from pypit.filter import BoxcarFilter
 
 # Logging
 msgs = armsgs.get_logger()
@@ -121,7 +124,16 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
                 # After pruning, there are no more peaks
                 break
             pks = wpk+2  # Shifted by 2 because of the peak finding algorithm above
-            pedges = arcytrace.find_peak_limits(smedgehist, pks)
+#            print('calling find_peak_limits')
+#            t = time.clock()
+#            _pedges = arcytrace.find_peak_limits(smedgehist, pks)
+#            print('Old find_peak_limits: {0} seconds'.format(time.clock() - t))
+#            t = time.clock()
+            pedges = new_find_peak_limits(smedgehist, pks)
+#            print('New find_peak_limits: {0} seconds'.format(time.clock() - t))
+#            assert np.sum(_pedges != pedges) == 0, \
+#                    'Difference between old and new find_peak_limits'
+
             if np.all(pedges[:, 1]-pedges[:, 0] == 0):
                 # Remaining peaks have no width
                 break
@@ -289,6 +301,7 @@ def expand_slits(slf, mstrace, det, ordcen, extord):
     # Calculate the pixel locations of th eorder edges
     pixcen = phys_to_pix(ordcen, slf._pixlocn[det - 1], 1)
     msgs.info("Expanding slit traces to slit edges")
+#    exit()
     mordwid, pordwid = arcytrace.expand_slits(mstrace, pixcen, extord.astype(np.int))
     # Fit a function for the difference between left edge and the centre trace
     ldiff_coeff, ldiff_fit = arutils.polyfitter2d(mordwid, mask=-1,
@@ -444,7 +457,7 @@ def trace_object_dict(nobj, traces, object=None, background=None, params=None, t
 def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
                  triml=None, trimr=None, sigmin=2.0, bgreg=None,
                  maskval=-999999.9, slitn=0, doqa=True,
-                 xedge=0.03, fwhm=3., tracedict=None, standard=False):
+                 xedge=0.03, tracedict=None, standard=False, debug=False):
     """ Finds objects, and traces their location on the detector
 
     Parameters
@@ -525,9 +538,58 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     rec_crmask[np.where(rec_crmask > 0.2)] = 1.0
     rec_crmask[np.where(rec_crmask <= 0.2)] = 0.0
     msgs.info("Estimating object profiles")
+    # Avoid any 0's in varframe
+    zero_var = rec_varframe == 0.
+    if np.any(zero_var):
+        rec_varframe[zero_var] = 1.
+        rec_crmask[zero_var] = 1.
     # Smooth the S/N frame
     smthby, rejhilo = tracepar['smthby'], tracepar['rejhilo']
-    rec_sigframe_bin = arcyutils.smooth_x(rec_sciframe/np.sqrt(rec_varframe), 1.0-rec_crmask, smthby, rejhilo, maskval)
+#    print('calling smooth_x')
+#    t = time.clock()
+#    _rec_sigframe_bin = arcyutils.smooth_x(rec_sciframe/np.sqrt(rec_varframe), 1.0-rec_crmask,
+#                                           smthby, rejhilo, maskval)
+#    print('Old smooth_x: {0} seconds'.format(time.clock() - t))
+    tmp = np.ma.MaskedArray(rec_sciframe/np.sqrt(rec_varframe), mask=rec_crmask.astype(bool))
+#    # TODO: Add rejection to BoxcarFilter?
+#    t = time.clock()
+    rec_sigframe_bin = BoxcarFilter(smthby).smooth(tmp.T).T
+#    print('BoxcarFilter: {0} seconds'.format(time.clock() - t))
+#    t = time.clock()
+#    rec_sigframe_bin = new_smooth_x(rec_sciframe/np.sqrt(rec_varframe), 1.0-rec_crmask, smthby,
+#                                    rejhilo, maskval)
+#    print('New smooth_x: {0} seconds'.format(time.clock() - t))
+    # TODO: BoxcarFilter and smooth_x will provide different results.
+    # Need to assess their importance.
+#    if np.sum(_rec_sigframe_bin != rec_sigframe_bin) != 0:
+#
+#        plt.plot(tmp[:,200])
+#        plt.plot(rec_sigframe_bin[:,200])
+#        plt.plot(_rec_sigframe_bin[:,200])
+#        plt.show()
+#
+#        plt.imshow( np.ma.MaskedArray(_rec_sigframe_bin, mask=rec_crmask.astype(bool)),
+#                   origin='lower', interpolation='nearest', aspect='auto')
+#        plt.colorbar()
+#        plt.show()
+#        plt.imshow(np.ma.MaskedArray(rec_sigframe_bin, mask=rec_crmask.astype(bool)),
+#                   origin='lower', interpolation='nearest', aspect='auto')
+#        plt.colorbar()
+#        plt.show()
+#        plt.imshow(np.ma.MaskedArray(_rec_sigframe_bin-rec_sigframe_bin,
+#                                     mask=rec_crmask.astype(bool)),
+#                   origin='lower', interpolation='nearest', aspect='auto')
+#        plt.colorbar()
+#        plt.show()
+#        t = np.ma.divide(_rec_sigframe_bin,rec_sigframe_bin)
+#        t[rec_crmask.astype(bool)] = np.ma.masked
+#        plt.imshow(t,
+#                   origin='lower', interpolation='nearest', aspect='auto')
+#        plt.colorbar()
+#        plt.show()
+#    assert np.sum(_rec_sigframe_bin != rec_sigframe_bin) == 0, \
+#                    'Difference between old and new smooth_x'
+
     #rec_varframe_bin = arcyutils.smooth_x(rec_varframe, 1.0-rec_crmask, smthby, rejhilo, maskval)
     #rec_sigframe_bin = np.sqrt(rec_varframe_bin/(smthby-2.0*rejhilo))
     #sigframe = rec_sciframe_bin*(1.0-rec_crmask)/rec_sigframe_bin
@@ -567,7 +629,27 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
         trcprof2 = np.mean(rec_sciframe, axis=0)
         objl, objr, bckl, bckr = find_obj_minima(trcprof2, triml=triml, trimr=trimr, nsmooth=nsmooth)
     elif settings.argflag['trace']['object']['find'] == 'standard':
-        objl, objr, bckl, bckr = arcytrace.find_objects(trcprof, bgreg, mad)
+#        print('calling find_objects')
+#        t = time.clock()
+#        _objl, _objr, _bckl, _bckr = arcytrace.find_objects(trcprof, bgreg, mad)
+#        print('Old find_objects: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
+        objl, objr, bckl, bckr = new_find_objects(trcprof, bgreg, mad)
+#        print('New find_objects: {0} seconds'.format(time.clock() - t))
+#        print('objl:', objl)
+#        print('_objl:', _objl)
+#        print('objr:', objr)
+#        print('_objr:', _objr)
+#        print(_objl.shape, objl.shape)
+#        print(_objr.shape, objr.shape)
+#        print(np.sum(_objl != objl))
+#        print(np.sum(_objr != objr))
+#        assert np.sum(_objl != objl) == 0, 'Difference between old and new find_objects, objl'
+#        assert np.sum(_objr != objr) == 0, 'Difference between old and new find_objects, objr'
+#        assert np.sum(_bckl != bckl) == 0, 'Difference between old and new find_objects, bckl'
+#        assert np.sum(_bckr != bckr) == 0, 'Difference between old and new find_objects, bckr'
+#        objl, objr, bckl, bckr = new_find_objects(trcprof, bgreg, mad)
+
     else:
         msgs.error("Bad object identification algorithm!!")
     if msgs._debug['trace_obj']:
@@ -696,6 +778,469 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
                           root="object_trace", normalize=False)
     # Return
     return tracedict
+
+
+def new_find_between(edgdet, ledgem, ledgep, dirc):
+
+    if len(edgdet.shape) != 2:
+        msgs.error('Edge pixels array must be 2D.')
+    if len(ledgem.shape) != 1 or len(ledgep.shape) !=1:
+        msgs.error('Input must be 1D.')
+
+    sz_x, sz_y = edgdet.shape
+
+    # Setup the coefficient arrays
+    edgbtwn = np.full(3, -1, dtype=int)
+
+    for x in range(0,sz_x):
+        rng = np.sort([ledgem[x],ledgep[x]])
+        if not np.any(edgdet[x,slice(*rng)] > 0):
+            continue
+        e = edgdet[x,slice(*rng)][edgdet[x,slice(*rng)] > 0]
+        if edgbtwn[0] == -1:
+            edgbtwn[0] = e[0]
+        indx = e != edgbtwn[0]
+        if edgbtwn[1] == -1 and np.any(indx):
+            edgbtwn[1] = e[indx][0]
+
+    # If no right order edges were found between these two left order
+    # edges, find the next right order edge
+    if edgbtwn[0] == -1 and edgbtwn[1] == -1:
+        for x in range(0,sz_x):
+            ystrt = np.max([ledgem[x],ledgep[x]])
+            if dirc == 1:
+                emin = np.min(edgdet[x,ystrt:][edgdet[x,ystrt:] > 0])
+                if edgbtwn[2] == -1 or emin < edgbtwn[2]:
+                    edgbtwn[2] = emin
+            else:
+                emax = np.max(edgdet[x,:ystrt+1][edgdet[x,:ystrt+1] > 0])
+                if edgbtwn[2] == -1 or emax > edgbtwn[2]:
+                    edgbtwn[2] = emax
+
+    # Now return the array
+    return edgbtwn
+
+
+def new_find_objects(profile, bgreg, stddev):
+    """
+    Find significantly detected objects in the profile array
+    For all objects found, the background regions will be defined.
+    """
+    # Input profile must be a vector
+    if len(profile.shape) != 1:
+        raise ValueError('Input profile array must be 1D.')
+    # Get the length of the array
+    sz_x = profile.size
+    # Copy it to a masked array for processing
+    # TODO: Assumes input is NOT a masked array
+    _profile = np.ma.MaskedArray(profile.copy())
+
+    # Peaks are found as having flux at > 5 sigma and background is
+    # where the flux is not greater than 3 sigma
+    gt_5_sigma = profile > 5*stddev
+    not_gt_3_sigma = np.invert(profile > 3*stddev)
+
+    # Define the object centroids array
+    objl = np.zeros(sz_x, dtype=int)
+    objr = np.zeros(sz_x, dtype=int)
+    has_obj = np.zeros(sz_x, dtype=bool)
+
+    obj = 0
+    while np.any(gt_5_sigma & np.invert(_profile.mask)):
+        # Find next maximum flux point
+        imax = np.ma.argmax(_profile)
+        # Find the valid source pixels around the peak
+        f = np.arange(sz_x)[np.roll(not_gt_3_sigma, -imax)]
+        # TODO: the ifs below feel like kludges to match old
+        # find_objects function.  In particular, should objr be treated
+        # as exclusive or inclusive?
+        objl[obj] = imax-sz_x+f[-1] if imax-sz_x+f[-1] > 0 else 1
+        objr[obj] = f[0]+imax if f[0]+imax < sz_x else sz_x-1
+#        print('object found: ', imax, f[-1], objl[obj], f[0], objr[obj], sz_x)
+        # Mask source pixels and increment for next iteration
+        has_obj[objl[obj]:objr[obj]+1] = True
+        _profile[objl[obj]:objr[obj]+1] = np.ma.masked
+        obj += 1
+
+    # The background is the region away from sources up to the provided
+    # region size.  Starting pixel for the left limit...
+    s = objl[:obj]-bgreg
+    s[s < 0] = 0
+    # ... and ending pixel for the right limit.
+    e = objr[:obj]+1+bgreg
+    e[e > sz_x] = sz_x
+    # Flag the possible background regions
+    bgl = np.zeros((sz_x,obj), dtype=bool)
+    bgr = np.zeros((sz_x,obj), dtype=bool)
+    for i in range(obj):
+        bgl[s[i]:objl[i],i] = True
+        bgr[objl[i]+1:e[i],i] = True
+
+    # Return source region limits and background regions that do not
+    # have sources
+    return objl[:obj], objr[:obj], (bgl & np.invert(has_obj)[:,None]).astype(int), \
+                    (bgr & np.invert(has_obj)[:,None]).astype(int)
+
+
+def new_find_peak_limits(hist, pks):
+    """
+    Find all values between the zeros of hist
+
+    hist and pks are expected to be 1d vectors
+    """
+    if len(hist.shape) != 1 or len(pks.shape) != 1:
+        msgs.error('Arrays provided to find_peak_limits must be vectors.')
+    # Pixel indices in hist for each peak
+    hn = np.arange(hist.shape[0])
+    indx = np.ma.MaskedArray(np.array([hn]*pks.shape[0]))
+    # Instantiate output
+    edges = np.zeros((pks.shape[0],2), dtype=int)
+    # Find the left edges
+    indx.mask = (hist != 0)[None,:] | (hn[None,:] > pks[:,None])
+    edges[:,0] = np.ma.amax(indx, axis=1)
+    # Find the right edges
+    indx.mask = (hist != 0)[None,:] | (hn[None,:] < pks[:,None])
+    edges[:,1] = np.ma.amin(indx, axis=1)
+    return edges
+
+
+def new_find_shift(mstrace, minarr, lopos, diffarr, numsrch):
+
+    sz_y = mstrace.shape[1]
+    maxcnts = -999999.9
+    shift = 0
+    d = mstrace - minarr[:,None]
+
+    for s in range(0,numsrch):
+        cnts = 0.0
+
+        ymin = lopos + s
+        ymin[ymin < 0] = 0
+        ymax = ymin + diffarr
+        ymax[ymax > sz_y] = sz_y
+
+        indx = ymax > ymin
+
+        if np.sum(indx) == 0:
+            continue
+
+        cnts = np.sum([ np.sum(t[l:h]) for t,l,h in zip(d[indx], ymin[indx], ymax[indx]) ]) \
+                    / np.sum(ymax[indx]-ymin[indx])
+        if cnts > maxcnts:
+            maxcnts = cnts
+            shift = s
+
+    return shift
+
+
+def new_ignore_orders(edgdet, fracpix, lmin, lmax, rmin, rmax):
+    """
+    .. warning::
+
+        edgdet is alted by the function.
+    """
+    sz_x, sz_y = edgdet.shape
+
+    lsize = lmax-lmin+1
+    larr = np.zeros((2,lsize), dtype=int)
+    larr[0,:] = sz_x
+
+    rsize = rmax-rmin+1
+    rarr = np.zeros((2,rsize), dtype=int)
+    rarr[0,:] = sz_x
+
+    # TODO: Can I remove the loop?  Or maybe just iterate through the
+    # smallest dimension of edgdet?
+    for x in range(sz_x):
+        indx = edgdet[x,:] < 0
+        if np.any(indx):
+            larr[0,-edgdet[x,indx]-lmin] = np.clip(larr[0,-edgdet[x,indx]-lmin], None, x)
+            larr[1,-edgdet[x,indx]-lmin] = np.clip(larr[1,-edgdet[x,indx]-lmin], x, None)
+        indx = edgdet[x,:] > 0
+        if np.any(indx):
+            rarr[0,edgdet[x,indx]-rmin] = np.clip(rarr[0,edgdet[x,indx]-rmin], None, x)
+            rarr[1,edgdet[x,indx]-rmin] = np.clip(rarr[1,edgdet[x,indx]-rmin], x, None)
+
+    # Go through the array once more to remove pixels that do not cover fracpix
+    edgdet = edgdet.ravel()
+    lt_zero = np.arange(edgdet.size)[edgdet < 0]
+    if len(lt_zero) > 0:
+        edgdet[lt_zero[larr[1,-edgdet[lt_zero]-lmin]-larr[0,-edgdet[lt_zero]-lmin] < fracpix]] = 0
+    gt_zero = np.arange(edgdet.size)[edgdet > 0]
+    if len(gt_zero) > 0:
+        edgdet[gt_zero[rarr[1,edgdet[gt_zero]-rmin]-rarr[0,edgdet[gt_zero]-rmin] < fracpix]] = 0
+    edgdet = edgdet.reshape(sz_x,sz_y)
+
+    # Check if lmin, lmax, rmin, and rmax need to be changed
+    lindx = np.arange(lsize)[larr[1,:]-larr[0,:] > fracpix]
+    lnc = lindx[0]
+    lxc = lsize-1-lindx[-1]
+
+    rindx = np.arange(rsize)[rarr[1,:]-rarr[0,:] > fracpix]
+    rnc = rindx[0]
+    rxc = rsize-1-rindx[-1]
+
+    return lnc, lxc, rnc, rxc, larr, rarr
+
+
+def new_limit_yval(yc, maxv):
+    yn = 0 if yc == 0 else (-yc if yc < 3 else -3)
+    yx = maxv-yc if yc > maxv-4 and yc < maxv else 4
+    return yn, yx
+
+
+def new_match_edges(edgdet, ednum):
+    """
+    ednum is a large dummy number used for slit edge assignment. ednum
+    should be larger than the number of edges detected
+
+    This function alters edgdet!
+    """
+    # mr is the minimum number of acceptable pixels required to form the
+    # detection of an order edge
+    mr = 5
+    mrxarr = np.zeros(mr, dtype=int)
+    mryarr = np.zeros(mr, dtype=int)
+
+    sz_x, sz_y = edgdet.shape
+
+    lcnt = 2*ednum
+    rcnt = 2*ednum
+    for y in range(sz_y):
+        for x in range(sz_x):
+            if edgdet[x,y] != -1 and edgdet[x,y] != 1:
+                continue
+
+            anyt = 0
+            left = edgdet[x,y] == -1
+
+            # Search upwards from x,y
+            xs = x + 1
+            yt = y
+            while xs <= sz_x-1:
+                xr = 10 if xs + 10 < sz_x else sz_x - xs - 1
+                yn, yx = new_limit_yval(yt, sz_y)
+
+                suc = 0
+                for s in range(xs, xs+xr):
+                    suc = 0
+                    for t in range(yt + yn, yt + yx):
+                        if edgdet[s, t] == -1 and left:
+                            edgdet[s, t] = -lcnt
+                        elif edgdet[s, t] == 1 and not left:
+                            edgdet[s, t] = rcnt
+                        else:
+                            continue
+
+                        suc = 1
+                        if anyt < mr:
+                            mrxarr[anyt] = s
+                            mryarr[anyt] = t
+                        anyt += 1
+                        yt = t
+                        break
+
+                    if suc == 1:
+                        xs = s + 1
+                        break
+                if suc == 0: # The trace is lost!
+                    break
+
+            # Search downwards from x,y
+            xs = x - 1
+            yt = y
+            while xs >= 0:
+                xr = xs if xs-10 < 0 else 10
+                yn, yx = new_limit_yval(yt, sz_y)
+
+                suc = 0
+                for s in range(0, xr):
+                    suc = 0
+                    for t in range(yt+yn, yt+yx):
+                        if edgdet[xs-s, t] == -1 and left:
+                            edgdet[xs-s, t] = -lcnt
+                        elif edgdet[xs-s, t] == 1 and not left:
+                            edgdet[xs-s, t] = rcnt
+                        else:
+                            continue
+
+                        suc = 1
+                        if anyt < mr:
+                            mrxarr[anyt] = xs-s
+                            mryarr[anyt] = t
+                        anyt += 1
+                        yt = t
+                        break
+
+                    if suc == 1:
+                        xs = xs - s - 1
+                        break
+                if suc == 0: # The trace is lost!
+                    break
+
+            if anyt > mr and left:
+                edgdet[x, y] = -lcnt
+                lcnt = lcnt + 1
+            elif anyt > mr and not left:
+                edgdet[x, y] = rcnt
+                rcnt = rcnt + 1
+            else:
+                edgdet[x, y] = 0
+                for s in range(anyt):
+                    if mrxarr[s] != 0 and mryarr[s] != 0:
+                        edgdet[mrxarr[s], mryarr[s]] = 0
+    return lcnt-2*ednum, rcnt-2*ednum
+
+
+def new_mean_weight(array, weight, rejhilo, maskval):
+    _a = array if rejhilo == 0 else np.sort(array)
+    sumw = np.sum(weight[rejhilo:-rejhilo])
+    sumwa = np.sum(weight[rejhilo:-rejhilo]*_a[rejhilo:-rejhilo])
+    return maskval if sumw == 0.0 else sumwa/sumw
+
+
+def new_minbetween(mstrace, loord, hiord):
+    # TODO: Check shapes
+    ymin = np.clip(loord, 0, mstrace.shape[1])
+    ymax = np.clip(hiord, 0, mstrace.shape[1])
+    minarr = np.zeros(mstrace.shape[0])
+    indx = ymax > ymin
+    minarr[indx] = np.array([ np.amin(t[l:h]) 
+                                for t,l,h in zip(mstrace[indx], ymin[indx], ymax[indx]) ])
+    return minarr
+
+
+def new_phys_to_pix(array, diff):
+    if len(array.shape) > 2:
+        msgs.error('Input array must have two dimensions or less!')
+    if len(diff.shape) != 1:
+        msgs.error('Input difference array must be 1D!')
+    _array = np.atleast_2d(array)
+    doravel = len(array.shape) != 2
+    pix = np.argmin(np.absolute(_array[:,:,None] - diff[None,None,:]), axis=2)
+    return pix.ravel() if doravel else pix
+
+    sz_a, sz_n = _array.shape
+    sz_d = diff.size
+
+    pix = np.zeros((sz_a,sz_n), dtype=int)
+    for n in range(0,sz_n):
+        for a in range(0,sz_a):
+            mind = 0
+            mindv = _array[a,n]-diff[0]
+
+            for d in range(1,sz_d):
+                test = _array[a,n]-diff[d]
+                if test < 0.0: test *= -1.0
+                if test < mindv:
+                    mindv = test
+                    mind = d
+                if _array[a,n]-diff[d] < 0.0: break
+            pix[a,n] = mind
+    return pix.ravel() if doravel else pix
+
+# Weighted boxcar smooothing with rejection
+def new_smooth_x(array, weight, fact, rejhilo, maskval):
+    hf = fact // 2
+
+    sz_x, sz_y = array.shape
+
+    smtarr = np.zeros((sz_x,sz_y), dtype=float)
+    medarr = np.zeros((fact+1), dtype=float)
+    wgtarr = np.zeros((fact+1), dtype=float)
+
+    for y in range(sz_y):
+        for x in range(sz_x):
+            for b in range(fact+1):
+                if (x+b-hf < 0) or (x+b-hf >= sz_x):
+                    wgtarr[b] = 0.0
+                else:
+                    medarr[b] = array[x+b-hf,y]
+                    wgtarr[b] = weight[x+b-hf,y]
+            smtarr[x,y] = new_mean_weight(medarr, wgtarr, rejhilo, maskval)
+    return smtarr
+
+
+def new_tilts_image(tilts, lordloc, rordloc, pad, sz_y):
+    """
+    Using the tilt (assumed to be fit with a first order polynomial)
+    generate an image of the tilts for each slit.
+
+    Parameters
+    ----------
+    tilts : ndarray
+      An (m x n) 2D array specifying the tilt (i.e. gradient) at each
+      pixel along the spectral direction (m) for each slit (n).
+    lordloc : ndarray
+      Location of the left slit edges
+    rordloc : ndarray
+      Location of the right slit edges
+    pad : int
+      Set the tilts within each slit, and extend a number of pixels
+      outside the slit edges (this number is set by pad).
+    sz_y : int
+      Number of detector pixels in the spatial direction.
+
+    Returns
+    -------
+    tiltsimg : ndarray
+      An image the same size as the science frame, containing values from 0-1.
+      0/1 corresponds to the bottom/top of the detector (in the spectral direction),
+      and constant wavelength is represented by a single value from 0-1.
+
+    """
+    sz_x, sz_o = tilts.shape
+    dszx = (sz_x-1.0)
+
+    tiltsimg = np.zeros((sz_x,sz_y), dtype=float)
+    for o in range(sz_o):
+        for x in range(sz_x):
+            ow = (rordloc[x,o]-lordloc[x,o])/2.0
+            oc = (rordloc[x,o]+lordloc[x,o])/2.0
+            ymin = int(oc-ow) - pad
+            ymax = int(oc+ow) + 1 + pad
+            # Check we are in bounds
+            if ymin < 0:
+                ymin = 0
+            elif ymax < 0:
+                continue
+            if ymax > sz_y-1:
+                ymax = sz_y-1
+            elif ymin > sz_y-1:
+                continue
+            # Set the tilt value at each pixel in this row
+            for y in range(ymin, ymax):
+                yv = (y-lordloc[x, o])/ow - 1.0
+                tiltsimg[x,y] = (tilts[x,o]*yv + x)/dszx
+    return tiltsimg
+    
+
+    sz_x, sz_o = tilts.shape
+    dszx = (sz_x-1.0)
+
+    ow = (rordloc-lordloc)/2.0
+    oc = (rordloc+lordloc)/2.0
+    
+    ymin = (oc-ow).astype(int) - pad
+    ymax = (oc+ow).astype(int) + 1 + pad
+
+    indx = (ymax >= 0) & (ymin < sz_y)
+    ymin[ymin < 0] = 0
+    ymax[ymax > sz_y-1] = sz_y-1
+
+    tiltsimg = np.zeros((sz_x,sz_y), dtype=float)
+
+    xv = np.arange(sz_x).astype(int)
+    for o in range(sz_o):
+        if np.sum(indx[:,o]) == 0:
+            continue
+        for x in xv[indx[:,o]]:
+            # Set the tilt value at each pixel in this row
+            for y in range(ymin[x,o], ymax[x,o]):
+                yv = (y-lordloc[x,o])/ow[x,o] - 1.0
+                tiltsimg[x,y] = (tilts[x,o]*yv + x)/dszx
+
+    return tiltsimg
 
 
 def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
@@ -849,10 +1394,25 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
             edgearr = np.copy(nedgear)
 
     # Assign a number to each of the edges
-    msgs.info("Matching slit edges")
-#    from IPython import embed
-#    embed()
-    lcnt, rcnt = arcytrace.match_edges(edgearr, ednum)
+#    _edgearr = edgearr.copy()
+#    t = time.clock()
+#    _lcnt, _rcnt = arcytrace.match_edges(_edgearr, ednum)
+#    print('Old match_edges: {0} seconds'.format(time.clock() - t))
+    __edgearr = edgearr.copy()
+#    t = time.clock()
+    lcnt, rcnt = new_match_edges(__edgearr, ednum)
+#    print('New match_edges: {0} seconds'.format(time.clock() - t))
+#    print(lcnt, _lcnt, rcnt, _rcnt)
+#    print(np.sum(__edgearr != _edgearr))
+#    plt.imshow(_edgearr, origin='lower', interpolation='nearest', aspect='auto')
+#    plt.show()
+#    plt.imshow(__edgearr, origin='lower', interpolation='nearest', aspect='auto')
+#    plt.show()
+#    assert np.sum(_lcnt != lcnt) == 0, 'Difference between old and new match_edges, lcnt'
+#    assert np.sum(_rcnt != rcnt) == 0, 'Difference between old and new match_edges, rcnt'
+#    assert np.sum(__edgearr != _edgearr) == 0, 'Difference between old and new match_edges, edgearr'
+    edgearr = __edgearr
+
     if lcnt >= ednum or rcnt >= ednum:
         msgs.error("Found more edges than allowed by ednum. Set ednum to a larger number.")
     if lcnt == 1:
@@ -911,6 +1471,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         assign_slits(binarr, edgearrcp, lor=+1)
     if settings.argflag['trace']['slits']['maxgap'] is not None:
         vals = np.sort(np.unique(edgearrcp[np.where(edgearrcp != 0)]))
+#        print('calling close_edges')
+#        exit()
         hasedge = arcytrace.close_edges(edgearrcp, vals, int(settings.argflag['trace']['slits']['maxgap']))
         # Find all duplicate edges
         edgedup = vals[np.where(hasedge == 1)]
@@ -995,10 +1557,14 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
                 wvla = np.unique(edgearr[wdup][wdda])
                 wvlb = np.unique(edgearr[wdup][wddb])
                 # Now generate the dual edge
+#                print('calling dual_edge')
+#                exit()
                 arcytrace.dual_edge(edgearr, edgearrcp, wdup[0], wdup[1], wvla, wvlb, shadj,
                                     int(settings.argflag['trace']['slits']['maxgap']), edgedup[jj])
         # Now introduce new edge locations
         vals = np.sort(np.unique(edgearrcp[np.where(edgearrcp != 0)]))
+#        print('calling close_slits')
+#        exit()
         edgearrcp = arcytrace.close_slits(binarr, edgearrcp, vals, int(settings.argflag['trace']['slits']['maxgap']))
     # Update edgearr
     edgearr = edgearrcp.copy()
@@ -1061,8 +1627,26 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         #msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings.argflag['trace']['slits']['fracignore'], int(edgearr.shape[0]*binby)))
         msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings.argflag['trace']['slits']['fracignore'], int(edgearr.shape[0])))
         fracpix = int(settings.argflag['trace']['slits']['fracignore']*edgearr.shape[0])
-        #debugger.set_trace()
-        lnc, lxc, rnc, rxc, ldarr, rdarr = arcytrace.ignore_orders(edgearr, fracpix, lmin, lmax, rmin, rmax)
+#        print('calling ignore_orders')
+#        t = time.clock()
+#        _edgearr = edgearr.copy()
+#        _lnc, _lxc, _rnc, _rxc, _ldarr, _rdarr = arcytrace.ignore_orders(_edgearr, fracpix, lmin, lmax, rmin, rmax)
+#        print('Old ignore_orders: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
+        __edgearr = edgearr.copy()
+        lnc, lxc, rnc, rxc, ldarr, rdarr = new_ignore_orders(__edgearr, fracpix, lmin, lmax, rmin,
+                                                             rmax)
+#        print('New ignore_orders: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_lnc != lnc) == 0, 'Difference between old and new ignore_orders, lnc'
+#        assert np.sum(_lxc != lxc) == 0, 'Difference between old and new ignore_orders, lxc'
+#        assert np.sum(_rnc != rnc) == 0, 'Difference between old and new ignore_orders, rnc'
+#        assert np.sum(_rxc != rxc) == 0, 'Difference between old and new ignore_orders, rxc'
+#        assert np.sum(_ldarr != ldarr) == 0, 'Difference between old and new ignore_orders, ldarr'
+#        assert np.sum(_rdarr != rdarr) == 0, 'Difference between old and new ignore_orders, rdarr'
+#        assert np.sum(__edgearr != _edgearr) == 0, 'Difference between old and new ignore_orders, edgearr'
+
+        edgearr = __edgearr
+
         lmin += lnc
         rmin += rnc
         lmax -= lxc
@@ -1205,7 +1789,14 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     if mnvalp > mnvalm:
         lvp = (arutils.func_val(lcoeff[:, lval+1-lmin], xv, settings.argflag['trace']['slits']['function'],
                                 minv=minvf, maxv=maxvf)+0.5).astype(np.int)
-        edgbtwn = arcytrace.find_between(edgearr, lv, lvp, 1)
+#        t = time.clock()
+#        _edgbtwn = arcytrace.find_between(edgearr, lv, lvp, 1)
+#        print('Old find_between: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
+        edgbtwn = new_find_between(edgearr, lv, lvp, 1)
+#        print('New find_between: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_edgbtwn != edgbtwn) == 0, 'Difference between old and new find_between'
+
         # edgbtwn is a 3 element array that determines what is between two adjacent left edges
         # edgbtwn[0] is the next right order along, from left order lval
         # edgbtwn[1] is only !=-1 when there's an order overlap.
@@ -1219,7 +1810,14 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     else:
         lvp = (arutils.func_val(lcoeff[:, lval-1-lmin], xv, settings.argflag['trace']['slits']['function'],
                                 minv=minvf, maxv=maxvf)+0.5).astype(np.int)
-        edgbtwn = arcytrace.find_between(edgearr, lvp, lv, -1)
+#        t = time.clock()
+#        _edgbtwn = arcytrace.find_between(edgearr, lvp, lv, -1)
+#        print('Old find_between: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
+        edgbtwn = new_find_between(edgearr, lvp, lv, -1)
+#        assert np.sum(_edgbtwn != edgbtwn) == 0, 'Difference between old and new find_between'
+#        print('New find_between: {0} seconds'.format(time.clock() - t))
+
         if edgbtwn[0] == -1 and edgbtwn[1] == -1:
             rsub = edgbtwn[2]-(lval-1)  # There's an order overlap
         elif edgbtwn[1] == -1:  # No overlap
@@ -1535,14 +2133,37 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
         loord = hiord
         hiord = nxord
         nxord = phys_to_pix(extrap_cent[:,-i], locations, 1)
-        minarrL = arcytrace.minbetween(binarr, loord, hiord)  # Minimum counts between loord and hiord
-        minarrR = arcytrace.minbetween(binarr, hiord, nxord)
+
+        # Minimum counts between loord and hiord
+#        print('calling minbetween')
+#        t = time.clock()
+#        _minarrL = arcytrace.minbetween(binarr, loord, hiord)
+#        _minarrR = arcytrace.minbetween(binarr, hiord, nxord)
+#        print('Old minbetween: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
+        minarrL = new_minbetween(binarr, loord, hiord)
+        minarrR = new_minbetween(binarr, hiord, nxord)
+#        print('New minbetween: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_minarrL != minarrL) == 0, \
+#                'Difference between old and new minbetween, minarrL'
+#        assert np.sum(_minarrR != minarrR) == 0, \
+#                'Difference between old and new minbetween, minarrR'
+
         minarr = 0.5*(minarrL+minarrR)
         srchz = np.abs(extfit[:,-i]-extfit[:,-i-1])/3.0
         lopos = phys_to_pix(extfit[:,-i]-srchz, locations, 1)  # The pixel indices for the bottom of the search window
         numsrch = np.int(np.max(np.round(2.0*srchz-extrap_diff[:,-i])))
         diffarr = np.round(extrap_diff[:,-i]).astype(np.int)
-        shift = arcytrace.find_shift(binarr, minarr, lopos, diffarr, numsrch)
+
+#        print('calling find_shift')
+#        t = time.clock()
+#        _shift = arcytrace.find_shift(binarr, minarr, lopos, diffarr, numsrch)
+#        print('Old find_shift: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
+        shift = new_find_shift(binarr, minarr, lopos, diffarr, numsrch)
+#        print('New find_shift: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_shift != shift) == 0, 'Difference between old and new find_shift, shift'
+
         relshift = np.mean(shift+extrap_diff[:,-i]/2-srchz)
         if shift == -1:
             msgs.info("  Refining order {0:d}: NO relative shift applied".format(int(orders[-i])))
@@ -1564,12 +2185,30 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
     while i > 0:
         hiord = loord
         loord = phys_to_pix(extfit[:,i], locations, 1)
-        minarr = arcytrace.minbetween(binarr,loord, hiord)
+
+#        print('calling minbetween')
+#        t = time.clock()
+#        _minarr = arcytrace.minbetween(binarr,loord, hiord)
+#        print('Old minbetween: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
+        minarr = new_minbetween(binarr,loord, hiord)
+#        print('New minbetween: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_minarr != minarr) == 0, 'Difference between old and new minbetween, minarr'
+
         srchz = np.abs(extfit[:,i]-extfit[:,i-1])/3.0
         lopos = phys_to_pix(extfit[:,i-1]-srchz, locations, 1)
         numsrch = np.int(np.max(np.round(2.0*srchz-extrap_diff[:,i-1])))
         diffarr = np.round(extrap_diff[:,i-1]).astype(np.int)
-        shift = arcytrace.find_shift(binarr, minarr, lopos, diffarr, numsrch)
+
+#        print('calling find_shift')
+#        t = time.clock()
+#        _shift = arcytrace.find_shift(binarr, minarr, lopos, diffarr, numsrch)
+#        print('Old find_shift: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
+        shift = new_find_shift(binarr, minarr, lopos, diffarr, numsrch)
+#        print('New find_shift: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_shift != shift) == 0, 'Difference between old and new find_shift, shift'
+
         relshift = np.mean(shift+extrap_diff[:,i-1]/2-srchz)
         if shift == -1:
             msgs.info("  Refining order {0:d}: NO relative shift applied".format(int(orders[i-1])))
@@ -2170,8 +2809,17 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
             tilts = np.zeros_like(slf._lordloc)
 
     # Generate tilts image
-    tiltsimg = arcytrace.tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1],
-                                     settings.argflag['trace']['slits']['pad'], msarc.shape[1])
+#    print('calling tilts_image')
+#    t = time.clock()
+#    _tiltsimg = arcytrace.tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1],
+#                                     settings.argflag['trace']['slits']['pad'], msarc.shape[1])
+#    print('Old tilts_image: {0} seconds'.format(time.clock() - t))
+#    t = time.clock()
+    tiltsimg = new_tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1],
+                                settings.argflag['trace']['slits']['pad'], msarc.shape[1])
+#    print('New tilts_image: {0} seconds'.format(time.clock() - t))
+#    assert np.sum(_tiltsimg != tiltsimg) == 0, 'Difference between old and new tilts_image'
+
     return tiltsimg, satmask, outpar
 
 
@@ -2513,8 +3161,40 @@ def get_censpec(slf, frame, det, gen_satmask=False):
     ordwid = 0.5*np.abs(slf._lordloc[det-1]-slf._rordloc[det-1])
     if gen_satmask:
         msgs.info("Generating a mask of arc line saturation streaks")
-        satmask = arcyarc.saturation_mask(frame, settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])
-        satsnd = arcyarc.order_saturation(satmask, (ordcen+0.5).astype(np.int), (ordwid+0.5).astype(np.int))
+#        t = time.clock()
+#        _satmask = arcyarc.saturation_mask(frame,
+#                            settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])
+#        print('Old saturation_mask: {0} seconds'.format(time.clock() - t))
+        satmask = ararc.new_saturation_mask(frame,
+                            settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])
+#        print('New saturation_mask: {0} seconds'.format(time.clock() - t))
+#        # Allow for minor differences
+#        if np.sum(_satmask != satmask) > 0.1*np.prod(satmask.shape):
+#            plt.imshow(_satmask, origin='lower', interpolation='nearest', aspect='auto')
+#            plt.colorbar()
+#            plt.show()
+#            plt.imshow(satmask, origin='lower', interpolation='nearest', aspect='auto')
+#            plt.colorbar()
+#            plt.show()
+#            plt.imshow(_satmask-satmask, origin='lower', interpolation='nearest', aspect='auto')
+#            plt.colorbar()
+#            plt.show()
+#
+#        assert np.sum(_satmask != satmask) < 0.1*np.prod(satmask.shape), \
+#                    'Old and new saturation_mask are too different'
+
+#        print('calling order saturation')
+#        t = time.clock()
+#        _satsnd = arcyarc.order_saturation(satmask, (ordcen+0.5).astype(int),
+#                                          (ordwid+0.5).astype(int))
+#        print('Old order_saturation: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
+        satsnd = ararc.new_order_saturation(satmask, (ordcen+0.5).astype(int),
+                                             (ordwid+0.5).astype(int))
+#        print('New order_saturation: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_satsnd != satsnd) == 0, \
+#                    'Difference between old and new order_saturation, satsnd'
+
     # Extract a rough spectrum of the arc in each slit
     msgs.info("Extracting an approximate arc spectrum at the centre of each slit")
     tordcen = None
@@ -2635,14 +3315,18 @@ def phys_to_pix(array, pixlocn, axis):
     """
     from pypit import arcytrace
 
-    if axis == 0:
-        diff = pixlocn[:,0,0]
-    else:
-        diff = pixlocn[0,:,1]
-    if len(np.shape(array)) == 1:
-        pixarr = arcytrace.phys_to_pix(np.array([array]).T, diff).flatten()
-    else:
-        pixarr = arcytrace.phys_to_pix(array, diff)
+    diff = pixlocn[:,0,0] if axis == 0 else pixlocn[0,:,1]
+
+#    print('calling phys_to_pix')
+#    t = time.clock()
+#    _pixarr = arcytrace.phys_to_pix(np.array([array]).T, diff).flatten() \
+#                if len(np.shape(array)) == 1 else arcytrace.phys_to_pix(array, diff)
+#    print('Old phys_to_pix: {0} seconds'.format(time.clock() - t))
+#    t = time.clock()
+    pixarr = new_phys_to_pix(array, diff)
+#    print('New phys_to_pix: {0} seconds'.format(time.clock() - t))
+#    assert np.sum(_pixarr != pixarr) == 0, 'Difference between old and new phys_to_pix, pixarr'
+
     return pixarr
 
 
@@ -2745,7 +3429,7 @@ def slit_image(slf, det, scitrace, obj, tilts=None):
 
 def find_obj_minima(trcprof, fwhm=3., nsmooth=3, nfind=8, xedge=0.03,
         sig_thresh=5., peakthresh=None, triml=2, trimr=2, debug=False):
-    ''' Find objects using a ported version of nminima from IDL (idlutils) 
+    ''' Find objects using a ported version of nminima from IDL (idlutils)
     
     Parameters
     ----------

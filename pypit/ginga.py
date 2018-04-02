@@ -99,19 +99,19 @@ def show_image(inp, chname='Image', wcs_img=None, **kwargs):
     return viewer, ch
 
 
-def show_slits(viewer, ch, lordloc, rordloc, slit_ids):
+def show_slits(viewer, ch, lordloc, rordloc, slit_ids, rotate=False, pstep=1):
     """ Overplot slits on image in Ginga
     Parameters
     ----------
     viewer
     ch
-    lordloc
-    rordloc
+    lordloc : ndarray
+    rordloc : ndarray
     slit_ids : list of int
-
-    Returns
-    -------
-
+    rotate : bool, optional
+      Allow for a rotated image
+    pstep : int
+      Show every pstep point of the edges
     """
     # Canvas
     canvas = viewer.canvas(ch._chname)
@@ -122,29 +122,45 @@ def show_slits(viewer, ch, lordloc, rordloc, slit_ids):
     tthrd = int(2*lordloc.shape[0]/3.)
     # Loop on slits
     for slit in range(lordloc.shape[1]):
-        # Left
-        points = list(zip(lordloc[:,slit].tolist(),y))
-        canvas.add('path', points, color='cyan')
-        # Right
-        points = list(zip(rordloc[:,slit].tolist(),y))
-        canvas.add('path', points, color='cyan')
+        # Edges
+        for item in [lordloc, rordloc]:
+            if rotate:
+                points = list(zip(y[::pstep],item[::pstep,slit].tolist()))
+            else:
+                points = list(zip(item[::pstep,slit].tolist(),y[::pstep]))
+            canvas.add(str('path'), points, color=str('cyan'))
         # Text -- Should use the 'real' name
-        canvas.add('text', float(lordloc[tthrd,slit]), float(y[tthrd]),
-                   'S{:d}'.format(slit_ids[slit]), color='cyan')
+        if rotate:
+            xt, yt = float(y[tthrd]), float(lordloc[tthrd,slit])
+        else:
+            xt, yt = float(lordloc[tthrd,slit]), float(y[tthrd])
+        canvas.add(str('text'), xt, yt, str('S{:d}'.format(slit_ids[slit])), color=str('cyan'))
 
-def show_trace(viewer, ch, trace, trc_name, color='blue', clear=False):
+def show_trace(viewer, ch, trace, trc_name, color='blue', clear=False,
+               rotate=False, pstep=1):
+    """
+    rotate : bool, optional
+      Allow for a rotated image
+    pstep : int
+      Show every pstep point of the edges
+    """
     # Canvas
     canvas = viewer.canvas(ch._chname)
     if clear:
         canvas.clear()
     # Show
-    y = (np.arange(trace.size)).tolist()
-    points = list(zip(trace.tolist(),y))
-    canvas.add('path', points, color=color)
+    y = (np.arange(trace.size)[::pstep]).tolist()
+    xy = [trace[::pstep].tolist(), y]
+    if rotate:
+        xy[0], xy[1] = xy[1], xy[0]
+    points = list(zip(xy[0], xy[1]))
+    canvas.add(str('path'), points, color=str(color))
     # Text
-    ohf = trace.size // 2
-    canvas.add('text', float(trace[ohf]), float(y[ohf]), trc_name,
-               rot_deg=90., color=color, fontsize=17.)
+    ohf = trace.size // (2*pstep)
+    xyt = [float(trace[ohf]), float(y[ohf])]
+    if rotate:
+        xyt[0], xyt[1] = xyt[1], xyt[0]
+    canvas.add(str('text'), xyt[0], xyt[1], trc_name, rot_deg=90., color=str(color), fontsize=17.)
 
 def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0.):
     """  Display arc image and overlay the arcline tilt measurements

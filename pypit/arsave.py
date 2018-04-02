@@ -427,6 +427,7 @@ def save_1d_spectra_fits(slf, fitsdict, standard=False, clobber=True, outfile=No
 
     Returns
     -------
+    outfile : str
     """
     # Primary hdu
     prihdu = pyfits.PrimaryHDU()
@@ -509,6 +510,7 @@ def save_1d_spectra_fits(slf, fitsdict, standard=False, clobber=True, outfile=No
     if outfile is None:
         outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename)
     hdulist.writeto(outfile, overwrite=clobber)
+    return outfile
 
 
 

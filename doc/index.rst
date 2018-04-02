@@ -55,6 +55,7 @@ Calibrations
 
    calibrations
    bias
+   flatfielding
    tracing
    wave_calib
    fluxing
@@ -78,6 +79,7 @@ Documentation
    flexure
    frametype
    inst_settings
+   internals
 
 Other
 +++++
@@ -86,6 +88,7 @@ Other
    :maxdepth: 1
 
    scripts
+   flow
    api
 
 

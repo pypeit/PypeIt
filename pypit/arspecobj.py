@@ -65,18 +65,22 @@ class SpecObjExp(object):
         self.slitid = int(np.round(self.slitcen*1e4))
         self.objid = int(np.round(xobj*1e3))
 
-        # Generate a unique index for this exposure
-        #self.idx = '{:02d}'.format(self.setup)
-        self.idx = 'O{:03d}'.format(self.objid)
-        self.idx += '-S{:04d}'.format(self.slitid)
-        sdet = settings.get_dnum(det, prefix=False)
-        self.idx += '-D{:s}'.format(sdet)
-        self.idx += '-I{:04d}'.format(self.scidx)
+        # Set index
+        self.set_idx()
 
         # Items that are generally filled
         self.boxcar = {}   # Boxcar extraction 'wave', 'counts', 'var', 'sky', 'mask', 'flam', 'flam_var'
         self.optimal = {}  # Optimal extraction 'wave', 'counts', 'var', 'sky', 'mask', 'flam', 'flam_var'
         #
+
+    def set_idx(self):
+        # Generate a unique index for this exposure
+        #self.idx = '{:02d}'.format(self.setup)
+        self.idx = 'O{:03d}'.format(self.objid)
+        self.idx += '-S{:04d}'.format(self.slitid)
+        sdet = settings.get_dnum(self.det, prefix=False)
+        self.idx += '-D{:s}'.format(sdet)
+        self.idx += '-I{:04d}'.format(self.scidx)
 
     def check_trace(self, trace, toler=1.):
         """Check that the input trace matches the defined specobjexp
@@ -109,7 +113,7 @@ class SpecObjExp(object):
 
 
 def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
-    """Generate a list of SpecObjExp objects for a given exposure
+    """ Generate a list of SpecObjExp objects for a given exposure
 
     Parameters
     ----------
@@ -140,6 +144,7 @@ def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
         # Object traces
         if trc_img[sl]['nobj'] != 0:
             # Loop on objects
+            #for qq in range(trc_img[sl]['nobj']):
             for qq in range(trc_img[sl]['traces'].shape[1]):
                 slitid, slitcen, xslit = get_slitid(slf, det, sl, ypos=ypos)
                 # xobj
