@@ -97,6 +97,7 @@ trace slits pca extrapolate neg     0             # How many extra orders to pre
 trace slits polyorder  3             # What is the order of the function that should be used?
 trace slits sigdetect  20.0           # Sigma detection threshold for edge detection
 trace slits single []                # Pixel location(s) of left and right edges of trace [left_det01, right_det01], or [[left_det01,right_det01,left_det02,right_det02]]
+trace slits sobel mode nearest       # Filtering mode for Sobel (options are: nearest, constant)
 trace slits tilts idsonly False       # Use only the arc lines that have an identified wavelength to trace tilts
 trace slits tilts method      spline        # What method should be used to trace the tilt of the slit along an order (PCA, spca, spline, interp, perp, zero)
 trace slits tilts params    [1,1,0]       # What order polynomials should be used to fit the tilt principle components

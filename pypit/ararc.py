@@ -283,7 +283,7 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['wvmnx'][1] = 7000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-    elif sname=='deimos':
+    elif sname=='keck_deimos':
         gratepos = fitsdict['headers'][idx[0]][0]['GRATEPOS']
         if(gratepos==3):
             arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['G3TLTWAV']

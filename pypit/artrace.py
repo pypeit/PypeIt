@@ -371,6 +371,7 @@ def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=No
     msgs.info("Creating an image weighted by object pixels")
     rec_obj_img = np.zeros((sciframe.shape[0], sciframe.shape[1], nobj))
     for o in range(nobj):
+        msgs.info("obj {:d}".format(o))
         obj = np.zeros(npix)
         obj[objreg[0][o]:objreg[1][o]+1] = 1
         scitmp = np.append(0.0, np.append(obj, 0.0))
@@ -392,6 +393,7 @@ def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=No
     msgs.info("Creating an image weighted by background pixels")
     rec_bg_img = np.zeros((sciframe.shape[0], sciframe.shape[1], nobj))
     for o in range(nobj):
+        msgs.info("bkg {:d}".format(o))
         backtmp = np.append(0.0, np.append(bgreg[0][:, o] + bgreg[1][:, o], 0.0))
         bckframe = backtmp.reshape(1, -1).repeat(sciframe.shape[0], axis=0)
         bckspl = interp.RectBivariateSpline(xint, yint, bckframe, bbox=[0.0, 1.0, yint.min(), yint.max()], kx=1, ky=1, s=0)
@@ -1328,9 +1330,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         sqmstrace[(sqmstrace < 1.0) & (sqmstrace >= 0.0)] = 1.0
         sqmstrace[(sqmstrace > -1.0) & (sqmstrace <= 0.0)] = -1.0
         # Apply a Sobel filter
-        #filt = ndimage.sobel(sqmstrace, axis=1, mode='nearest')
-        filt = ndimage.sobel(sqmstrace, axis=1, mode='constant')
-        # changed by JFH 09/13 this fixes a bug where slits that run off a detector were not getting identified
+        filt = ndimage.sobel(sqmstrace, axis=1, mode=settings.argflag['trace']['slits']['sobel']['mode'])
         msgs.info("Applying bad pixel mask")
         filt *= (1.0 - binbpx)  # Apply to the bad pixel mask
         siglev = np.sign(filt)*(filt**2)/np.maximum(sqmstrace, min_sqm)
@@ -1339,15 +1339,16 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         wr = np.where(siglev < -settings.argflag['trace']['slits']['sigdetect'])  # A negative gradient is a right edge
         tedges[wl] = -1.0
         tedges[wr] = +1.0
-        import astropy.io.fits as pyfits
-        hdu = pyfits.PrimaryHDU(filt)
-        hdu.writeto("filt_{0:02d}.fits".format(det), overwrite=True)
-        hdu = pyfits.PrimaryHDU(sqmstrace)
-        hdu.writeto("sqmstrace_{0:02d}.fits".format(det), overwrite=True)
-        hdu = pyfits.PrimaryHDU(binarr)
-        hdu.writeto("binarr_{0:02d}.fits".format(det), overwrite=True)
-        hdu = pyfits.PrimaryHDU(siglev)
-        hdu.writeto("siglev_{0:02d}.fits".format(det), overwrite=True)
+        if False:
+            import astropy.io.fits as pyfits
+            hdu = pyfits.PrimaryHDU(filt)
+            hdu.writeto("filt_{0:02d}.fits".format(det), overwrite=True)
+            hdu = pyfits.PrimaryHDU(sqmstrace)
+            hdu.writeto("sqmstrace_{0:02d}.fits".format(det), overwrite=True)
+            hdu = pyfits.PrimaryHDU(binarr)
+            hdu.writeto("binarr_{0:02d}.fits".format(det), overwrite=True)
+            hdu = pyfits.PrimaryHDU(siglev)
+            hdu.writeto("siglev_{0:02d}.fits".format(det), overwrite=True)
         # Clean the edges
         wcl = np.where((ndimage.maximum_filter1d(siglev, 10, axis=1) == siglev) & (tedges == -1))
         wcr = np.where((ndimage.minimum_filter1d(siglev, 10, axis=1) == siglev) & (tedges == +1))

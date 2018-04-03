@@ -2006,6 +2006,18 @@ class BaseArgFlag(BaseFunctions):
         v = key_list(v)
         self.update(v)
 
+    def trace_slits_sobel_mode(self, v):
+        """ Mode for Sobel filtering
+        Default should be 'nearest' but JFH
+        reports 'constant' works best for DEIMOS
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        self.update(v)
+
     def trace_slits_tilts_idsonly(self, v):
         """ Use only the arc lines that have an identified wavelength
         to trace the spectral tilt
