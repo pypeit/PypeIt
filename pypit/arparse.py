@@ -12,9 +12,10 @@ from glob import glob
 
 # Logging
 from pypit import ardebug
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 debug = ardebug.init()
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 # Initialize the settings variables
 argflag, spect = None, None

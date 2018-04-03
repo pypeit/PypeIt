@@ -1,15 +1,19 @@
 # Module to run tests on ararclines
-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 import os
 import numpy as np
 import pytest
 
-from pypit import pyputils
-msgs = pyputils.get_dummy_logger()
+#from pypit import pyputils
+#msgs = pyputils.get_dummy_logger()
+from pypit import ararc
+from pypit import arutils
+
 from pypit import arparse as settings
-from pypit import ararc as pyarc
-from pypit import arutils as arut
 
 
 #def data_path(filename):
@@ -24,15 +28,15 @@ def test_setup_param():
 
     """
     # Initialize some settings
-    arut.dummy_settings()
+    arutils.dummy_settings()
     # Load Dummy self
-    slf = arut.dummy_self()
+    slf = arutils.dummy_self()
     settings.argflag['run']['spectrograph'] = 'shane_kast_blue'
     settings.spect['arc'] = {}
     settings.spect['arc']['index'] = [[0]]
-    fitsdict = arut.dummy_fitsdict()
+    fitsdict = arutils.dummy_fitsdict()
     # Run
-    arcparm = pyarc.setup_param(slf, 0, 1, fitsdict)
+    arcparm = ararc.setup_param(slf, 0, 1, fitsdict)
     for key in ['llist','disp','wvmnx']:
         assert key in arcparm
 
@@ -43,10 +47,10 @@ def test_detect_lines():
         return
     from linetools.spectra import xspectrum1d
     import pypit
-    slf = arut.dummy_self()
+    slf = arutils.dummy_self()
     det = 1
     # Using Paranal night sky as an 'arc'
     arx_sky = xspectrum1d.XSpectrum1D.from_file(pypit.__path__[0]+'/data/sky_spec/paranal_sky.fits')
-    arx_amp, arx_cent, arx_wid, arx_w, arx_satsnd, arx_yprep = pyarc.detect_lines(slf, det, msarc=None, censpec=arx_sky.flux.value, MK_SATMASK=False)
+    arx_amp, arx_cent, arx_wid, arx_w, arx_satsnd, arx_yprep = ararc.detect_lines(slf, det, msarc=None, censpec=arx_sky.flux.value, MK_SATMASK=False)
     # Test
     assert len(arx_w[0]) == 1767

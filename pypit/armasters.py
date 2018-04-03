@@ -1,7 +1,8 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import numpy as np
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import arload
 from pypit import arparse as settings
 from pypit import arsave
@@ -13,7 +14,7 @@ except NameError:  # For Python 3
     basestring = str
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 from pypit import ardebug as debugger
 
