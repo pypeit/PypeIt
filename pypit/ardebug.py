@@ -6,6 +6,9 @@ import numpy as np
 # These need to be outside of the def's
 from pypit.ginga import show_image
 from pypit.ginga import chk_arc_tilts
+# Moved to the top and changed to only import set_trace
+#from pdb import *
+from pdb import set_trace
 
 def init():
     """
@@ -146,4 +149,3 @@ def plot1d(*args, **kwargs):
         plt.show()
     return
 
-from pdb import *
