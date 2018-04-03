@@ -5,11 +5,12 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import copy
 
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import arparse as settings
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 from pypit import ardebug as debugger
 

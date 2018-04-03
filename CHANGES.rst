@@ -34,6 +34,12 @@
 * Allowed data sections to be extracted from header information
 * Significant refactor of routines related to pypit_setup
 * Various small improvements, primarly to handle Gemini/GMOS data [not yet fully supported in PYPIT]
+* Removed majority of cython functionality
+* Moved logging to be a package object using the main __init__.py file
+* Begin to adhere to PEP8 (mostly)
+* setup.py rewritten.  Modeled after https://github.com/sdss/marvin/blob/master/setup.py .  Added requirements.txt with the package versions required.
+* Updates archeck
+* Loads NIST arclines from arclines instead of PYPIT
 
 0.7 (2017-02-07)
 ----------------

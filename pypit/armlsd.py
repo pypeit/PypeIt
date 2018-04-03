@@ -9,21 +9,21 @@ from pypit import arflux
 from pypit import arload
 from pypit import armasters
 from pypit import armbase
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import arproc
 from pypit import arsave
 from pypit import arsetup
 from pypit import artrace
-from pypit import arqa
-from astropy import units as u
-
+from astropy import units
+#from pypit import arqa
 
 from linetools import utils as ltu
 
 from pypit import ardebug as debugger
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 
 def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
@@ -153,9 +153,13 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 # Save to disk
                 armasters.save_masters(slf, det, mftype='trace')
                 # Save QA for slit traces
-                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
-                                       slf._rordpix[det-1], extord,
-                                       desc="Trace of the slit edges D{:02d}".format(det), use_slitid=det)
+#                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
+#                                       slf._rordpix[det-1], extord,
+#                                       desc="Trace of the slit edges D{:02d}".format(det), use_slitid=det)
+                artrace.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
+                                      slf._rordpix[det-1], extord,
+                                      desc="Trace of the slit edges D{:02d}".format(det),
+                                      use_slitid=det)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
             ###############
@@ -234,8 +238,8 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             else:
                 sensfunc = yaml.load(open(settings.argflag['reduce']['calibrate']['sensfunc']['archival']))
                 # Yaml does not do quantities, so make the sensfunc min/max wave quantities
-                sensfunc['wave_max']*=u.angstrom
-                sensfunc['wave_min']*=u.angstrom
+                sensfunc['wave_max']*=units.angstrom
+                sensfunc['wave_min']*=units.angstrom
                 slf.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
                 msgs.info("Using archival sensfunc {:s}".format(settings.argflag['reduce']['calibrate']['sensfunc']['archival']))
 

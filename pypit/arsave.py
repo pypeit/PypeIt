@@ -12,7 +12,8 @@ from astropy.table import Table
 
 import h5py
 
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import arutils
 from pypit import arparse as settings
 
@@ -22,7 +23,7 @@ try: input = raw_input
 except NameError: pass
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 
 def save_arcids(fname, pixels):

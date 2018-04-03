@@ -5,14 +5,15 @@ import os
 import numpy as np
 
 from pypit import arparse as settings
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import arsetup
 from pypit import arsort
 from pypit import arsciexp
 from pypit import arparse
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 from pypit import ardebug as debugger
 

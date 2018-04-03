@@ -8,13 +8,14 @@ from scipy.special import erf
 from scipy import interpolate
 import itertools
 import numpy as np
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 #from pypit import arcyutils
 #from pypit import arcyarc
 import warnings
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 from pypit import ardebug as debugger
 

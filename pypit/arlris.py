@@ -5,7 +5,8 @@ import numpy as np
 import glob
 import astropy.io.fits as pyfits
 
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit.arparse import load_sections
 
 from pypit import ardebug as debugger
@@ -16,7 +17,7 @@ except NameError:  # For Python 3
     basestring = str
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 
 def read_lris(raw_file, det=None, TRIM=False):

@@ -1,129 +1,157 @@
-#!/usr/bin/env python
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
-from __future__ import absolute_import, division, print_function
+# !usr/bin/env python
+# -*- coding: utf-8 -*-
 #
-# Standard imports
+# Licensed under a 3-clause BSD license.
 #
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+#from __future__ import unicode_literals
+
 import sys
-import glob, os
-import pdb
-#from distutils.extension import Extension
-#
-# setuptools' sdist command ignores MANIFEST.in
-#
-#from distutils.command.sdist import sdist as DistutilsSdist
+import os
+import glob
+
 from setuptools import setup, find_packages
-#
-# DESI support code.
-#
-#from desiutil.setup import DesiTest, DesiVersion, get_version
 
-# Check dependencies
-if sys.argv[1] != 'egg_info':
-    from pypit import archeck
-    archeck.version_check()
-
-#
-# Begin setup
-#
-setup_keywords = dict()
-#
-# THESE SETTINGS NEED TO BE CHANGED FOR EVERY PRODUCT.
-#
-setup_keywords['name'] = 'pypit'
-setup_keywords['description'] = 'PYPIT Spectroscopic Reduction'
-setup_keywords['author'] = 'PYPIT Collaboration'
-setup_keywords['author_email'] = 'pypit@ucolick.org'
-setup_keywords['license'] = 'BSD'
-setup_keywords['url'] = 'https://github.com/pypit/pypit'
-#
-# END OF SETTINGS THAT NEED TO BE CHANGED.
-#
-setup_keywords['version'] = '0.8.dev0' #get_version(setup_keywords['name'])
-#
-# Use README.rst as long_description.
-#
-setup_keywords['long_description'] = ''
-if os.path.exists('README.md'):
-    with open('README.md') as readme:
-        setup_keywords['long_description'] = readme.read()
-#
-# Set other keywords for the setup function.  These are automated, & should
-# be left alone unless you are an expert.
-#
-# Treat everything in bin/ except *.rst as a script to be installed.
-#
-if os.path.isdir('bin'):
-    setup_keywords['scripts'] = [fname for fname in glob.glob(os.path.join('bin', '*'))
-        if not os.path.basename(fname).endswith('.rst')]
-setup_keywords['provides'] = [setup_keywords['name']]
-setup_keywords['requires'] = ['Python (>2.7.0)']
-# setup_keywords['install_requires'] = ['Python (>2.7.0)']
-setup_keywords['zip_safe'] = False
-setup_keywords['use_2to3'] = False
-setup_keywords['packages'] = find_packages()
-#setup_keywords['package_dir'] = {'':''}
-#setup_keywords['cmdclass'] = {'version': DesiVersion, 'test': DesiTest, 'sdist': DistutilsSdist}
-#setup_keywords['test_suite']='{name}.tests.{name}_test_suite.{name}_test_suite'.format(**setup_keywords)
-setup_keywords['setup_requires']=['pytest-runner']
-setup_keywords['tests_require']=['pytest']
-
-# Cython
-import numpy, os
-from Cython.Distutils import build_ext
+# For building in Cython functions -------------------------------------
+import numpy
 from Cython.Build import cythonize
+from Cython.Distutils import build_ext
 from distutils.extension import Extension
 
-include_gsl_dir = os.getenv('GSL_PATH')+'/include/'
-lib_gsl_dir = os.getenv('GSL_PATH')+'/lib/'
-pyx_files = glob.glob('pypit/*.pyx')
-setup_keywords['ext_modules']=[]
-for pyx_file in pyx_files:
-    pyx_split = pyx_file.split('.')
-    pyx_split2 = pyx_split[0].split('/')
-    # Generate Extension
-    #ext = Extension(pyx_split2[1], [pyx_file],
-    ext = Extension('pypit.'+pyx_split2[1], [pyx_file],
-        include_dirs=[numpy.get_include(),
-                    include_gsl_dir],
-        library_dirs=[lib_gsl_dir],
-        libraries=["gsl","gslcblas"]
-    )
-    # Append
-    setup_keywords['ext_modules'].append(ext)
-#for pyx_file in pyx_files:
-#    pyx_split = pyx_file.split('/')
-#    ext = cythonize(pyx_split[1])
-#    setup_keywords['ext_modules'].append(ext)
+def gsl_dirs():
+    """ Test for and return the necessary GSL directories. """
+    subdir = [ 'include', 'lib' ]
+    dirs = []
+    for i,sd in enumerate(subdir):
+        dirs.append(os.path.join(os.getenv('GSL_PATH'), sd))
+        if not os.path.isdir(dirs[i]):
+            raise NotADirectoryError('No directory {0}.  '.format(dirs[i]) +
+                                     'Must define GSL_PATH environmental variable.')
+    return tuple(dirs)
 
-setup_keywords['cmdclass']={'build_ext': build_ext}
 
-# Autogenerate command-line scripts.
-#
-# setup_keywords['entry_points'] = {'console_scripts':['desiInstall = desiutil.install.main:main']}
+def get_extensions():
+    """ Build the extension modules for GSL. """
+    include_gsl_dir, lib_gsl_dir = gsl_dirs()
 
-#
-# Add internal data directories.
-#
+    cython_files = glob.glob('pypit/*.pyx')
+    ext_modules = []
+    for f in cython_files:
+        name = ('pypit.'+f.split('.')[0].split('/')[1])
+        sources = [f]
+        ext_modules.append(Extension(name, sources,
+                                     include_dirs=[numpy.get_include(), include_gsl_dir],
+                                     library_dirs=[lib_gsl_dir],
+                                     libraries=['gsl','gslcblas']))
+#    return cythonize(ext_modules)
+    return ext_modules
+# ----------------------------------------------------------------------
 
-data_files = []
 
-# walk through the data directory, adding all files
-data_generator = os.walk('pypit/data')
-for path, directories, files in data_generator:
-    for f in files:
-        data_path = '/'.join(path.split('/')[1:])
-        data_files.append(data_path + '/' + f)
-# add pipeline and spectrograph settings
-settings = glob.glob('pypit/settings/settings.*')
-settings = ['/'.join(path.split('/')[1:]) for path in settings]
-data_files.extend(settings)
-setup_keywords['package_data'] = {'pypit': data_files,
-                                  '': ['*.rst', '*.txt']}
-setup_keywords['include_package_data'] = True
+def get_data_files():
+    """ Build the list of data files to include.  """
+    data_files = []
 
-#
-# Run setup command.
-#
-setup(**setup_keywords)
+    # Walk through the data directory, adding all files
+    data_generator = os.walk('pypit/data')
+    for path, directories, files in data_generator:
+        for f in files:
+            data_path = '/'.join(path.split('/')[1:])
+            data_files.append(os.path.join(data_path, f))
+
+    # Add pipeline and spectrograph settings
+    settings = glob.glob('pypit/settings/settings.*')
+    settings = ['/'.join(path.split('/')[1:]) for path in settings]
+    data_files.extend(settings)
+
+    return data_files
+
+
+def get_scripts():
+    """ Grab all the scripts in the bin directory.  """
+    scripts = []
+    if os.path.isdir('bin'):
+        scripts = [ fname for fname in glob.glob(os.path.join('bin', '*'))
+                                if not os.path.basename(fname).endswith('.rst') ]
+    return scripts
+
+
+def get_requirements():
+    """ Get the requirements from a system file.  """
+    name = 'pypit/requirements.txt'
+
+    requirements_file = os.path.join(os.path.dirname(__file__), name)
+    install_requires = [line.strip().replace('==', '>=') for line in open(requirements_file)
+                        if not line.strip().startswith('#') and line.strip() != '']
+    return install_requires
+
+
+NAME = 'pypit'
+# do not use x.x.x-dev.  things complain.  instead use x.x.xdev
+VERSION = '0.8.0dev'
+RELEASE = 'dev' not in VERSION
+
+
+def run_setup(data_files, scripts, packages, ext_modules, install_requires):
+
+    # TODO: Are any/all of the *'d keyword arguments needed? I.e., what
+    # are the default values?
+
+    setup(name=NAME,
+          provides=NAME,                                                # *
+          version=VERSION,
+          license='BSD3',                                               # TODO: Or is this 'BSD'?
+          description='PYPIT Spectroscopic Reduction',
+          long_description=open('README.md').read(),
+          author='PYPIT Collaboration',
+          author_email='pypit@ucolick.org',
+          keywords='pypit PYPIT astronomy Keck UCO Lick data reduction',
+          url='https://github.com/pypit/pypit',
+          packages=packages,
+          package_data={'pypit': data_files, '': ['*.rst', '*.txt']},
+          include_package_data=True,
+          scripts=scripts,
+          install_requires=install_requires,
+          requires=[ 'Python (>2.7.0)' ],                               # *
+          zip_safe=False,                                               # *
+          use_2to3=False,                                               # *
+          setup_requires=[ 'pytest-runner', 'cython>=0.27' ],           # *
+          tests_require=[ 'pytest' ],                                   # *
+          ext_modules=ext_modules,                                      # only needed for cython
+          cmdclass={'build_ext': build_ext},                            # only needed for cython
+          classifiers=[                                                 # TODO: Check these
+              'Development Status :: 4 - Beta',
+              'Intended Audience :: Science/Research',
+              'License :: OSI Approved :: BSD License',
+              'Natural Language :: English',
+              'Operating System :: OS Independent',
+              'Programming Language :: Python',
+              'Programming Language :: Python :: 2.7',
+              'Programming Language :: Python :: 3.6',
+              'Topic :: Documentation :: Sphinx',
+              'Topic :: Scientific/Engineering :: Astronomy',
+              'Topic :: Software Development :: Libraries :: Python Modules',
+              'Topic :: Software Development :: User Interfaces'
+          ],
+          )
+
+#-----------------------------------------------------------------------
+if __name__ == '__main__':
+
+    # Compile the data files to include
+    data_files = get_data_files()
+    # Compile the scripts in the bin/ directory
+    scripts = get_scripts()
+    # Get the packages to include
+    packages = find_packages()
+    # Include the module extensions; CURRENTLY ONLY NEEDED FOR CYTHON
+    ext_modules = get_extensions()
+    # Collate the dependencies based on the system text file
+    install_requires = get_requirements()
+    install_requires = []  # Remove this line to enforce actual installation
+    # Run setup from setuptools
+    run_setup(data_files, scripts, packages, ext_modules, install_requires)
+
 

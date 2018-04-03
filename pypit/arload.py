@@ -6,7 +6,8 @@ import astropy.io.fits as pyfits
 from astropy.time import Time
 import numpy as np
 from pypit import arparse as settings
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import arproc
 from pypit import arlris
 from pypit import ardeimos
@@ -23,7 +24,7 @@ except NameError:
 from pypit import ardebug as debugger
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 
 def load_headers(datlines):

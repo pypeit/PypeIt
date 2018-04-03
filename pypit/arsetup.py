@@ -15,7 +15,8 @@ from astropy import units as u
 
 from linetools import utils as ltu
 
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit import arparse as settings
 from pypit import arutils
 from pypit.arflux import find_standard_file
@@ -32,7 +33,7 @@ try: input = raw_input
 except NameError: pass
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 
 def dummy_setup_dict(filesort, fitsdict):

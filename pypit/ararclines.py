@@ -4,14 +4,18 @@ import numpy as np
 from astropy.table import Table, Column, vstack
 import glob, copy
 import yaml
+from pkg_resources import resource_filename
 
-from pypit import armsgs
+from arclines.io import load_line_list
+
+#from pypit import armsgs
+from pypit import msgs
 from pypit import arparse as settings
 
 from pypit import ardebug as debugger
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 
 def parse_nist(slf,ion):
@@ -23,47 +27,10 @@ def parse_nist(slf,ion):
     ion : str
       Name of ion
     """
-    # Root (for development only)
-    if slf is None:
-        from pypit import arutils as arut
-        msgs.warn("Using arutils.dummy_self.  Better know what you are doing.")
-        slf = arut.dummy_self()
-    root = settings.argflag['run']['pypitdir']
-    # Find file
-    srch_file = root + '/data/arc_lines/NIST/'+ion+'_vacuum.ascii'
-    nist_file = glob.glob(srch_file)
-    if len(nist_file) == 0:
-        msgs.error("Cannot find NIST file {:s}".format(srch_file))
-    elif len(nist_file) != 1:
-        msgs.error("Multiple NIST files for {:s}".format(srch_file))
-    # Read
-    nist_tbl = Table.read(nist_file[0], format='ascii.fixed_width', comment='#')
-    gdrow = nist_tbl['Observed'] > 0.  # Eliminate dummy lines
-    nist_tbl = nist_tbl[gdrow]
-    # Now unique values only (no duplicates)
-    uniq, indices = np.unique(nist_tbl['Observed'],return_index=True)
-    nist_tbl = nist_tbl[indices]
-    # Deal with Rel
-    agdrel = []
-    for row in nist_tbl:
-        try:
-            gdrel = int(row['Rel.'])
-        except:
-            try:
-                gdrel = int(row['Rel.'][:-1])
-            except: 
-                gdrel = 0
-        agdrel.append(gdrel) 
-    agdrel = np.array(agdrel)
-    # Remove and add
-    nist_tbl.remove_column('Rel.')
-    nist_tbl.remove_column('Ritz')
-    nist_tbl.add_column(Column(agdrel,name='RelInt'))
-    nist_tbl.remove_column('Acc.')
-    nist_tbl.remove_column('Type')
-    #nist_tbl.add_column(Column([ion]*len(nist_tbl), name='Ion', dtype='S5'))
-    nist_tbl.add_column(Column([ion]*len(nist_tbl), name='Ion', dtype='U5'))
-    nist_tbl.rename_column('Observed','wave')
+    nist_path = resource_filename('arclines', 'data/NIST/')
+    line_file = nist_path+'{:s}_vacuum.ascii'.format(ion)
+    nist_tbl = load_line_list(line_file, NIST=True)
+
     # Return
     return nist_tbl
 
