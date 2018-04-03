@@ -28,7 +28,6 @@ debug = ardebug.init()
 
 from pypit.armsgs import Messages as Initmsg
 initmsgs = Initmsg(None, debug, 1)
-from IPython import embed
 
 
 def parser(options=None):

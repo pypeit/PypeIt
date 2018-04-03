@@ -291,7 +291,8 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['G4TLTWAV']
         else:
             msgs.error('Problem wth value of GRATEPOS keyword: GRATEPOS={:s}'.format(gratepos))
-        lamps = ['ArI','NeI','KrI','XeI']  # Should set according to the lamps that were on
+        # TODO -- Should set according to the lamps that were on
+        lamps = ['ArI','NeI','KrI','XeI']
         if disperser == '830G': # Blaze 8640
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.47 # Ang per pixel (unbinned)
@@ -457,7 +458,6 @@ def simple_calib(slf, det, get_poly=False):
             isf = np.isfinite(disp_val)
             disp_str[kk] = np.median(disp_val[isf])
         # Consider calculating the RMS with clipping
-        #debugger.set_trace()
         gd_str = np.where( np.abs(disp_str-aparm['disp'])/aparm['disp'] < aparm['disp_toler'])[0]
         msgs.info('Found {:d} lines within the dispersion threshold'.format(len(gd_str)))
         if len(gd_str) < 5:

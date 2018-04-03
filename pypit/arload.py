@@ -13,7 +13,6 @@ from pypit import ardeimos
 #from multiprocessing import Pool as mpPool
 #from multiprocessing.pool import ApplyResult
 #import arutils
-from IPython import embed
 
 
 try:
@@ -97,8 +96,8 @@ def load_headers(datlines):
         skip = False
         for ch in chks:
             tfrhd = int(ch.split('.')[0])-1
-            kchk  = '.'.join(ch.split('.')[1:])
-            frhd  = whddict['{0:02d}'.format(tfrhd)]
+            kchk = '.'.join(ch.split('.')[1:])
+            frhd = whddict['{0:02d}'.format(tfrhd)]
             # JFH changed to in instead of !=
             if ((settings.spect['check'][ch] in str(headarr[frhd][kchk]).strip()) == False):
                 print(ch, frhd, kchk)
@@ -240,7 +239,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
         # Instrument specific read
         if settings.argflag['run']['spectrograph'] in ['keck_lris_blue', 'keck_lris_red']:
             temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
-        elif settings.argflag['run']['spectrograph'] in ['deimos']:
+        elif settings.argflag['run']['spectrograph'] in ['keck_deimos']:
             temp, head0, _ = ardeimos.read_deimos(fitsdict['directory'][ind[i]] + fitsdict['filename'][ind[i]])
         else:
             hdulist = pyfits.open(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]])

@@ -9,8 +9,6 @@ from pypit import armsgs
 from pypit.arparse import load_sections
 
 from pypit import ardebug as debugger
-from IPython import embed
-
 
 try:
     basestring
@@ -210,8 +208,6 @@ def read_lris(raw_file, det=None, TRIM=False):
     head0['BZERO'] = 32768-obzero
 
     # Return, transposing array back to goofy Python indexing
-#    from IPython import embed
-#    embed()
     return array.T, head0, (dsec, osec)
 
 

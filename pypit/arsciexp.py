@@ -735,8 +735,6 @@ class ScienceExposure:
                 # Use this detector? Need to check this after setting RA/DEC above
                 if settings.argflag['reduce']['detnum'] is not None:
                     msgs.warn("If your standard wasnt on this detector, you will have trouble..")
-                    #if det != settings.argflag['reduce']['detnum']:
-                    # JFH changed to allow multiple detectors for DEIMOS
                     if det not in map(int, settings.argflag['reduce']['detnum']):
                         continue
                 if settings.spect["mosaic"]["reduction"] == "ARMLSD":

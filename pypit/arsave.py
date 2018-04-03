@@ -629,8 +629,6 @@ def save_2d_images(slf, fitsdict, clobber=True):
         sdet = settings.get_dnum(det, caps=True)  # e.g. DET02
         # Specified detector number?
         if settings.argflag['reduce']['detnum'] is not None:
-            #if det != settings.argflag['reduce']['detnum']:
-            # JFH changed to allow multiple detectors for DEIMOS
             if det not in map(int, settings.argflag['reduce']['detnum']):
                 continue
             else:

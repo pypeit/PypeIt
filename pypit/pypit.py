@@ -16,7 +16,6 @@ except ImportError:
     pass
 
 from pypit import ardebug as debugger
-from IPython import embed
 
 
 def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosity=1,
@@ -114,7 +113,6 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     # Get the software path
     prgn_spl = progname.split('/')
     tfname = "/".join(prgn_spl[:-1]) + "/"
-
     # Settings file
     fname = tfname + 'data/settings/settings.' + specname
     try:

@@ -625,7 +625,7 @@ def get_datasec_trimmed(slf, fitsdict, det, scidx):
             oscansec = "oscansec{0:02d}".format(kk+1)
             settings.spect[dnum][oscansec] = settings.load_sections(secs[1][kk], fmt_iraf=False)
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
-    elif settings.argflag['run']['spectrograph'] in ['deimos']:
+    elif settings.argflag['run']['spectrograph'] in ['keck_deimos']:
         msgs.info("Parsing datasec and oscansec from headers")
         temp, head0, secs = ardeimos.read_deimos(fitsdict['directory'][scidx] + fitsdict['filename'][scidx])
         # Naxis

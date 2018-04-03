@@ -11,12 +11,6 @@ import astropy.io.fits as pyfits
 from pypit import armsgs
 from pypit.arparse import load_sections
 from pypit import ardebug as debugger
-#from IPython import embed
-
-try:
-    basestring
-except NameError:  # For Python 3
-    basestring = str
 
 
 # Logging
@@ -34,18 +28,14 @@ def read_deimos(raw_file):
     ----------
     raw_file : str
       Filename
-    det : int
-      detector index starting at 1
-    trim : bool, optional
-      Trim the image?
 
     Returns
     -------
     array : ndarray
       Combined image
     header : FITS header
-    sections : list
-      List of datasec, oscansec, ampsec sections
+    sections : tuple
+      List of datasec, oscansec sections
     """
 
     # Check for file; allow for extra .gz, etc. suffix
@@ -83,6 +73,7 @@ def read_deimos(raw_file):
 
     xbin, ybin = [int(ibin) for ibin in binning.split(',')]
 
+    # DEIMOS detectors
     nchip = 8
     ii = 2048
     jj = 4096
@@ -118,7 +109,20 @@ def read_deimos(raw_file):
     # Return
     return image, head0, (dsec,osec)
 
+
 def deimos_read_1chip(hdu,chipno):
+    """ Read one of the DEIMOS detectors
+
+    Parameters
+    ----------
+    hdu : HDUList
+    chipno : int
+
+    Returns
+    -------
+    data : ndarray
+    oscan : ndarray
+    """
 
     # Extract datasec from header
     datsec = hdu[chipno].header['DATASEC']
@@ -150,5 +154,5 @@ def deimos_read_1chip(hdu,chipno):
         data = np.fliplr(data)
         oscan = np.fliplr(oscan)
 
-
+    # Return
     return data, oscan

@@ -19,9 +19,6 @@ msgs = armsgs.get_logger()
 # Initialize the settings variables
 argflag, spect = None, None
 
-from IPython import embed
-
-
 try:
     basestring
 except NameError:  # For Python 3
@@ -1002,14 +999,13 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def reduce_detnum(self, v):
-        """ Reduce only the input detector of the array
+        """ Reduce only the input detector(s) of the input list
 
         Parameters
         ----------
         v : str
           value of the keyword argument given by the name of this function
         """
-#        v = key_none_int(v)
         v = key_none_list(v)
 
         self.update(v)
