@@ -11,6 +11,8 @@ import pytest
 from linetools.spectra import xspectrum1d
 
 import pypit
+from pypit import arutils
+from pypit import ararc
 from pypit import arparse as settings
 
 #def data_path(filename):
@@ -24,15 +26,15 @@ def test_setup_param():
 
     """
     # Initialize some settings
-    pypit.arutils.dummy_settings()
+    arutils.dummy_settings()
     # Load Dummy self
-    slf = pypit.arutils.dummy_self()
+    slf = arutils.dummy_self()
     settings.argflag['run']['spectrograph'] = 'shane_kast_blue'
     settings.spect['arc'] = {}
     settings.spect['arc']['index'] = [[0]]
-    fitsdict = pypit.arutils.dummy_fitsdict()
+    fitsdict = arutils.dummy_fitsdict()
     # Run
-    arcparm = pypit.ararc.setup_param(slf, 0, 1, fitsdict)
+    arcparm = ararc.setup_param(slf, 0, 1, fitsdict)
     for key in ['llist','disp','wvmnx']:
         assert key in arcparm
 
@@ -41,7 +43,7 @@ def test_detect_lines():
     if os.getenv('RUN_ALL_PYPIT_TESTS') is None:  # REMOVE WHEN WORKING WITH Python 3
         assert True
         return
-    slf = pypit.arutils.dummy_self()
+    slf = arutils.dummy_self()
     det = 1
     # Using Paranal night sky as an 'arc'
     arx_sky = xspectrum1d.XSpectrum1D.from_file(pypit.__path__[0]+'/data/sky_spec/paranal_sky.fits')

@@ -7,7 +7,7 @@ import numpy as np
 from scipy import interpolate
 
 from astropy import units
-from astropy.coordinates import SkyCoord, solar_system, EarthLocation, ICRS,
+from astropy.coordinates import SkyCoord, solar_system, EarthLocation, ICRS
 from astropy.coordinates import UnitSphericalRepresentation, CartesianRepresentation
 from astropy.time import Time
 

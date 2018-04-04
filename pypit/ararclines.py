@@ -74,7 +74,8 @@ def load_arcline_list(slf, idx, lines, disperser, wvmnx=None, modify_parse_dict=
         if iline in rej_dict.keys():
             msgs.info("Rejecting select {:s} lines".format(iline))
             tbl = reject_lines(slf,tbl,idx,rej_dict[iline],disperser)
-        tbls.append(tbl[['Ion','wave','RelInt']])
+#        tbls.append(tbl[['Ion','wave','RelInt']])
+        tbls.append(tbl[['Ion','wave','Rel.']])
     # Stack
     alist = vstack(tbls)
 
@@ -137,7 +138,8 @@ def parse_nist_tbl(tbl,parse_dict):
       Rows meeting the criteria
     '''
     # Parse
-    gdI = tbl['RelInt'] >= parse_dict['min_intensity']
+#    gdI = tbl['RelInt'] >= parse_dict['min_intensity']
+    gdI = tbl['Rel.'] >= parse_dict['min_intensity']
     try:
         gdA = tbl['Aki'] >= parse_dict['min_Aki']
     except TypeError:
