@@ -8,13 +8,14 @@ import numpy as np
 # from astropy.io import fits
 import astropy.io.fits as pyfits
 
-from pypit import armsgs
+#from pypit import armsgs
+from pypit import msgs
 from pypit.arparse import load_sections
 from pypit import ardebug as debugger
 
 
 # Logging
-msgs = armsgs.get_logger()
+#msgs = armsgs.get_logger()
 
 
 def read_deimos(raw_file):

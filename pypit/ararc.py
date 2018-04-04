@@ -6,20 +6,17 @@ import inspect
 
 import numpy as np
 from matplotlib import pyplot as plt
-from matplotlib import gridspec, font_manager
+from matplotlib import gridspec
 
-import arclines
+import arclines.holy.grail
 #from arclines.holy.grail import basic, semi_brute, general
 
-from pypit import arpca
 from pypit import arparse as settings
 from pypit import msgs
-from pypit import arsave
 from pypit import arutils
 from pypit import ararclines
 from pypit import arqa
 from pypit import ardebug as debugger
-from pypit import arcyarc
 
 
 def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
