@@ -3,29 +3,29 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import sys
+import datetime
+
 import numpy as np
-from astropy.time import Time
+
 from matplotlib.backends.backend_pdf import PdfPages
+
+from astropy.time import Time
+
 # Import PYPIT routines
+from pypit import msgs
 from pypit import arparse as settings
+from pypit import ararc
 from pypit import artrace
 from pypit import arload
 from pypit import arcomb
 from pypit import arflux
 from pypit import arlris
 from pypit import armasters
-#from pypit import armsgs
-from pypit import msgs
 from pypit import arproc
 from pypit import arsort
 from pypit import arutils
 from pypit import arsave
-
 from pypit import ardebug as debugger
-
-# Logging
-#msgs = armsgs.get_logger()
-
 
 class ScienceExposure:
     """
@@ -134,7 +134,6 @@ class ScienceExposure:
         fitsdict : dict
           Contains relevant information from fits header files
         """
-        import datetime
         #
         scidx = self._idx_sci[0]
         tbname = None
@@ -669,7 +668,6 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-        from pypit import ararc
 
         if self._wvcalib[det-1] is not None:
             msgs.info("An identical master wave calib frame already exists")

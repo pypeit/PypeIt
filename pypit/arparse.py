@@ -1,35 +1,34 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 from future.utils import iteritems
 
-import collections
-import inspect
-from os.path import exists as pathexists
-from multiprocessing import cpu_count
-from os.path import dirname, basename, isfile
-from astropy.time import Time
-from textwrap import wrap as wraptext
-from glob import glob
-
-# Logging
-from pypit import ardebug
-#from pypit import armsgs
-from pypit import msgs
-debug = ardebug.init()
-#msgs = armsgs.get_logger()
-
-# Initialize the settings variables
-argflag, spect = None, None
-
 try:
     basestring
 except NameError:  # For Python 3
     basestring = str
+
+import collections
+import inspect
+
+import glob
+from os import path
+from multiprocessing import cpu_count
+
+from astropy.time import Time
 
 try:
     from xastropy.xutils import xdebug as debugger
 except ImportError:
     import pdb as debugger
 
+# Logging
+from pypit import msgs
+
+# TODO: Ever used?
+#from pypit import ardebug
+#debug = ardebug.init()
+
+# Initialize the settings variables
+argflag, spect = None, None
 
 class NestedDict(dict):
     """
@@ -78,9 +77,9 @@ class BaseFunctions(object):
             if filename is None:
                 if base:
                     if isinstance(self, BaseArgFlag):
-                        basefile = glob(dirname(__file__))[0] + "/data/settings/settings.baseargflag"
+                        basefile = glob.glob(path.dirname(__file__))[0] + "/data/settings/settings.baseargflag"
                     elif isinstance(self, BaseSpect):
-                        basefile = glob(dirname(__file__))[0] + "/data/settings/settings.basespect"
+                        basefile = glob.glob(path.dirname(__file__))[0] + "/data/settings/settings.basespect"
                     else:
                         msgs.error("No base for this class")
                     msgs.info("Loading base settings from {:s}".format(basefile.split('/')[-1]))
@@ -1328,7 +1327,7 @@ class BaseArgFlag(BaseFunctions):
         """
         if v.lower() == "none":
             v = None
-        elif not isfile(v):
+        elif not path.isfile(v):
                 msgs.error("The argument of {0:s} must be a PYPIT settings file".format(get_current_name()) +
                            msgs.newline() + "or 'None'. The following file does not exist:" + msgs.newline() + v)
         self.update(v)
@@ -1343,9 +1342,9 @@ class BaseArgFlag(BaseFunctions):
         """
         if v.lower() == "none":
             v = None
-        elif isfile(v):
+        elif path.isfile(v):
             pass
-        elif isfile(v+".spect"):
+        elif path.isfile(v+".spect"):
             v += ".spect"
         else:
              msgs.error("The argument of {0:s} must be a PYPIT spectrograph settings".format(get_current_name()) +
@@ -1482,12 +1481,12 @@ class BaseArgFlag(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         # Check that v is allowed
-        stgs_arm = glob(dirname(__file__)+"/data/settings/settings.arm*")
-        stgs_all = glob(dirname(__file__)+"/data/settings/settings.*")
+        stgs_arm = glob.glob(path.dirname(__file__)+"/data/settings/settings.arm*")
+        stgs_all = glob.glob(path.dirname(__file__)+"/data/settings/settings.*")
         stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
-        spclist = [basename(stgs_spc[0]).split(".")[-1].lower()]
+        spclist = [path.basename(stgs_spc[0]).split(".")[-1].lower()]
         for i in range(1, len(stgs_spc)):
-            spclist += [basename(stgs_spc[i]).split(".")[-1].lower()]
+            spclist += [path.basename(stgs_spc[i]).split(".")[-1].lower()]
         # Check there are no duplicate names
         if len(spclist) != len(set(spclist)):
             msgs.bug("Duplicate settings files found")
@@ -1496,7 +1495,7 @@ class BaseArgFlag(BaseFunctions):
         if v.lower() not in spclist:
             msgs.error("Settings do not exist for the {0:s} spectrograph".format(v.lower()) + msgs.newline() +
                        "Please use one of the following spectrograph settings:" + msgs.newline() +
-                       wraptext(", ".join(spclist), width=60))
+                       textwrap.wrap(", ".join(spclist), width=60))
         self.update(v)
         return
 
@@ -3601,8 +3600,8 @@ class ARMLSD(BaseArgFlag):
         if v.lower() == 'none':
             v = None
         else:
-            if not pathexists(self._argflag['run']['pypitdir'] + 'data/sky_spec/' + v):
-                files_sky = glob(self._argflag['run']['pypitdir'] + 'data/sky_spec/*.fits')
+            if not path.exists(self._argflag['run']['pypitdir'] + 'data/sky_spec/' + v):
+                files_sky = glob.glob(self._argflag['run']['pypitdir'] + 'data/sky_spec/*.fits')
                 skyfiles = ""
                 for i in files_sky:
                     skyfiles += msgs.newline() + "  - " + str(i.split("/")[-1])
@@ -3744,7 +3743,7 @@ def get_argflag_class(init=None):
     argflag : Arguments and Flags
     """
     try:
-        defname = glob(dirname(__file__))[0] + "/data/settings/settings." + init[0].lower()
+        defname = glob.glob(path.dirname(__file__))[0] + "/data/settings/settings." + init[0].lower()
         return eval(init[0]+"(defname='{0:s}', savname='{1:s}.settings')".format(defname, init[1]))
     except RuntimeError:
         msgs.error("Reduction type '{0:s}' is not allowed".format(init))
@@ -3762,7 +3761,7 @@ def get_spect_class(init):
     spect_class : Class of spectrograph settings
     """
     try:
-        defname = glob(dirname(__file__))[0] + "/data/settings/settings." + init[1].lower()
+        defname = glob.glob(path.dirname(__file__))[0] + "/data/settings/settings." + init[1].lower()
         return eval(init[0]+"_spect(defname='{0:s}', savname='{1:s}.spect')".format(defname, init[2]))
     except RuntimeError:
         msgs.error("{0:s} is not implemented yet".format(init[1]))

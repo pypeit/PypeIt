@@ -2,18 +2,16 @@
 #  Includes ArSpecObj class
 from __future__ import absolute_import, division, print_function
 
-import numpy as np
 import copy
+from collections import OrderedDict
 
-#from pypit import armsgs
+import numpy as np
+
+from astropy.table import Table
+
 from pypit import msgs
 from pypit import arparse as settings
-
-# Logging
-#msgs = armsgs.get_logger()
-
 from pypit import ardebug as debugger
-
 
 class SpecObjExp(object):
     """Class to handle object spectra from a single exposure
@@ -221,7 +219,6 @@ def mtch_obj_to_objects(iobj, objects, stol=50, otol=10, **kwargs):
     indcies : list
 
     """
-    from astropy.table import Table
     # Parse input object
     odict = objnm_to_dict(iobj)
     # Generate a Table of the objects
@@ -315,7 +312,6 @@ def instconfig(det, scidx, fitsdict):
     fitsdict : dict
     """
 
-    from collections import OrderedDict
     config_dict = OrderedDict()
     config_dict['S'] = 'slitwid'
     config_dict['D'] = 'dichroic'

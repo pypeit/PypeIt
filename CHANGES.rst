@@ -47,6 +47,8 @@
   requirements.txt with the package versions required.
 - Updates archeck
 - Loads NIST arclines from arclines instead of PYPIT
+- Moved all imports to the start of every file to catch and avoid
+  circular imports
 
 0.7 (2017-02-07)
 ----------------

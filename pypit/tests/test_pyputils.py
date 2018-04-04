@@ -11,13 +11,12 @@ try:
 except NameError:
     basestring = str
 
+from pypit import __version__, __last_updated__
 from pypit import pyputils
 
 #def data_path(filename):
 #    data_dir = os.path.join(os.path.dirname(__file__), 'files')
 #    return os.path.join(data_dir, filename)
-
-from pypit import __version__, __last_updated__
 
 def test_version():
     # Dummy self

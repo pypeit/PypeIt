@@ -1,19 +1,20 @@
 #!/usr/bin/env python
-
 """
 Built HTML for PYPIT QA
 """
-from pypit import pyputils
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+import argparse
 import pdb as debugger
 
+from pypit import arqa
+from pypit import pyputils
 msgs = pyputils.get_dummy_logger()
-from numpy import isnan
-
 
 def parser(options=None):
-
-    import argparse
-
     parser = argparse.ArgumentParser(description='Script to build HTML files for PYPIT QA. [v1.0]')
     parser.add_argument("pypit_file", type=str, help="PYPIT file")
     parser.add_argument("type", type=str, help="QA Type (MF, exp, all)")
@@ -30,10 +31,6 @@ def main(args, unit_test=False, path=''):
     path : str, optional
       Mainly for running the unit test
     """
-    import numpy as np
-    import glob
-    from pypit import arqa
-
     # Flags
     flg_MF, flg_exp = False, False
     if args.type == 'MF':

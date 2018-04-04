@@ -8,10 +8,26 @@
 This script enables the viewing of a processed FITS file
 with extras.  Run above the Science/ folder.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+import os
+import argparse
+
 import pdb as debugger
 
+from astropy.io import fits
+from astropy.table import Table
+
+import pypit.ginga
+from pypit import pyputils
+from pypit import armasters
+from pypit.arparse import get_dnum
+from pypit.arspecobj import get_slitid
+
 def parser(options=None):
-    import argparse
 
     parser = argparse.ArgumentParser(description='Display spec2d image in a Ginga viewer.  Run above the Science/ folder',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -30,8 +46,6 @@ def parser(options=None):
 def main(args):
 
     # List only?
-    import os
-    from astropy.io import fits
     hdu = fits.open(args.file)
     head0 = hdu[0].header
     if args.list:
@@ -39,14 +53,7 @@ def main(args):
         return
 
     # Setup for PYPIT imports
-    from pypit import pyputils
-    from pypit import armasters
-    from pypit.arparse import get_dnum
-    from pypit.arspecobj import get_slitid
-    from astropy.table import Table
     msgs = pyputils.get_dummy_logger()
-    from pypit import ginga as pyp_ginga
-    import pdb as debugger
 
     # Init
     sdet = get_dnum(args.det, prefix=False)
@@ -62,7 +69,7 @@ def main(args):
     # Show Image
     cwd = os.getcwd()
     wcs_img = cwd+'/'+head0['PYPMFDIR']+'/MasterWave_'+'{:s}_{:02d}_{:s}.fits'.format(head0['PYPCNFIG'], args.det, head0['PYPCALIB'])
-    viewer, ch = pyp_ginga.show_image(skysub, chname='DET{:s}'.format(sdet), wcs_img=wcs_img)
+    viewer, ch = pypit.ginga.show_image(skysub, chname='DET{:s}'.format(sdet), wcs_img=wcs_img)
 
     # Add slits
     testing = False
@@ -79,7 +86,7 @@ def main(args):
     # Get slit ids
     stup = (trc_hdu[0].data.shape, lordloc, rordloc)
     slit_ids = [get_slitid(stup, None, ii)[0] for ii in range(lordloc.shape[1])]
-    pyp_ginga.show_slits(viewer, ch, lordloc, rordloc, slit_ids)#, args.det)
+    pypit.ginga.show_slits(viewer, ch, lordloc, rordloc, slit_ids)#, args.det)
 
     # Object traces
     spec1d_file = args.file.replace('spec2d', 'spec1d')
@@ -90,5 +97,5 @@ def main(args):
             tbl = Table(hdu.data)
             trace = tbl['obj_trace']
             obj_id = hdu.name.split('-')[0]
-            pyp_ginga.show_trace(viewer, ch, trace, obj_id, color='green') #hdu.name)
+            pypit.ginga.show_trace(viewer, ch, trace, obj_id, color='green') #hdu.name)
 

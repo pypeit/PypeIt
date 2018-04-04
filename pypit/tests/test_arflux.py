@@ -6,9 +6,11 @@ from __future__ import unicode_literals
 
 ### TEST_UNICODE_LITERALS
 
-import numpy as np
+import os
 import sys
-import os, pdb
+
+import pdb
+import numpy as np
 import pytest
 
 try:
@@ -16,19 +18,19 @@ try:
 except NameError:
     FileExistsError = OSError
 
-from astropy import units as u
-from astropy.units import Quantity
+from astropy import units
 
-from pypit import pyputils
-msgs = pyputils.get_dummy_logger()
 from pypit import arparse as settings
-from pypit import arflux as arflx
+from pypit import arflux
 from pypit import arload
 from pypit import arutils
 from pypit import armasters
+from pypit import pyputils
 
 #from xastropy.xutils import afits as xafits
 #from xastropy.xutils import xdebug as xdb
+
+msgs = pyputils.get_dummy_logger()
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -50,7 +52,7 @@ def test_gen_sensfunc():
     slf._msstd[0]['RA'] = '05:06:36.6'
     slf._msstd[0]['DEC'] = '52:52:01.0'
     # Generate
-    slf._sensfunc = arflx.generate_sensfunc(slf, 4, [specobjs], fitsdict)
+    slf._sensfunc = arflux.generate_sensfunc(slf, 4, [specobjs], fitsdict)
     # Save
     try:
         os.mkdir('MF_shane_kast_blue')
@@ -59,7 +61,7 @@ def test_gen_sensfunc():
     armasters.save_sensfunc(slf, 'C_01_aa')
     # Test
     assert isinstance(slf._sensfunc, dict)
-    assert isinstance(slf._sensfunc['wave_min'], Quantity)
+    assert isinstance(slf._sensfunc['wave_min'], units.Quantity)
 
 
 def test_find_standard():
@@ -67,7 +69,7 @@ def test_find_standard():
     std_ra = '05:06:36.6'
     std_dec = '52:52:01.0'
     # Grab
-    std_dict = arflx.find_standard_file((std_ra, std_dec))
+    std_dict = arflux.find_standard_file((std_ra, std_dec))
     # Test
     assert std_dict['name'] == 'G191B2B'
     assert std_dict['file'] == '/data/standards/calspec/g191b2b_mod_005.fits'
@@ -76,7 +78,7 @@ def test_find_standard():
     # near G191b2b
     std_ra = '05:06:36.6'
     std_dec = '52:22:01.0'
-    std_dict = arflx.find_standard_file((std_ra,std_dec))
+    std_dict = arflux.find_standard_file((std_ra,std_dec))
     assert std_dict is None
 
 
@@ -85,15 +87,15 @@ def test_load_extinction():
     settings.spect['mosaic']['latitude'] = 37.3413889
     settings.spect['mosaic']['longitude'] = 121.6428
     # Load
-    extinct = arflx.load_extinction_data()
+    extinct = arflux.load_extinction_data()
     np.testing.assert_allclose(extinct['wave'][0], 3200.)
-    assert extinct['wave'].unit == u.AA
+    assert extinct['wave'].unit == units.AA
     np.testing.assert_allclose(extinct['mag_ext'][0], 1.084)
     # Fail
     settings.spect['mosaic']['latitude'] = 37.3413889
     settings.spect['mosaic']['longitude'] = 0.
     #
-    extinct = arflx.load_extinction_data()
+    extinct = arflux.load_extinction_data()
     assert extinct is None
 
 
@@ -102,10 +104,10 @@ def test_extinction_correction():
     settings.spect['mosaic']['latitude'] = 37.3413889
     settings.spect['mosaic']['longitude'] = 121.6428
     # Load
-    extinct = arflx.load_extinction_data()
+    extinct = arflux.load_extinction_data()
     # Correction
-    wave = np.arange(3000.,10000.)*u.AA
+    wave = np.arange(3000.,10000.)*units.AA
     AM=1.5
-    flux_corr = arflx.extinction_correction(wave,AM,extinct)
+    flux_corr = arflux.extinction_correction(wave,AM,extinct)
     # Test
     np.testing.assert_allclose(flux_corr[0], 4.47095192)

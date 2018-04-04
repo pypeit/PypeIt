@@ -7,13 +7,16 @@ from __future__ import unicode_literals
 import pytest
 
 import numpy as np
-from pypit import pyputils
-msgs = pyputils.get_dummy_logger(develop=True)
+
+from pypit import arparse as settings
 from pypit import arsort
 from pypit import arsetup
 from pypit import arutils
-from pypit import arparse as settings
 from pypit.armsgs import PypitError
+from pypit import arsciexp
+from pypit import pyputils
+
+msgs = pyputils.get_dummy_logger(develop=True)
 
 #def data_path(filename):
 #    data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -115,7 +118,6 @@ def test_instr_setup(fitsdict):
     """ Test instrument setup naming convention
     Tickles most of the arsetup methods
     """
-    from pypit import arsciexp
     arutils.dummy_settings(spectrograph='shane_kast_blue', set_idx=False)
     # Load
     settings.argflag['run']['setup'] = True # Over-ride default numbers

@@ -1,21 +1,26 @@
 """ Routines for sorting data to be reduced by PYPIT"""
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
+try:
+    basestring
+except NameError:
+    basestring = str
+
+try:
+    input = raw_input
+except NameError:
+    pass
+
 import os
 import re
 import sys
 import shutil
-import string
+
 import numpy as np
-import yaml
 
-from astropy.io.votable.tree import VOTableFile, Resource, Table, Field
-from astropy.table import Table as tTable, Column
-from astropy import units as u
+from astropy.table import Table
+from astropy import units
 
-from linetools import utils as ltu
-
-#from pypit import armsgs
 from pypit import msgs
 from pypit import arparse as settings
 from pypit import arutils
@@ -23,17 +28,11 @@ from pypit.arflux import find_standard_file
 from pypit import armeta
 from pypit import ardebug as debugger
 
-try:
-    basestring
-except NameError:
-    basestring = str
-
-try: input = raw_input
-except NameError: pass
-
-# Logging
-#msgs = armsgs.get_logger()
-
+# TODO: Never used ...
+# import string
+# from linetools import utils as ltu
+# from astropy.io import votable
+# import yaml
 
 def sort_data(fitsdict, flag_unknown=False):
     """ Generate a dict of filetypes from the input fitsdict object
@@ -117,7 +116,7 @@ def sort_data(fitsdict, flag_unknown=False):
             filarr[np.where(fkeys == 'standard')[0], wscistd[i]] = 0
             continue
         # If an object exists within 20 arcmins of a listed standard, then it is probably a standard star
-        foundstd = find_standard_file(radec, toler=20.*u.arcmin, check=True)
+        foundstd = find_standard_file(radec, toler=20.*units.arcmin, check=True)
         if foundstd:
             filarr[np.where(fkeys == 'science')[0], wscistd[i]] = 0
         else:
@@ -298,16 +297,16 @@ def sort_write(fitsdict, filesort, space=3):
 
     '''
     # Open a VOTable for writing
-    votable = VOTableFile()
-    resource = Resource()
+    votable = votable.tree.VOTableFile()
+    resource = votable.tree.Resource()
     votable.resources.append(resource)
-    table = Table(votable)
+    table = votable.tree.Table(votable)
     resource.tables.append(table)
     # Define VOTable fields
     tabarr=[]
     # Insert the filename and filetype first
     for i in range(len(prord)):
-        tabarr.append(Field(votable, name=prord[i], datatype=prdtp[i], arraysize="*"))
+        tabarr.append(votable.tree.Field(votable, name=prord[i], datatype=prdtp[i], arraysize="*"))
     table.fields.extend(tabarr)
     table.create_arrays(nfiles)
     filtyp = filesort.keys()
@@ -338,7 +337,7 @@ def sort_write(fitsdict, filesort, space=3):
     asciiord = ['filename', 'date', 'frametype', 'frameno', 'target', 'exptime', 'binning',
         'dichroic', 'dispname', 'dispangle', 'decker']
     # Generate the columns except frametype
-    ascii_tbl = tTable()
+    ascii_tbl = Table()
     badclms = []
     for pr in asciiord:
         if pr != 'frametype':

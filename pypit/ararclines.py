@@ -8,14 +8,10 @@ from pkg_resources import resource_filename
 
 from arclines.io import load_line_list
 
-#from pypit import armsgs
 from pypit import msgs
+from pypit import arutils
 from pypit import arparse as settings
-
 from pypit import ardebug as debugger
-
-# Logging
-#msgs = armsgs.get_logger()
 
 
 def parse_nist(slf,ion):
@@ -61,9 +57,8 @@ def load_arcline_list(slf, idx, lines, disperser, wvmnx=None, modify_parse_dict=
     parse_dict = load_parse_dict(modify_dict=modify_parse_dict)
     # Read rejection file
     if slf is None:
-        from pypit import arutils as arut
         msgs.warn("Using arutils.dummy_self.  Better know what you are doing.")
-        slf = arut.dummy_self()
+        slf = arutils.dummy_self()
     root = settings.argflag['run']['pypitdir']
     with open(root+'/data/arc_lines/rejected_lines.yaml', 'r') as infile:
         rej_dict = yaml.load(infile)
