@@ -19,6 +19,8 @@ except NameError:
 from astropy import units as u
 from astropy.units import Quantity
 
+from linetools import utils as ltu
+
 from pypit import pyputils
 msgs = pyputils.get_dummy_logger()
 from pypit import arparse as settings
@@ -33,6 +35,15 @@ from pypit import armasters
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
+
+def test_bspline_fit():
+    # Testing the bspline works ok (really testing bkspace)
+    fit_dict = ltu.loadjson(data_path('flux_data.json'))
+    wave = np.array(fit_dict['wave'])
+    magfunc = np.array(fit_dict['magf'])
+    logivar = np.array(fit_dict['logiv'])
+    kwargs = dict(bkspace=fit_dict['bkspec'])
+    mask, tck = arutils.robust_polyfit(wave, magfunc, 3, function='bspline', weights=np.sqrt(logivar), **kwargs)
 
 
 def test_gen_sensfunc():

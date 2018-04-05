@@ -377,7 +377,7 @@ def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=No
     msgs.info("Creating an image weighted by object pixels")
     rec_obj_img = np.zeros((sciframe.shape[0], sciframe.shape[1], nobj))
     for o in range(nobj):
-        msgs.info("obj {:d}".format(o))
+        #msgs.info("obj {:d}".format(o))
         obj = np.zeros(npix)
         obj[objreg[0][o]:objreg[1][o]+1] = 1
         scitmp = np.append(0.0, np.append(obj, 0.0))
@@ -399,7 +399,7 @@ def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=No
     msgs.info("Creating an image weighted by background pixels")
     rec_bg_img = np.zeros((sciframe.shape[0], sciframe.shape[1], nobj))
     for o in range(nobj):
-        msgs.info("bkg {:d}".format(o))
+        #msgs.info("bkg {:d}".format(o))
         backtmp = np.append(0.0, np.append(bgreg[0][:, o] + bgreg[1][:, o], 0.0))
         bckframe = backtmp.reshape(1, -1).repeat(sciframe.shape[0], axis=0)
         bckspl = interp.RectBivariateSpline(xint, yint, bckframe, bbox=[0.0, 1.0, yint.min(), yint.max()], kx=1, ky=1, s=0)
