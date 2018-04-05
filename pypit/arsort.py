@@ -28,11 +28,6 @@ from pypit.arflux import find_standard_file
 from pypit import armeta
 from pypit import ardebug as debugger
 
-# TODO: Never used ...
-# import string
-# from linetools import utils as ltu
-# from astropy.io import votable
-# import yaml
 
 def sort_data(fitsdict, flag_unknown=False):
     """ Generate a dict of filetypes from the input fitsdict object

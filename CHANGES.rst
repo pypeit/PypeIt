@@ -48,7 +48,7 @@
 - Updates archeck
 - Loads NIST arclines from arclines instead of PYPIT
 - Moved all imports to the start of every file to catch and avoid
-  circular imports
+  circular imports, removed most `import ... as ...` constructs
 - dummy_* removed from arutils as necessary and propagated changes to
   tests
 - remove dependency of ararclines functions on slf

@@ -21,14 +21,6 @@ import numpy as np
 import yaml
 import json
 
-# TODO: Never used...
-# import re
-# import sys
-# import shutil
-# from astropy.io.votable.tree import VOTableFile, Resource, Table, Field
-# from astropy.table import Table as tTable, Column
-# from astropy import units as u
-
 import linetools.utils
 
 from pypit import msgs
@@ -38,6 +30,7 @@ from pypit.arflux import find_standard_file
 from pypit import armeta
 from pypit import arparse
 from pypit import ardebug as debugger
+
 
 def dummy_setup_dict(filesort, fitsdict):
     """ Generates a dummy setup_dict

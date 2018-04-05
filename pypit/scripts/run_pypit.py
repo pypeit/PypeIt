@@ -16,11 +16,10 @@ import sys
 import argparse
 import traceback
 
+from pypit import msgs
 from pypit import archeck
 from pypit import pypit
-from pypit import msgs
 from pypit import ardebug
-#from pypit.scripts import qa_html
 
 # Globals
 #debug = ardebug.init()
@@ -33,9 +32,6 @@ from pypit import ardebug
 #debug['tilts'] = True
 #debug['flexure'] = True
 #debug['no_qa'] = True
-
-#from pypit.armsgs import Messages as Initmsg
-#initmsgs = Initmsg(None, debug, 1)
 
 
 def parser(options=None):
@@ -113,9 +109,5 @@ def main(args):
                          + " with error:" + msgs.newline() + str(ev) + msgs.newline()
                          + "---> please contact the authors")
             msgs.close()
-#            # Get armsgs instance to terminate
-#            from pypit.armsgs import get_logger
-#            # TODO: Close logger and close QA
-#            get_logger().close()
             return 1
     return 0

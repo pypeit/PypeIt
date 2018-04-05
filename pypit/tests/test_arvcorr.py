@@ -9,7 +9,7 @@ import pytest
 
 from astropy.time import Time
 from astropy.coordinates import SkyCoord
-from astropy import units as u
+from astropy import units
 
 from pypit import arparse
 from pypit import arwave
@@ -33,9 +33,9 @@ def fitsdict():
 def test_geovelocity():
     """ Test the full geomotion velocity calculation
     """
-    loc = (lon * u.deg, lat * u.deg, alt * u.m,)
+    loc = (lon * units.deg, lat * units.deg, alt * units.m,)
 
-    radec = SkyCoord(RA, DEC, unit=(u.hourangle, u.deg), frame='icrs')
+    radec = SkyCoord(RA, DEC, unit=(units.hourangle, units.deg), frame='icrs')
     obstime = Time(mjd, format='mjd', scale='utc', location=loc)
 
     corrhelio = arwave.geomotion_velocity(obstime, radec, frame="heliocentric")
