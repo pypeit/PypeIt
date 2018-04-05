@@ -8,7 +8,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import gridspec, font_manager
 
-import arclines
+#import arclines
+import arclines.holy.grail
 #from arclines.holy.grail import basic, semi_brute, general
 
 from pypit import arpca
