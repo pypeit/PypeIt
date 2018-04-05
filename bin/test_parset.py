@@ -78,7 +78,7 @@ class PypitRunPar(ParSet):
               is currently done in the code by trolling through a file
               directory.
         """
-        return [ 'apf_levy' 'keck_deimos', 'keck_hires', 'keck_lris_blue', 'keck_lris_red',
+        return [ 'apf_levy', 'keck_deimos', 'keck_hires', 'keck_lris_blue', 'keck_lris_red',
                  'shane_kast_blue', 'shane_kast_red', 'tng_dolores', 'wht_isis_blue' ]
 
     
