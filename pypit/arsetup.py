@@ -1,21 +1,36 @@
 """ Routines for sorting data to be reduced by PYPIT"""
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
+try:
+    basestring
+except NameError:
+    basestring = str
+
+try:
+    input = raw_input
+except NameError:
+    pass
+
 import os
-import re
-import sys
-import shutil
+import io
+import glob
 import string
+import datetime
+
 import numpy as np
 import yaml
+import json
 
-from astropy.io.votable.tree import VOTableFile, Resource, Table, Field
-from astropy.table import Table as tTable, Column
-from astropy import units as u
+# TODO: Never used...
+# import re
+# import sys
+# import shutil
+# from astropy.io.votable.tree import VOTableFile, Resource, Table, Field
+# from astropy.table import Table as tTable, Column
+# from astropy import units as u
 
-from linetools import utils as ltu
+import linetools.utils
 
-#from pypit import armsgs
 from pypit import msgs
 from pypit import arparse as settings
 from pypit import arutils
@@ -23,18 +38,6 @@ from pypit.arflux import find_standard_file
 from pypit import armeta
 from pypit import arparse
 from pypit import ardebug as debugger
-
-try:
-    basestring
-except NameError:
-    basestring = str
-
-try: input = raw_input
-except NameError: pass
-
-# Logging
-#msgs = armsgs.get_logger()
-
 
 def dummy_setup_dict(filesort, fitsdict):
     """ Generates a dummy setup_dict
@@ -308,9 +311,6 @@ def get_setup_file(spectrograph=None):
       Number of existing setup files (0 or 1)
 
     """
-    import glob
-    import datetime
-
     if spectrograph is None:
         spectrograph = settings.argflag['run']['spectrograph']
     setup_files = glob.glob('./{:s}*.setups'.format(spectrograph))
@@ -338,7 +338,6 @@ def load_setup(**kwargs):
     setup_file : str
 
     """
-    import yaml
     setup_file, nexist = get_setup_file(**kwargs)
     if nexist == 0:
         debugger.set_trace()
@@ -381,13 +380,12 @@ def write_setup(setup_dict, use_json=False):
     -------
 
     """
-    import json, io
     # Write
     setup_file, nexist = get_setup_file()
     if nexist == 1:
         msgs.warn("Over-writing existing .setups file")
     if use_json:
-        gddict = ltu.jsonify(setup_dict)
+        gddict = linetools.utils.jsonify(setup_dict)
         with io.open(setup_file, 'w', encoding='utf-8') as f:
             f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4,
                                        separators=(',', ': '))))

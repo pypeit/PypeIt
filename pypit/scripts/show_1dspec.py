@@ -3,12 +3,23 @@
 """
 Wrapper to the linetools XSpecGUI
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
+import argparse
+import sys
+import pdb
+
+from astropy.io import fits
+from PyQt5.QtWidgets import QApplication
+
+from linetools.guis.xspecgui import XSpecGui
+
+from pypit import arload
 
 def parser(options=None):
-
-    import argparse
-
     parser = argparse.ArgumentParser(description='Parse')
     parser.add_argument("file", type=str, help="Spectral file")
     parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
@@ -27,12 +38,8 @@ def parser(options=None):
 def main(args, unit_test=False):
     """ Runs the XSpecGui on an input file
     """
-    import sys
-    import pdb
-
     # List only?
     if args.list:
-        from astropy.io import fits
         print("Showing object names for input file...")
         hdu = fits.open(args.file)
         for ii in range(1,len(hdu)):
@@ -40,15 +47,11 @@ def main(args, unit_test=False):
             print("EXT{:07d} = {}".format(ii, name))
         sys.exit()
 
-    from linetools.guis.xspecgui import XSpecGui
-    from pypit import arload
-
     # Load spectrum
     spec = arload.load_1dspec(args.file, exten=args.exten, extract=args.extract,
                               objname=args.obj, flux=args.flux)
 
     if unit_test is False:
-        from PyQt5.QtWidgets import QApplication
         app = QApplication(sys.argv)
         # Screen dimensions
         width = app.desktop().screenGeometry().width()
@@ -58,3 +61,4 @@ def main(args, unit_test=False):
     if unit_test is False:
         gui.show()
         app.exec_()
+

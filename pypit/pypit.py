@@ -15,8 +15,8 @@ try:
 except ImportError:
     pass
 
-from pypit import ardebug
 from pypit import msgs
+from pypit import ardebug
 from pypit import archeck  # THIS IMPORT DOES THE CHECKING.  KEEP IT
 from pypit import arparse
 from pypit import ardevtest

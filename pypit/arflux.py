@@ -11,20 +11,15 @@ from astropy.io import fits
 from astropy import units as u
 from astropy import coordinates as coords
 
-#from pypit import armsgs
-from pypit import msgs
-from pypit import arparse as settings
-
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
 except ImportError:
     pass
 
+from pypit import msgs
+from pypit import arparse as settings
+from pypit import arutils
 from pypit import ardebug as debugger
-
-# Logging
-#msgs = armsgs.get_logger()
-
 
 def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
     """ Apply the sensitivity function to the data
@@ -35,7 +30,6 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
     MAX_EXTRAP : float, optional [0.05]
       Fractional amount to extrapolate sensitivity function
     """
-    from pypit import arutils
     # Load extinction data
     extinct = load_extinction_data()
     airmass = fitsdict['airmass'][scidx]
@@ -99,7 +93,6 @@ def bspline_magfit(wave, flux, var, flux_std, **kwargs):
     Returns
     -------
     """
-    from pypit import arutils
     invvar = (var > 0.)/(np.max(var,0))
     invvar[np.where(var==0.0)] = 0.0
     nx = wave.size

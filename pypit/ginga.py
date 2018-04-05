@@ -2,19 +2,27 @@
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
+try:
+    basestring
+except NameError:
+    basestring = str
+
 import os
 import numpy as np
-
-from pypit import msgs
 
 # CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
 #from pypit import ardebug as debugger
 import pdb as debugger
 
-try:
-    basestring
-except NameError:
-    basestring = str
+from ginga.util import grc
+
+from astropy.io import fits
+
+from pypit import msgs
+
+# TODO: There needs to be a way to call show_image() without importing
+# arlris, requires a code refactor
+# from pypit import arlris
 
 def connect_to_ginga(host='localhost', port=9000):
     """ Connect to an active RC Ginga
@@ -29,9 +37,8 @@ def connect_to_ginga(host='localhost', port=9000):
       connectoin to Ginga
 
     """
-    from ginga.util import grc as ggrc
     # Start
-    viewer = ggrc.RemoteClient(host, port)
+    viewer = grc.RemoteClient(host, port)
     # Test
     ginga = viewer.shell()
     try:
@@ -58,12 +65,11 @@ def show_image(inp, chname='Image', wcs_img=None, **kwargs):
     -------
 
     """
-    from astropy.io import fits
-    from pypit import arlris
     if isinstance(inp, basestring):
         if '.fits' in inp:
             if 'raw_lris' in kwargs.keys():
-                img, head, _ = arlris.read_lris(inp)
+#                img, head, _ = arlris.read_lris(inp)
+                raise NotImplementedError('ginga.show_image() cannot yet show lris images.')
             else:
                 hdu = fits.open(inp)
                 try:

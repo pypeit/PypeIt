@@ -1,26 +1,24 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import copy
+
 import numpy as np
+
 from scipy import interpolate
 
-from linetools.spectra import xspectrum1d
-from astropy.coordinates import SkyCoord, solar_system, EarthLocation, ICRS, UnitSphericalRepresentation, CartesianRepresentation
+from astropy import units
+from astropy.coordinates import SkyCoord, solar_system, EarthLocation, ICRS
+from astropy.coordinates import UnitSphericalRepresentation, CartesianRepresentation
 from astropy.time import Time
-from astropy import units as u
 
+from linetools.spectra import xspectrum1d
+
+from pypit import msgs
 from pypit import ararc
 from pypit import arextract
-#from pypit import armsgs
-from pypit import msgs
 from pypit import arparse as settings
 from pypit import arutils
-
-# Logging
-#msgs = armsgs.get_logger()
-
 from pypit import ardebug as debugger
-
 
 def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     """ Calculate shift between object sky spectrum and archive sky spectrum
@@ -307,12 +305,12 @@ def flexure_obj(slf, det):
                     msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) +
                               msgs.newline() + "{0:s}".format(str(specobj)))
                     f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
-                    getattr(specobj, attr)['wave'] = f(x+fdict['shift']/(npix-1))*u.AA
+                    getattr(specobj, attr)['wave'] = f(x+fdict['shift']/(npix-1))*units.AA
             # Shift sky spec too
             cut_sky = fdict['sky_spec']
             x = np.linspace(0., 1., cut_sky.npix)
             f = interpolate.interp1d(x, cut_sky.wavelength.value, bounds_error=False, fill_value="extrapolate")
-            twave = f(x + fdict['shift']/(cut_sky.npix-1))*u.AA
+            twave = f(x + fdict['shift']/(cut_sky.npix-1))*units.AA
             new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, cut_sky.flux))
 
             # Update dict
@@ -332,9 +330,9 @@ def geomotion_calculate(slf, fitsdict, idx):
     lat = settings.spect['mosaic']['latitude']
     lon = settings.spect['mosaic']['longitude']
     alt = settings.spect['mosaic']['elevation']
-    loc = (lon * u.deg, lat * u.deg, alt * u.m,)
+    loc = (lon * units.deg, lat * units.deg, alt * units.m,)
 
-    radec = SkyCoord(fitsdict["ra"][idx], fitsdict["dec"][idx], unit=(u.hourangle, u.deg), frame='fk5')
+    radec = SkyCoord(fitsdict["ra"][idx], fitsdict["dec"][idx], unit=(units.hourangle, units.deg), frame='fk5')
     obstime = Time(slf._time.value, format=slf._time.format, scale='utc', location=loc)
 
     vcorr = geomotion_velocity(obstime, radec, frame=frame)
@@ -424,7 +422,7 @@ def geomotion_velocity(time, skycoord, frame="heliocentric"):
 
     # Get unit ICRS vector in direction of SkyCoord
     sc_cartesian = skycoord.icrs.represent_as(UnitSphericalRepresentation).represent_as(CartesianRepresentation)
-    return sc_cartesian.dot(velocity).to(u.km / u.s).value
+    return sc_cartesian.dot(velocity).to(units.km / units.s).value
 
 
 def airtovac(wave):
@@ -441,7 +439,7 @@ def airtovac(wave):
       Wavelength array corrected to vacuum wavelengths
     """
     # Convert to AA
-    wave = wave.to(u.AA)
+    wave = wave.to(units.AA)
     wavelength = wave.value
 
     # Standard conversion format
@@ -452,7 +450,7 @@ def airtovac(wave):
     # Convert
     wavelength = wavelength*factor
     # Units
-    new_wave = wavelength*u.AA
+    new_wave = wavelength*units.AA
     new_wave.to(wave.unit)
 
     return new_wave
@@ -472,7 +470,7 @@ def vactoair(wave):
       Wavelength array corrected to air
     """
     # Convert to AA
-    wave = wave.to(u.AA)
+    wave = wave.to(units.AA)
     wavelength = wave.value
 
     # Standard conversion format
@@ -482,7 +480,7 @@ def vactoair(wave):
 
     # Convert
     wavelength = wavelength/factor
-    new_wave = wavelength*u.AA
+    new_wave = wavelength*units.AA
     new_wave.to(wave.unit)
 
     return new_wave

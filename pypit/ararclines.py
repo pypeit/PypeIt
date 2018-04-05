@@ -8,17 +8,14 @@ from pkg_resources import resource_filename
 
 from arclines.io import load_line_list
 
-#from pypit import armsgs
 from pypit import msgs
+#from pypit import arutils
 from pypit import arparse as settings
-
 from pypit import ardebug as debugger
 
-# Logging
-#msgs = armsgs.get_logger()
 
-
-def parse_nist(slf,ion):
+#def parse_nist(slf,ion):
+def parse_nist(ion):
     """Parse a NIST ASCII table.  Note that the long ---- should have
     been commented out and also the few lines at the start.
 
@@ -35,7 +32,8 @@ def parse_nist(slf,ion):
     return nist_tbl
 
 
-def load_arcline_list(slf, idx, lines, disperser, wvmnx=None, modify_parse_dict=None):
+#def load_arcline_list(slf, idx, lines, disperser, wvmnx=None, modify_parse_dict=None):
+def load_arcline_list(idx, lines, disperser, wvmnx=None, modify_parse_dict=None):
     """Loads arc line list from NIST files
     Parses and rejects
 
@@ -60,10 +58,9 @@ def load_arcline_list(slf, idx, lines, disperser, wvmnx=None, modify_parse_dict=
     # Get the parse dict
     parse_dict = load_parse_dict(modify_dict=modify_parse_dict)
     # Read rejection file
-    if slf is None:
-        from pypit import arutils as arut
-        msgs.warn("Using arutils.dummy_self.  Better know what you are doing.")
-        slf = arut.dummy_self()
+#    if slf is None:
+#        msgs.warn("Using arutils.dummy_self.  Better know what you are doing.")
+#        slf = arutils.dummy_self()
     root = settings.argflag['run']['pypitdir']
     with open(root+'/data/arc_lines/rejected_lines.yaml', 'r') as infile:
         rej_dict = yaml.load(infile)
@@ -71,14 +68,16 @@ def load_arcline_list(slf, idx, lines, disperser, wvmnx=None, modify_parse_dict=
     tbls = []
     for iline in lines:
         # Load
-        tbl = parse_nist(slf,iline)
+#        tbl = parse_nist(slf,iline)
+        tbl = parse_nist(iline)
         # Parse
         if iline in parse_dict.keys():
             tbl = parse_nist_tbl(tbl,parse_dict[iline])
         # Reject
         if iline in rej_dict.keys():
             msgs.info("Rejecting select {:s} lines".format(iline))
-            tbl = reject_lines(slf,tbl,idx,rej_dict[iline],disperser)
+#            tbl = reject_lines(slf,tbl,idx,rej_dict[iline],disperser)
+            tbl = reject_lines(tbl,idx,rej_dict[iline],disperser)
         tbls.append(tbl[['Ion','wave','RelInt']])
     # Stack
     alist = vstack(tbls)
@@ -92,7 +91,8 @@ def load_arcline_list(slf, idx, lines, disperser, wvmnx=None, modify_parse_dict=
     return alist
 
 
-def reject_lines(slf, tbl, idx, rej_dict, disperser):
+#def reject_lines(slf, tbl, idx, rej_dict, disperser):
+def reject_lines(tbl, idx, rej_dict, disperser):
     '''Parses a NIST table using various criteria
     Parameters
     ----------
@@ -116,8 +116,8 @@ def reject_lines(slf, tbl, idx, rej_dict, disperser):
         close = np.where(np.abs(wave-tbl['wave']) < 0.1)[0]
         if rej_dict[wave] == 'all':
             msk[close] = False
-        elif slf == None:
-            continue
+#        elif slf == None:
+#            continue
         elif settings.argflag['run']['spectrograph'] in rej_dict[wave].keys():
             if rej_dict[wave][settings.argflag['run']['spectrograph']] == 'all':
                 msk[close] = False

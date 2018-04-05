@@ -2,18 +2,17 @@
 #  Includes ArSpecObj class
 from __future__ import absolute_import, division, print_function
 
-import numpy as np
 import copy
+from collections import OrderedDict
 
-#from pypit import armsgs
+import numpy as np
+
+from astropy import units
+from astropy.table import Table
+
 from pypit import msgs
 from pypit import arparse as settings
-
-# Logging
-#msgs = armsgs.get_logger()
-
 from pypit import ardebug as debugger
-
 
 class SpecObjExp(object):
     """Class to handle object spectra from a single exposure
@@ -221,7 +220,6 @@ def mtch_obj_to_objects(iobj, objects, stol=50, otol=10, **kwargs):
     indcies : list
 
     """
-    from astropy.table import Table
     # Parse input object
     odict = objnm_to_dict(iobj)
     # Generate a Table of the objects
@@ -315,7 +313,6 @@ def instconfig(det, scidx, fitsdict):
     fitsdict : dict
     """
 
-    from collections import OrderedDict
     config_dict = OrderedDict()
     config_dict['S'] = 'slitwid'
     config_dict['D'] = 'dichroic'
@@ -347,3 +344,38 @@ def instconfig(det, scidx, fitsdict):
     config += 'B{:s}'.format(val)
     # Return
     return config
+
+
+def dummy_specobj(fitsdict, det=1, extraction=True):
+    """ Generate dummy specobj classes
+    Parameters
+    ----------
+    fitsdict : dict
+      Expecting the fitsdict from dummy_fitsdict
+    Returns
+    -------
+
+    """
+    shape = fitsdict['naxis1'][0], fitsdict['naxis0'][0]
+    config = 'AA'
+    scidx = 5 # Could be wrong
+    xslit = (0.3,0.7) # Center of the detector
+    ypos = 0.5
+    xobjs = [0.4, 0.6]
+    specobjs = []
+    for xobj in xobjs:
+        specobj = SpecObjExp(shape, config, scidx, det, xslit, ypos, xobj)
+        # Dummy extraction?
+        if extraction:
+            npix = 2001
+            specobj.boxcar['wave'] = np.linspace(4000., 6000., npix)*units.AA
+            specobj.boxcar['counts'] = 50.*(specobj.boxcar['wave'].value/5000.)**-1.
+            specobj.boxcar['var']  = specobj.boxcar['counts'].copy()
+        # Append
+        specobjs.append(specobj)
+    # Return
+    return specobjs
+
+
+
+
