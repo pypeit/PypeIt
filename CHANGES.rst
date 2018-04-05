@@ -40,6 +40,10 @@
 * setup.py rewritten.  Modeled after https://github.com/sdss/marvin/blob/master/setup.py .  Added requirements.txt with the package versions required.
 * Updates archeck
 * Loads NIST arclines from arclines instead of PYPIT
+* DEIMOS reduction!
+* Bug fix for bspline with bkspace
+* Enable loading a sensitivity function with YAML
+* Allow for multiple detectors when using `reduce detnum`
 
 0.7 (2017-02-07)
 ----------------
