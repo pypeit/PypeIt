@@ -49,6 +49,12 @@
 - Loads NIST arclines from arclines instead of PYPIT
 - Moved all imports to the start of every file to catch and avoid
   circular imports
+- dummy_* removed from arutils as necessary and propagated changes to
+  tests
+- remove dependency of ararclines functions on slf
+- change requirements for astropy to >=1.3.0 so that `overwrite` is
+  valid
+- include numba in requirements, but actually a requirement of arclines
 
 0.7 (2017-02-07)
 ----------------
