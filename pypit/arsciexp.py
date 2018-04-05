@@ -908,3 +908,24 @@ class ScienceExposure:
         return ('<{:s}: frame={:s} target={:s} index={:d}>'.format(
                 self.__class__.__name__, self._basename, self._target_name,
                 self._idx_sci[0]))
+
+
+def dummy_self(inum=0, fitsdict=None, nfile=10):
+    """ Generate a dummy self class for testing
+    Parameters:
+    -----------
+    inum : int, optional
+      Index in sciexp
+    Returns:
+    --------
+    slf
+    """
+    # Dummy fitsdict
+    if fitsdict is None:
+        fitsdict = arutils.dummy_fitsdict(nfile=nfile)
+    # Dummy Class
+    return ScienceExposure(inum, fitsdict, do_qa=False)
+
+
+
+

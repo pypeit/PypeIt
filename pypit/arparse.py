@@ -13,6 +13,8 @@ import glob
 from os import path
 from multiprocessing import cpu_count
 
+import numpy as np
+
 from astropy.time import Time
 
 try:
@@ -4391,3 +4393,60 @@ def parse_binning(binning):
         return 1,1
     else:
         return binspatial, binspectral
+
+
+def dummy_settings(pypitdir=None, nfile=10, spectrograph='shane_kast_blue',
+                   set_idx=True):
+    """ Generate settings classes
+    Parameters
+    ----------
+    pypitdir
+    nfile
+    spectrograph
+    set_idx : bool, optional
+      Set dummy index values for science and calibs
+
+    Returns
+    -------
+
+    """
+    # Dummy argflag
+    if spectrograph != 'shane_kast_blue':
+        msgs.error("Only setup for Kast Blue")  # You will need to fuss with scidx
+    argf = get_argflag_class(("ARMLSD", spectrograph))
+    argf.init_param()
+    if pypitdir is None:
+        pypitdir = __file__[0:__file__.rfind('/')]
+    # Run specific
+    argf.set_param('run pypitdir {0:s}'.format(pypitdir))
+    argf.set_param('run spectrograph {:s}'.format(spectrograph))
+    argf.set_param('run directory science ./')
+    # Dummy spect
+    spect = get_spect_class(("ARMLSD", spectrograph, "dummy"))
+    lines = spect.load_file(base=True)  # Base spectrograph settings
+    spect.set_paramlist(lines)
+    lines = spect.load_file()
+    spect.set_paramlist(lines)
+    if set_idx:
+        for jj, key in enumerate(spect._spect.keys()):
+            if key in ['det']:
+                continue
+            if 'index' in spect._spect[key].keys():
+                if spectrograph == 'shane_kast_blue':  # Science frames from idx = 5 to 9
+                    assert nfile == 10
+                for kk in [5,6,7,8,9]:
+                    if key == 'science':
+                        spect._spect[key]['index'] += [np.array([kk])]
+                    elif key == 'arc':
+                        spect._spect[key]['index'] += [np.array([1])]
+                    elif key == 'standard':
+                        spect._spect[key]['index'] += [np.array([4])]
+                    elif key == 'bias':
+                        spect._spect[key]['index'] += [np.array([0])]
+                    elif key == 'trace':
+                        spect._spect[key]['index'] += [np.array([2,3])]
+                    elif key == 'pixelflat':
+                        spect._spect[key]['index'] += [np.array([2,3])]
+    init(argf, spect)
+    return
+

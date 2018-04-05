@@ -14,11 +14,9 @@ from astropy.io import fits
 
 from pypit import arparse as settings
 from pypit import arutils
+from pypit import arsciexp
 from pypit import arspecobj
 from pypit import arsave
-from pypit import pyputils
-
-msgs = pyputils.get_dummy_logger()
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -38,9 +36,9 @@ def mk_specobj(flux=5, objid=500):
 
 
 def test_save2d_fits():
-    arutils.dummy_settings()
+    settings.dummy_settings()
     # Dummy self
-    slf = arutils.dummy_self()
+    slf = arsciexp.dummy_self()
     fitsdict = arutils.dummy_fitsdict(nfile=1, spectrograph='none', directory=data_path(''))
     fitsdict['filename'] = np.array(['b1.fits.gz'])
     # Settings
@@ -65,10 +63,10 @@ def test_save2d_fits():
 def test_save1d_fits():
     """ save1d to FITS and HDF5
     """
-    arutils.dummy_settings()
+    settings.dummy_settings()
     fitsdict = arutils.dummy_fitsdict(nfile=10, spectrograph='shane_kast_blue', directory=data_path(''))
     # Dummy self
-    slf = arutils.dummy_self()
+    slf = arsciexp.dummy_self()
     slf._specobjs = []
     slf._specobjs.append([])
     slf._specobjs[0].append([mk_specobj()])
@@ -80,7 +78,7 @@ def test_save1d_hdf5():
     """ save1d to FITS and HDF5
     """
     # Dummy self
-    slf = arutils.dummy_self()
+    slf = arsciexp.dummy_self()
     fitsdict = arutils.dummy_fitsdict(nfile=1, spectrograph='none')
     # specobj
     slf._specobjs = []
@@ -88,6 +86,4 @@ def test_save1d_hdf5():
     slf._specobjs[0].append([mk_specobj(objid=455), mk_specobj(flux=3., objid=555)])
     # Write to HDF5
     arsave.save_1d_spectra_hdf5(slf, fitsdict)
-
-
 

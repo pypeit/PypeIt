@@ -11,13 +11,8 @@ import numpy as np
 from pypit import arparse as settings
 from pypit import arproc
 from pypit import arutils
-from pypit import pyputils
+from pypit import arsciexp
 
-msgs = pyputils.get_dummy_logger()
-
-#def data_path(filename):
-#    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-#    return os.path.join(data_dir, filename)
 
 @pytest.fixture
 def fitsdict():
@@ -27,8 +22,8 @@ def fitsdict():
 def test_ampsec(fitsdict):
     """ Test sort_data
     """
-    arutils.dummy_settings(spectrograph='shane_kast_blue')
-    slf = arutils.dummy_self()
+    settings.dummy_settings(spectrograph='shane_kast_blue')
+    slf = arsciexp.dummy_self()
     # Run
     det, scidx = 1, 5
     arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)

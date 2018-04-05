@@ -20,17 +20,16 @@ except NameError:
 
 from astropy import units
 
+#from pypit import msgs
 from pypit import arparse as settings
 from pypit import arflux
 from pypit import arload
 from pypit import arutils
+from pypit import arsciexp
 from pypit import armasters
-from pypit import pyputils
 
 #from xastropy.xutils import afits as xafits
 #from xastropy.xutils import xdebug as xdb
-
-msgs = pyputils.get_dummy_logger()
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -42,13 +41,13 @@ def test_gen_sensfunc():
     sfile = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
     specobjs = arload.load_specobj(sfile)
     # Settings, etc.
-    arutils.dummy_settings()
+    settings.dummy_settings()
     settings.argflag['run']['spectrograph'] = 'shane_kast_blue'
     settings.argflag['reduce']['masters']['setup'] = 'C_01_aa'
     settings.spect['arc'] = {}
     settings.spect['arc']['index'] = [[0]]
     fitsdict = arutils.dummy_fitsdict()
-    slf = arutils.dummy_self()
+    slf = arsciexp.dummy_self()
     slf._msstd[0]['RA'] = '05:06:36.6'
     slf._msstd[0]['DEC'] = '52:52:01.0'
     # Generate
@@ -111,3 +110,4 @@ def test_extinction_correction():
     flux_corr = arflux.extinction_correction(wave,AM,extinct)
     # Test
     np.testing.assert_allclose(flux_corr[0], 4.47095192)
+

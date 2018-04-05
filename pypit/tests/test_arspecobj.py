@@ -13,7 +13,7 @@ import pytest
 
 #import pypit
 
-from pypit import arspecobj as aspobj
+from pypit import arspecobj
 from pypit import pyputils
 
 msgs = pyputils.get_dummy_logger()

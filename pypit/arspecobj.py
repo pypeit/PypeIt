@@ -7,6 +7,7 @@ from collections import OrderedDict
 
 import numpy as np
 
+from astropy import units
 from astropy.table import Table
 
 from pypit import msgs
@@ -343,3 +344,38 @@ def instconfig(det, scidx, fitsdict):
     config += 'B{:s}'.format(val)
     # Return
     return config
+
+
+def dummy_specobj(fitsdict, det=1, extraction=True):
+    """ Generate dummy specobj classes
+    Parameters
+    ----------
+    fitsdict : dict
+      Expecting the fitsdict from dummy_fitsdict
+    Returns
+    -------
+
+    """
+    shape = fitsdict['naxis1'][0], fitsdict['naxis0'][0]
+    config = 'AA'
+    scidx = 5 # Could be wrong
+    xslit = (0.3,0.7) # Center of the detector
+    ypos = 0.5
+    xobjs = [0.4, 0.6]
+    specobjs = []
+    for xobj in xobjs:
+        specobj = SpecObjExp(shape, config, scidx, det, xslit, ypos, xobj)
+        # Dummy extraction?
+        if extraction:
+            npix = 2001
+            specobj.boxcar['wave'] = np.linspace(4000., 6000., npix)*units.AA
+            specobj.boxcar['counts'] = 50.*(specobj.boxcar['wave'].value/5000.)**-1.
+            specobj.boxcar['var']  = specobj.boxcar['counts'].copy()
+        # Append
+        specobjs.append(specobj)
+    # Return
+    return specobjs
+
+
+
+

@@ -323,8 +323,10 @@ def setup_param(slf, sc, det, fitsdict):
     for lamp in lamps[1:]:
         slmps=slmps+','+lamp
     msgs.info('Loading line list using {:s} lamps'.format(slmps))
-    arcparam['llist'] = ararclines.load_arcline_list(slf, idx, lamps, disperser,
-        wvmnx=arcparam['wvmnx'], modify_parse_dict=modify_dict)
+#    arcparam['llist'] = ararclines.load_arcline_list(slf, idx, lamps, disperser,
+    arcparam['llist'] = ararclines.load_arcline_list(idx, lamps, disperser,
+                                                     wvmnx=arcparam['wvmnx'],
+                                                     modify_parse_dict=modify_dict)
     # Binning
     arcparam['disp'] *= binspectral
 
