@@ -26,7 +26,10 @@ from pypit import arparse as settings
 from pypit.filter import BoxcarFilter
 from pypit import arspecobj
 from pypit import ardebug as debugger
-from pypit import ginga
+try:
+    from pypit import ginga
+except ImportError:
+    pass
 
 from pypit import arcyarc
 from pypit import arcytrace

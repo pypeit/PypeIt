@@ -33,7 +33,7 @@ env:
         - NUMPY_VERSION=stable
         - MAIN_CMD='python setup.py'
         - SETUP_CMD='test'
-        - CONDA_DEPENDENCIES='scipy h5py pyyaml matplotlib future Cython'
+        - CONDA_DEPENDENCIES='scipy h5py pyyaml matplotlib future Cython numba'
         - PIP_DEPENDENCIES=''
         - EVENT_TYPE='pull_request push'
         - TASK='test'
