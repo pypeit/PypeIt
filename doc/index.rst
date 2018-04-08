@@ -60,6 +60,17 @@ Calibrations
    wave_calib
    fluxing
 
+Instruments
++++++++++++
+
+.. toctree::
+   :maxdepth: 2
+
+   instruments
+   deimos
+   lris
+
+
 Object Algorithms
 +++++++++++++++++
 
