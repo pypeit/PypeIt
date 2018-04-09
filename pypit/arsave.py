@@ -628,7 +628,7 @@ def save_2d_images(slf, fitsdict, clobber=True):
         sdet = settings.get_dnum(det, caps=True)  # e.g. DET02
         # Specified detector number?
         if settings.argflag['reduce']['detnum'] is not None:
-            if det != settings.argflag['reduce']['detnum']:
+            if det not in map(int, settings.argflag['reduce']['detnum']):
                 continue
             else:
                 msgs.warn("Restricting the reduction to detector {:d}".format(det))

@@ -17,6 +17,8 @@ from pypit import msgs
 
 from pypit import arextract
 from pypit import arlris
+from pypit import ardeimos
+from pypit import armsgs
 from pypit import artrace
 from pypit import arutils
 from pypit import arparse as settings
@@ -627,6 +629,18 @@ def get_datasec_trimmed(slf, fitsdict, det, scidx):
             settings.spect[dnum][datasec] = settings.load_sections(secs[0][kk], fmt_iraf=False)
             oscansec = "oscansec{0:02d}".format(kk+1)
             settings.spect[dnum][oscansec] = settings.load_sections(secs[1][kk], fmt_iraf=False)
+    # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
+    elif settings.argflag['run']['spectrograph'] in ['keck_deimos']:
+        msgs.info("Parsing datasec and oscansec from headers")
+        temp, head0, secs = ardeimos.read_deimos(fitsdict['directory'][scidx] + fitsdict['filename'][scidx])
+        # Naxis
+        fitsdict['naxis0'][scidx] = temp.shape[0]
+        fitsdict['naxis1'][scidx] = temp.shape[1]
+        datasec = "datasec{0:02d}".format(1)
+        settings.spect[dnum][datasec] = settings.load_sections(secs[0][det-1], fmt_iraf=False)
+        oscansec = "oscansec{0:02d}".format(1)
+        settings.spect[dnum][oscansec] = settings.load_sections(secs[1][det-1], fmt_iraf=False)
+
     # For convenience
     naxis0, naxis1 = int(fitsdict['naxis0'][scidx]), int(fitsdict['naxis1'][scidx])
     # Initialize the returned array
@@ -697,7 +711,7 @@ def flexure_qa(slf, det, flex_list, slit_cen=False):
     """
     plt.rcdefaults()
     plt.rcParams['font.family']= 'times new roman'
-    
+
     # Grab the named of the method
     method = inspect.stack()[0][3]
     #
@@ -1828,7 +1842,7 @@ def slit_profile_qa(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Sl
 
     plt.rcdefaults()
     plt.rcParams['font.family']= 'times new roman'
-    
+
     # Outfile
     method = inspect.stack()[0][3]
     outroot = arqa.set_qa_filename(slf.setup, method)

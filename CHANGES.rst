@@ -47,6 +47,10 @@
   requirements.txt with the package versions required.
 - Updates archeck
 - Loads NIST arclines from arclines instead of PYPIT
+- DEIMOS reduction!
+- Bug fix for bspline with bkspace
+- Enable loading a sensitivity function with YAML
+- Allow for multiple detectors when using `reduce detnum`
 - Moved all imports to the start of every file to catch and avoid
   circular imports, removed most `import ... as ...` constructs
 - dummy_* removed from arutils as necessary and propagated changes to

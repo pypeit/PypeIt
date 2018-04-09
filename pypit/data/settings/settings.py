@@ -15,6 +15,7 @@ import glob
 import time
 import filecmp
 from shutil import copyfile
+from pkg_resources import resource_filename
 
 # CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
 import pdb as debugger
@@ -51,8 +52,8 @@ def archive():
     """ Generate archival file for the baseargf file or spect file
     and instrument setting files
     """
-    settings_path = pypit.__path__[0]+'/data/settings/'
-    archive_path = pypit.__path__[0]+'/data/settings/archive/'
+    settings_path = resource_filename('pypit', '/data/settings/')
+    archive_path = resource_filename('pypit', '/data/settings/archive/')
     # Files
     sett_files = glob.glob(settings_path+'settings.*')
     for sfile in sett_files:
@@ -68,7 +69,7 @@ def archive():
         arch_file = current_sett_file(archive_path, sfile)
         if arch_file is None:
             match = False
-            arch_root = None
+            arch_root = ''
         else: # Compare
             match = filecmp.cmp(sfile, arch_file)
             arch_root = arch_file.split('/')[-1]
@@ -146,7 +147,7 @@ def spect_diff_and_dup():
     basespect.set_paramlist(base_lines)
 
     # ARMLSD instruments
-    for specname in ['shane_kast_blue', 'shane_kast_red', 'keck_lris_blue', 'keck_lris_red', 'wht_isis_blue']:
+    for specname in ['shane_kast_blue', 'shane_kast_red', 'keck_lris_blue', 'keck_lris_red', 'wht_isis_blue', 'keck_deimos']:
         msgs.info("===============================================")
         msgs.info("Working on {:s}".format(specname))
         spect = arparse.get_spect_class(('ARMLSD', specname, ".tmp"))

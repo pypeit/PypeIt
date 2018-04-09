@@ -6,19 +6,16 @@ import inspect
 
 import numpy as np
 from matplotlib import pyplot as plt
-from matplotlib import gridspec, font_manager
+from matplotlib import gridspec
 
 import arclines
 
-from pypit import arpca
 from pypit import arparse as settings
 from pypit import msgs
-from pypit import arsave
 from pypit import arutils
 from pypit import ararclines
 from pypit import arqa
 from pypit import ardebug as debugger
-from pypit import arcyarc
 
 
 def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
@@ -283,6 +280,25 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['disp']=0.53 # Ang per pixel (unbinned)
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
             arcparam['wvmnx'][1] = 7000.
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+    elif sname=='keck_deimos':
+        gratepos = fitsdict['headers'][idx[0]][0]['GRATEPOS']
+        if(gratepos==3):
+            arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['G3TLTWAV']
+        elif(gratepos==4):
+            arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['G4TLTWAV']
+        else:
+            msgs.error('Problem wth value of GRATEPOS keyword: GRATEPOS={:s}'.format(gratepos))
+        # TODO -- Should set according to the lamps that were on
+        lamps = ['ArI','NeI','KrI','XeI']
+        if disperser == '830G': # Blaze 8640
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=0.47 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['wvmnx'][0] = 550.
+            arcparam['wvmnx'][1] = 11000.
+            arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='wht_isis_blue':

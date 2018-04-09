@@ -63,7 +63,10 @@ def main(args):
     try:
         exten = names.index('DET{:s}-SKYSUB'.format(sdet))
     except ValueError:  # Backwards compatability
-        exten = names.index('DET{:d}-SKYSUB'.format(args.det))
+        try:
+            exten = names.index('DET{:d}-SKYSUB'.format(args.det))
+        except ValueError:
+            raise IOError("Requested detector {:s} was not processed.\n Maybe you chose the wrong one to view?\n  Set with --det=".format(sdet))
     skysub = hdu[exten].data
 
     # Show Image

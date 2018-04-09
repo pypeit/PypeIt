@@ -137,6 +137,7 @@ def get_master_frame(slf, mftype, det=None):
 
 def save_masters(slf, det, mftype='all'):
     """ Save Master Frames
+
     Parameters
     ----------
     slf

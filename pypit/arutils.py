@@ -99,6 +99,12 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
             nbkpts = max(int(xrnge/bkspace) + 1,2)
             tempbkspace = xrnge/(nbkpts-1)
             knots = np.arange(1, nbkpts-1)*tempbkspace + startx
+            # Remove cases where two knots have no data between them
+            keep_knots = np.array([True]*len(knots))
+            for ii in range(1,len(knots)): # Ugly for loop..
+                if not np.any((x[gd] > knots[ii-1]) & (x[gd] < knots[ii])):
+                    keep_knots[ii] = False
+            knots = knots[keep_knots]
         elif everyn is not None:
             # A knot every good N pixels
             idx_knots = np.arange(everyn//2, ngd-everyn//2, everyn)
