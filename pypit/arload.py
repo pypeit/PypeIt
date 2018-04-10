@@ -24,6 +24,7 @@ from pypit import arparse as settings
 from pypit import arproc
 from pypit import arlris
 from pypit import arspecobj
+from pypit import ardeimos
 from pypit import ardebug as debugger
 
 def load_headers(datlines):
