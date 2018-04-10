@@ -8,7 +8,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 
-import arclines
+import arclines.holy.grail
 
 from pypit import arparse as settings
 from pypit import msgs
