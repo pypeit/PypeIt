@@ -187,9 +187,9 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
-                armasters.save_masters(slf, det, mftype='tilts')
-            else:
-                slf.SetFrame(slf._tilts, tilts, det)
+                    armasters.save_masters(slf, det, mftype='tilts')
+                else:
+                    slf.SetFrame(slf._tilts, tilts, det)
 
             ###############
             # Prepare the pixel flat field frame
