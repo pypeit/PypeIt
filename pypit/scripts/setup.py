@@ -11,16 +11,7 @@ This script generates files to setup a PYPIT run
 from __future__ import (print_function, absolute_import, division,
                         unicode_literals)
 
-import os
-import datetime
 import argparse
-import pdb as debugger
-
-from pypit import pyputils
-from pypit import armeta
-from pypit import arsetup
-from pypit.scripts import run_pypit
-from pypit.pypit import load_input
 
 def parser(options=None):
     parser = argparse.ArgumentParser(description="Script to setup a PYPIT run [v2]")
@@ -46,6 +37,17 @@ def parser(options=None):
 
 
 def main(args):
+
+    import os
+    import datetime
+    import pdb as debugger
+
+    from pypit import pyputils
+    from pypit import armeta
+    from pypit import arsetup
+    from pypit.scripts import run_pypit
+    from pypit.pypit import load_input
+
     # Check that input spectrograph is supported
     if args.spectrograph not in armeta.instr_list():
         print("-------------------------------------------------------------")

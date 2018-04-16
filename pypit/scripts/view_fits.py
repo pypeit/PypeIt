@@ -13,13 +13,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import argparse
-import subprocess
-
-from astropy.io import fits
-
-from pypit import pyputils
-from pypit import arlris
-from pypit import ardeimos
 
 def parser(options=None):
 
@@ -39,6 +32,14 @@ def parser(options=None):
 
 
 def main(args):
+
+    import subprocess
+
+    from astropy.io import fits
+
+    from pypit import pyputils
+    from pypit import arlris
+    from pypit import ardeimos
 
     # List only?
     if args.list:

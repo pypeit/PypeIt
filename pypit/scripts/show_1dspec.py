@@ -9,15 +9,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import argparse
-import sys
-import pdb
-
-from astropy.io import fits
-from PyQt5.QtWidgets import QApplication
-
-from linetools.guis.xspecgui import XSpecGui
-
-from pypit import arload
 
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse')
@@ -38,6 +29,17 @@ def parser(options=None):
 def main(args, unit_test=False):
     """ Runs the XSpecGui on an input file
     """
+
+    import sys
+    import pdb
+
+    from astropy.io import fits
+    from PyQt5.QtWidgets import QApplication
+
+    from linetools.guis.xspecgui import XSpecGui
+
+    from pypit import arload
+
     # List only?
     if args.list:
         print("Showing object names for input file...")

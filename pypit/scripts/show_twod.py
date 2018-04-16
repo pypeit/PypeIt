@@ -13,19 +13,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import os
 import argparse
-
-import pdb as debugger
-
-from astropy.io import fits
-from astropy.table import Table
-
-import pypit.ginga
-from pypit import pyputils
-from pypit import armasters
-from pypit.arparse import get_dnum
-from pypit.arspecobj import get_slitid
 
 def parser(options=None):
 
@@ -44,6 +32,19 @@ def parser(options=None):
 
 
 def main(args):
+
+    import os
+
+    import pdb as debugger
+
+    from astropy.io import fits
+    from astropy.table import Table
+
+    import pypit.ginga
+    from pypit import pyputils
+    from pypit import armasters
+    from pypit.arparse import get_dnum
+    from pypit.arspecobj import get_slitid
 
     # List only?
     hdu = fits.open(args.file)

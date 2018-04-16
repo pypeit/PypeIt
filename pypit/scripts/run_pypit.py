@@ -11,15 +11,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import unicode_literals
 
-import os
-import sys
 import argparse
-import traceback
 
 from pypit import msgs
-from pypit import archeck
-from pypit import pypit
-from pypit import ardebug
 
 # Globals
 #debug = ardebug.init()
@@ -64,6 +58,14 @@ def parser(options=None):
 
 
 def main(args):
+
+    import os
+    import sys
+    import traceback
+
+    from pypit import archeck
+    from pypit import pypit
+    from pypit import ardebug
 
     # Initiate logging for bugs and command line help
     # These messages will not be saved to a log file

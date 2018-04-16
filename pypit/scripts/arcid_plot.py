@@ -14,18 +14,6 @@ from __future__ import unicode_literals
 
 import argparse
 
-import numpy as np
-
-try:
-    from xastropy.xutils import xdebug as debugger
-except:
-    import pdb as debugger
-
-from linetools.utils import loadjson
-
-from pypit import pyputils
-from pypit import arqa
-
 def parser(options=None) :
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -52,6 +40,18 @@ def main(args):
     -------
 
     """
+    import numpy as np
+
+    try:
+        from xastropy.xutils import xdebug as debugger
+    except:
+        import pdb as debugger
+
+    from linetools.utils import loadjson
+
+    from pypit import pyputils
+    from pypit import arqa
+
     msgs = pyputils.get_dummy_logger()
 
     # Read JSON
