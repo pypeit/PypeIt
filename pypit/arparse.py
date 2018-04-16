@@ -4422,7 +4422,9 @@ def parse_binning(binning):
 
 def dummy_settings(pypitdir=None, nfile=10, spectrograph='shane_kast_blue',
                    set_idx=True):
-    """ Generate settings classes
+    """ Generate default settings for use in tests.
+
+
     Parameters
     ----------
     pypitdir
