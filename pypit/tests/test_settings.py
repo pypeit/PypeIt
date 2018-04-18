@@ -20,7 +20,8 @@ from pypit import pyputils
 msgs = pyputils.get_dummy_logger()
 
 sys.path.append(os.path.abspath(pypit.__path__[0]+"/data/settings"))
-import settings as py_sett
+# TODO: I (KBW) think we should refactor this...
+import settings
 
 
 def data_path(filename):
@@ -45,6 +46,6 @@ def test_settings_vs_archive():
         if ext in ['py', 'pyc']:
             continue
         # Archive
-        arch_file = py_sett.current_sett_file(archive_path, sfile)
+        arch_file = settings.current_sett_file(archive_path, sfile)
         # Test
         assert filecmp.cmp(sfile, arch_file)

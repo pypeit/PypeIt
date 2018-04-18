@@ -1,35 +1,34 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import os
-import astropy.io.fits as pyfits
-from astropy.stats import sigma_clip as sigma_clip
-from scipy.optimize import curve_fit
-from scipy.special import erf
-from scipy import interpolate
-import itertools
-import numpy as np
-#from pypit import armsgs
-from pypit import msgs
-#from pypit import arcyutils
-#from pypit import arcyarc
-import warnings
-
-# Logging
-#msgs = armsgs.get_logger()
-
-from pypit import ardebug as debugger
-
 try:
     basestring
 except NameError:  # For Python 3
     basestring = str
 
+import os
+import warnings
+import itertools
+
+import numpy as np
+
+from scipy.optimize import curve_fit
+from scipy.special import erf
+from scipy import interpolate
+
+from astropy import units
+from astropy.io import fits
+from astropy.convolution import convolve, Gaussian1DKernel
+
+from pypit import msgs
+from pypit import ardebug as debugger
+from pypit import arcyarc
+
 def quicksave(data,fname):
     """
     Save a fits file (quickly) -- overwrite is forced, and no quality control checks
     """
-    hdu = pyfits.PrimaryHDU(data)
-    hdulist = pyfits.HDUList([hdu])
+    hdu = fits.PrimaryHDU(data)
+    hdulist = fits.HDUList([hdu])
     if os.path.exists(fname):
         os.remove(fname)
     hdulist.writeto(fname)
@@ -199,114 +198,6 @@ def dummy_fitsdict(nfile=10, spectrograph='shane_kast_blue', directory='./'):
     # Return
     return fitsdict
 
-
-def dummy_self(inum=0, fitsdict=None, nfile=10):
-    """ Generate a dummy self class for testing
-    Parameters:
-    -----------
-    inum : int, optional
-      Index in sciexp
-    Returns:
-    --------
-    slf
-    """
-    from pypit import arsciexp
-    # Dummy fitsdict
-    if fitsdict is None:
-        fitsdict = dummy_fitsdict(nfile=nfile)
-    # Dummy Class
-    slf = arsciexp.ScienceExposure(inum, fitsdict, do_qa=False)
-    return slf
-
-
-def dummy_settings(pypitdir=None, nfile=10, spectrograph='shane_kast_blue',
-                   set_idx=True):
-    """ Generate settings classes
-    Parameters
-    ----------
-    pypitdir
-    nfile
-    spectrograph
-    set_idx : bool, optional
-      Set dummy index values for science and calibs
-
-    Returns
-    -------
-
-    """
-    from pypit import arparse
-    # Dummy argflag
-    if spectrograph != 'shane_kast_blue':
-        msgs.error("Only setup for Kast Blue")  # You will need to fuss with scidx
-    argf = arparse.get_argflag_class(("ARMLSD", spectrograph))
-    argf.init_param()
-    if pypitdir is None:
-        pypitdir = __file__[0:__file__.rfind('/')]
-    # Run specific
-    argf.set_param('run pypitdir {0:s}'.format(pypitdir))
-    argf.set_param('run spectrograph {:s}'.format(spectrograph))
-    argf.set_param('run directory science ./')
-    # Dummy spect
-    spect = arparse.get_spect_class(("ARMLSD", spectrograph, "dummy"))
-    lines = spect.load_file(base=True)  # Base spectrograph settings
-    spect.set_paramlist(lines)
-    lines = spect.load_file()
-    spect.set_paramlist(lines)
-    if set_idx:
-        for jj, key in enumerate(spect._spect.keys()):
-            if key in ['det']:
-                continue
-            if 'index' in spect._spect[key].keys():
-                if spectrograph == 'shane_kast_blue':  # Science frames from idx = 5 to 9
-                    assert nfile == 10
-                for kk in [5,6,7,8,9]:
-                    if key == 'science':
-                        spect._spect[key]['index'] += [np.array([kk])]
-                    elif key == 'arc':
-                        spect._spect[key]['index'] += [np.array([1])]
-                    elif key == 'standard':
-                        spect._spect[key]['index'] += [np.array([4])]
-                    elif key == 'bias':
-                        spect._spect[key]['index'] += [np.array([0])]
-                    elif key == 'trace':
-                        spect._spect[key]['index'] += [np.array([2,3])]
-                    elif key == 'pixelflat':
-                        spect._spect[key]['index'] += [np.array([2,3])]
-    arparse.init(argf, spect)
-    return
-
-
-def dummy_specobj(fitsdict, det=1, extraction=True):
-    """ Generate dummy specobj classes
-    Parameters
-    ----------
-    fitsdict : dict
-      Expecting the fitsdict from dummy_fitsdict
-    Returns
-    -------
-
-    """
-    from astropy import units as u
-    from pypit import arspecobj
-    shape = fitsdict['naxis1'][0], fitsdict['naxis0'][0]
-    config = 'AA'
-    scidx = 5 # Could be wrong
-    xslit = (0.3,0.7) # Center of the detector
-    ypos = 0.5
-    xobjs = [0.4, 0.6]
-    specobjs = []
-    for xobj in xobjs:
-        specobj = arspecobj.SpecObjExp(shape, config, scidx, det, xslit, ypos, xobj)
-        # Dummy extraction?
-        if extraction:
-            npix = 2001
-            specobj.boxcar['wave'] = np.linspace(4000., 6000., npix)*u.AA
-            specobj.boxcar['counts'] = 50.*(specobj.boxcar['wave'].value/5000.)**-1.
-            specobj.boxcar['var']  = specobj.boxcar['counts'].copy()
-        # Append
-        specobjs.append(specobj)
-    # Return
-    return specobjs
 
 def func_der(coeffs, func, nderive=1):
     if func == "polynomial":
@@ -724,7 +615,6 @@ def gauss_lsqfit(x,y,pcen):
     :param pcen: An estimate of the Gaussian mean
     :return:
     """
-    from pypit import arcyarc
     def gfunc(x,ampl,cent,sigm,cons,tilt):
         df = (x[1:]-x[:-1])/2.0
         df = np.append(df,df[-1])
@@ -756,7 +646,6 @@ def gauss_fit(x, y, pcen):
     # dx = np.ones(x.size)*np.mean(x[1:]-x[:-1])
     # coeffs = polyfit_integral(x, y, dx, 2)
     # return poly_to_gauss(coeffs)
-    from pypit import arcyarc
     try:
         if np.any(y<0.0):
             return [0.0, 0.0, 0.0], True
@@ -1170,9 +1059,6 @@ def yamlify(obj, debug=False):
        :class:`numpy.ndarray` is converted to :class:`list`,
        :class:`numpy.int64` is converted to :class:`int`, etc.
     """
-    import numpy as np
-    from astropy.units import Quantity
-
     if isinstance(obj, (np.float64, np.float32)):
         obj = float(obj)
     elif isinstance(obj, (np.int32, np.int64, np.int16)):
@@ -1181,7 +1067,7 @@ def yamlify(obj, debug=False):
         obj = bool(obj)
     elif isinstance(obj, (np.string_, basestring)):
         obj = str(obj)
-    elif isinstance(obj, Quantity):
+    elif isinstance(obj, units.Quantity):
         try:
             obj = obj.value.tolist()
         except AttributeError:
@@ -1210,7 +1096,7 @@ def yamlify(obj, debug=False):
         obj = tuple(obj)
     # elif isinstance(obj, Unit):
     #     obj = obj.name
-    # elif obj is u.dimensionless_unscaled:
+    # elif obj is units.dimensionless_unscaled:
     #     obj = 'dimensionless_unit'
     if debug:
         print(type(obj))
@@ -1283,8 +1169,6 @@ def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5):
       right edges of each peak;  defined to be at least minsep away
       from the peak and where the slope of the data switches 
     """
-    # Imports
-    from astropy.convolution import convolve, Gaussian1DKernel
     # Init
     if xvec is None:
         xvec = np.arange(len(yflux))

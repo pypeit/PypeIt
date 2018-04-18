@@ -1,14 +1,13 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import time
+
 import numpy as np
-#from pypit import armsgs
-from pypit import msgs
-from pypit import arparse as settings
 from matplotlib import pyplot as plt
 
-# Logging
-#msgs = armsgs.get_logger()
+from pypit import msgs
+from pypit import arparse as settings
+from pypit import arcycomb
 
 def comb_frames(frames_arr, det, frametype, weights=None, maskvalue=1048577, printtype=None):
     """ Combine several frames
@@ -39,7 +38,6 @@ def comb_frames(frames_arr, det, frametype, weights=None, maskvalue=1048577, pri
       The frame type string that should be printed by armsgs. If None,
       frametype will be used
     """
-    from pypit import arcycomb
     dnum = settings.get_dnum(det)
     reject = settings.argflag[frametype]['combine']['reject']
     method = settings.argflag[frametype]['combine']['method']

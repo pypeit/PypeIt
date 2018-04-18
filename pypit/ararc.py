@@ -8,8 +8,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 
-import arclines
-#from arclines.holy.grail import basic, semi_brute, general
 
 from pypit import arparse as settings
 from pypit import msgs
@@ -339,8 +337,10 @@ def setup_param(slf, sc, det, fitsdict):
     for lamp in lamps[1:]:
         slmps=slmps+','+lamp
     msgs.info('Loading line list using {:s} lamps'.format(slmps))
-    arcparam['llist'] = ararclines.load_arcline_list(slf, idx, lamps, disperser,
-        wvmnx=arcparam['wvmnx'], modify_parse_dict=modify_dict)
+#    arcparam['llist'] = ararclines.load_arcline_list(slf, idx, lamps, disperser,
+    arcparam['llist'] = ararclines.load_arcline_list(idx, lamps, disperser,
+                                                     wvmnx=arcparam['wvmnx'],
+                                                     modify_parse_dict=modify_dict)
     # Binning
     arcparam['disp'] *= binspectral
 
@@ -594,6 +594,7 @@ def calib_with_arclines(slf, det, get_poly=False, use_method="general"):
     final_fit : dict
       Dict of fit info
     """
+    import arclines.holy.grail
     # Parameters (just for convenience)
     aparm = slf._arcparam[det-1]
     # Extract the arc

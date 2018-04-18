@@ -5,7 +5,6 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 import numpy as np
 
 from pypit import msgs
-
 from pypit import arparse as settings
 from pypit import arload
 from pypit import armasters
@@ -14,7 +13,6 @@ from pypit import arproc
 from pypit import arsave
 from pypit import arsetup
 from pypit import artrace
-
 from pypit import ardebug as debugger
 
 def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):

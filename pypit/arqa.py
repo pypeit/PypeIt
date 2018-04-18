@@ -2,9 +2,13 @@
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-
+import os
+import datetime
+import getpass
 import glob
 import numpy as np
+
+import yaml
 
 # CANNOT INCLUDE msgs IN THIS MODULE AS
 #  THE HTML GENERATION OCCURS FROM msgs
@@ -103,9 +107,7 @@ def gen_timestamp():
     timestamp : str
       user_datetime
     """
-    import datetime
     tstamp = datetime.datetime.today().strftime('%Y-%b-%d-T%Hh%Mm%Ss')
-    import getpass
     user = getpass.getuser()
     # Return
     return '{:s}_{:s}'.format(user, tstamp)
@@ -250,7 +252,6 @@ def html_exp_pngs(exp_name, det):
     body : str
 
     """
-    import os
     links = ''
     body = ''
     # QA root
@@ -301,7 +302,6 @@ def gen_mf_html(pypit_file):
     -------
 
     """
-    import yaml
     # Read calib file
     calib_file = pypit_file.replace('.pypit', '.calib')
     with open(calib_file, 'r') as infile:
