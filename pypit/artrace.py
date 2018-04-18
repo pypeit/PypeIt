@@ -376,11 +376,9 @@ def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=No
     yint = np.append(-yint[1], np.append(yint, 2.0-yint[-2]))
     msgs.info("Creating an image weighted by object pixels")
     rec_obj_img = np.zeros((sciframe.shape[0], sciframe.shape[1], nobj))
-    import pdb, time
     for o in range(nobj):
         #msgs.info("obj {:d}".format(o))
-        if settings.spect['mosaic']['reduction'] == 'ARMED' or True:
-            a = time.time()
+        if settings.spect['mosaic']['reduction'] == 'ARMED':
             obj = np.zeros(npix)
             obj[objreg[0][o]:objreg[1][o]+1] = 1
             scitmp = np.append(0.0, np.append(obj, 0.0))
@@ -398,10 +396,12 @@ def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=No
             rec_img = np.zeros_like(sciframe)
             rec_img[np.where(idxarr == 1)] = rec_obj_arr
             rec_obj_img[:, :, o] = rec_img.copy()
-            print(time.time()-a, 's')
-            pdb.set_trace()
         elif settings.spect['mosaic']['reduction'] == 'ARMLSD':
-            pass
+            lobj = slf._lordloc[det - 1][:, slitn] + triml + objreg[0][o] - 1.0
+            robj = slf._lordloc[det - 1][:, slitn] + trimr + objreg[1][o]
+            spatdir = np.arange(sciframe.shape[1])[np.newaxis, :].repeat(sciframe.shape[0], axis=0)
+            rec_obj_img[:, :, o] = np.clip(spatdir - lobj.reshape(sciframe.shape[0], 1), 0.0, 1.0) -\
+                                   np.clip(spatdir - robj.reshape(sciframe.shape[0], 1), 0.0, 1.0)
         else:
             msgs.bug("Not ready for this type of reduction: " + settings.spect['mosaic']['reduction'])
     # Make an image of pixel weights for the background region of each object
