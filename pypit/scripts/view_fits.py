@@ -13,12 +13,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import argparse
-import subprocess
-
-from astropy.io import fits
-
-from pypit import pyputils
-from pypit import arlris
 
 def parser(options=None):
 
@@ -27,6 +21,7 @@ def parser(options=None):
     parser.add_argument('file', type = str, default = None, help = 'FITS file')
     parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
     parser.add_argument('--raw_lris', action="store_true")
+    parser.add_argument('--raw_deimos', action="store_true")
     parser.add_argument('--exten', type=int, help="FITS extension")
 
     if options is None:
@@ -37,6 +32,14 @@ def parser(options=None):
 
 
 def main(args):
+
+    import subprocess
+
+    from astropy.io import fits
+
+    from pypit import pyputils
+    from pypit import arlris
+    from pypit import ardeimos
 
     # List only?
     if args.list:
@@ -73,10 +76,22 @@ def main(args):
         hdulist.writeto(kludge_fil,clobber=True)
         args.file = kludge_fil
 
+    # RAW_DEIMOS??
+    if args.raw_deimos:
+        #
+        img, head, _ = ardeimos.read_deimos(args.file)
+        # Generate hdu
+        hdu = fits.PrimaryHDU(img)
+        hdulist = fits.HDUList([hdu])
+        # Write
+        msgs.warn('Writing kludge file to {:s}'.format(kludge_fil))
+        hdulist.writeto(kludge_fil,clobber=True)
+        args.file = kludge_fil
+
     # Spawn ginga
     subprocess.call(["ginga", args.file])
 
-    if args.raw_lris:
+    if args.raw_lris or args.raw_deimos:
         msgs.warn('Removing kludge file {:s}'.format(kludge_fil))
         subprocess.call(["rm", args.file])
 

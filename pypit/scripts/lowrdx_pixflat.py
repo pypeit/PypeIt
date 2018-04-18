@@ -14,13 +14,6 @@ from __future__ import unicode_literals
 
 import argparse
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except:
-    import pdb as debugger
-
-from pypit import arlris
-
 def parser(options=None):
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -38,6 +31,13 @@ def parser(options=None):
 
 
 def main(args):
+    try:
+        from xastropy.xutils import xdebug as debugger
+    except:
+        import pdb as debugger
+
+    from pypit import arlris
+
     # Assume LRIS for now
     arlris.convert_lowredux_pixflat(args.lowrdx_file, args.new_file)
 

@@ -125,7 +125,6 @@ def read_lris(raw_file, det=None, TRIM=False):
     array = np.zeros( (nx, ny) )
     order = np.argsort(np.array(xcol))
 
-
     # insert extensions into master image...
     for kk, i in enumerate(order[det_idx]):
 

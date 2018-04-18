@@ -156,6 +156,8 @@ class BaseArgFlag(BaseFunctions):
         lines = self.load_file()
         self.set_paramlist(lines)
 
+
+
     def save(self):
         """ Save the arguments and flags settings used for a given reduction
         """
@@ -999,14 +1001,15 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
     def reduce_detnum(self, v):
-        """ Reduce only the input detector of the array
+        """ Reduce only the input detector(s) of the input list
 
         Parameters
         ----------
         v : str
           value of the keyword argument given by the name of this function
         """
-        v = key_none_int(v)
+        v = key_none_list(v)
+
         self.update(v)
 
     def reduce_flatfield_method(self, v):
@@ -2003,6 +2006,18 @@ class BaseArgFlag(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_list(v)
+        self.update(v)
+
+    def trace_slits_sobel_mode(self, v):
+        """ Mode for Sobel filtering
+        Default should be 'nearest' but JFH
+        reports 'constant' works best for DEIMOS
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
         self.update(v)
 
     def trace_slits_tilts_idsonly(self, v):
@@ -3564,6 +3579,16 @@ class ARMLSD(BaseArgFlag):
         v = key_bool(v)
         self.update(v)
 
+    def reduce_calibrate_sensfunc_archival(self, v):
+        """ Should a flux calibration be performed?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        self.update(v)
+
 
 
     def reduce_flexure_maxshift(self, v):
@@ -4397,7 +4422,9 @@ def parse_binning(binning):
 
 def dummy_settings(pypitdir=None, nfile=10, spectrograph='shane_kast_blue',
                    set_idx=True):
-    """ Generate settings classes
+    """ Generate default settings for use in tests.
+
+
     Parameters
     ----------
     pypitdir

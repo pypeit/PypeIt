@@ -9,20 +9,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import glob
 import argparse
-import yaml
-
-from numpy import isnan
-import pdb as debugger
-
-from astropy.io import fits
-
-from pypit import pyputils
-from pypit import arcoadd
-from pypit import arspecobj
-
-msgs = pyputils.get_dummy_logger()
 
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Script to coadd a set of spec1D files and 1 or more slits and 1 or more objects. Current defaults use Optimal + Fluxed extraction. [v1.1]')
@@ -41,6 +28,18 @@ def main(args, unit_test=False, path=''):
     path : str, optional
       Mainly for running the unit test
     """
+
+    import glob
+    import yaml
+
+    from numpy import isnan
+    import pdb as debugger
+
+    from astropy.io import fits
+
+    from pypit import msgs
+    from pypit import arcoadd
+    from pypit import arspecobj
 
     # Load the input file
     with open(args.infile, 'r') as infile:
