@@ -2106,6 +2106,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     mnvalp = np.median(binarr[:, lv+1])  # Go one row above and one row below an order edge,
     mnvalm = np.median(binarr[:, lv-1])  # then see which mean value is greater.
 
+
     """
     lvp = (arutils.func_val(lcoeff[:,lval+1-lmin],xv,settings.argflag['trace']['slits']['function'],min=minvf,max=maxvf)+0.5).astype(np.int)
     edgbtwn = arcytrace.find_between(edgearr,lv,lvp,1)
@@ -2254,11 +2255,11 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     lgm = np.where(np.in1d(-lunq, gord, invert=True))[0]
     rgm = np.where(np.in1d(runq, gord, invert=True))[0]
     maxord = np.max(np.append(gord, np.append(-lunq[lgm], runq[rgm])))
-    lcent = arutils.func_val(lcoeff[:,-lunq[lg][::-1]-1-settings.argflag['trace']['slits']['pca']['extrapolate']['neg']], xv,
-                             settings.argflag['trace']['slits']['function'], minv=minvf, maxv=maxvf)
+    lcent = arutils.func_val(lcoeff[:,-lunq[lg][::-1]-1-settings.argflag['trace']['slits']['pca']['extrapolate']['neg']], xv, settings.argflag['trace']['slits']['function'], minv=minvf, maxv=maxvf)
     rcent = arutils.func_val(rcoeff[:,runq[rg]-1-settings.argflag['trace']['slits']['pca']['extrapolate']['neg']], xv,
                              settings.argflag['trace']['slits']['function'], minv=minvf, maxv=maxvf)
     slitcen = 0.5*(lcent+rcent).T
+    debugger.set_trace()
     ##############
     if settings.argflag['trace']['slits']['pca']['type'] == 'order':
         #maskord = np.where((np.all(lcoeff[:,lg],axis=0)==False)|(np.all(rcoeff[:,rg],axis=0)==False))[0]
@@ -2275,6 +2276,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
                                   settings.argflag['trace']['slits']['polyorder'], minv=minvf, maxv=maxvf)
         for i in range(ordsnd.size):
             if i in maskord:
+                if (i>=ordsnd[0]) and (i<ordsnd[-1]-1):  # JXP: Don't add orders that are already in there
+                    continue
                 coeffs = np.insert(coeffs, i, 0.0, axis=1)
                 slitcen = np.insert(slitcen, i, 0.0, axis=1)
                 lcent = np.insert(lcent, i, 0.0, axis=0)
