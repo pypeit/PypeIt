@@ -8,10 +8,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 
-import arclines.holy.grail
-# import arclines
-# from arclines.holy.grail import basic, semi_brute, general
-
 from pypit import arparse as settings
 from pypit import msgs
 from pypit import arutils
@@ -597,6 +593,7 @@ def calib_with_arclines(slf, det, get_poly=False, use_method="general"):
     final_fit : dict
       Dict of fit info
     """
+    import arclines.holy.grail
     # Parameters (just for convenience)
     aparm = slf._arcparam[det-1]
     # Extract the arc

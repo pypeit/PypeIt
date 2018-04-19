@@ -1,6 +1,5 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-import time
 import inspect
 import copy
 from collections import Counter
