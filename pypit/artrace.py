@@ -2259,7 +2259,6 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     rcent = arutils.func_val(rcoeff[:,runq[rg]-1-settings.argflag['trace']['slits']['pca']['extrapolate']['neg']], xv,
                              settings.argflag['trace']['slits']['function'], minv=minvf, maxv=maxvf)
     slitcen = 0.5*(lcent+rcent).T
-    debugger.set_trace()
     ##############
     if settings.argflag['trace']['slits']['pca']['type'] == 'order':
         #maskord = np.where((np.all(lcoeff[:,lg],axis=0)==False)|(np.all(rcoeff[:,rg],axis=0)==False))[0]
