@@ -385,14 +385,15 @@ def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=No
     for o in range(nobj):
         wll = np.where(bgreg[0][1:, o] > bgreg[0][:-1, o])[0]
         wlr = np.where(bgreg[0][1:, o] < bgreg[0][:-1, o])[0]
-        wrl = np.where(bgreg[1][1:, o] > bgreg[1][:-1, o])[0]
-        wrr = np.where(bgreg[1][1:, o] < bgreg[1][:-1, o])[0]
+        # Background regions to the left of object
         for ii in range(wll.size):
-            # Background regions to the left of object
             lobj = slf._lordloc[det - 1][:, slitn] + triml + wll[ii]
             robj = slf._lordloc[det - 1][:, slitn] + trimr + wlr[ii]
             rec_bg_img[:, :, o] += np.clip(spatdir - lobj.reshape(sciframe.shape[0], 1), 0.0, 1.0) - np.clip(spatdir - robj.reshape(sciframe.shape[0], 1), 0.0, 1.0)
-            # Background regions to the right of object
+        wrl = np.where(bgreg[1][1:, o] > bgreg[1][:-1, o])[0]
+        wrr = np.where(bgreg[1][1:, o] < bgreg[1][:-1, o])[0]
+        # Background regions to the right of object
+        for ii in range(wrl.size):
             lobj = slf._lordloc[det - 1][:, slitn] + triml + wrl[ii]
             robj = slf._lordloc[det - 1][:, slitn] + trimr + wrr[ii]
             rec_bg_img[:, :, o] += np.clip(spatdir - lobj.reshape(sciframe.shape[0], 1), 0.0, 1.0) - np.clip(spatdir - robj.reshape(sciframe.shape[0], 1), 0.0, 1.0)
