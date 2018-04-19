@@ -247,7 +247,7 @@ class ParSet(object):
 
     def __repr__(self):
         """Return a string representation of the parameters."""
-        return self._output_string()
+        return self._output_string(header=self.cfg_section)
 
     
     def _output_string(self, header=None):
@@ -257,7 +257,8 @@ class ParSet(object):
         for i, k in enumerate(self.keys()):
             data_table[i+1,0] = k
             if isinstance(self.data[k], ParSet):
-                additional_par_strings += [ self.data[k]._output_string(header=k) ]
+                _header = k if header is None else '{0}:{1}'.format(header, k)
+                additional_par_strings += [ self.data[k]._output_string(header=_header) ]
                 data_table[i+1,1] = 'see below'
                 data_table[i+1,2] = 'see below'
             else:
@@ -482,8 +483,9 @@ class ParSet(object):
                 raise ValueError('No top-level section name available for configuration!')
 
             _section_name = self.cfg_section if section_name is None else section_name
+            _section_comment = self.cfg_comment if section_comment is None else section_comment
             config_output += self._config_lines(section_name=_section_name,
-                                                section_comment=section_comment,
+                                                section_comment=_section_comment,
                                                 section_level=section_level)
 
         with open(cfg_file, 'a' if append else 'w') as f:
