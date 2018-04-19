@@ -369,11 +369,12 @@ def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=No
     """
     # Get the number of objects in the slit
     nobj = len(objreg[0])
+    # Set the number of pixels to trim of the left and right edges
     if triml is None:
         triml = trim
     if trimr is None:
         trimr = trim
-    npix = int(slf._pixwid[det-1][slitn] - triml - trimr)
+    # Generate an array of spatial pixels for each row on the detector
     spatdir = np.arange(sciframe.shape[1])[np.newaxis, :].repeat(sciframe.shape[0], axis=0)
     # Make an image of pixel weights for each object
     msgs.info("Creating an image weighted by object pixels")
@@ -381,7 +382,7 @@ def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=No
     for o in range(nobj):
         lobj = slf._lordloc[det - 1][:, slitn] + triml + objreg[0][o] - 1.0
         robj = slf._lordloc[det - 1][:, slitn] + trimr + objreg[1][o]
-        rec_obj_img[:, :, o] = np.clip(spatdir - lobj.reshape(sciframe.shape[0], 1), 0.0, 1.0) -\
+        rec_obj_img[:, :, o] = np.clip(spatdir - lobj.reshape(sciframe.shape[0], 1), 0.0, 1.0) - \
                                np.clip(spatdir - robj.reshape(sciframe.shape[0], 1), 0.0, 1.0)
     # Make an image of pixel weights for the background region of each object
     msgs.info("Creating an image weighted by background pixels")
@@ -393,14 +394,16 @@ def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=No
         for ii in range(wll.size):
             lobj = slf._lordloc[det - 1][:, slitn] + triml + wll[ii]
             robj = slf._lordloc[det - 1][:, slitn] + trimr + wlr[ii]
-            rec_bg_img[:, :, o] += np.clip(spatdir - lobj.reshape(sciframe.shape[0], 1), 0.0, 1.0) - np.clip(spatdir - robj.reshape(sciframe.shape[0], 1), 0.0, 1.0)
+            rec_bg_img[:, :, o] += np.clip(spatdir - lobj.reshape(sciframe.shape[0], 1), 0.0, 1.0) - \
+                                   np.clip(spatdir - robj.reshape(sciframe.shape[0], 1), 0.0, 1.0)
         wrl = np.where(bgreg[1][1:, o] > bgreg[1][:-1, o])[0]
         wrr = np.where(bgreg[1][1:, o] < bgreg[1][:-1, o])[0]
         # Background regions to the right of object
         for ii in range(wrl.size):
             lobj = slf._lordloc[det - 1][:, slitn] + triml + wrl[ii]
             robj = slf._lordloc[det - 1][:, slitn] + trimr + wrr[ii]
-            rec_bg_img[:, :, o] += np.clip(spatdir - lobj.reshape(sciframe.shape[0], 1), 0.0, 1.0) - np.clip(spatdir - robj.reshape(sciframe.shape[0], 1), 0.0, 1.0)
+            rec_bg_img[:, :, o] += np.clip(spatdir - lobj.reshape(sciframe.shape[0], 1), 0.0, 1.0) - \
+                                   np.clip(spatdir - robj.reshape(sciframe.shape[0], 1), 0.0, 1.0)
     return rec_obj_img, rec_bg_img
 
 
