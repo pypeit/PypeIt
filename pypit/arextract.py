@@ -446,9 +446,9 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
     #model_ivar = 1./model_var
     # Inverse variance
     model_ivar = np.zeros_like(varframe)
-    gdvar = varframe > 0.
-    model_ivar[gdvar] = arutils.calc_ivar(varframe[gdvar])
     cr_mask = 1.0-crmask
+    gdvar = (varframe > 0.) & (cr_mask == 1.)
+    model_ivar[gdvar] = arutils.calc_ivar(varframe[gdvar])
     # Object model image
     obj_model = np.zeros_like(varframe)
     # Loop on slits

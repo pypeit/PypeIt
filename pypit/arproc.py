@@ -2097,7 +2097,6 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
 
         msgs.info("Iteration {0:d} -- {1:d} pixels identified as cosmic rays ({2:d} new)".format(i, ncrp, nnew))
         if ncrp == 0: break
-    #debugger.set_trace()
     # Additional algorithms (not traditionally implemented by LA cosmic) to remove some false positives.
     msgs.work("The following algorithm would be better on the rectified, tilts-corrected image")
     filt  = ndimage.sobel(sciframe, axis=1, mode='constant')

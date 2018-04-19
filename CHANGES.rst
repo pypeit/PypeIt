@@ -60,6 +60,8 @@
   valid
 - include numba in requirements, but actually a requirement of arclines
 - Faster algorithm for defining object and background regions
+- Several improvements for coadding
+- Modify lacosmic to identify tiny CR's
 
 0.7 (2017-02-07)
 ----------------
