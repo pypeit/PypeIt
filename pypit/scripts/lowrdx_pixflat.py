@@ -7,16 +7,14 @@
 """
 This script converts a LowRedux pixel flat into a PYPIT ready one
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
-
-try:
-    from xastropy.xutils import xdebug as debugger
-except:
-    import pdb as debugger
-
+import argparse
 
 def parser(options=None):
-    import argparse
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('lowrdx_file', type = str, default = None,
@@ -33,8 +31,13 @@ def parser(options=None):
 
 
 def main(args):
+    try:
+        from xastropy.xutils import xdebug as debugger
+    except:
+        import pdb as debugger
 
     from pypit import arlris
+
     # Assume LRIS for now
     arlris.convert_lowredux_pixflat(args.lowrdx_file, args.new_file)
 

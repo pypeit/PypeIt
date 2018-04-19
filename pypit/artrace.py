@@ -6,10 +6,11 @@ import copy
 from collections import Counter
 
 import numpy as np
-import scipy.interpolate as interp
-import scipy.ndimage as ndimage
+
+from scipy import interpolate, ndimage
+
 import matplotlib.pyplot as plt
-from matplotlib import gridspec, cm, font_manager
+from matplotlib import cm, font_manager
 
 from astropy.io import fits
 from astropy.stats import sigma_clip
@@ -25,7 +26,10 @@ from pypit import arparse as settings
 from pypit.filter import BoxcarFilter
 from pypit import arspecobj
 from pypit import ardebug as debugger
-from pypit import ginga
+try:
+    from pypit import ginga
+except ImportError:
+    pass
 
 from pypit import arcyarc
 from pypit import arcytrace
@@ -510,9 +514,12 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     msgs.info("Rectifying science frame")
     xint = np.linspace(0.0, 1.0, sciframe.shape[0])
     yint = np.linspace(0.0, 1.0, sciframe.shape[1])
-    scispl = interp.RectBivariateSpline(xint, yint, sciframe, bbox=[0.0, 1.0, 0.0, 1.0], kx=1, ky=1, s=0)
-    varspl = interp.RectBivariateSpline(xint, yint, varframe, bbox=[0.0, 1.0, 0.0, 1.0], kx=1, ky=1, s=0)
-    crmspl = interp.RectBivariateSpline(xint, yint, crmask, bbox=[0.0, 1.0, 0.0, 1.0], kx=1, ky=1, s=0)
+    scispl = interpolate.RectBivariateSpline(xint, yint, sciframe, bbox=[0.0, 1.0, 0.0, 1.0],
+                                             kx=1, ky=1, s=0)
+    varspl = interpolate.RectBivariateSpline(xint, yint, varframe, bbox=[0.0, 1.0, 0.0, 1.0],
+                                             kx=1, ky=1, s=0)
+    crmspl = interpolate.RectBivariateSpline(xint, yint, crmask, bbox=[0.0, 1.0, 0.0, 1.0], kx=1,
+                                             ky=1, s=0)
     xx, yy = np.meshgrid(np.linspace(0.0, 1.0, sciframe.shape[0]), np.linspace(0.0, 1.0, npix), indexing='ij')
     ro = (slf._rordloc[det-1][:, slitn] - trimr).reshape((-1, 1)) / (sciframe.shape[1] - 1.0)
     lo = (slf._lordloc[det-1][:, slitn] + triml).reshape((-1, 1)) / (sciframe.shape[1] - 1.0)
@@ -3359,7 +3366,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             # ysbs = np.outer(np.ones(xspl.size), yspl)
             # zsbs = zspl[wgd]
             # Restrict to good portion of the image
-            tiltspl = interp.RectBivariateSpline(xspl, yspl, zspl, kx=3, ky=3)
+            tiltspl = interpolate.RectBivariateSpline(xspl, yspl, zspl, kx=3, ky=3)
             yval = np.linspace(0.0, 1.0, msarc.shape[0])
             tilts = tiltspl(xspl, yval, grid=True).T
         elif settings.argflag['trace']['slits']['tilts']['method'].lower() == "spline":
@@ -3381,8 +3388,9 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             zsbs = np.append(zlo, np.append(tzsbs, zhi))
             wsbs = np.append(wtilt[wlo], np.append(twsbs, wtilt[whi]))
             # Generate the spline curve
-            tiltspl = interp.SmoothBivariateSpline(xsbs, zsbs, ysbs, w=wsbs, kx=3, ky=3, s=xsbs.size,
-                                                   bbox=[0.0, 1.0, min(zsbs.min(), 0.0), max(zsbs.max(), 1.0)])
+            tiltspl = interpolate.SmoothBivariateSpline(xsbs, zsbs, ysbs, w=wsbs, kx=3, ky=3,
+                                                        s=xsbs.size, bbox=[0.0, 1.0,
+                                                        min(zsbs.min(),0.0), max(zsbs.max(),1.0)])
             xspl = np.linspace(0.0, 1.0, msarc.shape[1])
             yspl = np.linspace(0.0, 1.0, msarc.shape[0])
             tilts = tiltspl(xspl, yspl, grid=True).T
@@ -3424,9 +3432,8 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             zsbs = zspl[pmin:pmax, :]
             # Spline
             msgs.work('Consider adding weights to SmoothBivariate in spca')
-            tiltspl = interp.SmoothBivariateSpline(xsbs.flatten(),
-                                                   zsbs.flatten(),
-                                                   ysbs.flatten(), kx=3, ky=3, s=xsbs.size)
+            tiltspl = interpolate.SmoothBivariateSpline(xsbs.flatten(), zsbs.flatten(),
+                                                        ysbs.flatten(), kx=3, ky=3, s=xsbs.size)
             # Finish
             yval = np.linspace(0.0, 1.0, msarc.shape[0])
             tilts = tiltspl(xspl, yval, grid=True).T
@@ -3800,7 +3807,7 @@ def find_obj_minima(trcprof, fwhm=3., nsmooth=3, nfind=8, xedge=0.03,
     xvec = np.arange(len(yflux))
     # Find peaks
     peaks, sigmas, ledges, redges = arutils.find_nminima(yflux, xvec, minsep=fwhm, nfind=nfind, width=int(fwhm))
-    fint = interp.interp1d(xvec, yflux, bounds_error=False, fill_value=0.)
+    fint = interpolate.interp1d(xvec, yflux, bounds_error=False, fill_value=0.)
     ypeaks = -1.*fint(peaks)
     # Sky background (for significance)
     imask = xvec == xvec

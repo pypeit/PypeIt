@@ -1,31 +1,31 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 from future.utils import iteritems
 
-import os
-import astropy.io.fits as pyfits
-from astropy.time import Time
-import numpy as np
-from pypit import arparse as settings
-#from pypit import armsgs
-from pypit import msgs
-from pypit import arproc
-from pypit import arlris
-from pypit import ardeimos
-#from multiprocessing import Pool as mpPool
-#from multiprocessing.pool import ApplyResult
-#import arutils
-
-
 try:
     basestring
 except NameError:
     basestring = str
 
+import os
+
+import numpy as np
+
+from astropy import units
+from astropy.time import Time
+from astropy.io import fits
+from astropy.table import Table
+import yaml
+
+import linetools.utils
+from linetools.spectra.xspectrum1d import XSpectrum1D
+
+from pypit import msgs
+from pypit import arparse as settings
+from pypit import arproc
+from pypit import arlris
+from pypit import arspecobj
+from pypit import ardeimos
 from pypit import ardebug as debugger
-
-# Logging
-#msgs = armsgs.get_logger()
-
 
 def load_headers(datlines):
     """ Load the header information for each fits file
@@ -81,7 +81,7 @@ def load_headers(datlines):
         # Try to open the fits file
         try:
             for k in range(settings.spect['fits']['numhead']):
-                headarr[k] = pyfits.getheader(datlines[i], ext=settings.spect['fits']['headext{0:02d}'.format(k+1)])
+                headarr[k] = fits.getheader(datlines[i], ext=settings.spect['fits']['headext{0:02d}'.format(k+1)])
                 whddict['{0:02d}'.format(settings.spect['fits']['headext{0:02d}'.format(k+1)])] = k
         except:
             if settings.argflag['run']['setup']:
@@ -226,7 +226,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
     """
     def load_indfr(name,ext):
         msgs.work("Trim and overscan has not been applied")
-        temp = pyfits.getdata(name, ext)
+        temp = fits.getdata(name, ext)
         return temp
 
     msgs.info("Loading individual {0:s} frames".format(frametype))
@@ -243,7 +243,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
         elif settings.argflag['run']['spectrograph'] in ['keck_deimos']:
             temp, head0, _ = ardeimos.read_deimos(fitsdict['directory'][ind[i]] + fitsdict['filename'][ind[i]])
         else:
-            hdulist = pyfits.open(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]])
+            hdulist = fits.open(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]])
             temp = hdulist[settings.spect[dnum]['dataext01']].data
             head0 = hdulist[0].header
         temp = temp.astype(np.float)  # Let us avoid uint16
@@ -270,7 +270,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
 #	pool = mpPool(processes=np.min([settings.argflag['run']['ncpus'],np.size(ind)]))
 #	async_results = []
 #	for i in range(np.size(ind)):
-#		async_results.append(pool.apply_async(pyfits.getdata, (fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], settings.spect['fits']['dataext'])))
+#		async_results.append(pool.apply_async(fits.getdata, (fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], settings.spect['fits']['dataext'])))
 #	pool.close()
 #	pool.join()
 #	map(ApplyResult.wait, async_results)
@@ -300,7 +300,7 @@ def load_extraction(name, frametype='<None>', wave=True):
     props_savas = dict({"ORDWN":"ordwnum"})
     props = dict({})
     props_allow = props_savas.keys()
-    infile = pyfits.open(name)
+    infile = fits.open(name)
     sciext = np.array(infile[0].data, dtype=np.float)
     sciwav = -999999.9*np.ones((sciext.shape[0],sciext.shape[1]))
     hdr = infile[0].header
@@ -357,22 +357,19 @@ def load_master(name, exten=0, frametype='<None>'):
     head : str (or None)
     """
     if frametype == 'wv_calib':
-        from linetools import utils as ltu
         msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
-        ldict = ltu.loadjson(name)
+        ldict = linetools.utils.loadjson(name)
         return ldict, None
     elif frametype == 'sensfunc':
-        import yaml
-        from astropy import units as u
         with open(name, 'r') as f:
             sensfunc = yaml.load(f)
-        sensfunc['wave_max'] = sensfunc['wave_max']*u.AA
-        sensfunc['wave_min'] = sensfunc['wave_min']*u.AA
+        sensfunc['wave_max'] = sensfunc['wave_max']*units.AA
+        sensfunc['wave_min'] = sensfunc['wave_min']*units.AA
         return sensfunc, None
     else:
         msgs.info("Loading a pre-existing master calibration frame")
         try:
-            hdu = pyfits.open(name)
+            hdu = fits.open(name)
         except IOError:
             if settings.argflag['reduce']['masters']['force']:
                 msgs.error("Master calibration file does not exist:"+msgs.newline()+name)
@@ -390,9 +387,9 @@ def load_ordloc(fname):
     lname = mstrace_bname+"_ltrace"+mstrace_bext
     rname = mstrace_bname+"_rtrace"+mstrace_bext
     # Load the order locations
-    ltrace = np.array(pyfits.getdata(lname, 0),dtype=np.float)
+    ltrace = np.array(fits.getdata(lname, 0),dtype=np.float)
     msgs.info("Loaded left order locations for frame:"+msgs.newline()+fname)
-    rtrace = np.array(pyfits.getdata(rname, 0),dtype=np.float)
+    rtrace = np.array(fits.getdata(rname, 0),dtype=np.float)
     msgs.info("Loaded right order locations for frame:"+msgs.newline()+fname)
     return ltrace, rtrace
 
@@ -407,13 +404,9 @@ def load_specobj(fname):
     -------
     specobjs : list of SpecObjExp
     """
-    from astropy.table import Table
-    from astropy import units as u
-    from pypit import arspecobj
     speckeys = ['wave', 'sky', 'mask', 'flam', 'flam_var', 'var', 'counts']
     #
     specobjs = []
-    from astropy.io import fits
     hdulist = fits.open(fname)
     for hdu in hdulist:
         if hdu.name == 'PRIMARY':
@@ -435,7 +428,7 @@ def load_specobj(fname):
                 except KeyError:
                     pass
             # Add units on wave
-            specobj.boxcar['wave'] = specobj.boxcar['wave'] * u.AA
+            specobj.boxcar['wave'] = specobj.boxcar['wave'] * units.AA
 
         if 'opt_counts' in spec.keys():
             for skey in speckeys:
@@ -455,9 +448,9 @@ def load_tilts(fname):
     tname = msarc_bname+"_tilts"+msarc_bext
     sname = msarc_bname+"_satmask"+msarc_bext
     # Load the order locations
-    tilts = np.array(pyfits.getdata(tname, 0),dtype=np.float)
+    tilts = np.array(fits.getdata(tname, 0),dtype=np.float)
     msgs.info("Loaded order tilts for frame:"+msgs.newline()+fname)
-    satmask = np.array(pyfits.getdata(sname, 0),dtype=np.float)
+    satmask = np.array(fits.getdata(sname, 0),dtype=np.float)
     msgs.info("Loaded saturation mask for frame:"+msgs.newline()+fname)
     return tilts, satmask
 
@@ -483,9 +476,6 @@ def load_1dspec(fname, exten=None, extract='opt', objname=None, flux=False):
     spec : XSpectrum1D
 
     """
-    from astropy.io import fits
-    from linetools.spectra.xspectrum1d import XSpectrum1D
-
     # Keywords for Table
     rsp_kwargs = {}
     rsp_kwargs['wave_tag'] = '{:s}_wave'.format(extract)
@@ -508,7 +498,7 @@ def load_1dspec(fname, exten=None, extract='opt', objname=None, flux=False):
     return spec
 
 def waveids(fname):
-    infile = pyfits.open(fname)
+    infile = fits.open(fname)
     pixels=[]
     msgs.info("Loading fitted arc lines")
     try:

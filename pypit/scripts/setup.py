@@ -11,11 +11,9 @@ This script generates files to setup a PYPIT run
 from __future__ import (print_function, absolute_import, division,
                         unicode_literals)
 
-import pdb as debugger
+import argparse
 
 def parser(options=None):
-    import argparse
-
     parser = argparse.ArgumentParser(description="Script to setup a PYPIT run [v2]")
     parser.add_argument("files_root", type=str, help="File path+root, e.g. /data/Kast/b ")
     parser.add_argument("spectrograph", type=str, help="Name of spectrograph")
@@ -40,15 +38,17 @@ def parser(options=None):
 
 def main(args):
 
-    from pypit.scripts import run_pypit
-    from pypit import pyputils
-    from pypit.pypit import load_input
-    from pypit import armeta
     import os
     import datetime
+    import pdb as debugger
+
+    from pypit import pyputils
+    from pypit import armeta
+    from pypit import arsetup
+    from pypit.scripts import run_pypit
+    from pypit.pypit import load_input
 
     # Check that input spectrograph is supported
-
     if args.spectrograph not in armeta.instr_list():
         print("-------------------------------------------------------------")
         print("Input instrument {:s} is not supported by PYPIT".format(args.spectrograph))
@@ -76,7 +76,6 @@ def main(args):
                           [dfname], setup_script=True, parlines=parlines)
     print("Wrote {:s}".format(pyp_file))
 
-
     # Run
     pinp = [pyp_file]
     if args.develop:
@@ -91,8 +90,6 @@ def main(args):
         return
 
     # Read master file
-    from pypit import pyputils
-    from pypit import arsetup
     msgs = pyputils.get_dummy_logger()
     pyp_dict = load_input(pyp_file, msgs)
     parlines, datlines, spclines, dfnames = [pyp_dict[ii] for ii in ['par','dat','spc','dfn']]

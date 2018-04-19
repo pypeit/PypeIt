@@ -22,6 +22,7 @@ import numpy
 import astropy
 
 from pypit import __version__, __last_updated__
+from pypit.arqa import close_qa
 
 #pypit_logger = None
 
@@ -220,15 +221,16 @@ class Messages:
         '''
         Close the log file before the code exits
         '''
-        from pypit import arqa
-        # QA HTML
-        if self.pypit_file is not None:  # Likely testing
-            try:
-                arqa.gen_mf_html(self.pypit_file)
-            except:  # Likely crashed very early
-                pass
-            else:
-                arqa.gen_exp_html()
+        close_qa(self.pypit_file)
+#        from pypit import arqa
+#        # QA HTML
+#        if self.pypit_file is not None:  # Likely testing
+#            try:
+#                arqa.gen_mf_html(self.pypit_file)
+#            except:  # Likely crashed very early
+#                pass
+#            else:
+#                arqa.gen_exp_html()
         return self.reset_log_file(None)
 
 #        # Close log

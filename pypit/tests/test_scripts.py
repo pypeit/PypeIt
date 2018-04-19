@@ -4,17 +4,20 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+# TEST_UNICODE_LITERALS
+
+import os
+import sys
+import glob
+
+import pytest
+
 import matplotlib
 matplotlib.use('agg')  # For Travis
 
-# TEST_UNICODE_LITERALS
-
-import sys, os
-import pytest
-import glob
-
 from pypit import pyputils
 from pypit.scripts import coadd_1dspec
+from pypit.scripts import view_fits
 
 msgs = pyputils.get_dummy_logger()
 
@@ -46,7 +49,6 @@ def test_show_1dspec():
 def test_view_fits():
     """ Only test the list option
     """
-    from pypit.scripts import view_fits
     spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
     pargs = view_fits.parser([spec_file, '--list'])
 
@@ -87,3 +89,4 @@ def test_coadd2():
     with pytest.raises(IOError):
         gparam, ex_value, flux_value, iobj, outfile, files, _ = coadd_1dspec.main(
             args, unit_test=True, path=data_path('./'))
+

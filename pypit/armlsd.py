@@ -2,28 +2,21 @@
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-import numpy as np
 import yaml
+import numpy as np
+from astropy import units
+
+from pypit import msgs
 from pypit import arparse as settings
 from pypit import arflux
 from pypit import arload
 from pypit import armasters
 from pypit import armbase
-#from pypit import armsgs
-from pypit import msgs
 from pypit import arproc
 from pypit import arsave
 from pypit import arsetup
 from pypit import artrace
-from astropy import units
-#from pypit import arqa
-
-from linetools import utils as ltu
-
 from pypit import ardebug as debugger
-
-# Logging
-#msgs = armsgs.get_logger()
 
 
 def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):

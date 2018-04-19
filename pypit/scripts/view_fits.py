@@ -7,9 +7,14 @@
 """
 This script enables the viewing of a FITS file
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+import argparse
 
 def parser(options=None):
-    import argparse
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -28,8 +33,15 @@ def parser(options=None):
 
 def main(args):
 
-    # List only?
+    import subprocess
+
     from astropy.io import fits
+
+    from pypit import pyputils
+    from pypit import arlris
+    from pypit import ardeimos
+
+    # List only?
     if args.list:
         hdu = fits.open(args.file)
         print(hdu.info())
@@ -38,12 +50,7 @@ def main(args):
     kludge_fil = 'tmp_ginga.fits'
 
     # Setup for PYPIT imports
-    import subprocess
-    from pypit import pyputils
     msgs = pyputils.get_dummy_logger()
-
-    from pypit import arlris
-    from pypit import ardeimos
 
     # Extension
     if args.exten is not None:
