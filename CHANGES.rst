@@ -59,6 +59,7 @@
 - change requirements for astropy to >=1.3.0 so that `overwrite` is
   valid
 - include numba in requirements, but actually a requirement of arclines
+- Faster algorithm for defining object and background regions
 
 0.7 (2017-02-07)
 ----------------
