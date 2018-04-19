@@ -28,6 +28,11 @@ Define a utility base class used to hold parameters.
     | **02 Apr 2016**: (KBW) Allow input parameters to be callable
         functions.
     | **05 Apr 2018**: (KBW) Added to pypit repo
+    | **18 Apr 2018**: (KBW) Add parameter descriptions; keep default
+        values as attributes
+    | **19 Apr 2018**: (KBW) Spruce up the __repr__ function and add the
+        info function.  Add to_config function to write to a
+        configuration file.
 
 .. _isinstance: https://docs.python.org/2/library/functions.html#isinstance
 
@@ -38,11 +43,17 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
+import os
+import warnings
+import textwrap
 import sys
 if sys.version > '3':
     long = int
 
+
 import numpy
+from astropy.table import Table
+import pandas
 
 class ParSet(object):
     """
@@ -51,41 +62,68 @@ class ParSet(object):
     components.
 
     Args:
-        pars (list) : A list of keywords for a list of parameter values
-        values (list) : (**Optional**) Initialize the parameters to
-            these values.  If not provided, all parameters are
-            initialized to `None` or the provided default.
-        defaults (list) : (**Optional**) For any parameters not provided
-            in the *values* list, use these default values.  If not
-            provided, no defaults are assumed.
-        options (list) : (**Optional**) Force the parameters to be one
-            of a list of options.  Each element in the list can be a
-            list itself.  If not provided, all parameters are allowed to
-            take on any value within the allowed data type.
-        dtypes (list) : (**Optional**) Force the parameter to be one of
-            a list of data types.  Each element in the list can be a
-            list itself.  If not provided, all parameters are allowed to
-            have any data type.
-        can_call (list) : (**Optional**) Flag that the parameters are
+        pars (list):
+            A list of keywords for a list of parameter values.
+        values (:obj:`list`, optional):
+            Initialize the parameters to these values.  If not provided,
+            all parameters are initialized to `None` or the provided
+            default.
+        defaults (:obj:`list`, optional):
+            For any parameters not provided in the *values* list, use
+            these default values.  If not provided, no defaults are
+            assumed.
+        options (:obj:`list`, optional):
+            Force the parameters to be one of a list of options.  Each
+            element in the list can be a list itself.  If not provided,
+            all parameters are allowed to take on any value within the
+            allowed data type.
+        dtypes (:obj:`list`, optional):
+            Force the parameter to be one of a list of data types.  Each
+            element in the list can be a list itself.  If not provided,
+            all parameters are allowed to have any data type.
+        can_call (:obj:`list`, optional): Flag that the parameters are
             callable operations.  Default is False.
+        descr (:obj:`list`, optional):
+            A list of parameter descriptions.  Empty strings by default.
+        cfg_section (:obj:`str`, optional): 
+            The top-level designation for a configuration section
+            written based on the contents of this parameter set.
+        cfg_comment (:obj:`str`, optional): 
+            Comment to be placed at the top-level of the configuration
+            section written based on the contents of this parameter set.
 
     Raises:
-        TypeError: Raised if the input parameters are not lists or if
-            the input keys are not strings.
-        ValueError: Raised if any of the optional arguments do not have
-            the same length as the input list of parameter keys.
+        TypeError:
+            Raised if the input parameters are not lists or if the input
+            keys are not strings.
+        ValueError:
+            Raised if any of the optional arguments do not have the same
+            length as the input list of parameter keys.
 
     Attributes:
-        npar (int) : Number of parameters
-        data (dict) : Dictionary with the parameter values
-        options (dict) : Dictionary with the allowed options for the
-            parameter values
-        dtype (dict) : Dictionary with the allowed data types for the
-            parameters
-        can_call (dict): Dictionary with the callable flags
-
+        npar (int):
+            Number of parameters
+        data (dict):
+            Dictionary with the parameter values
+        default (dict):
+            Dictionary with the default values
+        options (dict):
+            Dictionary with the allowed options for the parameter values
+        dtype (dict):
+            Dictionary with the allowed data types for the parameters
+        can_call (dict):
+            Dictionary with the callable flags
+        descr (dict):
+            Dictionary with the description of each parameter.
+        cfg_section (str): 
+            The top-level designation for a configuration section
+            written based on the contents of this parameter set.
+        cfg_comment (str): 
+            Comment to be placed at the top-level of the configuration
+            section written based on the contents of this parameter set.
     """
-    def __init__(self, pars, values=None, defaults=None, options=None, dtypes=None, can_call=None):
+    def __init__(self, pars, values=None, defaults=None, options=None, dtypes=None, can_call=None,
+                 descr=None, cfg_section=None, cfg_comment=None):
         # Check that the list of input parameters is a list of strings
         if not isinstance(pars, list):
             raise TypeError('Input parameter keys must be provided as a list.')
@@ -111,36 +149,45 @@ class ParSet(object):
             raise ValueError('Data types list must have the same length as the keys list.')
         if can_call is not None and (not isinstance(can_call, list) or len(can_call) != self.npar):
             raise ValueError('List of callable flags must have the same length as keys list.')
+        if descr is not None and (not isinstance(descr, list) or len(descr) != self.npar):
+            raise ValueError('List of parameter descriptions must have the same length as '
+                             'keys list.')
 
         # Set up dummy lists for no input
-        if values is None:
-            values = [None]*self.npar
-        if defaults is None:
-            defaults = [None]*self.npar
-        if options is None:
-            options = [None]*self.npar
-        if dtypes is None:
-            dtypes = [None]*self.npar
-        if can_call is None:
-            can_call = [False]*self.npar
+        _values = [None]*self.npar if values is None else values
+        _defaults = [None]*self.npar if defaults is None else defaults
+        _options = [None]*self.npar if options is None else options
+        _dtypes = [None]*self.npar if dtypes is None else dtypes
+        _can_call = [False]*self.npar if can_call is None else can_call
+        _descr = ['']*self.npar if descr is None else descr
+
+        # Set the defaults
+        self.default = dict([ (p, d) for p, d in zip(pars, _defaults) ])
 
         # Set the valid options
         self.options = dict([ (p, [o]) if o is not None and not isinstance(o, list) else (p, o) \
-                                       for p, o in zip(pars, options) ])
+                                       for p, o in zip(pars, _options) ])
         # Set the valid types
         self.dtype = dict([ (p, [t]) if t is not None and not isinstance(t, list) else (p, t) \
-                                     for p, t in zip(pars, dtypes) ])
+                                     for p, t in zip(pars, _dtypes) ])
 
         # Set the calling flags
-        self.can_call = dict([ (p, t) for p, t in zip(pars, can_call) ])
+        self.can_call = dict([ (p, t) for p, t in zip(pars, _can_call) ])
+
+        # Set the calling flags
+        self.descr = dict([ (p, t) for p, t in zip(pars, _descr) ])
 
         # Set the data dictionary using the internal functions
         self.data = {}
-        for p, d, v in zip(pars, defaults, values):
+        for p, d, v in zip(pars, _defaults, _values):
             if v is None:
                 self.__setitem__(p, d)
                 continue
             self.__setitem__(p, v)
+
+        # Save the configuration file section details
+        self.cfg_section = cfg_section
+        self.cfg_comment = cfg_comment
 
 
     def __getitem__(self, key):
@@ -175,12 +222,12 @@ class ParSet(object):
             return
 
         if self.options[key] is not None and value not in self.options[key]:
-            raise ValueError('Input value invalid: {0}.\nOptions are: {1}'.format(value,
-                                                                                self.options[key]))
+            raise ValueError('Input value for {0} invalid: {1}.\nOptions are: {2}'.format(
+                                                                    key, value, self.options[key]))
         if self.dtype[key] is not None \
                 and not any([ isinstance(value, d) for d in self.dtype[key]]):
-            raise TypeError('Input value incorrect type: {0}.\nValid types are: {1}'.format(value,
-                                                                                self.dtype[key]))
+            raise TypeError('Input value for {0} has incorrect type: {1}.'.format(key, value) +
+                            '\nValid types are: {0}'.format(self.dtype[key]))
 
         if self.can_call[key] and not callable(value):
             raise TypeError('{0} is not a callable object.'.format(value))
@@ -199,53 +246,252 @@ class ParSet(object):
 
 
     def __repr__(self):
-        """Return a crude string represenation of the parameters."""
-        out = ''
+        """Return a string representation of the parameters."""
+        return self._output_string()
+
+    
+    def _output_string(self, header=None):
+        additional_par_strings = []
+        data_table = numpy.empty((self.npar+1, 5), dtype=object)
+        data_table[0,:] = ['Parameter', 'Value', 'Default', 'Type', 'Callable']
+        for i, k in enumerate(self.keys()):
+            data_table[i+1,0] = k
+            if isinstance(self.data[k], ParSet):
+                additional_par_strings += [ self.data[k]._output_string(header=k) ]
+                data_table[i+1,1] = 'see below'
+                data_table[i+1,2] = 'see below'
+            else:
+                data_table[i+1,1] = ParSet._data_string(self.data[k])
+                data_table[i+1,2] = ParSet._data_string(self.default[k])
+            data_table[i+1,3] = ', '.join([t.__name__ for t in self.dtype[k]])
+            data_table[i+1,4] = self.can_call[k].__repr__()
+
+        output = [ParSet._data_table_string(data_table)]
+        if header is not None:
+            output = [header] + output
+        if len(additional_par_strings) > 0:
+            output += additional_par_strings
+        return '\n'.join(output)
+
+
+    @staticmethod
+    def _data_table_string(data_table):
+        nrows, ncols = data_table.shape
+        col_width = [ numpy.amax([ len(dij) for dij in dj]) for dj in data_table.T ]
+        row_string = ['']*(nrows+1)
+        # Heading row
+        row_string[0] = '  '.join([ data_table[0,j].rjust(col_width[j]) for j in range(ncols)])
+        # Delimiter
+        row_string[1] = '-'*len(row_string[0])
+        for i in range(2,nrows+1):
+            row_string[i] = '  '.join([ data_table[i-1,j].rjust(col_width[j]) 
+                                                                        for j in range(ncols)])
+        return '\n'.join(row_string)+'\n'
+
+
+    @staticmethod
+    def _data_string(data):
+        if isinstance(data, str):
+            return data
+        elif hasattr(data, '__len__'):
+            return ', '.join([ ParSet._data_string(d) for d in data ])
+        else:
+            return data.__repr__()
+
+
+    def _wrap_print(self, head, output, tcols):
+        tail = ' '*len(head)
+        if tcols is not None:
+            lines = textwrap.wrap('{0}'.format(output), tcols-len(head))
+            if len(lines) == 0:
+                print('{0}None'.format(head))
+            else:
+                _head = [ head ] + [ tail ]*(len(lines)-1)
+                print('\n'.join([ h+l for h,l in zip(_head, lines)]))
+        else:
+            print(head+'{0}'.format(output))
+
+
+    def _types_list(self, key):
+        return [t.__name__ for t in self.dtype[key]]
+
+
+    def _config_lines(self, section_name=None, section_comment=None, section_level=0):
+        """
+        Recursively generate the lines of a configuration file based on
+        this ParSet and its ParSet members.
+        """
+        # Get the list of parameters that are ParSets
+        parset_keys = [ k for k in self.keys() if isinstance(self.data[k], ParSet) ]
+        n_parsets = len(parset_keys)
+
+        # Set the top-level comment and section name
+        section_indent = ' '*4*section_level
+        component_indent = section_indent + ' '*4
+        config_lines = [] if section_comment is None \
+                            else ParSet._config_comment(section_comment, section_indent)
+        config_lines += [ section_indent + '['*(section_level+1) + section_name
+                            + ']'*(section_level+1) ]
+
+        # Add all the parameters that are not ParSets
+        for k in self.keys():
+            if n_parsets > 0 and k in parset_keys:
+                continue
+            if self.descr[k] is not None:
+                config_lines += ParSet._config_comment(self.descr[k], component_indent)
+            config_lines += [ component_indent + k + ' = ' + ParSet._data_string(self.data[k]) ]
+
+        # Then add the items that are ParSets as subsections
+        for k in parset_keys:
+            config_lines += self.data[k]._config_lines(section_name=k,
+                                                       section_comment=self.descr[k],
+                                                       section_level=section_level+1)
+
+        return config_lines
+
+
+    @staticmethod
+    def _config_comment(comment, indent, full_width=72):
+        head = indent + '# '
+        lines = textwrap.wrap('{0}'.format(comment), full_width-len(head))
+        return [ head + l for l in lines ]
+   
+
+    def info(self, basekey=None):
+        """
+        A long-form version of __repr__ that includes the parameter descriptions.
+        """
+        # Try to get the width of the available space to print
+        try:
+            tr, tcols = numpy.array(os.popen('stty size', 'r').read().split()).astype(int)
+            tcols -= int(tcols*0.1)
+        except:
+            tr = None
+            tcols = None
+
         for k in self.data.keys():
-            out += '{0:>10}: {1}\n'.format(k, self.data[k])
-        return out
+            if isinstance(self.data[k], ParSet):
+                self.data[k].info(basekey=k)
+                continue
+            print('{0}'.format(k) if basekey is None else '{0}:{1}'.format(basekey,k))
+            self._wrap_print('        Value: ', self.data[k], tcols)
+            self._wrap_print('      Default: ', self.default[k], tcols)
+            self._wrap_print('      Options: ', 'None' if self.options[k] is None
+                                                else ', '.join(self.options[k]), tcols)
+            self._wrap_print('  Valid Types: ', 'None' if self.dtype[k] is None
+                                                else ', '.join(self._types_list(k)), tcols)
+            self._wrap_print('     Callable: ', self.can_call[k], tcols)
+            self._wrap_print('  Description: ', self.descr[k], tcols)
+            print(' ')
 
 
     def keys(self):
         return list(self.data.keys())
 
     
-    def add(self, key, value, options=None, dtype=None, can_call=None):
+    def add(self, key, value, default=None, options=None, dtype=None, can_call=None, descr=None):
         """
         Add a new parameter.
 
         Args:
-            key (str) : Key for new parameter
-            value (*dtype*) : Parameter value, must have a type in the
-                list provided (*dtype*), if the list is provided
-            options (list) : (**Optional**) List of discrete values that
-                the parameter is allowed to have
-            dtype (list) : (**Optional**) List of allowed data types
-                that the parameter can have
-            can_call (bool) : (**Optional**) Flag that the parameters
-                are callable operations.  Default is False.
+            key (:obj:`str`):
+                Key for new parameter
+            value (:obj:`dtype`):
+                Parameter value, must have a type in the list provided
+                by :arg:`dtype`, if the list is provided
+            default (:obj:`dtype`, optional):
+                Define a default value for the parameter, must have a
+                type in the list provided by :arg:`dtype`, if the list
+                is provided.  No default if not provided.
+            options (:obj:`list`, optional):
+                List of discrete values that the parameter is allowed to
+                have.  Allowed to be anything if not provided.
+            dtype (:obj:`list`, optional):
+                List of allowed data types that the parameter can have.
+                Allowed to be anything if not provided.
+            can_call (:obj:`bool`, optional):
+                Flag that the parameters are callable operations.
+                Default is False.
         """
         if key in self.data.keys():
             raise ValueError('Keyword {0} already exists and cannot be added!')
         self.npar += 1
+        self.default[key] = None if default is None else default
         self.options[key] = [options] if options is not None and not isinstance(options, list) \
                                       else options
         self.dtype[key] = [dtype] if dtype is not None and not isinstance(dtype, list) else dtype
         self.can_call[key] = False if can_call is None else can_call
+        self.descr[key] = None if descr is None else descr
         try:
             self.__setitem__(key, value)
         except:
             # Delete the added components
+            del self.default[key]
             del self.options[key]
             del self.dtype[key]
             del self.can_call[key]
+            del self.descr[key]
             # Re-raise the exception
             raise
 
 
+    def to_config(self, cfg_file, section_name=None, section_comment=None, section_level=0,
+                  append=False, quiet=False):
+        """
+        Write/Append the parameter set to a configuration file.
+
+        Args:
+            cfg_file (str):
+                The name of the file to write/append to.
+            section_name (:obj:`str`, optional):
+                The top-level name for the config section.  This must be
+                provided if :attr:`cfg_section` is None or any of the
+                parameters are not also ParSet instances themselves.
+            section_comment (:obj:`str`, optional):
+                The top-level comment for the config section based on
+                this ParSet.
+            section_level (:obj:`int`, optional):
+                The top level of this ParSet.  Used for recursive output
+                of nested ParSets.
+            append (:obj:`bool`, optional):
+                Append this configuration output of this ParSet to the
+                file.  False by default.  If not appending and the file
+                exists, the file is automatically overwritten.
+            quiet (:obj:`bool`, optional):
+                Suppress all standard output from the function.
+
+        Raises:
+            ValueError:
+                Raised if there are types other than ParSet in the
+                parameter list, :attr:`cfg_section` is None, and no
+                section_name argument was provided.
+        """
+        if os.path.isfile(cfg_file) and not append and not quiet:
+            warnings.warn('Selected configuration file already exists and will be overwritten!')
+
+        config_output = []
+        if numpy.all([ isinstance(d, ParSet) for d in self.data.values() ]):
+            # All the elements are ParSets themselves, so just iterate
+            # through each one
+            for k in self.keys():
+                config_output += self.data[k]._config_lines(section_name=k,
+                                                            section_comment=self.descr[k],
+                                                            section_level=section_level)
+        else:
+            if section_name is None and self.cfg_section is None:
+                raise ValueError('No top-level section name available for configuration!')
+
+            _section_name = self.cfg_section if section_name is None else section_name
+            config_output += self._config_lines(section_name=_section_name,
+                                                section_comment=section_comment,
+                                                section_level=section_level)
+
+        with open(cfg_file, 'a' if append else 'w') as f:
+            f.write('\n'.join(config_output))
+
+
 class ParDatabase(object):
     """
-
     Class used as a list of ParSets in a glorified structured numpy
     array.
 
