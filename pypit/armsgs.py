@@ -1,12 +1,33 @@
-from __future__ import absolute_import, division, print_function
+"""
+Module for terminal and file logging.
+
+.. todo::
+    Why not use pythons native logging package?
+
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 import sys
-from os.path import dirname, basename
-from textwrap import wrap as wraptext
-from inspect import currentframe, getouterframes
-from glob import glob
+import os
+import glob
+import textwrap
+import inspect
 
-pypit_logger = None
+# Imported for versioning
+import scipy
+import numpy
+import astropy
+
+from pypit import __version__, __last_updated__
+from pypit.arqa import close_qa
+
+#pypit_logger = None
+
+class PypitError(Exception):
+    pass
 
 class Messages:
     """
@@ -14,275 +35,292 @@ class Messages:
 
     For further details on colours see the following example:
     http://ascii-table.com/ansi-escape-sequences.php
+
+    Parameters
+    ----------
+    log : str or None
+      Name of saved log file (no log will be saved if log=="")
+    debug : dict
+      dict used for debugging.
+      'LOAD', 'BIAS', 'ARC', 'TRACE'
+    verbosity : int (0,1,2)
+      Level of verbosity:
+        0 = No output
+        1 = Minimal output (default - suitable for the average user)
+        2 = All output
+    colors : bool
+      If true, the screen output will have colors, otherwise
+      normal screen output will be displayed
     """
+    def __init__(self, log=None, debug=None, verbosity=None, colors=True):
 
-    def __init__(self, log, debug, verbosity, colors=True):
-        """
-        Initialize the Message logging class
-
-        Parameters
-        ----------
-        log : str or None
-          Name of saved log file (no log will be saved if log=="")
-        debug : dict
-          dict used for debugging.
-          'LOAD', 'BIAS', 'ARC', 'TRACE'
-        verbosity : int (0,1,2)
-          Level of verbosity:
-            0 = No output
-            1 = Minimal output (default - suitable for the average user)
-            2 = All output
-        colors : bool
-          If true, the screen output will have colors, otherwise
-          normal screen output will be displayed
-        """
-        # Version
-        from pypit import pyputils
-        version, last_updated = pyputils.get_version()
-        # Import for version
-        import scipy
-        import numpy
-        import astropy
-
-        # Initialize the log
-        if log is not None:
-            self._log = open(log, 'w')
-        else:
-            self._log = log
         # Initialize other variables
+        # TODO: debug could just be develop=True or False
         self._debug = debug
-        self._last_updated = last_updated
-        self._version = version
-        self._verbosity = verbosity
+        self._verbosity = 1 if verbosity is None else verbosity
+        self._last_updated = __last_updated__
+        self._version = __version__
+
+        # TODO: Why are these two necessary?  It would seem better to
+        # provide Messages with member functions that can operate on
+        # sciexp and pypit_file instead of having them kept within the
+        # object itself...
         self.sciexp = None
         self.pypit_file = None
-        # Save the version of the code including last update information to the log file
-        if self._log:
-            self._log.write("------------------------------------------------------\n\n")
-            self._log.write("PYPIT was last updated {0:s}\n".format(last_updated))
-            self._log.write("This log was generated with version {0:s} of PYPIT\n\n".format(version))
-            self._log.write("You are using scipy version={:s}\n".format(scipy.__version__))
-            self._log.write("You are using numpy version={:s}\n".format(numpy.__version__))
-            self._log.write("You are using astropy version={:s}\n\n".format(astropy.__version__))
-            self._log.write("------------------------------------------------------\n\n")
+
+        # Initialize the log
+        self._log = None
+        self._initialize_log_file(log=log)
+
         # Use colors?
-        self._start, self._end = "", ""
-        self._black_CL, self._yellow_CL, self._blue_CL, self._green_CL, self._red_CL = "", "", "", "", ""
-        self._white_RD, self._white_GR, self._white_BK = "", "", ""
-        self._white_BL, self._black_YL, self._yellow_BK = "", "", ""
+        self._start = None
+        self._end = None
+        self._black_CL = None
+        self._yellow_CL = None
+        self._blue_CL = None
+        self._green_CL = None
+        self._red_CL = None
+        self._white_RD = None
+        self._white_GR = None
+        self._white_BK = None
+        self._white_BL = None
+        self._black_YL = None
+        self._yellow_BK = None
+
+        self.disablecolors()
         if colors:
             self.enablecolors()
+
+    def _cleancolors(self, msg):
+        cols = [self._end, self._start,
+                self._black_CL, self._yellow_CL, self._blue_CL, self._green_CL, self._red_CL,
+                self._white_RD, self._white_GR, self._white_BK, self._white_BL,
+                self._black_YL, self._yellow_BK]
+        for i in cols:
+            msg = msg.replace(i, '')
+        return msg
+
+    def _debugmessage(self):
+        if self._debug is not None and self._debug['develop']:
+            info = inspect.getouterframes(inspect.currentframe())[2]
+            dbgmsg = self._start + self._blue_CL + info[1].split('/')[-1] + ' ' + str(info[2]) \
+                        + ' ' + info[3] + '()' + self._end + ' - '
         else:
-            self.disablecolors()
+            dbgmsg = ''
+        return dbgmsg
+
+    def _print(self, premsg, msg, last=True, debug=True):
+        """
+        Print to standard error and the log file
+        """
+        dbgmsg = self._debugmessage() if debug else ''
+        _msg = premsg+dbgmsg+msg
+        print(_msg, file=sys.stderr)
+        if self._log:
+            clean_msg = self._cleancolors(_msg)
+            self._log.write(clean_msg+'\n' if last else clean_msg)
+
+    def _initialize_log_file(self, log=None):
+        """
+        Expects self._log is already None.
+        """
+        if log is None:
+            return
+
+        # Initialize the log
+        self._log = open(log, 'w')
+
+        self._log.write("------------------------------------------------------\n\n")
+        self._log.write("PYPIT was last updated {0:s}\n".format(self._last_updated))
+        self._log.write("This log was generated with version {0:s} of PYPIT\n\n".format(
+                                                                                    self._version))
+        self._log.write("You are using scipy version={:s}\n".format(scipy.__version__))
+        self._log.write("You are using numpy version={:s}\n".format(numpy.__version__))
+        self._log.write("You are using astropy version={:s}\n\n".format(astropy.__version__))
+        self._log.write("------------------------------------------------------\n\n")
+
+    def reset(self, log=None, debug=None, verbosity=None, colors=True):
+        """
+        Reinitialize the object.
+
+        Needed so that there can be a default object for all modules,
+        but also a dynamically defined log file.
+        """
+        # Initialize other variables
+        self._debug = debug
+        self._verbosity = 1 if verbosity is None else verbosity
+        self.reset_log_file(log)
+        self.disablecolors()
+        if colors:
+            self.enablecolors()
+
+    def reset_log_file(self, log):
+        if self._log:
+            self._log.close()
+            self._log = None
+        self._initialize_log_file(log=log)
 
     # Headers and usage
+    # TODO: Move this to the ARMED class...
     def armedheader(self, prognm):
         """
         Get the info header for ARMED
         """
-        header = "##  "
-        header += self._start + self._white_GR + "ARMED : "
-        header += "Automated Reduction and Modelling of Echelle Data v{0:s}".format(self._version) + self._end + "\n"
-        header += "##  "
-        header += "Usage : "
-        header += "python %s [options] filelist".format(prognm)
+        header = '##  '
+        header += self._start + self._white_GR + 'ARMED : '
+        header += 'Automated Reduction and Modelling of Echelle Data v{0:s}'.format(
+                        self._version) + self._end + '\n'
+        header += '##  '
+        header += 'Usage : '
+        header += 'python %s [options] filelist'.format(prognm)
         return header
 
     def pypitheader(self, prognm):
         """
         Get the info header for PYPIT
         """
-        header = "##  "
-        header += self._start + self._white_GR + "PYPIT : "
-        header += "The Python Spectroscopic Data Reduction Pipeline v{0:s}".format(self._version) + self._end + "\n"
-        header += "##  "
-        #header += "Usage : "
-        #if prognm is None:
-        #    header += "pypit [options] filename.red"
-        #else:
-        #    header += "python %s [options] filename.red".format(prognm)
+        header = '##  '
+        header += self._start + self._white_GR + 'PYPIT : '
+        header += 'The Python Spectroscopic Data Reduction Pipeline v{0:s}'.format(
+                        self._version) + self._end + '\n'
+        header += '##  '
         return header
 
     def usage(self, prognm):
-        stgs_arm = glob(dirname(__file__)+"/data/settings/settings.arm*")
-        stgs_all = glob(dirname(__file__)+"/data/settings/settings.*")
+        """
+        Print pypit usage data.
+        """
+        stgs_arm = glob.glob(os.path.dirname(__file__)+'/data/settings/settings.arm*')
+        stgs_all = glob.glob(os.path.dirname(__file__)+'/data/settings/settings.*')
         stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
-        armlist = basename(stgs_arm[0]).split(".")[-1]
+
+        armlist = os.path.basename(stgs_arm[0]).split('.')[-1]
         for i in range(1, len(stgs_arm)):
-            armlist += ", " + basename(stgs_arm[i]).split(".")[-1]
-        spclist = basename(stgs_spc[0]).split(".")[-1]
+            armlist += ', ' + os.path.basename(stgs_arm[i]).split('.')[-1]
+        spclist = os.path.basename(stgs_spc[0]).split('.')[-1]
         for kk,istsp in enumerate(stgs_spc):
             if (kk == 0) or ('base' in istsp) or ('py' in istsp.split('.')[-1]):
                 continue
-            spclist += ", " + istsp.split(".")[-1]
-        spcl = wraptext(spclist, width=60)
-        #print("\n#################################################################")
-        #print(self.pypitheader(prognm))
+            spclist += ', ' + istsp.split('.')[-1]
+
+        spcl = textwrap.wrap(spclist, width=60)
         descs = self.pypitheader(prognm)
-        #print("##  -------------------------------------------------------------")
-        #print("##  Options: (default values in brackets)")
-        #print("##   -c or --cpus      : (all) Number of cpu cores to use")
-        #print("##   -h or --help      : Print this message")
-        #print("##   -v or --verbosity : (2) Level of verbosity (0-2)")
-        #print("##   -m or --use_masters : Use files in MasterFrames for reduction")
-        #print("##   -d or --develop   : Turn develop debugging on")
-        #print("##  -------------------------------------------------------------")
-        descs += "\n##  Available pipelines include:"
-        #print("##  Available pipelines include:")
-        descs += "\n##   " + armlist
-        #print("##  Available spectrographs include:")
-        descs += "\n##  Available spectrographs include:"
+
+        descs += '\n##  Available pipelines include:'
+        descs += '\n##   ' + armlist
+
+        descs += '\n##  Available spectrographs include:'
         for ispcl in spcl:
-            descs += "\n##   " + ispcl
-            #print("##   " + i)
-        #print("##  -------------------------------------------------------------")
-        #print("##  Last updated: {0:s}".format(self._last_updated))
-        descs += "\n##  Last updated: {0:s}".format(self._last_updated)
-        #print("#################################################################\n")
-        #sys.exit()
+            descs += '\n##   ' + ispcl
+
+        descs += '\n##  Last updated: {0:s}'.format(self._last_updated)
+
         return descs
 
-    def debugmessage(self):
-        if self._debug['develop']:
-            info = getouterframes(currentframe())[2]
-            dbgmsg = self._start+self._blue_CL+info[1].split("/")[-1]+" "+str(info[2])+" "+info[3]+"()"+self._end+" - "
-        else:
-            dbgmsg = ""
-        return dbgmsg
-
     def close(self):
-        """
-        Close the log file and QA PDFs before the code exits
-        """
-        from pypit import arqa
-        # QA HTML
-        if self.pypit_file is not None:  # Likely testing
-            try:
-                arqa.gen_mf_html(self.pypit_file)
-            except:  # Likely crashed real early
-                pass
-            else:
-                arqa.gen_exp_html()
-        # Close log
-        if self._log:
-            self._log.close()
-        return
+        '''
+        Close the log file before the code exits
+        '''
+        close_qa(self.pypit_file)
+#        from pypit import arqa
+#        # QA HTML
+#        if self.pypit_file is not None:  # Likely testing
+#            try:
+#                arqa.gen_mf_html(self.pypit_file)
+#            except:  # Likely crashed very early
+#                pass
+#            else:
+#                arqa.gen_exp_html()
+        return self.reset_log_file(None)
 
-    def signal_handler(self, signalnum, handler):
-        """
-        Handle signals sent by the keyboard during code execution
-        """
-        if signalnum == 2:
-            self.info("Ctrl+C was pressed. Ending processes...")
-            self.close()
-            sys.exit()
-        return
+#        # Close log
+#        if self._log:
+#            self._log.close()
+
+#    def signal_handler(self, signalnum, handler):
+#        """
+#        Handle signals sent by the keyboard during code execution
+#        """
+#        if signalnum == 2:
+#            self.info('Ctrl+C was pressed. Ending processes...')
+#            self.close()
+#            sys.exit()
 
     def error(self, msg, usage=False):
         """
         Print an error message
         """
-        dbgmsg = self.debugmessage()
-        premsg = "\n"+self._start + self._white_RD + "[ERROR]   ::" + self._end + " "
-        print(premsg+dbgmsg+msg, file=sys.stderr)
-        if self._log:
-            self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
-        # Close PDFs and log file
+        premsg = '\n'+self._start + self._white_RD + '[ERROR]   ::' + self._end + ' '
+        self._print(premsg, msg)
+
+        # Close log file
+        # TODO: This no longer "closes" the QA plots
         self.close()
+
         # Print command line usage
         if usage:
             self.usage(None)
+        #
+        raise PypitError("PYPIT ENDS")
         sys.exit(1)
 
     def info(self, msg):
         """
         Print an information message
         """
-        dbgmsg = self.debugmessage()
-        premsg = self._start + self._green_CL + "[INFO]    ::" + self._end + " "
-        print(premsg+dbgmsg+msg, file=sys.stderr)
-        if self._log:
-            self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
-        return
+        premsg = self._start + self._green_CL + '[INFO]    ::' + self._end + ' '
+        self._print(premsg, msg)
 
     def info_update(self, msg, last=False):
         """
         Print an information message that needs to be updated
         """
-        dbgmsg = self.debugmessage()
-        premsg = "\r" + self._start + self._green_CL + "[INFO]    ::" + self._end + " "
-        if last:
-            print(premsg+dbgmsg+msg, file=sys.stderr)
-            if self._log:
-                self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
-        else:
-            print(premsg+dbgmsg+msg, file=sys.stderr)
-            if self._log:
-                self._log.write(self.cleancolors(premsg+dbgmsg+msg))
-        return
+        premsg = '\r' + self._start + self._green_CL + '[INFO]    ::' + self._end + ' '
+        self._print(premsg, msg, last=last)
 
     def test(self, msg):
         """
         Print a test message
         """
         if self._verbosity == 2:
-            dbgmsg = self.debugmessage()
-            premsg = self._start + self._white_BL + "[TEST]    ::" + self._end + " "
-            print(premsg+dbgmsg+msg, file=sys.stderr)
-            if self._log:
-                self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
-        return
+            premsg = self._start + self._white_BL + '[TEST]    ::' + self._end + ' '
+            self._print(premsg, msg)
 
     def warn(self, msg):
         """
         Print a warning message
         """
-        dbgmsg = self.debugmessage()
-        premsg = self._start + self._red_CL + "[WARNING] ::" + self._end + " "
-        print(premsg+dbgmsg+msg, file=sys.stderr)
-        if self._log:
-            self._log.write(self.cleancolors(premsg+dbgmsg+msg)+"\n")
-        return
+        premsg = self._start + self._red_CL + '[WARNING] ::' + self._end + ' '
+        self._print(premsg, msg)
 
     def bug(self, msg):
         """
         Print a bug message
         """
-        dbgmsg = self.debugmessage()
-        premsg = self._start + self._white_BK + "[BUG]     ::" + self._end + " "
-        print(premsg+dbgmsg+msg, file=sys.stderr)
-        if self._log:
-            self._log.write(self.cleancolors(premsg+dbgmsg+msg))
-        return
+        premsg = self._start + self._white_BK + '[BUG]     ::' + self._end + ' '
+        self._print(premsg, msg)
 
     def work(self, msg):
         """
         Print a work in progress message
         """
-        if self._debug['develop']:
-            dbgmsg = self.debugmessage()
-            premsgp = self._start + self._black_CL + "[WORK IN ]::" + self._end + "\n"
-            premsgs = self._start + self._yellow_CL + "[PROGRESS]::" + self._end + " "
-            print(premsgp+premsgs+dbgmsg+msg, file=sys.stderr)
-            if self._log:
-                self._log.write(self.cleancolors(premsgp+premsgs+dbgmsg+msg)+"\n")
-        return
+        if self._debug is not None and self._debug['develop']:
+            premsgp = self._start + self._black_CL + '[WORK IN ]::' + self._end + '\n'
+            premsgs = self._start + self._yellow_CL + '[PROGRESS]::' + self._end + ' '
+            self._print(premsgp+premsgs, msg)
 
     def prindent(self, msg):
         """
         Print an indent
         """
-        premsg = "             "
-        print(premsg+msg, file=sys.stderr)
-        if self._log:
-            self._log.write(self.cleancolors(premsg+msg)+"\n")
-        return
+        premsg = '             '
+        self._print(premsg, msg, debug=False)
 
     def input(self):
         """
         Return a text string to be used to display input required from the user
         """
-        premsg = self._start + self._blue_CL + "[INPUT]   ::" + self._end + " "
+        premsg = self._start + self._blue_CL + '[INPUT]   ::' + self._end + ' '
         return premsg
 
     @staticmethod
@@ -290,14 +328,14 @@ class Messages:
         """
         Return a text string containing a newline to be used with messages
         """
-        return "\n             "
+        return '\n             '
 
     @staticmethod
     def indent():
         """
         Return a text string containing an indent to be used with messages
         """
-        return "             "
+        return '             '
 
     # Set the colors
     def enablecolors(self):
@@ -306,31 +344,23 @@ class Messages:
         """
 
         # Start and end coloured text
-        self._start = "\x1B["
-        self._end = "\x1B[" + "0m"
+        self._start = '\x1B['
+        self._end = '\x1B[' + '0m'
 
         # Clear Backgrounds
-        self._black_CL = "1;30m"
-        self._yellow_CL = "1;33m"
-        self._blue_CL = "1;34m"
-        self._green_CL = "1;32m"
-        self._red_CL = "1;31m"
+        self._black_CL = '1;30m'
+        self._yellow_CL = '1;33m'
+        self._blue_CL = '1;34m'
+        self._green_CL = '1;32m'
+        self._red_CL = '1;31m'
 
         # Coloured Backgrounds
-        self._white_RD = "1;37;41m"
-        self._white_GR = "1;37;42m"
-        self._white_BK = "1;37;40m"
-        self._white_BL = "1;37;44m"
-        self._black_YL = "1;37;43m"
-        self._yellow_BK = "1;33;40m"
-
-    def cleancolors(self, msg):
-        cols = [self._end, self._start,
-                self._black_CL, self._yellow_CL, self._blue_CL, self._green_CL, self._red_CL,
-                self._white_RD, self._white_GR, self._white_BK, self._white_BL, self._black_YL, self._yellow_BK]
-        for i in cols:
-            msg = msg.replace(i, "")
-        return msg
+        self._white_RD = '1;37;41m'
+        self._white_GR = '1;37;42m'
+        self._white_BK = '1;37;40m'
+        self._white_BL = '1;37;44m'
+        self._black_YL = '1;37;43m'
+        self._yellow_BK = '1;33;40m'
 
     def disablecolors(self):
         """
@@ -338,43 +368,43 @@ class Messages:
         """
 
         # Start and end coloured text
-        self._start = ""
-        self._end = ""
+        self._start = ''
+        self._end = ''
 
         # Clear Backgrounds
-        self._black_CL = ""
-        self._yellow_CL = ""
-        self._blue_CL = ""
-        self._green_CL = ""
-        self._red_CL = ""
+        self._black_CL = ''
+        self._yellow_CL = ''
+        self._blue_CL = ''
+        self._green_CL = ''
+        self._red_CL = ''
 
         # Coloured Backgrounds
-        self._white_RD = ""
-        self._white_GR = ""
-        self._white_BK = ""
-        self._white_BL = ""
-        self._black_YL = ""
-        self._yellow_BK = ""
+        self._white_RD = ''
+        self._white_GR = ''
+        self._white_BK = ''
+        self._white_BL = ''
+        self._black_YL = ''
+        self._yellow_BK = ''
 
 
-def get_logger(init=None):
-    """ Logger
-    Parameters
-    ----------
-    init : tuple
-      For instantiation
-      (log, debug, verbosity)
-
-    Returns
-    -------
-    msgs : Messages
-    """
-    global pypit_logger
-
-    # Instantiate??
-    if init is not None:
-        pypit_logger = Messages(init[0], init[1], init[2])
-
-    return pypit_logger
+#def get_logger(init=None):
+#    """ Logger
+#    Parameters
+#    ----------
+#    init : tuple
+#      For instantiation
+#      (log, debug, verbosity)
+#
+#    Returns
+#    -------
+#    msgs : Messages
+#    """
+#    global pypit_logger
+#
+#    # Instantiate??
+#    if init is not None:
+#        pypit_logger = Messages(init[0], init[1], init[2])
+#
+#    return pypit_logger
 
 

@@ -3,22 +3,17 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import numpy as np
+
+from pypit import msgs
 from pypit import arparse as settings
 from pypit import arload
 from pypit import armasters
 from pypit import armbase
-from pypit import armsgs
 from pypit import arproc
 from pypit import arsave
-from pypit import arsort
+from pypit import arsetup
 from pypit import artrace
-from pypit import arqa
-
 from pypit import ardebug as debugger
-
-# Logging
-msgs = armsgs.get_logger()
-
 
 def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
     """
@@ -45,7 +40,7 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
     status = 0
 
     # Create a list of science exposure classes
-    sciexp, setup_dict = armbase.SetupScience(fitsdict)
+    sciexp, setup_dict = armbase.setup_science(fitsdict)
     if sciexp == 'setup':
         status = 1
         return status
@@ -82,7 +77,7 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
             # Get data sections
             arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
             # Setup
-            setup = arsort.instr_setup(slf, det, fitsdict, setup_dict, must_exist=True)
+            setup = arsetup.instr_setup(slf, det, fitsdict, setup_dict, must_exist=True)
             settings.argflag['reduce']['masters']['setup'] = setup
             slf.setup = setup
             ###############
@@ -166,8 +161,11 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                 # Save to disk
                 armasters.save_masters(slf, det, mftype='trace')
                 # Save QA for slit traces
-                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det - 1], extord,
-                                       desc="Trace of the slit edges", normalize=False)
+#                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1], slf._rordpix[det - 1], extord,
+#                                       desc="Trace of the slit edges", normalize=False)
+                artrace.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
+                                      slf._rordpix[det - 1], extord,
+                                      desc="Trace of the slit edges", normalize=False)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
             ###############
@@ -187,9 +185,9 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
                     slf.SetFrame(slf._tiltpar, outpar, det)
-                armasters.save_masters(slf, det, mftype='tilts')
-            else:
-                slf.SetFrame(slf._tilts, tilts, det)
+                    armasters.save_masters(slf, det, mftype='tilts')
+                else:
+                    slf.SetFrame(slf._tilts, tilts, det)
 
             ###############
             # Prepare the pixel flat field frame
@@ -219,10 +217,13 @@ def ARMED(fitsdict, reuseMaster=False, reloadMaster=True):
                     slf.SetFrame(slf._msblaze, msblaze, det)
                     # Prepare some QA for the average slit profile along the slit
                     msgs.info("Preparing QA of each slit profile")
-                    arqa.slit_profile(slf, mstracenrm, slit_profiles, slf._lordloc[det - 1], slf._rordloc[det - 1],
-                                      slf._slitpix[det - 1], desc="Slit profile")
+                    arproc.slit_profile_qa(slf, mstracenrm, slit_profiles, slf._lordloc[det - 1],
+                                           slf._rordloc[det - 1], slf._slitpix[det - 1],
+                                           desc="Slit profile")
                     msgs.info("Saving blaze function QA")
-                    arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc="Blaze function", textplt="Order")
+#                    arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc="Blaze function", textplt="Order")
+                    artrace.plot_orderfits(slf, msblaze, flat_ext1d, desc="Blaze function",
+                                           textplt="Order")
 
             ###############
             # Generate/load a master wave frame

@@ -1,22 +1,31 @@
-from __future__ import absolute_import, division, print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
-from signal import SIGINT, signal as sigsignal
-from warnings import resetwarnings, simplefilter
-from time import time
-from pypit import armsgs
-from pypit import archeck
+import os
+import time
+import signal
+import warnings
 import glob
 import numpy as np
-
-# Import PYPIT routines
 
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
 except ImportError:
     pass
 
-from pypit import ardebug as debugger
+from pypit import msgs
+from pypit import ardebug
+from pypit import archeck  # THIS IMPORT DOES THE CHECKING.  KEEP IT
+from pypit import arparse
+from pypit import ardevtest
+from pypit.arload import load_headers
 
+from pypit import arqa
+    
+from pypit import armed
+from pypit import armlsd
 
 def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosity=1,
           use_masters=False, devtest=False, logname=None):
@@ -58,31 +67,25 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
         last_updated : str
     ---------------------------------------------------
     """
-    from pypit import ardebug
     # Init logger
     if debug is None:
         debug = ardebug.init()
-    msgs = armsgs.get_logger((logname, debug, verbosity))
+
+    # Reset the global logger
+#    msgs = armsgs.get_logger((logname, debug, verbosity))
+    msgs.reset(log=logname, debug=debug, verbosity=verbosity)
     msgs.pypit_file = redname
 
-    # This needs to be loaded after msgs
-    from pypit import arparse
-
-    # version checking
-    try:
-        archeck.version_check()
-    except archeck.VersionError as err:
-        msgs.error(err.message)
-        
-    # First send all signals to messages to be dealt with (i.e. someone hits ctrl+c)
-    sigsignal(SIGINT, msgs.signal_handler)
-
-    # Ignore all warnings given by python
-    resetwarnings()
-    simplefilter("ignore")
+# MOVED to __init__.py
+#    # First send all signals to messages to be dealt with (i.e. someone hits ctrl+c)
+#    signal.signal(signal.SIGINT, signal_handler)
+#
+#    # Ignore all warnings given by python
+#    warnings.resetwarnings()
+#    warnings.simplefilter('ignore')
 
     # Record the starting time
-    tstart = time()
+    tstart = time.time()
 
     # Load the input file
     pyp_dict = load_input(redname, msgs)
@@ -98,28 +101,29 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     for i in range(len(parlines)):
         parspl = parlines[i].split()
         if len(parspl) < 3:
-            msgs.error("There appears to be a missing argument on the following input line" + msgs.newline() +
-                       parlines[i])
+            msgs.error('There appears to be a missing argument on the following input line'
+                       + msgs.newline() + parlines[i])
         if (parspl[0] == 'run') and (parspl[1] == 'spectrograph'):
             specname = parspl[2]
             break
     if specname is None:
-        msgs.error("Please specify the spectrograph settings to be used with the command" + msgs.newline() +
-                   "run spectrograph <name>")
-    msgs.info("Reducing data from the {0:s} spectrograph".format(specname))
+        msgs.error('Please specify the spectrograph settings to be used with the command'
+                   + msgs.newline() + 'run spectrograph <name>')
+    msgs.info('Reducing data from the {0:s} spectrograph'.format(specname))
 
     # Determine the type of reduction used for this spectrograph
     redtype = None
     # Get the software path
     prgn_spl = progname.split('/')
-    tfname = "/".join(prgn_spl[:-1]) + "/"
+    tfname = '/'.join(prgn_spl[:-1]) + '/'
     # Settings file
     fname = tfname + 'data/settings/settings.' + specname
     try:
         spl = open(fname, 'r').readlines()
     except IOError:
-        msgs.error("The following instrument settings file cannot be found:" + msgs.newline() + fname + msgs.newline() +
-                   "Please check the settings file exists, and that the instrument name is spelt correctly.")
+        msgs.error('The following instrument settings file cannot be found:' + msgs.newline()
+                   + fname + msgs.newline() + 'Please check the settings file exists, and that'
+                   + ' the instrument name is spelt correctly.')
     for i in range(len(spl)):
         parspl = spl[i].split()
         if len(parspl) < 3:
@@ -128,12 +132,13 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
             redtype = parspl[2]
             break
     if redtype is None:
-        msgs.bug("The {0:s} instrument settings file must contain the reduction type".format(specname))
-        msgs.error("Please specify the reduction type with the command" + msgs.newline() +
-                   "mosaic reduction <type>")
+        msgs.bug('The {0:s} instrument settings file must contain the reduction type'.format(
+                                                                                        specname))
+        msgs.error('Please specify the reduction type with the command' + msgs.newline() +
+                   'mosaic reduction <type>')
 
     # Load default reduction arguments/flags, and set any command line arguments
-    argf = arparse.get_argflag_class((redtype.upper(), ".".join(redname.split(".")[:-1])))
+    argf = arparse.get_argflag_class((redtype.upper(), '.'.join(redname.split('.')[:-1])))
     argf.init_param()
     # Run specific
     argf.set_param('run pypitdir {0:s}'.format(tfname))
@@ -148,7 +153,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
         argf.set_paramlist(lines)
 
     # Load default spectrograph settings
-    spect = arparse.get_spect_class((redtype.upper(), specname, ".".join(redname.split(".")[:-1])))
+    spect = arparse.get_spect_class((redtype.upper(), specname, '.'.join(redname.split('.')[:-1])))
     lines = spect.load_file(base=True)  # Base spectrograph settings
     spect.set_paramlist(lines)
     lines = spect.load_file()  # Instrument specific
@@ -172,17 +177,16 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     argf.set_param('output verbosity {0:d}'.format(verbosity))
     if use_masters:
         argf.set_param('reduce masters reuse True')
-    msgs.work("Make appropriate changes to quick reduction")
+    msgs.work('Make appropriate changes to quick reduction')
     # Load Development suite changes
     if devtest:
-        msgs.info("Loading instrument specific argurment for Development Suite tests")
-        from pypit import ardevtest
+        msgs.info('Loading instrument specific argurment for Development Suite tests')
         ardevtest.set_param(argf, specname)
 
     if quick:
         # If a quick reduction has been requested, make sure the requested pipeline
         # is the quick implementation (if it exists), otherwise run the standard pipeline.
-        msgs.work("QUICK REDUCTION TO STILL BE DONE")
+        msgs.work('QUICK REDUCTION TO STILL BE DONE')
     # Setup from PYPIT file?
     if len(pyp_dict['setup']['name']) == 1:
         argf.set_param('setup name {:s}'.format(pyp_dict['setup']['name'][0]))
@@ -193,17 +197,16 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     # Now that all of the relevant settings are loaded, globalize the settings
     arparse.init(argf, spect)
 
-    '''
+    """
     # Test that a maximum of one .setup files is present
     from pypit import arsort
     setup_file, nexist = arsort.get_setup_file()
     if nexist == 1:
-        msgs.info("Found setup_file: {:s}".format(setup_file))
-        msgs.info("Will use this to guide the data reduction.")
-    '''
+        msgs.info('Found setup_file: {:s}'.format(setup_file))
+        msgs.info('Will use this to guide the data reduction.')
+    """
 
     # Load the important information from the fits headers
-    from pypit.arload import load_headers
     fitsdict, updates = load_headers(datlines)
 
     # If some settings were updated because of the fits headers, globalize the settings again
@@ -229,49 +232,49 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
             # Update the amplifier/data/overscan sections
             for i in range(arparse.spect[ddnum]['numamplifiers']):
                 # Flip the order of the sections
-                arparse.spect[ddnum]['datasec{0:02d}'.format(i + 1)] = arparse.spect[ddnum][
-                                                                            'datasec{0:02d}'.format(i + 1)][::-1]
-                arparse.spect[ddnum]['oscansec{0:02d}'.format(i + 1)] = arparse.spect[ddnum][
-                                                                             'oscansec{0:02d}'.format(i + 1)][::-1]
+                arparse.spect[ddnum]['datasec{0:02d}'.format(i + 1)] \
+                        = arparse.spect[ddnum]['datasec{0:02d}'.format(i + 1)][::-1]
+                arparse.spect[ddnum]['oscansec{0:02d}'.format(i + 1)] \
+                        = arparse.spect[ddnum]['oscansec{0:02d}'.format(i + 1)][::-1]
+
     # Reduce the data!
     status = 0
     # Send the data away to be reduced
     if spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMLSD':
-        msgs.info("Data reduction will be performed using PYPIT-ARMLSD")
-        from pypit import armlsd
+        msgs.info('Data reduction will be performed using PYPIT-ARMLSD')
         status = armlsd.ARMLSD(fitsdict)
     elif spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMED':
-        msgs.info("Data reduction will be performed using PYPIT-ARMED")
-        from pypit import armed
+        msgs.info('Data reduction will be performed using PYPIT-ARMED')
         status = armed.ARMED(fitsdict)
+
     # Check for successful reduction
     if status == 0:
-        from pypit import arqa
-        msgs.info("Data reduction complete")
+        msgs.info('Data reduction complete')
         # QA HTML
-        msgs.info("Generating QA HTML")
+        msgs.info('Generating QA HTML')
         arqa.gen_mf_html(redname)
         arqa.gen_exp_html()
     elif status == 1:
-        msgs.info("Setup complete")
+        msgs.info('Setup complete')
     elif status == 2:
-        msgs.info("Calcheck complete")
+        msgs.info('Calcheck complete')
     else:
-        msgs.error("Data reduction failed with status ID {0:d}".format(status))
+        msgs.error('Data reduction failed with status ID {0:d}'.format(status))
+
     # Capture the end time and print it to user
-    tend = time()
+    tend = time.time()
     codetime = tend-tstart
     if codetime < 60.0:
-        msgs.info("Data reduction execution time: {0:.2f}s".format(codetime))
+        msgs.info('Data reduction execution time: {0:.2f}s'.format(codetime))
     elif codetime/60.0 < 60.0:
         mns = int(codetime/60.0)
         scs = codetime - 60.0*mns
-        msgs.info("Data reduction execution time: {0:d}m {1:.2f}s".format(mns, scs))
+        msgs.info('Data reduction execution time: {0:d}m {1:.2f}s'.format(mns, scs))
     else:
         hrs = int(codetime/3600.0)
         mns = int(60.0*(codetime/3600.0 - hrs))
         scs = codetime - 60.0*mns - 3600.0*hrs
-        msgs.info("Data reduction execution time: {0:d}h {1:d}m {2:.2f}s".format(hrs, mns, scs))
+        msgs.info('Data reduction execution time: {0:d}h {1:d}m {2:.2f}s'.format(hrs, mns, scs))
     return
 
 
@@ -317,13 +320,12 @@ def load_input(redname, msgs):
       'ftype' : dict
          dict of filename: frametype
     """
-    import os
     # Read in the model file
-    msgs.info("Loading the input file")
+    msgs.info('Loading the input file')
     try:
         infile = open(redname, 'r')
     except IOError:
-        msgs.error("The filename does not exist -" + msgs.newline() + redname)
+        msgs.error('The filename does not exist -' + msgs.newline() + redname)
     lines = infile.readlines()
     parlines = []
     datlines = []
@@ -349,7 +351,7 @@ def load_input(redname, msgs):
                         for kk,datfile in enumerate(datlines):
                             if skip_file in datfile:
                                 keep[kk] = False
-                                msgs.warn("Skipping file {:s}".format(skip_file))
+                                msgs.warn('Skipping file {:s}'.format(skip_file))
                     # Save
                     datlines = np.array(datlines)[keep].tolist()
                 continue
@@ -373,9 +375,11 @@ def load_input(redname, msgs):
                 elif dfname[:4] == 'skip':
                     skip_files.append(dfname.split(' ')[1])
                 elif dfname[0] != '/':
-                    msgs.error("You must specify the full datapath for the file:" + msgs.newline() + dfname)
+                    msgs.error('You must specify the full datapath for the file:'
+                               + msgs.newline() + dfname)
                 elif len(dfname.split()) != 1:
-                    msgs.error("There must be no spaces when specifying the datafile:" + msgs.newline() + dfname)
+                    msgs.error('There must be no spaces when specifying the datafile:'
+                               + msgs.newline() + dfname)
                 dfnames.append(dfname)
                 listing = glob.glob(dfname)
                 for lst in listing: datlines.append(lst)
@@ -396,7 +400,8 @@ def load_input(redname, msgs):
                             datlines.append(path+linspl[dfile_col])
                             ftype_dict[linspl[dfile_col]] = linspl[ftype_col]
             continue
-        elif rddata == 0 and linspl[0] == 'data' and linspl[1] == 'read': # Begin data read block
+        elif rddata == 0 and linspl[0] == 'data' and linspl[1] == 'read':
+            # Begin data read block
             rddata += 1
             continue
         if rdsetup == 1:  # Read setup command
@@ -407,7 +412,8 @@ def load_input(redname, msgs):
                 setups.append(lines[i][6:].strip())
             setuplines.append(lines[i])
             continue
-        elif rdsetup == 0 and linspl[0] == 'setup' and linspl[1] == 'read':  # Begin setup read block
+        elif rdsetup == 0 and linspl[0] == 'setup' and linspl[1] == 'read':
+            # Begin setup read block
             rdsetup += 1
             continue
         if rdspec == 1:  # Read spect command
@@ -416,7 +422,8 @@ def load_input(redname, msgs):
                 continue
             spclines.append(lines[i])
             continue
-        elif rdspec == 0 and linspl[0] == 'spect' and linspl[1] == 'read':  # Begin spect read block
+        elif rdspec == 0 and linspl[0] == 'spect' and linspl[1] == 'read':
+            # Begin spect read block
             rdspec += 1
             continue
         if lines[i].lstrip()[0] == '#': continue
@@ -427,23 +434,22 @@ def load_input(redname, msgs):
     elif rddata == 1:
         msgs.error("Missing 'data end' in " + redname)
     if rddata == 0:
-        msgs.info("Using Default spectrograph parameters")
+        msgs.info('Using Default spectrograph parameters')
     elif rddata != 2:
         msgs.error("Missing 'spect end' in " + redname)
     # Check there are no duplicate inputs
     if len(datlines) != len(set(datlines)):
-        msgs.error("There are duplicate files in the list of data.")
+        msgs.error('There are duplicate files in the list of data.')
     if len(datlines) == 0:
-        msgs.error("There are no raw data frames" + msgs.newline() +
-                   "Perhaps the path to the data is incorrect?")
+        msgs.error('There are no raw data frames' + msgs.newline() +
+                   'Perhaps the path to the data is incorrect?')
     else:
-        msgs.info("Found {0:d} raw data frames".format(len(datlines)))
-    msgs.info("Input file loaded successfully")
+        msgs.info('Found {0:d} raw data frames'.format(len(datlines)))
+    msgs.info('Input file loaded successfully')
     # Let's return a dict
     pypit_dict = dict(par=parlines, dat=datlines, spc=spclines,
                       dfn=dfnames, setup={'name': setups, 'lines': setuplines},
                     ftype=ftype_dict)
     return pypit_dict # parlines, datlines, spclines, dfnames, setup, setuplines, ftype_dict
-
 
 

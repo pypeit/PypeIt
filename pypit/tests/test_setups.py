@@ -1,4 +1,8 @@
 # Module to run tests on scripts
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 import matplotlib
 matplotlib.use('agg')  # For Travis
@@ -33,13 +37,18 @@ def test_run_setup():
     pargs = setup.parser([droot, 'shane_kast_blue', '-d', '-c',
                           '--extension=fits.gz', '--redux_path={:s}'.format(data_path(''))])
     setup.main(pargs)
-    setup_file = glob.glob(data_path('shane_kast_blue*.setups'))[0]
+    setup_file = glob.glob(data_path('setup_files/shane_kast_blue*.setups'))[0]
     # Load
     with open(setup_file, 'r') as infile:
         setup_dict = yaml.load(infile)
     # Test
     assert '01' in setup_dict['A'].keys()
     assert setup_dict['A']['--']['disperser']['name'] == '600/4310'
+    # Failures
+    pargs2 = setup.parser([droot, 'shane_kast_blu', '-d', '-c',
+                              '--extension=fits.gz', '--redux_path={:s}'.format(data_path(''))])
+    with pytest.raises(IOError):
+        setup.main(pargs2)
 
 
 def test_setup_made_pypit_file():

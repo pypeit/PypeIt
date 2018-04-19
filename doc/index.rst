@@ -55,9 +55,21 @@ Calibrations
 
    calibrations
    bias
+   flatfielding
    tracing
    wave_calib
    fluxing
+
+Instruments
++++++++++++
+
+.. toctree::
+   :maxdepth: 2
+
+   instruments
+   deimos
+   lris
+
 
 Object Algorithms
 +++++++++++++++++
@@ -78,6 +90,7 @@ Documentation
    flexure
    frametype
    inst_settings
+   internals
 
 Other
 +++++
@@ -86,6 +99,7 @@ Other
    :maxdepth: 1
 
    scripts
+   flow
    api
 
 

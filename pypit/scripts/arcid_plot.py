@@ -7,15 +7,15 @@
 """
 This script generates an ArcID plot from a Master WaveSoln file
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
-try:
-    from xastropy.xutils import xdebug as debugger
-except:
-    import pdb as debugger
+import argparse
 
 def parser(options=None) :
 
-    import argparse
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('wave_soln', type = str, default = None,
@@ -40,12 +40,19 @@ def main(args):
     -------
 
     """
-
     import numpy as np
-    from pypit import pyputils
-    msgs = pyputils.get_dummy_logger()
-    from pypit import arqa
+
+    try:
+        from xastropy.xutils import xdebug as debugger
+    except:
+        import pdb as debugger
+
     from linetools.utils import loadjson
+
+    from pypit import pyputils
+    from pypit import arqa
+
+    msgs = pyputils.get_dummy_logger()
 
     # Read JSON
     fdict = loadjson(args.wave_soln)

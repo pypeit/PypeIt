@@ -1,33 +1,34 @@
 """ Module for examining/archiving/etc. settings files.
 This cannot be located in the pypit/ folder (import issues)
+.. todo::
+    - We should refactor so that it can...
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
-
-import os
-from glob import glob
-import numpy as np
-from os.path import dirname
-import filecmp
-import time
-from shutil import copyfile
-
-from astropy.time import Time
-
-from pypit import pyputils
-msgs = pyputils.get_dummy_logger()#develop=True)
-from pypit import arparse
-
-# CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
-import pdb as debugger
 
 try:
     basestring
 except NameError:
     basestring = str
 
-# Logging
-#msgs = pyputils.get_dummy_logger(develop=True)
+import os
+import glob
+import time
+import filecmp
+from shutil import copyfile
+from pkg_resources import resource_filename
 
+# CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
+import pdb as debugger
+
+import numpy as np
+
+from astropy.time import Time
+
+import pypit
+from pypit import arparse
+from pypit import pyputils
+
+msgs = pyputils.get_dummy_logger()
 
 def compare_dicts(top_key, dict1, dict2, skip_keys=()):
     for key in dict1.keys():
@@ -51,11 +52,10 @@ def archive():
     """ Generate archival file for the baseargf file or spect file
     and instrument setting files
     """
-    import pypit
-    settings_path = pypit.__path__[0]+'/data/settings/'
-    archive_path = pypit.__path__[0]+'/data/settings/archive/'
+    settings_path = resource_filename('pypit', '/data/settings/')
+    archive_path = resource_filename('pypit', '/data/settings/archive/')
     # Files
-    sett_files = glob(settings_path+'settings.*')
+    sett_files = glob.glob(settings_path+'settings.*')
     for sfile in sett_files:
         # Extension
         ext = sfile.split('.')[-1]
@@ -69,7 +69,7 @@ def archive():
         arch_file = current_sett_file(archive_path, sfile)
         if arch_file is None:
             match = False
-            arch_root = None
+            arch_root = ''
         else: # Compare
             match = filecmp.cmp(sfile, arch_file)
             arch_root = arch_file.split('/')[-1]
@@ -124,7 +124,7 @@ def argf_diff_and_dup():
 def current_sett_file(apath, sfile):
     # Load archive files
     ftype = sfile.split('.')[-1]
-    archive_files = glob(apath+'settings.*.{:s}'.format(ftype))
+    archive_files = glob.glob(apath+'settings.*.{:s}'.format(ftype))
     if len(archive_files) == 0:
         msgs.warn("No archival files found for {:s}".format(sfile))
         return None
@@ -140,7 +140,6 @@ def current_sett_file(apath, sfile):
 
 
 def spect_diff_and_dup():
-    import pypit
     # Load default spect file
     path = pypit.__path__[0]+'/data/settings/'
     basespect = arparse.BaseSpect(path+'settings.basespect', '.tmp')
@@ -148,7 +147,7 @@ def spect_diff_and_dup():
     basespect.set_paramlist(base_lines)
 
     # ARMLSD instruments
-    for specname in ['shane_kast_blue', 'shane_kast_red', 'keck_lris_blue', 'keck_lris_red', 'wht_isis_blue']:
+    for specname in ['shane_kast_blue', 'shane_kast_red', 'keck_lris_blue', 'keck_lris_red', 'wht_isis_blue', 'keck_deimos']:
         msgs.info("===============================================")
         msgs.info("Working on {:s}".format(specname))
         spect = arparse.get_spect_class(('ARMLSD', specname, ".tmp"))

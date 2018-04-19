@@ -3,28 +3,29 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
 import sys
+import datetime
+
 import numpy as np
-from astropy.time import Time
+
 from matplotlib.backends.backend_pdf import PdfPages
+
+from astropy.time import Time
+
 # Import PYPIT routines
+from pypit import msgs
 from pypit import arparse as settings
+from pypit import ararc
 from pypit import artrace
 from pypit import arload
 from pypit import arcomb
 from pypit import arflux
 from pypit import arlris
 from pypit import armasters
-from pypit import armsgs
 from pypit import arproc
 from pypit import arsort
 from pypit import arutils
 from pypit import arsave
-
 from pypit import ardebug as debugger
-
-# Logging
-msgs = armsgs.get_logger()
-
 
 class ScienceExposure:
     """
@@ -133,7 +134,6 @@ class ScienceExposure:
         fitsdict : dict
           Contains relevant information from fits header files
         """
-        import datetime
         #
         scidx = self._idx_sci[0]
         tbname = None
@@ -393,8 +393,6 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-        from pypit import arqa
-
         if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
             # If the master pixelflat is already made, use it
             if self._mspixelflat[det-1] is not None:
@@ -421,10 +419,14 @@ class ScienceExposure:
                         armasters.save_masters(self, det, mftype='slitprof')
                         if settings.argflag["reduce"]["slitprofile"]["perform"]:
                             msgs.info("Preparing QA of each slit profile")
-                            arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
-                                              self._slitpix[det - 1], desc="Slit profile")
+#                            arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
+#                                              self._slitpix[det - 1], desc="Slit profile")
+                            arproc.slit_profile_qa(self, mstracenrm, slit_profiles,
+                                                   self._lordloc[det - 1], self._rordloc[det - 1],
+                                                   self._slitpix[det - 1], desc="Slit profile")
                         msgs.info("Saving blaze function QA")
-                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
+#                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
+                        artrace.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
                 return False
             ###############
             # Generate/load a master pixel flat frame
@@ -475,10 +477,14 @@ class ScienceExposure:
                         armasters.save_masters(self, det, mftype='slitprof')
                         if settings.argflag["reduce"]["slitprofile"]["perform"]:
                             msgs.info("Preparing QA of each slit profile")
-                            arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
-                                              self._slitpix[det - 1], desc="Slit profile")
+#                            arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
+#                                              self._slitpix[det - 1], desc="Slit profile")
+                            arproc.slit_profile_qa(self, mstracenrm, slit_profiles,
+                                                   self._lordloc[det - 1], self._rordloc[det - 1],
+                                                   self._slitpix[det - 1], desc="Slit profile")
                         msgs.info("Saving blaze function QA")
-                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
+#                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
+                        artrace.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
                 else:
                     mspixelflat = mspixelflatnrm
             else:  # It must be the name of a file the user wishes to load
@@ -662,7 +668,6 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-        from pypit import ararc
 
         if self._wvcalib[det-1] is not None:
             msgs.info("An identical master wave calib frame already exists")
@@ -735,7 +740,7 @@ class ScienceExposure:
                 # Use this detector? Need to check this after setting RA/DEC above
                 if settings.argflag['reduce']['detnum'] is not None:
                     msgs.warn("If your standard wasnt on this detector, you will have trouble..")
-                    if det != settings.argflag['reduce']['detnum']:
+                    if det not in map(int, settings.argflag['reduce']['detnum']):
                         continue
                 if settings.spect["mosaic"]["reduction"] == "ARMLSD":
                     arproc.reduce_multislit(self, sciframe, ind[0], fitsdict, det, standard=True)
@@ -903,3 +908,24 @@ class ScienceExposure:
         return ('<{:s}: frame={:s} target={:s} index={:d}>'.format(
                 self.__class__.__name__, self._basename, self._target_name,
                 self._idx_sci[0]))
+
+
+def dummy_self(inum=0, fitsdict=None, nfile=10):
+    """ Generate a dummy self class for testing
+    Parameters:
+    -----------
+    inum : int, optional
+      Index in sciexp
+    Returns:
+    --------
+    slf
+    """
+    # Dummy fitsdict
+    if fitsdict is None:
+        fitsdict = arutils.dummy_fitsdict(nfile=nfile)
+    # Dummy Class
+    return ScienceExposure(inum, fitsdict, do_qa=False)
+
+
+
+

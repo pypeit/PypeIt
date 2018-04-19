@@ -1,28 +1,26 @@
 """ Module for fluxing routines
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
-import numpy as np
-import scipy
+
 import glob
 
-from astropy.table import Table, Column
-from astropy.coordinates import SkyCoord
-from astropy.io import fits
-from astropy import units as u
-from astropy import coordinates as coords
+import numpy as np
+import scipy
 
-from pypit import armsgs
-from pypit import arparse as settings
+from astropy import units
+from astropy import coordinates
+from astropy.table import Table, Column
+from astropy.io import fits
 
 try:
     from linetools.spectra.xspectrum1d import XSpectrum1D
 except ImportError:
     pass
 
+from pypit import msgs
+from pypit import arparse as settings
+from pypit import arutils
 from pypit import ardebug as debugger
-
-# Logging
-msgs = armsgs.get_logger()
 
 
 def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
@@ -34,7 +32,6 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
     MAX_EXTRAP : float, optional [0.05]
       Fractional amount to extrapolate sensitivity function
     """
-    from pypit import arutils
     # Load extinction data
     extinct = load_extinction_data()
     airmass = fitsdict['airmass'][scidx]
@@ -98,7 +95,6 @@ def bspline_magfit(wave, flux, var, flux_std, **kwargs):
     Returns
     -------
     """
-    from pypit import arutils
     invvar = (var > 0.)/(np.max(var,0))
     invvar[np.where(var==0.0)] = 0.0
     nx = wave.size
@@ -211,7 +207,7 @@ def extinction_correction(wave, airmass, extinct):
     return flux_corr
 
 
-def find_standard_file(radec, toler=20.*u.arcmin, check=False):
+def find_standard_file(radec, toler=20.*units.arcmin, check=False):
     """
     Find a match for the input file to one of the archived
     standard star files (hopefully).  Priority is by order of search.
@@ -241,16 +237,16 @@ def find_standard_file(radec, toler=20.*u.arcmin, check=False):
     std_file_fmt = [1]  # 1=Calspec style FITS binary table
 
     # SkyCoord
-    obj_coord = SkyCoord(radec[0], radec[1], unit=(u.hourangle, u.deg))
+    obj_coord = coordinates.SkyCoord(radec[0], radec[1], unit=(units.hourangle, units.deg))
     # Loop on standard sets
-    closest = dict(sep=999*u.deg)
+    closest = dict(sep=999*units.deg)
     for qq,sset in enumerate(std_sets):
         # Stars
         path, star_tbl = sset()
-        star_coords = SkyCoord(star_tbl['RA_2000'], star_tbl['DEC_2000'],
-            unit=(u.hourangle, u.deg))
+        star_coords = coordinates.SkyCoord(star_tbl['RA_2000'], star_tbl['DEC_2000'],
+                                           unit=(units.hourangle, units.deg))
         # Match
-        idx, d2d, d3d = coords.match_coordinates_sky(obj_coord, star_coords, nthneighbor=1)
+        idx, d2d, d3d = coordinates.match_coordinates_sky(obj_coord, star_coords, nthneighbor=1)
         if d2d < toler:
             if check:
                 return True
@@ -298,7 +294,7 @@ def load_calspec():
     return calspec_path, calspec_stds
 
 
-def load_extinction_data(toler=5.*u.deg):
+def load_extinction_data(toler=5.*units.deg):
     """
     Find the best extinction file to use, based on longitude and latitude
     Loads it and returns a Table
@@ -314,16 +310,18 @@ def load_extinction_data(toler=5.*u.deg):
       astropy Table containing the 'wavelength', 'extinct' data for AM=1.
     """
     # Mosaic coord
-    mosaic_coord = SkyCoord(settings.spect['mosaic']['longitude'],
-                            settings.spect['mosaic']['latitude'], frame='gcrs', unit=u.deg)
+    mosaic_coord = coordinates.SkyCoord(settings.spect['mosaic']['longitude'],
+                                        settings.spect['mosaic']['latitude'], frame='gcrs',
+                                        unit=units.deg)
     # Read list
     extinct_path = settings.argflag['run']['pypitdir']+'/data/extinction/'
     extinct_summ = extinct_path+'README'
     extinct_files = Table.read(extinct_summ,comment='#',format='ascii')
     # Coords
-    ext_coord = SkyCoord(extinct_files['Lon'], extinct_files['Lat'], frame='gcrs', unit=u.deg)
+    ext_coord = coordinates.SkyCoord(extinct_files['Lon'], extinct_files['Lat'], frame='gcrs',
+                                     unit=units.deg)
     # Match
-    idx, d2d, d3d = coords.match_coordinates_sky(mosaic_coord, ext_coord, nthneighbor=1)
+    idx, d2d, d3d = coordinates.match_coordinates_sky(mosaic_coord, ext_coord, nthneighbor=1)
     if d2d < toler:
         extinct_file = extinct_files[int(idx)]['File']
         msgs.info("Using {:s} for extinction corrections.".format(extinct_file))
@@ -333,7 +331,7 @@ def load_extinction_data(toler=5.*u.deg):
         return None
     # Read
     extinct = Table.read(extinct_path+extinct_file,comment='#',format='ascii', names=('iwave','mag_ext'))
-    wave = Column(np.array(extinct['iwave'])*u.AA, name='wave')
+    wave = Column(np.array(extinct['iwave'])*units.AA, name='wave')
     extinct.add_column(wave)
     # Return
     return extinct[['wave','mag_ext']]
@@ -368,8 +366,8 @@ def load_standard_file(std_dict):
     if std_dict['fmt'] == 1:
         std_spec = fits.open(fil)[1].data
         # Load
-        std_dict['wave'] = std_spec['WAVELENGTH']*u.AA
-        std_dict['flux'] = 1e17*std_spec['FLUX']*u.erg/u.s/u.cm**2/u.AA
+        std_dict['wave'] = std_spec['WAVELENGTH']*units.AA
+        std_dict['flux'] = 1e17*std_spec['FLUX']*units.erg/units.s/units.cm**2/units.AA
     else:
         msgs.error("Bad Standard Star Format")
     return
@@ -455,19 +453,22 @@ def generate_sensfunc(slf, stdidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=
     resln = std_res
 
     msgs.info("Masking Balmer")
-    lines_balm = np.array([3836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7, 5407.0, 6564.6, 8224.8, 8239.2])*u.AA
+    lines_balm = np.array([3836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7, 5407.0,
+                           6564.6, 8224.8, 8239.2])*units.AA
     for line_balm in lines_balm:
       ibalm = np.abs(wave-line_balm) <= BALM_MASK_WID*resln
       msk[ibalm] = False
 
     #; Mask telluric absorption
     msgs.info("Masking Telluric")
-    tell = np.any([((wave >= 7580.0*u.AA) & (wave <= 7750.0*u.AA)), ((wave >= 7160.0*u.AA) & (wave <= 7340.0*u.AA)),((wave >= 6860.0*u.AA)  & (wave <= 6930.0*u.AA))],axis=0)
+    tell = np.any([((wave >= 7580.0*units.AA) & (wave <= 7750.0*units.AA)),
+                   ((wave >= 7160.0*units.AA) & (wave <= 7340.0*units.AA)),
+                   ((wave >= 6860.0*units.AA)  & (wave <= 6930.0*units.AA))],axis=0)
     msk[tell] = False
 
     # Mask
     msgs.info("Masking Below the atmospheric cutoff")
-    atms_cutoff = wave <= 3000.0*u.AA
+    atms_cutoff = wave <= 3000.0*units.AA
     msk[atms_cutoff] = False
 
     # Fit in magnitudes

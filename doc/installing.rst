@@ -34,6 +34,7 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 * `h5py <https://www.h5py.org/>`_ version 2.6 (for data I/O)
 *  yaml -- On Python 3 (at least), you may need to install pyyaml
 * `future <https://pypi.python.org/pypi/future/0.6.0>`_ version 0.6
+* `arclines <https://github.com/PYPIT/arclines>`_ development version
 
 If you are using Anaconda, you can check the presence of these packages with::
 
@@ -60,7 +61,7 @@ also required for PYPIT.
 Linetools is a package designed for the analysis of 1-D spectra.
 The installation steps for linetools are provided
 `here <http://linetools.readthedocs.io/en/latest/install.html/>`_.
-Do not try to use pip install.
+Do not use pip install.
 
 According to the linetools documentation page, "If you wish to have
 full functionality of the GUIs and are using MacOSX, then you probably

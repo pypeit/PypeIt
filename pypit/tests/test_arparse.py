@@ -1,11 +1,15 @@
 # Module to run tests on arparse
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 import pytest
 
-
 from pypit import pyputils
-msgs = pyputils.get_dummy_logger()
 from pypit import arparse
+
+msgs = pyputils.get_dummy_logger()
 
 #def data_path(filename):
 #    data_dir = os.path.join(os.path.dirname(__file__), 'files')
