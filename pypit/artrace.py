@@ -1077,9 +1077,11 @@ def new_find_objects(profile, bgreg, stddev):
     while np.any(gt_5_sigma & np.invert(_profile.mask)):
         # Find next maximum flux point
         imax = np.ma.argmax(_profile)
-        if not gt_5_sigma[imax]:
-            break
-        _profile[imax] = np.ma.masked  # Mask the peak
+        #  IF one is recovering an object mask with *all* pixels triggered,
+        #    then consider uncommenting the next 3 lines -- JXP on 20 Apr 2018
+        #if not gt_5_sigma[imax]:
+        #    break
+        #_profile[imax] = np.ma.masked  # Mask the peak
         # Find the valid source pixels around the peak
         f = np.arange(sz_x)[np.roll(not_gt_3_sigma, -imax)]
         # TODO: the ifs below feel like kludges to match old
