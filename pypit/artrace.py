@@ -399,8 +399,8 @@ def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=No
                                    np.clip(spatdir - robj.reshape(sciframe.shape[0], 1), 0.0, 1.0)
         wrl = np.where(bgreg[1][1:, o] > bgreg[1][:-1, o])[0]
         wrr = np.where(bgreg[1][1:, o] < bgreg[1][:-1, o])[0]
-        if len(wrr) == 0:  # JXP kludge
-            wrr = np.array([len(bgreg[1][1:, o]) - 1]).astype(int)
+        if len(wrr) < len(wrl): # JXP kludge
+            wrr = np.concatenate([wrr, np.array([len(bgreg[1][1:,o])-1]).astype(int)])
         # Background regions to the right of object
         for ii in range(wrl.size):
             lobj = slf._lordloc[det - 1][:, slitn] + triml + wrl[ii]
