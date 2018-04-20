@@ -102,7 +102,7 @@ class Messages:
 
     def _debugmessage(self):
         if self._debug is not None and self._debug['develop']:
-            info = inspect.getouterframes(inspect.currentframe())[2]
+            info = inspect.getouterframes(inspect.currentframe())[3]
             dbgmsg = self._start + self._blue_CL + info[1].split('/')[-1] + ' ' + str(info[2]) \
                         + ' ' + info[3] + '()' + self._end + ' - '
         else:
