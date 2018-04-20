@@ -8,7 +8,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 
-
 from pypit import arparse as settings
 from pypit import msgs
 from pypit import arutils
