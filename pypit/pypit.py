@@ -145,8 +145,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     argf.set_param('run progname {0:s}'.format(progname))
     argf.set_param('run redname {0:s}'.format(redname))
     # Load user changes to the arguments/flags
-    plines = argf.load_lines(parlines)
-    argf.set_paramlist(plines)
+    inplines = argf.load_lines(parlines)
     # If the user wishes to load a settings file, do that now
     if argf.__dict__['_argflag']['run']['load']['settings'] is not None:
         lines = argf.load_file(argf.__dict__['_argflag']['run']['load']['settings'])
@@ -172,6 +171,8 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     # If the instrument settings file sets some argflag settings, implement those changes now
     if len(spect.__dict__['_settings']) != 0:
         argf.set_paramlist(spect.__dict__['_settings'])
+    # Now make changes based on the user's input files
+    argf.set_paramlist(inplines)
     # Load command line changes
     argf.set_param('run ncpus {0:d}'.format(ncpus))
     argf.set_param('output verbosity {0:d}'.format(verbosity))
