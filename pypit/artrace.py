@@ -397,14 +397,18 @@ def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=No
     for o in range(nobj):
         wll = np.where(bgreg[0][1:, o] > bgreg[0][:-1, o])[0]
         wlr = np.where(bgreg[0][1:, o] < bgreg[0][:-1, o])[0]
+        if len(wll) < len(wlr): #< len(wlr): # JXP kludge
+            wll = np.concatenate([np.array([0]).astype(int), wll])
         # Background regions to the left of object
-        for ii in range(wll.size):
+        for ii in range(wlr.size):
             lobj = slf._lordloc[det - 1][:, slitn] + triml + wll[ii]
             robj = slf._lordloc[det - 1][:, slitn] + trimr + wlr[ii]
             rec_bg_img[:, :, o] += np.clip(spatdir - lobj.reshape(sciframe.shape[0], 1), 0.0, 1.0) - \
                                    np.clip(spatdir - robj.reshape(sciframe.shape[0], 1), 0.0, 1.0)
         wrl = np.where(bgreg[1][1:, o] > bgreg[1][:-1, o])[0]
         wrr = np.where(bgreg[1][1:, o] < bgreg[1][:-1, o])[0]
+        if len(wrr) < len(wrl): # JXP kludge
+            wrr = np.concatenate([wrr, np.array([len(bgreg[1][1:,o])-1]).astype(int)])
         # Background regions to the right of object
         for ii in range(wrl.size):
             lobj = slf._lordloc[det - 1][:, slitn] + triml + wrl[ii]
@@ -1081,12 +1085,17 @@ def new_find_objects(profile, bgreg, stddev):
     while np.any(gt_5_sigma & np.invert(_profile.mask)):
         # Find next maximum flux point
         imax = np.ma.argmax(_profile)
+        #  IF one is recovering an object mask with *all* pixels triggered,
+        #    then consider uncommenting the next 3 lines -- JXP on 20 Apr 2018
+        #if not gt_5_sigma[imax]:
+        #    break
+        #_profile[imax] = np.ma.masked  # Mask the peak
         # Find the valid source pixels around the peak
         f = np.arange(sz_x)[np.roll(not_gt_3_sigma, -imax)]
         # TODO: the ifs below feel like kludges to match old
         # find_objects function.  In particular, should objr be treated
         # as exclusive or inclusive?
-        objl[obj] = imax-sz_x+f[-1] if imax-sz_x+f[-1] > 0 else 1
+        objl[obj] = imax-sz_x+f[-1] if imax-sz_x+f[-1] > 0 else 0
         objr[obj] = f[0]+imax if f[0]+imax < sz_x else sz_x-1
 #        print('object found: ', imax, f[-1], objl[obj], f[0], objr[obj], sz_x)
         # Mask source pixels and increment for next iteration
