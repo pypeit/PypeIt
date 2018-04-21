@@ -307,7 +307,7 @@ bias match binning ''             		# Match the shape of standard and science fr
 ###################
 
 pixelflat idname IntFlat              # Header key value of flat frame for header keyword keyword+idname
-pixelflat number 3                    # Number of flat frames to use
+pixelflat number 1                    # Number of flat frames to use
 pixelflat canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
 pixelflat lscomb False                # Combine a long and short flat
 pixelflat check condition1 hatch=closed
