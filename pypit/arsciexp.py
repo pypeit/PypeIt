@@ -402,6 +402,7 @@ class ScienceExposure:
                 if self._mspixelflatnrm[det-1] is None:
                     # Normalize the flat field
                     msgs.info("Normalizing the pixel flat")
+                    debugger.set_trace()
                     slit_profiles, mstracenrm, msblaze, flat_ext1d, extrap_slit = \
                         arproc.slit_profile(self, self.GetMasterFrame("pixelflat", det),
                                             det, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
@@ -466,8 +467,9 @@ class ScienceExposure:
                     slit_profiles, mstracenrm, msblaze, flat_ext1d, extrap_slit = \
                         arproc.slit_profile(self, mspixelflat, det, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
                     # If some slit profiles/blaze functions need to be extrapolated, do that now
-                    if np.sum(extrap_slit) != 0.0:
-                        slit_profiles, mstracenrm, msblaze = arproc.slit_profile_pca(self, mspixelflat, det, msblaze, extrap_slit, slit_profiles)
+                    if False:  # NOT SURE IF THE FOLLOWING WORKS
+                        if np.sum(extrap_slit) != 0.0:
+                            slit_profiles, mstracenrm, msblaze = arproc.slit_profile_pca(self, mspixelflat, det, msblaze, extrap_slit, slit_profiles)
                     mspixelflatnrm = mstracenrm.copy()
                     winpp = np.where(slit_profiles != 0.0)
                     mspixelflatnrm[winpp] /= slit_profiles[winpp]
@@ -645,9 +647,16 @@ class ScienceExposure:
             if settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
                 mswave = self._tilts[det - 1] * (self._tilts[det - 1].shape[0]-1.0)
             else:
-                wv_calib = self._wvcalib[det - 1]
-                mswave = arutils.func_val(wv_calib['fitc'], self._tilts[det - 1], wv_calib['function'],
+                ok_slits = np.where(~self._maskslits[det-1])[0]
+                mswave = np.zeros_like(self._tilts[det-1])
+                for kk,slit in enumerate(ok_slits):
+                    if kk > 3:
+                        continue
+                    wv_calib = self._wvcalib[det - 1][str(slit)]
+                    tmpwv = arutils.func_val(wv_calib['fitc'], self._tilts[det - 1], wv_calib['function'],
                                           minv=wv_calib['fmin'], maxv=wv_calib['fmax'])
+                    word = np.where(self._slitpix[det - 1] == slit+1)
+                    mswave[word] = tmpwv[word]
         # Set and then delete the Master Arc frame
         self.SetMasterFrame(mswave, "wave", det)
         armasters.save_masters(self, det, mftype='wave')

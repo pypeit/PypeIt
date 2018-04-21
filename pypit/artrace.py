@@ -14,7 +14,7 @@ from matplotlib import cm, font_manager
 from astropy.io import fits
 from astropy.stats import sigma_clip
 from astropy.convolution import convolve, Gaussian1DKernel
-
+from pypit import ardebug as debugger
 from pypit import msgs
 from pypit import arqa
 from pypit import arplot
@@ -41,10 +41,10 @@ except NameError:
     ustr = str
 
 # JFH debugging
-try:
-    from xastropy.xutils import xdebug as debugger
-except ImportError:
-    import pdb as debugger
+#try:
+#    from xastropy.xutils import xdebug as debugger
+#except ImportError:
+#    import pdb as debugger
 
 
 def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
@@ -3229,9 +3229,14 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
     slf._maskslits[det-1] = mask
     gdslits = np.where(mask == 0)[0]
 
+    # Final tilts image
+    final_tilts = np.zeros_like(msarc)
+
     # Now trace the tilt for each slit
     #for  o in range(arccen.shape[1]):
     for oo, slit in enumerate(gdslits):
+        if oo > 3:
+            continue
         # Determine the tilts for this slit
         trcdict = trace_tilt(slf, det, msarc, slit, censpec=arccen[:, oo], nsmth=3)
         if trcdict is None:
@@ -3448,7 +3453,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             # Slit position
             xspl = np.linspace(0.0, 1.0, msarc.shape[1])
             # Trace positions down center of the order
-            ycen = np.diag(polytilts[arcdet[np.where(aduse)], ordcen[arcdet[np.where(aduse)], slit]])
+            ycen = np.diag(polytilts[arcdet[np.where(aduse)], ordcen[arcdet[np.where(aduse)], slit:slit+1]])
             yspl = np.append(0.0, np.append(ycen, 1.0))
             # Trace positions as measured+modeled
             zspl = np.zeros((msarc.shape[1], np.sum(aduse) + 2))
@@ -3470,7 +3475,6 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             zsbs = zspl[pmin:pmax, :]
             # Spline
             msgs.work('Consider adding weights to SmoothBivariate in spca')
-            debugger.set_trace()
             tiltspl = interpolate.SmoothBivariateSpline(xsbs.flatten(), zsbs.flatten(),
                                                         ysbs.flatten(), kx=3, ky=3, s=xsbs.size)
             # Finish
@@ -3486,38 +3490,41 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
                 debugger.set_trace()
         elif settings.argflag['trace']['slits']['tilts']['method'].lower() == "pca":
             tilts = polytilts.copy()
-        debugger.set_trace()
+        # Save into final_tilts
+        word = np.where(slf._slitpix[det - 1] == slit+1)
+        final_tilts[word] = tilts[word]
 
-    # Now do the QA
-    msgs.info("Preparing arc tilt QA data")
-    tiltsplot = tilts[arcdet, :].T
-    tiltsplot *= (msarc.shape[0] - 1.0)
-    # Shift the plotted tilts about the centre of the slit
-    ztilto = ztilt.copy()
-    adj = np.diag(tilts[arcdet, ordcen[arcdet]])
-    zmsk = np.where(ztilto == maskval)
-    ztilto = 2.0 * np.outer(np.ones(ztilto.shape[0]), adj) - ztilto
-    ztilto[zmsk] = maskval
-    ztilto[np.where(ztilto != maskval)] *= (msarc.shape[0] - 1.0)
-    for i in range(arcdet.size):
-        w = np.where(ztilto[:, i] != maskval)
-        if w[0].size != 0:
-            twa = (xtilt[w[0], i] * (msarc.shape[1] - 1.0) + 0.5).astype(np.int)
-            # fitcns = np.polyfit(w[0], ztilt[w[0], i] - tiltsplot[twa, i], 0)[0]
-            fitcns = np.median(ztilto[w[0], i] - tiltsplot[twa, i])
-            # if abs(fitcns) > 1.0:
-            #     msgs.warn("The tilt of Arc Line {0:d} might be poorly traced".format(i+1))
-            tiltsplot[:, i] += fitcns
+        # Now do the QA
+        if False:
+            msgs.info("Preparing arc tilt QA data")
+            tiltsplot = tilts[arcdet, :].T
+            tiltsplot *= (msarc.shape[0] - 1.0)
+            # Shift the plotted tilts about the centre of the slit
+            ztilto = ztilt.copy()
+            adj = np.diag(tilts[arcdet, ordcen[arcdet]])
+            zmsk = np.where(ztilto == maskval)
+            ztilto = 2.0 * np.outer(np.ones(ztilto.shape[0]), adj) - ztilto
+            ztilto[zmsk] = maskval
+            ztilto[np.where(ztilto != maskval)] *= (msarc.shape[0] - 1.0)
+            for i in range(arcdet.size):
+                w = np.where(ztilto[:, i] != maskval)
+                if w[0].size != 0:
+                    twa = (xtilt[w[0], i] * (msarc.shape[1] - 1.0) + 0.5).astype(np.int)
+                    # fitcns = np.polyfit(w[0], ztilt[w[0], i] - tiltsplot[twa, i], 0)[0]
+                    fitcns = np.median(ztilto[w[0], i] - tiltsplot[twa, i])
+                    # if abs(fitcns) > 1.0:
+                    #     msgs.warn("The tilt of Arc Line {0:d} might be poorly traced".format(i+1))
+                    tiltsplot[:, i] += fitcns
 
-    xdat = xtilt.copy()
-    xdat[np.where(xdat != maskval)] *= (msarc.shape[1] - 1.0)
+            xdat = xtilt.copy()
+            xdat[np.where(xdat != maskval)] *= (msarc.shape[1] - 1.0)
 
-    msgs.info("Plotting arc tilt QA")
-#    arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
-#                        textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
-    plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
-                   textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
-    return tilts, satmask, outpar
+            msgs.info("Plotting arc tilt QA")
+        #    arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
+        #                        textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
+            plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
+                           textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
+    return final_tilts, satmask, outpar
 
 
 def get_censpec(slf, frame, det, gen_satmask=False):

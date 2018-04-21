@@ -1154,6 +1154,8 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
     standard : bool, optional
       Standard star frame?
     """
+    debugger.set_trace()
+
     sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
 
     ###############

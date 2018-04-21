@@ -61,6 +61,7 @@ def master_name(ftype, setup, mdir=None):
     Parameters
     ----------
     ftype
+    setup : str
     mdir : str, optional
       Master directory; usually taken from settings
 

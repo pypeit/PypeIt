@@ -161,15 +161,23 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
 
+            # JXP Set mask based on wv_calib -- This needs to be done somewhere else
+            mask = np.array([True]*slf._lordloc[det-1].shape[1])
+            for key in slf._wvcalib[det-1]:
+                mask[int(key)] = False
+            slf._maskslits[det-1] = mask
+
             ###############
             # Derive the spectral tilt
             if slf._tilts[det-1] is None:
-                tilts = armasters.get_master_frame(slf, "tilts")
-                if tilts is None:
+                try:
+                    tilts = armasters.get_master_frame(slf, "tilts")
+                except IOError:
                     # First time tilts are derived for this arc frame --> derive the order tilts
                     tilts, satmask, outpar = artrace.multislit_tilt(slf, slf._msarc[det-1], det)
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
+                    # This outpar is only the last slit!!  JXP doesn't think it matters for now
                     slf.SetFrame(slf._tiltpar, outpar, det)
                     armasters.save_masters(slf, det, mftype='tilts')
                 else:
@@ -182,7 +190,6 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
 
             ###############
             # Generate/load a master wave frame
-            debugger.set_trace()
             update = slf.MasterWave(fitsdict, sc, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")

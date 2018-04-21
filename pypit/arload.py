@@ -374,8 +374,8 @@ def load_master(name, exten=0, frametype='<None>'):
             if settings.argflag['reduce']['masters']['force']:
                 msgs.error("Master calibration file does not exist:"+msgs.newline()+name)
             else:
-                msgs.warn("Could not properly read Master calibration file:"+msgs.newline()+name)
-                return None, None
+                msgs.warn("Could not read Master calibration file:"+msgs.newline()+name)
+                raise IOError
         msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
         head = hdu[0].header
         data = hdu[exten].data.astype(np.float)
