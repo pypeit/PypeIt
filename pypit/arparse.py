@@ -3641,6 +3641,17 @@ class ARMLSD(BaseArgFlag):
 
 class ARMED(BaseArgFlag):
 
+    def reduce_calibrate_flux(self, v):
+        """ Should a flux calibration be performed?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_bool(v)
+        self.update(v)
+
     def reduce_flatfield_2dpca(self, v):
         """ Perform a simple 2D PCA on the echelle blaze fits
          if the value of this argument is >1. The argument value

@@ -2456,8 +2456,6 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     # Illustrate where the orders fall on the detector (physical units)
     if msgs._debug['trace']:
         viewer, ch = ginga.show_image(mstrace)
-        from IPython import embed
-        embed()
         ginga.show_slits(viewer, ch, lcenint, rcenint,np.arange(nslit) +1)
         debugger.set_trace()
     if settings.argflag['run']['qa']:

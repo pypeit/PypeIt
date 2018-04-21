@@ -51,6 +51,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
       The spectrum used to find detections. This spectrum has
       had any "continuum" emission subtracted off
     """
+
     # Extract a rough spectrum of the arc in each order
     msgs.info("Detecting lines")
     msgs.info("Extracting an approximate arc spectrum at the centre of the chip")
@@ -787,8 +788,6 @@ def arc_fit_qa(slf, fit, outfile=None, ids_only=False, title=None):
 
     plt.rcdefaults()
 
-    from IPython import embed
-    embed()
 
     return
 
