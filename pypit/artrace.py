@@ -2828,12 +2828,12 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             xtfit[sz-k] = ordcen[arcdet[j], slitnum] - k
             ytfit[sz-k] = centv
             etfit[sz-k] = 0.02
-            from IPython import embed
             #apfit[sz-k] = params[0]
             if fail:
                 mtfit[sz-k] = 1
             else:
-                if np.isfinite(centv) == False: embed()
+                #from IPython import embed
+                if np.isfinite(centv) is False: debugger.set_trace() #embed()
                 pcen = int(0.5 + centv)
                 mtfit[sz-k] = 0
         '''
@@ -3221,15 +3221,24 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
     ordcen = slf._pixcen[det - 1].copy()
     fitxy = [settings.argflag['trace']['slits']['tilts']['order'], 1]
 
+    # maskslit
+    if slf._maskslits[det-1] is not None:
+        mask = slf._maskslits[det-1] & (maskslit==1)
+    else:
+        mask = maskslit
+    slf._maskslits[det-1] = mask
+    gdslits = np.where(mask == 0)[0]
+
     # Now trace the tilt for each slit
-    for o in range(arccen.shape[1]):
+    #for  o in range(arccen.shape[1]):
+    for oo, slit in enumerate(gdslits):
         # Determine the tilts for this slit
-        trcdict = trace_tilt(slf, det, msarc, o, censpec=arccen[:, o], nsmth=3)
+        trcdict = trace_tilt(slf, det, msarc, slit, censpec=arccen[:, oo], nsmth=3)
         if trcdict is None:
             # No arc lines were available to determine the spectral tilt
             continue
         if msgs._debug['tilts']:
-            debugger.chk_arc_tilts(msarc, trcdict, sedges=(slf._lordloc[det-1][:,o], slf._rordloc[det-1][:,o]))
+            debugger.chk_arc_tilts(msarc, trcdict, sedges=(slf._lordloc[det-1][:,slit], slf._rordloc[det-1][:,slit]))
             debugger.set_trace()
         # Extract information from the trace dictionary
         aduse = trcdict["aduse"]
@@ -3290,7 +3299,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             wmask = wmask[np.where(wmsk == 0)]
 
             # Save the tilt angle, and unmask the row
-            factr = (msarc.shape[0] - 1.0) * arutils.func_val(mcoeff, ordcen[arcdet[j], 0],
+            factr = (msarc.shape[0] - 1.0) * arutils.func_val(mcoeff, ordcen[arcdet[j], slit],
                                                               settings.argflag['trace']['slits']['function'],
                                                               minv=0.0, maxv=msarc.shape[1] - 1.0)
             idx = int(factr + 0.5)
@@ -3374,7 +3383,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             xspl = np.linspace(0.0, 1.0, msarc.shape[1])
             # yspl = np.append(0.0, np.append(arcdet[np.where(aduse)]/(msarc.shape[0]-1.0), 1.0))
             # yspl = np.append(0.0, np.append(polytilts[arcdet[np.where(aduse)], msarc.shape[1]/2], 1.0))
-            ycen = np.diag(polytilts[arcdet[np.where(aduse)], ordcen[arcdet[np.where(aduse)]]])
+            ycen = np.diag(polytilts[arcdet[np.where(aduse)], ordcen[arcdet[np.where(aduse), slit]]])
             yspl = np.append(0.0, np.append(ycen, 1.0))
             zspl = np.zeros((msarc.shape[1], np.sum(aduse) + 2))
             zspl[:, 1:-1] = mtilt[:, np.where(aduse)[0]]
@@ -3382,8 +3391,8 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             zspl[:, 0] = zspl[:, 1] + polytilts[0, :] - polytilts[arcdet[np.where(aduse)[0][0]], :]
             zspl[:, -1] = zspl[:, -2] + polytilts[-1, :] - polytilts[arcdet[np.where(aduse)[0][-1]], :]
             # Make sure the endpoints are set to 0.0 and 1.0
-            zspl[:, 0] -= zspl[ordcen[0, 0], 0]
-            zspl[:, -1] = zspl[:, -1] - zspl[ordcen[-1, 0], -1] + 1.0
+            zspl[:, 0] -= zspl[ordcen[0, 0], slit]
+            zspl[:, -1] = zspl[:, -1] - zspl[ordcen[-1, slit], -1] + 1.0
             # Prepare the spline variables
             # if False:
             #     pmin = 0
@@ -3439,7 +3448,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             # Slit position
             xspl = np.linspace(0.0, 1.0, msarc.shape[1])
             # Trace positions down center of the order
-            ycen = np.diag(polytilts[arcdet[np.where(aduse)], ordcen[arcdet[np.where(aduse)]]])
+            ycen = np.diag(polytilts[arcdet[np.where(aduse)], ordcen[arcdet[np.where(aduse)], slit]])
             yspl = np.append(0.0, np.append(ycen, 1.0))
             # Trace positions as measured+modeled
             zspl = np.zeros((msarc.shape[1], np.sum(aduse) + 2))
@@ -3447,8 +3456,8 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             zspl[:, 0] = zspl[:, 1] + polytilts[0, :] - polytilts[arcdet[np.where(aduse)[0][0]], :]
             zspl[:, -1] = zspl[:, -2] + polytilts[-1, :] - polytilts[arcdet[np.where(aduse)[0][-1]], :]
             # Make sure the endpoints are set to 0.0 and 1.0
-            zspl[:, 0] -= zspl[ordcen[0, 0], 0]
-            zspl[:, -1] = zspl[:, -1] - zspl[ordcen[-1, 0], -1] + 1.0
+            zspl[:, 0] -= zspl[ordcen[0, slit], 0]
+            zspl[:, -1] = zspl[:, -1] - zspl[ordcen[-1, slit], -1] + 1.0
             # Prepare the spline variables
             if False:
                 pmin = 0
@@ -3461,6 +3470,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             zsbs = zspl[pmin:pmax, :]
             # Spline
             msgs.work('Consider adding weights to SmoothBivariate in spca')
+            debugger.set_trace()
             tiltspl = interpolate.SmoothBivariateSpline(xsbs.flatten(), zsbs.flatten(),
                                                         ysbs.flatten(), kx=3, ky=3, s=xsbs.size)
             # Finish
@@ -3476,6 +3486,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
                 debugger.set_trace()
         elif settings.argflag['trace']['slits']['tilts']['method'].lower() == "pca":
             tilts = polytilts.copy()
+        debugger.set_trace()
 
     # Now do the QA
     msgs.info("Preparing arc tilt QA data")
@@ -3510,16 +3521,27 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
 
 
 def get_censpec(slf, frame, det, gen_satmask=False):
-    """
-    The value of "tilts" returned by this function is of the form:
-    tilts = tan(tilt angle), where "tilt angle" is the angle between
-    (1) the line representing constant wavelength and
-    (2) the column of pixels that is most closely parallel with the spatial direction of the slit.
+    """ Extract a simple spectrum down the center of each slit
+    Parameters
+    ----------
+    slf :
+    frame : ndarray
+      Image
+    det : int
+    gen_satmask : bool, optional
+      Generate a saturation mask?
 
-    The angle is determined relative to the axis defined by ...
-
-    In other words, tilts = y/x according to the docs/get_locations_orderlength.JPG file.
-
+    Returns
+    -------
+    arccen : ndarray
+      Extracted arcs.  This *need* not be one per slit/order,
+      although I wish it were (with `rejected` ones padded with zeros)
+    maskslit : bool array
+      1 = Bad slit/order for extraction (incomplete)
+      0 = Ok
+    satmask : ndarray, optional
+      Saturation mask
+      Returned in gen_satmask=True
     """
     dnum = settings.get_dnum(det)
 

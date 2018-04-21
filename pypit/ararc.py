@@ -54,12 +54,12 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
 
     # Extract a rough spectrum of the arc in each order
     msgs.info("Detecting lines")
-    msgs.info("Extracting an approximate arc spectrum at the centre of the chip")
     if msgs._debug['flexure'] or (msarc is None):
         ordcen = slf._pixcen
     else:
         ordcen = slf.GetFrame(slf._pixcen, det)
     if censpec is None:
+        msgs.info("Extracting an approximate arc spectrum at the centre of the chip")
         #pixcen = np.arange(msarc.shape[0], dtype=np.int)
         #ordcen = (msarc.shape[1]/2)*np.ones(msarc.shape[0],dtype=np.int)
         #if len(ordcen.shape) != 1: msgs.error("The function artrace.model_tilt should only be used for"+msgs.newline()+"a single spectrum (or order)")
@@ -579,7 +579,8 @@ def simple_calib(slf, det, get_poly=False):
     return final_fit
 
 
-def calib_with_arclines(slf, det, get_poly=False, use_method="general"):
+def calib_with_arclines(slf, det, get_poly=False, use_method="general",
+                        censpec=None):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
@@ -599,7 +600,8 @@ def calib_with_arclines(slf, det, get_poly=False, use_method="general"):
     aparm = slf._arcparam[det-1]
     # Extract the arc
     msgs.work("Detecting lines")
-    tampl, tcent, twid, w, satsnd, spec = detect_lines(slf, det, slf._msarc[det-1])
+    tampl, tcent, twid, w, satsnd, spec = detect_lines(
+        slf, det, slf._msarc[det-1], censpec=censpec)
 
     if use_method == "semi-brute":
         best_dict, final_fit = arclines.holy.grail.semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])

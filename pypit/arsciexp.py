@@ -93,6 +93,7 @@ class ScienceExposure:
         self._arcparam = [None for all in range(ndet)]   # Dict guiding wavelength calibration
         self._wvcalib  = [None for all in range(ndet)]   #
         self._resnarr  = [None for all in range(ndet)]   # Resolution array
+        self._maskslits = [None for all in range(ndet)]  # Mask for whether to analyze a given slit
         # Initialize the Master Calibration frames
         self._bpix = [None for all in range(ndet)]          # Bad Pixel Mask
         self._msarc = [None for all in range(ndet)]         # Master Arc
@@ -686,16 +687,39 @@ class ScienceExposure:
                 arcparam = ararc.setup_param(self, sc, det, fitsdict)
                 self.SetFrame(self._arcparam, arcparam, det)
                 ###############
-                # Extract arc and identify lines
-                if settings.argflag['arc']['calibrate']['method'] == 'simple':
-                    wv_calib = ararc.simple_calib(self, det)
-                elif settings.argflag['arc']['calibrate']['method'] == 'arclines':
-                    wv_calib = ararc.calib_with_arclines(self, det)
+                # Extract an arc down each slit
+                arccen, maskslit = artrace.get_censpec(self, self._msarc[det-1], det, gen_satmask=False)
+                ok_mask = np.where(maskslit == 0)[0]
+
+                # Avoid star boxes (kludge here for now)
+                swidth = np.median(self._rordloc[det-1]-self._lordloc[det-1], axis=0)
+                okwidth = swidth > 40.
+
+                # Fill up the calibrations
+                wv_calib = {}
+                for kk,slit in enumerate(ok_mask):
+                    ###############
+                    # Need to avoid alignment slits
+                    if kk > 3:
+                        continue
+                    if not okwidth[slit]:
+                        msgs.info("Skipping a presumed box slit")
+                        continue
+                    ###############
+                    # Extract arc and identify lines
+                    if settings.argflag['arc']['calibrate']['method'] == 'simple':
+                        iwv_calib = ararc.simple_calib(self, det, censpec=arccen[:,kk])
+                    elif settings.argflag['arc']['calibrate']['method'] == 'arclines':
+                        iwv_calib = ararc.calib_with_arclines(self, det, censpec=arccen[:,kk])
+                    wv_calib[str(slit)] = iwv_calib.copy()
+                # Deal with rejected slits
+                if self._maskslits[det] is None:
+                    self._maskslits[det] = np.any([(maskslit == 1), ~okwidth], axis=0)
         # Set
         if wv_calib is not None:
             self.SetFrame(self._wvcalib, wv_calib, det)
             armasters.save_masters(self, det, mftype='wv_calib')
-        del wv_calib
+            del wv_calib
         return True
 
     def MasterStandard(self, fitsdict):

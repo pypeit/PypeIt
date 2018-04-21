@@ -122,7 +122,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             ###############
             # Generate an array that provides the physical pixel locations on the detector
             slf.GetPixelLocations(det)
-            # Determine the edges of the spectrum (spatial)
+            # Determine the edges of the spectra (spatial)
             if ('trace'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']):
                 ###############
                 # Determine the edges of the spectrum (spatial)
@@ -164,9 +164,8 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             ###############
             # Derive the spectral tilt
             if slf._tilts[det-1] is None:
-                try:
-                    tilts = armasters.get_master_frame(slf, "tilts")
-                except IOError:
+                tilts = armasters.get_master_frame(slf, "tilts")
+                if tilts is None:
                     # First time tilts are derived for this arc frame --> derive the order tilts
                     tilts, satmask, outpar = artrace.multislit_tilt(slf, slf._msarc[det-1], det)
                     slf.SetFrame(slf._tilts, tilts, det)
@@ -183,6 +182,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
 
             ###############
             # Generate/load a master wave frame
+            debugger.set_trace()
             update = slf.MasterWave(fitsdict, sc, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
