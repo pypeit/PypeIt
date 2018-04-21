@@ -188,13 +188,14 @@ def badpix(det, frame, sigdev=10.0):
 
 
 def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
-                   rejsigma=3.0, maskval=-999999.9):
+                   rejsigma=3.0, maskval=-999999.9, slit=0):
     """ Extract a science target and background flux
     :param slf:
     :param sciframe:
     :param varframe:
     :return:
     """
+    bgframe = np.zeros_like(sciframe)
     # Set some starting parameters (maybe make these available to the user)
     msgs.work("Should these parameters be made available to the user?")
     polyorder, repeat = 5, 1
@@ -222,8 +223,8 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     # Construct an array of pixels to be fit with a spline
     msgs.bug("Remember to include the following in a loop over order number")
     #whord = np.where(ordpix != 0)
-    o = 0 # order=1
-    whord = np.where(ordpix == o+1)
+
+    whord = np.where(ordpix == slit+1)
     tilts = slf._tilts[det-1].copy()
     xvpix  = tilts[whord]
     scipix = sciframe[whord]
@@ -269,7 +270,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
                 fitcls[i] = 0.0
         # Trace the sky lines to get a better estimate of the tilts
         scicopy = sciframe.copy()
-        scicopy[np.where(ordpix == 0)] = maskval
+        scicopy[np.where(ordpix == slit)] = maskval
         scitilts, _ = artrace.model_tilt(slf, det, scicopy, guesstilts=tilts.copy(), censpec=fitcls, maskval=maskval, plotQA=True)
         xvpix  = scitilts[whord]
         scipix = sciframe[whord]
@@ -288,7 +289,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     # Now trace the sky lines to get a better estimate of the spectral tilt during the observations
     scifrcp = scimask.copy()
     scifrcp[whord] += (maskval*maskpix)[rxargsrt]
-    scifrcp[np.where(ordpix == 0)] = maskval
+    scifrcp[np.where(ordpix == slit)] = maskval
     # Check tilts? -- Can also be error in flat fielding or slit illumination
     if msgs._debug['sky_sub']:
         gdp = scifrcp != maskval
@@ -308,7 +309,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     msgs.info("Fitting sky background spectrum")
     if settings.argflag['reduce']['skysub']['method'].lower() == 'bspline':
         msgs.info("Using bspline sky subtraction")
-        gdp = scifrcp != maskval
+        gdp = (scifrcp != maskval) & (ordpix == slit)
         srt = np.argsort(tilts[gdp])
         #bspl = arutils.func_fit(tilts[gdp][srt], scifrcp[gdp][srt], 'bspline', 3,
         #                        **settings.argflag['reduce']['skysub']['bspline'])
@@ -316,8 +317,10 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
         mask, bspl = arutils.robust_polyfit(tilts[gdp][srt], scifrcp[gdp][srt], 3, function='bspline',
                                             weights=np.sqrt(ivar)[gdp][srt], sigma=5.,
                                             maxone=False, **settings.argflag['reduce']['skysub']['bspline'])
-        bgf_flat = arutils.func_val(bspl, tilts.flatten(), 'bspline')
-        bgframe = bgf_flat.reshape(tilts.shape)
+        # Just those in the slit
+        bgf_flat = arutils.func_val(bspl, tilts[whord].flatten(), 'bspline')
+        #bgframe = bgf_flat.reshape(tilts.shape)
+        bgframe[whord] = bgf_flat
         if msgs._debug['sky_sub']:
             def plt_bspline_sky(tilts, scifrcp, bgf_flat, maskval):
                 # Setup
@@ -1156,76 +1159,98 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
     """
     debugger.set_trace()
 
+    # FOR DEVELOPING
+    #sciframe = fits.open('sci.fits')[0].data
+    #rawvarframe = fits.open('var.fits')[0].data
+    #crmask = fits.open('crmask.fits')[0].data
     sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
 
-    ###############
-    # Estimate Sky Background
-    if settings.argflag['reduce']['skysub']['perform']:
-        # Perform an iterative background/science extraction
-        if msgs._debug['obj_profile'] and False:
-            msgs.warn("Reading background from 2D image on disk")
-            datfil = settings.argflag['run']['directory']['science']+'/spec2d_{:s}.fits'.format(slf._basename.replace(":","_"))
-            hdu = fits.open(datfil)
-            bgframe = hdu[1].data - hdu[2].data
+    for frame, ifile in zip([sciframe, rawvarframe, crmask], ['sci.fits', 'var.fits', 'crmask.fits']):
+        hdu = fits.PrimaryHDU(frame)
+        hdul = fits.HDUList([hdu])
+        hdul.writeto(ifile, overwrite=True)
+
+    bgframe = np.zeros_like(sciframe)
+
+    gdslits = np.where(~slf._maskslits[det-1])[0]
+
+    for slit in gdslits:
+        pix_inslit = np.where(slf._slitpix[det-1] == slit+1)
+
+        ###############
+        # Estimate Sky Background
+        if settings.argflag['reduce']['skysub']['perform']:
+            # Perform an iterative background/science extraction
+            if msgs._debug['obj_profile'] and False:
+                debugger.set_trace()  # JXP says THIS MAY NOT WORK AS EXPECTED
+                msgs.warn("Reading background from 2D image on disk")
+                datfil = settings.argflag['run']['directory']['science']+'/spec2d_{:s}.fits'.format(slf._basename.replace(":","_"))
+                hdu = fits.open(datfil)
+                bgframe = hdu[1].data - hdu[2].data
+            else:
+                msgs.info("First estimate of the sky background")
+                slit_bgframe = bg_subtraction(slf, det, sciframe, rawvarframe, crmask, slit=slit)
+                bgframe[pix_inslit] = slit_bgframe[pix_inslit]
+                #bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask)
+            modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
         else:
-            msgs.info("First estimate of the sky background")
-            bgframe = bg_subtraction(slf, det, sciframe, rawvarframe, crmask)
-        #bgframe = bg_subtraction(slf, det, sciframe, varframe, crmask)
-        modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
-    else:
-        modelvarframe = rawvarframe.copy()
-        bgframe = np.zeros_like(sciframe)
-    if not standard:  # Need to save
-        slf._modelvarframe[det - 1] = modelvarframe
-        slf._bgframe[det - 1] = bgframe
+            modelvarframe = rawvarframe.copy()
+            bgframe = np.zeros_like(sciframe)
+        if not standard:  # Need to save
+            slf._modelvarframe[det - 1] = modelvarframe
+            slf._bgframe[det - 1] = bgframe
 
-    ###############
-    # Find objects and estimate their traces
-    scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask,
-                                    bgreg=20, doqa=False, standard=standard)
-    if scitrace is None:
-        msgs.info("Not performing extraction for science frame"+msgs.newline()+fitsdict['filename'][scidx[0]])
+        ###############
+        # Find objects and estimate their traces
+        scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask,
+                                        bgreg=20, doqa=False, standard=standard, slitn=slit)
         debugger.set_trace()
-        #continue
+        if scitrace is None:
+            msgs.info("Not performing extraction for science frame"+msgs.newline()+fitsdict['filename'][scidx[0]])
+            debugger.set_trace()
+            #continue
 
-    # Make sure that there are objects
-    noobj = True
-    for sl in range(len(scitrace)):
-        if scitrace[sl]['nobj'] != 0:
-            noobj = False
-    if noobj is True:
-        msgs.warn("No objects to extract for science frame" + msgs.newline() + fitsdict['filename'][scidx])
-        return True
-
-    ###############
-    # Finalize the Sky Background image
-    if settings.argflag['reduce']['skysub']['perform']:
-        # Perform an iterative background/science extraction
-        msgs.info("Finalizing the sky background image")
-        # Create a trace mask of the object
-        trcmask = np.zeros_like(sciframe)
+        # Make sure that there are objects
+        noobj = True
         for sl in range(len(scitrace)):
-            trcmask += scitrace[sl]['object'].sum(axis=2)
-        trcmask[np.where(trcmask > 0.0)] = 1.0
-        bgframe = bg_subtraction(slf, det, sciframe, modelvarframe, crmask, tracemask=trcmask)
-        # Redetermine the variance frame based on the new sky model
-        modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
-        # Save
-        if not standard:
-            slf._modelvarframe[det-1] = modelvarframe
-            slf._bgframe[det-1] = bgframe
+            if scitrace[sl]['nobj'] != 0:
+                noobj = False
+        if noobj is True:
+            msgs.warn("No objects to extract for science frame" + msgs.newline() + fitsdict['filename'][scidx])
+            return True
 
-    ###############
-    # Flexure down the slit? -- Not currently recommended
-    if settings.argflag['reduce']['flexure']['method'] == 'slitcen':
-        flex_dict = arwave.flexure_slit(slf, det)
-        #if not msgs._debug['no_qa']:
-#        arqa.flexure(slf, det, flex_dict, slit_cen=True)
-        flexure_qa(slf, det, flex_dict, slit_cen=True)
+        ###############
+        # Finalize the Sky Background image
+        if settings.argflag['reduce']['skysub']['perform']:
+            # Perform an iterative background/science extraction
+            msgs.info("Finalizing the sky background image")
+            # Create a trace mask of the object
+            trcmask = np.zeros_like(sciframe)
+            for sl in range(len(scitrace)):
+                trcmask += scitrace[sl]['object'].sum(axis=2)
+            trcmask[np.where(trcmask > 0.0)] = 1.0
+            slit_bgframe = bg_subtraction(slf, det, sciframe, modelvarframe, crmask, tracemask=trcmask, slit=slit)
+            bgframe[pix_inslit] = slit_bgframe[pix_inslit]
+            # Redetermine the variance frame based on the new sky model
+            modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
+            # Save
+            if not standard:
+                slf._modelvarframe[det-1] = modelvarframe
+                slf._bgframe[det-1] = bgframe
 
-    # Perform an optimal extraction
-    msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
-    return reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask, standard=standard)
+        ###############
+        # Flexure down the slit? -- Not currently recommended
+        if settings.argflag['reduce']['flexure']['method'] == 'slitcen':
+            flex_dict = arwave.flexure_slit(slf, det)
+            #if not msgs._debug['no_qa']:
+    #        arqa.flexure(slf, det, flex_dict, slit_cen=True)
+            flexure_qa(slf, det, flex_dict, slit_cen=True)
+
+        # Perform an optimal extraction
+        msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
+        debugger.set_trace()
+        return reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe,
+                            scidx, fitsdict, det, crmask, standard=standard)
 
 
 def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask,
