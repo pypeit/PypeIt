@@ -45,7 +45,8 @@ class ScienceExposure:
             self._idx_std = []
         else:
             self._idx_arcs = settings.spect['arc']['index'][snum]
-            self._idx_std = settings.spect['standard']['index'][snum]
+#            debugger.set_trace()
+            if settings.argflag['reduce']['calibrate']['flux'] == True: self._idx_std = settings.spect['standard']['index'][snum]
             if settings.argflag['bias']['useframe'] == 'bias': self._idx_bias = settings.spect['bias']['index'][snum]
             elif settings.argflag['bias']['useframe'] == 'dark':  self._idx_bias = settings.spect['dark']['index'][snum]
             else: self._idx_bias = []

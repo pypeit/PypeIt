@@ -370,12 +370,25 @@ dark check condition1 exptime>999999 # Avoids any dark frames
 
 # Make some changes to the arguments and flags
 ## JFH Trying to make slit identification more robust for DEIMOS
-settings trace slits sigdetect 500.0
-settings trace slits number 1
+#settings trace slits sigdetect 500.0
+#settings trace slits number 1
+#settings trace slits tilts params 1,1,1
+#settings trace slits tilts method spca
+#settings trace slits sobel mode constant    # JFH reports this is needed for slits running off the detector
+#settings bias useframe overscan
+#settings pixelflat combine method median
+#settings pixelflat combine reject level [10.0,10.0]
+
+# These are Ryan Cooke's suggested slit detection settings
+settings trace slits sigdetect 50.0
+settings trace slits number -1
 settings trace slits tilts params 1,1,1
 settings trace slits tilts method spca
-settings trace slits sobel mode constant    # JFH reports this is needed for slits running off the detector
+settings trace slits pca params [3,2,1,0]
+settings trace slits polyorder  3
+settings trace slits sobel mode nearest
 settings bias useframe overscan
 settings pixelflat combine method median
 settings pixelflat combine reject level [10.0,10.0]
+
 

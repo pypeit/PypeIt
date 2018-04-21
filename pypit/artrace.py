@@ -33,10 +33,18 @@ except ImportError:
 from pypit import arcyarc
 from pypit import arcytrace
 
+
+
 try:
     ustr = unicode
 except NameError:
     ustr = str
+
+# JFH debugging
+try:
+    from xastropy.xutils import xdebug as debugger
+except ImportError:
+    import pdb as debugger
 
 
 def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
@@ -152,7 +160,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
                 plt.plot(arrcen, 'k-', drawstyle='steps')
                 plt.plot(wpk, np.zeros(wpk.size), 'ro')
                 plt.show()
-                debugger.set_trace()
+                #debugger.set_trace()
             # Label all edge ids (in the original edgearr) that are located in each peak with the same number
             for ii in range(pks.size):
                 shbad = np.zeros(edgearr.shape)
@@ -1612,6 +1620,9 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
+    # JFH debugging
+    #msgs._debug['trace'] = True
+
     dnum = settings.get_dnum(det)
     ednum = 100000  # A large dummy number used for slit edge assignment. ednum should be larger than the number of edges detected
 
@@ -1962,8 +1973,12 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         ww = np.where(edgearr > 0)
         rmin, rmax = np.min(edgearr[ww]), np.max(edgearr[ww])  # min/max are switched because of the negative signs
         #msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings.argflag['trace']['slits']['fracignore'], int(edgearr.shape[0]*binby)))
-        msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings.argflag['trace']['slits']['fracignore'], int(edgearr.shape[0])))
-        fracpix = int(settings.argflag['trace']['slits']['fracignore']*edgearr.shape[0])
+
+        # JFH I think this should be using the spatial dimension of the image and not the spectral dimension of the image, and am changing it accordingly
+#        msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings.argflag['trace']['slits']['fracignore'], int(edgearr.shape[0])))
+#        fracpix = int(settings.argflag['trace']['slits']['fracignore']*edgearr.shape[0])
+        msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings.argflag['trace']['slits']['fracignore'], int(edgearr.shape[1])))
+        fracpix = int(settings.argflag['trace']['slits']['fracignore']*edgearr.shape[1])
 #        print('calling ignore_orders')
 #        t = time.clock()
 #        _edgearr = edgearr.copy()
@@ -2317,8 +2332,9 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         ww = np.where(np.in1d(allord, maskord) == False)[0]
         # Unmask where an order edge is located
         maskrows = np.ones(binarr.shape[1], dtype=np.int)
-        ldiffarr = np.round(ldiffarr[ww]).astype(np.int)
-        rdiffarr = np.round(rdiffarr[ww]).astype(np.int)
+        # JFH added fmax and fmin to fix bug where fits to slits are off the chip
+        ldiffarr = np.fmax(np.fmin(np.round(ldiffarr[ww]).astype(np.int), binarr.shape[1]-1),0)
+        rdiffarr = np.fmax(np.fmin(np.round(rdiffarr[ww]).astype(np.int),binarr.shape[1]-1),0)
         maskrows[ldiffarr] = 0
         maskrows[rdiffarr] = 0
         # Extract the slit edge ID numbers associated with the acceptable traces
@@ -2431,7 +2447,9 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     # Illustrate where the orders fall on the detector (physical units)
     if msgs._debug['trace']:
         viewer, ch = ginga.show_image(mstrace)
-        ginga.show_slits(viewer, ch, lcenint, rcenint)
+        from IPython import embed
+        embed()
+        ginga.show_slits(viewer, ch, lcenint, rcenint,np.arange(nslit) +1)
         debugger.set_trace()
     if settings.argflag['run']['qa']:
         msgs.work("Not yet setup with ginga")
@@ -2803,10 +2821,12 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             xtfit[sz-k] = ordcen[arcdet[j], slitnum] - k
             ytfit[sz-k] = centv
             etfit[sz-k] = 0.02
+            from IPython import embed
             #apfit[sz-k] = params[0]
             if fail:
                 mtfit[sz-k] = 1
             else:
+                if np.isfinite(centv) == False: embed()
                 pcen = int(0.5 + centv)
                 mtfit[sz-k] = 0
         '''

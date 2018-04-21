@@ -787,6 +787,9 @@ def arc_fit_qa(slf, fit, outfile=None, ids_only=False, title=None):
 
     plt.rcdefaults()
 
+    from IPython import embed
+    embed()
+
     return
 
 
