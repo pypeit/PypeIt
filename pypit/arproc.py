@@ -1167,6 +1167,8 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
             hdul = fits.HDUList([hdu])
             hdul.writeto(ifile, overwrite=True)
 
+    slf._sciframe[det-1] = sciframe.copy()
+
     bgframe = fits.open('bgf.fits')[0].data
     modelvarframe = fits.open('mvar.fits')[0].data
 
