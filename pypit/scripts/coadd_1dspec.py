@@ -157,7 +157,7 @@ def main(args, unit_test=False, path=''):
                 extensions.append(idx[0]+1)
             else:
                 raise ValueError("Multiple matches to object {:s} in file {:s}".format(iobj, fkey))
-                    
+        
         # Load spectra
         if len(gdfiles) == 0:
             msgs.error("No files match your input criteria")
