@@ -461,11 +461,27 @@ def trace_object_dict(nobj, traces, object=None, background=None, params=None, t
     tracelist.append(newdict)
     return tracelist
 
+def trace_objects_in_slits(slf, det, sciframe, varframe, crmask, **kwargs):
 
-def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
+    nslit = len(slf._maskslits[det-1])
+    gdslits = np.where(~slf._maskslits[det-1])[0]
+    tracelist = []
+
+    for slit in range(nslit):
+        if slit not in gdslits:
+            tracelist.append({})
+            continue
+        tlist = trace_objects_in_slit(slf, det, slit, sciframe, varframe, crmask, **kwargs)
+        tracelist += tlist
+
+    # Return
+    return tracelist
+
+
+def trace_objects_in_slit(slf, det, slitn, sciframe, varframe, crmask, trim=2,
                  triml=None, trimr=None, sigmin=2.0, bgreg=None,
-                 maskval=-999999.9, slitn=0, doqa=True,
-                 xedge=0.03, tracedict=None, standard=False, debug=False):
+                 maskval=-999999.9, doqa=True,
+                 xedge=0.03, standard=False, debug=False):
     """ Finds objects, and traces their location on the detector
 
     Parameters
@@ -474,14 +490,14 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
       An instance of the Science Exposure class
     det : int
       Index of the detector
+    slitn : int
+      Slit (or order) number
     sciframe: numpy ndarray
       Science frame
     varframe: numpy ndarray
       Variance frame
     crmask: numpy ndarray
       Mask or cosmic rays
-    slitn : int
-      Slit (or order) number
     trim : int (optional)
       Number of pixels to trim from the left and right slit edges.
       To separately specify how many pixels to trim from the left
@@ -500,13 +516,11 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
       Trim objects within xedge % of the slit edge
     doqa : bool
       Should QA be output?
-    tracedict : list of dict
-      A list containing a trace dictionary for each slit
 
     Returns
     -------
-    tracedict : dict
-      A dictionary containing the object trace information
+    tracelist : list
+      A single item list which is a dictionary containing the object trace information
     """
     # Find the trace of each object
     tracefunc = settings.argflag['trace']['object']['function']
@@ -771,21 +785,21 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
             ginga.show_trace(viewer, ch, traces[:, ii], '{:d}'.format(ii), clear=(ii == 0))
         debugger.set_trace()
     # Trace dict
-    tracedict = trace_object_dict(nobj, traces, object=rec_obj_img, background=rec_bg_img,
-                                  params=tracepar, tracelist=tracedict)
+    tracelist = trace_object_dict(nobj, traces, object=rec_obj_img, background=rec_bg_img,
+                                  params=tracepar)
 
     # Save the quality control
     if doqa: # and (not msgs._debug['no_qa']):
         objids = []
         for ii in range(nobj):
-            objid, xobj = arspecobj.get_objid(slf, det, slitn, ii, tracedict)
+            objid, xobj = arspecobj.get_objid(slf, det, slitn, ii, tracelist)
             objids.append(objid)
 #        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, objids, det,
 #                          root="object_trace", normalize=False)
         obj_trace_qa(slf, sciframe, trobjl, trobjr, objids, det, root="object_trace",
                      normalize=False)
     # Return
-    return tracedict
+    return tracelist
 
 
 def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
