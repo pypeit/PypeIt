@@ -463,6 +463,8 @@ def save_1d_spectra_fits(slf, fitsdict, standard=False, clobber=True, outfile=No
         for sl in range(len(specobjs)):
             # Loop on spectra
             for specobj in specobjs[sl]:
+                if specobj is None:
+                    continue
                 ext += 1
                 # Add header keyword
                 keywd = 'EXT{:04d}'.format(ext)

@@ -402,7 +402,6 @@ class ScienceExposure:
                 if self._mspixelflatnrm[det-1] is None:
                     # Normalize the flat field
                     msgs.info("Normalizing the pixel flat")
-                    debugger.set_trace()
                     slit_profiles, mstracenrm, msblaze, flat_ext1d, extrap_slit = \
                         arproc.slit_profile(self, self.GetMasterFrame("pixelflat", det),
                                             det, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
