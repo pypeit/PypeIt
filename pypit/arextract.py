@@ -31,7 +31,7 @@ from pypit import arcyutils
 mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5, bad_row=2**6)
 
 
-def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
+def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace, slitn=None):
     """ Perform boxcar extraction on the traced objects.
     Also perform a local sky subtraction
 
@@ -59,12 +59,16 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     """
 
     bgfitord = 1  # Polynomial order used to fit the background
-    nslit = len(scitrace)
+    if slitn is not None:
+        slits = [slitn]
+    else:
+        slits = range(len(scitrace))
+    nslit = len(slits)
     cr_mask = 1.0-crmask
     bgfit = np.linspace(0.0, 1.0, sciframe.shape[1])
     bgcorr = np.zeros_like(cr_mask)
     # Loop on Slits
-    for sl in range(nslit):
+    for sl in slits:
         word = np.where((slf._slitpix[det - 1] == sl + 1) & (varframe > 0.))
         if word[0].size == 0:
             continue
@@ -218,7 +222,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
 
 
 def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
-                 scitrace, COUNT_LIM=25., doqa=True, pickle_file=None):
+                 scitrace, COUNT_LIM=25., doqa=True, pickle_file=None, slitn=None):
     """ Derive spatial profiles for each object
     Parameters
     ----------
@@ -254,8 +258,12 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
     # Init QA
     #
     sigframe = np.sqrt(varframe)
+    if slitn is not None:
+        slits = [slitn]
+    else:
+        slits = range(len(specobjs))
     # Loop on slits
-    for sl in range(len(specobjs)):
+    for sl in slits:
         # Loop on objects
         nobj = scitrace[sl]['traces'].shape[1]
         scitrace[sl]['opt_profile'] = []

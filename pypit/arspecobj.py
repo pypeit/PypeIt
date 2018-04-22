@@ -112,7 +112,7 @@ class SpecObjExp(object):
                 self.idx, self.config, self.xobj, self.slitcen, sdet, self.scidx, self.objtype))
 
 
-def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
+def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, slitn=None, **kwargs):
     """ Generate a list of SpecObjExp objects for a given exposure
 
     Parameters
@@ -137,9 +137,13 @@ def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
     # Init
     specobjs = []
     config = instconfig(det, scidx, fitsdict)
-    nslit = len(trc_img)
+    # JXP -- The following is kludgy
+    if slitn is not None:
+        slits = [slitn]
+    else:
+        slits = range(len(trc_img))
     # Loop on slits
-    for sl in range(nslit):
+    for kk, sl in enumerate(slits):
         specobjs.append([])
         # Object traces
         if trc_img[sl]['nobj'] != 0:
@@ -158,10 +162,10 @@ def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
                 # Add traces
                 specobj.trace = trc_img[sl]['traces'][:, qq]
                 # Append
-                specobjs[sl].append(copy.deepcopy(specobj))
+                specobjs[kk].append(copy.deepcopy(specobj))
         else:
             msgs.warn("No objects for slit {0:d}".format(sl+1))
-            specobjs[sl].append(None)
+            specobjs[kk].append(None)
     # Return
     return specobjs
 

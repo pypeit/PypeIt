@@ -135,17 +135,7 @@ def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
         bgf_flat = arutils.func_val(bspl, tilts.flatten(), 'bspline')
         bgframe = bgf_flat.reshape(tilts.shape)
         if msgs._debug['sky_sub']:
-            def plt_bspline_sky(tilts, scifrcp, bgf_flat):
-                # Setup
-                srt = np.argsort(tilts.flatten())
-                # Plot
-                plt.close()
-                plt.clf()
-                ax = plt.gca()
-                ax.scatter(tilts[gdp]*tilts.shape[0], scifrcp[gdp], marker='o')
-                ax.plot(tilts.flatten()[srt]*tilts.shape[0], bgf_flat[srt], 'r-')
-                plt.show()
-            plt_bspline_sky(tilts, sciframe, bgf_flat)
+            plt_bspline_sky(tilts, sciframe, bgf_flat, gdp)
             debugger.set_trace()
     else:
         msgs.error('Not ready for this method for skysub {:s}'.format(
@@ -309,7 +299,7 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     msgs.info("Fitting sky background spectrum")
     if settings.argflag['reduce']['skysub']['method'].lower() == 'bspline':
         msgs.info("Using bspline sky subtraction")
-        gdp = (scifrcp != maskval) & (ordpix == slit)
+        gdp = (scifrcp != maskval) & (ordpix == slit+1)
         srt = np.argsort(tilts[gdp])
         #bspl = arutils.func_fit(tilts[gdp][srt], scifrcp[gdp][srt], 'bspline', 3,
         #                        **settings.argflag['reduce']['skysub']['bspline'])
@@ -318,21 +308,12 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
                                             weights=np.sqrt(ivar)[gdp][srt], sigma=5.,
                                             maxone=False, **settings.argflag['reduce']['skysub']['bspline'])
         # Just those in the slit
-        bgf_flat = arutils.func_val(bspl, tilts[whord].flatten(), 'bspline')
+        in_slit = np.where(slf._slitpix[det-1] == slit+1)
+        bgf_flat = arutils.func_val(bspl, tilts[in_slit].flatten(), 'bspline')
         #bgframe = bgf_flat.reshape(tilts.shape)
-        bgframe[whord] = bgf_flat
+        bgframe[in_slit] = bgf_flat
         if msgs._debug['sky_sub']:
-            def plt_bspline_sky(tilts, scifrcp, bgf_flat, maskval):
-                # Setup
-                srt = np.argsort(tilts.flatten())
-                # Plot
-                plt.close()
-                plt.clf()
-                ax = plt.gca()
-                ax.scatter(tilts[gdp]*tilts.shape[0], scifrcp[gdp], marker='o')
-                ax.plot(tilts.flatten()[srt]*tilts.shape[0], bgf_flat[srt], 'r-')
-                plt.show()
-            plt_bspline_sky(tilts, scifrcp, bgf_flat, maskval)
+            plt_bspline_sky(tilts, scifrcp, bgf_flat, in_slit, gdp)
             debugger.set_trace()
     else:
         msgs.error('Not ready for this method for skysub {:s}'.format(
@@ -1157,24 +1138,33 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
     standard : bool, optional
       Standard star frame?
     """
-    debugger.set_trace()
 
     # FOR DEVELOPING
-    #sciframe = fits.open('sci.fits')[0].data
-    #rawvarframe = fits.open('var.fits')[0].data
-    #crmask = fits.open('crmask.fits')[0].data
-    sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
+    if True:
+        sciframe = fits.open('sci.fits')[0].data
+        rawvarframe = fits.open('var.fits')[0].data
+        crmask = fits.open('crmask.fits')[0].data
+    else:
+        sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
 
-    for frame, ifile in zip([sciframe, rawvarframe, crmask], ['sci.fits', 'var.fits', 'crmask.fits']):
-        hdu = fits.PrimaryHDU(frame)
-        hdul = fits.HDUList([hdu])
-        hdul.writeto(ifile, overwrite=True)
+        for frame, ifile in zip([sciframe, rawvarframe, crmask], ['sci.fits', 'var.fits', 'crmask.fits']):
+            hdu = fits.PrimaryHDU(frame)
+            hdul = fits.HDUList([hdu])
+            hdul.writeto(ifile, overwrite=True)
 
     bgframe = np.zeros_like(sciframe)
 
+    nslit = len(slf._maskslits[det-1])
     gdslits = np.where(~slf._maskslits[det-1])[0]
 
-    for slit in gdslits:
+    # JXP -- I think it is ok to initialize it here
+    slf._specobjs[det-1] = []
+
+    for slit in range(nslit):
+        # Need to pad
+        if slit not in gdslits:
+            slf._specobjs[det-1].append(None)
+            continue
         pix_inslit = np.where(slf._slitpix[det-1] == slit+1)
 
         ###############
@@ -1204,7 +1194,6 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
         # Find objects and estimate their traces
         scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask,
                                         bgreg=20, doqa=False, standard=standard, slitn=slit)
-        debugger.set_trace()
         if scitrace is None:
             msgs.info("Not performing extraction for science frame"+msgs.newline()+fitsdict['filename'][scidx[0]])
             debugger.set_trace()
@@ -1248,13 +1237,12 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
 
         # Perform an optimal extraction
         msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
-        debugger.set_trace()
         return reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe,
-                            scidx, fitsdict, det, crmask, standard=standard)
+                            scidx, fitsdict, det, crmask, standard=standard, slitn=slit)
 
 
 def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask,
-                 scitrace=None, standard=False):
+                 scitrace=None, standard=False, slitn=None):
     """ Run standard extraction steps on a frame
 
     Parameters
@@ -1278,22 +1266,38 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
     standard : bool, optional
       Standard star frame?
     """
+    # KLUDGE ME -- JXP
 
     ###############
     # Determine the final trace of the science objects
     if scitrace is None:
         msgs.info("Performing final object trace")
         scitrace = artrace.trace_object(slf, det, sciframe-bgframe, modelvarframe, crmask,
-                                        bgreg=20, doqa=(not standard), standard=standard)
+                                        bgreg=20, doqa=False, standard=standard, slitn=slitn)
+        # JXP -- Need to turn the QA back on..
+        #bgreg=20, doqa=(not standard), standard=standard, slitn=slitn)
     if standard:
         slf._msstd[det-1]['trace'] = scitrace
         specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict, scitrace, objtype='standard')
         slf._msstd[det-1]['spobjs'] = specobjs
     else:
-        slf._scitrace[det-1] = scitrace
-        # Generate SpecObjExp list
-        specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict, scitrace, objtype='science')
-        slf._specobjs[det-1] = specobjs
+        if slf._scitrace[det-1] is None:
+            slf._scitrace[det-1] = scitrace
+        else:
+            slf._scitrace[det-1] += scitrace
+        if slitn is not None: # Ugly kludge
+            assert len(scitrace) == 1
+            tmptrace = [None]*(slitn+1)
+            tmptrace[slitn] = scitrace[0]
+            # Generate SpecObjExp list
+            specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict, tmptrace, objtype='science',
+                                          slitn=slitn)
+        else:
+            debugger.set_trace()
+        if slf._specobjs[det-1] is None:
+            slf._specobjs[det-1] = specobjs
+        else:
+            slf._specobjs[det-1] += specobjs
 
     ###############
     # Extract
@@ -1307,7 +1311,11 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
 
     # Boxcar
     msgs.info("Performing boxcar extraction")
-    bgcorr_box = arextract.boxcar(slf, det, specobjs, sciframe-bgframe,
+    if slitn is not None:
+        bgcorr_box = arextract.boxcar(slf, det, slf._specobjs[det-1], sciframe-bgframe,
+                                      rawvarframe, bgframe, crmask, tmptrace, slitn=slitn)
+    else:
+        bgcorr_box = arextract.boxcar(slf, det, specobjs, sciframe-bgframe,
                                   rawvarframe, bgframe, crmask, scitrace)
 
     # Optimal
@@ -1318,18 +1326,22 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
         # to return the object model, then the last step of generating
         # the new variance image is done here.
 
+        if slitn is None:
+            debugger.set_trace()  # DEPRECATED
+        scitrace = tmptrace
         msgs.info("Attempting optimal extraction with model profile")
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                               modelvarframe, bgframe+bgcorr_box, crmask, scitrace, doqa=False)
+                               modelvarframe, bgframe+bgcorr_box, crmask, scitrace, doqa=False,
+                               slitn=slitn)
 #        newvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
 #                                           modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
-        obj_model = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
+        obj_model = arextract.optimal_extract(slf, det, slf._specobjs[det-1], sciframe-bgframe-bgcorr_box,
                                               modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
         newvar = variance_frame(slf, det, sciframe-bgframe-bgcorr_box, -1,
                                 skyframe=bgframe+bgcorr_box, objframe=obj_model)
         msgs.work("Should update variance image (and trace?) and repeat")
         #
-        arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
+        arextract.obj_profiles(slf, det, slf._specobjs[det-1], sciframe-bgframe-bgcorr_box,
                                newvar, bgframe+bgcorr_box, crmask, scitrace)
 #        finalvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
 #                                             newvar, bgframe+bgcorr_box, crmask, scitrace)
@@ -2479,3 +2491,15 @@ def variance_frame(slf, det, sciframe, idx, fitsdict=None, skyframe=None, objfra
                   float(fitsdict["exptime"][idx])/3600.0)
         # Return
         return np.abs(scicopy) + rnoise + dnoise
+
+
+def plt_bspline_sky(tilts, scifrcp, bgf_flat, inslit, gdp):
+    # Setup
+    srt = np.argsort(tilts[inslit].flatten())
+    # Plot
+    plt.close()
+    plt.clf()
+    ax = plt.gca()
+    ax.scatter(tilts[gdp]*tilts.shape[0], scifrcp[gdp], marker='o')
+    ax.plot(tilts[inslit].flatten()[srt]*tilts.shape[0], bgf_flat[srt], 'r-')
+    plt.show()
