@@ -277,8 +277,13 @@ def flexure_obj(slf, det):
                      corr_cen=[], spec_file=skyspec_fil, smooth=[],
                      arx_spec=[], sky_spec=[])
 
+    gdslits = np.where(~slf._maskslits[det-1])[0]
     for sl in range(len(slf._specobjs[det-1])):
+        if sl not in gdslits:
+            continue
         for specobj in slf._specobjs[det-1][sl]:  # for convenience
+            if specobj is None:
+                continue
 
             # Using boxcar
             if settings.argflag['reduce']['flexure']['method'] in ['boxcar', 'slitcen']:
@@ -368,10 +373,15 @@ def geomotion_correct(slf, det, fitsdict):
     # Save
     slf.vel_correction = vel
 
+    gdslits = np.where(~slf._maskslits[det-1])[0]
     # Loop on slits to apply
     for sl in range(len(slf._specobjs[det-1])):
+        if sl not in gdslits:
+            continue
         # Loop on objects
         for specobj in slf._specobjs[det-1][sl]:
+            if specobj is None:
+                continue
             # Loop on extraction methods
             for attr in ['boxcar', 'optimal']:
                 if not hasattr(specobj, attr):

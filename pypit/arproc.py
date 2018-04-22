@@ -711,15 +711,18 @@ def flexure_qa(slf, det, flex_list, slit_cen=False):
     # Grab the named of the method
     method = inspect.stack()[0][3]
     #
+    gdslits = np.where(~slf._maskslits[det-1])[0]
     for sl in range(len(slf._specobjs[det-1])):
+        if sl not in gdslits:
+            continue
+        if slf._specobjs[det-1][sl][0] is None:
+            continue
         # Setup
         if slit_cen:
             nobj = 1
             ncol = 1
         else:
             nobj = len(slf._specobjs[det-1][sl])
-            if nobj == 0:
-                continue
             ncol = min(3, nobj)
         #
         nrow = nobj // ncol + ((nobj % ncol) > 0)
@@ -1304,9 +1307,7 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
 
     # Boxcar
     msgs.info("Performing boxcar extraction")
-    debugger.set_trace()
     bgcorr_box = arextract.boxcar(slf, det, specobjs, sciframe-bgframe, rawvarframe, bgframe, crmask, scitrace)
-    debugger.set_trace()
 
     # Optimal
     if not standard:

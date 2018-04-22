@@ -265,7 +265,9 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
         if sl not in gdslits:
             continue
         # Loop on objects
-        nobj = scitrace[sl]['traces'].shape[1]
+        nobj = scitrace[sl]['nobj']
+        if nobj == 0:
+            continue
         scitrace[sl]['opt_profile'] = []
         msgs.work("Should probably loop on S/N")
         for o in range(nobj):
@@ -383,9 +385,14 @@ def obj_profile_qa(slf, specobjs, scitrace, det):
     plt.rcParams['font.family']= 'times new roman'
 
     method = inspect.stack()[0][3]
+    gdslits = np.where(~slf._maskslits[det-1])[0]
     for sl in range(len(specobjs)):
+        if sl not in gdslits:
+            continue
         # Setup
-        nobj = scitrace[sl]['traces'].shape[1]
+        nobj = scitrace[sl]['nobj']
+        if nobj == 0:
+            continue
         ncol = min(3, nobj)
         nrow = nobj // ncol + ((nobj % ncol) > 0)
         # Outfile
@@ -459,10 +466,13 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
     cr_mask = 1.0-crmask
     # Object model image
     obj_model = np.zeros_like(varframe)
+    gdslits = np.where(~slf._maskslits[det-1])[0]
     # Loop on slits
     for sl in range(len(specobjs)):
+        if sl not in gdslits:
+            continue
         # Loop on objects
-        nobj = scitrace[sl]['traces'].shape[1]
+        nobj = scitrace[sl]['nobj']
         for o in range(nobj):
             msgs.info("Performing optimal extraction of object {0:d}/{1:d} in slit {2:d}/{3:d}".format(o+1, nobj, sl+1, len(specobjs)))
             # Get object pixels
