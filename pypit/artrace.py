@@ -1594,6 +1594,7 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
 def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     pass
     binbpx = slf._bpix[det-1].copy()
+    pixlocn = slf._pixlocn[det-1]
 
 
 def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None, pcadesc="", maskBadRows=False, min_sqm=30.):
