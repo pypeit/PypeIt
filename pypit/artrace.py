@@ -57,6 +57,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1, isettings=None):
     -------
     edgearr : numpy ndarray
       An array of negative/positive numbers (left/right edges respectively) and zeros (no edge)
+      Modified in-place
     """
     if isettings is not None:
         settings = isettings
@@ -1241,9 +1242,10 @@ def new_match_edges(edgdet, ednum):
 
     lcnt = 2*ednum
     rcnt = 2*ednum
-    for y in range(sz_y):
+    for y in range(sz_y):  # Would probably make more sense to start at sz_y/2
         for x in range(sz_x):
             if edgdet[x,y] != -1 and edgdet[x,y] != 1:
+                # No edge at this pixel
                 continue
 
             anyt = 0
@@ -1636,7 +1638,27 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
       Locations of the right slit edges (in physical pixel coordinates)
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
+      # No edge at this pixel
     """
+    # binarr -- Lightly filtered version of mstrace
+    # sqmstrace -- sqrt(binarr) with median filter applied (multiple times)
+    # filt -- Sobel filtered version of sqmstrace
+    # siglev -- sqrt(filt) * (filt**2) / sqmstrace
+    # tedges -- pixels satisfying siglev > sigdetect
+    # edgearr -- cut down tedges to one pix per row [This seems sub-optimal]
+
+    # Code flow
+    #  1.  Determine approximate slit edges (left, right)
+    #  1b.    Trim down to one pixel per edge per row [seems wasteful, but ok]
+    #  2.  Give edge IDs + stitch together partial edges (match_edges)
+    #  2b.   first maxgap option
+    #  3.  Assign slits (left, right) ::  Deep algorithm
+    #  4.  Remove short slits -- This probably should be run after synchronization
+    #  5.  Fit left/right slits
+    #  6.  Synchronize
+    #  7.  Try to add in missing slit edges
+    #  8.  Extrapolate into blank regions (PCA)
+
     from pypit.arparse import get_dnum
     if settings is None:  # Out of the function call because it is mutable
         settings=dict(trace={'slits': {'single': [],
@@ -1696,6 +1718,7 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
         msgs.info("Detecting slit edges")
         # Generate sigma image
         sqmstrace = np.sqrt(np.abs(binarr))
+        # JXP -- medrep and the size of the med filter appear arbitrary
         for ii in range(medrep):
             sqmstrace = ndimage.median_filter(sqmstrace, size=(3, 7))
         # Make sure there are no spuriously low pixels
@@ -2391,7 +2414,8 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
                                          x0in=ordsnd, mask=maskrw, skipx0=False,
                                          function=settings['trace']['slits']['function'])
             if not msgs._debug['no_qa']:
-                debugger.set_trace()  # NEED TO REMOVE SLF FROM THE NEXT BIT
+                # JXP -- NEED TO REMOVE SLF FROM THE NEXT BIT
+                msgs.warn("NEED TO REMOVE SLF FROM THE NEXT BIT")
                 #arpca.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc, addOne=False)
             # Now extrapolate to the whole detector
             pixpos = np.arange(binarr.shape[1])

@@ -33,6 +33,10 @@ from pypit import arcyproc
 
 from pypit import ardebug as debugger
 
+try:
+    basestring
+except NameError:
+    basestring = str
 
 def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
     """ Generate a frame containing the background sky spectrum
@@ -185,6 +189,19 @@ def badpix(det, frame, sigdev=10.0):
     bpix = trim(bpix, det)
     msgs.info("Identified {0:d} bad pixels".format(int(np.sum(bpix))))
     return bpix
+
+
+def bias_subtract(rawframe, msbias):
+    if type(msbias) is np.ndarray:
+        msgs.info("Subtracting bias image from raw frame")
+        newframe = rawframe-msbias  # Subtract the master bias frame
+    elif isinstance(msbias, basestring):
+        if msbias == "overscan":
+            #def sub_overscan(frame, numamplifiers, datasec, oscansec, settings=None):
+            newframe = sub_overscan(rawframe)
+        else:
+            msgs.error("Could not subtract bias level with the input bias approach") #when loading {0:s} frames".format(frametype))
+    return newframe
 
 
 def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
@@ -591,7 +608,26 @@ def get_ampscale(slf, det, msflat):
     return sclframe
 
 
-def get_datasec_trimmed(slf, fitsdict, det, scidx):
+def wrapper_get_datasec_trimmed(slf, fitsdict, det, scidx):
+    dnum = settings.get_dnum(det)
+    spectrograph = settings.argflag['run']['spectrograph']
+    scifile = fitsdict['directory'][scidx]+fitsdict['filename'][scidx]
+    numamplifiers = settings.spect[dnum]['numamplifiers']
+
+    if spectrograph in ['keck_lris_blue', 'keck_lris_red', 'keck_deimos']:
+        # Grab
+        datasec, oscansec, naxis0, naxis1 = get_datasec(spectrograph, scifile, numamplifiers, det=det)
+        # Fill (for backwards compatability)
+        for kk in range(numamplifiers):
+            datasec = "datasec{0:02d}".format(kk+1)
+            settings.spect[dnum][datasec] = datasec[kk]
+            oscansec = "oscansec{0:02d}".format(kk+1)
+            settings.spect[dnum][oscansec] = oscansec[kk]
+        fitsdict['naxis0'][scidx] = naxis0
+        fitsdict['naxis1'][scidx] = naxis1
+
+
+def get_datasec(spectrograph, scifile, numamplifiers, det=None):
     """
      Generate a frame that identifies each pixel to an amplifier, and then trim it to the data sections.
      This frame can be used to later identify which trimmed pixels correspond to which amplifier
@@ -612,23 +648,25 @@ def get_datasec_trimmed(slf, fitsdict, det, scidx):
     fitsdict : dict
       Updates to the input fitsdict
     """
-    dnum = settings.get_dnum(det)
-
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
+    datasec, oscansec, naxis0, naxis1 = [], [], 0, 0
     if settings.argflag['run']['spectrograph'] in ['keck_lris_blue', 'keck_lris_red']:
         msgs.info("Parsing datasec and oscansec from headers")
-        temp, head0, secs = arlris.read_lris(fitsdict['directory'][scidx]+
-                                             fitsdict['filename'][scidx],
-                                             det)
+        temp, head0, secs = arlris.read_lris(scifile, det)
         # Naxis
-        fitsdict['naxis0'][scidx] = temp.shape[0]
-        fitsdict['naxis1'][scidx] = temp.shape[1]
+        #fitsdict['naxis0'][scidx] = temp.shape[0]
+        #fitsdict['naxis1'][scidx] = temp.shape[1]
+        naxis0 = temp.shape[0]
+        naxis1 = temp.shape[1]
         # Loop on amplifiers
-        for kk in range(settings.spect[dnum]['numamplifiers']):
+        #for kk in range(settings.spect[dnum]['numamplifiers']):
+        for kk in range(numamplifiers):
             datasec = "datasec{0:02d}".format(kk+1)
-            settings.spect[dnum][datasec] = settings.load_sections(secs[0][kk], fmt_iraf=False)
+            #settings.spect[dnum][datasec] = settings.load_sections(secs[0][kk], fmt_iraf=False)
+            datasec.append(settings.load_sections(secs[0][kk], fmt_iraf=False))
             oscansec = "oscansec{0:02d}".format(kk+1)
-            settings.spect[dnum][oscansec] = settings.load_sections(secs[1][kk], fmt_iraf=False)
+            #settings.spect[dnum][oscansec] = settings.load_sections(secs[1][kk], fmt_iraf=False)
+            oscansec.append(settings.load_sections(secs[1][kk], fmt_iraf=False))
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
     elif settings.argflag['run']['spectrograph'] in ['keck_deimos']:
         msgs.info("Parsing datasec and oscansec from headers")
@@ -636,11 +674,17 @@ def get_datasec_trimmed(slf, fitsdict, det, scidx):
         # Naxis
         fitsdict['naxis0'][scidx] = temp.shape[0]
         fitsdict['naxis1'][scidx] = temp.shape[1]
-        datasec = "datasec{0:02d}".format(1)
-        settings.spect[dnum][datasec] = settings.load_sections(secs[0][det-1], fmt_iraf=False)
-        oscansec = "oscansec{0:02d}".format(1)
-        settings.spect[dnum][oscansec] = settings.load_sections(secs[1][det-1], fmt_iraf=False)
+        for kk in range(settings.spect[dnum]['numamplifiers']):
+            datasec = "datasec{0:02d}".format(kk+1)
+            settings.spect[dnum][datasec] = settings.load_sections(secs[0][det-1], fmt_iraf=False)
+            oscansec = "oscansec{0:02d}".format(kk+1)
+            settings.spect[dnum][oscansec] = settings.load_sections(secs[1][det-1], fmt_iraf=False)
+    else:  # Other instruments are set in their settings file
+        msgs.warn("Should not have called get_datasec!")
+    # Return
+    return datasec, oscansec, naxis0, naxis1
 
+def pix_to_amp(spectrograph, naxis0, naxis1, datasec=None, scifile=None, det=None):
     # For convenience
     naxis0, naxis1 = int(fitsdict['naxis0'][scidx]), int(fitsdict['naxis1'][scidx])
     # Initialize the returned array
@@ -670,8 +714,7 @@ def get_datasec_trimmed(slf, fitsdict, det, scidx):
             yfin = np.unique(np.append(yfin, yv.copy()))
     # Construct and array with the rows and columns to be extracted
     w = np.ix_(xfin, yfin)
-    slf._datasec[det-1] = retarr[w]
-    return
+    return retarr[w]
 
 
 def get_wscale(slf):
@@ -2305,7 +2348,7 @@ def rn_frame(slf, det):
     return rnimg
 
 
-def sub_overscan(frame, det):
+def sub_overscan(frame, numamplifiers, datasec, oscansec, settings=None):
     """
     Subtract overscan
 
@@ -2321,13 +2364,18 @@ def sub_overscan(frame, det):
     frame : ndarray
       The input frame with the overscan region subtracted
     """
-    dnum = settings.get_dnum(det)
+    #dnum = settings.get_dnum(det)
+    if settings is None:
+        settings = dict(recduce={'overscan': {'method': 'savgol', 'params': [5,65]}})
+
 
     for i in range(settings.spect[dnum]['numamplifiers']):
         # Determine the section of the chip that contains data
         datasec = "datasec{0:02d}".format(i+1)
-        dx0, dx1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
-        dy0, dy1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+        #dx0, dx1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
+        #dy0, dy1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+        dx0, dx1 = datasec[i][0][0], datasec[i][0][1]
+        dy0, dy1 = datasec[i][1][0], datasec[i][1][1]
         if dx0 < 0: dx0 += frame.shape[0]
         if dx1 <= 0: dx1 += frame.shape[0]
         if dy0 < 0: dy0 += frame.shape[1]

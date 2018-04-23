@@ -207,92 +207,90 @@ def load_headers(datlines):
 
 def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
     """
+    fitsdict : dict
+        Contains relevant information from fits header files
+    ind : list or array
+        integers of indices
+    """
+    dnum = settings.get_dnum(det)
+    spectrograph = settings.argflag['run']['spectrograph']
+    dataexto01 = settings.spect[dnum]['dataext01']
+    disp_dir = settings.argflag['trace']['dispersion']['direction']
+
+    for i in range(ind):
+        raw_file = fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]]
+        temp = load_raw_frame(spectrograph, raw_file, det, frametype='<None>',
+                              dataext01=dataexto01, disp_dir=disp_dir)
+
+        # TODO -- Take these next two steps out and put in a arproc.proc_image() method
+        # Bias subtract?
+        if msbias is not None:
+            arproc.bias_subtract(temp, msbias, det)
+        if trim:
+            temp = arproc.trim(temp, det)
+
+        # Save
+        if i == 0:
+            frames = np.zeros((temp.shape[0], temp.shape[1], len(ind)))
+            frames[:,:,i] = temp.copy()
+        else:
+            frames[:,:,i] = temp.copy()
+        del temp
+
+    # Finish
+    if len(ind) == 1:
+        msgs.info("Loaded {0:d} {1:s} frame successfully".format(len(ind), frametype))
+    else:
+        msgs.info("Loaded {0:d} {1:s} frames successfully".format(len(ind), frametype))
+    return frames
+
+
+def load_raw_frame(spectrograph, raw_file, det, frametype='<None>', dataext01=None, disp_dir=0):
+    """
     Load data frames, usually raw.
     Bias subtract (if not msbias!=None) and trim (if True)
 
     Parameters
     ----------
-    fitsdict : dict
-      Contains relevant information from fits header files
-    ind : list or array
-      integers of indices
+    raw_file : str
+       Full path to raw_file
     det : int
       Detector number, starts at 1
+    disp_dir : int, optional
+      if 1, Transpose the image
 
     Returns
     -------
-    frames : ndarray (3 dimensional)
-      One image per ind
+    frame : ndarray
+      the raw_frame
     """
     def load_indfr(name,ext):
         msgs.work("Trim and overscan has not been applied")
         temp = fits.getdata(name, ext)
         return temp
 
-    msgs.info("Loading individual {0:s} frames".format(frametype))
+    msgs.info("Loading raw_file: {:s}".format(raw_file))
     # Get detector number
     dnum = settings.get_dnum(det)
-    if np.size(ind) == 0:
-        msgs.warn("No {0:s} frames to load".format(frametype))
-        return None
     msgs.work("Implement multiprocessing here (better -- at the moment it's slower than not) to speed up data reading")
-    for i in range(np.size(ind)):
-        # Instrument specific read
-        if settings.argflag['run']['spectrograph'] in ['keck_lris_blue', 'keck_lris_red']:
-            temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
-        elif settings.argflag['run']['spectrograph'] in ['keck_deimos']:
-            temp, head0, _ = ardeimos.read_deimos(fitsdict['directory'][ind[i]] + fitsdict['filename'][ind[i]])
-        else:
-            hdulist = fits.open(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]])
-            temp = hdulist[settings.spect[dnum]['dataext01']].data
-            head0 = hdulist[0].header
-        temp = temp.astype(np.float)  # Let us avoid uint16
-        if settings.argflag['trace']['dispersion']['direction'] == 1:
-            temp = temp.T
-        if msbias is not None:
-            if type(msbias) is np.ndarray:
-                temp -= msbias  # Subtract the master bias frame
-            elif isinstance(msbias,basestring):
-                if msbias == "overscan":
-                    arproc.sub_overscan(temp, det)
-                else:
-                    msgs.error("Could not subtract bias level when loading {0:s} frames".format(frametype))
-            if trim:
-                temp = arproc.trim(temp, det)
-        # Save image
-        if i == 0:
-            frames = np.zeros((temp.shape[0], temp.shape[1], np.size(ind)))
-            frames[:,:,i] = temp.copy()
-        else:
-            frames[:,:,i] = temp.copy()
-        del temp
-
-#	pool = mpPool(processes=np.min([settings.argflag['run']['ncpus'],np.size(ind)]))
-#	async_results = []
-#	for i in range(np.size(ind)):
-#		async_results.append(pool.apply_async(fits.getdata, (fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], settings.spect['fits']['dataext'])))
-#	pool.close()
-#	pool.join()
-#	map(ApplyResult.wait, async_results)
-#	for j in range(np.size(ind)):
-#		if j == 0:
-#			temp = async_results[j].get()
-#			frames = np.zeros((temp.shape[0], temp.shape[1], np.size(ind)))
-#			if msbias is None:
-#				frames[:,:,i] = temp
-#			else:
-#				frames[:,:,i] = temp - msbias
-#			del temp
-#		else:
-#			if msbias is None:
-#				frames[:,:,i] = async_results[j].get()
-#			else:
-#				frames[:,:,i] = async_results[j].get() - msbias
-    if np.size(ind) == 1:
-        msgs.info("Loaded {0:d} {1:s} frame successfully".format(np.size(ind), frametype))
+    # Instrument specific read
+    if spectrograph in ['keck_lris_blue', 'keck_lris_red']:
+        #temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
+        temp, head0, _ = arlris.read_lris(raw_file, det=det)
+    elif spectrograph in ['keck_deimos']:
+        temp, head0, _ = ardeimos.read_deimos(raw_file)
+        #temp, head0, _ = ardeimos.read_deimos(fitsdict['directory'][ind[i]] + fitsdict['filename'][ind[i]])
     else:
-        msgs.info("Loaded {0:d} {1:s} frames successfully".format(np.size(ind), frametype))
-    return frames
+        #hdulist = fits.open(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]])
+        hdulist = fits.open(raw_file)
+        #temp = hdulist[settings.spect[dnum]['dataext01']].data
+        temp = hdulist[dataext01]
+        head0 = hdulist[0].header
+    temp = temp.astype(np.float)  # Let us avoid uint16
+    #if settings.argflag['trace']['dispersion']['direction'] == 1:
+    if disp_dir == 1:
+        temp = temp.T
+    return temp, head0
 
 
 def load_extraction(name, frametype='<None>', wave=True):
