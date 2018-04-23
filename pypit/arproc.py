@@ -650,37 +650,26 @@ def get_datasec(spectrograph, scifile, numamplifiers, det=None):
     """
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
     datasec, oscansec, naxis0, naxis1 = [], [], 0, 0
-    if settings.argflag['run']['spectrograph'] in ['keck_lris_blue', 'keck_lris_red']:
+    if spectrograph in ['keck_lris_blue', 'keck_lris_red']:
         msgs.info("Parsing datasec and oscansec from headers")
         temp, head0, secs = arlris.read_lris(scifile, det)
-        # Naxis
-        #fitsdict['naxis0'][scidx] = temp.shape[0]
-        #fitsdict['naxis1'][scidx] = temp.shape[1]
-        naxis0 = temp.shape[0]
-        naxis1 = temp.shape[1]
-        # Loop on amplifiers
-        #for kk in range(settings.spect[dnum]['numamplifiers']):
-        for kk in range(numamplifiers):
-            datasec = "datasec{0:02d}".format(kk+1)
-            #settings.spect[dnum][datasec] = settings.load_sections(secs[0][kk], fmt_iraf=False)
-            datasec.append(settings.load_sections(secs[0][kk], fmt_iraf=False))
-            oscansec = "oscansec{0:02d}".format(kk+1)
-            #settings.spect[dnum][oscansec] = settings.load_sections(secs[1][kk], fmt_iraf=False)
-            oscansec.append(settings.load_sections(secs[1][kk], fmt_iraf=False))
-    # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
-    elif settings.argflag['run']['spectrograph'] in ['keck_deimos']:
+    elif spectrograph in ['keck_deimos']:
         msgs.info("Parsing datasec and oscansec from headers")
-        temp, head0, secs = ardeimos.read_deimos(fitsdict['directory'][scidx] + fitsdict['filename'][scidx])
-        # Naxis
-        fitsdict['naxis0'][scidx] = temp.shape[0]
-        fitsdict['naxis1'][scidx] = temp.shape[1]
-        for kk in range(settings.spect[dnum]['numamplifiers']):
-            datasec = "datasec{0:02d}".format(kk+1)
-            settings.spect[dnum][datasec] = settings.load_sections(secs[0][det-1], fmt_iraf=False)
-            oscansec = "oscansec{0:02d}".format(kk+1)
-            settings.spect[dnum][oscansec] = settings.load_sections(secs[1][det-1], fmt_iraf=False)
+        # TODO -- This should not be reading in the full DEIMOS detector but currently is
+        temp, head0, secs = ardeimos.read_deimos(scifile)
     else:  # Other instruments are set in their settings file
         msgs.warn("Should not have called get_datasec!")
+        return datasec, oscansec, naxis0, naxis1
+
+    naxis0 = temp.shape[0]
+    naxis1 = temp.shape[1]
+    for kk in range(numamplifiers):
+        #datasec = "datasec{0:02d}".format(kk+1)
+        #settings.spect[dnum][datasec] = settings.load_sections(secs[0][kk], fmt_iraf=False)
+        datasec.append(settings.load_sections(secs[0][kk], fmt_iraf=False))
+        #oscansec = "oscansec{0:02d}".format(kk+1)
+        #settings.spect[dnum][oscansec] = settings.load_sections(secs[1][kk], fmt_iraf=False)
+        oscansec.append(settings.load_sections(secs[1][kk], fmt_iraf=False))
     # Return
     return datasec, oscansec, naxis0, naxis1
 
