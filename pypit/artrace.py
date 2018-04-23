@@ -2490,7 +2490,7 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
     orders
     fitord
     locations
-    function
+    function : str, optional
 
     Returns
     -------
