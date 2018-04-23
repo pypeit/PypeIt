@@ -1608,7 +1608,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
 
 
 
-def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None, pcadesc="", maskBadRows=False, min_sqm=30.):
+def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
+                         pcadesc="", maskBadRows=False, min_sqm=30.):
     """
     This routine traces the locations of the slit edges
 
