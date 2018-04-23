@@ -39,7 +39,7 @@ except NameError:
     ustr = str
 
 
-def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
+def assign_slits(binarr, edgearr, ednum=100000, lor=-1, isettings=None):
     """This routine will trace the locations of the slit edges
 
     Parameters
@@ -58,6 +58,8 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
     edgearr : numpy ndarray
       An array of negative/positive numbers (left/right edges respectively) and zeros (no edge)
     """
+    if isettings is not None:
+        settings = isettings
 
     if lor == -1:
         lortxt = "left"
@@ -164,11 +166,11 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
                     strev += "(edgearr=={0:d})|".format(vv)
                 strev = strev[:-1] + ")"
                 widx = eval(strev)
-                if widx[0].size < 2*settings.argflag['trace']['slits']['polyorder']:
+                if widx[0].size < 2*settings['trace']['slits']['polyorder']:
                     continue
                 badmsk, fitcof = arutils.robust_polyfit(widx[0], widx[1],
-                                                        settings.argflag['trace']['slits']['polyorder'],
-                                                        function=settings.argflag['trace']['slits']['function'],
+                                                        settings['trace']['slits']['polyorder'],
+                                                        function=settings['trace']['slits']['function'],
                                                         minv=0, maxv=binarr.shape[0]-1)
                 shbad[widx] = badmsk
                 smallhist = np.zeros(101, dtype=np.int)
@@ -179,7 +181,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
                         # These pixels were deemed to be bad
                         continue
                     diff = widx[1] - arutils.func_val(fitcof, widx[0],
-                                                      settings.argflag['trace']['slits']['function'],
+                                                      settings['trace']['slits']['function'],
                                                       minv=0, maxv=binarr.shape[0]-1)
                     diff = 50 + np.round(diff).astype(np.int)
                     np.add.at(smallhist, diff, 1)
@@ -249,11 +251,11 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
         commn = cntr.most_common(1)
         wedx, wedy = np.where(edgearr == commn[0][0])
         msk, cf = arutils.robust_polyfit(wedx, wedy,
-                                         settings.argflag['trace']['slits']['polyorder'],
-                                         function=settings.argflag['trace']['slits']['function'],
+                                         settings['trace']['slits']['polyorder'],
+                                         function=settings['trace']['slits']['function'],
                                          minv=0, maxv=binarr.shape[0]-1)
         cenmodl = arutils.func_val(cf, np.arange(binarr.shape[0]),
-                                   settings.argflag['trace']['slits']['function'],
+                                   settings['trace']['slits']['function'],
                                    minv=0, maxv=binarr.shape[0]-1)
         if lor == -1:
             vals = np.unique(edgearr[np.where(edgearr < 0)])
@@ -1595,6 +1597,15 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     pass
     binbpx = slf._bpix[det-1].copy()
     pixlocn = slf._pixlocn[det-1]
+    '''
+    debugger.set_trace()
+    hdu = fits.PrimaryHDU(slf._bpix[det-1])
+    hdul = fits.HDUList([hdu])
+    hdul.append(fits.ImageHDU(slf._pixlocn[det-1]))
+    hdul.append(fits.ImageHDU(mstrace))
+    hdul.writeto('trace_slit.fits', overwrite=True)
+    '''
+
 
 
 def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None, pcadesc="", maskBadRows=False, min_sqm=30.):
@@ -1632,7 +1643,7 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None, pcadesc="
                          'polyorder': 3,
                          'diffpolyorder': 2,
                          'fracignore': 0.01,
-                         'number': 'auto',
+                         'number': -1,
                          'maxgap': None,
                          'sigdetect': 20.,
                          'pca': {'params': [3,2,1,0,0,0], 'type': 'pixel', 'extrapolate': {'pos': 0, 'neg':0}},
@@ -1741,7 +1752,7 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None, pcadesc="
         sigedg = np.copy(siglev)
         sigedg[np.where(nedgear == 0)] = 0
         sigedg[np.where(np.isinf(sigedg) | np.isnan(sigedg))] = 0
-        if settings.argflag['trace']['slits']['number'] > 0:
+        if settings['trace']['slits']['number'] > 0:
             # Now identify the number of most significantly detected peaks (specified by the user)
             amnmx = np.argsort(sigedg, axis=1)
             edgearr = np.zeros(binarr.shape, dtype=np.int)
@@ -1824,13 +1835,13 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None, pcadesc="
     if lcnt == 1:
         edgearrcp[np.where(edgearrcp <= -2*ednum)] = -ednum
     else:
-        assign_slits(binarr, edgearrcp, lor=-1)
+        assign_slits(binarr, edgearrcp, lor=-1, isettings=settings)
     # Assign right edges
     msgs.info("Assigning right slit edges")
     if rcnt == 1:
         edgearrcp[np.where(edgearrcp >= 2*ednum)] = ednum
     else:
-        assign_slits(binarr, edgearrcp, lor=+1)
+        assign_slits(binarr, edgearrcp, lor=+1, isettings=settings)
     if settings['trace']['slits']['maxgap'] is not None:
         vals = np.sort(np.unique(edgearrcp[np.where(edgearrcp != 0)]))
 #        print('calling close_edges')
@@ -1987,7 +1998,7 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None, pcadesc="
         ww = np.where(edgearr > 0)
         rmin, rmax = np.min(edgearr[ww]), np.max(edgearr[ww])  # min/max are switched because of the negative signs
         #msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings.argflag['trace']['slits']['fracignore'], int(edgearr.shape[0]*binby)))
-        msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings.argflag['trace']['slits']['fracignore'], int(edgearr.shape[0])))
+        msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings['trace']['slits']['fracignore'], int(edgearr.shape[0])))
         fracpix = int(settings['trace']['slits']['fracignore']*edgearr.shape[0])
 #        print('calling ignore_orders')
 #        t = time.clock()
@@ -2123,7 +2134,7 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None, pcadesc="
     xv = plxbin[:, 0]
     num = (lmax-lmin)//2
     lval = lmin + num  # Pick an order, somewhere in between lmin and lmax
-    lv = (arutils.func_val(lcoeff[:, lval-lmin], xv, settings.argflag['trace']['slits']['function'], minv=minvf, maxv=maxvf)+0.5).astype(np.int)
+    lv = (arutils.func_val(lcoeff[:, lval-lmin], xv, settings['trace']['slits']['function'], minv=minvf, maxv=maxvf)+0.5).astype(np.int)
     if np.any(lv < 0) or np.any(lv+1 >= binarr.shape[1]):
         msgs.warn("At least one slit is poorly traced")
         msgs.info("Refer to the manual, and adjust the input trace parameters")
@@ -2170,7 +2181,7 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None, pcadesc="
         else:  # There's an order overlap
             rsub = edgbtwn[1]-lval
     else:
-        lvp = (arutils.func_val(lcoeff[:, lval-1-lmin], xv, settings.argflag['trace']['slits']['function'],
+        lvp = (arutils.func_val(lcoeff[:, lval-1-lmin], xv, settings['trace']['slits']['function'],
                                 minv=minvf, maxv=maxvf)+0.5).astype(np.int)
 #        t = time.clock()
 #        _edgbtwn = arcytrace.find_between(edgearr, lvp, lv, -1)
@@ -2279,7 +2290,7 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None, pcadesc="
     lgm = np.where(np.in1d(-lunq, gord, invert=True))[0]
     rgm = np.where(np.in1d(runq, gord, invert=True))[0]
     maxord = np.max(np.append(gord, np.append(-lunq[lgm], runq[rgm])))
-    lcent = arutils.func_val(lcoeff[:,-lunq[lg][::-1]-1-settings.argflag['trace']['slits']['pca']['extrapolate']['neg']], xv,
+    lcent = arutils.func_val(lcoeff[:,-lunq[lg][::-1]-1-settings['trace']['slits']['pca']['extrapolate']['neg']], xv,
                              settings['trace']['slits']['function'], minv=minvf, maxv=maxvf)
     rcent = arutils.func_val(rcoeff[:,runq[rg]-1-settings['trace']['slits']['pca']['extrapolate']['neg']], xv,
                              settings['trace']['slits']['function'], minv=minvf, maxv=maxvf)
