@@ -1998,8 +1998,8 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None, pcadesc="
         ww = np.where(edgearr > 0)
         rmin, rmax = np.min(edgearr[ww]), np.max(edgearr[ww])  # min/max are switched because of the negative signs
         #msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings.argflag['trace']['slits']['fracignore'], int(edgearr.shape[0]*binby)))
-        msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings['trace']['slits']['fracignore'], int(edgearr.shape[0])))
-        fracpix = int(settings['trace']['slits']['fracignore']*edgearr.shape[0])
+        msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings['trace']['slits']['fracignore'], int(edgearr.shape[1])))
+        fracpix = int(settings['trace']['slits']['fracignore']*edgearr.shape[1])
 #        print('calling ignore_orders')
 #        t = time.clock()
 #        _edgearr = edgearr.copy()
@@ -2353,8 +2353,10 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None, pcadesc="
         ww = np.where(np.in1d(allord, maskord) == False)[0]
         # Unmask where an order edge is located
         maskrows = np.ones(binarr.shape[1], dtype=np.int)
-        ldiffarr = np.round(ldiffarr[ww]).astype(np.int)
-        rdiffarr = np.round(rdiffarr[ww]).astype(np.int)
+        #ldiffarr = np.round(ldiffarr[ww]).astype(np.int)
+        #rdiffarr = np.round(rdiffarr[ww]).astype(np.int)
+        ldiffarr = np.fmax(np.fmin(np.round(ldiffarr[ww]).astype(np.int), binarr.shape[1] - 1), 0)
+        rdiffarr = np.fmax(np.fmin(np.round(rdiffarr[ww]).astype(np.int), binarr.shape[1] - 1), 0)
         maskrows[ldiffarr] = 0
         maskrows[rdiffarr] = 0
         # Extract the slit edge ID numbers associated with the acceptable traces
@@ -2467,7 +2469,8 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None, pcadesc="
     # Illustrate where the orders fall on the detector (physical units)
     if msgs._debug['trace']:
         viewer, ch = ginga.show_image(mstrace)
-        ginga.show_slits(viewer, ch, lcenint, rcenint)
+        #ginga.show_slits(viewer, ch, lcenint, rcenint)
+        ginga.show_slits(viewer, ch, lcenint, rcenint, np.arange(nslit) + 1)
         debugger.set_trace()
     return lcenint, rcenint, extrapord
 
