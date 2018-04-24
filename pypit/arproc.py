@@ -614,6 +614,7 @@ def wrapper_get_datasec_trimmed(slf, fitsdict, det, scidx):
     scifile = fitsdict['directory'][scidx]+fitsdict['filename'][scidx]
     numamplifiers = settings.spect[dnum]['numamplifiers']
 
+    # Instrument specific bits
     if spectrograph in ['keck_lris_blue', 'keck_lris_red', 'keck_deimos']:
         # Grab
         datasec, oscansec, naxis0, naxis1 = get_datasec(spectrograph, scifile, numamplifiers, det=det)
@@ -625,6 +626,16 @@ def wrapper_get_datasec_trimmed(slf, fitsdict, det, scidx):
             settings.spect[dnum][oscansec] = oscansec[kk]
         fitsdict['naxis0'][scidx] = naxis0
         fitsdict['naxis1'][scidx] = naxis1
+
+    # Build the datasec lists for pix_to_amp
+    datasec = []
+    for i in numamplifiers:
+        sdatasec = "datasec{0:02d}".format(i+1)
+        datasec.append(settings.spect[dnum][sdatasec])
+    # Call
+    naxis0, naxis1 = int(fitsdict['naxis0'][scidx]), int(fitsdict['naxis1'][scidx])
+    slf._datasec[det-1] = pix_to_amp(naxis0, naxis1, datasec, numamplifiers)
+    return
 
 
 def get_datasec(spectrograph, scifile, numamplifiers, det=None):
@@ -673,15 +684,16 @@ def get_datasec(spectrograph, scifile, numamplifiers, det=None):
     # Return
     return datasec, oscansec, naxis0, naxis1
 
-def pix_to_amp(spectrograph, naxis0, naxis1, datasec=None, scifile=None, det=None):
+def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
     # For convenience
-    naxis0, naxis1 = int(fitsdict['naxis0'][scidx]), int(fitsdict['naxis1'][scidx])
     # Initialize the returned array
     retarr = np.zeros((naxis0, naxis1))
-    for i in range(settings.spect[dnum]['numamplifiers']):
-        datasec = "datasec{0:02d}".format(i+1)
-        x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
-        y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+    for i in numamplifiers:
+        #datasec = "datasec{0:02d}".format(i+1)
+        #x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
+        #y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+        x0, x1 = datasec[i][0][0], datasec[i][0][1]
+        y0, y1 = datasec[i][1][0], datasec[i][1][1]
         if x0 < 0: x0 += naxis0
         if x1 <= 0: x1 += naxis0
         if y0 < 0: y0 += naxis1
@@ -2355,12 +2367,12 @@ def sub_overscan(frame, numamplifiers, datasec, oscansec, settings=None):
     """
     #dnum = settings.get_dnum(det)
     if settings is None:
-        settings = dict(recduce={'overscan': {'method': 'savgol', 'params': [5,65]}})
+        settings = dict(reduce={'overscan': {'method': 'savgol', 'params': [5,65]}})
 
 
-    for i in range(settings.spect[dnum]['numamplifiers']):
+    for i in range(numamplifiers):
         # Determine the section of the chip that contains data
-        datasec = "datasec{0:02d}".format(i+1)
+        #datasec = "datasec{0:02d}".format(i+1)
         #dx0, dx1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
         #dy0, dy1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
         dx0, dx1 = datasec[i][0][0], datasec[i][0][1]
@@ -2372,9 +2384,11 @@ def sub_overscan(frame, numamplifiers, datasec, oscansec, settings=None):
         xds = np.arange(dx0, dx1)
         yds = np.arange(dy0, dy1)
         # Determine the section of the chip that contains the overscan region
-        oscansec = "oscansec{0:02d}".format(i+1)
-        ox0, ox1 = settings.spect[dnum][oscansec][0][0], settings.spect[dnum][oscansec][0][1]
-        oy0, oy1 = settings.spect[dnum][oscansec][1][0], settings.spect[dnum][oscansec][1][1]
+        #oscansec = "oscansec{0:02d}".format(i+1)
+        #ox0, ox1 = settings.spect[dnum][oscansec][0][0], settings.spect[dnum][oscansec][0][1]
+        #oy0, oy1 = settings.spect[dnum][oscansec][1][0], settings.spect[dnum][oscansec][1][1]
+        ox0, ox1 = oscansec[i][0][0], oscansec[i][0][1]
+        oy0, oy1 = oscansec[i][1][0], oscansec[i][1][1]
         if ox0 < 0: ox0 += frame.shape[0]
         if ox1 <= 0: ox1 += min(frame.shape[0], dx1)  # Truncate to datasec
         if oy0 < 0: oy0 += frame.shape[1]
@@ -2388,22 +2402,22 @@ def sub_overscan(frame, numamplifiers, datasec, oscansec, settings=None):
             osfit = np.median(oscan, axis=1)  # Mean was hit by CRs
         elif dy1-dy0 == oy1-oy0:
             osfit = np.median(oscan, axis=0)
-        elif settings.argflag['reduce']['overscan']['method'].lower() == "median":
+        elif settings['reduce']['overscan']['method'].lower() == "median":
             osfit = np.median(oscan)
         else:
             msgs.error("Overscan sections do not match amplifier sections for amplifier {0:d}".format(i+1))
         # Fit/Model the overscan region
-        if settings.argflag['reduce']['overscan']['method'].lower() == "polynomial":
-            c = np.polyfit(np.arange(osfit.size), osfit, settings.argflag['reduce']['overscan']['params'][0])
+        if settings['reduce']['overscan']['method'].lower() == "polynomial":
+            c = np.polyfit(np.arange(osfit.size), osfit, settings['reduce']['overscan']['params'][0])
             ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
-        elif settings.argflag['reduce']['overscan']['method'].lower() == "savgol":
+        elif settings['reduce']['overscan']['method'].lower() == "savgol":
             ossub = signal.savgol_filter(osfit,
-                                         settings.argflag['reduce']['overscan']['params'][1],
-                                         settings.argflag['reduce']['overscan']['params'][0])
-        elif settings.argflag['reduce']['overscan']['method'].lower() == "median":  # One simple value
+                                         settings['reduce']['overscan']['params'][1],
+                                         settings['reduce']['overscan']['params'][0])
+        elif settings['reduce']['overscan']['method'].lower() == "median":  # One simple value
             ossub = osfit * np.ones(1)
         else:
-            msgs.warn("Overscan subtraction method {0:s} is not implemented".format(settings.argflag['reduce']['overscan']['method']))
+            msgs.warn("Overscan subtraction method {0:s} is not implemented".format(settings['reduce']['overscan']['method']))
             msgs.info("Using a linear fit to the overscan region")
             c = np.polyfit(np.arange(osfit.size), osfit, 1)
             ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
@@ -2414,7 +2428,7 @@ def sub_overscan(frame, numamplifiers, datasec, oscansec, settings=None):
             frame[wd] -= ossub
         elif wd[1].shape[1] == ossub.shape[0]:
             frame[wd] -= ossub.T
-        elif settings.argflag['reduce']['overscan']['method'].lower() == "median":
+        elif settings['reduce']['overscan']['method'].lower() == "median":
             frame[wd] -= osfit
         else:
             msgs.error("Could not subtract bias from overscan region --"+msgs.newline()+"size of extracted regions does not match")
@@ -2423,12 +2437,15 @@ def sub_overscan(frame, numamplifiers, datasec, oscansec, settings=None):
     return frame
 
 
-def trim(frame, det):
-    dnum = settings.get_dnum(det)
-    for i in range(settings.spect[dnum]['numamplifiers']):
-        datasec = "datasec{0:02d}".format(i+1)
-        x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
-        y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+def trim(frame, numamplifiers, datasec):
+    #dnum = settings.get_dnum(det)
+    #for i in range(settings.spect[dnum]['numamplifiers']):
+    for i in range(numamplifiers):
+        #datasec = "datasec{0:02d}".format(i+1)
+        #x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
+        #y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+        x0, x1 = datasec[i][0][0], datasec[i][0][1]
+        y0, y1 = datasec[i][1][0], datasec[i][1][1]
         if x0 < 0:
             x0 += frame.shape[0]
         if x1 <= 0:

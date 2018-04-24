@@ -3655,7 +3655,16 @@ def get_censpec(slf, frame, det, gen_satmask=False):
         return arccen, maskslit
 
 
-def gen_pixloc(frame, det, gen=True):
+def wrapper_gen_pixloc(frame, det, **kwargs):
+    dnum = settings.get_dnum(det)
+    xgap = settings.spect[dnum]['xgap']
+    ygap = settings.spect[dnum]['ygap']
+    ysize = settings.spect[dnum]['ysize']
+    # Do it
+    return gen_pixloc(frame, xgap, ygap, ysize, **kwargs)
+
+
+def gen_pixloc(frame, xgap, ygap, ysize, gen=True):
     """
     Generate an array of physical pixel coordinates
 
@@ -3672,25 +3681,25 @@ def gen_pixloc(frame, det, gen=True):
       A 3D array containing the x center, y center, x width and y width of each pixel.
       The returned array has a shape:   frame.shape + (4,)
     """
-    dnum = settings.get_dnum(det)
+    #dnum = settings.get_dnum(det)
     msgs.info("Deriving physical pixel locations on the detector")
     locations = np.zeros((frame.shape[0],frame.shape[1],4))
     if gen:
-        msgs.info("Pixel gap in the dispersion direction = {0:4.3f}".format(settings.spect[dnum]['xgap']))
+        msgs.info("Pixel gap in the dispersion direction = {0:4.3f}".format(xgap))
         msgs.info("Pixel size in the dispersion direction = {0:4.3f}".format(1.0))
-        xs = np.arange(frame.shape[0]*1.0)*settings.spect[dnum]['xgap']
+        xs = np.arange(frame.shape[0]*1.0)*xgap
         xt = 0.5 + np.arange(frame.shape[0]*1.0) + xs
-        msgs.info("Pixel gap in the spatial direction = {0:4.3f}".format(settings.spect[dnum]['ygap']))
-        msgs.info("Pixel size in the spatial direction = {0:4.3f}".format(settings.spect[dnum]['ysize']))
-        ys = np.arange(frame.shape[1])*settings.spect[dnum]['ygap']*settings.spect[dnum]['ysize']
-        yt = settings.spect[dnum]['ysize']*(0.5 + np.arange(frame.shape[1]*1.0)) + ys
+        msgs.info("Pixel gap in the spatial direction = {0:4.3f}".format(ygap))
+        msgs.info("Pixel size in the spatial direction = {0:4.3f}".format(ysize))
+        ys = np.arange(frame.shape[1])*ygap*ysize
+        yt = ysize*(0.5 + np.arange(frame.shape[1]*1.0)) + ys
         xloc, yloc = np.meshgrid(xt, yt)
 #		xwid, ywid = np.meshgrid(xs,ys)
         msgs.info("Saving pixel locations")
         locations[:,:,0] = xloc.T
         locations[:,:,1] = yloc.T
         locations[:,:,2] = 1.0
-        locations[:,:,3] = settings.spect[dnum]['ysize']
+        locations[:,:,3] = ysize
     else:
         msgs.error("Have not yet included an algorithm to automatically generate pixel locations")
     return locations
