@@ -461,18 +461,43 @@ def trace_object_dict(nobj, traces, object=None, background=None, params=None, t
     tracelist.append(newdict)
     return tracelist
 
-def trace_objects_in_slits(slf, det, sciframe, varframe, crmask, **kwargs):
 
+def trace_objects_in_slits(slf, det, sciframe, varframe, crmask, doqa=False, **kwargs):
+    """ Wrapper for trace_objects_in_slit
+
+    Parameters
+    ----------
+    slf : SciExposure class
+    det : int
+    sciframe : ndarray
+    varframe : ndarray
+    crmask : ndarray
+    doqa : generate PNG
+    kwargs : optional
+      Passed to trace_objects_in_slit
+
+    Returns
+    -------
+    tracelist : list
+       Contains all the trace information for all slits
+
+    """
     nslit = len(slf._maskslits[det-1])
     gdslits = np.where(~slf._maskslits[det-1])[0]
     tracelist = []
 
+    # Loop on good slits
     for slit in range(nslit):
         if slit not in gdslits:
             tracelist.append({})
             continue
         tlist = trace_objects_in_slit(slf, det, slit, sciframe, varframe, crmask, **kwargs)
+        # Append
         tracelist += tlist
+
+    # QA?
+    if doqa: # and (not msgs._debug['no_qa']):
+        obj_trace_qa(slf, sciframe, det, tracelist, root="object_trace", normalize=False)
 
     # Return
     return tracelist
@@ -480,7 +505,7 @@ def trace_objects_in_slits(slf, det, sciframe, varframe, crmask, **kwargs):
 
 def trace_objects_in_slit(slf, det, slitn, sciframe, varframe, crmask, trim=2,
                  triml=None, trimr=None, sigmin=2.0, bgreg=None,
-                 maskval=-999999.9, doqa=True,
+                 maskval=-999999.9,
                  xedge=0.03, standard=False, debug=False):
     """ Finds objects, and traces their location on the detector
 
@@ -769,11 +794,11 @@ def trace_objects_in_slit(slf, det, slitn, sciframe, varframe, crmask, trim=2,
     # Convert left object trace
     for o in range(nobj):
         trccopy[:, o] = trcfunc[:, o] - cval[o] + objl[o]/(npix-1.0)
-    trobjl = ofst + (diff-triml-trimr)*trccopy
+    #trobjl = ofst + (diff-triml-trimr)*trccopy
     # Convert right object trace
     for o in range(nobj):
         trccopy[:, o] = trcfunc[:, o] - cval[o] + objr[o]/(npix-1.0)
-    trobjr = ofst + (diff-triml-trimr)*trccopy
+    #trobjr = ofst + (diff-triml-trimr)*trccopy
     # Generate an image of pixel weights for each object
     rec_obj_img, rec_bg_img = trace_objbg_image(slf, det, sciframe, slitn,
                                                 [objl, objr], [bckl, bckr],
@@ -788,23 +813,12 @@ def trace_objects_in_slit(slf, det, slitn, sciframe, varframe, crmask, trim=2,
     tracelist = trace_object_dict(nobj, traces, object=rec_obj_img, background=rec_bg_img,
                                   params=tracepar)
 
-    # Save the quality control
-    if doqa: # and (not msgs._debug['no_qa']):
-        objids = []
-        for ii in range(nobj):
-            objid, xobj = arspecobj.get_objid(slf, det, slitn, ii, tracelist)
-            objids.append(objid)
-#        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, objids, det,
-#                          root="object_trace", normalize=False)
-        obj_trace_qa(slf, sciframe, trobjl, trobjr, objids, det, root="object_trace",
-                     normalize=False)
     # Return
     return tracelist
 
 
-def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
-                 root='trace', normalize=True, desc=""):
-    """ Generate a QA plot for the object trace
+def obj_trace_qa(slf, frame, det, tracelist, root='trace', normalize=True, desc=""):
+    """ Generate a QA plot for the object traces in a single slit
 
     Parameters
     ----------
@@ -816,6 +830,7 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
       Right edge traces
     objids : list
     det : int
+    slit : int
     desc : str, optional
       Title
     root : str, optional
@@ -831,10 +846,11 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
     # Outfile name
     outfile = arqa.set_qa_filename(slf._basename, method, det=det)
     #
-    ntrc = ltrace.shape[1]
     ycen = np.arange(frame.shape[0])
     # Normalize flux in the traces
     if normalize:
+        ntrc = ltrace.shape[1]
+        debugger.set_trace() # NO LONGER SUPPORTED
         nrm_frame = np.zeros_like(frame)
         for ii in range(ntrc):
             xtrc = (ltrace[:,ii] + rtrace[:,ii])/2.
@@ -877,19 +893,24 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
     plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
 
     # Traces
-    iy_mid = int(frame.shape[0] / 2.)
-    iy = np.linspace(iy_mid,frame.shape[0]*0.9,ntrc).astype(int)
-    for ii in range(ntrc):
-        # Left
-        plt.plot(ltrace[:, ii]+0.5, ycen, 'r--', alpha=0.7)
-        # Right
-        plt.plot(rtrace[:, ii]+0.5, ycen, 'c--', alpha=0.7)
-        if objids is not None:
-            # Label
-            # plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
-            lbl = 'O{:03d}'.format(objids[ii])
-            plt.text((ltrace[iy[ii], ii]+rtrace[iy[ii], ii])/2., ycen[iy[ii]],
-                lbl, color='green', ha='center')
+    #iy_mid = int(frame.shape[0] / 2.)
+    #iy = np.linspace(iy_mid,frame.shape[0]*0.9,ntrc).astype(int)
+    for slit, tlist in enumerate(tracelist):
+        for obj_idx in range(tlist['nobj']):
+            obj_img = tlist['object'][:,:,obj_idx].astype(int)
+            objl = np.argmax(obj_img, axis=1)
+            objr = obj_img.shape[1]-np.argmax(np.rot90(obj_img,2), axis=1)-1  # The -1 is for Python indexing
+            #
+            # Left
+            plt.plot(objl, ycen, 'r:', alpha=0.7)
+            # Right
+            plt.plot(objr, ycen, 'c:', alpha=0.7)
+        #if objids is not None:
+        #    # Label
+        #    # plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
+        #    lbl = 'O{:03d}'.format(objids[ii])
+        #    plt.text((ltrace[iy[ii], ii]+rtrace[iy[ii], ii])/2., ycen[iy[ii]],
+        #        lbl, color='green', ha='center')
     # Title
     tstamp = arqa.gen_timestamp()
     if desc == "":
@@ -2009,8 +2030,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
 #        print('Old ignore_orders: {0} seconds'.format(time.clock() - t))
 #        t = time.clock()
         __edgearr = edgearr.copy()
-        lnc, lxc, rnc, rxc, ldarr, rdarr = new_ignore_orders(__edgearr, fracpix, lmin, lmax, rmin,
-                                                             rmax)
+        lnc, lxc, rnc, rxc, ldarr, rdarr = new_ignore_orders(__edgearr, fracpix, lmin, lmax, rmin, rmax)
 #        print('New ignore_orders: {0} seconds'.format(time.clock() - t))
 #        assert np.sum(_lnc != lnc) == 0, 'Difference between old and new ignore_orders, lnc'
 #        assert np.sum(_lxc != lxc) == 0, 'Difference between old and new ignore_orders, lxc'
@@ -2424,9 +2444,11 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         rcen = rcent[ww, :].T.copy()
         extrapord = np.zeros(lcen.shape[1], dtype=np.bool)
 
-    # Remove any slits that are completely off the detector
+    # Remove any slits that are completely off the detector or not satisfying fracignore
+    #   The slit remomving algorithm up above is not working..
     nslit = lcen.shape[1]
     mask = np.zeros(nslit)
+    fracpix = int(settings.argflag['trace']['slits']['fracignore']*mstrace.shape[1])
     for o in range(nslit):
         if np.min(lcen[:, o]) > mstrace.shape[1]:
             mask[o] = 1
@@ -2434,9 +2456,13 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
         elif np.max(rcen[:, o]) < 0:
             mask[o] = 1
             msgs.info("Slit {0:d} is off the detector - ignoring this slit".format(o + 1))
+        if np.median(rcen[:,o]-lcen[:,o]) < fracpix:
+            mask[o] = 1
+            msgs.info("Slit {0:d} is less than fracignore - ignoring this slit".format(o + 1))
     wok = np.where(mask == 0)[0]
     lcen = lcen[:, wok]
     rcen = rcen[:, wok]
+
 
     # Interpolate the best solutions for all orders with a cubic spline
     #msgs.info("Interpolating the best solutions for all orders with a cubic spline")
@@ -3664,7 +3690,7 @@ def get_censpec(slf, frame, det, gen_satmask=False):
 
 
 def gen_pixloc(frame, det, gen=True):
-    """
+    """23
     Generate an array of physical pixel coordinates
 
     Parameters

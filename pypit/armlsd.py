@@ -129,6 +129,8 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det, pcadesc="PCA trace of the slit edges")
                 slf.SetFrame(slf._lordloc, lordloc, det)
                 slf.SetFrame(slf._rordloc, rordloc, det)
+                # Initialize maskslit
+                slf._maskslits[det-1] = np.array([False] * slf._lordloc[det-1].shape[1])
 
                 # Convert physical trace into a pixel trace
                 msgs.info("Converting physical trace locations to nearest pixel")
@@ -160,12 +162,6 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             update = slf.MasterWaveCalib(fitsdict, sc, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
-
-            # JXP Set mask based on wv_calib -- This needs to be done somewhere else
-            mask = np.array([True]*slf._lordloc[det-1].shape[1])
-            for key in slf._wvcalib[det-1]:
-                mask[int(key)] = False
-            slf._maskslits[det-1] = mask
 
             ###############
             # Derive the spectral tilt

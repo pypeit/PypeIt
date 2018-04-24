@@ -130,6 +130,8 @@ def get_master_frame(slf, mftype, det=None):
                 slf.SetFrame(slf._lordpix, lordpix.astype(np.int), det)
                 slf.SetFrame(slf._rordpix, rordpix.astype(np.int), det)
                 slf.SetFrame(slf._slitpix, slitpix.astype(np.int), det)
+                # Mask -- It is assumed that all slits loaded are ok
+                slf._maskslits[det-1] = np.array([False] * slf._lordloc[det-1].shape[1])
             # Append as loaded
             settings.argflag['reduce']['masters']['loaded'].append(mftype+setup)
             return msfile

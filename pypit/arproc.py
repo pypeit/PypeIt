@@ -1155,49 +1155,31 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
     """
 
     # FOR DEVELOPING
-    if True:
-        sciframe = fits.open('sci.fits')[0].data
-        rawvarframe = fits.open('var.fits')[0].data
-        crmask = fits.open('crmask.fits')[0].data
-    else:
-        sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
+    sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
 
-        for frame, ifile in zip([sciframe, rawvarframe, crmask], ['sci.fits', 'var.fits', 'crmask.fits']):
-            hdu = fits.PrimaryHDU(frame)
-            hdul = fits.HDUList([hdu])
-            hdul.writeto(ifile, overwrite=True)
-
+    # Save sciframe
     slf._sciframe[det-1] = sciframe.copy()
-
-    bgframe = fits.open('bgf.fits')[0].data
-    modelvarframe = fits.open('mvar.fits')[0].data
 
     ###############
     # Estimate Sky Background
-    if False:
-        if settings.argflag['reduce']['skysub']['perform']:
-            # Perform an iterative background/science extraction
-            if msgs._debug['obj_profile'] and False:
-                debugger.set_trace()  # JXP says THIS MAY NOT WORK AS EXPECTED
-                msgs.warn("Reading background from 2D image on disk")
-                datfil = settings.argflag['run']['directory']['science']+'/spec2d_{:s}.fits'.format(slf._basename.replace(":","_"))
-                hdu = fits.open(datfil)
-                bgframe = hdu[1].data - hdu[2].data
-            else:
-                msgs.info("First estimate of the sky background")
-                bgframe = bg_subtraction(slf, det, sciframe, rawvarframe, crmask)
-            modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
+    if settings.argflag['reduce']['skysub']['perform']:
+        # Perform an iterative background/science extraction
+        if msgs._debug['obj_profile'] and False:
+            debugger.set_trace()  # JXP says THIS MAY NOT WORK AS EXPECTED
+            msgs.warn("Reading background from 2D image on disk")
+            datfil = settings.argflag['run']['directory']['science']+'/spec2d_{:s}.fits'.format(slf._basename.replace(":","_"))
+            hdu = fits.open(datfil)
+            bgframe = hdu[1].data - hdu[2].data
         else:
-            modelvarframe = rawvarframe.copy()
-            bgframe = np.zeros_like(sciframe)
-        if not standard:  # Need to save
-            slf._modelvarframe[det - 1] = modelvarframe
-            slf._bgframe[det - 1] = bgframe
-
-            for frame, ifile in zip([bgframe, modelvarframe], ['bgf.fits', 'mvar.fits']):
-                hdu = fits.PrimaryHDU(frame)
-                hdul = fits.HDUList([hdu])
-                hdul.writeto(ifile, overwrite=True)
+            msgs.info("First estimate of the sky background")
+            bgframe = bg_subtraction(slf, det, sciframe, rawvarframe, crmask)
+        modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
+    else:
+        modelvarframe = rawvarframe.copy()
+        bgframe = np.zeros_like(sciframe)
+    if not standard:  # Need to save
+        slf._modelvarframe[det - 1] = modelvarframe
+        slf._bgframe[det - 1] = bgframe
 
     ###############
     # Find objects and estimate their traces
@@ -1283,9 +1265,7 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
     if scitrace is None:
         msgs.info("Performing final object trace")
         scitrace = artrace.trace_objects_in_slits(slf, det, sciframe-bgframe, modelvarframe, crmask,
-                                        bgreg=20, doqa=False, standard=standard)
-        # JXP -- Need to turn the QA back on..
-        #bgreg=20, doqa=(not standard), standard=standard, slitn=slitn)
+                                        bgreg=20, doqa=(not standard), standard=standard)
     if standard:
         slf._msstd[det-1]['trace'] = scitrace
         specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict, scitrace, objtype='standard')

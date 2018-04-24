@@ -91,9 +91,9 @@ class ScienceExposure:
         self._tiltpar  = [None for all in range(ndet)]   # Dict parameters for tilt fitting
         self._satmask  = [None for all in range(ndet)]   # Array of Arc saturation streaks
         self._arcparam = [None for all in range(ndet)]   # Dict guiding wavelength calibration
-        self._wvcalib  = [None for all in range(ndet)]   #
+        self._wvcalib  = [None for all in range(ndet)]   # List of dict's
         self._resnarr  = [None for all in range(ndet)]   # Resolution array
-        self._maskslits = [None for all in range(ndet)]  # Mask for whether to analyze a given slit
+        self._maskslits = [None for all in range(ndet)]  # Mask for whether to analyze a given slit (True=masked)
         # Initialize the Master Calibration frames
         self._bpix = [None for all in range(ndet)]          # Bad Pixel Mask
         self._msarc = [None for all in range(ndet)]         # Master Arc
@@ -699,20 +699,9 @@ class ScienceExposure:
                 arccen, maskslit = artrace.get_censpec(self, self._msarc[det-1], det, gen_satmask=False)
                 ok_mask = np.where(maskslit == 0)[0]
 
-                # Avoid star boxes (kludge here for now)
-                swidth = np.median(self._rordloc[det-1]-self._lordloc[det-1], axis=0)
-                okwidth = swidth > 40.
-
                 # Fill up the calibrations
                 wv_calib = {}
                 for kk,slit in enumerate(ok_mask):
-                    ###############
-                    # Need to avoid alignment slits
-                    if kk > 3:
-                        continue
-                    if not okwidth[slit]:
-                        msgs.info("Skipping a presumed box slit")
-                        continue
                     ###############
                     # Extract arc and identify lines
                     if settings.argflag['arc']['calibrate']['method'] == 'simple':
@@ -727,6 +716,13 @@ class ScienceExposure:
         if wv_calib is not None:
             self.SetFrame(self._wvcalib, wv_calib, det)
             armasters.save_masters(self, det, mftype='wv_calib')
+
+            # Set mask based on wv_calib existing
+            mask = np.array([True]*self._lordloc[det-1].shape[1])
+            for key in self._wvcalib[det-1].keys():
+                mask[int(key)] = False
+            self._maskslits[det-1] = mask
+            #
             del wv_calib
         return True
 
