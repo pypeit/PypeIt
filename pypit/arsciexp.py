@@ -702,8 +702,6 @@ class ScienceExposure:
                 # Fill up the calibrations
                 wv_calib = {}
                 for kk,slit in enumerate(ok_mask):
-                    if kk > 3:
-                        continue
                     ###############
                     # Extract arc and identify lines
                     if settings.argflag['arc']['calibrate']['method'] == 'simple':

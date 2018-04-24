@@ -62,6 +62,9 @@
 - Improve cookbook and setup docs
 - Faster algorithm for defining object and background regions
 - Restore armsgs -d functionality
+- Introduce maskslits array (could be called maskorders)
+- Actually enable multi-slit reduction
+- Bug fixes in trace_slits
 
 0.7 (2017-02-07)
 ----------------
