@@ -30,7 +30,6 @@ try:
 except ImportError:
     pass
 
-from pypit import arcyarc
 from pypit import arcytrace
 
 
@@ -39,12 +38,6 @@ try:
     ustr = unicode
 except NameError:
     ustr = str
-
-# JFH debugging
-#try:
-#    from xastropy.xutils import xdebug as debugger
-#except ImportError:
-#    import pdb as debugger
 
 
 def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
@@ -160,7 +153,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
                 plt.plot(arrcen, 'k-', drawstyle='steps')
                 plt.plot(wpk, np.zeros(wpk.size), 'ro')
                 plt.show()
-                #debugger.set_trace()
+                debugger.set_trace()
             # Label all edge ids (in the original edgearr) that are located in each peak with the same number
             for ii in range(pks.size):
                 shbad = np.zeros(edgearr.shape)
@@ -896,15 +889,17 @@ def obj_trace_qa(slf, frame, det, tracelist, root='trace', normalize=True, desc=
     #iy_mid = int(frame.shape[0] / 2.)
     #iy = np.linspace(iy_mid,frame.shape[0]*0.9,ntrc).astype(int)
     for slit, tlist in enumerate(tracelist):
+        if 'nobj' not in tlist.keys():
+            continue
         for obj_idx in range(tlist['nobj']):
             obj_img = tlist['object'][:,:,obj_idx].astype(int)
             objl = np.argmax(obj_img, axis=1)
             objr = obj_img.shape[1]-np.argmax(np.rot90(obj_img,2), axis=1)-1  # The -1 is for Python indexing
             #
             # Left
-            plt.plot(objl, ycen, 'r:', alpha=0.7)
+            plt.plot(objl, ycen, 'r:', alpha=0.7, lw=0.1)
             # Right
-            plt.plot(objr, ycen, 'c:', alpha=0.7)
+            plt.plot(objr, ycen, 'c:', alpha=0.7, lw=0.1)
         #if objids is not None:
         #    # Label
         #    # plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
@@ -925,7 +920,7 @@ def obj_trace_qa(slf, frame, det, tracelist, root='trace', normalize=True, desc=
 
 
 def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit",
-                   maxp=4, desc="", maskval=-999999.9):
+                   maxp=4, desc="", maskval=-999999.9, slit=None):
     """ Generate a QA plot for the blaze function fit to each slit
     Or the arc line tilts
 
@@ -962,7 +957,7 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit",
         method += '_Blaze'
     else:
         msgs.bug("Unknown type of order fits.  Currently prepared for Arc and Blaze")
-    outroot = arqa.set_qa_filename(slf.setup, method)
+    outroot = arqa.set_qa_filename(slf.setup, method, slit=slit)
     #
     npix, nord = ydata.shape
     pages, npp = arqa.get_dimen(nord, maxp=maxp)
@@ -1664,9 +1659,6 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
-    # JFH debugging
-    #msgs._debug['trace'] = True
-
     dnum = settings.get_dnum(det)
     ednum = 100000  # A large dummy number used for slit edge assignment. ednum should be larger than the number of edges detected
 
@@ -3275,8 +3267,6 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
     # Now trace the tilt for each slit
     #for  o in range(arccen.shape[1]):
     for oo, slit in enumerate(gdslits):
-        if oo > 3:
-            continue
         # Determine the tilts for this slit
         trcdict = trace_tilt(slf, det, msarc, slit, censpec=arccen[:, oo], nsmth=3)
         if trcdict is None:
@@ -3535,35 +3525,35 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
         final_tilts[word] = tilts[word]
 
         # Now do the QA
-        if False:
-            msgs.info("Preparing arc tilt QA data")
-            tiltsplot = tilts[arcdet, :].T
-            tiltsplot *= (msarc.shape[0] - 1.0)
-            # Shift the plotted tilts about the centre of the slit
-            ztilto = ztilt.copy()
-            adj = np.diag(tilts[arcdet, ordcen[arcdet]])
-            zmsk = np.where(ztilto == maskval)
-            ztilto = 2.0 * np.outer(np.ones(ztilto.shape[0]), adj) - ztilto
-            ztilto[zmsk] = maskval
-            ztilto[np.where(ztilto != maskval)] *= (msarc.shape[0] - 1.0)
-            for i in range(arcdet.size):
-                w = np.where(ztilto[:, i] != maskval)
-                if w[0].size != 0:
-                    twa = (xtilt[w[0], i] * (msarc.shape[1] - 1.0) + 0.5).astype(np.int)
-                    # fitcns = np.polyfit(w[0], ztilt[w[0], i] - tiltsplot[twa, i], 0)[0]
-                    fitcns = np.median(ztilto[w[0], i] - tiltsplot[twa, i])
-                    # if abs(fitcns) > 1.0:
-                    #     msgs.warn("The tilt of Arc Line {0:d} might be poorly traced".format(i+1))
-                    tiltsplot[:, i] += fitcns
+        msgs.info("Preparing arc tilt QA data")
+        tiltsplot = tilts[arcdet, :].T
+        tiltsplot *= (msarc.shape[0] - 1.0)
+        # Shift the plotted tilts about the centre of the slit
+        ztilto = ztilt.copy()
+        adj = np.diag(tilts[arcdet, ordcen[arcdet]])
+        zmsk = np.where(ztilto == maskval)
+        ztilto = 2.0 * np.outer(np.ones(ztilto.shape[0]), adj) - ztilto
+        ztilto[zmsk] = maskval
+        ztilto[np.where(ztilto != maskval)] *= (msarc.shape[0] - 1.0)
+        for i in range(arcdet.size):
+            w = np.where(ztilto[:, i] != maskval)
+            if w[0].size != 0:
+                twa = (xtilt[w[0], i] * (msarc.shape[1] - 1.0) + 0.5).astype(np.int)
+                # fitcns = np.polyfit(w[0], ztilt[w[0], i] - tiltsplot[twa, i], 0)[0]
+                fitcns = np.median(ztilto[w[0], i] - tiltsplot[twa, i])
+                # if abs(fitcns) > 1.0:
+                #     msgs.warn("The tilt of Arc Line {0:d} might be poorly traced".format(i+1))
+                tiltsplot[:, i] += fitcns
 
-            xdat = xtilt.copy()
-            xdat[np.where(xdat != maskval)] *= (msarc.shape[1] - 1.0)
+        xdat = xtilt.copy()
+        xdat[np.where(xdat != maskval)] *= (msarc.shape[1] - 1.0)
 
-            msgs.info("Plotting arc tilt QA")
-        #    arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
-        #                        textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
-            plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
-                           textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
+        msgs.info("Plotting arc tilt QA")
+    #    arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
+    #                        textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
+        plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
+                       textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval, slit=slit)
+    # Finish
     return final_tilts, satmask, outpar
 
 

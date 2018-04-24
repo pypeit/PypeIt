@@ -702,6 +702,8 @@ class ScienceExposure:
                 # Fill up the calibrations
                 wv_calib = {}
                 for kk,slit in enumerate(ok_mask):
+                    if kk > 3:
+                        continue
                     ###############
                     # Extract arc and identify lines
                     if settings.argflag['arc']['calibrate']['method'] == 'simple':
@@ -709,9 +711,6 @@ class ScienceExposure:
                     elif settings.argflag['arc']['calibrate']['method'] == 'arclines':
                         iwv_calib = ararc.calib_with_arclines(self, det, censpec=arccen[:,kk])
                     wv_calib[str(slit)] = iwv_calib.copy()
-                # Deal with rejected slits
-                if self._maskslits[det-1] is None:
-                    self._maskslits[det-1] = np.any([(maskslit == 1), ~okwidth], axis=0)
         # Set
         if wv_calib is not None:
             self.SetFrame(self._wvcalib, wv_calib, det)
