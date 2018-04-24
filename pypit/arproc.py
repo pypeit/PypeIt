@@ -178,11 +178,27 @@ def badpix(det, frame, sigdev=10.0):
 
 
 def bg_subtraction(slf, det, sciframe, varframe, crpix, **kwargs):
+    """ Wrapper to run the background subtraction on a series of slits
+    Parameters
+    ----------
+    slf
+    det : int
+    sciframe : ndarray
+    varframe : ndarray
+    crpix : ndarray
+    kwargs
+       Passed to bg_subtraction_slit
+
+    Returns
+    -------
+    bgframe : ndarray
+
+    """
     bgframe = np.zeros_like(sciframe)
-    nslit = len(slf._maskslits[det-1])
     gdslits = np.where(~slf._maskslits[det-1])[0]
 
     for slit in gdslits:
+        msgs.info("Working on slit: {:d}".format(slit))
         slit_bgframe = bg_subtraction_slit(slf, det, slit, sciframe, varframe, crpix, **kwargs)
         bgframe += slit_bgframe
     # Return
@@ -291,7 +307,7 @@ def bg_subtraction_slit(slf, det, slit, sciframe, varframe, crpix, tracemask=Non
     # Now trace the sky lines to get a better estimate of the spectral tilt during the observations
     scifrcp = scimask.copy()
     scifrcp[whord] += (maskval*maskpix)[rxargsrt]
-    scifrcp[np.where(ordpix == slit)] = maskval
+    scifrcp[np.where(ordpix != slit+1)] = maskval
     # Check tilts? -- Can also be error in flat fielding or slit illumination
     if msgs._debug['sky_sub']:
         gdp = scifrcp != maskval
@@ -311,14 +327,13 @@ def bg_subtraction_slit(slf, det, slit, sciframe, varframe, crpix, tracemask=Non
     msgs.info("Fitting sky background spectrum")
     if settings.argflag['reduce']['skysub']['method'].lower() == 'bspline':
         msgs.info("Using bspline sky subtraction")
-        gdp = (scifrcp != maskval) & (ordpix == slit+1)
+        gdp = (scifrcp != maskval) & (ordpix == slit+1) & (varframe > 0.)
         srt = np.argsort(tilts[gdp])
         #bspl = arutils.func_fit(tilts[gdp][srt], scifrcp[gdp][srt], 'bspline', 3,
         #                        **settings.argflag['reduce']['skysub']['bspline'])
         ivar = arutils.calc_ivar(varframe)
-        mask, bspl = arutils.robust_polyfit(tilts[gdp][srt], scifrcp[gdp][srt], 3, function='bspline',
-                                            weights=np.sqrt(ivar)[gdp][srt], sigma=5.,
-                                            maxone=False, **settings.argflag['reduce']['skysub']['bspline'])
+        mask, bspl = arutils.robust_polyfit(tilts[gdp][srt], scifrcp[gdp][srt], 3,
+                                            function='bspline', weights=np.sqrt(ivar)[gdp][srt], sigma=5., maxone=False, **settings.argflag['reduce']['skysub']['bspline'])
         # Just those in the slit
         in_slit = np.where(slf._slitpix[det-1] == slit+1)
         bgf_flat = arutils.func_val(bspl, tilts[in_slit].flatten(), 'bspline')

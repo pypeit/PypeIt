@@ -105,7 +105,10 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             # Set the number of spectral and spatial pixels, and the bad pixel mask is it does not exist
             slf._nspec[det-1], slf._nspat[det-1] = slf._msarc[det-1].shape
             if slf._bpix[det-1] is None:
-                slf.SetFrame(slf._bpix, np.zeros((slf._nspec[det-1], slf._nspat[det-1])), det)
+                bpix = np.zeros((slf._nspec[det-1], slf._nspat[det-1]))
+                if settings.argflag['run']['spectrograph'] in ['keck_deimos']:
+                    bpix[:,-1] = 1.
+                slf.SetFrame(slf._bpix, bpix, det)
             '''
             ###############
             # Estimate gain and readout noise for the amplifiers
