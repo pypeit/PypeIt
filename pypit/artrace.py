@@ -1234,7 +1234,7 @@ def new_match_edges(edgdet, ednum):
     """
     # mr is the minimum number of acceptable pixels required to form the
     # detection of an order edge
-    mr = 5
+    mr = 50   #JXP MODIFIED -- Question for Ryan C.
     mrxarr = np.zeros(mr, dtype=int)
     mryarr = np.zeros(mr, dtype=int)
 
