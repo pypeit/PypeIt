@@ -157,7 +157,6 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                                       use_slitid=det)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
-            # KLUDGE FOR DEV
             ###############
             # Generate the 1D wavelength solution
             update = slf.MasterWaveCalib(fitsdict, sc, det)

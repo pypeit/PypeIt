@@ -3530,7 +3530,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
         tiltsplot *= (msarc.shape[0] - 1.0)
         # Shift the plotted tilts about the centre of the slit
         ztilto = ztilt.copy()
-        adj = np.diag(tilts[arcdet, ordcen[arcdet]])
+        adj = np.diag(tilts[arcdet, ordcen[arcdet, slit:slit+1]])
         zmsk = np.where(ztilto == maskval)
         ztilto = 2.0 * np.outer(np.ones(ztilto.shape[0]), adj) - ztilto
         ztilto[zmsk] = maskval
