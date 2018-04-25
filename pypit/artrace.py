@@ -1743,7 +1743,8 @@ def driver_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
                          lcoeff, rcoeff, plxbin, slitcen, pixlocn)
     if settings['trace']['slits']['pca']['type'] == 'pixel':
         lcen, rcen, extrapord = pca_pixel_slit_edges(binarr, edgearr, lcoeff, rcoeff, ldiffarr, rdiffarr,
-                         lnmbrarr, rnmbrarr, lwghtarr, rwghtarr, lcent, rcent, plxbin)
+                         lnmbrarr, rnmbrarr, lwghtarr, rwghtarr, lcent, rcent, plxbin,
+                                                     settings)
     else:
         allord = np.arange(lcent.shape[0])
         maskord = np.where((np.all(lcent, axis=1) == False) | (np.all(rcent, axis=1) == False))[0]
@@ -2401,7 +2402,8 @@ def pca_order_slit_edges(binarr, edgearr, wl, wr, lcent, rcent, gord,
 
 
 def pca_pixel_slit_edges(binarr, edgearr, lcoeff, rcoeff, ldiffarr, rdiffarr,
-                         lnmbrarr, rnmbrarr, lwghtarr, rwghtarr, lcent, rcent, plxbin):
+                         lnmbrarr, rnmbrarr, lwghtarr, rwghtarr, lcent, rcent, plxbin,
+                         settings):
 
     minvf, maxvf = plxbin[0, 0], plxbin[-1, 0]
     maskord = np.where((np.all(lcoeff, axis=0) == False) | (np.all(rcoeff, axis=0) == False))[0]
@@ -3203,7 +3205,7 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
             lnmbrarr = np.append(lnmbrarr, np.zeros(armax-almax))
             lwghtarr = np.append(lwghtarr, np.zeros(armax-almax))
 
-    # import astropy.io.fits as pyfits        minvf, maxvf = plxbin[0, 0], plxbin[-1, 0]
+    # import astropy.io.fits as pyfits
     # hdu = pyfits.PrimaryHDU(edgearr)
     # hdu.writeto("edgearr_{0:02d}.fits".format(det))
 
