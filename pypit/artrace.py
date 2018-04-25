@@ -353,8 +353,6 @@ def new_expand_slits(msedge, ordcen, extord):
     pordwid[:,extord.astype(bool)] = -1
 
     # Set left edges to ignore
-    i,j = np.meshgrid(np.arange(sz_x), np.arange(sz_o-1), indexing='ij')
-
     lindx = (mid_order < 0) | (msedge[np.arange(sz_x)[:,None],ordcen[:,1:]] \
                                     < msedge[np.arange(sz_x)[:,None],mid_order])
     lindx = np.append(np.ones(sz_x, dtype=bool).reshape(-1,1), lindx, axis=1)
@@ -366,12 +364,11 @@ def new_expand_slits(msedge, ordcen, extord):
     rindx = np.append(rindx, np.ones(sz_x, dtype=bool).reshape(-1,1), axis=1)
     pordwid[rindx] = -1
 
+    # Find the separation between orders
     medgv = 0.5*(msedge[np.arange(sz_x)[:,None],ordcen[:,1:]] \
                     + msedge[np.arange(sz_x)[:,None],mid_order])
     pedgv = 0.5*(msedge[np.arange(sz_x)[:,None],ordcen[:,:-1]] \
                     + msedge[np.arange(sz_x)[:,None],mid_order])
-
-    # Find the separation between orders
     for o in range(sz_o):
         for x in range(sz_x):
             # Trace from centre to left
