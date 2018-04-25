@@ -2630,7 +2630,8 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
     slf
     det
     msarc
-    slitnum
+    slitnum : int
+      Slit number, here indexed from 0
     censpec
     maskval
     trthrsh
@@ -2680,7 +2681,7 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
                 break
     # Restricted to ID lines? [introduced to avoid LRIS ghosts]
     if settings.argflag['trace']['slits']['tilts']['idsonly']:
-        ids_pix = np.round(np.array(slf._wvcalib[det-1]['xfit'])*(msarc.shape[0]-1))
+        ids_pix = np.round(np.array(slf._wvcalib[det-1][str(slitnum)]['xfit'])*(msarc.shape[0]-1))
         idxuse = np.arange(arcdet.size)[aduse]
         for s in idxuse:
             if np.min(np.abs(arcdet[s]-ids_pix)) > 2:
