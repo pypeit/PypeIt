@@ -38,6 +38,8 @@ try:
 except NameError:
     ustr = str
 
+# Testing
+import time
 
 def assign_slits(binarr, edgearr, ednum=100000, lor=-1):
     """This routine will trace the locations of the slit edges
@@ -310,8 +312,18 @@ def expand_slits(slf, mstrace, det, ordcen, extord):
     # Calculate the pixel locations of th eorder edges
     pixcen = phys_to_pix(ordcen, slf._pixlocn[det - 1], 1)
     msgs.info("Expanding slit traces to slit edges")
-#    exit()
-    mordwid, pordwid = arcytrace.expand_slits(mstrace, pixcen, extord.astype(np.int))
+#    t = time.clock()
+#    _mordwid, _pordwid = arcytrace.expand_slits(mstrace, pixcen, extord.astype(int))
+#    print('Old expand_slits: {0} seconds'.format(time.clock() - t))
+#    t = time.clock()
+    mordwid, pordwid = new_expand_slits(mstrace, pixcen, extord.astype(int))
+# TODO: old and new expand_slits do not produce the same result.  There
+# was a bug in the old version, but we need to continue to check that
+# this version gives good results.
+#    print('New expand_slits: {0} seconds'.format(time.clock() - t))
+#    assert np.sum(_mordwid != mordwid) == 0, 'Difference between old and new expand_slits, mordwid'
+#    assert np.sum(_pordwid != pordwid) == 0, 'Difference between old and new expand_slits, pordwid'
+
     # Fit a function for the difference between left edge and the centre trace
     ldiff_coeff, ldiff_fit = arutils.polyfitter2d(mordwid, mask=-1,
                                                   order=settings.argflag['trace']['slits']['diffpolyorder'])
@@ -321,6 +333,61 @@ def expand_slits(slf, mstrace, det, ordcen, extord):
     lordloc = ordcen - ldiff_fit.T
     rordloc = ordcen + rdiff_fit.T
     return lordloc, rordloc
+
+
+def new_expand_slits(msedge, ordcen, extord):
+
+    t = time.clock()
+    sz_x, sz_y = msedge.shape
+    sz_o = ordcen.shape[1]
+
+    # Get the pixels at the mid-point between orders
+    mid_order = (ordcen[:,:-1] + ordcen[:,1:])//2
+
+    # Instantiate the output
+    pordwid = np.zeros(ordcen.shape, dtype=int)
+    mordwid = np.zeros(ordcen.shape, dtype=int)
+
+    # Ignore extracted orders
+    mordwid[:,extord.astype(bool)] = -1
+    pordwid[:,extord.astype(bool)] = -1
+
+    # Set left edges to ignore
+    lindx = (mid_order < 0) | (msedge[np.arange(sz_x)[:,None],ordcen[:,1:]] \
+                                    < msedge[np.arange(sz_x)[:,None],mid_order])
+    lindx = np.append(np.ones(sz_x, dtype=bool).reshape(-1,1), lindx, axis=1)
+    mordwid[lindx] = -1
+
+    # Set right edges to ignore
+    rindx = (mid_order >= sz_y) | (msedge[np.arange(sz_x)[:,None],ordcen[:,:-1]] \
+                                    < msedge[np.arange(sz_x)[:,None],mid_order])
+    rindx = np.append(rindx, np.ones(sz_x, dtype=bool).reshape(-1,1), axis=1)
+    pordwid[rindx] = -1
+
+    # Find the separation between orders
+    medgv = 0.5*(msedge[np.arange(sz_x)[:,None],ordcen[:,1:]] \
+                    + msedge[np.arange(sz_x)[:,None],mid_order])
+    pedgv = 0.5*(msedge[np.arange(sz_x)[:,None],ordcen[:,:-1]] \
+                    + msedge[np.arange(sz_x)[:,None],mid_order])
+    for o in range(sz_o):
+        for x in range(sz_x):
+            # Trace from centre to left
+            if mordwid[x,o] != -1:
+                mordwid[x,o] = -1
+                for y in range(mid_order[x,o-1], ordcen[x, o]):
+                    if msedge[x,y] > medgv[x,o-1]:
+                        mordwid[x,o] = ordcen[x,o] - y
+                        break
+
+            # Trace from centre to right
+            if pordwid[x,o] != -1:
+                pordwid[x,o] = -1
+                for y in range(mid_order[x,o], ordcen[x, o], -1):
+                    if msedge[x,y] > pedgv[x,o]:
+                        pordwid[x,o] = y-ordcen[x, o]
+                        break
+
+    return mordwid, pordwid
 
 
 def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=None, trimr=None):
@@ -1350,27 +1417,27 @@ def new_phys_to_pix(array, diff):
         msgs.error('Input difference array must be 1D!')
     _array = np.atleast_2d(array)
     doravel = len(array.shape) != 2
-    pix = np.argmin(np.absolute(_array[:,:,None] - diff[None,None,:]), axis=2)
+    pix = np.argmin(np.absolute(_array[:,:,None] - diff[None,None,:]), axis=2).astype(int)
     return pix.ravel() if doravel else pix
 
-    sz_a, sz_n = _array.shape
-    sz_d = diff.size
-
-    pix = np.zeros((sz_a,sz_n), dtype=int)
-    for n in range(0,sz_n):
-        for a in range(0,sz_a):
-            mind = 0
-            mindv = _array[a,n]-diff[0]
-
-            for d in range(1,sz_d):
-                test = _array[a,n]-diff[d]
-                if test < 0.0: test *= -1.0
-                if test < mindv:
-                    mindv = test
-                    mind = d
-                if _array[a,n]-diff[d] < 0.0: break
-            pix[a,n] = mind
-    return pix.ravel() if doravel else pix
+#    sz_a, sz_n = _array.shape
+#    sz_d = diff.size
+#
+#    pix = np.zeros((sz_a,sz_n), dtype=int)
+#    for n in range(0,sz_n):
+#        for a in range(0,sz_a):
+#            mind = 0
+#            mindv = _array[a,n]-diff[0]
+#
+#            for d in range(1,sz_d):
+#                test = _array[a,n]-diff[d]
+#                if test < 0.0: test *= -1.0
+#                if test < mindv:
+#                    mindv = test
+#                    mind = d
+#                if _array[a,n]-diff[d] < 0.0: break
+#            pix[a,n] = mind
+#    return pix.ravel() if doravel else pix
 
 # Weighted boxcar smooothing with rejection
 def new_smooth_x(array, weight, fact, rejhilo, maskval):
@@ -2115,6 +2182,7 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     mnvalp = np.median(binarr[:, lv+1])  # Go one row above and one row below an order edge,
     mnvalm = np.median(binarr[:, lv-1])  # then see which mean value is greater.
 
+
     """
     lvp = (arutils.func_val(lcoeff[:,lval+1-lmin],xv,settings.argflag['trace']['slits']['function'],min=minvf,max=maxvf)+0.5).astype(np.int)
     edgbtwn = arcytrace.find_between(edgearr,lv,lvp,1)
@@ -2284,6 +2352,8 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
                                   settings.argflag['trace']['slits']['polyorder'], minv=minvf, maxv=maxvf)
         for i in range(ordsnd.size):
             if i in maskord:
+                if (i>=ordsnd[0]) and (i<ordsnd[-1]-1):  # JXP: Don't add orders that are already in there
+                    continue
                 coeffs = np.insert(coeffs, i, 0.0, axis=1)
                 slitcen = np.insert(slitcen, i, 0.0, axis=1)
                 lcent = np.insert(lcent, i, 0.0, axis=0)
@@ -2445,6 +2515,181 @@ def trace_slits(slf, mstrace, det, pcadesc="", maskBadRows=False, min_sqm=30.):
     if settings.argflag['run']['qa']:
         msgs.work("Not yet setup with ginga")
     return lcenint, rcenint, extrapord
+
+
+# TODO: Just a 1-1 mapping of the cython function to python.  Needs to
+# be tested!!
+def new_close_edges(edgdet, dets, npix):
+    sz_x, sz_y = edgdet.shape
+    sz_d = dets.size
+
+    hasedge = np.zeros(sz_d, dtype=int)
+
+    for d in range(sz_d):
+        for x in range(sz_x):
+            for y in range(sz_y):
+                if edgdet[x,y] != dets[d]:
+                    continue
+                else:
+                    # Check if there's an edge nearby
+                    mgap = sz_y if y+npix+1 > sz_y else y+npix+1
+                    for s in range(y+1, mgap):
+                        if edgdet[x,s] == dets[d]:
+                            hasedge[d] = 1
+                            break
+                if hasedge[d] != 0:
+                    break
+            if hasedge[d] != 0:
+                break
+    return hasedge
+
+
+# TODO: Just a 1-1 mapping of the cython function to python.  Needs to
+# be tested!!
+def new_close_slits(trframe, edgdet, dets, npix, ednum):
+
+    sz_x, sz_y = edgdet.shape
+    sz_d = dets.size
+
+    edgearr = np.zeros(edgdet.shape, dtype=int)
+    hasedge = np.zeros(sz_d, dtype=int)
+
+    for d in range(sz_d):
+        tmp = sz_y
+        for x in range(sz_x):
+            for y in range(sz_y):
+                if edgdet[x, y] != dets[d]:
+                    continue
+                else:
+                    # Check if there's an edge nearby
+                    mgap = sz_y if y+npix+1 > sz_y else y+npix+1
+                    for s in range(y+1, mgap):
+                        if edgdet[x,s] != 0:
+                            if s-y < tmp:
+                                tmp = s-y
+                                tix = edgdet[x,s]
+                            hasedge[d] = edgdet[x,s]
+                            break
+        if tmp != sz_y:
+            hasedge[d] = tix
+
+    # Now, if there's an edge in hasedge, mark the corresponding index
+    # in hasedge with -1
+    for d in range(sz_d):
+        if hasedge[d] == dets[d]:
+            # Close slits have caused a left/right edge to be labelled
+            # as one edge. Find only instances where there is a left and
+            # right edge detection. Then, take their average and set
+            # hadedge to be zero
+            tmp = 0
+            diff = 0
+            for x in range(sz_x):
+                for y in range(sz_y):
+                    if edgdet[x,y] != dets[d]:
+                        continue
+                    else:
+                        # Check if there's an edge nearby
+                        mgap = sz_y if y+npix+1 > sz_y else y+npix+1
+                        flg = 0
+                        for s in range(y+1, mgap):
+                            if edgdet[x,s] == edgdet[x,y]:
+                                edgdet[x,s] = 0
+                                edgdet[x,y] = 0
+                                # +0.5 for rounding
+                                tix = y + int(0.5*(s-y) + 0.5)
+                                edgdet[x,tix] = dets[d]
+                                flg = 1
+                                tmp += 1
+                                diff += (s-y)
+                                break
+                        if flg == 0:
+                            # If there isn't a common left/right edge
+                            # for this pixel, ignore this single edge
+                            # detection
+                            edgdet[x,y] = 0
+            hasedge[d] = diff/tmp
+            continue
+        if hasedge[d] > 0:
+            for s in range(sz_d):
+                if hasedge[d] == dets[s]:
+                    hasedge[s] = -1
+                    break
+
+    # Introduce an edge in cases where no edge exists, and redefine an
+    # edge where one does exist.
+    enum = ednum
+    for d in range(sz_d):
+        tmp = 0
+        for x in range(sz_x):
+            for y in range(sz_y):
+                if edgdet[x,y] != dets[d]:
+                    continue
+                if hasedge[d] >= ednum:
+                    edgearr[x,y] = enum
+                    # Relabel the appropriate hasedge
+                    if tmp == 0:
+                        for s in range(sz_d):
+                            if hasedge[d] == dets[s]:
+                                # Label hasedge as negative, to avoid
+                                # confusion with the positive hasedge
+                                # numbers
+                                hasedge[s] = -enum
+                                tmp = 1
+                                break
+                elif hasedge[d] < -1:
+                    edgearr[x, y] = hasedge[d]
+                elif hasedge[d] >= 0:
+                    # Create a new edge
+                    edgearr[x, y-(1+hasedge[d])] = enum
+                    edgearr[x, y+(1+hasedge[d])] = -enum
+                else:
+                    msgs.bug('Check slit traces in close_slits!')
+        if hasedge[d] >= 0:
+            enum += 1
+    # Finally return the new slit edges array
+    return edgearr
+
+
+def new_dual_edge(edgearr, edgearrcp, wx, wy, wl, wr, shft, npix, newval):
+
+    sz_x, sz_y = edgearr.shape
+    sz_a = wl.shape[0]
+    sz_b = wr.shape[0]
+    sz_e = wx.shape[0]
+
+    # First go through the leftmost edge (suffix a)
+    for x in range(sz_a):
+        for ee in range(sz_e):
+            if edgearr[wx[ee], wy[ee]] == wl[x]:
+                # Update the value given to this edge
+                edgearrcp[wx[ee], wy[ee]] = newval
+                # Determine if an edge can be placed in this row
+                maxy = npix
+                if wy[ee] + maxy >= sz_y:
+                    maxy = sz_y - wy[ee] - 1
+                flg = 0
+                for y in range(1, maxy):
+                    if edgearrcp[wx[ee], wy[ee]+y] != 0:
+                        flg = 1
+                if flg == 0:
+                    edgearrcp[wx[ee], wy[ee]+shft] = newval+1
+
+    # Now go through the rightmost edge (suffix b)
+    for x in range(sz_b):
+        for ee in range(sz_e):
+            if edgearr[wx[ee], wy[ee]] == wr[x]:
+                # Update the value given to this edge
+                edgearrcp[wx[ee], wy[ee]] = newval + 1
+                # Determine if an edge can be placed in this row
+                maxy = npix
+                if wy[ee] - maxy < 0:
+                    maxy = wy[ee] + 1
+                flg = 0
+                for y in range(1, maxy):
+                    if edgearrcp[wx[ee], wy[ee]-y] != 0:
+                        flg = 1
+                if flg == 0:
+                    edgearrcp[wx[ee], wy[ee]-shft] = newval
 
 
 def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
