@@ -1,3 +1,8 @@
+"""
+
+
+
+"""
 
 from __future__ import division
 from __future__ import print_function
@@ -5,8 +10,10 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import inspect
-from .parset import ParSet
+
 from configobj import ConfigObj
+
+from .parset import ParSet
 
 #-----------------------------------------------------------------------------
 # Helper functions
