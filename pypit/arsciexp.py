@@ -406,8 +406,9 @@ class ScienceExposure:
                         arproc.slit_profile(self, self.GetMasterFrame("pixelflat", det),
                                             det, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
                     # If some slit profiles/blaze functions need to be extrapolated, do that now
-                    if np.sum(extrap_slit) != 0.0:
-                        slit_profiles, mstracenrm, msblaze = arproc.slit_profile_pca(self, self.GetMasterFrame("pixelflat", det), det, msblaze, extrap_slit, slit_profiles)
+                    if False:  # This is not a good idea for multislit, JXP thinks..
+                        if np.sum(extrap_slit) != 0.0:
+                            slit_profiles, mstracenrm, msblaze = arproc.slit_profile_pca(self, self.GetMasterFrame("pixelflat", det), det, msblaze, extrap_slit, slit_profiles)
                     mspixelflatnrm = mstracenrm.copy()
                     winpp = np.where(slit_profiles != 0.0)
                     mspixelflatnrm[winpp] /= slit_profiles[winpp]

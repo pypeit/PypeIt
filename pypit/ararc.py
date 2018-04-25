@@ -348,7 +348,7 @@ def setup_param(slf, sc, det, fitsdict):
     return arcparam
 
 
-def simple_calib(slf, det, get_poly=False):
+def simple_calib(slf, det, get_poly=False, censpec=None):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
@@ -366,7 +366,7 @@ def simple_calib(slf, det, get_poly=False):
 
     # Extract the arc
     msgs.work("Detecting lines..")
-    tampl, tcent, twid, w, satsnd, yprep = detect_lines(slf, det, slf._msarc[det-1])
+    tampl, tcent, twid, w, satsnd, yprep = detect_lines(slf, det, slf._msarc[det-1], censpec=censpec)
 
     # Cut down to the good ones
     tcent = tcent[w]
