@@ -62,6 +62,7 @@
 - Improve cookbook and setup docs
 - Faster algorithm for defining object and background regions
 - Restore armsgs -d functionality
+- Finished cython to python conversions, but more testing needed
 - Introduce maskslits array (could be called maskorders)
 - Actually enable multi-slit reduction
 - Bug fixes in trace_slits
