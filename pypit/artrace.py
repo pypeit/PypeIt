@@ -30,7 +30,6 @@ try:
 except ImportError:
     pass
 
-from pypit import arcyarc
 from pypit import arcytrace
 
 try:
@@ -41,6 +40,8 @@ except NameError:
 
 def assign_slits(binarr, edgearr, ednum=100000, lor=-1, isettings=None):
     """This routine will trace the locations of the slit edges
+    Putative edges come in with |values| > 200000 (in the edgearr)
+    and leave (ideally) with values near ednum
 
     Parameters
     ----------
@@ -77,6 +78,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1, isettings=None):
         cmnold = None
         firstpass = True
         while True:
+            # Array to hold edge information
             edgehist = np.zeros(binarr.shape[1]*2, dtype=np.int)
             itnm += 1
             # Locate edges relative to the most common edge
@@ -88,7 +90,8 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1, isettings=None):
                 break
             cl = Counter(edg for edg in edgearr[wl])
             comml = cl.most_common(1)
-            ww = np.where(edgearr == comml[0][0])
+            # Pixels of the most common edge
+            common_pix = np.where(edgearr == comml[0][0])
             if not firstpass:
                 if (cmnold[0] == comml[0][0]) and (cmnold[1] == comml[0][1]):
                     # Nothing has changed since the previous iteration, so end the loop
@@ -96,30 +99,33 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1, isettings=None):
                 if comml[0][1] < binarr.shape[0]/100.0:
                     # Now considering an edge that spans less than 1 per cent of the detector ---> insignificant
                     break
+            # Save
             cmnold = comml[0]
             # Extract just these elements
-            tedgearr = edgearr[ww[0], :]
-            # Calculate the offset
+            tedgearr = edgearr[common_pix[0], :]
+            # Set the offset
             offs = binarr.shape[1]
             # Add these into edgehist
-            edgehist[offs] = np.sum(binarr[ww])#ww[0].size
+            edgehist[offs] = np.sum(binarr[common_pix])#common_pix[0].size
             # And a fudge to give this edge detection some width (for peak finding, below)
-            edgehist[offs-1] = 1 + ww[0].size/2
-            edgehist[offs+1] = 1 + ww[0].size/2
+            edgehist[offs-1] = 1 + common_pix[0].size/2
+            edgehist[offs+1] = 1 + common_pix[0].size/2
             # Find the difference between unknown edges
-            if lor == -1:
+            if lor == -1:  # Left edges
                 www = np.where(tedgearr <= -2*ednum)
             else:
                 www = np.where(tedgearr >= 2*ednum)
             if www[0].size == 0:
                 break
-            shft = www[1] - ww[1][www[0]]  # Calculate the shift between right edges
+            shft = www[1] - common_pix[1][www[0]]  # Calculate the shift between right edges
             shft += offs  # Apply the offset to the edgehist arr
             #np.add.at(edgehist, shft, 1)
-            np.add.at(edgehist, shft, binarr[ww[0], :][www])
+            # Insert other edges into edgehist
+            np.add.at(edgehist, shft, binarr[common_pix[0], :][www])
             # Smooth the histogram with a Gaussian of standard deviation 1 pixel to reduce noise
             smedgehist = ndimage.uniform_filter1d(edgehist, 3)
             # Identify peaks (which indicate the locations of the right slit edges)
+            #   Might consider another peak-finding algorithm, e.g. the one used for arc lines
             arrlfr = smedgehist[0:-4]
             arrlft = smedgehist[1:-3]
             arrcen = smedgehist[2:-2]
@@ -131,7 +137,7 @@ def assign_slits(binarr, edgearr, ednum=100000, lor=-1, isettings=None):
                 # No more peaks
                 break
             if wpk.size != 1:
-                wpkmsk = prune_peaks(smedgehist, wpk, np.where(wpk+2 == offs)[0][0])
+                wpkmsk = prune_peaks(smedgehist, wpk, np.where(wpk+2 == offs)[0][0])#, debug=debug)
                 wpk = wpk[np.where(wpkmsk == 1)]
             if wpk.size == 0:
                 # After pruning, there are no more peaks
@@ -1122,7 +1128,12 @@ def new_find_peak_limits(hist, pks):
     """
     Find all values between the zeros of hist
 
-    hist and pks are expected to be 1d vectors
+    Parameters
+    ----------
+    hist : ndarray
+      1D vector
+    pks : ndarray
+      1D vector
     """
     if len(hist.shape) != 1 or len(pks.shape) != 1:
         msgs.error('Arrays provided to find_peak_limits must be vectors.')
@@ -1737,10 +1748,13 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
         sqmstrace[(sqmstrace > -1.0) & (sqmstrace <= 0.0)] = -1.0
         # Apply a Sobel filter
         filt = ndimage.sobel(sqmstrace, axis=1, mode=settings['trace']['slits']['sobel']['mode'])
+        filt *= (1.0 - binbpx)  # Apply to the bad pixel mask
+        '''
         ksize = 3
         kern = np.concatenate([-(np.arange(ksize)+1), (np.arange(ksize)+1)[::-1]]) / (2.*ksize)
         filt3 = ndimage.convolve1d(sqmstrace, kern, axis=1, mode=settings['trace']['slits']['sobel']['mode'])
-        # Replace bad columns -- should put this method somewhere
+        '''
+        # Replace bad columns -- should put this method somewhere else
         ms2 = mstrace.copy()
         bad_cols = np.sum(binbpx, axis=0) == binbpx.shape[0]
         if np.any(bad_cols):
@@ -1759,9 +1773,9 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
         sqmstrace2 = np.sqrt(np.abs(ms2))
         filt2 = ndimage.sobel(sqmstrace2, axis=1, mode=settings['trace']['slits']['sobel']['mode'])
         filt2 *= (1.0 - binbpx)  # Apply to the bad pixel mask
+        # siglev
         siglev = np.sign(filt2)*(filt2**2)/np.maximum(sqmstrace2, min_sqm)
         '''
-        filt *= (1.0 - binbpx)  # Apply to the bad pixel mask
         siglev = np.sign(filt)*(filt**2)/np.maximum(sqmstrace, min_sqm)
         '''
         tedges = np.zeros(binarr.shape, dtype=np.float)
@@ -1998,6 +2012,7 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
 #        print('calling close_slits')
 #        exit()
         edgearrcp = arcytrace.close_slits(binarr, edgearrcp, vals, int(settings['trace']['slits']['maxgap']))
+
     # Update edgearr
     edgearr = edgearrcp.copy()
     iterate = True
@@ -2050,6 +2065,7 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
     else:
         retxt = "edges"
     msgs.info("{0:d} left {1:s} and {2:d} right {3:s} were found in the trace".format(lcnt, letxt, rcnt, retxt))
+
     while iterate:
         # Calculate the minimum and maximum left/right edges
         ww = np.where(edgearr < 0)
@@ -3773,9 +3789,9 @@ def phys_to_pix(array, pixlocn, axis):
     return pixarr
 
 
-def prune_peaks(hist, pks, pkidx):
-    """
-    Identify the most well defined peaks
+def prune_peaks(hist, pks, pkidx, debug=False):
+    """ Identify the most well defined peaks
+    And prune peaks too close to one another
 
     Parameters
     ----------
@@ -3802,8 +3818,7 @@ def prune_peaks(hist, pks, pkidx):
         for jj in range(pks[ii], pks[ii+1]):
             if hist[jj] == 0:
                 cnt += 1
-        if cnt < 2:
-            # If the difference is unacceptable, both peaks are bad
+        if cnt < 2:  # Two peaks too close to each other.  Should we really eliminate both??
             msk[ii] = 0
             msk[ii+1] = 0
             lgd = 0
@@ -3814,19 +3829,29 @@ def prune_peaks(hist, pks, pkidx):
                 msk[ii] = 1
             msk[ii+1] = 1
             lgd = 1
+    if debug:
+        debugger.set_trace()
+
+    '''
     # Now only consider the peaks closest to the highest peak
     lgd = 1
+    # If the highest peak was zeroed out, this will zero out everyone!
     for ii in range(pkidx, sz_i):
         if msk[ii] == 0:
             lgd = 0
         elif lgd == 0:
             msk[ii] = 0
     lgd = 1
+    # If the highest peak was zeroed out, this will zero out everyone!
     for ii in range(0, pkidx):
         if msk[pkidx-ii] == 0:
             lgd = 0
         elif lgd == 0:
             msk[pkidx-ii] = 0
+    '''
+    if debug:
+        debugger.set_trace()
+
     return msk
 
 
