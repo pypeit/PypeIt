@@ -2440,6 +2440,38 @@ def sub_overscan(frame, numamplifiers, datasec, oscansec, settings=None):
     return frame
 
 
+def replace_columns(img, bad_cols, replace_with='mean'):
+    """ Replace bad columns
+    Parameters
+    ----------
+    img : ndarray
+    bad_cols: ndarray (bool, 1D, shape[1] of img)
+      True = bad column
+    replace_with : str, optional
+
+    Returns
+    -------
+    img2 : ndarray
+      Copy of the image
+    """
+    img2 = img.copy()
+    tmp = np.zeros(img.shape[1]).astype(int)
+    tmp[bad_cols] = 1
+    tmp2 = tmp - np.roll(tmp,1)
+    ledges = np.where(tmp2 == 1)[0]
+    redges = np.where(tmp2 == -1)[0]
+    for kk, ledge in enumerate(ledges):
+        lval = img[:,ledge-1]
+        rval = img[:,redges[kk]]
+        if replace_with == 'mean':
+            mval = (lval+rval)/2.
+            for ii in range(ledge, redges[kk]):
+                img2[:,ii] = mval
+        else:
+            msgs.error("Bad option to replace_columns")
+    # Return
+    return img2
+
 def trim(frame, numamplifiers, datasec):
     #dnum = settings.get_dnum(det)
     #for i in range(settings.spect[dnum]['numamplifiers']):
