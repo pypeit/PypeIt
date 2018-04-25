@@ -37,7 +37,7 @@ class MasterFrames:
         self._tilts    = [None for all in range(ndet)]   # Array of spectral tilts at each position on the detector
         self._satmask  = [None for all in range(ndet)]   # Array of Arc saturation streaks
         self._arcparam = [None for all in range(ndet)]   #
-        self._wvcalib  = [None for all in range(ndet)]   # Was a dict, now a list of dicts, one per slit
+        self._wvcalib  = [None for all in range(ndet)]   # List of dicts
         self._resnarr  = [None for all in range(ndet)]   # Resolution array
         # Initialize the Master Calibration frames
         self._bpix = [None for all in range(ndet)]          # Bad Pixel Mask
