@@ -37,7 +37,7 @@ class MasterFrames:
         self._tilts    = [None for all in range(ndet)]   # Array of spectral tilts at each position on the detector
         self._satmask  = [None for all in range(ndet)]   # Array of Arc saturation streaks
         self._arcparam = [None for all in range(ndet)]   #
-        self._wvcalib  = [None for all in range(ndet)]   #
+        self._wvcalib  = [None for all in range(ndet)]   # List of dicts
         self._resnarr  = [None for all in range(ndet)]   # Resolution array
         # Initialize the Master Calibration frames
         self._bpix = [None for all in range(ndet)]          # Bad Pixel Mask
@@ -61,6 +61,7 @@ def master_name(ftype, setup, mdir=None):
     Parameters
     ----------
     ftype
+    setup : str
     mdir : str, optional
       Master directory; usually taken from settings
 
@@ -129,6 +130,8 @@ def get_master_frame(slf, mftype, det=None):
                 slf.SetFrame(slf._lordpix, lordpix.astype(np.int), det)
                 slf.SetFrame(slf._rordpix, rordpix.astype(np.int), det)
                 slf.SetFrame(slf._slitpix, slitpix.astype(np.int), det)
+                # Mask -- It is assumed that all slits loaded are ok
+                slf._maskslits[det-1] = np.array([False] * slf._lordloc[det-1].shape[1])
             # Append as loaded
             settings.argflag['reduce']['masters']['loaded'].append(mftype+setup)
             return msfile
@@ -191,6 +194,7 @@ def save_masters(slf, det, mftype='all'):
         arsave.save_master(slf, slf._mswave[det-1],
                            filename=master_name('wave', setup),
                            frametype='wave')
+    if (mftype in ['wv_calib', 'all']) and ('wv_calib'+setup not in settings.argflag['reduce']['masters']['loaded']):
         # Wavelength fit
         gddict = linetools.utils.jsonify(slf._wvcalib[det-1])
         json_file = master_name('wv_calib', setup)

@@ -14,7 +14,7 @@ from matplotlib import cm, font_manager
 from astropy.io import fits
 from astropy.stats import sigma_clip
 from astropy.convolution import convolve, Gaussian1DKernel
-
+from pypit import ardebug as debugger
 from pypit import msgs
 from pypit import arqa
 from pypit import arplot
@@ -33,11 +33,15 @@ except ImportError:
 
 from pypit import arcytrace
 
+
+
 try:
     ustr = unicode
 except NameError:
     ustr = str
 
+# Testing
+import time
 
 def assign_slits(binarr, edgearr, ednum=100000, lor=-1, isettings=None):
     """This routine will trace the locations of the slit edges
@@ -320,8 +324,18 @@ def expand_slits(slf, mstrace, det, ordcen, extord):
     # Calculate the pixel locations of th eorder edges
     pixcen = phys_to_pix(ordcen, slf._pixlocn[det - 1], 1)
     msgs.info("Expanding slit traces to slit edges")
-#    exit()
-    mordwid, pordwid = arcytrace.expand_slits(mstrace, pixcen, extord.astype(np.int))
+#    t = time.clock()
+#    _mordwid, _pordwid = arcytrace.expand_slits(mstrace, pixcen, extord.astype(int))
+#    print('Old expand_slits: {0} seconds'.format(time.clock() - t))
+#    t = time.clock()
+    mordwid, pordwid = new_expand_slits(mstrace, pixcen, extord.astype(int))
+# TODO: old and new expand_slits do not produce the same result.  There
+# was a bug in the old version, but we need to continue to check that
+# this version gives good results.
+#    print('New expand_slits: {0} seconds'.format(time.clock() - t))
+#    assert np.sum(_mordwid != mordwid) == 0, 'Difference between old and new expand_slits, mordwid'
+#    assert np.sum(_pordwid != pordwid) == 0, 'Difference between old and new expand_slits, pordwid'
+
     # Fit a function for the difference between left edge and the centre trace
     ldiff_coeff, ldiff_fit = arutils.polyfitter2d(mordwid, mask=-1,
                                                   order=settings.argflag['trace']['slits']['diffpolyorder'])
@@ -331,6 +345,61 @@ def expand_slits(slf, mstrace, det, ordcen, extord):
     lordloc = ordcen - ldiff_fit.T
     rordloc = ordcen + rdiff_fit.T
     return lordloc, rordloc
+
+
+def new_expand_slits(msedge, ordcen, extord):
+
+    t = time.clock()
+    sz_x, sz_y = msedge.shape
+    sz_o = ordcen.shape[1]
+
+    # Get the pixels at the mid-point between orders
+    mid_order = (ordcen[:,:-1] + ordcen[:,1:])//2
+
+    # Instantiate the output
+    pordwid = np.zeros(ordcen.shape, dtype=int)
+    mordwid = np.zeros(ordcen.shape, dtype=int)
+
+    # Ignore extracted orders
+    mordwid[:,extord.astype(bool)] = -1
+    pordwid[:,extord.astype(bool)] = -1
+
+    # Set left edges to ignore
+    lindx = (mid_order < 0) | (msedge[np.arange(sz_x)[:,None],ordcen[:,1:]] \
+                                    < msedge[np.arange(sz_x)[:,None],mid_order])
+    lindx = np.append(np.ones(sz_x, dtype=bool).reshape(-1,1), lindx, axis=1)
+    mordwid[lindx] = -1
+
+    # Set right edges to ignore
+    rindx = (mid_order >= sz_y) | (msedge[np.arange(sz_x)[:,None],ordcen[:,:-1]] \
+                                    < msedge[np.arange(sz_x)[:,None],mid_order])
+    rindx = np.append(rindx, np.ones(sz_x, dtype=bool).reshape(-1,1), axis=1)
+    pordwid[rindx] = -1
+
+    # Find the separation between orders
+    medgv = 0.5*(msedge[np.arange(sz_x)[:,None],ordcen[:,1:]] \
+                    + msedge[np.arange(sz_x)[:,None],mid_order])
+    pedgv = 0.5*(msedge[np.arange(sz_x)[:,None],ordcen[:,:-1]] \
+                    + msedge[np.arange(sz_x)[:,None],mid_order])
+    for o in range(sz_o):
+        for x in range(sz_x):
+            # Trace from centre to left
+            if mordwid[x,o] != -1:
+                mordwid[x,o] = -1
+                for y in range(mid_order[x,o-1], ordcen[x, o]):
+                    if msedge[x,y] > medgv[x,o-1]:
+                        mordwid[x,o] = ordcen[x,o] - y
+                        break
+
+            # Trace from centre to right
+            if pordwid[x,o] != -1:
+                pordwid[x,o] = -1
+                for y in range(mid_order[x,o], ordcen[x, o], -1):
+                    if msedge[x,y] > pedgv[x,o]:
+                        pordwid[x,o] = y-ordcen[x, o]
+                        break
+
+    return mordwid, pordwid
 
 
 def trace_objbg_image(slf, det, sciframe, slitn, objreg, bgreg, trim=2, triml=None, trimr=None):
@@ -464,10 +533,51 @@ def trace_object_dict(nobj, traces, object=None, background=None, params=None, t
     return tracelist
 
 
-def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
+def trace_objects_in_slits(slf, det, sciframe, varframe, crmask, doqa=False, **kwargs):
+    """ Wrapper for trace_objects_in_slit
+
+    Parameters
+    ----------
+    slf : SciExposure class
+    det : int
+    sciframe : ndarray
+    varframe : ndarray
+    crmask : ndarray
+    doqa : generate PNG
+    kwargs : optional
+      Passed to trace_objects_in_slit
+
+    Returns
+    -------
+    tracelist : list
+       Contains all the trace information for all slits
+
+    """
+    nslit = len(slf._maskslits[det-1])
+    gdslits = np.where(~slf._maskslits[det-1])[0]
+    tracelist = []
+
+    # Loop on good slits
+    for slit in range(nslit):
+        if slit not in gdslits:
+            tracelist.append({})
+            continue
+        tlist = trace_objects_in_slit(slf, det, slit, sciframe, varframe, crmask, **kwargs)
+        # Append
+        tracelist += tlist
+
+    # QA?
+    if doqa: # and (not msgs._debug['no_qa']):
+        obj_trace_qa(slf, sciframe, det, tracelist, root="object_trace", normalize=False)
+
+    # Return
+    return tracelist
+
+
+def trace_objects_in_slit(slf, det, slitn, sciframe, varframe, crmask, trim=2,
                  triml=None, trimr=None, sigmin=2.0, bgreg=None,
-                 maskval=-999999.9, slitn=0, doqa=True,
-                 xedge=0.03, tracedict=None, standard=False, debug=False):
+                 maskval=-999999.9,
+                 xedge=0.03, standard=False, debug=False):
     """ Finds objects, and traces their location on the detector
 
     Parameters
@@ -476,14 +586,14 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
       An instance of the Science Exposure class
     det : int
       Index of the detector
+    slitn : int
+      Slit (or order) number
     sciframe: numpy ndarray
       Science frame
     varframe: numpy ndarray
       Variance frame
     crmask: numpy ndarray
       Mask or cosmic rays
-    slitn : int
-      Slit (or order) number
     trim : int (optional)
       Number of pixels to trim from the left and right slit edges.
       To separately specify how many pixels to trim from the left
@@ -502,13 +612,11 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
       Trim objects within xedge % of the slit edge
     doqa : bool
       Should QA be output?
-    tracedict : list of dict
-      A list containing a trace dictionary for each slit
 
     Returns
     -------
-    tracedict : dict
-      A dictionary containing the object trace information
+    tracelist : list
+      A single item list which is a dictionary containing the object trace information
     """
     # Find the trace of each object
     tracefunc = settings.argflag['trace']['object']['function']
@@ -757,11 +865,11 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
     # Convert left object trace
     for o in range(nobj):
         trccopy[:, o] = trcfunc[:, o] - cval[o] + objl[o]/(npix-1.0)
-    trobjl = ofst + (diff-triml-trimr)*trccopy
+    #trobjl = ofst + (diff-triml-trimr)*trccopy
     # Convert right object trace
     for o in range(nobj):
         trccopy[:, o] = trcfunc[:, o] - cval[o] + objr[o]/(npix-1.0)
-    trobjr = ofst + (diff-triml-trimr)*trccopy
+    #trobjr = ofst + (diff-triml-trimr)*trccopy
     # Generate an image of pixel weights for each object
     rec_obj_img, rec_bg_img = trace_objbg_image(slf, det, sciframe, slitn,
                                                 [objl, objr], [bckl, bckr],
@@ -773,26 +881,15 @@ def trace_object(slf, det, sciframe, varframe, crmask, trim=2,
             ginga.show_trace(viewer, ch, traces[:, ii], '{:d}'.format(ii), clear=(ii == 0))
         debugger.set_trace()
     # Trace dict
-    tracedict = trace_object_dict(nobj, traces, object=rec_obj_img, background=rec_bg_img,
-                                  params=tracepar, tracelist=tracedict)
+    tracelist = trace_object_dict(nobj, traces, object=rec_obj_img, background=rec_bg_img,
+                                  params=tracepar)
 
-    # Save the quality control
-    if doqa: # and (not msgs._debug['no_qa']):
-        objids = []
-        for ii in range(nobj):
-            objid, xobj = arspecobj.get_objid(slf, det, slitn, ii, tracedict)
-            objids.append(objid)
-#        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, objids, det,
-#                          root="object_trace", normalize=False)
-        obj_trace_qa(slf, sciframe, trobjl, trobjr, objids, det, root="object_trace",
-                     normalize=False)
     # Return
-    return tracedict
+    return tracelist
 
 
-def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
-                 root='trace', normalize=True, desc=""):
-    """ Generate a QA plot for the object trace
+def obj_trace_qa(slf, frame, det, tracelist, root='trace', normalize=True, desc=""):
+    """ Generate a QA plot for the object traces in a single slit
 
     Parameters
     ----------
@@ -804,6 +901,7 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
       Right edge traces
     objids : list
     det : int
+    slit : int
     desc : str, optional
       Title
     root : str, optional
@@ -819,10 +917,11 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
     # Outfile name
     outfile = arqa.set_qa_filename(slf._basename, method, det=det)
     #
-    ntrc = ltrace.shape[1]
     ycen = np.arange(frame.shape[0])
     # Normalize flux in the traces
     if normalize:
+        ntrc = ltrace.shape[1]
+        debugger.set_trace() # NO LONGER SUPPORTED
         nrm_frame = np.zeros_like(frame)
         for ii in range(ntrc):
             xtrc = (ltrace[:,ii] + rtrace[:,ii])/2.
@@ -865,19 +964,26 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
     plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
 
     # Traces
-    iy_mid = int(frame.shape[0] / 2.)
-    iy = np.linspace(iy_mid,frame.shape[0]*0.9,ntrc).astype(int)
-    for ii in range(ntrc):
-        # Left
-        plt.plot(ltrace[:, ii]+0.5, ycen, 'r--', alpha=0.7)
-        # Right
-        plt.plot(rtrace[:, ii]+0.5, ycen, 'c--', alpha=0.7)
-        if objids is not None:
-            # Label
-            # plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
-            lbl = 'O{:03d}'.format(objids[ii])
-            plt.text((ltrace[iy[ii], ii]+rtrace[iy[ii], ii])/2., ycen[iy[ii]],
-                lbl, color='green', ha='center')
+    #iy_mid = int(frame.shape[0] / 2.)
+    #iy = np.linspace(iy_mid,frame.shape[0]*0.9,ntrc).astype(int)
+    for slit, tlist in enumerate(tracelist):
+        if 'nobj' not in tlist.keys():
+            continue
+        for obj_idx in range(tlist['nobj']):
+            obj_img = tlist['object'][:,:,obj_idx].astype(int)
+            objl = np.argmax(obj_img, axis=1)
+            objr = obj_img.shape[1]-np.argmax(np.rot90(obj_img,2), axis=1)-1  # The -1 is for Python indexing
+            #
+            # Left
+            plt.plot(objl, ycen, 'r:', alpha=0.7, lw=0.1)
+            # Right
+            plt.plot(objr, ycen, 'c:', alpha=0.7, lw=0.1)
+        #if objids is not None:
+        #    # Label
+        #    # plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
+        #    lbl = 'O{:03d}'.format(objids[ii])
+        #    plt.text((ltrace[iy[ii], ii]+rtrace[iy[ii], ii])/2., ycen[iy[ii]],
+        #        lbl, color='green', ha='center')
     # Title
     tstamp = arqa.gen_timestamp()
     if desc == "":
@@ -892,7 +998,7 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
 
 
 def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit",
-                   maxp=4, desc="", maskval=-999999.9):
+                   maxp=4, desc="", maskval=-999999.9, slit=None):
     """ Generate a QA plot for the blaze function fit to each slit
     Or the arc line tilts
 
@@ -929,7 +1035,7 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit",
         method += '_Blaze'
     else:
         msgs.bug("Unknown type of order fits.  Currently prepared for Arc and Blaze")
-    outroot = arqa.set_qa_filename(slf.setup, method)
+    outroot = arqa.set_qa_filename(slf.setup, method, slit=slit)
     #
     npix, nord = ydata.shape
     pages, npp = arqa.get_dimen(nord, maxp=maxp)
@@ -1376,27 +1482,27 @@ def new_phys_to_pix(array, diff):
         msgs.error('Input difference array must be 1D!')
     _array = np.atleast_2d(array)
     doravel = len(array.shape) != 2
-    pix = np.argmin(np.absolute(_array[:,:,None] - diff[None,None,:]), axis=2)
+    pix = np.argmin(np.absolute(_array[:,:,None] - diff[None,None,:]), axis=2).astype(int)
     return pix.ravel() if doravel else pix
 
-    sz_a, sz_n = _array.shape
-    sz_d = diff.size
-
-    pix = np.zeros((sz_a,sz_n), dtype=int)
-    for n in range(0,sz_n):
-        for a in range(0,sz_a):
-            mind = 0
-            mindv = _array[a,n]-diff[0]
-
-            for d in range(1,sz_d):
-                test = _array[a,n]-diff[d]
-                if test < 0.0: test *= -1.0
-                if test < mindv:
-                    mindv = test
-                    mind = d
-                if _array[a,n]-diff[d] < 0.0: break
-            pix[a,n] = mind
-    return pix.ravel() if doravel else pix
+#    sz_a, sz_n = _array.shape
+#    sz_d = diff.size
+#
+#    pix = np.zeros((sz_a,sz_n), dtype=int)
+#    for n in range(0,sz_n):
+#        for a in range(0,sz_a):
+#            mind = 0
+#            mindv = _array[a,n]-diff[0]
+#
+#            for d in range(1,sz_d):
+#                test = _array[a,n]-diff[d]
+#                if test < 0.0: test *= -1.0
+#                if test < mindv:
+#                    mindv = test
+#                    mind = d
+#                if _array[a,n]-diff[d] < 0.0: break
+#            pix[a,n] = mind
+#    return pix.ravel() if doravel else pix
 
 # Weighted boxcar smooothing with rejection
 def new_smooth_x(array, weight, fact, rejhilo, maskval):
@@ -1763,6 +1869,9 @@ def driver_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
         elif np.max(rcen[:, o]) < 0:
             mask[o] = 1
             msgs.info("Slit {0:d} is off the detector - ignoring this slit".format(o + 1))
+        if np.median(rcen[:,o]-lcen[:,o]) < fracpix:
+            mask[o] = 1
+            msgs.info("Slit {0:d} is less than fracignore - ignoring this slit".format(o + 1))
     wok = np.where(mask == 0)[0]
     lcen = lcen[:, wok]
     rcen = rcen[:, wok]
@@ -2361,6 +2470,8 @@ def pca_order_slit_edges(binarr, edgearr, wl, wr, lcent, rcent, gord,
                               settings['trace']['slits']['polyorder'], minv=minvf, maxv=maxvf)
     for i in range(ordsnd.size):
         if i in maskord:
+            if (i>=ordsnd[0]) and (i<ordsnd[-1]-1):  # JXP: Don't add orders that are already in there
+                continue
             coeffs = np.insert(coeffs, i, 0.0, axis=1)
             slitcen = np.insert(slitcen, i, 0.0, axis=1)
             lcent = np.insert(lcent, i, 0.0, axis=0)
@@ -2924,6 +3035,12 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
         ww = np.where(edgearr > 0)
         rmin, rmax = np.min(edgearr[ww]), np.max(edgearr[ww])  # min/max are switched because of the negative signs
         #msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings.argflag['trace']['slits']['fracignore'], int(edgearr.shape[0]*binby)))
+
+        # JFH I think this should be using the spatial dimension of the image and not the spectral dimension of the image, and am changing it accordingly
+#        msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings.argflag['trace']['slits']['fracignore'], int(edgearr.shape[0])))
+#        fracpix = int(settings.argflag['trace']['slits']['fracignore']*edgearr.shape[0])
+        msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings.argflag['trace']['slits']['fracignore'], int(edgearr.shape[1])))
+        fracpix = int(settings.argflag['trace']['slits']['fracignore']*edgearr.shape[1])
         msgs.info("Ignoring any slit that spans < {0:3.2f}x{1:d} pixels on the detector".format(settings['trace']['slits']['fracignore'], int(edgearr.shape[1])))
         fracpix = int(settings['trace']['slits']['fracignore']*edgearr.shape[1])
 #        print('calling ignore_orders')
@@ -2933,8 +3050,7 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
 #        print('Old ignore_orders: {0} seconds'.format(time.clock() - t))
 #        t = time.clock()
         __edgearr = edgearr.copy()
-        lnc, lxc, rnc, rxc, ldarr, rdarr = new_ignore_orders(__edgearr, fracpix, lmin, lmax, rmin,
-                                                             rmax)
+        lnc, lxc, rnc, rxc, ldarr, rdarr = new_ignore_orders(__edgearr, fracpix, lmin, lmax, rmin, rmax)
 #        print('New ignore_orders: {0} seconds'.format(time.clock() - t))
 #        assert np.sum(_lnc != lnc) == 0, 'Difference between old and new ignore_orders, lnc'
 #        assert np.sum(_lxc != lxc) == 0, 'Difference between old and new ignore_orders, lxc'
@@ -3074,6 +3190,7 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
         msgs.error("Cannot continue without a successful trace")
     mnvalp = np.median(binarr[:, lv+1])  # Go one row above and one row below an order edge,
     mnvalm = np.median(binarr[:, lv-1])  # then see which mean value is greater.
+
 
     """
     lvp = (arutils.func_val(lcoeff[:,lval+1-lmin],xv,settings.argflag['trace']['slits']['function'],min=minvf,max=maxvf)+0.5).astype(np.int)
@@ -3245,6 +3362,8 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
                                   settings['trace']['slits']['polyorder'], minv=minvf, maxv=maxvf)
         for i in range(ordsnd.size):
             if i in maskord:
+                if (i>=ordsnd[0]) and (i<ordsnd[-1]-1):  # JXP: Don't add orders that are already in there
+                    continue
                 coeffs = np.insert(coeffs, i, 0.0, axis=1)
                 slitcen = np.insert(slitcen, i, 0.0, axis=1)
                 lcent = np.insert(lcent, i, 0.0, axis=0)
@@ -3287,10 +3406,9 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
         ww = np.where(np.in1d(allord, maskord) == False)[0]
         # Unmask where an order edge is located
         maskrows = np.ones(binarr.shape[1], dtype=np.int)
-        #ldiffarr = np.round(ldiffarr[ww]).astype(np.int)
-        #rdiffarr = np.round(rdiffarr[ww]).astype(np.int)
-        ldiffarr = np.fmax(np.fmin(np.round(ldiffarr[ww]).astype(np.int), binarr.shape[1] - 1), 0)
-        rdiffarr = np.fmax(np.fmin(np.round(rdiffarr[ww]).astype(np.int), binarr.shape[1] - 1), 0)
+        # JFH added fmax and fmin to fix bug where fits to slits are off the chip
+        ldiffarr = np.fmax(np.fmin(np.round(ldiffarr[ww]).astype(np.int), binarr.shape[1]-1),0)
+        rdiffarr = np.fmax(np.fmin(np.round(rdiffarr[ww]).astype(np.int),binarr.shape[1]-1),0)
         maskrows[ldiffarr] = 0
         maskrows[rdiffarr] = 0
         # Extract the slit edge ID numbers associated with the acceptable traces
@@ -3358,9 +3476,11 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
         rcen = rcent[ww, :].T.copy()
         extrapord = np.zeros(lcen.shape[1], dtype=np.bool)
 
-    # Remove any slits that are completely off the detector
+    # Remove any slits that are completely off the detector or not satisfying fracignore
+    #   The slit remomving algorithm up above is not working..
     nslit = lcen.shape[1]
     mask = np.zeros(nslit)
+    fracpix = int(settings.argflag['trace']['slits']['fracignore']*mstrace.shape[1])
     for o in range(nslit):
         if np.min(lcen[:, o]) > mstrace.shape[1]:
             mask[o] = 1
@@ -3368,9 +3488,13 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
         elif np.max(rcen[:, o]) < 0:
             mask[o] = 1
             msgs.info("Slit {0:d} is off the detector - ignoring this slit".format(o + 1))
+        if np.median(rcen[:,o]-lcen[:,o]) < fracpix:
+            mask[o] = 1
+            msgs.info("Slit {0:d} is less than fracignore - ignoring this slit".format(o + 1))
     wok = np.where(mask == 0)[0]
     lcen = lcen[:, wok]
     rcen = rcen[:, wok]
+
 
     # Interpolate the best solutions for all orders with a cubic spline
     #msgs.info("Interpolating the best solutions for all orders with a cubic spline")
@@ -3410,6 +3534,181 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
     return lcenint, rcenint, extrapord
 
 
+# TODO: Just a 1-1 mapping of the cython function to python.  Needs to
+# be tested!!
+def new_close_edges(edgdet, dets, npix):
+    sz_x, sz_y = edgdet.shape
+    sz_d = dets.size
+
+    hasedge = np.zeros(sz_d, dtype=int)
+
+    for d in range(sz_d):
+        for x in range(sz_x):
+            for y in range(sz_y):
+                if edgdet[x,y] != dets[d]:
+                    continue
+                else:
+                    # Check if there's an edge nearby
+                    mgap = sz_y if y+npix+1 > sz_y else y+npix+1
+                    for s in range(y+1, mgap):
+                        if edgdet[x,s] == dets[d]:
+                            hasedge[d] = 1
+                            break
+                if hasedge[d] != 0:
+                    break
+            if hasedge[d] != 0:
+                break
+    return hasedge
+
+
+# TODO: Just a 1-1 mapping of the cython function to python.  Needs to
+# be tested!!
+def new_close_slits(trframe, edgdet, dets, npix, ednum):
+
+    sz_x, sz_y = edgdet.shape
+    sz_d = dets.size
+
+    edgearr = np.zeros(edgdet.shape, dtype=int)
+    hasedge = np.zeros(sz_d, dtype=int)
+
+    for d in range(sz_d):
+        tmp = sz_y
+        for x in range(sz_x):
+            for y in range(sz_y):
+                if edgdet[x, y] != dets[d]:
+                    continue
+                else:
+                    # Check if there's an edge nearby
+                    mgap = sz_y if y+npix+1 > sz_y else y+npix+1
+                    for s in range(y+1, mgap):
+                        if edgdet[x,s] != 0:
+                            if s-y < tmp:
+                                tmp = s-y
+                                tix = edgdet[x,s]
+                            hasedge[d] = edgdet[x,s]
+                            break
+        if tmp != sz_y:
+            hasedge[d] = tix
+
+    # Now, if there's an edge in hasedge, mark the corresponding index
+    # in hasedge with -1
+    for d in range(sz_d):
+        if hasedge[d] == dets[d]:
+            # Close slits have caused a left/right edge to be labelled
+            # as one edge. Find only instances where there is a left and
+            # right edge detection. Then, take their average and set
+            # hadedge to be zero
+            tmp = 0
+            diff = 0
+            for x in range(sz_x):
+                for y in range(sz_y):
+                    if edgdet[x,y] != dets[d]:
+                        continue
+                    else:
+                        # Check if there's an edge nearby
+                        mgap = sz_y if y+npix+1 > sz_y else y+npix+1
+                        flg = 0
+                        for s in range(y+1, mgap):
+                            if edgdet[x,s] == edgdet[x,y]:
+                                edgdet[x,s] = 0
+                                edgdet[x,y] = 0
+                                # +0.5 for rounding
+                                tix = y + int(0.5*(s-y) + 0.5)
+                                edgdet[x,tix] = dets[d]
+                                flg = 1
+                                tmp += 1
+                                diff += (s-y)
+                                break
+                        if flg == 0:
+                            # If there isn't a common left/right edge
+                            # for this pixel, ignore this single edge
+                            # detection
+                            edgdet[x,y] = 0
+            hasedge[d] = diff/tmp
+            continue
+        if hasedge[d] > 0:
+            for s in range(sz_d):
+                if hasedge[d] == dets[s]:
+                    hasedge[s] = -1
+                    break
+
+    # Introduce an edge in cases where no edge exists, and redefine an
+    # edge where one does exist.
+    enum = ednum
+    for d in range(sz_d):
+        tmp = 0
+        for x in range(sz_x):
+            for y in range(sz_y):
+                if edgdet[x,y] != dets[d]:
+                    continue
+                if hasedge[d] >= ednum:
+                    edgearr[x,y] = enum
+                    # Relabel the appropriate hasedge
+                    if tmp == 0:
+                        for s in range(sz_d):
+                            if hasedge[d] == dets[s]:
+                                # Label hasedge as negative, to avoid
+                                # confusion with the positive hasedge
+                                # numbers
+                                hasedge[s] = -enum
+                                tmp = 1
+                                break
+                elif hasedge[d] < -1:
+                    edgearr[x, y] = hasedge[d]
+                elif hasedge[d] >= 0:
+                    # Create a new edge
+                    edgearr[x, y-(1+hasedge[d])] = enum
+                    edgearr[x, y+(1+hasedge[d])] = -enum
+                else:
+                    msgs.bug('Check slit traces in close_slits!')
+        if hasedge[d] >= 0:
+            enum += 1
+    # Finally return the new slit edges array
+    return edgearr
+
+
+def new_dual_edge(edgearr, edgearrcp, wx, wy, wl, wr, shft, npix, newval):
+
+    sz_x, sz_y = edgearr.shape
+    sz_a = wl.shape[0]
+    sz_b = wr.shape[0]
+    sz_e = wx.shape[0]
+
+    # First go through the leftmost edge (suffix a)
+    for x in range(sz_a):
+        for ee in range(sz_e):
+            if edgearr[wx[ee], wy[ee]] == wl[x]:
+                # Update the value given to this edge
+                edgearrcp[wx[ee], wy[ee]] = newval
+                # Determine if an edge can be placed in this row
+                maxy = npix
+                if wy[ee] + maxy >= sz_y:
+                    maxy = sz_y - wy[ee] - 1
+                flg = 0
+                for y in range(1, maxy):
+                    if edgearrcp[wx[ee], wy[ee]+y] != 0:
+                        flg = 1
+                if flg == 0:
+                    edgearrcp[wx[ee], wy[ee]+shft] = newval+1
+
+    # Now go through the rightmost edge (suffix b)
+    for x in range(sz_b):
+        for ee in range(sz_e):
+            if edgearr[wx[ee], wy[ee]] == wr[x]:
+                # Update the value given to this edge
+                edgearrcp[wx[ee], wy[ee]] = newval + 1
+                # Determine if an edge can be placed in this row
+                maxy = npix
+                if wy[ee] - maxy < 0:
+                    maxy = wy[ee] + 1
+                flg = 0
+                for y in range(1, maxy):
+                    if edgearrcp[wx[ee], wy[ee]-y] != 0:
+                        flg = 1
+                if flg == 0:
+                    edgearrcp[wx[ee], wy[ee]-shft] = newval
+
+
 def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
                   fitord, locations, function='polynomial'):
     """
@@ -3423,7 +3722,7 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
     orders
     fitord
     locations
-    function
+    function : str, optional
 
     Returns
     -------
@@ -3545,7 +3844,8 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
     slf
     det
     msarc
-    slitnum
+    slitnum : int
+      Slit number, here indexed from 0
     censpec
     maskval
     trthrsh
@@ -3595,7 +3895,7 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
                 break
     # Restricted to ID lines? [introduced to avoid LRIS ghosts]
     if settings.argflag['trace']['slits']['tilts']['idsonly']:
-        ids_pix = np.round(np.array(slf._wvcalib[det-1]['xfit'])*(msarc.shape[0]-1))
+        ids_pix = np.round(np.array(slf._wvcalib[det-1][str(slitnum)]['xfit'])*(msarc.shape[0]-1))
         idxuse = np.arange(arcdet.size)[aduse]
         for s in idxuse:
             if np.min(np.abs(arcdet[s]-ids_pix)) > 2:
@@ -3779,6 +4079,8 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
             if fail:
                 mtfit[sz-k] = 1
             else:
+                #from IPython import embed
+                if np.isfinite(centv) is False: debugger.set_trace() #embed()
                 pcen = int(0.5 + centv)
                 mtfit[sz-k] = 0
         '''
@@ -4166,15 +4468,27 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
     ordcen = slf._pixcen[det - 1].copy()
     fitxy = [settings.argflag['trace']['slits']['tilts']['order'], 1]
 
+    # maskslit
+    if slf._maskslits[det-1] is not None:
+        mask = slf._maskslits[det-1] & (maskslit==1)
+    else:
+        mask = maskslit
+    slf._maskslits[det-1] = mask
+    gdslits = np.where(mask == 0)[0]
+
+    # Final tilts image
+    final_tilts = np.zeros_like(msarc)
+
     # Now trace the tilt for each slit
-    for o in range(arccen.shape[1]):
+    #for  o in range(arccen.shape[1]):
+    for oo, slit in enumerate(gdslits):
         # Determine the tilts for this slit
-        trcdict = trace_tilt(slf, det, msarc, o, censpec=arccen[:, o], nsmth=3)
+        trcdict = trace_tilt(slf, det, msarc, slit, censpec=arccen[:, oo], nsmth=3)
         if trcdict is None:
             # No arc lines were available to determine the spectral tilt
             continue
         if msgs._debug['tilts']:
-            debugger.chk_arc_tilts(msarc, trcdict, sedges=(slf._lordloc[det-1][:,o], slf._rordloc[det-1][:,o]))
+            debugger.chk_arc_tilts(msarc, trcdict, sedges=(slf._lordloc[det-1][:,slit], slf._rordloc[det-1][:,slit]))
             debugger.set_trace()
         # Extract information from the trace dictionary
         aduse = trcdict["aduse"]
@@ -4200,6 +4514,14 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             wmask = wmasks[j]
             xint = int(xtfit[0])
             sz = (xtfit.size-1)//2
+
+            # Trim if we are off the detector
+            lastx = min(xint + 2 * sz + 1, msarc.shape[1])
+            if (lastx-xint) < xtfit.size: # Cut down
+                dx = (lastx-xint)-xtfit.size
+                xtfit = xtfit[:dx]
+                ytfit = ytfit[:dx]
+                wmask = wmask[np.where(wmask < (xtfit.size+dx))]
 
             # Perform a scanning polynomial fit to the tilts
             # model = arcyutils.polyfit_scan_intext(xtfit, ytfit, np.ones(ytfit.size, dtype=np.float), mtfit,
@@ -4235,7 +4557,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             wmask = wmask[np.where(wmsk == 0)]
 
             # Save the tilt angle, and unmask the row
-            factr = (msarc.shape[0] - 1.0) * arutils.func_val(mcoeff, ordcen[arcdet[j], 0],
+            factr = (msarc.shape[0] - 1.0) * arutils.func_val(mcoeff, ordcen[arcdet[j], slit],
                                                               settings.argflag['trace']['slits']['function'],
                                                               minv=0.0, maxv=msarc.shape[1] - 1.0)
             idx = int(factr + 0.5)
@@ -4247,33 +4569,36 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
                 if not aduse[j]:
                     maskrows[idx] = 1
 
-            xtilt[xint:xint + 2 * sz + 1, j] = xtfit / (msarc.shape[1] - 1.0)
-            ytilt[xint:xint + 2 * sz + 1, j] = arcdet[j] / (msarc.shape[0] - 1.0)
-            ztilt[xint:xint + 2 * sz + 1, j] = ytfit / (msarc.shape[0] - 1.0)
+            xtilt[xint:lastx, j] = xtfit / (msarc.shape[1] - 1.0)
+            ytilt[xint:lastx, j] = arcdet[j] / (msarc.shape[0] - 1.0)
+            ztilt[xint:lastx, j] = ytfit / (msarc.shape[0] - 1.0)
             if settings.argflag['trace']['slits']['tilts']['method'].lower() == "spline":
-                mtilt[xint:xint + 2 * sz + 1, j] = model / (msarc.shape[0] - 1.0)
+                mtilt[xint:lastx, j] = model / (msarc.shape[0] - 1.0)
             elif settings.argflag['trace']['slits']['tilts']['method'].lower() == "interp":
-                mtilt[xint:xint + 2 * sz + 1, j] = (2.0 * model[sz] - model) / (msarc.shape[0] - 1.0)
+                mtilt[xint:lastx, j] = (2.0 * model[sz] - model) / (msarc.shape[0] - 1.0)
             else:
-                mtilt[xint:xint + 2 * sz + 1, j] = (2.0 * model[sz] - model) / (msarc.shape[0] - 1.0)
+                mtilt[xint:lastx, j] = (2.0 * model[sz] - model) / (msarc.shape[0] - 1.0)
             wbad = np.where(ytfit == maskval)[0]
             ztilt[xint + wbad, j] = maskval
             if wmask.size != 0:
                 sigg = max(1.4826 * np.median(np.abs(ytfit - model)[wmask]) / np.sqrt(2.0), 1.0)
-                wtilt[xint:xint + 2 * sz + 1, j] = 1.0 / sigg
+                wtilt[xint:lastx, j] = 1.0 / sigg
             # Extrapolate off the slit to the edges of the chip
             nfit = 6  # Number of pixels to fit a linear function to at the end of each trace
-            xlof, xhif = np.arange(xint, xint + nfit), np.arange(xint + 2 * sz + 1 - nfit, xint + 2 * sz + 1)
-            xlo, xhi = np.arange(xint), np.arange(xint + 2 * sz + 1, msarc.shape[1])
+            xlof, xhif = np.arange(xint, xint + nfit), np.arange(lastx - nfit, lastx)
+            xlo, xhi = np.arange(xint), np.arange(lastx, msarc.shape[1])
             glon = np.mean(xlof * mtilt[xint:xint + nfit, j]) - np.mean(xlof) * np.mean(mtilt[xint:xint + nfit, j])
             glod = np.mean(xlof ** 2) - np.mean(xlof) ** 2
             clo = np.mean(mtilt[xint:xint + nfit, j]) - (glon / glod) * np.mean(xlof)
-            yhi = mtilt[xint + 2 * sz + 1 - nfit:xint + 2 * sz + 1, j]
-            ghin = np.mean(xhif * yhi) - np.mean(xhif) * np.mean(yhi)
+            yhi = mtilt[lastx - nfit:lastx, j]
+            try:
+                ghin = np.mean(xhif * yhi) - np.mean(xhif) * np.mean(yhi)
+            except:
+                debugger.set_trace()
             ghid = np.mean(xhif ** 2) - np.mean(xhif) ** 2
             chi = np.mean(yhi) - (ghin / ghid) * np.mean(xhif)
             mtilt[0:xint, j] = (glon / glod) * xlo + clo
-            mtilt[xint + 2 * sz + 1:, j] = (ghin / ghid) * xhi + chi
+            mtilt[lastx:, j] = (ghin / ghid) * xhi + chi
         if badlines != 0:
             msgs.warn("There were {0:d} additional arc lines that should have been traced".format(badlines) +
                       msgs.newline() + "(perhaps lines were saturated?). Check the spectral tilt solution")
@@ -4319,7 +4644,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             xspl = np.linspace(0.0, 1.0, msarc.shape[1])
             # yspl = np.append(0.0, np.append(arcdet[np.where(aduse)]/(msarc.shape[0]-1.0), 1.0))
             # yspl = np.append(0.0, np.append(polytilts[arcdet[np.where(aduse)], msarc.shape[1]/2], 1.0))
-            ycen = np.diag(polytilts[arcdet[np.where(aduse)], ordcen[arcdet[np.where(aduse)]]])
+            ycen = np.diag(polytilts[arcdet[np.where(aduse)], ordcen[arcdet[np.where(aduse), slit]]])
             yspl = np.append(0.0, np.append(ycen, 1.0))
             zspl = np.zeros((msarc.shape[1], np.sum(aduse) + 2))
             zspl[:, 1:-1] = mtilt[:, np.where(aduse)[0]]
@@ -4327,8 +4652,8 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             zspl[:, 0] = zspl[:, 1] + polytilts[0, :] - polytilts[arcdet[np.where(aduse)[0][0]], :]
             zspl[:, -1] = zspl[:, -2] + polytilts[-1, :] - polytilts[arcdet[np.where(aduse)[0][-1]], :]
             # Make sure the endpoints are set to 0.0 and 1.0
-            zspl[:, 0] -= zspl[ordcen[0, 0], 0]
-            zspl[:, -1] = zspl[:, -1] - zspl[ordcen[-1, 0], -1] + 1.0
+            zspl[:, 0] -= zspl[ordcen[0, 0], slit]
+            zspl[:, -1] = zspl[:, -1] - zspl[ordcen[-1, slit], -1] + 1.0
             # Prepare the spline variables
             # if False:
             #     pmin = 0
@@ -4384,7 +4709,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             # Slit position
             xspl = np.linspace(0.0, 1.0, msarc.shape[1])
             # Trace positions down center of the order
-            ycen = np.diag(polytilts[arcdet[np.where(aduse)], ordcen[arcdet[np.where(aduse)]]])
+            ycen = np.diag(polytilts[arcdet[np.where(aduse)], ordcen[arcdet[np.where(aduse)], slit:slit+1]])
             yspl = np.append(0.0, np.append(ycen, 1.0))
             # Trace positions as measured+modeled
             zspl = np.zeros((msarc.shape[1], np.sum(aduse) + 2))
@@ -4392,8 +4717,8 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
             zspl[:, 0] = zspl[:, 1] + polytilts[0, :] - polytilts[arcdet[np.where(aduse)[0][0]], :]
             zspl[:, -1] = zspl[:, -2] + polytilts[-1, :] - polytilts[arcdet[np.where(aduse)[0][-1]], :]
             # Make sure the endpoints are set to 0.0 and 1.0
-            zspl[:, 0] -= zspl[ordcen[0, 0], 0]
-            zspl[:, -1] = zspl[:, -1] - zspl[ordcen[-1, 0], -1] + 1.0
+            zspl[:, 0] -= zspl[ordcen[0, slit], 0]
+            zspl[:, -1] = zspl[:, -1] - zspl[ordcen[-1, slit], -1] + 1.0
             # Prepare the spline variables
             if False:
                 pmin = 0
@@ -4421,50 +4746,66 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
                 debugger.set_trace()
         elif settings.argflag['trace']['slits']['tilts']['method'].lower() == "pca":
             tilts = polytilts.copy()
+        # Save into final_tilts
+        word = np.where(slf._slitpix[det - 1] == slit+1)
+        final_tilts[word] = tilts[word]
 
-    # Now do the QA
-    msgs.info("Preparing arc tilt QA data")
-    tiltsplot = tilts[arcdet, :].T
-    tiltsplot *= (msarc.shape[0] - 1.0)
-    # Shift the plotted tilts about the centre of the slit
-    ztilto = ztilt.copy()
-    adj = np.diag(tilts[arcdet, ordcen[arcdet]])
-    zmsk = np.where(ztilto == maskval)
-    ztilto = 2.0 * np.outer(np.ones(ztilto.shape[0]), adj) - ztilto
-    ztilto[zmsk] = maskval
-    ztilto[np.where(ztilto != maskval)] *= (msarc.shape[0] - 1.0)
-    for i in range(arcdet.size):
-        w = np.where(ztilto[:, i] != maskval)
-        if w[0].size != 0:
-            twa = (xtilt[w[0], i] * (msarc.shape[1] - 1.0) + 0.5).astype(np.int)
-            # fitcns = np.polyfit(w[0], ztilt[w[0], i] - tiltsplot[twa, i], 0)[0]
-            fitcns = np.median(ztilto[w[0], i] - tiltsplot[twa, i])
-            # if abs(fitcns) > 1.0:
-            #     msgs.warn("The tilt of Arc Line {0:d} might be poorly traced".format(i+1))
-            tiltsplot[:, i] += fitcns
+        # Now do the QA
+        if slit == np.max(gdslits):
+            msgs.info("Preparing arc tilt QA data")
+            tiltsplot = tilts[arcdet, :].T
+            tiltsplot *= (msarc.shape[0] - 1.0)
+            # Shift the plotted tilts about the centre of the slit
+            ztilto = ztilt.copy()
+            adj = np.diag(tilts[arcdet, ordcen[arcdet, slit:slit+1]])
+            zmsk = np.where(ztilto == maskval)
+            ztilto = 2.0 * np.outer(np.ones(ztilto.shape[0]), adj) - ztilto
+            ztilto[zmsk] = maskval
+            ztilto[np.where(ztilto != maskval)] *= (msarc.shape[0] - 1.0)
+            for i in range(arcdet.size):
+                w = np.where(ztilto[:, i] != maskval)
+                if w[0].size != 0:
+                    twa = (xtilt[w[0], i] * (msarc.shape[1] - 1.0) + 0.5).astype(np.int)
+                    # fitcns = np.polyfit(w[0], ztilt[w[0], i] - tiltsplot[twa, i], 0)[0]
+                    fitcns = np.median(ztilto[w[0], i] - tiltsplot[twa, i])
+                    # if abs(fitcns) > 1.0:
+                    #     msgs.warn("The tilt of Arc Line {0:d} might be poorly traced".format(i+1))
+                    tiltsplot[:, i] += fitcns
 
-    xdat = xtilt.copy()
-    xdat[np.where(xdat != maskval)] *= (msarc.shape[1] - 1.0)
+            xdat = xtilt.copy()
+            xdat[np.where(xdat != maskval)] *= (msarc.shape[1] - 1.0)
 
-    msgs.info("Plotting arc tilt QA")
-#    arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
-#                        textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
-    plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
-                   textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
-    return tilts, satmask, outpar
+            msgs.info("Plotting arc tilt QA")
+        #    arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
+        #                        textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
+            plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
+                           textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval, slit=slit)
+    # Finish
+    return final_tilts, satmask, outpar
 
 
 def get_censpec(slf, frame, det, gen_satmask=False):
-    """
-    The value of "tilts" returned by this function is of the form:
-    tilts = tan(tilt angle), where "tilt angle" is the angle between
-    (1) the line representing constant wavelength and
-    (2) the column of pixels that is most closely parallel with the spatial direction of the slit.
+    """ Extract a simple spectrum down the center of each slit
+    Parameters
+    ----------
+    slf :
+    frame : ndarray
+      Image
+    det : int
+    gen_satmask : bool, optional
+      Generate a saturation mask?
 
-    The angle is determined relative to the axis defined by ...
-
-    In other words, tilts = y/x according to the docs/get_locations_orderlength.JPG file.
-
+    Returns
+    -------
+    arccen : ndarray
+      Extracted arcs.  This *need* not be one per slit/order,
+      although I wish it were (with `rejected` ones padded with zeros)
+    maskslit : bool array
+      1 = Bad slit/order for extraction (incomplete)
+      0 = Ok
+    satmask : ndarray, optional
+      Saturation mask
+      Returned in gen_satmask=True
     """
     dnum = settings.get_dnum(det)
 

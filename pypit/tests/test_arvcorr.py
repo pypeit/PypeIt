@@ -58,6 +58,7 @@ def test_geocorrect(fitsdict):
     # Specobjs
     specobjs = arspecobj.dummy_specobj(fitsdict, extraction=True)
     slf._specobjs[0] = [specobjs]
+    slf._maskslits[0] = np.array([False]*len(slf._specobjs[0]))
     # Run
     # vhel = x_keckhelio(106.59770833333332, 30.34736111111111, 2000., jd=2457046.5036, OBS='lick')  9.3166 km/s
     helio, hel_corr = arwave.geomotion_correct(slf, 1, fitsdict)

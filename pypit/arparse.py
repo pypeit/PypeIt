@@ -276,6 +276,7 @@ class BaseArgFlag(BaseFunctions):
                 msgs.error("There appears to be an error on the following input line:" + msgs.newline() +
                            " ".join(lst))
 
+
     def update(self, v, ll=None):
         """ Update an element of the argflag dictionary
 
@@ -3639,6 +3640,17 @@ class ARMLSD(BaseArgFlag):
 
 
 class ARMED(BaseArgFlag):
+
+    def reduce_calibrate_flux(self, v):
+        """ Should a flux calibration be performed?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_bool(v)
+        self.update(v)
 
     def reduce_flatfield_2dpca(self, v):
         """ Perform a simple 2D PCA on the echelle blaze fits

@@ -45,7 +45,8 @@ class ScienceExposure:
             self._idx_std = []
         else:
             self._idx_arcs = settings.spect['arc']['index'][snum]
-            self._idx_std = settings.spect['standard']['index'][snum]
+#            debugger.set_trace()
+            if settings.argflag['reduce']['calibrate']['flux'] == True: self._idx_std = settings.spect['standard']['index'][snum]
             if settings.argflag['bias']['useframe'] == 'bias': self._idx_bias = settings.spect['bias']['index'][snum]
             elif settings.argflag['bias']['useframe'] == 'dark':  self._idx_bias = settings.spect['dark']['index'][snum]
             else: self._idx_bias = []
@@ -90,8 +91,9 @@ class ScienceExposure:
         self._tiltpar  = [None for all in range(ndet)]   # Dict parameters for tilt fitting
         self._satmask  = [None for all in range(ndet)]   # Array of Arc saturation streaks
         self._arcparam = [None for all in range(ndet)]   # Dict guiding wavelength calibration
-        self._wvcalib  = [None for all in range(ndet)]   #
+        self._wvcalib  = [None for all in range(ndet)]   # List of dict's
         self._resnarr  = [None for all in range(ndet)]   # Resolution array
+        self._maskslits = [None for all in range(ndet)]  # Mask for whether to analyze a given slit (True=masked)
         # Initialize the Master Calibration frames
         self._bpix = [None for all in range(ndet)]          # Bad Pixel Mask
         self._msarc = [None for all in range(ndet)]         # Master Arc
@@ -404,8 +406,9 @@ class ScienceExposure:
                         arproc.slit_profile(self, self.GetMasterFrame("pixelflat", det),
                                             det, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
                     # If some slit profiles/blaze functions need to be extrapolated, do that now
-                    if np.sum(extrap_slit) != 0.0:
-                        slit_profiles, mstracenrm, msblaze = arproc.slit_profile_pca(self, self.GetMasterFrame("pixelflat", det), det, msblaze, extrap_slit, slit_profiles)
+                    if False:  # This is not a good idea for multislit, JXP thinks..
+                        if np.sum(extrap_slit) != 0.0:
+                            slit_profiles, mstracenrm, msblaze = arproc.slit_profile_pca(self, self.GetMasterFrame("pixelflat", det), det, msblaze, extrap_slit, slit_profiles)
                     mspixelflatnrm = mstracenrm.copy()
                     winpp = np.where(slit_profiles != 0.0)
                     mspixelflatnrm[winpp] /= slit_profiles[winpp]
@@ -464,8 +467,9 @@ class ScienceExposure:
                     slit_profiles, mstracenrm, msblaze, flat_ext1d, extrap_slit = \
                         arproc.slit_profile(self, mspixelflat, det, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
                     # If some slit profiles/blaze functions need to be extrapolated, do that now
-                    if np.sum(extrap_slit) != 0.0:
-                        slit_profiles, mstracenrm, msblaze = arproc.slit_profile_pca(self, mspixelflat, det, msblaze, extrap_slit, slit_profiles)
+                    if False:  # NOT SURE IF THE FOLLOWING WORKS
+                        if np.sum(extrap_slit) != 0.0:
+                            slit_profiles, mstracenrm, msblaze = arproc.slit_profile_pca(self, mspixelflat, det, msblaze, extrap_slit, slit_profiles)
                     mspixelflatnrm = mstracenrm.copy()
                     winpp = np.where(slit_profiles != 0.0)
                     mspixelflatnrm[winpp] /= slit_profiles[winpp]
@@ -643,9 +647,14 @@ class ScienceExposure:
             if settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
                 mswave = self._tilts[det - 1] * (self._tilts[det - 1].shape[0]-1.0)
             else:
-                wv_calib = self._wvcalib[det - 1]
-                mswave = arutils.func_val(wv_calib['fitc'], self._tilts[det - 1], wv_calib['function'],
+                ok_slits = np.where(~self._maskslits[det-1])[0]
+                mswave = np.zeros_like(self._tilts[det-1])
+                for kk,slit in enumerate(ok_slits):
+                    wv_calib = self._wvcalib[det - 1][str(slit)]
+                    tmpwv = arutils.func_val(wv_calib['fitc'], self._tilts[det - 1], wv_calib['function'],
                                           minv=wv_calib['fmin'], maxv=wv_calib['fmax'])
+                    word = np.where(self._slitpix[det - 1] == slit+1)
+                    mswave[word] = tmpwv[word]
         # Set and then delete the Master Arc frame
         self.SetMasterFrame(mswave, "wave", det)
         armasters.save_masters(self, det, mftype='wave')
@@ -685,16 +694,32 @@ class ScienceExposure:
                 arcparam = ararc.setup_param(self, sc, det, fitsdict)
                 self.SetFrame(self._arcparam, arcparam, det)
                 ###############
-                # Extract arc and identify lines
-                if settings.argflag['arc']['calibrate']['method'] == 'simple':
-                    wv_calib = ararc.simple_calib(self, det)
-                elif settings.argflag['arc']['calibrate']['method'] == 'arclines':
-                    wv_calib = ararc.calib_with_arclines(self, det)
+                # Extract an arc down each slit
+                arccen, maskslit = artrace.get_censpec(self, self._msarc[det-1], det, gen_satmask=False)
+                ok_mask = np.where(maskslit == 0)[0]
+
+                # Fill up the calibrations
+                wv_calib = {}
+                for kk,slit in enumerate(ok_mask):
+                    ###############
+                    # Extract arc and identify lines
+                    if settings.argflag['arc']['calibrate']['method'] == 'simple':
+                        iwv_calib = ararc.simple_calib(self, det, censpec=arccen[:,kk])
+                    elif settings.argflag['arc']['calibrate']['method'] == 'arclines':
+                        iwv_calib = ararc.calib_with_arclines(self, det, censpec=arccen[:,kk])
+                    wv_calib[str(slit)] = iwv_calib.copy()
         # Set
         if wv_calib is not None:
             self.SetFrame(self._wvcalib, wv_calib, det)
             armasters.save_masters(self, det, mftype='wv_calib')
-        del wv_calib
+
+            # Set mask based on wv_calib existing
+            mask = np.array([True]*self._lordloc[det-1].shape[1])
+            for key in self._wvcalib[det-1].keys():
+                mask[int(key)] = False
+            self._maskslits[det-1] = mask
+            #
+            del wv_calib
         return True
 
     def MasterStandard(self, fitsdict):

@@ -44,7 +44,7 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None):
     elif method == 'arc_fit_qa':
         outfile = 'QA/PNGs/Arc_1dfit_{:s}.png'.format(root)
     elif method == 'plot_orderfits_Arc':  # This is root for multiple PNGs
-        outfile = 'QA/PNGs/Arc_tilts_{:s}_'.format(root)
+        outfile = 'QA/PNGs/Arc_tilts_{:s}_S{:04d}_'.format(root, slit)
     elif method == 'pca_plot':  # This is root for multiple PNGs
         outfile = 'QA/PNGs/{:s}_pca_{:s}_'.format(prefix, root)
     elif method == 'pca_arctilt':  # This is root for multiple PNGs
@@ -203,21 +203,23 @@ def html_mf_pngs(setup, cbset, det):
     # Organize the outputs
     html_dict = {}
     html_dict['strace'] = dict(fname='slit_trace_qa', ext='',
-        href='strace', label='Slit Trace')
+        href='strace', label='Slit Trace', slit=False)
     html_dict['sprof'] = dict(fname='slit_profile_qa', ext='*.png',
-                              href='sprof', label='Slit Profile')
+                              href='sprof', label='Slit Profile', slit=False)
     html_dict['blaze'] = dict(fname='plot_orderfits_Blaze', ext='*.png',
-                               href='blaze', label='Blaze')
+                               href='blaze', label='Blaze', slit=False)
     html_dict['arc_fit'] = dict(fname='arc_fit_qa', ext='',
-                              href='arc_fit', label='Arc 1D Fit')
+                              href='arc_fit', label='Arc 1D Fit', slit=False)
     html_dict['arc_tilt'] = dict(fname='plot_orderfits_Arc', ext='*.png',
-                              href='arc_tilts', label='Arc Tilts')
+                              href='arc_tilts', label='Arc Tilts', slit=True)
     html_dict['arc_pca'] = dict(fname='pca_arctilt', ext='*.png',
-                                 href='arc_pca', label='Arc Tilt PCA')
+                                 href='arc_pca', label='Arc Tilt PCA', slit=False)
 
     # Generate HTML
     for key in ['strace', 'sprof', 'blaze', 'arc_fit', 'arc_pca', 'arc_tilt']:
-        png_root = set_qa_filename(idval, html_dict[key]['fname'])
+        png_root = set_qa_filename(idval, html_dict[key]['fname'], slit=9999)
+        if html_dict[key]['slit']:  # Kludge to handle multiple slits
+            png_root = png_root.replace('S9999', 'S*')
         pngs = glob.glob(png_root+html_dict[key]['ext'])
         if len(pngs) > 0:
             href="{:s}_{:s}".format(html_dict[key]['href'], idval)
