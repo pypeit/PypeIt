@@ -157,3 +157,25 @@ def deimos_read_1chip(hdu,chipno):
 
     # Return
     return data, oscan
+
+def bpm(det):
+    """ Generate a BPM
+    Parameters
+    ----------
+    slf
+    camera
+    det
+
+    Returns
+    -------
+
+    """
+    bpix = np.zeros((4096, 2048))
+    if det == 1:
+        bpix[:,1052:1054] = 1.
+    elif det == 2:
+        bpix[:,377:380] = 1.
+
+    return bpix
+
+

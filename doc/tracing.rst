@@ -4,16 +4,41 @@
 Tracing
 *******
 
-This document will describe how the code traces the
-edges of slits.
+One of the first and most crucial steps of the pipeline
+is to auto-magically identify the slits (or orders)
+on a given detector.  This is a challenging task owing
+to the wide variety in:
 
-The edge tracing algorithm uses a combination of a
+  - the number of slits/orders,
+  - the separation between slits/orders (if any)
+  - the brightness of the flats being used
+
+Developing a single algorithm to handle all of these
+edge cases (pun intended) is challenging if not impossible.
+Therefore, there are a number of user-input parameters
+that one may need to consider when running PYPIT (see below).
+
+Algorithm
+=========
+
+Here is the flow of the algorithms.
+
+1. edge detection: The edge tracing algorithm artrace.trace_slits()
+uses a combination of a
 median and sobel filters to identify significant
-gradients in the image. The detected edges are
-then grouped into common edges ("Assigned"). Each
+gradients in the image along the spatial dimension.
+
+1. match slits:
+
+1. assign slits:
+The detected edges are
+then grouped into common edges ("Assigned").
+
+1. trace slits: Each
 edge is fitted with a polynomial, and the left/right
-edge detections are synchonized and relabelled. If
-the user wishes, a PCA can be performed on the slit
+edge detections are synchonized and relabelled.
+
+1. pca: If the user wishes, a PCA can be performed on the slit
 edges (highly recommended for echelle data, and for
 data where the illumination of the trace frame is
 not uniform in the spectral direction). If a PCA
@@ -21,17 +46,61 @@ analysis is performed for echelle data, an
 extrapolation can be performed to locate the echelle
 orders near the edge of the detector.
 
+
+Tips on Trace Flat Frames
+=========================
+
 The slit edges are traced using a "trace" frame.
 If neighboring slits are very close together, you
 can use a "pinhole" frame to trace the slit centroid.
 
+In the current version of PYPIT, pinhole frames are
+only used for echelle data reduction. Pinhole frames
+are usually an exposure of a quartz lamp through a
+very short (pinhole) slit. Thus, neighboring slit
+edges of a pinhole frame should be well separated.
+
+Trace frames, on the other hand, usually have the
+same slit length as the science frame. In cases
+where neighboring slits are very close together,
+it is necessary to first define the slit centroid
+using a pinhole frame, and the slit edges are
+defined using a trace frame by "expanding" the
+slits, by giving the following keyword argument::
+
+    trace slits expand True
+
+
+Scripts
+=======
+
+pypit_chk_edges
+---------------
+
+PYPIT includes a simple script to show the processed
+Trace image and the slit/order edges defined by the
+algorithm.  These are displayed in a Ginga viewer.
+Here is the call::
+
+
+
 User Inputted Values
 ====================
+
+.. _trace-slit-number:
 
 Slit Number
 -----------
 
-When reducing long slit data, it may be a good
+Ironically, one of the more challenging slit
+configurations to automatically identify is
+a single slit.  In part this is often because
+at least one edge of the slit butts against the
+detecor giving no image gradient.  And also
+because only a small portion of the detector
+may be illuminated by this 'long' slit.
+
+Therefore, when reducing long slit data, it may be a good
 idea to explicitly tell PYPIT that there is only
 1 slit to be identified. You can set this using
 the keyword::
@@ -39,10 +108,10 @@ the keyword::
     trace slits number 1
 
 You can also use this variable to specify the
-number of slits that should be detected. Note,
-that this feature works best when you have
-well defined and uniformly illuminated slits
-(usually the case with cross dispersed data,
+number of slits that should be detected.
+Note, that this feature works best when you have
+well-defined and uniformly illuminated slits
+(usually the case with cross-dispersed data,
 for example).
 
 Slit Gaps
@@ -51,7 +120,9 @@ Slit Gaps
 In cases where the trace frame contains slits that
 are uniformly illuminated in the spectral direction,
 and there is at least 5-10 pixels between the slits,
-the slit tracing algorithm works well. In the event
+the slit tracing algorithm generally works well.
+
+In the event
 that the slits are not uniformly illuminated, or if
 neighbouring slits are a little close (perhaps with
 some crosstalk), you may need to specify the slit gap
@@ -62,7 +133,7 @@ using the argument::
 in the event that the gap between all neighbouring slits is
 less than 10 pixels. This variable should not be used unless
 there is some crosstalk between slits, or in the event
-of close slits with a non uniform illumination pattern.
+of close slits with a non-uniform illumination pattern.
 
 User defined
 ------------
@@ -70,7 +141,7 @@ User defined
 If necessary, the user may define the edges of the slit(s)
 on each detector.  Currently this is only implemented for
 single slit (i.e. longslit) mode.  The syntax is to add a
-line to the .red file indicating the start and end of each
+line to the PYPIT file indicating the start and end of each
 slit on each detector in detector column units (as binned).
 
 For example, for the LRISr longslit with 2x2 binning, the
@@ -95,23 +166,6 @@ parameter::
 
 Then monitor the number of slits detected by the algorithm.
 
-Trace frames vs Pinhole frames
-==============================
-
-In the current version of PYPIT, pinhole frames are
-only used for echelle data reduction. Pinhole frames
-are usually an exposure of a quartz lamp through a
-very short (pinhole) slit. Thus, neighboring slit
-edges of a pinhole frame should be well separated.
-Trace frames, on the other hand, usually have the
-same slit length as the science frame. In cases
-where neighboring slits are very close together,
-it is necessary to first define the slit centroid
-using a pinhole frame, and the slit edges are
-defined using a trace frame by "expanding" the
-slits, by giving the following keyword argument::
-
-    trace slits expand True
 
 Slit Profile
 ============
@@ -138,8 +192,9 @@ The default setting is to not calculate the slit profile.
 To turn on this functionality, the argument of the
 first line above can be set to True. If the calculation
 is performed, the second line sets the method that should
-be used to determine the spatial slit profile. At this
-stage, PYPIT only supports the value 'bspline', where
+be used to determine the spatial slit profile.
+
+At this stage, PYPIT only supports the value 'bspline', where
 the knot spacing is set by the third line above. If the
 argument of reduce flatfield params is n >= 1, PYPIT
 will place a knot at every n pixels. Otherwise, if n < 1,
@@ -154,3 +209,11 @@ If the spatial slit profile is not calculated, the
 blaze function will still be calculated using the
 'reduce flatfield' settings listed above.
 
+For Developers
+==============
+
+One of the ways the edge-finding algorithm is fooled is
+via chip defects, e.g. bad columns.  It is therefore
+valuable to mask any such known features with the
+bad pixel mask when one introduces a new instrument
+(or detector).

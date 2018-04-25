@@ -1225,16 +1225,26 @@ def new_limit_yval(yc, maxv):
     return yn, yx
 
 
-def new_match_edges(edgdet, ednum):
-    """
-    ednum is a large dummy number used for slit edge assignment. ednum
-    should be larger than the number of edges detected
+def new_match_edges(edgdet, ednum, mr=50):
+    """  Attempt to match together portions of an edge by scanning along
+    the detector in the vertical direction.
 
-    This function alters edgdet!
+    Parameters
+    ----------
+    edgdet : ndarray
+      Modified in place
+    ednum : int
+      a large dummy number used for slit edge assignment.
+      ednum should be larger than the number of edges detected
+    mr : int, optional
+      minimum number of acceptable pixels required to form the detection of an order edge
+      JXP increase the default value from 5 to 50
+
+    Returns
+    -------
+    lcnt-2*ednum
+    rcnt-2*ednum
     """
-    # mr is the minimum number of acceptable pixels required to form the
-    # detection of an order edge
-    mr = 50   #JXP MODIFIED -- Question for Ryan C.
     mrxarr = np.zeros(mr, dtype=int)
     mryarr = np.zeros(mr, dtype=int)
 
@@ -1619,6 +1629,7 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
     ----------
     mstrace : numpy ndarray
       Calibration frame that will be used to identify slit traces (in most cases, the slit edge)
+    binbpx : ndarray
     det : int
       Index of the detector
     pcadesc : str, optional
@@ -1726,9 +1737,33 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
         sqmstrace[(sqmstrace > -1.0) & (sqmstrace <= 0.0)] = -1.0
         # Apply a Sobel filter
         filt = ndimage.sobel(sqmstrace, axis=1, mode=settings['trace']['slits']['sobel']['mode'])
-        msgs.info("Applying bad pixel mask")
+        ksize = 3
+        kern = np.concatenate([-(np.arange(ksize)+1), (np.arange(ksize)+1)[::-1]]) / (2.*ksize)
+        filt3 = ndimage.convolve1d(sqmstrace, kern, axis=1, mode=settings['trace']['slits']['sobel']['mode'])
+        # Replace bad columns -- should put this method somewhere
+        ms2 = mstrace.copy()
+        bad_cols = np.sum(binbpx, axis=0) == binbpx.shape[0]
+        if np.any(bad_cols):
+            tmp = np.zeros(binbpx.shape[1]).astype(int)
+            tmp[bad_cols] = 1
+            tmp2 = tmp - np.roll(tmp,1)
+            ledges = np.where(tmp2 == 1)[0]
+            redges = np.where(tmp2 == -1)[0]
+            for kk, ledge in enumerate(ledges):
+                lval = mstrace[:,ledge-1]
+                rval = mstrace[:,redges[kk]]
+                mval = (lval+rval)/2.
+                for ii in range(ledge, redges[kk]):
+                    ms2[:,ii] = mval
+        #
+        sqmstrace2 = np.sqrt(np.abs(ms2))
+        filt2 = ndimage.sobel(sqmstrace2, axis=1, mode=settings['trace']['slits']['sobel']['mode'])
+        filt2 *= (1.0 - binbpx)  # Apply to the bad pixel mask
+        siglev = np.sign(filt2)*(filt2**2)/np.maximum(sqmstrace2, min_sqm)
+        '''
         filt *= (1.0 - binbpx)  # Apply to the bad pixel mask
         siglev = np.sign(filt)*(filt**2)/np.maximum(sqmstrace, min_sqm)
+        '''
         tedges = np.zeros(binarr.shape, dtype=np.float)
         wl = np.where(siglev > + settings['trace']['slits']['sigdetect'])  # A positive gradient is a left edge
         wr = np.where(siglev < - settings['trace']['slits']['sigdetect'])  # A negative gradient is a right edge

@@ -12,6 +12,17 @@ This file summarizes several instrument specific
 settings that are related to the Keck/LRIS spectrograph.
 
 
+Longslit
+========
+
+If reducing data with a longslit, we recommend
+that you specify that only a single slit is
+desired, i.e.::
+
+    trace slits number 1
+
+See :ref:`trace-slit-number` for further details.
+
 .. _LRISb:
 
 LRISb
