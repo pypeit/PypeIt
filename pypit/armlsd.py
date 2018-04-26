@@ -133,7 +133,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._lordloc, lordloc, det)
                 slf.SetFrame(slf._rordloc, rordloc, det)
                 # Initialize maskslit
-                slf._maskslits[det-1] = np.array([False] * slf._lordloc[det-1].shape[1])
+                slf._maskslits[det-1] = np.zeros(slf._lordloc[det-1].shape[1], dtype=bool)
 
                 # Convert physical trace into a pixel trace
                 msgs.info("Converting physical trace locations to nearest pixel")
@@ -176,7 +176,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                     tilts, satmask, outpar = artrace.multislit_tilt(slf, slf._msarc[det-1], det)
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
-                    # This outpar is only the last slit!!  JXP doesn't think it matters for now
+                    msgs.bug("This outpar is only the last slit!!  JXP doesn't think it matters for now")
                     slf.SetFrame(slf._tiltpar, outpar, det)
                     armasters.save_masters(slf, det, mftype='tilts')
                 else:
