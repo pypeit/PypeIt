@@ -1752,18 +1752,16 @@ def driver_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
     #  Only filter in the spectral dimension, not spatial!
     binarr = ndimage.uniform_filter(mstrace, size=(3, 1), mode='mirror')
 
-    # Single slit?
-    if len(settings['trace']['slits']['single']) > 0:
+    if len(settings['trace']['slits']['single']) > 0: # Single slit
         iledge, iredge = (det-1)*2, (det-1)*2+1
         ledge = settings['trace']['slits']['single'][iledge]
         redge = settings['trace']['slits']['single'][iredge]
         edgearr = edgearr_from_user(mstrace.shape, ledge, redge, det)
         user_set = True
-    else:
+    else: # Auto-magic step 1
         siglev, edgearr = edgearr_from_binarr(binarr, binbpx, det, medrep=settings['trace']['slits']['medrep'],
                                               settings=settings)
         user_set = False
-
 
     # Match edges and assign a number to each of the edges
     __edgearr = edgearr.copy()
