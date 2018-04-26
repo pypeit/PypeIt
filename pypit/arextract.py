@@ -473,6 +473,8 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
             continue
         # Loop on objects
         nobj = scitrace[sl]['nobj']
+        if nobj == 0:
+            continue
         for o in range(nobj):
             msgs.info("Performing optimal extraction of object {0:d}/{1:d} in slit {2:d}/{3:d}".format(o+1, nobj, sl+1, len(specobjs)))
             # Get object pixels

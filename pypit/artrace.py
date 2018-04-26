@@ -618,6 +618,8 @@ def trace_objects_in_slit(slf, det, slitn, sciframe, varframe, crmask, trim=2,
     tracelist : list
       A single item list which is a dictionary containing the object trace information
     """
+    # TODO -- Synchronize and avoid duplication in the usage of triml, trimr, trim, and xedge
+
     # Find the trace of each object
     tracefunc = settings.argflag['trace']['object']['function']
     traceorder = settings.argflag['trace']['object']['order']
@@ -1752,18 +1754,16 @@ def driver_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
     #  Only filter in the spectral dimension, not spatial!
     binarr = ndimage.uniform_filter(mstrace, size=(3, 1), mode='mirror')
 
-    # Single slit?
-    if len(settings['trace']['slits']['single']) > 0:
+    if len(settings['trace']['slits']['single']) > 0: # Single slit
         iledge, iredge = (det-1)*2, (det-1)*2+1
         ledge = settings['trace']['slits']['single'][iledge]
         redge = settings['trace']['slits']['single'][iredge]
         edgearr = edgearr_from_user(mstrace.shape, ledge, redge, det)
         user_set = True
-    else:
+    else: # Auto-magic step 1
         siglev, edgearr = edgearr_from_binarr(binarr, binbpx, det, medrep=settings['trace']['slits']['medrep'],
                                               settings=settings)
         user_set = False
-
 
     # Match edges and assign a number to each of the edges
     __edgearr = edgearr.copy()
@@ -3478,7 +3478,7 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
         extrapord = np.zeros(lcen.shape[1], dtype=np.bool)
 
     # Remove any slits that are completely off the detector or not satisfying fracignore
-    #   The slit remomving algorithm up above is not working..
+    #   The slit removing algorithm up above is not working..
     nslit = lcen.shape[1]
     mask = np.zeros(nslit)
     fracpix = int(settings['trace']['slits']['fracignore']*mstrace.shape[1])
@@ -4435,7 +4435,7 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
     return tiltsimg, satmask, outpar
 
 
-def multislit_tilt(slf, msarc, det, maskval=-999999.9):
+def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
     """ Determine the spectral tilt of each slit in a multislit image
 
     Parameters
@@ -4448,6 +4448,9 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
       Index of the detector
     maskval : float (optional)
       Mask value used in numpy arrays
+    doqa : bool, optional
+      Output QA files.  These can be many files and slow for
+      lots of slits
 
     Returns
     -------
@@ -4752,7 +4755,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9):
         final_tilts[word] = tilts[word]
 
         # Now do the QA
-        if slit == np.max(gdslits):
+        if doqa:
             msgs.info("Preparing arc tilt QA data")
             tiltsplot = tilts[arcdet, :].T
             tiltsplot *= (msarc.shape[0] - 1.0)
@@ -4808,6 +4811,7 @@ def get_censpec(slf, frame, det, gen_satmask=False):
       Saturation mask
       Returned in gen_satmask=True
     """
+    # TODO -- Have the returned arccen and maskslit have the same size..
     dnum = settings.get_dnum(det)
 
     ordcen = 0.5*(slf._lordloc[det-1]+slf._rordloc[det-1])

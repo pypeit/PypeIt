@@ -23,29 +23,30 @@ Algorithm
 
 Here is the flow of the algorithms.
 
-1. edge detection: The edge tracing algorithm artrace.trace_slits()
-uses a combination of a
-median and sobel filters to identify significant
-gradients in the image along the spatial dimension.
+#. edge detection: The edge tracing algorithm artrace.trace_slits()
+   uses a combination of a
+   median and sobel filters to identify significant
+   gradients in the image along the spatial dimension.
+#. match slits:
+#. assign slits:
+   The detected edges are
+   then grouped into common edges ("Assigned").
+#. trace slits: Each
+   edge is fitted with a polynomial, and the left/right
+   edge detections are synchonized and relabelled.
+#. pca: If the user wishes, a PCA can be performed on the slit
+   edges (highly recommended for echelle data, and for
+   data where the illumination of the trace frame is
+   not uniform in the spectral direction). If a PCA
+   analysis is performed for echelle data, an
+   extrapolation can be performed to locate the echelle
+   orders near the edge of the detector.
 
-1. match slits:
+Open Issues
+===========
 
-1. assign slits:
-The detected edges are
-then grouped into common edges ("Assigned").
-
-1. trace slits: Each
-edge is fitted with a polynomial, and the left/right
-edge detections are synchonized and relabelled.
-
-1. pca: If the user wishes, a PCA can be performed on the slit
-edges (highly recommended for echelle data, and for
-data where the illumination of the trace frame is
-not uniform in the spectral direction). If a PCA
-analysis is performed for echelle data, an
-extrapolation can be performed to locate the echelle
-orders near the edge of the detector.
-
+#.  Bad match at amplifier (e.g. LRISr) yields a fake slit (or worse)
+#.  Slit edges
 
 Tips on Trace Flat Frames
 =========================
