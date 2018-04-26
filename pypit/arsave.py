@@ -126,7 +126,13 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
 
 
 def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
-                extensions=None, keywds=None, names=None):
+                        extensions=None, keywds=None, names=None):
+    core_save_master(data, filename=filename, frametype=frametype, ind=ind,
+                     extensions=extensions, keywds=keywds, names=names,
+                     raw_files=slf._fitsdict['filename'])
+
+def core_save_master(data, filename="temp.fits", frametype="<None>", ind=[],
+                extensions=None, keywds=None, names=None, raw_files=None):
     """ Write a MasterFrame
     Parameters
     ----------
@@ -159,7 +165,9 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
     msgs.info("Writing header information")
     for i in range(len(ind)):
         hdrname = "FRAME{0:03d}".format(i+1)
-        hdulist[0].header[hdrname] = (slf._fitsdict['filename'][ind[i]], 'PYPIT: File used to generate Master {0:s}'.format(frametype))
+        if raw_files is not None:
+            #hdulist[0].header[hdrname] = (slf._fitsdict['filename'][ind[i]], 'PYPIT: File used to generate Master {0:s}'.format(frametype))
+            hdulist[0].header[hdrname] = (raw_files[ind[i]], 'PYPIT: File used to generate Master {0:s}'.format(frametype))
     hdulist[0].header["FRAMETYP"] = (frametype, 'PYPIT: Master calibration frame type')
     if keywds is not None:
         for key in keywds.keys():

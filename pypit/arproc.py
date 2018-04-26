@@ -1412,7 +1412,7 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
 
 
 def slit_pixels(slf, frameshape, det):
-    """ Generate an image indicating the slit associated with each pixel.
+    """
 
     Parameters
     ----------
@@ -1425,24 +1425,42 @@ def slit_pixels(slf, frameshape, det):
 
     Returns
     -------
+
+    """
+    return core_slit_pixels(slf._lordloc[det-1], slf._rordloc[det-1], frameshape,
+                settings.argflag['trace']['slits']['pad'])
+
+
+def core_slit_pixels(all_lordloc, all_rordloc, frameshape, pad):
+    """ Generate an image indicating the slit associated with each pixel.
+
+    Parameters
+    ----------
+    all_lordloc : ndarray
+    all_rordloc : ndarray
+    frameshape : tuple
+      A two element tuple providing the shape of a trace frame.
+    pad
+
+    Returns
+    -------
     msordloc : ndarray
       An image assigning each pixel to a slit number. A zero value indicates
       that this pixel does not belong to any slit.
     """
 
-    nslits = slf._lordloc[det - 1].shape[1]
+    nslits = all_lordloc.shape[1]
     msordloc = np.zeros(frameshape)
     for o in range(nslits):
-        lordloc = slf._lordloc[det - 1][:, o]
-        rordloc = slf._rordloc[det - 1][:, o]
+        lordloc = all_lordloc[:, o]
+        rordloc = all_rordloc[:, o]
 #        print('calling locate_order')
 #        t = time.clock()
 #        _ordloc = arcytrace.locate_order(lordloc, rordloc, frameshape[0], frameshape[1],
 #                                         settings.argflag['trace']['slits']['pad'])
 #        print('Old locate_order: {0} seconds'.format(time.clock() - t))
 #        t = time.clock()
-        ordloc = new_locate_order(lordloc, rordloc, frameshape[0], frameshape[1],
-                                  settings.argflag['trace']['slits']['pad'])
+        ordloc = new_locate_order(lordloc, rordloc, frameshape[0], frameshape[1], pad)
 #        print('New locate_order: {0} seconds'.format(time.clock() - t))
 #        assert np.sum(_ordloc != ordloc) == 0, \
 #                    'Difference between old and new locate_order'

@@ -67,6 +67,6 @@ def main(pargs):
     # Get slit ids
     stup = (mstrace.shape, lordloc, rordloc)
     slit_ids = [get_slitid(stup, None, ii)[0] for ii in range(lordloc.shape[1])]
-    ginga.show_slits(viewer, ch, lordloc, rordloc, slit_ids)
+    ginga.show_slits(viewer, ch, lordloc, rordloc, slit_ids, pstep=50)
 
 
