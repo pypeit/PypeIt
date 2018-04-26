@@ -619,7 +619,22 @@ def get_ampscale(slf, det, msflat):
     return sclframe
 
 
-def wrapper_get_datasec_trimmed(slf, fitsdict, det, scidx):
+def get_datasec_trimmed(slf, fitsdict, det, scidx):
+    """
+    Primarily a wrapper to get_datasec and pix_to_amp()
+
+    Parameters
+    ----------
+    slf
+    fitsdict
+    det
+    scidx
+
+    Returns
+    -------
+    Fills slf._datasect
+    fitsdict['naxis0'] and fittsdict['naxis1']
+    """
     dnum = settings.get_dnum(det)
     spectrograph = settings.argflag['run']['spectrograph']
     scifile = fitsdict['directory'][scidx]+fitsdict['filename'][scidx]
@@ -641,7 +656,7 @@ def wrapper_get_datasec_trimmed(slf, fitsdict, det, scidx):
 
     # Build the datasec lists for pix_to_amp
     datasec = []
-    for i in numamplifiers:
+    for i in range(numamplifiers):
         sdatasec = "datasec{0:02d}".format(i+1)
         datasec.append(settings.spect[dnum][sdatasec])
     # Call
@@ -702,7 +717,7 @@ def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
     # For convenience
     # Initialize the returned array
     retarr = np.zeros((naxis0, naxis1))
-    for i in numamplifiers:
+    for i in range(numamplifiers):
         #datasec = "datasec{0:02d}".format(i+1)
         #x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
         #y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
@@ -2513,7 +2528,22 @@ def replace_columns(img, bad_cols, replace_with='mean'):
     # Return
     return img2
 
+
 def trim(frame, numamplifiers, datasec):
+    """
+
+    Parameters
+    ----------
+    frame : ndarray
+    numamplifiers : int
+    datasec : list of datasecs
+      One per amplifier
+
+    Returns
+    -------
+    frame : ndarray
+      Trimmed
+    """
     #dnum = settings.get_dnum(det)
     #for i in range(settings.spect[dnum]['numamplifiers']):
     for i in range(numamplifiers):

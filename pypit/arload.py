@@ -216,8 +216,9 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
     spectrograph = settings.argflag['run']['spectrograph']
     dataexto01 = settings.spect[dnum]['dataext01']
     disp_dir = settings.argflag['trace']['dispersion']['direction']
+    numamplifiers = settings.spect[dnum]['numamplifiers']
 
-    for i in range(ind):
+    for i in range(len(ind)):
         raw_file = fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]]
         temp, head0 = load_raw_frame(spectrograph, raw_file, det, frametype='<None>',
                               dataext01=dataexto01, disp_dir=disp_dir)
@@ -227,7 +228,11 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
         if msbias is not None:
             arproc.bias_subtract(temp, msbias, det)
         if trim:
-            temp = arproc.trim(temp, det)
+            datasecs = []
+            for jj in range(numamplifiers):
+                datasec = "datasec{0:02d}".format(jj+1)
+                datasecs.append(settings.spect[dnum][datasec])
+            temp = arproc.trim(temp, det, datasecs)
 
         # Save
         if i == 0:
@@ -284,7 +289,7 @@ def load_raw_frame(spectrograph, raw_file, det, frametype='<None>', dataext01=No
         #hdulist = fits.open(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]])
         hdulist = fits.open(raw_file)
         #temp = hdulist[settings.spect[dnum]['dataext01']].data
-        temp = hdulist[dataext01]
+        temp = hdulist[dataext01].data
         head0 = hdulist[0].header
     temp = temp.astype(np.float)  # Let us avoid uint16
     #if settings.argflag['trace']['dispersion']['direction'] == 1:

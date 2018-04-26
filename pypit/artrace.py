@@ -1346,8 +1346,8 @@ def new_limit_yval(yc, maxv):
 
 
 def new_match_edges(edgdet, ednum, mr=50):
-    """  Attempt to match together portions of an edge by scanning along
-    the detector in the vertical direction.
+    """  Label groups of edge pixels and give them
+    a unique identifier.
 
     Parameters
     ----------
@@ -1372,7 +1372,8 @@ def new_match_edges(edgdet, ednum, mr=50):
 
     lcnt = 2*ednum
     rcnt = 2*ednum
-    for y in range(sz_y):  # Would probably make more sense to start at sz_y/2
+    # TODO -- Consider startting at sz_y/2
+    for y in range(sz_y):
         for x in range(sz_x):
             if edgdet[x,y] != -1 and edgdet[x,y] != 1:
                 # No edge at this pixel
@@ -1950,6 +1951,7 @@ def edgearr_from_binarr(binarr, binbpx, det, settings, medrep=0, min_sqm=30., ma
     # Generate sigma image
     sqmstrace = np.sqrt(np.abs(binarr))
     # Median filter, as desired
+    # TODO -- Try size=(7,3) to bring up the edges instead of (3,7)
     for ii in range(medrep):
         sqmstrace = ndimage.median_filter(sqmstrace, size=(3, 7))
 
@@ -3028,7 +3030,6 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
         retxt = "edges"
     msgs.info("{0:d} left {1:s} and {2:d} right {3:s} were found in the trace".format(lcnt, letxt, rcnt, retxt))
 
-    '''
     while iterate:
         # Calculate the minimum and maximum left/right edges
         ww = np.where(edgearr < 0)
@@ -3079,7 +3080,7 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
                 iterate = True
                 edgearr[:,-1] = 2*ednum
                 rcnt = 1
-    '''
+
     ww = np.where(edgearr < 0)
     lmin, lmax = -np.max(edgearr[ww]), -np.min(edgearr[ww])  # min/max are switched because of the negative signs
     ww = np.where(edgearr > 0)
@@ -5037,7 +5038,6 @@ def prune_peaks(hist, pks, pkidx, debug=False):
     if debug:
         debugger.set_trace()
 
-    '''
     # Now only consider the peaks closest to the highest peak
     lgd = 1
     # If the highest peak was zeroed out, this will zero out everyone!
@@ -5053,7 +5053,7 @@ def prune_peaks(hist, pks, pkidx, debug=False):
             lgd = 0
         elif lgd == 0:
             msk[pkidx-ii] = 0
-    '''
+
     if debug:
         debugger.set_trace()
 
