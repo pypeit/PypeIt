@@ -1846,7 +1846,7 @@ def driver_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
     if settings['trace']['slits']['pca']['type'] == 'order':
         lcen, rcen, extrapord = pca_order_slit_edges(binarr, edgearr, wl, wr, lcent, rcent, gord,
                          lcoeff, rcoeff, plxbin, slitcen, pixlocn)
-    if settings['trace']['slits']['pca']['type'] == 'pixel':
+    elif settings['trace']['slits']['pca']['type'] == 'pixel':
         lcen, rcen, extrapord = pca_pixel_slit_edges(binarr, edgearr, lcoeff, rcoeff, ldiffarr, rdiffarr,
                          lnmbrarr, rnmbrarr, lwghtarr, rwghtarr, lcent, rcent, plxbin,
                                                      settings)
