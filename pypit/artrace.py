@@ -1819,7 +1819,7 @@ def driver_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
     # Fit right edges
     ww = np.where(edgearr > 0)
     rmin, rmax = np.min(edgearr[ww]), np.max(edgearr[ww])  # min/max are switched because of the negative signs
-    rcoeff, rnmbrarr, rdiffarr, rwghtarr = fit_edges(edgearr, lmin, lmax, plxbin, plybin, settings, left=False)
+    rcoeff, rnmbrarr, rdiffarr, rwghtarr = fit_edges(edgearr, rmin, rmax, plxbin, plybin, settings, left=False)
 
     # Are we done, e.g. longslit?
     #   Check if no further work is needed (i.e. there only exists one order)
@@ -1837,10 +1837,9 @@ def driver_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
 
     # Synchronize
     msgs.info("Synchronizing left and right slit traces")
-    lcent, rcent, wl, wr, gord = synchronize_edges(binarr, edgearr, plxbin,
-                                                   lmin, lmax, lcoeff, rmin, rcoeff,
-                                                   lnmbrarr, ldiffarr, lwghtarr,
-                                                   rnmbrarr, rdiffarr, rwghtarr, settings)
+    lcent, rcent, wl, wr, gord, lcoeff, ldiffarr, lnmbrarr, lwghtarr, rcoeff, rdiffarr, rnmbrarr, rwghtarr = synchronize_edges(
+        binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
+        lnmbrarr, ldiffarr, lwghtarr, rnmbrarr, rdiffarr, rwghtarr, settings)
     slitcen = 0.5*(lcent+rcent).T
 
     # PCA?
@@ -1860,8 +1859,10 @@ def driver_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
         extrapord = np.zeros(lcen.shape[1], dtype=np.bool)
 
     # Remove any slits that are completely off the detector
+    #   Also remove short slits here
     nslit = lcen.shape[1]
     mask = np.zeros(nslit)
+    fracpix = int(settings['trace']['slits']['fracignore']*mstrace.shape[1])
     for o in range(nslit):
         if np.min(lcen[:, o]) > mstrace.shape[1]:
             mask[o] = 1
@@ -2445,7 +2446,7 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
                              settings['trace']['slits']['function'], minv=minvf, maxv=maxvf)
     rcent = arutils.func_val(rcoeff[:, runq[rg] - 1 - settings['trace']['slits']['pca']['extrapolate']['neg']], xv,
                              settings['trace']['slits']['function'], minv=minvf, maxv=maxvf)
-    return lcent, rcent, wl, wr, gord
+    return lcent, rcent, wl, wr, gord, lcoeff, ldiffarr, lnmbrarr, lwghtarr, rcoeff, rdiffarr, rnmbrarr, rwghtarr
 
 def pca_order_slit_edges(binarr, edgearr, wl, wr, lcent, rcent, gord,
                    lcoeff, rcoeff, plxbin, slitcen, pixlocn):
@@ -3480,7 +3481,7 @@ def refactor_trace_slits(det, mstrace, binbpx, pixlocn, settings=None,
     #   The slit remomving algorithm up above is not working..
     nslit = lcen.shape[1]
     mask = np.zeros(nslit)
-    fracpix = int(settings.argflag['trace']['slits']['fracignore']*mstrace.shape[1])
+    fracpix = int(settings['trace']['slits']['fracignore']*mstrace.shape[1])
     for o in range(nslit):
         if np.min(lcen[:, o]) > mstrace.shape[1]:
             mask[o] = 1
