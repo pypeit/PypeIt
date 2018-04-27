@@ -856,6 +856,7 @@ def trace_objects_in_slit(slf, det, slitn, sciframe, varframe, crmask, trim=2,
     # Convert left object trace
     for o in range(nobj):
         trccopy[:, o] = trcfunc[:, o] - cval[o] + objl[o]/(npix-1.0)
+    # TODO -- Consider bringing back the next line, as needed
     #trobjl = ofst + (diff-triml-trimr)*trccopy
     # Convert right object trace
     for o in range(nobj):
