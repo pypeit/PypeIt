@@ -1,8 +1,8 @@
 .. highlight:: rest
 
-*******
-Tracing
-*******
+************
+Slit Tracing
+************
 
 One of the first and most crucial steps of the pipeline
 is to auto-magically identify the slits (or orders)
@@ -45,6 +45,8 @@ Here is the flow of the algorithms.
 Open Issues
 ===========
 
+#.  Bad columns yield fake edges.  Ideally these are masked out by the pipeline using the
+    instrument-specific bad pixel mask.
 #.  Bad match at amplifier (e.g. LRISr) yields a fake slit (or worse)
 #.  Slit edges
 
@@ -71,9 +73,54 @@ slits, by giving the following keyword argument::
 
     trace slits expand True
 
+This has been developed for the APF primarily.
+
+
+.. _trace-slit-longslit:
+
+Reduction Mode
+==============
+
+
+Longslit
+--------
+
+If you have only one slit per detector, it is recommended
+that you specify the :ref:`trace-slit-number` as 1.
+
+Multislit
+---------
+
+Deriving all of the slits in a mask exposure is challenged
+by overlapping slits, slits that run to the detector edge,
+bad columns, etc.  Our testing with DEIMOS and LRIS masks
+is thus far recovering ~95% of the slits and only those
+on the detector edges that fall almost entirely on the
+detector.
+
+It is highly recommended that you inspect the warning
+messages during slit tracing and then pause the code
+to inspect the MasterTrace output using the :ref:`trace-slit-script`
+script.  Perhaps the most obvious parameter to vary
+is the :ref:`trace-slit-threshold`.
+
+Future versions of the code will allow one to add
+individual slits.  For now you can only specify
+a single slit on each detector with the
+:ref:`trace-slit-user-defined` approach.
+
+Echelle
+-------
+
+Because the orders on an echelle are more regularly behaved
+than a typical multi-slit mask, additional and
+different algorithms are employed for the order definition.
+
 
 Scripts
 =======
+
+.. _trace-slit-script:
 
 pypit_chk_edges
 ---------------
@@ -85,13 +132,16 @@ Here is the call::
 
 
 
-User Inputted Values
-====================
+Trace Slit Settings
+===================
+
+The following are settings that the user may consider
+varying to improve the slit tracing.
 
 .. _trace-slit-number:
 
-Slit Number
------------
+Number of Slits
+---------------
 
 Ironically, one of the more challenging slit
 configurations to automatically identify is
@@ -115,8 +165,45 @@ well-defined and uniformly illuminated slits
 (usually the case with cross-dispersed data,
 for example).
 
+
+User defined
+------------
+
+If necessary, the user may define the edges of the slit
+on each detector.  Currently this is only implemented for
+single slit (i.e. longslit) mode.  The syntax is to add a
+line to the PYPIT file indicating the start and end of each
+slit on each detector in detector column units (as binned).
+
+For example, for the LRISr longslit with 2x2 binning, the
+following line will force the slit to be generated from
+columns 7-295 on the second detector::
+
+    trace slits single [0,0,7,295]   # [left_det01, right_det01, left_det02, right_det02]
+
+The code will be required to
+automatically set a slit on the second detector.
+
+.. _trace-slit-threshold:
+
+Detection Threshold
+-------------------
+
+The detection threshold for identifying slits is set
+relatively low to err on finding more than fewer slit edges.
+The algorithm can be fooled by scattered light and detector
+defects.  One can increase the threshold with the *sigdetect*
+parameter::
+
+    trace slits sigdetect 30.
+
+Then monitor the number of slits detected by the algorithm.
+
 Slit Gaps
 ---------
+
+THIS METHOD IS NOT WELL TESTED NOR RECOMMENDED
+AT THIS STAGE (JXP).
 
 In cases where the trace frame contains slits that
 are uniformly illuminated in the spectral direction,
@@ -136,37 +223,7 @@ less than 10 pixels. This variable should not be used unless
 there is some crosstalk between slits, or in the event
 of close slits with a non-uniform illumination pattern.
 
-User defined
-------------
-
-If necessary, the user may define the edges of the slit(s)
-on each detector.  Currently this is only implemented for
-single slit (i.e. longslit) mode.  The syntax is to add a
-line to the PYPIT file indicating the start and end of each
-slit on each detector in detector column units (as binned).
-
-For example, for the LRISr longslit with 2x2 binning, the
-following line will force the slit to be generated from
-columns 7-295 on the second detctor::
-
-    trace slits single [0,0,7,295]
-
-Because the 2nd value is 0, the code will be required to
-automatically find a slit on the first detector.
-
-Slit Threshold
---------------
-
-The detection threshold for identifying slits is set
-relatively low to err on finding more than fewer slit edges.
-The algorithm can be fooled by scattered light and detector
-defects.  One can increase the threshold with the *sigdetect*
-parameter::
-
-    trace slits sigdetect 30.
-
-Then monitor the number of slits detected by the algorithm.
-
+.. _trace-slit-user-defined:
 
 Slit Profile
 ============
@@ -209,6 +266,7 @@ in the spectral direction (i.e. the blaze function).
 If the spatial slit profile is not calculated, the
 blaze function will still be calculated using the
 'reduce flatfield' settings listed above.
+
 
 For Developers
 ==============

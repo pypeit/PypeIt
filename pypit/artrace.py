@@ -1924,8 +1924,9 @@ def tcrude_edgearr(edgearr, siglev, ednum, TOL=3., tfrac=0.33):
             uni_e = np.unique(edgearr[edgearr < 0])
         else:
             uni_e = np.unique(edgearr[edgearr > 0])
-        # Save sorted
-        tc_dict[side]['uni_idx'] = uni_e[np.argsort(uni_e)]
+        # Save sorted (in absolute value) -- This is necessary
+        uni_e = uni_e[np.argsort(np.abs(uni_e))]
+        tc_dict[side]['uni_idx'] = uni_e
 
         # Flag: 0=not traced; 1=traced; -1=duplicate
         tc_dict[side]['flags'] = np.zeros(len(uni_e), dtype=int)
