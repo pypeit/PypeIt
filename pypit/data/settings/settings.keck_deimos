@@ -367,7 +367,6 @@ pinhole check condition1 exptime>999999 # Avoids any pinhole frames
 dark check condition1 exptime>999999 # Avoids any dark frames
 
 
-
 # Make some changes to the arguments and flags
 ## JFH Trying to make slit identification more robust for DEIMOS
 #settings trace slits sigdetect 500.0

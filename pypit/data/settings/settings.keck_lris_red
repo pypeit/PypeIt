@@ -137,5 +137,10 @@ arc match dichroic ''             # Check the same decker as the science frame w
 arc match dispname ''             # Check the same decker as the science frame was used
 arc match dispangle |<=0.02           # Match the grating angle (no idea if this is reasonable for LRISr)
 
+
+# Dome flat for trace slits
+settings trace slits sigdetect 50.0
+settings trace slits pca params [3,2,1,0]
+
 # Make some changes to the arguments and flags
 settings trace dispersion direction 0

@@ -133,3 +133,5 @@ arc match decker ''                 # Check the same decker as the science frame
 settings trace dispersion direction 0
 settings trace slits tilts method spca
 settings trace slits tilts params 1,1,1
+settings trace slits pca params [3,2,1,0]
+settings trace slits sigdetect 30.0        # Good for Twilight flats; dome flats might fail miserably
