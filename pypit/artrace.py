@@ -1945,6 +1945,7 @@ def tcrude_edgearr(edgearr, siglev, ednum, TOL=3., tfrac=0.33):
         # Flag: 0=not traced; 1=traced; -1=duplicate
         tc_dict[side]['flags'] = np.zeros(len(uni_e), dtype=int)
 
+
         # Loop on edges to trace
         niter = 0
         while np.any(tc_dict[side]['flags'] == 0):
@@ -2005,8 +2006,9 @@ def tcrude_edgearr(edgearr, siglev, ednum, TOL=3., tfrac=0.33):
             for kk, x in enumerate(xinit):
                 yval = np.where(goodx[:,kk])[0]
                 eval = edgearr[yrow,x]
-                # TODO -- check on tossing any trace with len(yval) < nrows // 2
-                if len(yval) < int(tfrac*edgearr.shape[0]):
+                # Check whether the trace is well determined on tface of the detector
+                #    If only one trace, this check is ignored
+                if (len(yval) < int(tfrac*edgearr.shape[0])) and (len(uni_e) > 1):
                     msgs.warn("Edge at x={}, y={} traced less than {} of the detector.  Removing".format(
                         x,yrow,tfrac))
                     tc_dict[side]['flags'][uni_e==eval] = -1  # Clip me
@@ -2015,12 +2017,13 @@ def tcrude_edgearr(edgearr, siglev, ednum, TOL=3., tfrac=0.33):
                     continue
                 # Fill
                 xval = np.round(xset[:, kk]).astype(int)
-                new_edgarr[yval, xval[yval]] = eval
+                if len(uni_e) == 1:  # Klude for single edge
+                    new_edgarr[edgearr==eval] = edgearr[edgearr==eval]
+                else:
+                    new_edgarr[yval, xval[yval]] = eval
                 # Flag
                 tc_dict[side]['flags'][uni_e == eval] = 1
                 # Save xval
-                if eval == 0:
-                    debugger.set_trace()
                 tc_dict[side]['xval'][str(eval)] = int(xset[ycen,kk])
                 # Zero out edgearr
                 edgearr[edgearr==eval] = 0
@@ -2030,9 +2033,8 @@ def tcrude_edgearr(edgearr, siglev, ednum, TOL=3., tfrac=0.33):
     # Reset edgearr values to run sequentially and update the dict
     for side in ['left', 'right']:
         if np.any(tc_dict[side]['flags'] == -1):
+            # Loop on good edges
             gde = np.where(tc_dict[side]['flags'] == 1)[0]
-            #if side == 'left':  # Need to run the other way
-            #    gde = gde[::-1]
             for ss,igde in enumerate(gde):
                 if side == 'left':
                     newval = -1*ednum - ss
@@ -2045,6 +2047,8 @@ def tcrude_edgearr(edgearr, siglev, ednum, TOL=3., tfrac=0.33):
                 if newval == 0:
                     debugger.set_trace()
                 tc_dict[side]['xval'][str(newval)] = tc_dict[side]['xval'].pop(str(oldval))
+    print(tc_dict['left']['xval'])
+    print(tc_dict['right']['xval'])
     # Return
     return new_edgarr, tc_dict.copy()
 
