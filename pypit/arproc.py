@@ -2514,14 +2514,21 @@ def replace_columns(img, bad_cols, replace_with='mean'):
     tmp = np.zeros(img.shape[1]).astype(int)
     tmp[bad_cols] = 1
     tmp2 = tmp - np.roll(tmp,1)
+    # Deal with first column
+    if bad_cols[0]:
+        tmp2[0]=1
     ledges = np.where(tmp2 == 1)[0]
     redges = np.where(tmp2 == -1)[0]
+    # Last column
+    if tmp2[-1] == 1:
+        redges = np.concatenate([redges, np.array([bad_cols.size-1])])
+    # Last column
     for kk, ledge in enumerate(ledges):
         lval = img[:,ledge-1]
         rval = img[:,redges[kk]]
         if replace_with == 'mean':
             mval = (lval+rval)/2.
-            for ii in range(ledge, redges[kk]):
+            for ii in range(ledge, redges[kk]+1):
                 img2[:,ii] = mval
         else:
             msgs.error("Bad option to replace_columns")

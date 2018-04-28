@@ -174,7 +174,9 @@ def bpm(det):
     if det == 1:
         bpix[:,1052:1054] = 1.
     elif det == 2:
-        bpix[:,377:380] = 1.
+        bpix[:,0:4] = 1.
+        bpix[:,376:380] = 1.
+        bpix[:,2047] = 1.
     elif det == 5:
         bpix[:,129] = 1.
     elif det == 7:
