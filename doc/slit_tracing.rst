@@ -163,9 +163,13 @@ well-defined and uniformly illuminated slits
 (usually the case with cross-dispersed data,
 for example).
 
+Add User Slits
+--------------
 
-User defined
-------------
+docs coming soon
+
+Single user slit
+----------------
 
 This option is likely to be deprecated while add_user_slits
 will be maintained.
