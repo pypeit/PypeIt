@@ -167,6 +167,9 @@ for example).
 User defined
 ------------
 
+This option is likely to be deprecated while add_user_slits
+will be maintained.
+
 If necessary, the user may define the edges of the slit
 on each detector.  Currently this is only implemented for
 single slit (i.e. longslit) mode.  The syntax is to add a

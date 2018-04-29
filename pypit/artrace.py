@@ -1734,7 +1734,7 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
 
 def driver_trace_slits(mstrace, pixlocn, det=None, settings=None,
                        ednum=100000, binbpx=None, ignore_orders=False,
-                       add_slits=None):
+                       add_user_slits=None):
     """
     Parameters
     ----------
@@ -1767,6 +1767,9 @@ def driver_trace_slits(mstrace, pixlocn, det=None, settings=None,
     #  Only filter in the spectral dimension, not spatial!
     binarr = ndimage.uniform_filter(mstrace, size=(3, 1), mode='mirror')
 
+    # Specify a single slit?
+    #  Note this is different from add_user_slits (which is handled below)
+    #  This trace slits single option is likely to be deprecated
     if len(settings['trace']['slits']['single']) > 0: # Single slit
         iledge, iredge = (det-1)*2, (det-1)*2+1
         ledge = settings['trace']['slits']['single'][iledge]
@@ -1819,12 +1822,6 @@ def driver_trace_slits(mstrace, pixlocn, det=None, settings=None,
     if not user_set:
         edgearr, lcnt, rcnt = edgearr_final_left_right(edgearr, ednum, siglev)
 
-    # Add slits
-    if add_slits is not None:
-        edgearr, added_edges = add_user_edges(edgearr, siglev, add_slits)
-        debugger.set_trace()
-    else:
-        added_edges = [0]
 
     # Trace crude me
     #   -- Mainly to deal with duplicates and improve the traces
@@ -1845,7 +1842,14 @@ def driver_trace_slits(mstrace, pixlocn, det=None, settings=None,
     # Sync me
     edgearr = mslit_sync(edgearr, tc_dict, ednum)
 
+    # Add user input slits
+    if add_user_slits is not None:
+        edgearr = add_user_edges(edgearr, siglev, tc_dict, add_user_slits)
+        debugger.show_image(edgearr)
+        debugger.set_trace()
+
     # Ignore orders/slits on the edge of the detector when they run off
+    #    Recommended for Echelle only
     if ignore_orders:
         fracignore = settings['trace']['slits']['fracignore']
         edgearr, lmin, lmax, rmin, rmax = edgearr_ignore_orders(edgearr, fracignore)
@@ -5650,12 +5654,83 @@ def desi_trace_fweight(fimage, xinit, ycen=None, invvar=None, radius=2., debug=F
     return xnew, xerr
 
 
-def add_user_edges(edgearr, siglev, add_slits, yrow=None):
+def add_user_edges(edgearr, siglev, tc_dict, add_slits):
+    """
+    Warning: There is no real error checking here.
+    The user is assumed to know what they are doing!
 
-    added_edges = []
+    Parameters
+    ----------
+    edgearr
+    siglev
+    tc_dict
+    add_slits
+
+    Returns
+    -------
+
+    """
+
+    # Indices
+    lmin = np.min(edgearr)
+    rmax = np.max(edgearr)
+    new_l = lmin-1
+    new_r = rmax+1
+
+    # Grab the existing edges (code is duplicated in mslit_sync)
+    left_idx = [int(key) for key in tc_dict['left']['xval']]  # These match to the edge values in edgearr
+    left_idx.sort(reverse=True)
+    left_xval = np.array([tc_dict['left']['xval'][str(idx)] for idx in left_idx])
+
+    right_idx = [int(key) for key in tc_dict['right']['xval'].keys()]  # These match to the edge values in edgearr
+    right_idx.sort()
+    right_xval = np.array([tc_dict['right']['xval'][str(idx)] for idx in right_idx])
+
     # Loop me
+    nrow = edgearr.shape[0]
     for new_slit in add_slits:
-        pass
+        # Parse
+        xleft, xright, yrow = new_slit
+        # Left or right
+        for side in ['left','right']:
+            # Trace crude and setup
+            if side == 'left':
+                xset, xerr = trace_crude_init(np.maximum(siglev, -0.1), np.array([xleft]), yrow)
+                #
+                new_i = new_l
+                ref_x = left_xval
+                ref_i = left_idx
+            else:
+                xset, xerr = trace_crude_init(np.maximum(-1*siglev, -0.1), np.array([xright]), yrow)
+                #
+                new_i = new_r
+                ref_x = right_xval
+                ref_i = right_idx
+            # Was the trace good enough?
+            ygd = np.where(xerr[:,0] != 999.)[0]
+            if len(ygd) > nrow//2: # Use the trace if it was primarily successful
+                xvals = np.round(xset[:, 0]).astype(int)
+                edgearr[ygd, xvals[ygd]] = new_i
+            else: # Otherwise, find the closest left edge and use that
+                new_xval = int(np.round(xset[nrow//2, 0]))  # Always defined at the 1/2 point
+                # Find the closest
+                idx = np.argmin(np.abs(ref_x-new_xval))
+                ref_slit = ref_i[idx]
+                dx = ref_x[idx]-new_xval
+
+                # Grab its pixels
+                i_pix = np.where(edgearr == ref_slit)
+                new_pix = (i_pix[0], i_pix[1]-dx)
+                # And use them
+                edgearr[new_pix] = new_i
+            # Update
+            if side == 'left':
+                new_l -= 1
+            else:
+                new_r += 1
+            #debugger.set_trace()
+    # Return
+    return edgearr
 
 
 def mslit_sync(edgearr, tc_dict, ednum, insert_buff=5, add_left_edge_slit=True):
