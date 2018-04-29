@@ -94,9 +94,7 @@ Multislit
 Deriving all of the slits in a mask exposure is challenged
 by overlapping slits, slits that run to the detector edge,
 bad columns, etc.  Our testing with DEIMOS and LRIS masks
-is thus far recovering ~95% of the slits and only those
-on the detector edges that fall almost entirely on the
-detector.
+is thus far recovering ~95% of the slits.
 
 It is highly recommended that you inspect the warning
 messages during slit tracing and then pause the code
@@ -198,6 +196,10 @@ parameter::
     trace slits sigdetect 30.
 
 Then monitor the number of slits detected by the algorithm.
+
+Presently, we recommend that you err on the conservative
+side regarding thresholds, i.e. higher values of sigdetect,
+unless you have especially faint trace flat frames.
 
 Slit Gaps
 ---------

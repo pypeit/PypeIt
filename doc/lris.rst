@@ -39,7 +39,7 @@ for LRISb::
     settings trace slits tilts method spca
     settings trace slits tilts params 1,1,1
     settings trace slits pca params [3,2,1,0]
-    settings trace slits sigdetect 30.0        # Good for Twilight flats; dome flats might fail miserably
+    settings trace slits sigdetect 30.0        # Good for Twilight flats; faint dome flats might fail miserably..
 
 The last setting is fine for a relatively bright frame
 taken on the twilight sky,
@@ -75,3 +75,12 @@ for LRISr::
     settings trace slits sigdetect 50.0   # Good for relatively bright dome flats
     settings trace slits pca params [3,2,1,0]
 
+Known issues
+++++++++++++
+
+Multi-slit
+----------
+
+The code may identify a 'ghost' slit in empty detector real
+estate if your mask does not fill most of the field.  Be prepared
+to ignore it.
