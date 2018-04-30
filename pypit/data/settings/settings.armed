@@ -11,7 +11,6 @@ reduce flexure perform False
 reduce slitcen useframe pinhole          # How to trace the slit centre (pinhole, trace), you can also specify a master calibrations file if it exists.
 reduce slitprofile perform True
 
-
 # ARC FRAMES
 arc calibrate lamps [ThAr]    # name of the ions used for the wavelength calibration
 
