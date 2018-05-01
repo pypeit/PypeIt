@@ -1698,9 +1698,8 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
     plt.rcdefaults()
 
 
-def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
-                 root='trace', normalize=True, desc=""):
-    """ Generate a QA plot for the object trace
+def obj_trace_qa(slf, frame, det, tracelist, root='trace', normalize=True, desc=""):
+    """ Generate a QA plot for the object traces in a single slit
 
     Parameters
     ----------
@@ -1712,6 +1711,7 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
       Right edge traces
     objids : list
     det : int
+    slit : int
     desc : str, optional
       Title
     root : str, optional
@@ -1727,10 +1727,11 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
     # Outfile name
     outfile = arqa.set_qa_filename(slf._basename, method, det=det)
     #
-    ntrc = ltrace.shape[1]
     ycen = np.arange(frame.shape[0])
     # Normalize flux in the traces
     if normalize:
+        ntrc = ltrace.shape[1]
+        debugger.set_trace() # NO LONGER SUPPORTED
         nrm_frame = np.zeros_like(frame)
         for ii in range(ntrc):
             xtrc = (ltrace[:,ii] + rtrace[:,ii])/2.
@@ -1773,19 +1774,26 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
     plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', right='off', labelbottom='off', labelleft='off')
 
     # Traces
-    iy_mid = int(frame.shape[0] / 2.)
-    iy = np.linspace(iy_mid,frame.shape[0]*0.9,ntrc).astype(int)
-    for ii in range(ntrc):
-        # Left
-        plt.plot(ltrace[:, ii]+0.5, ycen, 'r--', alpha=0.7)
-        # Right
-        plt.plot(rtrace[:, ii]+0.5, ycen, 'c--', alpha=0.7)
-        if objids is not None:
-            # Label
-            # plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
-            lbl = 'O{:03d}'.format(objids[ii])
-            plt.text((ltrace[iy[ii], ii]+rtrace[iy[ii], ii])/2., ycen[iy[ii]],
-                lbl, color='green', ha='center')
+    #iy_mid = int(frame.shape[0] / 2.)
+    #iy = np.linspace(iy_mid,frame.shape[0]*0.9,ntrc).astype(int)
+    for slit, tlist in enumerate(tracelist):
+        if 'nobj' not in tlist.keys():
+            continue
+        for obj_idx in range(tlist['nobj']):
+            obj_img = tlist['object'][:,:,obj_idx].astype(int)
+            objl = np.argmax(obj_img, axis=1)
+            objr = obj_img.shape[1]-np.argmax(np.rot90(obj_img,2), axis=1)-1  # The -1 is for Python indexing
+            #
+            # Left
+            plt.plot(objl, ycen, 'r:', alpha=0.7, lw=0.1)
+            # Right
+            plt.plot(objr, ycen, 'c:', alpha=0.7, lw=0.1)
+        #if objids is not None:
+        #    # Label
+        #    # plt.text(ltrace[iy,ii], ycen[iy], '{:d}'.format(ii+1), color='red', ha='center')
+        #    lbl = 'O{:03d}'.format(objids[ii])
+        #    plt.text((ltrace[iy[ii], ii]+rtrace[iy[ii], ii])/2., ycen[iy[ii]],
+        #        lbl, color='green', ha='center')
     # Title
     tstamp = arqa.gen_timestamp()
     if desc == "":
@@ -1800,7 +1808,7 @@ def obj_trace_qa(slf, frame, ltrace, rtrace, objids, det,
 
 
 def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit",
-                   maxp=4, desc="", maskval=-999999.9):
+                   maxp=4, desc="", maskval=-999999.9, slit=None):
     """ Generate a QA plot for the blaze function fit to each slit
     Or the arc line tilts
 
@@ -1837,7 +1845,7 @@ def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit",
         method += '_Blaze'
     else:
         msgs.bug("Unknown type of order fits.  Currently prepared for Arc and Blaze")
-    outroot = arqa.set_qa_filename(slf.setup, method)
+    outroot = arqa.set_qa_filename(slf.setup, method, slit=slit)
     #
     npix, nord = ydata.shape
     pages, npp = arqa.get_dimen(nord, maxp=maxp)
@@ -1995,12 +2003,17 @@ def new_find_objects(profile, bgreg, stddev):
     while np.any(gt_5_sigma & np.invert(_profile.mask)):
         # Find next maximum flux point
         imax = np.ma.argmax(_profile)
+        #  IF one is recovering an object mask with *all* pixels triggered,
+        #    then consider uncommenting the next 3 lines -- JXP on 20 Apr 2018
+        #if not gt_5_sigma[imax]:
+        #    break
+        #_profile[imax] = np.ma.masked  # Mask the peak
         # Find the valid source pixels around the peak
         f = np.arange(sz_x)[np.roll(not_gt_3_sigma, -imax)]
         # TODO: the ifs below feel like kludges to match old
         # find_objects function.  In particular, should objr be treated
         # as exclusive or inclusive?
-        objl[obj] = imax-sz_x+f[-1] if imax-sz_x+f[-1] > 0 else 1
+        objl[obj] = imax-sz_x+f[-1] if imax-sz_x+f[-1] > 0 else 0
         objr[obj] = f[0]+imax if f[0]+imax < sz_x else sz_x-1
 #        print('object found: ', imax, f[-1], objl[obj], f[0], objr[obj], sz_x)
         # Mask source pixels and increment for next iteration
@@ -2263,27 +2276,27 @@ def new_phys_to_pix(array, diff):
         msgs.error('Input difference array must be 1D!')
     _array = np.atleast_2d(array)
     doravel = len(array.shape) != 2
-    pix = np.argmin(np.absolute(_array[:,:,None] - diff[None,None,:]), axis=2)
+    pix = np.argmin(np.absolute(_array[:,:,None] - diff[None,None,:]), axis=2).astype(int)
     return pix.ravel() if doravel else pix
 
-    sz_a, sz_n = _array.shape
-    sz_d = diff.size
-
-    pix = np.zeros((sz_a,sz_n), dtype=int)
-    for n in range(0,sz_n):
-        for a in range(0,sz_a):
-            mind = 0
-            mindv = _array[a,n]-diff[0]
-
-            for d in range(1,sz_d):
-                test = _array[a,n]-diff[d]
-                if test < 0.0: test *= -1.0
-                if test < mindv:
-                    mindv = test
-                    mind = d
-                if _array[a,n]-diff[d] < 0.0: break
-            pix[a,n] = mind
-    return pix.ravel() if doravel else pix
+#    sz_a, sz_n = _array.shape
+#    sz_d = diff.size
+#
+#    pix = np.zeros((sz_a,sz_n), dtype=int)
+#    for n in range(0,sz_n):
+#        for a in range(0,sz_a):
+#            mind = 0
+#            mindv = _array[a,n]-diff[0]
+#
+#            for d in range(1,sz_d):
+#                test = _array[a,n]-diff[d]
+#                if test < 0.0: test *= -1.0
+#                if test < mindv:
+#                    mindv = test
+#                    mind = d
+#                if _array[a,n]-diff[d] < 0.0: break
+#            pix[a,n] = mind
+#    return pix.ravel() if doravel else pix
 
 # Weighted boxcar smooothing with rejection
 def new_smooth_x(array, weight, fact, rejhilo, maskval):
