@@ -1819,7 +1819,7 @@ def driver_trace_slits(mstrace, pixlocn, det=None, settings=None,
         siglev = None
     else:  # Generate the edgearr from the input trace image
         siglev, edgearr = edgearr_from_binarr(binarr, binbpx, medrep=settings['trace']['slits']['medrep'],
-                                              sobel_mode=settings['trace']['slits']['sobel']['model'],
+                                              sobel_mode=settings['trace']['slits']['sobel']['mode'],
                                               sigdetect=settings['trace']['slits']['sigdetect'],
                                               number_slits=settings['trace']['slits']['number'])
         user_set = False
