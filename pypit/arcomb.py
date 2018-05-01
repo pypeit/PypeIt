@@ -3,23 +3,40 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 import time
 
 import numpy as np
-from matplotlib import pyplot as plt
 
 from pypit import msgs
 from pypit import arparse as settings
-from pypit import arcycomb
 
-def wrapper_comb_frames(frames_arr, det, frametype, weights=None, maskvalue=1048577, printtype=None):
+
+def comb_frames(frames_arr, det, frametype):
+    """ This method has been reduced to a simple wrapper to the core method.
+    It is likely to be deprecated in a future refactor
+
+    Parameters
+    ----------
+    frames_arr : ndarray (3D)
+      Array of frames to be combined
+    frames_arr
+    det : int
+      Detector index
+    frametype : str, optional
+      What is the type of frame being combining?
+
+    Returns
+    -------
+    comb_frame : ndarray
+
+    """
     dnum = settings.get_dnum(det)
     reject = settings.argflag[frametype]['combine']['reject']
     method = settings.argflag[frametype]['combine']['method']
     satpix = settings.argflag[frametype]['combine']['satpix']
     saturation = settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear']
-    comb_frame = comb_frames(frames_arr, frametype=frametype,
+    return core_comb_frames(frames_arr, frametype=frametype,
                 method=method, reject=reject, satpix=satpix, saturation=saturation)
 
-def comb_frames(frames_arr, maskvalue=1048577, printtype=None, frametype='Unknown',
-                method='weightmean', reject=None, satpix=None, saturation=None):
+def core_comb_frames(frames_arr, maskvalue=1048577, printtype=None, frametype='Unknown',
+                method='weightmean', reject=None, satpix='reject', saturation=None):
     """ Combine several frames
 
     .. todo::
@@ -33,28 +50,31 @@ def comb_frames(frames_arr, maskvalue=1048577, printtype=None, frametype='Unknow
     ----------
     frames_arr : ndarray (3D)
       Array of frames to be combined
-    det : int
-      Detector index
-    frametype : str, optional
-      What is the type of frame being combining?
     weights : str, or None (optional)
       How should the frame combination by weighted (not currently
       implemented)
+    frametype : str, optional
+      What is the type of frame being combining?
     maskvalue : int (optional)
       What should the masked values be set to (should be greater than
       the detector's saturation value -- Default = 1 + 2**20)
     printtype : str (optional)
       The frame type string that should be printed by armsgs. If None,
       frametype will be used
+    reject : dict, optional
+      Set the rejection parameters:  cosmics, lowhigh, level, replace
+      Perhaps these should be called out separately
+    satpix : str, optional
+      Method for handling saturated pixels
+    saturation : float, optional
+      Saturation value;  only required for some choices of reject['replace']
 
     Returns
     -------
     comb_frame : ndarray
     """
     if reject is None:
-        reject = {'cosmics': 20., 'lowhigh': [0,0], 'level': [3.,3.]}
-    if satpix is None:
-        satpix = 'reject'
+        reject = {'cosmics': 20., 'lowhigh': [0,0], 'level': [3.,3.], 'replace': 'maxnonsat'}
 
     ###########
     # FIRST DO SOME CHECKS ON THE INPUT

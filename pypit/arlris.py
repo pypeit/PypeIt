@@ -335,23 +335,42 @@ def lris_read_amp(inp, ext):
     return data, predata, postdata, x1, y1
 
 
-def bpm_core(slf, camera, fitsdict, det):
-    sidx = slf._idx_sci[0]
-    # Binning
-    xbin, ybin = [int(ii) for ii in fitsdict['binning'][sidx].split(',')]
-    return bpm(xbin, ybin, camera, det)
+def bpm(slf, camera, fitsdict, det):
+    """  Wrapper for core_bpm
+    Will likely be deprecated
 
-def bpm(xbin, ybin, camera, det):
-    """ Generate a BPM
     Parameters
     ----------
-    xbin
-    ybin
+    slf
     camera
+    fitsdict
     det
 
     Returns
     -------
+    badpix : ndarray
+
+    """
+    sidx = slf._idx_sci[0]
+    # Binning
+    xbin, ybin = [int(ii) for ii in fitsdict['binning'][sidx].split(',')]
+    return core_bpm(xbin, ybin, camera, det)
+
+def core_bpm(xbin, ybin, camera, det):
+    """ Generate a BPM
+
+    Parameters
+    ----------
+    xbin : int
+      binning in x
+    ybin : int
+      binning in y
+    camera : str
+    det : int
+
+    Returns
+    -------
+    badpix : ndarray
 
     """
     xshp = 2048 // xbin

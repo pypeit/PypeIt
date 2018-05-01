@@ -206,11 +206,28 @@ def load_headers(datlines):
 
 
 def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
-    """
+    """  Now a wrapper on several core methods.  This might well get broken
+    down further in a future Refactor.
+
+    Load data frames, usually raw.
+    Bias subtract (if not msbias!=None) and trim (if True)
+
+    Parameters
+    ----------
+
     fitsdict : dict
         Contains relevant information from fits header files
     ind : list or array
         integers of indices
+    det : int
+    msbias : ndarray, str (optional)
+    trim : bool (optional)
+
+    Returns
+    -------
+
+    frames : ndarray
+      3D with the 3rd index corresponding to the frames returned
     """
     dnum = settings.get_dnum(det)
     spectrograph = settings.argflag['run']['spectrograph']
@@ -250,7 +267,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
     return frames
 
 
-def load_raw_frame(spectrograph, raw_file, det, frametype='<None>', dataext01=None, disp_dir=0):
+def load_raw_frame(spectrograph, raw_file, det, dataext01=None, disp_dir=0):
     """
     Load data frames, usually raw.
     Bias subtract (if not msbias!=None) and trim (if True)
@@ -260,9 +277,9 @@ def load_raw_frame(spectrograph, raw_file, det, frametype='<None>', dataext01=No
     raw_file : str
        Full path to raw_file
     det : int
-      Detector number, starts at 1
+      Detector number requested, starts at 1
     disp_dir : int, optional
-      if 1, Transpose the image
+      if 1, Transpose the image to align spectral dimension with columns
 
     Returns
     -------
@@ -276,7 +293,6 @@ def load_raw_frame(spectrograph, raw_file, det, frametype='<None>', dataext01=No
 
     msgs.info("Loading raw_file: {:s}".format(raw_file))
     # Get detector number
-    dnum = settings.get_dnum(det)
     msgs.work("Implement multiprocessing here (better -- at the moment it's slower than not) to speed up data reading")
     # Instrument specific read
     if spectrograph in ['keck_lris_blue', 'keck_lris_red']:

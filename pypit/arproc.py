@@ -182,6 +182,20 @@ def badpix(det, frame, sigdev=10.0):
 
 
 def bias_subtract(rawframe, msbias):
+    """ Core routine for bias subtraction
+    Calls sub_overscan if msbias == 'overscan'
+
+    Parameters
+    ----------
+    rawframe : ndarray
+    msbias : ndarray or str
+
+    Returns
+    -------
+    newframe : ndarray
+      Bias subtracted frame
+
+    """
     if type(msbias) is np.ndarray:
         msgs.info("Subtracting bias image from raw frame")
         newframe = rawframe-msbias  # Subtract the master bias frame
@@ -621,14 +635,14 @@ def get_ampscale(slf, det, msflat):
 
 def get_datasec_trimmed(slf, fitsdict, det, scidx):
     """
-    Primarily a wrapper to get_datasec and pix_to_amp()
+    Primarily a wrapper with calls to get_datasec and pix_to_amp()
 
     Parameters
     ----------
     slf
     fitsdict
-    det
-    scidx
+    det : int
+    scidx : int
 
     Returns
     -------
@@ -666,20 +680,18 @@ def get_datasec_trimmed(slf, fitsdict, det, scidx):
 
 
 def get_datasec(spectrograph, scifile, numamplifiers=None, det=None):
-    """
-     Generate a frame that identifies each pixel to an amplifier, and then trim it to the data sections.
-     This frame can be used to later identify which trimmed pixels correspond to which amplifier
+    """  Determine the data and overscan sections of an image
+
+    Currently only used for LRIS and DEIMOS (with their multiple detectors
+    packed in funny ways).  Should consider another approach.
 
     Parameters
     ----------
-    slf : class
-      An instance of the ScienceExposure class
-    fitsdict : dict
-      Contains relevant information from fits header files
-    det : int
+    spectrograph : str
+    scifile : str
+    numamplifiers : int (optional)
+    det : int (optional)
       Detector number, starts at 1
-    scidx : int
-      Index of science frame
 
     Returns
     -------
@@ -713,7 +725,25 @@ def get_datasec(spectrograph, scifile, numamplifiers=None, det=None):
     # Return
     return datasec, oscansec, naxis0, naxis1
 
+
 def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
+    """ Generate a frame that identifies each pixel to an amplifier,
+    and then trim it to the data sections.
+    This frame can be used to later identify which trimmed pixels correspond to which amplifier
+
+    Parameters
+    ----------
+    naxis0 : int
+    naxis1 : int
+    datasec : list
+    numamplifiers : int
+
+    Returns
+    -------
+    retarr : ndarray
+      Frame assigning pixels to amplifiers
+
+    """
     # For convenience
     # Initialize the returned array
     retarr = np.zeros((naxis0, naxis1))
@@ -1427,7 +1457,8 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
 
 
 def slit_pixels(slf, frameshape, det):
-    """
+    """ Wrapper to the core_slit_pixels method
+    May be Deprecated in a future Refactor
 
     Parameters
     ----------
@@ -1447,7 +1478,7 @@ def slit_pixels(slf, frameshape, det):
 
 
 def core_slit_pixels(all_lordloc, all_rordloc, frameshape, pad):
-    """ Generate an image indicating the slit associated with each pixel.
+    """ Generate an image indicating the slit/order associated with each pixel.
 
     Parameters
     ----------
@@ -1455,7 +1486,7 @@ def core_slit_pixels(all_lordloc, all_rordloc, frameshape, pad):
     all_rordloc : ndarray
     frameshape : tuple
       A two element tuple providing the shape of a trace frame.
-    pad
+    pad : int
 
     Returns
     -------
@@ -2423,8 +2454,14 @@ def sub_overscan(frame, numamplifiers, datasec, oscansec, settings=None):
     ----------
     frame : ndarray
       frame which should have the overscan region subtracted
-    det : int
-      Detector Index
+    numamplifiers : int
+    datasec : list
+      Specifies the data sections, one sub-list per amplifier
+    oscansec : list
+      Specifies the overscan sections, one sub-list per amplifier
+    settings : dict, optional
+      Describes the internal options for the overscan subtraction
+      Perhaps we would prefer all of these be on the method call eventually??
 
     Returns
     -------
@@ -2504,20 +2541,26 @@ def sub_overscan(frame, numamplifiers, datasec, oscansec, settings=None):
 
 
 def replace_columns(img, bad_cols, replace_with='mean'):
-    """ Replace bad columns
+    """ Replace bad columns with values from the neighbors
+
     Parameters
     ----------
     img : ndarray
     bad_cols: ndarray (bool, 1D, shape[1] of img)
       True = bad column
+      False = ok column
     replace_with : str, optional
+      Option for replacement
+       mean -- Use the mean of the closest left/right columns
 
     Returns
     -------
     img2 : ndarray
-      Copy of the image
+      Copy of the input image with the bad columns replaced
     """
+    # Prep
     img2 = img.copy()
+    # Find the starting/ends of the bad column sets
     tmp = np.zeros(img.shape[1]).astype(int)
     tmp[bad_cols] = 1
     tmp2 = tmp - np.roll(tmp,1)
@@ -2529,10 +2572,11 @@ def replace_columns(img, bad_cols, replace_with='mean'):
     # Last column
     if tmp2[-1] == 1:
         redges = np.concatenate([redges, np.array([bad_cols.size-1])])
-    # Last column
+    # Loop on em
     for kk, ledge in enumerate(ledges):
         lval = img[:,ledge-1]
         rval = img[:,redges[kk]]
+        # Replace
         if replace_with == 'mean':
             mval = (lval+rval)/2.
             for ii in range(ledge, redges[kk]+1):
@@ -2544,7 +2588,7 @@ def replace_columns(img, bad_cols, replace_with='mean'):
 
 
 def trim(frame, numamplifiers, datasec):
-    """
+    """ Core method to trim an input image
 
     Parameters
     ----------
@@ -2566,6 +2610,7 @@ def trim(frame, numamplifiers, datasec):
         #y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
         x0, x1 = datasec[i][0][0], datasec[i][0][1]
         y0, y1 = datasec[i][1][0], datasec[i][1][1]
+        # Fuss with edges
         if x0 < 0:
             x0 += frame.shape[0]
         if x1 <= 0:

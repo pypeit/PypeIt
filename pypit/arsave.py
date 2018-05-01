@@ -127,13 +127,9 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
 
 def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
                         extensions=None, keywds=None, names=None):
-    core_save_master(data, filename=filename, frametype=frametype, ind=ind,
-                     extensions=extensions, keywds=keywds, names=names,
-                     raw_files=slf._fitsdict['filename'])
+    """ Wrapper to core_save_master
+    May be Deprecated
 
-def core_save_master(data, filename="temp.fits", frametype="<None>", ind=[],
-                extensions=None, keywds=None, names=None, raw_files=None):
-    """ Write a MasterFrame
     Parameters
     ----------
     slf
@@ -141,13 +137,37 @@ def core_save_master(data, filename="temp.fits", frametype="<None>", ind=[],
     filename
     frametype
     ind
+    extensions
+    keywds
+    names
+
+    Returns
+    -------
+
+    """
+    core_save_master(data, filename=filename, frametype=frametype, ind=ind,
+                     extensions=extensions, keywds=keywds, names=names,
+                     raw_files=slf._fitsdict['filename'])
+
+def core_save_master(data, filename="temp.fits", frametype="<None>", ind=[],
+                extensions=None, keywds=None, names=None, raw_files=None):
+    """ Core function to write a MasterFrame
+    Parameters
+    ----------
+    data : ndarray
+    filename : str (optional)
+    frametype : str (optional)
+    ind : list (optional)
     extensions : list, optional
       Additional data images to write
     names : list, optional
       Names of the extensions
     keywds : Additional keywords for the Header
+    raw_files
+
     Returns
     -------
+
     """
     msgs.info("Saving master {0:s} frame as:".format(frametype)+msgs.newline()+filename)
     hdu = fits.PrimaryHDU(data)
