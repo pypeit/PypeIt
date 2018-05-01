@@ -1,18 +1,25 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
+import time
 import copy
+import inspect
+
 import numpy as np
-from astropy import units as u
-from pypit import armsgs
+
+from matplotlib import pyplot as plt
+from matplotlib import gridspec, font_manager
+
+from astropy import units
+from astropy.stats import sigma_clip
+
+from pypit import msgs
+from pypit import arqa
 from pypit import arparse as settings
 from pypit import artrace
 from pypit import arutils
-from pypit import arqa
-
-# Logging
-msgs = armsgs.get_logger()
-
 from pypit import ardebug as debugger
+
+from pypit import arcyutils
 
 # MASK VALUES FROM EXTRACTION
 # 0 
@@ -50,16 +57,18 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
     bgcorr : ndarray
       Correction to the sky background in the object window
     """
-    from pypit import arcyutils
-    from astropy.stats import sigma_clip
 
     bgfitord = 1  # Polynomial order used to fit the background
-    nslit = len(scitrace)
+    slits = range(len(scitrace))
+    nslit = len(slits)
+    gdslits = np.where(~slf._maskslits[det-1])[0]
     cr_mask = 1.0-crmask
     bgfit = np.linspace(0.0, 1.0, sciframe.shape[1])
     bgcorr = np.zeros_like(cr_mask)
     # Loop on Slits
-    for sl in range(nslit):
+    for sl in slits:
+        if sl not in gdslits:
+            continue
         word = np.where((slf._slitpix[det - 1] == sl + 1) & (varframe > 0.))
         if word[0].size == 0:
             continue
@@ -92,8 +101,53 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
             mask_sci = np.ma.array(sciframe, mask=bg_mask, fill_value=0.)
             clip_image = sigma_clip(mask_sci, axis=1, sigma=3.)  # For the mask only
             # Fit
-            debugger.set_trace()
-            bgframe = arcyutils.func2d_fit_val(bgfit, sciframe, (~clip_image.mask)*bckreg*cr_mask, bgfitord)
+#            print('calling func2d_fit_val')
+#            t = time.clock()
+#            _bgframe = arcyutils.func2d_fit_val(bgfit, sciframe,
+#                                                (~clip_image.mask)*bckreg*cr_mask, bgfitord)
+#            print('Old func2d_fit_val: {0} seconds'.format(time.clock() - t))
+#            t = time.clock()
+            bgframe = new_func2d_fit_val(sciframe, bgfitord, x=bgfit,
+                                         w=(~clip_image.mask)*bckreg*cr_mask)
+#            print('New func2d_fit_val: {0} seconds'.format(time.clock() - t))
+            # Some fits are really wonky ... in both methods
+#            if np.sum(bgframe != _bgframe) != 0:
+#                plt.imshow(np.ma.log10(sciframe), origin='lower', interpolation='nearest',
+#                           aspect='auto')
+#                plt.colorbar()
+#                plt.show()
+#                w=(~clip_image.mask)*bckreg*cr_mask
+#                plt.imshow(np.ma.log10(sciframe*w), origin='lower', interpolation='nearest',
+#                           aspect='auto')
+#                plt.colorbar()
+#                plt.show()
+#                plt.imshow(np.ma.log10(_bgframe), origin='lower',
+#                           interpolation='nearest', aspect='auto')
+#                plt.colorbar()
+#                plt.show()
+#                plt.imshow(np.ma.log10(bgframe), origin='lower',
+#                           interpolation='nearest', aspect='auto')
+#                plt.colorbar()
+#                plt.show()
+#                plt.imshow(np.ma.log10(np.absolute(bgframe-_bgframe)), origin='lower',
+#                           interpolation='nearest', aspect='auto')
+#                plt.colorbar()
+#                plt.show()
+#                plt.imshow(np.ma.log10(np.ma.divide(bgframe,_bgframe)), origin='lower',
+#                           interpolation='nearest', aspect='auto')
+#                plt.colorbar()
+#                plt.show()
+#
+#                d = np.amax(np.absolute(bgframe-_bgframe), axis=1)
+#                i = np.argmax(d)
+#                plt.plot(bgfit, sciframe[i,:])
+#                plt.plot(bgfit, sciframe[i,:]*w[i,:])
+#                plt.plot(bgfit, bgframe[i,:])
+#                plt.plot(bgfit, _bgframe[i,:])
+#                plt.show()
+#
+#            assert np.sum(bgframe != _bgframe) == 0, 'Difference between old and new func2d_fit_val'
+
             # Weights
             weight = objreg*mask_slit
             sumweight = np.sum(weight, axis=1)
@@ -147,7 +201,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
                 debugger.set_trace()
                 msgs.error("Bad match to specobj in boxcar!")
             # Fill
-            specobjs[sl][o].boxcar['wave'] = wvsum.copy()*u.AA  # Yes, units enter here
+            specobjs[sl][o].boxcar['wave'] = wvsum.copy()*units.AA  # Yes, units enter here
             specobjs[sl][o].boxcar['counts'] = scisum.copy()
             specobjs[sl][o].boxcar['var'] = varsum.copy()
             if np.sum(specobjs[sl][o].boxcar['var']) == 0.:
@@ -204,10 +258,16 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
     # Init QA
     #
     sigframe = np.sqrt(varframe)
+    slits = range(len(specobjs))
+    gdslits = np.where(~slf._maskslits[det-1])[0]
     # Loop on slits
-    for sl in range(len(specobjs)):
+    for sl in slits:
+        if sl not in gdslits:
+            continue
         # Loop on objects
-        nobj = scitrace[sl]['traces'].shape[1]
+        nobj = scitrace[sl]['nobj']
+        if nobj == 0:
+            continue
         scitrace[sl]['opt_profile'] = []
         msgs.work("Should probably loop on S/N")
         for o in range(nobj):
@@ -287,7 +347,6 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
                     mx = np.max(slit_val[gdp])
                     xval = np.linspace(mn, mx, 1000)
                     model = arutils.func_val(gfit, xval, fdict['func'])
-                    import matplotlib.pyplot as plt
                     plt.clf()
                     ax = plt.gca()
                     ax.scatter(slit_val[gdp], flux_val[gdp], marker='.', s=0.7, edgecolor='none', facecolor='black')
@@ -311,8 +370,66 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
     # QA
     if doqa: #not msgs._debug['no_qa'] and doqa:
         msgs.info("Preparing QA for spatial object profiles")
-        arqa.obj_profile_qa(slf, specobjs, scitrace, det)
+#        arqa.obj_profile_qa(slf, specobjs, scitrace, det)
+        obj_profile_qa(slf, specobjs, scitrace, det)
     return
+
+
+def obj_profile_qa(slf, specobjs, scitrace, det):
+    """ Generate a QA plot for the object spatial profile
+    Parameters
+    ----------
+    """
+
+    plt.rcdefaults()
+    plt.rcParams['font.family']= 'times new roman'
+
+    method = inspect.stack()[0][3]
+    gdslits = np.where(~slf._maskslits[det-1])[0]
+    for sl in range(len(specobjs)):
+        if sl not in gdslits:
+            continue
+        # Setup
+        nobj = scitrace[sl]['nobj']
+        if nobj == 0:
+            continue
+        ncol = min(3, nobj)
+        nrow = nobj // ncol + ((nobj % ncol) > 0)
+        # Outfile
+        outfile = arqa.set_qa_filename(slf._basename, method, det=det, slit=specobjs[sl][0].slitid)
+        # Plot
+        plt.figure(figsize=(8, 5.0))
+        plt.clf()
+        gs = gridspec.GridSpec(nrow, ncol)
+
+        # Plot
+        for o in range(nobj):
+            fdict = scitrace[sl]['opt_profile'][o]
+            if 'param' not in fdict.keys():  # Not optimally extracted
+                continue
+            ax = plt.subplot(gs[o//ncol, o % ncol])
+
+            # Data
+            gdp = fdict['mask'] == 0
+            ax.scatter(fdict['slit_val'][gdp], fdict['flux_val'][gdp], marker='.',
+                       s=0.5, edgecolor='none')
+
+            # Fit
+            mn = np.min(fdict['slit_val'][gdp])
+            mx = np.max(fdict['slit_val'][gdp])
+            xval = np.linspace(mn, mx, 1000)
+            fit = arutils.func_val(fdict['param'], xval, fdict['func'])
+            ax.plot(xval, fit, 'r')
+            # Axes
+            ax.set_xlim(mn,mx)
+            # Label
+            ax.text(0.02, 0.90, 'Obj={:s}'.format(specobjs[sl][o].idx),
+                    transform=ax.transAxes, ha='left', size='small')
+
+        plt.savefig(outfile, dpi=500)
+        plt.close()
+
+    plt.rcdefaults()
 
 
 def optimal_extract(slf, det, specobjs, sciframe, varframe,
@@ -338,7 +455,6 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
     newvar : ndarray
       Updated variance array that includes object model
     """
-    from pypit import arproc
     # Setup
     #rnimg = arproc.rn_frame(slf,det)
     #model_var = np.abs(skyframe + sciframe - np.sqrt(2)*rnimg + rnimg**2)  # sqrt 2 term deals with negative flux/sky
@@ -350,10 +466,15 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
     cr_mask = 1.0-crmask
     # Object model image
     obj_model = np.zeros_like(varframe)
+    gdslits = np.where(~slf._maskslits[det-1])[0]
     # Loop on slits
     for sl in range(len(specobjs)):
+        if sl not in gdslits:
+            continue
         # Loop on objects
-        nobj = scitrace[sl]['traces'].shape[1]
+        nobj = scitrace[sl]['nobj']
+        if nobj == 0:
+            continue
         for o in range(nobj):
             msgs.info("Performing optimal extraction of object {0:d}/{1:d} in slit {2:d}/{3:d}".format(o+1, nobj, sl+1, len(specobjs)))
             # Get object pixels
@@ -409,7 +530,7 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
             opt_ivar = opt_num * arutils.calc_ivar(ivar_den)
 
             # Save
-            specobjs[sl][o].optimal['wave'] = opt_wave.copy()*u.AA  # Yes, units enter here
+            specobjs[sl][o].optimal['wave'] = opt_wave.copy()*units.AA  # Yes, units enter here
             specobjs[sl][o].optimal['counts'] = opt_flux.copy()
             gdiv = (opt_ivar > 0.) & (ivar_den > 0.)
             opt_var = np.zeros_like(opt_ivar)
@@ -425,11 +546,18 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
                 debugger.set_trace()
                 debugger.xplot(opt_wave, opt_flux, np.sqrt(opt_var))
             '''
-    # Generate new variance image
-    newvar = arproc.variance_frame(slf, det, sciframe, -1,
-                                   skyframe=skyframe, objframe=obj_model)
-    # Return
-    return newvar
+
+    # KBW: Using variance_frame here produces a circular import.  I've
+    # changed this function to return the object model, then this last
+    # step is done in arproc.
+
+#    # Generate new variance image
+#    newvar = arproc.variance_frame(slf, det, sciframe, -1,
+#                                   skyframe=skyframe, objframe=obj_model)
+#    # Return
+#    return newvar
+
+    return obj_model
 
 
 def boxcar_cen(slf, det, img):
@@ -458,3 +586,61 @@ def boxcar_cen(slf, det, img):
         censpec = censpec[:, 0].flatten()
     # Return
     return censpec
+
+
+def new_func2d_fit_val(y, order, x=None, w=None):
+    """
+    Fit a polynomial to each column in y.
+
+    if y is 2D, always fit along columns
+
+    test if y is a MaskedArray
+    """
+    # Check input
+    if y.ndim > 2:
+        msgs.error('y cannot have more than 2 dimensions.')
+
+    _y = np.atleast_2d(y)
+    ny, npix = _y.shape
+
+    # Set the x coordinates
+    if x is None:
+        _x = np.linspace(-1,1,npix)
+    else:
+        if x.ndim != 1:
+            msgs.error('x must be a vector')
+        if x.size != npix:
+            msgs.error('Input x must match y vector or column length.')
+        _x = x.copy()
+
+    # Generate the Vandermonde matrix
+    vand = np.polynomial.polynomial.polyvander(_x, order)
+
+    # Fit with appropriate weighting
+    if w is None:
+        # Fit without weights
+        c = np.linalg.lstsq(vand, _y.T)[0]
+        ym = np.sum(c[:,:,None] * vand.T[:,None,:], axis=0)
+    elif w.ndim == 1:
+        # Fit with the same weight for each vector
+        _vand = w[:,None] * vand
+        __y = w[None,:] * _y
+        c = np.linalg.lstsq(_vand, __y.T)[0]
+        ym = np.sum(c[:,:,None] * vand.T[:,None,:], axis=0)
+    else:
+        # Fit with different weights for each vector
+        if w.shape != y.shape:
+            msgs.error('Input w must match y axis length or y shape.')
+        # Prep the output model
+        ym = np.empty(_y.shape, dtype=float)
+        # Weight the data
+        __y = w * _y
+        for i in range(ny):
+            # Weight the Vandermonde matrix for this y vector
+            _vand = w[i,:,None] * vand
+            c = np.linalg.lstsq(_vand, __y[i,:])[0]
+            ym[i,:] = np.sum(c[:,None] * vand.T[:,:], axis=0)
+
+    # Return the model with the appropriate shape
+    return ym if y.ndim == 2 else ym[0,:]
+
