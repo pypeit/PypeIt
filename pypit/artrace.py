@@ -1554,7 +1554,7 @@ def new_tilts_image(tilts, lordloc, rordloc, pad, sz_y):
                 tiltsimg[x,y] = (tilts[x,o]*yv + x)/dszx
     return tiltsimg
 
-
+    '''  Not sure where this code came from..
     sz_x, sz_o = tilts.shape
     dszx = (sz_x-1.0)
 
@@ -1581,6 +1581,7 @@ def new_tilts_image(tilts, lordloc, rordloc, pad, sz_y):
                 tiltsimg[x,y] = (tilts[x,o]*yv + x)/dszx
 
     return tiltsimg
+    '''
 
 
 def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",

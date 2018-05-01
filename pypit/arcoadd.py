@@ -495,7 +495,6 @@ def bspline_cr(spectra, n_grow_mask=1, cr_nsig=5.):
         plt.show()
         debugger.set_trace()
 
-    debugger.set_trace()
 
 def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
     debug=False, cr_everyn=6, cr_bsigma=5., cr_two_alg='bspline', **kwargs):
