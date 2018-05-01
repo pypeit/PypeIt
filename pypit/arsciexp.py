@@ -406,7 +406,7 @@ class ScienceExposure:
                         arproc.slit_profile(self, self.GetMasterFrame("pixelflat", det),
                                             det, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
                     # If some slit profiles/blaze functions need to be extrapolated, do that now
-                    if False:  # This is not a good idea for multislit, JXP thinks..
+                    if settings.spect['mosaic']['reduction'] == 'AMRED':
                         if np.sum(extrap_slit) != 0.0:
                             slit_profiles, mstracenrm, msblaze = arproc.slit_profile_pca(self, self.GetMasterFrame("pixelflat", det), det, msblaze, extrap_slit, slit_profiles)
                     mspixelflatnrm = mstracenrm.copy()
@@ -467,7 +467,7 @@ class ScienceExposure:
                     slit_profiles, mstracenrm, msblaze, flat_ext1d, extrap_slit = \
                         arproc.slit_profile(self, mspixelflat, det, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
                     # If some slit profiles/blaze functions need to be extrapolated, do that now
-                    if False:  # NOT SURE IF THE FOLLOWING WORKS
+                    if settings.spect['mosaic']['reduction'] == 'AMRED':
                         if np.sum(extrap_slit) != 0.0:
                             slit_profiles, mstracenrm, msblaze = arproc.slit_profile_pca(self, mspixelflat, det, msblaze, extrap_slit, slit_profiles)
                     mspixelflatnrm = mstracenrm.copy()
