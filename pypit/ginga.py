@@ -137,7 +137,8 @@ def show_slits(viewer, ch, lordloc, rordloc, slit_ids, rotate=False, pstep=1):
             xt, yt = float(y[tthrd]), float(lordloc[tthrd,slit])
         else:
             xt, yt = float(lordloc[tthrd,slit]), float(y[tthrd])
-        canvas.add(str('text'), xt, yt, str('S{:d}'.format(slit_ids[slit])), color=str('cyan'))
+        canvas.add(str('text'), xt, yt, str('S{:d}'.format(slit_ids[slit])), color=str('red'),
+                   fontsize=20.)
 
 def show_trace(viewer, ch, trace, trc_name, color='blue', clear=False,
                rotate=False, pstep=1):

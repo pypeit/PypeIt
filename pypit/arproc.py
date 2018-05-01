@@ -2069,7 +2069,7 @@ def sn_frame(slf, sciframe, idx):
 
 
 def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-999999.9,
-             simple_var=False):
+             simple_var=False, varframe=None, remove_compact_obj=True):
     """
     Identify cosmic rays using the L.A.Cosmic algorithm
     U{http://www.astro.yale.edu/dokkum/lacosmic/}
@@ -2115,10 +2115,13 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
         msgs.info("Creating noise model")
         # Build a custom noise map, and compare  this to the laplacian
         m5 = ndimage.filters.median_filter(scicopy, size=5, mode='mirror')
-        if simple_var:
-            noise = np.sqrt(np.abs(m5)) #variance_frame(slf, det, m5, scidx, fitsdict))
+        if varframe is None:
+            if simple_var:
+                noise = np.sqrt(np.abs(m5)) #variance_frame(slf, det, m5, scidx, fitsdict))
+            else:
+                noise = np.sqrt(variance_frame(slf, det, m5, scidx, fitsdict))
         else:
-            noise = np.sqrt(variance_frame(slf, det, m5, scidx, fitsdict))
+            noise = np.sqrt(varframe)
         msgs.info("Calculating Laplacian signal to noise ratio")
 
         # Laplacian S/N
@@ -2154,8 +2157,12 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
         msgs.info("Removing suspected compact bright objects")
 
         # Now we have our better selection of cosmics :
-        cosmics = np.logical_and(candidates, sp/f > objlim)
+        if remove_compact_obj:
+            cosmics = np.logical_and(candidates, sp/f > objlim)
+        else:
+            cosmics = candidates
         nbcosmics = np.sum(cosmics)
+        #debugger.set_trace()
 
         msgs.info("{0:5d} remaining candidate pixels".format(nbcosmics))
 
@@ -2344,7 +2351,7 @@ def new_order_pixels(pixlocn, lord, rord):
         for o in range(sz_o):
             indx = (lord[:,o] < rord[:,o]) & (pixlocn[:,y,1] > lord[:,o])\
                         & (pixlocn[:,y,1] < rord[:,o])
-            indx |= ( (lord[:,o] > rord[:,o]) & (pixlocn[:,y,1] < lord[:,o]) 
+            indx |= ( (lord[:,o] > rord[:,o]) & (pixlocn[:,y,1] < lord[:,o])
                         & (pixlocn[:,y,1] > rord[:,o]) )
             if np.any(indx):
                 # Only assign a single order to a given pixel
