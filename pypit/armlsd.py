@@ -2,25 +2,21 @@
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
+import yaml
 import numpy as np
+from astropy import units
+
+from pypit import msgs
 from pypit import arparse as settings
 from pypit import arflux
 from pypit import arload
 from pypit import armasters
 from pypit import armbase
-from pypit import armsgs
 from pypit import arproc
 from pypit import arsave
-from pypit import arsort
+from pypit import arsetup
 from pypit import artrace
-from pypit import arqa
-
-from linetools import utils as ltu
-
 from pypit import ardebug as debugger
-
-# Logging
-msgs = armsgs.get_logger()
 
 
 def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
@@ -48,7 +44,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     status = 0
 
     # Create a list of science exposure classes
-    sciexp, setup_dict = armbase.SetupScience(fitsdict)
+    sciexp, setup_dict = armbase.setup_science(fitsdict)
     if sciexp == 'setup':
         status = 1
         return status
@@ -66,6 +62,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
 
     # Start reducing the data
     for sc in range(numsci):
+
         slf = sciexp[sc]
         scidx = slf._idx_sci[0]
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
@@ -76,7 +73,8 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         for kk in range(settings.spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             if settings.argflag['reduce']['detnum'] is not None:
-                if det != settings.argflag['reduce']['detnum']:
+                if det not in map(int,settings.argflag['reduce']['detnum']):
+                    msgs.warn("Skipping detector {:d}".format(det))
                     continue
                 else:
                     msgs.warn("Restricting the reduction to detector {:d}".format(det))
@@ -85,7 +83,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             # Get data sections
             arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
             # Setup
-            setup = arsort.instr_setup(slf, det, fitsdict, setup_dict, must_exist=True)
+            setup = arsetup.instr_setup(slf, det, fitsdict, setup_dict, must_exist=True)
             settings.argflag['reduce']['masters']['setup'] = setup
             slf.setup = setup
             ###############
@@ -148,9 +146,13 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 # Save to disk
                 armasters.save_masters(slf, det, mftype='trace')
                 # Save QA for slit traces
-                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
-                                       slf._rordpix[det-1], extord,
-                                       desc="Trace of the slit edges D{:02d}".format(det), use_slitid=det)
+#                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
+#                                       slf._rordpix[det-1], extord,
+#                                       desc="Trace of the slit edges D{:02d}".format(det), use_slitid=det)
+                artrace.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
+                                      slf._rordpix[det-1], extord,
+                                      desc="Trace of the slit edges D{:02d}".format(det),
+                                      use_slitid=det)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
             ###############
@@ -216,23 +218,31 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         ###############
         # Flux
         ###############
-        # Standard star (is this a calibration, e.g. goes above?)
-        msgs.info("Processing standard star")
-        msgs.info("Assuming one star per detector mosaic")
-        msgs.info("Waited until last detector to process")
+        if(settings.argflag['reduce']['calibrate']['flux']==True):
+            # Standard star (is this a calibration, e.g. goes above?)
+            msgs.info("Processing standard star")
+            msgs.info("Assuming one star per detector mosaic")
+            msgs.info("Waited until last detector to process")
 
-        update = slf.MasterStandard(fitsdict)
-        if update and reuseMaster:
-            armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
-        #
-        msgs.work("Consider using archived sensitivity if not found")
-        msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
-        for kk in range(settings.spect['mosaic']['ndet']):
-            det = kk + 1  # Detectors indexed from 1
-            if slf._specobjs[det-1] is not None:
-                arflux.apply_sensfunc(slf, det, scidx, fitsdict)
+            if(settings.argflag['reduce']['calibrate']['sensfunc']['archival']=='None'):
+                update = slf.MasterStandard(fitsdict)
+                if update and reuseMaster:
+                    armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
             else:
-                msgs.info("There are no objects on detector {0:d} to apply a flux calibration".format(det))
+                sensfunc = yaml.load(open(settings.argflag['reduce']['calibrate']['sensfunc']['archival']))
+                # Yaml does not do quantities, so make the sensfunc min/max wave quantities
+                sensfunc['wave_max']*=units.angstrom
+                sensfunc['wave_min']*=units.angstrom
+                slf.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
+                msgs.info("Using archival sensfunc {:s}".format(settings.argflag['reduce']['calibrate']['sensfunc']['archival']))
+
+            msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
+            for kk in range(settings.spect['mosaic']['ndet']):
+                det = kk + 1  # Detectors indexed from 1
+                if slf._specobjs[det-1] is not None:
+                    arflux.apply_sensfunc(slf, det, scidx, fitsdict)
+                else:
+                    msgs.info("There are no objects on detector {0:d} to apply a flux calibration".format(det))
 
         # Write 1D spectra
         save_format = 'fits'

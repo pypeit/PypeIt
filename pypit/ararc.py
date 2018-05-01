@@ -1,20 +1,19 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
+import os
+import time
+import inspect
+
 import numpy as np
-from pypit import arpca
+from matplotlib import pyplot as plt
+from matplotlib import gridspec
+
 from pypit import arparse as settings
-from pypit import armsgs
-from pypit import arsave
+from pypit import msgs
 from pypit import arutils
 from pypit import ararclines
 from pypit import arqa
-from matplotlib import pyplot as plt
-import os
-
 from pypit import ardebug as debugger
-
-# Logging
-msgs = armsgs.get_logger()
 
 
 def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
@@ -52,7 +51,6 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
       The spectrum used to find detections. This spectrum has
       had any "continuum" emission subtracted off
     """
-    from pypit import arcyarc
     # Extract a rough spectrum of the arc in each order
     msgs.info("Detecting lines")
     msgs.info("Extracting an approximate arc spectrum at the centre of the chip")
@@ -76,8 +74,23 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
     if MK_SATMASK:
         ordwid = 0.5*np.abs(slf._lordloc[det-1] - slf._rordloc[det-1])
         msgs.info("Generating a mask of arc line saturation streaks")
-        satmask = arcyarc.saturation_mask(msarc, slf._nonlinear[det-1])
-        satsnd = arcyarc.order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int))
+#        print('calling saturation_mask')
+#        t = time.clock()
+#        _satmask = arcyarc.saturation_mask(msarc, slf._nonlinear[det-1])
+#        print('Old saturation_mask: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
+        satmask = new_saturation_mask(msarc, slf._nonlinear[det-1])
+#        print('New saturation_mask: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_satmask != satmask) == 0, 'Difference between old and new saturation_mask'
+
+#        print('calling order_saturation')
+#        t = time.clock()
+#        _satsnd = arcyarc.order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int))
+#        print('Old order_saturation: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
+        satsnd = new_order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int))
+#        print('New order_saturation: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_satsnd != satsnd) == 0, 'Difference between old and new order_saturation'
     else:
         satsnd = np.zeros_like(ordcen)
     # Detect the location of the arc lines
@@ -267,6 +280,25 @@ def setup_param(slf, sc, det, fitsdict):
             arcparam['wvmnx'][1] = 7000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+    elif sname=='keck_deimos':
+        gratepos = fitsdict['headers'][idx[0]][0]['GRATEPOS']
+        if(gratepos==3):
+            arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['G3TLTWAV']
+        elif(gratepos==4):
+            arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['G4TLTWAV']
+        else:
+            msgs.error('Problem wth value of GRATEPOS keyword: GRATEPOS={:s}'.format(gratepos))
+        # TODO -- Should set according to the lamps that were on
+        lamps = ['ArI','NeI','KrI','XeI']
+        if disperser == '830G': # Blaze 8640
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=0.47 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['wvmnx'][0] = 550.
+            arcparam['wvmnx'][1] = 11000.
+            arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='wht_isis_blue':
         modify_dict = dict(NeI={'min_wave': 3000.,'min_intensity': 299,
                                 'min_Aki': 0.},ArI={'min_intensity': 399.})
@@ -304,8 +336,10 @@ def setup_param(slf, sc, det, fitsdict):
     for lamp in lamps[1:]:
         slmps=slmps+','+lamp
     msgs.info('Loading line list using {:s} lamps'.format(slmps))
-    arcparam['llist'] = ararclines.load_arcline_list(slf, idx, lamps, disperser,
-        wvmnx=arcparam['wvmnx'], modify_parse_dict=modify_dict)
+#    arcparam['llist'] = ararclines.load_arcline_list(slf, idx, lamps, disperser,
+    arcparam['llist'] = ararclines.load_arcline_list(idx, lamps, disperser,
+                                                     wvmnx=arcparam['wvmnx'],
+                                                     modify_parse_dict=modify_dict)
     # Binning
     arcparam['disp'] *= binspectral
 
@@ -532,7 +566,8 @@ def simple_calib(slf, det, get_poly=False):
         xrej=xrej, yrej=yrej, mask=mask, spec=yprep, nrej=aparm['nsig_rej_final'],
         shift=0., tcent=tcent)
     # QA
-    arqa.arc_fit_qa(slf, final_fit)
+#    arqa.arc_fit_qa(slf, final_fit)
+    arc_fit_qa(slf, final_fit)
     # RMS
     rms_ang = arutils.calc_fit_rms(xfit, yfit, fit, aparm['func'], minv=fmin, maxv=fmax)
     wave = arutils.func_val(fit, np.arange(slf._msarc[det-1].shape[0])/float(slf._msarc[det-1].shape[0]),
@@ -558,7 +593,7 @@ def calib_with_arclines(slf, det, get_poly=False, use_method="general"):
     final_fit : dict
       Dict of fit info
     """
-    from arclines.holy.grail import basic, semi_brute, general
+    import arclines.holy.grail
     # Parameters (just for convenience)
     aparm = slf._arcparam[det-1]
     # Extract the arc
@@ -566,13 +601,193 @@ def calib_with_arclines(slf, det, get_poly=False, use_method="general"):
     tampl, tcent, twid, w, satsnd, spec = detect_lines(slf, det, slf._msarc[det-1])
 
     if use_method == "semi-brute":
-        best_dict, final_fit = semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
+        best_dict, final_fit = arclines.holy.grail.semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
     elif use_method == "basic":
-        stuff = basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
+        stuff = arclines.holy.grail.basic(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'])
         status, ngd_match, match_idx, scores, final_fit = stuff
     else:
         # Now preferred
-        best_dict, final_fit = general(spec, aparm['lamps'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
-    arqa.arc_fit_qa(slf, final_fit)
+        best_dict, final_fit = arclines.holy.grail.general(spec, aparm['lamps'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
+#    arqa.arc_fit_qa(slf, final_fit)
+    arc_fit_qa(slf, final_fit)
     #
     return final_fit
+
+
+
+def new_order_saturation(satmask, ordcen, ordwid):
+
+    sz_y, sz_x = satmask.shape
+    sz_o = ordcen.shape[1]
+
+    xmin = ordcen - ordwid
+    xmax = ordcen + ordwid + 1
+    xmin[xmin < 0] = 0
+    xmax[xmax >= sz_x] = sz_x
+
+    ordsat = np.zeros((sz_y, sz_o), dtype=int)
+    for o in range(sz_o):
+        for y in range(sz_y):
+            ordsat[y,o] = (xmax[y,o] > xmin[y,o]) & np.any(satmask[y,xmin[y,o]:xmax[y,o]] == 1)
+
+    return ordsat
+
+
+def search_for_saturation_edge(a, x, y, sy, dx, satdown, satlevel, mask):
+    sx = dx
+    localx = a[x+sx,y+sy]
+    while True:
+        mask[x+sx,y+sy] = True
+        sx += dx
+        if x+sx > a.shape[0]-1 or x+sx < 0:
+            break
+        if a[x+sx,y+sy] >= localx/satdown and a[x+sx,y+sy]<satlevel:
+            break
+        localx = a[x+sx,y+sy]
+    return mask
+
+
+def determine_saturation_region(a, x, y, sy, dy, satdown, satlevel, mask):
+    localy = a[x,y+sy]
+    while True:
+        mask[x,y+sy] = True
+        mask = search_for_saturation_edge(a, x, y, sy, 1, satdown, satlevel, mask)
+        mask = search_for_saturation_edge(a, x, y, sy, -1, satdown, satlevel, mask)
+        
+        sy += dy
+        if y+sy > a.shape[1]-1 or y+sy < 0:
+            return mask
+        if a[x,y+sy] >= localy/satdown and a[x,y+sy] < satlevel:
+            return mask
+        localy = a[x,y+sy]
+    
+
+def new_saturation_mask(a, satlevel):
+   
+    mask = np.zeros(a.shape, dtype=bool)
+    a_is_saturated = a >= satlevel
+    if not np.any(a_is_saturated):
+        return mask.astype(int)
+
+    satdown = 1.001
+    sz_x, sz_y = a.shape
+
+    for y in range (0,sz_y):
+        for x in range(0,sz_x):
+            if a_is_saturated[x,y] and not mask[x,y]:
+                mask[x,y] = True
+                mask = determine_saturation_region(a, x, y, 0, 1, satdown, satlevel, mask)
+                mask = determine_saturation_region(a, x, y, -1, -1, satdown, satlevel, mask)
+
+    return mask.astype(int)
+
+
+def arc_fit_qa(slf, fit, outfile=None, ids_only=False, title=None):
+    """
+    QA for Arc spectrum
+
+    Parameters
+    ----------
+    fit : Wavelength fit
+    arc_spec : ndarray
+      Arc spectrum
+    outfile : str, optional
+      Name of output file
+    """
+
+    plt.rcdefaults()
+    plt.rcParams['font.family']= 'times new roman'
+
+    # Grab the named of the method
+    method = inspect.stack()[0][3]
+    # Outfil
+    if outfile is None:
+        outfile = arqa.set_qa_filename(slf.setup, method)
+    #
+    arc_spec = fit['spec']
+
+    # Begin
+    if not ids_only:
+        plt.figure(figsize=(8, 4.0))
+        plt.clf()
+        gs = gridspec.GridSpec(2, 2)
+        idfont = 'xx-small'
+    else:
+        plt.figure(figsize=(11, 8.5))
+        plt.clf()
+        gs = gridspec.GridSpec(1, 1)
+        idfont = 'small'
+
+    # Simple spectrum plot
+    ax_spec = plt.subplot(gs[:,0])
+    ax_spec.plot(np.arange(len(arc_spec)), arc_spec)
+    ymin, ymax = 0., np.max(arc_spec)
+    ysep = ymax*0.03
+    for kk, x in enumerate(fit['xfit']*fit['xnorm']):
+        yline = np.max(arc_spec[int(x)-2:int(x)+2])
+        # Tick mark
+        ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], 'g-')
+        # label
+        ax_spec.text(x, yline+ysep*1.3,
+            '{:s} {:g}'.format(fit['ions'][kk], fit['yfit'][kk]), ha='center', va='bottom',
+            size=idfont, rotation=90., color='green')
+    ax_spec.set_xlim(0., len(arc_spec))
+    ax_spec.set_ylim(ymin, ymax*1.2)
+    ax_spec.set_xlabel('Pixel')
+    ax_spec.set_ylabel('Flux')
+    if title is not None:
+        ax_spec.text(0.04, 0.93, title, transform=ax_spec.transAxes,
+                     size='x-large', ha='left')#, bbox={'facecolor':'white'})
+    if ids_only:
+        plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+        plt.savefig(outfile, dpi=800)
+        plt.close()
+        return
+
+    # Arc Fit
+    ax_fit = plt.subplot(gs[0, 1])
+    # Points
+    ax_fit.scatter(fit['xfit']*fit['xnorm'], fit['yfit'], marker='x')
+    if len(fit['xrej']) > 0:
+        ax_fit.scatter(fit['xrej']*fit['xnorm'], fit['yrej'], marker='o',
+            edgecolor='gray', facecolor='none')
+    # Solution
+    xval = np.arange(len(arc_spec))
+    wave = arutils.func_val(fit['fitc'], xval/fit['xnorm'], 'legendre',
+        minv=fit['fmin'], maxv=fit['fmax'])
+    ax_fit.plot(xval, wave, 'r-')
+    xmin, xmax = 0., len(arc_spec)
+    ax_fit.set_xlim(xmin, xmax)
+    ymin,ymax = np.min(wave)*.95,  np.max(wave)*1.05
+    ax_fit.set_ylim(np.min(wave)*.95,  np.max(wave)*1.05)
+    ax_fit.set_ylabel('Wavelength')
+    ax_fit.get_xaxis().set_ticks([]) # Suppress labeling
+    # Stats
+    wave_fit = arutils.func_val(fit['fitc'], fit['xfit'], 'legendre',
+        minv=fit['fmin'], maxv=fit['fmax'])
+    rms = np.sqrt(np.sum((fit['yfit']-wave_fit)**2)/len(fit['xfit'])) # Ang
+    dwv_pix = np.median(np.abs(wave-np.roll(wave,1)))
+    ax_fit.text(0.1*len(arc_spec), 0.90*ymin+(ymax-ymin),
+        r'$\Delta\lambda$={:.3f}$\AA$ (per pix)'.format(dwv_pix), size='small')
+    ax_fit.text(0.1*len(arc_spec), 0.80*ymin+(ymax-ymin),
+        'RMS={:.3f} (pixels)'.format(rms/dwv_pix), size='small')
+    # Arc Residuals
+    ax_res = plt.subplot(gs[1,1])
+    res = fit['yfit']-wave_fit
+    ax_res.scatter(fit['xfit']*fit['xnorm'], res/dwv_pix, marker='x')
+    ax_res.plot([xmin,xmax], [0.,0], 'k--')
+    ax_res.set_xlim(xmin, xmax)
+    ax_res.set_xlabel('Pixel')
+    ax_res.set_ylabel('Residuals (Pix)')
+
+    # Finish
+    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+    plt.savefig(outfile, dpi=800)
+    plt.close()
+
+    plt.rcdefaults()
+
+    return
+
+
+

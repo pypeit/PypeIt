@@ -1,36 +1,38 @@
 """ Output for PYPIT
 """
-from __future__ import (print_function, absolute_import, division,
-                        unicode_literals)
-import numpy as np
-import os
+from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-import astropy.io.fits as pyfits
-from astropy.units import Quantity
-from astropy import units as u
-from astropy.table import Table
+import os
+import datetime
+
+import numpy as np
 
 import h5py
+import json
 
-from pypit import armsgs
+from astropy import units
+from astropy.io import fits
+from astropy.table import Table
+
+import linetools.utils
+
+from pypit import msgs
 from pypit import arutils
 from pypit import arparse as settings
-
 from pypit import ardebug as debugger
 
-try: input = raw_input
-except NameError: pass
-
-# Logging
-msgs = armsgs.get_logger()
+try:
+    input = raw_input
+except NameError:
+    pass
 
 
 def save_arcids(fname, pixels):
     # Setup the HDU
-    hdu = pyfits.PrimaryHDU()
-    hdulist = pyfits.HDUList([hdu]) # Insert the primary HDU (input model)
+    hdu = fits.PrimaryHDU()
+    hdulist = fits.HDUList([hdu]) # Insert the primary HDU (input model)
     for o in range(len(pixels)):
-        hdulist.append(pyfits.ImageHDU(pixels[o])) # Add a new Image HDU
+        hdulist.append(fits.ImageHDU(pixels[o])) # Add a new Image HDU
     ans = 'y'
     if os.path.exists(fname):
         if settings.argflag['output']['overwrite']:
@@ -68,8 +70,8 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
         else:
             savdat = tsavdat
 
-    hdu = pyfits.PrimaryHDU(savdat)
-    hdulist = pyfits.HDUList([hdu])
+    hdu = fits.PrimaryHDU(savdat)
+    hdulist = fits.HDUList([hdu])
     # Write some information to the header
     msgs.info("Writing header information")
     hdrname = "FRAMEEXT"
@@ -142,17 +144,17 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
     -------
     """
     msgs.info("Saving master {0:s} frame as:".format(frametype)+msgs.newline()+filename)
-    hdu = pyfits.PrimaryHDU(data)
+    hdu = fits.PrimaryHDU(data)
     hlist = [hdu]
     # Extensions
     if extensions is not None:
         for kk,exten in enumerate(extensions):
-            hdu = pyfits.ImageHDU(exten)
+            hdu = fits.ImageHDU(exten)
             if names is not None:
                 hdu.name = names[kk]
             hlist.append(hdu)
     # HDU list
-    hdulist = pyfits.HDUList(hlist)
+    hdulist = fits.HDUList(hlist)
     # Header
     msgs.info("Writing header information")
     for i in range(len(ind)):
@@ -191,8 +193,8 @@ def save_ordloc(slf, fname):
     # Derive a suitable name
     mstrace_bname, mstrace_bext = os.path.splitext(fname)
     # Save the left order locations
-    hdu = pyfits.PrimaryHDU(slf._lordloc)
-    hdulist = pyfits.HDUList([hdu])
+    hdu = fits.PrimaryHDU(slf._lordloc)
+    hdulist = fits.HDUList([hdu])
     # Write the file to disk
     filename = mstrace_bname+"_ltrace"+mstrace_bext
     if os.path.exists(filename):
@@ -217,8 +219,8 @@ def save_ordloc(slf, fname):
         hdulist.writeto(filename)
         msgs.info("Saved left order locations for frame:"+msgs.newline()+fname)
     # Save the right order locations
-    hdu = pyfits.PrimaryHDU(slf._rordloc)
-    hdulist = pyfits.HDUList([hdu])
+    hdu = fits.PrimaryHDU(slf._rordloc)
+    hdulist = fits.HDUList([hdu])
     filename = mstrace_bname+"_rtrace"+mstrace_bext
     if os.path.exists(filename):
         if settings.argflag['output']['overwrite'] is True:
@@ -248,8 +250,8 @@ def save_tilts(slf, fname):
     # Derive a suitable name
     msarc_bname, msarc_bext = os.path.splitext(fname)
     # Save the tilts
-    hdu = pyfits.PrimaryHDU(slf._tilts)
-    hdulist = pyfits.HDUList([hdu])
+    hdu = fits.PrimaryHDU(slf._tilts)
+    hdulist = fits.HDUList([hdu])
     # Write the file to disk
     filename = msarc_bname+"_tilts"+msarc_bext
     if os.path.exists(filename):
@@ -274,8 +276,8 @@ def save_tilts(slf, fname):
         hdulist.writeto(filename)
         msgs.info("Saved order tilts for frame:"+msgs.newline()+fname)
     # Save the saturation mask
-    hdu = pyfits.PrimaryHDU(slf._satmask)
-    hdulist = pyfits.HDUList([hdu])
+    hdu = fits.PrimaryHDU(slf._satmask)
+    hdulist = fits.HDUList([hdu])
     filename = msarc_bname+"_satmask"+msarc_bext
     if os.path.exists(filename):
         if settings.argflag['output']['overwrite'] == True:
@@ -314,8 +316,6 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     -------
 
     """
-    from linetools import utils as ltu
-    import json
     if clobber is False:
         msgs.error("NOT IMPLEMENTED")
     # Open file
@@ -363,7 +363,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     hdict = {}
     for key in fitsdict.keys():
         hdict[key] = fitsdict[key][slf._specobjs[detref][0][0].scidx]  # Hopefully this is the right index
-    d = ltu.jsonify(hdict)
+    d = linetools.utils.jsonify(hdict)
     hdf['header'] = json.dumps(d)
 
     # Loop on extraction methods
@@ -430,7 +430,7 @@ def save_1d_spectra_fits(slf, fitsdict, standard=False, clobber=True, outfile=No
     outfile : str
     """
     # Primary hdu
-    prihdu = pyfits.PrimaryHDU()
+    prihdu = fits.PrimaryHDU()
     hdus = [prihdu]
     # Add critical data to header
     idx = slf._idx_sci[0]
@@ -471,7 +471,7 @@ def save_1d_spectra_fits(slf, fitsdict, standard=False, clobber=True, outfile=No
                 # Add Spectrum Table
                 cols = []
                 # Trace
-                cols += [pyfits.Column(array=specobj.trace, name=str('obj_trace'), format=specobj.trace.dtype)]
+                cols += [fits.Column(array=specobj.trace, name=str('obj_trace'), format=specobj.trace.dtype)]
                 if ext == 1:
                     npix = len(specobj.trace)
                 # Boxcar
@@ -479,11 +479,11 @@ def save_1d_spectra_fits(slf, fitsdict, standard=False, clobber=True, outfile=No
                     # Skip some
                     if key in ['size']:
                         continue
-                    if isinstance(specobj.boxcar[key], Quantity):
-                        cols += [pyfits.Column(array=specobj.boxcar[key].value,
+                    if isinstance(specobj.boxcar[key], units.Quantity):
+                        cols += [fits.Column(array=specobj.boxcar[key].value,
                                              name=str('box_'+key), format=specobj.boxcar[key].value.dtype)]
                     else:
-                        cols += [pyfits.Column(array=specobj.boxcar[key],
+                        cols += [fits.Column(array=specobj.boxcar[key],
                                              name=str('box_'+key), format=specobj.boxcar[key].dtype)]
                 # Optimal
                 for key in specobj.optimal.keys():
@@ -491,22 +491,22 @@ def save_1d_spectra_fits(slf, fitsdict, standard=False, clobber=True, outfile=No
                     if key in ['fwhm']:
                         continue
                     # Generate column
-                    if isinstance(specobj.optimal[key], Quantity):
-                        cols += [pyfits.Column(array=specobj.optimal[key].value,
+                    if isinstance(specobj.optimal[key], units.Quantity):
+                        cols += [fits.Column(array=specobj.optimal[key].value,
                                                name=str('opt_'+key), format=specobj.optimal[key].value.dtype)]
                     else:
-                        cols += [pyfits.Column(array=specobj.optimal[key],
+                        cols += [fits.Column(array=specobj.optimal[key],
                                                name=str('opt_'+key), format=specobj.optimal[key].dtype)]
                 # Finish
-                coldefs = pyfits.ColDefs(cols)
-                tbhdu = pyfits.BinTableHDU.from_columns(coldefs)
+                coldefs = fits.ColDefs(cols)
+                tbhdu = fits.BinTableHDU.from_columns(coldefs)
                 tbhdu.name = specobj.idx
                 hdus += [tbhdu]
     # A few more for the header
     prihdu.header['NSPEC'] = ext
     prihdu.header['NPIX'] = npix
     # Finish
-    hdulist = pyfits.HDUList(hdus)
+    hdulist = fits.HDUList(hdus)
     if outfile is None:
         outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename)
     hdulist.writeto(outfile, overwrite=clobber)
@@ -567,10 +567,10 @@ def save_obj_info(slf, fitsdict, clobber=True):
         obj_tbl['name'] = names
         obj_tbl['box_width'] = boxsize
         obj_tbl['box_width'].format = '.2f'
-        obj_tbl['box_width'].unit = u.arcsec
+        obj_tbl['box_width'].unit = units.arcsec
         obj_tbl['opt_fwhm'] = opt_fwhm
         obj_tbl['opt_fwhm'].format = '.3f'
-        obj_tbl['opt_fwhm'].unit = u.arcsec
+        obj_tbl['opt_fwhm'].unit = units.arcsec
         obj_tbl['s2n'] = s2n
         obj_tbl['s2n'].format = '.2f'
         # Write
@@ -588,17 +588,16 @@ def save_2d_images(slf, fitsdict, clobber=True):
     -------
 
     """
-    import datetime
     # Original header
     scidx = slf._idx_sci[0]
     path = fitsdict['directory'][scidx]
     ifile = fitsdict['filename'][scidx]
     headarr = [None for k in range(settings.spect['fits']['numhead'])]
     for k in range(settings.spect['fits']['numhead']):
-        headarr[k] = pyfits.getheader(path+ifile, ext=settings.spect['fits']['headext{0:02d}'.format(k+1)])
+        headarr[k] = fits.getheader(path+ifile, ext=settings.spect['fits']['headext{0:02d}'.format(k+1)])
 
     # Primary header
-    prihdu = pyfits.PrimaryHDU()
+    prihdu = fits.PrimaryHDU()
     # Update with original header, skipping a few keywords
     hdus = [prihdu]
     hdukeys = ['BUNIT', 'COMMENT', '', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2',
@@ -629,7 +628,7 @@ def save_2d_images(slf, fitsdict, clobber=True):
         sdet = settings.get_dnum(det, caps=True)  # e.g. DET02
         # Specified detector number?
         if settings.argflag['reduce']['detnum'] is not None:
-            if det != settings.argflag['reduce']['detnum']:
+            if det not in map(int, settings.argflag['reduce']['detnum']):
                 continue
             else:
                 msgs.warn("Restricting the reduction to detector {:d}".format(det))
@@ -638,7 +637,7 @@ def save_2d_images(slf, fitsdict, clobber=True):
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
         prihdu.header[keywd] = '{:s}-Processed'.format(sdet)
-        hdu = pyfits.ImageHDU(slf._sciframe[det-1])
+        hdu = fits.ImageHDU(slf._sciframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
 
@@ -646,7 +645,7 @@ def save_2d_images(slf, fitsdict, clobber=True):
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
         prihdu.header[keywd] = '{:s}-Var'.format(sdet)
-        hdu = pyfits.ImageHDU(slf._modelvarframe[det-1])
+        hdu = fits.ImageHDU(slf._modelvarframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
 
@@ -654,10 +653,10 @@ def save_2d_images(slf, fitsdict, clobber=True):
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
         prihdu.header[keywd] = '{:s}-Skysub'.format(sdet)
-        hdu = pyfits.ImageHDU(slf._sciframe[det-1]-slf._bgframe[det-1])
+        hdu = fits.ImageHDU(slf._sciframe[det-1]-slf._bgframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
 
     # Finish
-    hdulist = pyfits.HDUList(hdus)
+    hdulist = fits.HDUList(hdus)
     hdulist.writeto(settings.argflag['run']['directory']['science']+'/spec2d_{:s}.fits'.format(slf._basename), overwrite=clobber)

@@ -1,18 +1,22 @@
 # Module to run tests on ararclines
-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 import os
+
 import numpy as np
 import pytest
 
 from astropy.table import Table
 
-from pypit import pyputils
-msgs = pyputils.get_dummy_logger()
 from pypit import arutils
 from pypit import artrace
 from pypit import arcytrace
+from pypit import pyputils
 
+msgs = pyputils.get_dummy_logger()
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')

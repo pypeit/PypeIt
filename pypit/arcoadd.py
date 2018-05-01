@@ -3,22 +3,24 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-import astropy.stats
-import scipy.interpolate
+from numpy.ma.core import MaskedArray
+import scipy.stats
 from  scipy.signal import medfilt
 
-from astropy import units as u
-from astropy.stats import sigma_clipped_stats
+from matplotlib import pyplot as plt
+from matplotlib import gridspec, font_manager
+from matplotlib.backends.backend_pdf import PdfPages
 
+import astropy.stats
+from astropy import units
+
+from linetools.spectra.xspectrum1d import XSpectrum1D
+from linetools.spectra.utils import collate
+
+from pypit import msgs
 from pypit import arload
-from pypit import armsgs
-from pypit import arqa
 from pypit import arutils
-
 from pypit import ardebug as debugger
-
-# Logging
-msgs = armsgs.get_logger()
 
 # TODO
     # Shift spectra
@@ -59,7 +61,6 @@ def new_wave_grid(waves, wave_method='iref', iref=0, A_pix=None, v_pix=None, **k
     # slf._argflag['reduce']['pixelsize'] = 2.5?? This won't work
     # if running coadding outside of PYPIT, which we'd like as an
     # option!
-    from numpy.ma.core import MaskedArray
     if not isinstance(waves, MaskedArray):
         waves = np.ma.array(waves)
 
@@ -157,11 +158,14 @@ def gauss1(x, parameters):
                    
     return norm * x_mask * np.exp(-0.5 * u * x_mask)
 
-def unpack_spec(spectra):
-    """ Assumes the wavelengths are already aligned
+def unpack_spec(spectra, all_wave=False):
+    """ Unpack the spectra.  Default is to give only one wavelength array
+
     Parameters
     ----------
     spectra
+    all_wave : bool, optional
+      Return all the wavelength arrays
 
     Returns
     -------
@@ -173,7 +177,11 @@ def unpack_spec(spectra):
     """
     fluxes = spectra.data['flux'].filled(0.)
     sigs = spectra.data['sig'].filled(0.)
-    wave = np.array(spectra.data['wave'][0,:])
+    if all_wave:
+        wave = spectra.data['wave'].filled(0.)
+    else:
+        wave = np.array(spectra.data['wave'][0,:])
+
     # Return
     return fluxes, sigs, wave
 
@@ -304,7 +312,7 @@ def median_ratio_flux(spec, smask, ispec, iref, nsig=3., niter=5, **kwargs):
     # Ratio
     med_flux = fluxes[iref,allok] / fluxes[ispec,allok]
     # Clip
-    mn_scale, med_scale, std_scale = sigma_clipped_stats(med_flux, sigma=nsig, iters=niter, **kwargs)
+    mn_scale, med_scale, std_scale = astropy.stats.sigma_clipped_stats(med_flux, sigma=nsig, iters=niter, **kwargs)
     # Return
     return med_scale
 
@@ -337,11 +345,11 @@ def median_flux(spec, smask, nsig=3., niter=5, **kwargs):
     mfluxes = np.ma.array(fluxes, mask=smask)
     #goodpix = WHERE(refivar GT 0.0 AND finite(refflux) AND finite(refivar) $
     #            AND refmask EQ 1 AND refivar LT 1.0d8)
-    mean_spec, med_spec, std_spec = sigma_clipped_stats(mfluxes, sigma=nsig, iters=niter, **kwargs)
+    mean_spec, med_spec, std_spec = astropy.stats.sigma_clipped_stats(mfluxes, sigma=nsig, iters=niter, **kwargs)
     # Clip a bit
     #badpix = np.any([spec.flux.value < 0.5*np.abs(med_spec)])
     badpix = mfluxes.filled(0.) < 0.5*np.abs(med_spec)
-    mean_spec, med_spec, std_spec = sigma_clipped_stats(mfluxes.filled(0.), mask=badpix,
+    mean_spec, med_spec, std_spec = astropy.stats.sigma_clipped_stats(mfluxes.filled(0.), mask=badpix,
                                                         sigma=nsig, iters=niter, **kwargs)
     debugger.set_trace()
     # Return
@@ -437,6 +445,58 @@ def scale_spectra(spectra, smask, sn2, iref=0, scale_method='auto', hand_scale=N
     return scales, omethod
 
 
+def bspline_cr(spectra, n_grow_mask=1, cr_nsig=5.):
+    """ Experimental and not so successful..
+
+    Parameters
+    ----------
+    spectra
+    n_grow_mask
+    cr_nsig
+
+    Returns
+    -------
+
+    """
+    # Unpack
+    fluxes, sigs, wave = unpack_spec(spectra, all_wave=True)
+
+    # Concatenate
+    all_f = fluxes.flatten()
+    all_s = sigs.flatten()
+    all_w = wave.flatten()
+
+    # Sort
+    srt = np.argsort(all_w)
+
+    # Bad pix
+    goodp = all_s[srt] > 0.
+
+    # Fit
+    mask, bspl = arutils.robust_polyfit(all_w[srt][goodp], all_f[srt][goodp], 3,
+                                        function='bspline', sigma=cr_nsig, everyn=2*spectra.nspec,
+                                        weights=1./np.sqrt(all_s[srt][goodp]), maxone=False)
+    # Plot?
+    debug = True
+    if debug:
+        from matplotlib import pyplot as plt
+        plt.clf()
+        ax = plt.gca()
+        ax.scatter(all_w[srt][goodp], all_f[srt][goodp], color='k')
+        #
+        x = np.linspace(np.min(all_w), np.max(all_w), 30000)
+        y = arutils.func_val(bspl, x, 'bspline')
+        ax.plot(x,y)
+        # Masked
+        ax.scatter(all_w[srt][goodp][mask==1], all_f[srt][goodp][mask==1], color='r')
+        # Range
+        stdf = np.std(all_f[srt][goodp])
+        ax.set_ylim(-2*stdf, 3*stdf)
+        plt.show()
+        debugger.set_trace()
+
+    debugger.set_trace()
+
 def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
     debug=False, cr_everyn=6, cr_bsigma=5., cr_two_alg='bspline', **kwargs):
     """ Sigma-clips the flux arrays to remove obvious CR
@@ -458,6 +518,15 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
     # Init
     fluxes, sigs, wave = unpack_spec(spectra)
     npix = wave.size
+
+    def rej_bad(smask, badchi, n_grow_mask, ispec):
+        # Grow?
+        if n_grow_mask > 0:
+            badchi = grow_mask(badchi, n_grow=n_grow_mask)
+        # Mask
+        smask[ispec,badchi] = True
+        msgs.info("Rejecting {:d} CRs in exposure {:d}".format(np.sum(badchi),ispec))
+        return
 
     if spectra.nspec == 2:
         msgs.info("Only 2 exposures.  Using custom procedure")
@@ -557,17 +626,16 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
             gds = (~smask[ispec,:]) & (sigs[ispec,:] > 0.)
             ivar = np.zeros(npix)
             ivar[gds] = 1./sigs[ispec,gds]**2
-            #
+            # Single pixel events
             chi2 = diff[ispec]**2 * ivar
             badchi = (ivar > 0.0) & (chi2 > cr_nsig**2)
-            nbad = np.sum(badchi)
-            if nbad > 0:
-                # Grow?
-                if n_grow_mask > 0:
-                    badchi = grow_mask(badchi, n_grow=n_grow_mask)
-                # Mask
-                smask[ispec,badchi] = True
-                msgs.info("Rejecting {:d} CRs in exposure {:d}".format(nbad,ispec))
+            if np.any(badchi) > 0:
+                rej_bad(smask, badchi, n_grow_mask, ispec)
+            # Dual pixels [CRs usually affect 2 (or more) pixels]
+            tchi2 = chi2 + np.roll(chi2,1)
+            badchi = (ivar > 0.0) & (tchi2 > 2*cr_nsig**2)
+            if np.any(badchi) > 0:
+                rej_bad(smask, badchi, n_grow_mask, ispec)
     # Return
     return
 
@@ -586,7 +654,6 @@ def one_d_coadd(spectra, smask, weights, debug=False, **kwargs):
     coadd : XSpectrum1D
 
     """
-    from linetools.spectra.xspectrum1d import XSpectrum1D
     # Setup
     fluxes, sigs, wave = unpack_spec(spectra)
     variances = (sigs > 0.) * sigs**2
@@ -636,7 +703,6 @@ def load_spec(files, iextensions=None, extract='opt', flux=True):
     spectra : XSpectrum1D
       -- All spectra are collated in this one object
     """
-    from linetools.spectra.utils import collate
     # Extensions
     if iextensions is None:
         msgs.warn("Extensions not provided.  Assuming first extension for all")
@@ -751,7 +817,8 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     new_wave = new_wave_grid(spectra.data['wave'], wave_method=wave_grid_method, **kwargs)
 
     # Rebin
-    rspec = spectra.rebin(new_wave*u.AA, all=True, do_sig=True, grow_bad_sig=True, masking='none')
+    rspec = spectra.rebin(new_wave*units.AA, all=True, do_sig=True, grow_bad_sig=True,
+                          masking='none')
 
     # Define mask -- THIS IS THE ONLY ONE TO USE
     rmask = rspec.data['sig'].filled(0.) <= 0.
@@ -898,7 +965,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     # QA
     if qafile is not None:
         msgs.info("Writing QA file: {:s}".format(qafile))
-        arqa.coaddspec_qa(spectra, rspec, rmask, spec1d, qafile=qafile)
+        coaddspec_qa(spectra, rspec, rmask, spec1d, qafile=qafile)
 
     # Write to disk?
     if outfile is not None:
@@ -915,4 +982,85 @@ def write_to_disk(spec1d, outfile):
     elif '.fits' in outfile:
         spec1d.write_to_fits(outfile)
     return
+
+
+
+def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=2.):
+    """  QA plot for 1D coadd of spectra
+
+    Parameters
+    ----------
+    ispectra : XSpectrum1D
+      Multi-spectra object
+    rspec : XSpectrum1D
+      Rebinned spectra with updated variance
+    spec1d : XSpectrum1D
+      Final coadd
+    yscale : float, optional
+      Scale median flux by this parameter for the spectral plot
+
+    """
+
+    plt.rcdefaults()
+    plt.rcParams['font.family']= 'times new roman'
+
+    if qafile is not None:
+        pp = PdfPages(qafile)
+
+    plt.clf()
+    plt.figure()
+    gs = gridspec.GridSpec(1,2)
+
+    # Deviate
+    std_dev, dev_sig = get_std_dev(rspec, rmask, spec1d)
+    #dev_sig = (rspec.data['flux'] - spec1d.flux) / (rspec.data['sig']**2 + spec1d.sig**2)
+    #std_dev = np.std(sigma_clip(dev_sig, sigma=5, iters=2))
+    if dev_sig is not None:
+        flat_dev_sig = dev_sig.flatten()
+
+    xmin = -10
+    xmax = 10
+    n_bins = 100
+
+    # Deviation
+    ax = plt.subplot(gs[0])
+    if dev_sig is not None:
+        hist, edges = np.histogram(flat_dev_sig, range=(xmin, xmax), bins=n_bins)
+        area = len(flat_dev_sig)*((xmax-xmin)/float(n_bins))
+        xppf = np.linspace(scipy.stats.norm.ppf(0.0001), scipy.stats.norm.ppf(0.9999), 100)
+        ax.plot(xppf, area*scipy.stats.norm.pdf(xppf), color='black', linewidth=2.0)
+        ax.bar(edges[:-1], hist, width=((xmax-xmin)/float(n_bins)), alpha=0.5)
+
+    # Coadd on individual
+    # yrange
+    medf = np.median(spec1d.flux)
+    ylim = (medf/10., yscale*medf)
+    # Plot
+    ax = plt.subplot(gs[1])
+    for idx in range(ispectra.nspec):
+        ispectra.select = idx
+        ax.plot(ispectra.wavelength, ispectra.flux, alpha=0.5)#, label='individual exposure')
+
+    ax.plot(spec1d.wavelength, spec1d.flux, color='black', label='coadded spectrum')
+    ax.set_ylim(ylim)
+    debug=False
+    if debug:
+        ax.set_ylim(0., 180.)
+        ax.set_xlim(3840, 3860.)
+    plt.legend()
+    plt.title('Coadded + Original Spectra')
+
+    plt.tight_layout(pad=0.2,h_pad=0.,w_pad=0.2)
+    if qafile is not None:
+        pp.savefig(bbox_inches='tight')
+        pp.close()
+        msgs.info("Wrote coadd QA: {:s}".format(qafile))
+    plt.close()
+
+    plt.rcdefaults()
+
+    return
+
+
+
 

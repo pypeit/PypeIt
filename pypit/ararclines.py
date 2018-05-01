@@ -4,17 +4,16 @@ import numpy as np
 from astropy.table import Table, Column, vstack
 import glob, copy
 import yaml
+from pkg_resources import resource_filename
 
-from pypit import armsgs
+from arclines.io import load_line_list
+
+from pypit import msgs
 from pypit import arparse as settings
-
 from pypit import ardebug as debugger
 
-# Logging
-msgs = armsgs.get_logger()
 
-
-def parse_nist(slf,ion):
+def parse_nist(ion):
     """Parse a NIST ASCII table.  Note that the long ---- should have
     been commented out and also the few lines at the start.
 
@@ -23,52 +22,15 @@ def parse_nist(slf,ion):
     ion : str
       Name of ion
     """
-    # Root (for development only)
-    if slf is None:
-        from pypit import arutils as arut
-        msgs.warn("Using arutils.dummy_self.  Better know what you are doing.")
-        slf = arut.dummy_self()
-    root = settings.argflag['run']['pypitdir']
-    # Find file
-    srch_file = root + '/data/arc_lines/NIST/'+ion+'_vacuum.ascii'
-    nist_file = glob.glob(srch_file)
-    if len(nist_file) == 0:
-        msgs.error("Cannot find NIST file {:s}".format(srch_file))
-    elif len(nist_file) != 1:
-        msgs.error("Multiple NIST files for {:s}".format(srch_file))
-    # Read
-    nist_tbl = Table.read(nist_file[0], format='ascii.fixed_width', comment='#')
-    gdrow = nist_tbl['Observed'] > 0.  # Eliminate dummy lines
-    nist_tbl = nist_tbl[gdrow]
-    # Now unique values only (no duplicates)
-    uniq, indices = np.unique(nist_tbl['Observed'],return_index=True)
-    nist_tbl = nist_tbl[indices]
-    # Deal with Rel
-    agdrel = []
-    for row in nist_tbl:
-        try:
-            gdrel = int(row['Rel.'])
-        except:
-            try:
-                gdrel = int(row['Rel.'][:-1])
-            except: 
-                gdrel = 0
-        agdrel.append(gdrel) 
-    agdrel = np.array(agdrel)
-    # Remove and add
-    nist_tbl.remove_column('Rel.')
-    nist_tbl.remove_column('Ritz')
-    nist_tbl.add_column(Column(agdrel,name='RelInt'))
-    nist_tbl.remove_column('Acc.')
-    nist_tbl.remove_column('Type')
-    #nist_tbl.add_column(Column([ion]*len(nist_tbl), name='Ion', dtype='S5'))
-    nist_tbl.add_column(Column([ion]*len(nist_tbl), name='Ion', dtype='U5'))
-    nist_tbl.rename_column('Observed','wave')
+    nist_path = resource_filename('arclines', 'data/NIST/')
+    line_file = nist_path+'{:s}_vacuum.ascii'.format(ion)
+    nist_tbl = load_line_list(line_file, NIST=True)
+
     # Return
     return nist_tbl
 
 
-def load_arcline_list(slf, idx, lines, disperser, wvmnx=None, modify_parse_dict=None):
+def load_arcline_list(idx, lines, disperser, wvmnx=None, modify_parse_dict=None):
     """Loads arc line list from NIST files
     Parses and rejects
 
@@ -92,11 +54,6 @@ def load_arcline_list(slf, idx, lines, disperser, wvmnx=None, modify_parse_dict=
     """
     # Get the parse dict
     parse_dict = load_parse_dict(modify_dict=modify_parse_dict)
-    # Read rejection file
-    if slf is None:
-        from pypit import arutils as arut
-        msgs.warn("Using arutils.dummy_self.  Better know what you are doing.")
-        slf = arut.dummy_self()
     root = settings.argflag['run']['pypitdir']
     with open(root+'/data/arc_lines/rejected_lines.yaml', 'r') as infile:
         rej_dict = yaml.load(infile)
@@ -104,14 +61,14 @@ def load_arcline_list(slf, idx, lines, disperser, wvmnx=None, modify_parse_dict=
     tbls = []
     for iline in lines:
         # Load
-        tbl = parse_nist(slf,iline)
+        tbl = parse_nist(iline)
         # Parse
         if iline in parse_dict.keys():
             tbl = parse_nist_tbl(tbl,parse_dict[iline])
         # Reject
         if iline in rej_dict.keys():
             msgs.info("Rejecting select {:s} lines".format(iline))
-            tbl = reject_lines(slf,tbl,idx,rej_dict[iline],disperser)
+            tbl = reject_lines(tbl,idx,rej_dict[iline],disperser)
         tbls.append(tbl[['Ion','wave','RelInt']])
     # Stack
     alist = vstack(tbls)
@@ -125,7 +82,7 @@ def load_arcline_list(slf, idx, lines, disperser, wvmnx=None, modify_parse_dict=
     return alist
 
 
-def reject_lines(slf, tbl, idx, rej_dict, disperser):
+def reject_lines(tbl, idx, rej_dict, disperser):
     '''Parses a NIST table using various criteria
     Parameters
     ----------
@@ -149,8 +106,6 @@ def reject_lines(slf, tbl, idx, rej_dict, disperser):
         close = np.where(np.abs(wave-tbl['wave']) < 0.1)[0]
         if rej_dict[wave] == 'all':
             msk[close] = False
-        elif slf == None:
-            continue
         elif settings.argflag['run']['spectrograph'] in rej_dict[wave].keys():
             if rej_dict[wave][settings.argflag['run']['spectrograph']] == 'all':
                 msk[close] = False

@@ -1,23 +1,19 @@
 # Module for LRIS specific codes
 from __future__ import absolute_import, division, print_function
 
-import numpy as np
-import glob
-import astropy.io.fits as pyfits
-
-from pypit import armsgs
-from pypit.arparse import load_sections
-
-from pypit import ardebug as debugger
-
 try:
     basestring
 except NameError:  # For Python 3
     basestring = str
 
-# Logging
-msgs = armsgs.get_logger()
+import glob
 
+import numpy as np
+from astropy.io import fits
+
+from pypit import msgs
+from pypit.arparse import load_sections
+from pypit import ardebug as debugger
 
 def read_lris(raw_file, det=None, TRIM=False):
     """
@@ -50,7 +46,7 @@ def read_lris(raw_file, det=None, TRIM=False):
 
     # Read
     msgs.info("Reading LRIS file: {:s}".format(fil[0]))
-    hdu = pyfits.open(fil[0])
+    hdu = fits.open(fil[0])
     head0 = hdu[0].header
 
     # Get post, pre-pix values
@@ -128,7 +124,6 @@ def read_lris(raw_file, det=None, TRIM=False):
     # allocate output array...
     array = np.zeros( (nx, ny) )
     order = np.argsort(np.array(xcol))
-
 
     # insert extensions into master image...
     for kk, i in enumerate(order[det_idx]):
@@ -241,7 +236,7 @@ def lris_read_amp(inp, ext):
     """
     # Parse input
     if isinstance(inp, basestring):
-        hdu = pyfits.open(inp)
+        hdu = fits.open(inp)
     else:
         hdu = inp
 
@@ -375,29 +370,29 @@ def convert_lowredux_pixelflat(infil, outfil):
 
     """
     # Read
-    hdu = pyfits.open(infil)
+    hdu = fits.open(infil)
     data = hdu[0].data
 
     #
-    prihdu = pyfits.PrimaryHDU()
+    prihdu = fits.PrimaryHDU()
     hdus = [prihdu]
     prihdu.header['FRAMETYP'] = 'pixelflat'
 
     # Detector 1
     img1 = data[:,:data.shape[1]//2]
-    hdu = pyfits.ImageHDU(img1)
+    hdu = fits.ImageHDU(img1)
     hdu.name = 'DET1'
     prihdu.header['EXT0001'] = 'DET1-pixelflat'
     hdus.append(hdu)
 
     # Detector 2
     img2 = data[:,data.shape[1]//2:]
-    hdu = pyfits.ImageHDU(img2)
+    hdu = fits.ImageHDU(img2)
     hdu.name = 'DET2'
     prihdu.header['EXT0002'] = 'DET2-pixelflat'
     hdus.append(hdu)
 
     # Finish
-    hdulist = pyfits.HDUList(hdus)
+    hdulist = fits.HDUList(hdus)
     hdulist.writeto(outfil, clobber=True)
     print('Wrote {:s}'.format(outfil))

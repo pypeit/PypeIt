@@ -3,16 +3,15 @@
 """
 Wrapper to the linetools XSpecGUI
 """
-from pypit import pyputils
-import pdb as debugger
 
-msgs = pyputils.get_dummy_logger()
-from numpy import isnan
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+import argparse
 
 def parser(options=None):
-
-    import argparse
-
     parser = argparse.ArgumentParser(description='Script to coadd a set of spec1D files and 1 or more slits and 1 or more objects. Current defaults use Optimal + Fluxed extraction. [v1.1]')
     parser.add_argument("infile", type=str, help="Input file (YAML)")
     parser.add_argument("--debug", default=False, action='store_true', help="Turn debugging on")
@@ -29,10 +28,18 @@ def main(args, unit_test=False, path=''):
     path : str, optional
       Mainly for running the unit test
     """
-    import yaml, glob
+
+    import glob
+    import yaml
+
+    from numpy import isnan
+    import pdb as debugger
+
+    from astropy.io import fits
+
+    from pypit import msgs
     from pypit import arcoadd
     from pypit import arspecobj
-    from astropy.io import fits
 
     # Load the input file
     with open(args.infile, 'r') as infile:

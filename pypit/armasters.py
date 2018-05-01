@@ -1,20 +1,20 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-import numpy as np
-from pypit import armsgs
-from pypit import arload
-from pypit import arparse as settings
-from pypit import arsave
-from pypit import arutils
-
 try:
     basestring
 except NameError:  # For Python 3
     basestring = str
 
-# Logging
-msgs = armsgs.get_logger()
+import numpy as np
+import yaml
 
+import linetools.utils
+
+from pypit import msgs
+from pypit import arload
+from pypit import arparse as settings
+from pypit import arsave
+from pypit import arutils
 from pypit import ardebug as debugger
 
 class MasterFrames:
@@ -137,6 +137,7 @@ def get_master_frame(slf, mftype, det=None):
 
 def save_masters(slf, det, mftype='all'):
     """ Save Master Frames
+
     Parameters
     ----------
     slf
@@ -145,7 +146,6 @@ def save_masters(slf, det, mftype='all'):
       'all' -- Save them all
     
     """
-    from linetools import utils as ltu
     setup = slf.setup
 
     transpose = bool(settings.argflag['trace']['dispersion']['direction'])
@@ -192,10 +192,10 @@ def save_masters(slf, det, mftype='all'):
                            filename=master_name('wave', setup),
                            frametype='wave')
         # Wavelength fit
-        gddict = ltu.jsonify(slf._wvcalib[det-1])
+        gddict = linetools.utils.jsonify(slf._wvcalib[det-1])
         json_file = master_name('wv_calib', setup)
         if gddict is not None:
-            ltu.savejson(json_file, gddict, easy_to_read=True, overwrite=True)
+            linetools.utils.savejson(json_file, gddict, easy_to_read=True, overwrite=True)
         else:
             msgs.warn("The master wavelength solution has not been saved")
     # Tilts
@@ -221,7 +221,6 @@ def save_sensfunc(slf, setup):
     """
     # Sensitivity Function
     if 'sensfunc' + settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']:
-        import yaml
         # yamlify
         ysens = arutils.yamlify(slf._sensfunc)
         with open(master_name('sensfunc', setup), 'w') as yamlf:

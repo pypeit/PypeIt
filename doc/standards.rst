@@ -1,5 +1,25 @@
-Incomplete list of the calspec standards:
-=========================================
+.. highlight:: rest
+
+.. _standards:
+
+**************
+Standard Stars
+**************
+
+PYPIT has a set of standard stars used for flux
+calibration that are mainly taken from the now
+defunct STScI calspec package.
+
+.. _standard_list:
+
+calspec standards
+=================
+
+The following table is an incomplete list
+of the standard stars we are using from
+the dataset known as calspec, originally
+maintained by STScI.
+
 
 ========================== ============= ============== ==============
   File                      Name            RA_2000      DEC_2000
@@ -36,8 +56,6 @@ ngc7293_005.fits            NGC7293       22:29:38.55    -20:50:13.6
 ltt9491_002.fits            LTT9491       23:19:35.00    -17:05:30.0
 feige110_005.fits           FEIGE110      23:19:58.40    -05:09:56.2
 ========================== ============= ============== ==============
-
-
 
 
 

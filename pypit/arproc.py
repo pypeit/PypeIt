@@ -1,13 +1,23 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
+import time
+import inspect
+
 import numpy as np
-from scipy.signal import savgol_filter
-import scipy.signal as signal
-import scipy.ndimage as ndimage
-import scipy.interpolate as interp
+
+from scipy import signal, ndimage, interpolate
+
 from matplotlib import pyplot as plt
+from matplotlib import gridspec, font_manager
+
+from astropy import units
+from astropy.io import fits
+
+from pypit import msgs
+
 from pypit import arextract
 from pypit import arlris
+from pypit import ardeimos
 from pypit import armsgs
 from pypit import artrace
 from pypit import arutils
@@ -17,10 +27,11 @@ from pypit import arqa
 from pypit import arpca
 from pypit import arwave
 
-from pypit import ardebug as debugger
+from pypit import arcytrace
+from pypit import arcyutils
+from pypit import arcyproc
 
-# Logging
-msgs = armsgs.get_logger()
+from pypit import ardebug as debugger
 
 
 def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
@@ -184,8 +195,6 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     :param varframe:
     :return:
     """
-    from pypit import arcyutils
-    from pypit import arcyproc
     # Set some starting parameters (maybe make these available to the user)
     msgs.work("Should these parameters be made available to the user?")
     polyorder, repeat = 5, 1
@@ -193,9 +202,20 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, tracemask=None,
     errframe = np.sqrt(varframe)
     # Find which pixels are within the order edges
     msgs.info("Identifying pixels within each order")
-    ordpix = arcyutils.order_pixels(slf._pixlocn[det-1],
-                                    slf._lordloc[det-1]*0.95+slf._rordloc[det-1]*0.05,
-                                    slf._lordloc[det-1]*0.05+slf._rordloc[det-1]*0.95)
+#    print('calling order_pixels')
+#    t = time.clock()
+#    _ordpix = arcyutils.order_pixels(slf._pixlocn[det-1],
+#                                     slf._lordloc[det-1]*0.95+slf._rordloc[det-1]*0.05,
+#                                     slf._lordloc[det-1]*0.05+slf._rordloc[det-1]*0.95)
+#    print('Old order_pixels: {0} seconds'.format(time.clock() - t))
+#    t = time.clock()
+    ordpix = new_order_pixels(slf._pixlocn[det-1],
+                              slf._lordloc[det-1]*0.95+slf._rordloc[det-1]*0.05,
+                              slf._lordloc[det-1]*0.05+slf._rordloc[det-1]*0.95)
+#    print('New order_pixels: {0} seconds'.format(time.clock() - t))
+#    assert np.sum(_ordpix != ordpix) == 0, \
+#                    'Difference between old and new order_pixels'
+
     msgs.info("Applying bad pixel mask")
     ordpix *= (1-slf._bpix[det-1].astype(np.int)) * (1-crpix.astype(np.int))
     if tracemask is not None: ordpix *= (1-tracemask.astype(np.int))
@@ -416,7 +436,6 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     msblaze : ndarray
       A 2d array containing the blaze function for each slit
     """
-    from pypit import arcyutils
     dnum = settings.get_dnum(det)
 
     msgs.info("Normalizing the master flat field frame")
@@ -436,7 +455,17 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     #xint = slf._pixlocn[det-1][:,0,0]
     # Find which pixels are within the order edges
     msgs.info("Identifying pixels within each order")
-    ordpix = arcyutils.order_pixels(slf._pixlocn[det-1], slf._lordloc[det-1], slf._rordloc[det-1])
+
+#    print('calling order_pixels')
+#    t = time.clock()
+#    _ordpix = arcyutils.order_pixels(slf._pixlocn[det-1], slf._lordloc[det-1], slf._rordloc[det-1])
+#    print('Old order_pixels: {0} seconds'.format(time.clock() - t))
+#    t = time.clock()
+    ordpix = new_order_pixels(slf._pixlocn[det-1], slf._lordloc[det-1], slf._rordloc[det-1])
+#    print('New order_pixels: {0} seconds'.format(time.clock() - t))
+#    assert np.sum(_ordpix != ordpix) == 0, \
+#                    'Difference between old and new order_pixels'
+
     msgs.info("Applying bad pixel mask")
     ordpix *= (1-slf._bpix[det-1].astype(np.int))
     mskord = np.zeros(msflat.shape)
@@ -480,7 +509,8 @@ def flatnorm(slf, det, msflat, maskval=-999999.9, overpix=6, plotdesc=""):
     # Plot the blaze model
     if not msgs._debug['no_qa']:
         msgs.info("Saving blaze fits to QA")
-        arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc=plotdesc, textplt="Order")
+#        arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc=plotdesc, textplt="Order")
+        artrace.plot_orderfits(slf, msblaze, flat_ext1d, desc=plotdesc, textplt="Order")
     # If there is more than 1 amplifier, apply the scale between amplifiers to the normalized flat
     if (settings.spect[dnum]['numamplifiers'] > 1) & (norders > 1):
         msnormflat *= sclframe
@@ -599,6 +629,18 @@ def get_datasec_trimmed(slf, fitsdict, det, scidx):
             settings.spect[dnum][datasec] = settings.load_sections(secs[0][kk], fmt_iraf=False)
             oscansec = "oscansec{0:02d}".format(kk+1)
             settings.spect[dnum][oscansec] = settings.load_sections(secs[1][kk], fmt_iraf=False)
+    # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
+    elif settings.argflag['run']['spectrograph'] in ['keck_deimos']:
+        msgs.info("Parsing datasec and oscansec from headers")
+        temp, head0, secs = ardeimos.read_deimos(fitsdict['directory'][scidx] + fitsdict['filename'][scidx])
+        # Naxis
+        fitsdict['naxis0'][scidx] = temp.shape[0]
+        fitsdict['naxis1'][scidx] = temp.shape[1]
+        datasec = "datasec{0:02d}".format(1)
+        settings.spect[dnum][datasec] = settings.load_sections(secs[0][det-1], fmt_iraf=False)
+        oscansec = "oscansec{0:02d}".format(1)
+        settings.spect[dnum][oscansec] = settings.load_sections(secs[1][det-1], fmt_iraf=False)
+
     # For convenience
     naxis0, naxis1 = int(fitsdict['naxis0'][scidx]), int(fitsdict['naxis1'][scidx])
     # Initialize the returned array
@@ -649,6 +691,152 @@ def get_wscale(slf):
     msgs.info("Extracted wavelength range will be: {0:.5f} - {1:.5f}".format(wave.min(),wave.max()))
     msgs.info("Total number of spectral pixels in the extracted spectrum will be: {0:d}".format(1+nmax-nmin))
     return wave
+
+
+def flexure_qa(slf, det, flex_list, slit_cen=False):
+    """ QA on flexure measurement
+
+    Parameters
+    ----------
+    slf
+    det
+    flex_list : list
+      list of dict containing flexure results
+    slit_cen : bool, optional
+      QA on slit center instead of objects
+
+    Returns
+    -------
+
+    """
+    plt.rcdefaults()
+    plt.rcParams['font.family']= 'times new roman'
+
+    # Grab the named of the method
+    method = inspect.stack()[0][3]
+    #
+    for sl in range(len(slf._specobjs[det-1])):
+        # Setup
+        if slit_cen:
+            nobj = 1
+            ncol = 1
+        else:
+            nobj = len(slf._specobjs[det-1][sl])
+            if nobj == 0:
+                continue
+            ncol = min(3, nobj)
+        #
+        nrow = nobj // ncol + ((nobj % ncol) > 0)
+
+        # Get the flexure dictionary
+        flex_dict = flex_list[sl]
+
+        # Outfile
+        outfile = arqa.set_qa_filename(slf._basename, method+'_corr', det=det,
+                                       slit=slf._specobjs[det-1][sl][0].slitid)
+
+        plt.figure(figsize=(8, 5.0))
+        plt.clf()
+        gs = gridspec.GridSpec(nrow, ncol)
+
+        # Correlation QA
+        for o in range(nobj):
+            ax = plt.subplot(gs[o//ncol, o % ncol])
+            # Fit
+            fit = flex_dict['polyfit'][o]
+            xval = np.linspace(-10., 10, 100) + flex_dict['corr_cen'][o] #+ flex_dict['shift'][o]
+            #model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
+            model = arutils.func_val(fit, xval, 'polynomial')
+            mxmod = np.max(model)
+            ylim = [np.min(model/mxmod), 1.3]
+            ax.plot(xval-flex_dict['corr_cen'][o], model/mxmod, 'k-')
+            # Measurements
+            ax.scatter(flex_dict['subpix'][o]-flex_dict['corr_cen'][o],
+                       flex_dict['corr'][o]/mxmod, marker='o')
+            # Final shift
+            ax.plot([flex_dict['shift'][o]]*2, ylim, 'g:')
+            # Label
+            if slit_cen:
+                ax.text(0.5, 0.25, 'Slit Center', transform=ax.transAxes, size='large', ha='center')
+            else:
+                ax.text(0.5, 0.25, '{:s}'.format(slf._specobjs[det-1][sl][o].idx), transform=ax.transAxes, size='large', ha='center')
+            ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(flex_dict['shift'][o]),
+                    transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
+            # Axes
+            ax.set_ylim(ylim)
+            ax.set_xlabel('Lag')
+
+        # Finish
+        plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+        plt.savefig(outfile, dpi=600)
+        plt.close()
+
+        # Sky line QA (just one object)
+        if slit_cen:
+            o = 0
+        else:
+            o = 0
+            specobj = slf._specobjs[det-1][sl][o]
+        sky_spec = flex_dict['sky_spec'][o]
+        arx_spec = flex_dict['arx_spec'][o]
+
+        # Sky lines
+        sky_lines = np.array([3370.0, 3914.0, 4046.56, 4358.34, 5577.338, 6300.304,
+                  7340.885, 7993.332, 8430.174, 8919.610, 9439.660,
+                  10013.99, 10372.88])*units.AA
+        dwv = 20.*units.AA
+        gdsky = np.where((sky_lines > sky_spec.wvmin) & (sky_lines < sky_spec.wvmax))[0]
+        if len(gdsky) == 0:
+            msgs.warn("No sky lines for Flexure QA")
+            return
+        if len(gdsky) > 6:
+            idx = np.array([0, 1, len(gdsky)//2, len(gdsky)//2+1, -2, -1])
+            gdsky = gdsky[idx]
+
+        # Outfile
+        outfile = arqa.set_qa_filename(slf._basename, method+'_sky', det=det,
+                                       slit=slf._specobjs[det-1][sl][0].slitid)
+        # Figure
+        plt.figure(figsize=(8, 5.0))
+        plt.clf()
+        nrow, ncol = 2, 3
+        gs = gridspec.GridSpec(nrow, ncol)
+        if slit_cen:
+            plt.suptitle('Sky Comparison for Slit Center', y=1.05)
+        else:
+            plt.suptitle('Sky Comparison for {:s}'.format(specobj.idx), y=1.05)
+
+        for ii, igdsky in enumerate(gdsky):
+            skyline = sky_lines[igdsky]
+            ax = plt.subplot(gs[ii//ncol, ii % ncol])
+            # Norm
+            pix = np.where(np.abs(sky_spec.wavelength-skyline) < dwv)[0]
+            f1 = np.sum(sky_spec.flux[pix])
+            f2 = np.sum(arx_spec.flux[pix])
+            norm = f1/f2
+            # Plot
+            ax.plot(sky_spec.wavelength[pix], sky_spec.flux[pix], 'k-', label='Obj',
+                    drawstyle='steps-mid')
+            pix2 = np.where(np.abs(arx_spec.wavelength-skyline) < dwv)[0]
+            ax.plot(arx_spec.wavelength[pix2], arx_spec.flux[pix2]*norm, 'r-', label='Arx',
+                    drawstyle='steps-mid')
+            # Axes
+            ax.xaxis.set_major_locator(plt.MultipleLocator(dwv.value))
+            ax.set_xlabel('Wavelength')
+            ax.set_ylabel('Counts')
+
+        # Legend
+        plt.legend(loc='upper left', scatterpoints=1, borderpad=0.3,
+                   handletextpad=0.3, fontsize='small', numpoints=1)
+
+        # Finish
+        plt.savefig(outfile, dpi=800)
+        plt.close()
+        #plt.close()
+
+    plt.rcdefaults()
+
+    return
 
 
 def object_profile(slf, sciframe, slitn, det, refine=0.0, factor=3):
@@ -867,7 +1055,8 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
             fitted, outpar = arpca.basis(xcen, trccen, trccoeff, lnpc, ofit, skipx0=False, mask=maskord,
                                          function=settings.argflag['trace']['object']['function'])
             if not msgs._debug['no_qa']:
-                arqa.pca_plot(slf, outpar, ofit, "Object_Trace", pcadesc="PCA of object trace")
+#                arqa.pca_plot(slf, outpar, ofit, "Object_Trace", pcadesc="PCA of object trace")
+                arpca.pca_plot(slf, outpar, ofit, "Object_Trace", pcadesc="PCA of object trace")
             # Extrapolate the remaining orders requested
             trccen, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['object']['function'])
             #refine = trccen-trccen[nspec//2, :].reshape((1, nord))
@@ -930,8 +1119,8 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
 
     # Save the quality control
     if not msgs._debug['no_qa']:
-        arqa.obj_trace_qa(slf, sciframe, trobjl, trobjr, None, det,
-                          root="object_trace", normalize=False)
+        artrace.obj_trace_qa(slf, sciframe, trobjl, trobjr, None, det,
+                             root="object_trace", normalize=False)
 
     # Finalize the Sky Background image
     if settings.argflag['reduce']['skysub']['perform'] and (nobj > 0) and skysub:
@@ -973,7 +1162,6 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
         # Perform an iterative background/science extraction
         if msgs._debug['obj_profile'] and False:
             msgs.warn("Reading background from 2D image on disk")
-            from astropy.io import fits
             datfil = settings.argflag['run']['directory']['science']+'/spec2d_{:s}.fits'.format(slf._basename.replace(":","_"))
             hdu = fits.open(datfil)
             bgframe = hdu[1].data - hdu[2].data
@@ -1030,7 +1218,8 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
     if settings.argflag['reduce']['flexure']['method'] == 'slitcen':
         flex_dict = arwave.flexure_slit(slf, det)
         #if not msgs._debug['no_qa']:
-        arqa.flexure(slf, det, flex_dict, slit_cen=True)
+#        arqa.flexure(slf, det, flex_dict, slit_cen=True)
+        flexure_qa(slf, det, flex_dict, slit_cen=True)
 
     # Perform an optimal extraction
     msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
@@ -1096,17 +1285,31 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
 
     # Optimal
     if not standard:
+
+        # KBW: Using variance_frame() in arextract leads to a circular
+        # import.  I've changed the arextract.optimal_extract() function
+        # to return the object model, then the last step of generating
+        # the new variance image is done here.
+
         msgs.info("Attempting optimal extraction with model profile")
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
                                modelvarframe, bgframe+bgcorr_box, crmask, scitrace, doqa=False)
-        newvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                                           modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
+#        newvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
+#                                           modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
+        obj_model = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
+                                              modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
+        newvar = variance_frame(slf, det, sciframe-bgframe-bgcorr_box, -1,
+                                skyframe=bgframe+bgcorr_box, objframe=obj_model)
         msgs.work("Should update variance image (and trace?) and repeat")
         #
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
                                newvar, bgframe+bgcorr_box, crmask, scitrace)
-        finalvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                                             newvar, bgframe+bgcorr_box, crmask, scitrace)
+#        finalvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
+#                                             newvar, bgframe+bgcorr_box, crmask, scitrace)
+        obj_model = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
+                                              newvar, bgframe+bgcorr_box, crmask, scitrace)
+        finalvar = variance_frame(slf, det, sciframe-bgframe-bgcorr_box, -1,
+                                  skyframe=bgframe+bgcorr_box, objframe=obj_model)
         slf._modelvarframe[det-1] = finalvar.copy()
 
     # Flexure correction?
@@ -1114,7 +1317,8 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
         if settings.argflag['reduce']['flexure']['method'] is not None:
             flex_dict = arwave.flexure_obj(slf, det)
             #if not msgs._debug['no_qa']:
-            arqa.flexure(slf, det, flex_dict)
+#            arqa.flexure(slf, det, flex_dict)
+            flexure_qa(slf, det, flex_dict)
 
     # Correct Earth's motion
     if (settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']) and \
@@ -1156,20 +1360,69 @@ def slit_pixels(slf, frameshape, det):
       that this pixel does not belong to any slit.
     """
 
-    from pypit import arcytrace
     nslits = slf._lordloc[det - 1].shape[1]
     msordloc = np.zeros(frameshape)
     for o in range(nslits):
         lordloc = slf._lordloc[det - 1][:, o]
         rordloc = slf._rordloc[det - 1][:, o]
-        ordloc = arcytrace.locate_order(lordloc, rordloc, frameshape[0], frameshape[1],
-                                        settings.argflag['trace']['slits']['pad'])
+#        print('calling locate_order')
+#        t = time.clock()
+#        _ordloc = arcytrace.locate_order(lordloc, rordloc, frameshape[0], frameshape[1],
+#                                         settings.argflag['trace']['slits']['pad'])
+#        print('Old locate_order: {0} seconds'.format(time.clock() - t))
+#        t = time.clock()
+        ordloc = new_locate_order(lordloc, rordloc, frameshape[0], frameshape[1],
+                                  settings.argflag['trace']['slits']['pad'])
+#        print('New locate_order: {0} seconds'.format(time.clock() - t))
+#        assert np.sum(_ordloc != ordloc) == 0, \
+#                    'Difference between old and new locate_order'
         word = np.where(ordloc != 0)
         if word[0].size == 0:
             msgs.warn("There are no pixels in slit {0:d}".format(o + 1))
             continue
         msordloc[word] = o + 1
     return msordloc
+
+
+def new_locate_order(lordloc, rordloc, sz_x, sz_y, pad):
+    """ Generate a boolean image that identifies which pixels
+    belong to the slit associated with the supplied left and
+    right slit edges.
+
+    Parameters
+    ----------
+    lordloc : ndarray
+      Location of the left slit edges of 1 slit
+    rordloc : ndarray
+      Location of the right slit edges of 1 slit
+    sz_x : int
+      The size of an image in the spectral (0th) dimension
+    sz_y : int
+      The size of an image in the spatial (1st) dimension
+    pad : int
+      Additional pixels to pad the left and right slit edges
+
+    Returns
+    -------
+    orderloc : ndarray
+      An image the same size as the input frame, containing values from 0-1.
+      0 = pixel is not in the specified slit
+      1 = pixel is in the specified slit
+    """
+    ow = (rordloc-lordloc)/2.0
+    oc = (rordloc+lordloc)/2.0
+    ymin = (oc-ow).astype(int)-pad
+    ymax = (oc+ow).astype(int)+1+pad
+    indx = np.invert((ymax < 0) | (ymin >= sz_y))
+    ymin[ymin < 0] = 0
+    ymax[ymax > sz_y-1] = sz_y-1
+    indx &= (ymax > ymin)
+
+    orderloc = np.zeros((sz_x,sz_y), dtype=int)
+    for x in np.arange(sz_x)[indx]:
+        orderloc[x,ymin[x]:ymax[x]] = 1
+    return orderloc
+
 
 
 def slit_profile(slf, mstrace, det, ntcky=None):
@@ -1322,12 +1575,11 @@ def slit_profile(slf, mstrace, det, ntcky=None):
             model = np.zeros_like(mstrace)
             model[word] = modvals
             diff = mstrace - model
-            import astropy.io.fits as pyfits
-            hdu = pyfits.PrimaryHDU(mstrace)
+            hdu = fits.PrimaryHDU(mstrace)
             hdu.writeto("mstrace_{0:02d}.fits".format(det), overwrite=True)
-            hdu = pyfits.PrimaryHDU(model)
+            hdu = fits.PrimaryHDU(model)
             hdu.writeto("model_{0:02d}.fits".format(det), overwrite=True)
-            hdu = pyfits.PrimaryHDU(diff)
+            hdu = fits.PrimaryHDU(diff)
             hdu.writeto("diff_{0:02d}.fits".format(det), overwrite=True)
 
     # Return
@@ -1425,8 +1677,8 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
         # Find the acceptable values and linearly interpolate
         blzx = np.arange(nslits)
         wnnan = np.where(~blznan)
-        fblz = interp.interp1d(blzx[wnnan], blzmxval[0, wnnan],
-                               kind="linear", bounds_error=False, fill_value="extrapolate")
+        fblz = interpolate.interp1d(blzx[wnnan], blzmxval[0, wnnan],
+                                    kind="linear", bounds_error=False, fill_value="extrapolate")
         blzmxval = fblz(blzx).reshape(blzmxval.shape)
     elif np.all(blznan):
         msgs.bug("All of the blaze values are NaN... time to debug")
@@ -1462,7 +1714,9 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
         fitted, outpar = arpca.basis(xcen, blzval, fitcoeff, lnpc, ofit, x0in=ordsnd, mask=maskord, skipx0=False,
                                      function=fitfunc)
         if not msgs._debug['no_qa']:
-            arqa.pca_plot(slf, outpar, ofit, "Blaze_Profile", pcadesc="PCA of blaze function fits")
+#            arqa.pca_plot(slf, outpar, ofit, "Blaze_Profile", pcadesc="PCA of blaze function fits")
+            arpca.pca_plot(slf, outpar, ofit, "Blaze_Profile",
+                           pcadesc="PCA of blaze function fits")
         # Extrapolate the remaining orders requested
         orders = 1.0 + np.arange(nslits)
         extrap_blz, outpar = arpca.extrapolate(outpar, orders, function=fitfunc)
@@ -1479,8 +1733,8 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
     for o in range(nslits):
         word = np.where(slf._slitpix[det - 1] == o+1)
         specval = slf._tilts[det-1][word]
-        blzspl = interp.interp1d(np.linspace(0.0, 1.0, mstrace.shape[0]), extrap_blz[:, o],
-                                 kind="linear", fill_value="extrapolate")
+        blzspl = interpolate.interp1d(np.linspace(0.0, 1.0, mstrace.shape[0]), extrap_blz[:, o],
+                                      kind="linear", fill_value="extrapolate")
         mstracenrm[word] /= blzspl(specval)
 
     # Now perform a PCA on the spatial (i.e. slit) profile
@@ -1531,7 +1785,8 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
         fitted, outpar = arpca.basis(xcen, sltval, fitcoeff, lnpc, sofit, x0in=ordsnd, mask=maskord, skipx0=False,
                                      function=fitfunc)
         if not msgs._debug['no_qa']:
-            arqa.pca_plot(slf, outpar, sofit, "Slit_Profile", pcadesc="PCA of slit profile fits")
+#            arqa.pca_plot(slf, outpar, sofit, "Slit_Profile", pcadesc="PCA of slit profile fits")
+            arpca.pca_plot(slf, outpar, sofit, "Slit_Profile", pcadesc="PCA of slit profile fits")
         # Extrapolate the remaining orders requested
         orders = 1.0 + np.arange(nslits)
         extrap_slt, outpar = arpca.extrapolate(outpar, orders, function=fitfunc)
@@ -1551,11 +1806,143 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
         word = np.where(slf._slitpix[det - 1] == o+1)
         spatval = (word[1] - lordloc[word[0]])/(rordloc[word[0]] - lordloc[word[0]])
 
-        sltspl = interp.interp1d(spatfit, extrap_slt[:, o],
-                                 kind="linear", fill_value="extrapolate")
+        sltspl = interpolate.interp1d(spatfit, extrap_slt[:, o],
+                                      kind="linear", fill_value="extrapolate")
         slit_profiles[word] = sltspl(spatval)
 
     return slit_profiles, mstracenrm, extrap_blz
+
+
+
+def slit_profile_qa(slf, mstrace, model, lordloc, rordloc, msordloc, textplt="Slit", maxp=16,
+                    desc=""):
+    """ Generate a QA plot for the slit profile of each slit
+
+    Parameters
+    ----------
+    slf : class
+      Science Exposure class
+    mstrace : ndarray
+      trace frame
+    model : ndarray
+      model of slit profiles, same shape as frame.
+    lordloc : ndarray
+      left edge locations of all slits
+    rordloc : ndarray
+      right edge locations of all slits
+    msordloc : ndarray
+      An array the same size as frame that determines which pixels contain a given order.
+    textplt : str, optional
+      A string printed above each panel
+    maxp : int, (optional)
+      Maximum number of panels per page
+    desc : str, (optional)
+      A description added to the top of each page
+    """
+
+    plt.rcdefaults()
+    plt.rcParams['font.family']= 'times new roman'
+
+    # Outfile
+    method = inspect.stack()[0][3]
+    outroot = arqa.set_qa_filename(slf.setup, method)
+
+    npix, nord = lordloc.shape
+    nbins = 40
+    bins = np.linspace(-0.25, 1.25, nbins+1)
+    pages, npp = arqa.get_dimen(nord, maxp=maxp)
+    # Loop through all pages and plot the results
+    ndone = 0
+    axesIdx = True
+    for i in range(len(pages)):
+        f, axes = plt.subplots(pages[i][1], pages[i][0])
+        ipx, ipy = 0, 0
+        for j in range(npp[i]):
+            if pages[i][0] == 1 and pages[i][1] == 1: axesIdx = False
+            elif pages[i][1] == 1: ind = (ipx,)
+            elif pages[i][0] == 1: ind = (ipy,)
+            else: ind = (ipy, ipx)
+            # Get data to be plotted
+            word = np.where(msordloc == ndone+j+1)
+            if word[0].size == 0:
+                msgs.warn("There are no pixels in slit {0:d}".format(ndone + j + 1))
+                # Delete the axis
+                if pages[i][1] == 1: ind = (ipx,)
+                elif pages[i][0] == 1: ind = (ipy,)
+                else: ind = (ipy, ipx)
+                f.delaxes(axes[ind])
+                ipx += 1
+                if ipx == pages[i][0]:
+                    ipx = 0
+                    ipy += 1
+                continue
+            spatval = (word[1] + 0.5 - lordloc[:, ndone+j][word[0]]) / (rordloc[:, ndone+j][word[0]] - lordloc[:, ndone+j][word[0]])
+            fluxval = mstrace[word]
+            mxval = 1.25
+            modvals = np.zeros(nbins)
+            if axesIdx:
+                cnts, xedges, yedges, null = axes[ind].hist2d(spatval, fluxval, bins=bins, cmap=plt.cm.gist_heat_r)
+                groups = np.digitize(spatval, xedges)
+                modelw = model[word]
+                for mm in range(1, xedges.size):
+                    modvals[mm-1] = modelw[groups == mm].mean()
+                axes[ind].plot(0.5*(xedges[1:]+xedges[:-1]), modvals, 'b-', linewidth=2.0)
+                axes[ind].plot([0.0, 0.0], [0.0, mxval], 'r-')
+                axes[ind].plot([1.0, 1.0], [0.0, mxval], 'r-')
+            else:
+                cnts, xedges, yedges, null = axes.hist2d(spatval, fluxval, bins=bins, cmap=plt.cm.gist_heat_r)
+                groups = np.digitize(spatval, xedges)
+                modelw = model[word]
+                for mm in range(1, xedges.size):
+                    modvals[mm-1] = modelw[groups == mm].mean()
+                axes.plot(0.5*(xedges[1:]+xedges[:-1]), modvals, 'b-', linewidth=2.0)
+                axes.plot([0.0, 0.0], [0.0, mxval], 'r-')
+                axes.plot([1.0, 1.0], [0.0, mxval], 'r-')
+            if axesIdx:
+                axes[ind].axis([xedges[0], xedges[-1], 0.0, 1.1*mxval])
+                axes[ind].set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
+                axes[ind].tick_params(labelsize=10)
+            else:
+                axes.axis([xedges[0], xedges[-1], 0.0, 1.1*mxval])
+                axes.set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
+                axes.tick_params(labelsize=10)
+            ipx += 1
+            if ipx == pages[i][0]:
+                ipx = 0
+                ipy += 1
+        # Delete the unnecessary axes
+        if axesIdx:
+            for j in range(npp[i], axes.size):
+                if pages[i][1] == 1: ind = (ipx,)
+                elif pages[i][0] == 1: ind = (ipy,)
+                else: ind = (ipy, ipx)
+                f.delaxes(axes[ind])
+                ipx += 1
+                if ipx == pages[i][0]:
+                    ipx = 0
+                    ipy += 1
+        ndone += npp[i]
+        # Save the figure
+        if axesIdx: axsz = axes.size
+        else: axsz = 1.0
+        if pages[i][1] == 1 or pages[i][0] == 1: ypngsiz = 11.0/axsz
+        else: ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
+        f.set_size_inches(11.0, ypngsiz)
+        if desc != "":
+            pgtxt = ""
+            if len(pages) != 1:
+                pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
+            f.suptitle(desc + pgtxt, y=1.02, size=16)
+        f.tight_layout()
+        outfile = outroot+'{:03d}.png'.format(i)
+        plt.savefig(outfile, dpi=200)
+        plt.close()
+        f.clf()
+    del f
+
+    plt.rcdefaults()
+
+    return
 
 
 def sn_frame(slf, sciframe, idx):
@@ -1579,7 +1966,7 @@ def sn_frame(slf, sciframe, idx):
 
 
 def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-999999.9,
-             simple_var=False, varframe=None):
+             simple_var=False, varframe=None, remove_compact_obj=True):
     """
     Identify cosmic rays using the L.A.Cosmic algorithm
     U{http://www.astro.yale.edu/dokkum/lacosmic/}
@@ -1589,8 +1976,6 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
     :param grow: Once CRs are identified, grow each CR detection by all pixels within this radius
     :return: mask of cosmic rays (0=no CR, 1=CR)
     """
-    from pypit import arcyutils
-    from pypit import arcyproc
     dnum = settings.get_dnum(det)
 
     msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
@@ -1669,8 +2054,12 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
         msgs.info("Removing suspected compact bright objects")
 
         # Now we have our better selection of cosmics :
-        cosmics = np.logical_and(candidates, sp/f > objlim)
+        if remove_compact_obj:
+            cosmics = np.logical_and(candidates, sp/f > objlim)
+        else:
+            cosmics = candidates
         nbcosmics = np.sum(cosmics)
+        #debugger.set_trace()
 
         msgs.info("{0:5d} remaining candidate pixels".format(nbcosmics))
 
@@ -1713,15 +2102,160 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
     filt  = ndimage.sobel(sciframe, axis=1, mode='constant')
     filty = ndimage.sobel(filt/np.sqrt(np.abs(sciframe)), axis=0, mode='constant')
     filty[np.where(np.isnan(filty))]=0.0
-    sigimg  = arcyproc.cr_screen(filty,0.0)
+
+    # Old cr_screen can yield nan pixels, new one does not, meaning that
+    # there are differences between the returned arrays.  For all
+    # non-nan pixels, the two algorithms are identical.
+#    print('calling cr_screen')
+#    t = time.clock()
+#    _sigimg  = arcyproc.cr_screen(filty,0.0)
+#    print('Old cr_screen: {0} seconds'.format(time.clock() - t))
+#    print(np.sum(np.invert(np.isfinite(_sigimg))))
+#    t = time.clock()
+    sigimg  = new_cr_screen(filty)
+#    print('New cr_screen: {0} seconds'.format(time.clock() - t))
+#    print(np.sum(np.invert(np.isfinite(sigimg))))
+#    if np.sum(_sigimg != sigimg) != 0:
+#        plt.imshow(_sigimg, origin='lower', interpolation='nearest', aspect='auto')
+#        plt.show()
+#        plt.imshow(sigimg, origin='lower', interpolation='nearest', aspect='auto')
+#        plt.show()
+#        plt.imshow(_sigimg-sigimg, origin='lower', interpolation='nearest', aspect='auto')
+#        plt.colorbar()
+#        plt.show()
+#        r = np.ma.divide(_sigimg,sigimg)-1
+#        print(np.ma.sum(r))
+#        plt.imshow(np.ma.divide(_sigimg,sigimg)-1, origin='lower', interpolation='nearest', aspect='auto')
+#        plt.colorbar()
+#        plt.show()
+#    assert np.sum(_sigimg != sigimg) == 0, 'Difference between old and new cr_screen'
+
+#    print(sigimg.shape)
+#    print(new_sigimg.shape)
+#    print(np.ma.mean(np.ma.log10(sigimg)))
+#    print(np.ma.mean(np.ma.log10(new_sigimg)))
+#    print(np.ma.mean(np.ma.log10(sigimg)-np.ma.log10(new_sigimg)))
+#
+#    plt.imshow(np.ma.log10(sigimg), origin='lower', interpolation='nearest', aspect='auto')
+#    plt.colorbar()
+#    plt.show()
+#
+#    plt.imshow(np.ma.log10(new_sigimg), origin='lower', interpolation='nearest', aspect='auto')
+#    plt.colorbar()
+#    plt.show()
+#
+#    plt.imshow(np.ma.log10(new_sigimg)-np.ma.log10(sigimg), origin='lower', interpolation='nearest', aspect='auto')
+#    plt.colorbar()
+#    plt.show()
+
     sigsmth = ndimage.filters.gaussian_filter(sigimg,1.5)
     sigsmth[np.where(np.isnan(sigsmth))]=0.0
     sigmask = np.cast['bool'](np.zeros(sciframe.shape))
     sigmask[np.where(sigsmth>sigclip)] = True
     crmask = np.logical_and(crmask, sigmask)
     msgs.info("Growing cosmic ray mask by 1 pixel")
-    crmask = arcyutils.grow_masked(crmask.astype(np.float), grow, 1.0)
+#    print('calling grow_masked')
+#    t = time.clock()
+#    _crmask = arcyutils.grow_masked(crmask.astype(np.float), grow, 1.0)
+#    print('Old grow_masked: {0} seconds'.format(time.clock() - t))
+#    t = time.clock()
+    crmask = new_grow_masked(crmask.astype(np.float), grow, 1.0)
+#    print('New grow_masked: {0} seconds'.format(time.clock() - t))
+#    assert np.sum(_crmask != crmask) == 0, 'Difference between old and new grow_masked'
+
     return crmask
+
+
+def new_cr_screen(a, mask_value=0.0, spatial_axis=1):
+    r"""
+    Calculate the significance of pixel deviations from the median along
+    the spatial direction.
+
+    No type checking is performed of the input array; however, the
+    function assumes floating point values.
+
+    Args:
+        a (numpy.ndarray): Input 2D array
+        mask_value (float): (**Optional**) Values to ignore during the
+            calculation of the median.  Default is 0.0.
+        spatial_axis (int): (**Optional**) Axis along which to calculate
+            the median.  Default is 1.
+
+    Returns:
+        numpy.ndarray: Returns a map of :math:`|\Delta_{i,j}|/\sigma_j`,
+        where :math:`\Delta_{i,j}` is the difference between the pixel
+        value and the median along axis :math:`i` and :math:`\sigma_j`
+        is robustly determined using the median absolute deviation,
+        :math:`sigma_j = 1.4826 MAD`.
+    """
+    # Check input
+    if len(a.shape) != 2:
+        msgs.error('Input array must be two-dimensional.')
+    if spatial_axis not in [0,1]:
+        msgs.error('Spatial axis must be 0 or 1.')
+
+    # Mask the pixels equal to mask value: should use np.isclose()
+    _a = np.ma.MaskedArray(a, mask=(a==mask_value))
+    # Get the median along the spatial axis
+    meda = np.ma.median(_a, axis=spatial_axis)
+    # Get a robust measure of the standard deviation using the median
+    # absolute deviation; 1.4826 factor is the ratio of sigma/MAD
+    d = np.absolute(_a - meda[:,None])
+    mada = 1.4826*np.ma.median(d, axis=spatial_axis)
+    # Return the ratio of the difference to the standard deviation
+    return np.ma.divide(d, mada[:,None]).filled(mask_value)
+
+
+def new_grow_masked(img, grow, growval):
+
+    if not np.any(img == growval):
+        return img
+
+    _img = img.copy()
+    sz_x, sz_y = img.shape
+    d = int(1+grow)
+    rsqr = grow*grow
+
+    # Grow any masked values by the specified amount
+    for x in range(sz_x):
+        for y in range(sz_y):
+            if img[x,y] != growval:
+                continue
+
+            mnx = 0 if x-d < 0 else x-d
+            mxx = x+d+1 if x+d+1 < sz_x else sz_x
+            mny = 0 if y-d < 0 else y-d
+            mxy = y+d+1 if y+d+1 < sz_y else sz_y
+
+            for i in range(mnx,mxx):
+                for j in range(mny, mxy):
+                    if (i-x)*(i-x)+(j-y)*(j-y) <= rsqr:
+                        _img[i,j] = growval
+    return _img
+
+
+def new_order_pixels(pixlocn, lord, rord):
+    """
+    Based on physical pixel locations, determine which pixels are within the orders
+    """
+
+    sz_x, sz_y, _ = pixlocn.shape
+    sz_o = lord.shape[1]
+
+    outfr = np.zeros((sz_x, sz_y), dtype=int)
+
+    for y in range(sz_y):
+        for o in range(sz_o):
+            indx = (lord[:,o] < rord[:,o]) & (pixlocn[:,y,1] > lord[:,o])\
+                        & (pixlocn[:,y,1] < rord[:,o])
+            indx |= ( (lord[:,o] > rord[:,o]) & (pixlocn[:,y,1] < lord[:,o]) 
+                        & (pixlocn[:,y,1] > rord[:,o]) )
+            if np.any(indx):
+                # Only assign a single order to a given pixel
+                outfr[indx,y] = o+1
+                break
+
+    return outfr
 
 
 def gain_frame(slf, det):
@@ -1833,7 +2367,9 @@ def sub_overscan(frame, det):
             c = np.polyfit(np.arange(osfit.size), osfit, settings.argflag['reduce']['overscan']['params'][0])
             ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
         elif settings.argflag['reduce']['overscan']['method'].lower() == "savgol":
-            ossub = savgol_filter(osfit, settings.argflag['reduce']['overscan']['params'][1], settings.argflag['reduce']['overscan']['params'][0])
+            ossub = signal.savgol_filter(osfit,
+                                         settings.argflag['reduce']['overscan']['params'][1],
+                                         settings.argflag['reduce']['overscan']['params'][0])
         elif settings.argflag['reduce']['overscan']['method'].lower() == "median":  # One simple value
             ossub = osfit * np.ones(1)
         else:
