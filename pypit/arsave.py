@@ -463,6 +463,8 @@ def save_1d_spectra_fits(slf, fitsdict, standard=False, clobber=True, outfile=No
         for sl in range(len(specobjs)):
             # Loop on spectra
             for specobj in specobjs[sl]:
+                if specobj is None:
+                    continue
                 ext += 1
                 # Add header keyword
                 keywd = 'EXT{:04d}'.format(ext)
@@ -536,6 +538,8 @@ def save_obj_info(slf, fitsdict, clobber=True):
         for sl in range(len(slf._specobjs[det-1])):
             # Loop on spectra
             for specobj in slf._specobjs[det-1][sl]:
+                if specobj is None:
+                    continue
                 # Append
                 names.append(specobj.idx)
                 slits.append(sl+1)

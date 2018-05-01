@@ -105,7 +105,10 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             # Set the number of spectral and spatial pixels, and the bad pixel mask is it does not exist
             slf._nspec[det-1], slf._nspat[det-1] = slf._msarc[det-1].shape
             if slf._bpix[det-1] is None:
-                slf.SetFrame(slf._bpix, np.zeros((slf._nspec[det-1], slf._nspat[det-1])), det)
+                bpix = np.zeros((slf._nspec[det-1], slf._nspat[det-1]))
+                if settings.argflag['run']['spectrograph'] in ['keck_deimos']:
+                    bpix[:,-1] = 1.
+                slf.SetFrame(slf._bpix, bpix, det)
             '''
             ###############
             # Estimate gain and readout noise for the amplifiers
@@ -122,13 +125,15 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             ###############
             # Generate an array that provides the physical pixel locations on the detector
             slf.GetPixelLocations(det)
-            # Determine the edges of the spectrum (spatial)
+            # Determine the edges of the spectra (spatial)
             if ('trace'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']):
                 ###############
                 # Determine the edges of the spectrum (spatial)
                 lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det, pcadesc="PCA trace of the slit edges")
                 slf.SetFrame(slf._lordloc, lordloc, det)
                 slf.SetFrame(slf._rordloc, rordloc, det)
+                # Initialize maskslit
+                slf._maskslits[det-1] = np.zeros(slf._lordloc[det-1].shape[1], dtype=bool)
 
                 # Convert physical trace into a pixel trace
                 msgs.info("Converting physical trace locations to nearest pixel")
@@ -171,6 +176,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                     tilts, satmask, outpar = artrace.multislit_tilt(slf, slf._msarc[det-1], det)
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
+                    msgs.bug("This outpar is only the last slit!!  JXP doesn't think it matters for now")
                     slf.SetFrame(slf._tiltpar, outpar, det)
                     armasters.save_masters(slf, det, mftype='tilts')
                 else:

@@ -133,14 +133,20 @@ def main(args, unit_test=False, path=''):
                 # If not, warn the user and set ex_value to 'box'.
                 hdulist = fits.open(fkey)
                 try: #In case the optimal extraction array is a NaN array
-                    obj_opt_flam = hdulist[mtch_obj[0]].data['OPT_FLAM']
-                    if any(isnan(obj_opt_flam)):
+                    if flux_value is True: # If we have a fluxed spectrum, look for flam
+                        obj_opt = hdulist[mtch_obj[0]].data['opt_flam']
+                    else: # If not, look for counts
+                        obj_opt = hdulist[mtch_obj[0]].data['opt_counts']
+                    if any(isnan(obj_opt)):
                         msgs.warn("Object {:s} in file {:s} has a NaN array for optimal extraction. Boxcar will be used instead.".format(mtch_obj[0],fkey))
                         ex_value = 'box'
                 except KeyError: #In case the array is absent altogether.
                     msgs.warn("Object {:s} in file {:s} doesn't have an optimal extraction. Boxcar will be used instead.".format(mtch_obj[0],fkey))
                     try:
-                        hdulist[mtch_obj[0]].data['BOX_FLAM']
+                        if flux_value is True: # If we have a fluxed spectrum, look for flam
+                            hdulist[mtch_obj[0]].data['box_flam']
+                        else: # If not, look for counts
+                            hdulist[mtch_obj[0]].data['box_counts']
                     except KeyError:
                         #In case the boxcar extract is also absent
                         msgs.error("Object {:s} in file {:s} doesn't have a boxcar extraction either. Co-addition cannot be performed".format(mtch_obj[0],fkey))

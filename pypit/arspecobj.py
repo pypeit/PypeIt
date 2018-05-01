@@ -137,10 +137,16 @@ def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
     # Init
     specobjs = []
     config = instconfig(det, scidx, fitsdict)
-    nslit = len(trc_img)
+    slits = range(len(trc_img))
+    gdslits = np.where(~slf._maskslits[det-1])[0]
+
     # Loop on slits
-    for sl in range(nslit):
+    for sl in slits:
         specobjs.append([])
+        # Analyze the slit?
+        if sl not in gdslits:
+            specobjs[sl].append(None)
+            continue
         # Object traces
         if trc_img[sl]['nobj'] != 0:
             # Loop on objects

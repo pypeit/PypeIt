@@ -59,7 +59,15 @@
 - change requirements for astropy to >=1.3.0 so that `overwrite` is
   valid
 - include numba in requirements, but actually a requirement of arclines
+- Improve cookbook and setup docs
 - Faster algorithm for defining object and background regions
+- Restore armsgs -d functionality
+- Finished cython to python conversions, but more testing needed
+- Introduce maskslits array
+- Enable multi-slit reduction
+- Bug fixes in trace_slits
+- Fixes what appears to be a gross error in slit bg_subtraction (masking)
+- Turns off PCA tilt QA for now [very slow for each slit]
 - Several improvements for coadding
 - Modify lacosmic to identify tiny CR's
 
