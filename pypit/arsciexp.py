@@ -325,7 +325,8 @@ class ScienceExposure:
                 # Get all of the bias frames for this science frame
                 ind = self._idx_bias
                 # Load the Bias/Dark frames
-                frames = arload.load_frames(fitsdict, ind, det, frametype=settings.argflag['bias']['useframe'])
+                frames = arload.load_frames(fitsdict, ind, det,
+                                            frametype=settings.argflag['bias']['useframe'], trim=False)
                 msbias = arcomb.comb_frames(frames, det, 'bias', printtype=settings.argflag['bias']['useframe'])
                 del frames
         elif settings.argflag['bias']['useframe'] == 'overscan':

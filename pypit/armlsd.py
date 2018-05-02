@@ -129,7 +129,13 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             if ('trace'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']):
                 ###############
                 # Determine the edges of the spectrum (spatial)
-                lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det, pcadesc="PCA trace of the slit edges")
+                #lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det, pcadesc="PCA trace of the slit edges")
+                lordloc, rordloc, extord = artrace.driver_trace_slits(slf._mstrace[det-1],
+                                                                      slf._pixlocn[det-1],
+                                                                      det=det,
+                                                                      settings=settings.argflag,
+                                                                      binbpx=slf._bpix[det-1],
+                                                                      armlsd=True)
                 slf.SetFrame(slf._lordloc, lordloc, det)
                 slf.SetFrame(slf._rordloc, rordloc, det)
                 # Initialize maskslit
