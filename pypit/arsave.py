@@ -163,7 +163,8 @@ def core_save_master(data, filename="temp.fits", frametype="<None>", ind=[],
     names : list, optional
       Names of the extensions
     keywds : Additional keywords for the Header
-    raw_files
+    raw_files : list or ndarray
+      Names of the raw files used to generate the image
 
     Returns
     -------

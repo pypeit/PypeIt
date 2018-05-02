@@ -8,7 +8,7 @@ from pypit import msgs
 from pypit import arparse as settings
 
 
-def comb_frames(frames_arr, det, frametype):
+def comb_frames(frames_arr, det, frametype, **kwargs):
     """ This method has been reduced to a simple wrapper to the core method.
     It is likely to be deprecated in a future refactor
 
@@ -33,7 +33,7 @@ def comb_frames(frames_arr, det, frametype):
     satpix = settings.argflag[frametype]['combine']['satpix']
     saturation = settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear']
     return core_comb_frames(frames_arr, frametype=frametype,
-                method=method, reject=reject, satpix=satpix, saturation=saturation)
+                method=method, reject=reject, satpix=satpix, saturation=saturation, **kwargs)
 
 def core_comb_frames(frames_arr, maskvalue=1048577, printtype=None, frametype='Unknown',
                 method='weightmean', reject=None, satpix='reject', saturation=None):

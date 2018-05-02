@@ -237,7 +237,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
 
     for i in range(len(ind)):
         raw_file = fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]]
-        temp, head0 = load_raw_frame(spectrograph, raw_file, det, frametype='<None>',
+        temp, head0 = load_raw_frame(spectrograph, raw_file, det,
                               dataext01=dataexto01, disp_dir=disp_dir)
 
         # TODO -- Take these next two steps out and put in a arproc.proc_image() method
