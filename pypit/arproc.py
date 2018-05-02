@@ -364,7 +364,10 @@ def bg_subtraction_slit(slf, det, slit, sciframe, varframe, crpix, tracemask=Non
         #                        **settings.argflag['reduce']['skysub']['bspline'])
         ivar = arutils.calc_ivar(varframe)
         mask, bspl = arutils.robust_polyfit(tilts[gdp][srt], scifrcp[gdp][srt], 3,
-                                            function='bspline', weights=np.sqrt(ivar)[gdp][srt], sigma=5., maxone=False, **settings.argflag['reduce']['skysub']['bspline'])
+                                            function='bspline',
+                                            weights=np.sqrt(ivar)[gdp][srt],
+                                            sigma=5., maxone=False,
+                                            **settings.argflag['reduce']['skysub']['bspline'])
         # Just those in the slit
         in_slit = np.where(slf._slitpix[det-1] == slit+1)
         bgf_flat = arutils.func_val(bspl, tilts[in_slit].flatten(), 'bspline')
@@ -1287,6 +1290,7 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
     if not standard:  # Need to save
         slf._modelvarframe[det - 1] = modelvarframe
         slf._bgframe[det - 1] = bgframe
+
 
     ###############
     # Find objects and estimate their traces
