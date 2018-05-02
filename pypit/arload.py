@@ -229,12 +229,24 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
     frames : ndarray
       3D with the 3rd index corresponding to the frames returned
     """
+    # Wrap me
     dnum = settings.get_dnum(det)
     spectrograph = settings.argflag['run']['spectrograph']
-    dataexto01 = settings.spect[dnum]['dataext01']
+    if 'dataext01' in settings.spect[dnum].keys():
+        dataexto01 = settings.spect[dnum]['dataext01']
+    else:
+        dataexto01 = None
     disp_dir = settings.argflag['trace']['dispersion']['direction']
     numamplifiers = settings.spect[dnum]['numamplifiers']
+    # Build datasecs, oscansec
+    datasecs, oscansecs = [], []
+    for jj in range(numamplifiers):
+        datasec = "datasec{0:02d}".format(jj+1)
+        datasecs.append(settings.spect[dnum][datasec])
+        oscansec = "oscansec{0:02d}".format(jj+1)
+        oscansecs.append(settings.spect[dnum][oscansec])
 
+    # Now run
     for i in range(len(ind)):
         raw_file = fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]]
         temp, head0 = load_raw_frame(spectrograph, raw_file, det,
@@ -243,14 +255,10 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
         # TODO -- Take these next two steps out and put in a arproc.proc_image() method
         # Bias subtract?
         if msbias is not None:
-            arproc.bias_subtract(temp, msbias)
+            temp = arproc.bias_subtract(temp, msbias, numamplifiers=numamplifiers,
+                                        datasec=datasecs, oscansec=oscansecs)
 
         if trim:
-            # Build datasecs
-            datasecs = []
-            for jj in range(numamplifiers):
-                datasec = "datasec{0:02d}".format(jj+1)
-                datasecs.append(settings.spect[dnum][datasec])
             # Trim
             temp = arproc.trim(temp, numamplifiers, datasecs)
 

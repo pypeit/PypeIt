@@ -268,7 +268,8 @@ class ScienceExposure:
                 msgs.info("Preparing a master arc frame")
                 ind = self._idx_arcs
                 # Load the arc frames
-                frames = arload.load_frames(fitsdict, ind, det, frametype='arc', msbias=self._msbias[det-1])
+                frames = arload.load_frames(fitsdict, ind, det, frametype='arc',
+                                            msbias=self._msbias[det-1])
                 if settings.argflag['arc']['combine']['match'] > 0.0:
                     sframes = arsort.match_frames(frames, settings.argflag['arc']['combine']['match'], frametype='arc',
                                                   satlevel=settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])

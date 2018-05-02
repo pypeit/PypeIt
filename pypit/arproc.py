@@ -181,7 +181,7 @@ def badpix(det, frame, sigdev=10.0):
     return bpix
 
 
-def bias_subtract(rawframe, msbias):
+def bias_subtract(rawframe, msbias, numamplifiers=None, datasec=None, oscansec=None):
     """ Core routine for bias subtraction
     Calls sub_overscan if msbias == 'overscan'
 
@@ -201,8 +201,7 @@ def bias_subtract(rawframe, msbias):
         newframe = rawframe-msbias  # Subtract the master bias frame
     elif isinstance(msbias, basestring):
         if msbias == "overscan":
-            #def sub_overscan(frame, numamplifiers, datasec, oscansec, settings=None):
-            newframe = sub_overscan(rawframe)
+            newframe = sub_overscan(rawframe, numamplifiers, datasec, oscansec, settings=None)
         else:
             msgs.error("Could not subtract bias level with the input bias approach") #when loading {0:s} frames".format(frametype))
     return newframe
@@ -664,10 +663,10 @@ def get_datasec_trimmed(slf, fitsdict, det, scidx):
                                                         numamplifiers=numamplifiers, det=det)
         # Fill (for backwards compatability)
         for kk in range(numamplifiers):
-            datasec = "datasec{0:02d}".format(kk+1)
-            settings.spect[dnum][datasec] = datasec[kk]
-            oscansec = "oscansec{0:02d}".format(kk+1)
-            settings.spect[dnum][oscansec] = oscansec[kk]
+            sdatasec = "datasec{0:02d}".format(kk+1)
+            settings.spect[dnum][sdatasec] = datasec[kk]
+            soscansec = "oscansec{0:02d}".format(kk+1)
+            settings.spect[dnum][soscansec] = oscansec[kk]
         fitsdict['naxis0'][scidx] = naxis0
         fitsdict['naxis1'][scidx] = naxis1
 
@@ -1290,7 +1289,6 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
     if not standard:  # Need to save
         slf._modelvarframe[det - 1] = modelvarframe
         slf._bgframe[det - 1] = bgframe
-
 
     ###############
     # Find objects and estimate their traces
