@@ -656,17 +656,17 @@ def determine_saturation_region(a, x, y, sy, dy, satdown, satlevel, mask):
         mask[x,y+sy] = True
         mask = search_for_saturation_edge(a, x, y, sy, 1, satdown, satlevel, mask)
         mask = search_for_saturation_edge(a, x, y, sy, -1, satdown, satlevel, mask)
-        
+
         sy += dy
         if y+sy > a.shape[1]-1 or y+sy < 0:
             return mask
         if a[x,y+sy] >= localy/satdown and a[x,y+sy] < satlevel:
             return mask
         localy = a[x,y+sy]
-    
+
 
 def new_saturation_mask(a, satlevel):
-   
+
     mask = np.zeros(a.shape, dtype=bool)
     a_is_saturated = a >= satlevel
     if not np.any(a_is_saturated):

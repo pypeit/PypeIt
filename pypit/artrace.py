@@ -798,7 +798,6 @@ def trace_objects_in_slit(slf, det, slitn, sciframe, varframe, crmask, trim=2,
                         bckr[objr[o] + x, o] = 1
         else:
             nobj = 0
-
     if nobj == 1:
         msgs.info("Found {0:d} object".format(objl.size))
         msgs.info("Tracing {0:d} object".format(objl.size))
@@ -1446,7 +1445,7 @@ def new_minbetween(mstrace, loord, hiord):
     ymax = np.clip(hiord, 0, mstrace.shape[1])
     minarr = np.zeros(mstrace.shape[0])
     indx = ymax > ymin
-    minarr[indx] = np.array([ np.amin(t[l:h]) 
+    minarr[indx] = np.array([ np.amin(t[l:h])
                                 for t,l,h in zip(mstrace[indx], ymin[indx], ymax[indx]) ])
     return minarr
 
@@ -1554,14 +1553,14 @@ def new_tilts_image(tilts, lordloc, rordloc, pad, sz_y):
                 yv = (y-lordloc[x, o])/ow - 1.0
                 tiltsimg[x,y] = (tilts[x,o]*yv + x)/dszx
     return tiltsimg
-    
 
+    '''  Not sure where this code came from..
     sz_x, sz_o = tilts.shape
     dszx = (sz_x-1.0)
 
     ow = (rordloc-lordloc)/2.0
     oc = (rordloc+lordloc)/2.0
-    
+
     ymin = (oc-ow).astype(int) - pad
     ymax = (oc+ow).astype(int) + 1 + pad
 
@@ -1582,6 +1581,7 @@ def new_tilts_image(tilts, lordloc, rordloc, pad, sz_y):
                 tiltsimg[x,y] = (tilts[x,o]*yv + x)/dszx
 
     return tiltsimg
+    '''
 
 
 def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
