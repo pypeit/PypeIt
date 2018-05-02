@@ -243,7 +243,9 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
         # TODO -- Take these next two steps out and put in a arproc.proc_image() method
         # Bias subtract?
         if msbias is not None:
-            arproc.bias_subtract(temp, msbias, det)
+            debugger.set_trace()
+            arproc.bias_subtract(temp, msbias)
+
         if trim:
             datasecs = []
             for jj in range(numamplifiers):

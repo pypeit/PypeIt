@@ -145,9 +145,13 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
     -------
 
     """
+    if len(ind) > 0:
+        raw_files=slf._fitsdict['filename']
+    else:
+        raw_files=None
     core_save_master(data, filename=filename, frametype=frametype, ind=ind,
                      extensions=extensions, keywds=keywds, names=names,
-                     raw_files=slf._fitsdict['filename'])
+                     raw_files=raw_files)
 
 def core_save_master(data, filename="temp.fits", frametype="<None>", ind=[],
                 extensions=None, keywds=None, names=None, raw_files=None):
