@@ -665,7 +665,7 @@ class ScienceExposure:
 
     def MasterWaveCalib(self, fitsdict, sc, det):
         """
-        Generate Master 1D Wave Solution (down slit center)
+        Generate Master 1D Wave Solution (down slit/order centers)
 
         Parameters
         ----------
@@ -708,7 +708,7 @@ class ScienceExposure:
                     if settings.argflag['arc']['calibrate']['method'] == 'simple':
                         iwv_calib = ararc.simple_calib(self, det, censpec=arccen[:,kk])
                     elif settings.argflag['arc']['calibrate']['method'] == 'arclines':
-                        iwv_calib = ararc.calib_with_arclines(self, det, censpec=arccen[:,kk])
+                        iwv_calib = ararc.calib_with_arclines(self, det, slit, censpec=arccen[:,kk])
                     wv_calib[str(slit)] = iwv_calib.copy()
         # Set
         if wv_calib is not None:
