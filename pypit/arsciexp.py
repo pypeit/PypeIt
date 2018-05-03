@@ -756,8 +756,12 @@ class ScienceExposure:
             all_specobj = []
             for kk in range(settings.spect['mosaic']['ndet']):
                 det = kk+1
+                # Use this detector? Need to check this after setting RA/DEC above
+                if settings.argflag['reduce']['detnum'] is not None:
+                    msgs.warn("If your standard wasnt on this detector, you will have trouble..")
+                    if det not in map(int, settings.argflag['reduce']['detnum']):
+                        continue
                 # Load the frame(s)
-                debugger.set_trace()
                 frame = arload.load_frames(fitsdict, ind, det, frametype='standard',
                                            msbias=self._msbias[det-1])
                 sciframe = frame[:, :, 0] # First exposure
@@ -765,11 +769,6 @@ class ScienceExposure:
                 self._msstd[det-1]['RA'] = fitsdict['ra'][ind[0]]
                 self._msstd[det-1]['DEC'] = fitsdict['dec'][ind[0]]
                 self._msstd[det-1]['spobjs'] = None
-                # Use this detector? Need to check this after setting RA/DEC above
-                if settings.argflag['reduce']['detnum'] is not None:
-                    msgs.warn("If your standard wasnt on this detector, you will have trouble..")
-                    if det not in map(int, settings.argflag['reduce']['detnum']):
-                        continue
                 if settings.spect["mosaic"]["reduction"] == "ARMLSD":
                     arproc.reduce_multislit(self, sciframe, ind[0], fitsdict, det, standard=True)
                 elif settings.spect["mosaic"]["reduction"] == "ARMED":
