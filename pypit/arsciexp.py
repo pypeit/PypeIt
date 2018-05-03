@@ -757,6 +757,7 @@ class ScienceExposure:
             for kk in range(settings.spect['mosaic']['ndet']):
                 det = kk+1
                 # Load the frame(s)
+                debugger.set_trace()
                 frame = arload.load_frames(fitsdict, ind, det, frametype='standard',
                                            msbias=self._msbias[det-1])
                 sciframe = frame[:, :, 0] # First exposure
