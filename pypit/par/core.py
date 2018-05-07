@@ -1,6 +1,32 @@
 """
+Defines parameter sets used to set the behavior for core pypit
+functionality.
 
+These include:
+    
+    CombineFramesPar - Parameters for combining frames
 
+    WavelengthCalibratePar - Wavelength calibration parameters
+
+    TraceSlitPar - Parameters for tracing slits
+        PCAPar
+
+    TraceTiltsPar - Parameters for tracing tilts of arc lines
+        PCAPar
+
+    TraceObjectPar - Parameter for tracing objects
+
+    ExtractObjectPar - Parameters for extracting 1D object spectra
+
+    TelescopePar - 
+
+    DetectorPar
+
+    FitsPar
+
+    InstrumentPar
+
+    FramePar
 
 """
 

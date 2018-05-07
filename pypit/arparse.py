@@ -313,7 +313,7 @@ class BaseArgFlag(BaseFunctions):
         # Update the master dictionary
         self._argflag = ingest(dstr, udct).copy()
 
-    def arc_combine_match(self, v=-1.0):
+    def arc_combine_match(self, v=-1.0):    #
         """ Match similar arc frames together? A successful match is found when the frames
         are similar to within N-sigma, where N is the argument of this expression. If v<0,
         arc frames will not be matched.
@@ -326,7 +326,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_float(v)
         self.update(v)
 
-    def arc_combine_method(self, v='weightmean'):
+    def arc_combine_method(self, v='weightmean'):   #
         """ What method should be used to combine the arc frames?
 
         Parameters
@@ -338,7 +338,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def arc_combine_reject_cosmics(self, v=-1.0):
+    def arc_combine_reject_cosmics(self, v=-1.0):   #
         """ Specify the rejection threshold (in standard deviations) for
         cosmic rays when combining the arc frames. If v<0, cosmic rays
         will not be rejected.
@@ -351,7 +351,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_float(v)
         self.update(v)
 
-    def arc_combine_reject_lowhigh(self, v=[0, 0]):
+    def arc_combine_reject_lowhigh(self, v=[0, 0]): #
         """ Specify the number of low/high pixels to be rejected when combining
         the arc frames, in the format: [low,high].
 
@@ -367,7 +367,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def arc_combine_reject_level(self, v=[3.0, 3.0]):
+    def arc_combine_reject_level(self, v=[3.0, 3.0]):   #
         """ Specify the significance threshold (in standard deviations)
         used to reject deviant pixels when combining the arc frames,
         in the format: [low,high].
@@ -384,7 +384,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def arc_combine_reject_replace(self, v='maxnonsat'):
+    def arc_combine_reject_replace(self, v='maxnonsat'):    #
         """ What should be done if all pixels are rejected when
         combining the arc frames?
 
@@ -397,7 +397,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def arc_combine_satpix(self, v='reject'):
+    def arc_combine_satpix(self, v='reject'):   #
         """ What should be done to saturated pixels when combining the arc frames?
 
         Parameters
@@ -409,7 +409,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def arc_extract_binby(self, v=1.0):
+    def arc_extract_binby(self, v=1.0): #
         """ Binning factor to use when extracting 1D arc spectrum. A value of
         1 means that no binning will be performed. This argument does not need
         to be an integer, but it should be >=1.0.
@@ -424,7 +424,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 1.0".format(get_current_name()))
         self.update(v)
 
-    def arc_load_calibrated(self, v):
+    def arc_load_calibrated(self, v):   #
         """ If the extracted arc have previously been calibrated and saved, load the calibration files?
 
         Parameters
@@ -435,7 +435,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def arc_load_extracted(self, v):
+    def arc_load_extracted(self, v):    #
         """ If the master arc has previously been extracted and saved, load the 1D extractions?
 
         Parameters
@@ -446,7 +446,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def arc_calibrate_detection(self, v):
+    def arc_calibrate_detection(self, v):   #
         """ How significant should the arc line detections be (in units of a standard deviation)
 
         Parameters
@@ -457,7 +457,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_float(v)
         self.update(v)
 
-    def arc_calibrate_IDpixels(self, v):
+    def arc_calibrate_IDpixels(self, v):    #
         """ Manually set the pixels to be identified
 
         Parameters
@@ -468,7 +468,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_list(v)
         self.update(v)
 
-    def arc_calibrate_IDwaves(self, v):
+    def arc_calibrate_IDwaves(self, v): #
         """ Manually set the corresponding ID wavelengths
 
         Parameters
@@ -479,7 +479,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_list(v)
         self.update(v)
 
-    def arc_calibrate_lamps(self, v):
+    def arc_calibrate_lamps(self, v):   #
         """ Name of the ions used for the wavelength calibration
 
         Parameters
@@ -494,7 +494,7 @@ class BaseArgFlag(BaseFunctions):
             v = key_list_allowed(v, allowed)
             self.update(v)
 
-    def arc_calibrate_method(self, v):
+    def arc_calibrate_method(self, v):  #
         """ What method should be used to fit the individual arc lines.
         The 'fit' option is perhaps the most accurate; the 'simple' method
         uses a polynomial fit (to the log of a gaussian), is the fastest
@@ -509,7 +509,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def arc_calibrate_nfitpix(self, v):
+    def arc_calibrate_nfitpix(self, v): #
         """ Number of pixels to fit when deriving the centroid of the
         arc lines (an odd number is best)
 
@@ -523,7 +523,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.warn("An odd integer is recommended for the argument of {0:s}".format(get_current_name()))
         self.update(v)
 
-    def arc_calibrate_numsearch(self, v):
+    def arc_calibrate_numsearch(self, v):   #
         """ Number of brightest arc lines to search for preliminary identification
 
         Parameters
@@ -534,7 +534,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_int(v)
         self.update(v)
 
-    def arc_useframe(self, v):
+    def arc_useframe(self, v):  #
         """ What filetype should be used for wavelength calibration (arc),
         you can also specify a master calibrations file if it exists.
 
@@ -547,7 +547,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_none_allowed_filename(v, allowed)
         self.update(v)
 
-    def bias_combine_method(self, v):
+    def bias_combine_method(self, v):   #
         """ What method should be used to combine the bias frames?
 
         Parameters
@@ -559,7 +559,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def bias_combine_reject_cosmics(self, v):
+    def bias_combine_reject_cosmics(self, v):   #
         """ Specify the rejection threshold (in standard deviations) for
         cosmic rays when combining the bias frames. If v<0, cosmic rays
         will not be rejected.
@@ -572,7 +572,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_float(v)
         self.update(v)
 
-    def bias_combine_reject_lowhigh(self, v):
+    def bias_combine_reject_lowhigh(self, v):   #
         """ Specify the number of low/high pixels to be rejected when combining
         the bias frames, in the format: [low,high].
 
@@ -588,7 +588,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def bias_combine_reject_level(self, v):
+    def bias_combine_reject_level(self, v): #
         """  Specify the significance threshold (in standard deviations)
         used to reject deviant pixels when combining the bias frames,
         in the format: [low,high].
@@ -605,7 +605,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def bias_combine_reject_replace(self, v):
+    def bias_combine_reject_replace(self, v):   #
         """ What should be done if all pixels are rejected when
         combining the bias frames?
 
@@ -618,7 +618,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def bias_combine_satpix(self, v):
+    def bias_combine_satpix(self, v):   #
         """ What should be done to saturated pixels when combining the bias frames?
 
         Parameters
@@ -643,7 +643,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
     '''
 
-    def bias_useframe(self, v):
+    def bias_useframe(self, v): #
         """ How to subtract the detector bias (bias, overscan, dark, none),
         you can also specify a master calibrations file if it exists.
         Alternatively, you can select more than one option (e.g. dark and
@@ -682,7 +682,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.info("Assuming the following is the name of a bias frame:" + msgs.newline() + v)
         self.update(v)
 
-    def output_overwrite(self, v):
+    def output_overwrite(self, v): #
         """ Overwrite any existing output files?
 
         Parameters
@@ -693,7 +693,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def output_sorted(self, v):
+    def output_sorted(self, v): #
         """ A filename given to output the details of the sorted files.
         If no value is set, the default is the Settings File with .pypit
         removed.
@@ -715,7 +715,7 @@ class BaseArgFlag(BaseFunctions):
             v = None
         self.update(v)
 
-    def output_verbosity(self, v):
+    def output_verbosity(self, v): #
         """ Level of screen output (0 is No screen output, 1 is low level output, 2 is output everything)
 
         Parameters
@@ -730,7 +730,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
 
-    def pinhole_combine_match(self, v):
+    def pinhole_combine_match(self, v): #
         """ Match similar pinhole frames together? A successful match is found when the frames
         are similar to within N-sigma, where N is the argument of this expression. If v<0,
         pinhole frames will not be matched.
@@ -743,7 +743,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_float(v)
         self.update(v)
 
-    def pinhole_combine_method(self, v):
+    def pinhole_combine_method(self, v):    #
         """ What method should be used to combine the pinhole frames?
 
         Parameters
@@ -755,7 +755,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def pinhole_combine_reject_cosmics(self, v):
+    def pinhole_combine_reject_cosmics(self, v):    #
         """ Specify the rejection threshold (in standard deviations) for
         cosmic rays when combining the pinhole frames. If v<0, cosmic rays
         will not be rejected.
@@ -768,7 +768,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_float(v)
         self.update(v)
 
-    def pinhole_combine_reject_lowhigh(self, v):
+    def pinhole_combine_reject_lowhigh(self, v):    #
         """ Specify the number of low/high pixels to be rejected when combining
         the pinhole frames, in the format: [low,high].
 
@@ -784,7 +784,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def pinhole_combine_reject_level(self, v):
+    def pinhole_combine_reject_level(self, v):  #
         """ Specify the significance threshold (in standard deviations)
         used to reject deviant pixels when combining the pinhole frames,
         in the format: [low,high].
@@ -801,7 +801,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def pinhole_combine_reject_replace(self, v):
+    def pinhole_combine_reject_replace(self, v):    #
         """ What should be done if all pixels are rejected when
         combining the pinhole frames?
 
@@ -814,7 +814,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def pinhole_combine_satpix(self, v):
+    def pinhole_combine_satpix(self, v):    #
         """ What should be done to saturated pixels when combining the pinhole frames?
 
         Parameters
@@ -826,7 +826,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def pinhole_useframe(self, v):
+    def pinhole_useframe(self, v):  #
         """ What filetype should be used to identify the slit edges?
         you can also specify a master calibrations file if it exists.
 
@@ -839,7 +839,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_none_allowed_filename(v, allowed)
         self.update(v)
 
-    def pixelflat_combine_match(self, v):
+    def pixelflat_combine_match(self, v):   #
         """ Match similar pixel flat frames together? A successful match is found when the frames
         are similar to within N-sigma, where N is the argument of this expression. If v<0,
         pixel flat frames will not be matched.
@@ -852,7 +852,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_float(v)
         self.update(v)
 
-    def pixelflat_combine_method(self, v):
+    def pixelflat_combine_method(self, v):  #
         """ What method should be used to combine the pixel flat frames?
 
         Parameters
@@ -864,7 +864,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def pixelflat_combine_reject_cosmics(self, v):
+    def pixelflat_combine_reject_cosmics(self, v):  #
         """ Specify the rejection threshold (in standard deviations) for
         cosmic rays when combining the pixel flat frames. If v<0, cosmic rays
         will not be rejected.
@@ -877,7 +877,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_float(v)
         self.update(v)
 
-    def pixelflat_combine_reject_lowhigh(self, v):
+    def pixelflat_combine_reject_lowhigh(self, v):  #
         """ Specify the number of low/high pixels to be rejected when combining
         the pixel flat frames, in the format: [low,high].
 
@@ -893,7 +893,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def pixelflat_combine_reject_level(self, v):
+    def pixelflat_combine_reject_level(self, v):    #
         """ Specify the significance threshold (in standard deviations)
         used to reject deviant pixels when combining the pixel flat frames,
         in the format: [low,high].
@@ -910,7 +910,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def pixelflat_combine_reject_replace(self, v):
+    def pixelflat_combine_reject_replace(self, v):  #
         """ What should be done if all pixels are rejected when
         combining the pixel flat frames?
 
@@ -923,7 +923,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def pixelflat_combine_satpix(self, v):
+    def pixelflat_combine_satpix(self, v):  #
         """ What should be done to saturated pixels when combining the pixelflat frames?
 
         Parameters
@@ -936,7 +936,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
 
-    def pixelflat_useframe(self, v):
+    def pixelflat_useframe(self, v):    #
         """ What filetype should be used for pixel-to-pixel calibration (flat),
         you can also specify a master calibrations file if it exists.
 
@@ -949,7 +949,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_none_allowed_filename(v, allowed)
         self.update(v)
 
-    def reduce_badpix(self, v):
+    def reduce_badpix(self, v): #
         """ Make a bad pixel mask? (This step requires bias frames)
 
         Parameters
@@ -960,7 +960,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def reduce_calibrate_nonlinear(self, v):
+    def reduce_calibrate_nonlinear(self, v):    #
         """ Perform a non-linear correction? This step requires a series of
         pixel flat frames of the same lamp and setup, and with a variety of
         exposure times and count rates in every pixel.
@@ -973,7 +973,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def reduce_calibrate_refframe(self, v):
+    def reduce_calibrate_refframe(self, v): #
         """ Which reference frame do you want the data in?
 
         Parameters
@@ -987,7 +987,7 @@ class BaseArgFlag(BaseFunctions):
             v = None
         self.update(v)
 
-    def reduce_calibrate_wavelength(self, v):
+    def reduce_calibrate_wavelength(self, v):   #
         """ Wavelength calibrate the data? The data will not be wavelength
         calibrated if the value of the keyword is set to pixel.
 
@@ -1000,7 +1000,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def reduce_detnum(self, v):
+    def reduce_detnum(self, v): #
         """ Reduce only the input detector(s) of the input list
 
         Parameters
@@ -1012,7 +1012,7 @@ class BaseArgFlag(BaseFunctions):
 
         self.update(v)
 
-    def reduce_flatfield_method(self, v):
+    def reduce_flatfield_method(self, v):   #
         """ Specify the method that should be used to normalize the flat field
 
         Parameters
@@ -1026,7 +1026,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def reduce_flatfield_params(self, v):
+    def reduce_flatfield_params(self, v):   #
         """ Flat field method parameters, where the parameters relate to the method
         specified by the 'reduce flatfield method' keyword:
 
@@ -1042,7 +1042,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_list(v)
         self.update(v)
 
-    def reduce_flatfield_perform(self, v):
+    def reduce_flatfield_perform(self, v):  #
         """ Flatfield the data?
 
         Parameters
@@ -1053,7 +1053,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def reduce_flatfield_useframe(self, v):
+    def reduce_flatfield_useframe(self, v): #
         """ What frame should be used to flat field the data? You can also
         specify a master calibrations file if it exists.
 
@@ -1066,7 +1066,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed_filename(v, allowed)
         self.update(v)
 
-    def reduce_flexure_perform(self, v):
+    def reduce_flexure_perform(self, v):    #
         """ Perform a flexure correction?
 
         Parameters
@@ -1077,7 +1077,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def reduce_slitcen_useframe(self, v):
+    def reduce_slitcen_useframe(self, v): #
         """ What frame should be used to trace the slit centroid? You can also
         specify a master calibrations file if it exists.
 
@@ -1090,7 +1090,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed_filename(v, allowed)
         self.update(v)
 
-    def reduce_trace_useframe(self, v):
+    def reduce_trace_useframe(self, v): #
         """ What frame should be used to trace the slit edges? You can also
         specify a master calibrations file if it exists.
 
@@ -1103,7 +1103,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed_filename(v, allowed)
         self.update(v)
 
-    def reduce_masters_file(self, v):
+    def reduce_masters_file(self, v):   #
         """
 
         Parameters
@@ -1115,7 +1115,7 @@ class BaseArgFlag(BaseFunctions):
             v = ''
         self.update(v)
 
-    def reduce_masters_force(self, v):
+    def reduce_masters_force(self, v):  #
         """ Use only MasterFrame files for the reduction.
         The specific setup must also be provided in the PYPIT file
 
@@ -1127,7 +1127,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def reduce_masters_loaded(self, v):
+    def reduce_masters_loaded(self, v): #
         """ This generates a dummy list that is populated as the
         master frames are generated.  It should not be set by the user.
 
@@ -1139,7 +1139,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_list(v)
         self.update(v)
 
-    def reduce_masters_reuse(self, v):
+    def reduce_masters_reuse(self, v):  #
         """ If a MasterFrame file exists, use it instead of remaking the calib file
 
         Parameters
@@ -1150,7 +1150,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def reduce_masters_setup(self, v):
+    def reduce_masters_setup(self, v):  #
         """Setup name to be used in tandem with reduce_masters_force, e.g. C_02_aa
         The detector number is ignored but the other information must match the
         Master Frames in the master frame folder
@@ -1164,7 +1164,7 @@ class BaseArgFlag(BaseFunctions):
             v = ''
         self.update(v)
 
-    def reduce_overscan_method(self, v):
+    def reduce_overscan_method(self, v):    #
         """ Specify the method that should be used to fit the overscan
 
         Parameters
@@ -1176,7 +1176,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def reduce_overscan_params(self, v):
+    def reduce_overscan_params(self, v):    #
         """ Parameters of the overscan subtraction, where the parameters
         relate to the method specified by the 'reduce overscan method' keyword:
 
@@ -1192,7 +1192,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_list(v)
         self.update(v)
 
-    def reduce_pixel_locations(self, v):
+    def reduce_pixel_locations(self, v):    #
         """ If desired, a fits file can be specified (of the appropriate form) to
         specify the locations of the pixels on the detector (in physical space)
 
@@ -1211,7 +1211,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be 'None' or a fits file".format(get_current_name()))
         self.update(v)
 
-    def reduce_pixel_size(self, v):
+    def reduce_pixel_size(self, v): #
         """ The size of the extracted pixels (as an scaled number of Arc FWHM), -1 will not resample
 
         Parameters
@@ -1222,7 +1222,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_float(v)
         self.update(v)
 
-    def reduce_skysub_bspline_everyn(self, v):
+    def reduce_skysub_bspline_everyn(self, v):  #
         """ bspline fitting parameters
 
         Parameters
@@ -1233,7 +1233,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_int(v)
         self.update(v)
 
-    def reduce_skysub_method(self, v):
+    def reduce_skysub_method(self, v):  #
         """ Method used for the sky subtraction
 
         Parameters
@@ -1247,7 +1247,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def reduce_skysub_perform(self, v):
+    def reduce_skysub_perform(self, v): #
         """ Subtract the sky background from the data?
 
         Parameters
@@ -1258,7 +1258,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def reduce_slitprofile_perform(self, v):
+    def reduce_slitprofile_perform(self, v):    #
         """ Determine the spatial slit profile?
 
         Parameters
@@ -1269,7 +1269,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def reduce_trim(self, v):
+    def reduce_trim(self, v): #
         """ Trim the frame to isolate the data?
 
         Parameters
@@ -1280,7 +1280,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def run_calcheck(self, v):
+    def run_calcheck(self, v):  #
         """ If True, PYPIT will not reduce the data, it will just check to
         make sure all calibration data are present
 
@@ -1292,7 +1292,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def run_directory_master(self, v):
+    def run_directory_master(self, v): #
         """ Child Directory name for master calibration frames
 
         Parameters
@@ -1302,7 +1302,7 @@ class BaseArgFlag(BaseFunctions):
         """
         self.update(v)
 
-    def run_directory_qa(self, v):
+    def run_directory_qa(self, v): #
         """ Child Directory name for quality assurance
 
         Parameters
@@ -1312,7 +1312,7 @@ class BaseArgFlag(BaseFunctions):
         """
         self.update(v)
 
-    def run_directory_science(self, v):
+    def run_directory_science(self, v): #
         """ Child Directory name for extracted science frames
 
         Parameters
@@ -1322,7 +1322,7 @@ class BaseArgFlag(BaseFunctions):
         """
         self.update(v)
 
-    def run_load_settings(self, v):
+    def run_load_settings(self, v): #
         """ Load a reduction settings file (Note: this command overwrites all default settings)
 
         Parameters
@@ -1337,7 +1337,7 @@ class BaseArgFlag(BaseFunctions):
                            msgs.newline() + "or 'None'. The following file does not exist:" + msgs.newline() + v)
         self.update(v)
 
-    def run_load_spect(self, v):
+    def run_load_spect(self, v): #
         """ Load a spectrograph settings file (Note: this command overwrites all default settings)
 
         Parameters
@@ -1356,7 +1356,7 @@ class BaseArgFlag(BaseFunctions):
                         msgs.newline() + "file or 'None'. The following file does not exist:" + msgs.newline() + v)
         self.update(v)
 
-    def run_ncpus(self, v):
+    def run_ncpus(self, v): #
         """ Number of CPUs to use (-1 means all bar one CPU available,
         -2 means all bar two CPUs available)
 
@@ -1404,7 +1404,7 @@ class BaseArgFlag(BaseFunctions):
                         msgs.info("Setting {0:d} CPUs".format(v))
         self.update(v)
 
-    def run_preponly(self, v):
+    def run_preponly(self, v): #
         """ If True, PYPIT will prepare the calibration frames and will
         only reduce the science frames when preponly is set to False
 
@@ -1416,7 +1416,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def run_progname(self, v):
+    def run_progname(self, v): #
         """ A variable that is set by PYPIT during execution. This parameter
         is not available for user input.
 
@@ -1428,7 +1428,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
 
 
-    def run_pypitdir(self, v):
+    def run_pypitdir(self, v): #
         """ A variable that is set by PYPIT during execution. This parameter
         is not available for user input.
 
@@ -1439,7 +1439,7 @@ class BaseArgFlag(BaseFunctions):
         """
         self.update(v)
 
-    def run_qa(self, v):
+    def run_qa(self, v): #
         """ Run quality control in real time? Setting this keyword to False will
         still produce the checks, but won't display the results during the
         reduction.
@@ -1454,7 +1454,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def run_redname(self, v):
+    def run_redname(self, v): #
         """ A variable that is set by PYPIT during execution. This parameter
         is not available for user input.
 
@@ -1465,7 +1465,7 @@ class BaseArgFlag(BaseFunctions):
         """
         self.update(v)
 
-    def run_setup(self, v):
+    def run_setup(self, v): #
         """ If True, run in setup mode.  Useful to parse files when starting
         reduction on a large set of data
         Parameters
@@ -1476,7 +1476,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def run_spectrograph(self, v):
+    def run_spectrograph(self, v): #
         """ The name of the spectrograph data that should be reduced.
         A corresponding settings file must be available.
 
@@ -1504,7 +1504,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def run_stopcheck(self, v):
+    def run_stopcheck(self, v): #
         """ If True, PYPIT will stop and require a user carriage
         return at every quality control check
 
@@ -1516,7 +1516,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def run_useIDname(self, v):
+    def run_useIDname(self, v): #
         """ If True, file sorting will ensure that the idname is made
 
         Parameters
@@ -1579,7 +1579,7 @@ class BaseArgFlag(BaseFunctions):
                 msgs.error("The argument of {0:s} must be a 4 parameter list.".format(cname))
         self.update(v, ll=cname.split('_'))
 
-    def science_extraction_maxnumber(self, v):
+    def science_extraction_maxnumber(self, v):  #
         """ Maximum number of objects to extract in a science frame
 
         Parameters
@@ -1590,7 +1590,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_int(v)
         self.update(v)
 
-    def science_extraction_profile(self, v):
+    def science_extraction_profile(self, v):    #
         """ Fitting function used to extract science data, only if the extraction
         is 2D. Note, the available options of this argument that have a suffix 'func'
         will fit a function to the pixels whereas the options without this suffix take
@@ -1605,7 +1605,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def science_extraction_reuse(self, v):
+    def science_extraction_reuse(self, v):  #
         """ If the science frame has previously been extracted and saved, load the extractions
 
         Parameters
@@ -1626,7 +1626,7 @@ class BaseArgFlag(BaseFunctions):
         """
         self.update(v)
 
-    def trace_combine_match(self, v):
+    def trace_combine_match(self, v):   #
         """ Match similar trace flat frames together? A successful match is found when the frames
         are similar to within N-sigma, where N is the argument of this expression. If v<0,
         trace flat frames will not be matched.
@@ -1640,7 +1640,7 @@ class BaseArgFlag(BaseFunctions):
         self.update(v)
         return
 
-    def trace_combine_method(self, v):
+    def trace_combine_method(self, v):  #
         """ What method should be used to combine the trace frames?
 
         Parameters
@@ -1652,7 +1652,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def trace_combine_reject_cosmics(self, v):
+    def trace_combine_reject_cosmics(self, v):  #
         """ Specify the rejection threshold (in standard deviations) for
         cosmic rays when combining the trace frames. If v<0, cosmic rays
         will not be rejected.
@@ -1665,7 +1665,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_float(v)
         self.update(v)
 
-    def trace_combine_reject_lowhigh(self, v):
+    def trace_combine_reject_lowhigh(self, v):  #
         """ Specify the number of low/high pixels to be rejected when combining
         the trace frames, in the format: [low,high].
 
@@ -1681,7 +1681,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The list values of argument {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def trace_combine_reject_level(self, v):
+    def trace_combine_reject_level(self, v):    #
         """ Specify the significance threshold (in standard deviations)
         used to reject deviant pixels when combining the trace frames,
         in the format: [low,high].
@@ -1698,7 +1698,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The list values of argument {0:s} must be > 0.0".format(get_current_name()))
         self.update(v)
 
-    def trace_combine_reject_replace(self, v):
+    def trace_combine_reject_replace(self, v):  #
         """ What should be done if all pixels are rejected when
         combining the trace frames?
 
@@ -1711,7 +1711,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def trace_combine_satpix(self, v):
+    def trace_combine_satpix(self, v):  #
         """ What should be done to saturated pixels when combining the trace frames?
 
         Parameters
@@ -1723,7 +1723,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def trace_dispersion_direction(self, v):
+    def trace_dispersion_direction(self, v):    #
         """ Specify the primary dispersion direction of the raw data (0 for row, 1 for column)
 
         Parameters
@@ -1737,7 +1737,7 @@ class BaseArgFlag(BaseFunctions):
                        "0 or 1 (if the dispersion axis is along a row or column respectively)")
         self.update(v)
 
-    def trace_object_function(self, v):
+    def trace_object_function(self, v): #
         """ What function should be used to trace the object in each order?
 
         Parameters
@@ -1749,7 +1749,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def trace_object_find(self, v):
+    def trace_object_find(self, v): #
         """ What method should be used to find the objects?
 
         Parameters
@@ -1761,7 +1761,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def trace_object_nsmooth(self, v):
+    def trace_object_nsmooth(self, v):  #
         """ What method should be used to find the objects?
 
         Parameters
@@ -1774,7 +1774,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def trace_object_order(self, v):
+    def trace_object_order(self, v):    #
         """ What is the order of the polynomial function to be used to fit the object trace in each order
 
         Parameters
@@ -1787,7 +1787,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def trace_object_xedge(self, v):
+    def trace_object_xedge(self, v):    #
         """ How close to the edge can one find an object?
 
         Parameters
@@ -1800,7 +1800,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be <1 and >= 0".format(get_current_name()))
         self.update(v)
 
-    def trace_slits_diffpolyorder(self, v):
+    def trace_slits_diffpolyorder(self, v): #
         """ What is the order of the 2D function that should be used to fit
         the 2D solution for the spatial size of all slits?
 
@@ -1814,7 +1814,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def trace_slits_expand(self, v):
+    def trace_slits_expand(self, v):    #
         """ If you are tracing the slit edges with a pinhole frame (i.e. a pinhole/science frame),
         you should expand the slit edges to the edges defined by the trace frame, which
         should be a flatfield exposure taken with the same slit length as the science frame.
@@ -1828,7 +1828,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def trace_slits_fracignore(self, v):
+    def trace_slits_fracignore(self, v):    #
         """ If a slit spans less than this fraction over the spectral size of the detector,
         it will be ignored (and reconstructed when/if an 'order' PCA analysis is performed).
 
@@ -1842,7 +1842,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be between 0 and 1".format(get_current_name()))
         self.update(v)
 
-    def trace_slits_function(self, v):
+    def trace_slits_function(self, v):  #
         """ What function should be used to trace the slits?
 
         Parameters
@@ -1854,7 +1854,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def trace_slits_maxgap(self, v):
+    def trace_slits_maxgap(self, v):    #
         """ Maximum gap between slits. Use 'None' if the neighbouring
         slits are far apart, or of similar illumination.
 
@@ -1874,7 +1874,7 @@ class BaseArgFlag(BaseFunctions):
                 msgs.error("The argument of {0:s} must be > 1 to set the maximum slit gap".format(get_current_name()))
         self.update(v)
 
-    def trace_slits_number(self, v):
+    def trace_slits_number(self, v):    #
         """ Manually set the number of slits to identify (>=1).
         'auto' or -1 will automatically identify the number of slits.
 
@@ -1897,7 +1897,7 @@ class BaseArgFlag(BaseFunctions):
                            "or can be set to -1 (or 'auto') if you wish PYPIT to find slits automatically.")
         self.update(v)
 
-    def trace_slits_polyorder(self, v):
+    def trace_slits_polyorder(self, v): #
         """ What is the order of the function (specified by 'trace slits function')
         that should be used to trace the slits ?
 
@@ -1911,7 +1911,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def trace_slits_pad(self, v):
+    def trace_slits_pad(self, v):   #
         """ How many pixels should be considered beyond the automatic slit
         edge trace. Note that this parameter does not change the location
         of the slit edges. This parameter allows for a smooth model to be
@@ -1927,7 +1927,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def trace_slits_pca_type(self, v):
+    def trace_slits_pca_type(self, v):  #
         """ Should the PCA be performed using pixel position (pixel) or by spectral order (order).
         The latter is used for echelle spectroscopy, or for slits where the slit separation is a
         smooth function of the slit number. The former option can be used for multi-object spectroscopy
@@ -1942,7 +1942,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def trace_slits_pca_params(self, v):
+    def trace_slits_pca_params(self, v):    #
         """ What order polynomials should be used to fit the principle components
 
         Parameters
@@ -1953,7 +1953,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_list(v)
         self.update(v)
 
-    def trace_slits_pca_extrapolate_pos(self, v):
+    def trace_slits_pca_extrapolate_pos(self, v): #
         """ How many extra echelle orders to predict in the positive direction
 
         Parameters
@@ -1966,7 +1966,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def trace_slits_pca_extrapolate_neg(self, v):
+    def trace_slits_pca_extrapolate_neg(self, v): #
         """ How many extra orders to predict in the negative direction
 
         Parameters
@@ -1979,7 +1979,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def trace_slits_sigdetect(self, v):
+    def trace_slits_sigdetect(self, v): #
         """ Sigma detection threshold for edge detection
 
         Parameters
@@ -1992,7 +1992,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be > 0".format(get_current_name()))
         self.update(v)
 
-    def trace_slits_single(self, v):
+    def trace_slits_single(self, v):    #
         """ Add a user-defined slit?
         Syntax is a list of values, 2 per detector that define the slit
         according to column values.  The 2nd value (for the right edge)
@@ -2008,7 +2008,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_list(v)
         self.update(v)
 
-    def trace_slits_sobel_mode(self, v):
+    def trace_slits_sobel_mode(self, v):    #
         """ Mode for Sobel filtering
         Default should be 'nearest' but JFH
         reports 'constant' works best for DEIMOS
@@ -2020,7 +2020,7 @@ class BaseArgFlag(BaseFunctions):
         """
         self.update(v)
 
-    def trace_slits_tilts_idsonly(self, v):
+    def trace_slits_tilts_idsonly(self, v): #
         """ Use only the arc lines that have an identified wavelength
         to trace the spectral tilt
 
@@ -2032,7 +2032,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def trace_slits_tilts_method(self, v):
+    def trace_slits_tilts_method(self, v):  #
         """ What method should be used to trace the spectral tilt of the
         slit along an order?
 
@@ -2045,7 +2045,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def trace_slits_tilts_params(self, v):
+    def trace_slits_tilts_params(self, v):  #
         """ Parameters that should be used for the 'trace slits tilts method' arguement.
         Options include:
 
@@ -2059,7 +2059,7 @@ class BaseArgFlag(BaseFunctions):
         v = key_list(v)
         self.update(v)
 
-    def trace_slits_tilts_order(self, v):
+    def trace_slits_tilts_order(self, v):   #
         """ What is the order of the polynomial function to be used for the tilt of an individual arc line
 
         Parameters
@@ -2072,7 +2072,7 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def trace_useframe(self, v):
+    def trace_useframe(self, v):    #
         """ What frame should be used to trace the slit edges, based on the
         average of the left/right edges.
 
@@ -2298,7 +2298,7 @@ class BaseSpect(BaseFunctions):
         self._spect = ingest(dstr, udct).copy()
         return
 
-    def arc_canbe(self, v):
+    def arc_canbe(self, v): #
         """ If there are frames that will be an arc in addition to other frame types,
         include the other frame types here.
 
@@ -2325,7 +2325,7 @@ class BaseSpect(BaseFunctions):
         v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
-    def arc_idname(self, v):
+    def arc_idname(self, v):    #
         """ Header key value of arc frames for header keyword: 'keyword idname'
 
         Parameters
@@ -2335,7 +2335,7 @@ class BaseSpect(BaseFunctions):
         """
         self.update(v)
 
-    def arc_number(self, v):
+    def arc_number(self, v):    #
         """ Number of arc frames to use
 
         Parameters
@@ -2348,7 +2348,7 @@ class BaseSpect(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def bias_canbe(self, v):
+    def bias_canbe(self, v):    #
         """ If there are frames that will be a bias in addition to other frame types,
         include the other frame types here.
 
@@ -2375,7 +2375,7 @@ class BaseSpect(BaseFunctions):
         v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
-    def bias_idname(self, v):
+    def bias_idname(self, v):   #
         """ Header key value of bias frames for header keyword: 'keyword idname'
 
         Parameters
@@ -2385,7 +2385,7 @@ class BaseSpect(BaseFunctions):
         """
         self.update(v)
 
-    def bias_number(self, v):
+    def bias_number(self, v):   #
         """ Number of bias frames to use
 
         Parameters
@@ -2397,7 +2397,7 @@ class BaseSpect(BaseFunctions):
         #key_min_val(v,-1)
         self.update(v)
 
-    def dark_canbe(self, v):
+    def dark_canbe(self, v):    #
         """ If there are frames that will be a dark in addition to other frame types,
         include the other frame types here.
 
@@ -2424,7 +2424,7 @@ class BaseSpect(BaseFunctions):
         v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
-    def dark_idname(self, v):
+    def dark_idname(self, v):   #
         """ Header key value of dark frames for header keyword: 'keyword idname'
 
         Parameters
@@ -2434,7 +2434,7 @@ class BaseSpect(BaseFunctions):
         """
         self.update(v)
 
-    def dark_number(self, v):
+    def dark_number(self, v):   #
         """ Number of dark frames to use
 
         Parameters
@@ -2446,7 +2446,7 @@ class BaseSpect(BaseFunctions):
         #key_min_val(v,-1)
         self.update(v)
 
-    def det_datasec(self, v, anmbr=1, bnmbr=1):
+    def det_datasec(self, v, anmbr=1, bnmbr=1): #
         """ Either the data sections or the header keyword where the
         valid data sections can be obtained.
 
@@ -2466,7 +2466,7 @@ class BaseSpect(BaseFunctions):
                 msgs.error("The argument of {0:s} must be a detector section".format(cname))
         self.update(v, ll=cname.split('_'))
 
-    def det_dataext(self, v, anmbr=1, bnmbr=1):
+    def det_dataext(self, v, anmbr=1, bnmbr=1): #
         """ Extension number of data
 
         Parameters
@@ -2480,7 +2480,7 @@ class BaseSpect(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 0".format(cname))
         self.update(v, ll=cname.split('_'))
 
-    def det_oscansec(self, v, anmbr=1, bnmbr=1):
+    def det_oscansec(self, v, anmbr=1, bnmbr=1):    #
         """ Either the overscan sections or the header keyword where the
         valid overscan sections can be obtained.
 
@@ -2500,7 +2500,7 @@ class BaseSpect(BaseFunctions):
                 msgs.error("The argument of {0:s} must be detector section".format(cname))
         self.update(v, ll=cname.split('_'))
 
-    def det_darkcurr(self, v, anmbr=1):
+    def det_darkcurr(self, v, anmbr=1): #
         """ Dark current (e-/hour)
 
         Parameters
@@ -2518,7 +2518,7 @@ class BaseSpect(BaseFunctions):
                 msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
         self.update(v, ll=cname.split('_'))
 
-    def det_gain(self, v, anmbr=1):
+    def det_gain(self, v, anmbr=1): #
         """ Inverse gain (e-/ADU). A list should be provided if a detector contains more than one amplifier.
 
         Parameters
@@ -2541,7 +2541,7 @@ class BaseSpect(BaseFunctions):
                 msgs.error("Each argument of {0:s} must be of type float".format(cname))
         self.update(v, ll=cname.split('_'))
 
-    def det_ronoise(self, v, anmbr=1):
+    def det_ronoise(self, v, anmbr=1):  #
         """ Read-out noise (e-). A list should be provided if a detector contains more than one amplifier.
 
         Parameters
@@ -2564,7 +2564,7 @@ class BaseSpect(BaseFunctions):
                 msgs.error("Each argument of {0:s} must be of type float".format(cname))
         self.update(v, ll=cname.split('_'))
 
-    def det_nonlinear(self, v, anmbr=1):
+    def det_nonlinear(self, v, anmbr=1):    #
         """ Percentage of detector range which is linear (i.e. everything above
         nonlinear*saturation will be flagged as saturated)
 
@@ -2579,7 +2579,7 @@ class BaseSpect(BaseFunctions):
             msgs.error("The argument of {0:s} must be > 0.0 and <= 1.0".format(cname))
         self.update(v, ll=cname.split('_'))
 
-    def det_numamplifiers(self, v, anmbr=1):
+    def det_numamplifiers(self, v, anmbr=1):    #
         """ Number of amplifiers for each detector.
 
         Parameters
@@ -2593,7 +2593,7 @@ class BaseSpect(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 1".format(cname))
         self.update(v, ll=cname.split('_'))
 
-    def det_platescale(self, v, anmbr=1):
+    def det_platescale(self, v, anmbr=1):   #
         """ Number of amplifiers for each detector.
 
         Parameters
@@ -2607,7 +2607,7 @@ class BaseSpect(BaseFunctions):
             msgs.error("The argument of {0:s} must be > 0".format(cname))
         self.update(v, ll=cname.split('_'))
 
-    def det_saturation(self, v, anmbr=1):
+    def det_saturation(self, v, anmbr=1):   #
         """ The detector saturation level
 
         Parameters
@@ -2621,7 +2621,7 @@ class BaseSpect(BaseFunctions):
             msgs.error("The argument of {0:s} must be > 0.0".format(cname))
         self.update(v, ll=cname.split('_'))
 
-    def det_suffix(self, v, anmbr=1):
+    def det_suffix(self, v, anmbr=1):   #
         """ Suffix to be appended to all saved calibration and extraction frames
 
         Parameters
@@ -2632,7 +2632,7 @@ class BaseSpect(BaseFunctions):
         cname = get_nmbr_name(anmbr=anmbr)
         self.update(v, ll=cname.split('_'))
 
-    def det_xgap(self, v, anmbr=1):
+    def det_xgap(self, v, anmbr=1): #
         """ Gap between the square detector pixels (expressed as a fraction
         of the pixel size along the dispersion axis)
 
@@ -2647,7 +2647,7 @@ class BaseSpect(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
         self.update(v, ll=cname.split('_'))
 
-    def det_ygap(self, v, anmbr=1):
+    def det_ygap(self, v, anmbr=1): #
         """ Gap between the square detector pixels (expressed as a fraction
         of the pixel size along the spatial axis)
 
@@ -2662,7 +2662,7 @@ class BaseSpect(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 0.0".format(cname))
         self.update(v, ll=cname.split('_'))
 
-    def det_ysize(self, v, anmbr=1):
+    def det_ysize(self, v, anmbr=1):    #
         """ The size of a pixel in the spatial direction as a multiple of the
         pixel size along the spectral direction (i.e. assume xsize = 1.0)
 
@@ -2677,7 +2677,7 @@ class BaseSpect(BaseFunctions):
             msgs.error("The argument of {0:s} must be > 0.0".format(cname))
         self.update(v, ll=cname.split('_'))
 
-    def fits_calwin(self, v):
+    def fits_calwin(self, v): #
         """ The window of time in hours to search for matching calibration
         frames for a science frame.
 
@@ -2691,7 +2691,7 @@ class BaseSpect(BaseFunctions):
         #    msgs.error("The calibration time window must be > 0.0")
         self.update(v)
 
-    def fits_headext(self, v, bnmbr=1):
+    def fits_headext(self, v, bnmbr=1): #
         """ How many headers need to be read in for a given file
 
         Parameters
@@ -2705,7 +2705,7 @@ class BaseSpect(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 0".format(cname))
         self.update(v, ll=cname.split('_'))
 
-    def fits_numhead(self, v):
+    def fits_numhead(self, v):  #
         """ Extension number of header (one for each headnum, starting with 01)
 
         Parameters
@@ -2718,7 +2718,7 @@ class BaseSpect(BaseFunctions):
             msgs.error("The number of fits headers must be >= 1")
         self.update(v)
 
-    def fits_numlamps(self, v):
+    def fits_numlamps(self, v): #
         """ How many lamps are listed in the header
 
         Parameters
@@ -2731,7 +2731,7 @@ class BaseSpect(BaseFunctions):
             msgs.error("The number of lamps must be >= 0")
         self.update(v)
 
-    def fits_timeunit(self, v):
+    def fits_timeunit(self, v): #
         """ The unit of keyword time
 
         (s=seconds, m=minutes, h=hours, or any of the astropy Time formats)
@@ -2749,7 +2749,7 @@ class BaseSpect(BaseFunctions):
                        ", ".join(astropy_allowed))
         self.update(v)
 
-    def keyword_ra(self, v):
+    def keyword_ra(self, v):    #
         """ Right Ascension of the telescope pointing
 
         Parameters
@@ -2760,7 +2760,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_dec(self, v):
+    def keyword_dec(self, v):   #
         """ Declination of the telescope pointing
 
         Parameters
@@ -2771,7 +2771,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_target(self, v):
+    def keyword_target(self, v):    #
         """ Header keyword for the name given by the observer to a given frame
 
         Parameters
@@ -2782,7 +2782,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_airmass(self, v):
+    def keyword_airmass(self, v):   #
         """ Airmass at start of observation
 
         Parameters
@@ -2793,7 +2793,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_binning(self, v):
+    def keyword_binning(self, v):   #
         """ The binning of the data
 
         Parameters
@@ -2804,7 +2804,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_binningspatial(self, v):
+    def keyword_binningspatial(self, v):    #
         """ Spatial binning
 
         Parameters
@@ -2815,7 +2815,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_binningspectral(self, v):
+    def keyword_binningspectral(self, v):   #
         """ Spectral binning
 
         Parameters
@@ -2826,7 +2826,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_date(self, v):
+    def keyword_date(self, v):  #
         """ The date of the observation (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
 
         Parameters
@@ -2837,7 +2837,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_decker(self, v):
+    def keyword_decker(self, v):    #
         """ Which decker is being used
 
         Parameters
@@ -2848,7 +2848,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_detrot(self, v):
+    def keyword_detrot(self, v):    #
         """ Detector Rotation angle
 
         Parameters
@@ -2859,7 +2859,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_dichroic(self, v):
+    def keyword_dichroic(self, v):  #
         """ Dichroic used for the observation
 
         Parameters
@@ -2870,7 +2870,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_dispname(self, v):
+    def keyword_dispname(self, v):  #
         """ Disperser name
 
         Parameters
@@ -2881,7 +2881,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_dispangle(self, v):
+    def keyword_dispangle(self, v): #
         """ Disperser angle
 
         Parameters
@@ -2892,7 +2892,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_equinox(self, v):
+    def keyword_equinox(self, v):   #
         """ The equinox to use
 
         Parameters
@@ -2903,7 +2903,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_exptime(self, v):
+    def keyword_exptime(self, v):   #
         """ Exposure time
 
         Parameters
@@ -2914,7 +2914,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_filter1(self, v):
+    def keyword_filter1(self, v):   #
         """ Filter 1
 
         Parameters
@@ -2925,7 +2925,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_filter2(self, v):
+    def keyword_filter2(self, v):   #
         """ Filter 2
 
         Parameters
@@ -2936,7 +2936,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_frameno(self, v):
+    def keyword_frameno(self, v):   #
         """ Frame Number
 
         Parameters
@@ -2947,7 +2947,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_hatch(self, v):
+    def keyword_hatch(self, v): #
         """ Hatch open/close
 
         Parameters
@@ -2958,7 +2958,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_idname(self, v):
+    def keyword_idname(self, v):    #
         """ The keyword that identifies the frame type (i.e. bias, flat, etc.)
 
         Parameters
@@ -2969,7 +2969,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_lamps(self, v):
+    def keyword_lamps(self, v): #
         """ Lamps being used
 
         Parameters
@@ -2980,7 +2980,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_lampname(self, v, bnmbr=1):
+    def keyword_lampname(self, v, bnmbr=1): #
         """ Name of a lamp. Multiple lamp nams can be specified by appending a
         two digit number (starting with 01) after lampname. There must be a
         corresponding keyword set for 'keyword lampstat'
@@ -2999,7 +2999,7 @@ class BaseSpect(BaseFunctions):
             v = key_keyword(v)
         self.update(v, ll=cname.split('_'))
 
-    def keyword_lampstat(self, v, bnmbr=1):
+    def keyword_lampstat(self, v, bnmbr=1): #
         """ Status of a lamp. Multiple lamp statuses  can be specified by appending a
         two digit number (starting with 01) after lampstat. There must be a corresponding
         keyword set for 'keyword lampname'
@@ -3018,7 +3018,7 @@ class BaseSpect(BaseFunctions):
             v = key_keyword(v)
         self.update(v, ll=cname.split('_'))
 
-    def keyword_naxis0(self, v):
+    def keyword_naxis0(self, v):    #
         """ Number of pixels along the zeroth axis
 
         Parameters
@@ -3029,7 +3029,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_naxis1(self, v):
+    def keyword_naxis1(self, v):    #
         """ Number of pixels along the first axis
 
         Parameters
@@ -3040,7 +3040,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_slitwid(self, v):
+    def keyword_slitwid(self, v):   #
         """ Slit Width
 
         Parameters
@@ -3051,7 +3051,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_slitlen(self, v):
+    def keyword_slitlen(self, v):   #
         """ Slit Length
 
         Parameters
@@ -3062,7 +3062,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_shutopen(self, v):
+    def keyword_shutopen(self, v):  #
         """ Shutter opened
 
         Parameters
@@ -3073,7 +3073,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_shutclose(self, v):
+    def keyword_shutclose(self, v): #
         """ Shutter closed
 
         Parameters
@@ -3084,7 +3084,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def keyword_time(self, v):
+    def keyword_time(self, v):  #
         """ The time stamp of the observation (i.e. decimal MJD)
 
         Parameters
@@ -3095,7 +3095,7 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
-    def mosaic_camera(self, v):
+    def mosaic_camera(self, v): #
         """ Set the name of the instrument used (this will be used in the QA).
 
         Parameters
@@ -3105,7 +3105,7 @@ class BaseSpect(BaseFunctions):
         """
         self.update(v)
 
-    def mosaic_elevation(self, v):
+    def mosaic_elevation(self, v): #
         """ Elevation of the telescope (in m)
 
         Parameters
@@ -3120,7 +3120,7 @@ class BaseSpect(BaseFunctions):
             v = key_float(v)
         self.update(v)
 
-    def mosaic_latitude(self, v):
+    def mosaic_latitude(self, v): #
         """ Latitude of the telescope
 
         Parameters
@@ -3135,7 +3135,7 @@ class BaseSpect(BaseFunctions):
             v = key_float(v)
         self.update(v)
 
-    def mosaic_longitude(self, v):
+    def mosaic_longitude(self, v): #
         """ Longitude of the telescope
 
         Parameters
@@ -3150,7 +3150,7 @@ class BaseSpect(BaseFunctions):
             v = key_float(v)
         self.update(v)
 
-    def mosaic_ndet(self, v):
+    def mosaic_ndet(self, v): #
         """ Number of detectors in the mosaic
 
         Parameters
@@ -3161,7 +3161,7 @@ class BaseSpect(BaseFunctions):
         v = key_int(v)
         self.update(v)
 
-    def mosaic_minexp(self, v):
+    def mosaic_minexp(self, v): #
         """ Minimum exposure time of the instrument (s)
 
         Parameters
@@ -3172,7 +3172,7 @@ class BaseSpect(BaseFunctions):
         v = key_float(v)
         self.update(v)
 
-    def mosaic_reduction(self, v):
+    def mosaic_reduction(self, v):  #
         """ Which reduction pipeline should be used to reduce data taken with this instrument
 
         Parameters
@@ -3184,7 +3184,7 @@ class BaseSpect(BaseFunctions):
         v = key_allowed(v, allowed, upper=True)
         self.update(v.upper())
 
-    def pixelflat_canbe(self, v):
+    def pixelflat_canbe(self, v):   #
         """ If there are frames that will be a pixel flat in addition to other frame types,
         include the other frame types here.
 
@@ -3211,7 +3211,7 @@ class BaseSpect(BaseFunctions):
         v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
-    def pixelflat_idname(self, v):
+    def pixelflat_idname(self, v):  #
         """ Header key value of pixel flat frames for header keyword: 'keyword idname'
 
         Parameters
@@ -3221,7 +3221,7 @@ class BaseSpect(BaseFunctions):
         """
         self.update(v)
 
-    def pixelflat_lscomb(self, v):
+    def pixelflat_lscomb(self, v):  #
         """ Combine frames with a different exposure time?
 
         Parameters
@@ -3232,7 +3232,7 @@ class BaseSpect(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def pixelflat_number(self, v):
+    def pixelflat_number(self, v):  #
         """ Number of pixel flat frames to use
 
         Parameters
@@ -3246,7 +3246,7 @@ class BaseSpect(BaseFunctions):
         #    msgs.error("The argument of {0:s} must be >= -1".format(get_current_name()))
         self.update(v)
 
-    def science_canbe(self, v):
+    def science_canbe(self, v): #
         """ If there are frames that will be a science frame in addition to other frame types,
         include the other frame types here.
 
@@ -3273,7 +3273,7 @@ class BaseSpect(BaseFunctions):
         v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
-    def science_idname(self, v):
+    def science_idname(self, v):    #
         """ Header key value of science frames for header keyword: 'keyword idname'
 
         Parameters
@@ -3395,7 +3395,7 @@ class BaseSpect(BaseFunctions):
         v = self._spect['set']['trace'] + v
         self.update(v)
 
-    def pinhole_canbe(self, v):
+    def pinhole_canbe(self, v): #
         """ If there are frames that will be a pinhole in addition to other frame types,
         include the other frame types here.
 
@@ -3422,7 +3422,7 @@ class BaseSpect(BaseFunctions):
         v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
-    def pinhole_idname(self, v):
+    def pinhole_idname(self, v):    #
         """ Header key value of pinhole frames for header keyword: 'keyword idname'
 
         Parameters
@@ -3432,7 +3432,7 @@ class BaseSpect(BaseFunctions):
         """
         self.update(v)
 
-    def pinhole_lscomb(self, v):
+    def pinhole_lscomb(self, v):    #
         """ Combine frames with a different exposure time?
 
         Parameters
@@ -3443,7 +3443,7 @@ class BaseSpect(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def pinhole_number(self, v):
+    def pinhole_number(self, v):    #
         """ Number of pinhole frames to use
 
         Parameters
@@ -3455,7 +3455,7 @@ class BaseSpect(BaseFunctions):
         #key_min_val(v, -1)
         self.update(v)
 
-    def standard_canbe(self, v):
+    def standard_canbe(self, v):    #
         """ If there are frames that will be a standard star frame in addition
         to other frame types, include the other frame types here.
 
@@ -3482,7 +3482,7 @@ class BaseSpect(BaseFunctions):
         v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
-    def standard_idname(self, v):
+    def standard_idname(self, v):   #
         """ Header key value of standard star frames for header keyword: 'keyword idname'
 
         Parameters
@@ -3492,7 +3492,7 @@ class BaseSpect(BaseFunctions):
         """
         self.update(v)
 
-    def standard_number(self, v):
+    def standard_number(self, v):   #
         """ Number of standard star frames to use
 
         Parameters
@@ -3504,7 +3504,7 @@ class BaseSpect(BaseFunctions):
         #key_min_val(v,-1)
         self.update(v)
 
-    def trace_canbe(self, v):
+    def trace_canbe(self, v):   #
         """ If there are frames that will be a trace flat in addition to other frame types,
         include the other frame types here.
 
@@ -3531,7 +3531,7 @@ class BaseSpect(BaseFunctions):
         v = key_check(v)
         self.update(v, ll=cname.split('_'))
 
-    def trace_idname(self, v):
+    def trace_idname(self, v):  #
         """ Header key value of a trace frame for header keyword: 'keyword idname'
 
         Parameters
@@ -3541,7 +3541,7 @@ class BaseSpect(BaseFunctions):
         """
         self.update(v)
 
-    def trace_lscomb(self, v):
+    def trace_lscomb(self, v):  #
         """ Combine frames with a different exposure time?
 
         Parameters
@@ -3552,7 +3552,7 @@ class BaseSpect(BaseFunctions):
         v = key_bool(v)
         self.update(v)
 
-    def trace_number(self, v):
+    def trace_number(self, v):  #
         """ Number of trace frames to use
 
         Parameters
@@ -3568,7 +3568,7 @@ class BaseSpect(BaseFunctions):
 
 class ARMLSD(BaseArgFlag):
 
-    def reduce_calibrate_flux(self, v):
+    def reduce_calibrate_flux(self, v): #
         """ Should a flux calibration be performed?
 
         Parameters
@@ -3579,7 +3579,7 @@ class ARMLSD(BaseArgFlag):
         v = key_bool(v)
         self.update(v)
 
-    def reduce_calibrate_sensfunc_archival(self, v):
+    def reduce_calibrate_sensfunc_archival(self, v):    #
         """ Should a flux calibration be performed?
 
         Parameters
@@ -3591,7 +3591,7 @@ class ARMLSD(BaseArgFlag):
 
 
 
-    def reduce_flexure_maxshift(self, v):
+    def reduce_flexure_maxshift(self, v):   #
         """ Maximum allowed flexure shift in pixels
 
         Parameters
@@ -3602,7 +3602,7 @@ class ARMLSD(BaseArgFlag):
         v = key_int(v)
         self.update(v)
 
-    def reduce_flexure_method(self, v):
+    def reduce_flexure_method(self, v): #
         """ Perform flexure correction on objects using boxcar extraction.
         If 'slitcen' is used, the flexure correction is performed before
         the extraction of objects
@@ -3616,7 +3616,7 @@ class ARMLSD(BaseArgFlag):
         v = key_none_allowed(v, allowed)
         self.update(v)
 
-    def reduce_flexure_spectrum(self, v):
+    def reduce_flexure_spectrum(self, v):   #
         """ Specify the archive sky spectrum to be used for the flexure correction
 
         Parameters
@@ -3640,7 +3640,7 @@ class ARMLSD(BaseArgFlag):
 
 class ARMED(BaseArgFlag):
 
-    def reduce_flatfield_2dpca(self, v):
+    def reduce_flatfield_2dpca(self, v):    #
         """ Perform a simple 2D PCA on the echelle blaze fits
          if the value of this argument is >1. The argument value
          is equal to the number of PCA components. 0 means that
@@ -3656,7 +3656,7 @@ class ARMED(BaseArgFlag):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def trace_object_method(self, v):
+    def trace_object_method(self, v):   #
         """ What method should be used to trace the object?
 
         Parameters
@@ -3668,7 +3668,7 @@ class ARMED(BaseArgFlag):
         v = key_allowed(v, allowed)
         self.update(v)
 
-    def trace_object_params(self, v):
+    def trace_object_params(self, v):   #
         """ Parameters that should be used for the 'trace object method' argument.
         Options include:
 
@@ -3685,7 +3685,7 @@ class ARMED(BaseArgFlag):
         v = key_list(v)
         self.update(v)
 
-    def trace_slits_tilts_disporder(self, v):
+    def trace_slits_tilts_disporder(self, v):   #
         """ What is the order of the polynomial function to be used to fit the tilts along the dispersion direction
 
         Parameters
@@ -3698,7 +3698,7 @@ class ARMED(BaseArgFlag):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def trace_slits_tilts_order(self, v):
+    def trace_slits_tilts_order(self, v):   #
         """ What is the order of the polynomial function to be used for the tilt of an individual arc line
 
         Parameters
@@ -3720,7 +3720,7 @@ class ARMLSD_spect(BaseSpect):
 
 class ARMED_spect(BaseSpect):
 
-    def keyword_echangle(self, v):
+    def keyword_echangle(self, v):  #
         """ The angle of the echelle grating
 
         Parameters
