@@ -63,6 +63,13 @@
 - Faster algorithm for defining object and background regions
 - Restore armsgs -d functionality
 - Finished cython to python conversions, but more testing needed
+- Introduce maskslits array
+- Enable multi-slit reduction
+- Bug fixes in trace_slits
+- Fixes what appears to be a gross error in slit bg_subtraction (masking)
+- Turns off PCA tilt QA for now [very slow for each slit]
+- Several improvements for coadding
+- Modify lacosmic to identify tiny CR's
 
 0.7 (2017-02-07)
 ----------------
