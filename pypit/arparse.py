@@ -276,6 +276,7 @@ class BaseArgFlag(BaseFunctions):
                 msgs.error("There appears to be an error on the following input line:" + msgs.newline() +
                            " ".join(lst))
 
+
     def update(self, v, ll=None):
         """ Update an element of the argflag dictionary
 

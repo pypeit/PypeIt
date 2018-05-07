@@ -104,9 +104,12 @@ method, e.g.::
 
     'extract': 'box'
 
-and/or the flux method::
+and/or specify whether the spectrum is fluxed::
 
-    'flux': 'counts'
+    'flux': False
+
+Note that these parameters must be outside of the 'a', 'b', 'c', etc. dicts
+or else they will have no effect.
 
 Cosmic Ray Cleaning
 +++++++++++++++++++
