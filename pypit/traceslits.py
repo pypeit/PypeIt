@@ -189,7 +189,6 @@ class TraceSlits(object):
                                                                 sobel_mode=self.settings['trace']['slits']['sobel']['mode'],
                                                                 sigdetect=self.settings['trace']['slits']['sigdetect'],
                                                                 number_slits=self.settings['trace']['slits']['number'])
-        self.user_set = False
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -200,7 +199,6 @@ class TraceSlits(object):
         ledge = self.settings['trace']['slits']['single'][iledge]
         redge = self.settings['trace']['slits']['single'][iredge]
         self.edgearr = artrace.edgearr_from_user(self.mstrace.shape, ledge, redge, self.det)
-        self.user_set = True
         self.siglev = None
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -484,144 +482,126 @@ class TraceSlits(object):
         ltu.savejson(outfile, clean_dict, overwrite=True, easy_to_read=True)
         msgs.info("Writing TraceSlit dict to {:s}".format(outfile))
 
+    def run(self, armlsd=True, ignore_orders=False, add_user_slits=None):
+        """ Main driver for tracing slits.
+
+          Code flow
+           1.  Determine approximate slit edges (left, right)
+             1b.    Trim down to one pixel per edge per row [seems wasteful, but ok]
+           2.  Give edges ID numbers + stitch together partial edges (match_edges)
+             2b.   first maxgap option -- NOT recommended
+           3.  Assign slits (left, right) ::  Deep algorithm
+           4.  For ARMLSD
+              -- Trace crude the edges
+              -- Do a multi-slit sync to pair up left/right edges
+           5.  Remove short slits -- Not recommended for ARMLSD
+           6.  Fit left/right slits
+           7.  Synchronize
+           8.  Extrapolate into blank regions (PCA)
+
+        Parameters
+        ----------
+        armlsd : bool (optional)
+          Running longslit or multi-slit?
+        ignore_orders : bool (optional)
+          Perform ignore_orders algorithm (recommended only for echelle data)
+        add_user_slits : list of lists
+          List of 2 element lists, each an [xleft, xright] pair specifying a slit edge
+          These are specified at mstrace.shape[0]//2
+
+        Returns
+        -------
+        lcen : ndarray
+          Left edge traces
+        rcen  : ndarray
+          Right edge traces
+        extrapord
+        """
+        # Specify a single slit?
+        if len(self.settings['trace']['slits']['single']) > 0:  # Single slit
+            self._edgearr_single_slit()
+            self.user_set = True
+        else:  # Generate the edgearr from the input trace image
+            self._edgearr_from_binarr()
+            self.user_set = False
+
+        # Assign a number to each edge 'grouping'
+        self._match_edges()
+
+        # Add in a single left/right edge?
+        self._add_left_right()
+
+        # If slits are set as "close" by the user, take the absolute value
+        # of the detections and ignore the left/right edge detections
+        #  Use of maxgap is NOT RECOMMENDED
+        if self.settings['trace']['slits']['maxgap'] is not None:
+            self._maxgap_prep()
+
+        # Assign edges
+        self._assign_edges()
+
+        # Handle close edges (as desired by the user)
+        #  JXP does not recommend using this method for multislit
+        if self.settings['trace']['slits']['maxgap'] is not None:
+            self._maxgap_close()
+
+        # Final left/right edgearr fussing (as needed)
+        if not self.user_set:
+            self._final_left_right()
+
+        # Trace crude me
+        #   -- Mainly to deal with duplicates and improve the traces
+        #   -- Developed for ARMLSD not ARMED
+        if armlsd:
+            self._mslit_tcrude()
+
+        # Synchronize and add in edges
+        if armlsd:
+            self._mslit_sync()
+
+        # Add user input slits
+        if add_user_slits is not None:
+            self.add_user_slits(add_user_slits)
+
+        # Ignore orders/slits on the edge of the detector when they run off
+        #    Recommended for Echelle only
+        if ignore_orders:
+            self._ignore_orders()
+
+        # Fit edges
+        self.set_lrminx()
+        self._fit_edges('left')
+        self._fit_edges('right')
+
+        # Are we done, e.g. longslit?
+        #   Check if no further work is needed (i.e. there only exists one order)
+        if self.chk_for_longslit():
+            return self.lcen, self.rcen, np.zeros(1, dtype=np.bool)
+
+        # Synchronize
+        #   For multi-silt, mslit_sync will have done most of the work already..
+        self._synchronize()
+
+        # PCA?
+        #  Whether or not a PCA is performed, lcen and rcen are generated for the first time
+        self._pca()
+
+        # Remove any slits that are completely off the detector
+        #   Also remove short slits here for multi-slit and long-slit (aligntment stars)
+        self.trim_slits(usefracpix=armlsd)
+
+        # Illustrate where the orders fall on the detector (physical units)
+        if msgs._debug['trace']:
+            self.show('edges')
+            debugger.set_trace()
+
+        # Finish
+        return self.lcen, self.rcen, self.extrapord
 
     def __repr__(self):
         # Generate sets string
-        return 'blah'
-        #return ('<SpecObjExp: {:s} == Setup {:s} Object at {:g} in Slit at {:g} with det={:s}, scidx={:d} and objtype={:s}>'.format(
-        #        self.idx, self.config, self.xobj, self.slitcen, sdet, self.scidx, self.objtype))
+        txt = '<{:s}: >'.format(self.__class__.__name__)
+        return txt
 
 
-def run(mstrace, pixlocn, det=None, settings=None,
-                       binbpx=None, ignore_orders=False,
-                       add_user_slits=None, armlsd=True):
-    """ Main driver for tracing slits.
-    May be renamed to trace_slits
 
-      Code flow
-       1.  Determine approximate slit edges (left, right)
-         1b.    Trim down to one pixel per edge per row [seems wasteful, but ok]
-       2.  Give edges ID numbers + stitch together partial edges (match_edges)
-         2b.   first maxgap option -- NOT recommended
-       3.  Assign slits (left, right) ::  Deep algorithm
-       4.  For ARMLSD
-          -- Trace crude the edges
-          -- Do a multi-slit sync to pair up left/right edges
-       5.  Remove short slits -- Not recommended for ARMLSD
-       6.  Fit left/right slits
-       7.  Synchronize
-       8.  Extrapolate into blank regions (PCA)
-
-    Parameters
-    ----------
-    mstrace : ndarray
-    pixlocn : ndarray
-    det : int (optional)
-    settings : dict (optional)
-    ednum : int (optional)
-       A large dummy number used for slit edge assignment.
-       ednum should be larger than the number of edges detected
-    binbpx : ndarray
-      Bad pixel mask
-    det : int (optional)
-      Required for single slilt specification
-    ignore_orders : bool (optional)
-      Perform ignore_orders algorithm (recommended only for echelle data)
-    add_user_slits : list of lists
-      List of 2 element lists, each an [xleft, xright] pair specifying a slit edge
-      These are specified at mstrace.shape[0]//2
-    armlsd : bool (optional)
-      Running with ARMLSD ?
-
-    Returns
-    -------
-    lcen : ndarray
-      Left edge traces
-    rcen  : ndarray
-      Right edge traces
-    extrapord
-    """
-    # Init TraceSlits
-    tslits = TraceSlits(mstrace, pixlocn, binbpx=binbpx, settings=settings, det=det)
-
-    # Specify a single slit?
-    if len(settings['trace']['slits']['single']) > 0:  # Single slit
-        tslits._edgearr_single_slit()
-    else:  # Generate the edgearr from the input trace image
-        tslits._edgearr_from_binarr()
-
-    # Assign a number to each edge 'grouping'
-    tslits._match_edges()
-
-    # Add in a single left/right edge?
-    tslits._add_left_right()
-
-    # If slits are set as "close" by the user, take the absolute value
-    # of the detections and ignore the left/right edge detections
-    #  Use of maxgap is NOT RECOMMENDED
-    if settings['trace']['slits']['maxgap'] is not None:
-        tslits._maxgap_prep()
-
-    # Assign edges
-    tslits._assign_edges()
-
-    # Handle close edges (as desired by the user)
-    #  JXP does not recommend using this method for multislit
-    if settings['trace']['slits']['maxgap'] is not None:
-        tslits._maxgap_close()
-
-    # Final left/right edgearr fussing (as needed)
-    if not tslits.user_set:
-        tslits._final_left_right()
-
-    # Trace crude me
-    #   -- Mainly to deal with duplicates and improve the traces
-    #   -- Developed for ARMLSD not ARMED
-    if armlsd:
-        tslits._mslit_tcrude()
-
-    # Synchronize and add in edges
-    if armlsd:
-        tslits._mslit_sync()
-
-    # Add user input slits
-    if add_user_slits is not None:
-        tslits.add_user_slits(add_user_slits)
-
-    # Ignore orders/slits on the edge of the detector when they run off
-    #    Recommended for Echelle only
-    if ignore_orders:
-        tslits._ignore_orders()
-
-    # Fit edges
-    tslits.set_lrminx()
-    tslits._fit_edges('left')
-    tslits._fit_edges('right')
-
-    # Are we done, e.g. longslit?
-    #   Check if no further work is needed (i.e. there only exists one order)
-    if tslits.chk_for_longslit():
-        return tslits.lcen, tslits.rcen, np.zeros(1, dtype=np.bool), tslits
-
-    # Synchronize
-    #   For multi-silt, mslit_sync will have done most of the work already..
-    tslits._synchronize()
-
-    # PCA?
-    #  Whether or not a PCA is performed, lcen and rcen are generated for the first time
-    tslits._pca()
-
-    # Remove any slits that are completely off the detector
-    #   Also remove short slits here for multi-slit and long-slit (aligntment stars)
-    tslits.trim_slits(usefracpix=armlsd)
-
-    # Illustrate where the orders fall on the detector (physical units)
-    '''
-    if msgs._debug['trace']:
-        viewer, ch = ginga.show_image(mstrace)
-        ginga.show_slits(viewer, ch, lcen, rcen, np.arange(nslit) + 1)
-        debugger.set_trace()
-    '''
-
-    # Finish
-    return tslits.lcen, tslits.rcen, tslits.extrapord, tslits
