@@ -18,6 +18,11 @@ from pypit import ginga
 
 from scipy import ndimage
 
+# For out of PYPIT running
+if msgs._debug is None:
+    debug = debugger.init()
+    debug['develop'] = True
+    msgs.reset(debug=debug, verbosity=2)
 
 # Place these here or elsewhere?
 #  Wherever they be, they need to be defined, described, etc.
@@ -54,14 +59,31 @@ class TraceSlits(object):
         pixlocn = hdul[names.index('PIXLOCN')].data
         if 'BINBPX' in names:
             binbpx = hdul[names.index('BINBPX')].data
+            msgs.info("Loading BPM from {:s}".format(fits_file))
         else:
             binbpx = None
 
         # JSON
         json_file = root+'.json'
         ts_dict = ltu.loadjson(json_file)
-        cls(mstrace, pixlocn, binbpx=binbpx, settings=ts_dict['settings'])
+        slf = cls(mstrace, pixlocn, binbpx=binbpx, settings=ts_dict['settings'])
 
+        # Fill in a bit more
+        slf.steps = ts_dict['steps']
+        if 'LCEN' in names:
+            slf.lcen = hdul[names.index('LCEN')].data
+            slf.rcen = hdul[names.index('RCEN')].data
+            msgs.info("Loading LCEN, RCEN from {:s}".format(fits_file))
+        if 'EDGEARR' in names:
+            slf.edgearr = hdul[names.index('EDGEARR')].data
+            msgs.info("Loading EDGEARR from {:s}".format(fits_file))
+        if 'SIGLEV' in names:
+            slf.siglev = hdul[names.index('SIGLEV')].data
+            msgs.info("Loading SIGLEV from {:s}".format(fits_file))
+        slf.tc_dict = ts_dict['tc_dict']
+
+        # Return
+        return slf
 
     def __init__(self, mstrace, pixlocn, binbpx=None, settings=None, det=None, ednum=100000):
         # TODO -- Remove pixlocn as a required item
@@ -138,9 +160,19 @@ class TraceSlits(object):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def _add_user_slits(self, add_user_slits):
+    def _add_user_slits(self, add_user_slits, run_to_finish=False):
+        # Reset (if needed) -- For running after PYPIT took a first pass
+        self.reset_edgearr_ednum()
         # Add user input slits
         self.edgearr = artrace.add_user_edges(self.edgearr, self.siglev, self.tc_dict, add_user_slits)
+        # Finish
+        if run_to_finish:
+            self.set_lrminx()
+            self._fit_edges('left')
+            self._fit_edges('right')
+            self._synchronize()
+            self._pca()
+            self.trim_slits()
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -257,6 +289,14 @@ class TraceSlits(object):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
+    def _pca(self):
+        if self.settings['trace']['slits']['pca']['type'] == 'order':
+            self._pca_order_slit_edges()
+        elif self.settings['trace']['slits']['pca']['type'] == 'pixel':
+            self._pca_pixel_slit_edges()
+        else: # No PCA
+            self.set_lrcen()
+
     def _pca_order_slit_edges(self):
         plxbin = self.pixlocn[:, :, 0].copy()
         self.lcen, self.rcen, self.extrapord = artrace.pca_order_slit_edges(self.binarr, self.edgearr,
@@ -275,6 +315,13 @@ class TraceSlits(object):
                                                                             self.rcent, plxbin, self.settings)
         # Step
         self.steps.append(inspect.stack()[0][3])
+
+    def reset_edgearr_ednum(self):
+        if np.max(self.edgearr) < self.ednum:
+            neg = np.where(self.edgearr < 0)
+            self.edgearr[neg] -= self.ednum
+            pos = np.where(self.edgearr > 0)
+            self.edgearr[pos] += self.ednum
 
     def set_lrminx(self):
         ww = np.where(self.edgearr < 0)
@@ -300,7 +347,7 @@ class TraceSlits(object):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def trim_slits(self, armlsd):
+    def trim_slits(self, usefracpix=True):
         nslit = self.lcen.shape[1]
         mask = np.zeros(nslit)
         fracpix = int(self.settings['trace']['slits']['fracignore']*self.mstrace.shape[1])
@@ -311,7 +358,7 @@ class TraceSlits(object):
             elif np.max(self.rcen[:, o]) < 0:
                 mask[o] = 1
                 msgs.info("Slit {0:d} is off the detector - ignoring this slit".format(o + 1))
-            if armlsd:
+            if usefracpix:
                 if np.median(self.rcen[:,o]-self.lcen[:,o]) < fracpix:
                     mask[o] = 1
                     msgs.info("Slit {0:d} is less than fracignore - ignoring this slit".format(o + 1))
@@ -344,6 +391,10 @@ class TraceSlits(object):
             hdue = fits.ImageHDU(self.edgearr)
             hdue.name = 'EDGEARR'
             hdulist.append(hdue)
+        if self.siglev is not None:
+            hdus = fits.ImageHDU(self.edgearr)
+            hdus.name = 'SIGLEV'
+            hdulist.append(hdus)
         hdup = fits.ImageHDU(self.pixlocn)
         hdup.name = 'PIXLOCN'
         hdulist.append(hdup)
@@ -351,10 +402,18 @@ class TraceSlits(object):
             hdub = fits.ImageHDU(self.binbpx)
             hdub.name = 'BINBPX'
             hdulist.append(hdub)
+        if self.lcen is not None:
+            hdulf = fits.ImageHDU(self.lcen)
+            hdulf.name = 'LCEN'
+            hdulist.append(hdulf)
+            hdurt = fits.ImageHDU(self.rcen)
+            hdurt.name = 'RCEN'
+            hdulist.append(hdurt)
 
         # Write
         hdul = fits.HDUList(hdulist)
         hdul.writeto(outfile, overwrite=True)
+        msgs.info("Writing TraceSlit arrays to {:s}".format(outfile))
 
         # dict
         out_dict = {}
@@ -366,6 +425,7 @@ class TraceSlits(object):
         outfile = root+'.json'
         clean_dict = ltu.jsonify(out_dict)
         ltu.savejson(outfile, clean_dict, overwrite=True, easy_to_read=True)
+        msgs.info("Writing TraceSlit dict to {:s}".format(outfile))
 
 
     def __repr__(self):
@@ -475,10 +535,9 @@ def run(mstrace, pixlocn, det=None, settings=None,
     #    Recommended for Echelle only
     if ignore_orders:
         tslits._ignore_orders()
-    else:
-        tslits.set_lrminx()
 
     # Fit edges
+    tslits.set_lrminx()
     tslits._fit_edges('left')
     tslits._fit_edges('right')
 
@@ -489,19 +548,15 @@ def run(mstrace, pixlocn, det=None, settings=None,
 
     # Synchronize
     #   For multi-silt, mslit_sync will have done most of the work already..
+    debugger.set_trace()
     tslits._synchronize()
 
     # PCA?
-    if settings['trace']['slits']['pca']['type'] == 'order':
-        tslits._pca_order_slit_edges()
-    elif settings['trace']['slits']['pca']['type'] == 'pixel':
-        tslits._pca_pixel_slit_edges()
-    else: # No PCA
-        tslits.set_lrcen()
+    tslits._pca()
 
     # Remove any slits that are completely off the detector
     #   Also remove short slits here for multi-slit and long-slit (aligntment stars)
-    tslits.trim_slits(armlsd)
+    tslits.trim_slits(usefracpix=armlsd)
 
     # Illustrate where the orders fall on the detector (physical units)
     '''

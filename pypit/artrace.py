@@ -1983,7 +1983,7 @@ def driver_trace_slits(mstrace, pixlocn, det=None, settings=None,
     return lcen, rcen, extrapord
 
 
-def tcrude_edgearr(edgearr, siglev, ednum, TOL=3., tfrac=0.33):
+def tcrude_edgearr(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=True):
     """ Use trace_crude to refine slit edges
     It is also used to remove bad slit edges and merge slit edges
 
@@ -2021,7 +2021,6 @@ def tcrude_edgearr(edgearr, siglev, ednum, TOL=3., tfrac=0.33):
     # Items to return
     new_edgarr = np.zeros_like(edgearr, dtype=int)
     tc_dict = {}
-    tc_dict['xval'] = {}
 
     # Loop on side
     for side in ['left', 'right']:
@@ -2189,8 +2188,12 @@ def tcrude_edgearr(edgearr, siglev, ednum, TOL=3., tfrac=0.33):
                 if newval == 0:
                     debugger.set_trace()
                 tc_dict[side]['xval'][str(newval)] = tc_dict[side]['xval'].pop(str(oldval))
-    print(tc_dict['left']['xval'])
-    print(tc_dict['right']['xval'])
+    # Remove uni_idx
+    tc_dict['left'].pop('uni_idx')
+    tc_dict['right'].pop('uni_idx')
+    if verbose:
+        print(tc_dict['left']['xval'])
+        print(tc_dict['right']['xval'])
     # Return
     return new_edgarr, tc_dict.copy()
 
@@ -6067,6 +6070,7 @@ def add_user_edges(edgearr, siglev, tc_dict, add_slits):
 
     # Loop me
     nrow = edgearr.shape[0]
+    ycen = nrow//2
     for new_slit in add_slits:
         # Parse
         xleft, xright, yrow = new_slit
@@ -6087,11 +6091,11 @@ def add_user_edges(edgearr, siglev, tc_dict, add_slits):
                 ref_i = right_idx
             # Was the trace good enough?
             ygd = np.where(xerr[:,0] != 999.)[0]
+            new_xval = int(np.round(xset[ycen, 0]))  # Always defined at the 1/2 point
             if len(ygd) > nrow//2: # Use the trace if it was primarily successful
                 xvals = np.round(xset[:, 0]).astype(int)
                 edgearr[ygd, xvals[ygd]] = new_i
             else: # Otherwise, find the closest left edge and use that
-                new_xval = int(np.round(xset[nrow//2, 0]))  # Always defined at the 1/2 point
                 # Find the closest
                 idx = np.argmin(np.abs(ref_x-new_xval))
                 ref_slit = ref_i[idx]
@@ -6103,11 +6107,11 @@ def add_user_edges(edgearr, siglev, tc_dict, add_slits):
                 # And use them
                 edgearr[new_pix] = new_i
             # Update
+            tc_dict[side]['xval'][str(new_i)] = new_xval
             if side == 'left':
                 new_l -= 1
             else:
                 new_r += 1
-            #debugger.set_trace()
     # Return
     return edgearr
 
