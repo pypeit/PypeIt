@@ -2088,12 +2088,14 @@ def tcrude_edgearr(edgearr, siglev, ednum, TOL=3., tfrac=0.33):
             else:
                 xset, xerr = trace_crude_init(np.maximum(-1*siglev, -0.1), np.array(xinit), yrow)
             # Save
+            '''
             if niter == 0:
                 tc_dict[side]['xset'] = xset
                 tc_dict[side]['xerr'] = xerr
             else: # Need to append
                 tc_dict[side]['xset'] = np.append(tc_dict[side]['xset'], xset, axis=1)
                 tc_dict[side]['xerr'] = np.append(tc_dict[side]['xerr'], xerr, axis=1)
+            '''
 
             # Good values allowing for edge of detector
             goodx = np.any([(xerr != 999.), (xset==0.), (xset==edgearr.shape[1]-1.)], axis=0)
@@ -2215,7 +2217,6 @@ def mslit_sync(edgearr, tc_dict, ednum, insert_buff=5, add_left_edge_slit=True):
     new_edgearr : ndarray
       Updated edgearr
     """
-
     # Internal method (for convenience)
     def add_edge(ref_slit, insert_offset, earr, t_dict, final_left, final_right, left=True):
         """  Add a new edge using a reference slit
