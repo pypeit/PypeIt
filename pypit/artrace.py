@@ -6072,6 +6072,7 @@ def add_user_edges(edgearr, siglev, tc_dict, add_slits):
     nrow = edgearr.shape[0]
     ycen = nrow//2
     for new_slit in add_slits:
+        msgs.info("Adding a user-defined slit {}".format(new_slit))
         # Parse
         xleft, xright, yrow = new_slit
         # Left or right

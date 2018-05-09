@@ -319,9 +319,9 @@ class TraceSlits(object):
     def reset_edgearr_ednum(self):
         if np.max(self.edgearr) < self.ednum:
             neg = np.where(self.edgearr < 0)
-            self.edgearr[neg] -= self.ednum
+            self.edgearr[neg] -= (self.ednum - 1)
             pos = np.where(self.edgearr > 0)
-            self.edgearr[pos] += self.ednum
+            self.edgearr[pos] += (self.ednum - 1)
 
     def set_lrminx(self):
         ww = np.where(self.edgearr < 0)
