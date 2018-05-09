@@ -43,7 +43,28 @@ class TraceSlits(object):
     Attributes:
     ----------
     """
+    @classmethod
+    def from_files(cls, root):
+        # FITS
+        fits_file = root+'.fits'
+        hdul = fits.open(fits_file)
+        names = [ihdul.name for ihdul in hdul]
+
+        mstrace = hdul[names.index('MSTRACE')].data
+        pixlocn = hdul[names.index('PIXLOCN')].data
+        if 'BINBPX' in names:
+            binbpx = hdul[names.index('BINBPX')].data
+        else:
+            binbpx = None
+
+        # JSON
+        json_file = root+'.json'
+        ts_dict = ltu.loadjson(json_file)
+        cls(mstrace, pixlocn, binbpx=binbpx, settings=ts_dict['settings'])
+
+
     def __init__(self, mstrace, pixlocn, binbpx=None, settings=None, det=None, ednum=100000):
+        # TODO -- Remove pixlocn as a required item
 
         # Required attributes
         self.mstrace = mstrace
@@ -53,8 +74,10 @@ class TraceSlits(object):
             self.settings = settings
         if binbpx is None: # Bad pixel array
             self.binbpx = np.zeros_like(mstrace)
+            self.input_binbpx = False # For writing
         else:
             self.binbpx = binbpx
+            self.input_binbpx = True
         self.pixlocn = pixlocn
 
         # Optional attributes
@@ -311,6 +334,7 @@ class TraceSlits(object):
             debugger.show_image(self.siglev)
 
     def write(self, root):
+
         # Images
         outfile = root+'.fits'
         hdu = fits.PrimaryHDU(self.mstrace)
@@ -320,6 +344,14 @@ class TraceSlits(object):
             hdue = fits.ImageHDU(self.edgearr)
             hdue.name = 'EDGEARR'
             hdulist.append(hdue)
+        hdup = fits.ImageHDU(self.pixlocn)
+        hdup.name = 'PIXLOCN'
+        hdulist.append(hdup)
+        if self.input_binbpx:  # User inputted
+            hdub = fits.ImageHDU(self.binbpx)
+            hdub.name = 'BINBPX'
+            hdulist.append(hdub)
+
         # Write
         hdul = fits.HDUList(hdulist)
         hdul.writeto(outfile, overwrite=True)
