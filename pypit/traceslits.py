@@ -316,6 +316,14 @@ class TraceSlits(object):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
+    def _remove_slit(self, rm_slits, debug=True):
+        if debug:
+            reload(artrace)
+        self.edgearr, self.lcen, self.rcen, self.tc_dict = artrace.remove_slit(
+            self.edgearr, self.lcen, self.rcen, self.tc_dict, rm_slits)
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+
     def reset_edgearr_ednum(self):
         if np.max(self.edgearr) < self.ednum:
             neg = np.where(self.edgearr < 0)
@@ -548,7 +556,6 @@ def run(mstrace, pixlocn, det=None, settings=None,
 
     # Synchronize
     #   For multi-silt, mslit_sync will have done most of the work already..
-    debugger.set_trace()
     tslits._synchronize()
 
     # PCA?

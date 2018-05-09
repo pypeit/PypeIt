@@ -2255,14 +2255,8 @@ def mslit_sync(edgearr, tc_dict, ednum, insert_buff=5, add_left_edge_slit=True):
     final_left = []
     final_right = []
 
-    # Grab the left and right xvals
-    left_idx = [int(key) for key in tc_dict['left']['xval']]  # These match to the edge values in edgearr
-    left_idx.sort(reverse=True)
-    left_xval = np.array([tc_dict['left']['xval'][str(idx)] for idx in left_idx])
-
-    right_idx = [int(key) for key in tc_dict['right']['xval'].keys()]  # These match to the edge values in edgearr
-    right_idx.sort()
-    right_xval = np.array([tc_dict['right']['xval'][str(idx)] for idx in right_idx])
+    # Grab the edge indexes and xval's
+    left_idx, left_xval, right_idx, right_xval = tc_indices(tc_dict)
 
     # Only one slit?
     if (len(left_xval) == 1) and (len(right_xval)==1):
@@ -6035,9 +6029,36 @@ def desi_trace_fweight(fimage, xinit, ycen=None, invvar=None, radius=2., debug=F
     # Return
     return xnew, xerr
 
+def tc_indices(tc_dict):
+    """ Quick parser of tc_dict
+
+    Parameters
+    ----------
+    tc_dict : dict
+
+    Returns
+    -------
+    left_idx : list
+    left_xval : ndarray
+    right_idx : list
+    right_xval : ndarray
+    """
+    # Grab the existing edges (code is duplicated in mslit_sync)
+    left_idx = [int(key) for key in tc_dict['left']['xval']]  # These match to the edge values in edgearr
+    left_idx.sort(reverse=True)
+    left_xval = np.array([tc_dict['left']['xval'][str(idx)] for idx in left_idx])
+
+    right_idx = [int(key) for key in tc_dict['right']['xval'].keys()]  # These match to the edge values in edgearr
+    right_idx.sort()
+    right_xval = np.array([tc_dict['right']['xval'][str(idx)] for idx in right_idx])
+
+    # Return
+    return left_idx, left_xval, right_idx, right_xval
+
 
 def add_user_edges(edgearr, siglev, tc_dict, add_slits):
-    """
+    """Add user-defined slit(s)
+
     Warning: There is no real error checking here.
     The user is assumed to know what they are doing!
 
@@ -6059,20 +6080,14 @@ def add_user_edges(edgearr, siglev, tc_dict, add_slits):
     new_l = lmin-1
     new_r = rmax+1
 
-    # Grab the existing edges (code is duplicated in mslit_sync)
-    left_idx = [int(key) for key in tc_dict['left']['xval']]  # These match to the edge values in edgearr
-    left_idx.sort(reverse=True)
-    left_xval = np.array([tc_dict['left']['xval'][str(idx)] for idx in left_idx])
-
-    right_idx = [int(key) for key in tc_dict['right']['xval'].keys()]  # These match to the edge values in edgearr
-    right_idx.sort()
-    right_xval = np.array([tc_dict['right']['xval'][str(idx)] for idx in right_idx])
+    # Grab the edge indexes and xval's
+    left_idx, left_xval, right_idx, right_xval = tc_indices(tc_dict)
 
     # Loop me
     nrow = edgearr.shape[0]
     ycen = nrow//2
     for new_slit in add_slits:
-        msgs.info("Adding a user-defined slit {}".format(new_slit))
+        msgs.info("Adding a user-defined slit [x0, x1, yrow]:  {}".format(new_slit))
         # Parse
         xleft, xright, yrow = new_slit
         # Left or right
@@ -6117,4 +6132,68 @@ def add_user_edges(edgearr, siglev, tc_dict, add_slits):
     return edgearr
 
 
+def remove_slit(edgearr, lcen, rcen, tc_dict, rm_slits, TOL=3.):
+    """ Remove slit
 
+    Parameters
+    ----------
+    edgearr
+    lcen
+    rcen
+    tc_dict
+    rm_slits
+    TOL : float
+      Tolerance for specifying the left/right edge
+
+    Returns
+    -------
+    edgearr : ndarray
+    lcen
+    rcen
+    tc_dict
+
+    """
+    # Grab the edge indexes and xval's
+    left_idx, left_xval, right_idx, right_xval = tc_indices(tc_dict)
+
+    # Final edges
+    ycen = lcen.shape[0] // 2
+    lcen_yc = lcen[ycen,:]
+    rcen_yc = rcen[ycen,:]
+    msk = np.ones(lcen.shape[1], dtype=bool)
+
+    # Loop on the slits to remove
+    for rm_slit in rm_slits:
+        left, right = rm_slit
+        # Left check
+        if (np.min(np.abs(left_xval-left)) < TOL) & (np.min(np.abs(lcen_yc-left)) < TOL):
+            ileft = np.argmin(np.abs(left_xval-left))
+            ilcen = np.argmin(np.abs(lcen_yc-left))
+        else:
+            msgs.warn("Could not find a left slit corresponding to {}".format(left))
+            return
+        # Right check
+        if (np.min(np.abs(right_xval-right)) < TOL) & (np.min(np.abs(rcen_yc-right)) < TOL):
+            iright = np.argmin(np.abs(right_xval-right))
+            ircen = np.argmin(np.abs(rcen_yc-right))
+            if ilcen != ircen:
+                msgs.warn("lcen not in sync with rcen or you misdefined the slit to remove")
+                return
+        else:
+            msgs.warn("Could not find a right slit corresponding to {}".format(right))
+            return
+        # Remove from final edges -- Am not sure these will be indexed identically to tc_dict..
+        msk[ilcen] = False
+        # Remove from edgearr
+        edgearr[edgearr == left_idx[ileft]] = 0.
+        edgearr[edgearr == right_idx[iright]] = 0.
+        tc_dict['left']['xval'].pop(str(left_idx[ileft]))
+        tc_dict['right']['xval'].pop(str(right_idx[iright]))
+        msgs.info("Removed the slit at [left,right]: {}".format(rm_slit))
+
+    # Do I need to reindex everything??
+    lcen = lcen[:,msk]
+    rcen = rcen[:,msk]
+
+    # Return
+    return edgearr, lcen, rcen, tc_dict
