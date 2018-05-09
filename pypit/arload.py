@@ -297,11 +297,6 @@ def load_raw_frame(spectrograph, raw_file, det, dataext01=None, disp_dir=0):
     frame : ndarray
       the raw_frame
     """
-    def load_indfr(name,ext):
-        msgs.work("Trim and overscan has not been applied")
-        temp = fits.getdata(name, ext)
-        return temp
-
     msgs.info("Loading raw_file: {:s}".format(raw_file))
     # Get detector number
     msgs.work("Implement multiprocessing here (better -- at the moment it's slower than not) to speed up data reading")
