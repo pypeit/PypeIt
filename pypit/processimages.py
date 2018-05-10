@@ -107,7 +107,7 @@ class ProcessImages(object):
 
     def load_images(self):
         self.images = []  # Zeros out any previous load
-        self.headers = []  # Zeros out any previous load
+        self.headers = []  
         for ifile in self.file_list:
             img, head = arload.load_raw_frame(self.spectrograph, ifile, self.det,
                                         dataext=self.settings['detector']['dataext'],
