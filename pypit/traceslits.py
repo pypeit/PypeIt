@@ -447,7 +447,7 @@ class TraceSlits(object):
             hdue.name = 'EDGEARR'
             hdulist.append(hdue)
         if self.siglev is not None:
-            hdus = fits.ImageHDU(self.edgearr)
+            hdus = fits.ImageHDU(self.siglev)
             hdus.name = 'SIGLEV'
             hdulist.append(hdus)
         hdup = fits.ImageHDU(self.pixlocn)
