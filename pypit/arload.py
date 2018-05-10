@@ -306,7 +306,7 @@ def load_raw_frame(spectrograph, raw_file, det, dataext=None, disp_dir=0):
         #temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         temp, head0, _ = arlris.read_lris(raw_file, det=det)
     elif spectrograph in ['keck_deimos']:
-        temp, head0, _ = ardeimos.read_deimos(raw_file)
+        temp, head0, _ = ardeimos.read_deimos(raw_file, det=det)
         #temp, head0, _ = ardeimos.read_deimos(fitsdict['directory'][ind[i]] + fitsdict['filename'][ind[i]])
     else:
         #hdulist = fits.open(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]])

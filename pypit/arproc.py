@@ -716,10 +716,9 @@ def get_datasec(spectrograph, scifile, numamplifiers=None, det=None):
             oscansec.append(settings.load_sections(secs[1][kk], fmt_iraf=False))
     elif spectrograph in ['keck_deimos']:
         msgs.info("Parsing datasec and oscansec from headers")
-        # TODO -- This probably should not be reading in the full DEIMOS detector but currently is
-        temp, head0, secs = ardeimos.read_deimos(scifile)
-        datasec.append(settings.load_sections(secs[0][det-1], fmt_iraf=False))
-        oscansec.append(settings.load_sections(secs[1][det-1], fmt_iraf=False))
+        temp, head0, secs = ardeimos.read_deimos(scifile, det=det)
+        datasec.append(settings.load_sections(secs[0][0], fmt_iraf=False))
+        oscansec.append(settings.load_sections(secs[1][0], fmt_iraf=False))
     else:  # Other instruments are set in their settings file
         msgs.warn("Should not have called get_datasec!")
         return datasec, oscansec, naxis0, naxis1
@@ -2450,7 +2449,7 @@ def rn_frame(slf, det):
     return rnimg
 
 
-def sub_overscan(frame, numamplifiers, datasec, oscansec, settings=None):
+def sub_overscan(rawframe, numamplifiers, datasec, oscansec, settings=None):
     """
     Subtract overscan
 
@@ -2484,10 +2483,10 @@ def sub_overscan(frame, numamplifiers, datasec, oscansec, settings=None):
         #dy0, dy1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
         dx0, dx1 = datasec[i][0][0], datasec[i][0][1]
         dy0, dy1 = datasec[i][1][0], datasec[i][1][1]
-        if dx0 < 0: dx0 += frame.shape[0]
-        if dx1 <= 0: dx1 += frame.shape[0]
-        if dy0 < 0: dy0 += frame.shape[1]
-        if dy1 <= 0: dy1 += frame.shape[1]
+        if dx0 < 0: dx0 += rawframe.shape[0]
+        if dx1 <= 0: dx1 += rawframe.shape[0]
+        if dy0 < 0: dy0 += rawframe.shape[1]
+        if dy1 <= 0: dy1 += rawframe.shape[1]
         xds = np.arange(dx0, dx1)
         yds = np.arange(dy0, dy1)
         # Determine the section of the chip that contains the overscan region
@@ -2496,14 +2495,14 @@ def sub_overscan(frame, numamplifiers, datasec, oscansec, settings=None):
         #oy0, oy1 = settings.spect[dnum][oscansec][1][0], settings.spect[dnum][oscansec][1][1]
         ox0, ox1 = oscansec[i][0][0], oscansec[i][0][1]
         oy0, oy1 = oscansec[i][1][0], oscansec[i][1][1]
-        if ox0 < 0: ox0 += frame.shape[0]
-        if ox1 <= 0: ox1 += min(frame.shape[0], dx1)  # Truncate to datasec
-        if oy0 < 0: oy0 += frame.shape[1]
-        if oy1 <= 0: oy1 += min(frame.shape[1], dy1)  # Truncate to datasec
+        if ox0 < 0: ox0 += rawframe.shape[0]
+        if ox1 <= 0: ox1 += min(rawframe.shape[0], dx1)  # Truncate to datasec
+        if oy0 < 0: oy0 += rawframe.shape[1]
+        if oy1 <= 0: oy1 += min(rawframe.shape[1], dy1)  # Truncate to datasec
         xos = np.arange(ox0, ox1)
         yos = np.arange(oy0, oy1)
         w = np.ix_(xos, yos)
-        oscan = frame[w]
+        oscan = rawframe[w]
         # Make sure the overscan section has at least one side consistent with datasec
         if dx1-dx0 == ox1-ox0:
             osfit = np.median(oscan, axis=1)  # Mean was hit by CRs
@@ -2529,6 +2528,8 @@ def sub_overscan(frame, numamplifiers, datasec, oscansec, settings=None):
             c = np.polyfit(np.arange(osfit.size), osfit, 1)
             ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
         # Determine the section of the chip that contains data for this amplifier
+        if i==0:
+            frame = rawframe.copy()
         wd = np.ix_(xds, yds)
         ossub = ossub.reshape(osfit.size, 1)
         if wd[0].shape[0] == ossub.shape[0]:

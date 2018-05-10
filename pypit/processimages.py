@@ -14,13 +14,12 @@ from linetools import utils as ltu
 
 from pypit import msgs
 from pypit import ardebug as debugger
+from pypit import arcomb
 from pypit import arload
 from pypit import arproc
 from pypit import arparse
-from pypit import arutils
 from pypit import ginga
 
-from scipy import ndimage
 
 # For out of PYPIT running
 if msgs._debug is None:
@@ -32,11 +31,20 @@ if msgs._debug is None:
 #  Wherever they be, they need to be defined, described, etc.
 default_settings = dict(run={'spectrograph': 'UNKNOWN'},
                         detector={'numamplifiers': 1,
+                                  'saturation': 60000.,  # Spectra aligned with columns
                                   'dispaxis': 0,  # Spectra aligned with columns
-                                  'dataext': None})
+                                  'dataext': None},
+                        combine={'match': -1.,
+                                 'satpix': 'reject',
+                                 'method': 'weightmean',
+                                 'reject': {'cosmics': 20.,
+                                            'lowhigh': [0,0],
+                                            'level': [3.,3.],
+                                            'replace': 'maxnonsat'}}
+                        )
 
 # datasec kludge (until settings is Refactored)
-# TODO -- Remove this
+# TODO -- Remove this eventually
 do_sec_dict = dict(
     shane_kast_blue=OrderedDict([  # The ordering of these is important, ie. 1, 2,  hence the OrderedDict
         ('datasec01','[1:1024,:]'),        # Either the data sections (IRAF format) or the header keyword where the valid data sections can be obtained
@@ -89,10 +97,11 @@ class ProcessImages(object):
 
         # Key Internals
         self.spectrograph = self.settings['run']['spectrograph']
-        self.images = None
-        self.headers = None
-        self.datasec = None
-        self.oscansec = None
+        self.raw_images = []
+        self.proc_images = None  # Will be an ndarray
+        self.headers = []
+        self.datasec = []
+        self.oscansec = []
 
     @property
     def nfiles(self):
@@ -100,20 +109,17 @@ class ProcessImages(object):
 
     @property
     def nloaded(self):
-        if self.images is None:
-            return 0
-        else:
-            return len(self.images)
+        return len(self.raw_images)
 
     def load_images(self):
-        self.images = []  # Zeros out any previous load
+        self.raw_images = []  # Zeros out any previous load
         self.headers = []
         for ifile in self.file_list:
             img, head = arload.load_raw_frame(self.spectrograph, ifile, self.det,
                                         dataext=self.settings['detector']['dataext'],
                                         disp_dir=self.settings['detector']['dispaxis'])
             # Save
-            self.images.append(img)
+            self.raw_images.append(img)
             self.headers.append(head)
         # Grab datasec (almost always desired)
         self._grab_datasec(redo=True)
@@ -123,6 +129,7 @@ class ProcessImages(object):
     def _grab_datasec(self, redo=False):
         if (self.datasec is not None) and (not redo):
             return
+        # TODO -- Eliminate this instrument specific bit here. Probably by generating a Detector object
         if self.spectrograph in ['keck_lris_blue', 'keck_lris_red', 'keck_deimos']:
             self.datasec, self.oscansec, _, _ = arproc.get_datasec(
                 self.spectrograph, self.file_list[0],
@@ -141,183 +148,96 @@ class ProcessImages(object):
                 else:
                     pass
 
-    def show(self, attr, display='ginga'):
-        if attr == 'edges':
-            viewer, ch = ginga.show_image(self.mstrace)
-            ginga.show_slits(viewer, ch, self.lcen, self.rcen, np.arange(self.lcen.shape[1]) + 1, pstep=50)
-        elif attr == 'edgearr':
-            # TODO -- Figure out how to set the cut levels
-            debugger.show_image(self.edgearr)
-        elif attr == 'siglev':
-            # TODO -- Figure out how to set the cut levels
-            debugger.show_image(self.siglev)
-
-    def write(self, root):
-
-        # Images
-        outfile = root+'.fits'
-        hdu = fits.PrimaryHDU(self.mstrace)
-        hdu.name = 'MSTRACE'
-        hdulist = [hdu]
-        if self.edgearr is not None:
-            hdue = fits.ImageHDU(self.edgearr)
-            hdue.name = 'EDGEARR'
-            hdulist.append(hdue)
-        if self.siglev is not None:
-            hdus = fits.ImageHDU(self.edgearr)
-            hdus.name = 'SIGLEV'
-            hdulist.append(hdus)
-        hdup = fits.ImageHDU(self.pixlocn)
-        hdup.name = 'PIXLOCN'
-        hdulist.append(hdup)
-        if self.input_binbpx:  # User inputted
-            hdub = fits.ImageHDU(self.binbpx)
-            hdub.name = 'BINBPX'
-            hdulist.append(hdub)
-        if self.lcen is not None:
-            hdulf = fits.ImageHDU(self.lcen)
-            hdulf.name = 'LCEN'
-            hdulist.append(hdulf)
-            hdurt = fits.ImageHDU(self.rcen)
-            hdurt.name = 'RCEN'
-            hdulist.append(hdurt)
-
-        # Write
-        hdul = fits.HDUList(hdulist)
-        hdul.writeto(outfile, overwrite=True)
-        msgs.info("Writing TraceSlit arrays to {:s}".format(outfile))
-
-        # dict
-        out_dict = {}
-        out_dict['settings'] = self.settings
-        if self.tc_dict is not None:
-            out_dict['tc_dict'] = self.tc_dict
-        out_dict['steps'] = self.steps
-        # Clean+Write
-        outfile = root+'.json'
-        clean_dict = ltu.jsonify(out_dict)
-        ltu.savejson(outfile, clean_dict, overwrite=True, easy_to_read=True)
-        msgs.info("Writing TraceSlit dict to {:s}".format(outfile))
-
-    def run(self, armlsd=True, ignore_orders=False, add_user_slits=None):
-        """ Main driver for tracing slits.
-
-          Code flow
-           1.  Determine approximate slit edges (left, right)
-             1b.    Trim down to one pixel per edge per row [seems wasteful, but ok]
-           2.  Give edges ID numbers + stitch together partial edges (match_edges)
-             2b.   first maxgap option -- NOT recommended
-           3.  Assign slits (left, right) ::  Deep algorithm
-           4.  For ARMLSD
-              -- Trace crude the edges
-              -- Do a multi-slit sync to pair up left/right edges
-           5.  Remove short slits -- Not recommended for ARMLSD
-           6.  Fit left/right slits
-           7.  Synchronize
-           8.  Extrapolate into blank regions (PCA)
+    def bias_subtract(self, msbias, trim=True, force=False):
+        """
 
         Parameters
         ----------
-        armlsd : bool (optional)
-          Running longslit or multi-slit?
-        ignore_orders : bool (optional)
-          Perform ignore_orders algorithm (recommended only for echelle data)
-        add_user_slits : list of lists
-          List of 2 element lists, each an [xleft, xright] pair specifying a slit edge
-          These are specified at mstrace.shape[0]//2
+        msbias : ndarray, str (optional)
+          If ndarray, the input is a Bias image
+          If str, the input is guides the Bias subtraction method e.g.  'overscan'
+        trim
 
         Returns
         -------
-        lcen : ndarray
-          Left edge traces
-        rcen  : ndarray
-          Right edge traces
-        extrapord
+
         """
-        # Specify a single slit?
-        if len(self.settings['trace']['slits']['single']) > 0:  # Single slit
-            self._edgearr_single_slit()
-            self.user_set = True
-        else:  # Generate the edgearr from the input trace image
-            self._edgearr_from_binarr()
-            self.user_set = False
+        if (inspect.stack()[0][3] in self.steps) & (not force):
+            msgs.warn("Images already bias subtracted.  Use force=True to reset proc_images and do it again.")
+            msgs.warn("Returning..")
+            return
+        msgs.info("Bias subtracting your image(s)")
+        # Reset proc_images -- Is there any reason we wouldn't??
+        for kk,image in enumerate(self.raw_images):
+            # Bias subtract
+            temp = arproc.bias_subtract(image, msbias,
+                                        numamplifiers=self.settings['detector']['numamplifiers'],
+                                        datasec=self.datasec, oscansec=self.oscansec)
+            # Trim?
+            if trim:
+                temp = arproc.trim(temp, self.settings['detector']['numamplifiers'], self.datasec)
 
-        # Assign a number to each edge 'grouping'
-        self._match_edges()
+            # Save
+            if kk==0:
+                # Instantiate proc_images
+                self.proc_images = np.zeros((temp.shape[0], temp.shape[1], self.nloaded))
+            self.proc_images[:,:,kk] = temp.copy()
 
-        # Add in a single left/right edge?
-        self._add_left_right()
+        # Step
+        self.steps.append(inspect.stack()[0][3])
 
-        # If slits are set as "close" by the user, take the absolute value
-        # of the detections and ignore the left/right edge detections
-        #  Use of maxgap is NOT RECOMMENDED
-        if self.settings['trace']['slits']['maxgap'] is not None:
-            self._maxgap_prep()
+    def combine(self, bias_subtract=None, overwrite=False, trim=True):
+        # Over-write?
+        if (inspect.stack()[0][3] in self.steps) & (not overwrite):
+            msgs.warn("Images already combined.  Use overwrite=True to do it again.")
+            return
 
-        # Assign edges
-        self._assign_edges()
+        # Allow for one-stop-shopping
+        if 'load_images' not in self.steps:
+            self.load_images()
+        if (bias_subtract is not None):
+            self.bias_subtract(bias_subtract, trim=trim)
+        else:
+            if 'bias_subtract' not in self.steps:
+                msgs.warn("Your images have not been bias subtracted!")
 
-        # Handle close edges (as desired by the user)
-        #  JXP does not recommend using this method for multislit
-        if self.settings['trace']['slits']['maxgap'] is not None:
-            self._maxgap_close()
+        # Create proc_images from raw_images if need be
+        #   Mainly if no bias subtraction was performed
+        if self.proc_images is None:
+            self.proc_images = np.zeros((self.raw_images[0].shape[0],
+                                         self.raw_images[0].shape[1],
+                                         self.nloaded))
+            for kk,image in enumerate(self.raw_images):
+                self.proc_images[:,:,kk] = image
 
-        # Final left/right edgearr fussing (as needed)
-        if not self.user_set:
-            self._final_left_right()
+        # Now we can combine
+        self.stack = arcomb.core_comb_frames(self.proc_images, frametype='Unknown',
+                                             method=self.settings['combine']['method'],
+                                             reject=self.settings['combine']['reject'],
+                                             satpix=self.settings['combine']['satpix'],
+                                             saturation=self.settings['detector']['saturation'])
+        # Step
+        self.steps.append(inspect.stack()[0][3])
 
-        # Trace crude me
-        #   -- Mainly to deal with duplicates and improve the traces
-        #   -- Developed for ARMLSD not ARMED
-        if armlsd:
-            self._mslit_tcrude()
-
-        # Synchronize and add in edges
-        if armlsd:
-            self._mslit_sync()
-
-        # Add user input slits
-        if add_user_slits is not None:
-            self.add_user_slits(add_user_slits)
-
-        # Ignore orders/slits on the edge of the detector when they run off
-        #    Recommended for Echelle only
-        if ignore_orders:
-            self._ignore_orders()
-
-        # Fit edges
-        self.set_lrminx()
-        self._fit_edges('left')
-        self._fit_edges('right')
-
-        # Are we done, e.g. longslit?
-        #   Check if no further work is needed (i.e. there only exists one order)
-        if self.chk_for_longslit():
-            return self.lcen, self.rcen, np.zeros(1, dtype=np.bool)
-
-        # Synchronize
-        #   For multi-silt, mslit_sync will have done most of the work already..
-        self._synchronize()
-
-        # PCA?
-        #  Whether or not a PCA is performed, lcen and rcen are generated for the first time
-        self._pca()
-
-        # Remove any slits that are completely off the detector
-        #   Also remove short slits here for multi-slit and long-slit (aligntment stars)
-        self.trim_slits(usefracpix=armlsd)
-
-        # Illustrate where the orders fall on the detector (physical units)
-        if msgs._debug['trace']:
-            self.show('edges')
-            debugger.set_trace()
-
-        # Finish
-        return self.lcen, self.rcen, self.extrapord
+    def show(self, attr, idx=None, display='ginga'):
+        if 'proc_image' in attr:
+            img = self.proc_images[:,:,idx]
+        elif 'raw_image' in attr:
+            img = self.raw_images[idx]
+        elif 'stack' in attr:
+            img = self.stack
+        # Show
+        viewer, ch = ginga.show_image(img)
 
     def __repr__(self):
-        # Generate sets string
-        txt = '<{:s}: >'.format(self.__class__.__name__)
+        txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,
+                                         self.nfiles)
+        if len(self.steps) > 0:
+            txt+= ' steps: ['
+            for step in self.steps:
+                txt += '{:s}, '.format(step)
+            txt = txt[:-2]+']'  # Trim the trailing comma
+        txt += '>'
         return txt
 
 

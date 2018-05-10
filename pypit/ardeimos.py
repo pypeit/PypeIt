@@ -18,7 +18,7 @@ from pypit import ardebug as debugger
 #msgs = armsgs.get_logger()
 
 
-def read_deimos(raw_file):
+def read_deimos(raw_file, det=None):
     """
     Read a raw DEIMOS data frame (one or more detectors)
     Packed in a multi-extension HDU
@@ -61,7 +61,8 @@ def read_deimos(raw_file):
     x0, x_npix, y0, y_npix = np.array(load_sections(detlsize)).flatten()
 
     # Create final image
-    image = np.zeros((x_npix,y_npix+4*postpix))
+    if det is None:
+        image = np.zeros((x_npix,y_npix+4*postpix))
 
     # Setup for datasec, oscansec
     dsec = []
@@ -76,27 +77,26 @@ def read_deimos(raw_file):
 
     # DEIMOS detectors
     nchip = 8
-    ii = 2048
-    jj = 4096
 
-    for tt in range(nchip):
+
+    if det is None:
+        chips = range(nchip)
+    else:
+        chips = [det-1] # Indexing starts at 0 here
+    # Loop
+    for tt in chips:
         data, oscan = deimos_read_1chip(hdu, tt+1)
 
 
         #if n_elements(nobias) eq 0 then nobias = 0
-        # Fill the image up
 
-        # y indices
-        if tt < 4:
-            y1, y2 = 0, jj
-        else:
-            y1, y2 = jj, 2*jj
-        o_y1, o_y2 = y1, y2
 
-        # x
-        x1, x2 = (tt%4)*ii, (tt%4 + 1)*ii
-        o_x1 = 4*ii + (tt%4)*postpix
-        o_x2 = o_x1 + postpix
+        # One detector??
+        if det is not None:
+            image = np.zeros((data.shape[0],data.shape[1]+oscan.shape[1]))
+
+        # Indexing
+        x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2 = indexing(tt, postpix, det=det)
 
         # Fill
         image[y1:y2, x1:x2] = data
@@ -110,6 +110,45 @@ def read_deimos(raw_file):
     # Return
     return image, head0, (dsec,osec)
 
+
+def indexing(itt, postpix, det=None):
+    """
+    Some annoying book-keeping for instrument placement.
+
+    Parameters
+    ----------
+    itt : int
+    postpix : int
+    det : int, optional
+
+    Returns
+    -------
+
+    """
+    # Deal with single chip
+    if det is not None:
+        tt = 0
+    else:
+        tt = itt
+    ii = 2048
+    jj = 4096
+    # y indices
+    if tt < 4:
+        y1, y2 = 0, jj
+    else:
+        y1, y2 = jj, 2*jj
+    o_y1, o_y2 = y1, y2
+
+    # x
+    x1, x2 = (tt%4)*ii, (tt%4 + 1)*ii
+    if det is None:
+        o_x1 = 4*ii + (tt%4)*postpix
+    else:
+        o_x1 = ii + (tt%4)*postpix
+    o_x2 = o_x1 + postpix
+
+    # Return
+    return x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2
 
 def deimos_read_1chip(hdu,chipno):
     """ Read one of the DEIMOS detectors
