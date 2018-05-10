@@ -2193,6 +2193,36 @@ def tcrude_edgearr(edgearr, siglev, ednum, TOL=3., tfrac=0.33):
     return new_edgarr, tc_dict.copy()
 
 
+def add_edge(ref_slit, insert_offset, earr, t_dict, final_left, final_right, left=True):
+    """  Add a new edge using a reference slit
+
+    right_slit : Reference slit for the left one
+    insert_offset : int
+      Offset fromm the right slit for the new left slit
+    """
+    # New left edge index
+    if left== 'left':
+        new_e = np.min(earr)-1
+    else:
+        new_e = np.max(earr)+1
+    # Use the reference edge for the shape
+    i_pix = np.where(earr == ref_slit)
+    new_pix = (i_pix[0], i_pix[1]+insert_offset)
+    # Add it in
+    earr[new_pix] = new_e
+    if left:
+        t_dict['left']['xval'][str(new_e)] = t_dict['right']['xval'][str(ref_slit)]+insert_offset
+    else:
+        t_dict['right']['xval'][str(new_e)] = t_dict['left']['xval'][str(ref_slit)]+insert_offset
+    # Lists
+    if left:
+        final_left.append(new_e)
+        final_right.append(ref_slit)
+    else:
+        final_right.append(new_e)
+        final_left.append(ref_slit)
+
+
 def mslit_sync(edgearr, tc_dict, ednum, insert_buff=5, add_left_edge_slit=True):
     """ Method to synchronize the slit edges
     Adds in extra edges according to a few criteria
@@ -2216,35 +2246,6 @@ def mslit_sync(edgearr, tc_dict, ednum, insert_buff=5, add_left_edge_slit=True):
       Updated edgearr
     """
 
-    # Internal method (for convenience)
-    def add_edge(ref_slit, insert_offset, earr, t_dict, final_left, final_right, left=True):
-        """  Add a new edge using a reference slit
-
-        right_slit : Reference slit for the left one
-        insert_offset : int
-          Offset fromm the right slit for the new left slit
-        """
-        # New left edge index
-        if left== 'left':
-            new_e = np.min(earr)-1
-        else:
-            new_e = np.max(earr)+1
-        # Use the reference edge for the shape
-        i_pix = np.where(earr == ref_slit)
-        new_pix = (i_pix[0], i_pix[1]+insert_offset)
-        # Add it in
-        earr[new_pix] = new_e
-        if left:
-            t_dict['left']['xval'][str(new_e)] = t_dict['right']['xval'][str(ref_slit)]+insert_offset
-        else:
-            t_dict['right']['xval'][str(new_e)] = t_dict['left']['xval'][str(ref_slit)]+insert_offset
-        # Lists
-        if left:
-            final_left.append(new_e)
-            final_right.append(ref_slit)
-        else:
-            final_right.append(new_e)
-            final_left.append(ref_slit)
 
     # Init
     new_edgearr = np.zeros_like(edgearr, dtype=int)
