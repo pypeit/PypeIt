@@ -697,8 +697,10 @@ def get_datasec(spectrograph, scifile, numamplifiers=None, det=None):
 
     Returns
     -------
-    fitsdict : dict
-      Updates to the input fitsdict
+    datasec : list
+    oscansec : list
+    naxis0 : int
+    naxis1 : int
     """
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
     datasec, oscansec, naxis0, naxis1 = [], [], 0, 0

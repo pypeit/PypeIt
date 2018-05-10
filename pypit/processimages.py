@@ -6,6 +6,8 @@ import numpy as np
 
 from importlib import reload
 
+from collections import OrderedDict
+
 from astropy.io import fits
 
 from linetools import utils as ltu
@@ -13,6 +15,7 @@ from linetools import utils as ltu
 from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import arload
+from pypit import arproc
 from pypit import arparse
 from pypit import arutils
 from pypit import ginga
@@ -31,6 +34,16 @@ default_settings = dict(run={'spectrograph': 'UNKNOWN'},
                         detector={'numamplifiers': 1,
                                   'dispaxis': 0,  # Spectra aligned with columns
                                   'dataext': None})
+
+# datasec kludge (until settings is Refactored)
+# TODO -- Remove this
+do_sec_dict = dict(
+    shane_kast_blue=OrderedDict([  # The ordering of these is important, ie. 1, 2,  hence the OrderedDict
+        ('datasec01','[1:1024,:]'),        # Either the data sections (IRAF format) or the header keyword where the valid data sections can be obtained
+        ('oscansec01', '[2050:2080,:]'),    # Either the overscan sections (IRAF format) or the header keyword where the valid overscan sections can be obtained
+        ('datasec02', '[1025:2048,:]'),     # Either the data sections (IRAF format) or the header keyword where the valid data sections can be obtained
+        ('oscansec02', '[2081:2111,:]')])    # Either the overscan sections (IRAF format) or the header keyword where the valid overscan sections can be obtained
+)
 
 
 class ProcessImages(object):
@@ -58,7 +71,6 @@ class ProcessImages(object):
         # Parameters
         self.file_list = file_list
         self.det = det
-        self.dnum = arparse.get_dnum(self.det)
 
         # Settings
         if settings is None:
@@ -76,8 +88,11 @@ class ProcessImages(object):
         self.steps = []
 
         # Key Internals
+        self.spectrograph = self.settings['run']['spectrograph']
         self.images = None
         self.headers = None
+        self.datasec = None
+        self.oscansec = None
 
     @property
     def nfiles(self):
@@ -90,18 +105,41 @@ class ProcessImages(object):
         else:
             return len(self.images)
 
-    def load(self):
+    def load_images(self):
         self.images = []  # Zeros out any previous load
         self.headers = []  # Zeros out any previous load
         for ifile in self.file_list:
-            img, head = arload.load_raw_frame(self.settings['run']['spectrograph'], ifile, self.det,
+            img, head = arload.load_raw_frame(self.spectrograph, ifile, self.det,
                                         dataext=self.settings['detector']['dataext'],
                                         disp_dir=self.settings['detector']['dispaxis'])
             # Save
             self.images.append(img)
             self.headers.append(head)
+        # Grab datasec (almost always desired)
+        self._grab_datasec(redo=True)
         # Step
         self.steps.append(inspect.stack()[0][3])
+
+    def _grab_datasec(self, redo=False):
+        if (self.datasec is not None) and (not redo):
+            return
+        if self.spectrograph in ['keck_lris_blue', 'keck_lris_red', 'keck_deimos']:
+            self.datasec, self.oscansec, _, _ = arproc.get_datasec(
+                self.spectrograph, self.file_list[0],
+                numamplifiers=self.settings['detector']['numamplifiers'],
+                det=self.det)
+        else:
+            self.datasec, self.oscansec = [], []
+            if self.spectrograph not in do_sec_dict.keys():
+                msgs.error("NOT READY FOR THIS SPECTROGRAPH: {:s}".format(self.spectrograph))
+            msgs.info("Parsing the datasec and oscansec values")
+            for key in do_sec_dict[self.spectrograph]:
+                if 'datasec' in key:
+                    self.datasec.append(arparse.load_sections(do_sec_dict[self.spectrograph][key], fmt_iraf=False))
+                elif 'oscansec' in key:
+                    self.oscansec.append(arparse.load_sections(do_sec_dict[self.spectrograph][key], fmt_iraf=False))
+                else:
+                    pass
 
     def show(self, attr, display='ginga'):
         if attr == 'edges':
