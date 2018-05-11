@@ -153,8 +153,10 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
                      extensions=extensions, keywds=keywds, names=names,
                      raw_files=raw_files)
 
+
 def core_save_master(data, filename="temp.fits", frametype="<None>", ind=[],
-                extensions=None, keywds=None, names=None, raw_files=None):
+                extensions=None, keywds=None, names=None, raw_files=None,
+                     overwrite=True):
     """ Core function to write a MasterFrame
     Parameters
     ----------
@@ -174,6 +176,11 @@ def core_save_master(data, filename="temp.fits", frametype="<None>", ind=[],
     -------
 
     """
+    # Check for existing
+    if os.path.exists(filename) and (not overwrite):
+        msgs.warn("This file already exists.  Use overwrite=True to overwrite it")
+        return
+    #
     msgs.info("Saving master {0:s} frame as:".format(frametype)+msgs.newline()+filename)
     hdu = fits.PrimaryHDU(data)
     hlist = [hdu]
@@ -191,7 +198,6 @@ def core_save_master(data, filename="temp.fits", frametype="<None>", ind=[],
     for i in range(len(ind)):
         hdrname = "FRAME{0:03d}".format(i+1)
         if raw_files is not None:
-            #hdulist[0].header[hdrname] = (slf._fitsdict['filename'][ind[i]], 'PYPIT: File used to generate Master {0:s}'.format(frametype))
             hdulist[0].header[hdrname] = (raw_files[ind[i]], 'PYPIT: File used to generate Master {0:s}'.format(frametype))
     hdulist[0].header["FRAMETYP"] = (frametype, 'PYPIT: Master calibration frame type')
     if keywds is not None:
@@ -199,26 +205,10 @@ def core_save_master(data, filename="temp.fits", frametype="<None>", ind=[],
             hdulist[0].header[key] = keywds[key]
     # Write the file to disk
     if os.path.exists(filename):
-        if settings.argflag['output']['overwrite'] is True:
-            msgs.warn("Overwriting file:"+msgs.newline()+filename)
-            os.remove(filename)
-            hdulist.writeto(filename)
-            msgs.info("Master {0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
-        else:
-            msgs.warn("This file already exists")
-            rmfil = ''
-            while rmfil != 'n' and rmfil != 'y' and rmfil != 'a':
-                rmfil = input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
-            if rmfil == 'n':
-                msgs.warn("Not saving master {0:s} frame:".format(frametype)+msgs.newline()+filename)
-            else:
-                os.remove(filename)
-                if rmfil == 'a': settings.argflag['output']['overwrite'] = True
-                hdulist.writeto(filename)
-                msgs.info("Master {0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
-    else:
-        hdulist.writeto(filename)
-        msgs.info("Master {0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
+        msgs.warn("Overwriting file:"+msgs.newline()+filename)
+
+    hdulist.writeto(filename, overwrite=True)
+    msgs.info("Master {0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
     return
 
 

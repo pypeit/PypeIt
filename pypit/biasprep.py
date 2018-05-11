@@ -8,6 +8,7 @@ from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import arcomb
 from pypit import arload
+from pypit import arsave
 from pypit import armasters
 from pypit import processimages
 from pypit import ginga
@@ -97,7 +98,7 @@ class BiasPrep(processimages.ProcessImages):
 
     def run(self):
 
-        # Generate/load an image??
+        # Generate a bias or dark image (or load a pre-made Master by PYPIT)?
         if self.settings['bias']['useframe'] in ['bias', 'dark']:
             # Load the MasterFrame if it exists
             msbias, header = armasters.core_get_master_frame("bias", self.settings, self.setup)
@@ -111,16 +112,18 @@ class BiasPrep(processimages.ProcessImages):
                 msbias = self.combine()
                 # Save to Masters
                 ms_name = armasters.master_name('bias', self.setup)
-                self.save_as_master(ms_name, frametype='bias')
+                self.save_as_master(ms_name)
                 #armasters.core_save_masters(mftype='bias', raw_files=self.file_list)
             else:
                 # Prevent over-writing the master bias when it is time to save
                 self.settings['reduce']['masters']['loaded'].append('bias')
+        # Simple command?
         elif self.settings['bias']['useframe'] in ['overscan', 'none']:
             if self.settings['bias']['useframe'] == 'none':
                 msgs.info("Will not perform bias/dark subtraction")
             return self.settings['bias']['useframe']
-        else:  # It must be the name of a file the user wishes to load
+        # It must be a user-specified file the user wishes to load
+        else:
             msbias_name = self.settings['run']['directory']['master']+u'/'+self.settings['bias']['useframe']
             msbias, head = arload.load_master(msbias_name, frametype="bias")
             self.settings['reduce']['masters']['loaded'].append('bias'+self.setup)
@@ -128,6 +131,21 @@ class BiasPrep(processimages.ProcessImages):
         self.stack = msbias
         return msbias.copy()
 
+    def save_as_master(self, outfile, overwrite=True):
+        """
+        Save the stacked image as a MasterFrame FITS file
+
+        Parameters
+        ----------
+        overwrite : bool (optional)
+        outfile : str (optional)
+        """
+        if self.stack is None:
+            msgs.warn("No image has been produced (yet).  Try again")
+            return
+        #
+        arsave.core_save_master(self.stack, filename=outfile, raw_files=self.file_list,
+                                ind=range(self.nfiles), frametype='bias')
 
     def show(self, attr, idx=None, display='ginga'):
         if 'proc_image' in attr:

@@ -105,6 +105,9 @@ def get_master_frame(slf, mftype, det=None):
         slf.SetFrame(slf._slitpix, ret['slitpix'].astype(np.int), det)
         # Mask -- It is assumed that all slits loaded are ok
         slf._maskslits[det-1] = np.array([False] * slf._lordloc[det-1].shape[1])
+        # We only want to send back the mstrace image (for now)
+        #     This should change when slf is Refactored
+        ret = ret['mstrace']
     return ret
 
 
@@ -135,6 +138,7 @@ def core_get_master_frame(mftype, settings, setup):
         else:  # Extras
             if mftype == 'trace':
                 tdict = {}
+                tdict['mstrace'] = msfile.copy()
                 tdict['lordloc'], _ = arload.load_master(ms_name, frametype="trace", exten=1)
                 tdict['rordloc'], _ = arload.load_master(ms_name, frametype="trace", exten=2)
                 tdict['pixcen'], _ = arload.load_master(ms_name, frametype="trace", exten=3)
@@ -142,7 +146,7 @@ def core_get_master_frame(mftype, settings, setup):
                 tdict['lordpix'], _ = arload.load_master(ms_name, frametype="trace", exten=5)
                 tdict['rordpix'], _ = arload.load_master(ms_name, frametype="trace", exten=6)
                 tdict['slitpix'], _ = arload.load_master(ms_name, frametype="trace", exten=7)
-                msfile = tdict  # For returning
+                msfile = tdict  # Just for returning
             # Append as loaded
             settings['reduce']['masters']['loaded'].append(mftype+setup)
             return msfile, head
