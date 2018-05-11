@@ -35,6 +35,7 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 *  yaml -- On Python 3 (at least), you may need to install pyyaml
 * `future <https://pypi.python.org/pypi/future/0.6.0>`_ version 0.6
 * `arclines <https://github.com/PYPIT/arclines>`_ development version
+* `ginga <https://github.com/profxj/ginga>`_ JXP's fork of Ginga
 
 If you are using Anaconda, you can check the presence of these packages with::
 
