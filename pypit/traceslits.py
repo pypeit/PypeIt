@@ -12,6 +12,7 @@ from linetools import utils as ltu
 
 from pypit import msgs
 from pypit import ardebug as debugger
+from pypit import arpixels
 from pypit import artraceslits
 from pypit import arutils
 from pypit import ginga
@@ -35,6 +36,7 @@ default_settings = dict(trace={'slits': {'single': [],
                                'number': -1,
                                'maxgap': None,
                                'sigdetect': 20.,
+                               'pad': 0.,
                                'pca': {'params': [3,2,1,0,0,0], 'type': 'pixel',
                                        'extrapolate': {'pos': 0, 'neg':0}},
                                'sobel': {'mode': 'nearest'}}})
@@ -130,6 +132,11 @@ class TraceSlits(object):
         self.siglev = None   # ndarray
         self.steps = []
         self.extrapord = None
+        self.pixcen = None
+        self.pixwid = None
+        self.lordpix = None
+        self.rordpix = None
+        self.slitpix = None
 
         # Key Internals
         self.binarr = self.make_binarr()
@@ -897,27 +904,40 @@ class TraceSlits(object):
         # Are we done, e.g. longslit?
         #   Check if no further work is needed (i.e. there only exists one order)
         if self._chk_for_longslit():
-            return self.lcen, self.rcen, np.zeros(1, dtype=np.bool)
+            self.extrapord = np.zeros(1, dtype=np.bool)
+        else:  # No, not done yet
+            # Synchronize
+            #   For multi-silt, mslit_sync will have done most of the work already..
+            self._synchronize()
 
-        # Synchronize
-        #   For multi-silt, mslit_sync will have done most of the work already..
-        self._synchronize()
+            # PCA?
+            #  Whether or not a PCA is performed, lcen and rcen are generated for the first time
+            self._pca()
 
-        # PCA?
-        #  Whether or not a PCA is performed, lcen and rcen are generated for the first time
-        self._pca()
+            # Remove any slits that are completely off the detector
+            #   Also remove short slits here for multi-slit and long-slit (aligntment stars)
+            self._trim_slits(usefracpix=armlsd)
 
-        # Remove any slits that are completely off the detector
-        #   Also remove short slits here for multi-slit and long-slit (aligntment stars)
-        self._trim_slits(usefracpix=armlsd)
+        # Convert physical traces into a pixel trace
+        msgs.info("Converting physical trace locations to nearest pixel")
+        self.pixcen = arpixels.phys_to_pix(0.5*(self.lcen+self.rcen), self.pixlocn, 1)
+        self.pixwid = (self.rcen-self.lcen).mean(0).astype(np.int)
+        self.lordpix = arpixels.phys_to_pix(self.lcen, self.pixlocn, 1)
+        self.rordpix = arpixels.phys_to_pix(self.rcen, self.pixlocn, 1)
 
-        # Illustrate where the orders fall on the detector (physical units)
-        if msgs._debug['trace']:
-            self.show('edges')
-            debugger.set_trace()
+        # Slit pixels
+        msgs.info("Identifying the pixels belonging to each slit")
+        self.slitpix = arpixels.core_slit_pixels(self.lcen, self.rcen,
+                                                 self.mstrace.shape,
+                                                 self.settings['trace']['slits']['pad'])
 
-        # Finish
-        return self.lcen, self.rcen, self.extrapord
+        # Build a simple object holding the key trace bits and pieces
+        trace_slits_dict = {}
+        for key in ['lcen', 'rcen', 'pixcen', 'pixwid', 'lordpix', 'rordpix', 'extrapord', 'slitpix']:
+            trace_slits_dict[key] = getattr(self, key)
+
+        # Return
+        return trace_slits_dict
 
     def __repr__(self):
         # Generate sets string
