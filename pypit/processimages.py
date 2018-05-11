@@ -218,6 +218,7 @@ class ProcessImages(object):
                                              saturation=self.settings['detector']['saturation'])
         # Step
         self.steps.append(inspect.stack()[0][3])
+        return self.stack.copy()
 
     def show(self, attr, idx=None, display='ginga'):
         if 'proc_image' in attr:
