@@ -4,6 +4,7 @@ import time
 import inspect
 
 import numpy as np
+import os
 
 from scipy import signal, ndimage, interpolate
 
@@ -366,7 +367,7 @@ def bg_subtraction_slit(slf, det, slit, sciframe, varframe, crpix, tracemask=Non
                                             function='bspline',
                                             weights=np.sqrt(ivar)[gdp][srt],
                                             sigma=5., maxone=False,
-                                            **settings.argflag['reduce']['skysub']['bspline'])
+                                            bspline_par=settings.argflag['reduce']['skysub']['bspline'])
         # Just those in the slit
         in_slit = np.where(slf._slitpix[det-1] == slit+1)
         bgf_flat = arutils.func_val(bspl, tilts[in_slit].flatten(), 'bspline')
@@ -653,10 +654,11 @@ def get_datasec_trimmed(slf, fitsdict, det, scidx):
     """
     dnum = settings.get_dnum(det)
     spectrograph = settings.argflag['run']['spectrograph']
-    scifile = fitsdict['directory'][scidx]+fitsdict['filename'][scidx]
+    scifile = os.path.join(fitsdict['directory'][scidx],fitsdict['filename'][scidx])
     numamplifiers = settings.spect[dnum]['numamplifiers']
 
     # Instrument specific bits
+    # TODO -- Remove instrument specific items in a method like this
     if spectrograph in ['keck_lris_blue', 'keck_lris_red', 'keck_deimos']:
         # Grab
         datasec, oscansec, naxis0, naxis1 = get_datasec(spectrograph, scifile,
@@ -702,6 +704,7 @@ def get_datasec(spectrograph, scifile, numamplifiers=None, det=None):
     """
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
     datasec, oscansec, naxis0, naxis1 = [], [], 0, 0
+    # TODO -- Remove instrument specific items in a method like this
     if spectrograph in ['keck_lris_blue', 'keck_lris_red']:
         msgs.info("Parsing datasec and oscansec from headers")
         temp, head0, secs = arlris.read_lris(scifile, det)
@@ -1658,9 +1661,10 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         # Only perform a bspline if there are enough pixels for the specified knots
         if tcky.size >= 2:
             yb, ye = min(np.min(specval), tcky[0]), max(np.max(specval), tcky[-1])
+            bspline_par = dict(xmin=yb, xmax=ye, everyn=specval[wsp].size//tcky.size)  # knots=tcky)
             mask, blzspl = arutils.robust_polyfit(specval[wsp][srt], fluxval[wsp][srt], 3, function='bspline',
-                                                  sigma=5., maxone=False, xmin=yb, xmax=ye,
-                                                  everyn=specval[wsp].size//tcky.size)  # knots=tcky)
+                                                  sigma=5., maxone=False, bspline_par=bspline_par)
+                    #xmin=yb, xmax=ye, everyn=specval[wsp].size//tcky.size)  # knots=tcky)
             blz_flat = arutils.func_val(blzspl, specval, 'bspline')
             msblaze[:, o] = arutils.func_val(blzspl, np.linspace(0.0, 1.0, msblaze.shape[0]), 'bspline')
         else:
@@ -1687,9 +1691,10 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         # Only perform a bspline if there are enough pixels for the specified knots
         if tckx.size >= 1:
             xb, xe = min(np.min(spatval), tckx[0]), max(np.max(spatval), tckx[-1])
+            bspline_par = dict(xmin=xb, xmax=xe, everyn=specval[wch].size//tckx.size)  # knots=tcky)
             mask, sltspl = arutils.robust_polyfit(spatval[wch][srt], sprof_fit[wch][srt], 3, function='bspline',
-                                                  sigma=5., maxone=False, xmin=xb, xmax=xe,
-                                                  everyn=spatval[wch].size//tckx.size)  #, knots=tckx)
+                                                  sigma=5., maxone=False, bspline_par=bspline_par)
+                                                  #xmin=xb, xmax=xe, everyn=spatval[wch].size//tckx.size)  #, knots=tckx)
             slt_flat = arutils.func_val(sltspl, spatval, 'bspline')
             sltnrmval = arutils.func_val(sltspl, 0.5, 'bspline')
         else:
@@ -2563,7 +2568,7 @@ def replace_columns(img, bad_cols, replace_with='mean'):
     # Prep
     img2 = img.copy()
     # Find the starting/ends of the bad column sets
-    tmp = np.zeros(img.shape[1]).astype(int)
+    tmp = np.zeros(img.shape[1], dtype=int)
     tmp[bad_cols] = 1
     tmp2 = tmp - np.roll(tmp,1)
     # Deal with first column

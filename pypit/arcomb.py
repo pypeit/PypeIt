@@ -10,7 +10,7 @@ from pypit import arparse as settings
 
 def comb_frames(frames_arr, det, frametype, **kwargs):
     """ This method has been reduced to a simple wrapper to the core method.
-    It is likely to be deprecated in a future refactor
+    It will be deprecated in a future refactor
 
     Parameters
     ----------

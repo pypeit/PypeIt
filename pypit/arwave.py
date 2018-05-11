@@ -133,12 +133,13 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     #deal with underlying continuum
     msgs.work("Consider taking median first [5 pixel]")
     everyn = obj_skyspec.npix // 20
+    bspline_par = dict(everyn=everyn)
     mask, ct = arutils.robust_polyfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value, 3, function='bspline',
-                                  sigma=3., everyn=everyn)
+                                  sigma=3., bspline_par=bspline_par)# everyn=everyn)
     obj_sky_cont = arutils.func_val(ct, obj_skyspec.wavelength.value, 'bspline')
     obj_sky_flux = obj_skyspec.flux.value - obj_sky_cont
     mask, ct_arx = arutils.robust_polyfit(arx_skyspec.wavelength.value, arx_skyspec.flux.value, 3, function='bspline',
-                                      sigma=3., everyn=everyn)
+                                      sigma=3., bspline_par=bspline_par)# everyn=everyn)
     arx_sky_cont = arutils.func_val(ct_arx, arx_skyspec.wavelength.value, 'bspline')
     arx_sky_flux = arx_skyspec.flux.value - arx_sky_cont
 
