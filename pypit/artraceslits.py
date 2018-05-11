@@ -1870,6 +1870,7 @@ def new_find_peak_limits(hist, pks):
     return edges
 
 
+
 def pca_order_slit_edges(binarr, edgearr, lcent, rcent, gord,
                    lcoeff, rcoeff, plxbin, slitcen, pixlocn, settings):
     """ Perform a PCA analyis on the order edges

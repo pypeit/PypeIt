@@ -142,12 +142,14 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                                                det=det, settings=settings.argflag, binbpx=slf._bpix[det-1])
                 lordloc, rordloc, extord = tslits.run(armlsd=True)
 
+                # Save in slf
                 slf.SetFrame(slf._lordloc, lordloc, det)
                 slf.SetFrame(slf._rordloc, rordloc, det)
+
                 # Initialize maskslit
                 slf._maskslits[det-1] = np.zeros(slf._lordloc[det-1].shape[1], dtype=bool)
 
-                # Convert physical trace into a pixel trace
+                # Convert physical traces into a pixel trace
                 msgs.info("Converting physical trace locations to nearest pixel")
                 pixcen = arpixels.phys_to_pix(0.5*(slf._lordloc[det-1]+slf._rordloc[det-1]), slf._pixlocn[det-1], 1)
                 pixwid = (slf._rordloc[det-1]-slf._lordloc[det-1]).mean(0).astype(np.int)
@@ -158,7 +160,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._lordpix, lordpix, det)
                 slf.SetFrame(slf._rordpix, rordpix, det)
                 msgs.info("Identifying the pixels belonging to each slit")
-                slitpix = arproc.slit_pixels(slf, slf._mstrace[det-1].shape, det)
+                slitpix = arpixels.slit_pixels(slf, slf._mstrace[det-1].shape, det)
                 slf.SetFrame(slf._slitpix, slitpix, det)
                 # Save to disk
                 armasters.save_masters(slf, det, mftype='trace')
