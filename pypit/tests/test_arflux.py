@@ -41,8 +41,9 @@ def test_bspline_fit():
     wave = np.array(fit_dict['wave'])
     magfunc = np.array(fit_dict['magf'])
     logivar = np.array(fit_dict['logiv'])
-    kwargs = dict(bkspace=fit_dict['bkspec'])
-    mask, tck = arutils.robust_polyfit(wave, magfunc, 3, function='bspline', weights=np.sqrt(logivar), **kwargs)
+    bspline_par = dict(bkspace=fit_dict['bkspec'])
+    mask, tck = arutils.robust_polyfit(wave, magfunc, 3, function='bspline',
+                                       weights=np.sqrt(logivar), bspline_par=bspline_par)
 
 
 def test_gen_sensfunc():
