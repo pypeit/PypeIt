@@ -56,7 +56,7 @@ Calibrations
    calibrations
    bias
    flatfielding
-   tracing
+   slit_tracing
    wave_calib
    fluxing
 

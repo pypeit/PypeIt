@@ -3,13 +3,40 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 import time
 
 import numpy as np
-from matplotlib import pyplot as plt
 
 from pypit import msgs
 from pypit import arparse as settings
-from pypit import arcycomb
 
-def comb_frames(frames_arr, det, frametype, weights=None, maskvalue=1048577, printtype=None):
+
+def comb_frames(frames_arr, det, frametype, **kwargs):
+    """ This method has been reduced to a simple wrapper to the core method.
+    It will be deprecated in a future refactor
+
+    Parameters
+    ----------
+    frames_arr : ndarray (3D)
+      Array of frames to be combined
+    frames_arr
+    det : int
+      Detector index
+    frametype : str, optional
+      What is the type of frame being combining?
+
+    Returns
+    -------
+    comb_frame : ndarray
+
+    """
+    dnum = settings.get_dnum(det)
+    reject = settings.argflag[frametype]['combine']['reject']
+    method = settings.argflag[frametype]['combine']['method']
+    satpix = settings.argflag[frametype]['combine']['satpix']
+    saturation = settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear']
+    return core_comb_frames(frames_arr, frametype=frametype,
+                method=method, reject=reject, satpix=satpix, saturation=saturation, **kwargs)
+
+def core_comb_frames(frames_arr, maskvalue=1048577, printtype=None, frametype='Unknown',
+                method='weightmean', reject=None, satpix='reject', saturation=None):
     """ Combine several frames
 
     .. todo::
@@ -23,24 +50,31 @@ def comb_frames(frames_arr, det, frametype, weights=None, maskvalue=1048577, pri
     ----------
     frames_arr : ndarray (3D)
       Array of frames to be combined
-    det : int
-      Detector index
-    frametype : str
-      What is the type of frame being combining? (only used for screen
-      printout)
     weights : str, or None (optional)
       How should the frame combination by weighted (not currently
       implemented)
+    frametype : str, optional
+      What is the type of frame being combining?
     maskvalue : int (optional)
       What should the masked values be set to (should be greater than
       the detector's saturation value -- Default = 1 + 2**20)
     printtype : str (optional)
       The frame type string that should be printed by armsgs. If None,
       frametype will be used
+    reject : dict, optional
+      Set the rejection parameters:  cosmics, lowhigh, level, replace
+      Perhaps these should be called out separately
+    satpix : str, optional
+      Method for handling saturated pixels
+    saturation : float, optional
+      Saturation value;  only required for some choices of reject['replace']
+
+    Returns
+    -------
+    comb_frame : ndarray
     """
-    dnum = settings.get_dnum(det)
-    reject = settings.argflag[frametype]['combine']['reject']
-    method = settings.argflag[frametype]['combine']['method']
+    if reject is None:
+        reject = {'cosmics': 20., 'lowhigh': [0,0], 'level': [3.,3.], 'replace': 'maxnonsat'}
 
     ###########
     # FIRST DO SOME CHECKS ON THE INPUT
@@ -70,12 +104,11 @@ def comb_frames(frames_arr, det, frametype, weights=None, maskvalue=1048577, pri
                    + 'and reject lowhigh will reject {0:d} low '.format(reject['lowhigh'][0])
                    + 'and {0:d} high'.format(reject['lowhigh'][1]))
 
-    saturation = settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear']
 
     # Check that some information on the frames was supplied
-    if settings.spect is None:
-        msgs.error('When combining the {0:s} frames, spectrograph information'.format(printtype)
-                   + msgs.newline() + 'was not provided.')
+    #if settings.spect is None:
+    #    msgs.error('When combining the {0:s} frames, spectrograph information'.format(printtype)
+    #               + msgs.newline() + 'was not provided.')
     # Calculate the values to be used if all frames are rejected in some pixels
     if reject['replace'] == 'min':
 #        allrej_arr = arcycomb.minmax(frames_arr, 0)
@@ -127,7 +160,7 @@ def comb_frames(frames_arr, det, frametype, weights=None, maskvalue=1048577, pri
     ################
     # Saturated Pixels
     msgs.info("Finding saturated and non-linear pixels")
-    if settings.argflag[frametype]['combine']['satpix'] == 'force':
+    if satpix == 'force':
         # If a saturated pixel is in one of the frames, force them to
         # all have saturated pixels
 #		satw = np.zeros_like(frames_arr)
@@ -137,16 +170,16 @@ def comb_frames(frames_arr, det, frametype, weights=None, maskvalue=1048577, pri
 #        setsat = arcycomb.masked_limitget(frames_arr, settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'], 2)
         setsat = np.zeros_like(frames_arr)
         setsat[frames_arr > saturation] = 1
-    elif settings.argflag[frametype]['combine']['satpix'] == 'reject':
+    elif satpix == 'reject':
         # Ignore saturated pixels in frames if possible
 #        frames_arr = arcycomb.masked_limitset(frames_arr, settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'], 2, maskvalue)
         frames_arr[frames_arr > saturation] = maskvalue
-    elif settings.argflag[frametype]['combine']['satpix'] == 'nothing':
+    elif satpix == 'nothing':
         # Don't do anything special for saturated pixels (Hopefully the
         # user has specified how to deal with them below!)
         pass
     else:
-        msgs.error('Option \'{0}\' '.format(settings.argflag[frametype]['combine']['satpix'])
+        msgs.error('Option \'{0}\' '.format(satpix)
                    + 'for dealing with saturated pixels was not recognised.')
     # Delete unecessary arrays
     # None!
@@ -217,15 +250,16 @@ def comb_frames(frames_arr, det, frametype, weights=None, maskvalue=1048577, pri
         del medarr, stdarr
     else:
         msgs.info("Not rejecting deviant pixels")
+
     ##############
     # Combine the arrays
     msgs.info("Combining frames with a {0:s} operation".format(method))
     if method == 'mean':
 #        frames_arr = arcycomb.masked_mean(frames_arr, maskvalue)
-        frames_arr = np.ma.mean(np.ma.MaskedArray(frames_arr, mask=frames_arr==maskvalue), axis=2)
+        comb_frame = np.ma.mean(np.ma.MaskedArray(frames_arr, mask=frames_arr==maskvalue), axis=2)
     elif method == 'median':
 #        frames_arr = arcycomb.masked_median(frames_arr, maskvalue)
-        frames_arr = np.ma.median(np.ma.MaskedArray(frames_arr, mask=frames_arr==maskvalue), axis=2)
+        comb_frame = np.ma.median(np.ma.MaskedArray(frames_arr, mask=frames_arr==maskvalue), axis=2)
     elif method == 'weightmean':
 #        print('calling masked_weightmean')
 #        _frames_arr = frames_arr.copy()
@@ -252,28 +286,28 @@ def comb_frames(frames_arr, det, frametype, weights=None, maskvalue=1048577, pri
 #                    
 #        assert np.sum( np.absolute(__frames_arr-_frames_arr) > 1e-10 ) == 0, \
 #                    'Difference between old and new masked_weightmean'
-        frames_arr = __frames_arr
+        comb_frame = __frames_arr
     else:
         msgs.error("Combination type '{0:s}' is unknown".format(method))
     ##############
     # If any pixels are completely masked, apply user-specified function
     msgs.info("Replacing completely masked pixels with the {0:s} value of the input frames".format(reject['replace']))
 #    frames_arr = arcycomb.masked_replace(frames_arr, allrej_arr, maskvalue)
-    indx = frames_arr == maskvalue
-    frames_arr[indx] = allrej_arr[indx]
+    indx = comb_frame == maskvalue
+    comb_frame[indx] = allrej_arr[indx]
     # Delete unecessary arrays
     del allrej_arr
     ##############
     # Apply the saturated pixels:
-    if settings.argflag[frametype]['combine']['satpix'] == 'force':
+    if satpix == 'force':
         msgs.info("Applying saturated pixels to final combined image")
-        frames_arr[setsat] = settings.spect[dnum]['saturation']
+        comb_frame[setsat] = saturation # settings.spect[dnum]['saturation']
     ##############
     # And return a 2D numpy array
     msgs.info("{0:d} {1:s} frames combined successfully!".format(num_frames, printtype))
     # Make sure the returned array is the correct type
-    frames_arr = np.array(frames_arr, dtype=np.float)
-    return frames_arr
+    comb_frame = np.array(comb_frame, dtype=np.float)
+    return comb_frame
 
 
 def new_masked_weightmean(a, maskvalue):

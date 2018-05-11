@@ -157,3 +157,41 @@ def deimos_read_1chip(hdu,chipno):
 
     # Return
     return data, oscan
+
+def bpm(det):
+    """ Generate a BPM for DEIMOS
+    Currently assumes 1x1 binning
+
+    Parameters
+    ----------
+    det : int
+
+    Returns
+    -------
+    bpix : ndarray
+      0 = ok; 1. = Mask
+
+    """
+    bpix = np.zeros((4096, 2048))
+    if det == 1:
+        bpix[:,1052:1054] = 1.
+    elif det == 2:
+        bpix[:,0:4] = 1.
+        bpix[:,376:380] = 1.
+        bpix[:,2047] = 1.
+    elif det == 3:
+        bpix[:,851] = 1.
+    elif det == 4:
+        bpix[:,0:4] = 1.
+        bpix[:,997:998] = 1.
+    elif det == 5:
+        bpix[:,129] = 1.
+    elif det == 7:
+        bpix[:,426:428] = 1.
+    elif det == 8:
+        bpix[:,931] = 1.
+        bpix[:,933] = 1.
+
+    return bpix
+
+

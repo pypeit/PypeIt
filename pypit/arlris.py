@@ -336,20 +336,43 @@ def lris_read_amp(inp, ext):
 
 
 def bpm(slf, camera, fitsdict, det):
-    """ Generate a BPM
+    """  Wrapper for core_bpm
+    Will likely be deprecated
+
     Parameters
     ----------
     slf
     camera
+    fitsdict
     det
 
     Returns
     -------
+    badpix : ndarray
 
     """
     sidx = slf._idx_sci[0]
     # Binning
     xbin, ybin = [int(ii) for ii in fitsdict['binning'][sidx].split(',')]
+    return core_bpm(xbin, ybin, camera, det)
+
+def core_bpm(xbin, ybin, camera, det):
+    """ Generate a BPM
+
+    Parameters
+    ----------
+    xbin : int
+      binning in x
+    ybin : int
+      binning in y
+    camera : str
+    det : int
+
+    Returns
+    -------
+    badpix : ndarray
+
+    """
     xshp = 2048 // xbin
     yshp = 4096 // ybin
     badpix = np.zeros((yshp, xshp), dtype=np.int)

@@ -1875,6 +1875,23 @@ class BaseArgFlag(BaseFunctions):
                 msgs.error("The argument of {0:s} must be > 1 to set the maximum slit gap".format(get_current_name()))
         self.update(v)
 
+    def trace_slits_medrep(self, v):
+        """ Number of times to median smooth a trace image prior
+        to analysis for slit/order edges
+
+        Parameters
+        ----------
+        v : int
+          value of the keyword argument given by the name of this function
+        """
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        self.update(v)
+
     def trace_slits_number(self, v):
         """ Manually set the number of slits to identify (>=1).
         'auto' or -1 will automatically identify the number of slits.

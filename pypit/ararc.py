@@ -579,7 +579,7 @@ def simple_calib(slf, det, get_poly=False, censpec=None):
     return final_fit
 
 
-def calib_with_arclines(slf, det, get_poly=False, use_method="general",
+def calib_with_arclines(slf, det, slit, get_poly=False, use_method="general",
                         censpec=None):
     """Simple calibration algorithm for longslit wavelengths
 
@@ -587,6 +587,10 @@ def calib_with_arclines(slf, det, get_poly=False, use_method="general",
 
     Parameters
     ----------
+    slf
+    det
+    slit : int
+      Only for QA naming
     get_poly : bool, optional
       Pause to record the polynomial pix = b0 + b1*lambda + b2*lambda**2
 
@@ -612,7 +616,7 @@ def calib_with_arclines(slf, det, get_poly=False, use_method="general",
         # Now preferred
         best_dict, final_fit = arclines.holy.grail.general(spec, aparm['lamps'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
 #    arqa.arc_fit_qa(slf, final_fit)
-    arc_fit_qa(slf, final_fit)
+    arc_fit_qa(slf, final_fit, slit)
     #
     return final_fit
 
@@ -685,7 +689,7 @@ def new_saturation_mask(a, satlevel):
     return mask.astype(int)
 
 
-def arc_fit_qa(slf, fit, outfile=None, ids_only=False, title=None):
+def arc_fit_qa(slf, fit, slit, outfile=None, ids_only=False, title=None):
     """
     QA for Arc spectrum
 
@@ -705,7 +709,7 @@ def arc_fit_qa(slf, fit, outfile=None, ids_only=False, title=None):
     method = inspect.stack()[0][3]
     # Outfil
     if outfile is None:
-        outfile = arqa.set_qa_filename(slf.setup, method)
+        outfile = arqa.set_qa_filename(slf.setup, method, slit=slit)
     #
     arc_spec = fit['spec']
 

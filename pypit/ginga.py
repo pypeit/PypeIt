@@ -24,7 +24,7 @@ from pypit import msgs
 # arlris, requires a code refactor
 # from pypit import arlris
 
-def connect_to_ginga(host='localhost', port=9000):
+def connect_to_ginga(host='localhost', port=9000, raise_err=False):
     """ Connect to an active RC Ginga
     Parameters
     ----------
@@ -44,8 +44,11 @@ def connect_to_ginga(host='localhost', port=9000):
     try:
         tmp = ginga.get_current_workspace()
     except:
-        msgs.warn("Problem connecting to Ginga.  Launch an RC Ginga viewer then continue.")
-        debugger.set_trace()
+        if raise_err:
+            raise ValueError
+        else:
+            msgs.warn("Problem connecting to Ginga.  Launch an RC Ginga viewer: ginga --module=RC   then continue.")
+            debugger.set_trace()
     # Return
     return viewer
 
@@ -119,12 +122,16 @@ def show_slits(viewer, ch, lordloc, rordloc, slit_ids, rotate=False, pstep=1):
     # Loop on slits
     for slit in range(lordloc.shape[1]):
         # Edges
-        for item in [lordloc, rordloc]:
+        for kk,item in enumerate([lordloc, rordloc]):
+            if kk == 0:
+                clr = str('green')
+            else:
+                clr = str('red')
             if rotate:
                 points = list(zip(y[::pstep],item[::pstep,slit].tolist()))
             else:
                 points = list(zip(item[::pstep,slit].tolist(),y[::pstep]))
-            canvas.add(str('path'), points, color=str('cyan'))
+            canvas.add(str('path'), points, color=clr)
         # Text -- Should use the 'real' name
         if rotate:
             xt, yt = float(y[tthrd]), float(lordloc[tthrd,slit])
@@ -158,6 +165,14 @@ def show_trace(viewer, ch, trace, trc_name, color='blue', clear=False,
     if rotate:
         xyt[0], xyt[1] = xyt[1], xyt[0]
     canvas.add(str('text'), xyt[0], xyt[1], trc_name, rot_deg=90., color=str(color), fontsize=17.)
+
+
+def clear_canvas(cname):
+    viewer = connect_to_ginga()
+    ch = viewer.channel(cname)
+    canvas = viewer.canvas(ch._chname)
+    canvas.clear()
+
 
 def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0.):
     """  Display arc image and overlay the arcline tilt measurements

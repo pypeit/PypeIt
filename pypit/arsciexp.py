@@ -268,7 +268,8 @@ class ScienceExposure:
                 msgs.info("Preparing a master arc frame")
                 ind = self._idx_arcs
                 # Load the arc frames
-                frames = arload.load_frames(fitsdict, ind, det, frametype='arc', msbias=self._msbias[det-1])
+                frames = arload.load_frames(fitsdict, ind, det, frametype='arc',
+                                            msbias=self._msbias[det-1])
                 if settings.argflag['arc']['combine']['match'] > 0.0:
                     sframes = arsort.match_frames(frames, settings.argflag['arc']['combine']['match'], frametype='arc',
                                                   satlevel=settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])
@@ -325,7 +326,8 @@ class ScienceExposure:
                 # Get all of the bias frames for this science frame
                 ind = self._idx_bias
                 # Load the Bias/Dark frames
-                frames = arload.load_frames(fitsdict, ind, det, frametype=settings.argflag['bias']['useframe'])
+                frames = arload.load_frames(fitsdict, ind, det,
+                                            frametype=settings.argflag['bias']['useframe'], trim=False)
                 msbias = arcomb.comb_frames(frames, det, 'bias', printtype=settings.argflag['bias']['useframe'])
                 del frames
         elif settings.argflag['bias']['useframe'] == 'overscan':
@@ -663,7 +665,7 @@ class ScienceExposure:
 
     def MasterWaveCalib(self, fitsdict, sc, det):
         """
-        Generate Master 1D Wave Solution (down slit center)
+        Generate Master 1D Wave Solution (down slit/order centers)
 
         Parameters
         ----------
@@ -706,7 +708,7 @@ class ScienceExposure:
                     if settings.argflag['arc']['calibrate']['method'] == 'simple':
                         iwv_calib = ararc.simple_calib(self, det, censpec=arccen[:,kk])
                     elif settings.argflag['arc']['calibrate']['method'] == 'arclines':
-                        iwv_calib = ararc.calib_with_arclines(self, det, censpec=arccen[:,kk])
+                        iwv_calib = ararc.calib_with_arclines(self, det, slit, censpec=arccen[:,kk])
                     wv_calib[str(slit)] = iwv_calib.copy()
         # Set
         if wv_calib is not None:
@@ -754,6 +756,11 @@ class ScienceExposure:
             all_specobj = []
             for kk in range(settings.spect['mosaic']['ndet']):
                 det = kk+1
+                # Use this detector? Need to check this after setting RA/DEC above
+                if settings.argflag['reduce']['detnum'] is not None:
+                    msgs.warn("If your standard wasnt on this detector, you will have trouble..")
+                    if det not in map(int, settings.argflag['reduce']['detnum']):
+                        continue
                 # Load the frame(s)
                 frame = arload.load_frames(fitsdict, ind, det, frametype='standard',
                                            msbias=self._msbias[det-1])
@@ -762,11 +769,6 @@ class ScienceExposure:
                 self._msstd[det-1]['RA'] = fitsdict['ra'][ind[0]]
                 self._msstd[det-1]['DEC'] = fitsdict['dec'][ind[0]]
                 self._msstd[det-1]['spobjs'] = None
-                # Use this detector? Need to check this after setting RA/DEC above
-                if settings.argflag['reduce']['detnum'] is not None:
-                    msgs.warn("If your standard wasnt on this detector, you will have trouble..")
-                    if det not in map(int, settings.argflag['reduce']['detnum']):
-                        continue
                 if settings.spect["mosaic"]["reduction"] == "ARMLSD":
                     arproc.reduce_multislit(self, sciframe, ind[0], fitsdict, det, standard=True)
                 elif settings.spect["mosaic"]["reduction"] == "ARMED":

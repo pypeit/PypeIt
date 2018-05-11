@@ -4,6 +4,7 @@ import time
 import inspect
 
 import numpy as np
+import os
 
 from scipy import signal, ndimage, interpolate
 
@@ -33,6 +34,10 @@ from pypit import arcyproc
 
 from pypit import ardebug as debugger
 
+try:
+    basestring
+except NameError:
+    basestring = str
 
 def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
     """ Generate a frame containing the background sky spectrum
@@ -175,6 +180,32 @@ def badpix(det, frame, sigdev=10.0):
     bpix = trim(bpix, det)
     msgs.info("Identified {0:d} bad pixels".format(int(np.sum(bpix))))
     return bpix
+
+
+def bias_subtract(rawframe, msbias, numamplifiers=None, datasec=None, oscansec=None):
+    """ Core routine for bias subtraction
+    Calls sub_overscan if msbias == 'overscan'
+
+    Parameters
+    ----------
+    rawframe : ndarray
+    msbias : ndarray or str
+
+    Returns
+    -------
+    newframe : ndarray
+      Bias subtracted frame
+
+    """
+    if type(msbias) is np.ndarray:
+        msgs.info("Subtracting bias image from raw frame")
+        newframe = rawframe-msbias  # Subtract the master bias frame
+    elif isinstance(msbias, basestring):
+        if msbias == "overscan":
+            newframe = sub_overscan(rawframe, numamplifiers, datasec, oscansec, settings=None)
+        else:
+            msgs.error("Could not subtract bias level with the input bias approach") #when loading {0:s} frames".format(frametype))
+    return newframe
 
 
 def bg_subtraction(slf, det, sciframe, varframe, crpix, **kwargs):
@@ -333,7 +364,10 @@ def bg_subtraction_slit(slf, det, slit, sciframe, varframe, crpix, tracemask=Non
         #                        **settings.argflag['reduce']['skysub']['bspline'])
         ivar = arutils.calc_ivar(varframe)
         mask, bspl = arutils.robust_polyfit(tilts[gdp][srt], scifrcp[gdp][srt], 3,
-                                            function='bspline', weights=np.sqrt(ivar)[gdp][srt], sigma=5., maxone=False, **settings.argflag['reduce']['skysub']['bspline'])
+                                            function='bspline',
+                                            weights=np.sqrt(ivar)[gdp][srt],
+                                            sigma=5., maxone=False,
+                                            bspline_par=settings.argflag['reduce']['skysub']['bspline'])
         # Just those in the slit
         in_slit = np.where(slf._slitpix[det-1] == slit+1)
         bgf_flat = arutils.func_val(bspl, tilts[in_slit].flatten(), 'bspline')
@@ -604,62 +638,126 @@ def get_ampscale(slf, det, msflat):
 
 def get_datasec_trimmed(slf, fitsdict, det, scidx):
     """
-     Generate a frame that identifies each pixel to an amplifier, and then trim it to the data sections.
-     This frame can be used to later identify which trimmed pixels correspond to which amplifier
+    Primarily a wrapper with calls to get_datasec and pix_to_amp()
 
     Parameters
     ----------
-    slf : class
-      An instance of the ScienceExposure class
-    fitsdict : dict
-      Contains relevant information from fits header files
+    slf
+    fitsdict
     det : int
-      Detector number, starts at 1
     scidx : int
-      Index of science frame
+
+    Returns
+    -------
+    Fills slf._datasect
+    fitsdict['naxis0'] and fittsdict['naxis1']
+    """
+    dnum = settings.get_dnum(det)
+    spectrograph = settings.argflag['run']['spectrograph']
+    scifile = os.path.join(fitsdict['directory'][scidx],fitsdict['filename'][scidx])
+    numamplifiers = settings.spect[dnum]['numamplifiers']
+
+    # Instrument specific bits
+    # TODO -- Remove instrument specific items in a method like this
+    if spectrograph in ['keck_lris_blue', 'keck_lris_red', 'keck_deimos']:
+        # Grab
+        datasec, oscansec, naxis0, naxis1 = get_datasec(spectrograph, scifile,
+                                                        numamplifiers=numamplifiers, det=det)
+        # Fill (for backwards compatability)
+        for kk in range(numamplifiers):
+            sdatasec = "datasec{0:02d}".format(kk+1)
+            settings.spect[dnum][sdatasec] = datasec[kk]
+            soscansec = "oscansec{0:02d}".format(kk+1)
+            settings.spect[dnum][soscansec] = oscansec[kk]
+        fitsdict['naxis0'][scidx] = naxis0
+        fitsdict['naxis1'][scidx] = naxis1
+
+    # Build the datasec lists for pix_to_amp
+    datasec = []
+    for i in range(numamplifiers):
+        sdatasec = "datasec{0:02d}".format(i+1)
+        datasec.append(settings.spect[dnum][sdatasec])
+    # Call
+    naxis0, naxis1 = int(fitsdict['naxis0'][scidx]), int(fitsdict['naxis1'][scidx])
+    slf._datasec[det-1] = pix_to_amp(naxis0, naxis1, datasec, numamplifiers)
+    return
+
+
+def get_datasec(spectrograph, scifile, numamplifiers=None, det=None):
+    """  Determine the data and overscan sections of an image
+
+    Currently only used for LRIS and DEIMOS (with their multiple detectors
+    packed in funny ways).  Should consider another approach.
+
+    Parameters
+    ----------
+    spectrograph : str
+    scifile : str
+    numamplifiers : int (optional)
+    det : int (optional)
+      Detector number, starts at 1
 
     Returns
     -------
     fitsdict : dict
       Updates to the input fitsdict
     """
-    dnum = settings.get_dnum(det)
-
     # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
-    if settings.argflag['run']['spectrograph'] in ['keck_lris_blue', 'keck_lris_red']:
+    datasec, oscansec, naxis0, naxis1 = [], [], 0, 0
+    # TODO -- Remove instrument specific items in a method like this
+    if spectrograph in ['keck_lris_blue', 'keck_lris_red']:
         msgs.info("Parsing datasec and oscansec from headers")
-        temp, head0, secs = arlris.read_lris(fitsdict['directory'][scidx]+
-                                             fitsdict['filename'][scidx],
-                                             det)
-        # Naxis
-        fitsdict['naxis0'][scidx] = temp.shape[0]
-        fitsdict['naxis1'][scidx] = temp.shape[1]
-        # Loop on amplifiers
-        for kk in range(settings.spect[dnum]['numamplifiers']):
-            datasec = "datasec{0:02d}".format(kk+1)
-            settings.spect[dnum][datasec] = settings.load_sections(secs[0][kk], fmt_iraf=False)
-            oscansec = "oscansec{0:02d}".format(kk+1)
-            settings.spect[dnum][oscansec] = settings.load_sections(secs[1][kk], fmt_iraf=False)
-    # Get naxis0, naxis1, datasec, oscansec, ampsec for specific instruments
-    elif settings.argflag['run']['spectrograph'] in ['keck_deimos']:
+        temp, head0, secs = arlris.read_lris(scifile, det)
+        for kk in range(numamplifiers):
+            #datasec = "datasec{0:02d}".format(kk+1)
+            #settings.spect[dnum][datasec] = settings.load_sections(secs[0][kk], fmt_iraf=False)
+            datasec.append(settings.load_sections(secs[0][kk], fmt_iraf=False))
+            #oscansec = "oscansec{0:02d}".format(kk+1)
+            #settings.spect[dnum][oscansec] = settings.load_sections(secs[1][kk], fmt_iraf=False)
+            oscansec.append(settings.load_sections(secs[1][kk], fmt_iraf=False))
+    elif spectrograph in ['keck_deimos']:
         msgs.info("Parsing datasec and oscansec from headers")
-        temp, head0, secs = ardeimos.read_deimos(fitsdict['directory'][scidx] + fitsdict['filename'][scidx])
-        # Naxis
-        fitsdict['naxis0'][scidx] = temp.shape[0]
-        fitsdict['naxis1'][scidx] = temp.shape[1]
-        datasec = "datasec{0:02d}".format(1)
-        settings.spect[dnum][datasec] = settings.load_sections(secs[0][det-1], fmt_iraf=False)
-        oscansec = "oscansec{0:02d}".format(1)
-        settings.spect[dnum][oscansec] = settings.load_sections(secs[1][det-1], fmt_iraf=False)
+        # TODO -- This probably should not be reading in the full DEIMOS detector but currently is
+        temp, head0, secs = ardeimos.read_deimos(scifile)
+        datasec.append(settings.load_sections(secs[0][det-1], fmt_iraf=False))
+        oscansec.append(settings.load_sections(secs[1][det-1], fmt_iraf=False))
+    else:  # Other instruments are set in their settings file
+        msgs.warn("Should not have called get_datasec!")
+        return datasec, oscansec, naxis0, naxis1
 
+    naxis0 = temp.shape[0]
+    naxis1 = temp.shape[1]
+    # Return
+    return datasec, oscansec, naxis0, naxis1
+
+
+def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
+    """ Generate a frame that identifies each pixel to an amplifier,
+    and then trim it to the data sections.
+    This frame can be used to later identify which trimmed pixels correspond to which amplifier
+
+    Parameters
+    ----------
+    naxis0 : int
+    naxis1 : int
+    datasec : list
+    numamplifiers : int
+
+    Returns
+    -------
+    retarr : ndarray
+      Frame assigning pixels to amplifiers
+
+    """
     # For convenience
-    naxis0, naxis1 = int(fitsdict['naxis0'][scidx]), int(fitsdict['naxis1'][scidx])
     # Initialize the returned array
     retarr = np.zeros((naxis0, naxis1))
-    for i in range(settings.spect[dnum]['numamplifiers']):
-        datasec = "datasec{0:02d}".format(i+1)
-        x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
-        y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+    for i in range(numamplifiers):
+        #datasec = "datasec{0:02d}".format(i+1)
+        #x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
+        #y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+        x0, x1 = datasec[i][0][0], datasec[i][0][1]
+        y0, y1 = datasec[i][1][0], datasec[i][1][1]
         if x0 < 0: x0 += naxis0
         if x1 <= 0: x1 += naxis0
         if y0 < 0: y0 += naxis1
@@ -681,8 +779,7 @@ def get_datasec_trimmed(slf, fitsdict, det, scidx):
             yfin = np.unique(np.append(yfin, yv.copy()))
     # Construct and array with the rows and columns to be extracted
     w = np.ix_(xfin, yfin)
-    slf._datasec[det-1] = retarr[w]
-    return
+    return retarr[w]
 
 
 def get_wscale(slf):
@@ -1365,7 +1462,8 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
 
 
 def slit_pixels(slf, frameshape, det):
-    """ Generate an image indicating the slit associated with each pixel.
+    """ Wrapper to the core_slit_pixels method
+    May be Deprecated in a future Refactor
 
     Parameters
     ----------
@@ -1378,24 +1476,42 @@ def slit_pixels(slf, frameshape, det):
 
     Returns
     -------
+
+    """
+    return core_slit_pixels(slf._lordloc[det-1], slf._rordloc[det-1], frameshape,
+                settings.argflag['trace']['slits']['pad'])
+
+
+def core_slit_pixels(all_lordloc, all_rordloc, frameshape, pad):
+    """ Generate an image indicating the slit/order associated with each pixel.
+
+    Parameters
+    ----------
+    all_lordloc : ndarray
+    all_rordloc : ndarray
+    frameshape : tuple
+      A two element tuple providing the shape of a trace frame.
+    pad : int
+
+    Returns
+    -------
     msordloc : ndarray
       An image assigning each pixel to a slit number. A zero value indicates
       that this pixel does not belong to any slit.
     """
 
-    nslits = slf._lordloc[det - 1].shape[1]
+    nslits = all_lordloc.shape[1]
     msordloc = np.zeros(frameshape)
     for o in range(nslits):
-        lordloc = slf._lordloc[det - 1][:, o]
-        rordloc = slf._rordloc[det - 1][:, o]
+        lordloc = all_lordloc[:, o]
+        rordloc = all_rordloc[:, o]
 #        print('calling locate_order')
 #        t = time.clock()
 #        _ordloc = arcytrace.locate_order(lordloc, rordloc, frameshape[0], frameshape[1],
 #                                         settings.argflag['trace']['slits']['pad'])
 #        print('Old locate_order: {0} seconds'.format(time.clock() - t))
 #        t = time.clock()
-        ordloc = new_locate_order(lordloc, rordloc, frameshape[0], frameshape[1],
-                                  settings.argflag['trace']['slits']['pad'])
+        ordloc = new_locate_order(lordloc, rordloc, frameshape[0], frameshape[1], pad)
 #        print('New locate_order: {0} seconds'.format(time.clock() - t))
 #        assert np.sum(_ordloc != ordloc) == 0, \
 #                    'Difference between old and new locate_order'
@@ -1545,9 +1661,10 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         # Only perform a bspline if there are enough pixels for the specified knots
         if tcky.size >= 2:
             yb, ye = min(np.min(specval), tcky[0]), max(np.max(specval), tcky[-1])
+            bspline_par = dict(xmin=yb, xmax=ye, everyn=specval[wsp].size//tcky.size)  # knots=tcky)
             mask, blzspl = arutils.robust_polyfit(specval[wsp][srt], fluxval[wsp][srt], 3, function='bspline',
-                                                  sigma=5., maxone=False, xmin=yb, xmax=ye,
-                                                  everyn=specval[wsp].size//tcky.size)  # knots=tcky)
+                                                  sigma=5., maxone=False, bspline_par=bspline_par)
+                    #xmin=yb, xmax=ye, everyn=specval[wsp].size//tcky.size)  # knots=tcky)
             blz_flat = arutils.func_val(blzspl, specval, 'bspline')
             msblaze[:, o] = arutils.func_val(blzspl, np.linspace(0.0, 1.0, msblaze.shape[0]), 'bspline')
         else:
@@ -1574,9 +1691,10 @@ def slit_profile(slf, mstrace, det, ntcky=None):
         # Only perform a bspline if there are enough pixels for the specified knots
         if tckx.size >= 1:
             xb, xe = min(np.min(spatval), tckx[0]), max(np.max(spatval), tckx[-1])
+            bspline_par = dict(xmin=xb, xmax=xe, everyn=specval[wch].size//tckx.size)  # knots=tcky)
             mask, sltspl = arutils.robust_polyfit(spatval[wch][srt], sprof_fit[wch][srt], 3, function='bspline',
-                                                  sigma=5., maxone=False, xmin=xb, xmax=xe,
-                                                  everyn=spatval[wch].size//tckx.size)  #, knots=tckx)
+                                                  sigma=5., maxone=False, bspline_par=bspline_par)
+                                                  #xmin=xb, xmax=xe, everyn=spatval[wch].size//tckx.size)  #, knots=tckx)
             slt_flat = arutils.func_val(sltspl, spatval, 'bspline')
             sltnrmval = arutils.func_val(sltspl, 0.5, 'bspline')
         else:
@@ -2335,7 +2453,7 @@ def rn_frame(slf, det):
     return rnimg
 
 
-def sub_overscan(frame, det):
+def sub_overscan(frame, numamplifiers, datasec, oscansec, settings=None):
     """
     Subtract overscan
 
@@ -2343,21 +2461,32 @@ def sub_overscan(frame, det):
     ----------
     frame : ndarray
       frame which should have the overscan region subtracted
-    det : int
-      Detector Index
+    numamplifiers : int
+    datasec : list
+      Specifies the data sections, one sub-list per amplifier
+    oscansec : list
+      Specifies the overscan sections, one sub-list per amplifier
+    settings : dict, optional
+      Describes the internal options for the overscan subtraction
+      Perhaps we would prefer all of these be on the method call eventually??
 
     Returns
     -------
     frame : ndarray
       The input frame with the overscan region subtracted
     """
-    dnum = settings.get_dnum(det)
+    #dnum = settings.get_dnum(det)
+    if settings is None:
+        settings = dict(reduce={'overscan': {'method': 'savgol', 'params': [5,65]}})
 
-    for i in range(settings.spect[dnum]['numamplifiers']):
+
+    for i in range(numamplifiers):
         # Determine the section of the chip that contains data
-        datasec = "datasec{0:02d}".format(i+1)
-        dx0, dx1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
-        dy0, dy1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+        #datasec = "datasec{0:02d}".format(i+1)
+        #dx0, dx1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
+        #dy0, dy1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+        dx0, dx1 = datasec[i][0][0], datasec[i][0][1]
+        dy0, dy1 = datasec[i][1][0], datasec[i][1][1]
         if dx0 < 0: dx0 += frame.shape[0]
         if dx1 <= 0: dx1 += frame.shape[0]
         if dy0 < 0: dy0 += frame.shape[1]
@@ -2365,9 +2494,11 @@ def sub_overscan(frame, det):
         xds = np.arange(dx0, dx1)
         yds = np.arange(dy0, dy1)
         # Determine the section of the chip that contains the overscan region
-        oscansec = "oscansec{0:02d}".format(i+1)
-        ox0, ox1 = settings.spect[dnum][oscansec][0][0], settings.spect[dnum][oscansec][0][1]
-        oy0, oy1 = settings.spect[dnum][oscansec][1][0], settings.spect[dnum][oscansec][1][1]
+        #oscansec = "oscansec{0:02d}".format(i+1)
+        #ox0, ox1 = settings.spect[dnum][oscansec][0][0], settings.spect[dnum][oscansec][0][1]
+        #oy0, oy1 = settings.spect[dnum][oscansec][1][0], settings.spect[dnum][oscansec][1][1]
+        ox0, ox1 = oscansec[i][0][0], oscansec[i][0][1]
+        oy0, oy1 = oscansec[i][1][0], oscansec[i][1][1]
         if ox0 < 0: ox0 += frame.shape[0]
         if ox1 <= 0: ox1 += min(frame.shape[0], dx1)  # Truncate to datasec
         if oy0 < 0: oy0 += frame.shape[1]
@@ -2381,22 +2512,22 @@ def sub_overscan(frame, det):
             osfit = np.median(oscan, axis=1)  # Mean was hit by CRs
         elif dy1-dy0 == oy1-oy0:
             osfit = np.median(oscan, axis=0)
-        elif settings.argflag['reduce']['overscan']['method'].lower() == "median":
+        elif settings['reduce']['overscan']['method'].lower() == "median":
             osfit = np.median(oscan)
         else:
             msgs.error("Overscan sections do not match amplifier sections for amplifier {0:d}".format(i+1))
         # Fit/Model the overscan region
-        if settings.argflag['reduce']['overscan']['method'].lower() == "polynomial":
-            c = np.polyfit(np.arange(osfit.size), osfit, settings.argflag['reduce']['overscan']['params'][0])
+        if settings['reduce']['overscan']['method'].lower() == "polynomial":
+            c = np.polyfit(np.arange(osfit.size), osfit, settings['reduce']['overscan']['params'][0])
             ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
-        elif settings.argflag['reduce']['overscan']['method'].lower() == "savgol":
+        elif settings['reduce']['overscan']['method'].lower() == "savgol":
             ossub = signal.savgol_filter(osfit,
-                                         settings.argflag['reduce']['overscan']['params'][1],
-                                         settings.argflag['reduce']['overscan']['params'][0])
-        elif settings.argflag['reduce']['overscan']['method'].lower() == "median":  # One simple value
+                                         settings['reduce']['overscan']['params'][1],
+                                         settings['reduce']['overscan']['params'][0])
+        elif settings['reduce']['overscan']['method'].lower() == "median":  # One simple value
             ossub = osfit * np.ones(1)
         else:
-            msgs.warn("Overscan subtraction method {0:s} is not implemented".format(settings.argflag['reduce']['overscan']['method']))
+            msgs.warn("Overscan subtraction method {0:s} is not implemented".format(settings['reduce']['overscan']['method']))
             msgs.info("Using a linear fit to the overscan region")
             c = np.polyfit(np.arange(osfit.size), osfit, 1)
             ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
@@ -2407,7 +2538,7 @@ def sub_overscan(frame, det):
             frame[wd] -= ossub
         elif wd[1].shape[1] == ossub.shape[0]:
             frame[wd] -= ossub.T
-        elif settings.argflag['reduce']['overscan']['method'].lower() == "median":
+        elif settings['reduce']['overscan']['method'].lower() == "median":
             frame[wd] -= osfit
         else:
             msgs.error("Could not subtract bias from overscan region --"+msgs.newline()+"size of extracted regions does not match")
@@ -2416,12 +2547,77 @@ def sub_overscan(frame, det):
     return frame
 
 
-def trim(frame, det):
-    dnum = settings.get_dnum(det)
-    for i in range(settings.spect[dnum]['numamplifiers']):
-        datasec = "datasec{0:02d}".format(i+1)
-        x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
-        y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+def replace_columns(img, bad_cols, replace_with='mean'):
+    """ Replace bad columns with values from the neighbors
+
+    Parameters
+    ----------
+    img : ndarray
+    bad_cols: ndarray (bool, 1D, shape[1] of img)
+      True = bad column
+      False = ok column
+    replace_with : str, optional
+      Option for replacement
+       mean -- Use the mean of the closest left/right columns
+
+    Returns
+    -------
+    img2 : ndarray
+      Copy of the input image with the bad columns replaced
+    """
+    # Prep
+    img2 = img.copy()
+    # Find the starting/ends of the bad column sets
+    tmp = np.zeros(img.shape[1], dtype=int)
+    tmp[bad_cols] = 1
+    tmp2 = tmp - np.roll(tmp,1)
+    # Deal with first column
+    if bad_cols[0]:
+        tmp2[0]=1
+    ledges = np.where(tmp2 == 1)[0]
+    redges = np.where(tmp2 == -1)[0]
+    # Last column
+    if tmp2[-1] == 1:
+        redges = np.concatenate([redges, np.array([bad_cols.size-1])])
+    # Loop on em
+    for kk, ledge in enumerate(ledges):
+        lval = img[:,ledge-1]
+        rval = img[:,redges[kk]]
+        # Replace
+        if replace_with == 'mean':
+            mval = (lval+rval)/2.
+            for ii in range(ledge, redges[kk]+1):
+                img2[:,ii] = mval
+        else:
+            msgs.error("Bad option to replace_columns")
+    # Return
+    return img2
+
+
+def trim(frame, numamplifiers, datasec):
+    """ Core method to trim an input image
+
+    Parameters
+    ----------
+    frame : ndarray
+    numamplifiers : int
+    datasec : list of datasecs
+      One per amplifier
+
+    Returns
+    -------
+    frame : ndarray
+      Trimmed
+    """
+    #dnum = settings.get_dnum(det)
+    #for i in range(settings.spect[dnum]['numamplifiers']):
+    for i in range(numamplifiers):
+        #datasec = "datasec{0:02d}".format(i+1)
+        #x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
+        #y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+        x0, x1 = datasec[i][0][0], datasec[i][0][1]
+        y0, y1 = datasec[i][1][0], datasec[i][1][1]
+        # Fuss with edges
         if x0 < 0:
             x0 += frame.shape[0]
         if x1 <= 0:

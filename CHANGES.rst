@@ -70,6 +70,29 @@
 - Turns off PCA tilt QA for now [very slow for each slit]
 - Several improvements for coadding
 - Modify lacosmic to identify tiny CR's
+- Enabled writing Arc_fit QA for each slit/order
+- Refactored comb_frames
+- Refactored load_frames
+- Refactored save_master
+- Refactored get_datasec_trimmed, get_datasec, pix_to_amp
+- Refactored slit_pixels
+- Refactored sub_overscan
+- Refactored trace_slits (currently named driver_trace_slits) and many of its dependencies
+- Added parameter trace_slits_medrep for optional smoothing of the trace slits image
+- Updated a few settings for DEIMOS and LRIS related to tracing slits
+- Added a replace_columns() method to arproc.py
+- Fixed a bug in new_match_edges()
+- Moved tracing docs -> slit_tracing and edited extensively
+- Updated docs on DEIMOS, LRIS
+- Added the pypit_chk_edges script
+- Added BPM for DEIMOS
+- Added the code for users to add slits [edgearr_from_users()] but have not documented nor made it accessible from the PYPIT file
+- Generated tcrude_edgearr() method for using trace crude on the slit edges
+- Added trace_crude() method that I ported previously for DESI
+- Added multi_sync() method for ARMLSD slit synchronization
+- Have somewhat deprecated the maxgap method
+- Refactored the gen_pixloc() method
+
 
 0.7 (2017-02-07)
 ----------------
