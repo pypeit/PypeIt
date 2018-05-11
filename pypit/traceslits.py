@@ -12,7 +12,7 @@ from linetools import utils as ltu
 
 from pypit import msgs
 from pypit import ardebug as debugger
-from pypit import artrace
+from pypit import artraceslits
 from pypit import arutils
 from pypit import ginga
 
@@ -184,7 +184,7 @@ class TraceSlits(object):
         return self.binarr
 
     def _edgearr_from_binarr(self):
-        self.siglev, self.edgearr = artrace.edgearr_from_binarr(self.binarr, self.binbpx,
+        self.siglev, self.edgearr = artraceslits.edgearr_from_binarr(self.binarr, self.binbpx,
                                                                 medrep=self.settings['trace']['slits']['medrep'],
                                                                 sobel_mode=self.settings['trace']['slits']['sobel']['mode'],
                                                                 sigdetect=self.settings['trace']['slits']['sigdetect'],
@@ -198,13 +198,13 @@ class TraceSlits(object):
         iledge, iredge = (self.det-1)*2, (self.det-1)*2+1
         ledge = self.settings['trace']['slits']['single'][iledge]
         redge = self.settings['trace']['slits']['single'][iredge]
-        self.edgearr = artrace.edgearr_from_user(self.mstrace.shape, ledge, redge, self.det)
+        self.edgearr = artraceslits.edgearr_from_user(self.mstrace.shape, ledge, redge, self.det)
         self.siglev = None
         # Step
         self.steps.append(inspect.stack()[0][3])
 
     def _add_left_right(self):
-        self.edgearr, self.lcnt, self.rcnt = artrace.edgearr_add_left_right(
+        self.edgearr, self.lcnt, self.rcnt = artraceslits.edgearr_add_left_right(
             self.edgearr, self.binarr, self.binbpx, self.lcnt, self.rcnt, self.ednum)
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -213,7 +213,7 @@ class TraceSlits(object):
         # Reset (if needed) -- For running after PYPIT took a first pass
         self.reset_edgearr_ednum()
         # Add user input slits
-        self.edgearr = artrace.add_user_edges(self.edgearr, self.siglev, self.tc_dict, user_slits)
+        self.edgearr = artraceslits.add_user_edges(self.edgearr, self.siglev, self.tc_dict, user_slits)
         # Finish
         if run_to_finish:
             self.set_lrminx()
@@ -232,13 +232,13 @@ class TraceSlits(object):
         if self.lcnt == 1:
             self.edgearr[np.where(self.edgearr <= -2*self.ednum)] = -self.ednum
         else:
-            artrace.assign_slits(self.binarr, self.edgearr, lor=-1, settings=self.settings)
+            artraceslits.assign_slits(self.binarr, self.edgearr, lor=-1, settings=self.settings)
         # Assign right edges
         msgs.info("Assigning right slit edges")
         if self.rcnt == 1:
             self.edgearr[np.where(self.edgearr >= 2*self.ednum)] = self.ednum
         else:
-            artrace.assign_slits(self.binarr, self.edgearr, lor=+1, settings=self.settings)
+            artraceslits.assign_slits(self.binarr, self.edgearr, lor=+1, settings=self.settings)
         # Steps
         self.steps.append(inspect.stack()[0][3])
 
@@ -266,7 +266,7 @@ class TraceSlits(object):
 
     def _final_left_right(self):
         # Final left/right edgearr fussing (as needed)
-        self.edgearr, self.lcnt, self.rcnt = artrace.edgearr_final_left_right(
+        self.edgearr, self.lcnt, self.rcnt = artraceslits.edgearr_final_left_right(
             self.edgearr, self.ednum, self.siglev)
         # Steps
         self.steps.append(inspect.stack()[0][3])
@@ -278,12 +278,12 @@ class TraceSlits(object):
 
         # Fit
         if side == 'left':
-            self.lcoeff, self.lnmbrarr, self.ldiffarr, self.lwghtarr = artrace.fit_edges(
+            self.lcoeff, self.lnmbrarr, self.ldiffarr, self.lwghtarr = artraceslits.fit_edges(
                 self.edgearr, self.lmin, self.lmax, plxbin, plybin,
                 left=True, polyorder=self.settings['trace']['slits']['polyorder'],
                 function=self.settings['trace']['slits']['function'])
         else:
-            self.rcoeff, self.rnmbrarr, self.rdiffarr, self.rwghtarr = artrace.fit_edges(
+            self.rcoeff, self.rnmbrarr, self.rdiffarr, self.rwghtarr = artraceslits.fit_edges(
                 self.edgearr, self.rmin, self.rmax, plxbin, plybin,
                 left=False, polyorder=self.settings['trace']['slits']['polyorder'],
                 function=self.settings['trace']['slits']['function'])
@@ -294,7 +294,7 @@ class TraceSlits(object):
     def _ignore_orders(self):
         # Ignore orders/slits on the edge of the detector when they run off
         #    Recommended for Echelle only
-        self.edgearr, self.lmin, self.lmax, self.rmin, self.rmax = artrace.edgearr_ignore_orders(
+        self.edgearr, self.lmin, self.lmax, self.rmin, self.rmax = artraceslits.edgearr_ignore_orders(
             self.edgearr, self.settings['trace']['slits']['fracignore'])
         # Steps
         self.steps.append(inspect.stack()[0][3])
@@ -302,7 +302,7 @@ class TraceSlits(object):
     def _match_edges(self):
         # Assign a number to each edge 'grouping'
         __edgearr = self.edgearr.copy()
-        self.lcnt, self.rcnt = artrace.new_match_edges(__edgearr, self.ednum)
+        self.lcnt, self.rcnt = artraceslits.new_match_edges(__edgearr, self.ednum)
         self.edgearr = __edgearr
         # Sanity check (unlikely we will ever hit this)
         if self.lcnt >= self.ednum or self.rcnt >= self.ednum:
@@ -319,22 +319,22 @@ class TraceSlits(object):
     def _maxgap_close(self):
         # Handle close edges (as desired by the user)
         #  JXP does not recommend using this method for multislit
-        self.edgearr = artrace.edgearr_close_slits(self.binarr, self.edgearr,
+        self.edgearr = artraceslits.edgearr_close_slits(self.binarr, self.edgearr,
                                               self.edgearrcp, self.ednum, self.settings)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
     def _mslit_sync(self, debug=False):
         if debug:
-            reload(artrace)
+            reload(artraceslits)
         #
-        self.edgearr = artrace.mslit_sync(self.edgearr, self.tc_dict, self.ednum)
+        self.edgearr = artraceslits.mslit_sync(self.edgearr, self.tc_dict, self.ednum)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
     def _mslit_tcrude(self):
         # Trace crude me
-        self.edgearr, self.tc_dict = artrace.tcrude_edgearr(self.edgearr, self.siglev, self.ednum)
+        self.edgearr, self.tc_dict = artraceslits.tcrude_edgearr(self.edgearr, self.siglev, self.ednum)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -354,7 +354,7 @@ class TraceSlits(object):
 
     def _pca_order_slit_edges(self):
         plxbin = self.pixlocn[:, :, 0].copy()
-        self.lcen, self.rcen, self.extrapord = artrace.pca_order_slit_edges(self.binarr, self.edgearr,
+        self.lcen, self.rcen, self.extrapord = artraceslits.pca_order_slit_edges(self.binarr, self.edgearr,
                                                                     self.lcent, self.rcent, self.gord,
                                                                     self.lcoeff, self.rcoeff, plxbin,
                                                                     self.slitcen, self.pixlocn, self.settings)
@@ -363,7 +363,7 @@ class TraceSlits(object):
 
     def _pca_pixel_slit_edges(self):
         plxbin = self.pixlocn[:, :, 0].copy()
-        self.lcen, self.rcen, self.extrapord = artrace.pca_pixel_slit_edges(self.binarr,
+        self.lcen, self.rcen, self.extrapord = artraceslits.pca_pixel_slit_edges(self.binarr,
                                                                             self.edgearr, self.lcoeff, self.rcoeff,
                                                                             self.ldiffarr, self.rdiffarr, self.lnmbrarr,
                                                                             self.rnmbrarr, self.lwghtarr, self.rwghtarr, self.lcent,
@@ -373,8 +373,8 @@ class TraceSlits(object):
 
     def _remove_slit(self, rm_slits, debug=True):
         if debug:
-            reload(artrace)
-        self.edgearr, self.lcen, self.rcen, self.tc_dict = artrace.remove_slit(
+            reload(artraceslits)
+        self.edgearr, self.lcen, self.rcen, self.tc_dict = artraceslits.remove_slit(
             self.edgearr, self.lcen, self.rcen, self.tc_dict, rm_slits)
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -395,7 +395,7 @@ class TraceSlits(object):
     def _synchronize(self):
         plxbin = self.pixlocn[:, :, 0].copy()
         msgs.info("Synchronizing left and right slit traces")
-        self.lcent, self.rcent, self.gord, self.lcoeff, self.ldiffarr, self.lnmbrarr, self.lwghtarr, self.rcoeff, self.rdiffarr, self.rnmbrarr, self.rwghtarr = artrace.synchronize_edges(
+        self.lcent, self.rcent, self.gord, self.lcoeff, self.ldiffarr, self.lnmbrarr, self.lwghtarr, self.rcoeff, self.rdiffarr, self.rnmbrarr, self.rwghtarr = artraceslits.synchronize_edges(
             self.binarr, self.edgearr, plxbin, self.lmin, self.lmax, self.lcoeff, self.rmin, self.rcoeff,
             self.lnmbrarr, self.ldiffarr, self.lwghtarr, self.rnmbrarr, self.rdiffarr, self.rwghtarr, self.settings)
         self.slitcen = 0.5*(self.lcent+self.rcent).T
