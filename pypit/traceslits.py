@@ -41,6 +41,17 @@ default_settings = dict(trace={'slits': {'single': [],
                                        'extrapolate': {'pos': 0, 'neg':0}},
                                'sobel': {'mode': 'nearest'}}})
 
+# Data model for standard output to PYPIT
+#  See attribute description below for specifics on each
+trace_slits_dict = {}
+trace_slits_dict['lcen'] = None
+trace_slits_dict['rcen'] = None
+trace_slits_dict['lordpix'] = None
+trace_slits_dict['rordpix'] = None
+trace_slits_dict['slitpix'] = None
+trace_slits_dict['pixcen'] = None
+trace_slits_dict['pixwid'] = None
+trace_slits_dict['extrapord'] = None
 
 class TraceSlits(object):
     """Class to guide slit/order tracing
@@ -64,11 +75,22 @@ class TraceSlits(object):
     Attributes
     ----------
     lcen : ndarray [nrow, nslit]
-      Left edges
+      Left edges, in physical space
     rcen : ndarray [nrow, nslit]
-      Right edges
+      Right edges, in physical space
+    lordpix : ndarray [nrow, nslit]
+      Left edges, in pixel space
+    rordpix : ndarray [nrow, nslit]
+      Right edges, in pixel space
+    slitpix : ndarray (int)
+      Image specifiying which pixels are in which slit
+    pixcen : ndarray [nrow, nslit]
+      Pixel values down the center of the slit
+    pixwid : ndarray [nrow, nslit]
+      Width of slit in pixels (integer)
     extrapord : ndarray
       ??
+      
     edgearr : ndarray
       Edge image
       -200000, 200000 indexing -- ??
