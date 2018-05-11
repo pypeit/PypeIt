@@ -328,13 +328,13 @@ class TraceSlits(object):
         if debug:
             reload(artraceslits)
         #
-        self.edgearr = artraceslits.mslit_sync(self.edgearr, self.tc_dict, self.ednum)
+        self.edgearr = artraceslits.edgearr_mslit_sync(self.edgearr, self.tc_dict, self.ednum)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
     def _mslit_tcrude(self):
         # Trace crude me
-        self.edgearr, self.tc_dict = artraceslits.tcrude_edgearr(self.edgearr, self.siglev, self.ednum)
+        self.edgearr, self.tc_dict = artraceslits.edgearr_tcrude(self.edgearr, self.siglev, self.ednum)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
