@@ -18,6 +18,7 @@ from pypit import arsave
 from pypit import arsetup
 from pypit import artrace
 from pypit import artraceslits
+from pypit import biasprep
 from pypit import traceslits
 from pypit import ardebug as debugger
 
@@ -64,24 +65,32 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     #settings.argflag['reduce']['masters']['file'] = setup_file
 
     # Start reducing the data
-    for sc in range(numsci):
 
-        slf = sciexp[sc]
-        scidx = slf._idx_sci[0]
-        msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
-        msgs.sciexp = slf  # For QA writing on exit, if nothing else.  Could write Masters too
-        if reloadMaster and (sc > 0):
-            settings.argflag['reduce']['masters']['reuse'] = True
-        # Loop on Detectors
-        for kk in range(settings.spect['mosaic']['ndet']):
-            det = kk + 1  # Detectors indexed from 1
-            if settings.argflag['reduce']['detnum'] is not None:
-                if det not in map(int,settings.argflag['reduce']['detnum']):
-                    msgs.warn("Skipping detector {:d}".format(det))
-                    continue
-                else:
-                    msgs.warn("Restricting the reduction to detector {:d}".format(det))
+    # Loop on Detectors
+    for kk in range(settings.spect['mosaic']['ndet']):
+        det = kk + 1  # Detectors indexed from 1
+        if settings.argflag['reduce']['detnum'] is not None:
+            if det not in map(int, settings.argflag['reduce']['detnum']):
+                msgs.warn("Skipping detector {:d}".format(det))
+                continue
+            else:
+                msgs.warn("Restricting the reduction to detector {:d}".format(det))
+
+        # Reset Calib dict
+        calib_dict = {}
+
+        for sc in range(numsci):
+
+            slf = sciexp[sc]
+            scidx = slf._idx_sci[0]
+            msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
+            msgs.sciexp = slf  # For QA writing on exit, if nothing else.  Could write Masters too
+
+            #if reloadMaster and (sc > 0):
+            #    settings.argflag['reduce']['masters']['reuse'] = True
+
             slf.det = det
+
             ###############
             # Get data sections
             arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
@@ -89,12 +98,29 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             setup = arsetup.instr_setup(slf, det, fitsdict, setup_dict, must_exist=True)
             settings.argflag['reduce']['masters']['setup'] = setup
             slf.setup = setup
+
+            # Allow for variants in the setup for each Science frame (e.g. Arc pairings)
+            calib_dict[setup] = {}
+
             ###############
-            # Generate master bias frame
-            BiasImg =
-            update = slf.MasterBias(fitsdict, det)
-            if update and reuseMaster:
-                armbase.UpdateMasters(sciexp, sc, det, ftype="bias")
+            # Prepare for Bias subtraction
+            #   bias will either be an image (ndarray) or a command (str, e.g. 'overscan') or none
+            if 'bias' in calib_dict.keys():
+                bias = calib_dict[setup]['bias']
+            else:
+                BPrep = biasprep.BiasPrep(setup, ind=slf._idx_bias, det=det, fitsdict=fitsdict)
+                bias = BPrep.run()
+                # Save in Calib dict -- Will replace Master class
+                calib_dict[setup]['bias'] = bias
+                # Set -- Will be Deprecated
+                slf.SetMasterFrame(bias, "bias", det)
+                # Save as Master to disk
+                armasters.save_masters(slf, det, mftype='bias')
+
+            #update = slf.MasterBias(fitsdict, det)
+            #if update and reuseMaster:
+            #    armbase.UpdateMasters(sciexp, sc, det, ftype="bias")
+
             ###############
             # Generate a bad pixel mask (should not repeat)
             update = slf.BadPixelMask(fitsdict, det)
@@ -229,34 +255,6 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             ###############
             # Using model sky, calculate a flexure correction
 
-        ###############
-        # Flux
-        ###############
-        if(settings.argflag['reduce']['calibrate']['flux']==True):
-            # Standard star (is this a calibration, e.g. goes above?)
-            msgs.info("Processing standard star")
-            msgs.info("Assuming one star per detector mosaic")
-            msgs.info("Waited until last detector to process")
-
-            if(settings.argflag['reduce']['calibrate']['sensfunc']['archival']=='None'):
-                update = slf.MasterStandard(fitsdict)
-                if update and reuseMaster:
-                    armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
-            else:
-                sensfunc = yaml.load(open(settings.argflag['reduce']['calibrate']['sensfunc']['archival']))
-                # Yaml does not do quantities, so make the sensfunc min/max wave quantities
-                sensfunc['wave_max']*=units.angstrom
-                sensfunc['wave_min']*=units.angstrom
-                slf.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
-                msgs.info("Using archival sensfunc {:s}".format(settings.argflag['reduce']['calibrate']['sensfunc']['archival']))
-
-            msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
-            for kk in range(settings.spect['mosaic']['ndet']):
-                det = kk + 1  # Detectors indexed from 1
-                if slf._specobjs[det-1] is not None:
-                    arflux.apply_sensfunc(slf, det, scidx, fitsdict)
-                else:
-                    msgs.info("There are no objects on detector {0:d} to apply a flux calibration".format(det))
 
         # Write 1D spectra
         save_format = 'fits'
@@ -271,4 +269,36 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         arsave.save_2d_images(slf, fitsdict)
         # Free up some memory by replacing the reduced ScienceExposure class
         sciexp[sc] = None
+
+    debugger.set_trace()
+    #########################
+    # Flux at the very end..
+    #########################
+    if (settings.argflag['reduce']['calibrate']['flux'] == True):
+        # Standard star (is this a calibration, e.g. goes above?)
+        msgs.info("Processing standard star")
+        msgs.info("Assuming one star per detector mosaic")
+        msgs.info("Waited until last detector to process")
+
+        if (settings.argflag['reduce']['calibrate']['sensfunc']['archival'] == 'None'):
+            update = slf.MasterStandard(fitsdict)
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
+        else:
+            sensfunc = yaml.load(open(settings.argflag['reduce']['calibrate']['sensfunc']['archival']))
+            # Yaml does not do quantities, so make the sensfunc min/max wave quantities
+            sensfunc['wave_max'] *= units.angstrom
+            sensfunc['wave_min'] *= units.angstrom
+            slf.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
+            msgs.info(
+                "Using archival sensfunc {:s}".format(settings.argflag['reduce']['calibrate']['sensfunc']['archival']))
+
+        msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
+        for kk in range(settings.spect['mosaic']['ndet']):
+            det = kk + 1  # Detectors indexed from 1
+            if slf._specobjs[det - 1] is not None:
+                arflux.apply_sensfunc(slf, det, scidx, fitsdict)
+            else:
+                msgs.info("There are no objects on detector {0:d} to apply a flux calibration".format(det))
+
     return status

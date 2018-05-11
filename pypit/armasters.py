@@ -85,58 +85,68 @@ def master_name(ftype, setup, mdir=None):
     return name_dict[ftype]
 
 def get_master_frame(slf, mftype, det=None):
+    ret, head = core_get_master_frame(mftype, settings.argflag)
+    if ret is None:
+        return None
+    elif mftype == 'arc':
+        slf._transpose = head['transp']
+        if slf._transpose:  # Need to setup for flipping
+            settings.argflag['trace']['dispersion']['direction'] = 1
+        else:
+            settings.argflag['trace']['dispersion']['direction'] = 0
+    elif mftype == 'trace':
+        slf.SetFrame(slf._lordloc, ret['lordloc'], det)
+        slf.SetFrame(slf._rordloc, ret['rordloc'], det)
+        slf.SetFrame(slf._pixcen, ret['pixcen'].astype(np.int), det)
+        slf.SetFrame(slf._pixwid, ret['pixwid'].astype(np.int), det)
+        slf.SetFrame(slf._lordpix, ret['lordpix'].astype(np.int), det)
+        slf.SetFrame(slf._rordpix, ret['rordpix'].astype(np.int), det)
+        slf.SetFrame(slf._slitpix, ret['slitpix'].astype(np.int), det)
+        # Mask -- It is assumed that all slits loaded are ok
+        slf._maskslits[det-1] = np.array([False] * slf._lordloc[det-1].shape[1])
+    return ret
+
+def core_get_master_frame(mftype, settings):
     """ If a MasterFrame exists, load it
     And peform some extra steps for specific calibrations
     Parameters
     ----------
-    slf
     mftype : str
     det : int, optional
+    transpose : int
+      Allow for Arc flipping
 
     Returns
     -------
-    msfile : ndarray or dict
+    msfile : ndarray or dict or None
+    head : Header or None
 
     """
 
-    setup = settings.argflag['reduce']['masters']['setup']
+    setup = settings['reduce']['masters']['setup']
     # Were MasterFrames even desired?
-    if (settings.argflag['reduce']['masters']['reuse']) or (settings.argflag['reduce']['masters']['force']):
+    if (settings['reduce']['masters']['reuse']) or (settings['reduce']['masters']['force']):
         ms_name = master_name(mftype, setup)
-        try:
-            msfile, head = arload.load_master(ms_name, frametype=mftype)
-        except IOError:
+        msfile, head = arload.load_master(ms_name, frametype=mftype)
+        if msfile is None:
             msgs.warn("No Master frame found of type {:s}: {:s}".format(mftype,ms_name))
-            raise IOError
+            return None, None
         else:  # Extras
-            if mftype == 'arc':
-                slf._transpose = head['transp']
-                if slf._transpose:  # Need to setup for flipping
-                    settings.argflag['trace']['dispersion']['direction'] = 1
-                else:
-                    settings.argflag['trace']['dispersion']['direction'] = 0
-            elif mftype == 'trace':
-                lordloc, _ = arload.load_master(ms_name, frametype="trace", exten=1)
-                rordloc, _ = arload.load_master(ms_name, frametype="trace", exten=2)
-                pixcen, _ = arload.load_master(ms_name, frametype="trace", exten=3)
-                pixwid, _ = arload.load_master(ms_name, frametype="trace", exten=4)
-                lordpix, _ = arload.load_master(ms_name, frametype="trace", exten=5)
-                rordpix, _ = arload.load_master(ms_name, frametype="trace", exten=6)
-                slitpix, _ = arload.load_master(ms_name, frametype="trace", exten=7)
-                slf.SetFrame(slf._lordloc, lordloc, det)
-                slf.SetFrame(slf._rordloc, rordloc, det)
-                slf.SetFrame(slf._pixcen, pixcen.astype(np.int), det)
-                slf.SetFrame(slf._pixwid, pixwid.astype(np.int), det)
-                slf.SetFrame(slf._lordpix, lordpix.astype(np.int), det)
-                slf.SetFrame(slf._rordpix, rordpix.astype(np.int), det)
-                slf.SetFrame(slf._slitpix, slitpix.astype(np.int), det)
-                # Mask -- It is assumed that all slits loaded are ok
-                slf._maskslits[det-1] = np.array([False] * slf._lordloc[det-1].shape[1])
+            if mftype == 'trace':
+                tdict = {}
+                tdict['lordloc'], _ = arload.load_master(ms_name, frametype="trace", exten=1)
+                tdict['rordloc'], _ = arload.load_master(ms_name, frametype="trace", exten=2)
+                tdict['pixcen'], _ = arload.load_master(ms_name, frametype="trace", exten=3)
+                tdict['pixwid'], _ = arload.load_master(ms_name, frametype="trace", exten=4)
+                tdict['lordpix'], _ = arload.load_master(ms_name, frametype="trace", exten=5)
+                tdict['rordpix'], _ = arload.load_master(ms_name, frametype="trace", exten=6)
+                tdict['slitpix'], _ = arload.load_master(ms_name, frametype="trace", exten=7)
+                msfile = tdict  # For returning
             # Append as loaded
-            settings.argflag['reduce']['masters']['loaded'].append(mftype+setup)
-            return msfile
+            settings['reduce']['masters']['loaded'].append(mftype+setup)
+            return msfile, head
     else:
-        raise IOError
+        return None, None
 
 def save_masters(slf, det, mftype='all'):
     """ Save Master Frames

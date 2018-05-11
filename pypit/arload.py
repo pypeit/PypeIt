@@ -250,7 +250,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
     for i in range(len(ind)):
         raw_file = fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]]
         temp, head0 = load_raw_frame(spectrograph, raw_file, det,
-                              dataext01=dataext01, disp_dir=disp_dir)
+                              dataext=dataext01, disp_dir=disp_dir)
 
         # TODO -- Take these next two steps out and put in a arproc.proc_image() method
         # Bias subtract?
@@ -367,6 +367,8 @@ def load_master(name, exten=0, frametype='<None>'):
     """
     Load a pre-existing master calibration frame
 
+    Should probably move this method to armasters.py
+
     Parameters
     ----------
     name : str
@@ -378,10 +380,17 @@ def load_master(name, exten=0, frametype='<None>'):
 
     Returns
     -------
-    frame : ndarray or dict
+    frame : ndarray or dict or None
       The data from the master calibration frame
     head : str (or None)
     """
+    # Check to see if file exists
+    if not os.path.isfile(name):
+        msgs.warn("Master frame does not exist: {:s}".format(name))
+        if settings.argflag['reduce']['masters']['force']:
+            msgs.error("Crashing out because reduce-masters-force=True:"+msgs.newline()+name)
+        return None, None
+    #
     if frametype == 'wv_calib':
         msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
         ldict = linetools.utils.loadjson(name)
@@ -394,14 +403,7 @@ def load_master(name, exten=0, frametype='<None>'):
         return sensfunc, None
     else:
         msgs.info("Loading a pre-existing master calibration frame")
-        try:
-            hdu = fits.open(name)
-        except IOError:
-            if settings.argflag['reduce']['masters']['force']:
-                msgs.error("Master calibration file does not exist:"+msgs.newline()+name)
-            else:
-                msgs.warn("Could not read Master calibration file:"+msgs.newline()+name)
-                raise IOError
+        hdu = fits.open(name)
         msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
         head = hdu[0].header
         data = hdu[exten].data.astype(np.float)
