@@ -90,7 +90,7 @@ class TraceSlits(object):
       Width of slit in pixels (integer)
     extrapord : ndarray
       ??
-      
+
     edgearr : ndarray
       Edge image
       -200000, 200000 indexing -- ??
