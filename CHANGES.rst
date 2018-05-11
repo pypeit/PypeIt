@@ -92,6 +92,11 @@
 - Added multi_sync() method for ARMLSD slit synchronization
 - Have somewhat deprecated the maxgap method
 - Refactored the gen_pixloc() method
+- Generate arpixels.py module for holding pixel level algorithms
+- Move all methods related to TraceSlits to artraceslits.py
+- Introduce the TraceSlits class
+- Update armlsd accordingly
+- Remove driver_trace_slits and refctor_trace_slits methods
 
 
 0.7 (2017-02-07)
