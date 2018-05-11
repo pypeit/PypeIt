@@ -2,11 +2,10 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 
 import inspect
 import copy
-from collections import Counter
 
 import numpy as np
 
-from scipy import interpolate, ndimage
+from scipy import interpolate
 
 import matplotlib.pyplot as plt
 from matplotlib import cm, font_manager
@@ -19,10 +18,9 @@ from pypit import arplot
 from pypit import ararc
 from pypit import arutils
 from pypit import arpca
-from pypit import arproc
+from pypit import arpixels
 from pypit import arparse as settings
 from pypit.filter import BoxcarFilter
-from pypit import arspecobj
 from pypit import ardebug as debugger
 
 try:
@@ -2027,9 +2025,9 @@ def get_censpec(slf, frame, det, gen_satmask=False):
     if tordcen is None:
         msgs.warn("Could not determine which slits are fully on the detector")
         msgs.info("Assuming all slits are fully on the detector")
-        ordcen = phys_to_pix(ordcen, slf._pixlocn[det-1], 1)
+        ordcen = arpixels.phys_to_pix(ordcen, slf._pixlocn[det-1], 1)
     else:
-        ordcen = phys_to_pix(tordcen[:,w], slf._pixlocn[det-1], 1)
+        ordcen = arpixels.phys_to_pix(tordcen[:,w], slf._pixlocn[det-1], 1)
 
     pixcen = np.arange(frame.shape[0])
     temparr = pixcen.reshape(frame.shape[0], 1).repeat(ordcen.shape[1], axis=1)
@@ -2059,72 +2057,6 @@ def get_censpec(slf, frame, det, gen_satmask=False):
         return arccen, maskslit, satsnd
     else:
         return arccen, maskslit
-
-
-def gen_pixloc(frame, det, **kwargs):
-    """ Now a simple wrapper to core_gen_pixloc
-
-    Parameters
-    ----------
-    frame
-    det
-    kwargs
-
-    Returns
-    -------
-
-    """
-    dnum = settings.get_dnum(det)
-    xgap = settings.spect[dnum]['xgap']
-    ygap = settings.spect[dnum]['ygap']
-    ysize = settings.spect[dnum]['ysize']
-    # Do it
-    return core_gen_pixloc(frame, xgap=xgap, ygap=ygap, ysize=ysize, **kwargs)
-
-
-def core_gen_pixloc(frame, xgap=0, ygap=0, ysize=1., gen=True):
-    """
-    Generate an array of physical pixel coordinates
-
-    Parameters
-    ----------
-    frame : ndarray
-      uniformly illuminated and normalized flat field frame
-    xgap : int (optional)
-    ygap : int (optional)
-    ysize : float (optional)
-
-    Returns
-    -------
-    locations : ndarray
-      A 3D array containing the x center, y center, x width and y width of each pixel.
-      The returned array has a shape:   frame.shape + (4,)
-    """
-    #dnum = settings.get_dnum(det)
-    msgs.info("Deriving physical pixel locations on the detector")
-    locations = np.zeros((frame.shape[0],frame.shape[1],4))
-    if gen:
-        msgs.info("Pixel gap in the dispersion direction = {0:4.3f}".format(xgap))
-        msgs.info("Pixel size in the dispersion direction = {0:4.3f}".format(1.0))
-        xs = np.arange(frame.shape[0]*1.0)*xgap
-        xt = 0.5 + np.arange(frame.shape[0]*1.0) + xs
-        msgs.info("Pixel gap in the spatial direction = {0:4.3f}".format(ygap))
-        msgs.info("Pixel size in the spatial direction = {0:4.3f}".format(ysize))
-        ys = np.arange(frame.shape[1])*ygap*ysize
-        yt = ysize*(0.5 + np.arange(frame.shape[1]*1.0)) + ys
-        xloc, yloc = np.meshgrid(xt, yt)
-#		xwid, ywid = np.meshgrid(xs,ys)
-        msgs.info("Saving pixel locations")
-        locations[:,:,0] = xloc.T
-        locations[:,:,1] = yloc.T
-        locations[:,:,2] = 1.0
-        locations[:,:,3] = ysize
-    else:
-        msgs.error("Have not yet included an algorithm to automatically generate pixel locations")
-    return locations
-
-
-
 
 
 

@@ -9,22 +9,19 @@ from collections import Counter
 
 import numpy as np
 
-from scipy import interpolate, ndimage
+from scipy import ndimage
 
 import matplotlib.pyplot as plt
 from matplotlib import cm, font_manager
 
-from astropy.stats import sigma_clip
-from astropy.convolution import convolve, Gaussian1DKernel
 from pypit import msgs
 from pypit import arqa
 from pypit import arplot
-from pypit import ararc
 from pypit import arutils
 from pypit import arpca
+from pypit import arpixels
 from pypit import arproc
 from pypit import arparse as settings
-from pypit.filter import BoxcarFilter
 from pypit import arspecobj
 from pypit import ardebug as debugger
 
@@ -34,8 +31,6 @@ except ImportError:
     pass
 
 from pypit import arcytrace
-
-
 
 try:
     ustr = unicode
@@ -1848,16 +1843,6 @@ def new_minbetween(mstrace, loord, hiord):
     return minarr
 
 
-def new_phys_to_pix(array, diff):
-    if len(array.shape) > 2:
-        msgs.error('Input array must have two dimensions or less!')
-    if len(diff.shape) != 1:
-        msgs.error('Input difference array must be 1D!')
-    _array = np.atleast_2d(array)
-    doravel = len(array.shape) != 2
-    pix = np.argmin(np.absolute(_array[:,:,None] - diff[None,None,:]), axis=2).astype(int)
-    return pix.ravel() if doravel else pix
-
 def new_find_peak_limits(hist, pks):
     """
     Find all values between the zeros of hist
@@ -2086,37 +2071,7 @@ def pca_pixel_slit_edges(binarr, edgearr, lcoeff, rcoeff, ldiffarr, rdiffarr,
     # Return
     return lcen, rcen, extrapord
 
-def phys_to_pix(array, pixlocn, axis):
-    """
-    Generate an array of physical pixel coordinates
 
-    Parameters
-    ----------
-    array : ndarray
-      An array of physical pixel locations
-    pixlocn : ndarray
-      A 3D array containing the x center, y center, x width and y width of each pixel.
-    axis : int
-      The axis that the input array probes
-
-    Returns
-    -------
-    pixarr : ndarray
-      The pixel locations of the input array (as seen on a computer screen)
-    """
-    diff = pixlocn[:,0,0] if axis == 0 else pixlocn[0,:,1]
-
-#    print('calling phys_to_pix')
-#    t = time.clock()
-#    _pixarr = arcytrace.phys_to_pix(np.array([array]).T, diff).flatten() \
-#                if len(np.shape(array)) == 1 else arcytrace.phys_to_pix(array, diff)
-#    print('Old phys_to_pix: {0} seconds'.format(time.clock() - t))
-#    t = time.clock()
-    pixarr = new_phys_to_pix(array, diff)
-#    print('New phys_to_pix: {0} seconds'.format(time.clock() - t))
-#    assert np.sum(_pixarr != pixarr) == 0, 'Difference between old and new phys_to_pix, pixarr'
-
-    return pixarr
 
 
 def prune_peaks(hist, pks, pkidx, debug=False):
@@ -2205,8 +2160,8 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
     """
     # Refine the orders in the positive direction
     i = extord[1]
-    hiord = phys_to_pix(extrap_cent[:, -i-2], locations, 1)
-    nxord = phys_to_pix(extrap_cent[:, -i-1], locations, 1)
+    hiord = arpixels.phys_to_pix(extrap_cent[:, -i-2], locations, 1)
+    nxord = arpixels.phys_to_pix(extrap_cent[:, -i-1], locations, 1)
     mask = np.ones(orders.size)
     mask[0:extord[0]] = 0.0
     mask[-extord[1]:] = 0.0
@@ -2215,7 +2170,7 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
     while i > 0:
         loord = hiord
         hiord = nxord
-        nxord = phys_to_pix(extrap_cent[:,-i], locations, 1)
+        nxord = arpixels.phys_to_pix(extrap_cent[:,-i], locations, 1)
 
         # Minimum counts between loord and hiord
 #        print('calling minbetween')
@@ -2234,7 +2189,7 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
 
         minarr = 0.5*(minarrL+minarrR)
         srchz = np.abs(extfit[:,-i]-extfit[:,-i-1])/3.0
-        lopos = phys_to_pix(extfit[:,-i]-srchz, locations, 1)  # The pixel indices for the bottom of the search window
+        lopos = arpixels.phys_to_pix(extfit[:,-i]-srchz, locations, 1)  # The pixel indices for the bottom of the search window
         numsrch = np.int(np.max(np.round(2.0*srchz-extrap_diff[:,-i])))
         diffarr = np.round(extrap_diff[:,-i]).astype(np.int)
 
@@ -2262,12 +2217,12 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
         i -= 1
     # Refine the orders in the negative direction
     i = extord[0]
-    loord = phys_to_pix(extrap_cent[:,i+1], locations, 1)
+    loord = arpixels.phys_to_pix(extrap_cent[:,i+1], locations, 1)
     extrap_cent = extfit.copy()
     outparcopy = copy.deepcopy(outpar)
     while i > 0:
         hiord = loord
-        loord = phys_to_pix(extfit[:,i], locations, 1)
+        loord = arpixels.phys_to_pix(extfit[:,i], locations, 1)
 
 #        print('calling minbetween')
 #        t = time.clock()
@@ -2279,7 +2234,7 @@ def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
 #        assert np.sum(_minarr != minarr) == 0, 'Difference between old and new minbetween, minarr'
 
         srchz = np.abs(extfit[:,i]-extfit[:,i-1])/3.0
-        lopos = phys_to_pix(extfit[:,i-1]-srchz, locations, 1)
+        lopos = arpixels.phys_to_pix(extfit[:,i-1]-srchz, locations, 1)
         numsrch = np.int(np.max(np.round(2.0*srchz-extrap_diff[:,i-1])))
         diffarr = np.round(extrap_diff[:,i-1]).astype(np.int)
 

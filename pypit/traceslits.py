@@ -98,7 +98,8 @@ class TraceSlits(object):
     rcnt : int
       Number of right edges
     """
-    def __init__(self, mstrace, pixlocn, binbpx=None, settings=None, det=None, ednum=100000):
+    def __init__(self, mstrace, pixlocn, binbpx=None, settings=None, det=None,
+                 ednum=100000):
         # TODO -- Remove pixlocn as a required item
 
         # Required parameters
