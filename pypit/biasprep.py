@@ -69,8 +69,9 @@ class BiasPrep(processimages.ProcessImages):
         # Settings
         # The copy allows up to update settings with user settings without changing the original
         self.settings = settings.copy()
-        self.settings['combine'] = settings['bias']['combine']  # This is kludgy
-
+        # The following is somewhat kludgy and the current way we do settings may
+        #   not touch all the options (not sure .update() would help)
+        self.settings['combine'] = settings['bias']['combine']
 
     def combine(self, overwrite=False):
         # Over-write?
