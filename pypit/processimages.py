@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
+import os
 
 from importlib import reload
 
@@ -138,6 +139,7 @@ class ProcessImages(object):
         else:
             self.datasec, self.oscansec = [], []
             if self.spectrograph not in do_sec_dict.keys():
+                debugger.set_trace()
                 msgs.error("NOT READY FOR THIS SPECTROGRAPH: {:s}".format(self.spectrograph))
             msgs.info("Parsing the datasec and oscansec values")
             for key in do_sec_dict[self.spectrograph]:
@@ -223,6 +225,63 @@ class ProcessImages(object):
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.stack.copy()
+
+    def save_as_master(self, outfile, overwrite=True, extensions=None, names=None,
+                     frametype='unknown', keywds=None):
+        """
+        Save the stacked image as a MasterFrame FITS file
+
+        Parameters
+        ----------
+        overwrite : bool (optional)
+        outfile : str (optional)
+        frametype : str (optional)
+        extensions : list, optional
+          Additional data images to write
+          This may be Deprecated..
+        names : list, optional
+          Names of the extensions
+          This may be Deprecated..
+        keywds : dict (optional)
+          Additional keywords for the Header
+
+        """
+        # Check for existing
+        if os.path.exists(outfile) and (not overwrite):
+            msgs.warn("This file already exists.  Use overwrite=True to overwrite it")
+            return
+        # Data
+        msgs.info("Saving master {0:s} frame as:".format(frametype) + msgs.newline() + outfile)
+        data = self.stack
+        # Get it started
+        hdu = fits.PrimaryHDU(data)
+        hlist = [hdu]
+        # Extensions
+        if extensions is not None:
+            for kk, exten in enumerate(extensions):
+                hdu = fits.ImageHDU(exten)
+                if names is not None:
+                    hdu.name = names[kk]
+                hlist.append(hdu)
+        # HDU list
+        hdulist = fits.HDUList(hlist)
+        # Header
+        msgs.info("Writing header information")
+        if self.nfiles > 0:
+            for i in range(self.nfiles):
+                hdrname = "FRAME{0:03d}".format(i + 1)
+                hdulist[0].header[hdrname] = (self.file_list[i], 'PYPIT: File used to generate Master {0:s}'.format(frametype))
+        hdulist[0].header["FRAMETYP"] = (frametype, 'PYPIT: Master calibration frame type')
+        # Key words for the Header
+        if keywds is not None:
+            for key in keywds.keys():
+                hdulist[0].header[key] = keywds[key]
+        # Write the file to disk
+        if os.path.exists(outfile):
+            msgs.warn("Overwriting file:" + msgs.newline() + outfile)
+        hdulist.writeto(outfile, overwrite=True)
+        msgs.info("Master {0:s} frame saved successfully:".format(frametype) + msgs.newline() + outfile)
+        return
 
     def show(self, attr, idx=None, display='ginga'):
         if 'proc_image' in attr:

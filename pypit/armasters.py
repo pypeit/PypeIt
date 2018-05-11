@@ -84,8 +84,9 @@ def master_name(ftype, setup, mdir=None):
                      )
     return name_dict[ftype]
 
+
 def get_master_frame(slf, mftype, det=None):
-    ret, head = core_get_master_frame(mftype, settings.argflag)
+    ret, head = core_get_master_frame(mftype, settings.argflag, slf.setup)
     if ret is None:
         return None
     elif mftype == 'arc':
@@ -106,15 +107,15 @@ def get_master_frame(slf, mftype, det=None):
         slf._maskslits[det-1] = np.array([False] * slf._lordloc[det-1].shape[1])
     return ret
 
-def core_get_master_frame(mftype, settings):
+
+def core_get_master_frame(mftype, settings, setup):
     """ If a MasterFrame exists, load it
-    And peform some extra steps for specific calibrations
+
     Parameters
     ----------
     mftype : str
-    det : int, optional
-    transpose : int
-      Allow for Arc flipping
+    settings : dict
+    setup : str
 
     Returns
     -------
@@ -122,9 +123,9 @@ def core_get_master_frame(mftype, settings):
     head : Header or None
 
     """
-
-    setup = settings['reduce']['masters']['setup']
+    #setup = settings['reduce']['masters']['setup']
     # Were MasterFrames even desired?
+    #  TODO -- Consider asking this if statement *before* calling get master_frame
     if (settings['reduce']['masters']['reuse']) or (settings['reduce']['masters']['force']):
         ms_name = master_name(mftype, setup)
         msfile, head = arload.load_master(ms_name, frametype=mftype)
@@ -154,21 +155,19 @@ def save_masters(slf, det, mftype='all'):
     Parameters
     ----------
     slf
-    det : int
     mftype : str
       'all' -- Save them all
-    
+
     """
     setup = slf.setup
-
     transpose = bool(settings.argflag['trace']['dispersion']['direction'])
 
     # Bias
-    if (mftype in ['bias', 'all']) and ('bias'+setup not in settings.argflag['reduce']['masters']['loaded']):
-        if not isinstance(slf._msbias[det-1], (basestring)):
-            arsave.save_master(slf, slf._msbias[det-1],
-                               filename=master_name('bias', setup),
-                               frametype='bias')
+    if (mftype == 'bias'):
+        msgs.error("Should not get here anymore.  Save the bias in the BiasPrep class")
+        #and ('bias'+setup not in settings.argflag['reduce']['masters']['loaded']):
+        #arsave.core_save_master(object, filename=master_name('bias', setup),
+        #                   frametype='bias', raw_files=raw_files)
     # Bad Pixel
     if (mftype in ['badpix', 'all']) and ('badpix'+setup not in settings.argflag['reduce']['masters']['loaded']):
         arsave.save_master(slf, slf._bpix[det-1],

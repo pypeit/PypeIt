@@ -21,8 +21,8 @@ if msgs._debug is None:
 
 # Place these here or elsewhere?
 #  Wherever they be, they need to be defined, described, etc.
-#    This assumes the descendents of settings['bias']
-default_settings = dict(bias={'useframe': 'none'})
+#  These are settings beyond those in the Parent class (ProcessImages)
+additional_default_settings = dict(bias={'useframe': 'none'})
 
 
 class BiasPrep(processimages.ProcessImages):
@@ -54,11 +54,11 @@ class BiasPrep(processimages.ProcessImages):
     images : list
     stack : ndarray
     """
-    def __init__(self, setup, settings=None, file_list=[], det=1, user_settings=None,
-                 ind=[], fitsdict=None):
+    def __init__(self, setup, settings, file_list=[], det=1, ind=[], fitsdict=None):
+        # TODO -- Should we call out/separate detector, combine and bias process settings??
 
         # Start us up
-        processimages.ProcessImages.__init__(self, file_list)
+        processimages.ProcessImages.__init__(self, file_list, settings=settings)
 
         # Parameters
         self.det = det
@@ -67,15 +67,9 @@ class BiasPrep(processimages.ProcessImages):
         self.fitsdict = fitsdict
 
         # Settings
-        if settings is None:
-            self.settings = default_settings.copy()
-        else:
-            # The copy allows up to update settings with user settings without changing the original
-            self.settings = settings.copy()
-        if user_settings is not None:
-            # This only works to replace entire dicts
-            #    Hopefully parsets will work more cleanly..
-            self.settings.update(user_settings)
+        # The copy allows up to update settings with user settings without changing the original
+        self.settings = settings.copy()
+        self.settings['combine'] = settings['bias']['combine']  # This is kludgy
 
 
     def combine(self, overwrite=False):
@@ -105,20 +99,22 @@ class BiasPrep(processimages.ProcessImages):
         # Generate/load an image??
         if self.settings['bias']['useframe'] in ['bias', 'dark']:
             # Load the MasterFrame if it exists
-            #ms_name = armasters.master_name('bias', self.setup)
-            msbias = armasters.core_get_master_frame("bias")
+            msbias, header = armasters.core_get_master_frame("bias", self.settings, self.setup)
             if msbias is None:
                 msgs.info("Preparing a master {0:s} frame".format(self.settings['bias']['useframe']))
                 # Get all of the bias frames for this science frame
                 if self.nfiles == 0:
                     for i in range(len(self.ind)):
-                        self.file_list.append(self.fitsdict['directory'][self.ind[i]]+
-                                              self.fitsdict['filename'][self.ind[i]])
+                        self.file_list.append(self.fitsdict['directory'][self.ind[i]]+self.fitsdict['filename'][self.ind[i]])
                 # Combine
                 msbias = self.combine()
-                #frames = arload.load_frames(fitsdict, self.ind, det,
-                #                            frametype=settings.argflag['bias']['useframe'], trim=False)
-                #msbias = arcomb.comb_frames(frames, det, 'bias', printtype=settings.argflag['bias']['useframe'])
+                # Save to Masters
+                ms_name = armasters.master_name('bias', self.setup)
+                self.save_as_master(ms_name, frametype='bias')
+                #armasters.core_save_masters(mftype='bias', raw_files=self.file_list)
+            else:
+                # Prevent over-writing the master bias when it is time to save
+                self.settings['reduce']['masters']['loaded'].append('bias')
         elif self.settings['bias']['useframe'] in ['overscan', 'none']:
             if self.settings['bias']['useframe'] == 'none':
                 msgs.info("Will not perform bias/dark subtraction")
@@ -126,11 +122,9 @@ class BiasPrep(processimages.ProcessImages):
         else:  # It must be the name of a file the user wishes to load
             msbias_name = self.settings['run']['directory']['master']+u'/'+self.settings['bias']['useframe']
             msbias, head = arload.load_master(msbias_name, frametype="bias")
-            # TODO -- Might remove 'loaded' option
-            self.settings['reduce']['masters']['loaded'].append('bias')
+            self.settings['reduce']['masters']['loaded'].append('bias'+self.setup)
 
         self.stack = msbias
-        # Save to Masters
         return msbias.copy()
 
 

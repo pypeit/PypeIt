@@ -102,20 +102,27 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             # Allow for variants in the setup for each Science frame (e.g. Arc pairings)
             calib_dict[setup] = {}
 
+            # TODO -- Update/avoid the following with new settings
+            tsettings = settings.argflag.copy()
+            tsettings['detector'] = settings.spect[settings.get_dnum(det)]
+            tsettings['detector']['dataext'] = tsettings['detector']['dataext01']  # Kludge; goofy named key
+            tsettings['detector']['dispaxis'] = settings.argflag['trace']['dispersion']['direction']
+
             ###############
             # Prepare for Bias subtraction
             #   bias will either be an image (ndarray) or a command (str, e.g. 'overscan') or none
             if 'bias' in calib_dict.keys():
                 bias = calib_dict[setup]['bias']
             else:
-                BPrep = biasprep.BiasPrep(setup, ind=slf._idx_bias, det=det, fitsdict=fitsdict)
-                bias = BPrep.run()
+                # Init
+                BPrep = biasprep.BiasPrep(setup, tsettings, ind=slf._idx_bias, det=det, fitsdict=fitsdict)
+                bias = BPrep.run()  # If an image is generated, it will be saved to disk a a MasterFrame
                 # Save in Calib dict -- Will replace Master class
                 calib_dict[setup]['bias'] = bias
-                # Set -- Will be Deprecated
+
+            # Set -- Will be Deprecated
+            if isinstance(bias, np.ndarray):
                 slf.SetMasterFrame(bias, "bias", det)
-                # Save as Master to disk
-                armasters.save_masters(slf, det, mftype='bias')
 
             #update = slf.MasterBias(fitsdict, det)
             #if update and reuseMaster:
