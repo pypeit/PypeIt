@@ -76,7 +76,7 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
                                        (scale/fitsdict['exptime'][scidx])**2)
 
 
-def bspline_magfit(wave, flux, var, flux_std, **kwargs):
+def bspline_magfit(wave, flux, var, flux_std, bspline_par=None):
     """
     Perform a bspline fit to the flux ratio of standard to
     observed counts.  Used to generate a sensitivity function.
@@ -90,7 +90,8 @@ def bspline_magfit(wave, flux, var, flux_std, **kwargs):
       variance
     flux_std : Quantity array
       standard star true flux (erg/s/cm^2/A)
-    **kwargs : keywords for robust_polyfit
+    bspline_par : dict, optional
+      keywords for robust_polyfit
 
     Returns
     -------
@@ -122,7 +123,8 @@ def bspline_magfit(wave, flux, var, flux_std, **kwargs):
     '''
 
     #  First iteration
-    mask, tck = arutils.robust_polyfit(wave, magfunc, 3, function='bspline', weights=np.sqrt(logivar), **kwargs)
+    mask, tck = arutils.robust_polyfit(wave, magfunc, 3, function='bspline', weights=np.sqrt(logivar),
+                                       bspline_par=bspline_par)
     logfit1 = arutils.func_val(tck,wave,'bspline')
     modelfit1 = 10.0**(0.4*(logfit1))
 
@@ -145,8 +147,11 @@ def bspline_magfit(wave, flux, var, flux_std, **kwargs):
     # Fuss with the knots first ()
     inner_knots = arutils.bspline_inner_knots(tck[0])
     #
+    if bspline_par is None:
+        bspline_par = {}
+    bspline_par['knots'] = inner_knots # This over-rides everyn
     mask, tck_residual = arutils.robust_polyfit(wave, residual, 3, function='bspline',
-                                                weights=np.sqrt(residual_ivar), knots=inner_knots, **kwargs)
+                                                weights=np.sqrt(residual_ivar), bspline_par=bspline_par) #**kwargs)
     if tck_residual[1].size != tck[1].size:
         msgs.error('Problem with bspline knots in bspline_magfit')
     #bset_residual = bspline_iterfit(wave, residual, weights=np.sqrt(residual_ivar), knots = tck[0])
@@ -473,7 +478,8 @@ def generate_sensfunc(slf, stdidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=
 
     # Fit in magnitudes
     var_corr[msk == False] = -1.
-    mag_tck = bspline_magfit(wave.value, flux_corr, var_corr, flux_true, bkspace=resln.value*nresln)
+    bspline_par = dict(bkspace=resln.value*nresln)
+    mag_tck = bspline_magfit(wave.value, flux_corr, var_corr, flux_true, bspline_par=bspline_par) #bkspace=resln.value*nresln)
     sens_dict = dict(c=mag_tck, func='bspline',min=None,max=None, std=std_dict)
     # Add in wavemin,wavemax
     sens_dict['wave_min'] = np.min(wave)

@@ -21,6 +21,7 @@ from pypit import arcomb
 from pypit import arflux
 from pypit import arlris
 from pypit import armasters
+from pypit import arpixels
 from pypit import arproc
 from pypit import arsort
 from pypit import arutils
@@ -231,9 +232,9 @@ class ScienceExposure:
           Index of the detector
         """
         if settings.argflag['reduce']['pixel']['locations'] is None:
-            self.SetFrame(self._pixlocn, artrace.gen_pixloc(self._mstrace[det-1], det, gen=True), det)
+            self.SetFrame(self._pixlocn, arpixels.gen_pixloc(self._mstrace[det-1], det, gen=True), det)
         elif settings.argflag['reduce']['pixel']['locations'] in ["mstrace"]:
-            self.SetFrame(self._pixlocn, artrace.gen_pixloc(self._mstrace[det-1], det, gen=False), det)
+            self.SetFrame(self._pixlocn, arpixels.gen_pixloc(self._mstrace[det-1], det, gen=False), det)
         else:
             mname = settings.argflag['run']['directory']['master']+'/'+settings.argflag['reduce']['pixel']['locations']
             self.SetFrame(self._pixlocn, arload.load_master(mname, frametype=None), det)

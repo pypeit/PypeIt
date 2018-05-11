@@ -75,7 +75,6 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     tck : tuple
       describes the bspline
     '''
-    #
     task = 0  # Default of splrep
     if w is None:
         ngd = x.size
@@ -212,7 +211,7 @@ def func_der(coeffs, func, nderive=1):
 
 
 def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
-             **kwargs):
+             bspline_par=None):
     """ General routine to fit a function to a given set of x,y points
 
     Parameters
@@ -227,7 +226,8 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
     maxv
     w
     guesses : tuple
-    kwargs
+    bspline_par : dict
+      Passed to bspline_fit()
 
     Returns
     -------
@@ -259,7 +259,10 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
         return np.polynomial.chebyshev.chebfit(xv, y, deg, w=w)
     elif func == "bspline":
-        return bspline_fit(x, y, order=deg, w=w, **kwargs)
+        if bspline_par is None:
+            bspline_par = {}
+        # TODO -- Deal with this kwargs-like kludge
+        return bspline_fit(x, y, order=deg, w=w, **bspline_par)
     elif func in ["gaussian"]:
         # Guesses
         if guesses is None:
@@ -837,7 +840,7 @@ def rebin(frame, newshape):
 
 def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
                    function="polynomial", initialmask=None, forceimask=False,
-                   minv=None, maxv=None, guesses=None, **kwargs):
+                   minv=None, maxv=None, guesses=None, bspline_par=None):
     """
     A robust (equally weighted) polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are masked values
@@ -875,7 +878,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
         else:
             wfit = None
         ct = func_fit(xfit, yfit, function, order, w=wfit,
-                      guesses=ct, minv=minv, maxv=maxv, **kwargs)
+                      guesses=ct, minv=minv, maxv=maxv, bspline_par=bspline_par)
         yrng = func_val(ct, xarray, function, minv=minv, maxv=maxv)
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
         if xarray.size-np.sum(mask) <= order+2:
@@ -905,7 +908,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
         wfit = weights[w]
     else:
         wfit = None
-    ct = func_fit(xfit, yfit, function, order, w=wfit, minv=minv, maxv=maxv, **kwargs)
+    ct = func_fit(xfit, yfit, function, order, w=wfit, minv=minv, maxv=maxv, bspline_par=bspline_par)
     return mask, ct
 
 

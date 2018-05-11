@@ -128,7 +128,7 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
 def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
                         extensions=None, keywds=None, names=None):
     """ Wrapper to core_save_master
-    May be Deprecated
+    Will be Deprecated
 
     Parameters
     ----------
