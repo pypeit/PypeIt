@@ -38,6 +38,8 @@ class BiasPrep(processimages.ProcessImages):
     ----------
     settings : dict
       Settings for trace slits
+    setup : str (optional)
+      Setup tag
     file_list : list
       List of filenames
     det : int, optional
@@ -55,7 +57,7 @@ class BiasPrep(processimages.ProcessImages):
     images : list
     stack : ndarray
     """
-    def __init__(self, setup, settings, file_list=[], det=1, ind=[], fitsdict=None):
+    def __init__(self, settings, setup=None, file_list=[], det=1, ind=[], fitsdict=None):
         # TODO -- Should we call out/separate detector, combine and bias process settings??
 
         # Start us up

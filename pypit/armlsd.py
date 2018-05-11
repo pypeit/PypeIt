@@ -115,7 +115,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 bias = calib_dict[setup]['bias']
             else:
                 # Init
-                BPrep = biasprep.BiasPrep(setup, tsettings, ind=slf._idx_bias, det=det, fitsdict=fitsdict)
+                BPrep = biasprep.BiasPrep(tsettings, setup=setup, ind=slf._idx_bias, det=det, fitsdict=fitsdict)
                 bias = BPrep.run()  # If an image is generated, it will be saved to disk a a MasterFrame
                 # Save in Calib dict -- Will replace Master class
                 calib_dict[setup]['bias'] = bias
