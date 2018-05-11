@@ -2568,7 +2568,7 @@ def replace_columns(img, bad_cols, replace_with='mean'):
     # Prep
     img2 = img.copy()
     # Find the starting/ends of the bad column sets
-    tmp = np.zeros(img.shape[1]).astype(int)
+    tmp = np.zeros(img.shape[1], dtype=int)
     tmp[bad_cols] = 1
     tmp2 = tmp - np.roll(tmp,1)
     # Deal with first column

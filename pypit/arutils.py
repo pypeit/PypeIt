@@ -45,8 +45,7 @@ def bspline_inner_knots(all_knots):
     return all_knots[i0:i1]
 
 
-def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bkspace=None,
-                bspline_par=None):
+def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bkspace=None):
     ''' bspline fit to x,y
     Should probably only be called from func_fit
 
@@ -70,19 +69,12 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
       Knot everyn good pixels, if used
     bkspace: float 
       Spacing of breakpoints in units of x
-    bspline_par : dict, optional
-      Convenient way to set several parameters (like settings)
 
     Returns:
     ---------
     tck : tuple
       describes the bspline
     '''
-    # Unpack bspline_par
-    if bspline_par is not None:
-        for key,value in bspline_par.items():
-            key = value
-    #
     task = 0  # Default of splrep
     if w is None:
         ngd = x.size
