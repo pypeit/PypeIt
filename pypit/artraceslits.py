@@ -2313,11 +2313,14 @@ def remove_slit(edgearr, lcen, rcen, tc_dict, rm_slits, TOL=3.):
 
     Parameters
     ----------
-    edgearr
-    lcen
-    rcen
-    tc_dict
-    rm_slits
+    edgearr : ndarray
+    lcen : ndarray
+    rcen : ndarray
+    tc_dict : dict
+    rm_slits : list
+      List of slits to remove
+        [[left0, right0], [left1, right1]]
+      Specified at ycen = nrows//2
     TOL : float
       Tolerance for specifying the left/right edge
 

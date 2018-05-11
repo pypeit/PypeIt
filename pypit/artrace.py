@@ -833,7 +833,31 @@ def new_find_objects(profile, bgreg, stddev):
                     (bgr & np.invert(has_obj)[:,None]).astype(int)
 
 
+def new_find_peak_limits(hist, pks):
+    """
+    Find all values between the zeros of hist
 
+    Parameters
+    ----------
+    hist : ndarray
+      1D vector
+    pks : ndarray
+      1D vector
+    """
+    if len(hist.shape) != 1 or len(pks.shape) != 1:
+        msgs.error('Arrays provided to find_peak_limits must be vectors.')
+    # Pixel indices in hist for each peak
+    hn = np.arange(hist.shape[0])
+    indx = np.ma.MaskedArray(np.array([hn]*pks.shape[0]))
+    # Instantiate output
+    edges = np.zeros((pks.shape[0],2), dtype=int)
+    # Find the left edges
+    indx.mask = (hist != 0)[None,:] | (hn[None,:] > pks[:,None])
+    edges[:,0] = np.ma.amax(indx, axis=1)
+    # Find the right edges
+    indx.mask = (hist != 0)[None,:] | (hn[None,:] < pks[:,None])
+    edges[:,1] = np.ma.amin(indx, axis=1)
+    return edges
 
 
 
