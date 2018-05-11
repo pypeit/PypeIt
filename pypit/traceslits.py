@@ -4,7 +4,7 @@ from __future__ import absolute_import, division, print_function
 import inspect
 import numpy as np
 
-from importlib import reload
+#from importlib import reload
 
 from astropy.io import fits
 
