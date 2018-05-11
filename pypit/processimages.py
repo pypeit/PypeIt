@@ -186,6 +186,14 @@ class ProcessImages(object):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
+    def _combine(self):
+        # Now we can combine
+        self.stack = arcomb.core_comb_frames(self.proc_images, frametype='Unknown',
+                                             method=self.settings['combine']['method'],
+                                             reject=self.settings['combine']['reject'],
+                                             satpix=self.settings['combine']['satpix'],
+                                             saturation=self.settings['detector']['saturation'])
+
     def combine(self, bias_subtract=None, overwrite=False, trim=True):
         # Over-write?
         if (inspect.stack()[0][3] in self.steps) & (not overwrite):
@@ -209,13 +217,8 @@ class ProcessImages(object):
                                          self.nloaded))
             for kk,image in enumerate(self.raw_images):
                 self.proc_images[:,:,kk] = image
-
-        # Now we can combine
-        self.stack = arcomb.core_comb_frames(self.proc_images, frametype='Unknown',
-                                             method=self.settings['combine']['method'],
-                                             reject=self.settings['combine']['reject'],
-                                             satpix=self.settings['combine']['satpix'],
-                                             saturation=self.settings['detector']['saturation'])
+        # Do it (internally, for Children)
+        self._combine()
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.stack.copy()

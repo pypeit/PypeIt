@@ -91,6 +91,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             slf.setup = setup
             ###############
             # Generate master bias frame
+            BiasImg =
             update = slf.MasterBias(fitsdict, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="bias")

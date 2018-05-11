@@ -155,7 +155,7 @@ class TraceSlits(object):
         self.rcoeff = None
         self.rnmbrarr = None
         self.rdiffarr = None
-        self.rwghtarr  = None
+        self.rwghtarr = None
 
     @classmethod
     def from_files(cls, root):
@@ -826,6 +826,7 @@ class TraceSlits(object):
            6.  Fit left/right slits
            7.  Synchronize
            8.  Extrapolate into blank regions (PCA)
+           9.  Perform pixel-level calculations
 
         Parameters
         ----------
@@ -839,11 +840,15 @@ class TraceSlits(object):
 
         Returns
         -------
-        lcen : ndarray
-          Left edge traces
-        rcen  : ndarray
-          Right edge traces
-        extrapord
+        trace_slits_dict : dict
+          'lcen'
+          'rcen'
+          'pixcen'
+          'pixwid'
+          'lordpix'
+          'rordpix'
+          'extrapord'
+          'slitpix'
         """
         # Specify a single slit?
         if len(self.settings['trace']['slits']['single']) > 0:  # Single slit
