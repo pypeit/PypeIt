@@ -363,55 +363,6 @@ def load_extraction(name, frametype='<None>', wave=True):
         return sciext, props
 
 
-def load_master(name, exten=0, frametype='<None>'):
-    return core_load_master(name, exten=exten, frametype=frametype,
-                         force=settings.argflag['reduce']['masters']['force'])
-
-def core_load_master(name, exten=0, frametype='<None>', force=False):
-    """
-    Load a pre-existing master calibration frame
-
-    Should probably move this method to armasters.py
-
-    Parameters
-    ----------
-    name : str
-      Name of the master calibration file to be loaded
-    exten : int, optional
-    frametype : str, optional
-      The type of master calibration frame being loaded.
-      This keyword is only used for terminal print out.
-
-    Returns
-    -------
-    frame : ndarray or dict or None
-      The data from the master calibration frame
-    head : str (or None)
-    """
-    # Check to see if file exists
-    if not os.path.isfile(name):
-        msgs.warn("Master frame does not exist: {:s}".format(name))
-        if force:
-            msgs.error("Crashing out because reduce-masters-force=True:"+msgs.newline()+name)
-        return None, None
-    #
-    if frametype == 'wv_calib':
-        msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
-        ldict = linetools.utils.loadjson(name)
-        return ldict, None
-    elif frametype == 'sensfunc':
-        with open(name, 'r') as f:
-            sensfunc = yaml.load(f)
-        sensfunc['wave_max'] = sensfunc['wave_max']*units.AA
-        sensfunc['wave_min'] = sensfunc['wave_min']*units.AA
-        return sensfunc, None
-    else:
-        msgs.info("Loading a pre-existing master calibration frame")
-        hdu = fits.open(name)
-        msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
-        head = hdu[0].header
-        data = hdu[exten].data.astype(np.float)
-        return data, head
 
 
 def load_ordloc(fname):

@@ -1,3 +1,4 @@
+""" Routines related to MasterFrames"""
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 try:
@@ -11,9 +12,7 @@ import yaml
 import linetools.utils
 
 from pypit import msgs
-from pypit import arload
 from pypit import arparse as settings
-from pypit import arsave
 from pypit import arutils
 from pypit import ardebug as debugger
 
@@ -136,7 +135,7 @@ def core_get_master_frame(mftype, settings, setup):
     if (settings['reduce']['masters']['reuse']) or (settings['reduce']['masters']['force']):
         mdir = settings['run']['directory']['master']+'_'+settings['run']['spectrograph']
         ms_name = core_master_name(mftype, setup, mdir)
-        msfile, head = arload.core_load_master(ms_name, frametype=mftype,
+        msfile, head = core_load_master(ms_name, frametype=mftype,
                                                force=settings['reduce']['masters']['force'])
         if msfile is None:
             msgs.warn("No Master frame found of type {:s}: {:s}".format(mftype,ms_name))
@@ -145,19 +144,71 @@ def core_get_master_frame(mftype, settings, setup):
             if mftype == 'trace':
                 tdict = {}
                 tdict['mstrace'] = msfile.copy()
-                tdict['lordloc'], _ = arload.core_load_master(ms_name, frametype="trace", exten=1)
-                tdict['rordloc'], _ = arload.core_load_master(ms_name, frametype="trace", exten=2)
-                tdict['pixcen'], _ = arload.core_load_master(ms_name, frametype="trace", exten=3)
-                tdict['pixwid'], _ = arload.core_load_master(ms_name, frametype="trace", exten=4)
-                tdict['lordpix'], _ = arload.core_load_master(ms_name, frametype="trace", exten=5)
-                tdict['rordpix'], _ = arload.core_load_master(ms_name, frametype="trace", exten=6)
-                tdict['slitpix'], _ = arload.core_load_master(ms_name, frametype="trace", exten=7)
+                tdict['lordloc'], _ = core_load_master(ms_name, frametype="trace", exten=1)
+                tdict['rordloc'], _ = core_load_master(ms_name, frametype="trace", exten=2)
+                tdict['pixcen'], _ = core_load_master(ms_name, frametype="trace", exten=3)
+                tdict['pixwid'], _ = core_load_master(ms_name, frametype="trace", exten=4)
+                tdict['lordpix'], _ = core_load_master(ms_name, frametype="trace", exten=5)
+                tdict['rordpix'], _ = core_load_master(ms_name, frametype="trace", exten=6)
+                tdict['slitpix'], _ = core_load_master(ms_name, frametype="trace", exten=7)
                 msfile = tdict  # Just for returning
             # Append as loaded
             settings['reduce']['masters']['loaded'].append(mftype+setup)
             return msfile, head
     else:
         return None, None
+
+
+def load_master(name, exten=0, frametype='<None>'):
+    return core_load_master(name, exten=exten, frametype=frametype,
+                         force=settings.argflag['reduce']['masters']['force'])
+
+def core_load_master(name, exten=0, frametype='<None>', force=False):
+    """
+    Load a pre-existing master calibration frame
+
+    Should probably move this method to armasters.py
+
+    Parameters
+    ----------
+    name : str
+      Name of the master calibration file to be loaded
+    exten : int, optional
+    frametype : str, optional
+      The type of master calibration frame being loaded.
+      This keyword is only used for terminal print out.
+
+    Returns
+    -------
+    frame : ndarray or dict or None
+      The data from the master calibration frame
+    head : str (or None)
+    """
+    # Check to see if file exists
+    if not os.path.isfile(name):
+        msgs.warn("Master frame does not exist: {:s}".format(name))
+        if force:
+            msgs.error("Crashing out because reduce-masters-force=True:"+msgs.newline()+name)
+        return None, None
+    #
+    if frametype == 'wv_calib':
+        msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
+        ldict = linetools.utils.loadjson(name)
+        return ldict, None
+    elif frametype == 'sensfunc':
+        with open(name, 'r') as f:
+            sensfunc = yaml.load(f)
+        sensfunc['wave_max'] = sensfunc['wave_max']*units.AA
+        sensfunc['wave_min'] = sensfunc['wave_min']*units.AA
+        return sensfunc, None
+    else:
+        msgs.info("Loading a pre-existing master calibration frame")
+        hdu = fits.open(name)
+        msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
+        head = hdu[0].header
+        data = hdu[exten].data.astype(np.float)
+        return data, head
+
 
 def save_masters(slf, det, mftype='all'):
     """ Save Master Frames
@@ -180,7 +231,7 @@ def save_masters(slf, det, mftype='all'):
         #                   frametype='bias', raw_files=raw_files)
     # Bad Pixel
     if (mftype in ['badpix', 'all']) and ('badpix'+setup not in settings.argflag['reduce']['masters']['loaded']):
-        arsave.save_master(slf, slf._bpix[det-1],
+        save_master(slf, slf._bpix[det-1],
                                filename=master_name('badpix', setup),
                                frametype='badpix')
     # Trace
@@ -190,27 +241,27 @@ def save_masters(slf, det, mftype='all'):
                       slf._lordpix[det-1], slf._rordpix[det-1],
                       slf._slitpix[det-1]]
         names = ['LeftEdges_det', 'RightEdges_det', 'SlitCentre', 'SlitLength', 'LeftEdges_pix', 'RightEdges_pix', 'SlitPixels']
-        arsave.save_master(slf, slf._mstrace[det-1],
+        save_master(slf, slf._mstrace[det-1],
                            filename=master_name('trace', setup),
                            frametype='trace', extensions=extensions, names=names)
     # Pixel Flat
     if (mftype in ['normpixelflat', 'all']) and ('normpixelflat'+setup not in settings.argflag['reduce']['masters']['loaded']):
-        arsave.save_master(slf, slf._mspixelflatnrm[det-1],
+        save_master(slf, slf._mspixelflatnrm[det-1],
                            filename=master_name('normpixelflat', setup),
                            frametype='normpixelflat')
     # Pinhole Flat
     if (mftype in ['pinhole', 'all']) and ('pinhole'+setup not in settings.argflag['reduce']['masters']['loaded']):
-        arsave.save_master(slf, slf._mspinhole[det-1],
+        save_master(slf, slf._mspinhole[det-1],
                            filename=master_name('pinhole', setup),
                            frametype='pinhole')
     # Arc/Wave
     if (mftype in ['arc', 'all']) and ('arc'+setup not in settings.argflag['reduce']['masters']['loaded']):
-        arsave.save_master(slf, slf._msarc[det-1],
+        save_master(slf, slf._msarc[det-1],
                            filename=master_name('arc', setup),
                            frametype='arc', keywds=dict(transp=transpose))
     if (mftype in ['wave', 'all']) and ('wave'+setup not in settings.argflag['reduce']['masters']['loaded']):
         # Wavelength image
-        arsave.save_master(slf, slf._mswave[det-1],
+        save_master(slf, slf._mswave[det-1],
                            filename=master_name('wave', setup),
                            frametype='wave')
     if (mftype in ['wv_calib', 'all']) and ('wv_calib'+setup not in settings.argflag['reduce']['masters']['loaded']):
@@ -223,14 +274,101 @@ def save_masters(slf, det, mftype='all'):
             msgs.warn("The master wavelength solution has not been saved")
     # Tilts
     if (mftype in ['tilts', 'all']) and ('tilts'+setup not in settings.argflag['reduce']['masters']['loaded']):
-        arsave.save_master(slf, slf._tilts[det-1],
+        save_master(slf, slf._tilts[det-1],
                            filename=master_name('tilts', setup),
                            frametype='tilts')
     # Spatial slit profile
     if (mftype in ['slitprof', 'all']) and ('slitprof'+setup not in settings.argflag['reduce']['masters']['loaded']):
-        arsave.save_master(slf, slf._slitprof[det - 1],
+        save_master(slf, slf._slitprof[det - 1],
                            filename=master_name('slitprof', setup),
                            frametype='slit profile')
+
+
+def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
+                        extensions=None, keywds=None, names=None):
+    """ Wrapper to core_save_master
+    Will be Deprecated
+
+    Parameters
+    ----------
+    slf
+    data
+    filename
+    frametype
+    ind
+    extensions
+    keywds
+    names
+
+    Returns
+    -------
+
+    """
+    if len(ind) > 0:
+        raw_files=slf._fitsdict['filename']
+    else:
+        raw_files=None
+    core_save_master(data, filename=filename, frametype=frametype, ind=ind,
+                     extensions=extensions, keywds=keywds, names=names,
+                     raw_files=raw_files)
+
+
+def core_save_master(data, filename="temp.fits", frametype="<None>", ind=[],
+                extensions=None, keywds=None, names=None, raw_files=None,
+                     overwrite=True):
+    """ Core function to write a MasterFrame
+    Parameters
+    ----------
+    data : ndarray
+    filename : str (optional)
+    frametype : str (optional)
+    ind : list (optional)
+    extensions : list, optional
+      Additional data images to write
+    names : list, optional
+      Names of the extensions
+    keywds : Additional keywords for the Header
+    raw_files : list or ndarray
+      Names of the raw files used to generate the image
+
+    Returns
+    -------
+
+    """
+    # Check for existing
+    if os.path.exists(filename) and (not overwrite):
+        msgs.warn("This file already exists.  Use overwrite=True to overwrite it")
+        return
+    #
+    msgs.info("Saving master {0:s} frame as:".format(frametype)+msgs.newline()+filename)
+    hdu = fits.PrimaryHDU(data)
+    hlist = [hdu]
+    # Extensions
+    if extensions is not None:
+        for kk,exten in enumerate(extensions):
+            hdu = fits.ImageHDU(exten)
+            if names is not None:
+                hdu.name = names[kk]
+            hlist.append(hdu)
+    # HDU list
+    hdulist = fits.HDUList(hlist)
+    # Header
+    msgs.info("Writing header information")
+    for i in range(len(ind)):
+        hdrname = "FRAME{0:03d}".format(i+1)
+        if raw_files is not None:
+            hdulist[0].header[hdrname] = (raw_files[ind[i]], 'PYPIT: File used to generate Master {0:s}'.format(frametype))
+    hdulist[0].header["FRAMETYP"] = (frametype, 'PYPIT: Master calibration frame type')
+    if keywds is not None:
+        for key in keywds.keys():
+            hdulist[0].header[key] = keywds[key]
+    # Write the file to disk
+    if os.path.exists(filename):
+        msgs.warn("Overwriting file:"+msgs.newline()+filename)
+
+    hdulist.writeto(filename, overwrite=True)
+    msgs.info("Master {0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
+    return
 
 
 def save_sensfunc(slf, setup):

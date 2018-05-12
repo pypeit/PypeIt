@@ -237,7 +237,7 @@ class ScienceExposure:
             self.SetFrame(self._pixlocn, arpixels.gen_pixloc(self._mstrace[det-1], det, gen=False), det)
         else:
             mname = settings.argflag['run']['directory']['master']+'/'+settings.argflag['reduce']['pixel']['locations']
-            self.SetFrame(self._pixlocn, arload.load_master(mname, frametype=None), det)
+            self.SetFrame(self._pixlocn, armasters.load_master(mname, frametype=None), det)
         return
 
     def MasterArc(self, fitsdict, det):
@@ -290,7 +290,7 @@ class ScienceExposure:
                 del frames
         else: # Use input frame name located in MasterFrame directory
             msarc_name = settings.argflag['run']['directory']['master']+'/'+settings.argflag['arc']['useframe']
-            msarc, _ = arload.load_master(msarc_name, frametype=None)
+            msarc, _ = armasters.load_master(msarc_name, frametype=None)
 
         # Set and then delete the Master Arc frame
         self.SetMasterFrame(msarc, "arc", det)
@@ -340,7 +340,7 @@ class ScienceExposure:
             return False
         else:  # It must be the name of a file the user wishes to load
             msbias_name = settings.argflag['run']['directory']['master']+u'/'+settings.argflag['bias']['useframe']
-            msbias, head = arload.load_master(msbias_name, frametype="bias")
+            msbias, head = armasters.load_master(msbias_name, frametype="bias")
             settings.argflag['reduce']['masters']['loaded'].append('bias')
         # Set and then delete the Master Bias frame
         self.SetMasterFrame(msbias, "bias", det)
@@ -497,7 +497,7 @@ class ScienceExposure:
             else:  # It must be the name of a file the user wishes to load
                 mspixelflat_name = armasters.user_master_name(settings.argflag['run']['directory']['master'],
                                                               settings.argflag['reduce']['flatfield']['useframe'])
-                mspixelflatnrm, head = arload.load_master(mspixelflat_name, exten=det, frametype=None)
+                mspixelflatnrm, head = armasters.load_master(mspixelflat_name, exten=det, frametype=None)
                 mspixelflat = mspixelflatnrm
             # Now that the combined, master flat field frame is loaded...
         else:
@@ -562,7 +562,7 @@ class ScienceExposure:
         else:  # It must be the name of a file the user wishes to load
             mspinhole_name = settings.argflag['run']['directory']['master'] + '/' + \
                               settings.argflag['reduce']['slitcen']['useframe']
-            mspinhole, head = arload.load_master(mspinhole_name, frametype=None)
+            mspinhole, head = armasters.load_master(mspinhole_name, frametype=None)
             debugger.set_trace()  # NEED TO LOAD EXTRAS AS ABOVE
         # Set and then delete the Master Trace frame
         self.SetMasterFrame(mspinhole, "pinhole", det)
@@ -617,7 +617,7 @@ class ScienceExposure:
                 del frames
         else: # It must be the name of a file the user wishes to load
             mstrace_name = settings.argflag['run']['directory']['master']+'/'+settings.argflag['reduce']['trace']['useframe']
-            mstrace, _ = arload.load_master(mstrace_name, frametype=None)
+            mstrace, _ = armasters.load_master(mstrace_name, frametype=None)
             debugger.set_trace()  # NEED TO LOAD EXTRAS AS ABOVE;  SHOULD MODIFY get_master_frame()
         # Set and then delete the Master Trace frame
         self.SetMasterFrame(mstrace, "trace", det)
