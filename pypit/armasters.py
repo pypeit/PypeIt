@@ -57,6 +57,12 @@ class MasterFrames:
 
 
 def master_name(ftype, setup, mdir=None):
+    if mdir is None:
+        mdir = settings.argflag['run']['directory']['master']+'_'+settings.argflag['run']['spectrograph']
+    return core_master_name(ftype, setup, mdir)
+
+
+def core_master_name(ftype, setup, mdir):
     """ Default filenames
     Parameters
     ----------
@@ -68,8 +74,6 @@ def master_name(ftype, setup, mdir=None):
     Returns
     -------
     """
-    if mdir is None:
-        mdir = settings.argflag['run']['directory']['master']+'_'+settings.argflag['run']['spectrograph']
     name_dict = dict(bias='{:s}/MasterBias_{:s}.fits'.format(mdir, setup),
                      badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir, setup),
                      trace='{:s}/MasterTrace_{:s}.fits'.format(mdir, setup),
@@ -130,8 +134,10 @@ def core_get_master_frame(mftype, settings, setup):
     # Were MasterFrames even desired?
     #  TODO -- Consider asking this if statement *before* calling get master_frame
     if (settings['reduce']['masters']['reuse']) or (settings['reduce']['masters']['force']):
-        ms_name = master_name(mftype, setup)
-        msfile, head = arload.load_master(ms_name, frametype=mftype)
+        mdir = settings['run']['directory']['master']+'_'+settings['run']['spectrograph']
+        ms_name = core_master_name(mftype, setup, mdir)
+        msfile, head = arload.core_load_master(ms_name, frametype=mftype,
+                                               force=settings['reduce']['masters']['force'])
         if msfile is None:
             msgs.warn("No Master frame found of type {:s}: {:s}".format(mftype,ms_name))
             return None, None
@@ -139,13 +145,13 @@ def core_get_master_frame(mftype, settings, setup):
             if mftype == 'trace':
                 tdict = {}
                 tdict['mstrace'] = msfile.copy()
-                tdict['lordloc'], _ = arload.load_master(ms_name, frametype="trace", exten=1)
-                tdict['rordloc'], _ = arload.load_master(ms_name, frametype="trace", exten=2)
-                tdict['pixcen'], _ = arload.load_master(ms_name, frametype="trace", exten=3)
-                tdict['pixwid'], _ = arload.load_master(ms_name, frametype="trace", exten=4)
-                tdict['lordpix'], _ = arload.load_master(ms_name, frametype="trace", exten=5)
-                tdict['rordpix'], _ = arload.load_master(ms_name, frametype="trace", exten=6)
-                tdict['slitpix'], _ = arload.load_master(ms_name, frametype="trace", exten=7)
+                tdict['lordloc'], _ = arload.core_load_master(ms_name, frametype="trace", exten=1)
+                tdict['rordloc'], _ = arload.core_load_master(ms_name, frametype="trace", exten=2)
+                tdict['pixcen'], _ = arload.core_load_master(ms_name, frametype="trace", exten=3)
+                tdict['pixwid'], _ = arload.core_load_master(ms_name, frametype="trace", exten=4)
+                tdict['lordpix'], _ = arload.core_load_master(ms_name, frametype="trace", exten=5)
+                tdict['rordpix'], _ = arload.core_load_master(ms_name, frametype="trace", exten=6)
+                tdict['slitpix'], _ = arload.core_load_master(ms_name, frametype="trace", exten=7)
                 msfile = tdict  # Just for returning
             # Append as loaded
             settings['reduce']['masters']['loaded'].append(mftype+setup)

@@ -3,6 +3,9 @@ from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
+import os
+
+from astropy.io import fits
 
 from pypit import msgs
 from pypit import ardebug as debugger
@@ -26,40 +29,36 @@ if msgs._debug is None:
 additional_default_settings = dict(bias={'useframe': 'none'})
 
 
-class BiasPrep(processimages.ProcessImages):
+class BiasFrame(processimages.ProcessImages):
     """
-    Prepare for Bias Subtraction
-
-    Generate or load a bias image, if desired
-    Or return a command for bias removal, e.g.
-      'overscan'
+    This class is primarily designed to generate a Bias frame for bias subtraction
+      It also contains I/O methods for the Master frames of PYPIT
+      And the run() method will return a simple command (str) if that is the specified setting
+      in settings['bias']['useframe']
 
     Parameters
     ----------
-    settings : dict
+    file_list : list (optional)
+      List of filenames
+    settings : dict (optional)
       Settings for trace slits
     setup : str (optional)
       Setup tag
-    file_list : list
-      List of filenames
     det : int, optional
       Detector index, starts at 1
-    user_settings : dict, optional
-      Allow for user to over-ride individual internal/default settings
-      without providing a full settings dict
     ind : list (optional)
       Indices for bias frames (if a Bias image may be generated)
-    fitsdict : dict
+    fitsdict : dict (optional)
       FITS info (mainly for filenames)
 
     Attributes
     ----------
     images : list
     stack : ndarray
+    frametype : str
+      Set to 'bias'
     """
-    def __init__(self, settings, setup=None, file_list=[], det=1, ind=[], fitsdict=None):
-        # TODO -- Should we call out/separate detector, combine and bias process settings??
-
+    def __init__(self, settings=None, setup=None, file_list=[], det=1, ind=[], fitsdict=None):
         # Start us up
         processimages.ProcessImages.__init__(self, file_list, settings=settings)
 
@@ -71,10 +70,50 @@ class BiasPrep(processimages.ProcessImages):
 
         # Settings
         # The copy allows up to update settings with user settings without changing the original
-        self.settings = settings.copy()
-        # The following is somewhat kludgy and the current way we do settings may
-        #   not touch all the options (not sure .update() would help)
-        self.settings['combine'] = settings['bias']['combine']
+        if settings is None:
+            # Defaults
+            self.settings = processimages.default_settings.copy().update(additional_default_settings)
+        else:
+            self.settings = settings.copy()
+            # The following is somewhat kludgy and the current way we do settings may
+            #   not touch all the options (not sure .update() would help)
+            if 'combine' not in settings.keys():
+                self.settings['combine'] = settings['bias']['combine']
+
+        # Child-specific Internals
+        #    See ProcessImages for the rest
+        self.frametype = 'bias'
+
+    @classmethod
+    def from_master(cls, settings, setup, fits_file=None, **kwargs):
+        if fits_file is None:
+            fits_file = armasters.core_master_name('bias', setup,
+                                             settings['run']['directory']['master']+'_'+settings['run']['spectrograph'])
+        slf = cls.from_fits(fits_file, settings=settings, setup=setup, **kwargs)
+        msgs.info("Instantiated from {:s}".format(fits_file))
+        return slf
+
+    @classmethod
+    def from_fits(cls, fits_file, **kwargs):
+        if not os.path.isfile(fits_file):
+            msgs.error("FITS file not found: {:s}".format(fits_file))
+        # Load
+        hdul = fits.open(fits_file)
+        head0 = hdul[0].header
+        file_list = []
+        for key in head0:
+            if 'FRAME' in key:
+                file_list.append(head0[key])
+        slf = cls(file_list=file_list, **kwargs)
+        # Fill
+        slf.stack = hdul[0].data
+        return slf
+
+    @property
+    def ms_name(self):
+        ms_name = armasters.core_master_name('bias', self.setup,
+                                             self.settings['run']['directory']['master']+'_'+self.settings['run']['spectrograph'])
+        return ms_name
 
     def combine(self, overwrite=False):
         # Over-write?
@@ -93,10 +132,11 @@ class BiasPrep(processimages.ProcessImages):
         for kk,image in enumerate(self.raw_images):
                 self.proc_images[:,:,kk] = image
         # Combine
-        self.stack = self._combine()
+        self.stack = self._combine(frametype=self.frametype)
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.stack.copy()
+
 
     def run(self):
 
@@ -113,8 +153,7 @@ class BiasPrep(processimages.ProcessImages):
                 # Combine
                 msbias = self.combine()
                 # Save to Masters
-                ms_name = armasters.master_name('bias', self.setup)
-                self.save_as_master(ms_name)
+                self.save_as_master(self.ms_name)
                 #armasters.core_save_masters(mftype='bias', raw_files=self.file_list)
             else:
                 # Prevent over-writing the master bias when it is time to save
@@ -127,7 +166,7 @@ class BiasPrep(processimages.ProcessImages):
         # It must be a user-specified file the user wishes to load
         else:
             msbias_name = self.settings['run']['directory']['master']+u'/'+self.settings['bias']['useframe']
-            msbias, head = arload.load_master(msbias_name, frametype="bias")
+            msbias, head = arload.load_master(msbias_name, frametype=self.frametype)
             self.settings['reduce']['masters']['loaded'].append('bias'+self.setup)
 
         self.stack = msbias
@@ -145,9 +184,12 @@ class BiasPrep(processimages.ProcessImages):
         if self.stack is None:
             msgs.warn("No image has been produced (yet).  Try again")
             return
-        #
+        # Steps
+        steps = ','
+        steps.join(self.steps)
         arsave.core_save_master(self.stack, filename=outfile, raw_files=self.file_list,
-                                ind=range(self.nfiles), frametype='bias')
+                                keywds=dict(steps=steps),
+                                ind=range(self.nfiles), frametype=self.frametype)
 
     def show(self, attr, idx=None, display='ginga'):
         if 'proc_image' in attr:

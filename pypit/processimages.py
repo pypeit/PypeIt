@@ -5,13 +5,9 @@ import inspect
 import numpy as np
 import os
 
-from importlib import reload
-
 from collections import OrderedDict
 
 from astropy.io import fits
-
-from linetools import utils as ltu
 
 from pypit import msgs
 from pypit import ardebug as debugger
@@ -69,13 +65,22 @@ class ProcessImages(object):
     user_settings : dict, optional
       Allow for user to over-ride individual internal/default settings
       without providing a full settings dict
+    spectrograph : str
+       Used to specify properties of the detector (for processing)
+       Is set with settings['run']['spectrograph'] if not input
 
     Attributes
     ----------
     images : list
     stack : ndarray
+    raw_images : list
+    headers : list
+    proc_images : ndarray
+      3D array of processed, individual images
+    datasec : list
+    oscansec : list (optional)
     """
-    def __init__(self, file_list, det=1, settings=None, user_settings=None):
+    def __init__(self, file_list, spectrograph=None, settings=None, det=1, user_settings=None):
 
         # Parameters
         self.file_list = file_list
@@ -97,12 +102,28 @@ class ProcessImages(object):
         self.steps = []
 
         # Key Internals
-        self.spectrograph = self.settings['run']['spectrograph']
+        if spectrograph is None:
+            spectrograph = self.settings['run']['spectrograph']
+        self.spectrograph = spectrograph
         self.raw_images = []
         self.proc_images = None  # Will be an ndarray
         self.headers = []
         self.datasec = []
         self.oscansec = []
+
+    @classmethod
+    def from_fits(cls, fits_file, **kwargs):
+        # Load
+        hdul = fits.open(fits_file)
+        head0 = hdul[0].header
+        file_list = []
+        for key in head0:
+            if 'FRAME' in key:
+                file_list.append(head0[key])
+        slf = cls(file_list, **kwargs)
+        # Fill
+        slf.stack = hdul[0].data
+        return slf
 
     @property
     def nfiles(self):
@@ -188,9 +209,9 @@ class ProcessImages(object):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def _combine(self):
+    def _combine(self, frametype='Unknown'):
         # Now we can combine
-        stack = arcomb.core_comb_frames(self.proc_images, frametype='Unknown',
+        stack = arcomb.core_comb_frames(self.proc_images, frametype=frametype,
                                              method=self.settings['combine']['method'],
                                              reject=self.settings['combine']['reject'],
                                              satpix=self.settings['combine']['satpix'],
@@ -236,6 +257,25 @@ class ProcessImages(object):
             img = self.stack
         # Show
         viewer, ch = ginga.show_image(img)
+
+    def write_stack_to_fits(self, outfile, overwrite=True):
+        if self.stack is None:
+            msgs.warn("You need to generate the stack before you can write it!")
+            return
+        #
+        hdu = fits.PrimaryHDU(self.stack)
+        # Add raw_files to header
+        for i in range(self.nfiles):
+            hdrname = "FRAME{0:03d}".format(i+1)
+            hdu.header[hdrname] = self.file_list[i]
+        # Steps
+        steps = ','
+        hdu.header['STEPS'] = steps.join(self.steps)
+        # Finish
+        hlist = [hdu]
+        hdulist = fits.HDUList(hlist)
+        hdulist.writeto(outfile, overwrite=overwrite)
+        msgs.info("Wrote stacked image to {:s}".format(outfile))
 
     def __repr__(self):
         txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,

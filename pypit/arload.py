@@ -364,6 +364,10 @@ def load_extraction(name, frametype='<None>', wave=True):
 
 
 def load_master(name, exten=0, frametype='<None>'):
+    return core_load_master(name, exten=exten, frametype=frametype,
+                         force=settings.argflag['reduce']['masters']['force'])
+
+def core_load_master(name, exten=0, frametype='<None>', force=False):
     """
     Load a pre-existing master calibration frame
 
@@ -387,7 +391,7 @@ def load_master(name, exten=0, frametype='<None>'):
     # Check to see if file exists
     if not os.path.isfile(name):
         msgs.warn("Master frame does not exist: {:s}".format(name))
-        if settings.argflag['reduce']['masters']['force']:
+        if force:
             msgs.error("Crashing out because reduce-masters-force=True:"+msgs.newline()+name)
         return None, None
     #
