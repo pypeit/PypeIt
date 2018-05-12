@@ -7,7 +7,11 @@ except NameError:  # For Python 3
     basestring = str
 
 import numpy as np
+import os
 import yaml
+
+from astropy.io import fits
+from astropy import units
 
 import linetools.utils
 
@@ -16,6 +20,7 @@ from pypit import arparse as settings
 from pypit import arutils
 from pypit import ardebug as debugger
 
+'''
 class MasterFrames:
 
     def __init__(self, ndet):
@@ -53,6 +58,7 @@ class MasterFrames:
         self._msbias_name = [None for all in range(ndet)]     # Master Bias Name
         self._mstrace_name = [None for all in range(ndet)]    # Master Trace Name
         self._mspixelflat_name = [None for all in range(ndet)]  # Master Pixel Flat Name
+'''
 
 
 def master_name(ftype, setup, mdir=None):
@@ -88,8 +94,14 @@ def core_master_name(ftype, setup, mdir):
     return name_dict[ftype]
 
 
-def get_master_frame(slf, mftype, det=None):
-    ret, head = core_get_master_frame(mftype, settings.argflag, slf.setup)
+def load_master_frame(slf, mftype, det=None):
+    # Were MasterFrames even desired?
+    if (settings.argflag['reduce']['masters']['reuse']) or (settings.argflag['reduce']['masters']['force']):
+        ret, head, _ = core_load_master_frame(mftype, slf.setup,
+                                           settings.argflag['run']['directory']['master']+'_'+settings['run']['spectrograph'],
+                                           force=settings.argflag['reduce']['masters']['force'])
+    else:
+        return None, None
     if ret is None:
         return None
     elif mftype == 'arc':
@@ -114,60 +126,60 @@ def get_master_frame(slf, mftype, det=None):
     return ret
 
 
-def core_get_master_frame(mftype, settings, setup):
+def core_load_master_frame(mftype, setup, mdir, force=False):
     """ If a MasterFrame exists, load it
 
     Parameters
     ----------
     mftype : str
-    settings : dict
     setup : str
+    mdir : str
 
     Returns
     -------
     msfile : ndarray or dict or None
     head : Header or None
+    file_list : list (or None)
+      Typically the files used the generate the master frame (may be incomplete or None)
 
     """
-    #setup = settings['reduce']['masters']['setup']
-    # Were MasterFrames even desired?
-    #  TODO -- Consider asking this if statement *before* calling get master_frame
-    if (settings['reduce']['masters']['reuse']) or (settings['reduce']['masters']['force']):
-        mdir = settings['run']['directory']['master']+'_'+settings['run']['spectrograph']
-        ms_name = core_master_name(mftype, setup, mdir)
-        msfile, head = core_load_master(ms_name, frametype=mftype,
-                                               force=settings['reduce']['masters']['force'])
-        if msfile is None:
-            msgs.warn("No Master frame found of type {:s}: {:s}".format(mftype,ms_name))
-            return None, None
-        else:  # Extras
-            if mftype == 'trace':
-                tdict = {}
-                tdict['mstrace'] = msfile.copy()
-                tdict['lordloc'], _ = core_load_master(ms_name, frametype="trace", exten=1)
-                tdict['rordloc'], _ = core_load_master(ms_name, frametype="trace", exten=2)
-                tdict['pixcen'], _ = core_load_master(ms_name, frametype="trace", exten=3)
-                tdict['pixwid'], _ = core_load_master(ms_name, frametype="trace", exten=4)
-                tdict['lordpix'], _ = core_load_master(ms_name, frametype="trace", exten=5)
-                tdict['rordpix'], _ = core_load_master(ms_name, frametype="trace", exten=6)
-                tdict['slitpix'], _ = core_load_master(ms_name, frametype="trace", exten=7)
-                msfile = tdict  # Just for returning
-            # Append as loaded
-            settings['reduce']['masters']['loaded'].append(mftype+setup)
-            return msfile, head
-    else:
+    # Name
+    ms_name = core_master_name(mftype, setup, mdir)
+    # Load
+    msframe0, head, file_list = _core_load(ms_name, exten=0, frametype=mftype, force=force)
+    # Check
+    if msframe0 is None:
+        msgs.warn("No Master frame found of type {:s}: {:s}".format(mftype,ms_name))
         return None, None
+    else:  # Extras?
+        if mftype == 'trace':
+            tdict = {}
+            tdict['mstrace'] = msframe0.copy()
+            tdict['lordloc'], _, _ = _core_load(ms_name, frametype="trace", exten=1)
+            tdict['rordloc'], _, _ = _core_load(ms_name, frametype="trace", exten=2)
+            tdict['pixcen'], _, _ = _core_load(ms_name, frametype="trace", exten=3)
+            tdict['pixwid'], _, _ = _core_load(ms_name, frametype="trace", exten=4)
+            tdict['lordpix'], _, _ = _core_load(ms_name, frametype="trace", exten=5)
+            tdict['rordpix'], _, _ = _core_load(ms_name, frametype="trace", exten=6)
+            tdict['slitpix'], _, _ = _core_load(ms_name, frametype="trace", exten=7)
+            msframe = tdict  # Just for returning
+        else:
+            msframe = msframe0
+    # Append as loaded
+    settings['reduce']['masters']['loaded'].append(mftype+setup)
+    # Return
+    return msframe, head, file_list
 
 
 def load_master(name, exten=0, frametype='<None>'):
-    return core_load_master(name, exten=exten, frametype=frametype,
+    # TODO -Deprecate
+    return _core_load(name, exten=exten, frametype=frametype,
                          force=settings.argflag['reduce']['masters']['force'])
 
-def core_load_master(name, exten=0, frametype='<None>', force=False):
+def _core_load(name, exten=0, frametype='<None>', force=False):
     """
-    Load a pre-existing master calibration frame
-
-    Should probably move this method to armasters.py
+    Low level load method for master frames
+      Should only be called by core_load_master_frame
 
     Parameters
     ----------
@@ -183,31 +195,37 @@ def core_load_master(name, exten=0, frametype='<None>', force=False):
     frame : ndarray or dict or None
       The data from the master calibration frame
     head : str (or None)
+    file_list : list (or None)
     """
     # Check to see if file exists
     if not os.path.isfile(name):
         msgs.warn("Master frame does not exist: {:s}".format(name))
         if force:
             msgs.error("Crashing out because reduce-masters-force=True:"+msgs.newline()+name)
-        return None, None
+        return None, None, None
     #
     if frametype == 'wv_calib':
         msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
         ldict = linetools.utils.loadjson(name)
-        return ldict, None
+        return ldict, None, [name]
     elif frametype == 'sensfunc':
         with open(name, 'r') as f:
             sensfunc = yaml.load(f)
         sensfunc['wave_max'] = sensfunc['wave_max']*units.AA
         sensfunc['wave_min'] = sensfunc['wave_min']*units.AA
-        return sensfunc, None
+        return sensfunc, None, [name]
     else:
         msgs.info("Loading a pre-existing master calibration frame")
         hdu = fits.open(name)
         msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
-        head = hdu[0].header
+        head0 = hdu[0].header
         data = hdu[exten].data.astype(np.float)
-        return data, head
+        # List of files used to generate the Master frame (e.g. raw file frames)
+        file_list = []
+        for key in head0:
+            if 'FRAME' in key:
+                file_list.append(head0[key])
+        return data, head0, file_list
 
 
 def save_masters(slf, det, mftype='all'):
@@ -220,6 +238,7 @@ def save_masters(slf, det, mftype='all'):
       'all' -- Save them all
 
     """
+    # TODO - Deprecate
     setup = slf.setup
     transpose = bool(settings.argflag['trace']['dispersion']['direction'])
 
@@ -308,21 +327,20 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
         raw_files=slf._fitsdict['filename']
     else:
         raw_files=None
-    core_save_master(data, filename=filename, frametype=frametype, ind=ind,
+    core_save_master(data, filename=filename, frametype=frametype,
                      extensions=extensions, keywds=keywds, names=names,
                      raw_files=raw_files)
 
-
-def core_save_master(data, filename="temp.fits", frametype="<None>", ind=[],
+def core_save_master(data, filename="temp.fits", frametype="<None>",
                 extensions=None, keywds=None, names=None, raw_files=None,
                      overwrite=True):
     """ Core function to write a MasterFrame
+
     Parameters
     ----------
     data : ndarray
     filename : str (optional)
     frametype : str (optional)
-    ind : list (optional)
     extensions : list, optional
       Additional data images to write
     names : list, optional
@@ -354,10 +372,10 @@ def core_save_master(data, filename="temp.fits", frametype="<None>", ind=[],
     hdulist = fits.HDUList(hlist)
     # Header
     msgs.info("Writing header information")
-    for i in range(len(ind)):
-        hdrname = "FRAME{0:03d}".format(i+1)
-        if raw_files is not None:
-            hdulist[0].header[hdrname] = (raw_files[ind[i]], 'PYPIT: File used to generate Master {0:s}'.format(frametype))
+    if raw_files is not None:
+        for i in range(len(raw_files)):
+            hdrname = "FRAME{0:03d}".format(i+1)
+            hdulist[0].header[hdrname] = (raw_files[i], 'PYPIT: File used to generate Master {0:s}'.format(frametype))
     hdulist[0].header["FRAMETYP"] = (frametype, 'PYPIT: Master calibration frame type')
     if keywds is not None:
         for key in keywds.keys():

@@ -113,6 +113,8 @@ class ProcessImages(object):
 
     @classmethod
     def from_fits(cls, fits_file, **kwargs):
+        if not os.path.isfile(fits_file):
+            msgs.error("FITS file not found: {:s}".format(fits_file))
         # Load
         hdul = fits.open(fits_file)
         head0 = hdul[0].header
@@ -247,6 +249,8 @@ class ProcessImages(object):
         self.steps.append(inspect.stack()[0][3])
         return self.stack.copy()
 
+    def flat_field(self):
+        pass
 
     def show(self, attr, idx=None, display='ginga'):
         if 'proc_image' in attr:

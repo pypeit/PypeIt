@@ -112,13 +112,14 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             # Prepare for Bias subtraction
             #   bias will either be an image (ndarray) or a command (str, e.g. 'overscan') or none
             if 'bias' in calib_dict.keys():
-                bias = calib_dict[setup]['bias']
+                msbias = calib_dict[setup]['bias']
             else:
                 # Init
-                BPrep = biasprep.BiasPrep(tsettings, setup=setup, ind=slf._idx_bias, det=det, fitsdict=fitsdict)
-                bias = BPrep.run()  # If an image is generated, it will be saved to disk a a MasterFrame
+                bias = masterbias.MasterBias(tsettings, setup=setup, ind=slf._idx_bias, det=det, fitsdict=fitsdict)
+                # If an image is generated, it will be saved to disk a a MasterFrame
+                msbias = bias.build_master()
                 # Save in Calib dict -- Will replace Master class
-                calib_dict[setup]['bias'] = bias
+                calib_dict[setup]['bias'] = msbias
 
             # Set -- Will be Deprecated
             if isinstance(bias, np.ndarray):
