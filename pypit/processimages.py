@@ -80,7 +80,7 @@ class ProcessImages(object):
     datasec : list
     oscansec : list (optional)
     """
-    def __init__(self, file_list, spectrograph=None, settings=None, det=1, user_settings=None):
+    def __init__(self, file_list, settings=None, det=1, user_settings=None, spectrograph=None):
 
         # Parameters
         self.file_list = file_list
@@ -103,7 +103,10 @@ class ProcessImages(object):
 
         # Key Internals
         if spectrograph is None:
-            spectrograph = self.settings['run']['spectrograph']
+            try:
+                spectrograph = self.settings['run']['spectrograph']
+            except:
+                msgs.warn("No information on the spectrograph was given.  Do not attempt to (re)process the images")
         self.spectrograph = spectrograph
         self.raw_images = []
         self.proc_images = None  # Will be an ndarray
@@ -211,16 +214,18 @@ class ProcessImages(object):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def _combine(self, frametype='Unknown'):
+    def combine(self, frametype='Unknown'):
         # Now we can combine
-        stack = arcomb.core_comb_frames(self.proc_images, frametype=frametype,
+        self.stack = arcomb.core_comb_frames(self.proc_images, frametype=frametype,
                                              method=self.settings['combine']['method'],
                                              reject=self.settings['combine']['reject'],
                                              satpix=self.settings['combine']['satpix'],
                                              saturation=self.settings['detector']['saturation'])
-        return stack
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        return self.stack
 
-    def combine(self, bias_subtract=None, overwrite=False, trim=True):
+    def process(self, bias_subtract=None, trim=True, overwrite=False):
         # Over-write?
         if (inspect.stack()[0][3] in self.steps) & (not overwrite):
             msgs.warn("Images already combined.  Use overwrite=True to do it again.")
@@ -243,10 +248,8 @@ class ProcessImages(object):
                                          self.nloaded))
             for kk,image in enumerate(self.raw_images):
                 self.proc_images[:,:,kk] = image
-        # Do it (internally, for Children)
-        self.stack = self._combine()
-        # Step
-        self.steps.append(inspect.stack()[0][3])
+        # Combine
+        self.stack = self.combine()
         return self.stack.copy()
 
     def flat_field(self):

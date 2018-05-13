@@ -123,6 +123,8 @@ def load_master_frame(slf, mftype, det=None):
         # We only want to send back the mstrace image (for now)
         #     This should change when slf is Refactored
         ret = ret['mstrace']
+    # Append as loaded
+    settings.argflag['reduce']['masters']['loaded'].append(mftype+slf.setup)
     return ret
 
 
@@ -150,7 +152,7 @@ def core_load_master_frame(mftype, setup, mdir, force=False):
     # Check
     if msframe0 is None:
         msgs.warn("No Master frame found of type {:s}: {:s}".format(mftype,ms_name))
-        return None, None
+        return None, None, None
     else:  # Extras?
         if mftype == 'trace':
             tdict = {}
@@ -165,8 +167,6 @@ def core_load_master_frame(mftype, setup, mdir, force=False):
             msframe = tdict  # Just for returning
         else:
             msframe = msframe0
-    # Append as loaded
-    settings['reduce']['masters']['loaded'].append(mftype+setup)
     # Return
     return msframe, head, file_list
 

@@ -18,7 +18,7 @@ from pypit import arsave
 from pypit import arsetup
 from pypit import artrace
 from pypit import artraceslits
-from pypit import biasprep
+from pypit import biasframe
 from pypit import traceslits
 from pypit import ardebug as debugger
 
@@ -115,7 +115,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 msbias = calib_dict[setup]['bias']
             else:
                 # Init
-                bias = masterbias.MasterBias(tsettings, setup=setup, ind=slf._idx_bias, det=det, fitsdict=fitsdict)
+                bias = biasframe.BiasFrame(settings=tsettings, setup=setup, ind=slf._idx_bias, det=det, fitsdict=fitsdict)
                 # If an image is generated, it will be saved to disk a a MasterFrame
                 msbias = bias.build_master()
                 # Save in Calib dict -- Will replace Master class

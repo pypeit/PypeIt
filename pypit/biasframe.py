@@ -57,19 +57,16 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     frametype : str
       Set to 'bias'
     """
-    def __init__(self, settings=None, setup=None, file_list=[], det=1, ind=[], fitsdict=None):
-        # Hard-coded
+    # Keep order same as processimages (or else!)
+    def __init__(self, file_list=[], settings=None, det=1, setup=None, ind=[], fitsdict=None):
+
+        # Parameters unique to this Object
         self.frametype = frametype
-
-        # Start us up
-        processimages.ProcessImages.__init__(self, file_list, settings=settings)
-
-
-        # Parameters
-        self.det = det
-        self.setup = setup
         self.ind = ind
         self.fitsdict = fitsdict
+
+        # Start us up
+        processimages.ProcessImages.__init__(self, file_list, settings=settings, det=det)
 
         # Settings
         # The copy allows up to update settings with user settings without changing the original
@@ -81,54 +78,36 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
             # The following is somewhat kludgy and the current way we do settings may
             #   not touch all the options (not sure .update() would help)
             if 'combine' not in settings.keys():
-                self.settings['combine'] = settings['bias']['combine']
+                self.settings['combine'] = settings[self.frametype]['combine']
 
         # MasterFrames -- Is this required?
-        debugger.set_trace()
-        masterframe.MasterFrame.__init__(self, self.frametype, self.setup, self.settings)
+        masterframe.MasterFrame.__init__(self, self.frametype, setup, self.settings)
 
         # Child-specific Internals
         #    See ProcessImages for the rest
 
-    def combine(self, overwrite=False):
-        # Over-write?
-        if (inspect.stack()[0][3] in self.steps) & (not overwrite):
-            msgs.warn("Images already combined.  Use overwrite=True to do it again.")
-            return
-
-        # Allow for one-stop-shopping
-        if 'load_images' not in self.steps:
-            self.load_images()
-
-        # Create proc_images from raw_images if need be
-        self.proc_images = np.zeros((self.raw_images[0].shape[0],
-                                         self.raw_images[0].shape[1],
-                                         self.nloaded))
-        for kk,image in enumerate(self.raw_images):
-                self.proc_images[:,:,kk] = image
-        # Combine
-        self.stack = self._combine(frametype=self.frametype)
-        # Step
-        self.steps.append(inspect.stack()[0][3])
+    def process_bias(self, overwrite=False):
+        # Wrapper
+        self.stack = self.process(bias_subtract=None, trim=False, overwrite=overwrite)
         return self.stack.copy()
 
     def build_master(self):
         # Generate a bias or dark image (or load a pre-made Master by PYPIT)?
-        if self.settings['bias']['useframe'] in ['bias', 'dark']:
+        if self.settings[self.frametype]['useframe'] in ['bias', 'dark']:
             # Load the MasterFrame if it exists
-            msbias, header, raw_files = armasters.core_load_master_frame("bias", self.setup, self.mdir)
-            if msbias is None:
+            msframe, header, raw_files = self.load_master_frame()
+            if msframe is None:
                 msgs.info("Preparing a master {0:s} frame".format(self.settings[self.frametype]['useframe']))
                 # Get all of the bias frames for this science frame
                 if self.nfiles == 0:
                     for i in range(len(self.ind)):
                         self.file_list.append(self.fitsdict['directory'][self.ind[i]]+self.fitsdict['filename'][self.ind[i]])
                 # Combine
-                msbias = self.combine()
+                msframe = self.process_bias()
                 # Save to Masters
-                self.save_master(msbias, raw_files=self.file_list, steps=self.steps)
+                self.save_master(msframe, raw_files=self.file_list, steps=self.steps)
             else:
-                # Prevent over-writing the master bias when it is time to save
+                # Prevent over-writing the master frame when it is time to save
                 self.settings['reduce']['masters']['loaded'].append(self.frametype)
         # Simple command?
         elif self.settings[self.frametype]['useframe'] in ['overscan', 'none']:
@@ -137,10 +116,10 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
             return self.settings[self.frametype]['useframe']
         # It must be a user-specified file the user wishes to load
         else:
-            msbias_name = self.settings['run']['directory']['master']+u'/'+self.settings['bias']['useframe']
-            msbias, head = armasters.load_master(msbias_name, frametype=self.frametype)
+            msframe_name = self.settings['run']['directory']['master']+u'/'+self.settings[self.frametype]['useframe']
+            msframe, head, _ = armasters._core_load(msframe_name, frametype=self.frametype)
             self.settings['reduce']['masters']['loaded'].append(self.frametype+self.setup)
 
-        self.stack = msbias
-        return msbias.copy()
+        self.stack = msframe
+        return msframe.copy()
 

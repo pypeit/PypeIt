@@ -3,11 +3,7 @@
 """
 from __future__ import absolute_import, division, print_function
 
-import inspect
-import numpy as np
-import os
-
-from astropy.io import fits
+import warnings
 
 from pypit import msgs
 from pypit import ardebug as debugger
@@ -26,7 +22,7 @@ default_settings = dict(masters={
 class MasterFrame(object):
     """
     This class is designed to gather a set of like methods
-    for Master calibration images, e.g. bias, arc
+    for Master calibration frames
 
     Parameters
     ----------
@@ -43,11 +39,20 @@ class MasterFrame(object):
         # Parameters
         self.frametype = frametype
         self.setup = setup
-        self.settings = settings
+        if settings is None:
+            self.settings = {}
+        else:
+            self.settings = settings
         # Kludge settings a bit for now
         if 'masters' not in self.settings.keys():
-            self.settings['masters']['directory'] = self.settings['run']['directory']['master']+'_'+self.settings['run']['spectrograph']
-            self.settings['masters']['loaded'] = settings['reduce']['masters']['loaded']
+            self.settings['masters'] = {}
+            try:
+                self.settings['masters']['directory'] = self.settings['run']['directory']['master']+'_'+self.settings['run']['spectrograph']
+            except:
+                msgs.warn("MasterFrame class not proper loaded (e.g. no settings).  Avoid using Master methods")
+                self.settings['masters'] = default_settings['masters'].copy()
+            else:
+                self.settings['masters']['loaded'] = settings['reduce']['masters']['loaded']
 
     @property
     def ms_name(self):
@@ -59,18 +64,15 @@ class MasterFrame(object):
     def mdir(self):
         return self.settings['masters']['directory']
 
-    def load_master(self, exten=0):
+    def load_master_frame(self, force=False):
         """
-
-        Parameters
-        ----------
-        exten
-
         Returns
         -------
-
+        master_frame : ndarray or dict or None
+        head0 : Header or None
+        file_list : list or None
         """
-        return armasters.core_load_master_frame(self.ms_name, frametype=self.frametype, exten=exten)
+        return armasters.core_load_master_frame(self.frametype, self.setup, self.mdir, force=force)
 
     def save_master(self, image, outfile=None, raw_files=None, steps=None):
         """
