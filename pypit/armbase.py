@@ -51,8 +51,7 @@ def setup_science(fitsdict):
     # Match calibration frames to science frames
     _ = arsort.match_science(fitsdict, filesort)
     # Make directory structure for different objects
-    if do_qa:
-        sci_targs = arsort.make_dirs(fitsdict, filesort)
+    arsort.make_dirs()
 
     # Create the list of science exposures
     numsci = np.size(settings.spect['science']['index'])
@@ -93,7 +92,8 @@ def setup_science(fitsdict):
         group_dict = arsetup.build_group_dict(filesort, setupIDs, sciexp, fitsdict)
         # Write .sorted file
         if len(group_dict) > 0:
-            arsetup.write_sorted(srt_tbl, group_dict, setup_dict)
+            group_file = settings.argflag['run']['redname'].replace('.pypit', '.sorted')
+            arsetup.write_sorted(group_file, srt_tbl, group_dict, setup_dict)
         else:
             msgs.warn("No group dict entries and therefore no .sorted file")
 

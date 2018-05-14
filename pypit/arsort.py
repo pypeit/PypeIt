@@ -40,9 +40,12 @@ ftype_list = [     # NOTE:  arc must be listed first!
     'unknown',     # Unknown..
 ]
 
+def ftype_indices(fitstbl, ftype, sci_idx):
+    idx = np.where(fitstbl[ftype] & (fitstbl['sci_idx'] & sci_idx > 0))[0]
+    return idx
 
-def new_sort_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False):
-    """ Generate a dict of filetypes from the input fitsdict object
+def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftdict=None):
+    """ Generate a table of filetypes from the input fitsdict object
 
     Parameters
     ----------
@@ -57,9 +60,10 @@ def new_sort_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False)
     filetypes : Table
       A Table of filetypes
       Each key is a file type and contains False/True for each datafile
+      This is likely to be stacked onto the fitstbl
     """
-    msgs.bug("There appears to be a bug with the assignment of arc frames when only one science frame is supplied")
-    msgs.info("Sorting files")
+    #msgs.bug("There appears to be a bug with the assignment of arc frames when only one science frame is supplied")
+    msgs.info("Typing files")
     numfiles = fitstbl['filename'].size
     # Set the filetype dictionary
     filetypes = Table()
@@ -67,8 +71,9 @@ def new_sort_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False)
         filetypes[ftype] = np.zeros(numfiles, dtype=bool)
 
     # Set all filetypes by hand?  (Typically read from PYPIT file)
-    if len(settings.ftdict) > 0:
-        for ifile,ftypes in settings.ftdict.items():
+    #if len(settings.ftdict) > 0:
+    if ftdict is not None:
+        for ifile,ftypes in ftdict.items():
             idx = fitstbl['filename'] == ifile
             sptypes = ftypes.split(',')
             for iftype in sptypes:
@@ -99,7 +104,6 @@ def new_sort_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False)
     # Identify the standard stars
     # Find the nearest standard star to each science frame
     wscistds = np.where(filetypes['standard'])[0]
-    #wscistd = np.where(filarr[np.where(ftype == 'standard')[0], :].flatten() == 1)[0]
     for wscistd in wscistds:
         radec = (fitstbl['ra'][wscistd], fitstbl['dec'][wscistd])
         if fitstbl['ra'][wscistd] == 'None':
@@ -107,16 +111,13 @@ def new_sort_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False)
             msgs.warn("The above file could be a twilight flat frame that was" + msgs.newline() +
                       "missed by the automatic identification.")
             filetypes['standard'][wscistd] = False
-            #filarr[np.where(ftype == 'standard')[0], wscistd] = 0
             continue
         # If an object exists within 20 arcmins of a listed standard, then it is probably a standard star
         foundstd = find_standard_file(radec, toler=20.*units.arcmin, check=True)
         if foundstd:
-            #filarr[np.where(ftype == 'science')[0], wscistd] = 0
             filetypes['science'][wscistd] = False
         else:
             filetypes['standard'][wscistd] = False
-            #filarr[np.where(ftype == 'standard')[0], wscistd] = 0
 
     # Make any forced changes
     msgs.info("Making forced file identification changes")
@@ -141,7 +142,6 @@ def new_sort_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False)
         for ifile in fitstbl['filename'][badfiles]:
             msgs.info(ifile)
         if flag_unknown:
-            #filarr[np.where(ftype == 'unknown')[0],badfiles] = 1
             filetypes['unknown'][badfiles] = True
         else:
             msgs.error("Check these files and your settings.{0:s} file before continuing".format(settings_argflag['run']['spectrograph']))
@@ -152,7 +152,7 @@ def new_sort_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False)
     filetypes['dark'] = darks
 
     # Return filesort!
-    msgs.info("Sorting completed successfully")
+    msgs.info("Typing completed!")
     return filetypes
 
 
@@ -717,7 +717,7 @@ def match_logic(ch, tmtch, fitsdict, idx):
     return w
 
 
-def new_match_to_science(fitstbl, settings_spect, settings_argflag):
+def match_to_science(fitstbl, settings_spect, settings_argflag):
     """
     For a given set of identified data, match calibration frames to science frames
 
@@ -821,9 +821,12 @@ def new_match_to_science(fitstbl, settings_spect, settings_argflag):
                 if code == 'break':
                     break
             else:
+                wa = np.where(gd_match)[0]
                 # Select the closest calibration frames to the science frame
-                tdiff = np.abs(fitstbl['time'][gd_match]-fitstbl['time'][sci_idx])
-                wa = np.argsort(np.where(tdiff)[0])
+                tdiff = np.abs(fitstbl['time'][wa]-fitstbl['time'][sci_idx])
+                wa = wa[np.argsort(tdiff)]
+                #if ftag == 'bias':
+                #    debugger.set_trace()
                 if (settings.argflag['run']['setup']) or (numfr < 0):
                     #settings_spect[ftag[ft]]['index'].append(n[wa].copy())
                     #cal_index[i][ftag[ft]] = n[wa].copy()
@@ -1065,7 +1068,7 @@ def match_frames(frames, criteria, frametype='<None>', satlevel=None):
     return srtframes
 
 
-def make_dirs(fitsdict, filesort):
+def make_dirs():
     """
     For a given set of identified data, match calibration frames to science frames
 
@@ -1107,8 +1110,8 @@ def make_dirs(fitsdict, filesort):
     # Create a directory for each object in the Science directory
     msgs.info("Creating Object directories")
     #Go through objects creating directory tree structure
-    w = filesort['science']
-    sci_targs = np.array(list(set(fitsdict['target'][w])))
+    #w = filesort['science']
+    #sci_targs = np.array(list(set(fitsdict['target'][w])))
     '''
     # Loop through targets and replace spaces with underscores
     nored = np.array([])
@@ -1187,5 +1190,5 @@ def make_dirs(fitsdict, filesort):
         os.mkdir(newdir)
         os.mkdir(newdir+'/PNGs')
     # Return the name of the science targets
-    return sci_targs
+    return
 

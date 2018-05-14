@@ -15,7 +15,6 @@ import os
 import io
 import glob
 import string
-import datetime
 
 import numpy as np
 import yaml
@@ -26,11 +25,34 @@ import linetools.utils
 from pypit import msgs
 from pypit import arparse as settings
 from pypit import arutils
-from pypit.arflux import find_standard_file
-from pypit import armeta
 from pypit import arparse
+from pypit import arsort
 from pypit import ardebug as debugger
 
+def new_dummy_setup_dict(fitstbl):
+    """ Generates a dummy setup_dict
+
+    Parameters
+    ----------
+    fitstbl : Table
+
+    Returns
+    -------
+    setup_dict : dict
+    """
+    # setup_dict
+    setup = settings.argflag['reduce']['masters']['setup']
+    setup_dict = {}
+    setup_dict[setup[0]] = {}
+    # Fill with dummy dicts
+    for ii in range(1,20): # Dummy detectors
+        setup_dict[setup[0]][arparse.get_dnum(ii)] = dict(binning='1x1')
+    setup_dict[setup[0]][setup[-2:]] = {}
+    # Fill up filenames
+    setup_dict[setup[0]][setup[-2:]]['sci'] = fitstbl['filename'][fitstbl['science']].tolist()
+    # Write
+    _ = write_calib(setup_dict)
+    return setup_dict
 
 def dummy_setup_dict(filesort, fitsdict):
     """ Generates a dummy setup_dict
@@ -59,6 +81,81 @@ def dummy_setup_dict(filesort, fitsdict):
     calib_file = write_calib(setup_dict)
     return setup_dict
 
+
+def new_calib_set(isetup_dict, fitstbl, sci_idx):
+    """ Generate a calibration dataset string
+
+    Parameters
+    ----------
+    isetup_dict : dict
+    fitstbl : Table
+
+    Returns
+    -------
+    cb_str : str
+      Ordering is 'aa', 'ab', ...
+
+    """
+    cb_strs = []
+    default = 'aa'
+    for ll in ['a', 'b', 'c', 'd']:
+        for lower in string.ascii_lowercase:
+            cb_strs.append(ll+lower)
+    # Build cbset from sciexp
+    new_cbset = {}
+    #cbkeys = ['arcs', 'bias', 'trace', 'flat', 'sci', 'cent']
+    cbkeys = ['arc', 'bias', 'trace', 'pixelflat', 'science']#, 'cent']
+    for cbkey in cbkeys:
+        #if len(getattr(sciexp, '_idx_'+cbkey)) != 0:
+        #    nms = list(fitsdict['filename'][getattr(sciexp, '_idx_'+cbkey)])
+        #    nms.sort()
+        #else:
+        #    nms = []
+        # Grab the names
+        idx = arsort.ftype_indices(fitstbl, cbkey, sci_idx)
+        names = fitstbl['filename'][idx].tolist()
+        # Save
+        new_cbset[cbkey] = names
+
+    # Uninitialized?
+    if default not in isetup_dict.keys():
+        isetup_dict[default] = new_cbset
+        return default
+
+    # Not in default
+    for cbkey in cbkeys:
+        def_names = np.array(isetup_dict[default][cbkey])
+        if np.array_equal(def_names, new_cbset[cbkey]):
+            _ = new_cbset.pop(cbkey)
+    # Science only or exactly the same?
+    if len(new_cbset) == 0:
+        return default
+    elif len(new_cbset) == 1:
+        assert list(new_cbset.keys()) == ['science']
+        if new_cbset['science'][0] not in isetup_dict[default]['science']:
+            isetup_dict[default]['science'] += new_cbset['science']
+        return default
+
+    # New calib set?
+    for cb_str in cb_strs[1:]:
+        mtch = True
+        if cb_str not in isetup_dict.keys():
+            isetup_dict[cb_str] = new_cbset
+            break
+        for key in new_cbset:
+            if key not in isetup_dict[cb_str]:
+                mtch = False
+                break
+            if key in ['science']:
+                continue
+            ar_names = np.array(isetup_dict[default][cbkey])
+            mtch &= np.array_equal(ar_names, new_cbset[key])
+        if mtch:
+            # Add sci frames
+            for sciframe in new_cbset['science']:
+                break
+    # Return
+    return cb_str
 
 def calib_set(isetup_dict, sciexp, fitsdict):
     """ Generate a calibration dataset string
@@ -162,6 +259,136 @@ def det_setup(isetup_dict, ddict):
             break
     # Return
     return dkey
+
+
+def new_instr_setup(sci_idx, det, fitstbl, setup_dict, numamplifiers,
+                    must_exist=False, skip_cset=False, config_name=None):
+    """ Define instrument config
+    Make calls to detector and calib set
+
+    config: A, B, C
+    detector setup: 01, 02, 03, ..
+    calib set: aa, ab, ac, ..
+
+
+    Parameters
+    ----------
+    sciexp : ScienceExposure
+    det : int
+      detector identifier
+    fitsdict : dict
+      contains header info
+    setup_dict : dict
+    numamplifiers : int
+      Number of amplifiers for this detector
+    skip_cset : bool, optional
+      Skip calib_set;  only used when first generating instrument .setup file
+    config_name : str, optional
+      Can be used to choose the config value
+
+    Returns
+    -------
+    setup : str
+      Full setup ID, e.g. A_01_aa
+    Also fills entries in setup_dict
+    """
+    # MasterFrame force?  If so, use user input setup updating detector
+    #if settings_argflag['reduce']['masters']['force']:
+    #    input_setup = settings_argflag['reduce']['masters']['setup']
+    #    sdet = settings.get_dnum(det, prefix=None)
+    #    setup = '{:s}_{:s}_{:s}'.format(input_setup[0],sdet,input_setup[-2:])
+    #    return setup
+    # Labels
+    cfig_str = string.ascii_uppercase
+    cstr = '--'
+    # Arc index
+    #idx = np.where(fitstbl['arc'] & (fitstbl['sci_idx'] & sci_idx))[0]
+    idx = arsort.ftype_indices(fitstbl, 'arc', sci_idx)
+    try:
+        disp_name = fitstbl["dispname"][idx[0]]
+    except:
+        debugger.set_trace()
+    disp_angle = fitstbl["dispangle"][idx[0]]
+    # Common
+    dichroic = fitstbl["dichroic"][idx[0]]
+    decker = fitstbl["decker"][idx[0]]
+    slitwid = fitstbl["slitwid"][idx[0]]
+    slitlen = fitstbl["slitlen"][idx[0]]
+
+    # Detector -- These may not be set properly from the header alone, e.g. LRIS
+    binning = fitstbl["binning"][idx[0]]
+    naxis0 = fitstbl["naxis0"][idx[0]]
+    naxis1 = fitstbl["naxis1"][idx[0]]
+    namp = numamplifiers
+
+    # Generate
+    # Don't nest deeper than 1
+    cdict = dict(disperser={'name': disp_name,
+                            'angle': disp_angle},
+                 dichroic=dichroic,
+                 slit={'decker': decker,
+                       'slitwid': slitwid,
+                       'slitlen': slitlen},
+                 )
+    ddict = {'binning': binning,
+              'det': det,
+              'namp': namp}
+              #'naxis0': naxis0,
+              #'naxis1': naxis1}
+
+    def chk_key(val1, val2, tol=1e-3):
+        if isinstance(val1,float):
+            if np.isclose(val1,val2,rtol=tol):
+                return True
+            else:
+                return False
+        else:
+            return val1 == val2
+
+    # Configuration
+    setup = None
+    if len(setup_dict) == 0: #  New one, generate
+        if config_name is None:
+            setup = 'A'
+        else:
+            setup = config_name
+        # Finish
+        setup_dict[setup] = {}
+        setup_dict[setup][cstr] = cdict
+    else:  # Is it new?
+        for ckey in setup_dict.keys():
+            mtch = True
+            for key in setup_dict[ckey][cstr].keys():
+                # Dict?
+                if isinstance(setup_dict[ckey][cstr][key], dict):
+                    for ikey in setup_dict[ckey][cstr][key].keys():
+                        mtch &= chk_key(setup_dict[ckey][cstr][key][ikey],cdict[key][ikey])
+                else:
+                    mtch &= chk_key(setup_dict[ckey][cstr][key], cdict[key])
+            if mtch:
+                setup = ckey
+                break
+        # Augment setup_dict?
+        if setup is None:
+            if must_exist:
+                msgs.error("This setup is not present in the setup_dict.  Something went wrong..")
+            maxs = max(setup_dict.keys())
+            setup = cfig_str[cfig_str.index(maxs)+1]
+            setup_dict[setup] = {}
+            setup_dict[setup][cstr] = cdict
+
+    # Detector
+    dkey = det_setup(setup_dict[setup], ddict)
+    # Calib set
+    if not skip_cset:
+        calib_key = new_calib_set(setup_dict[setup], fitstbl, sci_idx)
+    else:
+        calib_key = '--'
+
+    # Finish and return
+    setup = '{:s}_{:s}_{:s}'.format(setup, dkey, calib_key)
+    return setup
+
 
 
 def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
@@ -432,10 +659,11 @@ def load_sorted(sorted_file):
     return all_setups, all_setuplines, all_setupfiles
 
 
-def write_sorted(srt_tbl, group_dict, setup_dict):
+def write_sorted(group_file, srt_tbl, group_dict, setup_dict):
     """ Write the .sorted file
     Parameters
     ----------
+    group_file : str
     group_dict
     setup_dict
 
@@ -444,7 +672,7 @@ def write_sorted(srt_tbl, group_dict, setup_dict):
 
     """
     # Output file
-    group_file = settings.argflag['run']['redname'].replace('.pypit', '.sorted')
+    #group_file = settings.argflag['run']['redname'].replace('.pypit', '.sorted')
     ff = open(group_file, 'w')
     # Keys
     setups = list(group_dict.keys())
@@ -477,6 +705,54 @@ def write_sorted(srt_tbl, group_dict, setup_dict):
     ff.write('##end\n')
     ff.close()
 
+def new_build_group_dict(fitstbl, setupIDs, all_sci_idx):
+    """ Generate a group dict
+    Only used for generating the .sorted output file
+
+    Parameters
+    ---------
+    filesort : dict
+    setupIDs : list
+
+    Returns
+    -------
+    group_dict : dict
+    """
+    ftype_keys = arsort.ftype_list + ['failures']
+
+    group_dict = {}
+    for sc,setupID in enumerate(setupIDs):
+        #scidx = sciexp[sc]._idx_sci[0]
+        scidx = all_sci_idx[sc]
+        # Set group_key
+        config_key = setupID[0]
+        # Plan init
+        if config_key not in group_dict.keys():
+            group_dict[config_key] = {}
+            #for key in filesort.keys():
+            for key in ftype_keys:
+                if key not in ['unknown', 'dark']:
+                    group_dict[config_key][key] = []
+                group_dict[config_key]['sciobj'] = []
+                group_dict[config_key]['stdobj'] = []
+        # Fill group_dict too
+        #for key in filesort.keys():
+        for key in ftype_keys:
+            if key in ['unknown', 'dark', 'failures']:
+                continue
+            #for idx in settings_spect[key]['index'][sc]:
+            indices = arsort.ftype_indices(fitstbl, key, scidx)
+            #for idx in settings_spect[key]['index'][sc]:
+            for idx in indices:
+                # Only add if new
+                if fitstbl['filename'].data[idx] not in group_dict[config_key][key]:
+                    group_dict[config_key][key].append(fitstbl['filename'].data[idx])
+                    if key == 'standard':  # Add target name
+                        group_dict[config_key]['stdobj'].append(fitstbl['target'].data[idx])
+                if key == 'science':  # Add target name
+                    group_dict[config_key]['sciobj'].append(fitstbl['target'].data[scidx])
+
+    return group_dict
 
 def build_group_dict(filesort, setupIDs, sciexp, fitsdict):
     """ Generate a group dict
