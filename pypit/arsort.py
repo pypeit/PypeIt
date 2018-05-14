@@ -28,6 +28,158 @@ from pypit.arflux import find_standard_file
 from pypit import armeta
 from pypit import ardebug as debugger
 
+ftype_list = [     # NOTE:  arc must be listed first!
+    'arc',         # Exposure of one or more arc calibration lamps for wavelength calibration
+    'bias',        # Exposure for assessing detector bias (usually 0s)
+    'dark',        # Exposure for assessing detector dark current
+    'pinhole',     # Exposure for tracing the orders or slits
+    'pixelflat',   # Exposure for assessing pixel-to-pixel variations
+    'science',   # Exposure on one or more science targets
+    'standard',    # Exposure on a 'standard star' used for flux calibration
+    'trace',       # Exposure for tracing slits or echelle orders (usually twilight sky or flat lamp)
+    'unknown',     # Unknown..
+]
+
+
+def new_sort_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False):
+    """ Generate a dict of filetypes from the input fitsdict object
+
+    Parameters
+    ----------
+    fitstbl : dict
+      Contains relevant information from fits header files
+    flag_unknown : bool, optional
+      Instead of crashing out if there are unidentified files,
+      set to 'unknown' and continue
+
+    Returns
+    -------
+    filetypes : Table
+      A Table of filetypes
+      Each key is a file type and contains False/True for each datafile
+    """
+    msgs.bug("There appears to be a bug with the assignment of arc frames when only one science frame is supplied")
+    msgs.info("Sorting files")
+    numfiles = fitstbl['filename'].size
+    # Set the filetype dictionary
+    filetypes = Table()
+    for ftype in ftype_list:
+        filetypes[ftype] = np.zeros(numfiles, dtype=bool)
+
+    # Set all filetypes by hand?  (Typically read from PYPIT file)
+    if len(settings.ftdict) > 0:
+        for ifile,ftypes in settings.ftdict.items():
+            idx = fitstbl['filename'] == ifile
+            sptypes = ftypes.split(',')
+            for iftype in sptypes:
+                filetypes[iftype][idx] = True
+        # Sort
+        #for key in filetypesfilesort.keys():
+        #    filetypesfilesort[key].sort()
+        return filetypes
+
+    #  Prepare to type
+    # Create an array where 1 means it is a certain type of frame and 0 means it isn't.
+    #filarr = np.zeros((len(ftype_list), numfiles), dtype=np.int)
+    #setarr = np.zeros((len(ftype_list), numfiles), dtype=np.int)
+
+    # Identify the frames:
+    # Loop on file type
+    for i, ftype in enumerate(ftype_list):
+        if ftype == 'unknown':
+            continue
+        # Self identification (typically from Header; not recommended)
+        if settings_argflag['run']['useIDname']:
+            idx = fitstbl['idname'] == settings_spect[ftype]['idname']
+            filetypes[ftype][idx] = True
+            #w = np.where(fitsdict['idname'] == settings.spect[ftype]['idname'])[0]
+        else: # Set all to True!
+            filetypes[ftype] = True
+
+        # Perform additional checks in order to make sure this identification is true
+        if 'check' in settings_spect[ftype].keys():
+            gd_chk = new_chk_all_conditions(ftype, fitstbl)
+            filetypes[ftype] &= gd_chk
+
+        # Assign these images to the filetype
+        #filarr[i, :][filetypes[ftype]] = 1
+        # Check if these files can also be another type
+        #  e.g. some frames are used for pixelflat and slit tracing
+        #   JXP asks -- but why just brazenly set them as ok?  Don't they have their own rules??
+        #     If so, make them satisfy them
+        '''
+        if settings_spect[ftype]['canbe'] is not None:
+            for cb in settings_spect[ftype]['canbe']:
+                filetypes[cb][filetypes[ftype]] = True
+                # Assign these filetypes
+                debugger.set_trace()
+                fa = np.where(ftype == cb)[0]
+                if np.size(fa) == 1:
+                    filarr[fa[0], :][n] = 1
+                else:
+                    msgs.error("Unknown type for argument 'canbe': {0:s}".format(cb))
+        '''
+
+    # Identify the standard stars
+    # Find the nearest standard star to each science frame
+    wscistds = np.where(filetypes['standard'])[0]
+    #wscistd = np.where(filarr[np.where(ftype == 'standard')[0], :].flatten() == 1)[0]
+    for wscistd in wscistds:
+        radec = (fitstbl['ra'][wscistd], fitstbl['dec'][wscistd])
+        if fitstbl['ra'][wscistd] == 'None':
+            msgs.warn("No RA and DEC information for file:" + msgs.newline() + fitstbl['filename'][wscistd])
+            msgs.warn("The above file could be a twilight flat frame that was" + msgs.newline() +
+                      "missed by the automatic identification.")
+            filetypes['standard'][wscistd] = False
+            #filarr[np.where(ftype == 'standard')[0], wscistd] = 0
+            continue
+        # If an object exists within 20 arcmins of a listed standard, then it is probably a standard star
+        foundstd = find_standard_file(radec, toler=20.*units.arcmin, check=True)
+        if foundstd:
+            #filarr[np.where(ftype == 'science')[0], wscistd] = 0
+            filetypes['science'][wscistd] = False
+        else:
+            filetypes['standard'][wscistd] = False
+            #filarr[np.where(ftype == 'standard')[0], wscistd] = 0
+
+    # Make any forced changes
+    msgs.info("Making forced file identification changes")
+    skeys = settings_spect['set'].keys()
+    for sk in skeys:
+        for jj in settings_spect['set'][sk]:
+            debugger.set_trace()  # Need to update for new
+            w = np.where(fitstbl['filename']==jj)[0]
+            filarr[:,w]=0
+            setarr[np.where(ftype==sk)[0],w]=1
+    #filarr = filarr + setarr
+
+    # Check that all files have an identification
+    chklist = []
+    for ftype in ftype_list:
+        if ftype == 'unknown':
+            continue
+        chklist.append(filetypes[ftype].data)
+    badfiles = ~np.any(chklist,axis=0)
+
+    if np.any(badfiles):
+        msgs.info("Couldn't identify the following files:")
+        for ifile in fitstbl['filename'][badfiles]:
+            msgs.info(ifile)
+        if flag_unknown:
+            #filarr[np.where(ftype == 'unknown')[0],badfiles] = 1
+            filetypes['unknown'][badfiles] = True
+        else:
+            msgs.error("Check these files and your settings.{0:s} file before continuing".format(settings_argflag['run']['spectrograph']))
+
+    # Now identify the dark frames
+    darks = filetypes['bias'] & (fitstbl['exptime'].data.astype(np.float64) >
+                                   settings_spect['mosaic']['minexp'])
+    filetypes['dark'] = darks
+
+    # Return filesort!
+    msgs.info("Sorting completed successfully")
+    return filetypes
+
 
 def sort_data(fitsdict, flag_unknown=False):
     """ Generate a dict of filetypes from the input fitsdict object
@@ -53,7 +205,7 @@ def sort_data(fitsdict, flag_unknown=False):
     filesort = {}
     for ftype in armeta.allowed_file_types():
         filesort[ftype] = np.array([], dtype=np.int)
-    # Set all filetypes by hand?
+    # Set all filetypes by hand (typically read from PYPIT file)?
     if len(settings.ftdict) > 0:
         for ifile,ftypes in settings.ftdict.items():
             idx = np.where(fitsdict['filename'] == ifile)[0]
@@ -65,35 +217,35 @@ def sort_data(fitsdict, flag_unknown=False):
             filesort[key].sort()
         return filesort
     #  Prepare to type
-    fkeys = np.array(list(filesort.keys()))
+    ftypes = np.array(list(filesort.keys()))
     # Create an array where 1 means it is a certain type of frame and 0 means it isn't.
-    filarr = np.zeros((fkeys.size, numfiles), dtype=np.int)
-    setarr = np.zeros((fkeys.size, numfiles), dtype=np.int)
+    filarr = np.zeros((ftypes.size, numfiles), dtype=np.int)
+    setarr = np.zeros((ftypes.size, numfiles), dtype=np.int)
 
     # Identify the frames:
     # Loop on file type
-    for i, fkey in enumerate(fkeys):
-        if fkey == 'unknown':
+    for i, iftype in enumerate(ftypes):
+        if iftype == 'unknown':
             continue
         # Self identification (typically from Header; not recommended)
         if settings.argflag['run']['useIDname']:
-            w = np.where(fitsdict['idname'] == settings.spect[fkey]['idname'])[0]
+            w = np.where(fitsdict['idname'] == settings.spect[iftype]['idname'])[0]
         else:
             w = np.arange(numfiles)
         n = np.arange(numfiles)
         n = np.intersect1d(n, w)
         # Perform additional checks in order to make sure this identification is true
-        if 'check' in settings.spect[fkey].keys():
-            n = chk_all_conditions(n, fkey, fitsdict)
+        if 'check' in settings.spect[iftype].keys():
+            n = chk_all_conditions(n, iftype, fitsdict)
 
         # Assign these images to the filetype
         filarr[i, :][n] = 1
         # Check if these files can also be another type
         #  e.g. some frames are used for pixelflat and slit tracing
-        if settings.spect[fkey]['canbe'] is not None:
-            for cb in settings.spect[fkey]['canbe']:
+        if settings.spect[iftype]['canbe'] is not None:
+            for cb in settings.spect[iftype]['canbe']:
                 # Assign these filetypes
-                fa = np.where(fkeys == cb)[0]
+                fa = np.where(iftype == cb)[0]
                 if np.size(fa) == 1:
                     filarr[fa[0], :][n] = 1
                 else:
@@ -101,21 +253,21 @@ def sort_data(fitsdict, flag_unknown=False):
 
     # Identify the standard stars
     # Find the nearest standard star to each science frame
-    wscistd = np.where(filarr[np.where(fkeys == 'standard')[0], :].flatten() == 1)[0]
+    wscistd = np.where(filarr[np.where(iftype == 'standard')[0], :].flatten() == 1)[0]
     for i in range(wscistd.size):
         radec = (fitsdict['ra'][wscistd[i]], fitsdict['dec'][wscistd[i]])
         if fitsdict['ra'][wscistd[i]] == 'None':
             msgs.warn("No RA and DEC information for file:" + msgs.newline() + fitsdict['filename'][wscistd[i]])
             msgs.warn("The above file could be a twilight flat frame that was" + msgs.newline() +
                       "missed by the automatic identification.")
-            filarr[np.where(fkeys == 'standard')[0], wscistd[i]] = 0
+            filarr[np.where(iftype == 'standard')[0], wscistd[i]] = 0
             continue
         # If an object exists within 20 arcmins of a listed standard, then it is probably a standard star
         foundstd = find_standard_file(radec, toler=20.*units.arcmin, check=True)
         if foundstd:
-            filarr[np.where(fkeys == 'science')[0], wscistd[i]] = 0
+            filarr[np.where(iftype == 'science')[0], wscistd[i]] = 0
         else:
-            filarr[np.where(fkeys == 'standard')[0], wscistd[i]] = 0
+            filarr[np.where(iftype == 'standard')[0], wscistd[i]] = 0
 
     # Make any forced changes
     msgs.info("Making forced file identification changes")
@@ -124,7 +276,7 @@ def sort_data(fitsdict, flag_unknown=False):
         for j in settings.spect['set'][sk]:
             w = np.where(fitsdict['filename']==j)[0]
             filarr[:,w]=0
-            setarr[np.where(fkeys==sk)[0],w]=1
+            setarr[np.where(iftype==sk)[0],w]=1
     filarr = filarr + setarr
 
     # Check that all files have an identification
@@ -134,18 +286,18 @@ def sort_data(fitsdict, flag_unknown=False):
         for i in range(np.size(badfiles)):
             msgs.info(fitsdict['filename'][badfiles[i]])
         if flag_unknown:
-            filarr[np.where(fkeys == 'unknown')[0],badfiles] = 1
+            filarr[np.where(iftype == 'unknown')[0],badfiles] = 1
         else:
             msgs.error("Check these files and your settings.{0:s} file before continuing".format(settings.argflag['run']['spectrograph']))
 
     # Now identify the dark frames
-    wdark = np.where((filarr[np.where(fkeys == 'bias')[0], :] == 1).flatten() &
+    wdark = np.where((filarr[np.where(iftype == 'bias')[0], :] == 1).flatten() &
                      (fitsdict['exptime'].astype(np.float64) > settings.spect['mosaic']['minexp']))[0]
     filesort['dark'] = wdark
 
     # Store the frames in the filesort array
-    for i,fkey in enumerate(fkeys):
-        filesort[fkey] = np.where(filarr[i,:] == 1)[0]
+    for i,iftype in enumerate(iftype):
+        filesort[iftype] = np.where(filarr[i,:] == 1)[0]
     # Finally check there are no duplicates (the arrays will automatically sort with np.unique)
     msgs.info("Finalising frame sorting, and removing duplicates")
     for key in filesort.keys():
@@ -157,6 +309,44 @@ def sort_data(fitsdict, flag_unknown=False):
     # Return filesort!
     msgs.info("Sorting completed successfully")
     return filesort
+
+
+def new_chk_all_conditions(fkey, fitstbl):
+    """ Loop on the conditions for this given file type
+    Parameters
+    ----------
+    fkey : str
+      File type
+    fitsdict : dict
+
+    Returns
+    -------
+    gd_chk : ndarray
+      Indices of images satisfying the check conditions
+    """
+    gd_chk = np.ones(len(fitstbl), dtype=bool)
+    # Loop on the items to check
+    chkk = settings.spect[fkey]['check'].keys()
+    for ch in chkk:
+        if ch[0:9] == 'condition':
+            # Deal with a conditional argument
+            conds = re.split("(\||\&)", settings.spect[fkey]['check'][ch])
+            ntmp = chk_condition(fitstbl, conds[0])
+            # And more
+            for cn in range((len(conds)-1)//2):
+                if conds[2*cn+1] == "|":
+                    ntmp = ntmp | chk_condition(fitstbl, conds[2*cn+2])
+                elif conds[2*cn+1] == "&":
+                    ntmp = ntmp & chk_condition(fitstbl, conds[2*cn+2])
+            gd_chk = gd_chk & ntmp
+        else:
+            if fitstbl[ch].dtype.char in ['S','U']:  # Numpy string array
+                # Strip numpy string array of all whitespace
+                gd_chk = gd_chk & (np.char.strip(fitstbl[ch]) == settings.spect[fkey]['check'][ch])
+            else:
+                gd_chk = gd_chk & (fitstbl[ch] == settings.spect[fkey]['check'][ch])
+    # Return
+    return gd_chk
 
 
 def chk_all_conditions(n, fkey, fitsdict):
