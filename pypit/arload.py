@@ -129,7 +129,7 @@ def load_headers(datlines, settings_spect, settings_argflag):
         if utcfound:
             fitsdict['utc'].append(utc)
         else:
-            fitsdict['utc'].append(None)
+            fitsdict['utc'].append('None') # Changed from None so it writes to disk
             msgs.warn("UTC is not listed as a header keyword in file:"+msgs.newline()+datlines[i])
         # Read binning-dependent detector properties here? (maybe read speed too)
         #if settings_argflag['run']['spectrograph'] in ['keck_lris_blue']:

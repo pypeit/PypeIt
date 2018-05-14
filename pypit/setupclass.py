@@ -68,63 +68,17 @@ class SetupClass(object):
         #
         return self.fitstbl
 
-
-    def write(self, root):
+    def write(self, outfile, overwrite=True):
         """
-        Write the main pieces of TraceSlits to the hard drive
-          FITS -- mstrace and other images
-          JSON -- steps, settings, ts_dict
+        Write to FITS
 
         Parameters
         ----------
-        root : str
-          Path+root name for the output files
+        outfile : str
         """
-
-        # Images
-        outfile = root+'.fits'
-        hdu = fits.PrimaryHDU(self.mstrace)
-        hdu.name = 'MSTRACE'
-        hdulist = [hdu]
-        if self.edgearr is not None:
-            hdue = fits.ImageHDU(self.edgearr)
-            hdue.name = 'EDGEARR'
-            hdulist.append(hdue)
-        if self.siglev is not None:
-            hdus = fits.ImageHDU(self.siglev)
-            hdus.name = 'SIGLEV'
-            hdulist.append(hdus)
-        hdup = fits.ImageHDU(self.pixlocn)
-        hdup.name = 'PIXLOCN'
-        hdulist.append(hdup)
-        if self.input_binbpx:  # User inputted
-            hdub = fits.ImageHDU(self.binbpx)
-            hdub.name = 'BINBPX'
-            hdulist.append(hdub)
-        if self.lcen is not None:
-            hdulf = fits.ImageHDU(self.lcen)
-            hdulf.name = 'LCEN'
-            hdulist.append(hdulf)
-            hdurt = fits.ImageHDU(self.rcen)
-            hdurt.name = 'RCEN'
-            hdulist.append(hdurt)
-
-        # Write
-        hdul = fits.HDUList(hdulist)
-        hdul.writeto(outfile, overwrite=True)
-        msgs.info("Writing TraceSlit arrays to {:s}".format(outfile))
-
-        # dict of steps, settings and more
-        out_dict = {}
-        out_dict['settings'] = self.settings
-        if self.tc_dict is not None:
-            out_dict['tc_dict'] = self.tc_dict
-        out_dict['steps'] = self.steps
-        # Clean+Write
-        outfile = root+'.json'
-        clean_dict = ltu.jsonify(out_dict)
-        ltu.savejson(outfile, clean_dict, overwrite=True, easy_to_read=True)
-        msgs.info("Writing TraceSlit dict to {:s}".format(outfile))
+        tmp = self.fitstbl.copy()
+        #tmp.remove_column('utc')
+        tmp.write(outfile, overwrite=overwrite)
 
     def run(self, armlsd=True, ignore_orders=False, add_user_slits=None):
         """ Main driver for tracing slits.
