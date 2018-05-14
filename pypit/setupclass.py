@@ -134,7 +134,7 @@ class SetupClass(object):
         self.fitstbl = Table.read(fits_file)
         msgs.info("Loaded fitstbl from {:s}".format(fits_file))
 
-    def write(self, outfile, overwrite=True):
+    def write_fitstbl(self, outfile, overwrite=True):
         """
         Write to FITS
 
@@ -179,8 +179,45 @@ class SetupClass(object):
         if self.settings.argflag['run']['setup']:  # Collate all matching files
             _ = self.build_group_dict()
 
+        # Write setup -- only if not present
+        #setup_file, nexist = arsetup.get_setup_file(spectrograph=self.settings.argflag['run']['spectrograph'])
+
+        # Write calib file (not in setup mode) or setup file (in setup mode)
+        if not self.settings.argflag['run']['setup']:
+            if len(self.settings.argflag['run']['redname']) == 0: # Stop gap
+                calib_file = 'tmp.calib'
+            else:
+                calib_file = self.settings.argflag['run']['redname'].replace('.pypit', '.calib')
+            arsetup.write_calib(calib_file, self.setup_dict)
+        else:
+            if len(self.settings.argflag['run']['redname']) == 0: # Stop gap
+                setup_file = 'tmp.setups'
+            else:
+                setup_file = self.settings.argflag['run']['redname'].replace('.pypit', '.setups')
+            arsetup.write_setup(self.setup_dict, setup_file=setup_file)
+
+        # Calcheck?
+        if self.settings.argflag['run']['calcheck']:
+            msgs.info("Inspect the .calib file: {:s}".format(calib_file))
+            msgs.info("*********************************************************")
+            msgs.info("Calibration check complete and successful!")
+            msgs.info("Set 'run calcheck False' to continue with data reduction")
+            msgs.info("*********************************************************")
+            # Instrument specific (might push into a separate file)
+            if self.settings.argflag['run']['spectrograph'] in ['keck_lris_blue']:
+                if self.settings.argflag['reduce']['flatfield']['useframe'] in ['pixelflat']:
+                    msgs.warn("We recommend a slitless flat for your instrument.")
+            return 'calcheck', None, None
+        elif self.settings.argflag['run']['setup']:
+            for idx in np.where(self.fitstbl['failures'])[0]:
+                msgs.warn("No Arc found: Skipping object {:s} with file {:s}".format(
+                    self.fitstbl['target'][idx],self.fitstbl['filename'][idx]))
+            msgs.info("Setup is complete.")
+            msgs.info("Inspect the .setups file")
+            return 'setup', None, None
+
         # Return
-        return self.fitstbl, self.setup_dict
+        return 'run', self.fitstbl, self.setup_dict
 
     def __repr__(self):
         # Generate sets string

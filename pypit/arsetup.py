@@ -569,7 +569,7 @@ def load_setup(**kwargs):
     return setup_dict, setup_file
 
 
-def write_calib(setup_dict):
+def write_calib(calib_file, setup_dict):
     """ Output setup_dict with full calibrations to hard drive
 
     Parameters
@@ -577,16 +577,13 @@ def write_calib(setup_dict):
     setup_dict : dict
       setup dict
     """
-    calib_file = settings.argflag['run']['redname'].replace('.pypit', '.calib')
     # Write
     ydict = arutils.yamlify(setup_dict)
     with open(calib_file, 'w') as yamlf:
         yamlf.write(yaml.dump(ydict))
-    # Return
-    return calib_file
 
 
-def write_setup(setup_dict, use_json=False):
+def write_setup(setup_dict, setup_file=None, use_json=False):
     """ Output setup_dict to hard drive
 
     Parameters
@@ -601,9 +598,8 @@ def write_setup(setup_dict, use_json=False):
 
     """
     # Write
-    setup_file, nexist = get_setup_file()
-    if nexist == 1:
-        msgs.warn("Over-writing existing .setups file")
+    if setup_file is None:
+        setup_file, nexist = get_setup_file()
     if use_json:
         gddict = linetools.utils.jsonify(setup_dict)
         with io.open(setup_file, 'w', encoding='utf-8') as f:

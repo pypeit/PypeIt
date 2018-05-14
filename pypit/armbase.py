@@ -102,7 +102,8 @@ def setup_science(fitsdict):
 
     # Write calib file (not in setup mode) or setup file (in setup mode)
     if not settings.argflag['run']['setup']:
-        calib_file = arsetup.write_calib(setup_dict)
+        calib_file = settings.argflag['run']['redname'].replace('.pypit', '.calib')
+        arsetup.write_calib(setup_dict)
     else:
         arsetup.write_setup(setup_dict)
 
