@@ -4,7 +4,9 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 
 import yaml
 import numpy as np
+
 from astropy import units
+from astropy.table import Table
 
 from pypit import msgs
 from pypit import arparse as settings
@@ -12,13 +14,14 @@ from pypit import arflux
 from pypit import arload
 from pypit import armasters
 from pypit import armbase
-from pypit import arpixels
 from pypit import arproc
 from pypit import arsave
 from pypit import arsetup
 from pypit import artrace
 from pypit import artraceslits
 from pypit import traceslits
+from pypit import setupclass
+
 from pypit import ardebug as debugger
 
 
@@ -47,15 +50,22 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     status = 0
 
     # Create a list of science exposure classes
-    sciexp, setup_dict = armbase.setup_science(fitsdict)
-    if sciexp == 'setup':
-        status = 1
-        return status
-    elif sciexp == 'calcheck':
-        status = 2
-        return status
+    original=True
+    if original:
+        mode, sciexp, setup_dict = armbase.setup_science(fitsdict)
+        if mode == 'setup':
+            status = 1
+            return status
+        elif mode == 'calcheck':
+            status = 2
+            return status
+        else:
+            numsci = len(sciexp)
     else:
-        numsci = len(sciexp)
+        # This should move inside of PYPIT
+        fitstbl = Table(fitsdict)
+        setupc = setupclass.SetupClass(settings, fitstbl=fitstbl)
+        mode, fitstbl, setup_dict = setupc.run()
 
     # Create a list of master calibration frames
     #masters = armasters.MasterFrames(settings.spect['mosaic']['ndet'])

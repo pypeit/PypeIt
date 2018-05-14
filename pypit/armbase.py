@@ -119,17 +119,17 @@ def setup_science(fitsdict):
             if settings.argflag['run']['spectrograph'] in ['keck_lris_blue']:
                 if settings.argflag['reduce']['flatfield']['useframe'] in ['pixelflat']:
                     msgs.warn("We recommend a slitless flat for your instrument.")
-            return 'calcheck', None
+            return 'calcheck', None, None
         elif settings.argflag['run']['setup']:
             for idx in filesort['failures']:
                 msgs.warn("No Arc found: Skipping object {:s} with file {:s}".format(fitsdict['target'][idx],fitsdict['filename'][idx]))
             msgs.info("Setup is complete.")
             msgs.info("Inspect the .setups file: {:s}".format(setup_file))
-            return 'setup', None
+            return 'setup', None, None
         else:
             msgs.error("Should not get here")
     # Return
-    return sciexp, setup_dict
+    return 'run', sciexp, setup_dict
 
 
 def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
