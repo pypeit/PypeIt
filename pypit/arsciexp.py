@@ -33,10 +33,12 @@ class ScienceExposure:
     A Science Exposure class that carries all information for a given science exposure
     """
 
-    def __init__(self, snum, fitsdict, do_qa=True):
+    def __init__(self, snum, fitstbl, settings_argflag, settings_spect, do_qa=True, original=True):
 
         # Set indices used for frame combination
-        self._idx_sci = settings.spect['science']['index'][snum]
+        self.sc = snum
+        self._idx_sci = np.array([self.sc])
+        #
         if settings.argflag['reduce']['masters']['force']:
             self._idx_bias = []
             self._idx_flat = []
@@ -45,25 +47,41 @@ class ScienceExposure:
             self._idx_arcs = []
             self._idx_std = []
         else:
-            self._idx_arcs = settings.spect['arc']['index'][snum]
-#            debugger.set_trace()
-            if settings.argflag['reduce']['calibrate']['flux'] == True: self._idx_std = settings.spect['standard']['index'][snum]
-            if settings.argflag['bias']['useframe'] == 'bias': self._idx_bias = settings.spect['bias']['index'][snum]
-            elif settings.argflag['bias']['useframe'] == 'dark':  self._idx_bias = settings.spect['dark']['index'][snum]
-            else: self._idx_bias = []
-            if settings.argflag['reduce']['trace']['useframe'] == 'trace': self._idx_trace = settings.spect['trace']['index'][snum]
-            else: self._idx_trace = []
-            if settings.argflag['reduce']['flatfield']['useframe'] == 'pixelflat': self._idx_flat = settings.spect['pixelflat']['index'][snum]
-            elif settings.argflag['reduce']['flatfield']['useframe'] == 'trace': self._idx_flat = settings.spect['trace']['index'][snum]
-            else: self._idx_flat = []
-            if settings.argflag['reduce']['slitcen']['useframe'] == 'trace': self._idx_cent = settings.spect['trace']['index'][snum]
-            elif settings.argflag['reduce']['slitcen']['useframe'] == 'pinhole': self._idx_cent = settings.spect['pinhole']['index'][snum]
-            else: self._idx_cent = []
-        self.sc = snum
+            if original:
+                self._idx_arcs = settings.spect['arc']['index'][snum]
+    #            debugger.set_trace()
+                if settings_argflag['reduce']['calibrate']['flux'] == True: self._idx_std = settings_spect['standard']['index'][snum]
+                if settings_argflag['bias']['useframe'] == 'bias': self._idx_bias = settings_spect['bias']['index'][snum]
+                elif settings_argflag['bias']['useframe'] == 'dark':  self._idx_bias = settings_spect['dark']['index'][snum]
+                else: self._idx_bias = []
+                if settings_argflag['reduce']['trace']['useframe'] == 'trace': self._idx_trace = settings_spect['trace']['index'][snum]
+                else: self._idx_trace = []
+                if settings_argflag['reduce']['flatfield']['useframe'] == 'pixelflat': self._idx_flat = settings_spect['pixelflat']['index'][snum]
+                elif settings_argflag['reduce']['flatfield']['useframe'] == 'trace': self._idx_flat = settings_spect['trace']['index'][snum]
+                else: self._idx_flat = []
+                if settings_argflag['reduce']['slitcen']['useframe'] == 'trace': self._idx_cent = settings_spect['trace']['index'][snum]
+                elif settings_argflag['reduce']['slitcen']['useframe'] == 'pinhole': self._idx_cent = settings_spect['pinhole']['index'][snum]
+                else: self._idx_cent = []
+            else:
+                self._idx_arcs = arsort.ftype_indices(fitstbl, 'arc', self.sc)
+                self._idx_std = arsort.ftype_indices(fitstbl, 'standard', self.sc)
+                if settings_argflag['bias']['useframe'] == 'bias':
+                    self._idx_bias = arsort.ftype_indices(fitstbl, 'bias', self.sc)
+                elif settings_argflag['bias']['useframe'] == 'dark':
+                    self._idx_bias = arsort.ftype_indices(fitstbl, 'dark', self.sc)
+                self._idx_trace = arsort.ftype_indices(fitstbl, 'trace', self.sc)
+                if settings_argflag['reduce']['flatfield']['useframe'] == 'pixelflat':
+                    self._idx_flat = arsort.ftype_indices(fitstbl, 'pixelflat', self.sc)
+                elif settings_argflag['reduce']['flatfield']['useframe'] == 'trace':
+                    self._idx_flat = arsort.ftype_indices(fitstbl, 'trace', self.sc)
+                if settings_argflag['reduce']['slitcen']['useframe'] == 'trace':
+                    self._idx_cent = arsort.ftype_indices(fitstbl, 'trace', self.sc)
+                elif settings_argflag['reduce']['slitcen']['useframe'] == 'pinhole':  # Not sure this will work
+                    self._idx_cent = arsort.ftype_indices(fitstbl, 'pinhole', self.sc)
 
         # Set the base name and extract other names that will be used for output files
         #  Also parses the time input
-        self.SetBaseName(fitsdict)
+        self.SetBaseName(fitstbl)
 
         # Velocity correction (e.g. heliocentric)
         self.vel_correction = 0.
@@ -694,7 +712,7 @@ class ScienceExposure:
                 msgs.info("A wavelength calibration will not be performed")
             else:
                 # Setup arc parameters (e.g. linelist)
-                arcparam = ararc.setup_param(self, sc, det, fitsdict)
+                arcparam = ararc.setup_param(self, det, fitsdict)
                 self.SetFrame(self._arcparam, arcparam, det)
                 ###############
                 # Extract an arc down each slit

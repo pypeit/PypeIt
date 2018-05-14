@@ -207,7 +207,9 @@ def load_headers(datlines, settings_spect, settings_argflag):
                    "Please check that the settings file matches the data.")
     # Return after creating a Table
     fitsdict['headers'] = allhead
-    return Table(fitsdict), keylst
+    fitstbl = Table(fitsdict)
+    fitstbl.sort('time')
+    return fitstbl, keylst
 
 
 def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):

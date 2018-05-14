@@ -178,7 +178,7 @@ def sort_data(fitsdict, flag_unknown=False):
     numfiles = fitsdict['filename'].size
     # Set the filetype dictionary
     filesort = {}
-    for ftype in armeta.allowed_file_types():
+    for ftype in ftype_list:
         filesort[ftype] = np.array([], dtype=np.int)
     # Set all filetypes by hand (typically read from PYPIT file)?
     if len(settings.ftdict) > 0:
@@ -220,7 +220,7 @@ def sort_data(fitsdict, flag_unknown=False):
         if settings.spect[iftype]['canbe'] is not None:
             for cb in settings.spect[iftype]['canbe']:
                 # Assign these filetypes
-                fa = np.where(iftype == cb)[0]
+                fa = np.where(ftypes == cb)[0]
                 if np.size(fa) == 1:
                     filarr[fa[0], :][n] = 1
                 else:
@@ -266,12 +266,12 @@ def sort_data(fitsdict, flag_unknown=False):
             msgs.error("Check these files and your settings.{0:s} file before continuing".format(settings.argflag['run']['spectrograph']))
 
     # Now identify the dark frames
-    wdark = np.where((filarr[np.where(iftype == 'bias')[0], :] == 1).flatten() &
+    wdark = np.where((filarr[np.where(ftypes == 'bias')[0], :] == 1).flatten() &
                      (fitsdict['exptime'].astype(np.float64) > settings.spect['mosaic']['minexp']))[0]
     filesort['dark'] = wdark
 
     # Store the frames in the filesort array
-    for i,iftype in enumerate(iftype):
+    for i,iftype in enumerate(ftypes):
         filesort[iftype] = np.where(filarr[i,:] == 1)[0]
     # Finally check there are no duplicates (the arrays will automatically sort with np.unique)
     msgs.info("Finalising frame sorting, and removing duplicates")
@@ -861,7 +861,8 @@ def match_science(fitsdict, filesort):
 
     msgs.info("Matching calibrations to Science frames")
     # Init
-    ftag = armeta.allowed_file_types()
+    #ftag = armeta.allowed_file_types()
+    ftag = ftype_list
     assert ftag[0] == 'arc'
     for item in ['science', 'unknown']: # Remove undesired
         ftag.remove(item)

@@ -51,13 +51,14 @@ def setup_science(fitsdict):
     # Match calibration frames to science frames
     _ = arsort.match_science(fitsdict, filesort)
     # Make directory structure for different objects
-    arsort.make_dirs()
+    if do_qa:
+        arsort.make_dirs()
 
     # Create the list of science exposures
     numsci = np.size(settings.spect['science']['index'])
     sciexp = []
     for i in range(numsci):
-        sciexp.append(arsciexp.ScienceExposure(i, fitsdict, do_qa=do_qa))
+        sciexp.append(arsciexp.ScienceExposure(i, fitsdict, settings.argflag, settings.spect, do_qa=do_qa))
 
     # Generate setup dict
     setup_dict = {}
@@ -103,7 +104,7 @@ def setup_science(fitsdict):
     # Write calib file (not in setup mode) or setup file (in setup mode)
     if not settings.argflag['run']['setup']:
         calib_file = settings.argflag['run']['redname'].replace('.pypit', '.calib')
-        arsetup.write_calib(setup_dict)
+        arsetup.write_calib(calib_file, setup_dict)
     else:
         arsetup.write_setup(setup_dict)
 
