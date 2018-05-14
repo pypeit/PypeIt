@@ -78,11 +78,6 @@ def new_sort_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False)
         #    filetypesfilesort[key].sort()
         return filetypes
 
-    #  Prepare to type
-    # Create an array where 1 means it is a certain type of frame and 0 means it isn't.
-    #filarr = np.zeros((len(ftype_list), numfiles), dtype=np.int)
-    #setarr = np.zeros((len(ftype_list), numfiles), dtype=np.int)
-
     # Identify the frames:
     # Loop on file type
     for i, ftype in enumerate(ftype_list):
@@ -100,25 +95,6 @@ def new_sort_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False)
         if 'check' in settings_spect[ftype].keys():
             gd_chk = new_chk_all_conditions(ftype, fitstbl)
             filetypes[ftype] &= gd_chk
-
-        # Assign these images to the filetype
-        #filarr[i, :][filetypes[ftype]] = 1
-        # Check if these files can also be another type
-        #  e.g. some frames are used for pixelflat and slit tracing
-        #   JXP asks -- but why just brazenly set them as ok?  Don't they have their own rules??
-        #     If so, make them satisfy them
-        '''
-        if settings_spect[ftype]['canbe'] is not None:
-            for cb in settings_spect[ftype]['canbe']:
-                filetypes[cb][filetypes[ftype]] = True
-                # Assign these filetypes
-                debugger.set_trace()
-                fa = np.where(ftype == cb)[0]
-                if np.size(fa) == 1:
-                    filarr[fa[0], :][n] = 1
-                else:
-                    msgs.error("Unknown type for argument 'canbe': {0:s}".format(cb))
-        '''
 
     # Identify the standard stars
     # Find the nearest standard star to each science frame
@@ -160,7 +136,6 @@ def new_sort_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False)
             continue
         chklist.append(filetypes[ftype].data)
     badfiles = ~np.any(chklist,axis=0)
-
     if np.any(badfiles):
         msgs.info("Couldn't identify the following files:")
         for ifile in fitstbl['filename'][badfiles]:
@@ -552,6 +527,89 @@ def sort_write(fitsdict, filesort, space=3):
     ascii_tbl[asciiord].write(ascii_name, format='ascii.fixed_width')
     return ascii_tbl
 
+
+def new_match_logic(ch, tmtch, fitstbl, idx):
+    """ Perform logic on matching with fitsdict
+    Parameters
+    ----------
+    ch : str
+      Header card alias, eg. exptime
+    tmtch : str
+      Defines the logic
+      any
+      ''
+      >, <, >=, <=, =, !=
+    fitsdict
+    idx : int
+      Science index
+
+
+    Returns
+    -------
+    w : ndarray, int
+      indices that match the criterion
+      None is returned if there is nothing to match
+    """
+    if tmtch == "any":   # Anything goes
+        w = np.ones_like(fitstbl, dtype=bool)
+    elif tmtch == "''":  # Header value must match that of science
+        w = fitstbl[ch] == fitstbl[ch][idx]
+    elif tmtch[0] in ['=','<','>','|']: # Numerics
+        mtch = np.float64(fitstbl[ch][idx]) + float(
+            ''.join(c for c in tmtch if c not in ['=', '<', '>', '|']))
+        operand = ''.join(c for c in tmtch if c in ['=', '<', '>', '|'])
+        if operand == '=':
+            operand += '='
+        #
+        if tmtch[0] != '|':
+            w = eval('fitstbl[ch].data.astype(np.float64) {:s} {:f}'.format(operand, mtch))
+        else:
+            w = eval('np.abs(fitstbl[ch].data.astype(np.float64) - np.float64(fitsdict[ch][idx]))) {:s} {:f}'.format(operand, mtch))
+    elif tmtch[0:2] == '%,':  # Splitting a header keyword
+        splcom = tmtch.split(',')
+        debugger.set_trace()
+        spltxt, argtxt, valtxt = splcom[1], np.int(splcom[2]), splcom[3]
+        tspl = []
+        for sp in fitstbl[ch]:
+            tmpspl = str(re.escape(spltxt)).replace("\\|", "|")
+            tmpspl = re.split(tmpspl, sp)
+            if len(tmpspl) < argtxt+1:
+                tspl.append("-9999999")
+            else:
+                tspl.append(tmpspl[argtxt])
+        tspl = np.array(tspl)
+        #                        debugger.set_trace()
+        tmpspl = str(re.escape(spltxt)).replace("\\|", "|")
+        tmpspl = re.split(tmpspl, fitstbl[ch][idx])
+        debugger.set_trace()
+        if len(tmpspl) < argtxt + 1:
+            return None
+        else:
+            scispl = tmpspl[argtxt]
+        if valtxt == "''":
+            w = np.where(tspl == scispl)[0]
+        elif valtxt[0] == '=':
+            mtch = np.float64(scispl) + np.float64(valtxt[1:])
+            w = np.where(tspl.astype(np.float64) == mtch)[0]
+        elif valtxt[0] == '<':
+            if valtxt[1] == '=':
+                mtch = np.float64(scispl) + np.float64(valtxt[2:])
+                w = np.where(tspl.astype(np.float64) <= mtch)[0]
+            else:
+                mtch = np.float64(scispl) + np.float64(valtxt[1:])
+                w = np.where(tspl.astype(np.float64) < mtch)[0]
+        elif valtxt[0] == '>':
+            if valtxt[1] == '=':
+                mtch = np.float64(scispl) + np.float64(valtxt[2:])
+                w = np.where(tspl.astype(np.float64) >= mtch)[0]
+            else:
+                mtch = np.float64(scispl) + np.float64(valtxt[1:])
+                w = np.where(tspl.astype(np.float64) > mtch)[0]
+    # Return
+    return w
+
+
+
 def match_logic(ch, tmtch, fitsdict, idx):
     """ Perform logic on matching with fitsdict
     Parameters
@@ -563,6 +621,9 @@ def match_logic(ch, tmtch, fitsdict, idx):
       any
       ''
       >, <, >=, <=, =, !=
+    fitsdict
+    idx : int
+      Science index
 
 
     Returns
@@ -654,6 +715,126 @@ def match_logic(ch, tmtch, fitsdict, idx):
             return None
     # Return
     return w
+
+
+def new_match_to_science(fitstbl, settings_spect, settings_argflag):
+    """
+    For a given set of identified data, match calibration frames to science frames
+
+    Parameters
+    ----------
+    fitsdict : dict
+      Contains relevant information from fits header files
+    filesort : dict
+      Details of the sorted files
+
+    Returns
+    -------
+    cal_indx : list
+      A list of dict's, one per science exposure, that contains the
+      indices of the matched calibration files (and the science frame too)
+      This is intended to replace settings.spect[ftag]['index']
+    """
+
+    msgs.info("Matching calibrations to Science frames")
+
+    # New columns
+    fitstbl['failures'] = False
+    fitstbl['sci_idx'] = 0
+
+    # Init
+    '''
+    ftag = ftype_list.copy()
+    assert ftag[0] == 'arc'
+    for item in ['science', 'unknown']: # Remove undesired
+        ftag.remove(item)
+    setup_ftag = {}
+    for item in ftag:
+        setup_ftag[item] = 0
+    setup_ftag['arc'] = 1
+    # More setup
+    iARR = [fitstbl[itag] for itag in ftag]
+    '''
+
+    # Loop on science frames
+    #while i < nSCI:
+    for ss, sci_idx in enumerate(np.where(fitstbl['science'])[0]):
+        msgs.info("=================================================")
+        msgs.info("Matching calibrations to {:s}: {:s}".format(
+                fitstbl['target'][sci_idx], fitstbl['filename'][sci_idx]))
+
+        # Science index (trivial but key to the bit-wise that follows)
+        fitstbl['sci_idx'][sci_idx] = 2**ss
+
+        # Find matching (and nearby) calibration frames
+        for ftag in ftype_list:
+            gd_match = fitstbl[ftag].data.copy()  # All work for starters
+            if ftag in ['science', 'unknown']:
+                continue
+
+            # bias/dark check to make sure we need to find matching frames
+            if ftag == 'dark' and settings_argflag['bias']['useframe'] != 'dark':
+                msgs.info("  Dark frames not required.  Not matching..")
+                continue
+            if ftag == 'bias' and settings_argflag['bias']['useframe'] != 'bias' and not settings_argflag['reduce']['badpix']:
+                msgs.info("  Bias frames not required.  Not matching..")
+                continue
+
+            # How many matching frames are required?  This is instrument specific
+            if settings_argflag['run']['setup']:
+                numfr = 1 if ftag == 'arc' else 0
+            else:
+                numfr = settings_spect[ftag]['number']
+
+            # If not required and not doing setup, continue
+            if (numfr == 0) and (not settings_argflag['run']['setup']):
+                msgs.info("   No {0:s} frames are required.  Not matching..".format(ftag))
+                continue
+
+            # Now go ahead and match the frames
+            if 'match' not in settings_spect[ftag].keys() and (not settings.argflag['run']['setup']):
+                msgs.error("Need match criteria for {0:s}!!".format(ftag))
+            elif 'match' not in settings_spect[ftag].keys():
+                msgs.info("No matching criteria for {0:s} frames with this instrument".format(ftag))
+            else:
+                chkk = settings_spect[ftag]['match'].keys()
+                for ch in chkk:
+                    tmtch = settings_spect[ftag]['match'][ch]
+                    gd_match &= new_match_logic(ch, tmtch, fitstbl, sci_idx)
+
+            # Find the time difference between the calibrations and science frames
+            if settings_spect['fits']['calwin'] > 0.0:
+                tdiff = np.abs(fitstbl['time']-fitstbl['time'][sci_idx])
+                gd_match &= tdiff <= settings_spect['fits']['calwin']
+
+            # Now find which of the remaining n are the appropriate calibration frames
+            #n = np.intersect1d(n, iARR[ft])
+            nmatch = np.sum(gd_match)
+            if settings.argflag['output']['verbosity'] == 2:
+                msgs.info("  Found {0:d} {1:s} frame for {2:s} ({3:d} required)".format(
+                    nmatch, ftag, fitstbl['target'][sci_idx], numfr))
+
+            # Have we identified enough of these calibration frames to continue?
+            if nmatch < np.abs(numfr):
+                debugger.set_trace()
+                code = match_warnings(ftag, nmatch, numfr, fitstbl, sci_idx, filesort, cal_index[i])
+                if code == 'break':
+                    break
+            else:
+                # Select the closest calibration frames to the science frame
+                tdiff = np.abs(fitstbl['time'][gd_match]-fitstbl['time'][sci_idx])
+                wa = np.argsort(np.where(tdiff)[0])
+                if (settings.argflag['run']['setup']) or (numfr < 0):
+                    #settings_spect[ftag[ft]]['index'].append(n[wa].copy())
+                    #cal_index[i][ftag[ft]] = n[wa].copy()
+                    fitstbl['sci_idx'][wa] |= 2**ss  # Flip the switch (if need be)
+                else:
+                    #settings_spect[ftag[ft]]['index'].append(n[wa[:numfr]].copy())
+                    #cal_index[i][ftag[ft]] = n[wa[:numfr]].copy()
+                    fitstbl['sci_idx'][wa[:numfr]] |= 2**ss  # Flip the switch (if need be)
+
+    msgs.info("Science frames successfully matched to calibration frames")
+    return fitstbl
 
 
 def match_science(fitsdict, filesort):

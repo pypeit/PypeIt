@@ -7,6 +7,7 @@ import numpy as np
 #from importlib import reload
 
 from astropy.io import fits
+from astropy.table import hstack
 
 from linetools import utils as ltu
 
@@ -50,35 +51,23 @@ class SetupClass(object):
         self.fitstbl.sort('time')
         return self.fitstbl
 
+    def match_to_science(self):
+        self.fitstbl = arsort.new_match_to_science(self.fitstbl,
+                                         self.settings.spect,
+                                         self.settings.argflag)
+        return self.fitstbl
+
     def sort_data(self):
         filetypes = arsort.new_sort_data(self.fitstbl,
                                         self.settings.spect,
                                         self.settings.argflag)
-        return filetypes
 
-    def show(self, attr, display='ginga'):
-        """
-        Display an image or spectrum in TraceSlits
+        # hstack me -- Might over-write self.fitstbl here
+        self.fitstbl = hstack([self.fitstbl, filetypes])
 
-        Parameters
-        ----------
-        attr : str
-          'edges' -- Show the mstrace image and the edges
-          'edgearr' -- Show the edgearr image
-          'siglev' -- Show the Sobolev image
-        display : str (optional)
-          'ginga' -- Display to an RC Ginga
-        """
-        if attr == 'edges':
-            viewer, ch = ginga.show_image(self.mstrace)
-            if self.lcen is not None:
-                ginga.show_slits(viewer, ch, self.lcen, self.rcen, np.arange(self.lcen.shape[1]) + 1, pstep=50)
-        elif attr == 'edgearr':
-            # TODO -- Figure out how to set the cut levels
-            debugger.show_image(self.edgearr)
-        elif attr == 'siglev':
-            # TODO -- Figure out how to set the cut levels
-            debugger.show_image(self.siglev)
+        #
+        return self.fitstbl
+
 
     def write(self, root):
         """
