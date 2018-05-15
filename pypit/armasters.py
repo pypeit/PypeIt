@@ -72,7 +72,7 @@ def master_name(ftype, setup, mdir=None):
         mdir = settings.argflag['run']['directory']['master']+'_'+settings.argflag['run']['spectrograph']
     name_dict = dict(bias='{:s}/MasterBias_{:s}.fits'.format(mdir, setup),
                      badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir, setup),
-                     trace='{:s}/MasterTrace_{:s}.fits'.format(mdir, setup),
+                     trace='{:s}/MasterTrace_{:s}'.format(mdir, setup),   # Just a root as FITS+JSON are generated
                      pinhole='{:s}/MasterPinhole_{:s}.fits'.format(mdir, setup),
                      normpixelflat='{:s}/MasterFlatField_{:s}.fits'.format(mdir, setup),
                      arc='{:s}/MasterArc_{:s}.fits'.format(mdir, setup),

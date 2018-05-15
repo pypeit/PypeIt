@@ -156,7 +156,12 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
                 slf.SetFrame(slf._rordpix, tslits_dict['rordpix'], det)
                 slf.SetFrame(slf._slitpix, tslits_dict['slitpix'], det)
                 # Save to disk
-                armasters.save_masters(slf, det, mftype='trace')
+                original = False
+                if original:
+                    armasters.save_masters(slf, det, mftype='trace')
+                else:
+                    msname = armasters.master_name('trace', setup)
+                    Tslits.write(msname)
                 # Save QA for slit traces
 #                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
 #                                       slf._rordpix[det-1], extord,

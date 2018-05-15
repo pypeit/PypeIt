@@ -53,6 +53,7 @@ trace_slits_dict['pixcen'] = None
 trace_slits_dict['pixwid'] = None
 trace_slits_dict['extrapord'] = None
 
+
 class TraceSlits(object):
     """Class to guide slit/order tracing
 
@@ -178,6 +179,11 @@ class TraceSlits(object):
         self.rnmbrarr = None
         self.rdiffarr = None
         self.rwghtarr  = None
+
+    @classmethod
+    def from_master_trace(cls, master_trace_file):
+        # pixlocn
+        pixlocn = arpixels.core_gen_pixloc(mstrace)
 
     @classmethod
     def from_files(cls, root):
@@ -394,6 +400,20 @@ class TraceSlits(object):
         else:
             return False
 
+    def _fill_trace_slit_dict(self):
+        """
+        # Build a simple object holding the key trace bits and pieces that PYPIT wants
+
+        Returns
+        -------
+        self.trace_slits_dict
+
+        """
+        self.trace_slits_dict = {}
+        for key in ['lcen', 'rcen', 'pixcen', 'pixwid', 'lordpix',
+                    'rordpix', 'extrapord', 'slitpix']:
+            self.trace_slits_dict[key] = getattr(self, key)
+
     def _final_left_right(self):
         """
         Last check on left/right edges
@@ -476,6 +496,33 @@ class TraceSlits(object):
             self.edgearr, self.settings['trace']['slits']['fracignore'])
         # Steps
         self.steps.append(inspect.stack()[0][3])
+
+    def _make_pixel_arrays(self):
+        """
+        Generate pixel arrays
+        Primarily for later stages of PYPIT
+
+        Returns
+        -------
+        self.pixcen
+        self.pixwid
+        self.lordpix
+        self.rordpix
+        self.slitpix
+
+        """
+        # Convert physical traces into a pixel trace
+        msgs.info("Converting physical trace locations to nearest pixel")
+        self.pixcen = arpixels.phys_to_pix(0.5*(self.lcen+self.rcen), self.pixlocn, 1)
+        self.pixwid = (self.rcen-self.lcen).mean(0).astype(np.int)
+        self.lordpix = arpixels.phys_to_pix(self.lcen, self.pixlocn, 1)
+        self.rordpix = arpixels.phys_to_pix(self.rcen, self.pixlocn, 1)
+
+        # Slit pixels
+        msgs.info("Identifying the pixels belonging to each slit")
+        self.slitpix = arpixels.core_slit_pixels(self.lcen, self.rcen,
+                                                 self.mstrace.shape,
+                                                 self.settings['trace']['slits']['pad'])
 
     def _match_edges(self):
         """
@@ -775,7 +822,7 @@ class TraceSlits(object):
             # TODO -- Figure out how to set the cut levels
             debugger.show_image(self.siglev)
 
-    def write(self, root):
+    def save_master(self, root):
         """
         Write the main pieces of TraceSlits to the hard drive
           FITS -- mstrace and other images
@@ -831,6 +878,7 @@ class TraceSlits(object):
         clean_dict = ltu.jsonify(out_dict)
         ltu.savejson(outfile, clean_dict, overwrite=True, easy_to_read=True)
         msgs.info("Writing TraceSlit dict to {:s}".format(outfile))
+
 
     def run(self, armlsd=True, ignore_orders=False, add_user_slits=None):
         """ Main driver for tracing slits.
@@ -940,26 +988,14 @@ class TraceSlits(object):
             #   Also remove short slits here for multi-slit and long-slit (aligntment stars)
             self._trim_slits(usefracpix=armlsd)
 
-        # Convert physical traces into a pixel trace
-        msgs.info("Converting physical trace locations to nearest pixel")
-        self.pixcen = arpixels.phys_to_pix(0.5*(self.lcen+self.rcen), self.pixlocn, 1)
-        self.pixwid = (self.rcen-self.lcen).mean(0).astype(np.int)
-        self.lordpix = arpixels.phys_to_pix(self.lcen, self.pixlocn, 1)
-        self.rordpix = arpixels.phys_to_pix(self.rcen, self.pixlocn, 1)
+        # Generate pixel arrays
+        self._make_pixel_arrays()
 
-        # Slit pixels
-        msgs.info("Identifying the pixels belonging to each slit")
-        self.slitpix = arpixels.core_slit_pixels(self.lcen, self.rcen,
-                                                 self.mstrace.shape,
-                                                 self.settings['trace']['slits']['pad'])
-
-        # Build a simple object holding the key trace bits and pieces
-        trace_slits_dict = {}
-        for key in ['lcen', 'rcen', 'pixcen', 'pixwid', 'lordpix', 'rordpix', 'extrapord', 'slitpix']:
-            trace_slits_dict[key] = getattr(self, key)
+        # dict for PYPIT
+        self._fill_trace_slit_dict()
 
         # Return
-        return trace_slits_dict
+        return self.trace_slits_dict
 
     def __repr__(self):
         # Generate sets string
