@@ -18,6 +18,12 @@ edge cases (pun intended) is challenging if not impossible.
 Therefore, there are a number of user-input parameters
 that one may need to consider when running PYPIT (see below).
 
+Underlying the effort is the TraceSlits class which can be
+used to load the Master frame output for tracing (a FITS and
+a JSON file). See the
+`TraceSlits.ipynb <https://github.com/PYPIT/PYPIT/blob/master/doc/nb/TraceSlits.ipynb>`_
+Notebook on GitHub in doc/nb/ for some usage examples.
+
 Algorithm
 =========
 
@@ -166,7 +172,9 @@ for example).
 Add User Slits
 --------------
 
-docs coming soon
+See the
+`TraceSlits.ipynb <https://github.com/PYPIT/PYPIT/blob/master/doc/nb/TraceSlits.ipynb>`_
+Notebook on GitHub in doc/nb/
 
 Single user slit
 ----------------

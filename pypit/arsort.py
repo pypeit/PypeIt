@@ -28,6 +28,133 @@ from pypit.arflux import find_standard_file
 from pypit import armeta
 from pypit import ardebug as debugger
 
+ftype_list = [     # NOTE:  arc must be listed first!
+    'arc',         # Exposure of one or more arc calibration lamps for wavelength calibration
+    'bias',        # Exposure for assessing detector bias (usually 0s)
+    'dark',        # Exposure for assessing detector dark current
+    'pinhole',     # Exposure for tracing the orders or slits
+    'pixelflat',   # Exposure for assessing pixel-to-pixel variations
+    'science',   # Exposure on one or more science targets
+    'standard',    # Exposure on a 'standard star' used for flux calibration
+    'trace',       # Exposure for tracing slits or echelle orders (usually twilight sky or flat lamp)
+    'unknown',     # Unknown..
+]
+
+def ftype_indices(fitstbl, ftype, sci_ID):
+    idx = np.where(fitstbl[ftype] & (fitstbl['sci_ID'] & sci_ID > 0))[0]
+    return idx
+
+def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftdict=None):
+    """ Generate a table of filetypes from the input fitsdict object
+
+    Parameters
+    ----------
+    fitstbl : dict
+      Contains relevant information from fits header files
+    flag_unknown : bool, optional
+      Instead of crashing out if there are unidentified files,
+      set to 'unknown' and continue
+
+    Returns
+    -------
+    filetypes : Table
+      A Table of filetypes
+      Each key is a file type and contains False/True for each datafile
+      This is likely to be stacked onto the fitstbl
+    """
+    #msgs.bug("There appears to be a bug with the assignment of arc frames when only one science frame is supplied")
+    msgs.info("Typing files")
+    numfiles = fitstbl['filename'].size
+    # Set the filetype dictionary
+    filetypes = Table()
+    for ftype in ftype_list:
+        filetypes[ftype] = np.zeros(numfiles, dtype=bool)
+
+    # Set all filetypes by hand?  (Typically read from PYPIT file)
+    #if len(settings.ftdict) > 0:
+    if ftdict is not None:
+        for ifile,ftypes in ftdict.items():
+            idx = fitstbl['filename'] == ifile
+            sptypes = ftypes.split(',')
+            for iftype in sptypes:
+                filetypes[iftype][idx] = True
+        # Sort
+        #for key in filetypesfilesort.keys():
+        #    filetypesfilesort[key].sort()
+        return filetypes
+
+    # Identify the frames:
+    # Loop on file type
+    for i, ftype in enumerate(ftype_list):
+        if ftype == 'unknown':
+            continue
+        # Self identification (typically from Header; not recommended)
+        if settings_argflag['run']['useIDname']:
+            idx = fitstbl['idname'] == settings_spect[ftype]['idname']
+            filetypes[ftype][idx] = True
+            #w = np.where(fitsdict['idname'] == settings.spect[ftype]['idname'])[0]
+        else: # Set all to True!
+            filetypes[ftype] = True
+
+        # Perform additional checks in order to make sure this identification is true
+        if 'check' in settings_spect[ftype].keys():
+            gd_chk = new_chk_all_conditions(ftype, fitstbl)
+            filetypes[ftype] &= gd_chk
+
+    # Identify the standard stars
+    # Find the nearest standard star to each science frame
+    wscistds = np.where(filetypes['standard'])[0]
+    for wscistd in wscistds:
+        radec = (fitstbl['ra'][wscistd], fitstbl['dec'][wscistd])
+        if fitstbl['ra'][wscistd] == 'None':
+            msgs.warn("No RA and DEC information for file:" + msgs.newline() + fitstbl['filename'][wscistd])
+            msgs.warn("The above file could be a twilight flat frame that was" + msgs.newline() +
+                      "missed by the automatic identification.")
+            filetypes['standard'][wscistd] = False
+            continue
+        # If an object exists within 20 arcmins of a listed standard, then it is probably a standard star
+        foundstd = find_standard_file(radec, toler=20.*units.arcmin, check=True)
+        if foundstd:
+            filetypes['science'][wscistd] = False
+        else:
+            filetypes['standard'][wscistd] = False
+
+    # Make any forced changes
+    msgs.info("Making forced file identification changes")
+    skeys = settings_spect['set'].keys()
+    for sk in skeys:
+        for jj in settings_spect['set'][sk]:
+            idx = np.where(fitstbl['filename']==jj)[0]
+            filetypes[sk][idx] = True
+            #filarr[:,w]=0
+            #setarr[np.where(ftype==sk)[0],w]=1
+    #filarr = filarr + setarr
+
+    # Check that all files have an identification
+    chklist = []
+    for ftype in ftype_list:
+        if ftype == 'unknown':
+            continue
+        chklist.append(filetypes[ftype].data)
+    badfiles = ~np.any(chklist,axis=0)
+    if np.any(badfiles):
+        msgs.info("Couldn't identify the following files:")
+        for ifile in fitstbl['filename'][badfiles]:
+            msgs.info(ifile)
+        if flag_unknown:
+            filetypes['unknown'][badfiles] = True
+        else:
+            msgs.error("Check these files and your settings.{0:s} file before continuing".format(settings_argflag['run']['spectrograph']))
+
+    # Now identify the dark frames
+    darks = filetypes['bias'] & (fitstbl['exptime'].data.astype(np.float64) >
+                                   settings_spect['mosaic']['minexp'])
+    filetypes['dark'] = darks
+
+    # Return filesort!
+    msgs.info("Typing completed!")
+    return filetypes
+
 
 def sort_data(fitsdict, flag_unknown=False):
     """ Generate a dict of filetypes from the input fitsdict object
@@ -51,9 +178,9 @@ def sort_data(fitsdict, flag_unknown=False):
     numfiles = fitsdict['filename'].size
     # Set the filetype dictionary
     filesort = {}
-    for ftype in armeta.allowed_file_types():
+    for ftype in ftype_list:
         filesort[ftype] = np.array([], dtype=np.int)
-    # Set all filetypes by hand?
+    # Set all filetypes by hand (typically read from PYPIT file)?
     if len(settings.ftdict) > 0:
         for ifile,ftypes in settings.ftdict.items():
             idx = np.where(fitsdict['filename'] == ifile)[0]
@@ -65,35 +192,35 @@ def sort_data(fitsdict, flag_unknown=False):
             filesort[key].sort()
         return filesort
     #  Prepare to type
-    fkeys = np.array(list(filesort.keys()))
+    ftypes = np.array(list(filesort.keys()))
     # Create an array where 1 means it is a certain type of frame and 0 means it isn't.
-    filarr = np.zeros((fkeys.size, numfiles), dtype=np.int)
-    setarr = np.zeros((fkeys.size, numfiles), dtype=np.int)
+    filarr = np.zeros((ftypes.size, numfiles), dtype=np.int)
+    setarr = np.zeros((ftypes.size, numfiles), dtype=np.int)
 
     # Identify the frames:
     # Loop on file type
-    for i, fkey in enumerate(fkeys):
-        if fkey == 'unknown':
+    for i, iftype in enumerate(ftypes):
+        if iftype == 'unknown':
             continue
         # Self identification (typically from Header; not recommended)
         if settings.argflag['run']['useIDname']:
-            w = np.where(fitsdict['idname'] == settings.spect[fkey]['idname'])[0]
+            w = np.where(fitsdict['idname'] == settings.spect[iftype]['idname'])[0]
         else:
             w = np.arange(numfiles)
         n = np.arange(numfiles)
         n = np.intersect1d(n, w)
         # Perform additional checks in order to make sure this identification is true
-        if 'check' in settings.spect[fkey].keys():
-            n = chk_all_conditions(n, fkey, fitsdict)
+        if 'check' in settings.spect[iftype].keys():
+            n = chk_all_conditions(n, iftype, fitsdict)
 
         # Assign these images to the filetype
         filarr[i, :][n] = 1
         # Check if these files can also be another type
         #  e.g. some frames are used for pixelflat and slit tracing
-        if settings.spect[fkey]['canbe'] is not None:
-            for cb in settings.spect[fkey]['canbe']:
+        if settings.spect[iftype]['canbe'] is not None:
+            for cb in settings.spect[iftype]['canbe']:
                 # Assign these filetypes
-                fa = np.where(fkeys == cb)[0]
+                fa = np.where(ftypes == cb)[0]
                 if np.size(fa) == 1:
                     filarr[fa[0], :][n] = 1
                 else:
@@ -101,21 +228,21 @@ def sort_data(fitsdict, flag_unknown=False):
 
     # Identify the standard stars
     # Find the nearest standard star to each science frame
-    wscistd = np.where(filarr[np.where(fkeys == 'standard')[0], :].flatten() == 1)[0]
+    wscistd = np.where(filarr[np.where(iftype == 'standard')[0], :].flatten() == 1)[0]
     for i in range(wscistd.size):
         radec = (fitsdict['ra'][wscistd[i]], fitsdict['dec'][wscistd[i]])
         if fitsdict['ra'][wscistd[i]] == 'None':
             msgs.warn("No RA and DEC information for file:" + msgs.newline() + fitsdict['filename'][wscistd[i]])
             msgs.warn("The above file could be a twilight flat frame that was" + msgs.newline() +
                       "missed by the automatic identification.")
-            filarr[np.where(fkeys == 'standard')[0], wscistd[i]] = 0
+            filarr[np.where(ftypes == 'standard')[0], wscistd[i]] = 0
             continue
         # If an object exists within 20 arcmins of a listed standard, then it is probably a standard star
         foundstd = find_standard_file(radec, toler=20.*units.arcmin, check=True)
         if foundstd:
-            filarr[np.where(fkeys == 'science')[0], wscistd[i]] = 0
+            filarr[np.where(ftypes == 'science')[0], wscistd[i]] = 0
         else:
-            filarr[np.where(fkeys == 'standard')[0], wscistd[i]] = 0
+            filarr[np.where(ftypes == 'standard')[0], wscistd[i]] = 0
 
     # Make any forced changes
     msgs.info("Making forced file identification changes")
@@ -124,7 +251,7 @@ def sort_data(fitsdict, flag_unknown=False):
         for j in settings.spect['set'][sk]:
             w = np.where(fitsdict['filename']==j)[0]
             filarr[:,w]=0
-            setarr[np.where(fkeys==sk)[0],w]=1
+            setarr[np.where(ftypes==sk)[0],w]=1
     filarr = filarr + setarr
 
     # Check that all files have an identification
@@ -134,18 +261,19 @@ def sort_data(fitsdict, flag_unknown=False):
         for i in range(np.size(badfiles)):
             msgs.info(fitsdict['filename'][badfiles[i]])
         if flag_unknown:
-            filarr[np.where(fkeys == 'unknown')[0],badfiles] = 1
+            filarr[np.where(ftypes == 'unknown')[0],badfiles] = 1
         else:
+            debugger.set_trace()
             msgs.error("Check these files and your settings.{0:s} file before continuing".format(settings.argflag['run']['spectrograph']))
 
     # Now identify the dark frames
-    wdark = np.where((filarr[np.where(fkeys == 'bias')[0], :] == 1).flatten() &
+    wdark = np.where((filarr[np.where(ftypes == 'bias')[0], :] == 1).flatten() &
                      (fitsdict['exptime'].astype(np.float64) > settings.spect['mosaic']['minexp']))[0]
     filesort['dark'] = wdark
 
     # Store the frames in the filesort array
-    for i,fkey in enumerate(fkeys):
-        filesort[fkey] = np.where(filarr[i,:] == 1)[0]
+    for i,iftype in enumerate(ftypes):
+        filesort[iftype] = np.where(filarr[i,:] == 1)[0]
     # Finally check there are no duplicates (the arrays will automatically sort with np.unique)
     msgs.info("Finalising frame sorting, and removing duplicates")
     for key in filesort.keys():
@@ -157,6 +285,44 @@ def sort_data(fitsdict, flag_unknown=False):
     # Return filesort!
     msgs.info("Sorting completed successfully")
     return filesort
+
+
+def new_chk_all_conditions(fkey, fitstbl):
+    """ Loop on the conditions for this given file type
+    Parameters
+    ----------
+    fkey : str
+      File type
+    fitsdict : dict
+
+    Returns
+    -------
+    gd_chk : ndarray
+      Indices of images satisfying the check conditions
+    """
+    gd_chk = np.ones(len(fitstbl), dtype=bool)
+    # Loop on the items to check
+    chkk = settings.spect[fkey]['check'].keys()
+    for ch in chkk:
+        if ch[0:9] == 'condition':
+            # Deal with a conditional argument
+            conds = re.split("(\||\&)", settings.spect[fkey]['check'][ch])
+            ntmp = chk_condition(fitstbl, conds[0])
+            # And more
+            for cn in range((len(conds)-1)//2):
+                if conds[2*cn+1] == "|":
+                    ntmp = ntmp | chk_condition(fitstbl, conds[2*cn+2])
+                elif conds[2*cn+1] == "&":
+                    ntmp = ntmp & chk_condition(fitstbl, conds[2*cn+2])
+            gd_chk = gd_chk & ntmp
+        else:
+            if fitstbl[ch].dtype.char in ['S','U']:  # Numpy string array
+                # Strip numpy string array of all whitespace
+                gd_chk = gd_chk & (np.char.strip(fitstbl[ch]) == settings.spect[fkey]['check'][ch])
+            else:
+                gd_chk = gd_chk & (fitstbl[ch] == settings.spect[fkey]['check'][ch])
+    # Return
+    return gd_chk
 
 
 def chk_all_conditions(n, fkey, fitsdict):
@@ -362,6 +528,89 @@ def sort_write(fitsdict, filesort, space=3):
     ascii_tbl[asciiord].write(ascii_name, format='ascii.fixed_width')
     return ascii_tbl
 
+
+def new_match_logic(ch, tmtch, fitstbl, idx):
+    """ Perform logic on matching with fitsdict
+    Parameters
+    ----------
+    ch : str
+      Header card alias, eg. exptime
+    tmtch : str
+      Defines the logic
+      any
+      ''
+      >, <, >=, <=, =, !=
+    fitsdict
+    idx : int
+      Science index
+
+
+    Returns
+    -------
+    w : ndarray, int
+      indices that match the criterion
+      None is returned if there is nothing to match
+    """
+    if tmtch == "any":   # Anything goes
+        w = np.ones_like(fitstbl, dtype=bool)
+    elif tmtch == "''":  # Header value must match that of science
+        w = fitstbl[ch] == fitstbl[ch][idx]
+    elif tmtch[0] in ['=','<','>','|']: # Numerics
+        mtch = np.float64(fitstbl[ch][idx]) + float(
+            ''.join(c for c in tmtch if c not in ['=', '<', '>', '|']))
+        operand = ''.join(c for c in tmtch if c in ['=', '<', '>', '|'])
+        if operand == '=':
+            operand += '='
+        #
+        if tmtch[0] != '|':
+            w = eval('fitstbl[ch].data.astype(np.float64) {:s} {:f}'.format(operand, mtch))
+        else:
+            w = eval('np.abs(fitstbl[ch].data.astype(np.float64) - np.float64(fitsdict[ch][idx]))) {:s} {:f}'.format(operand, mtch))
+    elif tmtch[0:2] == '%,':  # Splitting a header keyword
+        splcom = tmtch.split(',')
+        debugger.set_trace()
+        spltxt, argtxt, valtxt = splcom[1], np.int(splcom[2]), splcom[3]
+        tspl = []
+        for sp in fitstbl[ch]:
+            tmpspl = str(re.escape(spltxt)).replace("\\|", "|")
+            tmpspl = re.split(tmpspl, sp)
+            if len(tmpspl) < argtxt+1:
+                tspl.append("-9999999")
+            else:
+                tspl.append(tmpspl[argtxt])
+        tspl = np.array(tspl)
+        #                        debugger.set_trace()
+        tmpspl = str(re.escape(spltxt)).replace("\\|", "|")
+        tmpspl = re.split(tmpspl, fitstbl[ch][idx])
+        debugger.set_trace()
+        if len(tmpspl) < argtxt + 1:
+            return None
+        else:
+            scispl = tmpspl[argtxt]
+        if valtxt == "''":
+            w = np.where(tspl == scispl)[0]
+        elif valtxt[0] == '=':
+            mtch = np.float64(scispl) + np.float64(valtxt[1:])
+            w = np.where(tspl.astype(np.float64) == mtch)[0]
+        elif valtxt[0] == '<':
+            if valtxt[1] == '=':
+                mtch = np.float64(scispl) + np.float64(valtxt[2:])
+                w = np.where(tspl.astype(np.float64) <= mtch)[0]
+            else:
+                mtch = np.float64(scispl) + np.float64(valtxt[1:])
+                w = np.where(tspl.astype(np.float64) < mtch)[0]
+        elif valtxt[0] == '>':
+            if valtxt[1] == '=':
+                mtch = np.float64(scispl) + np.float64(valtxt[2:])
+                w = np.where(tspl.astype(np.float64) >= mtch)[0]
+            else:
+                mtch = np.float64(scispl) + np.float64(valtxt[1:])
+                w = np.where(tspl.astype(np.float64) > mtch)[0]
+    # Return
+    return w
+
+
+
 def match_logic(ch, tmtch, fitsdict, idx):
     """ Perform logic on matching with fitsdict
     Parameters
@@ -373,6 +622,9 @@ def match_logic(ch, tmtch, fitsdict, idx):
       any
       ''
       >, <, >=, <=, =, !=
+    fitsdict
+    idx : int
+      Science index
 
 
     Returns
@@ -466,6 +718,126 @@ def match_logic(ch, tmtch, fitsdict, idx):
     return w
 
 
+def match_to_science(fitstbl, settings_spect, settings_argflag):
+    """
+    For a given set of identified data, match calibration frames to science frames
+
+    Parameters
+    ----------
+    fitsdict : dict
+      Contains relevant information from fits header files
+    filesort : dict
+      Details of the sorted files
+
+    Returns
+    -------
+    cal_indx : list
+      A list of dict's, one per science exposure, that contains the
+      indices of the matched calibration files (and the science frame too)
+      This is intended to replace settings.spect[ftag]['index']
+    """
+
+    msgs.info("Matching calibrations to Science frames")
+
+    # New columns
+    fitstbl['failures'] = False
+    fitstbl['sci_ID'] = 0
+
+    # Init
+    '''
+    ftag = ftype_list.copy()
+    assert ftag[0] == 'arc'
+    for item in ['science', 'unknown']: # Remove undesired
+        ftag.remove(item)
+    setup_ftag = {}
+    for item in ftag:
+        setup_ftag[item] = 0
+    setup_ftag['arc'] = 1
+    # More setup
+    iARR = [fitstbl[itag] for itag in ftag]
+    '''
+
+    # Loop on science frames
+    #while i < nSCI:
+    for ss, sci_idx in enumerate(np.where(fitstbl['science'])[0]):
+        msgs.info("=================================================")
+        msgs.info("Matching calibrations to {:s}: {:s}".format(
+                fitstbl['target'][sci_idx], fitstbl['filename'][sci_idx]))
+
+        # Science ID (trivial but key to the bit-wise that follows)
+        fitstbl['sci_ID'][sci_idx] = 2**ss
+
+        # Find matching (and nearby) calibration frames
+        for ftag in ftype_list:
+            gd_match = fitstbl[ftag].data.copy()  # All work for starters
+            if ftag in ['science', 'unknown']:
+                continue
+
+            # bias/dark check to make sure we need to find matching frames
+            if ftag == 'dark' and settings_argflag['bias']['useframe'] != 'dark':
+                msgs.info("  Dark frames not required.  Not matching..")
+                continue
+            if ftag == 'bias' and settings_argflag['bias']['useframe'] != 'bias' and not settings_argflag['reduce']['badpix']:
+                msgs.info("  Bias frames not required.  Not matching..")
+                continue
+
+            # How many matching frames are required?  This is instrument specific
+            if settings_argflag['run']['setup']:
+                numfr = 1 if ftag == 'arc' else 0
+            else:
+                numfr = settings_spect[ftag]['number']
+
+            # If not required and not doing setup, continue
+            if (numfr == 0) and (not settings_argflag['run']['setup']):
+                msgs.info("   No {0:s} frames are required.  Not matching..".format(ftag))
+                continue
+
+            # Now go ahead and match the frames
+            if 'match' not in settings_spect[ftag].keys() and (not settings_argflag['run']['setup']):
+                msgs.error("Need match criteria for {0:s}!!".format(ftag))
+            elif 'match' not in settings_spect[ftag].keys():
+                msgs.info("No matching criteria for {0:s} frames with this instrument".format(ftag))
+            else:
+                chkk = settings_spect[ftag]['match'].keys()
+                for ch in chkk:
+                    tmtch = settings_spect[ftag]['match'][ch]
+                    gd_match &= new_match_logic(ch, tmtch, fitstbl, sci_idx)
+
+            # Find the time difference between the calibrations and science frames
+            if settings_spect['fits']['calwin'] > 0.0:
+                tdiff = np.abs(fitstbl['time']-fitstbl['time'][sci_idx])
+                gd_match &= tdiff <= settings_spect['fits']['calwin']
+
+            # Now find which of the remaining n are the appropriate calibration frames
+            nmatch = np.sum(gd_match)
+            if settings_argflag['output']['verbosity'] == 2:
+                msgs.info("  Found {0:d} {1:s} frame for {2:s} ({3:d} required)".format(
+                    nmatch, ftag, fitstbl['target'][sci_idx], numfr))
+
+            # Have we identified enough of these calibration frames to continue?
+            if nmatch < np.abs(numfr):
+                code = new_match_warnings(ftag, nmatch, numfr, fitstbl['target'][sci_idx],
+                                          settings_argflag)
+                if code == 'break':
+                    fitstbl['failure'][sci_idx] = True
+                    fitstbl['sci_ID'][sci_idx] = -1  # This might break things but who knows..
+                    break
+            else:
+                wa = np.where(gd_match)[0]
+                # Select the closest calibration frames to the science frame
+                tdiff = np.abs(fitstbl['time'][wa]-fitstbl['time'][sci_idx])
+                wa = wa[np.argsort(tdiff)]
+                #if ftag == 'bias':
+                #    debugger.set_trace()
+                if (settings_argflag['run']['setup']) or (numfr < 0):
+                    fitstbl['sci_ID'][wa] |= 2**ss  # Flip the switch (if need be)
+                else:
+                    fitstbl['sci_ID'][wa[:numfr]] |= 2**ss  # Flip the switch (if need be)
+
+    msgs.info("Science frames successfully matched to calibration frames")
+    return fitstbl
+
+
 def match_science(fitsdict, filesort):
     """
     For a given set of identified data, match calibration frames to science frames
@@ -487,7 +859,8 @@ def match_science(fitsdict, filesort):
 
     msgs.info("Matching calibrations to Science frames")
     # Init
-    ftag = armeta.allowed_file_types()
+    #ftag = armeta.allowed_file_types()
+    ftag = ftype_list
     assert ftag[0] == 'arc'
     for item in ['science', 'unknown']: # Remove undesired
         ftag.remove(item)
@@ -581,6 +954,59 @@ def match_science(fitsdict, filesort):
         i += 1
     msgs.info("Science frames successfully matched to calibration frames")
     return cal_index
+
+def new_match_warnings(ftag, nmatch, numfr, target, settings_argflag):
+    """ Give warnings related to matching calibration files to science
+    Returns
+    -------
+    code : str or None
+      None = no further action required
+    """
+    code = 'None'
+    msgs.warn("  Only {0:d}/{1:d} {2:s} frames for {3:s}".format(nmatch, numfr, ftag, target))
+    # Errors for insufficient BIAS frames
+    if settings_argflag['bias']['useframe'].lower() == ftag:
+        msgs.warn("Expecting to use bias frames for bias subtraction. But insufficient frames found.")
+        msgs.warn("Either include more frames or modify bias method" + msgs.newline() +
+                  "  e.g.:   bias useframe overscan")
+        msgs.error("Unable to continue")
+    # Errors for insufficient PIXELFLAT frames
+    if ftag == 'pixelflat' and settings_argflag['reduce']['flatfield']['perform'] and (
+                settings_argflag['reduce']['flatfield']['useframe'] == 'pixelflat'):
+        if settings_argflag['reduce']['masters']['force']:
+            msgs.warn("Fewer pixelflat frames than expected for {0:s}, but will use MasterFrames".format(target))
+        else:
+            msgs.warn("Either include more frames or reduce the required amount with:" + msgs.newline() +
+                      "pixelflat number XX" + msgs.newline() +
+                      "in the spect read/end block")
+            msgs.warn("Or specify a pixelflat file with --  reduce flatfield useframe file_name")
+            msgs.error("Unable to continue")
+    # Errors for insufficient PINHOLE frames
+    if ftag == 'pinhole':
+        msgs.error("Unable to continue without more {0:s} frames".format(ftag))
+    # Errors for insufficient TRACE frames
+    if ftag == 'trace' and settings_argflag['reduce']['flatfield']['perform']:
+        if settings_argflag['reduce']['masters']['force']:
+            msgs.warn("Fewer traceflat frames than expected for {0:s}, but will use MasterFrames".format(target))
+        else:
+            msgs.error("Unable to continue without more {0:s} frames".format(ftag))
+    # Errors for insufficient standard frames
+    if ftag == 'standard' and settings_argflag['reduce']['calibrate']['flux']:
+        if settings_argflag['reduce']['masters']['force']:
+            msgs.warn("No standard star frames for {0:s}, but will use MasterFrames".format(target))
+        else:
+            msgs.error("Unable to continue without more {0:s} frames".format(ftag))
+    # Errors for insufficient ARC frames
+    if ftag == 'arc' and settings_argflag['reduce']['calibrate']:
+        if settings_argflag['run']['setup']:
+            msgs.warn("No arc frame for {0:s}. Removing it from list of science frames".format(target))
+            msgs.warn("Add an arc and rerun one if you wish to reduce this with PYPIT!!")
+            return 'break'
+        elif settings_argflag['reduce']['masters']['force']:
+            msgs.warn("No arc frame for {0:s}, but will use MasterFrames".format(target))
+        else:
+            msgs.error("Unable to continue without more {0:s} frames".format(ftag))
+    return code
 
 
 def match_warnings(ftag, nmatch, numfr, fitsdict, idx, filesort, cindex):
@@ -694,7 +1120,7 @@ def match_frames(frames, criteria, frametype='<None>', satlevel=None):
     return srtframes
 
 
-def make_dirs(fitsdict, filesort):
+def make_dirs():
     """
     For a given set of identified data, match calibration frames to science frames
 
@@ -736,8 +1162,8 @@ def make_dirs(fitsdict, filesort):
     # Create a directory for each object in the Science directory
     msgs.info("Creating Object directories")
     #Go through objects creating directory tree structure
-    w = filesort['science']
-    sci_targs = np.array(list(set(fitsdict['target'][w])))
+    #w = filesort['science']
+    #sci_targs = np.array(list(set(fitsdict['target'][w])))
     '''
     # Loop through targets and replace spaces with underscores
     nored = np.array([])
@@ -816,5 +1242,5 @@ def make_dirs(fitsdict, filesort):
         os.mkdir(newdir)
         os.mkdir(newdir+'/PNGs')
     # Return the name of the science targets
-    return sci_targs
+    return
 

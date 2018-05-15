@@ -32,7 +32,7 @@ def test_setup_param():
     settings.spect['arc']['index'] = [[0]]
     fitsdict = arutils.dummy_fitsdict()
     # Run
-    arcparm = ararc.setup_param(slf, 0, 1, fitsdict)
+    arcparm = ararc.setup_param(slf, 1, fitsdict)
     for key in ['llist','disp','wvmnx']:
         assert key in arcparm
 

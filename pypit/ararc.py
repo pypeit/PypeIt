@@ -154,11 +154,12 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     return ampl, cent, widt
 
 
-def setup_param(slf, sc, det, fitsdict):
+def setup_param(slf, det, fitsdict):
     """ Setup for arc analysis
 
     Parameters
     ----------
+    slf :
     det : int
       detctor index
     fitsdict : dict
@@ -186,7 +187,8 @@ def setup_param(slf, sc, det, fitsdict):
     modify_dict = None
     # Instrument/disperser specific
     sname = settings.argflag['run']['spectrograph']
-    idx = settings.spect['arc']['index'][sc]
+    #idx = settings.spect['arc']['index'][sc]
+    idx = slf._idx_arcs
     disperser = fitsdict["dispname"][idx[0]]
     binspatial, binspectral = settings.parse_binning(fitsdict['binning'][idx[0]])
     if sname == 'shane_kast_blue':
@@ -348,7 +350,7 @@ def setup_param(slf, sc, det, fitsdict):
     return arcparam
 
 
-def simple_calib(slf, det, get_poly=False, censpec=None):
+def simple_calib(slf, det, get_poly=False, censpec=None, slit=None):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
@@ -568,7 +570,7 @@ def simple_calib(slf, det, get_poly=False, censpec=None):
         shift=0., tcent=tcent)
     # QA
 #    arqa.arc_fit_qa(slf, final_fit)
-    arc_fit_qa(slf, final_fit)
+    arc_fit_qa(slf, final_fit, slit)
     # RMS
     rms_ang = arutils.calc_fit_rms(xfit, yfit, fit, aparm['func'], minv=fmin, maxv=fmax)
     wave = arutils.func_val(fit, np.arange(slf._msarc[det-1].shape[0])/float(slf._msarc[det-1].shape[0]),

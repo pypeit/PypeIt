@@ -170,7 +170,7 @@ def core_slit_pixels(all_lordloc, all_rordloc, frameshape, pad):
 #                                         settings.argflag['trace']['slits']['pad'])
 #        print('Old locate_order: {0} seconds'.format(time.clock() - t))
 #        t = time.clock()
-        ordloc = new_locate_order(lordloc, rordloc, frameshape[0], frameshape[1], pad)
+        ordloc = new_locate_order(lordloc, rordloc, frameshape[0], frameshape[1], int(pad))
 #        print('New locate_order: {0} seconds'.format(time.clock() - t))
 #        assert np.sum(_ordloc != ordloc) == 0, \
 #                    'Difference between old and new locate_order'

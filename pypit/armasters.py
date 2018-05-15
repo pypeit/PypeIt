@@ -18,6 +18,8 @@ import linetools.utils
 from pypit import msgs
 from pypit import arparse as settings
 from pypit import arutils
+from pypit import traceslits
+
 from pypit import ardebug as debugger
 
 '''
@@ -81,7 +83,7 @@ def core_master_name(ftype, setup, mdir):
     """
     name_dict = dict(bias='{:s}/MasterBias_{:s}.fits'.format(mdir, setup),
                      badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir, setup),
-                     trace='{:s}/MasterTrace_{:s}.fits'.format(mdir, setup),
+                     trace='{:s}/MasterTrace_{:s}'.format(mdir, setup),   # Just a root as FITS+JSON are generated
                      pinhole='{:s}/MasterPinhole_{:s}.fits'.format(mdir, setup),
                      normpixelflat='{:s}/MasterFlatField_{:s}.fits'.format(mdir, setup),
                      arc='{:s}/MasterArc_{:s}.fits'.format(mdir, setup),
@@ -146,7 +148,11 @@ def core_load_master_frame(mftype, setup, mdir, force=False):
 
     """
     # Name
-    ms_name = core_master_name(mftype, setup, mdir)
+    ms_root = core_master_name(mftype, setup, mdir)
+    if mftype == 'trace':  # This will get polished later (in process_images branch)
+        ms_name = ms_root+'.fits.gz'
+    else:
+        ms_name = ms_root
     # Load
     msframe0, head, file_list = _core_load(ms_name, exten=0, frametype=mftype, force=force)
     # Check
@@ -155,16 +161,10 @@ def core_load_master_frame(mftype, setup, mdir, force=False):
         return None, None, None
     else:  # Extras?
         if mftype == 'trace':
-            tdict = {}
-            tdict['mstrace'] = msframe0.copy()
-            tdict['lordloc'], _, _ = _core_load(ms_name, frametype="trace", exten=1)
-            tdict['rordloc'], _, _ = _core_load(ms_name, frametype="trace", exten=2)
-            tdict['pixcen'], _, _ = _core_load(ms_name, frametype="trace", exten=3)
-            tdict['pixwid'], _, _ = _core_load(ms_name, frametype="trace", exten=4)
-            tdict['lordpix'], _, _ = _core_load(ms_name, frametype="trace", exten=5)
-            tdict['rordpix'], _, _ = _core_load(ms_name, frametype="trace", exten=6)
-            tdict['slitpix'], _, _ = _core_load(ms_name, frametype="trace", exten=7)
-            msframe = tdict  # Just for returning
+            Tslits = traceslits.TraceSlits.from_master_files(ms_root)
+            Tslits._make_pixel_arrays()
+            tdict = Tslits._fill_trace_slit_dict()
+            msframe = tdict
         else:
             msframe = msframe0
     # Return
