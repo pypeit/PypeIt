@@ -72,15 +72,17 @@ def load_headers(datlines, settings_spect, settings_argflag):
     keys = list(settings_spect['keyword'].keys())
     # Init
     fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
+    headdict = {}
+    for k in range(settings_spect['fits']['numhead']):
+        headdict[k] = []
     whddict = dict({})
     for k in keys:
         fitsdict[k]=[]
-    allhead = []
-    headarr = [None for k in range(settings_spect['fits']['numhead'])]
     numfiles = len(datlines)
     # Loop on files
     for i in range(numfiles):
         # Try to open the fits file
+        headarr = ['None' for k in range(settings_spect['fits']['numhead'])]
         try:
             for k in range(settings_spect['fits']['numhead']):
                 headarr[k] = fits.getheader(datlines[i], ext=settings_spect['fits']['headext{0:02d}'.format(k+1)])
@@ -91,10 +93,11 @@ def load_headers(datlines, settings_spect, settings_argflag):
                 msgs.warn("Proceeding on the hopes this was a calibration file, otherwise consider removing.")
             else:
                 msgs.error("Error reading header from extension {0:d} of file:".format(settings_spect['fits']['headext{0:02d}'.format(k+1)])+msgs.newline()+datlines[i])
-        # Save the headers into a list
+        # Save the headers into its dict
         for k in range(settings_spect['fits']['numhead']):
-            tmp = [head.copy() for head in headarr]
-            allhead.append(tmp)
+            headdict[k].append(headarr[k].copy())
+            #tmp = [head.copy() for head in headarr]
+            #allhead.append(tmp)
         # Perform checks on each FITS file, as specified in the settings instrument file.
         skip = False
         for ch in chks:
@@ -199,14 +202,18 @@ def load_headers(datlines, settings_spect, settings_argflag):
     # Convert the fitsdict arrays into numpy arrays
     for k in fitsdict.keys():
         fitsdict[k] = np.array(fitsdict[k])
+    #
     msgs.info("Headers loaded for {0:d} files successfully".format(numfiles))
     if numfiles != len(datlines):
         msgs.warn("Headers were not loaded for {0:d} files".format(len(datlines) - numfiles))
     if numfiles == 0:
         msgs.error("The headers could not be read from the input data files." + msgs.newline() +
                    "Please check that the settings file matches the data.")
+    #  Might have to carry the headers around separately
+    #    as packing them into a table could be problematic..
+    #for key in headdict.keys():
+    #    fitsdict['head{:d}'.format(key)] = headdict[key]
     # Return after creating a Table
-    fitsdict['headers'] = allhead
     fitstbl = Table(fitsdict)
     fitstbl.sort('time')
     return fitstbl, keylst

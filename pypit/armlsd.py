@@ -291,7 +291,6 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             msgs.error(save_format + ' is not a recognized output format!')
         arsave.save_obj_info(slf, fitstbl)
         # Write 2D images for the Science Frame
-        debugger.set_trace()
         arsave.save_2d_images(slf, fitstbl)
         # Free up some memory by replacing the reduced ScienceExposure class
         sciexp[sc] = None

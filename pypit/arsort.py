@@ -124,10 +124,10 @@ def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftd
     skeys = settings_spect['set'].keys()
     for sk in skeys:
         for jj in settings_spect['set'][sk]:
-            debugger.set_trace()  # Need to update for new
-            w = np.where(fitstbl['filename']==jj)[0]
-            filarr[:,w]=0
-            setarr[np.where(ftype==sk)[0],w]=1
+            idx = np.where(fitstbl['filename']==jj)[0]
+            filetypes[sk][idx] = True
+            #filarr[:,w]=0
+            #setarr[np.where(ftype==sk)[0],w]=1
     #filarr = filarr + setarr
 
     # Check that all files have an identification
@@ -235,14 +235,14 @@ def sort_data(fitsdict, flag_unknown=False):
             msgs.warn("No RA and DEC information for file:" + msgs.newline() + fitsdict['filename'][wscistd[i]])
             msgs.warn("The above file could be a twilight flat frame that was" + msgs.newline() +
                       "missed by the automatic identification.")
-            filarr[np.where(iftype == 'standard')[0], wscistd[i]] = 0
+            filarr[np.where(ftypes == 'standard')[0], wscistd[i]] = 0
             continue
         # If an object exists within 20 arcmins of a listed standard, then it is probably a standard star
         foundstd = find_standard_file(radec, toler=20.*units.arcmin, check=True)
         if foundstd:
-            filarr[np.where(iftype == 'science')[0], wscistd[i]] = 0
+            filarr[np.where(ftypes == 'science')[0], wscistd[i]] = 0
         else:
-            filarr[np.where(iftype == 'standard')[0], wscistd[i]] = 0
+            filarr[np.where(ftypes == 'standard')[0], wscistd[i]] = 0
 
     # Make any forced changes
     msgs.info("Making forced file identification changes")
@@ -251,7 +251,7 @@ def sort_data(fitsdict, flag_unknown=False):
         for j in settings.spect['set'][sk]:
             w = np.where(fitsdict['filename']==j)[0]
             filarr[:,w]=0
-            setarr[np.where(iftype==sk)[0],w]=1
+            setarr[np.where(ftypes==sk)[0],w]=1
     filarr = filarr + setarr
 
     # Check that all files have an identification
@@ -261,8 +261,9 @@ def sort_data(fitsdict, flag_unknown=False):
         for i in range(np.size(badfiles)):
             msgs.info(fitsdict['filename'][badfiles[i]])
         if flag_unknown:
-            filarr[np.where(iftype == 'unknown')[0],badfiles] = 1
+            filarr[np.where(ftypes == 'unknown')[0],badfiles] = 1
         else:
+            debugger.set_trace()
             msgs.error("Check these files and your settings.{0:s} file before continuing".format(settings.argflag['run']['spectrograph']))
 
     # Now identify the dark frames

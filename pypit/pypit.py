@@ -244,7 +244,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
                         = arparse.spect[ddnum]['oscansec{0:02d}'.format(i + 1)][::-1]
 
     # Set me up here
-    original=True
+    original=False
     if original:
         mode, sciexp, setup_dict = armbase.setup_science(fitstbl)
             #numsci = len(sciexp)
