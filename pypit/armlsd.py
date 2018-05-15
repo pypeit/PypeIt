@@ -17,6 +17,7 @@ from pypit import arproc
 from pypit import arsave
 from pypit import arsciexp
 from pypit import arsetup
+from pypit import ardeimos
 from pypit import artrace
 from pypit import artraceslits
 from pypit import traceslits
@@ -129,7 +130,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             if slf._bpix[det-1] is None:
                 bpix = np.zeros((slf._nspec[det-1], slf._nspat[det-1]))
                 if settings.argflag['run']['spectrograph'] in ['keck_deimos']:
-                    bpix[:,-1] = 1.
+                    bpix = ardeimos.bpm(det)
                 slf.SetFrame(slf._bpix, bpix, det)
             '''
             ###############
