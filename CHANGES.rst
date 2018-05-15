@@ -98,6 +98,7 @@
 - Update armlsd accordingly
 - Remove driver_trace_slits and refctor_trace_slits methods
 - Making Ginga a true dependency of PYPIT
+- Have TraceSlits write/load MasterFrames
 
 
 0.7 (2017-02-07)

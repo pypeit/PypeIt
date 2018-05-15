@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
+from subprocess import Popen
 
 #from importlib import reload
 
@@ -52,6 +53,8 @@ trace_slits_dict['slitpix'] = None
 trace_slits_dict['pixcen'] = None
 trace_slits_dict['pixwid'] = None
 trace_slits_dict['extrapord'] = None
+
+# TODO -- Add data model for MasterFrame here
 
 
 class TraceSlits(object):
@@ -197,7 +200,7 @@ class TraceSlits(object):
 
         """
         # FITS
-        fits_file = root+'.fits'
+        fits_file = root+'.fits.gz'
         hdul = fits.open(fits_file)
         names = [ihdul.name for ihdul in hdul]
         if 'SLITPIXELS' in names:
@@ -207,7 +210,7 @@ class TraceSlits(object):
         mstrace = hdul[names.index('MSTRACE')].data
         pixlocn = hdul[names.index('PIXLOCN')].data
         if 'BINBPX' in names:
-            binbpx = hdul[names.index('BINBPX')].data
+            binbpx = hdul[names.index('BINBPX')].data.astype(float)
             msgs.info("Loading BPM from {:s}".format(fits_file))
         else:
             binbpx = None
@@ -233,6 +236,13 @@ class TraceSlits(object):
 
         # Return
         return slf
+
+    @property
+    def nslit(self):
+        if self.lcen is None:
+            return 0
+        else:
+            return self.lcen.shape[1]
 
     def make_binarr(self):
         """
@@ -821,7 +831,7 @@ class TraceSlits(object):
             # TODO -- Figure out how to set the cut levels
             debugger.show_image(self.siglev)
 
-    def save_master(self, root):
+    def save_master(self, root, gzip=True):
         """
         Write the main pieces of TraceSlits to the hard drive as a MasterFrame
           FITS -- mstrace and other images
@@ -831,11 +841,13 @@ class TraceSlits(object):
         ----------
         root : str
           Path+root name for the output files
+        gzip : bool (optional)
+          gzip the FITS file (note astropy's method for this is *way* too slow)
         """
 
         # Images
         outfile = root+'.fits'
-        hdu = fits.PrimaryHDU(self.mstrace)
+        hdu = fits.PrimaryHDU(self.mstrace.astype(np.float32))
         hdu.name = 'MSTRACE'
         hdu.header['FRAMETYP'] = 'trace'
         hdulist = [hdu]
@@ -844,14 +856,15 @@ class TraceSlits(object):
             hdue.name = 'EDGEARR'
             hdulist.append(hdue)
         if self.siglev is not None:
-            hdus = fits.ImageHDU(self.siglev)
+            hdus = fits.ImageHDU(self.siglev.astype(np.float32))
             hdus.name = 'SIGLEV'
             hdulist.append(hdus)
-        hdup = fits.ImageHDU(self.pixlocn)
+        # PIXLOCN -- may be Deprecated
+        hdup = fits.ImageHDU(self.pixlocn.astype(np.float32))
         hdup.name = 'PIXLOCN'
         hdulist.append(hdup)
         if self.input_binbpx:  # User inputted
-            hdub = fits.ImageHDU(self.binbpx)
+            hdub = fits.ImageHDU(self.binbpx.astype(np.int))
             hdub.name = 'BINBPX'
             hdulist.append(hdub)
         if self.lcen is not None:
@@ -865,7 +878,11 @@ class TraceSlits(object):
         # Write
         hdul = fits.HDUList(hdulist)
         hdul.writeto(outfile, overwrite=True)
-        msgs.info("Writing TraceSlit arrays to {:s}".format(outfile))
+        msgs.info("Wrote TraceSlit arrays to {:s}".format(outfile))
+        if gzip:
+            msgs.info("gzip compressing {:s}".format(outfile))
+            command = ['gzip', '-f', outfile]
+            Popen(command)
 
         # dict of steps, settings and more
         out_dict = {}

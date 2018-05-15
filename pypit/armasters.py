@@ -106,7 +106,7 @@ def get_master_frame(slf, mftype, det=None):
     if (settings.argflag['reduce']['masters']['reuse']) or (settings.argflag['reduce']['masters']['force']):
         ms_root = master_name(mftype, setup)
         if mftype == 'trace':  # This will get polished later (in process_images branch)
-            ms_name = ms_root+'.fits'
+            ms_name = ms_root+'.fits.gz'
         else:
             ms_name = ms_root
         try:
