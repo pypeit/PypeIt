@@ -15,6 +15,8 @@ from pypit import arload
 from pypit import arparse as settings
 from pypit import arsave
 from pypit import arutils
+from pypit import traceslits
+
 from pypit import ardebug as debugger
 
 class MasterFrames:
@@ -102,7 +104,11 @@ def get_master_frame(slf, mftype, det=None):
     setup = settings.argflag['reduce']['masters']['setup']
     # Were MasterFrames even desired?
     if (settings.argflag['reduce']['masters']['reuse']) or (settings.argflag['reduce']['masters']['force']):
-        ms_name = master_name(mftype, setup)
+        ms_root = master_name(mftype, setup)
+        if mftype == 'trace':  # This will get polished later (in process_images branch)
+            ms_name = ms_root+'.fits'
+        else:
+            ms_name = ms_root
         try:
             msfile, head = arload.load_master(ms_name, frametype=mftype)
         except IOError:
@@ -116,6 +122,7 @@ def get_master_frame(slf, mftype, det=None):
                 else:
                     settings.argflag['trace']['dispersion']['direction'] = 0
             elif mftype == 'trace':
+                '''
                 lordloc, _ = arload.load_master(ms_name, frametype="trace", exten=1)
                 rordloc, _ = arload.load_master(ms_name, frametype="trace", exten=2)
                 pixcen, _ = arload.load_master(ms_name, frametype="trace", exten=3)
@@ -123,13 +130,18 @@ def get_master_frame(slf, mftype, det=None):
                 lordpix, _ = arload.load_master(ms_name, frametype="trace", exten=5)
                 rordpix, _ = arload.load_master(ms_name, frametype="trace", exten=6)
                 slitpix, _ = arload.load_master(ms_name, frametype="trace", exten=7)
-                slf.SetFrame(slf._lordloc, lordloc, det)
-                slf.SetFrame(slf._rordloc, rordloc, det)
-                slf.SetFrame(slf._pixcen, pixcen.astype(np.int), det)
-                slf.SetFrame(slf._pixwid, pixwid.astype(np.int), det)
-                slf.SetFrame(slf._lordpix, lordpix.astype(np.int), det)
-                slf.SetFrame(slf._rordpix, rordpix.astype(np.int), det)
-                slf.SetFrame(slf._slitpix, slitpix.astype(np.int), det)
+                '''
+                Tslits = traceslits.TraceSlits.from_master_files(ms_root)
+                Tslits._make_pixel_arrays()
+                tslits_dict = Tslits._fill_trace_slit_dict()
+                #
+                slf.SetFrame(slf._lordloc, tslits_dict['lcen'], det)
+                slf.SetFrame(slf._rordloc, tslits_dict['rcen'], det)
+                slf.SetFrame(slf._pixcen, tslits_dict['pixcen'], det)
+                slf.SetFrame(slf._pixwid, tslits_dict['pixwid'], det)
+                slf.SetFrame(slf._lordpix, tslits_dict['lordpix'], det)
+                slf.SetFrame(slf._rordpix, tslits_dict['rordpix'], det)
+                slf.SetFrame(slf._slitpix, tslits_dict['slitpix'], det)
                 # Mask -- It is assumed that all slits loaded are ok
                 slf._maskslits[det-1] = np.array([False] * slf._lordloc[det-1].shape[1])
             # Append as loaded

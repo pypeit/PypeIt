@@ -180,15 +180,11 @@ class TraceSlits(object):
         self.rdiffarr = None
         self.rwghtarr  = None
 
-    @classmethod
-    def from_master_trace(cls, master_trace_file):
-        # pixlocn
-        pixlocn = arpixels.core_gen_pixloc(mstrace)
 
     @classmethod
-    def from_files(cls, root):
+    def from_master_files(cls, root):
         """
-        Instantiate from the primary outputs of the class
+        Instantiate from the primary MasterFrame outputs of the class
 
         Parameters
         ----------
@@ -204,6 +200,8 @@ class TraceSlits(object):
         fits_file = root+'.fits'
         hdul = fits.open(fits_file)
         names = [ihdul.name for ihdul in hdul]
+        if 'SLITPIXELS' in names:
+            msgs.error("This is an out-of-date MasterTrace flat.  You will need to make a new one")
 
         # Parameters
         mstrace = hdul[names.index('MSTRACE')].data
@@ -413,6 +411,7 @@ class TraceSlits(object):
         for key in ['lcen', 'rcen', 'pixcen', 'pixwid', 'lordpix',
                     'rordpix', 'extrapord', 'slitpix']:
             self.trace_slits_dict[key] = getattr(self, key)
+        return self.trace_slits_dict
 
     def _final_left_right(self):
         """
@@ -824,7 +823,7 @@ class TraceSlits(object):
 
     def save_master(self, root):
         """
-        Write the main pieces of TraceSlits to the hard drive
+        Write the main pieces of TraceSlits to the hard drive as a MasterFrame
           FITS -- mstrace and other images
           JSON -- steps, settings, ts_dict
 
@@ -838,6 +837,7 @@ class TraceSlits(object):
         outfile = root+'.fits'
         hdu = fits.PrimaryHDU(self.mstrace)
         hdu.name = 'MSTRACE'
+        hdu.header['FRAMETYP'] = 'trace'
         hdulist = [hdu]
         if self.edgearr is not None:
             hdue = fits.ImageHDU(self.edgearr)
@@ -869,7 +869,7 @@ class TraceSlits(object):
 
         # dict of steps, settings and more
         out_dict = {}
-        out_dict['settings'] = self.settings
+        out_dict['settings'] = self.settings  # This should be just the subset needed for trace slits
         if self.tc_dict is not None:
             out_dict['tc_dict'] = self.tc_dict
         out_dict['steps'] = self.steps
@@ -992,7 +992,7 @@ class TraceSlits(object):
         self._make_pixel_arrays()
 
         # dict for PYPIT
-        self._fill_trace_slit_dict()
+        self.trace_slits_dict = self._fill_trace_slit_dict()
 
         # Return
         return self.trace_slits_dict

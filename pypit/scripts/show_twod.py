@@ -14,6 +14,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import argparse
+from pypit import traceslits
 
 def parser(options=None):
 
@@ -83,12 +84,15 @@ def main(args):
     else:
         mdir = head0['PYPMFDIR']+'/'
         setup = '{:s}_{:s}_{:s}'.format(head0['PYPCNFIG'], sdet, head0['PYPCALIB'])
+
+    # Load Tslits
     trc_file = armasters.master_name('trace', setup, mdir=mdir)
-    trc_hdu = fits.open(trc_file)
-    lordloc = trc_hdu[1].data  # Should check name
-    rordloc = trc_hdu[2].data  # Should check name
+    Tslits = traceslits.TraceSlits.from_master_files(trc_file)
+    lordloc = Tslits.lcen
+    rordloc = Tslits.rcen
+
     # Get slit ids
-    stup = (trc_hdu[0].data.shape, lordloc, rordloc)
+    stup = (Tslits.mstrace.shape, lordloc, rordloc)
     slit_ids = [get_slitid(stup, None, ii)[0] for ii in range(lordloc.shape[1])]
     pypit.ginga.show_slits(viewer, ch, lordloc, rordloc, slit_ids)#, args.det)
 
