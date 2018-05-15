@@ -22,6 +22,7 @@ def parser(options=None):
 
     parser.add_argument('root', type = str, default = None, help='PYPIT Master Trace file root [e.g. MasterTrace_A_01_aa]')
     parser.add_argument("--chname", default='MTrace', type=str, help="Channel name for image in Ginga")
+    parser.add_argument("--dumb_ids", default=False, action="store_true", help="Slit ID just by order?")
 
     if options is None:
         args = parser.parse_args()
@@ -58,7 +59,11 @@ def main(pargs):
 
     # Get slit ids
     stup = (mstrace.shape, lordloc, rordloc)
-    slit_ids = [get_slitid(stup, None, ii)[0] for ii in range(lordloc.shape[1])]
+    if pargs.dumb_ids:
+        slit_ids = range(lordloc.shape[1])
+    else:
+        slit_ids = [get_slitid(stup, None, ii)[0] for ii in range(lordloc.shape[1])]
     ginga.show_slits(viewer, ch, lordloc, rordloc, slit_ids, pstep=50)
+    print("Check your Ginga viewer")
 
 
