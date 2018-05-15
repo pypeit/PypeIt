@@ -4,7 +4,7 @@ from __future__ import absolute_import, division, print_function
 import inspect
 import numpy as np
 
-from importlib import reload
+#from importlib import reload
 
 from astropy.table import hstack, Table
 
@@ -162,6 +162,15 @@ class SetupClass(object):
         return self.setup_dict
 
     def match_to_science(self):
+        """
+          Matches calibration frames to the Science
+          Mainly a wrapper to arsort.match_to_science()
+
+        Returns
+        -------
+        self.fitstbl -- Updated with 'sci_ID' and 'failures' columns
+
+        """
         self.fitstbl = arsort.match_to_science(self.fitstbl,
                                          self.settings_spect,
                                          self.settings_argflag)
@@ -170,6 +179,19 @@ class SetupClass(object):
         return self.fitstbl
 
     def type_data(self):
+        """
+          Perform image typing on the full set of input files
+          Mainly a wrapper to arsort.type_data()
+
+        The table (filetypes) returned is horizontally stacked
+          onto the fitstbl.
+
+        Returns
+        -------
+        self.filetypes
+
+        """
+        # Allow for input file types from the PYPIT file
         if len(arparse.ftdict) > 0:  # This is ugly!
             ftdict = arparse.ftdict
         else:
@@ -177,7 +199,6 @@ class SetupClass(object):
         self.filetypes = arsort.type_data(self.fitstbl, self.settings_spect,
                                      self.settings_argflag,
                                      ftdict=ftdict)
-
         # hstack me -- Might over-write self.fitstbl here
         msgs.info("Adding file type information to the fitstbl")
         self.fitstbl = hstack([self.fitstbl, self.filetypes])
@@ -188,12 +209,25 @@ class SetupClass(object):
         return self.filetypes
 
     def load_fitstbl(self, fits_file):
+        """
+          Load the fitstbl from disk (a binary FITS table)
+
+        Parameters
+        ----------
+        fits_file : str
+
+        Returns
+        -------
+        self.fitstbl
+
+        """
         self.fitstbl = Table.read(fits_file)
         msgs.info("Loaded fitstbl from {:s}".format(fits_file))
+        return self.fitstbl
 
     def write_fitstbl(self, outfile, overwrite=True):
         """
-        Write to FITS
+        Write fitstbl to FITS
 
         Parameters
         ----------
@@ -206,9 +240,17 @@ class SetupClass(object):
         """ Main driver for file typing and sorting
 
           Code flow:
+            1. Build the fitstbl from an input file_list (optional)
+            2. Type the files (bias, arc, etc.)
+            3. Match calibration files to the science files
+            4. Generate the setup_dict
+               -- Write group info to disk
+               -- Write calib info to disk (if main run)
 
         Parameters
         ----------
+        file_list : list (optional)
+          Used to generate fitstbl
 
         Returns
         -------
@@ -227,18 +269,12 @@ class SetupClass(object):
         # Match calibs to science
         _ = self.match_to_science()
 
-        # Make dirs
-        #arsort.make_dirs()
-
         # Setup dict
         _ = self.build_setup_dict()
 
         # .sorted Table (on pypit_setup only)
         if self.settings_argflag['run']['setup']:  # Collate all matching files
             _ = self.build_group_dict()
-
-        # Write setup -- only if not present
-        #setup_file, nexist = arsetup.get_setup_file(spectrograph=self.settings.argflag['run']['spectrograph'])
 
         # Write calib file (not in setup mode) or setup file (in setup mode)
         if not self.settings_argflag['run']['setup']:
