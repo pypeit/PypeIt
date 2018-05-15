@@ -40,8 +40,8 @@ ftype_list = [     # NOTE:  arc must be listed first!
     'unknown',     # Unknown..
 ]
 
-def ftype_indices(fitstbl, ftype, sci_idx):
-    idx = np.where(fitstbl[ftype] & (fitstbl['sci_idx'] & sci_idx > 0))[0]
+def ftype_indices(fitstbl, ftype, sci_ID):
+    idx = np.where(fitstbl[ftype] & (fitstbl['sci_ID'] & sci_ID > 0))[0]
     return idx
 
 def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftdict=None):
@@ -740,7 +740,7 @@ def match_to_science(fitstbl, settings_spect, settings_argflag):
 
     # New columns
     fitstbl['failures'] = False
-    fitstbl['sci_idx'] = 0
+    fitstbl['sci_ID'] = 0
 
     # Init
     '''
@@ -763,8 +763,8 @@ def match_to_science(fitstbl, settings_spect, settings_argflag):
         msgs.info("Matching calibrations to {:s}: {:s}".format(
                 fitstbl['target'][sci_idx], fitstbl['filename'][sci_idx]))
 
-        # Science index (trivial but key to the bit-wise that follows)
-        fitstbl['sci_idx'][sci_idx] = 2**ss
+        # Science ID (trivial but key to the bit-wise that follows)
+        fitstbl['sci_ID'][sci_idx] = 2**ss
 
         # Find matching (and nearby) calibration frames
         for ftag in ftype_list:
@@ -808,7 +808,6 @@ def match_to_science(fitstbl, settings_spect, settings_argflag):
                 gd_match &= tdiff <= settings_spect['fits']['calwin']
 
             # Now find which of the remaining n are the appropriate calibration frames
-            #n = np.intersect1d(n, iARR[ft])
             nmatch = np.sum(gd_match)
             if settings.argflag['output']['verbosity'] == 2:
                 msgs.info("  Found {0:d} {1:s} frame for {2:s} ({3:d} required)".format(
@@ -828,13 +827,9 @@ def match_to_science(fitstbl, settings_spect, settings_argflag):
                 #if ftag == 'bias':
                 #    debugger.set_trace()
                 if (settings.argflag['run']['setup']) or (numfr < 0):
-                    #settings_spect[ftag[ft]]['index'].append(n[wa].copy())
-                    #cal_index[i][ftag[ft]] = n[wa].copy()
-                    fitstbl['sci_idx'][wa] |= 2**ss  # Flip the switch (if need be)
+                    fitstbl['sci_ID'][wa] |= 2**ss  # Flip the switch (if need be)
                 else:
-                    #settings_spect[ftag[ft]]['index'].append(n[wa[:numfr]].copy())
-                    #cal_index[i][ftag[ft]] = n[wa[:numfr]].copy()
-                    fitstbl['sci_idx'][wa[:numfr]] |= 2**ss  # Flip the switch (if need be)
+                    fitstbl['sci_ID'][wa[:numfr]] |= 2**ss  # Flip the switch (if need be)
 
     msgs.info("Science frames successfully matched to calibration frames")
     return fitstbl

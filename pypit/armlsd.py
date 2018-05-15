@@ -6,7 +6,6 @@ import yaml
 import numpy as np
 
 from astropy import units
-from astropy.table import Table
 
 from pypit import msgs
 from pypit import arparse as settings
@@ -21,7 +20,6 @@ from pypit import arsetup
 from pypit import artrace
 from pypit import artraceslits
 from pypit import traceslits
-from pypit import setupclass
 
 from pypit import ardebug as debugger
 
@@ -68,26 +66,22 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
         setupc = setupclass.SetupClass(settings, fitstbl=fitstbl)
         mode, fitstbl, setup_dict = setupc.run()
     '''
+    # Generate sciexp list, if need be (it will be soon)
     if sciexp is None:
         sciexp = []
-        all_sci_idx = fitstbl['sci_idx'].data[fitstbl['science']]
-        for ii in all_sci_idx:
+        all_sci_ID = fitstbl['sci_ID'].data[fitstbl['science']]  # Binary system: 1,2,4,8, etc.
+        for ii in all_sci_ID:
             sciexp.append(arsciexp.ScienceExposure(ii, fitstbl, settings.argflag,
                                                    settings.spect, do_qa=True, original=original))
     numsci = len(sciexp)
-    # Create a list of master calibration frames
-    #masters = armasters.MasterFrames(settings.spect['mosaic']['ndet'])
-
-    # Masters
-    #settings.argflag['reduce']['masters']['file'] = setup_file
-
-    # Build the sciexp
 
     # Start reducing the data
     for sc in range(numsci):
-
+        # sc, sci_ID, and scidx are 3 different things!
         slf = sciexp[sc]
+        sci_ID = slf.sci_ID
         scidx = slf._idx_sci[0]
+        #
         msgs.info("Reducing file {0:s}, target {1:s}".format(fitstbl['filename'][scidx], slf._target_name))
         msgs.sciexp = slf  # For QA writing on exit, if nothing else.  Could write Masters too
         if reloadMaster and (sc > 0):
@@ -111,7 +105,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                 setup = arsetup.instr_setup(slf, det, fitstbl, setup_dict, must_exist=True)
             else:
                 namp = settings.spect[dnum]["numamplifiers"]
-                setup = arsetup.new_instr_setup(scidx, det, fitstbl, setup_dict, namp, must_exist=True)
+                setup = arsetup.new_instr_setup(sci_ID, det, fitstbl, setup_dict, namp, must_exist=True)
             settings.argflag['reduce']['masters']['setup'] = setup
             slf.setup = setup
             ###############
@@ -292,6 +286,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             msgs.error(save_format + ' is not a recognized output format!')
         arsave.save_obj_info(slf, fitstbl)
         # Write 2D images for the Science Frame
+        debugger.set_trace()
         arsave.save_2d_images(slf, fitstbl)
         # Free up some memory by replacing the reduced ScienceExposure class
         sciexp[sc] = None

@@ -82,7 +82,7 @@ def dummy_setup_dict(filesort, fitsdict):
     return setup_dict
 
 
-def new_calib_set(isetup_dict, fitstbl, sci_idx):
+def new_calib_set(isetup_dict, fitstbl, sci_ID):
     """ Generate a calibration dataset string
 
     Parameters
@@ -112,7 +112,7 @@ def new_calib_set(isetup_dict, fitstbl, sci_idx):
         #else:
         #    nms = []
         # Grab the names
-        idx = arsort.ftype_indices(fitstbl, cbkey, sci_idx)
+        idx = arsort.ftype_indices(fitstbl, cbkey, sci_ID)
         names = fitstbl['filename'][idx].tolist()
         # Save
         new_cbset[cbkey] = names
@@ -261,7 +261,7 @@ def det_setup(isetup_dict, ddict):
     return dkey
 
 
-def new_instr_setup(sci_idx, det, fitstbl, setup_dict, numamplifiers,
+def new_instr_setup(sci_ID, det, fitstbl, setup_dict, numamplifiers,
                     must_exist=False, skip_cset=False, config_name=None):
     """ Define instrument config
     Make calls to detector and calib set
@@ -273,7 +273,8 @@ def new_instr_setup(sci_idx, det, fitstbl, setup_dict, numamplifiers,
 
     Parameters
     ----------
-    sciexp : ScienceExposure
+    sci_ID : int
+      science frame identifier (binary)
     det : int
       detector identifier
     fitsdict : dict
@@ -303,7 +304,7 @@ def new_instr_setup(sci_idx, det, fitstbl, setup_dict, numamplifiers,
     cstr = '--'
     # Arc index
     #idx = np.where(fitstbl['arc'] & (fitstbl['sci_idx'] & sci_idx))[0]
-    idx = arsort.ftype_indices(fitstbl, 'arc', sci_idx)
+    idx = arsort.ftype_indices(fitstbl, 'arc', sci_ID)
     try:
         disp_name = fitstbl["dispname"][idx[0]]
     except:
@@ -381,7 +382,7 @@ def new_instr_setup(sci_idx, det, fitstbl, setup_dict, numamplifiers,
     dkey = det_setup(setup_dict[setup], ddict)
     # Calib set
     if not skip_cset:
-        calib_key = new_calib_set(setup_dict[setup], fitstbl, sci_idx)
+        calib_key = new_calib_set(setup_dict[setup], fitstbl, sci_ID)
     else:
         calib_key = '--'
 
