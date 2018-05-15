@@ -58,6 +58,13 @@ class SetupClass(object):
         self.ftypes = arsort.ftype_list
         self.steps = []
 
+    @property
+    def nfiles(self):
+        if self.fitstbl is None:
+            return 0
+        else:
+            return len(self.fitstbl)
+
     def build_fitstbl(self, file_list):
         """
 
@@ -89,7 +96,7 @@ class SetupClass(object):
           Dict describing the various setups
         """
         #
-        all_sci_idx = self.fitstbl['sci_idx'].data[self.fitstbl['science']]
+        all_sci_idx = self.fitstbl['sci_ID'].data[self.fitstbl['science']]
         self.group_dict = arsetup.new_build_group_dict(self.fitstbl, self.setupIDs, all_sci_idx)
 
         # Write .sorted file
@@ -314,7 +321,8 @@ class SetupClass(object):
 
     def __repr__(self):
         # Generate sets string
-        txt = '<{:s}: >'.format(self.__class__.__name__)
+        txt = '<{:s}: nfiles={:d}>'.format(self.__class__.__name__,
+                                           self.nfiles)
         return txt
 
 

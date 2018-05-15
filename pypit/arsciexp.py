@@ -69,19 +69,26 @@ class ScienceExposure:
             else:
                 self._idx_arcs = arsort.ftype_indices(fitstbl, 'arc', self.sci_ID)
                 self._idx_std = arsort.ftype_indices(fitstbl, 'standard', self.sci_ID)
+                # Bias
                 if settings_argflag['bias']['useframe'] == 'bias':
                     self._idx_bias = arsort.ftype_indices(fitstbl, 'bias', self.sci_ID)
                 elif settings_argflag['bias']['useframe'] == 'dark':
                     self._idx_bias = arsort.ftype_indices(fitstbl, 'dark', self.sci_ID)
+                else: self._idx_bias = []
+                # Trace
                 self._idx_trace = arsort.ftype_indices(fitstbl, 'trace', self.sci_ID)
+                # Flat
                 if settings_argflag['reduce']['flatfield']['useframe'] == 'pixelflat':
                     self._idx_flat = arsort.ftype_indices(fitstbl, 'pixelflat', self.sci_ID)
                 elif settings_argflag['reduce']['flatfield']['useframe'] == 'trace':
                     self._idx_flat = arsort.ftype_indices(fitstbl, 'trace', self.sci_ID)
+                else: self._idx_flat = []
+                # Cent
                 if settings_argflag['reduce']['slitcen']['useframe'] == 'trace':
                     self._idx_cent = arsort.ftype_indices(fitstbl, 'trace', self.sci_ID)
                 elif settings_argflag['reduce']['slitcen']['useframe'] == 'pinhole':  # Not sure this will work
                     self._idx_cent = arsort.ftype_indices(fitstbl, 'pinhole', self.sci_ID)
+                else: self._idx_cent = []
 
         # Set the base name and extract other names that will be used for output files
         #  Also parses the time input
