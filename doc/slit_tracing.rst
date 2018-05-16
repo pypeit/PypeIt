@@ -216,6 +216,10 @@ Presently, we recommend that you err on the conservative
 side regarding thresholds, i.e. higher values of sigdetect,
 unless you have especially faint trace flat frames.
 
+On the flip side, if slit defects (common) are being
+mistaken as slit edges then *increase* sigdetect
+and hope for the best.
+
 Slit Gaps
 ---------
 
