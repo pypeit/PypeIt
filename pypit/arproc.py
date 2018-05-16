@@ -846,6 +846,8 @@ def flexure_qa(slf, det, flex_list, slit_cen=False):
             nobj = len(slf._specobjs[det-1][sl])
             ncol = min(3, nobj)
         #
+        if nobj==0:
+            continue
         nrow = nobj // ncol + ((nobj % ncol) > 0)
 
         # Get the flexure dictionary
@@ -1446,10 +1448,9 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
     # Flexure correction?
     if settings.argflag['reduce']['flexure']['perform'] and (not standard):
         if settings.argflag['reduce']['flexure']['method'] is not None:
-            flex_dict = arwave.flexure_obj(slf, det)
+            flex_list = arwave.flexure_obj(slf, det)
             #if not msgs._debug['no_qa']:
-#            arqa.flexure(slf, det, flex_dict)
-            flexure_qa(slf, det, flex_dict)
+            flexure_qa(slf, det, flex_list)
 
     # Correct Earth's motion
     if (settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']) and \
