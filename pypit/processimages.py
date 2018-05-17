@@ -26,8 +26,7 @@ if msgs._debug is None:
 
 # Place these here or elsewhere?
 #  Wherever they be, they need to be defined, described, etc.
-default_settings = dict(run={'spectrograph': 'UNKNOWN'},
-                        detector={'numamplifiers': 1,
+default_settings = dict(detector={'numamplifiers': 1,
                                   'saturation': 60000.,  # Spectra aligned with columns
                                   'dispaxis': 0,  # Spectra aligned with columns
                                   'dataext': None},
@@ -40,7 +39,7 @@ default_settings = dict(run={'spectrograph': 'UNKNOWN'},
                                             'replace': 'maxnonsat'}}
                         )
 
-# datasec kludge (until settings is Refactored)
+# datasec kludge for teseting (until settings is Refactored)
 # TODO -- Remove this eventually
 do_sec_dict = dict(
     shane_kast_blue=OrderedDict([  # The ordering of these is important, ie. 1, 2,  hence the OrderedDict
@@ -58,6 +57,9 @@ class ProcessImages(object):
     ----------
     file_list : list
       List of filenames
+    spectrograph : str
+       Used to specify properties of the detector (for processing)
+       Attempt to set with settings['run']['spectrograph'] if not input
     det : int, optional
       Detector index, starts at 1
     settings : dict, optional
@@ -65,9 +67,6 @@ class ProcessImages(object):
     user_settings : dict, optional
       Allow for user to over-ride individual internal/default settings
       without providing a full settings dict
-    spectrograph : str
-       Used to specify properties of the detector (for processing)
-       Is set with settings['run']['spectrograph'] if not input
 
     Attributes
     ----------
@@ -78,15 +77,17 @@ class ProcessImages(object):
     proc_images : ndarray
       3D array of processed, individual images
     datasec : list
-    oscansec : list (optional)
+    oscansec : list
     """
-    def __init__(self, file_list, settings=None, det=1, user_settings=None, spectrograph=None):
+    def __init__(self, file_list, spectrograph=None, settings=None, det=1, user_settings=None):
 
-        # Parameters
+        # Required parameters
+        if not isinstance(file_list, list):
+            raise IOError("file_list input to ProcessImages must be list. Empty is fine")
         self.file_list = file_list
-        self.det = det
 
-        # Settings
+        # Optional
+        self.det = det
         if settings is None:
             self.settings = default_settings.copy()
         else:
