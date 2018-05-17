@@ -348,7 +348,7 @@ def setup_param(slf, sc, det, fitsdict):
     return arcparam
 
 
-def simple_calib(slf, det, get_poly=False, censpec=None):
+def simple_calib(slf, det, get_poly=False, censpec=None, slit=None):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
@@ -568,7 +568,7 @@ def simple_calib(slf, det, get_poly=False, censpec=None):
         shift=0., tcent=tcent)
     # QA
 #    arqa.arc_fit_qa(slf, final_fit)
-    arc_fit_qa(slf, final_fit)
+    arc_fit_qa(slf, final_fit, slit)
     # RMS
     rms_ang = arutils.calc_fit_rms(xfit, yfit, fit, aparm['func'], minv=fmin, maxv=fmax)
     wave = arutils.func_val(fit, np.arange(slf._msarc[det-1].shape[0])/float(slf._msarc[det-1].shape[0]),

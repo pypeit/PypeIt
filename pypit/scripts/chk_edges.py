@@ -20,9 +20,9 @@ def parser(options=None):
     parser = argparse.ArgumentParser(description='Display MasterTrace image in a previously launched RC Ginga viewer',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('file', type = str, default = None, help='PYPIT Master Trace file [e.g. MasterTrace_A_01_aa.fits]')
+    parser.add_argument('root', type = str, default = None, help='PYPIT Master Trace file root [e.g. MasterTrace_A_01_aa]')
     parser.add_argument("--chname", default='MTrace', type=str, help="Channel name for image in Ginga")
-    #parser.add_argument('--det', default=1, type=int, help="Detector")
+    parser.add_argument("--dumb_ids", default=False, action="store_true", help="Slit ID just by order?")
 
     if options is None:
         args = parser.parse_args()
@@ -33,24 +33,17 @@ def parser(options=None):
 
 def main(pargs):
 
-    import os
-
     import pdb as debugger
     import time
 
-    from astropy.io import fits
-    from astropy.table import Table
-
     from pypit import ginga
+    from pypit import traceslits
     from pypit.arspecobj import get_slitid
 
     import subprocess
 
-    # List only?
-    trc_hdu = fits.open(pargs.file)
-    head0 = trc_hdu[0].header
-
-    mstrace = trc_hdu[0].data
+    # Load up
+    Tslits = traceslits.TraceSlits.from_master_files(pargs.root)
 
     try:
         ginga.connect_to_ginga(raise_err=True)
@@ -59,14 +52,15 @@ def main(pargs):
         time.sleep(3)
 
     # Show Image
-    viewer, ch = ginga.show_image(mstrace, chname=pargs.chname)
-
-    lordloc = trc_hdu[5].data  # Should check name
-    rordloc = trc_hdu[6].data  # Should check name
+    viewer, ch = ginga.show_image(Tslits.mstrace, chname=pargs.chname)
 
     # Get slit ids
-    stup = (mstrace.shape, lordloc, rordloc)
-    slit_ids = [get_slitid(stup, None, ii)[0] for ii in range(lordloc.shape[1])]
-    ginga.show_slits(viewer, ch, lordloc, rordloc, slit_ids, pstep=50)
+    stup = (Tslits.mstrace.shape, Tslits.lcen, Tslits.rcen)
+    if pargs.dumb_ids:
+        slit_ids = range(Tslits.lcen.shape[1])
+    else:
+        slit_ids = [get_slitid(stup, None, ii)[0] for ii in range(Tslits.lcen.shape[1])]
+    ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids, pstep=50)
+    print("Check your Ginga viewer")
 
 

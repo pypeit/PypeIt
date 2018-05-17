@@ -18,6 +18,12 @@ edge cases (pun intended) is challenging if not impossible.
 Therefore, there are a number of user-input parameters
 that one may need to consider when running PYPIT (see below).
 
+Underlying the effort is the TraceSlits class which can be
+used to load the Master frame output for tracing (a FITS and
+a JSON file). See the
+`TraceSlits.ipynb <https://github.com/PYPIT/PYPIT/blob/master/doc/nb/TraceSlits.ipynb>`_
+Notebook on GitHub in doc/nb/ for some usage examples.
+
 Algorithm
 =========
 
@@ -166,7 +172,9 @@ for example).
 Add User Slits
 --------------
 
-docs coming soon
+See the
+`TraceSlits.ipynb <https://github.com/PYPIT/PYPIT/blob/master/doc/nb/TraceSlits.ipynb>`_
+Notebook on GitHub in doc/nb/
 
 Single user slit
 ----------------
@@ -207,6 +215,10 @@ Then monitor the number of slits detected by the algorithm.
 Presently, we recommend that you err on the conservative
 side regarding thresholds, i.e. higher values of sigdetect,
 unless you have especially faint trace flat frames.
+
+On the flip side, if slit defects (common) are being
+mistaken as slit edges then *increase* sigdetect
+and hope for the best.
 
 Slit Gaps
 ---------

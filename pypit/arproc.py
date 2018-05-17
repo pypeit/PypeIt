@@ -225,13 +225,21 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, **kwargs):
     bgframe : ndarray
 
     """
+    # Setup
     bgframe = np.zeros_like(sciframe)
     gdslits = np.where(~slf._maskslits[det-1])[0]
 
     for slit in gdslits:
         msgs.info("Working on slit: {:d}".format(slit))
-        slit_bgframe = bg_subtraction_slit(slf, det, slit, sciframe, varframe, crpix, **kwargs)
-        bgframe += slit_bgframe
+        # TODO -- Replace this try/except when a more stable b-spline is used..
+        try:
+            slit_bgframe = bg_subtraction_slit(slf, det, slit, sciframe, varframe, crpix, **kwargs)
+        except ValueError:  # Should have been bspline..
+            msgs.warn("B-spline sky subtraction failed.  Slit {:d} will no longer be processed..".format(slit))
+            #msgs.warn("Continue if you wish..")
+            slf._maskslits[det-1][slit] = True
+        else:
+            bgframe += slit_bgframe
     # Return
     return bgframe
 
@@ -441,6 +449,7 @@ def flatfield(slf, sciframe, flatframe, det, snframe=None,
         slf._bpix[det-1][ww] = 1.0
     # Variance?
     if varframe is not None:
+        # This is risky -- Be sure your flat is well behaved!!
         retvar = np.zeros_like(sciframe)
         retvar[w] = varframe[w]/flatframe[w]**2
         return retframe, retvar
@@ -837,6 +846,8 @@ def flexure_qa(slf, det, flex_list, slit_cen=False):
             nobj = len(slf._specobjs[det-1][sl])
             ncol = min(3, nobj)
         #
+        if nobj==0:
+            continue
         nrow = nobj // ncol + ((nobj % ncol) > 0)
 
         # Get the flexure dictionary
@@ -1042,6 +1053,7 @@ def reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Variance
     msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
     rawvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict)
+
     ###############
     # Subtract off the scattered light from the image
     msgs.work("Scattered light subtraction is not yet implemented...")
@@ -1049,8 +1061,9 @@ def reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Flat field the science frame (and variance)
     if settings.argflag['reduce']['flatfield']['perform']:
         msgs.info("Flat fielding the science frame")
-        sciframe, rawvarframe = flatfield(slf, sciframe, slf._mspixelflatnrm[det-1], det,
-                                          varframe=rawvarframe, slitprofile=slf._slitprof[det-1])
+        # JXP -- I think it is a bad idea to modify the rawvarframe
+        #sciframe, rawvarframe = flatfield(slf, sciframe, slf._mspixelflatnrm[det-1], det, varframe=rawvarframe, slitprofile=slf._slitprof[det-1])
+        sciframe = flatfield(slf, sciframe, slf._mspixelflatnrm[det-1], det, slitprofile=slf._slitprof[det-1])
     else:
         msgs.info("Not performing a flat field calibration")
     if not standard:
@@ -1435,10 +1448,9 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
     # Flexure correction?
     if settings.argflag['reduce']['flexure']['perform'] and (not standard):
         if settings.argflag['reduce']['flexure']['method'] is not None:
-            flex_dict = arwave.flexure_obj(slf, det)
+            flex_list = arwave.flexure_obj(slf, det)
             #if not msgs._debug['no_qa']:
-#            arqa.flexure(slf, det, flex_dict)
-            flexure_qa(slf, det, flex_dict)
+            flexure_qa(slf, det, flex_list)
 
     # Correct Earth's motion
     if (settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']) and \
@@ -1461,106 +1473,6 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
     return True
 
 
-def slit_pixels(slf, frameshape, det):
-    """ Wrapper to the core_slit_pixels method
-    May be Deprecated in a future Refactor
-
-    Parameters
-    ----------
-    slf : class
-      Science Exposure Class
-    frameshape : tuple
-      A two element tuple providing the shape of a trace frame.
-    det : int
-      Detector index
-
-    Returns
-    -------
-
-    """
-    return core_slit_pixels(slf._lordloc[det-1], slf._rordloc[det-1], frameshape,
-                settings.argflag['trace']['slits']['pad'])
-
-
-def core_slit_pixels(all_lordloc, all_rordloc, frameshape, pad):
-    """ Generate an image indicating the slit/order associated with each pixel.
-
-    Parameters
-    ----------
-    all_lordloc : ndarray
-    all_rordloc : ndarray
-    frameshape : tuple
-      A two element tuple providing the shape of a trace frame.
-    pad : int
-
-    Returns
-    -------
-    msordloc : ndarray
-      An image assigning each pixel to a slit number. A zero value indicates
-      that this pixel does not belong to any slit.
-    """
-
-    nslits = all_lordloc.shape[1]
-    msordloc = np.zeros(frameshape)
-    for o in range(nslits):
-        lordloc = all_lordloc[:, o]
-        rordloc = all_rordloc[:, o]
-#        print('calling locate_order')
-#        t = time.clock()
-#        _ordloc = arcytrace.locate_order(lordloc, rordloc, frameshape[0], frameshape[1],
-#                                         settings.argflag['trace']['slits']['pad'])
-#        print('Old locate_order: {0} seconds'.format(time.clock() - t))
-#        t = time.clock()
-        ordloc = new_locate_order(lordloc, rordloc, frameshape[0], frameshape[1], pad)
-#        print('New locate_order: {0} seconds'.format(time.clock() - t))
-#        assert np.sum(_ordloc != ordloc) == 0, \
-#                    'Difference between old and new locate_order'
-        word = np.where(ordloc != 0)
-        if word[0].size == 0:
-            msgs.warn("There are no pixels in slit {0:d}".format(o + 1))
-            continue
-        msordloc[word] = o + 1
-    return msordloc
-
-
-def new_locate_order(lordloc, rordloc, sz_x, sz_y, pad):
-    """ Generate a boolean image that identifies which pixels
-    belong to the slit associated with the supplied left and
-    right slit edges.
-
-    Parameters
-    ----------
-    lordloc : ndarray
-      Location of the left slit edges of 1 slit
-    rordloc : ndarray
-      Location of the right slit edges of 1 slit
-    sz_x : int
-      The size of an image in the spectral (0th) dimension
-    sz_y : int
-      The size of an image in the spatial (1st) dimension
-    pad : int
-      Additional pixels to pad the left and right slit edges
-
-    Returns
-    -------
-    orderloc : ndarray
-      An image the same size as the input frame, containing values from 0-1.
-      0 = pixel is not in the specified slit
-      1 = pixel is in the specified slit
-    """
-    ow = (rordloc-lordloc)/2.0
-    oc = (rordloc+lordloc)/2.0
-    ymin = (oc-ow).astype(int)-pad
-    ymax = (oc+ow).astype(int)+1+pad
-    indx = np.invert((ymax < 0) | (ymin >= sz_y))
-    ymin[ymin < 0] = 0
-    ymax[ymax > sz_y-1] = sz_y-1
-    indx &= (ymax > ymin)
-
-    orderloc = np.zeros((sz_x,sz_y), dtype=int)
-    for x in np.arange(sz_x)[indx]:
-        orderloc[x,ymin[x]:ymax[x]] = 1
-    return orderloc
 
 
 
@@ -2674,8 +2586,7 @@ def variance_frame(slf, det, sciframe, idx, fitsdict=None, skyframe=None, objfra
     else:
         scicopy = sciframe.copy()
         # Dark Current noise
-        dnoise = (settings.spect[dnum]['darkcurr'] *
-                  float(fitsdict["exptime"][idx])/3600.0)
+        dnoise = (settings.spect[dnum]['darkcurr'] * float(fitsdict["exptime"][idx])/3600.0)
         # Return
         return np.abs(scicopy) + rnoise + dnoise
 

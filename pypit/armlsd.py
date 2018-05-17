@@ -12,10 +12,14 @@ from pypit import arflux
 from pypit import arload
 from pypit import armasters
 from pypit import armbase
+from pypit import arpixels
 from pypit import arproc
 from pypit import arsave
 from pypit import arsetup
+from pypit import ardeimos
 from pypit import artrace
+from pypit.core import artraceslits
+from pypit import traceslits
 from pypit import ardebug as debugger
 
 
@@ -107,7 +111,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             if slf._bpix[det-1] is None:
                 bpix = np.zeros((slf._nspec[det-1], slf._nspat[det-1]))
                 if settings.argflag['run']['spectrograph'] in ['keck_deimos']:
-                    bpix[:,-1] = 1.
+                    bpix = ardeimos.bpm(det)
                 slf.SetFrame(slf._bpix, bpix, det)
             '''
             ###############
@@ -129,39 +133,43 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             if ('trace'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']):
                 ###############
                 # Determine the edges of the spectrum (spatial)
-                #lordloc, rordloc, extord = artrace.trace_slits(slf, slf._mstrace[det-1], det, pcadesc="PCA trace of the slit edges")
-                lordloc, rordloc, extord = artrace.driver_trace_slits(slf._mstrace[det-1],
-                                                                      slf._pixlocn[det-1],
-                                                                      det=det,
-                                                                      settings=settings.argflag,
-                                                                      binbpx=slf._bpix[det-1],
-                                                                      armlsd=True)
-                slf.SetFrame(slf._lordloc, lordloc, det)
-                slf.SetFrame(slf._rordloc, rordloc, det)
+                #lordloc, rordloc, extord = artrace.driver_trace_slits(slf._mstrace[det-1],
+                #                                                      slf._pixlocn[det-1],
+                #                                                      det=det,
+                #                                                      settings=settings.argflag,
+                #                                                      binbpx=slf._bpix[det-1],
+                #                                                      armlsd=True)
+                Tslits = traceslits.TraceSlits(slf._mstrace[det-1], slf._pixlocn[det-1],
+                                               det=det, settings=settings.argflag, binbpx=slf._bpix[det-1])
+                _ = Tslits.run(armlsd=True)
+
+                # Save in slf
+                slf.SetFrame(slf._lordloc, Tslits.lcen, det)
+                slf.SetFrame(slf._rordloc, Tslits.rcen, det)
+                slf.SetFrame(slf._pixcen, Tslits.pixcen, det)
+                slf.SetFrame(slf._pixwid, Tslits.pixwid, det)
+                slf.SetFrame(slf._lordpix, Tslits.lordpix, det)
+                slf.SetFrame(slf._rordpix, Tslits.rordpix, det)
+                slf.SetFrame(slf._slitpix, Tslits.slitpix, det)
+
+                # Save to disk
+                original = False
+                if original:
+                    armasters.save_masters(slf, det, mftype='trace')
+                else:
+                    msname = armasters.master_name('trace', setup)
+                    Tslits.save_master(msname)
+
                 # Initialize maskslit
                 slf._maskslits[det-1] = np.zeros(slf._lordloc[det-1].shape[1], dtype=bool)
 
-                # Convert physical trace into a pixel trace
-                msgs.info("Converting physical trace locations to nearest pixel")
-                pixcen = artrace.phys_to_pix(0.5*(slf._lordloc[det-1]+slf._rordloc[det-1]), slf._pixlocn[det-1], 1)
-                pixwid = (slf._rordloc[det-1]-slf._lordloc[det-1]).mean(0).astype(np.int)
-                lordpix = artrace.phys_to_pix(slf._lordloc[det-1], slf._pixlocn[det-1], 1)
-                rordpix = artrace.phys_to_pix(slf._rordloc[det-1], slf._pixlocn[det-1], 1)
-                slf.SetFrame(slf._pixcen, pixcen, det)
-                slf.SetFrame(slf._pixwid, pixwid, det)
-                slf.SetFrame(slf._lordpix, lordpix, det)
-                slf.SetFrame(slf._rordpix, rordpix, det)
-                msgs.info("Identifying the pixels belonging to each slit")
-                slitpix = arproc.slit_pixels(slf, slf._mstrace[det-1].shape, det)
-                slf.SetFrame(slf._slitpix, slitpix, det)
-                # Save to disk
-                armasters.save_masters(slf, det, mftype='trace')
                 # Save QA for slit traces
 #                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
 #                                       slf._rordpix[det-1], extord,
 #                                       desc="Trace of the slit edges D{:02d}".format(det), use_slitid=det)
-                artrace.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
-                                      slf._rordpix[det-1], extord,
+                # TODO -- Put this QA call into the TraceSlits class
+                artraceslits.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
+                                      slf._rordpix[det-1], Tslits.extrapord,
                                       desc="Trace of the slit edges D{:02d}".format(det),
                                       use_slitid=det)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")

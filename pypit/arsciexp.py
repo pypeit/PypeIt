@@ -21,6 +21,7 @@ from pypit import arcomb
 from pypit import arflux
 from pypit import arlris
 from pypit import armasters
+from pypit import arpixels
 from pypit import arproc
 from pypit import arsort
 from pypit import arutils
@@ -231,9 +232,9 @@ class ScienceExposure:
           Index of the detector
         """
         if settings.argflag['reduce']['pixel']['locations'] is None:
-            self.SetFrame(self._pixlocn, artrace.gen_pixloc(self._mstrace[det-1], det, gen=True), det)
+            self.SetFrame(self._pixlocn, arpixels.gen_pixloc(self._mstrace[det-1], det, gen=True), det)
         elif settings.argflag['reduce']['pixel']['locations'] in ["mstrace"]:
-            self.SetFrame(self._pixlocn, artrace.gen_pixloc(self._mstrace[det-1], det, gen=False), det)
+            self.SetFrame(self._pixlocn, arpixels.gen_pixloc(self._mstrace[det-1], det, gen=False), det)
         else:
             mname = settings.argflag['run']['directory']['master']+'/'+settings.argflag['reduce']['pixel']['locations']
             self.SetFrame(self._pixlocn, arload.load_master(mname, frametype=None), det)
@@ -706,7 +707,7 @@ class ScienceExposure:
                     ###############
                     # Extract arc and identify lines
                     if settings.argflag['arc']['calibrate']['method'] == 'simple':
-                        iwv_calib = ararc.simple_calib(self, det, censpec=arccen[:,kk])
+                        iwv_calib = ararc.simple_calib(self, det, censpec=arccen[:,kk], slit=slit)
                     elif settings.argflag['arc']['calibrate']['method'] == 'arclines':
                         iwv_calib = ararc.calib_with_arclines(self, det, slit, censpec=arccen[:,kk])
                     wv_calib[str(slit)] = iwv_calib.copy()
@@ -766,8 +767,8 @@ class ScienceExposure:
                                            msbias=self._msbias[det-1])
                 sciframe = frame[:, :, 0] # First exposure
                 # Save RA/DEC
-                self._msstd[det-1]['RA'] = fitsdict['ra'][ind[0]]
-                self._msstd[det-1]['DEC'] = fitsdict['dec'][ind[0]]
+                self._msstd[0]['RA'] = fitsdict['ra'][ind[0]]    # Yes, this needs to be index 0
+                self._msstd[0]['DEC'] = fitsdict['dec'][ind[0]]  # Yes, this needs to be index 0
                 self._msstd[det-1]['spobjs'] = None
                 if settings.spect["mosaic"]["reduction"] == "ARMLSD":
                     arproc.reduce_multislit(self, sciframe, ind[0], fitsdict, det, standard=True)
