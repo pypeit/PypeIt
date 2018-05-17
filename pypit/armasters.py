@@ -18,6 +18,8 @@ import linetools.utils
 from pypit import msgs
 from pypit import arparse as settings
 from pypit import arutils
+from pypit import traceslits
+
 from pypit import ardebug as debugger
 
 '''
@@ -81,7 +83,7 @@ def core_master_name(ftype, setup, mdir):
     """
     name_dict = dict(bias='{:s}/MasterBias_{:s}.fits'.format(mdir, setup),
                      badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir, setup),
-                     trace='{:s}/MasterTrace_{:s}.fits'.format(mdir, setup),
+                     trace='{:s}/MasterTrace_{:s}'.format(mdir, setup),   # Just a root as FITS+JSON are generated
                      pinhole='{:s}/MasterPinhole_{:s}.fits'.format(mdir, setup),
                      normpixelflat='{:s}/MasterFlatField_{:s}.fits'.format(mdir, setup),
                      arc='{:s}/MasterArc_{:s}.fits'.format(mdir, setup),
@@ -111,18 +113,21 @@ def load_master_frame(slf, mftype, det=None):
         else:
             settings.argflag['trace']['dispersion']['direction'] = 0
     elif mftype == 'trace':
-        slf.SetFrame(slf._lordloc, ret['lordloc'], det)
-        slf.SetFrame(slf._rordloc, ret['rordloc'], det)
-        slf.SetFrame(slf._pixcen, ret['pixcen'].astype(np.int), det)
-        slf.SetFrame(slf._pixwid, ret['pixwid'].astype(np.int), det)
-        slf.SetFrame(slf._lordpix, ret['lordpix'].astype(np.int), det)
-        slf.SetFrame(slf._rordpix, ret['rordpix'].astype(np.int), det)
-        slf.SetFrame(slf._slitpix, ret['slitpix'].astype(np.int), det)
+        Tslits = ret[0]
+        Tslits._make_pixel_arrays()
+        #
+        slf.SetFrame(slf._lordloc, Tslits.lcen, det)
+        slf.SetFrame(slf._rordloc, Tslits.rcen, det)
+        slf.SetFrame(slf._pixcen, Tslits.pixcen, det)
+        slf.SetFrame(slf._pixwid, Tslits.pixwid, det)
+        slf.SetFrame(slf._lordpix, Tslits.lordpix, det)
+        slf.SetFrame(slf._rordpix, Tslits.rordpix, det)
+        slf.SetFrame(slf._slitpix, Tslits.slitpix, det)
         # Mask -- It is assumed that all slits loaded are ok
         slf._maskslits[det-1] = np.array([False] * slf._lordloc[det-1].shape[1])
         # We only want to send back the mstrace image (for now)
         #     This should change when slf is Refactored
-        ret = ret['mstrace']
+        ret = Tslits.mstrace
     # Append as loaded
     settings.argflag['reduce']['masters']['loaded'].append(mftype+slf.setup)
     return ret
@@ -148,25 +153,25 @@ def core_load_master_frame(mftype, setup, mdir, force=False):
     # Name
     ms_name = core_master_name(mftype, setup, mdir)
     # Load
-    msframe0, head, file_list = _core_load(ms_name, exten=0, frametype=mftype, force=force)
+    msframe, head, file_list = _core_load(ms_name, exten=0, frametype=mftype, force=force)
     # Check
-    if msframe0 is None:
+    if msframe is None:
         msgs.warn("No Master frame found of type {:s}: {:s}".format(mftype,ms_name))
         return None, None, None
-    else:  # Extras?
-        if mftype == 'trace':
-            tdict = {}
-            tdict['mstrace'] = msframe0.copy()
-            tdict['lordloc'], _, _ = _core_load(ms_name, frametype="trace", exten=1)
-            tdict['rordloc'], _, _ = _core_load(ms_name, frametype="trace", exten=2)
-            tdict['pixcen'], _, _ = _core_load(ms_name, frametype="trace", exten=3)
-            tdict['pixwid'], _, _ = _core_load(ms_name, frametype="trace", exten=4)
-            tdict['lordpix'], _, _ = _core_load(ms_name, frametype="trace", exten=5)
-            tdict['rordpix'], _, _ = _core_load(ms_name, frametype="trace", exten=6)
-            tdict['slitpix'], _, _ = _core_load(ms_name, frametype="trace", exten=7)
-            msframe = tdict  # Just for returning
-        else:
-            msframe = msframe0
+    #else:  # Extras?
+    #    if mftype == 'trace':
+    #        tdict = {}
+    #        tdict['mstrace'] = msframe0.copy()
+    #        tdict['lordloc'], _, _ = _core_load(ms_name, frametype="trace", exten=1)
+    #        tdict['rordloc'], _, _ = _core_load(ms_name, frametype="trace", exten=2)
+    #        tdict['pixcen'], _, _ = _core_load(ms_name, frametype="trace", exten=3)
+    #        tdict['pixwid'], _, _ = _core_load(ms_name, frametype="trace", exten=4)
+    #        tdict['lordpix'], _, _ = _core_load(ms_name, frametype="trace", exten=5)
+    #        tdict['rordpix'], _, _ = _core_load(ms_name, frametype="trace", exten=6)
+    #        tdict['slitpix'], _, _ = _core_load(ms_name, frametype="trace", exten=7)
+    #        msframe = tdict  # Just for returning
+    #    else:
+    #        msframe = msframe0
     # Return
     return msframe, head, file_list
 
@@ -192,7 +197,7 @@ def _core_load(name, exten=0, frametype='<None>', force=False):
 
     Returns
     -------
-    frame : ndarray or dict or None
+    frame : ndarray or dict or TraceSlits or None
       The data from the master calibration frame
     head : str (or None)
     file_list : list (or None)
@@ -214,6 +219,9 @@ def _core_load(name, exten=0, frametype='<None>', force=False):
         sensfunc['wave_max'] = sensfunc['wave_max']*units.AA
         sensfunc['wave_min'] = sensfunc['wave_min']*units.AA
         return sensfunc, None, [name]
+    elif frametype == 'trace':
+        Tslits = traceslits.TraceSlits.from_master_files(name)
+        return Tslits, None None
     else:
         msgs.info("Loading a pre-existing master calibration frame")
         hdu = fits.open(name)
