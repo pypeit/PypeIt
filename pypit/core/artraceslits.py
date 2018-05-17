@@ -1355,6 +1355,45 @@ def fit_edges(edgearr, lmin, lmax, plxbin, plybin, left=True,
     return coeff, nmbrarr, diffarr, wghtarr
 
 
+def get_slitid(shape, lordloc, rordloc, islit, ypos=0.5):
+    """ Convert slit position to a slitid
+    Parameters
+    ----------
+    slf : SciExpObj or tuple
+    det : int
+    islit : int
+    ypos : float, optional
+
+    Returns
+    -------
+    slitid : int
+      Slit center position on the detector normalized to range from 0-10000
+    slitcen : float
+      Slitcenter relative to the detector ranging from 0-1
+    xslit : tuple
+      left, right positions of the slit edges
+    """
+    #if isinstance(slf, tuple):
+    #    shape, lordloc, rordloc = slf
+    #else:
+    #    shape = slf._mstrace[det-1].shape
+    #    lordloc = slf._lordloc[det-1]
+    #    rordloc = slf._rordloc[det-1]
+    # Index at ypos
+    yidx = int(np.round(ypos*lordloc.shape[0]))
+    # Slit at yidx
+    pixl_slit = lordloc[yidx, islit]
+    pixr_slit = rordloc[yidx, islit]
+    # Relative to full image
+    xl_slit = pixl_slit/shape[1]
+    xr_slit = pixr_slit/shape[1]
+    # Center
+    slitcen = np.mean([xl_slit, xr_slit])
+    slitid = int(np.round(slitcen*1e4))
+    # Return them all
+    return slitid, slitcen, (xl_slit, xr_slit)
+
+
 def new_expand_slits(msedge, ordcen, extord):
 
     t = time.clock()
@@ -2674,15 +2713,12 @@ def tc_indices(tc_dict):
     return left_idx, left_xval, right_idx, right_xval
 
 
-
-def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
-                  root='trace', normalize=True, use_slitid=None):
+def slit_trace_qa(frame, ltrace, rtrace, extslit, setup, desc="",
+                  normalize=True, use_slitid=None):
     """ Generate a QA plot for the slit traces
 
     Parameters
     ----------
-    slf : class
-      An instance of the Science Exposure Class
     frame : ndarray
       trace image
     ltrace : ndarray
@@ -2691,6 +2727,7 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
       Right slit edge traces
     extslit : ndarray
       Mask of extrapolated slits (True = extrapolated)
+    setup : str
     desc : str, optional
       A description to be used as a title for the page
     root : str, optional
@@ -2706,13 +2743,7 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
 
     # Outfile
     method = inspect.stack()[0][3]
-    outfile = arqa.set_qa_filename(slf.setup, method)
-    # if outfil is None:
-    #     if '.fits' in root: # Expecting name of msflat FITS file
-    #         outfil = root.replace('.fits', '_trc.pdf')
-    #         outfil = outfil.replace('MasterFrames', 'Plots')
-    #     else:
-    #         outfil = root+'.pdf'
+    outfile = arqa.set_qa_filename(setup, method)
     ntrc = ltrace.shape[1]
     ycen = np.arange(frame.shape[0])
     # Normalize flux in the traces
@@ -2770,8 +2801,8 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
         # Right
         plt.plot(rtrace[:, ii]+0.5, ycen, 'c'+ptyp, linewidth=0.3, alpha=0.7)
         # Label
-        if use_slitid:
-            slitid, _, _ = arspecobj.get_slitid(slf, use_slitid, ii, ypos=0.5)
+        if use_slitid is not None:
+            slitid, _, _ = get_slitid(frame, ltrace, rtrace, ii, ypos=0.5)
             lbl = 'S{:04d}'.format(slitid)
         else:
             lbl = '{0:d}'.format(ii+1)
@@ -2788,5 +2819,6 @@ def slit_trace_qa(slf, frame, ltrace, rtrace, extslit, desc="",
     plt.close()
 
     plt.rcdefaults()
+
 
 

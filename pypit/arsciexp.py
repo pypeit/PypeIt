@@ -292,9 +292,8 @@ class ScienceExposure:
             return False
         if settings.argflag['arc']['useframe'] in ['arc']:
             # Master Frame
-            try:
-                msarc = armasters.get_master_frame(self, "arc")
-            except IOError:
+            msarc = armasters.load_master_frame(self, "arc")
+            if msarc is None:
                 msgs.info("Preparing a master arc frame")
                 ind = self._idx_arcs
                 # Load the arc frames
@@ -615,15 +614,16 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
+        debugger.set_trace()
+        # DEPRECATED
         dnum = settings.get_dnum(det)
         # If the master trace is already made, use it
         if self._mstrace[det-1] is not None:
             msgs.info("An identical master trace frame already exists")
             return False
         if settings.argflag['reduce']['trace']['useframe'] in ['trace']:
-            try:
-                mstrace = armasters.get_master_frame(self, "trace", det=det)
-            except IOError:
+            mstrace = armasters.load_master_frame(self, "trace", det=det)  # Also loads up the various arrays
+            if mstrace is None:
                 msgs.info("Preparing a master trace frame with {0:s}".format(settings.argflag['reduce']['trace']['useframe']))
                 ind = self._idx_trace
                 # Load the frames for tracing
@@ -716,9 +716,8 @@ class ScienceExposure:
         else:
             wv_calib = None
         # Attempt to load the Master Frame
-        try:
-            wv_calib = armasters.get_master_frame(self, "wv_calib")
-        except IOError:
+        wv_calib = armasters.load_master_frame(self, "wv_calib")
+        if wv_calib is None:
             if settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
                 msgs.info("A wavelength calibration will not be performed")
             else:

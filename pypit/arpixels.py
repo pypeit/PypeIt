@@ -13,7 +13,7 @@ except ImportError:
     pass
 
 
-def gen_pixloc(frame, det, **kwargs):
+def gen_pixloc(frame_shape, det, settings_argflag):
     """ Now a simple wrapper to core_gen_pixloc
 
     Parameters
@@ -26,15 +26,21 @@ def gen_pixloc(frame, det, **kwargs):
     -------
 
     """
+    if settings_argflag['reduce']['pixel']['locations'] is None:
+        gen=True
+    elif settings_argflag['reduce']['pixel']['locations'] in ["mstrace"]:
+        gen=False
+    else:
+        msgs.error("NOT READY FOR THIS")
     dnum = settings.get_dnum(det)
     xgap = settings.spect[dnum]['xgap']
     ygap = settings.spect[dnum]['ygap']
     ysize = settings.spect[dnum]['ysize']
     # Do it
-    return core_gen_pixloc(frame, xgap=xgap, ygap=ygap, ysize=ysize, **kwargs)
+    return core_gen_pixloc(frame_shape, xgap=xgap, ygap=ygap, ysize=ysize, gen=gen)
 
 
-def core_gen_pixloc(frame, xgap=0, ygap=0, ysize=1., gen=True):
+def core_gen_pixloc(frame_shape, xgap=0, ygap=0, ysize=1., gen=True):
     """
     Generate an array of physical pixel coordinates
 
@@ -45,6 +51,8 @@ def core_gen_pixloc(frame, xgap=0, ygap=0, ysize=1., gen=True):
     xgap : int (optional)
     ygap : int (optional)
     ysize : float (optional)
+    gen : bool, optional
+      Only allows True right now
 
     Returns
     -------
@@ -54,16 +62,16 @@ def core_gen_pixloc(frame, xgap=0, ygap=0, ysize=1., gen=True):
     """
     #dnum = settings.get_dnum(det)
     msgs.info("Deriving physical pixel locations on the detector")
-    locations = np.zeros((frame.shape[0],frame.shape[1],4))
+    locations = np.zeros((frame_shape[0],frame_shape[1],4))
     if gen:
         msgs.info("Pixel gap in the dispersion direction = {0:4.3f}".format(xgap))
         msgs.info("Pixel size in the dispersion direction = {0:4.3f}".format(1.0))
-        xs = np.arange(frame.shape[0]*1.0)*xgap
-        xt = 0.5 + np.arange(frame.shape[0]*1.0) + xs
+        xs = np.arange(frame_shape[0]*1.0)*xgap
+        xt = 0.5 + np.arange(frame_shape[0]*1.0) + xs
         msgs.info("Pixel gap in the spatial direction = {0:4.3f}".format(ygap))
         msgs.info("Pixel size in the spatial direction = {0:4.3f}".format(ysize))
-        ys = np.arange(frame.shape[1])*ygap*ysize
-        yt = ysize*(0.5 + np.arange(frame.shape[1]*1.0)) + ys
+        ys = np.arange(frame_shape[1])*ygap*ysize
+        yt = ysize*(0.5 + np.arange(frame_shape[1]*1.0)) + ys
         xloc, yloc = np.meshgrid(xt, yt)
 #		xwid, ywid = np.meshgrid(xs,ys)
         msgs.info("Saving pixel locations")

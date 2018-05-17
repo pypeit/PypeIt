@@ -28,6 +28,8 @@ class MasterFrame(object):
     Parameters
     ----------
     frametype : str
+    setup : str
+    settings : dict
 
     Attributes
     ----------

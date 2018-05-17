@@ -1,4 +1,5 @@
-# Module for guiding Slit/Order tracing
+""" Module for guiding Bias subtraction including generating a Bias image as desired
+"""
 from __future__ import absolute_import, division, print_function
 
 import inspect
@@ -21,10 +22,12 @@ if msgs._debug is None:
     debug['develop'] = True
     msgs.reset(debug=debug, verbosity=2)
 
+# Does not need to be global, but I prefer it
+frametype = 'bias'
+
 # Place these here or elsewhere?
 #  Wherever they be, they need to be defined, described, etc.
 #  These are settings beyond those in the Parent class (ProcessImages)
-frametype = 'bias'
 additional_default_settings = {frametype: {'useframe': 'none'}}
 
 
@@ -32,7 +35,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     """
     This class is primarily designed to generate a Bias frame for bias subtraction
       It also contains I/O methods for the Master frames of PYPIT
-      And the run() method will return a simple command (str) if that is the specified setting
+      The build_master() method will return a simple command (str) if that is the specified setting
       in settings['bias']['useframe']
 
     Parameters
@@ -50,23 +53,27 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
       Detector index, starts at 1
     ind : list (optional)
       Indices for bias frames (if a Bias image may be generated)
-    fitsdict : dict (optional)
+    fitstbl : Table (optional)
       FITS info (mainly for filenames)
 
     Attributes
     ----------
-    images : list
-    stack : ndarray
     frametype : str
       Set to 'bias'
+
+    Inherited Attributes
+    --------------------
+    stack : ndarray
     """
     # Keep order same as processimages (or else!)
-    def __init__(self, file_list=[], spectrograph=None, settings=None, det=1, setup=None, ind=[], fitsdict=None):
+    def __init__(self, file_list=[], spectrograph=None, settings=None, det=1, setup=None, ind=[], fitstbl=None):
 
         # Parameters unique to this Object
-        self.frametype = frametype
         self.ind = ind
-        self.fitsdict = fitsdict
+        self.fitstbl = fitstbl
+
+        # Attributes
+        self.frametype = frametype
 
         # Start us up
         processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph, settings=settings, det=det)
@@ -90,11 +97,36 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         #    See ProcessImages for the rest
 
     def process_bias(self, overwrite=False):
+        """
+        Process the input bias frames with ProcessImages.process()
+          Avoid bias subtraction
+          Avoid trim
+
+        Parameters
+        ----------
+        overwrite : bool, optional
+
+        Returns
+        -------
+        stack : ndarray
+
+        """
+
         # Wrapper
         self.stack = self.process(bias_subtract=None, trim=False, overwrite=overwrite)
         return self.stack.copy()
 
     def build_master(self):
+        """
+        Build the master frame and save to disk
+         OR
+        Load the master frame from disk
+
+        Returns
+        -------
+        output : ndarray or str
+
+        """
         # Generate a bias or dark image (or load a pre-made Master by PYPIT)?
         if self.settings[self.frametype]['useframe'] in ['bias', 'dark']:
             # Load the MasterFrame if it exists and user requested one to load it
@@ -104,7 +136,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
                 # Get all of the bias frames for this science frame
                 if self.nfiles == 0:
                     for i in range(len(self.ind)):
-                        self.file_list.append(self.fitsdict['directory'][self.ind[i]]+self.fitsdict['filename'][self.ind[i]])
+                        self.file_list.append(self.fitstbl['directory'][self.ind[i]]+self.fitstbl['filename'][self.ind[i]])
                 # Combine
                 msframe = self.process_bias()
                 # Save to Masters
@@ -123,6 +155,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
             msframe, head, _ = armasters._core_load(msframe_name, frametype=self.frametype)
             self.settings['reduce']['masters']['loaded'].append(self.frametype+self.setup)
 
+        # Put in
         self.stack = msframe
         return msframe.copy()
 

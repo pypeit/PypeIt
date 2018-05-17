@@ -101,10 +101,10 @@ def load_master_frame(slf, mftype, det=None):
     # Were MasterFrames even desired?
     if (settings.argflag['reduce']['masters']['reuse']) or (settings.argflag['reduce']['masters']['force']):
         ret, head, _ = core_load_master_frame(mftype, slf.setup,
-                                           settings.argflag['run']['directory']['master']+'_'+settings['run']['spectrograph'],
+                                           settings.argflag['run']['directory']['master']+'_'+settings.argflag['run']['spectrograph'],
                                            force=settings.argflag['reduce']['masters']['force'])
     else:
-        return None, None
+        return None
     if ret is None:
         return None
     elif mftype == 'arc':
@@ -136,6 +136,7 @@ def load_master_frame(slf, mftype, det=None):
 
 def core_load_master_frame(mftype, setup, mdir, force=False):
     """ If a MasterFrame exists, load it
+    Mainly used for simple images (e.g. ArcImage)
 
     Parameters
     ----------
@@ -152,11 +153,7 @@ def core_load_master_frame(mftype, setup, mdir, force=False):
 
     """
     # Name
-    ms_root = core_master_name(mftype, setup, mdir)
-    if mftype == 'trace':  # This will get polished later (in process_images branch)
-        ms_name = ms_root+'.fits.gz'
-    else:
-        ms_name = ms_root
+    ms_name = core_master_name(mftype, setup, mdir)
     # Load
     msframe, head, file_list = _core_load(ms_name, exten=0, frametype=mftype, force=force)
     # Check
@@ -211,8 +208,7 @@ def _core_load(name, exten=0, frametype='<None>', force=False):
         sensfunc['wave_min'] = sensfunc['wave_min']*units.AA
         return sensfunc, None, [name]
     elif frametype == 'trace':
-        Tslits = traceslits.TraceSlits.from_master_files(name)
-        return Tslits, None, None
+        msgs.error('Load from the class not this method')
     else:
         msgs.info("Loading a pre-existing master calibration frame")
         hdu = fits.open(name)
@@ -243,7 +239,7 @@ def save_masters(slf, det, mftype='all'):
 
     # Bias
     if (mftype == 'bias'):
-        msgs.error("Should not get here anymore.  Save the bias in the BiasPrep class")
+        msgs.error("Should not get here anymore.  Save the bias in the BiasFrame class")
         #and ('bias'+setup not in settings.argflag['reduce']['masters']['loaded']):
         #arsave.core_save_master(object, filename=master_name('bias', setup),
         #                   frametype='bias', raw_files=raw_files)
@@ -254,14 +250,15 @@ def save_masters(slf, det, mftype='all'):
                                frametype='badpix')
     # Trace
     if (mftype in ['trace', 'all']) and ('trace'+setup not in settings.argflag['reduce']['masters']['loaded']):
-        extensions = [slf._lordloc[det-1], slf._rordloc[det-1],
-                      slf._pixcen[det-1], slf._pixwid[det-1],
-                      slf._lordpix[det-1], slf._rordpix[det-1],
-                      slf._slitpix[det-1]]
-        names = ['LeftEdges_det', 'RightEdges_det', 'SlitCentre', 'SlitLength', 'LeftEdges_pix', 'RightEdges_pix', 'SlitPixels']
-        save_master(slf, slf._mstrace[det-1],
-                           filename=master_name('trace', setup),
-                           frametype='trace', extensions=extensions, names=names)
+        msgs.error("Should not get here anymore.  Save the trace in the TraceSlits class")
+        #extensions = [slf._lordloc[det-1], slf._rordloc[det-1],
+        #              slf._pixcen[det-1], slf._pixwid[det-1],
+        #              slf._lordpix[det-1], slf._rordpix[det-1],
+        #              slf._slitpix[det-1]]
+        #names = ['LeftEdges_det', 'RightEdges_det', 'SlitCentre', 'SlitLength', 'LeftEdges_pix', 'RightEdges_pix', 'SlitPixels']
+        #save_master(slf, slf._mstrace[det-1],
+        #                   filename=master_name('trace', setup),
+        #                   frametype='trace', extensions=extensions, names=names)
     # Pixel Flat
     if (mftype in ['normpixelflat', 'all']) and ('normpixelflat'+setup not in settings.argflag['reduce']['masters']['loaded']):
         save_master(slf, slf._mspixelflatnrm[det-1],

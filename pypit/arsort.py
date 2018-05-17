@@ -62,6 +62,14 @@ def ftype_indices(fitstbl, ftype, sci_ID):
     idx = np.where(fitstbl[ftype] & (fitstbl['sci_ID'] & sci_ID > 0))[0]
     return idx
 
+def list_of_files(fitstbl, ftype, sci_ID):
+    file_list = []
+    idx = ftype_indices(fitstbl, ftype, sci_ID)
+    for ii in idx:
+        file_list.append(fitstbl['directory'][ii]+fitstbl['filename'][ii])
+    # Return
+    return file_list
+
 
 def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftdict=None):
     """ Generate a table of filetypes from the input fitsdict object

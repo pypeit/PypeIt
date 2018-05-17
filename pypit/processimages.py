@@ -70,8 +70,8 @@ class ProcessImages(object):
 
     Attributes
     ----------
-    images : list
     stack : ndarray
+    steps : list
     raw_images : list
     headers : list
     proc_images : ndarray
@@ -163,7 +163,13 @@ class ProcessImages(object):
                 self.spectrograph, self.file_list[0],
                 numamplifiers=self.settings['detector']['numamplifiers'],
                 det=self.det)
-        else:
+        elif 'detector' in self.settings.keys():
+            for key in do_sec_dict[self.spectrograph]:
+                if 'datasec' in key:
+                    self.datasec.append(self.settings['detector'][key])
+                elif 'oscansec' in key:
+                    self.oscansec.append(self.settings['detector'][key])
+        else:  # THIS MAY BE NOT QUITE WORKING, i.e. AVOID
             self.datasec, self.oscansec = [], []
             if self.spectrograph not in do_sec_dict.keys():
                 debugger.set_trace()
@@ -171,9 +177,9 @@ class ProcessImages(object):
             msgs.info("Parsing the datasec and oscansec values")
             for key in do_sec_dict[self.spectrograph]:
                 if 'datasec' in key:
-                    self.datasec.append(arparse.load_sections(do_sec_dict[self.spectrograph][key], fmt_iraf=False))
+                    self.datasec.append(arparse.load_sections(do_sec_dict[self.spectrograph][key]))
                 elif 'oscansec' in key:
-                    self.oscansec.append(arparse.load_sections(do_sec_dict[self.spectrograph][key], fmt_iraf=False))
+                    self.oscansec.append(arparse.load_sections(do_sec_dict[self.spectrograph][key]))
                 else:
                     pass
 

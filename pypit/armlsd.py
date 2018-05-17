@@ -18,10 +18,13 @@ from pypit import arsave
 from pypit import arsciexp
 from pypit import arsetup
 from pypit import ardeimos
+from pypit import arpixels
+from pypit import arsort
 from pypit import artrace
 from pypit import biasframe
 from pypit.core import artraceslits
 from pypit import traceslits
+from pypit import traceimage
 
 from pypit import ardebug as debugger
 
@@ -123,7 +126,10 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             # TODO -- Update/avoid the following with new settings
             tsettings = settings.argflag.copy()
             tsettings['detector'] = settings.spect[settings.get_dnum(det)]
-            tsettings['detector']['dataext'] = tsettings['detector']['dataext01']  # Kludge; goofy named key
+            try:
+                tsettings['detector']['dataext'] = tsettings['detector']['dataext01']  # Kludge; goofy named key
+            except KeyError: # LRIS, DEIMOS
+                pass
             tsettings['detector']['dispaxis'] = settings.argflag['trace']['dispersion']['direction']
 
             ###############
@@ -133,13 +139,13 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                 msbias = calib_dict[setup]['bias']
             else:
                 # Init
-                bias = biasframe.BiasFrame(settings=tsettings, setup=setup, ind=slf._idx_bias, det=det, fitsdict=fitsdict)
+                bias = biasframe.BiasFrame(settings=tsettings, setup=setup, ind=slf._idx_bias, det=det, fitstbl=fitstbl)
                 # If an image is generated, it will be saved to disk a a MasterFrame
                 msbias = bias.build_master()
                 # Save in Calib dict -- Will replace Master class
                 calib_dict[setup]['bias'] = msbias
 
-            # Set -- Will be Deprecated
+            # Set in slf -- Will be Deprecated
             if isinstance(bias, np.ndarray):
                 slf.SetMasterFrame(bias, "bias", det)
 
@@ -157,6 +163,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             update = slf.MasterArc(fitstbl, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
+
             ###############
             # Set the number of spectral and spatial pixels, and the bad pixel mask is it does not exist
             slf._nspec[det-1], slf._nspat[det-1] = slf._msarc[det-1].shape
@@ -165,6 +172,12 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                 if settings.argflag['run']['spectrograph'] in ['keck_deimos']:
                     bpix = ardeimos.bpm(det)
                 slf.SetFrame(slf._bpix, bpix, det)
+
+            ###############
+            # Generate an array that provides the physical pixel locations on the detector
+            pixlocn = arpixels.gen_pixloc(slf._msarc[det-1].shape, det, settings.argflag)
+            slf.SetFrame(slf._pixlocn, pixlocn, det)
+
             '''
             ###############
             # Estimate gain and readout noise for the amplifiers
@@ -174,57 +187,49 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                 armbase.UpdateMasters(sciexp, sc, det, ftype="readnoise")
             '''
             ###############
-            # Generate a master trace frame
-            update = slf.MasterTrace(fitstbl, det)
-            if update and reuseMaster:
-                armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
-            ###############
-            # Generate an array that provides the physical pixel locations on the detector
-            slf.GetPixelLocations(det)
-            # Determine the edges of the spectra (spatial)
-            if ('trace'+settings.argflag['reduce']['masters']['setup'] not in settings.argflag['reduce']['masters']['loaded']):
-                ###############
-                # Determine the edges of the spectrum (spatial)
-                #lordloc, rordloc, extord = artrace.driver_trace_slits(slf._mstrace[det-1],
-                #                                                      slf._pixlocn[det-1],
-                #                                                      det=det,
-                #                                                      settings=settings.argflag,
-                #                                                      binbpx=slf._bpix[det-1],
-                #                                                      armlsd=True)
-                Tslits = traceslits.TraceSlits(slf._mstrace[det-1], slf._pixlocn[det-1],
-                                               det=det, settings=settings.argflag, binbpx=slf._bpix[det-1])
+            # Slit Tracing
+            # Load master frame?
+            if (settings.argflag['reduce']['masters']['reuse']) or (settings.argflag['reduce']['masters']['force']):
+                mstrace_name = armasters.master_name('trace', setup)
+                Tslits = traceslits.TraceSlits.from_master_files(mstrace_name, load_pix_obj=True)  # Returns None if none exists
+            else:
+                Tslits = None
+            # Build it?  Beginning with the trace image
+            if Tslits is None:
+                # Build the trace image first
+                trace_image_files = arsort.list_of_files(fitstbl, 'trace', sci_ID)
+                Timage = traceimage.TraceImage(trace_image_files,
+                                                    spectrograph=settings.argflag['run']['spectrograph'],
+                                                    settings=tsettings, det=det)
+                mstrace = Timage.process(bias_subtract=msbias, trim=settings.argflag['reduce']['trim'])
+                # Setup up the settings (will be Refactored with settings)
+                tmp = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
+                tmp['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
+                # Now trace me some slits
+                Tslits = traceslits.TraceSlits(mstrace, slf._pixlocn[det-1], det=det, settings=tmp,
+                                               binbpx=slf._bpix[det-1], setup=setup)
                 _ = Tslits.run(armlsd=True)
-
-                # Save in slf
-                slf.SetFrame(slf._lordloc, Tslits.lcen, det)
-                slf.SetFrame(slf._rordloc, Tslits.rcen, det)
-                slf.SetFrame(slf._pixcen, Tslits.pixcen, det)
-                slf.SetFrame(slf._pixwid, Tslits.pixwid, det)
-                slf.SetFrame(slf._lordpix, Tslits.lordpix, det)
-                slf.SetFrame(slf._rordpix, Tslits.rordpix, det)
-                slf.SetFrame(slf._slitpix, Tslits.slitpix, det)
-
+                # QA
+                Tslits._qa()
                 # Save to disk
-                original = False
-                if original:
-                    armasters.save_masters(slf, det, mftype='trace')
-                else:
-                    msname = armasters.master_name('trace', setup)
-                    Tslits.save_master(msname)
+                Tslits.save_master()
 
-                # Initialize maskslit
-                slf._maskslits[det-1] = np.zeros(slf._lordloc[det-1].shape[1], dtype=bool)
+            calib_dict[setup]['trace'] = Tslits
+            # Save in slf
+            # TODO -- Deprecate this means of holding the info (e.g. just pass around Tslits)
+            slf.SetFrame(slf._lordloc, Tslits.lcen, det)
+            slf.SetFrame(slf._rordloc, Tslits.rcen, det)
+            slf.SetFrame(slf._pixcen, Tslits.pixcen, det)
+            slf.SetFrame(slf._pixwid, Tslits.pixwid, det)
+            slf.SetFrame(slf._lordpix, Tslits.lordpix, det)
+            slf.SetFrame(slf._rordpix, Tslits.rordpix, det)
+            slf.SetFrame(slf._slitpix, Tslits.slitpix, det)
 
-                # Save QA for slit traces
-#                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
-#                                       slf._rordpix[det-1], extord,
-#                                       desc="Trace of the slit edges D{:02d}".format(det), use_slitid=det)
-                # TODO -- Put this QA call into the TraceSlits class
-                artraceslits.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
-                                      slf._rordpix[det-1], Tslits.extrapord,
-                                      desc="Trace of the slit edges D{:02d}".format(det),
-                                      use_slitid=det)
-                armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
+            # Initialize maskslit
+            slf._maskslits[det-1] = np.zeros(slf._lordloc[det-1].shape[1], dtype=bool)
+
+            # Save mstrace (should not be necessary)
+            #armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
 
             ###############
             # Generate the 1D wavelength solution
@@ -235,9 +240,8 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             ###############
             # Derive the spectral tilt
             if slf._tilts[det-1] is None:
-                try:
-                    tilts = armasters.get_master_frame(slf, "tilts")
-                except IOError:
+                tilts = armasters.load_master_frame(slf, "tilts")
+                if tilts is None:
                     # First time tilts are derived for this arc frame --> derive the order tilts
                     tilts, satmask, outpar = artrace.multislit_tilt(slf, slf._msarc[det-1], det)
                     slf.SetFrame(slf._tilts, tilts, det)
