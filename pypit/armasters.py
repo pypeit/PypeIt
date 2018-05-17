@@ -211,7 +211,7 @@ def _core_load(name, exten=0, frametype='<None>', force=False):
         return sensfunc, None, [name]
     elif frametype == 'trace':
         Tslits = traceslits.TraceSlits.from_master_files(name)
-        return Tslits, None None
+        return Tslits, None, None
     else:
         msgs.info("Loading a pre-existing master calibration frame")
         hdu = fits.open(name)
