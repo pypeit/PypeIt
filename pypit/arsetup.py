@@ -656,7 +656,7 @@ def load_sorted(sorted_file):
     return all_setups, all_setuplines, all_setupfiles
 
 
-def write_sorted(group_file, srt_tbl, group_dict, setup_dict):
+def write_sorted(group_file, fitstbl, group_dict, setup_dict):
     """ Write the .sorted file
     Parameters
     ----------
@@ -668,8 +668,10 @@ def write_sorted(group_file, srt_tbl, group_dict, setup_dict):
     -------
 
     """
+    # Setup
+    srt_tbl = fitstbl.copy()
+    srt_tbl['frametype'] = arsort.build_frametype_list(fitstbl)
     # Output file
-    #group_file = settings.argflag['run']['redname'].replace('.pypit', '.sorted')
     ff = open(group_file, 'w')
     # Keys
     setups = list(group_dict.keys())

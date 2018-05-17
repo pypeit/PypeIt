@@ -16,6 +16,7 @@ from pypit import arparse as settings
 from pypit import arutils
 from pypit import arsciexp
 from pypit import arspecobj
+from pypit import arsort
 from pypit import arsave
 
 def data_path(filename):
@@ -37,10 +38,13 @@ def mk_specobj(flux=5, objid=500):
 
 def test_save2d_fits():
     settings.dummy_settings()
+    #fitsdict = arutils.dummy_fitsdict(nfile=1, spectrograph='none', directory=data_path(''))
+    fitstbl = arsort.dummy_fitstbl(directory=data_path(''))
+    # Kludge
+    fitstbl.remove_column('filename')
+    fitstbl['filename'] = 'b1.fits.gz'
     # Dummy self
-    slf = arsciexp.dummy_self()
-    fitsdict = arutils.dummy_fitsdict(nfile=1, spectrograph='none', directory=data_path(''))
-    fitsdict['filename'] = np.array(['b1.fits.gz'])
+    slf = arsciexp.dummy_self(fitstbl=fitstbl)
     # Settings
     settings.argflag['run']['directory']['science'] = data_path('')
     settings.argflag['reduce']['masters']['setup'] = 'A_01_aa'
@@ -52,7 +56,7 @@ def test_save2d_fits():
     slf._basename = 'test'
     slf._idx_sci[0] = 0
     # Call
-    arsave.save_2d_images(slf, fitsdict)
+    arsave.save_2d_images(slf, fitstbl)
     # Read and test
     head0 = fits.getheader(data_path('spec2d_test.fits'))
     assert head0['PYPCNFIG'] == 'A'
@@ -64,26 +68,26 @@ def test_save1d_fits():
     """ save1d to FITS and HDF5
     """
     settings.dummy_settings()
-    fitsdict = arutils.dummy_fitsdict(nfile=10, spectrograph='shane_kast_blue', directory=data_path(''))
+    fitstbl = arsort.dummy_fitstbl(spectrograph='shane_kast_blue', directory=data_path(''))
     # Dummy self
-    slf = arsciexp.dummy_self()
+    slf = arsciexp.dummy_self(fitstbl=fitstbl)
     slf._specobjs = []
     slf._specobjs.append([])
     slf._specobjs[0].append([mk_specobj()])
     # Write to FITS
-    arsave.save_1d_spectra_fits(slf, fitsdict)
+    arsave.save_1d_spectra_fits(slf, fitstbl)
 
 
 def test_save1d_hdf5():
     """ save1d to FITS and HDF5
     """
     # Dummy self
-    slf = arsciexp.dummy_self()
-    fitsdict = arutils.dummy_fitsdict(nfile=1, spectrograph='none')
+    fitstbl = arsort.dummy_fitstbl(spectrograph='shane_kast_blue', directory=data_path(''))
+    slf = arsciexp.dummy_self(fitstbl=fitstbl)
     # specobj
     slf._specobjs = []
     slf._specobjs.append([])
     slf._specobjs[0].append([mk_specobj(objid=455), mk_specobj(flux=3., objid=555)])
     # Write to HDF5
-    arsave.save_1d_spectra_hdf5(slf, fitsdict)
+    arsave.save_1d_spectra_hdf5(slf, fitstbl)
 

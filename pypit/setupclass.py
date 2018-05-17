@@ -268,10 +268,13 @@ class SetupClass(object):
         if self.fitstbl is None:
             _ = self.build_fitstbl(file_list)
 
-        # Write?
 
         # File typing
         _ = self.type_data()
+
+        # Write?
+        if self.settings_argflag['output']['sorted'] is not None:
+            _ = arsort.write_lst(self.fitstbl)
 
         # Match calibs to science
         _ = self.match_to_science()

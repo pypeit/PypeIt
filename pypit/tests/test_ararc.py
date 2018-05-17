@@ -11,7 +11,7 @@ import pytest
 from linetools.spectra import xspectrum1d
 
 import pypit
-from pypit import arutils
+from pypit import arsort
 from pypit import arsciexp
 from pypit import ararc
 from pypit import arparse as settings
@@ -30,9 +30,9 @@ def test_setup_param():
     settings.argflag['run']['spectrograph'] = 'shane_kast_blue'
     settings.spect['arc'] = {}
     settings.spect['arc']['index'] = [[0]]
-    fitsdict = arutils.dummy_fitsdict()
+    fitstbl = arsort.dummy_fitstbl()
     # Run
-    arcparm = ararc.setup_param(slf, 1, fitsdict)
+    arcparm = ararc.setup_param(slf, 1, fitstbl)
     for key in ['llist','disp','wvmnx']:
         assert key in arcparm
 
