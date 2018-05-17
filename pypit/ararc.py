@@ -257,7 +257,7 @@ def setup_param(slf, det, fitsdict):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='keck_lris_red':
-        arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['WAVELEN']
+        arcparam['wv_cen'] = fitsdict['wavecen'][idx[0]]
         lamps = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
         if disperser == '600/7500':
             arcparam['n_first']=3 # Too much curvature for 1st order
@@ -284,13 +284,14 @@ def setup_param(slf, det, fitsdict):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='keck_deimos':
-        gratepos = fitsdict['headers'][idx[0]][0]['GRATEPOS']
-        if(gratepos==3):
-            arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['G3TLTWAV']
-        elif(gratepos==4):
-            arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['G4TLTWAV']
-        else:
-            msgs.error('Problem wth value of GRATEPOS keyword: GRATEPOS={:s}'.format(gratepos))
+        arcparam['wv_cen'] = fitsdict['dispangle'][idx[0]]
+        #gratepos = fitsdict['headers'][idx[0]][0]['GRATEPOS']
+        #if(gratepos==3):
+        #    arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['G3TLTWAV']
+        #elif(gratepos==4):
+        #    arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['G4TLTWAV']
+        #else:
+        #    msgs.error('Problem wth value of GRATEPOS keyword: GRATEPOS={:s}'.format(gratepos))
         # TODO -- Should set according to the lamps that were on
         lamps = ['ArI','NeI','KrI','XeI']
         if disperser == '830G': # Blaze 8640

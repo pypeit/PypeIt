@@ -634,14 +634,14 @@ def new_match_logic(ch, tmtch, fitstbl, idx):
     elif tmtch[0] in ['=','<','>','|']: # Numerics
         mtch = np.float64(fitstbl[ch][idx]) + float(
             ''.join(c for c in tmtch if c not in ['=', '<', '>', '|']))
-        operand = ''.join(c for c in tmtch if c in ['=', '<', '>', '|'])
+        operand = ''.join(c for c in tmtch if c in ['=', '<', '>'])
         if operand == '=':
             operand += '='
         #
         if tmtch[0] != '|':
             w = eval('fitstbl[ch].data.astype(np.float64) {:s} {:f}'.format(operand, mtch))
         else:
-            w = eval('np.abs(fitstbl[ch].data.astype(np.float64) - np.float64(fitsdict[ch][idx]))) {:s} {:f}'.format(operand, mtch))
+            w = eval('np.abs(fitstbl[ch].data.astype(np.float64) - np.float64(fitstbl[ch][idx])) {:s} {:f}'.format(operand, mtch))
     elif tmtch[0:2] == '%,':  # Splitting a header keyword
         splcom = tmtch.split(',')
         debugger.set_trace()
