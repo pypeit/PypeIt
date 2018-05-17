@@ -1226,3 +1226,4 @@ def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5):
             npeak = nfind
     return np.array(peaks), np.array(sigmas), np.array(ledges), np.array(redges)
 
+

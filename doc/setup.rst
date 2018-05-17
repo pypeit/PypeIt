@@ -15,20 +15,20 @@ generating Master frames, and performing the data
 reduction.  This Table summarizes the parameters that
 specify a unique setup:
 
-========= ======== ====== ======== =======================================
-Element   Setting  Type   Example    Description
-========= ======== ====== ======== =======================================
-detector  binning  str    2,2      On-chip binning of the detector
- ..       det      int    1        Index of the detector; starts at 1
- ..       naxis0   int    2048     x dimension of the image
- ..       naxis1   int    2048     y dimension of the image
-dichroic  ...      str    560      Dichroic name
-disperser angle    float  23.4     Number specifying tilt of the grating
- ..       name     str    600/4000 Name of the dispersing element
-slit      decker   str    long_1.0 Name of decker or slit mask
- ..       slitlen  float  120.     Number describing slit length
- ..       slitwid  float  1.       Number describing slit width
-========= ======== ====== ======== =======================================
+========= ========= ====== ======== =======================================
+Element   Attribute  Type   Example    Description
+========= ========= ====== ======== =======================================
+detector  binning   str    2,2      On-chip binning of the detector
+ ..       det       int    1        Index of the detector; starts at 1
+ ..       naxis0    int    2048     x dimension of the image
+ ..       naxis1    int    2048     y dimension of the image
+dichroic  ...       str    560      Dichroic name
+disperser angle     float  23.4     Number specifying tilt of the grating
+ ..       name      str    600/4000 Name of the dispersing element
+slit      decker    str    long_1.0 Name of decker or slit mask
+ ..       slitlen   float  120.     Number describing slit length
+ ..       slitwid   float  1.       Number describing slit width
+========= ========= ====== ======== =======================================
 
 Each setup is given a unique setup ID value which is a
 two digit number starting at 01 (stored as a string).
@@ -38,6 +38,37 @@ and with a simple set of calibrations, then setup should
 be straightforward.  If you use multiple configurations
 (e.g. gratings, grating tilts), then one must pay more
 careful attention to the setups.
+
+Internals
+=========
+
+SetupClass
+----------
+
+The SetupClass organizes and runs PYPIT setup, guided
+by the loaded settings.   The
+`SetupClass.ipynb <https://github.com/PYPIT/PYPIT/blob/master/doc/nb/Setup_Class.ipynb>`_
+
+
+fitstbl
+-------
+
+An astropy Table holds key information parsed
+from the FITS headers and a small set of additional
+other meta data (e.g. filename).
+
+After file classification, it holds a set of boolean
+columns that specify if the frame is an arc, bias, etc.
+
+Lastly, after matching calibrations to the science frames,
+the sci_ID column has base-2 flags specifying the science
+frames and the calibrations linked to it.
+
+setup_dict
+----------
+
+See :ref:`internal_setup_dict` for a definition of the
+object used interally.
 
 .. _pypit_setup:
 
@@ -72,11 +103,6 @@ and add `run setup True` to the file.
 Note that both of these options set default values in the codes
 and may over-ride user settings.
 
-Internals
-=========
-
-See :ref:`internal_setup_dict` for a definition of the
-object used interally.
 
 Output without --custom
 =======================

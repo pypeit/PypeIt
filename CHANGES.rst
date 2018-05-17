@@ -99,6 +99,16 @@
 - Remove driver_trace_slits and refctor_trace_slits methods
 - Making Ginga a true dependency of PYPIT
 - Have TraceSlits write/load MasterFrames
+- Replace armbase.setup_science() with SetupClass and move timing to inside pypit.py
+- doc updates in setup.rst
+- Refactor fitsdict -> fitstbl  (variable name not updated everywhere)
+- Removed slurped headers from fitsdict (and therefore fitstbl)
+- SetupClass Notebook
+- Move ftype_list from armeta.py to arsort.py
+- Bug fix related to fluxing
+- Replaced ordering of loop on 'det' with loop on 'sciexp'
+- Substantial refactor of arsort.py
+- Substantial refactor of arsetup.py
 
 
 0.7 (2017-02-07)

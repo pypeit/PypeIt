@@ -1284,7 +1284,8 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
     sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
 
     # Save sciframe
-    slf._sciframe[det-1] = sciframe.copy()
+    if not standard:
+        slf._sciframe[det-1] = sciframe.copy()
 
     ###############
     # Estimate Sky Background

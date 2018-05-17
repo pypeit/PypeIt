@@ -15,12 +15,17 @@ try:
 except ImportError:
     pass
 
+from astropy.table import Table
+
 from pypit import msgs
 from pypit import ardebug
 from pypit import archeck  # THIS IMPORT DOES THE CHECKING.  KEEP IT
 from pypit import arparse
+from pypit import armbase
 from pypit import ardevtest
+from pypit import arsort
 from pypit.arload import load_headers
+from pypit import setupclass
 
 from pypit import arqa
     
@@ -208,7 +213,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     """
 
     # Load the important information from the fits headers
-    fitsdict, updates = load_headers(datlines)
+    fitstbl, updates = load_headers(datlines, arparse.spect, arparse.argflag)
 
     # If some settings were updated because of the fits headers, globalize the settings again
     if len(updates) != 0:
@@ -218,10 +223,10 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     # If the dispersion direction is 1, flip the axes
     if arparse.argflag['trace']['dispersion']['direction'] == 1:
         # Update the keywords of all fits files
-        for ff in range(len(fitsdict['naxis0'])):
-            temp = fitsdict['naxis0'][ff]
-            fitsdict['naxis0'][ff] = fitsdict['naxis1'][ff]
-            fitsdict['naxis1'][ff] = temp
+        for ff in range(len(fitstbl['naxis0'])):
+            temp = fitstbl['naxis0'][ff]
+            fitstbl['naxis0'][ff] = fitstbl['naxis1'][ff]
+            fitstbl['naxis1'][ff] = temp
         # Update the spectrograph settings for all detectors in the mosaic
         for dd in range(arparse.spect['mosaic']['ndet']):
             ddnum = arparse.get_dnum(dd+1)
@@ -238,15 +243,36 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
                 arparse.spect[ddnum]['oscansec{0:02d}'.format(i + 1)] \
                         = arparse.spect[ddnum]['oscansec{0:02d}'.format(i + 1)][::-1]
 
+    # Set me up here
+    original=False
+    if original:
+        mode, sciexp, setup_dict = armbase.setup_science(fitstbl)
+            #numsci = len(sciexp)
+    else:
+        # This should move inside of PYPIT
+        setupc = setupclass.SetupClass(arparse.argflag, arparse.spect,
+                                       fitstbl=fitstbl)
+        mode, fitstbl, setup_dict = setupc.run()
+        sciexp = None
+    if mode == 'setup':
+        status = 1
+        return status
+    elif mode == 'calcheck':
+        status = 2
+        return status
+    else:
+        pass
+
     # Reduce the data!
-    status = 0
-    # Send the data away to be reduced
-    if spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMLSD':
-        msgs.info('Data reduction will be performed using PYPIT-ARMLSD')
-        status = armlsd.ARMLSD(fitsdict)
-    elif spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMED':
-        msgs.info('Data reduction will be performed using PYPIT-ARMED')
-        status = armed.ARMED(fitsdict)
+    if mode == 'run':
+        arsort.make_dirs()
+        # Send the data away to be reduced
+        if spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMLSD':
+            msgs.info('Data reduction will be performed using PYPIT-ARMLSD')
+            status = armlsd.ARMLSD(fitstbl, setup_dict, sciexp=sciexp, original=original)
+        elif spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMED':
+            msgs.info('Data reduction will be performed using PYPIT-ARMED')
+            status = armed.ARMED(fitstbl)
 
     # Check for successful reduction
     if status == 0:

@@ -4,6 +4,7 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 
 import yaml
 import numpy as np
+
 from astropy import units
 
 from pypit import msgs
@@ -12,19 +13,20 @@ from pypit import arflux
 from pypit import arload
 from pypit import armasters
 from pypit import armbase
-from pypit import arpixels
 from pypit import arproc
 from pypit import arsave
+from pypit import arsciexp
 from pypit import arsetup
 from pypit import ardeimos
 from pypit import artrace
 from pypit import biasframe
 from pypit.core import artraceslits
 from pypit import traceslits
+
 from pypit import ardebug as debugger
 
 
-def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
+def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None, original=True):
     """
     Automatic Reduction and Modeling of Long Slit Data
 
@@ -48,22 +50,32 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
     """
     status = 0
 
+    '''  THIS IS NOW RUN IN pypit.py
     # Create a list of science exposure classes
-    sciexp, setup_dict = armbase.setup_science(fitsdict)
-    if sciexp == 'setup':
-        status = 1
-        return status
-    elif sciexp == 'calcheck':
-        status = 2
-        return status
+    original=True
+    if original:
+        mode, sciexp, setup_dict = armbase.setup_science(fitsdict)
+        if mode == 'setup':
+            status = 1
+            return status
+        elif mode == 'calcheck':
+            status = 2
+            return status
+        else:
+            numsci = len(sciexp)
     else:
-        numsci = len(sciexp)
-
-    # Create a list of master calibration frames
-    #masters = armasters.MasterFrames(settings.spect['mosaic']['ndet'])
-
-    # Masters
-    #settings.argflag['reduce']['masters']['file'] = setup_file
+        # This should move inside of PYPIT
+        setupc = setupclass.SetupClass(settings, fitstbl=fitstbl)
+        mode, fitstbl, setup_dict = setupc.run()
+    '''
+    # Generate sciexp list, if need be (it will be soon)
+    if sciexp is None:
+        sciexp = []
+        all_sci_ID = fitstbl['sci_ID'].data[fitstbl['science']]  # Binary system: 1,2,4,8, etc.
+        for ii in all_sci_ID:
+            sciexp.append(arsciexp.ScienceExposure(ii, fitstbl, settings.argflag,
+                                                   settings.spect, do_qa=True, original=original))
+    numsci = len(sciexp)
 
     # Start reducing the data
 
@@ -83,20 +95,25 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         for sc in range(numsci):
 
             slf = sciexp[sc]
+            sci_ID = slf.sci_ID
             scidx = slf._idx_sci[0]
-            msgs.info("Reducing file {0:s}, target {1:s}".format(fitsdict['filename'][scidx], slf._target_name))
+            msgs.info("Reducing file {0:s}, target {1:s}".format(fitstbl['filename'][scidx], slf._target_name))
             msgs.sciexp = slf  # For QA writing on exit, if nothing else.  Could write Masters too
 
             #if reloadMaster and (sc > 0):
             #    settings.argflag['reduce']['masters']['reuse'] = True
 
             slf.det = det
-
+            dnum = settings.get_dnum(det)
             ###############
             # Get data sections
-            arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
+            arproc.get_datasec_trimmed(slf, fitstbl, det, scidx)
             # Setup
-            setup = arsetup.instr_setup(slf, det, fitsdict, setup_dict, must_exist=True)
+            if original:
+                setup = arsetup.instr_setup(slf, det, fitstbl, setup_dict, must_exist=True)
+            else:
+                namp = settings.spect[dnum]["numamplifiers"]
+                setup = arsetup.new_instr_setup(sci_ID, det, fitstbl, setup_dict, namp, must_exist=True)
             settings.argflag['reduce']['masters']['setup'] = setup
             slf.setup = setup
 
@@ -132,12 +149,12 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
 
             ###############
             # Generate a bad pixel mask (should not repeat)
-            update = slf.BadPixelMask(fitsdict, det)
+            update = slf.BadPixelMask(fitstbl, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
             ###############
             # Generate a master arc frame
-            update = slf.MasterArc(fitsdict, det)
+            update = slf.MasterArc(fitstbl, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
             ###############
@@ -158,7 +175,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             '''
             ###############
             # Generate a master trace frame
-            update = slf.MasterTrace(fitsdict, det)
+            update = slf.MasterTrace(fitstbl, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")
             ###############
@@ -211,7 +228,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
 
             ###############
             # Generate the 1D wavelength solution
-            update = slf.MasterWaveCalib(fitsdict, sc, det)
+            update = slf.MasterWaveCalib(fitstbl, sc, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
 
@@ -233,12 +250,12 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
 
             ###############
             # Prepare the pixel flat field frame
-            update = slf.MasterFlatField(fitsdict, det)
+            update = slf.MasterFlatField(fitstbl, det)
             if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
 
             ###############
             # Generate/load a master wave frame
-            update = slf.MasterWave(fitsdict, sc, det)
+            update = slf.MasterWave(fitstbl, sc, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
 
@@ -259,13 +276,13 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
             ###############
             # Load the science frame and from this generate a Poisson error frame
             msgs.info("Loading science frame")
-            sciframe = arload.load_frames(fitsdict, [scidx], det,
+            sciframe = arload.load_frames(fitstbl, [scidx], det,
                                           frametype='science',
                                           msbias=slf._msbias[det-1])
             sciframe = sciframe[:, :, 0]
             # Extract
             msgs.info("Processing science frame")
-            arproc.reduce_multislit(slf, sciframe, scidx, fitsdict, det)
+            arproc.reduce_multislit(slf, sciframe, scidx, fitstbl, det)
 
             ###############
             # Using model sky, calculate a flexure correction
@@ -274,14 +291,14 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         # Write 1D spectra
         save_format = 'fits'
         if save_format == 'fits':
-            arsave.save_1d_spectra_fits(slf, fitsdict)
+            arsave.save_1d_spectra_fits(slf, fitstbl)
         elif save_format == 'hdf5':
             arsave.save_1d_spectra_hdf5(slf)
         else:
             msgs.error(save_format + ' is not a recognized output format!')
-        arsave.save_obj_info(slf, fitsdict)
+        arsave.save_obj_info(slf, fitstbl)
         # Write 2D images for the Science Frame
-        arsave.save_2d_images(slf, fitsdict)
+        arsave.save_2d_images(slf, fitstbl)
         # Free up some memory by replacing the reduced ScienceExposure class
         sciexp[sc] = None
 
@@ -296,7 +313,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         msgs.info("Waited until last detector to process")
 
         if (settings.argflag['reduce']['calibrate']['sensfunc']['archival'] == 'None'):
-            update = slf.MasterStandard(fitsdict)
+            update = slf.MasterStandard(fitstbl)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
         else:
@@ -312,7 +329,7 @@ def ARMLSD(fitsdict, reuseMaster=False, reloadMaster=True):
         for kk in range(settings.spect['mosaic']['ndet']):
             det = kk + 1  # Detectors indexed from 1
             if slf._specobjs[det - 1] is not None:
-                arflux.apply_sensfunc(slf, det, scidx, fitsdict)
+                arflux.apply_sensfunc(slf, det, scidx, fitstbl)
             else:
                 msgs.info("There are no objects on detector {0:d} to apply a flux calibration".format(det))
 
