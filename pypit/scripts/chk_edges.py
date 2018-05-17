@@ -44,9 +44,6 @@ def main(pargs):
 
     # Load up
     Tslits = traceslits.TraceSlits.from_master_files(pargs.root)
-    lordloc = Tslits.lcen
-    rordloc = Tslits.rcen
-    mstrace = Tslits.mstrace
 
     try:
         ginga.connect_to_ginga(raise_err=True)
@@ -55,15 +52,15 @@ def main(pargs):
         time.sleep(3)
 
     # Show Image
-    viewer, ch = ginga.show_image(mstrace, chname=pargs.chname)
+    viewer, ch = ginga.show_image(Tslits.mstrace, chname=pargs.chname)
 
     # Get slit ids
-    stup = (mstrace.shape, lordloc, rordloc)
+    stup = (Tslits.mstrace.shape, Tslits.lcen, Tslits.rcen)
     if pargs.dumb_ids:
-        slit_ids = range(lordloc.shape[1])
+        slit_ids = range(Tslits.lcen.shape[1])
     else:
-        slit_ids = [get_slitid(stup, None, ii)[0] for ii in range(lordloc.shape[1])]
-    ginga.show_slits(viewer, ch, lordloc, rordloc, slit_ids, pstep=50)
+        slit_ids = [get_slitid(stup, None, ii)[0] for ii in range(Tslits.lcen.shape[1])]
+    ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids, pstep=50)
     print("Check your Ginga viewer")
 
 

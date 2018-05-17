@@ -88,13 +88,11 @@ def main(args):
     # Load Tslits
     trc_file = armasters.master_name('trace', setup, mdir=mdir)
     Tslits = traceslits.TraceSlits.from_master_files(trc_file)
-    lordloc = Tslits.lcen
-    rordloc = Tslits.rcen
 
     # Get slit ids
-    stup = (Tslits.mstrace.shape, lordloc, rordloc)
+    stup = (Tslits.mstrace.shape, Tslits.lcen, Tslits.rcen)
     slit_ids = [get_slitid(stup, None, ii)[0] for ii in range(lordloc.shape[1])]
-    pypit.ginga.show_slits(viewer, ch, lordloc, rordloc, slit_ids)#, args.det)
+    pypit.ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
 
     # Object traces
     spec1d_file = args.file.replace('spec2d', 'spec1d')

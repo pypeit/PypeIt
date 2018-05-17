@@ -133,15 +133,14 @@ def get_master_frame(slf, mftype, det=None):
                 '''
                 Tslits = traceslits.TraceSlits.from_master_files(ms_root)
                 Tslits._make_pixel_arrays()
-                tslits_dict = Tslits._fill_trace_slit_dict()
                 #
-                slf.SetFrame(slf._lordloc, tslits_dict['lcen'], det)
-                slf.SetFrame(slf._rordloc, tslits_dict['rcen'], det)
-                slf.SetFrame(slf._pixcen, tslits_dict['pixcen'], det)
-                slf.SetFrame(slf._pixwid, tslits_dict['pixwid'], det)
-                slf.SetFrame(slf._lordpix, tslits_dict['lordpix'], det)
-                slf.SetFrame(slf._rordpix, tslits_dict['rordpix'], det)
-                slf.SetFrame(slf._slitpix, tslits_dict['slitpix'], det)
+                slf.SetFrame(slf._lordloc, Tslits.lcen, det)
+                slf.SetFrame(slf._rordloc, Tslits.rcen, det)
+                slf.SetFrame(slf._pixcen, Tslits.pixcen, det)
+                slf.SetFrame(slf._pixwid, Tslits.pixwid, det)
+                slf.SetFrame(slf._lordpix, Tslits.lordpix, det)
+                slf.SetFrame(slf._rordpix, Tslits.rordpix, det)
+                slf.SetFrame(slf._slitpix, Tslits.slitpix, det)
                 # Mask -- It is assumed that all slits loaded are ok
                 slf._maskslits[det-1] = np.array([False] * slf._lordloc[det-1].shape[1])
             # Append as loaded

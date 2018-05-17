@@ -14,7 +14,7 @@ from linetools import utils as ltu
 from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import arpixels
-from pypit import artraceslits
+from pypit.core import artraceslits
 from pypit import arutils
 from pypit import ginga
 
@@ -41,18 +41,6 @@ default_settings = dict(trace={'slits': {'single': [],
                                'pca': {'params': [3,2,1,0,0,0], 'type': 'pixel',
                                        'extrapolate': {'pos': 0, 'neg':0}},
                                'sobel': {'mode': 'nearest'}}})
-
-# Data model for standard output to PYPIT
-#  See attribute description below for specifics on each
-trace_slits_dict = {}
-trace_slits_dict['lcen'] = None
-trace_slits_dict['rcen'] = None
-trace_slits_dict['lordpix'] = None
-trace_slits_dict['rordpix'] = None
-trace_slits_dict['slitpix'] = None
-trace_slits_dict['pixcen'] = None
-trace_slits_dict['pixwid'] = None
-trace_slits_dict['extrapord'] = None
 
 # TODO -- Add data model for MasterFrame here
 
@@ -410,7 +398,10 @@ class TraceSlits(object):
 
     def _fill_trace_slit_dict(self):
         """
-        # Build a simple object holding the key trace bits and pieces that PYPIT wants
+        Build a simple object holding the key trace bits and pieces that PYPIT wants
+          NOT USED ANY LONGER (but maybe in the future, depending on how we choosed
+          to package slit information *outside* of the ScienceExposure object)
+
 
         Returns
         -------
@@ -964,14 +955,12 @@ class TraceSlits(object):
         if not self.user_set:
             self._final_left_right()
 
-        # Trace crude me
-        #   -- Mainly to deal with duplicates and improve the traces
-        #   -- Developed for ARMLSD not ARMED
+        #   Developed for ARMLSD not ARMED
         if armlsd:
+            # Trace crude me
+            #   -- Mainly to deal with duplicates and improve the traces
             self._mslit_tcrude()
-
-        # Synchronize and add in edges
-        if armlsd:
+            # Synchronize and add in edges
             self._mslit_sync()
 
         # Add user input slits
