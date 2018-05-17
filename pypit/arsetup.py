@@ -89,6 +89,8 @@ def new_calib_set(isetup_dict, fitstbl, sci_ID):
     ----------
     isetup_dict : dict
     fitstbl : Table
+    sci_ID : int
+      ID of the science frame
 
     Returns
     -------
@@ -277,7 +279,7 @@ def new_instr_setup(sci_ID, det, fitstbl, setup_dict, numamplifiers,
       science frame identifier (binary)
     det : int
       detector identifier
-    fitsdict : dict
+    fitstbl : Table
       contains header info
     setup_dict : dict
     numamplifiers : int
@@ -656,20 +658,24 @@ def load_sorted(sorted_file):
     return all_setups, all_setuplines, all_setupfiles
 
 
-def write_sorted(group_file, srt_tbl, group_dict, setup_dict):
+def write_sorted(group_file, fitstbl, group_dict, setup_dict):
     """ Write the .sorted file
+
     Parameters
     ----------
     group_file : str
-    group_dict
-    setup_dict
+    fitstbl : Table
+    group_dict : dict
+    setup_dict : dict
 
     Returns
     -------
 
     """
+    # Setup
+    srt_tbl = fitstbl.copy()
+    srt_tbl['frametype'] = arsort.build_frametype_list(fitstbl)
     # Output file
-    #group_file = settings.argflag['run']['redname'].replace('.pypit', '.sorted')
     ff = open(group_file, 'w')
     # Keys
     setups = list(group_dict.keys())
@@ -708,8 +714,10 @@ def new_build_group_dict(fitstbl, setupIDs, all_sci_idx):
 
     Parameters
     ---------
-    filesort : dict
+    filetbl : Table
     setupIDs : list
+    all_sci_idx : ndarray
+      all the science frame indices in the fitstbl
 
     Returns
     -------

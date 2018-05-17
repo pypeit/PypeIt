@@ -415,7 +415,10 @@ def load_input(redname, msgs):
                     paths.append(linspl[1])
                 else:  # Grab filename and frametype
                     if ftype_col == -1:  # Identify columns for frametype
-                        ftype_col = np.where(np.array(linspl) == 'frametype')[0][0]
+                        try:
+                            ftype_col = np.where(np.array(linspl) == 'frametype')[0][0]
+                        except:
+                            import pdb; pdb.set_trace()
                         dfile_col = np.where(np.array(linspl) == 'filename')[0][0]
                     else:
                         # Skip commented lines

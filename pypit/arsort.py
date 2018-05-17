@@ -40,9 +40,28 @@ ftype_list = [     # NOTE:  arc must be listed first!
     'unknown',     # Unknown..
 ]
 
+
 def ftype_indices(fitstbl, ftype, sci_ID):
+    """
+
+    Parameters
+    ----------
+    fitstbl : Table
+    ftype : str
+      e.g. arc, trace, science
+    sci_ID : int
+      ID value of the science exposure
+      Binary, i.e.  1, 2, 4, 8, 16..
+
+    Returns
+    -------
+    idx : ndarray (int)
+      Indices of the rows of the Table matching the inputs
+
+    """
     idx = np.where(fitstbl[ftype] & (fitstbl['sci_ID'] & sci_ID > 0))[0]
     return idx
+
 
 def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftdict=None):
     """ Generate a table of filetypes from the input fitsdict object
@@ -60,7 +79,7 @@ def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftd
     filetypes : Table
       A Table of filetypes
       Each key is a file type and contains False/True for each datafile
-      This is likely to be stacked onto the fitstbl
+      This is stacked onto the fitstbl
     """
     #msgs.bug("There appears to be a bug with the assignment of arc frames when only one science frame is supplied")
     msgs.info("Typing files")
@@ -293,7 +312,7 @@ def new_chk_all_conditions(fkey, fitstbl):
     ----------
     fkey : str
       File type
-    fitsdict : dict
+    fitstbl : Table
 
     Returns
     -------
@@ -419,6 +438,91 @@ def chk_condition(fitsdict, cond):
     return ntmp
 
 
+def write_lst(fitstbl):
+    """
+    Write out an ascii file that contains the details of the file sorting.
+    By default, the filename is printed first, followed by the frametype.
+    After these, all parameters listed in the 'keyword' item in the
+    settings file will be printed
+
+    Parameters
+    ----------
+    fitstbl : Table
+      Contains relevant information from fits header files
+    """
+    msgs.info("Preparing to write out the data sorting details")
+    nfiles = fitstbl['filename'].size
+    # Specify which keywords to print after 'filename' and 'filetype'
+    prord = ['filename', 'frametype', 'target', 'exptime', 'naxis0', 'naxis1', 'filter1', 'filter2']
+    prdtp = ["char",     "char",      "char",   "double",  "int",    "int",    "char",     "char"]
+    # Now insert the remaining keywords:
+    fkey = settings.spect['keyword'].keys()
+    for i in fkey:
+        if i not in prord:
+            prord.append(i)
+            # Append the type of value this keyword holds
+            typv = type(fitstbl[i][0])
+            if typv is int or typv is np.int_:
+                prdtp.append("int")
+            elif isinstance(fitstbl[i][0], basestring) or typv is np.string_:
+                prdtp.append("char")
+            elif typv is float or typv is np.float_:
+                prdtp.append("double")
+            else:
+                msgs.bug("I didn't expect useful headers to contain type {!s:s}".format(typv).replace('<type ', '').replace('>', ''))
+
+    # ASCII file
+    asciiord = ['filename', 'date', 'frametype', 'frameno', 'target', 'exptime', 'binning',
+        'dichroic', 'dispname', 'dispangle', 'decker']
+    # Generate the columns except frametype
+    ascii_tbl = Table()
+    badclms = []
+    for pr in asciiord:
+        if pr != 'frametype':
+            try:  # No longer require that all of these be present
+                ascii_tbl[pr] = fitstbl[pr]
+            except KeyError:
+                badclms.append(pr)
+    # Remove
+    for pr in badclms:
+        asciiord.pop(asciiord.index(pr))
+    # Frametype
+    ascii_tbl['frametype'] = build_frametype_list(fitstbl)
+    # Write
+    if settings.argflag['run']['setup']:
+        ascii_name = settings.argflag['run']['redname'].replace('.pypit', '.lst')
+    else:
+        ascii_name = settings.argflag['output']['sorted']+'.lst'
+    ascii_tbl[asciiord].write(ascii_name, format='ascii.fixed_width')
+    return ascii_tbl
+
+
+def build_frametype_list(fitstbl):
+    """
+
+    Parameters
+    ----------
+    fitstbl : Table
+
+    Returns
+    -------
+    ftypes : list
+      List of frametype's for each frame, e.g.
+        arc
+        trace,pixelflat
+    """
+    # Now frame type
+    ftypes = []
+    for i in range(len(fitstbl)):
+        addval = ""
+        for ft in ftype_list:
+            if fitstbl[ft][i]:
+                if len(addval) != 0: addval += ","
+                addval += ft
+        ftypes.append(addval)
+    # Return
+    return ftypes
+
 def sort_write(fitsdict, filesort, space=3):
     """
     Write out an xml and ascii file that contains the details of the file sorting.
@@ -540,16 +644,16 @@ def new_match_logic(ch, tmtch, fitstbl, idx):
       any
       ''
       >, <, >=, <=, =, !=
-    fitsdict
+      If tmtch begins with a "|", the match compares to the science frame
+      else the value is added to the science frame
+    fitstbl : Table
     idx : int
       Science index
 
-
     Returns
     -------
-    w : ndarray, int
-      indices that match the criterion
-      None is returned if there is nothing to match
+    w : ndarray, bool
+      True/False for the rows in fitstbl satisfying the condition
     """
     if tmtch == "any":   # Anything goes
         w = np.ones_like(fitstbl, dtype=bool)
@@ -558,14 +662,14 @@ def new_match_logic(ch, tmtch, fitstbl, idx):
     elif tmtch[0] in ['=','<','>','|']: # Numerics
         mtch = np.float64(fitstbl[ch][idx]) + float(
             ''.join(c for c in tmtch if c not in ['=', '<', '>', '|']))
-        operand = ''.join(c for c in tmtch if c in ['=', '<', '>', '|'])
+        operand = ''.join(c for c in tmtch if c in ['=', '<', '>'])
         if operand == '=':
             operand += '='
         #
         if tmtch[0] != '|':
             w = eval('fitstbl[ch].data.astype(np.float64) {:s} {:f}'.format(operand, mtch))
         else:
-            w = eval('np.abs(fitstbl[ch].data.astype(np.float64) - np.float64(fitsdict[ch][idx]))) {:s} {:f}'.format(operand, mtch))
+            w = eval('np.abs(fitstbl[ch].data.astype(np.float64) - np.float64(fitstbl[ch][idx])) {:s} {:f}'.format(operand, mtch))
     elif tmtch[0:2] == '%,':  # Splitting a header keyword
         splcom = tmtch.split(',')
         debugger.set_trace()
@@ -582,7 +686,7 @@ def new_match_logic(ch, tmtch, fitstbl, idx):
         #                        debugger.set_trace()
         tmpspl = str(re.escape(spltxt)).replace("\\|", "|")
         tmpspl = re.split(tmpspl, fitstbl[ch][idx])
-        debugger.set_trace()
+        debugger.set_trace()  # HAS NOT BEEN DEVELOPED SINCE THE SetupClass refactor;  no test case..
         if len(tmpspl) < argtxt + 1:
             return None
         else:
@@ -724,38 +828,21 @@ def match_to_science(fitstbl, settings_spect, settings_argflag):
 
     Parameters
     ----------
-    fitsdict : dict
+    fitstbl : Table
       Contains relevant information from fits header files
-    filesort : dict
-      Details of the sorted files
+    settings_spect : dict
+    settings_argflag : dict
 
     Returns
     -------
-    cal_indx : list
-      A list of dict's, one per science exposure, that contains the
-      indices of the matched calibration files (and the science frame too)
-      This is intended to replace settings.spect[ftag]['index']
+    fitstbl : Table
+      Updated with failures and sci_ID columns
     """
-
     msgs.info("Matching calibrations to Science frames")
 
     # New columns
     fitstbl['failures'] = False
     fitstbl['sci_ID'] = 0
-
-    # Init
-    '''
-    ftag = ftype_list.copy()
-    assert ftag[0] == 'arc'
-    for item in ['science', 'unknown']: # Remove undesired
-        ftag.remove(item)
-    setup_ftag = {}
-    for item in ftag:
-        setup_ftag[item] = 0
-    setup_ftag['arc'] = 1
-    # More setup
-    iARR = [fitstbl[itag] for itag in ftag]
-    '''
 
     # Loop on science frames
     #while i < nSCI:
@@ -956,11 +1043,23 @@ def match_science(fitsdict, filesort):
     return cal_index
 
 def new_match_warnings(ftag, nmatch, numfr, target, settings_argflag):
-    """ Give warnings related to matching calibration files to science
+    """
+    Provide match warnings
+
+    Parameters
+    ----------
+    ftag : str
+      frametype, e.g. bias
+    nmatch : int
+    numfr : int
+    target : str
+      Name of the target
+    settings_argflag : dict
+
     Returns
     -------
-    code : str or None
-      None = no further action required
+    code : str
+      'None' = no further action required
     """
     code = 'None'
     msgs.warn("  Only {0:d}/{1:d} {2:s} frames for {3:s}".format(nmatch, numfr, ftag, target))
@@ -1244,3 +1343,83 @@ def make_dirs():
     # Return the name of the science targets
     return
 
+
+def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='./', notype=False):
+    """
+    Generate a dummy fitstbl for testing
+
+    Parameters
+    ----------
+    nfile : int, optional
+      Number of files to mimic
+    spectrograph : str, optional
+      Name of spectrograph to mimic
+    notype : bool (optional)
+      If True, do not add image type info to the fitstbl
+
+    Returns
+    -------
+    fitstbl : Table
+
+    """
+    fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
+    fitsdict['utc'] = ['2015-01-23']*nfile
+    fitsdict['directory'] = [directory]*nfile
+    fitsdict['filename'] = ['b{:03d}.fits'.format(i) for i in range(nfile)]
+    fitsdict['date'] = ['2015-01-23T00:{:02d}:11.04'.format(i) for i in range(nfile)]  # Will fail at 60
+    fitsdict['time'] = [(1432085758+i*60)/3600. for i in range(nfile)]
+    fitsdict['target'] = ['Dummy']*nfile
+    fitsdict['ra'] = ['00:00:00']*nfile
+    fitsdict['dec'] = ['+00:00:00']*nfile
+    fitsdict['exptime'] = [300.] * nfile
+    fitsdict['naxis0'] = [2048] * nfile
+    fitsdict['naxis1'] = [2048] * nfile
+    fitsdict['dispname'] = ['600/4310'] * nfile
+    fitsdict['dichroic'] = ['560'] * nfile
+    fitsdict['dispangle'] = ['none'] * nfile
+    fitsdict["binning"] = ['1x1']*nfile
+    fitsdict["airmass"] = [1.0]*nfile
+    #
+    if spectrograph == 'shane_kast_blue':
+        fitsdict['numamplifiers'] = [1] * nfile
+        fitsdict['naxis0'] = [2112] * nfile
+        fitsdict['naxis1'] = [2048] * nfile
+        fitsdict['slitwid'] = [1.] * nfile
+        fitsdict['slitlen'] = ['none'] * nfile
+        # Lamps
+        for i in range(1,17):
+            fitsdict['lampstat{:02d}'.format(i)] = ['off'] * nfile
+        fitsdict['exptime'][0] = 0        # Bias
+        fitsdict['lampstat06'][1] = 'on'  # Arc
+        fitsdict['exptime'][1] = 30       # Arc
+        fitsdict['lampstat01'][2] = 'on'  # Trace, pixel, slit flat
+        fitsdict['lampstat01'][3] = 'on'  # Trace, pixel, slit flat
+        fitsdict['exptime'][2] = 30     # flat
+        fitsdict['exptime'][3] = 30     # flat
+        fitsdict['ra'][4] = '05:06:36.6'  # Standard
+        fitsdict['dec'][4] = '52:52:01.0'
+        fitsdict['airmass'][4] = 1.2
+        fitsdict['ra'][5] = '07:06:23.45' # Random object
+        fitsdict['dec'][5] = '+30:20:50.5'
+        fitsdict['decker'] = ['0.5 arcsec'] * nfile
+    elif spectrograph == 'none':
+        pass
+    # arrays
+    for k in fitsdict.keys():
+        fitsdict[k] = np.array(fitsdict[k])
+    # Table me
+    fitstbl = Table(fitsdict)
+    # Image typing
+    if not notype:
+        for ftype in ftype_list:
+            fitstbl[ftype] = np.zeros(len(fitstbl), dtype=bool)
+        if spectrograph == 'shane_kast_blue':
+            fitstbl['sci_ID'] = 1  # This links all the files to the science object
+            fitstbl['bias'][0] = True
+            fitstbl['arc'][1] = True
+            fitstbl['trace'][2:4] = True
+            fitstbl['pixelflat'][2:4] = True
+            fitstbl['standard'][4] = True
+            fitstbl['science'][5:] = True
+    # Return
+    return fitstbl

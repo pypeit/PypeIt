@@ -33,16 +33,16 @@ class ScienceExposure:
     A Science Exposure class that carries all information for a given science exposure
     """
 
-    def __init__(self, sci_ID, fitstbl, settings_argflag, settings_spect, do_qa=True, original=True):
+    def __init__(self, sci_ID, fitstbl, settings_argflag, settings_spect, do_qa=True, original=False):
 
         # Set indices used for frame combination
         self.sci_ID = sci_ID  # Binary 1,2,4,8,..
         if original:
-            self._idx_sci = settings.spect['science']['index'][sci_ID]
+            self._idx_sci = settings_spect['science']['index'][sci_ID]
         else:
-            self._idx_sci = np.where(fitstbl['sci_ID'] == sci_ID)[0]
+            self._idx_sci = np.where((fitstbl['sci_ID'] == sci_ID) & fitstbl['science'])[0]
         #
-        if settings.argflag['reduce']['masters']['force']:
+        if settings_argflag['reduce']['masters']['force']:
             self._idx_bias = []
             self._idx_flat = []
             self._idx_cent = []
@@ -52,7 +52,7 @@ class ScienceExposure:
         else:
             if original:
                 snum = sci_ID
-                self._idx_arcs = settings.spect['arc']['index'][snum]
+                self._idx_arcs = settings_spect['arc']['index'][snum]
     #            debugger.set_trace()
                 if settings_argflag['reduce']['calibrate']['flux'] == True: self._idx_std = settings_spect['standard']['index'][snum]
                 if settings_argflag['bias']['useframe'] == 'bias': self._idx_bias = settings_spect['bias']['index'][snum]
@@ -98,13 +98,13 @@ class ScienceExposure:
         self.vel_correction = 0.
 
         # Initialize the QA for this science exposure
-        qafn = "{0:s}/QA_{1:s}.pdf".format(settings.argflag['run']['directory']['qa'], self._basename)
-        self.qaroot = "{0:s}/PNGs/QA_{1:s}".format(settings.argflag['run']['directory']['qa'], self._basename)
+        qafn = "{0:s}/QA_{1:s}.pdf".format(settings_argflag['run']['directory']['qa'], self._basename)
+        self.qaroot = "{0:s}/PNGs/QA_{1:s}".format(settings_argflag['run']['directory']['qa'], self._basename)
 
         # Initialize Variables
-        ndet = settings.spect['mosaic']['ndet']
-        self._nonlinear = [settings.spect[settings.get_dnum(det+1)]['saturation'] *
-                           settings.spect[settings.get_dnum(det+1)]['nonlinear']
+        ndet = settings_spect['mosaic']['ndet']
+        self._nonlinear = [settings_spect[settings.get_dnum(det+1)]['saturation'] *
+                           settings_spect[settings.get_dnum(det+1)]['nonlinear']
                            for det in range(ndet)]
         self._nspec    = [None for all in range(ndet)]   # Number of spectral pixels
         self._nspat    = [None for all in range(ndet)]   # Number of spatial pixels
@@ -967,7 +967,7 @@ class ScienceExposure:
                 self._idx_sci[0]))
 
 
-def dummy_self(inum=0, fitsdict=None, nfile=10):
+def dummy_self(inum=1, fitstbl=None, nfile=10):
     """ Generate a dummy self class for testing
     Parameters:
     -----------
@@ -978,10 +978,10 @@ def dummy_self(inum=0, fitsdict=None, nfile=10):
     slf
     """
     # Dummy fitsdict
-    if fitsdict is None:
-        fitsdict = arutils.dummy_fitsdict(nfile=nfile)
+    if fitstbl is None:
+        fitstbl = arsort.dummy_fitstbl(nfile=nfile)
     # Dummy Class
-    return ScienceExposure(inum, fitsdict, do_qa=False)
+    return ScienceExposure(inum, fitstbl, settings.argflag, settings.spect, do_qa=False)
 
 
 

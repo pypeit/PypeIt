@@ -73,6 +73,7 @@ keyword lampname12 HALOGEN             # Name of a lamp
 keyword lampstat12 01.HALOGEN          # Status of a lamp
 keyword dispname 01.GRANAME            # Grating name
 keyword dispangle 01.GRANGLE           # Grating angle
+keyword wavecen 01.WAVELEN             # Central wavelength
 
 ### Fits properties
 fits numhead 5                      # How many headers need to be read in for a given file

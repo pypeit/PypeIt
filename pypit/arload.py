@@ -216,6 +216,13 @@ def load_headers(datlines, settings_spect, settings_argflag):
     # Return after creating a Table
     fitstbl = Table(fitsdict)
     fitstbl.sort('time')
+
+    # Instrument specific
+    if settings_argflag['run']['spectrograph'] == 'keck_deimos':
+        # Handle grating position
+        for gval in [3,4]:
+            gmt = fitstbl['gratepos'] == gval
+            fitstbl['dispangle'][gmt] = fitstbl['g3tltwav'][gmt]
     return fitstbl, keylst
 
 
