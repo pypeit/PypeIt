@@ -97,6 +97,7 @@ def core_master_name(ftype, setup, mdir):
 
 
 def load_master_frame(slf, mftype, det=None):
+    # TODO -- This method will be deprecated by load methods in the MasterFrame classes
     # Were MasterFrames even desired?
     if (settings.argflag['reduce']['masters']['reuse']) or (settings.argflag['reduce']['masters']['force']):
         ret, head, _ = core_load_master_frame(mftype, slf.setup,

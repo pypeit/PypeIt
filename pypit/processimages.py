@@ -57,7 +57,7 @@ class ProcessImages(object):
     ----------
     file_list : list
       List of filenames
-    spectrograph : str
+    spectrograph : str (optional)
        Used to specify properties of the detector (for processing)
        Attempt to set with settings['run']['spectrograph'] if not input
     det : int, optional

@@ -13,6 +13,7 @@ from abc import ABCMeta
 
 default_settings = dict(masters={
     'directory': 'MF/',  # local to the run directory
+    'reuse': False,
     'force': False,
     'loaded': [],
     'setup': None,
@@ -52,7 +53,8 @@ class MasterFrame(object):
                 msgs.warn("MasterFrame class not proper loaded (e.g. no settings).  Avoid using Master methods")
                 self.settings['masters'] = default_settings['masters'].copy()
             else:
-                self.settings['masters']['loaded'] = settings['reduce']['masters']['loaded']
+                for key in ['loaded', 'reuse', 'force']:
+                    self.settings['masters'][key] = settings['reduce']['masters'][key]
 
     @property
     def ms_name(self):
@@ -72,7 +74,10 @@ class MasterFrame(object):
         head0 : Header or None
         file_list : list or None
         """
-        return armasters.core_load_master_frame(self.frametype, self.setup, self.mdir, force=force)
+        if (self.settings['masters']['reuse']) or (self.settings['masters']['force']):
+            return armasters.core_load_master_frame(self.frametype, self.setup, self.mdir, force=force)
+        else:
+            return None, None, None
 
     def save_master(self, image, outfile=None, raw_files=None, steps=None):
         """

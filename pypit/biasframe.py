@@ -39,6 +39,9 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     ----------
     file_list : list (optional)
       List of filenames
+    spectrograph : str (optional)
+       Used to specify properties of the detector (for processing)
+       Attempt to set with settings['run']['spectrograph'] if not input
     settings : dict (optional)
       Settings for trace slits
     setup : str (optional)
@@ -58,7 +61,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
       Set to 'bias'
     """
     # Keep order same as processimages (or else!)
-    def __init__(self, file_list=[], settings=None, det=1, setup=None, ind=[], fitsdict=None):
+    def __init__(self, file_list=[], spectrograph=None, settings=None, det=1, setup=None, ind=[], fitsdict=None):
 
         # Parameters unique to this Object
         self.frametype = frametype
@@ -66,7 +69,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         self.fitsdict = fitsdict
 
         # Start us up
-        processimages.ProcessImages.__init__(self, file_list, settings=settings, det=det)
+        processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph, settings=settings, det=det)
 
         # Settings
         # The copy allows up to update settings with user settings without changing the original
@@ -94,7 +97,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     def build_master(self):
         # Generate a bias or dark image (or load a pre-made Master by PYPIT)?
         if self.settings[self.frametype]['useframe'] in ['bias', 'dark']:
-            # Load the MasterFrame if it exists
+            # Load the MasterFrame if it exists and user requested one to load it
             msframe, header, raw_files = self.load_master_frame()
             if msframe is None:
                 msgs.info("Preparing a master {0:s} frame".format(self.settings[self.frametype]['useframe']))
