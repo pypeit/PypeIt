@@ -40,9 +40,28 @@ ftype_list = [     # NOTE:  arc must be listed first!
     'unknown',     # Unknown..
 ]
 
+
 def ftype_indices(fitstbl, ftype, sci_ID):
+    """
+
+    Parameters
+    ----------
+    fitstbl : Table
+    ftype : str
+      e.g. arc, trace, science
+    sci_ID : int
+      ID value of the science exposure
+      Binary, i.e.  1, 2, 4, 8, 16..
+
+    Returns
+    -------
+    idx : ndarray (int)
+      Indices of the rows of the Table matching the inputs
+
+    """
     idx = np.where(fitstbl[ftype] & (fitstbl['sci_ID'] & sci_ID > 0))[0]
     return idx
+
 
 def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftdict=None):
     """ Generate a table of filetypes from the input fitsdict object
@@ -293,7 +312,7 @@ def new_chk_all_conditions(fkey, fitstbl):
     ----------
     fkey : str
       File type
-    fitsdict : dict
+    fitstbl : Table
 
     Returns
     -------
@@ -419,21 +438,17 @@ def chk_condition(fitsdict, cond):
     return ntmp
 
 
-def write_lst(fitstbl, space=3):
+def write_lst(fitstbl):
     """
-    Write out an xml and ascii file that contains the details of the file sorting.
-    By default, the filename is printed first, followed by the filetype.
+    Write out an ascii file that contains the details of the file sorting.
+    By default, the filename is printed first, followed by the frametype.
     After these, all parameters listed in the 'keyword' item in the
     settings file will be printed
 
     Parameters
     ----------
-    fitsdict : dict
+    fitstbl : Table
       Contains relevant information from fits header files
-    filesort : dict
-      Details of the sorted files
-    space : int
-      Keyword to set how many blank spaces to place between keywords
     """
     msgs.info("Preparing to write out the data sorting details")
     nfiles = fitstbl['filename'].size
@@ -483,6 +498,19 @@ def write_lst(fitstbl, space=3):
 
 
 def build_frametype_list(fitstbl):
+    """
+
+    Parameters
+    ----------
+    fitstbl : Table
+
+    Returns
+    -------
+    ftypes : list
+      List of frametype's for each frame, e.g.
+        arc
+        trace,pixelflat
+    """
     # Now frame type
     ftypes = []
     for i in range(len(fitstbl)):
@@ -616,16 +644,16 @@ def new_match_logic(ch, tmtch, fitstbl, idx):
       any
       ''
       >, <, >=, <=, =, !=
-    fitsdict
+      If tmtch begins with a "|", the match compares to the science frame
+      else the value is added to the science frame
+    fitstbl : Table
     idx : int
       Science index
 
-
     Returns
     -------
-    w : ndarray, int
-      indices that match the criterion
-      None is returned if there is nothing to match
+    w : ndarray, bool
+      True/False for the rows in fitstbl satisfying the condition
     """
     if tmtch == "any":   # Anything goes
         w = np.ones_like(fitstbl, dtype=bool)
@@ -658,7 +686,7 @@ def new_match_logic(ch, tmtch, fitstbl, idx):
         #                        debugger.set_trace()
         tmpspl = str(re.escape(spltxt)).replace("\\|", "|")
         tmpspl = re.split(tmpspl, fitstbl[ch][idx])
-        debugger.set_trace()
+        debugger.set_trace()  # HAS NOT BEEN DEVELOPED SINCE THE SetupClass refactor;  no test case..
         if len(tmpspl) < argtxt + 1:
             return None
         else:
@@ -800,10 +828,10 @@ def match_to_science(fitstbl, settings_spect, settings_argflag):
 
     Parameters
     ----------
-    fitsdict : dict
+    fitstbl : Table
       Contains relevant information from fits header files
-    filesort : dict
-      Details of the sorted files
+    settings_spect : dict
+    settings_argflag : dict
 
     Returns
     -------
@@ -1015,11 +1043,23 @@ def match_science(fitsdict, filesort):
     return cal_index
 
 def new_match_warnings(ftag, nmatch, numfr, target, settings_argflag):
-    """ Give warnings related to matching calibration files to science
+    """
+    Provide match warnings
+
+    Parameters
+    ----------
+    ftag : str
+      frametype, e.g. bias
+    nmatch : int
+    numfr : int
+    target : str
+      Name of the target
+    settings_argflag : dict
+
     Returns
     -------
-    code : str or None
-      None = no further action required
+    code : str
+      'None' = no further action required
     """
     code = 'None'
     msgs.warn("  Only {0:d}/{1:d} {2:s} frames for {3:s}".format(nmatch, numfr, ftag, target))
@@ -1306,12 +1346,16 @@ def make_dirs():
 
 def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='./', notype=False):
     """
+    Generate a dummy fitstbl for testing
+
     Parameters
     ----------
     nfile : int, optional
       Number of files to mimic
     spectrograph : str, optional
       Name of spectrograph to mimic
+    notype : bool (optional)
+      If True, do not add image type info to the fitstbl
 
     Returns
     -------
