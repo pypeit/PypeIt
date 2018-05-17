@@ -72,11 +72,11 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         self.ind = ind
         self.fitstbl = fitstbl
 
-        # Attributes
-        self.frametype = frametype
-
         # Start us up
         processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph, settings=settings, det=det)
+
+        # Attributes  (set after ProcessImages call)
+        self.frametype = frametype
 
         # Settings
         # The copy allows up to update settings with user settings without changing the original
@@ -111,7 +111,6 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         stack : ndarray
 
         """
-
         # Wrapper
         self.stack = self.process(bias_subtract=None, trim=False, overwrite=overwrite)
         return self.stack.copy()

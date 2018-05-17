@@ -69,11 +69,11 @@ class TraceImage(processimages.ProcessImages):
 
         # Parameters unique to this Object
 
-        # Attributes
-        self.frametype = frametype
-
         # Start us up
         processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph, settings=settings, det=det)
+
+        # Attributes (set after init)
+        self.frametype = frametype
 
         # Settings
         # The copy allows up to update settings with user settings without changing the original

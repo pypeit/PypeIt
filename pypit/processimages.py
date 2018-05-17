@@ -97,6 +97,7 @@ class ProcessImages(object):
             # This only works to replace entire dicts
             #    Hopefully parsets will work more cleanly..
             self.settings.update(user_settings)
+        self.frametype='Unknown'
 
         # Main (possible) outputs
         self.stack = None
@@ -221,9 +222,9 @@ class ProcessImages(object):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def combine(self, frametype='Unknown'):
+    def combine(self):
         # Now we can combine
-        self.stack = arcomb.core_comb_frames(self.proc_images, frametype=frametype,
+        self.stack = arcomb.core_comb_frames(self.proc_images, frametype=self.frametype,
                                              method=self.settings['combine']['method'],
                                              reject=self.settings['combine']['reject'],
                                              satpix=self.settings['combine']['satpix'],
