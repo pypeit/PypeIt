@@ -214,6 +214,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                 # Save to disk
                 Tslits.save_master()
 
+            # Save in calib
             calib_dict[setup]['trace'] = Tslits
             # Save in slf
             # TODO -- Deprecate this means of holding the info (e.g. just pass around Tslits)
@@ -306,11 +307,10 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
         # Free up some memory by replacing the reduced ScienceExposure class
         sciexp[sc] = None
 
-    debugger.set_trace()
     #########################
     # Flux at the very end..
     #########################
-    if (settings.argflag['reduce']['calibrate']['flux'] == True):
+    if (settings.argflag['reduce']['calibrate']['flux'] == True) and False:
         # Standard star (is this a calibration, e.g. goes above?)
         msgs.info("Processing standard star")
         msgs.info("Assuming one star per detector mosaic")

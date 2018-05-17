@@ -153,7 +153,7 @@ def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
             # Loop on objects
             #for qq in range(trc_img[sl]['nobj']):
             for qq in range(trc_img[sl]['traces'].shape[1]):
-                slitid, slitcen, xslit = artraceslits.get_slitid(slf._mstrace[det-1].shape,
+                slitid, slitcen, xslit = artraceslits.get_slitid(slf._sciframe[det-1].shape,
                                                                  slf._lordloc[det-1],
                                                                  slf._rordloc[det-1],
                                                                  sl, ypos=ypos)

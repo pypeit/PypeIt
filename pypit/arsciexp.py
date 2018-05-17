@@ -251,6 +251,7 @@ class ScienceExposure:
         del bpix
         return True
 
+    '''
     def GetPixelLocations(self, det):
         """
         Generate or load the physical location of each pixel
@@ -268,6 +269,7 @@ class ScienceExposure:
             mname = settings.argflag['run']['directory']['master']+'/'+settings.argflag['reduce']['pixel']['locations']
             self.SetFrame(self._pixlocn, armasters.load_master(mname, frametype=None), det)
         return
+    '''
 
     def MasterArc(self, fitsdict, det):
         """
@@ -465,9 +467,8 @@ class ScienceExposure:
             ###############
             # Generate/load a master pixel flat frame
             if settings.argflag['reduce']['flatfield']['useframe'] in ['pixelflat', 'trace']:
-                try:
-                    mspixelflatnrm = armasters.get_master_frame(self, "normpixelflat")
-                except IOError:
+                mspixelflatnrm = armasters.load_master_frame(self, "normpixelflat")
+                if mspixelflatnrm is None:
                     msgs.info("Preparing a master pixel flat frame with {0:s}".format(settings.argflag['reduce']['flatfield']['useframe']))
                     # Get all of the pixel flat frames for this science frame
                     ind = self._idx_flat
@@ -614,8 +615,9 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-        debugger.set_trace()
         # DEPRECATED
+        msgs.error("DEPRECATED!")
+        '''
         dnum = settings.get_dnum(det)
         # If the master trace is already made, use it
         if self._mstrace[det-1] is not None:
@@ -652,6 +654,7 @@ class ScienceExposure:
         self.SetMasterFrame(mstrace, "trace", det)
         del mstrace
         return True
+        '''
 
     def MasterWave(self, fitsdict, sc, det):
         """
@@ -672,9 +675,8 @@ class ScienceExposure:
         if self._mswave[det-1] is not None:
             msgs.info("An identical master arc frame already exists")
             return False
-        try:
-            mswave = armasters.get_master_frame(self, "wave")
-        except IOError:
+        mswave = armasters.load_master_frame(self, "wave")
+        if mswave is None:
             msgs.info("Preparing a master wave frame")
             if settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
                 mswave = self._tilts[det - 1] * (self._tilts[det - 1].shape[0]-1.0)
