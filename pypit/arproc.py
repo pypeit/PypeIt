@@ -225,13 +225,21 @@ def bg_subtraction(slf, det, sciframe, varframe, crpix, **kwargs):
     bgframe : ndarray
 
     """
+    # Setup
     bgframe = np.zeros_like(sciframe)
     gdslits = np.where(~slf._maskslits[det-1])[0]
 
     for slit in gdslits:
         msgs.info("Working on slit: {:d}".format(slit))
-        slit_bgframe = bg_subtraction_slit(slf, det, slit, sciframe, varframe, crpix, **kwargs)
-        bgframe += slit_bgframe
+        # TODO -- Replace this try/except when a more stable b-spline is used..
+        try:
+            slit_bgframe = bg_subtraction_slit(slf, det, slit, sciframe, varframe, crpix, **kwargs)
+        except ValueError:  # Should have been bspline..
+            msgs.warn("B-spline sky subtraction failed.  Slit {:d} will no longer be processed..".format(slit))
+            #msgs.warn("Continue if you wish..")
+            slf._maskslits[det-1][slit] = True
+        else:
+            bgframe += slit_bgframe
     # Return
     return bgframe
 
@@ -441,6 +449,7 @@ def flatfield(slf, sciframe, flatframe, det, snframe=None,
         slf._bpix[det-1][ww] = 1.0
     # Variance?
     if varframe is not None:
+        # This is risky -- Be sure your flat is well behaved!!
         retvar = np.zeros_like(sciframe)
         retvar[w] = varframe[w]/flatframe[w]**2
         return retframe, retvar
@@ -837,6 +846,8 @@ def flexure_qa(slf, det, flex_list, slit_cen=False):
             nobj = len(slf._specobjs[det-1][sl])
             ncol = min(3, nobj)
         #
+        if nobj==0:
+            continue
         nrow = nobj // ncol + ((nobj % ncol) > 0)
 
         # Get the flexure dictionary
@@ -1042,6 +1053,7 @@ def reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Variance
     msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
     rawvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict)
+
     ###############
     # Subtract off the scattered light from the image
     msgs.work("Scattered light subtraction is not yet implemented...")
@@ -1049,8 +1061,9 @@ def reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=False):
     # Flat field the science frame (and variance)
     if settings.argflag['reduce']['flatfield']['perform']:
         msgs.info("Flat fielding the science frame")
-        sciframe, rawvarframe = flatfield(slf, sciframe, slf._mspixelflatnrm[det-1], det,
-                                          varframe=rawvarframe, slitprofile=slf._slitprof[det-1])
+        # JXP -- I think it is a bad idea to modify the rawvarframe
+        #sciframe, rawvarframe = flatfield(slf, sciframe, slf._mspixelflatnrm[det-1], det, varframe=rawvarframe, slitprofile=slf._slitprof[det-1])
+        sciframe = flatfield(slf, sciframe, slf._mspixelflatnrm[det-1], det, slitprofile=slf._slitprof[det-1])
     else:
         msgs.info("Not performing a flat field calibration")
     if not standard:
@@ -1436,10 +1449,9 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
     # Flexure correction?
     if settings.argflag['reduce']['flexure']['perform'] and (not standard):
         if settings.argflag['reduce']['flexure']['method'] is not None:
-            flex_dict = arwave.flexure_obj(slf, det)
+            flex_list = arwave.flexure_obj(slf, det)
             #if not msgs._debug['no_qa']:
-#            arqa.flexure(slf, det, flex_dict)
-            flexure_qa(slf, det, flex_dict)
+            flexure_qa(slf, det, flex_list)
 
     # Correct Earth's motion
     if (settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']) and \
@@ -2575,8 +2587,7 @@ def variance_frame(slf, det, sciframe, idx, fitsdict=None, skyframe=None, objfra
     else:
         scicopy = sciframe.copy()
         # Dark Current noise
-        dnoise = (settings.spect[dnum]['darkcurr'] *
-                  float(fitsdict["exptime"][idx])/3600.0)
+        dnoise = (settings.spect[dnum]['darkcurr'] * float(fitsdict["exptime"][idx])/3600.0)
         # Return
         return np.abs(scicopy) + rnoise + dnoise
 

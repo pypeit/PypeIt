@@ -19,7 +19,7 @@ from pypit import arsciexp
 from pypit import arsetup
 from pypit import ardeimos
 from pypit import artrace
-from pypit import artraceslits
+from pypit.core import artraceslits
 from pypit import traceslits
 
 from pypit import ardebug as debugger
@@ -160,16 +160,16 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                 #                                                      armlsd=True)
                 Tslits = traceslits.TraceSlits(slf._mstrace[det-1], slf._pixlocn[det-1],
                                                det=det, settings=settings.argflag, binbpx=slf._bpix[det-1])
-                tslits_dict = Tslits.run(armlsd=True)
+                _ = Tslits.run(armlsd=True)
 
                 # Save in slf
-                slf.SetFrame(slf._lordloc, tslits_dict['lcen'], det)
-                slf.SetFrame(slf._rordloc, tslits_dict['rcen'], det)
-                slf.SetFrame(slf._pixcen, tslits_dict['pixcen'], det)
-                slf.SetFrame(slf._pixwid, tslits_dict['pixwid'], det)
-                slf.SetFrame(slf._lordpix, tslits_dict['lordpix'], det)
-                slf.SetFrame(slf._rordpix, tslits_dict['rordpix'], det)
-                slf.SetFrame(slf._slitpix, tslits_dict['slitpix'], det)
+                slf.SetFrame(slf._lordloc, Tslits.lcen, det)
+                slf.SetFrame(slf._rordloc, Tslits.rcen, det)
+                slf.SetFrame(slf._pixcen, Tslits.pixcen, det)
+                slf.SetFrame(slf._pixwid, Tslits.pixwid, det)
+                slf.SetFrame(slf._lordpix, Tslits.lordpix, det)
+                slf.SetFrame(slf._rordpix, Tslits.rordpix, det)
+                slf.SetFrame(slf._slitpix, Tslits.slitpix, det)
 
                 # Save to disk
                 original = False
@@ -186,8 +186,9 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
 #                arqa.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
 #                                       slf._rordpix[det-1], extord,
 #                                       desc="Trace of the slit edges D{:02d}".format(det), use_slitid=det)
+                # TODO -- Put this QA call into the TraceSlits class
                 artraceslits.slit_trace_qa(slf, slf._mstrace[det-1], slf._lordpix[det-1],
-                                      slf._rordpix[det-1], tslits_dict['extrapord'],
+                                      slf._rordpix[det-1], Tslits.extrapord,
                                       desc="Trace of the slit edges D{:02d}".format(det),
                                       use_slitid=det)
                 armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="trace")

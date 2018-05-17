@@ -268,6 +268,8 @@ def flexure_obj(slf, det):
     ----------
     flex_list: list
       list of dicts containing flexure results
+        Aligned with specobjs
+        Filled with a basically empty dict if the slit is skipped or there is no object
 
     """
     msgs.work("Consider doing 2 passes in flexure as in LowRedux")
@@ -276,13 +278,15 @@ def flexure_obj(slf, det):
 
     # Loop on objects
     flex_list = []
-    flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
-                     corr_cen=[], spec_file=skyspec_fil, smooth=[],
-                     arx_spec=[], sky_spec=[])
 
     gdslits = np.where(~slf._maskslits[det-1])[0]
     for sl in range(len(slf._specobjs[det-1])):
+        # Reset
+        flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
+                         corr_cen=[], spec_file=skyspec_fil, smooth=[],
+                         arx_spec=[], sky_spec=[])
         if sl not in gdslits:
+            flex_list.append(flex_dict.copy())
             continue
         msgs.info("Working on flexure in slit (if an object was detected): {:d}".format(sl))
         for specobj in slf._specobjs[det-1][sl]:  # for convenience
@@ -326,7 +330,7 @@ def flexure_obj(slf, det):
             for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec']:
                 flex_dict[key].append(fdict[key])
             flex_dict['sky_spec'].append(new_sky)
-        flex_list.append(copy.deepcopy(flex_dict))
+        flex_list.append(flex_dict.copy())
     return flex_list
 
 

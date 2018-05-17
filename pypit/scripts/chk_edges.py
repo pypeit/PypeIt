@@ -22,6 +22,7 @@ def parser(options=None):
 
     parser.add_argument('root', type = str, default = None, help='PYPIT Master Trace file root [e.g. MasterTrace_A_01_aa]')
     parser.add_argument("--chname", default='MTrace', type=str, help="Channel name for image in Ginga")
+    parser.add_argument("--dumb_ids", default=False, action="store_true", help="Slit ID just by order?")
 
     if options is None:
         args = parser.parse_args()
@@ -43,9 +44,6 @@ def main(pargs):
 
     # Load up
     Tslits = traceslits.TraceSlits.from_master_files(pargs.root)
-    lordloc = Tslits.lcen
-    rordloc = Tslits.rcen
-    mstrace = Tslits.mstrace
 
     try:
         ginga.connect_to_ginga(raise_err=True)
@@ -54,11 +52,15 @@ def main(pargs):
         time.sleep(3)
 
     # Show Image
-    viewer, ch = ginga.show_image(mstrace, chname=pargs.chname)
+    viewer, ch = ginga.show_image(Tslits.mstrace, chname=pargs.chname)
 
     # Get slit ids
-    stup = (mstrace.shape, lordloc, rordloc)
-    slit_ids = [get_slitid(stup, None, ii)[0] for ii in range(lordloc.shape[1])]
-    ginga.show_slits(viewer, ch, lordloc, rordloc, slit_ids, pstep=50)
+    stup = (Tslits.mstrace.shape, Tslits.lcen, Tslits.rcen)
+    if pargs.dumb_ids:
+        slit_ids = range(Tslits.lcen.shape[1])
+    else:
+        slit_ids = [get_slitid(stup, None, ii)[0] for ii in range(Tslits.lcen.shape[1])]
+    ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids, pstep=50)
+    print("Check your Ginga viewer")
 
 
