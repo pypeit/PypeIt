@@ -24,7 +24,7 @@ from astropy import units
 from pypit import msgs
 from pypit import arparse as settings
 from pypit import arutils
-from pypit.arflux import find_standard_file
+from pypit.core.arflux import find_standard_file
 from pypit import armeta
 from pypit import ardebug as debugger
 

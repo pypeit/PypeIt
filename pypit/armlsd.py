@@ -9,7 +9,7 @@ from astropy import units
 
 from pypit import msgs
 from pypit import arparse as settings
-from pypit import arflux
+from pypit.core import arflux
 from pypit import arload
 from pypit import armasters
 from pypit import armbase

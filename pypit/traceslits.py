@@ -179,7 +179,6 @@ class TraceSlits(masterframe.MasterFrame):
         self.rwghtarr = None
 
         # MasterFrame
-        # MasterFrames -- Is this required?
         masterframe.MasterFrame.__init__(self, self.frametype, setup, self.settings)
 
 

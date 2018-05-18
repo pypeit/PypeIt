@@ -18,14 +18,11 @@ from pypit import ararc
 from pypit import artrace
 from pypit import arload
 from pypit import arcomb
-from pypit import arflux
 from pypit import arlris
 from pypit import armasters
-from pypit import arpixels
 from pypit import arproc
 from pypit import arsort
 from pypit import arutils
-from pypit import arsave
 from pypit import ardebug as debugger
 
 class ScienceExposure:

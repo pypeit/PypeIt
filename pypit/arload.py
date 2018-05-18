@@ -408,11 +408,13 @@ def load_specobj(fname):
     Returns
     -------
     specobjs : list of SpecObjExp
+    head0
     """
     speckeys = ['wave', 'sky', 'mask', 'flam', 'flam_var', 'var', 'counts']
     #
     specobjs = []
     hdulist = fits.open(fname)
+    head0 = hdulist[0].header
     for hdu in hdulist:
         if hdu.name == 'PRIMARY':
             continue
@@ -444,7 +446,7 @@ def load_specobj(fname):
         # Append
         specobjs.append(specobj)
     # Return
-    return specobjs
+    return specobjs, head0
 
 
 def load_tilts(fname):
