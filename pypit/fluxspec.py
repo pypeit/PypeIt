@@ -51,7 +51,9 @@ class FluxSpec(masterframe.MasterFrame):
 
         # Key Internals
         self.std_specobjs = []
+        self.std = None         # Standard star spectrum (SpecObj object)
         self.std_header = None
+        self.std_idx = None     # Nested indices for the std_specobjs list that corresponds to the star!
 
         # Load
         if self.std_spec1d_file is not None:
@@ -60,14 +62,36 @@ class FluxSpec(masterframe.MasterFrame):
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, setup, self.settings)
 
+    def find_standard(self):
+        # Find brightest object in the exposures
+        # Search over all slits (over all detectors), and all objects
+        #
+        self.std_idx = arflux.find_standard(self.std_specobjs)
+        #
+        self.std = self.std_specobjs[self.std_idx[0]][self.std_idx[1]]
+        return self.std
+
     def generate_sens_func(self):
-        if len(self.std_specobjs) == 0:
-            msgs.warn("You need to load in the Standard spectra first")
+        if self.std is None:
+            msgs.warn("You need to identify the Star first (with find_standard)") #load in the Standard spectra first")
             return None
-        # Parse the header
-        self.sens_dict = arflux.generate_sensfunc(self.std_specobjs, self.std_header['RA'],
+        # Run
+        self.sens_dict = arflux.generate_sensfunc(self.std, self.std_header['RA'],
                                             self.std_header['DEC'], self.std_header['AIRMASS'],
                                             self.std_header['EXPTIME'])
+
+    def run(self):
+        #
+        if self.std_specobjs is None:
+            msgs.warn("You need to load in the Standard spectra first!")
+            return None
+
+        # Find the star automatically?
+        self.std = self.find_standard(self.std_specobjs)
+
+        # Find the star automatically?
+        self.std = self.find_standard(self.std_specobjs)
+
 
     def __repr__(self):
         # Generate sets string
