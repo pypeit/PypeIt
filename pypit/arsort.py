@@ -139,15 +139,18 @@ def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftd
             filetypes['standard'][wscistd] = False
 
     # Make any forced changes
-    msgs.info("Making forced file identification changes")
     skeys = settings_spect['set'].keys()
-    for sk in skeys:
-        for jj in settings_spect['set'][sk]:
-            idx = np.where(fitstbl['filename']==jj)[0]
-            filetypes[sk][idx] = True
-            #filarr[:,w]=0
-            #setarr[np.where(ftype==sk)[0],w]=1
-    #filarr = filarr + setarr
+    if len(skeys) > 0:
+        msgs.info("Making forced file identification changes")
+        msgs.warn("Note that the image will have *only* the specified type")
+        for sk in skeys:
+            for jj in settings_spect['set'][sk]:
+                idx = np.where(fitstbl['filename']==jj)[0]
+                # Zero out the others
+                for ftype in ftype_list:
+                    filetypes[ftype][idx] = False
+                # And set
+                filetypes[sk][idx] = True
 
     # Check that all files have an identification
     chklist = []
