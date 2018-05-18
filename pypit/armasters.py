@@ -18,7 +18,6 @@ import linetools.utils
 from pypit import msgs
 from pypit import arparse as settings
 from pypit import arutils
-from pypit import traceslits
 
 from pypit import ardebug as debugger
 
