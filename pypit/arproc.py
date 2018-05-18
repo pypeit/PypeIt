@@ -1281,11 +1281,10 @@ def reduce_multislit(slf, sciframe, scidx, fitsdict, det, standard=False):
     """
 
     # FOR DEVELOPING
-    sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
+    sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det)#, standard=standard)
 
     # Save sciframe
-    if not standard:
-        slf._sciframe[det-1] = sciframe.copy()
+    slf._sciframe[det-1] = sciframe.copy()
 
     ###############
     # Estimate Sky Background
@@ -1394,14 +1393,16 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fits
         scitrace = artrace.trace_objects_in_slits(slf, det, sciframe-bgframe, modelvarframe, crmask,
                                         bgreg=20, doqa=(not standard), standard=standard)
     if standard:
-        slf._msstd[det-1]['trace'] = scitrace
+    #    slf._msstd[det-1]['trace'] = scitrace
+    #    specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict, scitrace, objtype='standard')
+    #    slf._msstd[det-1]['spobjs'] = specobjs
         specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict, scitrace, objtype='standard')
-        slf._msstd[det-1]['spobjs'] = specobjs
     else:
-        slf._scitrace[det-1] = scitrace
         # Generate SpecObjExp list
         specobjs = arspecobj.init_exp(slf, scidx, det, fitsdict, scitrace, objtype='science')
-        slf._specobjs[det-1] = specobjs
+
+    slf._scitrace[det-1] = scitrace
+    slf._specobjs[det-1] = specobjs
 
     ###############
     # Extract

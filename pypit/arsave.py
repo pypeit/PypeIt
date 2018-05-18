@@ -355,7 +355,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 
 
-def save_1d_spectra_fits(slf, fitsdict, standard=False, clobber=True, outfile=None):
+def save_1d_spectra_fits(slf, fitsdict, clobber=True, outfile=None):
     """ Write 1D spectra to a multi-extension FITS file
 
     Parameters
@@ -379,6 +379,7 @@ def save_1d_spectra_fits(slf, fitsdict, standard=False, clobber=True, outfile=No
     prihdu.header['MJD-OBS'] = fitsdict['time'][idx]
     prihdu.header['DATE'] = fitsdict['date'][idx]
     prihdu.header['TARGET'] = fitsdict['target'][idx]
+    prihdu.header['AIRMASS'] = fitsdict['airmass'][idx]
     prihdu.header['LON-OBS'] = settings.spect['mosaic']['longitude']
     prihdu.header['LAT-OBS'] = settings.spect['mosaic']['latitude']
     prihdu.header['ALT-OBS'] = settings.spect['mosaic']['elevation']
@@ -392,10 +393,10 @@ def save_1d_spectra_fits(slf, fitsdict, standard=False, clobber=True, outfile=No
         det = kk+1
 
         # Allow writing of standard
-        if standard:
-            specobjs = slf._msstd[det-1]['spobjs']
-        else:
-            specobjs = slf._specobjs[det-1]
+        #if standard:
+        #    specobjs = slf._msstd[det-1]['spobjs']
+        #else:
+        specobjs = slf._specobjs[det-1]
         if specobjs is None:
             continue
         # Loop on slits

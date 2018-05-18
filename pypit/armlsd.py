@@ -72,12 +72,23 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
         mode, fitstbl, setup_dict = setupc.run()
     '''
     # Generate sciexp list, if need be (it will be soon)
+    sv_std_idx = []
+    std_dict = {}
     if sciexp is None:
         sciexp = []
         all_sci_ID = fitstbl['sci_ID'].data[fitstbl['science']]  # Binary system: 1,2,4,8, etc.
-        for ii in all_sci_ID:
-            sciexp.append(arsciexp.ScienceExposure(ii, fitstbl, settings.argflag,
+        for sci_ID in all_sci_ID:
+            sciexp.append(arsciexp.ScienceExposure(sci_ID, fitstbl, settings.argflag,
                                                    settings.spect, do_qa=True, original=original))
+            std_idx = arsort.ftype_indices(fitstbl, 'standard', sci_ID)
+            if (len(std_idx) > 0):
+                if len(std_idx) > 1:
+                    msgs.warn("Will only reduce the first, unique standard for each standard frame!")
+                if std_idx[0] not in sv_std_idx:  # Only take the first one
+                    sv_std_idx.append(std_idx[0])
+                    # Standard stars
+                    std_dict[std_idx[0]] = arsciexp.ScienceExposure(sci_ID, fitstbl, settings.argflag,
+                                               settings.spect, do_qa=False, idx_sci=std_idx[0])
     numsci = len(sciexp)
 
     # Loop on Detectors
@@ -118,8 +129,9 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             settings.argflag['reduce']['masters']['setup'] = setup
             slf.setup = setup
 
-            # Allow for variants in the setup for each Science frame (e.g. Arc pairings)
-            calib_dict[setup] = {}
+            # Allow for (small) variants in the setup for each Science frame (e.g. Arc pairings)
+            if setup not in calib_dict.keys():
+                calib_dict[setup] = {}
 
             # TODO -- Update/avoid the following with new settings
             tsettings = settings.argflag.copy()
@@ -273,7 +285,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             # Write MasterFrames (currently per detector)
             #armasters.save_masters(slf, det, setup)
 
-            ###############
+            ######################################################
             # Load the science frame and from this generate a Poisson error frame
             msgs.info("Loading science frame")
             sciframe = arload.load_frames(fitstbl, [scidx], det,
@@ -284,9 +296,37 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             msgs.info("Processing science frame")
             arproc.reduce_multislit(slf, sciframe, scidx, fitstbl, det)
 
-            ###############
-            # Using model sky, calculate a flexure correction
+            ######################################################
+            # Reduce standard here; only legit todo if the mask is the same
+            std_idx = arsort.ftype_indices(fitstbl, 'standard', sci_ID)
+            if len(std_idx) > 0:
+                std_idx = std_idx[0]
+            else:
+                continue
+            stdslf = std_dict[std_idx]
+            if stdslf.extracted is False:
+                # Fill up the necessary pieces
+                for iattr in ['pixlocn', 'lordloc', 'rordloc', 'pixcen', 'pixwid', 'lordpix', 'rordpix',
+                              'slitpix', 'tilts', 'satmask', 'maskslits', 'datasec', 'bpix', 'slitprof',
+                              'mspixelflatnrm', 'mswave']:
+                    setattr(stdslf, '_'+iattr, getattr(slf, '_'+iattr))  # Brings along all the detectors, but that is ok
+                # Load
+                stdframe = arload.load_frames(fitstbl, [std_idx], det, frametype='standard',
+                                              msbias=slf._msbias[det-1])
+                stdframe = stdframe[:, :, 0]
+                # Reduce
+                msgs.info("Processing standard frame")
+                arproc.reduce_multislit(stdslf, stdframe, std_idx, fitstbl, det, standard=True)
+                # Finish
+                stdslf.extracted = True
 
+    # Write standard stars
+    for key in std_dict.keys():
+        arsave.save_1d_spectra_fits(std_dict[key], fitstbl)
+
+    # Write science
+    for sc in range(numsci):
+        slf = sciexp[sc]
 
         # Write 1D spectra
         save_format = 'fits'
@@ -300,7 +340,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
         # Write 2D images for the Science Frame
         arsave.save_2d_images(slf, fitstbl)
         # Free up some memory by replacing the reduced ScienceExposure class
-        sciexp[sc] = None
+        #sciexp[sc] = None
 
     #########################
     # Flux at the very end..

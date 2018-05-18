@@ -33,7 +33,8 @@ class ScienceExposure:
     A Science Exposure class that carries all information for a given science exposure
     """
 
-    def __init__(self, sci_ID, fitstbl, settings_argflag, settings_spect, do_qa=True, original=False):
+    def __init__(self, sci_ID, fitstbl, settings_argflag, settings_spect, do_qa=True, original=False,
+                 idx_sci=None):
 
         # Set indices used for frame combination
         self.sci_ID = sci_ID  # Binary 1,2,4,8,..
@@ -42,6 +43,9 @@ class ScienceExposure:
         else:
             self._idx_sci = np.where((fitstbl['sci_ID'] == sci_ID) & fitstbl['science'])[0]
         #
+        self.extracted=False
+        if idx_sci is not None:
+            self._idx_sci = np.array([idx_sci])
         if settings_argflag['reduce']['masters']['force']:
             self._idx_bias = []
             self._idx_flat = []
@@ -771,6 +775,8 @@ class ScienceExposure:
         -------
         boolean : bool
         """
+        msgs.error("THIS IS DEPRECATED")
+        '''
         if self._sensfunc is not None:
             msgs.info("Using existing sensitivity function.")
             return False
@@ -827,6 +833,7 @@ class ScienceExposure:
         else:
             self._sensfunc = sensfunc.copy()
             return True
+        '''
 
     '''
     def Setup(self):
