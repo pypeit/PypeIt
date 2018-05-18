@@ -39,6 +39,10 @@ def kast_settings():
     # Instantiate
     kast_settings = processimages.default_settings.copy()
     kast_settings['detector']['dataext'] = 0
+    kast_settings['detector']['datasec01'] = [[0, 1024], [0, 0]]
+    kast_settings['detector']['datasec02'] = [[1024, 2048], [0, 0]]
+    kast_settings['detector']['oscansec01'] = [[2049, 2080], [0, 0]]
+    kast_settings['detector']['oscansec02'] = [[2080, 2111], [0, 0]]
     return kast_settings
 
 
@@ -64,7 +68,7 @@ def test_load(deimos_flat_files, kast_blue_bias_files, kast_settings):
     # Load
     kastb_bias.load_images()
     # Check datasec
-    assert kastb_bias.datasec[0][0] == [1,1024]
+    assert kastb_bias.datasec[0][0] == [0,1024]
 
 
 def test_bias_subtract(deimos_flat_files):

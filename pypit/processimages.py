@@ -39,17 +39,6 @@ default_settings = dict(detector={'numamplifiers': 1,
                                             'replace': 'maxnonsat'}}
                         )
 
-# datasec kludge for teseting (until settings is Refactored)
-# TODO -- Remove this eventually
-do_sec_dict = dict(
-    shane_kast_blue=OrderedDict([  # The ordering of these is important, ie. 1, 2,  hence the OrderedDict
-        ('datasec01','[1:1024,:]'),        # Either the data sections (IRAF format) or the header keyword where the valid data sections can be obtained
-        ('oscansec01', '[2050:2080,:]'),    # Either the overscan sections (IRAF format) or the header keyword where the valid overscan sections can be obtained
-        ('datasec02', '[1025:2048,:]'),     # Either the data sections (IRAF format) or the header keyword where the valid data sections can be obtained
-        ('oscansec02', '[2081:2111,:]')])    # Either the overscan sections (IRAF format) or the header keyword where the valid overscan sections can be obtained
-)
-
-
 class ProcessImages(object):
     """Base class to guide image loading+processing
 
@@ -165,24 +154,15 @@ class ProcessImages(object):
                 numamplifiers=self.settings['detector']['numamplifiers'],
                 det=self.det)
         elif 'detector' in self.settings.keys():
-            for key in do_sec_dict[self.spectrograph]:
-                if 'datasec' in key:
-                    self.datasec.append(self.settings['detector'][key])
-                elif 'oscansec' in key:
-                    self.oscansec.append(self.settings['detector'][key])
-        else:  # THIS MAY BE NOT QUITE WORKING, i.e. AVOID
-            self.datasec, self.oscansec = [], []
-            if self.spectrograph not in do_sec_dict.keys():
-                debugger.set_trace()
-                msgs.error("NOT READY FOR THIS SPECTROGRAPH: {:s}".format(self.spectrograph))
-            msgs.info("Parsing the datasec and oscansec values")
-            for key in do_sec_dict[self.spectrograph]:
-                if 'datasec' in key:
-                    self.datasec.append(arparse.load_sections(do_sec_dict[self.spectrograph][key]))
-                elif 'oscansec' in key:
-                    self.oscansec.append(arparse.load_sections(do_sec_dict[self.spectrograph][key]))
-                else:
-                    pass
+            self.datasec = []
+            self.oscansec = []
+            for i in range(self.settings['detector']['numamplifiers']):
+                sdatasec = "datasec{0:02d}".format(i+1)
+                self.datasec.append(self.settings['detector'][sdatasec])
+                soscansec = "oscansec{0:02d}".format(i+1)
+                self.oscansec.append(self.settings['detector'][soscansec])
+        else:
+            msgs.error("datasec not properly loaded!")
 
     def bias_subtract(self, msbias, trim=True, force=False):
         """
