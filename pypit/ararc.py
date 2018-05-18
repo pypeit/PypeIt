@@ -204,8 +204,7 @@ def setup_param(slf, det, fitsdict):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='shane_kast_red':
-        lamps = ['NeI']
-        #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
+        lamps = ['NeI','HgI','HeI','ArI']
         if disperser == '600/7500':
             arcparam['disp']=1.30
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
@@ -220,8 +219,7 @@ def setup_param(slf, det, fitsdict):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='shane_kast_red_ret':
-        lamps = ['NeI']
-        #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
+        lamps = ['NeI','HgI','HeI','ArI']
         if disperser == '600/7500':
             arcparam['disp']=2.35
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
