@@ -427,6 +427,8 @@ def load_specobj(fname):
         specobj = arspecobj.SpecObjExp(shape, 'dum_config', int(objp[-1][1:]),
             int(objp[-2][1:]), [float(objp[1][1:])/10000.]*2, 0.5,
             float(objp[0][1:])/1000., 'unknown')
+        # Add trace
+        specobj.trace = spec['obj_trace']
         # Add spectrum
         if 'box_counts' in spec.keys():
             for skey in speckeys:

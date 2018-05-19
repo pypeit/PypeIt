@@ -11,6 +11,7 @@ from pypit import msgs
 from pypit import ardebug as debugger
 from pypit.core import arflux
 from pypit import arload
+from pypit import arsave
 from pypit import masterframe
 
 
@@ -118,10 +119,22 @@ class FluxSpec(masterframe.MasterFrame):
             return None
 
         # Find the star automatically?
-        _ = self.find_standard(self.std_specobjs)
+        _ = self.find_standard()
 
         # Sensitivity
         _ = self.generate_sens_func()
+
+        # Apply to science
+        if len(self.sci_specobjs) > 0:
+            self.flux_sci()
+
+    def write_science(self, outfile):
+        if len(self.sci_specobjs) == 0:
+            msgs.warn("No science spectra to write to disk!")
+        #
+        helio_dict = dict(refframe=self.sci_header['VEL-TYPE'], vel_correction=self.sci_header['VEL'])
+        arsave.new_save_1d_spectra_fits(self.sci_specobjs, self.sci_header, self.settings, outfile,
+                             helio_dict=helio_dict, clobber=True)
 
 
     def __repr__(self):

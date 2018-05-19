@@ -354,6 +354,105 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
 
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 
+def new_save_1d_spectra_fits(specobjs, header, settings_spect, outfile,
+                             helio_dict=None, clobber=True):
+    """ Write 1D spectra to a multi-extension FITS file
+
+    Parameters
+    ----------
+    specobjs : list of SpecObjExp objects or list of list of SpecObjExp
+    header
+    outfile : str
+    clobber : bool, optional
+
+    Returns
+    -------
+    outfile : str
+    """
+    # Repackage as necessary (some backwards compatability)
+    if isinstance(specobjs[0], list):
+        all_specobj = []
+        for sl in range(len(specobjs)):
+            for spobj in specobjs[sl]:
+                all_specobj.append(spobj)
+    else:
+        all_specobj = specobjs
+    # Primary hdu
+    prihdu = fits.PrimaryHDU()
+    hdus = [prihdu]
+    # Add critical data to header
+    prihdu.header['RA'] = header['RA']
+    prihdu.header['DEC'] = header['DEC']
+    prihdu.header['EXPTIME'] = header['EXPTIME']
+    prihdu.header['MJD-OBS'] = header['MJD-OBS']  # recorded as 'time' in fitsdict
+    prihdu.header['DATE'] = header['DATE']
+    prihdu.header['TARGET'] = header['TARGET']
+    prihdu.header['AIRMASS'] = header['AIRMASS']
+    # Observatory
+    prihdu.header['LON-OBS'] = settings_spect['mosaic']['longitude']
+    prihdu.header['LAT-OBS'] = settings_spect['mosaic']['latitude']
+    prihdu.header['ALT-OBS'] = settings_spect['mosaic']['elevation']
+    # Helio
+    if helio_dict is not None:
+        prihdu.header['VEL-TYPE'] = helio_dict['refframe'] # settings.argflag['reduce']['calibrate']['refframe']
+        prihdu.header['VEL'] = helio_dict['vel_correction'] # slf.vel_correction
+
+    # Loop on detectors
+    npix = 0
+    ext = 0
+    for specobj in all_specobj:
+        if specobj is None:
+            continue
+        ext += 1
+        # Add header keyword
+        keywd = 'EXT{:04d}'.format(ext)
+        prihdu.header[keywd] = specobj.idx
+
+        # Add Spectrum Table
+        cols = []
+        # Trace
+        cols += [fits.Column(array=specobj.trace, name=str('obj_trace'), format=specobj.trace.dtype)]
+        if ext == 1:
+            npix = len(specobj.trace)
+        # Boxcar
+        for key in specobj.boxcar.keys():
+            # Skip some
+            if key in ['size']:
+                continue
+            if isinstance(specobj.boxcar[key], units.Quantity):
+                cols += [fits.Column(array=specobj.boxcar[key].value,
+                                     name=str('box_'+key), format=specobj.boxcar[key].value.dtype)]
+            else:
+                cols += [fits.Column(array=specobj.boxcar[key],
+                                     name=str('box_'+key), format=specobj.boxcar[key].dtype)]
+        # Optimal
+        for key in specobj.optimal.keys():
+            # Skip some
+            if key in ['fwhm']:
+                continue
+            # Generate column
+            if isinstance(specobj.optimal[key], units.Quantity):
+                cols += [fits.Column(array=specobj.optimal[key].value,
+                                       name=str('opt_'+key), format=specobj.optimal[key].value.dtype)]
+            else:
+                cols += [fits.Column(array=specobj.optimal[key],
+                                       name=str('opt_'+key), format=specobj.optimal[key].dtype)]
+        # Finish
+        coldefs = fits.ColDefs(cols)
+        tbhdu = fits.BinTableHDU.from_columns(coldefs)
+        tbhdu.name = specobj.idx
+        hdus += [tbhdu]
+    # A few more for the header
+    prihdu.header['NSPEC'] = ext
+    prihdu.header['NPIX'] = npix
+    # Finish
+    hdulist = fits.HDUList(hdus)
+    #if outfile is None:
+    #    outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename)
+    hdulist.writeto(outfile, overwrite=clobber)
+    msgs.info("Wrote 1D spectra to {:s}".format(outfile))
+    return outfile
+
 
 def save_1d_spectra_fits(slf, fitsdict, clobber=True, outfile=None):
     """ Write 1D spectra to a multi-extension FITS file
