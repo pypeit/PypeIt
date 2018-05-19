@@ -76,12 +76,14 @@ def main(args):
                           [dfname], setup_script=True, parlines=parlines)
     print("Wrote {:s}".format(pyp_file))
 
-    # Run
+    # Parser
     pinp = [pyp_file]
     if args.develop:
         pinp += ['-d']
     pargs = run_pypit.parser(pinp)
     sorted_file = pyp_file.replace('.pypit', '.sorted')
+
+    # Run
     run_pypit.main(pargs)
 
     # #####################

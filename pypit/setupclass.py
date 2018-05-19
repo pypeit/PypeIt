@@ -185,7 +185,7 @@ class SetupClass(object):
         self.steps.append(inspect.stack()[0][3])
         return self.fitstbl
 
-    def type_data(self):
+    def type_data(self, flag_unknown=False):
         """
           Perform image typing on the full set of input files
           Mainly a wrapper to arsort.type_data()
@@ -205,7 +205,7 @@ class SetupClass(object):
             ftdict = None
         self.filetypes = arsort.type_data(self.fitstbl, self.settings_spect,
                                      self.settings_argflag,
-                                     ftdict=ftdict)
+                                     ftdict=ftdict, flag_unknown=flag_unknown)
         # hstack me -- Might over-write self.fitstbl here
         msgs.info("Adding file type information to the fitstbl")
         self.fitstbl = hstack([self.fitstbl, self.filetypes])
@@ -268,9 +268,12 @@ class SetupClass(object):
         if self.fitstbl is None:
             _ = self.build_fitstbl(file_list)
 
-
         # File typing
-        _ = self.type_data()
+        if self.settings_argflag['run']['calcheck'] or self.settings_argflag['run']['setup']:
+            bad_to_unknown = True
+        else:
+            bad_to_unknown = False
+        _ = self.type_data(flag_unknown=bad_to_unknown)
 
         # Write?
         if self.settings_argflag['output']['sorted'] is not None:
