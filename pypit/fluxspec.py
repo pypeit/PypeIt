@@ -4,7 +4,7 @@ from __future__ import absolute_import, division, print_function
 import inspect
 import numpy as np
 
-#from importlib import reload
+from importlib import reload
 
 
 from pypit import msgs
@@ -24,6 +24,20 @@ frametype = 'sensfunc'
 
 # Default settings, if any
 
+# TODO - Remove this kludge
+def kludge_settings(instr):
+    from pypit import arparse as settings
+    settings.dummy_settings()
+    settings.argflag['run']['spectrograph'] = instr
+    settings.argflag['reduce']['masters']['setup'] = 'C_01_aa'
+    #
+    # Load default spectrograph settings
+    spect = settings.get_spect_class(('ARMLSD', instr, 'pypit'))  # '.'.join(redname.split('.')[:-1])))
+    lines = spect.load_file(base=True)  # Base spectrograph settings
+    spect.set_paramlist(lines)
+    lines = spect.load_file()  # Instrument specific
+    spect.set_paramlist(lines)
+    return settings.spect
 
 class FluxSpec(masterframe.MasterFrame):
     """Class to guide fluxing
@@ -34,31 +48,39 @@ class FluxSpec(masterframe.MasterFrame):
     Attributes
     ----------
     """
-    def __init__(self, std_spec1d_file=None, sens_file=None, setup=None, settings=None):
+    def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, spectrograph=None, sens_file=None, setup=None):
 
         # Required parameters (but can be None)
         self.std_spec1d_file = std_spec1d_file
+        self.sci_spec1d_file = sci_spec1d_file
         self.sens_file = sens_file
-
-        # Optional parameters
-        self.settings = settings
 
         # Attributes
         self.frametype = frametype
 
         # Main outputs
-        self.sens_func = None  # narray
+        self.sens_func = None  # dict
+
+        # Settings (for now)
+        if spectrograph is not None:
+            self.settings = kludge_settings(spectrograph)
 
         # Key Internals
-        self.std_specobjs = []
         self.std = None         # Standard star spectrum (SpecObj object)
+        self.std_specobjs = []
         self.std_header = None
         self.std_idx = None     # Nested indices for the std_specobjs list that corresponds to the star!
+        self.sci_specobjs = []
+        self.sci_header = None
 
         # Load
         if self.std_spec1d_file is not None:
             self.std_specobjs, self.std_header = arload.load_specobj(self.std_spec1d_file)
-
+            msgs.info("Loaded {:d} spectra from the spec1d standard star file: {:s}".format(len(self.std_specobjs),
+                                                                                            self.std_spec1d_file))
+        if self.std_spec1d_file is not None:
+            self.sci_specobjs, self.sci_header = arload.load_specobj(self.sci_spec1d_file)
+            msgs.info("Loaded spectra from the spec1d science file: {:s}".format(self.sci_spec1d_file))
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, setup, self.settings)
 
@@ -68,7 +90,7 @@ class FluxSpec(masterframe.MasterFrame):
         #
         self.std_idx = arflux.find_standard(self.std_specobjs)
         #
-        self.std = self.std_specobjs[self.std_idx[0]][self.std_idx[1]]
+        self.std = self.std_specobjs[self.std_idx]
         return self.std
 
     def generate_sens_func(self):
@@ -76,9 +98,18 @@ class FluxSpec(masterframe.MasterFrame):
             msgs.warn("You need to identify the Star first (with find_standard)") #load in the Standard spectra first")
             return None
         # Run
-        self.sens_dict = arflux.generate_sensfunc(self.std, self.std_header['RA'],
+        self.sens_func = arflux.generate_sensfunc(self.std, self.std_header['RA'],
                                             self.std_header['DEC'], self.std_header['AIRMASS'],
-                                            self.std_header['EXPTIME'])
+                                            self.std_header['EXPTIME'], self.settings)
+        return self.sens_func
+
+    def flux_sci(self):
+        reload(arflux)
+        for sci_obj in self.sci_specobjs:
+            arflux.new_apply_sensfunc(sci_obj, self.sens_func,
+                                  self.sci_header['AIRMASS'],
+                                  self.sci_header['EXPTIME'],
+                                  self.settings)
 
     def run(self):
         #
@@ -87,10 +118,10 @@ class FluxSpec(masterframe.MasterFrame):
             return None
 
         # Find the star automatically?
-        self.std = self.find_standard(self.std_specobjs)
+        _ = self.find_standard(self.std_specobjs)
 
-        # Find the star automatically?
-        self.std = self.find_standard(self.std_specobjs)
+        # Sensitivity
+        _ = self.generate_sens_func()
 
 
     def __repr__(self):

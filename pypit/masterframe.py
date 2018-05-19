@@ -52,7 +52,7 @@ class MasterFrame(object):
             try:
                 self.settings['masters']['directory'] = self.settings['run']['directory']['master']+'_'+self.settings['run']['spectrograph']
             except:
-                msgs.warn("MasterFrame class not proper loaded (e.g. no settings).  Avoid using Master methods")
+                msgs.warn("MasterFrame class not proper loaded (e.g. no masteres in settings).  Avoid using Master methods")
                 self.settings['masters'] = default_settings['masters'].copy()
             else:
                 for key in ['loaded', 'reuse', 'force']:

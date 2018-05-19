@@ -7,6 +7,8 @@ import glob
 import numpy as np
 import scipy
 
+from pkg_resources import resource_filename
+
 from astropy import units
 from astropy import coordinates
 from astropy.table import Table, Column
@@ -20,6 +22,43 @@ except ImportError:
 from pypit import msgs
 from pypit import arutils
 from pypit import ardebug as debugger
+
+
+def new_apply_sensfunc(spec_obj, sensfunc, airmass, exptime, settings_spec, MAX_EXTRAP=0.05):
+    """ Apply the sensitivity function to the data
+    We also correct for extinction.
+
+    Parameters
+    ----------
+    MAX_EXTRAP : float, optional [0.05]
+      Fractional amount to extrapolate sensitivity function
+    """
+    # Load extinction data
+    extinct = load_extinction_data(settings_spec)
+    #airmass = fitsdict['airmass'][scidx]
+
+    # Loop on extraction modes
+    for extract_type in ['boxcar', 'optimal']:
+        extract = getattr(spec_obj, extract_type)
+        if len(extract) == 0:
+            continue
+        msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() +
+                  "{}".format(spec_obj))
+        wave = extract['wave']  # for convenience
+        scale = np.zeros(wave.size)
+        # Allow for some extrapolation
+        dwv = sensfunc['wave_max']-sensfunc['wave_min']
+        inds = ((wave >= sensfunc['wave_min']-dwv*MAX_EXTRAP)
+            & (wave <= sensfunc['wave_max']+dwv*MAX_EXTRAP))
+        mag_func = arutils.func_val(sensfunc['c'], wave[inds],
+                                    sensfunc['func'])
+        sens = 10.0**(0.4*mag_func)
+        # Extinction
+        ext_corr = extinction_correction(wave[inds], airmass, extinct)
+        scale[inds] = sens*ext_corr
+        # Fill
+        extract['flam'] = extract['counts']*scale/exptime
+        extract['flam_var'] = (extract['var']*(scale/exptime)**2)
 
 
 def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
@@ -292,13 +331,13 @@ def load_calspec():
     """
     # Read
     calspec_path = '/data/standards/calspec/'
-    calspec_file = settings.argflag['run']['pypitdir'] + calspec_path + 'calspec_info.txt'
+    calspec_file = resource_filename('pypit', calspec_path+'calspec_info.txt')
     calspec_stds = Table.read(calspec_file, comment='#', format='ascii')
     # Return
     return calspec_path, calspec_stds
 
 
-def load_extinction_data(toler=5.*units.deg):
+def load_extinction_data(settings_spect, toler=5.*units.deg):
     """
     Find the best extinction file to use, based on longitude and latitude
     Loads it and returns a Table
@@ -314,11 +353,11 @@ def load_extinction_data(toler=5.*units.deg):
       astropy Table containing the 'wavelength', 'extinct' data for AM=1.
     """
     # Mosaic coord
-    mosaic_coord = coordinates.SkyCoord(settings.spect['mosaic']['longitude'],
-                                        settings.spect['mosaic']['latitude'], frame='gcrs',
+    mosaic_coord = coordinates.SkyCoord(settings_spect['mosaic']['longitude'],
+                                        settings_spect['mosaic']['latitude'], frame='gcrs',
                                         unit=units.deg)
     # Read list
-    extinct_path = settings.argflag['run']['pypitdir']+'/data/extinction/'
+    extinct_path = resource_filename('pypit', '/data/extinction/')
     extinct_summ = extinct_path+'README'
     extinct_files = Table.read(extinct_summ,comment='#',format='ascii')
     # Coords
@@ -358,8 +397,8 @@ def load_standard_file(std_dict):
     std_flux : Quantity array
       Flux of standard star
     """
-    fil = glob.glob(settings.argflag['run']['pypitdir'] +
-                    std_dict['file']+'*')
+    root = resource_filename('pypit', std_dict['file']+'*')
+    fil = glob.glob(root)
     if len(fil) == 0:
         msgs.error("No standard star file: {:s}".format(fil))
     else:
@@ -377,21 +416,27 @@ def load_standard_file(std_dict):
     return
 
 def find_standard(specobjs):
-    #
+    # Repackage as necessary (some backwards compatability)
+    if isinstance(specobjs[0], list):
+        all_specobj = []
+        for sl in range(len(specobjs)):
+            for spobj in specobjs[sl]:
+                all_specobj.append(spobj)
+    else:
+        all_specobj = specobjs
+    # Do it
     medfx = []
     medix = []
-    for sl in range(len(specobjs)):
-        indx = 0
-        for spobj in specobjs[sl]:
-            medfx.append(np.median(spobj.boxcar['counts']))
-            medix.append([sl, indx])
-            indx += 1
-    mxix = medix[np.argmax(np.array(medfx))]
-    debugger.set_trace()
+    for indx, spobj in enumerate(all_specobj):
+        medfx.append(np.median(spobj.boxcar['counts']))
+        medix.append(indx)
+    mxix = np.argmax(np.array(medix))
+    msgs.info("Putative standard star has a median boxcar count of {}".format(np.max(medfx)))
     # Return
     return mxix
 
-def generate_sensfunc(std_obj, RA, DEC, airmass, exptime, BALM_MASK_WID=5., nresln=20):
+
+def generate_sensfunc(std_obj, RA, DEC, airmass, exptime, settings_spect, BALM_MASK_WID=5., nresln=20):
     """
     Generate sensitivity function from current standard star
     Currently, we are using a bspline generated by bspline_magfit
@@ -420,7 +465,7 @@ def generate_sensfunc(std_obj, RA, DEC, airmass, exptime, BALM_MASK_WID=5., nres
     """
     wave = std_obj.boxcar['wave']
     # Apply Extinction
-    extinct = load_extinction_data()
+    extinct = load_extinction_data(settings_spect) # Observatory specific
     ext_corr = extinction_correction(wave, airmass, extinct)
     flux_corr = std_obj.boxcar['counts']*ext_corr
     var_corr = std_obj.boxcar['var']*ext_corr**2

@@ -443,6 +443,8 @@ def load_specobj(fname):
                     specobj.optimal[skey] = spec['opt_{:s}'.format(skey)].data
                 except KeyError:
                     pass
+            # Add units on wave
+            specobj.optimal['wave'] = specobj.optimal['wave'] * units.AA
         # Append
         specobjs.append(specobj)
     # Return
