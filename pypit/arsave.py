@@ -354,8 +354,8 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
 
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 
-def new_save_1d_spectra_fits(specobjs, header, settings_spect, outfile,
-                             helio_dict=None, clobber=True):
+def new_save_1d_spectra_fits(specobjs, header, outfile,
+                             helio_dict=None, obs_dict=None, clobber=True):
     """ Write 1D spectra to a multi-extension FITS file
 
     Parameters
@@ -394,9 +394,10 @@ def new_save_1d_spectra_fits(specobjs, header, settings_spect, outfile,
         prihdu.header['MJD-OBS'] = header['time']  # recorded as 'time' in fitstbl
 
     # Observatory
-    prihdu.header['LON-OBS'] = settings_spect['mosaic']['longitude']
-    prihdu.header['LAT-OBS'] = settings_spect['mosaic']['latitude']
-    prihdu.header['ALT-OBS'] = settings_spect['mosaic']['elevation']
+    if obs_dict is not None:
+        prihdu.header['LON-OBS'] = obs_dict['longitude']
+        prihdu.header['LAT-OBS'] = obs_dict['latitude']
+        prihdu.header['ALT-OBS'] = obs_dict['elevation']
     # Helio
     if helio_dict is not None:
         prihdu.header['VEL-TYPE'] = helio_dict['refframe'] # settings.argflag['reduce']['calibrate']['refframe']

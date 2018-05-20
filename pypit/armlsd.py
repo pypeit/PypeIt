@@ -323,7 +323,8 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
     # Write standard stars
     for key in std_dict.keys():
         outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(std_dict[key]._basename)
-        arsave.new_save_1d_spectra_fits(std_dict[key]._specobjs, fitstbl[std_idx], settings.spect, outfile)
+        arsave.new_save_1d_spectra_fits(std_dict[key]._specobjs, fitstbl[std_idx], outfile,
+            obs_dict=settings.spect['mosaic'])
 
     # Write science
     for sc in range(numsci):
@@ -333,7 +334,10 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
         save_format = 'fits'
         if save_format == 'fits':
             outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename)
-            arsave.new_save_1d_spectra_fits(slf._specobjs, fitstbl[slf._idx_sci[0]], settings.spect, outfile)
+            helio_dict = dict(refframe=settings.argflag['reduce']['calibrate']['refframe'],
+                              vel_correction=slf.vel_correction)
+            arsave.new_save_1d_spectra_fits(slf._specobjs, fitstbl[slf._idx_sci[0]], outfile,
+                                            helio_dict=helio_dict, obs_dict=settings.spect['mosaic'])
             #arsave.save_1d_spectra_fits(slf, fitstbl)
         elif save_format == 'hdf5':
             arsave.save_1d_spectra_hdf5(slf)

@@ -16,6 +16,7 @@ from pypit import msgs
 from pypit import ardebug as debugger
 from pypit.core import arflux
 from pypit import arload
+from pypit import armasters
 from pypit import arsave
 from pypit import arutils
 from pypit import masterframe
@@ -59,7 +60,8 @@ class FluxSpec(masterframe.MasterFrame):
     Attributes
     ----------
     """
-    def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, spectrograph=None, sens_file=None, setup=None):
+    def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, spectrograph=None,
+                 sens_file=None, setup=None, settings=None):
 
         # Parameters
         self.std_spec1d_file = std_spec1d_file
@@ -77,6 +79,8 @@ class FluxSpec(masterframe.MasterFrame):
         # Settings (for now)
         if spectrograph is not None:
             self.settings = kludge_settings(spectrograph)
+        else:
+            self.settings = settings
 
         # Key Internals
         self.std = None         # Standard star spectrum (SpecObj object)
@@ -94,9 +98,12 @@ class FluxSpec(masterframe.MasterFrame):
             self.std_specobjs, self.std_header = arload.load_specobj(self.std_spec1d_file)
             msgs.info("Loaded {:d} spectra from the spec1d standard star file: {:s}".format(len(self.std_specobjs),
                                                                                             self.std_spec1d_file))
-        if self.std_spec1d_file is not None:
+        if self.sci_spec1d_file is not None:
             self.sci_specobjs, self.sci_header = arload.load_specobj(self.sci_spec1d_file)
             msgs.info("Loaded spectra from the spec1d science file: {:s}".format(self.sci_spec1d_file))
+        if self.sens_file is not None:
+            self.sensfunc, _, _ = armasters._core_load(self.sens_file, frametype=self.frametype)
+
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, self.setup, self.settings)
 
@@ -126,6 +133,13 @@ class FluxSpec(masterframe.MasterFrame):
 
     def flux_science(self):
         reload(arflux)
+        # Settings kludge
+        if 'mosaic' not in self.settings.keys():
+            self.settings['mosaic'] = {}
+            self.settings['mosaic']['longitude'] = self.sci_header['LON-OBS']
+            self.settings['mosaic']['latitude'] = self.sci_header['LAT-OBS']
+            self.settings['mosaic']['elevation'] = self.sci_header['ALT-OBS']
+        #
         for sci_obj in self.sci_specobjs:
             arflux.new_apply_sensfunc(sci_obj, self.sensfunc,
                                   self.sci_header['AIRMASS'],
@@ -147,31 +161,38 @@ class FluxSpec(masterframe.MasterFrame):
         self.std = self.std_specobjs[self.std_idx]
         # Step
         self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.std
 
-    def run(self):
-        #
-        if self.std_specobjs is None:
-            msgs.warn("You need to load in the Standard spectra first!")
-            return None
+    def run(self, clobber=False):
+        # Sensitivity Function
+        if (self.sensfunc is None) or clobber:
+            if self.std_specobjs is None:
+                msgs.warn("You need to load in the Standard spectra first!")
+                return None
 
-        # Find the star automatically?
-        _ = self.find_standard()
+            # Find the star automatically?
+            _ = self.find_standard()
 
-        # Sensitivity
-        _ = self.generate_sensfunc()
+            # Sensitivity
+            _ = self.generate_sensfunc()
 
         # Apply to science
         if len(self.sci_specobjs) > 0:
-            self.flux_sci()
+            self.flux_science()
 
-    def save_master(self):
+    def save_master(self, outfile=None):
+        # Allow one to over-ride output name
+        if outfile is None:
+            outfile = self.ms_name
+        # Add steps
         self.sensfunc['steps'] = self.steps
         # yamlify
         ysens = arutils.yamlify(self.sensfunc)
-        with open(self.ms_name, 'w') as yamlf:
+        with open(outfile, 'w') as yamlf:
             yamlf.write(yaml.dump(ysens))
         #
-        msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(self.ms_name))
+        msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -191,9 +212,17 @@ class FluxSpec(masterframe.MasterFrame):
         if len(self.sci_specobjs) == 0:
             msgs.warn("No science spectra to write to disk!")
         #
-        helio_dict = dict(refframe=self.sci_header['VEL-TYPE'], vel_correction=self.sci_header['VEL'])
-        arsave.new_save_1d_spectra_fits(self.sci_specobjs, self.sci_header, self.settings, outfile,
-                             helio_dict=helio_dict, clobber=True)
+        if 'VEL-TYPE' in self.sci_header.keys():
+            helio_dict = dict(refframe=self.sci_header['VEL-TYPE'], vel_correction=self.sci_header['VEL'])
+        else:
+            helio_dict = None
+        if 'LON-OBS' in self.sci_header.keys():
+            obs_dict = dict(longitude=self.sci_header['LON-OBS'],
+                            latitude=self.sci_header['LAT-OBS'],
+                            elevation=self.sci_header['ALT-OBS'],
+                            )
+        arsave.new_save_1d_spectra_fits(self.sci_specobjs, self.sci_header, outfile,
+                             helio_dict=helio_dict, clobber=True, obs_dict=obs_dict)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
