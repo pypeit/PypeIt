@@ -7,7 +7,10 @@ import yaml
 
 from importlib import reload
 
-
+try:
+    basestring
+except NameError:  # For Python 3
+    basestring = str
 
 from pypit import msgs
 from pypit import ardebug as debugger
@@ -131,8 +134,19 @@ class FluxSpec(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def _set_std_obj(self):
-        pass
+    def _set_std_obj(self, obj_id):
+        if self.std_specobjs is None:
+            msgs.warn("You need to load in the Standard spectra first!")
+            return None
+        #
+        if isinstance(obj_id, basestring):
+            names = [spobj.idx for spobj in self.std_specobjs]
+            self.std_idx = names.index(obj_id)
+        elif isinstance(obj_id, int): # Extension number
+            self.std_idx = obj_id-1
+        self.std = self.std_specobjs[self.std_idx]
+        # Step
+        self.steps.append(inspect.stack()[0][3])
 
     def run(self):
         #
@@ -160,6 +174,18 @@ class FluxSpec(masterframe.MasterFrame):
         msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(self.ms_name))
         # Step
         self.steps.append(inspect.stack()[0][3])
+
+    def show_sensfunc(self):
+        if self.sensfunc is None:
+            msgs.warn("You need to generate the sensfunc first!")
+            return None
+        # Generate from model
+        wave = np.linspace(self.sensfunc['wave_min'], self.sensfunc['wave_max'], 1000)
+        mag_func = arutils.func_val(self.sensfunc['c'], wave, self.sensfunc['func'])
+        sens = 10.0**(0.4*mag_func)
+        # Plot
+        debugger.plot1d(wave, sens)
+
 
     def write_science(self, outfile):
         if len(self.sci_specobjs) == 0:
