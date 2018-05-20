@@ -415,6 +415,7 @@ def load_standard_file(std_dict):
         msgs.error("Bad Standard Star Format")
     return
 
+
 def find_standard(specobjs):
     # Repackage as necessary (some backwards compatability)
     if isinstance(specobjs[0], list):

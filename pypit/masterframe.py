@@ -52,7 +52,7 @@ class MasterFrame(object):
             try:
                 self.settings['masters']['directory'] = self.settings['run']['directory']['master']+'_'+self.settings['run']['spectrograph']
             except:
-                msgs.warn("MasterFrame class not proper loaded (e.g. no masteres in settings).  Avoid using Master methods")
+                msgs.warn("MasterFrame class not proper loaded (e.g. no masters in settings).  Avoid using Master methods")
                 self.settings['masters'] = default_settings['masters'].copy()
             else:
                 for key in ['loaded', 'reuse', 'force']:
@@ -76,7 +76,7 @@ class MasterFrame(object):
         head0 : Header or None
         file_list : list or None
         """
-        if (self.settings['masters']['reuse']) or (self.settings['masters']['force']):
+        if (self.settings['masters']['reuse']) or (self.settings['masters']['force']) or force:
             return armasters.core_load_master_frame(self.frametype, self.setup, self.mdir, force=force)
         else:
             return None, None, None
@@ -85,6 +85,8 @@ class MasterFrame(object):
         """
         Save the stacked image as a MasterFrame FITS file
           Primarily a wrapper to armasters.save_master
+
+        Intended for simple images only; more complex objects need their own method
 
         Parameters
         ----------

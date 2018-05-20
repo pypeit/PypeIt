@@ -322,7 +322,8 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
 
     # Write standard stars
     for key in std_dict.keys():
-        arsave.save_1d_spectra_fits(std_dict[key], fitstbl)
+        outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(std_dict[key]._basename)
+        arsave.new_save_1d_spectra_fits(std_dict[key]._specobjs, fitstbl[std_idx], settings.spect, outfile)
 
     # Write science
     for sc in range(numsci):

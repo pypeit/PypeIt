@@ -384,6 +384,7 @@ def core_save_master(data, filename="temp.fits", frametype="<None>",
     return
 
 
+'''
 def save_sensfunc(slf, setup):
     """ Make YAML friendly and write to disk
     Separate routine as this process is detector independent
@@ -399,6 +400,7 @@ def save_sensfunc(slf, setup):
         ysens = arutils.yamlify(slf._sensfunc)
         with open(master_name('sensfunc', setup), 'w') as yamlf:
             yamlf.write(yaml.dump(ysens))
+'''
 
 
 def user_master_name(mdir, input_name):

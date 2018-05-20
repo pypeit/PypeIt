@@ -361,7 +361,7 @@ def new_save_1d_spectra_fits(specobjs, header, settings_spect, outfile,
     Parameters
     ----------
     specobjs : list of SpecObjExp objects or list of list of SpecObjExp
-    header
+    header : dict or Row (dict-like)
     outfile : str
     clobber : bool, optional
 
@@ -372,22 +372,27 @@ def new_save_1d_spectra_fits(specobjs, header, settings_spect, outfile,
     # Repackage as necessary (some backwards compatability)
     if isinstance(specobjs[0], list):
         all_specobj = []
-        for sl in range(len(specobjs)):
-            for spobj in specobjs[sl]:
-                all_specobj.append(spobj)
+        for det in range(len(specobjs)):           # detector loop
+            for sl in range(len(specobjs[det])):   # slit loop
+                for spobj in specobjs[det][sl]:    # object loop
+                    all_specobj.append(spobj)
     else:
         all_specobj = specobjs
     # Primary hdu
     prihdu = fits.PrimaryHDU()
     hdus = [prihdu]
     # Add critical data to header
-    prihdu.header['RA'] = header['RA']
-    prihdu.header['DEC'] = header['DEC']
-    prihdu.header['EXPTIME'] = header['EXPTIME']
-    prihdu.header['MJD-OBS'] = header['MJD-OBS']  # recorded as 'time' in fitsdict
-    prihdu.header['DATE'] = header['DATE']
-    prihdu.header['TARGET'] = header['TARGET']
-    prihdu.header['AIRMASS'] = header['AIRMASS']
+    for key in ['ra', 'dec', 'exptime', 'date', 'target', 'airmass']:
+        # Allow for fitstbl vs. header
+        try:
+            prihdu.header[key.upper()] = header[key.upper()]
+        except KeyError:
+            prihdu.header[key.upper()] = header[key]
+    try:
+        prihdu.header['MJD-OBS'] = header['MJD-OBS']
+    except KeyError:
+        prihdu.header['MJD-OBS'] = header['time']  # recorded as 'time' in fitstbl
+
     # Observatory
     prihdu.header['LON-OBS'] = settings_spect['mosaic']['longitude']
     prihdu.header['LAT-OBS'] = settings_spect['mosaic']['latitude']
