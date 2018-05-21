@@ -112,12 +112,12 @@ def test_master(kast_blue_bias_files, kast_settings):
     kast_settings['reduce']['masters']['reuse'] = False
     bias_frame = biasframe.BiasFrame(settings=kast_settings, file_list=kast_blue_bias_files, setup=setup)
     # Run
-    _ = bias_frame.build_master()
+    _ = bias_frame.master()
     assert bias_frame.steps[-1] == 'combine'
     # Run with reuse (should simply load the file)
     kast_settings['reduce']['masters']['reuse'] = True
     bias_frame2 = biasframe.BiasFrame(settings=kast_settings, setup=setup)
-    bias2 = bias_frame2.build_master()
+    bias2 = bias_frame2.master()
     assert isinstance(bias_frame2.stack, np.ndarray)
     assert len(bias_frame2.steps) == 0
     # Load (not kept in the Object!)
