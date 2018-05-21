@@ -19,7 +19,6 @@ from pypit import artrace
 from pypit import arload
 from pypit import arcomb
 from pypit import arflux
-from pypit import arlris
 from pypit import armasters
 from pypit import arpixels
 from pypit import arproc
@@ -106,8 +105,8 @@ class ScienceExposure:
         self._nonlinear = [settings_spect[settings.get_dnum(det+1)]['saturation'] *
                            settings_spect[settings.get_dnum(det+1)]['nonlinear']
                            for det in range(ndet)]
-        self._nspec    = [None for all in range(ndet)]   # Number of spectral pixels
-        self._nspat    = [None for all in range(ndet)]   # Number of spatial pixels
+        #self._nspec    = [None for all in range(ndet)]   # Number of spectral pixels
+        #self._nspat    = [None for all in range(ndet)]   # Number of spatial pixels
         self._datasec  = [None for all in range(ndet)]   # Locations of the data on each detector
         self._pixlocn  = [None for all in range(ndet)]   # Physical locations of each pixel on the detector
         self._lordloc  = [None for all in range(ndet)]   # Array of slit traces (left side) in physical pixel coordinates
@@ -125,7 +124,7 @@ class ScienceExposure:
         self._resnarr  = [None for all in range(ndet)]   # Resolution array
         self._maskslits = [None for all in range(ndet)]  # Mask for whether to analyze a given slit (True=masked)
         # Initialize the Master Calibration frames
-        self._bpix = [None for all in range(ndet)]          # Bad Pixel Mask
+        #self._bpix = [None for all in range(ndet)]          # Bad Pixel Mask
         #self._msarc = [None for all in range(ndet)]         # Master Arc
         self._mswave = [None for all in range(ndet)]         # Master Wavelength image
         #self._msbias = [None for all in range(ndet)]        # Master Bias
@@ -209,6 +208,7 @@ class ScienceExposure:
     # Reduction procedures
     ###################################
 
+    '''
     def BadPixelMask(self, fitsdict, det, msbias):
         """
         Generate Bad Pixel Mask for a given detector
@@ -250,6 +250,7 @@ class ScienceExposure:
         armasters.save_masters(self, det, mftype='badpix')
         del bpix
         return True
+    '''
 
     '''
     def GetPixelLocations(self, det):
@@ -698,13 +699,13 @@ class ScienceExposure:
         del mswave
         return True
 
-    def MasterWaveCalib(self, fitsdict, sc, det, msarc):
+    def MasterWaveCalib(self, fitstbl, det, msarc):
         """
         Generate Master 1D Wave Solution (down slit/order centers)
 
         Parameters
         ----------
-        fitsdict : dict
+        fitstbl : dict
           Contains relevant information from fits header files
         det : int
           Index of the detector
@@ -727,11 +728,12 @@ class ScienceExposure:
                 msgs.info("A wavelength calibration will not be performed")
             else:
                 # Setup arc parameters (e.g. linelist)
-                arcparam = ararc.setup_param(self, det, fitsdict)
+                arc_idx = arsort.ftype_indices(fitstbl, 'arc', self.sci_ID)
+                arcparam = ararc.setup_param(self, det, fitstbl, arc_idx[0])
                 self.SetFrame(self._arcparam, arcparam, det)
                 ###############
                 # Extract an arc down each slit
-                arccen, maskslit = artrace.get_censpec(self, msarc, det, gen_satmask=False)
+                arccen, maskslit, _ = artrace.get_censpec(self, msarc, det, gen_satmask=False)
                 ok_mask = np.where(maskslit == 0)[0]
 
                 # Fill up the calibrations
@@ -740,9 +742,9 @@ class ScienceExposure:
                     ###############
                     # Extract arc and identify lines
                     if settings.argflag['arc']['calibrate']['method'] == 'simple':
-                        iwv_calib = ararc.simple_calib(self, det, censpec=arccen[:,kk], slit=slit)
+                        iwv_calib = ararc.simple_calib(self, det, msarc, censpec=arccen[:,kk], slit=slit)
                     elif settings.argflag['arc']['calibrate']['method'] == 'arclines':
-                        iwv_calib = ararc.calib_with_arclines(self, det, slit, censpec=arccen[:,kk])
+                        iwv_calib = ararc.calib_with_arclines(self, det, msarc, slit, arcparam, censpec=arccen[:,kk])
                     wv_calib[str(slit)] = iwv_calib.copy()
         # Set
         if wv_calib is not None:

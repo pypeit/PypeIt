@@ -26,7 +26,7 @@ if msgs._debug is None:
 
 # Place these here or elsewhere?
 #  Wherever they be, they need to be defined, described, etc.
-default_settings = dict(detector={'numamplifiers': 1,
+default_settings = dict(detector={'numamplifiers': 1,   # This dict is not complete; consider readnoise, binning
                                   'saturation': 60000.,  # Spectra aligned with columns
                                   'dispaxis': 0,  # Spectra aligned with columns
                                   'dataext': None},

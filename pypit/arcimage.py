@@ -6,7 +6,6 @@ import numpy as np
 import os
 
 from pypit import msgs
-from pypit import armasters
 from pypit import processimages
 from pypit import masterframe
 from pypit.core import arsort
@@ -90,6 +89,15 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         # MasterFrames
         masterframe.MasterFrame.__init__(self, self.frametype, self.setup, self.settings)
 
+    def build_image(self):
+        # Get list of arc frames for this science frame
+        if self.nfiles == 0:
+            self.file_list = arsort.list_of_files(self.fitstbl, 'arc', self.sci_ID)
+        # Combine
+        self.stack = self.process(bias_subtract=self.msbias)
+        #
+        return self.stack
+
     def master(self):
         """
         Build the master frame and save to disk
@@ -106,17 +114,13 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         # Build?
         if msframe is None:
             msgs.info("Preparing a master {0:s} frame".format(self.frametype))
-            # Get list of arc frames for this science frame
-            if self.nfiles == 0:
-                self.file_list = arsort.list_of_files(self.fitstbl, 'arc', self.sci_ID)
-            # Combine
-            msframe = self.process(bias_subtract=self.msbias)
+            msframe = self.build_image()
             # Save to Masters
             self.save_master(msframe, raw_files=self.file_list, steps=self.steps)
         else:
             # Prevent over-writing the master frame when it is time to save
             self.settings['reduce']['masters']['loaded'].append(self.frametype+self.setup)
-
-        # Put in
-        self.stack = msframe
+            # Put in
+            self.stack = msframe
+        # Return
         return msframe.copy()

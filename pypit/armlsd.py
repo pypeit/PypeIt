@@ -17,11 +17,11 @@ from pypit import arproc
 from pypit import arsave
 from pypit import arsciexp
 from pypit.core import arsetup
-from pypit import ardeimos
 from pypit import arpixels
 from pypit.core import arsort
 from pypit import artrace
 from pypit import arcimage
+from pypit import bpmimage
 from pypit import biasframe
 from pypit import traceslits
 from pypit import traceimage
@@ -127,7 +127,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             try:
                 tsettings['detector']['dataext'] = tsettings['detector']['dataext01']  # Kludge; goofy named key
             except KeyError: # LRIS, DEIMOS
-                pass
+                tsettings['detector']['dataext'] = None
             tsettings['detector']['dispaxis'] = settings.argflag['trace']['dispersion']['direction']
 
             ###############
@@ -158,32 +158,24 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
 
             ###############
             # Generate a bad pixel mask (should not repeat)
-            update = slf.BadPixelMask(fitstbl, det, msbias)
-            if update and reuseMaster:
-                armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
-
-            ###############
-            # Set the number of spectral and spatial pixels, and the bad pixel mask is it does not exist
-            slf._nspec[det-1], slf._nspat[det-1] = msarc.shape
-            if slf._bpix[det-1] is None:
-                bpix = np.zeros((slf._nspec[det-1], slf._nspat[det-1]))
-                if settings.argflag['run']['spectrograph'] in ['keck_deimos']:
-                    bpix = ardeimos.bpm(det)
-                slf.SetFrame(slf._bpix, bpix, det)
+            if 'bpm' in calib_dict[setup].keys():
+                msbpm = calib_dict[setup]['bpm']
+            else:
+                bpmImage = bpmimage.BPMImage(spectrograph=settings.argflag['run']['spectrograph'],
+                                             settings=tsettings, det=det,
+                                             shape=msarc.shape,
+                                             binning=fitstbl['binning'][scidx],
+                                             reduce_badpix=settings.argflag['reduce']['badpix'],
+                                             msbias=msbias)
+                msbpm = bpmImage.build()
+                # Save
+                calib_dict[setup]['bpm'] = msbpm
 
             ###############
             # Generate an array that provides the physical pixel locations on the detector
             pixlocn = arpixels.gen_pixloc(msarc.shape, det, settings.argflag)
             slf.SetFrame(slf._pixlocn, pixlocn, det)
 
-            '''
-            ###############
-            # Estimate gain and readout noise for the amplifiers
-            msgs.work("Estimate Gain and Readout noise from the raw frames...")
-            update = slf.MasterRN(fitsdict, det)
-            if update and reuseMaster:
-                armbase.UpdateMasters(sciexp, sc, det, ftype="readnoise")
-            '''
             ###############
             # Slit Tracing
             if 'trace' in calib_dict[setup].keys():  # Internal
@@ -209,7 +201,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                     tmp['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
                     # Now trace me some slits
                     Tslits = traceslits.TraceSlits(mstrace, slf._pixlocn[det-1], det=det, settings=tmp,
-                                                   binbpx=slf._bpix[det-1], setup=setup)
+                                                   binbpx=msbpm, setup=setup)
                     _ = Tslits.run(armlsd=True)
                     # QA
                     Tslits._qa()
@@ -233,7 +225,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
 
             ###############
             # Generate the 1D wavelength solution
-            update = slf.MasterWaveCalib(fitstbl, sc, det)
+            update = slf.MasterWaveCalib(fitstbl, det, msarc)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
 
@@ -254,7 +246,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
 
             ###############
             # Prepare the pixel flat field frame
-            update = slf.MasterFlatField(fitstbl, det)
+            update = slf.MasterFlatField(fitstbl, det, msbias)
             if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
 
             ###############
@@ -286,7 +278,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             sciframe = sciframe[:, :, 0]
             # Extract
             msgs.info("Processing science frame")
-            arproc.reduce_multislit(slf, sciframe, scidx, fitstbl, det)
+            arproc.reduce_multislit(slf, sciframe, msbpm, scidx, fitstbl, det)
 
             ###############
             # Using model sky, calculate a flexure correction

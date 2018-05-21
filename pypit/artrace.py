@@ -1609,7 +1609,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
-    arccen, maskslit = get_censpec(slf, msarc, det, gen_satmask=False)
+    arccen, maskslit, _ = get_censpec(slf, msarc, det, gen_satmask=False)
     satmask = np.zeros_like(slf._pixcen)
     # If the user sets no tilts, return here
     if settings.argflag['trace']['slits']['tilts']['method'].lower() == "zero":
@@ -1955,7 +1955,7 @@ def get_censpec(slf, frame, det, gen_satmask=False):
     maskslit : bool array
       1 = Bad slit/order for extraction (incomplete)
       0 = Ok
-    satmask : ndarray, optional
+    satmask : ndarray
       Saturation mask
       Returned in gen_satmask=True
     """
@@ -2056,7 +2056,7 @@ def get_censpec(slf, frame, det, gen_satmask=False):
     if gen_satmask:
         return arccen, maskslit, satsnd
     else:
-        return arccen, maskslit
+        return arccen, maskslit, None
 
 
 

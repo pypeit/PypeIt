@@ -116,6 +116,22 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         self.stack = self.process(bias_subtract=None, trim=False, overwrite=overwrite)
         return self.stack.copy()
 
+    def build_image(self):
+        """
+        Generate the image
+
+        Returns
+        -------
+
+        """
+        # Get all of the bias frames for this science frame
+        if self.nfiles == 0:
+            self.file_list = arsort.list_of_files(self.fitstbl, 'bias', self.sci_ID)
+        # Combine
+        self.stack = self.process_bias()
+        #
+        return self.stack
+
     def master(self):
         """
         Build the master frame and save to disk
@@ -132,12 +148,9 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
             # Load the MasterFrame if it exists and user requested one to load it
             msframe, header, raw_files = self.load_master_frame()
             if msframe is None:
+                # Build
                 msgs.info("Preparing a master {0:s} frame".format(self.settings[self.frametype]['useframe']))
-                # Get all of the bias frames for this science frame
-                if self.nfiles == 0:
-                    self.file_list = arsort.list_of_files(self.fitstbl, 'bias', self.sci_ID)
-                # Combine
-                msframe = self.process_bias()
+                msframe = self.build_image()
                 # Save to Masters
                 self.save_master(msframe, raw_files=self.file_list, steps=self.steps)
             else:
