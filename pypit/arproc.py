@@ -1058,7 +1058,7 @@ def reduce_prepare(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det, stand
     slf.update_sci_pixmask(det, bpix, 'BadPix')
     # Variance
     msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
-    rawvarframe = variance_frame(slf._datasec[det-1], det, sciframe, scidx, fitsdict)
+    rawvarframe = variance_frame(datasec_img, det, sciframe, scidx, fitsdict)
 
     ###############
     # Subtract off the scattered light from the image
@@ -1078,7 +1078,7 @@ def reduce_prepare(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det, stand
     ###############
     # Identify cosmic rays
     msgs.work("Include L.A.Cosmic arguments in the settings files")
-    if True: crmask = lacosmic(slf, fitsdict, det, sciframe, scidx, grow=1.5)
+    if True: crmask = lacosmic(datasec_img, fitsdict, det, sciframe, scidx, grow=1.5)
     else: crmask = np.zeros(sciframe.shape)
     # Mask
     slf.update_sci_pixmask(det, crmask, 'CR')
@@ -1134,7 +1134,7 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
                 # break
         if skysub:
             # Provided the for loop above didn't break early, model the variance frame
-            modelvarframe = variance_frame(slf._datasec[det-1], det, sciframe, scidx, fitsdict, skyframe=bgframe)
+            modelvarframe = variance_frame(datasec_img, det, sciframe, scidx, fitsdict, skyframe=bgframe)
     else:
         modelvarframe = rawvarframe.copy()
         bgframe = np.zeros_like(sciframe)
@@ -1261,7 +1261,7 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
             tbgframe, nl, nr = background_subtraction(slf, sciframe, rawvarframe, o, det, refine=refine)
             bgnl[o], bgnr[o] = nl, nr
             bgframe += tbgframe
-        modelvarframe = variance_frame(slf._datasec[det-1], det, sciframe, scidx, fitsdict, skyframe=bgframe)
+        modelvarframe = variance_frame(datasec_img, det, sciframe, scidx, fitsdict, skyframe=bgframe)
 
     # Perform an optimal extraction
     return reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask,
@@ -1308,7 +1308,7 @@ def reduce_multislit(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det, sta
         else:
             msgs.info("First estimate of the sky background")
             bgframe = bg_subtraction(slf, det, sciframe, rawvarframe, bpix, crmask)
-        modelvarframe = variance_frame(slf._datasec[det-1], det, sciframe, scidx, fitsdict, skyframe=bgframe)
+        modelvarframe = variance_frame(datasec_img, det, sciframe, scidx, fitsdict, skyframe=bgframe)
     else:
         modelvarframe = rawvarframe.copy()
         bgframe = np.zeros_like(sciframe)
@@ -1350,7 +1350,7 @@ def reduce_multislit(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det, sta
         # Do it
         bgframe = bg_subtraction(slf, det, sciframe, modelvarframe, bpix, crmask, tracemask=trcmask)
         # Redetermine the variance frame based on the new sky model
-        modelvarframe = variance_frame(slf._datasec[det-1], det, sciframe, scidx, fitsdict, skyframe=bgframe)
+        modelvarframe = variance_frame(datasec_img, det, sciframe, scidx, fitsdict, skyframe=bgframe)
         # Save
         if not standard:
             slf._modelvarframe[det-1] = modelvarframe
@@ -1366,11 +1366,12 @@ def reduce_multislit(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det, sta
 
     # Perform an optimal extraction
     msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
-    return reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, bgframe,
+    return reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, datasec_img, bgframe,
                         scidx, fitsdict, det, crmask, standard=standard)
 
 
-def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, bgframe, scidx, fitsdict, det, crmask,
+def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, datasec_img,
+                 bgframe, scidx, fitsdict, det, crmask,
                  scitrace=None, standard=False):
     """ Run standard extraction steps on a frame
 
@@ -1441,7 +1442,7 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, bgframe, scidx
 #                                           modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
         obj_model = arextract.optimal_extract(slf, det, slf._specobjs[det-1], sciframe-bgframe-bgcorr_box,
                                               modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
-        newvar = variance_frame(slf._datasec[det-1], det, sciframe-bgframe-bgcorr_box, -1,
+        newvar = variance_frame(datasec_img, det, sciframe-bgframe-bgcorr_box, -1,
                                 skyframe=bgframe+bgcorr_box, objframe=obj_model)
         msgs.work("Should update variance image (and trace?) and repeat")
         #
@@ -1451,7 +1452,7 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, bgframe, scidx
 #                                             newvar, bgframe+bgcorr_box, crmask, scitrace)
         obj_model = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
                                               newvar, bgframe+bgcorr_box, crmask, scitrace)
-        finalvar = variance_frame(slf._datasec[det-1], det, sciframe-bgframe-bgcorr_box, -1,
+        finalvar = variance_frame(datasec_img, det, sciframe-bgframe-bgcorr_box, -1,
                                   skyframe=bgframe+bgcorr_box, objframe=obj_model)
         slf._modelvarframe[det-1] = finalvar.copy()
 
@@ -2027,7 +2028,7 @@ def sn_frame(slf, sciframe, idx):
 '''
 
 
-def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-999999.9,
+def lacosmic(datasec_img, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-999999.9,
              simple_var=False, varframe=None, remove_compact_obj=True):
     """
     Identify cosmic rays using the L.A.Cosmic algorithm
@@ -2078,7 +2079,7 @@ def lacosmic(slf, fitsdict, det, sciframe, scidx, maxiter=1, grow=1.5, maskval=-
             if simple_var:
                 noise = np.sqrt(np.abs(m5)) #variance_frame(slf, det, m5, scidx, fitsdict))
             else:
-                noise = np.sqrt(variance_frame(slf, det, m5, scidx, fitsdict))
+                noise = np.sqrt(variance_frame(datasec_img, det, m5, scidx, fitsdict))
         else:
             noise = np.sqrt(varframe)
         msgs.info("Calculating Laplacian signal to noise ratio")

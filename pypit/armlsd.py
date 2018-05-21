@@ -135,7 +135,6 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             except KeyError: # LRIS, DEIMOS
                 tsettings['detector']['dataext'] = None
             tsettings['detector']['dispaxis'] = settings.argflag['trace']['dispersion']['direction']
-            debugger.set_trace()
 
             ###############
             # Prepare for Bias subtraction
