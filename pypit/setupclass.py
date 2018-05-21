@@ -13,7 +13,7 @@ from pypit import ardebug as debugger
 from pypit import arload
 from pypit import arparse
 from pypit import arsort
-from pypit import arsetup
+from pypit.core import arsetup
 
 # For out of PYPIT running
 if msgs._debug is None:
@@ -97,7 +97,7 @@ class SetupClass(object):
         """
         #
         all_sci_idx = self.fitstbl['sci_ID'].data[self.fitstbl['science']]
-        self.group_dict = arsetup.new_build_group_dict(self.fitstbl, self.setupIDs, all_sci_idx)
+        self.group_dict = arsetup.build_group_dict(self.fitstbl, self.setupIDs, all_sci_idx)
 
         # Write .sorted file
         if len(self.group_dict) > 0:
@@ -139,7 +139,8 @@ class SetupClass(object):
             if len(self.settings_argflag['reduce']['masters']['setup']) == 0:
                 msgs.error("You need to specify the following parameter in your PYPIT file:"+msgs.newline()+"reduce masters setup")
             # Generate a dummy setup_dict
-            self.setup_dict = arsetup.new_dummy_setup_dict(self.fitstbl)
+            self.setup_dict = arsetup.dummy_setup_dict(self.fitstbl,
+                    self.settings_argflag['reduce']['masters']['setup'])
             # Step
             self.steps.append(inspect.stack()[0][3])
             # Return
@@ -159,7 +160,7 @@ class SetupClass(object):
                 dnum = arparse.get_dnum(det)
                 namp = self.settings_spect[dnum]["numamplifiers"]
                 # Run
-                setupID = arsetup.new_instr_setup(sc, det, self.fitstbl, self.setup_dict, namp,
+                setupID = arsetup.instr_setup(sc, det, self.fitstbl, self.setup_dict, namp,
                                                   skip_cset=skip_cset, config_name=cname)
                 # Only save the first detector for run setup
                 if kk == 0:

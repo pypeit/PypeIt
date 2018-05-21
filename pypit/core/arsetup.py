@@ -1,47 +1,37 @@
 """ Routines for sorting data to be reduced by PYPIT"""
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-try:
-    basestring
-except NameError:
-    basestring = str
-
-try:
-    input = raw_input
-except NameError:
-    pass
-
 import os
-import io
 import glob
 import string
 
 import numpy as np
 import yaml
-import json
 
 import linetools.utils
 
 from pypit import msgs
-from pypit import arparse as settings
+#from pypit import arparse as settings
+from pypit import arparse
 from pypit import arutils
 from pypit import arparse
 from pypit import arsort
 from pypit import ardebug as debugger
 
-def new_dummy_setup_dict(fitstbl):
+
+def dummy_setup_dict(fitstbl, setup):
     """ Generates a dummy setup_dict
 
     Parameters
     ----------
     fitstbl : Table
+    setup : str
 
     Returns
     -------
     setup_dict : dict
     """
     # setup_dict
-    setup = settings.argflag['reduce']['masters']['setup']
     setup_dict = {}
     setup_dict[setup[0]] = {}
     # Fill with dummy dicts
@@ -54,6 +44,7 @@ def new_dummy_setup_dict(fitstbl):
     _ = write_calib(setup_dict)
     return setup_dict
 
+'''
 def dummy_setup_dict(filesort, fitsdict):
     """ Generates a dummy setup_dict
 
@@ -80,9 +71,10 @@ def dummy_setup_dict(filesort, fitsdict):
     # Write
     calib_file = write_calib(setup_dict)
     return setup_dict
+'''
 
 
-def new_calib_set(isetup_dict, fitstbl, sci_ID):
+def calib_set(isetup_dict, fitstbl, sci_ID):
     """ Generate a calibration dataset string
 
     Parameters
@@ -159,6 +151,7 @@ def new_calib_set(isetup_dict, fitstbl, sci_ID):
     # Return
     return cb_str
 
+'''
 def calib_set(isetup_dict, sciexp, fitsdict):
     """ Generate a calibration dataset string
 
@@ -229,6 +222,7 @@ def calib_set(isetup_dict, sciexp, fitsdict):
                 break
     # Return
     return cb_str
+'''
 
 
 def det_setup(isetup_dict, ddict):
@@ -248,7 +242,7 @@ def det_setup(isetup_dict, ddict):
       May be new or previously used
 
     """
-    det_str = [settings.get_dnum(i+1, prefix=False) for i in range(99)]
+    det_str = [arparse.get_dnum(i+1, prefix=False) for i in range(99)]
     # Init
     for dkey in det_str:
         mtch = True
@@ -263,7 +257,7 @@ def det_setup(isetup_dict, ddict):
     return dkey
 
 
-def new_instr_setup(sci_ID, det, fitstbl, setup_dict, numamplifiers,
+def instr_setup(sci_ID, det, fitstbl, setup_dict, numamplifiers,
                     must_exist=False, skip_cset=False, config_name=None):
     """ Define instrument config
     Make calls to detector and calib set
@@ -384,7 +378,7 @@ def new_instr_setup(sci_ID, det, fitstbl, setup_dict, numamplifiers,
     dkey = det_setup(setup_dict[setup], ddict)
     # Calib set
     if not skip_cset:
-        calib_key = new_calib_set(setup_dict[setup], fitstbl, sci_ID)
+        calib_key = calib_set(setup_dict[setup], fitstbl, sci_ID)
     else:
         calib_key = '--'
 
@@ -393,7 +387,7 @@ def new_instr_setup(sci_ID, det, fitstbl, setup_dict, numamplifiers,
     return setup
 
 
-
+'''
 def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
                 skip_cset=False, config_name=None):
     """ Define instrument config
@@ -516,9 +510,10 @@ def instr_setup(sciexp, det, fitsdict, setup_dict, must_exist=False,
     # Finish and return
     setup = '{:s}_{:s}_{:s}'.format(setup, dkey, calib_key)
     return setup
+'''
 
 
-def get_setup_file(spectrograph=None):
+def get_setup_file(settings_argflag, spectrograph=None):
     """ Passes back name of setup file
     Also checks for existing setup files
 
@@ -535,14 +530,14 @@ def get_setup_file(spectrograph=None):
 
     """
     if spectrograph is None:
-        spectrograph = settings.argflag['run']['spectrograph']
+        spectrograph = settings_argflag['run']['spectrograph']
     setup_files = glob.glob('./{:s}*.setups'.format(spectrograph))
     nexist = len(setup_files)
     # Require 1 or 0
     if nexist == 1:
         return setup_files[0], nexist
     elif nexist == 0:
-        setup_file = settings.argflag['run']['redname'].replace('.pypit', '.setups')
+        setup_file = settings_argflag['run']['redname'].replace('.pypit', '.setups')
         if os.path.isfile(setup_file):
             nexist = 1
         #date = str(datetime.date.today().strftime('%Y-%b-%d'))
@@ -552,6 +547,7 @@ def get_setup_file(spectrograph=None):
         msgs.error("Found more than one .setup file in the working directory.  Limit to one.")
 
 
+'''
 def load_setup(**kwargs):
     """ Load setup from the disk
 
@@ -570,6 +566,7 @@ def load_setup(**kwargs):
         setup_dict = yaml.load(infile)
     # Return
     return setup_dict, setup_file
+'''
 
 
 def write_calib(calib_file, setup_dict):
@@ -605,9 +602,7 @@ def write_setup(setup_dict, setup_file=None, use_json=False):
         setup_file, nexist = get_setup_file()
     if use_json:
         gddict = linetools.utils.jsonify(setup_dict)
-        with io.open(setup_file, 'w', encoding='utf-8') as f:
-            f.write(unicode(json.dumps(gddict, sort_keys=True, indent=4,
-                                       separators=(',', ': '))))
+        linetools.utils.savejson(setup_file, gddict, easy_to_read=True)
     else: # YAML
         ydict = arutils.yamlify(setup_dict)
         with open(setup_file, 'w') as yamlf:
@@ -711,7 +706,7 @@ def write_sorted(group_file, fitstbl, group_dict, setup_dict):
     ff.write('##end\n')
     ff.close()
 
-def new_build_group_dict(fitstbl, setupIDs, all_sci_idx):
+def build_group_dict(fitstbl, setupIDs, all_sci_idx):
     """ Generate a group dict
     Only used for generating the .sorted output file
 
@@ -762,6 +757,7 @@ def new_build_group_dict(fitstbl, setupIDs, all_sci_idx):
 
     return group_dict
 
+'''
 def build_group_dict(filesort, setupIDs, sciexp, fitsdict):
     """ Generate a group dict
     Only used for generating the .sorted output file
@@ -805,3 +801,4 @@ def build_group_dict(filesort, setupIDs, sciexp, fitsdict):
                     group_dict[config_key]['sciobj'].append(fitsdict['target'][scidx])
 
     return group_dict
+'''
