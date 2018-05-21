@@ -43,11 +43,11 @@ class ScienceExposure:
         self._idx_sci = np.where((fitstbl['sci_ID'] == sci_ID) & fitstbl['science'])[0]
         #
         if settings_argflag['reduce']['masters']['force']:
-            self._idx_bias = []
+            #self._idx_bias = []
             self._idx_flat = []
             self._idx_cent = []
             self._idx_trace = []
-            self._idx_arcs = []
+            #self._idx_arcs = []
             self._idx_std = []
         else:
             #if original:
@@ -67,14 +67,14 @@ class ScienceExposure:
             #    elif settings_argflag['reduce']['slitcen']['useframe'] == 'pinhole': self._idx_cent = settings_spect['pinhole']['index'][snum]
             #    else: self._idx_cent = []
             #else:
-            self._idx_arcs = arsort.ftype_indices(fitstbl, 'arc', self.sci_ID)
+            #self._idx_arcs = arsort.ftype_indices(fitstbl, 'arc', self.sci_ID)
             self._idx_std = arsort.ftype_indices(fitstbl, 'standard', self.sci_ID)
             # Bias
-            if settings_argflag['bias']['useframe'] == 'bias':
-                self._idx_bias = arsort.ftype_indices(fitstbl, 'bias', self.sci_ID)
-            elif settings_argflag['bias']['useframe'] == 'dark':
-                self._idx_bias = arsort.ftype_indices(fitstbl, 'dark', self.sci_ID)
-            else: self._idx_bias = []
+            #if settings_argflag['bias']['useframe'] == 'bias':
+            #    self._idx_bias = arsort.ftype_indices(fitstbl, 'bias', self.sci_ID)
+            #elif settings_argflag['bias']['useframe'] == 'dark':
+            #    self._idx_bias = arsort.ftype_indices(fitstbl, 'dark', self.sci_ID)
+            #else: self._idx_bias = []
             # Trace
             self._idx_trace = arsort.ftype_indices(fitstbl, 'trace', self.sci_ID)
             # Flat
@@ -126,9 +126,9 @@ class ScienceExposure:
         self._maskslits = [None for all in range(ndet)]  # Mask for whether to analyze a given slit (True=masked)
         # Initialize the Master Calibration frames
         self._bpix = [None for all in range(ndet)]          # Bad Pixel Mask
-        self._msarc = [None for all in range(ndet)]         # Master Arc
+        #self._msarc = [None for all in range(ndet)]         # Master Arc
         self._mswave = [None for all in range(ndet)]         # Master Wavelength image
-        self._msbias = [None for all in range(ndet)]        # Master Bias
+        #self._msbias = [None for all in range(ndet)]        # Master Bias
         self._msrn = [None for all in range(ndet)]          # Master ReadNoise image
         self._mstrace = [None for all in range(ndet)]       # Master Trace
         self._mspinhole = [None for all in range(ndet)]       # Master Pinhole
@@ -138,8 +138,8 @@ class ScienceExposure:
         self._msstd = [{} for all in range(ndet)]           # Master Standard dict
         self._sensfunc = None                               # Sensitivity function
         # Initialize the Master Calibration frame names
-        self._msarc_name = [None for all in range(ndet)]      # Master Arc Name
-        self._msbias_name = [None for all in range(ndet)]     # Master Bias Name
+        #self._msarc_name = [None for all in range(ndet)]      # Master Arc Name
+        #self._msbias_name = [None for all in range(ndet)]     # Master Bias Name
         self._mstrace_name = [None for all in range(ndet)]    # Master Trace Name
         self._mspinhole_name = [None for all in range(ndet)]    # Master Pinhole Name
         self._mspixelflat_name = [None for all in range(ndet)]  # Master Pixel Flat Name
@@ -209,7 +209,7 @@ class ScienceExposure:
     # Reduction procedures
     ###################################
 
-    def BadPixelMask(self, fitsdict, det):
+    def BadPixelMask(self, fitsdict, det, msbias):
         """
         Generate Bad Pixel Mask for a given detector
 
@@ -237,7 +237,7 @@ class ScienceExposure:
                     msgs.info("Not preparing a bad pixel mask")
                     return False
                 # Load the Bias frames
-                bpix = arproc.badpix(self, det, self.GetMasterFrame('bias', det))
+                bpix = arproc.badpix(self, det, msbias) # self.GetMasterFrame('bias', det))
         else:
             # Instrument dependent
             if settings.argflag['run']['spectrograph'] in ['keck_lris_red']:
@@ -271,7 +271,8 @@ class ScienceExposure:
         return
     '''
 
-    def MasterArc(self, fitsdict, det):
+    '''
+    def MasterArc(self, fitsdict, det, msbias):
         """
         Generate Master Arc frame for a given detector
 
@@ -299,8 +300,7 @@ class ScienceExposure:
                 msgs.info("Preparing a master arc frame")
                 ind = self._idx_arcs
                 # Load the arc frames
-                frames = arload.load_frames(fitsdict, ind, det, frametype='arc',
-                                            msbias=self._msbias[det-1])
+                frames = arload.load_frames(fitsdict, ind, det, frametype='arc', msbias=msbias) #self._msbias[det-1])
                 if settings.argflag['arc']['combine']['match'] > 0.0:
                     sframes = arsort.match_frames(frames, settings.argflag['arc']['combine']['match'], frametype='arc',
                                                   satlevel=settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])
@@ -327,7 +327,9 @@ class ScienceExposure:
         armasters.save_masters(self, det, mftype='arc')
         del msarc
         return True
+    '''
 
+    '''
     def MasterBias(self, fitsdict, det):
         """
         Generate Master Bias frame for a given detector
@@ -344,7 +346,7 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-
+        msgs.error("DEPRECATED)
         # If the master bias is already made, use it
         if self._msbias[det-1] is not None:
             msgs.info("An identical master {0:s} frame already exists".format(settings.argflag['bias']['useframe']))
@@ -378,6 +380,7 @@ class ScienceExposure:
 
         del msbias
         return True
+        '''
 
     '''
     def MasterRN(self, fitsdict, det):
@@ -412,7 +415,7 @@ class ScienceExposure:
         return True
     '''
 
-    def MasterFlatField(self, fitsdict, det):
+    def MasterFlatField(self, fitsdict, det, msbias):
         """
         Generate Master Flat-field frame for a given detector
 
@@ -473,8 +476,7 @@ class ScienceExposure:
                     # Get all of the pixel flat frames for this science frame
                     ind = self._idx_flat
                     # Load the frames for tracing
-                    frames = arload.load_frames(fitsdict, ind, det, frametype='pixel flat',
-                                                msbias=self._msbias[det-1])
+                    frames = arload.load_frames(fitsdict, ind, det, frametype='pixel flat', msbias=msbias)
                     if settings.argflag['pixelflat']['combine']['match'] > 0.0:
                         sframes = arsort.match_frames(frames, settings.argflag['pixelflat']['combine']['match'],
                                                       frametype='pixel flat', satlevel=self._nonlinear)
@@ -532,6 +534,7 @@ class ScienceExposure:
         else:
             msgs.work("Pixel Flat arrays need to be generated when not flat fielding")
             msgs.bug("Blaze is currently undefined")
+            debugger.set_trace()
             mspixelflat = np.ones_like(self._msarc)
             mspixelflatnrm = np.ones_like(self._msarc)
         # Set Master Frames
@@ -540,7 +543,7 @@ class ScienceExposure:
         armasters.save_masters(self, det, mftype='normpixelflat')
         return True
 
-    def MasterPinhole(self, fitsdict, det):
+    def MasterPinhole(self, fitsdict, det, msbias):
         """
         Generate Master pinhole frame for a given detector
 
@@ -569,7 +572,7 @@ class ScienceExposure:
                     settings.argflag['reduce']['slitcen']['useframe']))
                 ind = self._idx_cent
                 # Load the pinhole frames
-                frames = arload.load_frames(fitsdict, ind, det, frametype='pinhole', msbias=self._msbias[det - 1],
+                frames = arload.load_frames(fitsdict, ind, det, frametype='pinhole', msbias=msbias, # self._msbias[det - 1],
                                             trim=settings.argflag['reduce']['trim'])
                 if settings.argflag['pinhole']['combine']['match'] > 0.0:
                     sframes = arsort.match_frames(frames, settings.argflag['pinhole']['combine']['match'],
@@ -599,6 +602,7 @@ class ScienceExposure:
         del mspinhole
         return True
 
+    '''
     def MasterTrace(self, fitsdict, det):
         """
         Generate Master Trace frame for a given detector
@@ -617,7 +621,6 @@ class ScienceExposure:
         """
         # DEPRECATED
         msgs.error("DEPRECATED!")
-        '''
         dnum = settings.get_dnum(det)
         # If the master trace is already made, use it
         if self._mstrace[det-1] is not None:
@@ -654,7 +657,7 @@ class ScienceExposure:
         self.SetMasterFrame(mstrace, "trace", det)
         del mstrace
         return True
-        '''
+    '''
 
     def MasterWave(self, fitsdict, sc, det):
         """
@@ -695,7 +698,7 @@ class ScienceExposure:
         del mswave
         return True
 
-    def MasterWaveCalib(self, fitsdict, sc, det):
+    def MasterWaveCalib(self, fitsdict, sc, det, msarc):
         """
         Generate Master 1D Wave Solution (down slit/order centers)
 
@@ -728,7 +731,7 @@ class ScienceExposure:
                 self.SetFrame(self._arcparam, arcparam, det)
                 ###############
                 # Extract an arc down each slit
-                arccen, maskslit = artrace.get_censpec(self, self._msarc[det-1], det, gen_satmask=False)
+                arccen, maskslit = artrace.get_censpec(self, msarc, det, gen_satmask=False)
                 ok_mask = np.where(maskslit == 0)[0]
 
                 # Fill up the calibrations
@@ -755,7 +758,7 @@ class ScienceExposure:
             del wv_calib
         return True
 
-    def MasterStandard(self, fitsdict):
+    def MasterStandard(self, fitsdict, msbias):
         """
         Generate Master Standard frame for a given detector
         and generates a sensitivity function
@@ -794,7 +797,7 @@ class ScienceExposure:
                         continue
                 # Load the frame(s)
                 frame = arload.load_frames(fitsdict, ind, det, frametype='standard',
-                                           msbias=self._msbias[det-1])
+                                           msbias=msbias) # self._msbias[det-1])
                 sciframe = frame[:, :, 0] # First exposure
                 # Save RA/DEC
                 self._msstd[0]['RA'] = fitsdict['ra'][ind[0]]    # Yes, this needs to be index 0
@@ -878,9 +881,9 @@ class ScienceExposure:
         else:
             cpf = frame
         # Set the frame
-        if ftype == "arc": self._msarc[det] = cpf
-        elif ftype == "wave": self._mswave[det] = cpf
-        elif ftype == "bias": self._msbias[det] = cpf
+        #if ftype == "arc": self._msarc[det] = cpf
+        if ftype == "wave": self._mswave[det] = cpf
+        #elif ftype == "bias": self._msbias[det] = cpf
         elif ftype == "readnoise": self._msrn[det] = cpf
         elif ftype == "normpixelflat": self._mspixelflatnrm[det] = cpf
         elif ftype == "pixelflat": self._mspixelflat[det] = cpf
@@ -906,9 +909,9 @@ class ScienceExposure:
         det -= 1
         # Get the frame
         if mkcopy:
-            if ftype == "arc": return self._msarc[det].copy()
-            elif ftype == "wave": return self._mswave[det].copy()
-            elif ftype == "bias": return self._msbias[det].copy()
+            #if ftype == "arc": return self._msarc[det].copy()
+            if ftype == "wave": return self._mswave[det].copy()
+            #elif ftype == "bias": return self._msbias[det].copy()
             elif ftype == "normpixelflat": return self._mspixelflatnrm[det].copy()
             elif ftype == "pixelflat": return self._mspixelflat[det].copy()
             elif ftype == "trace": return self._mstrace[det].copy()
@@ -919,9 +922,9 @@ class ScienceExposure:
                 msgs.bug("I could not get master frame of type: {0:s}".format(ftype))
                 msgs.error("Please contact the authors")
         else:
-            if ftype == "arc": return self._msarc[det]
-            elif ftype == "wave": return self._mswave[det]
-            elif ftype == "bias": return self._msbias[det]
+            #if ftype == "arc": return self._msarc[det]
+            if ftype == "wave": return self._mswave[det]
+            #elif ftype == "bias": return self._msbias[det]
             elif ftype == "normpixelflat": return self._mspixelflatnrm[det]
             elif ftype == "pixelflat": return self._mspixelflat[det]
             elif ftype == "trace": return self._mstrace[det]

@@ -21,6 +21,7 @@ from pypit import ardeimos
 from pypit import arpixels
 from pypit.core import arsort
 from pypit import artrace
+from pypit import arcimage
 from pypit import biasframe
 from pypit import traceslits
 from pypit import traceimage
@@ -136,30 +137,34 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                 msbias = calib_dict[setup]['bias']
             else:
                 # Init
-                bias = biasframe.BiasFrame(settings=tsettings, setup=setup, ind=slf._idx_bias, det=det, fitstbl=fitstbl)
-                # If an image is generated, it will be saved to disk a a MasterFrame
-                msbias = bias.build_master()
-                # Save in Calib dict -- Will replace Master class
+                bias = biasframe.BiasFrame(settings=tsettings, setup=setup, det=det, fitstbl=fitstbl, sci_ID=sci_ID)
+                # Grab/build the MasterFrame (ndarray or str)
+                #   If an image is generated, it will be saved to disk a a MasterFrame
+                msbias = bias.master()
+                # Save
                 calib_dict[setup]['bias'] = msbias
 
-            # Set in slf -- Will be Deprecated
-            if isinstance(msbias, np.ndarray):
-                slf.SetMasterFrame(msbias, "bias", det)
+            ###############
+            # Generate a master arc frame
+            if 'arc' in calib_dict[setup].keys():
+                msarc = calib_dict[setup]['arc']
+            else:
+                AImage = arcimage.ArcImage([], spectrograph=settings.argflag['run']['spectrograph'],
+                                           settings=tsettings, det=det, setup=setup, sci_ID=sci_ID,
+                                           msbias=msbias, fitstbl=fitstbl)
+                msarc = AImage.master()
+                # Save
+                calib_dict[setup]['arc'] = msarc
 
             ###############
             # Generate a bad pixel mask (should not repeat)
-            update = slf.BadPixelMask(fitstbl, det)
-            if update and reuseMaster:
-                armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
-            ###############
-            # Generate a master arc frame
-            update = slf.MasterArc(fitstbl, det)
+            update = slf.BadPixelMask(fitstbl, det, msbias)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc")
 
             ###############
             # Set the number of spectral and spatial pixels, and the bad pixel mask is it does not exist
-            slf._nspec[det-1], slf._nspat[det-1] = slf._msarc[det-1].shape
+            slf._nspec[det-1], slf._nspat[det-1] = msarc.shape
             if slf._bpix[det-1] is None:
                 bpix = np.zeros((slf._nspec[det-1], slf._nspat[det-1]))
                 if settings.argflag['run']['spectrograph'] in ['keck_deimos']:
@@ -168,7 +173,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
 
             ###############
             # Generate an array that provides the physical pixel locations on the detector
-            pixlocn = arpixels.gen_pixloc(slf._msarc[det-1].shape, det, settings.argflag)
+            pixlocn = arpixels.gen_pixloc(msarc.shape, det, settings.argflag)
             slf.SetFrame(slf._pixlocn, pixlocn, det)
 
             '''
@@ -238,7 +243,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                 tilts = armasters.load_master_frame(slf, "tilts")
                 if tilts is None:
                     # First time tilts are derived for this arc frame --> derive the order tilts
-                    tilts, satmask, outpar = artrace.multislit_tilt(slf, slf._msarc[det-1], det)
+                    tilts, satmask, outpar = artrace.multislit_tilt(slf, msarc, det)
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
                     msgs.bug("This outpar is only the last slit!!  JXP doesn't think it matters for now")
@@ -277,7 +282,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             msgs.info("Loading science frame")
             sciframe = arload.load_frames(fitstbl, [scidx], det,
                                           frametype='science',
-                                          msbias=slf._msbias[det-1])
+                                          msbias=msbias) # slf._msbias[det-1])
             sciframe = sciframe[:, :, 0]
             # Extract
             msgs.info("Processing science frame")

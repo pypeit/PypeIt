@@ -3,16 +3,11 @@ from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
-import os
 
-from astropy.io import fits
 
 from pypit import msgs
 from pypit import ardebug as debugger
-from pypit import armasters
 from pypit import processimages
-from pypit import masterframe
-from pypit import ginga
 
 
 # For out of PYPIT running

@@ -66,6 +66,8 @@ def ftype_indices(fitstbl, ftype, sci_ID):
 def list_of_files(fitstbl, ftype, sci_ID):
     file_list = []
     idx = ftype_indices(fitstbl, ftype, sci_ID)
+    # Saving the match_frames algorithm (perhaps only for posterity!)
+    #sframes = arsort.match_frames(frames, settings.argflag['trace']['combine']['match'], frametype='trace', satlevel=settings.spect[dnum]['saturation']*settings.spect['det'][det-1]['nonlinear'])
     for ii in idx:
         file_list.append(fitstbl['directory'][ii]+fitstbl['filename'][ii])
     # Return
