@@ -2464,7 +2464,6 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
         edgbtwn = new_find_between(edgearr, lvp, lv, -1)
         #        assert np.sum(_edgbtwn != edgbtwn) == 0, 'Difference between old and new find_between'
         #        print('New find_between: {0} seconds'.format(time.clock() - t))
-        debugger.set_trace()
 
         if edgbtwn[0] == -1 and edgbtwn[1] == -1:
             rsub = edgbtwn[2] - (lval - 1)  # There's an order overlap

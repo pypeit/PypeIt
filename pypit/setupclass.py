@@ -12,8 +12,8 @@ from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import arload
 from pypit import arparse
-from pypit import arsort
-from pypit import arsetup
+from pypit.core import arsort
+from pypit.core import arsetup
 
 # For out of PYPIT running
 if msgs._debug is None:
@@ -97,7 +97,7 @@ class SetupClass(object):
         """
         #
         all_sci_idx = self.fitstbl['sci_ID'].data[self.fitstbl['science']]
-        self.group_dict = arsetup.new_build_group_dict(self.fitstbl, self.setupIDs, all_sci_idx)
+        self.group_dict = arsetup.build_group_dict(self.fitstbl, self.setupIDs, all_sci_idx)
 
         # Write .sorted file
         if len(self.group_dict) > 0:
@@ -139,7 +139,8 @@ class SetupClass(object):
             if len(self.settings_argflag['reduce']['masters']['setup']) == 0:
                 msgs.error("You need to specify the following parameter in your PYPIT file:"+msgs.newline()+"reduce masters setup")
             # Generate a dummy setup_dict
-            self.setup_dict = arsetup.new_dummy_setup_dict(self.fitstbl)
+            self.setup_dict = arsetup.dummy_setup_dict(self.fitstbl,
+                    self.settings_argflag['reduce']['masters']['setup'])
             # Step
             self.steps.append(inspect.stack()[0][3])
             # Return
@@ -159,7 +160,7 @@ class SetupClass(object):
                 dnum = arparse.get_dnum(det)
                 namp = self.settings_spect[dnum]["numamplifiers"]
                 # Run
-                setupID = arsetup.new_instr_setup(sc, det, self.fitstbl, self.setup_dict, namp,
+                setupID = arsetup.instr_setup(sc, det, self.fitstbl, self.setup_dict, namp,
                                                   skip_cset=skip_cset, config_name=cname)
                 # Only save the first detector for run setup
                 if kk == 0:
@@ -185,7 +186,7 @@ class SetupClass(object):
         self.steps.append(inspect.stack()[0][3])
         return self.fitstbl
 
-    def type_data(self):
+    def type_data(self, flag_unknown=False):
         """
           Perform image typing on the full set of input files
           Mainly a wrapper to arsort.type_data()
@@ -205,7 +206,7 @@ class SetupClass(object):
             ftdict = None
         self.filetypes = arsort.type_data(self.fitstbl, self.settings_spect,
                                      self.settings_argflag,
-                                     ftdict=ftdict)
+                                     ftdict=ftdict, flag_unknown=flag_unknown)
         # hstack me -- Might over-write self.fitstbl here
         msgs.info("Adding file type information to the fitstbl")
         self.fitstbl = hstack([self.fitstbl, self.filetypes])
@@ -268,13 +269,16 @@ class SetupClass(object):
         if self.fitstbl is None:
             _ = self.build_fitstbl(file_list)
 
-
         # File typing
-        _ = self.type_data()
+        if self.settings_argflag['run']['calcheck'] or self.settings_argflag['run']['setup']:
+            bad_to_unknown = True
+        else:
+            bad_to_unknown = False
+        _ = self.type_data(flag_unknown=bad_to_unknown)
 
         # Write?
         if self.settings_argflag['output']['sorted'] is not None:
-            _ = arsort.write_lst(self.fitstbl)
+            _ = arsort.write_lst(self.fitstbl, self.settings_spect, self.settings_argflag)
 
         # Match calibs to science
         _ = self.match_to_science()

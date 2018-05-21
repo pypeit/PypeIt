@@ -10,7 +10,7 @@ import numpy as np
 
 from pypit import arparse as settings
 from pypit import arproc
-from pypit import arsort
+from pypit.core import arsort
 from pypit import arsciexp
 
 

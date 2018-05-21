@@ -25,7 +25,7 @@ from pypit import arparse as settings
 from pypit import arflux
 from pypit import arload
 from pypit import arutils
-from pypit import arsort
+from pypit.core import arsort
 from pypit import arsciexp
 from pypit import armasters
 

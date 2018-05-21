@@ -13,10 +13,9 @@ from astropy import units
 from astropy.io import fits
 
 from pypit import arparse as settings
-from pypit import arutils
 from pypit import arsciexp
 from pypit import arspecobj
-from pypit import arsort
+from pypit.core import arsort
 from pypit import arsave
 
 def data_path(filename):

@@ -87,6 +87,7 @@ standard match naxis1 =0             # Match the shape of standard and science f
 standard match dispangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 20 ~ 2pixel)
 
 ### Bias/Dark frames
+bias check condition1 exptime<1     # Required for bias
 bias check condition5 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off
 bias match naxis0 =0                # Match the shape of bias and science frames
 bias match naxis1 =0                # Match the shape of bias and science frames

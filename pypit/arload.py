@@ -217,6 +217,7 @@ def load_headers(datlines, settings_spect, settings_argflag):
     fitstbl = Table(fitsdict)
     fitstbl.sort('time')
 
+    # TODO -- Remove the following (RC has an idea)
     # Instrument specific
     if settings_argflag['run']['spectrograph'] == 'keck_deimos':
         # Handle grating position
@@ -384,6 +385,49 @@ def load_extraction(name, frametype='<None>', wave=True):
         return sciext, props
 
 
+def load_master(name, exten=0, frametype='<None>'):
+    """
+    Load a pre-existing master calibration frame
+
+    Parameters
+    ----------
+    name : str
+      Name of the master calibration file to be loaded
+    exten : int, optional
+    frametype : str, optional
+      The type of master calibration frame being loaded.
+      This keyword is only used for terminal print out.
+
+    Ret        # HAS NOT BEEN DEVELOPED SINCE THE SetupClass refactor;  no test case..urns
+    -------
+    frame : ndarray or dict
+      The data from the master calibration frame
+    head : str (or None)
+    """
+    if frametype == 'wv_calib':
+        msgs.info("Loading Master {0:s} frame:".format(frametype)+msgs.newline()+name)
+        ldict = linetools.utils.loadjson(name)
+        return ldict, None
+    elif frametype == 'sensfunc':
+        with open(name, 'r') as f:
+            sensfunc = yaml.load(f)
+        sensfunc['wave_max'] = sensfunc['wave_max']*units.AA
+        sensfunc['wave_min'] = sensfunc['wave_min']*units.AA
+        return sensfunc, None
+    else:
+        msgs.info("Loading a pre-existing master calibration frame")
+        try:
+            hdu = fits.open(name)
+        except IOError:
+            if settings.argflag['reduce']['masters']['force']:
+                msgs.error("Master calibration file does not exist:"+msgs.newline()+name)
+            else:
+                msgs.warn("Could not read Master calibration file:"+msgs.newline()+name)
+                raise IOError
+        msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
+        head = hdu[0].header
+        data = hdu[exten].data.astype(np.float)
+        return data, head
 
 
 def load_ordloc(fname):

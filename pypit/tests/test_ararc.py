@@ -11,7 +11,7 @@ import pytest
 from linetools.spectra import xspectrum1d
 
 import pypit
-from pypit import arsort
+from pypit.core import arsort
 from pypit import arsciexp
 from pypit import ararc
 from pypit import arparse as settings

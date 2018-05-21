@@ -6,10 +6,12 @@ try:
 except NameError:
     basestring = str
 
+'''
 try:
     input = raw_input
 except NameError:
     pass
+'''
 
 import os
 import re
@@ -22,10 +24,9 @@ from astropy.table import Table
 from astropy import units
 
 from pypit import msgs
-from pypit import arparse as settings
+#from pypit import arparse as settings
 from pypit import arutils
 from pypit.arflux import find_standard_file
-from pypit import armeta
 from pypit import ardebug as debugger
 
 ftype_list = [     # NOTE:  arc must be listed first!
@@ -89,7 +90,6 @@ def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftd
       Each key is a file type and contains False/True for each datafile
       This is stacked onto the fitstbl
     """
-    #msgs.bug("There appears to be a bug with the assignment of arc frames when only one science frame is supplied")
     msgs.info("Typing files")
     numfiles = fitstbl['filename'].size
     # Set the filetype dictionary
@@ -125,7 +125,7 @@ def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftd
 
         # Perform additional checks in order to make sure this identification is true
         if 'check' in settings_spect[ftype].keys():
-            gd_chk = new_chk_all_conditions(ftype, fitstbl)
+            gd_chk = chk_all_conditions(ftype, fitstbl, settings_spect)
             filetypes[ftype] &= gd_chk
 
     # Identify the standard stars
@@ -147,15 +147,18 @@ def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftd
             filetypes['standard'][wscistd] = False
 
     # Make any forced changes
-    msgs.info("Making forced file identification changes")
     skeys = settings_spect['set'].keys()
-    for sk in skeys:
-        for jj in settings_spect['set'][sk]:
-            idx = np.where(fitstbl['filename']==jj)[0]
-            filetypes[sk][idx] = True
-            #filarr[:,w]=0
-            #setarr[np.where(ftype==sk)[0],w]=1
-    #filarr = filarr + setarr
+    if len(skeys) > 0:
+        msgs.info("Making forced file identification changes")
+        msgs.warn("Note that the image will have *only* the specified type")
+        for sk in skeys:
+            for jj in settings_spect['set'][sk]:
+                idx = np.where(fitstbl['filename']==jj)[0]
+                # Zero out the others
+                for ftype in ftype_list:
+                    filetypes[ftype][idx] = False
+                # And set
+                filetypes[sk][idx] = True
 
     # Check that all files have an identification
     chklist = []
@@ -182,7 +185,7 @@ def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftd
     msgs.info("Typing completed!")
     return filetypes
 
-
+'''
 def sort_data(fitsdict, flag_unknown=False):
     """ Generate a dict of filetypes from the input fitsdict object
 
@@ -312,9 +315,10 @@ def sort_data(fitsdict, flag_unknown=False):
     # Return filesort!
     msgs.info("Sorting completed successfully")
     return filesort
+'''
 
 
-def new_chk_all_conditions(fkey, fitstbl):
+def chk_all_conditions(fkey, fitstbl, settings_spect):
     """ Loop on the conditions for this given file type
     Parameters
     ----------
@@ -329,11 +333,11 @@ def new_chk_all_conditions(fkey, fitstbl):
     """
     gd_chk = np.ones(len(fitstbl), dtype=bool)
     # Loop on the items to check
-    chkk = settings.spect[fkey]['check'].keys()
+    chkk = settings_spect[fkey]['check'].keys()
     for ch in chkk:
         if ch[0:9] == 'condition':
             # Deal with a conditional argument
-            conds = re.split("(\||\&)", settings.spect[fkey]['check'][ch])
+            conds = re.split("(\||\&)", settings_spect[fkey]['check'][ch])
             ntmp = chk_condition(fitstbl, conds[0])
             # And more
             for cn in range((len(conds)-1)//2):
@@ -345,13 +349,13 @@ def new_chk_all_conditions(fkey, fitstbl):
         else:
             if fitstbl[ch].dtype.char in ['S','U']:  # Numpy string array
                 # Strip numpy string array of all whitespace
-                gd_chk = gd_chk & (np.char.strip(fitstbl[ch]) == settings.spect[fkey]['check'][ch])
+                gd_chk = gd_chk & (np.char.strip(fitstbl[ch]) == settings_spect[fkey]['check'][ch])
             else:
-                gd_chk = gd_chk & (fitstbl[ch] == settings.spect[fkey]['check'][ch])
+                gd_chk = gd_chk & (fitstbl[ch] == settings_spect[fkey]['check'][ch])
     # Return
     return gd_chk
 
-
+'''
 def chk_all_conditions(n, fkey, fitsdict):
     """ Loop on the conditions for this given file type
     Parameters
@@ -389,6 +393,7 @@ def chk_all_conditions(n, fkey, fitsdict):
         n = np.intersect1d(n, w)
     # Return
     return n
+'''
 
 
 def chk_condition(fitsdict, cond):
@@ -446,7 +451,7 @@ def chk_condition(fitsdict, cond):
     return ntmp
 
 
-def write_lst(fitstbl):
+def write_lst(fitstbl, settings_spect, settings_argflag):
     """
     Write out an ascii file that contains the details of the file sorting.
     By default, the filename is printed first, followed by the frametype.
@@ -464,7 +469,7 @@ def write_lst(fitstbl):
     prord = ['filename', 'frametype', 'target', 'exptime', 'naxis0', 'naxis1', 'filter1', 'filter2']
     prdtp = ["char",     "char",      "char",   "double",  "int",    "int",    "char",     "char"]
     # Now insert the remaining keywords:
-    fkey = settings.spect['keyword'].keys()
+    fkey = settings_spect['keyword'].keys()
     for i in fkey:
         if i not in prord:
             prord.append(i)
@@ -497,10 +502,10 @@ def write_lst(fitstbl):
     # Frametype
     ascii_tbl['frametype'] = build_frametype_list(fitstbl)
     # Write
-    if settings.argflag['run']['setup']:
-        ascii_name = settings.argflag['run']['redname'].replace('.pypit', '.lst')
+    if settings_argflag['run']['setup']:
+        ascii_name = settings_argflag['run']['redname'].replace('.pypit', '.lst')
     else:
-        ascii_name = settings.argflag['output']['sorted']+'.lst'
+        ascii_name = settings_argflag['output']['sorted']+'.lst'
     ascii_tbl[asciiord].write(ascii_name, format='ascii.fixed_width')
     return ascii_tbl
 
@@ -531,6 +536,7 @@ def build_frametype_list(fitstbl):
     # Return
     return ftypes
 
+'''
 def sort_write(fitsdict, filesort, space=3):
     """
     Write out an xml and ascii file that contains the details of the file sorting.
@@ -568,7 +574,7 @@ def sort_write(fitsdict, filesort, space=3):
             else:
                 msgs.bug("I didn't expect useful headers to contain type {!s:s}".format(typv).replace('<type ', '').replace('>', ''))
 
-    '''
+    """
     # Open a VOTable for writing
     votable = votable.tree.VOTableFile()
     resource = votable.tree.Resource()
@@ -604,7 +610,7 @@ def sort_write(fitsdict, filesort, space=3):
     votable.to_xml(fname)
     msgs.info("Successfully written sorted data information file:"+msgs.newline() +
               "{0:s}".format(fname))
-    '''
+    """
 
     # ASCII file
     asciiord = ['filename', 'date', 'frametype', 'frameno', 'target', 'exptime', 'binning',
@@ -639,9 +645,10 @@ def sort_write(fitsdict, filesort, space=3):
         ascii_name = settings.argflag['output']['sorted']+'.lst'
     ascii_tbl[asciiord].write(ascii_name, format='ascii.fixed_width')
     return ascii_tbl
+'''
 
 
-def new_match_logic(ch, tmtch, fitstbl, idx):
+def match_logic(ch, tmtch, fitstbl, idx):
     """ Perform logic on matching with fitsdict
     Parameters
     ----------
@@ -694,6 +701,7 @@ def new_match_logic(ch, tmtch, fitstbl, idx):
         #                        debugger.set_trace()
         tmpspl = str(re.escape(spltxt)).replace("\\|", "|")
         tmpspl = re.split(tmpspl, fitstbl[ch][idx])
+        msgs.warn("HAS NOT BEEN DEVELOPED SINCE THE SetupClass refactor;  no test case..")
         debugger.set_trace()  # HAS NOT BEEN DEVELOPED SINCE THE SetupClass refactor;  no test case..
         if len(tmpspl) < argtxt + 1:
             return None
@@ -722,7 +730,7 @@ def new_match_logic(ch, tmtch, fitstbl, idx):
     return w
 
 
-
+'''
 def match_logic(ch, tmtch, fitsdict, idx):
     """ Perform logic on matching with fitsdict
     Parameters
@@ -828,6 +836,7 @@ def match_logic(ch, tmtch, fitsdict, idx):
             return None
     # Return
     return w
+'''
 
 
 def match_to_science(fitstbl, settings_spect, settings_argflag):
@@ -896,7 +905,7 @@ def match_to_science(fitstbl, settings_spect, settings_argflag):
                 chkk = settings_spect[ftag]['match'].keys()
                 for ch in chkk:
                     tmtch = settings_spect[ftag]['match'][ch]
-                    gd_match &= new_match_logic(ch, tmtch, fitstbl, sci_idx)
+                    gd_match &= match_logic(ch, tmtch, fitstbl, sci_idx)
 
             # Find the time difference between the calibrations and science frames
             if settings_spect['fits']['calwin'] > 0.0:
@@ -911,7 +920,7 @@ def match_to_science(fitstbl, settings_spect, settings_argflag):
 
             # Have we identified enough of these calibration frames to continue?
             if nmatch < np.abs(numfr):
-                code = new_match_warnings(ftag, nmatch, numfr, fitstbl['target'][sci_idx],
+                code = match_warnings(ftag, nmatch, numfr, fitstbl['target'][sci_idx],
                                           settings_argflag)
                 if code == 'break':
                     fitstbl['failure'][sci_idx] = True
@@ -932,7 +941,7 @@ def match_to_science(fitstbl, settings_spect, settings_argflag):
     msgs.info("Science frames successfully matched to calibration frames")
     return fitstbl
 
-
+'''
 def match_science(fitsdict, filesort):
     """
     For a given set of identified data, match calibration frames to science frames
@@ -1049,8 +1058,9 @@ def match_science(fitsdict, filesort):
         i += 1
     msgs.info("Science frames successfully matched to calibration frames")
     return cal_index
+'''
 
-def new_match_warnings(ftag, nmatch, numfr, target, settings_argflag):
+def match_warnings(ftag, nmatch, numfr, target, settings_argflag):
     """
     Provide match warnings
 
@@ -1104,7 +1114,7 @@ def new_match_warnings(ftag, nmatch, numfr, target, settings_argflag):
         else:
             msgs.error("Unable to continue without more {0:s} frames".format(ftag))
     # Errors for insufficient ARC frames
-    if ftag == 'arc' and settings_argflag['reduce']['calibrate']:
+    if ftag == 'arc' and settings_argflag['reduce']['calibrate']['wavelength']:
         if settings_argflag['run']['setup']:
             msgs.warn("No arc frame for {0:s}. Removing it from list of science frames".format(target))
             msgs.warn("Add an arc and rerun one if you wish to reduce this with PYPIT!!")
@@ -1115,7 +1125,7 @@ def new_match_warnings(ftag, nmatch, numfr, target, settings_argflag):
             msgs.error("Unable to continue without more {0:s} frames".format(ftag))
     return code
 
-
+'''
 def match_warnings(ftag, nmatch, numfr, fitsdict, idx, filesort, cindex):
     """ Give warnings related to matching calibration files to science
     Returns
@@ -1174,6 +1184,7 @@ def match_warnings(ftag, nmatch, numfr, fitsdict, idx, filesort, cindex):
             msgs.warn("No arc frame for {0:s}, but will use MasterFrames".format(fitsdict['target'][idx]))
         else:
             msgs.error("Unable to continue without more {0:s} frames".format(ftag))
+'''
 
 def match_frames(frames, criteria, frametype='<None>', satlevel=None):
     """
@@ -1227,7 +1238,7 @@ def match_frames(frames, criteria, frametype='<None>', satlevel=None):
     return srtframes
 
 
-def make_dirs():
+def make_dirs(settings_argflag):
     """
     For a given set of identified data, match calibration frames to science frames
 
@@ -1247,10 +1258,10 @@ def make_dirs():
     # First, get the current working directory
     currDIR = os.getcwd()
     msgs.info("Creating Science directory")
-    newdir = "{0:s}/{1:s}".format(currDIR, settings.argflag['run']['directory']['science'])
+    newdir = "{0:s}/{1:s}".format(currDIR, settings_argflag['run']['directory']['science'])
     if os.path.exists(newdir):
         msgs.info("The following directory already exists:"+msgs.newline()+newdir)
-        if not settings.argflag['output']['overwrite']:
+        if not settings_argflag['output']['overwrite']:
             rmdir = ''
             while os.path.exists(newdir):
                 while rmdir != 'n' and rmdir != 'y' and rmdir != 'r':
@@ -1305,10 +1316,10 @@ def make_dirs():
     '''
     # Create a directory where all of the master calibration frames are stored.
     msgs.info("Creating Master Calibrations directory")
-    newdir = "{:s}/{:s}_{:s}".format(currDIR, settings.argflag['run']['directory']['master'],
-                                     settings.argflag['run']['spectrograph'])
+    newdir = "{:s}/{:s}_{:s}".format(currDIR, settings_argflag['run']['directory']['master'],
+                                     settings_argflag['run']['spectrograph'])
     if os.path.exists(newdir):
-        if not settings.argflag['output']['overwrite']:
+        if not settings_argflag['output']['overwrite']:
             msgs.info("The following directory already exists:"+msgs.newline()+newdir)
             rmdir = ''
             while rmdir != 'n' and rmdir != 'y':
@@ -1324,7 +1335,7 @@ def make_dirs():
     else: os.mkdir(newdir)
     # Create a directory where all of the QA is stored
     msgs.info("Creating QA directory")
-    newdir = "{0:s}/{1:s}".format(currDIR, settings.argflag['run']['directory']['qa'])
+    newdir = "{0:s}/{1:s}".format(currDIR, settings_argflag['run']['directory']['qa'])
     if os.path.exists(newdir):
         msgs.warn("Pre-existing QA plots will be overwritten")
         '''

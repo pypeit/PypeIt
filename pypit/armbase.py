@@ -6,14 +6,8 @@ import os
 import numpy as np
 
 from pypit import msgs
-from pypit import arparse as settings
-from pypit import arsetup
-from pypit import arsort
-from pypit import arsciexp
-from pypit import arparse
-from pypit import ardebug as debugger
 
-
+'''
 def setup_science(fitsdict):
     """ Create an exposure class for every science frame
     Also links to standard star frames and calibrations
@@ -131,6 +125,7 @@ def setup_science(fitsdict):
             msgs.error("Should not get here")
     # Return
     return 'run', sciexp, setup_dict
+'''
 
 
 def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):
