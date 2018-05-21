@@ -247,11 +247,9 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     original=False
     if original:
         mode, sciexp, setup_dict = armbase.setup_science(fitstbl)
-            #numsci = len(sciexp)
     else:
-        # This should move inside of PYPIT
-        setupc = setupclass.SetupClass(arparse.argflag, arparse.spect,
-                                       fitstbl=fitstbl)
+        # Instantiate
+        setupc = setupclass.SetupClass(arparse.argflag, arparse.spect, fitstbl=fitstbl)
         mode, fitstbl, setup_dict = setupc.run()
         sciexp = None
     if mode == 'setup':

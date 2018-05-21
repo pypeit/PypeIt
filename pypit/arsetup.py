@@ -631,29 +631,32 @@ def load_sorted(sorted_file):
      list of lists of all setup files including the header
     """
     all_setups, all_setuplines, all_setupfiles = [], [], []
-    with open(sorted_file,'r') as ff:
-        # Should begin with ####
-        fline = ff.readline()
-        if fline[0:4] != '####':
-            msgs.error('Bad .sorted fomatting')
-        # Loop on setups
-        while fline[0:5] != '##end':
-            # Setup lines
-            setuplines = []
-            while fline[0:2] != '#-':
-                fline = ff.readline()
-                # Setup name
-                if 'Setup' in fline:
-                    all_setups.append(fline[6:].strip())
-                #
-                setuplines.append(fline)
-            all_setuplines.append(setuplines[:-1])
-            # Data files
-            datafiles = []
-            while fline[0:2] != '##':
-                fline = ff.readline()
-                datafiles.append(fline)
-            all_setupfiles.append(datafiles[:-1])
+    try:
+        with open(sorted_file,'r') as ff:
+            # Should begin with ####
+            fline = ff.readline()
+            if fline[0:4] != '####':
+                msgs.error('Bad .sorted fomatting')
+            # Loop on setups
+            while fline[0:5] != '##end':
+                # Setup lines
+                setuplines = []
+                while fline[0:2] != '#-':
+                    fline = ff.readline()
+                    # Setup name
+                    if 'Setup' in fline:
+                        all_setups.append(fline[6:].strip())
+                    #
+                    setuplines.append(fline)
+                all_setuplines.append(setuplines[:-1])
+                # Data files
+                datafiles = []
+                while fline[0:2] != '##':
+                    fline = ff.readline()
+                    datafiles.append(fline)
+                all_setupfiles.append(datafiles[:-1])
+    except:
+        debugger.set_trace()
     # Return
     return all_setups, all_setuplines, all_setupfiles
 
