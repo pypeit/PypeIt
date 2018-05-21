@@ -11,8 +11,8 @@ import numpy as np
 from astropy.table import hstack
 
 from pypit import arparse as settings
-from pypit import arsort
-from pypit import arsetup
+from pypit.core import arsort
+from pypit.core import arsetup
 from pypit.armsgs import PypitError
 from pypit import arsciexp
 
@@ -127,15 +127,15 @@ def test_instr_setup(fitstblno):
     # Get an ID
     namp = 1
     setup_dict = {}
-    setupID = arsetup.new_instr_setup(1, 1, fitstbl, setup_dict, namp)
+    setupID = arsetup.instr_setup(1, 1, fitstbl, setup_dict, namp)
     assert setupID == 'A_01_aa'
     # Should get same thing
-    setupID = arsetup.new_instr_setup(1, 1, fitstbl, setup_dict, namp)
+    setupID = arsetup.instr_setup(1, 1, fitstbl, setup_dict, namp)
     assert setupID == 'A_01_aa'
     # New det (fake out kast_blue)
     settings.spect['det02'] = dict(numamplifiers=1)
     #setupID2 = arsetup.instr_setup(sciexp, 2, fitsdict, setup_dict)
-    setupID2 = arsetup.new_instr_setup(1, 2, fitstbl, setup_dict, namp)
+    setupID2 = arsetup.instr_setup(1, 2, fitstbl, setup_dict, namp)
     assert setupID2 == 'A_02_aa'
 
     # New calib set
@@ -146,6 +146,6 @@ def test_instr_setup(fitstblno):
     # Turn off other arc
     fitstbl['sci_ID'][1] = 1 + 4 + 8
     # Run
-    setupID3 = arsetup.new_instr_setup(2, 1, fitstbl, setup_dict, namp)
+    setupID3 = arsetup.instr_setup(2, 1, fitstbl, setup_dict, namp)
     assert setupID3 == 'A_01_ab'
     assert setup_dict['A']['ab']['arc'][0] == 'b009.fits'

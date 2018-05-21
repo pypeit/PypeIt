@@ -44,7 +44,7 @@ def main(args):
 
     from pypit import pyputils
     from pypit import armeta
-    from pypit import arsetup
+    from pypit.core import arsetup
     from pypit.scripts import run_pypit
     from pypit.pypit import load_input
 

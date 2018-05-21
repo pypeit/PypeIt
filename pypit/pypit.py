@@ -23,8 +23,8 @@ from pypit import archeck  # THIS IMPORT DOES THE CHECKING.  KEEP IT
 from pypit import arparse
 from pypit import armbase
 from pypit import ardevtest
-from pypit import arsort
-from pypit.arload import load_headers
+from pypit.core import arsort
+from pypit import arload
 from pypit import setupclass
 
 from pypit import arqa
@@ -213,7 +213,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     """
 
     # Load the important information from the fits headers
-    fitstbl, updates = load_headers(datlines, arparse.spect, arparse.argflag)
+    fitstbl, updates = arload.load_headers(datlines, arparse.spect, arparse.argflag)
 
     # If some settings were updated because of the fits headers, globalize the settings again
     if len(updates) != 0:
@@ -244,14 +244,14 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
                         = arparse.spect[ddnum]['oscansec{0:02d}'.format(i + 1)][::-1]
 
     # Set me up here
-    original=False
-    if original:
-        mode, sciexp, setup_dict = armbase.setup_science(fitstbl)
-    else:
-        # Instantiate
-        setupc = setupclass.SetupClass(arparse.argflag, arparse.spect, fitstbl=fitstbl)
-        mode, fitstbl, setup_dict = setupc.run()
-        sciexp = None
+    #original=False
+    #if original:
+    #    mode, sciexp, setup_dict = armbase.setup_science(fitstbl)
+    #else:
+    # Instantiate
+    setupc = setupclass.SetupClass(arparse.argflag, arparse.spect, fitstbl=fitstbl)
+    mode, fitstbl, setup_dict = setupc.run()
+    sciexp = None
     if mode == 'setup':
         status = 1
         return status
@@ -263,11 +263,11 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
 
     # Reduce the data!
     if mode == 'run':
-        arsort.make_dirs()
+        arsort.make_dirs(arparse.argflag)
         # Send the data away to be reduced
         if spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMLSD':
             msgs.info('Data reduction will be performed using PYPIT-ARMLSD')
-            status = armlsd.ARMLSD(fitstbl, setup_dict, sciexp=sciexp, original=original)
+            status = armlsd.ARMLSD(fitstbl, setup_dict, sciexp=sciexp)#, original=original)
         elif spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMED':
             msgs.info('Data reduction will be performed using PYPIT-ARMED')
             status = armed.ARMED(fitstbl)

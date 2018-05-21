@@ -13,10 +13,9 @@ from astropy import units
 
 from pypit import arparse
 from pypit import arwave
-from pypit import arutils
 from pypit import arspecobj
 from pypit import arsciexp
-from pypit import arsort
+from pypit.core import arsort
 
 mjd = 57783.269661
 RA = '07:06:23.45'

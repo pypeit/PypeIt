@@ -12,7 +12,7 @@ from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import arload
 from pypit import arparse
-from pypit import arsort
+from pypit.core import arsort
 from pypit.core import arsetup
 
 # For out of PYPIT running
@@ -278,7 +278,7 @@ class SetupClass(object):
 
         # Write?
         if self.settings_argflag['output']['sorted'] is not None:
-            _ = arsort.write_lst(self.fitstbl)
+            _ = arsort.write_lst(self.fitstbl, self.settings_spect, self.settings_argflag)
 
         # Match calibs to science
         _ = self.match_to_science()

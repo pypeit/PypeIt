@@ -11,7 +11,7 @@ from pypit import armasters
 from pypit import armbase
 from pypit import arproc
 from pypit import arsave
-from pypit import arsetup
+from pypit.core import arsetup
 from pypit import artrace
 from pypit import ardebug as debugger
 

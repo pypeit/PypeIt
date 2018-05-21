@@ -15,7 +15,7 @@ from pypit import msgs
 from pypit import arparse
 from pypit import arutils
 from pypit import arparse
-from pypit import arsort
+from pypit.core import arsort
 from pypit import ardebug as debugger
 
 

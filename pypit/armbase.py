@@ -6,11 +6,6 @@ import os
 import numpy as np
 
 from pypit import msgs
-from pypit import arparse as settings
-from pypit import arsort
-from pypit import arsciexp
-from pypit import arparse
-from pypit import ardebug as debugger
 
 '''
 def setup_science(fitsdict):

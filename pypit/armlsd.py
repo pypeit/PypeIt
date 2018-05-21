@@ -16,7 +16,7 @@ from pypit import armbase
 from pypit import arproc
 from pypit import arsave
 from pypit import arsciexp
-from pypit import arsetup
+from pypit.core import arsetup
 from pypit import ardeimos
 from pypit import artrace
 from pypit.core import artraceslits
@@ -25,7 +25,7 @@ from pypit import traceslits
 from pypit import ardebug as debugger
 
 
-def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None, original=True):
+def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None): #, original=True):
     """
     Automatic Reduction and Modeling of Long Slit Data
 
@@ -73,7 +73,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
         all_sci_ID = fitstbl['sci_ID'].data[fitstbl['science']]  # Binary system: 1,2,4,8, etc.
         for ii in all_sci_ID:
             sciexp.append(arsciexp.ScienceExposure(ii, fitstbl, settings.argflag,
-                                                   settings.spect, do_qa=True, original=original))
+                                                   settings.spect, do_qa=True))#, original=original))
     numsci = len(sciexp)
 
     # Start reducing the data
@@ -102,11 +102,11 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             # Get data sections
             arproc.get_datasec_trimmed(slf, fitstbl, det, scidx)
             # Setup
-            if original:
-                setup = arsetup.instr_setup(slf, det, fitstbl, setup_dict, must_exist=True)
-            else:
-                namp = settings.spect[dnum]["numamplifiers"]
-                setup = arsetup.new_instr_setup(sci_ID, det, fitstbl, setup_dict, namp, must_exist=True)
+            #if original:
+            #    setup = arsetup.instr_setup(slf, det, fitstbl, setup_dict, must_exist=True)
+            #else:
+            namp = settings.spect[dnum]["numamplifiers"]
+            setup = arsetup.instr_setup(sci_ID, det, fitstbl, setup_dict, namp, must_exist=True)
             settings.argflag['reduce']['masters']['setup'] = setup
             slf.setup = setup
             ###############
@@ -172,12 +172,12 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                 slf.SetFrame(slf._slitpix, Tslits.slitpix, det)
 
                 # Save to disk
-                original = False
-                if original:
-                    armasters.save_masters(slf, det, mftype='trace')
-                else:
-                    msname = armasters.master_name('trace', setup)
-                    Tslits.save_master(msname)
+                #original = False
+                #if original:
+                #    armasters.save_masters(slf, det, mftype='trace')
+                #else:
+                msname = armasters.master_name('trace', setup)
+                Tslits.save_master(msname)
 
                 # Initialize maskslit
                 slf._maskslits[det-1] = np.zeros(slf._lordloc[det-1].shape[1], dtype=bool)
