@@ -1,4 +1,4 @@
-# Module to run tests on ProcessImages class
+# Module to run tests on BiasFrame class
 #   Requires files in Development suite and an Environmental variable
 from __future__ import absolute_import
 from __future__ import division
@@ -54,6 +54,9 @@ def kast_settings():
 
 
 def test_instantiate(kast_blue_bias_files, kast_settings):
+    if skip_test:
+        assert True
+        return
     # Empty
     bias_frame0 = biasframe.BiasFrame()
     assert bias_frame0.nfiles == 0
