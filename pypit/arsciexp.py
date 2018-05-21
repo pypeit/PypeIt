@@ -107,7 +107,7 @@ class ScienceExposure:
                            for det in range(ndet)]
         #self._nspec    = [None for all in range(ndet)]   # Number of spectral pixels
         #self._nspat    = [None for all in range(ndet)]   # Number of spatial pixels
-        self._datasec  = [None for all in range(ndet)]   # Locations of the data on each detector
+        #self._datasec  = [None for all in range(ndet)]   # Locations of the data on each detector
         self._pixlocn  = [None for all in range(ndet)]   # Physical locations of each pixel on the detector
         self._lordloc  = [None for all in range(ndet)]   # Array of slit traces (left side) in physical pixel coordinates
         self._rordloc  = [None for all in range(ndet)]   # Array of slit traces (left side) in physical pixel coordinates
@@ -529,7 +529,7 @@ class ScienceExposure:
             else:  # It must be the name of a file the user wishes to load
                 mspixelflat_name = armasters.user_master_name(settings.argflag['run']['directory']['master'],
                                                               settings.argflag['reduce']['flatfield']['useframe'])
-                mspixelflatnrm, head = armasters.load_master(mspixelflat_name, exten=det, frametype=None)
+                mspixelflatnrm, head, _ = armasters.load_master(mspixelflat_name, exten=det, frametype=None)
                 mspixelflat = mspixelflatnrm
             # Now that the combined, master flat field frame is loaded...
         else:

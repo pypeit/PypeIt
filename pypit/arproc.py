@@ -690,8 +690,7 @@ def get_datasec_trimmed(slf, fitsdict, det, scidx):
         datasec.append(settings.spect[dnum][sdatasec])
     # Call
     naxis0, naxis1 = int(fitsdict['naxis0'][scidx]), int(fitsdict['naxis1'][scidx])
-    slf._datasec[det-1] = pix_to_amp(naxis0, naxis1, datasec, numamplifiers)
-    return
+    return pix_to_amp(naxis0, naxis1, datasec, numamplifiers)
 
 
 def get_datasec(spectrograph, scifile, numamplifiers=None, det=None):
@@ -1028,7 +1027,7 @@ def object_profile(slf, sciframe, slitn, det, refine=0.0, factor=3):
     return xedges, profile
 
 
-def reduce_prepare(slf, sciframe, bpix, scidx, fitsdict, det, standard=False):
+def reduce_prepare(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det, standard=False):
     """ Prepare the Run standard extraction steps on a frame
 
     Parameters
@@ -1049,14 +1048,17 @@ def reduce_prepare(slf, sciframe, bpix, scidx, fitsdict, det, standard=False):
     if not isinstance(scidx, (int,np.integer)):
         raise IOError("scidx needs to be an int")
     # Convert ADUs to electrons
-    sciframe *= gain_frame(slf, det)
+    dnum = settings.get_dnum(det)
+    namp = settings.spect[dnum]['numamplifiers']
+    gain_list = settings.spect[dnum]['gain']
+    sciframe *= gain_frame(datasec_img, namp, gain_list)
     # Mask
     slf._scimask[det-1] = np.zeros_like(sciframe).astype(int)
     msgs.info("Masking bad pixels")
     slf.update_sci_pixmask(det, bpix, 'BadPix')
     # Variance
     msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
-    rawvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict)
+    rawvarframe = variance_frame(slf._datasec[det-1], det, sciframe, scidx, fitsdict)
 
     ###############
     # Subtract off the scattered light from the image
@@ -1132,7 +1134,7 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
                 # break
         if skysub:
             # Provided the for loop above didn't break early, model the variance frame
-            modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
+            modelvarframe = variance_frame(slf._datasec[det-1], det, sciframe, scidx, fitsdict, skyframe=bgframe)
     else:
         modelvarframe = rawvarframe.copy()
         bgframe = np.zeros_like(sciframe)
@@ -1259,14 +1261,14 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
             tbgframe, nl, nr = background_subtraction(slf, sciframe, rawvarframe, o, det, refine=refine)
             bgnl[o], bgnr[o] = nl, nr
             bgframe += tbgframe
-        modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
+        modelvarframe = variance_frame(slf._datasec[det-1], det, sciframe, scidx, fitsdict, skyframe=bgframe)
 
     # Perform an optimal extraction
     return reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bgframe, scidx, fitsdict, det, crmask,
                         scitrace=scitrace, standard=standard)
 
 
-def reduce_multislit(slf, sciframe, bpix, scidx, fitsdict, det, standard=False):
+def reduce_multislit(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det, standard=False):
     """ Run standard extraction steps on an echelle frame
 
     Parameters
@@ -1286,7 +1288,8 @@ def reduce_multislit(slf, sciframe, bpix, scidx, fitsdict, det, standard=False):
     """
 
     # FOR DEVELOPING
-    sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, bpix, scidx, fitsdict, det, standard=standard)
+    sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, bpix, datasec_img,
+                                                   scidx, fitsdict, det, standard=standard)
 
     # Save sciframe
     if not standard:
@@ -1305,7 +1308,7 @@ def reduce_multislit(slf, sciframe, bpix, scidx, fitsdict, det, standard=False):
         else:
             msgs.info("First estimate of the sky background")
             bgframe = bg_subtraction(slf, det, sciframe, rawvarframe, bpix, crmask)
-        modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
+        modelvarframe = variance_frame(slf._datasec[det-1], det, sciframe, scidx, fitsdict, skyframe=bgframe)
     else:
         modelvarframe = rawvarframe.copy()
         bgframe = np.zeros_like(sciframe)
@@ -1347,7 +1350,7 @@ def reduce_multislit(slf, sciframe, bpix, scidx, fitsdict, det, standard=False):
         # Do it
         bgframe = bg_subtraction(slf, det, sciframe, modelvarframe, bpix, crmask, tracemask=trcmask)
         # Redetermine the variance frame based on the new sky model
-        modelvarframe = variance_frame(slf, det, sciframe, scidx, fitsdict, skyframe=bgframe)
+        modelvarframe = variance_frame(slf._datasec[det-1], det, sciframe, scidx, fitsdict, skyframe=bgframe)
         # Save
         if not standard:
             slf._modelvarframe[det-1] = modelvarframe
@@ -1438,7 +1441,7 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, bgframe, scidx
 #                                           modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
         obj_model = arextract.optimal_extract(slf, det, slf._specobjs[det-1], sciframe-bgframe-bgcorr_box,
                                               modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
-        newvar = variance_frame(slf, det, sciframe-bgframe-bgcorr_box, -1,
+        newvar = variance_frame(slf._datasec[det-1], det, sciframe-bgframe-bgcorr_box, -1,
                                 skyframe=bgframe+bgcorr_box, objframe=obj_model)
         msgs.work("Should update variance image (and trace?) and repeat")
         #
@@ -1448,7 +1451,7 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, bgframe, scidx
 #                                             newvar, bgframe+bgcorr_box, crmask, scitrace)
         obj_model = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
                                               newvar, bgframe+bgcorr_box, crmask, scitrace)
-        finalvar = variance_frame(slf, det, sciframe-bgframe-bgcorr_box, -1,
+        finalvar = variance_frame(slf._datasec[det-1], det, sciframe-bgframe-bgcorr_box, -1,
                                   skyframe=bgframe+bgcorr_box, objframe=obj_model)
         slf._modelvarframe[det-1] = finalvar.copy()
 
@@ -1478,8 +1481,6 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, bgframe, scidx
         slf._bgframe[det-1] += bgcorr_box
     # Return
     return True
-
-
 
 
 
@@ -2319,40 +2320,38 @@ def new_order_pixels(pixlocn, lord, rord):
     return outfr
 
 
-def gain_frame(slf, det):
-    """ Generate a gain image from the spect dict
+def gain_frame(datasec_img, namp, gain_list):
+    """ Generate a gain image
 
     Parameters
     ----------
     slf
     det
+    namp : int
 
     Returns
     -------
     gain_img : ndarray
 
     """
-    dnum = settings.get_dnum(det)
+    #namp = settings.spect[dnum]['numamplifiers'])
+    #gains = settings.spect[dnum]['gain'][amp - 1]
 
     # Loop on amplifiers
-    gain_img = np.zeros_like(slf._datasec[det-1])
-    for ii in range(settings.spect[dnum]['numamplifiers']):
+    gain_img = np.zeros_like(datasec_img)
+    for ii in range(namp):
         amp = ii+1
-        try:
-            amppix = slf._datasec[det-1] == amp
-            gain_img[amppix] = settings.spect[dnum]['gain'][amp - 1]
-        except IndexError:
-            debugger.set_trace()
+        amppix = datasec_img == amp
+        gain_img[amppix] = gain_list[ii]
     # Return
     return gain_img
 
 
-def rn_frame(slf, det):
+def rn_frame(det, datasec_img):
     """ Generate a RN image
 
     Parameters
     ----------
-    slf
     det
 
     Returns
@@ -2363,10 +2362,10 @@ def rn_frame(slf, det):
     dnum = settings.get_dnum(det)
 
     # Loop on amplifiers
-    rnimg = np.zeros_like(slf._datasec[det-1])
+    rnimg = np.zeros_like(datasec_img)
     for ii in range(settings.spect[dnum]['numamplifiers']):
         amp = ii+1
-        amppix = slf._datasec[det-1] == amp
+        amppix = datasec_img == amp
         rnimg[amppix] = (settings.spect[dnum]['ronoise'][ii]**2 +
                          (0.5*settings.spect[dnum]['gain'][ii])**2)
     # Return
@@ -2572,10 +2571,11 @@ def trim(frame, numamplifiers, datasec):
         msgs.error("Cannot trim file")
 
 
-def variance_frame(slf, det, sciframe, idx, fitsdict=None, skyframe=None, objframe=None):
+def variance_frame(datasec_img, det, sciframe, idx, fitsdict=None, skyframe=None, objframe=None):
     """ Calculate the variance image including detector noise
     Parameters
     ----------
+    datasec_img : ndarray
     fitsdict : dict, optional
       Contains relevant information from fits header files
     objframe : ndarray, optional
@@ -2587,7 +2587,7 @@ def variance_frame(slf, det, sciframe, idx, fitsdict=None, skyframe=None, objfra
     dnum = settings.get_dnum(det)
 
     # The effective read noise (variance image)
-    rnoise = rn_frame(slf, det)
+    rnoise = rn_frame(det, datasec_img)
     if skyframe is not None:
         if objframe is None:
             objframe = np.zeros_like(skyframe)

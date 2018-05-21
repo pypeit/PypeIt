@@ -92,7 +92,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     def build_image(self):
         # Get list of arc frames for this science frame
         if self.nfiles == 0:
-            self.file_list = arsort.list_of_files(self.fitstbl, 'arc', self.sci_ID)
+            self.file_list = arsort.list_of_files(self.fitstbl, self.frametype, self.sci_ID)
         # Combine
         self.stack = self.process(bias_subtract=self.msbias)
         #
