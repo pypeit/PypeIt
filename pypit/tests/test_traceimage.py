@@ -40,7 +40,7 @@ def test_instantiate(deimos_flat_files):
     # Empty
     Timage = traceimage.TraceImage(deimos_flat_files)
     assert Timage.nfiles == 2
-    
+
 
 def test_process(deimos_flat_files):
     if skip_test:
