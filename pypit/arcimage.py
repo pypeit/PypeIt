@@ -25,7 +25,7 @@ frametype = 'arc'
 class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     """
     This class is primarily designed to generate an Arc Image from one or more arc frames
-      The build_master() method will return the image
+      The master() method returns the image (loaded or built)
 
     Parameters
     ----------
@@ -33,27 +33,32 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
       List of filenames
     spectrograph : str (optional)
        Used to specify properties of the detector (for processing)
-       Attempt to set with settings['run']['spectrograph'] if not input
+       Passed to ProcessImages
+       Attempts to set with settings['run']['spectrograph'] if not input
     settings : dict (optional)
-      Settings for trace slits
+       Passed to ProcessImages
+       Settings for image combining+detector
     setup : str (optional)
       Setup tag;  required for MasterFrame functionality
     det : int, optional
       Detector index, starts at 1
-    fitstbl : Table (optional)
-      FITS info (mainly for filenames)
     sci_ID : int (optional)
       Science ID value
       used to match bias frames to the current science exposure
+    msbias : ndarray or str
+      Guides bias subtraction
+    fitstbl : Table (optional)
+      FITS info (mainly for filenames)
 
     Attributes
     ----------
     frametype : str
-      Set to 'trace_image'
+      Set to 'arc'
 
     Inherited Attributes
     --------------------
     stack : ndarray
+      Final output image
     """
     # Keep order same as processimages (or else!)
     def __init__(self, file_list=[], spectrograph=None, settings=None, det=1, setup=None, sci_ID=None,
@@ -63,13 +68,13 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         self.sci_ID = sci_ID
         self.msbias = msbias
         self.fitstbl = fitstbl
+        self.setup = setup
 
         # Start us up
         processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph, settings=settings, det=det)
 
         # Attributes (set after init)
         self.frametype = frametype
-        self.setup = setup
 
         # Settings
         # The copy allows up to update settings with user settings without changing the original
@@ -81,7 +86,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
             # The following is somewhat kludgy and the current way we do settings may
             #   not touch all the options (not sure .update() would help)
             if 'combine' not in settings.keys():
-                self.settings['combine'] = settings['trace']['combine']
+                self.settings['combine'] = settings[self.frametype]['combine']
 
         # Child-specific Internals
         #    See ProcessImages for the rest
@@ -90,7 +95,15 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         masterframe.MasterFrame.__init__(self, self.frametype, self.setup, self.settings)
 
     def build_image(self):
+        """
+        Build the arc image from one or more arc files
+
+        Returns
+        -------
+
+        """
         # Get list of arc frames for this science frame
+        #  unless one was input already
         if self.nfiles == 0:
             self.file_list = arsort.list_of_files(self.fitstbl, self.frametype, self.sci_ID)
         # Combine
@@ -100,13 +113,14 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
 
     def master(self):
         """
-        Build the master frame and save to disk
-         OR
         Load the master frame from disk
+         OR
+        Build the master frame and save to disk
 
         Returns
         -------
         msframe : ndarray
+          arc image
 
         """
         # Load the MasterFrame if it exists and user requested one to load it

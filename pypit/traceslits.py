@@ -950,7 +950,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         Returns
         -------
-        trace_slits_dict : dict
+        trace_slits_dict : dict  -- MAY BE DEPRECATED
           'lcen'
           'rcen'
           'pixcen'

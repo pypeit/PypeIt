@@ -1,11 +1,9 @@
-# Module for guiding Slit/Order tracing
+# Module for Processing Images, e.g. bias frames, arc frames
 from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
 import os
-
-from collections import OrderedDict
 
 from astropy.io import fits
 
@@ -14,7 +12,6 @@ from pypit import ardebug as debugger
 from pypit import arcomb
 from pypit import arload
 from pypit import arproc
-from pypit import arparse
 from pypit import ginga
 
 
@@ -107,6 +104,19 @@ class ProcessImages(object):
 
     @classmethod
     def from_fits(cls, fits_file, **kwargs):
+        """
+        Instantiate from a FITS file
+
+        Parameters
+        ----------
+        fits_file : str
+        kwargs : passed to the __init__
+
+        Returns
+        -------
+        slf
+
+        """
         if not os.path.isfile(fits_file):
             msgs.error("FITS file not found: {:s}".format(fits_file))
         # Load
@@ -123,13 +133,38 @@ class ProcessImages(object):
 
     @property
     def nfiles(self):
+        """
+        Number of files in the file_list
+
+        Returns
+        -------
+        nfiles : int
+
+        """
         return len(self.file_list)
 
     @property
     def nloaded(self):
+        """
+        Number of raw images loaded
+
+        Returns
+        -------
+        nloaded : int
+
+        """
         return len(self.raw_images)
 
     def load_images(self):
+        """ Load raw images from the disk
+        Also loads the datasec info
+
+
+        Returns
+        -------
+        self.raw_images : list
+        self.headers : list
+        """
         self.raw_images = []  # Zeros out any previous load
         self.headers = []
         for ifile in self.file_list:
@@ -145,6 +180,19 @@ class ProcessImages(object):
         self.steps.append(inspect.stack()[0][3])
 
     def _grab_datasec(self, redo=False):
+        """
+        Load the datasec parameters
+
+        Parameters
+        ----------
+        redo : bool, optional
+
+        Returns
+        -------
+        self.datasec : list
+        self.oscansec : list
+
+        """
         if (self.datasec is not None) and (not redo):
             return
         # TODO -- Eliminate this instrument specific bit here. Probably by generating a Detector object
@@ -203,6 +251,14 @@ class ProcessImages(object):
         self.steps.append(inspect.stack()[0][3])
 
     def combine(self):
+        """
+        Combine the processed images
+
+        Returns
+        -------
+        self.stack : ndarray
+
+        """
         # Now we can combine
         self.stack = arcomb.core_comb_frames(self.proc_images, frametype=self.frametype,
                                              method=self.settings['combine']['method'],
@@ -214,6 +270,21 @@ class ProcessImages(object):
         return self.stack
 
     def process(self, bias_subtract=None, trim=True, overwrite=False):
+        """
+        Process the images from loading to combining
+
+        Parameters
+        ----------
+        bias_subtract : str or ndarray or None
+          Guides bias subtraction
+        trim : bool, optional
+        overwrite :
+
+        Returns
+        -------
+        self.stack : ndarray
+
+        """
         # Over-write?
         if (inspect.stack()[0][3] in self.steps) & (not overwrite):
             msgs.warn("Images already combined.  Use overwrite=True to do it again.")
@@ -241,9 +312,33 @@ class ProcessImages(object):
         return self.stack.copy()
 
     def flat_field(self):
+        """
+        Coming soon
+
+        Returns
+        -------
+
+        """
         pass
 
     def show(self, attr, idx=None, display='ginga'):
+        """
+        Show an image
+
+        Parameters
+        ----------
+        attr : str
+          Internal name of the image to show
+            proc_image, raw_image, stack
+        idx : int
+          Specifies the index of the raw or processed image
+          Required if proc_image or raw_image is called
+        display : str
+
+        Returns
+        -------
+
+        """
         if 'proc_image' in attr:
             img = self.proc_images[:,:,idx]
         elif 'raw_image' in attr:
@@ -254,6 +349,18 @@ class ProcessImages(object):
         viewer, ch = ginga.show_image(img)
 
     def write_stack_to_fits(self, outfile, overwrite=True):
+        """
+        Write the combined image to disk as a FITS file
+
+        Parameters
+        ----------
+        outfile : str
+        overwrite
+
+        Returns
+        -------
+
+        """
         if self.stack is None:
             msgs.warn("You need to generate the stack before you can write it!")
             return

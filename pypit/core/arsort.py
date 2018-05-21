@@ -64,6 +64,20 @@ def ftype_indices(fitstbl, ftype, sci_ID):
     return idx
 
 def list_of_files(fitstbl, ftype, sci_ID):
+    """
+    Generate a list of filenames with path for a given frametype and sci_ID
+
+    Parameters
+    ----------
+    fitstbl : Table
+    ftype : str
+    sci_ID : int
+
+    Returns
+    -------
+    file_list : list
+
+    """
     file_list = []
     idx = ftype_indices(fitstbl, ftype, sci_ID)
     # Saving the match_frames algorithm (perhaps only for posterity!)

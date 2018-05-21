@@ -32,7 +32,7 @@ def test_setup_param():
     settings.spect['arc']['index'] = [[0]]
     fitstbl = arsort.dummy_fitstbl()
     # Run
-    arcparm = ararc.setup_param(slf, 1, fitstbl)
+    arcparm = ararc.setup_param(slf._msarc[0].shape, fitstbl)
     for key in ['llist','disp','wvmnx']:
         assert key in arcparm
 

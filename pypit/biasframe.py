@@ -122,6 +122,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
         Returns
         -------
+        stack : ndarray
 
         """
         # Get all of the bias frames for this science frame

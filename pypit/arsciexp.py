@@ -529,7 +529,8 @@ class ScienceExposure:
             else:  # It must be the name of a file the user wishes to load
                 mspixelflat_name = armasters.user_master_name(settings.argflag['run']['directory']['master'],
                                                               settings.argflag['reduce']['flatfield']['useframe'])
-                mspixelflatnrm, head, _ = armasters.load_master(mspixelflat_name, exten=det, frametype=None)
+                mspixelflatnrm, head, _ = armasters._load(mspixelflat_name, exten=det, frametype=None,
+                      force=settings.argflag['reduce']['masters']['force'])
                 mspixelflat = mspixelflatnrm
             # Now that the combined, master flat field frame is loaded...
         else:
@@ -729,7 +730,7 @@ class ScienceExposure:
             else:
                 # Setup arc parameters (e.g. linelist)
                 arc_idx = arsort.ftype_indices(fitstbl, 'arc', self.sci_ID)
-                arcparam = ararc.setup_param(self, det, fitstbl, arc_idx[0])
+                arcparam = ararc.setup_param(self.msarc[det-1].shape, fitstbl, arc_idx[0])
                 self.SetFrame(self._arcparam, arcparam, det)
                 ###############
                 # Extract an arc down each slit

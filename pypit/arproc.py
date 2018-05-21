@@ -1054,8 +1054,8 @@ def reduce_prepare(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det, stand
     sciframe *= gain_frame(datasec_img, namp, gain_list)
     # Mask
     slf._scimask[det-1] = np.zeros_like(sciframe).astype(int)
-    msgs.info("Masking bad pixels")
-    slf.update_sci_pixmask(det, bpix, 'BadPix')
+    #msgs.info("Masking bad pixels")
+    #slf.update_sci_pixmask(det, bpix, 'BadPix')
     # Variance
     msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
     rawvarframe = variance_frame(datasec_img, det, sciframe, scidx, fitsdict)

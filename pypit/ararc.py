@@ -154,12 +154,12 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     return ampl, cent, widt
 
 
-def setup_param(slf, det, fitstbl, arc_idx):
+def setup_param(msarc_shape, fitstbl, arc_idx):
     """ Setup for arc analysis
 
     Parameters
     ----------
-    slf :
+    msarc_shape : tuple
     det : int
       detctor index
     fitstbl : dict
@@ -206,12 +206,12 @@ def setup_param(slf, det, fitstbl, arc_idx):
         lamps = ['NeI','HgI','HeI','ArI']
         if disperser == '600/7500':
             arcparam['disp']=1.30
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
             arcparam['wvmnx'][0] = 5000.
             arcparam['n_first']=2 # Should be able to lock on
         elif disperser == '1200/5000':
             arcparam['disp']=0.63
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
             arcparam['wvmnx'][0] = 5000.
             arcparam['n_first']=2 # Should be able to lock on
             arcparam['wv_cen'] = 6600.
@@ -221,12 +221,12 @@ def setup_param(slf, det, fitstbl, arc_idx):
         lamps = ['NeI','HgI','HeI','ArI']
         if disperser == '600/7500':
             arcparam['disp']=2.35
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
             arcparam['wvmnx'][0] = 5000.
             arcparam['n_first']=2 # Should be able to lock on
         elif disperser == '1200/5000':
             arcparam['disp']=1.17
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
             arcparam['wvmnx'][0] = 5000.
             arcparam['n_first']=2 # Should be able to lock on
         else:
@@ -259,24 +259,24 @@ def setup_param(slf, det, fitstbl, arc_idx):
         if disperser == '600/7500':
             arcparam['n_first']=3 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
             arcparam['wvmnx'][1] = 11000.
         elif disperser == '600/10000':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
             arcparam['wvmnx'][1] = 12000.
         elif disperser == '400/8500':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=1.19 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
             arcparam['wvmnx'][1] = 11000.
             arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
             arcparam['nsig_rej_final'] = 5.
         elif disperser == '900/5500':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.53 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
             arcparam['wvmnx'][1] = 7000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
@@ -287,7 +287,7 @@ def setup_param(slf, det, fitstbl, arc_idx):
         if disperser == '830G': # Blaze 8640
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.47 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
             arcparam['wvmnx'][0] = 550.
             arcparam['wvmnx'][1] = 11000.
             arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
@@ -304,7 +304,7 @@ def setup_param(slf, det, fitstbl, arc_idx):
         if disperser == 'R300B':
             arcparam['n_first']=1  #
             arcparam['disp']=0.80  # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname == 'tng_dolores':
@@ -316,7 +316,7 @@ def setup_param(slf, det, fitstbl, arc_idx):
             arcparam['wvmnx'][0] = 4470.0
             arcparam['wvmnx'][1] = 10073.0
             arcparam['wv_cen'] = 7400.
-            arcparam['b1'] = 1. / arcparam['disp'] / slf._msarc[det - 1].shape[0] / binspectral
+            arcparam['b1'] = 1. / arcparam['disp'] / msarc_shape[0] / binspectral
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     else:
