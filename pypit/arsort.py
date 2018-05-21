@@ -81,7 +81,6 @@ def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftd
       Each key is a file type and contains False/True for each datafile
       This is stacked onto the fitstbl
     """
-    #msgs.bug("There appears to be a bug with the assignment of arc frames when only one science frame is supplied")
     msgs.info("Typing files")
     numfiles = fitstbl['filename'].size
     # Set the filetype dictionary
@@ -689,6 +688,7 @@ def new_match_logic(ch, tmtch, fitstbl, idx):
         #                        debugger.set_trace()
         tmpspl = str(re.escape(spltxt)).replace("\\|", "|")
         tmpspl = re.split(tmpspl, fitstbl[ch][idx])
+        msgs.warn("HAS NOT BEEN DEVELOPED SINCE THE SetupClass refactor;  no test case..")
         debugger.set_trace()  # HAS NOT BEEN DEVELOPED SINCE THE SetupClass refactor;  no test case..
         if len(tmpspl) < argtxt + 1:
             return None
@@ -1099,7 +1099,7 @@ def new_match_warnings(ftag, nmatch, numfr, target, settings_argflag):
         else:
             msgs.error("Unable to continue without more {0:s} frames".format(ftag))
     # Errors for insufficient ARC frames
-    if ftag == 'arc' and settings_argflag['reduce']['calibrate']:
+    if ftag == 'arc' and settings_argflag['reduce']['calibrate']['wavelength']:
         if settings_argflag['run']['setup']:
             msgs.warn("No arc frame for {0:s}. Removing it from list of science frames".format(target))
             msgs.warn("Add an arc and rerun one if you wish to reduce this with PYPIT!!")

@@ -217,6 +217,7 @@ def load_headers(datlines, settings_spect, settings_argflag):
     fitstbl = Table(fitsdict)
     fitstbl.sort('time')
 
+    # TODO -- Remove the following (RC has an idea)
     # Instrument specific
     if settings_argflag['run']['spectrograph'] == 'keck_deimos':
         # Handle grating position
@@ -396,7 +397,7 @@ def load_master(name, exten=0, frametype='<None>'):
       The type of master calibration frame being loaded.
       This keyword is only used for terminal print out.
 
-    Returns
+    Ret        # HAS NOT BEEN DEVELOPED SINCE THE SetupClass refactor;  no test case..urns
     -------
     frame : ndarray or dict
       The data from the master calibration frame
