@@ -1,4 +1,4 @@
-""" Primary module for guiding the reduction of long slit data
+""" Primary module for guiding the reduction of long/multi-slit data
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
@@ -19,10 +19,9 @@ from pypit import arsciexp
 from pypit.core import arsetup
 from pypit import ardeimos
 from pypit import arpixels
-from pypit import arsort
+from pypit.core import arsort
 from pypit import artrace
 from pypit import biasframe
-from pypit.core import artraceslits
 from pypit import traceslits
 from pypit import traceimage
 
