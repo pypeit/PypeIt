@@ -112,6 +112,7 @@
 - Substantial refactor of arsetup.py
 
 - Deprecates ['trace']['combine']['match'] > 0.0 option
+- Deprecates ['arc']['combine']['match'] > 0.0 option
 
 0.7 (2017-02-07)
 ----------------
