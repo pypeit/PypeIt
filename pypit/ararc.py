@@ -154,11 +154,12 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     return ampl, cent, widt
 
 
-def setup_param(slf, sc, det, fitsdict):
+def setup_param(slf, det, fitsdict):
     """ Setup for arc analysis
 
     Parameters
     ----------
+    slf :
     det : int
       detctor index
     fitsdict : dict
@@ -186,7 +187,8 @@ def setup_param(slf, sc, det, fitsdict):
     modify_dict = None
     # Instrument/disperser specific
     sname = settings.argflag['run']['spectrograph']
-    idx = settings.spect['arc']['index'][sc]
+    #idx = settings.spect['arc']['index'][sc]
+    idx = slf._idx_arcs
     disperser = fitsdict["dispname"][idx[0]]
     binspatial, binspectral = settings.parse_binning(fitsdict['binning'][idx[0]])
     if sname == 'shane_kast_blue':
@@ -202,8 +204,7 @@ def setup_param(slf, sc, det, fitsdict):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='shane_kast_red':
-        lamps = ['NeI']
-        #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
+        lamps = ['NeI','HgI','HeI','ArI']
         if disperser == '600/7500':
             arcparam['disp']=1.30
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
@@ -218,8 +219,7 @@ def setup_param(slf, sc, det, fitsdict):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='shane_kast_red_ret':
-        lamps = ['NeI']
-        #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
+        lamps = ['NeI','HgI','HeI','ArI']
         if disperser == '600/7500':
             arcparam['disp']=2.35
             arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
@@ -255,7 +255,7 @@ def setup_param(slf, sc, det, fitsdict):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='keck_lris_red':
-        arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['WAVELEN']
+        arcparam['wv_cen'] = fitsdict['wavecen'][idx[0]]
         lamps = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
         if disperser == '600/7500':
             arcparam['n_first']=3 # Too much curvature for 1st order
@@ -282,13 +282,14 @@ def setup_param(slf, sc, det, fitsdict):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='keck_deimos':
-        gratepos = fitsdict['headers'][idx[0]][0]['GRATEPOS']
-        if(gratepos==3):
-            arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['G3TLTWAV']
-        elif(gratepos==4):
-            arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['G4TLTWAV']
-        else:
-            msgs.error('Problem wth value of GRATEPOS keyword: GRATEPOS={:s}'.format(gratepos))
+        arcparam['wv_cen'] = fitsdict['dispangle'][idx[0]]
+        #gratepos = fitsdict['headers'][idx[0]][0]['GRATEPOS']
+        #if(gratepos==3):
+        #    arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['G3TLTWAV']
+        #elif(gratepos==4):
+        #    arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['G4TLTWAV']
+        #else:
+        #    msgs.error('Problem wth value of GRATEPOS keyword: GRATEPOS={:s}'.format(gratepos))
         # TODO -- Should set according to the lamps that were on
         lamps = ['ArI','NeI','KrI','XeI']
         if disperser == '830G': # Blaze 8640

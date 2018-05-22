@@ -10,23 +10,23 @@ import numpy as np
 
 from pypit import arparse as settings
 from pypit import arproc
-from pypit import arutils
+from pypit.core import arsort
 from pypit import arsciexp
 
 
 @pytest.fixture
-def fitsdict():
-    return arutils.dummy_fitsdict()
+def fitstbl():
+    return arsort.dummy_fitstbl()
 
 
-def test_ampsec(fitsdict):
+def test_ampsec(fitstbl):
     """ Test sort_data
     """
     settings.dummy_settings(spectrograph='shane_kast_blue')
     slf = arsciexp.dummy_self()
     # Run
     det, scidx = 1, 5
-    arproc.get_datasec_trimmed(slf, fitsdict, det, scidx)
+    arproc.get_datasec_trimmed(slf, fitstbl, det, scidx)
     # Test
     assert slf._datasec[det-1].shape == (2112, 2048)
     assert np.sum(np.isclose(slf._datasec[0], 1)) == 2162688  # Data region

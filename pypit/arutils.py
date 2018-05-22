@@ -18,6 +18,7 @@ from scipy import interpolate
 from astropy import units
 from astropy.io import fits
 from astropy.convolution import convolve, Gaussian1DKernel
+from astropy.table import Table
 
 from pypit import msgs
 from pypit import ardebug as debugger
@@ -135,67 +136,9 @@ def calc_offset(raA, decA, raB, decB, distance=False):
     else:
         return delRA, delDEC
 
-
 def dummy_fitsdict(nfile=10, spectrograph='shane_kast_blue', directory='./'):
-    """
-    Parameters
-    ----------
-    nfile : int, optional
-      Number of files to mimic
-    spectrograph : str, optional
-      Name of spectrograph to mimic
+    pass
 
-    Returns
-    -------
-
-    """
-    fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
-    fitsdict['utc'] = ['2015-01-23']*nfile
-    fitsdict['directory'] = [directory]*nfile
-    fitsdict['filename'] = ['b{:03d}.fits'.format(i) for i in range(nfile)]
-    fitsdict['date'] = ['2015-01-23T00:{:02d}:11.04'.format(i) for i in range(nfile)]  # Will fail at 60
-    fitsdict['time'] = [(1432085758+i*60)/3600. for i in range(nfile)]
-    fitsdict['target'] = ['Dummy']*nfile
-    fitsdict['ra'] = ['00:00:00']*nfile
-    fitsdict['dec'] = ['+00:00:00']*nfile
-    fitsdict['exptime'] = [300.] * nfile
-    fitsdict['naxis0'] = [2048] * nfile
-    fitsdict['naxis1'] = [2048] * nfile
-    fitsdict['dispname'] = ['600/4310'] * nfile
-    fitsdict['dichroic'] = ['560'] * nfile
-    fitsdict['dispangle'] = ['none'] * nfile
-    fitsdict["binning"] = ['1x1']*nfile
-    fitsdict["airmass"] = [1.0]*nfile
-    #
-    if spectrograph == 'shane_kast_blue':
-        fitsdict['numamplifiers'] = [1] * nfile
-        fitsdict['naxis0'] = [2112] * nfile
-        fitsdict['naxis1'] = [2048] * nfile
-        fitsdict['slitwid'] = [1.] * nfile
-        fitsdict['slitlen'] = ['none'] * nfile
-        # Lamps
-        for i in range(1,17):
-            fitsdict['lampstat{:02d}'.format(i)] = ['off'] * nfile
-        fitsdict['exptime'][0] = 0        # Bias
-        fitsdict['lampstat06'][1] = 'on'  # Arc
-        fitsdict['exptime'][1] = 30       # Arc
-        fitsdict['lampstat01'][2] = 'on'  # Trace, pixel, slit flat
-        fitsdict['lampstat01'][3] = 'on'  # Trace, pixel, slit flat
-        fitsdict['exptime'][2] = 30     # flat
-        fitsdict['exptime'][3] = 30     # flat
-        fitsdict['ra'][4] = '05:06:36.6'  # Standard
-        fitsdict['dec'][4] = '52:52:01.0'
-        fitsdict['airmass'][4] = 1.2
-        fitsdict['ra'][5] = '07:06:23.45' # Random object
-        fitsdict['dec'][5] = '+30:20:50.5'
-        fitsdict['decker'] = ['0.5 arcsec'] * nfile
-    elif spectrograph == 'none':
-        pass
-    # arrays
-    for k in fitsdict.keys():
-        fitsdict[k] = np.array(fitsdict[k])
-    # Return
-    return fitsdict
 
 
 def func_der(coeffs, func, nderive=1):
@@ -1225,4 +1168,5 @@ def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5):
         if not np.any(ycopy < ydone):
             npeak = nfind
     return np.array(peaks), np.array(sigmas), np.array(ledges), np.array(redges)
+
 

@@ -25,6 +25,7 @@ from pypit import arparse as settings
 from pypit import arflux
 from pypit import arload
 from pypit import arutils
+from pypit.core import arsort
 from pypit import arsciexp
 from pypit import armasters
 
@@ -56,12 +57,12 @@ def test_gen_sensfunc():
     settings.argflag['reduce']['masters']['setup'] = 'C_01_aa'
     settings.spect['arc'] = {}
     settings.spect['arc']['index'] = [[0]]
-    fitsdict = arutils.dummy_fitsdict()
-    slf = arsciexp.dummy_self()
+    fitstbl = arsort.dummy_fitstbl()
+    slf = arsciexp.dummy_self(fitstbl=fitstbl)
     slf._msstd[0]['RA'] = '05:06:36.6'
     slf._msstd[0]['DEC'] = '52:52:01.0'
     # Generate
-    slf._sensfunc = arflux.generate_sensfunc(slf, 4, [specobjs], fitsdict)
+    slf._sensfunc = arflux.generate_sensfunc(slf, 4, [specobjs], fitstbl)
     # Save
     try:
         os.mkdir('MF_shane_kast_blue')

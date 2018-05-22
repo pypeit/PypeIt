@@ -6,14 +6,8 @@ import os
 import numpy as np
 
 from pypit import msgs
-from pypit import arparse as settings
-from pypit import arsetup
-from pypit import arsort
-from pypit import arsciexp
-from pypit import arparse
-from pypit import ardebug as debugger
 
-
+'''
 def setup_science(fitsdict):
     """ Create an exposure class for every science frame
     Also links to standard star frames and calibrations
@@ -52,13 +46,13 @@ def setup_science(fitsdict):
     _ = arsort.match_science(fitsdict, filesort)
     # Make directory structure for different objects
     if do_qa:
-        sci_targs = arsort.make_dirs(fitsdict, filesort)
+        arsort.make_dirs()
 
     # Create the list of science exposures
     numsci = np.size(settings.spect['science']['index'])
     sciexp = []
     for i in range(numsci):
-        sciexp.append(arsciexp.ScienceExposure(i, fitsdict, do_qa=do_qa))
+        sciexp.append(arsciexp.ScienceExposure(i, fitsdict, settings.argflag, settings.spect, do_qa=do_qa))
 
     # Generate setup dict
     setup_dict = {}
@@ -93,7 +87,8 @@ def setup_science(fitsdict):
         group_dict = arsetup.build_group_dict(filesort, setupIDs, sciexp, fitsdict)
         # Write .sorted file
         if len(group_dict) > 0:
-            arsetup.write_sorted(srt_tbl, group_dict, setup_dict)
+            group_file = settings.argflag['run']['redname'].replace('.pypit', '.sorted')
+            arsetup.write_sorted(group_file, srt_tbl, group_dict, setup_dict)
         else:
             msgs.warn("No group dict entries and therefore no .sorted file")
 
@@ -102,7 +97,8 @@ def setup_science(fitsdict):
 
     # Write calib file (not in setup mode) or setup file (in setup mode)
     if not settings.argflag['run']['setup']:
-        calib_file = arsetup.write_calib(setup_dict)
+        calib_file = settings.argflag['run']['redname'].replace('.pypit', '.calib')
+        arsetup.write_calib(calib_file, setup_dict)
     else:
         arsetup.write_setup(setup_dict)
 
@@ -118,17 +114,18 @@ def setup_science(fitsdict):
             if settings.argflag['run']['spectrograph'] in ['keck_lris_blue']:
                 if settings.argflag['reduce']['flatfield']['useframe'] in ['pixelflat']:
                     msgs.warn("We recommend a slitless flat for your instrument.")
-            return 'calcheck', None
+            return 'calcheck', None, None
         elif settings.argflag['run']['setup']:
             for idx in filesort['failures']:
                 msgs.warn("No Arc found: Skipping object {:s} with file {:s}".format(fitsdict['target'][idx],fitsdict['filename'][idx]))
             msgs.info("Setup is complete.")
             msgs.info("Inspect the .setups file: {:s}".format(setup_file))
-            return 'setup', None
+            return 'setup', None, None
         else:
             msgs.error("Should not get here")
     # Return
-    return sciexp, setup_dict
+    return 'run', sciexp, setup_dict
+'''
 
 
 def UpdateMasters(sciexp, sc, det, ftype=None, chktype=None):

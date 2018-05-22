@@ -23,7 +23,7 @@ from pypit import arlris
 from pypit import armasters
 from pypit import arpixels
 from pypit import arproc
-from pypit import arsort
+from pypit.core import arsort
 from pypit import arutils
 from pypit import arsave
 from pypit import ardebug as debugger
@@ -33,11 +33,13 @@ class ScienceExposure:
     A Science Exposure class that carries all information for a given science exposure
     """
 
-    def __init__(self, snum, fitsdict, do_qa=True):
+    def __init__(self, sci_ID, fitstbl, settings_argflag, settings_spect, do_qa=True):
 
         # Set indices used for frame combination
-        self._idx_sci = settings.spect['science']['index'][snum]
-        if settings.argflag['reduce']['masters']['force']:
+        self.sci_ID = sci_ID  # Binary 1,2,4,8,..
+        self._idx_sci = np.where((fitstbl['sci_ID'] == sci_ID) & fitstbl['science'])[0]
+        #
+        if settings_argflag['reduce']['masters']['force']:
             self._idx_bias = []
             self._idx_flat = []
             self._idx_cent = []
@@ -45,37 +47,44 @@ class ScienceExposure:
             self._idx_arcs = []
             self._idx_std = []
         else:
-            self._idx_arcs = settings.spect['arc']['index'][snum]
-#            debugger.set_trace()
-            if settings.argflag['reduce']['calibrate']['flux'] == True: self._idx_std = settings.spect['standard']['index'][snum]
-            if settings.argflag['bias']['useframe'] == 'bias': self._idx_bias = settings.spect['bias']['index'][snum]
-            elif settings.argflag['bias']['useframe'] == 'dark':  self._idx_bias = settings.spect['dark']['index'][snum]
+            self._idx_arcs = arsort.ftype_indices(fitstbl, 'arc', self.sci_ID)
+            self._idx_std = arsort.ftype_indices(fitstbl, 'standard', self.sci_ID)
+            # Bias
+            if settings_argflag['bias']['useframe'] == 'bias':
+                self._idx_bias = arsort.ftype_indices(fitstbl, 'bias', self.sci_ID)
+            elif settings_argflag['bias']['useframe'] == 'dark':
+                self._idx_bias = arsort.ftype_indices(fitstbl, 'dark', self.sci_ID)
             else: self._idx_bias = []
-            if settings.argflag['reduce']['trace']['useframe'] == 'trace': self._idx_trace = settings.spect['trace']['index'][snum]
-            else: self._idx_trace = []
-            if settings.argflag['reduce']['flatfield']['useframe'] == 'pixelflat': self._idx_flat = settings.spect['pixelflat']['index'][snum]
-            elif settings.argflag['reduce']['flatfield']['useframe'] == 'trace': self._idx_flat = settings.spect['trace']['index'][snum]
+            # Trace
+            self._idx_trace = arsort.ftype_indices(fitstbl, 'trace', self.sci_ID)
+            # Flat
+            if settings_argflag['reduce']['flatfield']['useframe'] == 'pixelflat':
+                self._idx_flat = arsort.ftype_indices(fitstbl, 'pixelflat', self.sci_ID)
+            elif settings_argflag['reduce']['flatfield']['useframe'] == 'trace':
+                self._idx_flat = arsort.ftype_indices(fitstbl, 'trace', self.sci_ID)
             else: self._idx_flat = []
-            if settings.argflag['reduce']['slitcen']['useframe'] == 'trace': self._idx_cent = settings.spect['trace']['index'][snum]
-            elif settings.argflag['reduce']['slitcen']['useframe'] == 'pinhole': self._idx_cent = settings.spect['pinhole']['index'][snum]
+            # Cent
+            if settings_argflag['reduce']['slitcen']['useframe'] == 'trace':
+                self._idx_cent = arsort.ftype_indices(fitstbl, 'trace', self.sci_ID)
+            elif settings_argflag['reduce']['slitcen']['useframe'] == 'pinhole':  # Not sure this will work
+                self._idx_cent = arsort.ftype_indices(fitstbl, 'pinhole', self.sci_ID)
             else: self._idx_cent = []
-        self.sc = snum
 
         # Set the base name and extract other names that will be used for output files
         #  Also parses the time input
-        self.SetBaseName(fitsdict)
+        self.SetBaseName(fitstbl)
 
         # Velocity correction (e.g. heliocentric)
         self.vel_correction = 0.
 
         # Initialize the QA for this science exposure
-        qafn = "{0:s}/QA_{1:s}.pdf".format(settings.argflag['run']['directory']['qa'], self._basename)
-        self.qaroot = "{0:s}/PNGs/QA_{1:s}".format(settings.argflag['run']['directory']['qa'], self._basename)
+        qafn = "{0:s}/QA_{1:s}.pdf".format(settings_argflag['run']['directory']['qa'], self._basename)
+        self.qaroot = "{0:s}/PNGs/QA_{1:s}".format(settings_argflag['run']['directory']['qa'], self._basename)
 
         # Initialize Variables
-        ndet = settings.spect['mosaic']['ndet']
-        self._nonlinear = [settings.spect[settings.get_dnum(det+1)]['saturation'] *
-                           settings.spect[settings.get_dnum(det+1)]['nonlinear']
+        ndet = settings_spect['mosaic']['ndet']
+        self._nonlinear = [settings_spect[settings.get_dnum(det+1)]['saturation'] *
+                           settings_spect[settings.get_dnum(det+1)]['nonlinear']
                            for det in range(ndet)]
         self._nspec    = [None for all in range(ndet)]   # Number of spectral pixels
         self._nspat    = [None for all in range(ndet)]   # Number of spatial pixels
@@ -694,7 +703,7 @@ class ScienceExposure:
                 msgs.info("A wavelength calibration will not be performed")
             else:
                 # Setup arc parameters (e.g. linelist)
-                arcparam = ararc.setup_param(self, sc, det, fitsdict)
+                arcparam = ararc.setup_param(self, det, fitsdict)
                 self.SetFrame(self._arcparam, arcparam, det)
                 ###############
                 # Extract an arc down each slit
@@ -938,7 +947,7 @@ class ScienceExposure:
                 self._idx_sci[0]))
 
 
-def dummy_self(inum=0, fitsdict=None, nfile=10):
+def dummy_self(inum=1, fitstbl=None, nfile=10):
     """ Generate a dummy self class for testing
     Parameters:
     -----------
@@ -949,10 +958,10 @@ def dummy_self(inum=0, fitsdict=None, nfile=10):
     slf
     """
     # Dummy fitsdict
-    if fitsdict is None:
-        fitsdict = arutils.dummy_fitsdict(nfile=nfile)
+    if fitstbl is None:
+        fitstbl = arsort.dummy_fitstbl(nfile=nfile)
     # Dummy Class
-    return ScienceExposure(inum, fitsdict, do_qa=False)
+    return ScienceExposure(inum, fitstbl, settings.argflag, settings.spect, do_qa=False)
 
 
 

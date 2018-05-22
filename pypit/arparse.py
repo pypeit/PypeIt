@@ -2965,6 +2965,39 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
+    def keyword_gratepos(self, v):
+        """ Grating position (keck_deimos)
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_keyword(v)
+        self.update(v)
+
+    def keyword_g3tltwav(self, v):
+        """ Grating 3 tilt (keck_deimos)
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_keyword(v)
+        self.update(v)
+
+    def keyword_g4tltwav(self, v):
+        """ Grating 4 tilt (keck_deimos)
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_keyword(v)
+        self.update(v)
+
     def keyword_hatch(self, v):
         """ Hatch open/close
 
@@ -3104,6 +3137,17 @@ class BaseSpect(BaseFunctions):
 
     def keyword_time(self, v):
         """ The time stamp of the observation (i.e. decimal MJD)
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_keyword(v)
+        self.update(v)
+
+    def keyword_wavecen(self, v):
+        """ Estimate of central wavelength (keck_lris_red)
 
         Parameters
         ----------
