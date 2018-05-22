@@ -14,6 +14,7 @@ from pypit import arload
 from pypit import armasters
 from pypit import armbase
 from pypit import arproc
+from pypit.core import arprocimg
 from pypit import arsave
 from pypit import arsciexp
 from pypit.core import arsetup
@@ -110,7 +111,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
 
             ###############
             # Get data sections (Could avoid doing this for every sciexp, but it is quick)
-            datasec_img = arproc.get_datasec_trimmed(slf, fitstbl, det, scidx)
+            datasec_img = arprocimg.get_datasec_trimmed(fitstbl, det, scidx, settings.argflag, settings.spect)
             #slf._datasec[det-1] = pix_to_amp(naxis0, naxis1, datasec, numamplifiers)
 
             # Calib dict

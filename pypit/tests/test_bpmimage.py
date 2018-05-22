@@ -55,7 +55,7 @@ def test_dummy_image():
 
 def test_keck_lris_red():
     # Simple
-    bpmImage = bpmimage.BPMImage(spectrograph='keck_lris_red', binning=[1,1], det=2)
+    bpmImage = bpmimage.BPMImage(spectrograph='keck_lris_red', binning='1,1', det=2)
     bpm = bpmImage.build()
     assert np.sum(bpm) > 0.
 

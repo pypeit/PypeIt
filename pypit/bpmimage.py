@@ -1,12 +1,11 @@
 # Module for generating the BPM image
 from __future__ import absolute_import, division, print_function
 
-import inspect
 import numpy as np
 import os
 
 from pypit import msgs
-from pypit import arproc
+from pypit.core import arprocimg
 from pypit.core import arlris
 from pypit.core import ardeimos
 
@@ -94,9 +93,11 @@ class BPMImage(object):
 
     def build(self):
         """
+        Generate the BPM Image
 
         Returns
         -------
+        self.bpm
 
         """
         if self.reduce_badpix == 'bias':
@@ -111,12 +112,12 @@ class BPMImage(object):
                 sdatasec = "datasec{0:02d}".format(i+1)
                 datasec.append(self.settings['detector'][sdatasec])
             # Construct
-            self.bpm = arproc.badpix(self.msbias, self.settings['detector']['numamplifiers'], datasec)
+            self.bpm = arprocimg.badpix(self.msbias, self.settings['detector']['numamplifiers'], datasec)
         else:
             # Instrument dependent
             if self.spectrograph in ['keck_lris_red']:
                 # Index in fitstbl for binning
-                xbin, ybin = [int(ii) for ii in self.binning]
+                xbin, ybin = [int(ii) for ii in self.binning.split(',')]
                 self.bpm = arlris.bpm(xbin, ybin, 'red', self.det)
             elif self.spectrograph in ['keck_deimos']:
                 self.bpm = ardeimos.bpm(self.det)

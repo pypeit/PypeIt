@@ -20,9 +20,8 @@ from pypit import arplot
 from pypit import arutils
 from pypit import arpca
 from pypit import arpixels
-from pypit import arproc
+from pypit.core import arprocimg
 from pypit import arparse as settings
-from pypit import arspecobj
 from pypit import ardebug as debugger
 
 try:
@@ -825,7 +824,7 @@ def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30., maskBadRows=False
     # Replace bad columns -- should put this method somewhere else
     bad_cols = np.sum(binbpx, axis=0) > (binbpx.shape[0]//2)
     if np.any(bad_cols):
-        ms2 = arproc.replace_columns(binarr, bad_cols)
+        ms2 = arprocimg.replace_columns(binarr, bad_cols)
     else:
         ms2 = binarr.copy()
 

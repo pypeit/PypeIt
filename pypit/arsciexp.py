@@ -7,8 +7,6 @@ import datetime
 
 import numpy as np
 
-from matplotlib.backends.backend_pdf import PdfPages
-
 from astropy.time import Time
 
 # Import PYPIT routines
@@ -20,6 +18,7 @@ from pypit import arload
 from pypit import arcomb
 from pypit import armasters
 from pypit import arproc
+from pypit.core import arprocimg
 from pypit.core import arsort
 from pypit import arutils
 from pypit import ardebug as debugger
@@ -478,7 +477,7 @@ class ScienceExposure:
                         mspixelflat = arcomb.comb_frames(frames, det, 'pixelflat', printtype='pixel flat')
                     del frames
                     # Apply gain (instead of ampsec scale)
-                    mspixelflat *= arproc.gain_frame(datasec_img, settings.spect[dnum]['numamplifiers'],
+                    mspixelflat *= arprocimg.gain_frame(datasec_img, settings.spect[dnum]['numamplifiers'],
                                              settings.spect[dnum]['gain'])
                     # Normalize the flat field
                     msgs.info("Normalizing the pixel flat")
