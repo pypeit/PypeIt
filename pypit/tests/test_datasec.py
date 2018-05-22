@@ -9,9 +9,8 @@ import pytest
 import numpy as np
 
 from pypit import arparse as settings
-from pypit import arproc
+from pypit.core import arprocimg
 from pypit.core import arsort
-from pypit import arsciexp
 
 
 @pytest.fixture
@@ -23,10 +22,9 @@ def test_ampsec(fitstbl):
     """ Test sort_data
     """
     settings.dummy_settings(spectrograph='shane_kast_blue')
-    slf = arsciexp.dummy_self()
     # Run
     det, scidx = 1, 5
-    datasec_img = arproc.get_datasec_trimmed(slf, fitstbl, det, scidx)
+    datasec_img = arprocimg.get_datasec_trimmed(fitstbl, det, scidx, settings.argflag, settings.spect)
     # Test
     assert datasec_img.shape == (2112, 2048)
     assert np.sum(np.isclose(datasec_img, 1)) == 2162688  # Data region

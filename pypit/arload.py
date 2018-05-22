@@ -21,7 +21,7 @@ from linetools.spectra.xspectrum1d import XSpectrum1D
 
 from pypit import msgs
 from pypit import arparse as settings
-from pypit import arproc
+from pypit.core import arprocimg
 from pypit import arspecobj
 from pypit.core import ardeimos
 from pypit.core import arlris
@@ -277,12 +277,12 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
         # TODO -- Take these next two steps out and put in a arproc.proc_image() method
         # Bias subtract?
         if msbias is not None:
-            temp = arproc.bias_subtract(temp, msbias, numamplifiers=numamplifiers,
+            temp = arprocimg.bias_subtract(temp, msbias, numamplifiers=numamplifiers,
                                         datasec=datasecs, oscansec=oscansecs)
 
         if trim:
             # Trim
-            temp = arproc.trim(temp, numamplifiers, datasecs)
+            temp = arprocimg.trim(temp, numamplifiers, datasecs)
 
         # Save
         if i == 0:

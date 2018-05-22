@@ -11,7 +11,7 @@ from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import arcomb
 from pypit import arload
-from pypit import arproc
+from pypit.core import arprocimg
 from pypit import ginga
 
 
@@ -197,7 +197,7 @@ class ProcessImages(object):
             return
         # TODO -- Eliminate this instrument specific bit here. Probably by generating a Detector object
         if self.spectrograph in ['keck_lris_blue', 'keck_lris_red', 'keck_deimos']:
-            self.datasec, self.oscansec, _, _ = arproc.get_datasec(
+            self.datasec, self.oscansec, _, _ = arprocimg.get_datasec(
                 self.spectrograph, self.file_list[0],
                 numamplifiers=self.settings['detector']['numamplifiers'],
                 det=self.det)
@@ -234,12 +234,12 @@ class ProcessImages(object):
         # Reset proc_images -- Is there any reason we wouldn't??
         for kk,image in enumerate(self.raw_images):
             # Bias subtract
-            temp = arproc.bias_subtract(image, msbias,
+            temp = arprocimg.bias_subtract(image, msbias,
                                         numamplifiers=self.settings['detector']['numamplifiers'],
                                         datasec=self.datasec, oscansec=self.oscansec)
             # Trim?
             if trim:
-                temp = arproc.trim(temp, self.settings['detector']['numamplifiers'], self.datasec)
+                temp = arprocimg.trim(temp, self.settings['detector']['numamplifiers'], self.datasec)
 
             # Save
             if kk==0:

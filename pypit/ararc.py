@@ -242,7 +242,6 @@ def setup_param(msarc_shape, fitstbl, arc_idx):
         elif disperser == '400/3400':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=1.02
-            #arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
             arcparam['b1']= 2.72694493e-04
             arcparam['b2']= -5.30717321e-09
             arcparam['wvmnx'][1] = 6000.
@@ -347,6 +346,9 @@ def simple_calib(slf, det, msarc, get_poly=False, censpec=None, slit=None):
 
     Parameters
     ----------
+    slf
+    det : int
+    msarc : ndarray
     get_poly : bool, optional
       Pause to record the polynomial pix = b0 + b1*lambda + b2*lambda**2
 
@@ -417,7 +419,7 @@ def simple_calib(slf, det, msarc, get_poly=False, censpec=None, slit=None):
         dpix_list = np.zeros((nlist,nlist))
         for kk,row in enumerate(llist):
             #dpix_list[kk,:] = (np.array(row['wave'] - llist['wave']))/disp
-            dpix_list[kk,:] = slf._msarc[det-1].shape[0]*(aparm['b1']*(np.array(row['wave'] - llist['wave'])) + aparm['b2']*np.array(row['wave']**2 - llist['wave']**2) )
+            dpix_list[kk,:] = msarc.shape[0]*(aparm['b1']*(np.array(row['wave'] - llist['wave'])) + aparm['b2']*np.array(row['wave']**2 - llist['wave']**2) )
 
         # Lambda pairs for the strongest N lines
         srt = np.argsort(tampl)
@@ -517,7 +519,7 @@ def simple_calib(slf, det, msarc, get_poly=False, censpec=None, slit=None):
 
     # Final fit (originals can now be rejected)
     fmin, fmax = 0., 1.
-    xfit, yfit = tcent[ifit]/(slf._msarc[det-1].shape[0]-1), all_ids[ifit]
+    xfit, yfit = tcent[ifit]/(msarc.shape[0]-1), all_ids[ifit]
     mask, fit = arutils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej_final'], minv=fmin, maxv=fmax)#, debug=True)
     irej = np.where(mask==1)[0]
     if len(irej) > 0:
@@ -533,7 +535,6 @@ def simple_calib(slf, det, msarc, get_poly=False, censpec=None, slit=None):
     ions = all_idsion[ifit][mask==0]
     #
     if msgs._debug['arc']:
-        msarc = slf._msarc[det-1]
         wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
             'legendre', minv=fmin, maxv=fmax)
         debugger.set_trace()
@@ -555,7 +556,7 @@ def simple_calib(slf, det, msarc, get_poly=False, censpec=None, slit=None):
         debugger.set_trace()
     # Pack up fit
     final_fit = dict(fitc=fit, function=aparm['func'], xfit=xfit, yfit=yfit,
-        ions=ions, fmin=fmin, fmax=fmax, xnorm=float(slf._msarc[det-1].shape[0]),
+        ions=ions, fmin=fmin, fmax=fmax, xnorm=float(msarc.shape[0]),
         xrej=xrej, yrej=yrej, mask=mask, spec=yprep, nrej=aparm['nsig_rej_final'],
         shift=0., tcent=tcent)
     # QA
@@ -563,7 +564,7 @@ def simple_calib(slf, det, msarc, get_poly=False, censpec=None, slit=None):
     arc_fit_qa(slf, final_fit, slit)
     # RMS
     rms_ang = arutils.calc_fit_rms(xfit, yfit, fit, aparm['func'], minv=fmin, maxv=fmax)
-    wave = arutils.func_val(fit, np.arange(slf._msarc[det-1].shape[0])/float(slf._msarc[det-1].shape[0]),
+    wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
                             aparm['func'], minv=fmin, maxv=fmax)
     rms_pix = rms_ang/np.median(np.abs(wave-np.roll(wave,1)))
     msgs.info("Fit RMS = {} pix".format(rms_pix))

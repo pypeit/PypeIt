@@ -117,6 +117,7 @@
 - Started NormPixelFlat class but have not yet implemented it
 - Substantial refactoring of armasters
 - Moved arlris, ardeimos to core/
+- Moved image processing methods to arprocimg in core/
 - Introduced calib_dict to hold calibration frames in armlsd (instead of slf)
 - Modified ardeimos to load only a single image (if desired)
 - Turned off fluxing in this branch;  is 'fixed' in the one that follows
