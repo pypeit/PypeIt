@@ -244,10 +244,6 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
                         = arparse.spect[ddnum]['oscansec{0:02d}'.format(i + 1)][::-1]
 
     # Set me up here
-    #original=False
-    #if original:
-    #    mode, sciexp, setup_dict = armbase.setup_science(fitstbl)
-    #else:
     # Instantiate
     psetup = pypitsetup.PypitSetup(arparse.argflag, arparse.spect, fitstbl=fitstbl)
     mode, fitstbl, setup_dict = psetup.run()
@@ -267,7 +263,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
         # Send the data away to be reduced
         if spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMLSD':
             msgs.info('Data reduction will be performed using PYPIT-ARMLSD')
-            status = armlsd.ARMLSD(fitstbl, setup_dict, sciexp=sciexp)#, original=original)
+            status = armlsd.ARMLSD(fitstbl, setup_dict, sciexp=sciexp)
         elif spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMED':
             msgs.info('Data reduction will be performed using PYPIT-ARMED')
             status = armed.ARMED(fitstbl)
