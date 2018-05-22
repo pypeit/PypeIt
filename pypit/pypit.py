@@ -5,7 +5,6 @@ from __future__ import unicode_literals
 
 import os
 import time
-import signal
 import warnings
 import glob
 import numpy as np
@@ -21,7 +20,6 @@ from pypit import msgs
 from pypit import ardebug
 from pypit import archeck  # THIS IMPORT DOES THE CHECKING.  KEEP IT
 from pypit import arparse
-from pypit import armbase
 from pypit import ardevtest
 from pypit.core import arsort
 from pypit import arload
