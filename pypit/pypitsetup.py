@@ -22,7 +22,7 @@ if msgs._debug is None:
     msgs.reset(debug=debug, verbosity=2)
 
 
-class SetupClass(object):
+class PypitSetup(object):
     """Class to handle setup
 
     Parameters

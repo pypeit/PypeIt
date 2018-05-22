@@ -25,7 +25,7 @@ from pypit import armbase
 from pypit import ardevtest
 from pypit.core import arsort
 from pypit import arload
-from pypit import setupclass
+from pypit import pypitsetup
 
 from pypit import arqa
     
@@ -249,8 +249,8 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     #    mode, sciexp, setup_dict = armbase.setup_science(fitstbl)
     #else:
     # Instantiate
-    setupc = setupclass.SetupClass(arparse.argflag, arparse.spect, fitstbl=fitstbl)
-    mode, fitstbl, setup_dict = setupc.run()
+    psetup = pypitsetup.PypitSetup(arparse.argflag, arparse.spect, fitstbl=fitstbl)
+    mode, fitstbl, setup_dict = psetup.run()
     sciexp = None
     if mode == 'setup':
         status = 1
