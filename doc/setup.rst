@@ -42,12 +42,14 @@ careful attention to the setups.
 Internals
 =========
 
-SetupClass
+PypitSetup
 ----------
 
-The SetupClass organizes and runs PYPIT setup, guided
+The PypitSetup class organizes and runs PYPIT setup, guided
 by the loaded settings.   The
-`SetupClass.ipynb <https://github.com/PYPIT/PYPIT/blob/master/doc/nb/Setup_Class.ipynb>`_
+`PypitSetup.ipynb <https://github.com/PYPIT/PYPIT/blob/master/doc/nb/PypitSetup.ipynb>`_
+Notebook provides some usage examples, although the class is intended
+to be used only internally.
 
 
 fitstbl

@@ -29,7 +29,7 @@ from pypit import traceimage
 from pypit import ardebug as debugger
 
 
-def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None): #, original=True):
+def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None):
     """
     Automatic Reduction and Modeling of Long Slit Data
 
@@ -53,31 +53,13 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
     """
     status = 0
 
-    '''  THIS IS NOW RUN IN pypit.py
-    # Create a list of science exposure classes
-    original=True
-    if original:
-        mode, sciexp, setup_dict = armbase.setup_science(fitsdict)
-        if mode == 'setup':
-            status = 1
-            return status
-        elif mode == 'calcheck':
-            status = 2
-            return status
-        else:
-            numsci = len(sciexp)
-    else:
-        # This should move inside of PYPIT
-        setupc = setupclass.SetupClass(settings, fitstbl=fitstbl)
-        mode, fitstbl, setup_dict = setupc.run()
-    '''
     # Generate sciexp list, if need be (it will be soon)
     if sciexp is None:
         sciexp = []
         all_sci_ID = fitstbl['sci_ID'].data[fitstbl['science']]  # Binary system: 1,2,4,8, etc.
         for ii in all_sci_ID:
             sciexp.append(arsciexp.ScienceExposure(ii, fitstbl, settings.argflag,
-                                                   settings.spect, do_qa=True))#, original=original))
+                                                   settings.spect, do_qa=True))
     numsci = len(sciexp)
 
     # Init calib dict
@@ -110,9 +92,6 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             msgs.info("Working on detector {:s}".format(dnum))
 
             # Setup
-            #if original:
-            #    setup = arsetup.instr_setup(slf, det, fitstbl, setup_dict, must_exist=True)
-            #else:
             namp = settings.spect[dnum]["numamplifiers"]
             setup = arsetup.instr_setup(sci_ID, det, fitstbl, setup_dict, namp, must_exist=True)
             settings.argflag['reduce']['masters']['setup'] = setup
