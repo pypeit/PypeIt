@@ -111,6 +111,21 @@
 - Substantial refactor of arsort.py
 - Substantial refactor of arsetup.py
 
+- Introduced base-level ProcessImages class
+- Introduced abstract MasterFrame class
+- Introduced BiasFrame, BPMImage, ArcImage, and TraceImage classes
+- Started NormPixelFlat class but have not yet implemented it
+- Substantial refactoring of armasters
+- Moved arlris, ardeimos to core/
+- Introduced calib_dict to hold calibration frames in armlsd (instead of slf)
+- Modified ardeimos to load only a single image (if desired)
+- Turned off fluxing in this branch;  is 'fixed' in the one that follows
+- Moved get_slitid() to artraceslits
+- Deprecates ['trace']['combine']['match'] > 0.0 option
+- Deprecates ['arc']['combine']['match'] > 0.0 option
+- Refactoring of settings and slf out of core methods continues
+- Removed _msbias, _msarc, _datasec, _bpix from slf
+- New tests and Notebooks
 
 0.7 (2017-02-07)
 ----------------

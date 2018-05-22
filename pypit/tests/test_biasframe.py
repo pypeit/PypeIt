@@ -1,4 +1,4 @@
-# Module to run tests on ProcessImages class
+# Module to run tests on BiasFrame class
 #   Requires files in Development suite and an Environmental variable
 from __future__ import absolute_import
 from __future__ import division
@@ -28,16 +28,21 @@ def data_path(filename):
 
 @pytest.fixture
 def deimos_flat_files():
-    deimos_flat_files = [os.getenv('PYPIT_DEV') + '/RAW_DATA/Keck_DEIMOS/830G_L/' + ifile for ifile in [  # Longslit in dets 3,7
-        'd0914_0014.fits', 'd0914_0015.fits']]
-    assert len(deimos_flat_files) == 2
+    if not skip_test:
+        deimos_flat_files = [os.getenv('PYPIT_DEV') + '/RAW_DATA/Keck_DEIMOS/830G_L/' + ifile for ifile in [  # Longslit in dets 3,7
+            'd0914_0014.fits', 'd0914_0015.fits']]
+        assert len(deimos_flat_files) == 2
+    else:
+        deimos_flat_files = None
     return deimos_flat_files
 
 @pytest.fixture
 def kast_blue_bias_files():
-    kast_blue_bias_files = glob.glob(os.getenv('PYPIT_DEV') + 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b1?.fits*')
+    if not skip_test:
+        kast_blue_bias_files = glob.glob(os.getenv('PYPIT_DEV') + 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b1?.fits*')
+    else:
+        kast_blue_bias_files = None
     return kast_blue_bias_files
-
 
 @pytest.fixture
 def kast_settings():
@@ -54,6 +59,9 @@ def kast_settings():
 
 
 def test_instantiate(kast_blue_bias_files, kast_settings):
+    if skip_test:
+        assert True
+        return
     # Empty
     bias_frame0 = biasframe.BiasFrame()
     assert bias_frame0.nfiles == 0
@@ -109,12 +117,12 @@ def test_master(kast_blue_bias_files, kast_settings):
     kast_settings['reduce']['masters']['reuse'] = False
     bias_frame = biasframe.BiasFrame(settings=kast_settings, file_list=kast_blue_bias_files, setup=setup)
     # Run
-    _ = bias_frame.build_master()
+    _ = bias_frame.master()
     assert bias_frame.steps[-1] == 'combine'
     # Run with reuse (should simply load the file)
     kast_settings['reduce']['masters']['reuse'] = True
     bias_frame2 = biasframe.BiasFrame(settings=kast_settings, setup=setup)
-    bias2 = bias_frame2.build_master()
+    bias2 = bias_frame2.master()
     assert isinstance(bias_frame2.stack, np.ndarray)
     assert len(bias_frame2.steps) == 0
     # Load (not kept in the Object!)

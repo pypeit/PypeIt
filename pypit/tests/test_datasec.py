@@ -10,7 +10,7 @@ import numpy as np
 
 from pypit import arparse as settings
 from pypit import arproc
-from pypit import arsort
+from pypit.core import arsort
 from pypit import arsciexp
 
 
@@ -26,11 +26,11 @@ def test_ampsec(fitstbl):
     slf = arsciexp.dummy_self()
     # Run
     det, scidx = 1, 5
-    arproc.get_datasec_trimmed(slf, fitstbl, det, scidx)
+    datasec_img = arproc.get_datasec_trimmed(slf, fitstbl, det, scidx)
     # Test
-    assert slf._datasec[det-1].shape == (2112, 2048)
-    assert np.sum(np.isclose(slf._datasec[0], 1)) == 2162688  # Data region
-    assert np.sum(np.isclose(slf._datasec[0], 2)) == 2162688  # second amp
+    assert datasec_img.shape == (2112, 2048)
+    assert np.sum(np.isclose(datasec_img, 1)) == 2162688  # Data region
+    assert np.sum(np.isclose(datasec_img, 2)) == 2162688  # second amp
     assert settings.spect['det01']['oscansec01'] == [[0, 0], [2049, 2080]]
     assert settings.spect['det01']['datasec01'] == [[0, 0], [0, 1024]]
 

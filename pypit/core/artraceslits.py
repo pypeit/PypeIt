@@ -2464,7 +2464,6 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
         edgbtwn = new_find_between(edgearr, lvp, lv, -1)
         #        assert np.sum(_edgbtwn != edgbtwn) == 0, 'Difference between old and new find_between'
         #        print('New find_between: {0} seconds'.format(time.clock() - t))
-        debugger.set_trace()
 
         if edgbtwn[0] == -1 and edgbtwn[1] == -1:
             rsub = edgbtwn[2] - (lval - 1)  # There's an order overlap
@@ -2802,7 +2801,7 @@ def slit_trace_qa(frame, ltrace, rtrace, extslit, setup, desc="",
         plt.plot(rtrace[:, ii]+0.5, ycen, 'c'+ptyp, linewidth=0.3, alpha=0.7)
         # Label
         if use_slitid is not None:
-            slitid, _, _ = get_slitid(frame, ltrace, rtrace, ii, ypos=0.5)
+            slitid, _, _ = get_slitid(frame.shape, ltrace, rtrace, ii, ypos=0.5)
             lbl = 'S{:04d}'.format(slitid)
         else:
             lbl = '{0:d}'.format(ii+1)

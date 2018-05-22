@@ -6,14 +6,13 @@ import inspect
 import numpy as np
 import os
 
-from astropy.io import fits
 
 from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import armasters
+from pypit.core import arsort
 from pypit import processimages
 from pypit import masterframe
-from pypit import ginga
 
 
 # For out of PYPIT running
@@ -51,10 +50,11 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
       Setup tag
     det : int, optional
       Detector index, starts at 1
-    ind : list (optional)
-      Indices for bias frames (if a Bias image may be generated)
     fitstbl : Table (optional)
       FITS info (mainly for filenames)
+    sci_ID : int (optional)
+      Science ID value
+      used to match bias frames to the current science exposure
 
     Attributes
     ----------
@@ -66,11 +66,12 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     stack : ndarray
     """
     # Keep order same as processimages (or else!)
-    def __init__(self, file_list=[], spectrograph=None, settings=None, det=1, setup=None, ind=[], fitstbl=None):
+    def __init__(self, file_list=[], spectrograph=None, settings=None, det=1, setup=None, fitstbl=None,
+                 sci_ID=None):
 
         # Parameters unique to this Object
-        self.ind = ind
         self.fitstbl = fitstbl
+        self.sci_ID = sci_ID
 
         # Start us up
         processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph, settings=settings, det=det)
@@ -90,7 +91,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
             if 'combine' not in settings.keys():
                 self.settings['combine'] = settings[self.frametype]['combine']
 
-        # MasterFrames -- Is this required?
+        # MasterFrames
         masterframe.MasterFrame.__init__(self, self.frametype, setup, self.settings)
 
         # Child-specific Internals
@@ -115,7 +116,24 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         self.stack = self.process(bias_subtract=None, trim=False, overwrite=overwrite)
         return self.stack.copy()
 
-    def build_master(self):
+    def build_image(self):
+        """
+        Generate the image
+
+        Returns
+        -------
+        stack : ndarray
+
+        """
+        # Get all of the bias frames for this science frame
+        if self.nfiles == 0:
+            self.file_list = arsort.list_of_files(self.fitstbl, 'bias', self.sci_ID)
+        # Combine
+        self.stack = self.process_bias()
+        #
+        return self.stack
+
+    def master(self):
         """
         Build the master frame and save to disk
          OR
@@ -123,7 +141,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
         Returns
         -------
-        output : ndarray or str
+        msframe : ndarray or str
 
         """
         # Generate a bias or dark image (or load a pre-made Master by PYPIT)?
@@ -131,13 +149,9 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
             # Load the MasterFrame if it exists and user requested one to load it
             msframe, header, raw_files = self.load_master_frame()
             if msframe is None:
+                # Build
                 msgs.info("Preparing a master {0:s} frame".format(self.settings[self.frametype]['useframe']))
-                # Get all of the bias frames for this science frame
-                if self.nfiles == 0:
-                    for i in range(len(self.ind)):
-                        self.file_list.append(self.fitstbl['directory'][self.ind[i]]+self.fitstbl['filename'][self.ind[i]])
-                # Combine
-                msframe = self.process_bias()
+                msframe = self.build_image()
                 # Save to Masters
                 self.save_master(msframe, raw_files=self.file_list, steps=self.steps)
             else:

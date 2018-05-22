@@ -1,4 +1,4 @@
-# Module to run tests on SetupClass
+# Module to run tests on PypitSetup class
 #   Requires files in Development suite and an Environmental variable
 from __future__ import absolute_import
 from __future__ import division
@@ -15,7 +15,7 @@ import numpy as np
 
 from astropy.table import Table
 
-from pypit import setupclass
+from pypit import pypitsetup
 
 # These tests are not run on Travis
 if os.getenv('PYPIT_DEV') is None:
@@ -50,7 +50,7 @@ def test_init():
     # Settings
     settings_argflag, settings_spect = settings_kludge()
     # Init
-    setupc = setupclass.SetupClass(settings_argflag, settings_spect)
+    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
     assert len(setupc.steps) == 0
     assert setupc.nfiles == 0
 
@@ -66,7 +66,7 @@ def test_build_fitstbl():
     # Settings
     settings_argflag, settings_spect = settings_kludge()
     # Init
-    setupc = setupclass.SetupClass(settings_argflag, settings_spect)
+    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
     # fitstlb
     fitstbl = setupc.build_fitstbl(files)
     assert isinstance(fitstbl, Table)
@@ -89,7 +89,7 @@ def test_image_type():
     # Settings
     settings_argflag, settings_spect = settings_kludge()
     # Init
-    setupc = setupclass.SetupClass(settings_argflag, settings_spect)
+    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
     # fitstlb
     fitstbl = setupc.build_fitstbl(files)
 
@@ -111,7 +111,7 @@ def test_match():
     # Settings
     settings_argflag, settings_spect = settings_kludge()
     # Init
-    setupc = setupclass.SetupClass(settings_argflag, settings_spect)
+    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
     # fitstlb
     _ = setupc.build_fitstbl(files)
 
@@ -134,7 +134,7 @@ def test_run():
     # Settings
     settings_argflag, settings_spect = settings_kludge()
     # Init
-    setupc = setupclass.SetupClass(settings_argflag, settings_spect)
+    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
     # Run
     code, fitstbl, setup_dict = setupc.run(files)
     # Test
@@ -156,7 +156,7 @@ def test_run_calcheck():
     settings_argflag['run']['calcheck'] = True
 
     # Init
-    setupc = setupclass.SetupClass(settings_argflag, settings_spect)
+    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
     # Run
     code, fitstbl, setup_dict = setupc.run(files)
     # Test
@@ -176,7 +176,7 @@ def test_run_setup():
     settings_argflag['run']['setup'] = True
 
     # Init
-    setupc = setupclass.SetupClass(settings_argflag, settings_spect)
+    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
     # Run
     code, fitstbl, setup_dict = setupc.run(files)
     # Test

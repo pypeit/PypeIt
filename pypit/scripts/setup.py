@@ -44,7 +44,7 @@ def main(args):
 
     from pypit import pyputils
     from pypit import armeta
-    from pypit import arsetup
+    from pypit.core import arsetup
     from pypit.scripts import run_pypit
     from pypit.pypit import load_input
 
@@ -76,12 +76,14 @@ def main(args):
                           [dfname], setup_script=True, parlines=parlines)
     print("Wrote {:s}".format(pyp_file))
 
-    # Run
+    # Parser
     pinp = [pyp_file]
     if args.develop:
         pinp += ['-d']
     pargs = run_pypit.parser(pinp)
     sorted_file = pyp_file.replace('.pypit', '.sorted')
+
+    # Run
     run_pypit.main(pargs)
 
     # #####################

@@ -63,13 +63,29 @@ class MasterFrames:
 
 
 def master_name(ftype, setup, mdir=None):
+    """
+    Mainly a wrapper to core_master_name
+      generates mdir from settings
+
+    Parameters
+    ----------
+    ftype : str
+    setup : str
+    mdir : str, optional
+
+    Returns
+    -------
+    msname : str
+
+    """
     if mdir is None:
         mdir = settings.argflag['run']['directory']['master']+'_'+settings.argflag['run']['spectrograph']
     return core_master_name(ftype, setup, mdir)
 
 
 def core_master_name(ftype, setup, mdir):
-    """ Default filenames
+    """ Default filenames for MasterFrames
+
     Parameters
     ----------
     ftype
@@ -79,6 +95,7 @@ def core_master_name(ftype, setup, mdir):
 
     Returns
     -------
+    msname : str
     """
     name_dict = dict(bias='{:s}/MasterBias_{:s}.fits'.format(mdir, setup),
                      badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir, setup),
@@ -96,7 +113,22 @@ def core_master_name(ftype, setup, mdir):
 
 
 def load_master_frame(slf, mftype, det=None):
+    """
+    Mainly a wrapper on core_load_master_frame
+       This method will be deprecated by load methods in the MasterFrame classes
+
+    Parameters
+    ----------
+    slf
+    mftype
+    det
+
+    Returns
+    -------
+
+    """
     # TODO -- This method will be deprecated by load methods in the MasterFrame classes
+    #   Presently there are only 4 calls to this (tilts, mswave, wavecalib)
     # Were MasterFrames even desired?
     if (settings.argflag['reduce']['masters']['reuse']) or (settings.argflag['reduce']['masters']['force']):
         ret, head, _ = core_load_master_frame(mftype, slf.setup,
@@ -135,7 +167,7 @@ def load_master_frame(slf, mftype, det=None):
 
 def core_load_master_frame(mftype, setup, mdir, force=False):
     """ If a MasterFrame exists, load it
-    Mainly used for simple images (e.g. ArcImage)
+    Will soon replace the load_master_frame above
 
     Parameters
     ----------
@@ -154,7 +186,7 @@ def core_load_master_frame(mftype, setup, mdir, force=False):
     # Name
     ms_name = core_master_name(mftype, setup, mdir)
     # Load
-    msframe, head, file_list = _core_load(ms_name, exten=0, frametype=mftype, force=force)
+    msframe, head, file_list = _load(ms_name, exten=0, frametype=mftype, force=force)
     # Check
     if msframe is None:
         msgs.warn("No Master frame found of type {:s}: {:s}".format(mftype,ms_name))
@@ -163,12 +195,7 @@ def core_load_master_frame(mftype, setup, mdir, force=False):
     return msframe, head, file_list
 
 
-def load_master(name, exten=0, frametype='<None>'):
-    # TODO -Deprecate
-    return _core_load(name, exten=exten, frametype=frametype,
-                         force=settings.argflag['reduce']['masters']['force'])
-
-def _core_load(name, exten=0, frametype='<None>', force=False):
+def _load(name, exten=0, frametype='<None>', force=False):
     """
     Low level load method for master frames
       Should only be called by core_load_master_frame
@@ -181,6 +208,8 @@ def _core_load(name, exten=0, frametype='<None>', force=False):
     frametype : str, optional
       The type of master calibration frame being loaded.
       This keyword is only used for terminal print out.
+    force : bool, optional
+      Crash out if the file does not exist!
 
     Returns
     -------
@@ -224,6 +253,7 @@ def _core_load(name, exten=0, frametype='<None>', force=False):
 
 def save_masters(slf, det, mftype='all'):
     """ Save Master Frames
+    THIS WILL BE DEPRECATED BIT BY BIT
 
     Parameters
     ----------
@@ -239,9 +269,6 @@ def save_masters(slf, det, mftype='all'):
     # Bias
     if (mftype == 'bias'):
         msgs.error("Should not get here anymore.  Save the bias in the BiasFrame class")
-        #and ('bias'+setup not in settings.argflag['reduce']['masters']['loaded']):
-        #arsave.core_save_master(object, filename=master_name('bias', setup),
-        #                   frametype='bias', raw_files=raw_files)
     # Bad Pixel
     if (mftype in ['badpix', 'all']) and ('badpix'+setup not in settings.argflag['reduce']['masters']['loaded']):
         save_master(slf, slf._bpix[det-1],
@@ -250,14 +277,6 @@ def save_masters(slf, det, mftype='all'):
     # Trace
     if (mftype in ['trace', 'all']) and ('trace'+setup not in settings.argflag['reduce']['masters']['loaded']):
         msgs.error("Should not get here anymore.  Save the trace in the TraceSlits class")
-        #extensions = [slf._lordloc[det-1], slf._rordloc[det-1],
-        #              slf._pixcen[det-1], slf._pixwid[det-1],
-        #              slf._lordpix[det-1], slf._rordpix[det-1],
-        #              slf._slitpix[det-1]]
-        #names = ['LeftEdges_det', 'RightEdges_det', 'SlitCentre', 'SlitLength', 'LeftEdges_pix', 'RightEdges_pix', 'SlitPixels']
-        #save_master(slf, slf._mstrace[det-1],
-        #                   filename=master_name('trace', setup),
-        #                   frametype='trace', extensions=extensions, names=names)
     # Pixel Flat
     if (mftype in ['normpixelflat', 'all']) and ('normpixelflat'+setup not in settings.argflag['reduce']['masters']['loaded']):
         save_master(slf, slf._mspixelflatnrm[det-1],
@@ -268,13 +287,11 @@ def save_masters(slf, det, mftype='all'):
         save_master(slf, slf._mspinhole[det-1],
                            filename=master_name('pinhole', setup),
                            frametype='pinhole')
-    # Arc/Wave
+    # Arc
     if (mftype in ['arc', 'all']) and ('arc'+setup not in settings.argflag['reduce']['masters']['loaded']):
-        save_master(slf, slf._msarc[det-1],
-                           filename=master_name('arc', setup),
-                           frametype='arc', keywds=dict(transp=transpose))
+        msgs.error("Should not get here anymore.  Save the arc in the ArcImage class")
+    # Wavelength image
     if (mftype in ['wave', 'all']) and ('wave'+setup not in settings.argflag['reduce']['masters']['loaded']):
-        # Wavelength image
         save_master(slf, slf._mswave[det-1],
                            filename=master_name('wave', setup),
                            frametype='wave')
@@ -329,7 +346,9 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
 def core_save_master(data, filename="temp.fits", frametype="<None>",
                 extensions=None, keywds=None, names=None, raw_files=None,
                      overwrite=True):
-    """ Core function to write a MasterFrame
+    """ Core function to write a MasterFrame image
+    Only handles simple 2D images.
+    More sophisticated MasterFrame objects are written by their own Class, e.g. TraceSlits
 
     Parameters
     ----------

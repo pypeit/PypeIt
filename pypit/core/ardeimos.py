@@ -5,10 +5,8 @@ from __future__ import absolute_import, division, print_function
 
 import glob
 import numpy as np
-# from astropy.io import fits
-import astropy.io.fits as pyfits
+from astropy.io import fits
 
-#from pypit import armsgs
 from pypit import msgs
 from pypit.arparse import load_sections
 from pypit import ardebug as debugger
@@ -49,7 +47,7 @@ def read_deimos(raw_file, det=None):
     except AttributeError:
         print("Reading DEIMOS file: {:s}".format(fil[0]))
 
-    hdu = pyfits.open(fil[0])
+    hdu = fits.open(fil[0])
     head0 = hdu[0].header
 
     # Get post, pre-pix values

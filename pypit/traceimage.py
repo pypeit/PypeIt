@@ -3,16 +3,11 @@ from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
-import os
 
-from astropy.io import fits
 
 from pypit import msgs
 from pypit import ardebug as debugger
-from pypit import armasters
 from pypit import processimages
-from pypit import masterframe
-from pypit import ginga
 
 
 # For out of PYPIT running
@@ -23,11 +18,6 @@ if msgs._debug is None:
 
 # Does not need to be global, but I prefer it
 frametype = 'trace_image'
-
-# Place these here or elsewhere?
-#  Wherever they be, they need to be defined, described, etc.
-#  These are settings beyond those in the Parent class (ProcessImages)
-additional_default_settings = {frametype: {'useframe': 'none'}}
 
 
 class TraceImage(processimages.ProcessImages):
@@ -79,7 +69,7 @@ class TraceImage(processimages.ProcessImages):
         # The copy allows up to update settings with user settings without changing the original
         if settings is None:
             # Defaults
-            self.settings = processimages.default_settings.copy().update(additional_default_settings)
+            self.settings = processimages.default_settings.copy()
         else:
             self.settings = settings.copy()
             # The following is somewhat kludgy and the current way we do settings may

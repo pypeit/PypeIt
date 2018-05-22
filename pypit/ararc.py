@@ -154,15 +154,15 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     return ampl, cent, widt
 
 
-def setup_param(slf, det, fitsdict):
+def setup_param(msarc_shape, fitstbl, arc_idx):
     """ Setup for arc analysis
 
     Parameters
     ----------
-    slf :
+    msarc_shape : tuple
     det : int
       detctor index
-    fitsdict : dict
+    fitstbl : dict
       Contains relevant information from fits header files
 
     """
@@ -188,13 +188,11 @@ def setup_param(slf, det, fitsdict):
     # Instrument/disperser specific
     sname = settings.argflag['run']['spectrograph']
     #idx = settings.spect['arc']['index'][sc]
-    idx = slf._idx_arcs
-    disperser = fitsdict["dispname"][idx[0]]
-    binspatial, binspectral = settings.parse_binning(fitsdict['binning'][idx[0]])
+    disperser = fitstbl["dispname"][arc_idx]
+    binspatial, binspectral = settings.parse_binning(fitstbl['binning'][arc_idx])
     if sname == 'shane_kast_blue':
         # Could have the following depend on lamps that were turned on
         lamps = ['CdI','HgI','HeI']
-        #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_blue.lst'
         if disperser == '600/4310':
             arcparam['disp']=1.02
             arcparam['b1']=6.88935788e-04
@@ -204,32 +202,30 @@ def setup_param(slf, det, fitsdict):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='shane_kast_red':
-        lamps = ['NeI']
-        #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
+        lamps = ['NeI','HgI','HeI','ArI']
         if disperser == '600/7500':
             arcparam['disp']=1.30
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
             arcparam['wvmnx'][0] = 5000.
             arcparam['n_first']=2 # Should be able to lock on
         elif disperser == '1200/5000':
             arcparam['disp']=0.63
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
             arcparam['wvmnx'][0] = 5000.
             arcparam['n_first']=2 # Should be able to lock on
             arcparam['wv_cen'] = 6600.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='shane_kast_red_ret':
-        lamps = ['NeI']
-        #arcparam['llist'] = settings.argflag['run']['pypitdir'] + 'data/arc_lines/kast_red.lst'
+        lamps = ['NeI','HgI','HeI','ArI']
         if disperser == '600/7500':
             arcparam['disp']=2.35
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
             arcparam['wvmnx'][0] = 5000.
             arcparam['n_first']=2 # Should be able to lock on
         elif disperser == '1200/5000':
             arcparam['disp']=1.17
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
             arcparam['wvmnx'][0] = 5000.
             arcparam['n_first']=2 # Should be able to lock on
         else:
@@ -257,47 +253,40 @@ def setup_param(slf, det, fitsdict):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='keck_lris_red':
-        arcparam['wv_cen'] = fitsdict['wavecen'][idx[0]]
+        arcparam['wv_cen'] = fitstbl['wavecen'][arc_idx]
         lamps = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
         if disperser == '600/7500':
             arcparam['n_first']=3 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
             arcparam['wvmnx'][1] = 11000.
         elif disperser == '600/10000':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.80 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
             arcparam['wvmnx'][1] = 12000.
         elif disperser == '400/8500':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=1.19 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
             arcparam['wvmnx'][1] = 11000.
             arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
             arcparam['nsig_rej_final'] = 5.
         elif disperser == '900/5500':
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.53 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0] / binspectral
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
             arcparam['wvmnx'][1] = 7000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname=='keck_deimos':
-        arcparam['wv_cen'] = fitsdict['dispangle'][idx[0]]
-        #gratepos = fitsdict['headers'][idx[0]][0]['GRATEPOS']
-        #if(gratepos==3):
-        #    arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['G3TLTWAV']
-        #elif(gratepos==4):
-        #    arcparam['wv_cen'] = fitsdict['headers'][idx[0]][0]['G4TLTWAV']
-        #else:
-        #    msgs.error('Problem wth value of GRATEPOS keyword: GRATEPOS={:s}'.format(gratepos))
+        arcparam['wv_cen'] = fitstbl['dispangle'][arc_idx]
         # TODO -- Should set according to the lamps that were on
         lamps = ['ArI','NeI','KrI','XeI']
         if disperser == '830G': # Blaze 8640
             arcparam['n_first']=2 # Too much curvature for 1st order
             arcparam['disp']=0.47 # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
             arcparam['wvmnx'][0] = 550.
             arcparam['wvmnx'][1] = 11000.
             arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
@@ -307,14 +296,14 @@ def setup_param(slf, det, fitsdict):
         modify_dict = dict(NeI={'min_wave': 3000.,'min_intensity': 299,
                                 'min_Aki': 0.},ArI={'min_intensity': 399.})
         lamps=['CuI','NeI','ArI']
-        if fitsdict["dichroic"][idx[0]].strip() == '5300':
+        if fitstbl["dichroic"][arc_idx].strip() == '5300':
             arcparam['wvmnx'][1] = 6000.
         else:
             msgs.error('Not ready for this dichroic {:s}!'.format(disperser))
         if disperser == 'R300B':
             arcparam['n_first']=1  #
             arcparam['disp']=0.80  # Ang per pixel (unbinned)
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     elif sname == 'tng_dolores':
@@ -326,7 +315,7 @@ def setup_param(slf, det, fitsdict):
             arcparam['wvmnx'][0] = 4470.0
             arcparam['wvmnx'][1] = 10073.0
             arcparam['wv_cen'] = 7400.
-            arcparam['b1'] = 1. / arcparam['disp'] / slf._msarc[det - 1].shape[0] / binspectral
+            arcparam['b1'] = 1. / arcparam['disp'] / msarc_shape[0] / binspectral
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     else:
@@ -341,7 +330,7 @@ def setup_param(slf, det, fitsdict):
         slmps=slmps+','+lamp
     msgs.info('Loading line list using {:s} lamps'.format(slmps))
 #    arcparam['llist'] = ararclines.load_arcline_list(slf, idx, lamps, disperser,
-    arcparam['llist'] = ararclines.load_arcline_list(idx, lamps, disperser,
+    arcparam['llist'] = ararclines.load_arcline_list(arc_idx, lamps, disperser,
                                                      wvmnx=arcparam['wvmnx'],
                                                      modify_parse_dict=modify_dict)
     # Binning
@@ -351,7 +340,7 @@ def setup_param(slf, det, fitsdict):
     return arcparam
 
 
-def simple_calib(slf, det, get_poly=False, censpec=None, slit=None):
+def simple_calib(slf, det, msarc, get_poly=False, censpec=None, slit=None):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
@@ -369,7 +358,7 @@ def simple_calib(slf, det, get_poly=False, censpec=None, slit=None):
 
     # Extract the arc
     msgs.work("Detecting lines..")
-    tampl, tcent, twid, w, satsnd, yprep = detect_lines(slf, det, slf._msarc[det-1], censpec=censpec)
+    tampl, tcent, twid, w, satsnd, yprep = detect_lines(slf, det, msarc, censpec=censpec)
 
     # Cut down to the good ones
     tcent = tcent[w]
@@ -582,8 +571,7 @@ def simple_calib(slf, det, get_poly=False, censpec=None, slit=None):
     return final_fit
 
 
-def calib_with_arclines(slf, det, slit, get_poly=False, use_method="general",
-                        censpec=None):
+def calib_with_arclines(slf, det, msarc, slit, aparm, use_method="general", censpec=None):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
@@ -603,12 +591,9 @@ def calib_with_arclines(slf, det, slit, get_poly=False, use_method="general",
       Dict of fit info
     """
     import arclines.holy.grail
-    # Parameters (just for convenience)
-    aparm = slf._arcparam[det-1]
     # Extract the arc
     msgs.work("Detecting lines")
-    tampl, tcent, twid, w, satsnd, spec = detect_lines(
-        slf, det, slf._msarc[det-1], censpec=censpec)
+    tampl, tcent, twid, w, satsnd, spec = detect_lines( slf, det, msarc, censpec=censpec)
 
     if use_method == "semi-brute":
         best_dict, final_fit = arclines.holy.grail.semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
