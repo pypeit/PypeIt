@@ -27,9 +27,11 @@ def data_path(filename):
 
 @pytest.fixture
 def deimos_flat_files():
-    deimos_flat_files = [os.getenv('PYPIT_DEV') + '/RAW_DATA/Keck_DEIMOS/830G_L/' + ifile for ifile in [  # Longslit in dets 3,7
-        'd0914_0014.fits', 'd0914_0015.fits']]
-    assert len(deimos_flat_files) == 2
+    if not skip_test:
+        deimos_flat_files = [os.getenv('PYPIT_DEV') + '/RAW_DATA/Keck_DEIMOS/830G_L/' + ifile for ifile in [  # Longslit in dets 3,7
+            'd0914_0014.fits', 'd0914_0015.fits']]
+    else:
+        deimos_flat_files = None
     return deimos_flat_files
 
 
