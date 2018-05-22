@@ -16,7 +16,8 @@ from pypit import arqa
 from pypit import ardebug as debugger
 
 
-def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
+def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False,
+                 nonlinear=None):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
@@ -80,7 +81,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False):
 #        _satmask = arcyarc.saturation_mask(msarc, slf._nonlinear[det-1])
 #        print('Old saturation_mask: {0} seconds'.format(time.clock() - t))
 #        t = time.clock()
-        satmask = new_saturation_mask(msarc, slf._nonlinear[det-1])
+        satmask = new_saturation_mask(msarc, nonlinear)
 #        print('New saturation_mask: {0} seconds'.format(time.clock() - t))
 #        assert np.sum(_satmask != satmask) == 0, 'Difference between old and new saturation_mask'
 
@@ -339,7 +340,7 @@ def setup_param(msarc_shape, fitstbl, arc_idx):
     return arcparam
 
 
-def simple_calib(slf, det, msarc, get_poly=False, censpec=None, slit=None):
+def simple_calib(det, msarc, aparm, get_poly=False, censpec=None, slit=None):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
@@ -366,9 +367,6 @@ def simple_calib(slf, det, msarc, get_poly=False, censpec=None, slit=None):
     tcent = tcent[w]
     tampl = tampl[w]
     msgs.info('Detected {:d} lines in the arc spectrum.'.format(len(w[0])))
-
-    # Parameters (just for convenience)
-    aparm = slf._arcparam[det-1]
 
     # Read Arc linelist
     llist = aparm['llist']
@@ -593,8 +591,8 @@ def calib_with_arclines(slf, det, msarc, slit, aparm, use_method="general", cens
     """
     import arclines.holy.grail
     # Extract the arc
-    msgs.work("Detecting lines")
-    tampl, tcent, twid, w, satsnd, spec = detect_lines( slf, det, msarc, censpec=censpec)
+    #msgs.work("Detecting lines")
+    #tampl, tcent, twid, w, satsnd, spec = detect_lines( slf, det, msarc, censpec=censpec)
 
     if use_method == "semi-brute":
         best_dict, final_fit = arclines.holy.grail.semi_brute(spec, aparm['lamps'], aparm['wv_cen'], aparm['disp'], fit_parm=aparm, min_ampl=aparm['min_ampl'])

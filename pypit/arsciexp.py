@@ -82,9 +82,6 @@ class ScienceExposure:
 
         # Initialize Variables
         ndet = settings_spect['mosaic']['ndet']
-        self._nonlinear = [settings_spect[settings.get_dnum(det+1)]['saturation'] *
-                           settings_spect[settings.get_dnum(det+1)]['nonlinear']
-                           for det in range(ndet)]
         #self._nspec    = [None for all in range(ndet)]   # Number of spectral pixels
         #self._nspat    = [None for all in range(ndet)]   # Number of spatial pixels
         #self._datasec  = [None for all in range(ndet)]   # Locations of the data on each detector

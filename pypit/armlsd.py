@@ -26,6 +26,7 @@ from pypit import bpmimage
 from pypit import biasframe
 from pypit import traceslits
 from pypit import traceimage
+from pypit import wavecalib
 
 from pypit import ardebug as debugger
 
@@ -225,6 +226,14 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
 
             ###############
             # Generate the 1D wavelength solution
+            nonlinear = settings.spect[settings.get_dnum(det+1)]['saturation'] * settings.spect[settings.get_dnum(det+1)]['nonlinear']
+            if 'wavecalib' in calib_dict[setup].keys():
+                Wavecalib = calib_dict[setup]['wavecalib']
+            elif settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
+                msgs.info("A wavelength calibration will not be performed")
+                pass
+            else:
+                Wavecalib = wavecalib
             update = slf.MasterWaveCalib(fitstbl, det, msarc)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")

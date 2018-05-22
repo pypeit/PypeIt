@@ -18,7 +18,7 @@ from pypit import arplot
 from pypit import ararc
 from pypit import arutils
 from pypit import arpca
-from pypit import arpixels
+from pypit import arextract
 from pypit import arparse as settings
 from pypit.filter import BoxcarFilter
 from pypit import ardebug as debugger
@@ -1455,7 +1455,8 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
-    arccen, maskslit, satmask = get_censpec(slf, msarc, det, gen_satmask=True)
+    arccen, maskslit, satmask = arextract.get_censpec(slf._lordloc[det-1], slf._rordloc[det-1],
+                                                      slf._pixlocn[det-1], msarc, det, settings.spect, gen_satmask=True)
     # If the user sets no tilts, return here
     if settings.argflag['trace']['slits']['tilts']['method'].lower() == "zero":
         # Assuming there is no spectral tilt
@@ -1470,7 +1471,7 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
         if maskslit[o] == 1:
             continue
         # Determine the tilts for this slit
-        trcdict = trace_tilt(slf, det, msarc, o, censpec=arccen[:, slitcnt])
+        trcdict = trace_tilt(slf, det, msarc, o, censpec=arccen[:, o])
         slitcnt += 1
         if trcdict is None:
             # No arc lines were available to determine the spectral tilt
@@ -1609,7 +1610,9 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
-    arccen, maskslit, _ = get_censpec(slf, msarc, det, gen_satmask=False)
+    arccen, maskslit, _ = arextract.get_censpec(slf._lordloc[det-1], slf._rordloc[det-1],
+                                                      slf._pixlocn[det-1], msarc, det, settings.spect,
+                                                      gen_satmask=False)
     satmask = np.zeros_like(slf._pixcen)
     # If the user sets no tilts, return here
     if settings.argflag['trace']['slits']['tilts']['method'].lower() == "zero":
@@ -1633,9 +1636,9 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
 
     # Now trace the tilt for each slit
     #for  o in range(arccen.shape[1]):
-    for oo, slit in enumerate(gdslits):
+    for slit in gdslits:
         # Determine the tilts for this slit
-        trcdict = trace_tilt(slf, det, msarc, slit, censpec=arccen[:, oo], nsmth=3)
+        trcdict = trace_tilt(slf, det, msarc, slit, censpec=arccen[:, slit], nsmth=3)
         if trcdict is None:
             # No arc lines were available to determine the spectral tilt
             continue
@@ -1934,130 +1937,6 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
                            textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval, slit=slit)
     # Finish
     return final_tilts, satmask, outpar
-
-
-def get_censpec(slf, frame, det, gen_satmask=False):
-    """ Extract a simple spectrum down the center of each slit
-    Parameters
-    ----------
-    slf :
-    frame : ndarray
-      Image
-    det : int
-    gen_satmask : bool, optional
-      Generate a saturation mask?
-
-    Returns
-    -------
-    arccen : ndarray
-      Extracted arcs.  This *need* not be one per slit/order,
-      although I wish it were (with `rejected` ones padded with zeros)
-    maskslit : bool array
-      1 = Bad slit/order for extraction (incomplete)
-      0 = Ok
-    satmask : ndarray
-      Saturation mask
-      Returned in gen_satmask=True
-    """
-    # TODO -- Have the returned arccen and maskslit have the same size..
-    dnum = settings.get_dnum(det)
-
-    ordcen = 0.5*(slf._lordloc[det-1]+slf._rordloc[det-1])
-    ordwid = 0.5*np.abs(slf._lordloc[det-1]-slf._rordloc[det-1])
-    if gen_satmask:
-        msgs.info("Generating a mask of arc line saturation streaks")
-#        t = time.clock()
-#        _satmask = arcyarc.saturation_mask(frame,
-#                            settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])
-#        print('Old saturation_mask: {0} seconds'.format(time.clock() - t))
-        satmask = ararc.new_saturation_mask(frame,
-                            settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])
-#        print('New saturation_mask: {0} seconds'.format(time.clock() - t))
-#        # Allow for minor differences
-#        if np.sum(_satmask != satmask) > 0.1*np.prod(satmask.shape):
-#            plt.imshow(_satmask, origin='lower', interpolation='nearest', aspect='auto')
-#            plt.colorbar()
-#            plt.show()
-#            plt.imshow(satmask, origin='lower', interpolation='nearest', aspect='auto')
-#            plt.colorbar()
-#            plt.show()
-#            plt.imshow(_satmask-satmask, origin='lower', interpolation='nearest', aspect='auto')
-#            plt.colorbar()
-#            plt.show()
-#
-#        assert np.sum(_satmask != satmask) < 0.1*np.prod(satmask.shape), \
-#                    'Old and new saturation_mask are too different'
-
-#        print('calling order saturation')
-#        t = time.clock()
-#        _satsnd = arcyarc.order_saturation(satmask, (ordcen+0.5).astype(int),
-#                                          (ordwid+0.5).astype(int))
-#        print('Old order_saturation: {0} seconds'.format(time.clock() - t))
-#        t = time.clock()
-        satsnd = ararc.new_order_saturation(satmask, (ordcen+0.5).astype(int),
-                                             (ordwid+0.5).astype(int))
-#        print('New order_saturation: {0} seconds'.format(time.clock() - t))
-#        assert np.sum(_satsnd != satsnd) == 0, \
-#                    'Difference between old and new order_saturation, satsnd'
-
-    # Extract a rough spectrum of the arc in each slit
-    msgs.info("Extracting an approximate arc spectrum at the centre of each slit")
-    tordcen = None
-    maskslit = np.zeros(ordcen.shape[1], dtype=np.int)
-    for i in range(ordcen.shape[1]):
-        wl = np.size(np.where(ordcen[:, i] <= slf._pixlocn[det-1][0,0,1])[0])
-        wh = np.size(np.where(ordcen[:, i] >= slf._pixlocn[det-1][0,-1,1])[0])
-        if wl == 0 and wh == 0:
-            # The center of the slit is always on the chip
-            if tordcen is None:
-                tordcen = np.zeros((ordcen.shape[0], 1), dtype=np.float)
-                tordcen[:, 0] = ordcen[:, i]
-            else:
-                tordcen = np.append(tordcen, ordcen[:, i].reshape((ordcen.shape[0], 1)), axis=1)
-        else:
-            # A slit isn't always on the chip
-            if tordcen is None:
-                tordcen = np.zeros((ordcen.shape[0], 1), dtype=np.float)
-            else:
-                tordcen = np.append(tordcen, ordcen[:, i].reshape((ordcen.shape[0], 1)), axis=1)
-            maskslit[i] = 1
-    w = np.where(maskslit == 0)[0]
-    if tordcen is None:
-        msgs.warn("Could not determine which slits are fully on the detector")
-        msgs.info("Assuming all slits are fully on the detector")
-        ordcen = arpixels.phys_to_pix(ordcen, slf._pixlocn[det-1], 1)
-    else:
-        ordcen = arpixels.phys_to_pix(tordcen[:,w], slf._pixlocn[det-1], 1)
-
-    pixcen = np.arange(frame.shape[0])
-    temparr = pixcen.reshape(frame.shape[0], 1).repeat(ordcen.shape[1], axis=1)
-    # Average over three pixels to remove some random fluctuations, and increase S/N
-    op1 = ordcen+1
-    op2 = ordcen+2
-    om1 = ordcen-1
-    om2 = ordcen-2
-    w = np.where(om1 < 0)
-    om1[w] += 1
-    w = np.where(om2 == -1)
-    om2[w] += 1
-    w = np.where(om2 == -2)
-    om2[w] += 2
-    w = np.where(op1 >= frame.shape[1])
-    op1[w] -= 1
-    w = np.where(op2 == frame.shape[1])
-    op2[w] -= 1
-    w = np.where(op2 == frame.shape[1]+1)
-    op2[w] -= 2
-    arccen = (1.0/5.0) * (frame[temparr, ordcen] +
-              frame[temparr, op1] + frame[temparr, op2] +
-              frame[temparr, om1] + frame[temparr, om2])
-    del temparr
-
-    if gen_satmask:
-        return arccen, maskslit, satsnd
-    else:
-        return arccen, maskslit, None
-
 
 
 def slit_image(slf, det, scitrace, obj, tilts=None):
