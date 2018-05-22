@@ -730,7 +730,7 @@ class ScienceExposure:
             else:
                 # Setup arc parameters (e.g. linelist)
                 arc_idx = arsort.ftype_indices(fitstbl, 'arc', self.sci_ID)
-                arcparam = ararc.setup_param(self.msarc[det-1].shape, fitstbl, arc_idx[0])
+                arcparam = ararc.setup_param(msarc.shape, fitstbl, arc_idx[0])
                 self.SetFrame(self._arcparam, arcparam, det)
                 ###############
                 # Extract an arc down each slit
