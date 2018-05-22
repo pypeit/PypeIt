@@ -396,7 +396,7 @@ class ScienceExposure:
         return True
     '''
 
-    def MasterFlatField(self, fitsdict, det, msbias):
+    def MasterFlatField(self, fitsdict, det, msbias, datasec_img):
         """
         Generate Master Flat-field frame for a given detector
 
@@ -412,6 +412,7 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
+        dnum = settings.get_dnum(det)
         if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
             # If the master pixelflat is already made, use it
             if self._mspixelflat[det-1] is not None:
@@ -476,7 +477,8 @@ class ScienceExposure:
                         mspixelflat = arcomb.comb_frames(frames, det, 'pixelflat', printtype='pixel flat')
                     del frames
                     # Apply gain (instead of ampsec scale)
-                    mspixelflat *= arproc.gain_frame(self, det)
+                    mspixelflat *= arproc.gain_frame(datasec_img, settings.spect[dnum]['numamplifiers'],
+                                             settings.spect[dnum]['gain'])
                     # Normalize the flat field
                     msgs.info("Normalizing the pixel flat")
                     slit_profiles, mstracenrm, msblaze, flat_ext1d, extrap_slit = \

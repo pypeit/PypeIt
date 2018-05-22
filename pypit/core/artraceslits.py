@@ -2801,7 +2801,7 @@ def slit_trace_qa(frame, ltrace, rtrace, extslit, setup, desc="",
         plt.plot(rtrace[:, ii]+0.5, ycen, 'c'+ptyp, linewidth=0.3, alpha=0.7)
         # Label
         if use_slitid is not None:
-            slitid, _, _ = get_slitid(frame, ltrace, rtrace, ii, ypos=0.5)
+            slitid, _, _ = get_slitid(frame.shape, ltrace, rtrace, ii, ypos=0.5)
             lbl = 'S{:04d}'.format(slitid)
         else:
             lbl = '{0:d}'.format(ii+1)

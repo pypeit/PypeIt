@@ -234,7 +234,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
 
             ###############
             # Prepare the pixel flat field frame
-            update = slf.MasterFlatField(fitstbl, det, msbias)
+            update = slf.MasterFlatField(fitstbl, det, msbias, datasec_img)
             if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
 
             ###############
