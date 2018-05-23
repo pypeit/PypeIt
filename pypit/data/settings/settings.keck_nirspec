@@ -39,6 +39,8 @@ keyword naxis0 01.NAXIS2               # Number of pixels along the zeroth axis;
 keyword naxis1 01.NAXIS1               # Number of pixels along the first axis
 keyword filter1 01.FILNAME             # Filter 1
 keyword hatch 01.CALMPOS               # Cal. Mirror Position, 0=out, 1=in
+keyword slitwid 01.SLITWIDT            # Slit width
+keyword slitlen 01.SLITLEN             # Slit length
 keyword lampname01 NEON                # Name of a lamp
 keyword lampstat01 01.NEON             # Status of a lamp
 keyword lampname02 ARGON               # Name of a lamp
@@ -53,6 +55,7 @@ keyword lampname06 FLAT                # Name of a lamp
 keyword lampstat06 01.FLAT             # Status of a lamp
 keyword dispname 01.DISPERS            # Grating name
 #keyword dispangle 01.GRANGLE           # Grating angle
+keyword imagetype 01.IMAGETYP          # KOA generated keyword for image type
 
 ### Fits properties
 fits numhead 1                         # How many headers need to be read in for a given file
@@ -62,12 +65,14 @@ fits numlamps 6                        # How many lamps are there listed in the 
 ### Science frames
 science check condition1 lampstat01=0&lampstat02=0&lampstat03=0&lampstat04=0&lampstat05=0&lampstat06=0
 science check condition2 hatch=0       # Required for science; 0 is "out" for NIRSPEC
-science check condition3 exptime>20    # Arbitrary exptime limit
+science check condition3 exptime>=1    # Arbitrary exptime limit
+science check condition4 imagetype=object # Check that KOA keyword is 'object'
 
 ### Standard Star frames
 standard check condition1 lampstat01=0&lampstat02=0&lampstat03=0&lampstat04=0&lampstat05=0&lampstat06=0
 standard check condition2 hatch=0      # Required for standard; 0 is "out" for NIRSPEC
-#standard match dispname ''            # Check the same decker as the science frame was used
+standard check condition3 imagetype=object # Check that KOA keyword is object
+standard match dispname ''            # Check the same decker as the science frame was used
 #standard match dichroic ''            # Check the same decker as the science frame was used
 #standard match binning ''             # Match the shape of standard and science frames
 #standard match dispangle |<=0.02      # Match the grating angle (no idea if this is reasonable for LRISr)
@@ -76,6 +81,7 @@ standard check condition2 hatch=0      # Required for standard; 0 is "out" for N
 bias check condition1 lampstat01=0&lampstat02=0&lampstat03=0&lampstat04=0&lampstat05=0&lampstat06=0
 bias check condition2 hatch=0          # Required for bias
 bias check condition3 exptime<=1        # Required for bias
+bias check condition4 imagetype=dark # Check that KOA keyword is 'dark'
 #bias match binning ''             	   # Match the shape of standard and science frames
 
 ### Pixel Flat frames -- Dome Flat required
@@ -83,10 +89,11 @@ pixelflat number 3                     # Number of flat frames to use
 pixelflat check condition1 hatch=1     # Required for pixel flats;;;; hatch=1 for dome flats and arcs
 pixelflat check condition2 exptime<30  # Avoid stars
 pixelflat check condition3 lampstat06=1
+pixelflat check condition4 imagetype=flatlamp # Check that KOA keyword is 'flatlamp'
 #pixelflat match binning ''            # Match the shape of standard and science frames
-#pixelflat match decker ''             # Check the same decker as the science frame was used
+pixelflat match decker ''             # Check the same decker as the science frame was used
 #pixelflat match dichroic ''           # Check the same decker as the science frame was used
-#pixelflat match dispname ''           # Check the same decker as the science frame was used
+pixelflat match dispname ''           # Check the same decker as the science frame was used
 #pixelflat match dispangle |<=0.02     # Match the grating angle (no idea if this is reasonable for LRISr)
 
 ### Pinhole frames
@@ -94,24 +101,26 @@ pinhole check condition1 exptime>999999 # Avoids any pinhole frames
 
 ### Dark frames
 dark check condition1 lampstat01=0&lampstat02=0&lampstat03=0&lampstat04=0&lampstat05=0&lampstat06=0
-dark check condition2 exptime<5         # Avoids any dark frames
+#dark check condition2 exptime<5         # Avoids any dark frames
+dark check condition3 imagetype=dark # Check that KOA keyword is 'dark'
 
 ### Trace frames
 trace check condition1 hatch=1         # Required for blaze flats;;;; hatch=1 for dome flats and arcs
 trace check condition2 exptime<30      # Avoid stars
 trace check condition3 lampstat06=1
 #trace match binning ''                # Match the shape of trace with science
-#trace match decker ''                 # Check the same decker as the science frame was used
+trace match decker ''                 # Check the same decker as the science frame was used
 #trace match dichroic ''               # Check the same decker as the science frame was used
-#trace match dispname ''               # Check the same decker as the science frame was used
+trace match dispname ''               # Check the same decker as the science frame was used
 #trace match dispangle |<=0.02         # Match the grating angle (no idea if this is reasonable for LRISr)
 
 ### Arc frames
 arc check condition1 lampstat01=1|lampstat02=1|lampstat03=1|lampstat04=1|lampstat05=1
 arc check condition2 hatch=1           # Required for arcs; 1 = "in" = closed
+arc check condition3 imagetype=arclamp # Check that KOA keyword is 'arclamp'
 #arc match binning ''                  # Match the shape of arcs with science
 #arc match dichroic ''                 # Check the same decker as the science frame was used
-#arc match dispname ''                 # Check the same decker as the science frame was used
+arc match dispname ''                 # Check the same decker as the science frame was used
 #arc match dispangle |<=0.02           # Match the grating angle (no idea if this is reasonable for LRISr)
 
 # Make some changes to the arguments and flags

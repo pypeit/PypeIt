@@ -3020,6 +3020,17 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
+    def keyword_imagetype(self, v):
+        """ The KOA added keyword that identifies the frame type
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_keyword(v)
+        self.update(v)
+
     def keyword_lamps(self, v):
         """ Lamps being used
 
