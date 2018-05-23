@@ -291,16 +291,15 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             if stdslf.extracted is False:
                 # Fill up the necessary pieces
                 for iattr in ['pixlocn', 'lordloc', 'rordloc', 'pixcen', 'pixwid', 'lordpix', 'rordpix',
-                              'slitpix', 'tilts', 'satmask', 'maskslits', 'datasec', 'bpix', 'slitprof',
+                              'slitpix', 'tilts', 'satmask', 'maskslits', 'slitprof',
                               'mspixelflatnrm', 'mswave']:
                     setattr(stdslf, '_'+iattr, getattr(slf, '_'+iattr))  # Brings along all the detectors, but that is ok
                 # Load
-                stdframe = arload.load_frames(fitstbl, [std_idx], det, frametype='standard',
-                                              msbias=slf._msbias[det-1])
+                stdframe = arload.load_frames(fitstbl, [std_idx], det, frametype='standard', msbias=msbias)
                 stdframe = stdframe[:, :, 0]
                 # Reduce
                 msgs.info("Processing standard frame")
-                arproc.reduce_multislit(stdslf, stdframe, std_idx, fitstbl, det, standard=True)
+                arproc.reduce_multislit(stdslf, stdframe, msbpm, datasec_img, std_idx, fitstbl, det, standard=True)
                 # Finish
                 stdslf.extracted = True
 
