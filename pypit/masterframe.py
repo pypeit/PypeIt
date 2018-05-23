@@ -70,6 +70,11 @@ class MasterFrame(object):
 
     def load_master_frame(self, force=False):
         """
+        Load a MasterFrame
+
+        Parameters
+        ----------
+
         Returns
         -------
         master_frame : ndarray or dict or None

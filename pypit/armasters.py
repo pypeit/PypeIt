@@ -198,7 +198,7 @@ def core_load_master_frame(mftype, setup, mdir, force=False):
 def _load(name, exten=0, frametype='<None>', force=False):
     """
     Low level load method for master frames
-      Should only be called by core_load_master_frame
+      Should mainly be called by core_load_master_frame
 
     Parameters
     ----------

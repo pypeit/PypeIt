@@ -699,19 +699,16 @@ def simple_calib(det, msarc, aparm, get_poly=False, censpec=None, slit=None):
     return final_fit
 
 
-def calib_with_arclines(slit, aparm, spec, use_method="general"):
-    """Simple calibration algorithm for longslit wavelengths
+def calib_with_arclines(aparm, spec, use_method="general"):
+    """Holy grail algorithms for wavelength calibration
 
-    Uses slf._arcparam to guide the analysis
+    Uses arcparam to guide the analysis
 
     Parameters
     ----------
-    slf
-    det
-    slit : int
-      Only for QA naming
-    get_poly : bool, optional
-      Pause to record the polynomial pix = b0 + b1*lambda + b2*lambda**2
+    aparm
+    spec
+    use_method : str, optional
 
     Returns
     -------
@@ -814,6 +811,7 @@ def arc_fit_qa(setup, fit, slit, outfile=None, ids_only=False, title=None):
       Arc spectrum
     outfile : str, optional
       Name of output file
+      or 'show' to show on screen
     """
 
     plt.rcdefaults()
@@ -903,7 +901,10 @@ def arc_fit_qa(setup, fit, slit, outfile=None, ids_only=False, title=None):
 
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    plt.savefig(outfile, dpi=800)
+    if outfile == 'show':
+        plt.show()
+    else:
+        plt.savefig(outfile, dpi=800)
     plt.close()
 
     plt.rcdefaults()

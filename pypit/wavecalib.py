@@ -7,12 +7,14 @@ import os
 
 from importlib import reload
 
+from matplotlib import pyplot as plt
 
 from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import masterframe
 from pypit import ararc
 from pypit import ararclines
+from pypit import armasters
 from pypit.core import arsort
 
 # For out of PYPIT running
@@ -90,7 +92,6 @@ class WaveCalib(masterframe.MasterFrame):
         masterframe.MasterFrame.__init__(self, self.frametype, setup, self.settings)
 
     def _build_wv_calib(self, method, skip_QA=False):
-        reload(ararclines)
         # Loop
         self.wv_calib = {}
         ok_mask = np.where(self.maskslit == 0)[0]
@@ -103,13 +104,26 @@ class WaveCalib(masterframe.MasterFrame):
                 iwv_calib = ararc.simple_calib(self.det, self.msarc, self.arcparam,
                                                censpec=self.arccen[:, slit], slit=slit)
             elif method == 'arclines':
-                iwv_calib = ararc.calib_with_arclines(slit, self.arcparam, self.arccen[:, slit])
+                iwv_calib = ararc.calib_with_arclines(self.arcparam, self.arccen[:, slit])
             self.wv_calib[str(slit)] = iwv_calib.copy()
             # QA
             if not skip_QA:
                 ararc.arc_fit_qa(self.setup, iwv_calib, slit)
+        # Step
+        self.steps.append(inspect.stack()[0][3])
         # Return
         return self.wv_calib
+
+    def calibrate_spec(self, slit, method='arclines'):
+        reload(ararc)
+        spec = self.wv_calib[str(slit)]['spec']
+        if method == 'simple':
+            debugger.set_trace() # NOT READY
+            iwv_calib = ararc.simple_calib(self.det, self.msarc, self.arcparam,
+                                           censpec=self.arccen[:, slit], slit=slit)
+        elif method == 'arclines':
+            iwv_calib = ararc.calib_with_arclines(self.arcparam, spec)
+        return iwv_calib
 
     def _extract_arcs(self, lordloc, rordloc, pixlocn):
         self.arccen, self.maskslit, _ = ararc.get_censpec(lordloc, rordloc, pixlocn,
@@ -119,6 +133,19 @@ class WaveCalib(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
         # Return
         return self.arccen, self.maskslit
+
+    def load_wv_calib(self, filename):
+        self.wv_calib, _, _ =  armasters._load(filename, frametype=self.frametype)
+        # Recast a few items as arrays -- MIGHT PUSH THIS INTO armasters._load
+        for key in self.wv_calib.keys():
+            if key in ['steps', 'arcparam']:  # This isn't really necessary
+                continue
+            for tkey in self.wv_calib[key].keys():
+                if tkey in ['tcent', 'spec', 'xfit', 'yfit', 'xrej']:
+                    self.wv_calib[key][tkey] = np.array(self.wv_calib[key][tkey])
+        # arcparam
+        if 'arcparam' in self.wv_calib.keys():
+            self.arcparam = self.wv_calib['arcparam'].copy()
 
     def _load_arcparam(self, calibrate_lamps=None):
         """
@@ -142,7 +169,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Return
         return self.arcparam
 
-    def master(self, lordloc, rordloc, pixlocn, method='arclines', nonlinear=None):
+    def master(self, lordloc, rordloc, pixlocn, method='arclines', nonlinear=None, skip_QA=False):
         """ Main driver for wavelength calibration
 
         Parameters
@@ -152,7 +179,7 @@ class WaveCalib(masterframe.MasterFrame):
         -------
         """
         # Attempt to load the Master Frame
-        self.wv_calib, _, _ = self.load_master_frame(self, "wv_calib")
+        self.wv_calib, _, _ = self.load_master_frame()
         if self.wv_calib is None:
 
             ###############
@@ -164,12 +191,36 @@ class WaveCalib(masterframe.MasterFrame):
             _ = self._load_arcparam()
 
             # Fill up the calibrations and generate QA
-            self.wv_calib = self._build_wv_calib(method)
+            self.wv_calib = self._build_wv_calib(method, skip_QA=skip_QA)
             self.wv_calib['steps'] = self.steps
+            sv_aparam = self.arcparam.copy()
+            sv_aparam.pop('llist')
+            self.wv_calib['arcparam'] = sv_aparam
             # Save to Masters
             self.save_master(self.wv_calib)
         # Finish
         return self.wv_calib
+
+    def show(self, item, slit=None):
+        if item == 'spec':
+            # spec
+            spec = self.wv_calib[str(slit)]['spec']
+            # tcent
+            tcent = self.wv_calib[str(slit)]['tcent']
+            yt = np.zeros_like(tcent)
+            for jj,t in enumerate(tcent):
+                it = int(np.round(t))
+                yt[jj] = np.max(spec[it-1:it+1])
+            # Plot
+            plt.clf()
+            ax=plt.gca()
+            ax.plot(spec, drawstyle='steps-mid')
+            ax.scatter(tcent, yt, color='red', marker='*')
+            ax.set_xlabel('Pixel')
+            ax.set_ylabel('Counts')
+            plt.show()
+        elif item == 'fit':
+            ararc.arc_fit_qa(None, self.wv_calib[str(slit)], slit, outfile='show')
 
     def __repr__(self):
         # Generate sets string
