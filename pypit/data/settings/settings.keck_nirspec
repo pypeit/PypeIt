@@ -51,7 +51,7 @@ keyword lampname05 ETALON              # Name of a lamp
 keyword lampstat05 01.ETALON           # Status of a lamp
 keyword lampname06 FLAT                # Name of a lamp
 keyword lampstat06 01.FLAT             # Status of a lamp
-#keyword dispname 01.GRANAME            # Grating name
+keyword dispname 01.DISPERS            # Grating name
 #keyword dispangle 01.GRANGLE           # Grating angle
 
 ### Fits properties

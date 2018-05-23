@@ -4,7 +4,7 @@ from __future__ import absolute_import, division, print_function
 import inspect
 import numpy as np
 
-#from importlib import reload
+from importlib import reload
 
 from astropy.table import hstack, Table
 
@@ -78,6 +78,7 @@ class PypitSetup(object):
         fitstbl : Table
 
         """
+        reload(arload)
         self.fitstbl, updates = arload.load_headers(file_list, self.settings_spect,
                                                     self.settings_argflag)
         self.fitstbl.sort('time')
@@ -96,8 +97,10 @@ class PypitSetup(object):
           Dict describing the various setups
         """
         #
-        all_sci_idx = self.fitstbl['sci_ID'].data[self.fitstbl['science']]
-        self.group_dict = arsetup.build_group_dict(self.fitstbl, self.setupIDs, all_sci_idx)
+        reload(arsetup)
+        all_sci_idx = np.where(self.fitstbl['science'])[0]
+        all_sci_ID = self.fitstbl['sci_ID'][self.fitstbl['science']]
+        self.group_dict = arsetup.build_group_dict(self.fitstbl, self.setupIDs, all_sci_idx, all_sci_ID)
 
         # Write .sorted file
         if len(self.group_dict) > 0:

@@ -105,12 +105,15 @@ def load_headers(datlines, settings_spect, settings_argflag):
             kchk = '.'.join(ch.split('.')[1:])
             frhd = whddict['{0:02d}'.format(tfrhd)]
             # JFH changed to in instead of !=
-            if ((settings_spect['check'][ch] in str(headarr[frhd][kchk]).strip()) == False):
-                print(ch, frhd, kchk)
-                print(settings_spect['check'][ch], str(headarr[frhd][kchk]).strip())
-                msgs.warn("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(settings_argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
-                msgs.warn("Skipping the file..")
-                skip = True
+            try:
+                if ((settings_spect['check'][ch] in str(headarr[frhd][kchk]).strip()) == False):
+                    print(ch, frhd, kchk)
+                    print(settings_spect['check'][ch], str(headarr[frhd][kchk]).strip())
+                    msgs.warn("The following file:"+msgs.newline()+datlines[i]+msgs.newline()+"is not taken with the settings.{0:s} detector".format(settings_argflag['run']['spectrograph'])+msgs.newline()+"Remove this file, or specify a different settings file.")
+                    msgs.warn("Skipping the file..")
+                    skip = True
+            except:
+                debugger.set_trace()
         if skip:
             numfiles -= 1
             continue
