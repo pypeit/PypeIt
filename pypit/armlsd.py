@@ -336,11 +336,12 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
     #########################
     # Flux at the very end..
     #########################
-    if (settings.argflag['reduce']['calibrate']['flux'] == True) and False:
+    if (settings.argflag['reduce']['calibrate']['flux'] == True):
         # Standard star (is this a calibration, e.g. goes above?)
         msgs.info("Processing standard star")
-        msgs.info("Assuming one star per detector mosaic")
-        msgs.info("Waited until last detector to process")
+        msgs.info("Taking one star per detector mosaic")
+        msgs.info("Waited until very end to work on it")
+        msgs.warn("You should probably consider using the pypit_flux_spec script anyhow...")
 
         if (settings.argflag['reduce']['calibrate']['sensfunc']['archival'] == 'None'):
             update = slf.MasterStandard(fitstbl)

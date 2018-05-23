@@ -51,6 +51,7 @@ def kludge_settings(instr):
         settings.spect[key] = settings.argflag[key].copy()
     return settings.spect
 
+
 class FluxSpec(masterframe.MasterFrame):
     """Class to guide fluxing
 
@@ -68,7 +69,6 @@ class FluxSpec(masterframe.MasterFrame):
         self.sci_spec1d_file = sci_spec1d_file
         self.sens_file = sens_file
         self.setup = setup
-
 
         # Attributes
         self.frametype = frametype
@@ -102,7 +102,7 @@ class FluxSpec(masterframe.MasterFrame):
             self.sci_specobjs, self.sci_header = arload.load_specobj(self.sci_spec1d_file)
             msgs.info("Loaded spectra from the spec1d science file: {:s}".format(self.sci_spec1d_file))
         if self.sens_file is not None:
-            self.sensfunc, _, _ = armasters._core_load(self.sens_file, frametype=self.frametype)
+            self.sensfunc, _, _ = armasters._load(self.sens_file, frametype=self.frametype)
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, self.setup, self.settings)
@@ -205,7 +205,7 @@ class FluxSpec(masterframe.MasterFrame):
         mag_func = arutils.func_val(self.sensfunc['c'], wave, self.sensfunc['func'])
         sens = 10.0**(0.4*mag_func)
         # Plot
-        debugger.plot1d(wave, sens)
+        debugger.plot1d(wave, sens, xlbl='Wavelength', ylbl='Sensitivity Function')
 
 
     def write_science(self, outfile):

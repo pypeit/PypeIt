@@ -9,6 +9,66 @@ the time(s) of observation. If multiple standard stars are
 supplied as calibration frames, PYPIT selects the standard star
 observed closest in time to your science observation for fluxing.
 
+.. _fluxspec-script:
+
+Flux Spec Script
+================
+
+It may be preferential to flux the spectra after the main reduction
+(i.e. run_pypit).  PYPIT provides a script to guide the process.
+Here is the usage::
+
+    usage: pypit_flux_spec [-h] [--std_file STD_FILE] [--std_obj STD_OBJ]
+                           [--sci_file SCI_FILE] [--instr INSTR]
+                           [--sensfunc_file SENSFUNC_FILE] [--flux_file FLUX_FILE]
+                           [--plot]
+                           steps
+
+    Parse
+
+    positional arguments:
+      steps                 Steps to perform [sensfunc,flux]
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      --std_file STD_FILE   File containing the standard 1d spectrum
+      --std_obj STD_OBJ     Standard star identifier, e.g. O479-S5009-D01-I0023
+      --sci_file SCI_FILE   File containing the science 1d spectra
+      --instr INSTR         Instrument name (required to generate sensfunc)
+      --sensfunc_file SENSFUNC_FILE
+                            File containing the sensitivity function (input or
+                            output)
+      --flux_file FLUX_FILE
+                            Output filename for fluxed science spectra
+      --plot                Show the sensitivity function?
+
+
+We suggest you first generate the sensitivity function.  Here is an
+example command::
+
+    pypit_flux_spec sensfunc --std_file=spec1d_Feige66_KASTb_2015May20T041246.96.fits  --instr=shane_kast_blue --sensfunc_file=tmp.yaml
+
+This writes the sensitivity function to tmp.yaml.  You can inspect it visually
+by running with --plot.
+
+You can then flux any spec1d file with a command like::
+
+    pypit_flux_spec flux --sci_file=spec1d_J1217p3905_KASTb_2015May20T045733.56.fits --sensfunc_file=tmp.yaml --flux_file=tmp.fits
+
+The output file with flam and flam_var arrays is given by --flux_file.
+
+.. _fluxspec-class:
+
+FluxSpec Class
+==============
+
+The guts of the flux algorithms are guided by the FluxSpec class.
+See the
+`FluxSpec.ipynb <https://github.com/PYPIT/PYPIT/blob/master/doc/nb/FluxSpec.ipynb>`_
+Notebook on GitHub (in doc/nb) for some usage examples, although
+we recommend that most users use the :ref:`fluxspec-script`.
+
+
 Sensitivity Function
 ====================
 PYPIT uses the CALSPEC calibration database, which can be found
