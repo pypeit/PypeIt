@@ -27,7 +27,14 @@ frametype = 'wv_calib'
 
 # Place these here or elsewhere?
 #  Wherever they be, they need to be defined, described, etc.
-default_settings = dict(calibrate={'nfitpix': 5}
+default_settings = dict(calibrate={'nfitpix': 5,
+                                   'IDpixels': None, # User input pixel values
+                                   'IDwaves': None,  # User input wavelength values
+                                   'lamps': None,
+                                   'method': 'arclines',
+                                   'detection':  6.,
+                                   'numsearch': 20,
+                                   }
                         )
 #settings_spect[dnum]['saturation']*settings_spect[dnum]['nonlinear'])  -- For satmask (echelle)
 
@@ -98,11 +105,12 @@ class WaveCalib(masterframe.MasterFrame):
         for slit in ok_mask:
             ###############
             # Extract arc and identify lines
-            #if settings.argflag['arc']['calibrate']['method'] == 'simple':
-            #elif settings.argflag['arc']['calibrate']['method'] == 'arclines':
             if method == 'simple':
-                iwv_calib = ararc.simple_calib(self.det, self.msarc, self.arcparam,
-                                               censpec=self.arccen[:, slit], slit=slit)
+                iwv_calib = ararc.simple_calib(self.msarc, self.arcparam,
+                                               self.arccen[:, slit],
+                                               nfitpix=self.settings['calibrate']['nfitpix'],
+                                               IDpixels=self.settings['calibrate']['IDpixels'],
+                                               IDwaves=self.settings['calibrate']['IDwaves'])
             elif method == 'arclines':
                 iwv_calib = ararc.calib_with_arclines(self.arcparam, self.arccen[:, slit])
             self.wv_calib[str(slit)] = iwv_calib.copy()
@@ -118,7 +126,6 @@ class WaveCalib(masterframe.MasterFrame):
         reload(ararc)
         spec = self.wv_calib[str(slit)]['spec']
         if method == 'simple':
-            debugger.set_trace() # NOT READY
             iwv_calib = ararc.simple_calib(self.det, self.msarc, self.arcparam,
                                            censpec=self.arccen[:, slit], slit=slit)
         elif method == 'arclines':
@@ -169,7 +176,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Return
         return self.arcparam
 
-    def master(self, lordloc, rordloc, pixlocn, method='arclines', nonlinear=None, skip_QA=False):
+    def master(self, lordloc, rordloc, pixlocn, nonlinear=None, skip_QA=False):
         """ Main driver for wavelength calibration
 
         Parameters
@@ -191,7 +198,7 @@ class WaveCalib(masterframe.MasterFrame):
             _ = self._load_arcparam()
 
             # Fill up the calibrations and generate QA
-            self.wv_calib = self._build_wv_calib(method, skip_QA=skip_QA)
+            self.wv_calib = self._build_wv_calib(self.settings['calibrate']['method'], skip_QA=skip_QA)
             self.wv_calib['steps'] = self.steps
             sv_aparam = self.arcparam.copy()
             sv_aparam.pop('llist')

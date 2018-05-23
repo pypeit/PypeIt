@@ -1020,7 +1020,7 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
 
     msgs.work("Detecting lines for slit {0:d}".format(slitnum+1))
     ordcen = slf._pixcen[det-1].copy()
-    tampl, tcent, twid, w, satsnd, _ = ararc.detect_lines(slf, det, msarc, censpec=censpec)
+    tampl, tcent, twid, w, _ = ararc.detect_lines(censpec)
     satval = settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear']
     # Order of the polynomials to be used when fitting the tilts.
     arcdet = (tcent[w]+0.5).astype(np.int)
@@ -1455,7 +1455,7 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
-    arccen, maskslit, satmask = arextract.get_censpec(slf._lordloc[det-1], slf._rordloc[det-1],
+    arccen, maskslit, satmask = ararc.get_censpec(slf._lordloc[det-1], slf._rordloc[det-1],
                                                       slf._pixlocn[det-1], msarc, det, settings.spect, gen_satmask=True)
     # If the user sets no tilts, return here
     if settings.argflag['trace']['slits']['tilts']['method'].lower() == "zero":
@@ -1610,7 +1610,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
     extrapord : ndarray
       A boolean mask indicating if an order was extrapolated (True = extrapolated)
     """
-    arccen, maskslit, _ = arextract.get_censpec(slf._lordloc[det-1], slf._rordloc[det-1],
+    arccen, maskslit, _ = ararc.get_censpec(slf._lordloc[det-1], slf._rordloc[det-1],
                                                       slf._pixlocn[det-1], msarc, det, settings.spect,
                                                       gen_satmask=False)
     satmask = np.zeros_like(slf._pixcen)

@@ -39,13 +39,13 @@ def get_censpec(lordloc, rordloc, pixlocn, frame, det, settings_spect, gen_satma
       0 = Ok
     satmask : ndarray
       Saturation mask
-      Returned in gen_satmask=True
+      None if gen_satmask=False
     """
-    # TODO -- Have the returned arccen and maskslit have the same size..
     dnum = arparse.get_dnum(det)
 
     ordcen = 0.5*(lordloc+rordloc)
     ordwid = 0.5*np.abs(lordloc-rordloc)
+    satsnd = None
     if gen_satmask:
         msgs.info("Generating a mask of arc line saturation streaks")
         #        t = time.clock()
@@ -134,19 +134,18 @@ def get_censpec(lordloc, rordloc, pixlocn, frame, det, settings_spect, gen_satma
     gd_arccen = (1.0/5.0) * (frame[temparr, ordcen] +
                              frame[temparr, op1] + frame[temparr, op2] +
                              frame[temparr, om1] + frame[temparr, om2])
-    # Pad empty ones
+    # Pad masked ones with zeros
     if np.sum(maskslit) > 0:
-        debugger.set_trace()
+        arccen = np.zeros((gd_arccen.shape[0], maskslit.size))
+        gd = maskslit == 0
+        arccen[:,gd] = gd_arccen
     else:
         arccen = gd_arccen
     del temparr
 
-    if gen_satmask:
-        return arccen, maskslit, satsnd
-    else:
-        return arccen, maskslit, None
+    return arccen, maskslit, satsnd
 
-def detect_lines(censpec, nfitpix):
+def detect_lines(censpec, nfitpix=5):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
@@ -224,7 +223,7 @@ def detect_lines(censpec, nfitpix):
     # Detect the location of the arc lines
     msgs.info("Detecting the strongest, nonsaturated lines")
 
-    fitp = settings.argflag['arc']['calibrate']['nfitpix']
+    fitp = nfitpix # settings.argflag['arc']['calibrate']['nfitpix']
     if len(censpec.shape) == 3:
         detns = censpec[:, 0].flatten()
     else:
@@ -469,16 +468,17 @@ def setup_param(spectrograph, msarc_shape, fitstbl, arc_idx,
     return arcparam
 
 
-def simple_calib(det, msarc, aparm, get_poly=False, censpec=None, slit=None):
+def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
+                 IDpixels=None, IDwaves=None):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
 
     Parameters
     ----------
-    slf
-    det : int
     msarc : ndarray
+    aparm : dict
+    censpec : ndarray
     get_poly : bool, optional
       Pause to record the polynomial pix = b0 + b1*lambda + b2*lambda**2
 
@@ -490,8 +490,7 @@ def simple_calib(det, msarc, aparm, get_poly=False, censpec=None, slit=None):
 
     # Extract the arc
     msgs.work("Detecting lines..")
-    debugger.set_trace()  # Need to refactor detect_lines
-    tampl, tcent, twid, w, satsnd, yprep = detect_lines(slf, det, msarc, censpec=censpec)
+    tampl, tcent, twid, w, yprep = detect_lines(censpec, nfitpix=nfitpix)
 
     # Cut down to the good ones
     tcent = tcent[w]
@@ -502,26 +501,26 @@ def simple_calib(det, msarc, aparm, get_poly=False, censpec=None, slit=None):
     llist = aparm['llist']
 
     # IDs were input by hand
-    if len(settings.argflag['arc']['calibrate']['IDpixels']) > 0:
+    if IDpixels is not None:
         # Check that there are at least 5 values
-        pixels = np.array(settings.argflag['arc']['calibrate']['IDpixels'])
+        pixels = np.array(IDpixels) # settings.argflag['arc']['calibrate']['IDpixels'])
         if np.sum(pixels > 0.) < 5:
             msgs.error("Need to give at least 5 pixel values!")
         #
         msgs.info("Using input lines to seed the wavelength solution")
         # Calculate median offset
-        mdiff = [np.min(np.abs(tcent-pix)) for pix in
-                 settings.argflag['arc']['calibrate']['IDpixels']]
+        mdiff = [np.min(np.abs(tcent-pix)) for pix in pixels]
+                 #settings.argflag['arc']['calibrate']['IDpixels']]
         med_poff = np.median(np.array(mdiff))
         msgs.info("Will apply a median offset of {:g} pixels".format(med_poff))
 
         # Match input lines to observed spectrum
-        nid = len(settings.argflag['arc']['calibrate']['IDpixels'])
+        nid = pixels.size # len(settings.argflag['arc']['calibrate']['IDpixels'])
         idx_str = np.ones(nid).astype(int)
         ids = np.zeros(nid)
         idsion = np.array(['     ']*nid)
         gd_str = np.arange(nid).astype(int)
-        for jj,pix in enumerate(settings.argflag['arc']['calibrate']['IDpixels']):
+        for jj,pix in enumerate(pixels): #settings.argflag['arc']['calibrate']['IDpixels']):
             diff = np.abs(tcent-pix-med_poff)
             if np.min(diff) > 2.:
                 debugger.set_trace()
@@ -531,11 +530,12 @@ def simple_calib(det, msarc, aparm, get_poly=False, censpec=None, slit=None):
             # Set
             idx_str[jj] = imn
             # Take wavelength from linelist instead of input value
-            wdiff = np.abs(llist['wave']-settings.argflag['arc']['calibrate']['IDwaves'][jj])
+            wdiff = np.abs(llist['wave']-IDwaves[jj]) # settings.argflag['arc']['calibrate']['IDwaves'][jj])
             imnw = np.argmin(wdiff)
             if wdiff[imnw] > 0.015:  # Arbitrary tolerance
                 msgs.error("Input IDwaves={:g} is not in the linelist.  Fix".format(
-                        settings.argflag['arc']['calibrate']['IDwaves'][jj]))
+                    IDwaves[jj]))
+                        #settings.argflag['arc']['calibrate']['IDwaves'][jj]))
             else:
                 ids[jj] = llist['wave'][imnw]
                 idsion[jj] = llist['Ion'][imnw]

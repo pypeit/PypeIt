@@ -226,17 +226,22 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
 
             ###############
             # Generate the 1D wavelength solution
-            nonlinear = settings.spect[settings.get_dnum(det+1)]['saturation'] * settings.spect[settings.get_dnum(det+1)]['nonlinear']
             if 'wavecalib' in calib_dict[setup].keys():
-                Wavecalib = calib_dict[setup]['wavecalib']
+                wv_calib = calib_dict[setup]['wavecalib'].wv_calib
             elif settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
                 msgs.info("A wavelength calibration will not be performed")
                 pass
             else:
-                Wavecalib = wavecalib
-            update = slf.MasterWaveCalib(fitstbl, det, msarc)
-            if update and reuseMaster:
-                armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
+                # Setup up the settings (will be Refactored with settings)
+                tmp = dict(calibrate=settings.argflag['arc']['calibrate'], masters=settings.argflag['reduce']['masters'])
+                tmp['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
+                # Instantiate
+                Wavecalib = wavecalib.WaveCalib(msarc, spectrograph=settings.argflag['run']['spectrograph'],
+                                                settings=tmp, det=det, setup=setup,
+                                                fitstbl=fitstbl, sci_ID=sci_ID)
+                nonlinear = settings.spect[settings.get_dnum(det)]['saturation'] * settings.spect[settings.get_dnum(det)]['nonlinear']
+                # Run
+                wv_calib = Wavecalib.master(Tslits.lcen, Tslits.rcen, pixlocn, nonlinear=nonlinear)
 
             ###############
             # Derive the spectral tilt
@@ -260,7 +265,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
 
             ###############
             # Generate/load a master wave frame
-            update = slf.MasterWave(fitstbl, sc, det)
+            update = slf.MasterWave(det, wv_calib)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
 
