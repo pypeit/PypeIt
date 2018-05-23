@@ -86,7 +86,8 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
             # The following is somewhat kludgy and the current way we do settings may
             #   not touch all the options (not sure .update() would help)
             if 'combine' not in settings.keys():
-                self.settings['combine'] = settings[self.frametype]['combine']
+                if self.frametype in settings.keys():
+                    self.settings['combine'] = settings[self.frametype]['combine']
 
         # Child-specific Internals
         #    See ProcessImages for the rest

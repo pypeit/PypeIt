@@ -5,14 +5,14 @@ import inspect
 import numpy as np
 import os
 
-#from importlib import reload
+from importlib import reload
 
 
 from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import masterframe
 from pypit import ararc
-from pypit import arextract
+from pypit import ararclines
 from pypit.core import arsort
 
 # For out of PYPIT running
@@ -25,19 +25,6 @@ frametype = 'wv_calib'
 
 # Place these here or elsewhere?
 #  Wherever they be, they need to be defined, described, etc.
-default_settings = dict(trace={'slits': {'single': [],
-                               'function': 'legendre',
-                               'polyorder': 3,
-                               'diffpolyorder': 2,
-                               'fracignore': 0.01,
-                               'medrep': 0,
-                               'number': -1,
-                               'maxgap': None,
-                               'sigdetect': 20.,
-                               'pad': 0.,
-                               'pca': {'params': [3,2,1,0,0,0], 'type': 'pixel',
-                                       'extrapolate': {'pos': 0, 'neg':0}},
-                               'sobel': {'mode': 'nearest'}}})
 
 #  See save_master() for the data model for output
 
@@ -69,7 +56,7 @@ class WaveCalib(masterframe.MasterFrame):
     steps : list
       List of the processing steps performed
     """
-    def __init__(self, msarc, settings=None, det=None, setup=None, fitstbl=None, sci_ID=None):
+    def __init__(self, msarc, spectrograph=None, settings=None, det=None, setup=None, fitstbl=None, sci_ID=None):
 
         # Required parameters (but can be None)
         self.msarc = msarc
@@ -80,6 +67,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.setup = setup
         self.sci_ID = sci_ID
         self.settings = settings
+        self.spectrograph = spectrograph
 
         # Attributes
         self.frametype = frametype
@@ -93,6 +81,38 @@ class WaveCalib(masterframe.MasterFrame):
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, setup, self.settings)
 
+    def _load_arcparam(self, calibrate_lamps=None):
+        """
+
+        Parameters
+        ----------
+        calibrate_lamps : str, optional
+           List of lamps used
+
+        Returns
+        -------
+
+        """
+        reload(ararc)
+        reload(ararclines)
+        # Setup arc parameters (e.g. linelist)
+        arc_idx = arsort.ftype_indices(self.fitstbl, 'arc', self.sci_ID)
+        self.arcparam = ararc.setup_param(self.spectrograph, self.msarc.shape, self.fitstbl, arc_idx[0],
+                                          calibrate_lamps=calibrate_lamps)
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.arcparam
+
+
+    def _extract_arcs(self, lordloc, rordloc, pixlocn):
+        self.arccen, self.maskslit, _ = ararc.get_censpec(lordloc, rordloc, pixlocn,
+                                                    self.msarc, self.det, self.settings,
+                                                    gen_satmask=False)
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.arccen, self.maskslit
 
     def master(self, method, lordloc, rordloc, pixlocn, nonlinear=None):
         """ Main driver for wavelength calibration
@@ -106,16 +126,17 @@ class WaveCalib(masterframe.MasterFrame):
         # Attempt to load the Master Frame
         wv_calib, _, _ = self.load_master_frame(self, "wv_calib")
         if wv_calib is None:
-            # Setup arc parameters (e.g. linelist)
-            arc_idx = arsort.ftype_indices(self.fitstbl, 'arc', self.sci_ID)
-            arcparam = ararc.setup_param(self.msarc.shape, self.fitstbl, arc_idx[0])
 
             ###############
             # Extract an arc down each slit
             #   The settings here are settings.spect (saturation and nonlinear)
-            arccen, maskslit, _ = arextract.get_censpec(lordloc, rordloc, pixlocn,
-                                                        self.msarc, self.det, self.settings,
-                                                        gen_satmask=False)
+            _, _ = self._extract_arcs(lordloc, rordloc, pixlocn)
+
+            # Load the arcparam
+            _ = self._load_arcparam()
+
+
+            #
             ok_mask = np.where(maskslit == 0)[0]
 
             # Fill up the calibrations

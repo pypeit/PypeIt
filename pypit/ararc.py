@@ -12,9 +12,138 @@ from pypit import arparse as settings
 from pypit import msgs
 from pypit import arutils
 from pypit import ararclines
+from pypit import arpixels
 from pypit import arqa
 from pypit import ardebug as debugger
 
+
+def get_censpec(lordloc, rordloc, pixlocn, frame, det, settings_spect, gen_satmask=False):
+    """ Extract a simple spectrum down the center of each slit
+    Parameters
+    ----------
+    slf :
+    frame : ndarray
+      Image
+    det : int
+    gen_satmask : bool, optional
+      Generate a saturation mask?
+
+    Returns
+    -------
+    arccen : ndarray
+      Extracted arcs.  This *need* not be one per slit/order,
+      although I wish it were (with `rejected` ones padded with zeros)
+    maskslit : bool array
+      1 = Bad slit/order for extraction (incomplete)
+      0 = Ok
+    satmask : ndarray
+      Saturation mask
+      Returned in gen_satmask=True
+    """
+    # TODO -- Have the returned arccen and maskslit have the same size..
+    dnum = settings.get_dnum(det)
+
+    ordcen = 0.5*(lordloc+rordloc)
+    ordwid = 0.5*np.abs(lordloc-rordloc)
+    if gen_satmask:
+        msgs.info("Generating a mask of arc line saturation streaks")
+        #        t = time.clock()
+        #        _satmask = arcyarc.saturation_mask(frame,
+        #                            settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])
+        #        print('Old saturation_mask: {0} seconds'.format(time.clock() - t))
+        satmask = new_saturation_mask(frame,
+                                            settings_spect[dnum]['saturation']*settings_spect[dnum]['nonlinear'])
+        #        print('New saturation_mask: {0} seconds'.format(time.clock() - t))
+        #        # Allow for minor differences
+        #        if np.sum(_satmask != satmask) > 0.1*np.prod(satmask.shape):
+        #            plt.imshow(_satmask, origin='lower', interpolation='nearest', aspect='auto')
+        #            plt.colorbar()
+        #            plt.show()
+        #            plt.imshow(satmask, origin='lower', interpolation='nearest', aspect='auto')
+        #            plt.colorbar()
+        #            plt.show()
+        #            plt.imshow(_satmask-satmask, origin='lower', interpolation='nearest', aspect='auto')
+        #            plt.colorbar()
+        #            plt.show()
+        #
+        #        assert np.sum(_satmask != satmask) < 0.1*np.prod(satmask.shape), \
+        #                    'Old and new saturation_mask are too different'
+
+        #        print('calling order saturation')
+        #        t = time.clock()
+        #        _satsnd = arcyarc.order_saturation(satmask, (ordcen+0.5).astype(int),
+        #                                          (ordwid+0.5).astype(int))
+        #        print('Old order_saturation: {0} seconds'.format(time.clock() - t))
+        #        t = time.clock()
+        satsnd = new_order_saturation(satmask, (ordcen+0.5).astype(int),
+                                            (ordwid+0.5).astype(int))
+    #        print('New order_saturation: {0} seconds'.format(time.clock() - t))
+    #        assert np.sum(_satsnd != satsnd) == 0, \
+    #                    'Difference between old and new order_saturation, satsnd'
+
+    # Extract a rough spectrum of the arc in each slit
+    msgs.info("Extracting an approximate arc spectrum at the centre of each slit")
+    tordcen = None
+    maskslit = np.zeros(ordcen.shape[1], dtype=np.int)
+    for i in range(ordcen.shape[1]):
+        wl = np.size(np.where(ordcen[:, i] <= pixlocn[0,0,1])[0])
+        wh = np.size(np.where(ordcen[:, i] >= pixlocn[0,-1,1])[0])
+        if wl == 0 and wh == 0:
+            # The center of the slit is always on the chip
+            if tordcen is None:
+                tordcen = np.zeros((ordcen.shape[0], 1), dtype=np.float)
+                tordcen[:, 0] = ordcen[:, i]
+            else:
+                tordcen = np.append(tordcen, ordcen[:, i].reshape((ordcen.shape[0], 1)), axis=1)
+        else:
+            # A slit isn't always on the chip
+            if tordcen is None:
+                tordcen = np.zeros((ordcen.shape[0], 1), dtype=np.float)
+            else:
+                tordcen = np.append(tordcen, ordcen[:, i].reshape((ordcen.shape[0], 1)), axis=1)
+            maskslit[i] = 1
+    w = np.where(maskslit == 0)[0]
+    if tordcen is None:
+        msgs.warn("Could not determine which slits are fully on the detector")
+        msgs.info("Assuming all slits are fully on the detector")
+        ordcen = arpixels.phys_to_pix(ordcen, pixlocn, 1)
+    else:
+        ordcen = arpixels.phys_to_pix(tordcen[:,w], pixlocn, 1)
+
+    pixcen = np.arange(frame.shape[0])
+    temparr = pixcen.reshape(frame.shape[0], 1).repeat(ordcen.shape[1], axis=1)
+    # Average over three pixels to remove some random fluctuations, and increase S/N
+    op1 = ordcen+1
+    op2 = ordcen+2
+    om1 = ordcen-1
+    om2 = ordcen-2
+    w = np.where(om1 < 0)
+    om1[w] += 1
+    w = np.where(om2 == -1)
+    om2[w] += 1
+    w = np.where(om2 == -2)
+    om2[w] += 2
+    w = np.where(op1 >= frame.shape[1])
+    op1[w] -= 1
+    w = np.where(op2 == frame.shape[1])
+    op2[w] -= 1
+    w = np.where(op2 == frame.shape[1]+1)
+    op2[w] -= 2
+    # Construct the good ones
+    gd_arccen = (1.0/5.0) * (frame[temparr, ordcen] +
+                             frame[temparr, op1] + frame[temparr, op2] +
+                             frame[temparr, om1] + frame[temparr, om2])
+    # Pad empty ones
+    if np.sum(maskslit) > 0:
+        debugger.set_trace()
+    else:
+        arccen = gd_arccen
+    del temparr
+
+    if gen_satmask:
+        return arccen, maskslit, satsnd
+    else:
+        return arccen, maskslit, None
 
 def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False,
                  nonlinear=None):
@@ -155,16 +284,20 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     return ampl, cent, widt
 
 
-def setup_param(msarc_shape, fitstbl, arc_idx):
+def setup_param(spectrograph, msarc_shape, fitstbl, arc_idx,
+                calibrate_lamps=None):
     """ Setup for arc analysis
 
     Parameters
     ----------
+    spectrograph : str
     msarc_shape : tuple
-    det : int
-      detctor index
-    fitstbl : dict
+    fitstbl : Table
       Contains relevant information from fits header files
+    arc_idx : int
+      Index of the arc frame in the fitstbl
+    calibrate_lamps : str, optional
+       List of lamps used
 
     """
     # Defaults
@@ -187,11 +320,9 @@ def setup_param(msarc_shape, fitstbl, arc_idx):
 
     modify_dict = None
     # Instrument/disperser specific
-    sname = settings.argflag['run']['spectrograph']
-    #idx = settings.spect['arc']['index'][sc]
     disperser = fitstbl["dispname"][arc_idx]
     binspatial, binspectral = settings.parse_binning(fitstbl['binning'][arc_idx])
-    if sname == 'shane_kast_blue':
+    if spectrograph == 'shane_kast_blue':
         # Could have the following depend on lamps that were turned on
         lamps = ['CdI','HgI','HeI']
         if disperser == '600/4310':
@@ -202,7 +333,7 @@ def setup_param(msarc_shape, fitstbl, arc_idx):
             arcparam['wv_cen'] = 4250.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-    elif sname=='shane_kast_red':
+    elif spectrograph=='shane_kast_red':
         lamps = ['NeI','HgI','HeI','ArI']
         if disperser == '600/7500':
             arcparam['disp']=1.30
@@ -217,7 +348,7 @@ def setup_param(msarc_shape, fitstbl, arc_idx):
             arcparam['wv_cen'] = 6600.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-    elif sname=='shane_kast_red_ret':
+    elif spectrograph=='shane_kast_red_ret':
         lamps = ['NeI','HgI','HeI','ArI']
         if disperser == '600/7500':
             arcparam['disp']=2.35
@@ -231,7 +362,7 @@ def setup_param(msarc_shape, fitstbl, arc_idx):
             arcparam['n_first']=2 # Should be able to lock on
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-    elif sname=='keck_lris_blue':
+    elif spectrograph=='keck_lris_blue':
         lamps = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI','CdI','HgI']
         if disperser == '600/4000':
             arcparam['n_first']=2 # Too much curvature for 1st order
@@ -252,7 +383,7 @@ def setup_param(msarc_shape, fitstbl, arc_idx):
             arcparam['disp'] = 1.43
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-    elif sname=='keck_lris_red':
+    elif spectrograph=='keck_lris_red':
         arcparam['wv_cen'] = fitstbl['wavecen'][arc_idx]
         lamps = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
         if disperser == '600/7500':
@@ -279,7 +410,7 @@ def setup_param(msarc_shape, fitstbl, arc_idx):
             arcparam['wvmnx'][1] = 7000.
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-    elif sname=='keck_deimos':
+    elif spectrograph=='keck_deimos':
         arcparam['wv_cen'] = fitstbl['dispangle'][arc_idx]
         # TODO -- Should set according to the lamps that were on
         lamps = ['ArI','NeI','KrI','XeI']
@@ -292,7 +423,7 @@ def setup_param(msarc_shape, fitstbl, arc_idx):
             arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-    elif sname=='wht_isis_blue':
+    elif spectrograph=='wht_isis_blue':
         modify_dict = dict(NeI={'min_wave': 3000.,'min_intensity': 299,
                                 'min_Aki': 0.},ArI={'min_intensity': 399.})
         lamps=['CuI','NeI','ArI']
@@ -306,7 +437,7 @@ def setup_param(msarc_shape, fitstbl, arc_idx):
             arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-    elif sname == 'tng_dolores':
+    elif spectrograph == 'tng_dolores':
         lamps = ['NeI', 'HgI']
         if disperser == 'LR-R':
             arcparam['n_first'] = 2  # Too much curvature for 1st order
@@ -319,10 +450,11 @@ def setup_param(msarc_shape, fitstbl, arc_idx):
         else:
             msgs.error('Not ready for this disperser {:s}!'.format(disperser))
     else:
-        msgs.error('ararc.setup_param: Not ready for this instrument {:s}!'.format(sname))
+        msgs.error('ararc.setup_param: Not ready for this instrument {:s}!'.format(spectrograph))
     # Load linelist
-    if settings.argflag['arc']['calibrate']['lamps'] is not None:
-        arcparam['lamps'] = settings.argflag['arc']['calibrate']['lamps']
+    #if settings.argflag['arc']['calibrate']['lamps'] is not None:
+    if calibrate_lamps is not None:
+        arcparam['lamps'] = calibrate_lamps
     else:
         arcparam['lamps'] = lamps
     slmps = lamps[0]
@@ -330,7 +462,7 @@ def setup_param(msarc_shape, fitstbl, arc_idx):
         slmps=slmps+','+lamp
     msgs.info('Loading line list using {:s} lamps'.format(slmps))
 #    arcparam['llist'] = ararclines.load_arcline_list(slf, idx, lamps, disperser,
-    arcparam['llist'] = ararclines.load_arcline_list(arc_idx, lamps, disperser,
+    arcparam['llist'] = ararclines.load_arcline_list(lamps, disperser, spectrograph,
                                                      wvmnx=arcparam['wvmnx'],
                                                      modify_parse_dict=modify_dict)
     # Binning
