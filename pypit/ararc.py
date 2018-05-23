@@ -8,12 +8,13 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 
-from pypit import arparse as settings
+#from pypit import arparse as settings
+from pypit import arparse
 from pypit import msgs
 from pypit import arutils
 from pypit import ararclines
-from pypit import arpixels
 from pypit import arqa
+from pypit import arpixels
 from pypit import ardebug as debugger
 
 
@@ -41,7 +42,7 @@ def get_censpec(lordloc, rordloc, pixlocn, frame, det, settings_spect, gen_satma
       Returned in gen_satmask=True
     """
     # TODO -- Have the returned arccen and maskslit have the same size..
-    dnum = settings.get_dnum(det)
+    dnum = arparse.get_dnum(det)
 
     ordcen = 0.5*(lordloc+rordloc)
     ordwid = 0.5*np.abs(lordloc-rordloc)
@@ -145,8 +146,7 @@ def get_censpec(lordloc, rordloc, pixlocn, frame, det, settings_spect, gen_satma
     else:
         return arccen, maskslit, None
 
-def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False,
-                 nonlinear=None):
+def detect_lines(censpec, nfitpix):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
@@ -161,9 +161,6 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False,
       Calibration frame that will be used to identify slit traces (in most cases, the slit edge)
     censpec : ndarray, optional
       A 1D spectrum to be searched for significant detections
-    MK_SATMASK : bool, optional
-      Generate a mask of arc line saturation streaks? Mostly used for echelle data
-      when saturation in one order can cause bleeding into a neighbouring order.
 
     Returns
     -------
@@ -175,8 +172,6 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False,
       The 1sigma Gaussian widths of the line detections
     w : ndarray
       An index array indicating which detections are the most reliable.
-    satsnd : ndarray
-      A mask indicating where which pixels contain saturation streaks
     detns : ndarray
       The spectrum used to find detections. This spectrum has
       had any "continuum" emission subtracted off
@@ -184,24 +179,25 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False,
 
     # Extract a rough spectrum of the arc in each order
     msgs.info("Detecting lines")
-    if msgs._debug['flexure'] or (msarc is None):
-        ordcen = slf._pixcen
-    else:
-        ordcen = slf.GetFrame(slf._pixcen, det)
-    if censpec is None:
-        msgs.info("Extracting an approximate arc spectrum at the centre of the chip")
-        #pixcen = np.arange(msarc.shape[0], dtype=np.int)
-        #ordcen = (msarc.shape[1]/2)*np.ones(msarc.shape[0],dtype=np.int)
-        #if len(ordcen.shape) != 1: msgs.error("The function artrace.model_tilt should only be used for"+msgs.newline()+"a single spectrum (or order)")
-        #ordcen = ordcen.reshape((ordcen.shape[0],1))
-        msgs.work("No orders being masked at the moment")
-        # Average over several pixels to remove some random fluctuations, and increase S/N
-        op1 = ordcen+1
-        op2 = ordcen+2
-        om1 = ordcen-1
-        om2 = ordcen-2
-        censpec = (msarc[:,ordcen]+msarc[:,op1]+msarc[:,op2]+msarc[:,om1]+msarc[:,om2])/5.0
+    #if msgs._debug['flexure'] or (msarc is None):
+    #    ordcen = slf._pixcen
+    #else:
+    #    ordcen = slf.GetFrame(slf._pixcen, det)
+    #if censpec is None:
+    #    msgs.info("Extracting an approximate arc spectrum at the centre of the chip")
+    #    #pixcen = np.arange(msarc.shape[0], dtype=np.int)
+    #    #ordcen = (msarc.shape[1]/2)*np.ones(msarc.shape[0],dtype=np.int)
+    #    #if len(ordcen.shape) != 1: msgs.error("The function artrace.model_tilt should only be used for"+msgs.newline()+"a single spectrum (or order)")
+    #    #ordcen = ordcen.reshape((ordcen.shape[0],1))
+    #    msgs.work("No orders being masked at the moment")
+    #    # Average over several pixels to remove some random fluctuations, and increase S/N
+    #    op1 = ordcen+1
+    #    op2 = ordcen+2
+    #    om1 = ordcen-1
+    #    om2 = ordcen-2
+    #    censpec = (msarc[:,ordcen]+msarc[:,op1]+msarc[:,op2]+msarc[:,om1]+msarc[:,om2])/5.0
     # Generate a saturation mask
+    '''
     if MK_SATMASK:
         ordwid = 0.5*np.abs(slf._lordloc[det-1] - slf._rordloc[det-1])
         msgs.info("Generating a mask of arc line saturation streaks")
@@ -224,6 +220,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False,
 #        assert np.sum(_satsnd != satsnd) == 0, 'Difference between old and new order_saturation'
     else:
         satsnd = np.zeros_like(ordcen)
+    '''
     # Detect the location of the arc lines
     msgs.info("Detecting the strongest, nonsaturated lines")
 
@@ -250,7 +247,7 @@ def detect_lines(slf, det, msarc, censpec=None, MK_SATMASK=False,
     #plt.plot(tcent,tampl,'ro')
     #plt.show()
     # Return
-    return tampl, tcent, twid, w, satsnd, detns
+    return tampl, tcent, twid, w, detns
 
 
 def fit_arcspec(xarray, yarray, pixt, fitp):
@@ -321,7 +318,7 @@ def setup_param(spectrograph, msarc_shape, fitstbl, arc_idx,
     modify_dict = None
     # Instrument/disperser specific
     disperser = fitstbl["dispname"][arc_idx]
-    binspatial, binspectral = settings.parse_binning(fitstbl['binning'][arc_idx])
+    binspatial, binspectral = arparse.parse_binning(fitstbl['binning'][arc_idx])
     if spectrograph == 'shane_kast_blue':
         # Could have the following depend on lamps that were turned on
         lamps = ['CdI','HgI','HeI']
@@ -493,6 +490,7 @@ def simple_calib(det, msarc, aparm, get_poly=False, censpec=None, slit=None):
 
     # Extract the arc
     msgs.work("Detecting lines..")
+    debugger.set_trace()  # Need to refactor detect_lines
     tampl, tcent, twid, w, satsnd, yprep = detect_lines(slf, det, msarc, censpec=censpec)
 
     # Cut down to the good ones
@@ -690,8 +688,7 @@ def simple_calib(det, msarc, aparm, get_poly=False, censpec=None, slit=None):
         xrej=xrej, yrej=yrej, mask=mask, spec=yprep, nrej=aparm['nsig_rej_final'],
         shift=0., tcent=tcent)
     # QA
-#    arqa.arc_fit_qa(slf, final_fit)
-    arc_fit_qa(slf, final_fit, slit)
+    #arc_fit_qa(slf, final_fit, slit)
     # RMS
     rms_ang = arutils.calc_fit_rms(xfit, yfit, fit, aparm['func'], minv=fmin, maxv=fmax)
     wave = arutils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
@@ -702,7 +699,7 @@ def simple_calib(det, msarc, aparm, get_poly=False, censpec=None, slit=None):
     return final_fit
 
 
-def calib_with_arclines(slf, det, msarc, slit, aparm, use_method="general", censpec=None):
+def calib_with_arclines(slit, aparm, spec, use_method="general"):
     """Simple calibration algorithm for longslit wavelengths
 
     Uses slf._arcparam to guide the analysis
@@ -734,8 +731,6 @@ def calib_with_arclines(slf, det, msarc, slit, aparm, use_method="general", cens
     else:
         # Now preferred
         best_dict, final_fit = arclines.holy.grail.general(spec, aparm['lamps'], fit_parm=aparm, min_ampl=aparm['min_ampl'])
-#    arqa.arc_fit_qa(slf, final_fit)
-    arc_fit_qa(slf, final_fit, slit)
     #
     return final_fit
 
@@ -808,7 +803,7 @@ def new_saturation_mask(a, satlevel):
     return mask.astype(int)
 
 
-def arc_fit_qa(slf, fit, slit, outfile=None, ids_only=False, title=None):
+def arc_fit_qa(setup, fit, slit, outfile=None, ids_only=False, title=None):
     """
     QA for Arc spectrum
 
@@ -828,7 +823,7 @@ def arc_fit_qa(slf, fit, slit, outfile=None, ids_only=False, title=None):
     method = inspect.stack()[0][3]
     # Outfil
     if outfile is None:
-        outfile = arqa.set_qa_filename(slf.setup, method, slit=slit)
+        outfile = arqa.set_qa_filename(setup, method, slit=slit)
     #
     arc_spec = fit['spec']
 

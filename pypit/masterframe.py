@@ -81,16 +81,16 @@ class MasterFrame(object):
         else:
             return None, None, None
 
-    def save_master(self, image, outfile=None, raw_files=None, steps=None):
+    def save_master(self, data, outfile=None, raw_files=None, steps=None):
         """
-        Save the stacked image as a MasterFrame FITS file
-          Primarily a wrapper to armasters.save_master
+        Save the input data as a MasterFrame file
+          Primarily a wrapper to armasters.core_save_master
 
         Intended for simple images only; more complex objects need their own method
 
         Parameters
         ----------
-        image : ndarray
+        data : ndarray or dict
         outfile : str (optional)
         raw_files : list (optional)
         steps : list (optional)
@@ -105,7 +105,7 @@ class MasterFrame(object):
         else:
             keywds = None
         # Finish
-        armasters.core_save_master(image, filename=outfile,
+        armasters.core_save_master(data, filename=outfile,
                                    raw_files=raw_files, keywds=keywds,
                                    frametype=self.frametype)
 
