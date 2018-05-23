@@ -62,7 +62,8 @@ class FluxSpec(masterframe.MasterFrame):
     ----------
     """
     def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, spectrograph=None,
-                 sens_file=None, setup=None, settings=None):
+                 sens_file=None, setup=None, settings=None, std_specobjs=None,
+                 std_header=None):
 
         # Parameters
         self.std_spec1d_file = std_spec1d_file
@@ -84,7 +85,9 @@ class FluxSpec(masterframe.MasterFrame):
 
         # Key Internals
         self.std = None         # Standard star spectrum (SpecObj object)
-        self.std_specobjs = []
+        if std_specobjs is not None:
+            # Need to unwrap these (sometimes)..
+            self.std_specobjs = arutils.unravel_specobjs(std_specobjs)
         self.std_header = None
         self.std_idx = None     # Nested indices for the std_specobjs list that corresponds to the star!
         self.sci_specobjs = []
@@ -131,6 +134,12 @@ class FluxSpec(masterframe.MasterFrame):
         # Return
         return self.sensfunc
 
+    def _flux_specobjs(self, specobjs, airmass, exptime):
+        for sci_obj in arutils.unravel_specobjs(specobjs):
+            if sci_obj is not None:
+                arflux.new_apply_sensfunc(sci_obj, self.sensfunc, airmass, exptime, self.settings)
+
+
     def flux_science(self):
         reload(arflux)
         # Settings kludge
@@ -164,7 +173,8 @@ class FluxSpec(masterframe.MasterFrame):
         # Return
         return self.std
 
-    def master(self, clobber=False):
+    def master(self, row_fitstbl, clobber=False):
+        self.sensfunc, _, _ = self.load_master_frame()
         # Sensitivity Function
         if (self.sensfunc is None) or clobber:
             if self.std_specobjs is None:
@@ -174,12 +184,23 @@ class FluxSpec(masterframe.MasterFrame):
             # Find the star automatically?
             _ = self.find_standard()
 
+            # Kludge a header
+            if self.std_header is None:
+                self.std_header={}
+                for key in ['ra','dec','airmass','exptime']:
+                    self.std_header[key.upper()] = row_fitstbl[key]
+
             # Sensitivity
             _ = self.generate_sensfunc()
+
+            # Save to master
+            self.save_master()
 
         # Apply to science
         if len(self.sci_specobjs) > 0:
             self.flux_science()
+        # Return
+        return self.sensfunc
 
     def save_master(self, outfile=None):
         # Allow one to over-ride output name

@@ -24,6 +24,7 @@ from pypit import artrace
 from pypit import arcimage
 from pypit import bpmimage
 from pypit import biasframe
+from pypit import fluxspec
 from pypit import traceslits
 from pypit import traceimage
 
@@ -309,6 +310,37 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
         arsave.new_save_1d_spectra_fits(std_dict[key]._specobjs, fitstbl[std_idx], outfile,
             obs_dict=settings.spect['mosaic'])
 
+    #########################
+    # Flux towards the very end..
+    #########################
+    if (settings.argflag['reduce']['calibrate']['flux'] == True) and (len(std_dict) > 0):
+        # Standard star (is this a calibration, e.g. goes above?)
+        msgs.info("Processing standard star")
+        msgs.info("Taking one star per detector mosaic")
+        msgs.info("Waited until very end to work on it")
+        msgs.warn("You should probably consider using the pypit_flux_spec script anyhow...")
+
+        # Kludge settings
+        fsettings = settings.spect.copy()
+        fsettings['run'] = settings.argflag['run']
+        fsettings['reduce'] = settings.argflag['reduce']
+        # Generate?
+        if (settings.argflag['reduce']['calibrate']['sensfunc']['archival'] == 'None'):
+            std_keys = list(std_dict.keys())
+            std_key = std_keys[0] # Take the first extraction
+            FxSpec = fluxspec.FluxSpec(settings=fsettings, std_specobjs=std_dict[std_key]._specobjs, setup=setup)
+            sensfunc = FxSpec.master(fitstbl[std_key])
+        else:  # Input by user
+            FxSpec = fluxspec.FluxSpec(settings=fsettings,
+                                       sens_file=settings.argflag['reduce']['calibrate']['sensfunc']['archival'])
+            sensfunc = FxSpec.sensfunc
+        # Flux
+        msgs.info("Fluxing with {:s}".format(sensfunc['std']['name']))
+        for slf in sciexp:
+            scidx = slf._idx_sci[0]
+            FxSpec._flux_specobjs(slf._specobjs, fitstbl['airmass'][scidx], fitstbl['exptime'][scidx])
+
+
     # Write science
     for sc in range(numsci):
         slf = sciexp[sc]
@@ -332,36 +364,5 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
         arsave.save_2d_images(slf, fitstbl)
         # Free up some memory by replacing the reduced ScienceExposure class
         #sciexp[sc] = None
-
-    #########################
-    # Flux at the very end..
-    #########################
-    if (settings.argflag['reduce']['calibrate']['flux'] == True):
-        # Standard star (is this a calibration, e.g. goes above?)
-        msgs.info("Processing standard star")
-        msgs.info("Taking one star per detector mosaic")
-        msgs.info("Waited until very end to work on it")
-        msgs.warn("You should probably consider using the pypit_flux_spec script anyhow...")
-
-        if (settings.argflag['reduce']['calibrate']['sensfunc']['archival'] == 'None'):
-            update = slf.MasterStandard(fitstbl)
-            if update and reuseMaster:
-                armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
-        else:
-            sensfunc = yaml.load(open(settings.argflag['reduce']['calibrate']['sensfunc']['archival']))
-            # Yaml does not do quantities, so make the sensfunc min/max wave quantities
-            sensfunc['wave_max'] *= units.angstrom
-            sensfunc['wave_min'] *= units.angstrom
-            slf.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
-            msgs.info(
-                "Using archival sensfunc {:s}".format(settings.argflag['reduce']['calibrate']['sensfunc']['archival']))
-
-        msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
-        for kk in range(settings.spect['mosaic']['ndet']):
-            det = kk + 1  # Detectors indexed from 1
-            if slf._specobjs[det - 1] is not None:
-                arflux.apply_sensfunc(slf, det, scidx, fitstbl)
-            else:
-                msgs.info("There are no objects on detector {0:d} to apply a flux calibration".format(det))
 
     return status
