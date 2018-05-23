@@ -164,7 +164,7 @@ class FluxSpec(masterframe.MasterFrame):
         # Return
         return self.std
 
-    def run(self, clobber=False):
+    def master(self, clobber=False):
         # Sensitivity Function
         if (self.sensfunc is None) or clobber:
             if self.std_specobjs is None:
