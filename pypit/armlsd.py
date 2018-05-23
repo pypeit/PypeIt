@@ -241,7 +241,10 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                                                 fitstbl=fitstbl, sci_ID=sci_ID)
                 nonlinear = settings.spect[settings.get_dnum(det)]['saturation'] * settings.spect[settings.get_dnum(det)]['nonlinear']
                 # Run
-                wv_calib = Wavecalib.master(Tslits.lcen, Tslits.rcen, pixlocn, nonlinear=nonlinear)
+                wv_calib, wv_maskslit = Wavecalib.master(Tslits.lcen, Tslits.rcen, pixlocn, nonlinear=nonlinear)
+                # Mask me
+                slf._maskslits[det-1] += wv_maskslit
+
 
             ###############
             # Derive the spectral tilt

@@ -205,8 +205,18 @@ class WaveCalib(masterframe.MasterFrame):
             self.wv_calib['arcparam'] = sv_aparam
             # Save to Masters
             self.save_master(self.wv_calib)
+
+        # Set mask based on wv_calib
+        mask = np.array([True]*lordloc.shape[1])
+        for key in self.wv_calib.keys():
+            if key in ['steps', 'arcparam']:
+                continue
+            #
+            mask[int(key)] = False
+        # Return
+        self.maskslits = mask
         # Finish
-        return self.wv_calib
+        return self.wv_calib, self.maskslits
 
     def show(self, item, slit=None):
         if item == 'spec':

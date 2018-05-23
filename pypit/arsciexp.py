@@ -667,7 +667,7 @@ class ScienceExposure:
             else:
                 ok_slits = np.where(~self._maskslits[det-1])[0]
                 mswave = np.zeros_like(self._tilts[det-1])
-                for kk,slit in enumerate(ok_slits):
+                for slit in ok_slits:
                     iwv_calib = all_wvcalib[str(slit)]
                     tmpwv = arutils.func_val(iwv_calib['fitc'], self._tilts[det - 1], iwv_calib['function'],
                                           minv=iwv_calib['fmin'], maxv=iwv_calib['fmax'])
