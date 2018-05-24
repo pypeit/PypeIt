@@ -31,7 +31,7 @@ def data_path(filename):
 
 def test_load_specobj():
     spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
-    specobjs = arload.load_specobj(spec_file)
+    specobjs, head0 = arload.load_specobj(spec_file)
     # Test
     assert isinstance(specobjs, list)
     assert len(specobjs[0].boxcar['counts']) == 1199

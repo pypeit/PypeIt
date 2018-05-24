@@ -1170,3 +1170,14 @@ def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5):
     return np.array(peaks), np.array(sigmas), np.array(ledges), np.array(redges)
 
 
+def unravel_specobjs(specobjs):
+    if isinstance(specobjs[0], list):
+        all_specobj = []
+        for det in range(len(specobjs)):           # detector loop
+            for sl in range(len(specobjs[det])):   # slit loop
+                for spobj in specobjs[det][sl]:    # object loop
+                    all_specobj.append(spobj)
+    else:
+        all_specobj = specobjs
+    # Return
+    return all_specobj

@@ -23,7 +23,7 @@ def parser(options=None):
     parser.add_argument("--instr", type=str, help="Instrument name (required to generate sensfunc)")
     parser.add_argument("--sensfunc_file", type=str, help="File containing the sensitivity function (input or output)")
     parser.add_argument("--flux_file", type=str, help="Output filename for fluxed science spectra")
-    #parser.add_argument("--flux", default=False, action="store_true", help="Show fluxed spectrum?")
+    parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
 
     if options is None:
         args = parser.parse_args()
@@ -75,6 +75,9 @@ def main(args, unit_test=False):
         _ = FxSpec.generate_sensfunc()
         # Output
         _ = FxSpec.save_master(outfile=args.sensfunc_file)
+        # Show
+        if args.plot:
+            FxSpec.show_sensfunc()
 
     if 'flux' in steps:
         FxSpec.flux_science()

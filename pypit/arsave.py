@@ -370,14 +370,7 @@ def new_save_1d_spectra_fits(specobjs, header, outfile,
     outfile : str
     """
     # Repackage as necessary (some backwards compatability)
-    if isinstance(specobjs[0], list):
-        all_specobj = []
-        for det in range(len(specobjs)):           # detector loop
-            for sl in range(len(specobjs[det])):   # slit loop
-                for spobj in specobjs[det][sl]:    # object loop
-                    all_specobj.append(spobj)
-    else:
-        all_specobj = specobjs
+    all_specobj = arutils.unravel_specobjs(specobjs)
     # Primary hdu
     prihdu = fits.PrimaryHDU()
     hdus = [prihdu]
