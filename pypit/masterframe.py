@@ -68,6 +68,11 @@ class MasterFrame(object):
     def mdir(self):
         return self.settings['masters']['directory']
 
+    def _masters_load_chk(self):
+        # Logic on whether to load the masters frame
+        if (self.settings['masters']['reuse']) or (self.settings['masters']['force']):
+            return True
+
     def load_master_frame(self, force=False):
         """
         Load a MasterFrame
@@ -81,7 +86,7 @@ class MasterFrame(object):
         head0 : Header or None
         file_list : list or None
         """
-        if (self.settings['masters']['reuse']) or (self.settings['masters']['force']) or force:
+        if self._masters_load_chk() or force:
             return armasters.core_load_master_frame(self.frametype, self.setup, self.mdir, force=force)
         else:
             return None, None, None

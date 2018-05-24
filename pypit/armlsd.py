@@ -137,9 +137,11 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             else:
                 # Init
                 bias = biasframe.BiasFrame(settings=tsettings, setup=setup, det=det, fitstbl=fitstbl, sci_ID=sci_ID)
-                # Grab/build the MasterFrame (ndarray or str)
-                #   If an image is generated, it will be saved to disk a a MasterFrame
+                # Load the MasterFrame (if it exists and is desired) or the command (e.g. 'overscan')
                 msbias = bias.master()
+                if msbias is None:  # Build it and save it
+                    msbias = bias.build_image()
+                    bias.save_master(msbias, raw_files=bias.file_list, steps=bias.steps)
                 # Save
                 calib_dict[setup]['bias'] = msbias
 
@@ -151,7 +153,13 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                 AImage = arcimage.ArcImage([], spectrograph=settings.argflag['run']['spectrograph'],
                                            settings=tsettings, det=det, setup=setup, sci_ID=sci_ID,
                                            msbias=msbias, fitstbl=fitstbl)
+                # Load the MasterFrame (if it exists and is desired)?
                 msarc = AImage.master()
+                if msarc is None:  # Otherwise build it
+                    msgs.info("Preparing a master {0:s} frame".format(AImage.frametype))
+                    msarc = AImage.build_image()
+                    # Save to Masters
+                    AImage.save_master(msarc, raw_files=AImage.file_list, steps=AImage.steps)
                 # Save
                 calib_dict[setup]['arc'] = msarc
 
@@ -184,11 +192,29 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                 # Setup up the settings (will be Refactored with settings)
                 tmp = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
                 tmp['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                # Instantiate without mstrace (which may get built)
+
+                # Instantiate (without mstrace)
                 Tslits = traceslits.TraceSlits(None, slf._pixlocn[det-1], settings=tmp, det=det, setup=setup, binbpx=msbpm)
-                # Load or build the Tslits object
-                #    This includes the trace image
-                Tslits.master(fitstbl, sci_ID, msbias, settings.argflag, tsettings, det, armlsd=True)
+
+                # Load via masters, as desired
+                if not Tslits.master():
+                    # Build the trace image first
+                    trace_image_files = arsort.list_of_files(fitstbl, 'trace', sci_ID)
+                    Timage = traceimage.TraceImage(trace_image_files,
+                                                   spectrograph=settings.argflag['run']['spectrograph'],
+                                                   settings=tsettings, det=det)
+                    mstrace = Timage.process(bias_subtract=msbias, trim=settings.argflag['reduce']['trim'])
+
+                    # Load up and get ready
+                    Tslits.mstrace = mstrace
+                    _ = Tslits.make_binarr()
+                    # Now we go forth
+                    Tslits.run(armlsd=True)#, ignore_orders=ignore_orders, add_user_slits=add_user_slits)
+                    # QA
+                    Tslits._qa()
+                    # Save to disk
+                    Tslits.save_master()
+
                 # Save in calib
                 calib_dict[setup]['trace'] = Tslits
 
@@ -209,7 +235,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             # Generate the 1D wavelength solution
             if 'wavecalib' in calib_dict[setup].keys():
                 wv_calib = calib_dict[setup]['wavecalib']
-                wv_maskslit = calib_dict[setup]['wvmask']
+                wv_maskslits = calib_dict[setup]['wvmask']
             elif settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
                 msgs.info("A wavelength calibration will not be performed")
                 pass
@@ -217,18 +243,25 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                 # Setup up the settings (will be Refactored with settings)
                 tmp = dict(calibrate=settings.argflag['arc']['calibrate'], masters=settings.argflag['reduce']['masters'])
                 tmp['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
+
                 # Instantiate
                 Wavecalib = wavecalib.WaveCalib(msarc, spectrograph=settings.argflag['run']['spectrograph'],
                                                 settings=tmp, det=det, setup=setup, fitstbl=fitstbl, sci_ID=sci_ID)
-                nonlinear = settings.spect[settings.get_dnum(det)]['saturation'] * settings.spect[settings.get_dnum(det)]['nonlinear']
-                # Run
-                wv_calib, wv_maskslit = Wavecalib.master(Tslits.lcen, Tslits.rcen, pixlocn, nonlinear=nonlinear)
+                # Load from disk (MasterFrame)?
+                wv_calib, wv_maskslits = Wavecalib.master(Tslits.lcen.shape[1])#, Tslits.rcen, pixlocn, nonlinear=nonlinear)
+                # Build?
+                if wv_calib is None:
+                    nonlinear = settings.spect[settings.get_dnum(det)]['saturation'] * settings.spect[settings.get_dnum(det)]['nonlinear']
+                    wv_calib, wv_maskslits = Wavecalib.run(Tslits.lcen, Tslits.rcen, pixlocn, nonlinear=nonlinear)
+                    # Save to Masters
+                    Wavecalib.save_master(Wavecalib.wv_calib)
+
                 # Save in calib
                 calib_dict[setup]['wavecalib'] = wv_calib
-                calib_dict[setup]['wvmask'] = wv_maskslit
+                calib_dict[setup]['wvmask'] = wv_maskslits
 
             # Mask me
-            slf._maskslits[det-1] += wv_maskslit
+            slf._maskslits[det-1] += wv_maskslits
 
 
             ###############

@@ -16,7 +16,6 @@ from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import arpixels
 from pypit.core import artraceslits
-from pypit import arsort
 from pypit import arutils
 from pypit import masterframe
 from pypit import ginga
@@ -919,47 +918,24 @@ class TraceSlits(masterframe.MasterFrame):
         # Success
         return True
 
-    def master(self, fitstbl, sci_ID, msbias, settings_argflag, tsettings, det,
-               armlsd=True, ignore_orders=False, add_user_slits=None):
-        """ For PYPIT running
+    def master(self):
+        """ Mainly for PYPIT running
 
         Parameters
         ----------
-        fitstbl
-        sci_ID
-        msbias
-        settings_argflag
-        tsettings
-        det
-        armlsd
-        ignore_orders
-        add_user_slits
 
         Returns
         -------
+        loaded : bool
 
         """
         # Load master frame?
         loaded = False
-        if (self.settings['masters']['reuse']) or (self.settings['masters']['force']):
+        if self._masters_load_chk():
             loaded = self.load_master()
-        # Generate?
-        if not loaded:
-            # Build the trace image first
-            trace_image_files = arsort.list_of_files(fitstbl, 'trace', sci_ID)
-            Timage = traceimage.TraceImage(trace_image_files,
-                                           spectrograph=settings_argflag['run']['spectrograph'],
-                                           settings=tsettings, det=det)
-            mstrace = Timage.process(bias_subtract=msbias, trim=settings_argflag['reduce']['trim'])
-            # Load up and get ready
-            self.mstrace = mstrace
-            self.binarr = self.make_binarr()
-            # Now we go forth
-            self.run(armlsd=armlsd, ignore_orders=ignore_orders, add_user_slits=add_user_slits)
-            # QA
-            self._qa()
-            # Save to disk
-            self.save_master()
+        # Return
+        return loaded
+
 
     def run(self, armlsd=True, ignore_orders=False, add_user_slits=None):
         """ Main driver for tracing slits.

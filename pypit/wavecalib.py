@@ -101,7 +101,7 @@ class WaveCalib(masterframe.MasterFrame):
     def _build_wv_calib(self, method, skip_QA=False):
         # Loop
         self.wv_calib = {}
-        ok_mask = np.where(self.maskslit == 0)[0]
+        ok_mask = np.where(self.maskslits == 0)[0]
         for slit in ok_mask:
             ###############
             # Extract arc and identify lines
@@ -133,13 +133,13 @@ class WaveCalib(masterframe.MasterFrame):
         return iwv_calib
 
     def _extract_arcs(self, lordloc, rordloc, pixlocn):
-        self.arccen, self.maskslit, _ = ararc.get_censpec(lordloc, rordloc, pixlocn,
+        self.arccen, self.maskslits, _ = ararc.get_censpec(lordloc, rordloc, pixlocn,
                                                           self.msarc, self.det, self.settings,
                                                           gen_satmask=False)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
-        return self.arccen, self.maskslit
+        return self.arccen, self.maskslits
 
     def load_wv_calib(self, filename):
         self.wv_calib, _, _ =  armasters._load(filename, frametype=self.frametype)
@@ -176,7 +176,18 @@ class WaveCalib(masterframe.MasterFrame):
         # Return
         return self.arcparam
 
-    def master(self, lordloc, rordloc, pixlocn, nonlinear=None, skip_QA=False):
+    def _make_maskslits(self, shape):
+        # Set mask based on wv_calib
+        mask = np.array([True]*shape)
+        for key in self.wv_calib.keys():
+            if key in ['steps', 'arcparam']:
+                continue
+            #
+            mask[int(key)] = False
+        self.maskslits = mask
+        return self.maskslits
+
+    def master(self, shape):
         """ Main driver for wavelength calibration
 
         Parameters
@@ -184,38 +195,53 @@ class WaveCalib(masterframe.MasterFrame):
 
         Returns
         -------
+        self.wv_calib : dict or None
+        self.maskslits : dict or None
         """
         # Attempt to load the Master Frame
         self.wv_calib, _, _ = self.load_master_frame()
         if self.wv_calib is None:
-
-            ###############
-            # Extract an arc down each slit
-            #   The settings here are settings.spect (saturation and nonlinear)
-            _, _ = self._extract_arcs(lordloc, rordloc, pixlocn)
-
-            # Load the arcparam
-            _ = self._load_arcparam()
-
-            # Fill up the calibrations and generate QA
-            self.wv_calib = self._build_wv_calib(self.settings['calibrate']['method'], skip_QA=skip_QA)
-            self.wv_calib['steps'] = self.steps
-            sv_aparam = self.arcparam.copy()
-            sv_aparam.pop('llist')
-            self.wv_calib['arcparam'] = sv_aparam
-            # Save to Masters
-            self.save_master(self.wv_calib)
-
-        # Set mask based on wv_calib
-        mask = np.array([True]*lordloc.shape[1])
-        for key in self.wv_calib.keys():
-            if key in ['steps', 'arcparam']:
-                continue
-            #
-            mask[int(key)] = False
-        # Return
-        self.maskslits = mask
+            return None, None
+        # Mask
+        self.maskslits = self._make_maskslits(shape)
         # Finish
+        return self.wv_calib, self.maskslits
+
+
+    def run(self, lordloc, rordloc, pixlocn, nonlinear=None, skip_QA=False):
+        """
+        Main driver for wavelength calibration
+
+        Parameters
+        ----------
+        lordloc
+        rordloc
+        pixlocn
+        nonlinear
+        skip_QA
+
+        Returns
+        -------
+
+        """
+        ###############
+        # Extract an arc down each slit
+        #   The settings here are settings.spect (saturation and nonlinear)
+        _, _ = self._extract_arcs(lordloc, rordloc, pixlocn)
+
+        # Load the arcparam
+        _ = self._load_arcparam()
+
+        # Fill up the calibrations and generate QA
+        self.wv_calib = self._build_wv_calib(self.settings['calibrate']['method'], skip_QA=skip_QA)
+        self.wv_calib['steps'] = self.steps
+        sv_aparam = self.arcparam.copy()
+        sv_aparam.pop('llist')
+        self.wv_calib['arcparam'] = sv_aparam
+
+        # Build mask
+        self._make_maskslits(lordloc.shape[1])
+        # Return
         return self.wv_calib, self.maskslits
 
     def show(self, item, slit=None):
