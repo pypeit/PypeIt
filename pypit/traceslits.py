@@ -892,21 +892,6 @@ class TraceSlits(masterframe.MasterFrame):
         ltu.savejson(outfile, clean_dict, overwrite=True, easy_to_read=True)
         msgs.info("Writing TraceSlit dict to {:s}".format(outfile))
 
-    def _qa(self, use_slitid=True):
-        """
-        QA
-          Wrapper to artraceslits.slit_trace_qa()
-
-        Returns
-        -------
-
-        """
-        artraceslits.slit_trace_qa(self.mstrace, self.lcen,
-                                   self.rcen, self.extrapord, self.setup,
-                                   desc="Trace of the slit edges D{:02d}".format(self.det),
-                                   use_slitid=use_slitid)
-
-
     def load_master(self):
         """
         Over-load the load function
@@ -975,7 +960,6 @@ class TraceSlits(masterframe.MasterFrame):
             self._qa()
             # Save to disk
             self.save_master()
-
 
     def run(self, armlsd=True, ignore_orders=False, add_user_slits=None):
         """ Main driver for tracing slits.
@@ -1097,6 +1081,21 @@ class TraceSlits(masterframe.MasterFrame):
         # Return
         return self.trace_slits_dict
 
+    def _qa(self, use_slitid=True):
+        """
+        QA
+          Wrapper to artraceslits.slit_trace_qa()
+
+        Returns
+        -------
+
+        """
+        artraceslits.slit_trace_qa(self.mstrace, self.lcen,
+                                   self.rcen, self.extrapord, self.setup,
+                                   desc="Trace of the slit edges D{:02d}".format(self.det),
+                                   use_slitid=use_slitid)
+
+
     def __repr__(self):
         # Generate sets string
         txt = '<{:s}: '.format(self.__class__.__name__)
@@ -1111,6 +1110,23 @@ class TraceSlits(masterframe.MasterFrame):
 
 
 def load_traceslit_files(root):
+    """
+    Load up the TraceSlit objects from the FITS and JSON file
+
+    Pushed out of the class so we can both load and instantiate
+    from the output files
+
+    Parameters
+    ----------
+    root : str
+
+    Returns
+    -------
+    fits_dict : dict
+      Contains all the images from the FITS file
+    ts_dict : dict
+      JSON read
+    """
     fits_dict = {}
     # Open FITS
     fits_file = root+'.fits.gz'
