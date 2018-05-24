@@ -16,9 +16,11 @@ from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import arpixels
 from pypit.core import artraceslits
+from pypit import arsort
 from pypit import arutils
 from pypit import masterframe
 from pypit import ginga
+from pypit import traceimage
 
 from scipy import ndimage
 
@@ -160,7 +162,8 @@ class TraceSlits(masterframe.MasterFrame):
         self.slitpix = None
 
         # Key Internals
-        self.binarr = self.make_binarr()
+        if mstrace is not None:
+            self.binarr = self.make_binarr()
         self.user_set = None
         self.lmin = None
         self.lmax = None
@@ -197,42 +200,26 @@ class TraceSlits(masterframe.MasterFrame):
         slf
 
         """
-        # FITS
-        fits_file = root+'.fits.gz'
-        if not os.path.isfile(fits_file):
-            msgs.warn("No MasterTrace files found.  Returning None")
-            return None
-        hdul = fits.open(fits_file)
-        names = [ihdul.name for ihdul in hdul]
-        if 'SLITPIXELS' in names:
-            msgs.error("This is an out-of-date MasterTrace flat.  You will need to make a new one")
+        fits_dict, ts_dict = load_traceslit_files(root)
 
-        # Parameters
-        mstrace = hdul[names.index('MSTRACE')].data
-        pixlocn = hdul[names.index('PIXLOCN')].data
-        if 'BINBPX' in names:
-            binbpx = hdul[names.index('BINBPX')].data.astype(float)
-            msgs.info("Loading BPM from {:s}".format(fits_file))
+        # Deal with the bad pixel image
+        if 'BINBPX' in fits_dict.keys():
+            binbpx = fits_dict['BINBPX'].astype(float)
+            msgs.info("Loading BPM from {:s}".format(root+'.fits.gz'))
         else:
             binbpx = None
 
-        # JSON
-        json_file = root+'.json'
-        ts_dict = ltu.loadjson(json_file)
-        slf = cls(mstrace, pixlocn, binbpx=binbpx, settings=ts_dict['settings'])
+        # Instantiate
+        slf = cls(fits_dict['MSTRACE'], fits_dict['PIXLOCN'], binbpx=binbpx, settings=ts_dict['settings'])
 
         # Fill in a bit more (Attributes)
         slf.steps = ts_dict['steps']
-        if 'LCEN' in names:
-            slf.lcen = hdul[names.index('LCEN')].data
-            slf.rcen = hdul[names.index('RCEN')].data
-            msgs.info("Loading LCEN, RCEN from {:s}".format(fits_file))
-        if 'EDGEARR' in names:
-            slf.edgearr = hdul[names.index('EDGEARR')].data
-            msgs.info("Loading EDGEARR from {:s}".format(fits_file))
-        if 'SIGLEV' in names:
-            slf.siglev = hdul[names.index('SIGLEV')].data
-            msgs.info("Loading SIGLEV from {:s}".format(fits_file))
+
+        # Others
+        for key in ['LCEN', 'RCEN', 'EDGEARR', 'SIGLEV']:
+            if key in fits_dict.keys():
+                setattr(slf, key.lower(), fits_dict[key])
+        # dict
         slf.tc_dict = ts_dict['tc_dict']
 
         # Load the pixel objects?
@@ -919,6 +906,77 @@ class TraceSlits(masterframe.MasterFrame):
                                    desc="Trace of the slit edges D{:02d}".format(self.det),
                                    use_slitid=use_slitid)
 
+
+    def load_master(self):
+        """
+        Over-load the load function
+
+        Returns
+        -------
+
+        """
+        # Load (externally)
+        fits_dict, ts_dict = load_traceslit_files(self.ms_name)
+        # Fail?
+        if fits_dict is None:
+            return False
+        # Load up self
+        self.binbpx = fits_dict['BINBPX'].astype(float)  # Special
+        for key in ['MSTRACE', 'PIXLOCN', 'LCEN', 'RCEN', 'EDGEARR', 'SIGLEV']:
+            if key in fits_dict.keys():
+                setattr(self, key.lower(), fits_dict[key])
+        # Remake the binarr
+        self.binarr = self.make_binarr()
+        # dict
+        self.tc_dict = ts_dict['tc_dict']
+        # Load the pixel objects?
+        self._make_pixel_arrays()
+        # Success
+        return True
+
+    def master(self, fitstbl, sci_ID, msbias, settings_argflag, tsettings, det,
+               armlsd=True, ignore_orders=False, add_user_slits=None):
+        """ For PYPIT running
+
+        Parameters
+        ----------
+        fitstbl
+        sci_ID
+        msbias
+        settings_argflag
+        tsettings
+        det
+        armlsd
+        ignore_orders
+        add_user_slits
+
+        Returns
+        -------
+
+        """
+        # Load master frame?
+        loaded = False
+        if (self.settings['masters']['reuse']) or (self.settings['masters']['force']):
+            loaded = self.load_master()
+        # Generate?
+        if not loaded:
+            # Build the trace image first
+            trace_image_files = arsort.list_of_files(fitstbl, 'trace', sci_ID)
+            Timage = traceimage.TraceImage(trace_image_files,
+                                           spectrograph=settings_argflag['run']['spectrograph'],
+                                           settings=tsettings, det=det)
+            mstrace = Timage.process(bias_subtract=msbias, trim=settings_argflag['reduce']['trim'])
+            # Load up and get ready
+            self.mstrace = mstrace
+            self.binarr = self.make_binarr()
+            # Now we go forth
+            self.run(armlsd=armlsd, ignore_orders=ignore_orders, add_user_slits=add_user_slits)
+            # QA
+            self._qa()
+            # Save to disk
+            self.save_master()
+
+
     def run(self, armlsd=True, ignore_orders=False, add_user_slits=None):
         """ Main driver for tracing slits.
 
@@ -1052,3 +1110,26 @@ class TraceSlits(masterframe.MasterFrame):
 
 
 
+def load_traceslit_files(root):
+    fits_dict = {}
+    # Open FITS
+    fits_file = root+'.fits.gz'
+    if not os.path.isfile(fits_file):
+        msgs.warn("No TraceSlits FITS file found.  Returning None, None")
+        return None, None
+    hdul = fits.open(fits_file)
+    names = [ihdul.name for ihdul in hdul]
+    if 'SLITPIXELS' in names:
+        msgs.error("This is an out-of-date MasterTrace flat.  You will need to make a new one")
+
+    # Load me
+    for key in ['MSTRACE', 'PIXLOCN', 'BINBPX', 'LCEN', 'RCEN', 'EDGEARR', 'SIGLEV']:
+        if key in names:
+            fits_dict[key] = hdul[names.index(key)].data
+
+    # JSON
+    json_file = root+'.json'
+    ts_dict = ltu.loadjson(json_file)
+
+    # Return
+    return fits_dict, ts_dict
