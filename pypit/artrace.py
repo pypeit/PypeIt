@@ -18,10 +18,10 @@ from pypit import arplot
 from pypit import ararc
 from pypit import arutils
 from pypit import arpca
-from pypit import arextract
 from pypit import arparse as settings
 from pypit.filter import BoxcarFilter
 from pypit import ardebug as debugger
+from pypit.core import artracewave
 
 try:
     from pypit import ginga
@@ -638,133 +638,6 @@ def obj_trace_qa(slf, frame, det, tracelist, root='trace', normalize=True, desc=
     plt.rcdefaults()
 
 
-def plot_orderfits(slf, model, ydata, xdata=None, xmodl=None, textplt="Slit",
-                   maxp=4, desc="", maskval=-999999.9, slit=None):
-    """ Generate a QA plot for the blaze function fit to each slit
-    Or the arc line tilts
-
-    Parameters
-    ----------
-    slf : class
-      Science Exposure class
-    model : ndarray
-      (m x n) 2D array containing the model blaze function (m) of a flat frame for each slit (n)
-    ydata : ndarray
-      (m x n) 2D array containing the extracted 1D spectrum (m) of a flat frame for each slit (n)
-    xdata : ndarray, optional
-      x values of the data points
-    xmodl : ndarry, optional
-      x values of the model points
-    textplt : str, optional
-      A string printed above each panel
-    maxp : int, (optional)
-      Maximum number of panels per page
-    desc : str, (optional)
-      A description added to the top of each page
-    maskval : float, (optional)
-      Value used in arrays to indicate a masked value
-    """
-
-    plt.rcdefaults()
-    plt.rcParams['font.family']= 'times new roman'
-
-    # Outfil
-    method = inspect.stack()[0][3]
-    if 'Arc' in desc:
-        method += '_Arc'
-    elif 'Blaze' in desc:
-        method += '_Blaze'
-    else:
-        msgs.bug("Unknown type of order fits.  Currently prepared for Arc and Blaze")
-    outroot = arqa.set_qa_filename(slf.setup, method, slit=slit)
-    #
-    npix, nord = ydata.shape
-    pages, npp = arqa.get_dimen(nord, maxp=maxp)
-    if xdata is None: xdata = np.arange(npix).reshape((npix, 1)).repeat(nord, axis=1)
-    if xmodl is None: xmodl = np.arange(model.shape[0])
-    # Loop through all pages and plot the results
-    ndone = 0
-    axesIdx = True
-    for i in range(len(pages)):
-        f, axes = plt.subplots(pages[i][1], pages[i][0])
-        ipx, ipy = 0, 0
-        for j in range(npp[i]):
-            if pages[i][0] == 1 and pages[i][1] == 1: axesIdx = False
-            elif pages[i][1] == 1: ind = (ipx,)
-            elif pages[i][0] == 1: ind = (ipy,)
-            else: ind = (ipy, ipx)
-            if axesIdx:
-                axes[ind].plot(xdata[:,ndone+j], ydata[:,ndone+j], 'bx', drawstyle='steps')
-                axes[ind].plot(xmodl, model[:,ndone+j], 'r-')
-            else:
-                axes.plot(xdata[:,ndone+j], ydata[:,ndone+j], 'bx', drawstyle='steps')
-                axes.plot(xmodl, model[:,ndone+j], 'r-')
-            ytmp = ydata[:,ndone+j]
-            gdy = ytmp != maskval
-            ytmp = ytmp[gdy]
-            if ytmp.size != 0:
-                amn = min(np.min(ytmp), np.min(model[gdy,ndone+j]))
-            else:
-                amn = np.min(model[:,ndone+j])
-            if ytmp.size != 0:
-                amx = max(np.max(ytmp), np.max(model[gdy,ndone+j]))
-            else: amx = np.max(model[:,ndone+j])
-            # Restrict to good pixels
-            xtmp = xdata[:,ndone+j]
-            gdx = xtmp != maskval
-            xtmp = xtmp[gdx]
-            if xtmp.size == 0:
-                xmn = np.min(xmodl)
-                xmx = np.max(xmodl)
-            else:
-                xmn = np.min(xtmp)
-                xmx = np.max(xtmp)
-                #xmn = min(np.min(xtmp), np.min(xmodl))
-                #xmx = max(np.max(xtmp), np.max(xmodl))
-            if axesIdx:
-                axes[ind].axis([xmn, xmx, amn-1, amx+1])
-                axes[ind].set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
-            else:
-                axes.axis([xmn, xmx, amn, amx])
-                axes.set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
-            ipx += 1
-            if ipx == pages[i][0]:
-                ipx = 0
-                ipy += 1
-        # Delete the unnecessary axes
-        if axesIdx:
-            for j in range(npp[i], axes.size):
-                if pages[i][1] == 1: ind = (ipx,)
-                elif pages[i][0] == 1: ind = (ipy,)
-                else: ind = (ipy, ipx)
-                f.delaxes(axes[ind])
-                if ipx == pages[i][0]:
-                    ipx = 0
-                    ipy += 1
-        ndone += npp[i]
-        # Save the figure
-        if axesIdx: axsz = axes.size
-        else: axsz = 1.0
-        if pages[i][1] == 1 or pages[i][0] == 1: ypngsiz = 11.0/axsz
-        else: ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
-        f.set_size_inches(11.0, ypngsiz)
-        if desc != "":
-            pgtxt = ""
-            if len(pages) != 1:
-                pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
-            f.suptitle(desc + pgtxt, y=1.02, size=16)
-        f.tight_layout()
-        outfile = outroot+'{:03d}.png'.format(i)
-        plt.savefig(outfile, dpi=200)
-        plt.close()
-        f.clf()
-    del f
-
-    plt.rcdefaults()
-
-    return
-
-
 def new_find_objects(profile, bgreg, stddev):
     """
     Find significantly detected objects in the profile array
@@ -805,7 +678,7 @@ def new_find_objects(profile, bgreg, stddev):
         # as exclusive or inclusive?
         objl[obj] = imax-sz_x+f[-1] if imax-sz_x+f[-1] > 0 else 0
         objr[obj] = f[0]+imax if f[0]+imax < sz_x else sz_x-1
-#        print('object found: ', imax, f[-1], objl[obj], f[0], objr[obj], sz_x)
+        #        print('object found: ', imax, f[-1], objl[obj], f[0], objr[obj], sz_x)
         # Mask source pixels and increment for next iteration
         has_obj[objl[obj]:objr[obj]+1] = True
         _profile[objl[obj]:objr[obj]+1] = np.ma.masked
@@ -828,7 +701,7 @@ def new_find_objects(profile, bgreg, stddev):
     # Return source region limits and background regions that do not
     # have sources
     return objl[:obj], objr[:obj], (bgl & np.invert(has_obj)[:,None]).astype(int), \
-                    (bgr & np.invert(has_obj)[:,None]).astype(int)
+           (bgr & np.invert(has_obj)[:,None]).astype(int)
 
 
 def new_find_peak_limits(hist, pks):
@@ -951,35 +824,6 @@ def new_tilts_image(tilts, lordloc, rordloc, pad, sz_y):
                 yv = (y-lordloc[x, o])/ow - 1.0
                 tiltsimg[x,y] = (tilts[x,o]*yv + x)/dszx
     return tiltsimg
-
-    '''  Not sure where this code came from..
-    sz_x, sz_o = tilts.shape
-    dszx = (sz_x-1.0)
-
-    ow = (rordloc-lordloc)/2.0
-    oc = (rordloc+lordloc)/2.0
-
-    ymin = (oc-ow).astype(int) - pad
-    ymax = (oc+ow).astype(int) + 1 + pad
-
-    indx = (ymax >= 0) & (ymin < sz_y)
-    ymin[ymin < 0] = 0
-    ymax[ymax > sz_y-1] = sz_y-1
-
-    tiltsimg = np.zeros((sz_x,sz_y), dtype=float)
-
-    xv = np.arange(sz_x).astype(int)
-    for o in range(sz_o):
-        if np.sum(indx[:,o]) == 0:
-            continue
-        for x in xv[indx[:,o]]:
-            # Set the tilt value at each pixel in this row
-            for y in range(ymin[x,o], ymax[x,o]):
-                yv = (y-lordloc[x,o])/ow[x,o] - 1.0
-                tiltsimg[x,y] = (tilts[x,o]*yv + x)/dszx
-
-    return tiltsimg
-    '''
 
 
 def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
@@ -1583,7 +1427,7 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
 
     return tiltsimg, satmask, outpar
 
-
+'''
 def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
     """ Determine the spectral tilt of each slit in a multislit image
 
@@ -1933,10 +1777,11 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
             msgs.info("Plotting arc tilt QA")
         #    arqa.plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
         #                        textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval)
-            plot_orderfits(slf, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
+            artracewave.plot_orderfits(slf.setup, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
                            textplt="Arc line", maxp=9, desc="Arc line spectral tilts", maskval=maskval, slit=slit)
     # Finish
     return final_tilts, satmask, outpar
+'''
 
 
 def slit_image(slf, det, scitrace, obj, tilts=None):

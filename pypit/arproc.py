@@ -968,7 +968,7 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
                                          function=settings.argflag['trace']['object']['function'])
             if not msgs._debug['no_qa']:
 #                arqa.pca_plot(slf, outpar, ofit, "Object_Trace", pcadesc="PCA of object trace")
-                arpca.pca_plot(slf, outpar, ofit, "Object_Trace", pcadesc="PCA of object trace")
+                arpca.pca_plot(slf.setup, outpar, ofit, "Object_Trace", pcadesc="PCA of object trace")
             # Extrapolate the remaining orders requested
             trccen, outpar = arpca.extrapolate(outpar, orders, function=settings.argflag['trace']['object']['function'])
             #refine = trccen-trccen[nspec//2, :].reshape((1, nord))
@@ -1564,7 +1564,7 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
                                      function=fitfunc)
         if not msgs._debug['no_qa']:
 #            arqa.pca_plot(slf, outpar, ofit, "Blaze_Profile", pcadesc="PCA of blaze function fits")
-            arpca.pca_plot(slf, outpar, ofit, "Blaze_Profile",
+            arpca.pca_plot(slf.setup, outpar, ofit, "Blaze_Profile",
                            pcadesc="PCA of blaze function fits")
         # Extrapolate the remaining orders requested
         orders = 1.0 + np.arange(nslits)
@@ -1635,7 +1635,7 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
                                      function=fitfunc)
         if not msgs._debug['no_qa']:
 #            arqa.pca_plot(slf, outpar, sofit, "Slit_Profile", pcadesc="PCA of slit profile fits")
-            arpca.pca_plot(slf, outpar, sofit, "Slit_Profile", pcadesc="PCA of slit profile fits")
+            arpca.pca_plot(slf.setup, outpar, sofit, "Slit_Profile", pcadesc="PCA of slit profile fits")
         # Extrapolate the remaining orders requested
         orders = 1.0 + np.arange(nslits)
         extrap_slt, outpar = arpca.extrapolate(outpar, orders, function=fitfunc)

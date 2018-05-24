@@ -374,7 +374,7 @@ def pc_plot_extcenwid(tempcen, cenwid, binval, plotsdir="Plots", pcatype="<unkno
     return
 
 
-def pca_plot(slf, inpar, ofit, prefix, maxp=25, pcadesc="", addOne=True):
+def pca_plot(setup, inpar, ofit, prefix, maxp=25, pcadesc="", addOne=True):
     """ Saves quality control plots for a PCA analysis
     Parameters
     ----------
@@ -397,7 +397,7 @@ def pca_plot(slf, inpar, ofit, prefix, maxp=25, pcadesc="", addOne=True):
 
     # Setup
     method = inspect.stack()[0][3]
-    outroot = arqa.set_qa_filename(slf.setup, method, prefix=prefix)
+    outroot = arqa.set_qa_filename(setup, method, prefix=prefix)
     npc = inpar['npc']+1
     pages, npp = arqa.get_dimen(npc, maxp=maxp)
     #

@@ -20,6 +20,7 @@ from pypit import arsciexp
 from pypit.core import arsetup
 from pypit import arpixels
 from pypit.core import arsort
+from pypit.core import artracewave
 from pypit import artrace
 from pypit import arcimage
 from pypit import bpmimage
@@ -269,8 +270,14 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             if slf._tilts[det-1] is None:
                 tilts = armasters.load_master_frame(slf, "tilts")
                 if tilts is None:
+                    # Settings kludges
+                    tilt_settings = settings.argflag['trace']['slits'].copy()
+                    tilt_settings['tilts']['function'] = settings.argflag['trace']['slits']['function']
                     # First time tilts are derived for this arc frame --> derive the order tilts
-                    tilts, satmask, outpar = artrace.multislit_tilt(slf, msarc, det)
+                    tilts, satmask, outpar = artracewave.multislit_tilt(
+                        msarc, Tslits.lcen, Tslits.rcen, Tslits.pixlocn, Tslits.pixcen,
+                        Tslits.slitpix, det, slf._maskslits[det-1], tilt_settings, settings.spect,
+                        setup, wv_calib=wv_calib)
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
                     msgs.bug("This outpar is only the last slit!!  JXP doesn't think it matters for now")

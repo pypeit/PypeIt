@@ -7,10 +7,6 @@ import os
 
 from importlib import reload
 
-from astropy.io import fits
-
-from linetools import utils as ltu
-
 from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import ararc
@@ -19,7 +15,6 @@ from pypit import arutils
 from pypit import masterframe
 from pypit import ginga
 
-from scipy import ndimage
 
 # For out of PYPIT running
 if msgs._debug is None:
@@ -33,6 +28,10 @@ frametype = 'tilts'
 #  Wherever they be, they need to be defined, described, etc.
 default_settings = dict(tilts={'idsonly': False,
                                'trthrsh': 1000.,
+                               'order': 1,
+                               'function': 'legendre',
+                               'method': 'spca',
+                               'params': [1,1,0],
                                }
                         )
 settings_spect = dict(det01={'saturation': 60000., 'nonlinear': 0.9})
@@ -121,6 +120,14 @@ class WaveTilts(masterframe.MasterFrame):
         # Return
         return loaded
 
+    def _analyze_tilt_traces(self, slit):
+        reload(artracewave)
+        self.badlines, self.maskrows = artracewave.analyze_spec_lines(self.msarc, slit,
+                                                            self.trcdict,
+                                                            self.pixcen,
+                                                            self.settings)
+        return self.badlines, self.maskrows
+
     def _extract_arcs(self):
         # Extract an arc down each slit/order
         self.arccen, self.arc_maskslit, _ = ararc.get_censpec(self.lordloc, self.rordloc,
@@ -130,7 +137,7 @@ class WaveTilts(masterframe.MasterFrame):
         return self.arccen, self.arc_maskslit
 
     def _trace_tilts(self, slit):
-        reload(artracewave)
+        #reload(artracewave)
         # Determine the tilts for this slit
         self.trcdict = artracewave.trace_tilt(self.pixcen, self.rordloc, self.lordloc, self.det,
                                          self.msarc, slit, settings_spect, self.settings,
@@ -159,7 +166,6 @@ class WaveTilts(masterframe.MasterFrame):
         self.arccen, self.arc_maskslit = self._extract_arc()
 
         # Setup
-        ordcen = pixcen.copy()
         fitxy = [self.settings['order'], 1]
 
         # maskslit

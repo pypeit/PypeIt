@@ -12,7 +12,6 @@ from astropy.time import Time
 # Import PYPIT routines
 from pypit import msgs
 from pypit import arparse as settings
-from pypit import ararc
 from pypit import artrace
 from pypit import arload
 from pypit import arcomb
@@ -20,6 +19,7 @@ from pypit import armasters
 from pypit import arproc
 from pypit.core import arprocimg
 from pypit.core import arsort
+from pypit.core import artracewave
 from pypit import arutils
 from pypit import ardebug as debugger
 
@@ -502,7 +502,7 @@ class ScienceExposure:
                                                    self._slitpix[det - 1], desc="Slit profile")
                         msgs.info("Saving blaze function QA")
 #                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
-                        artrace.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
+                        artracewave.plot_orderfits(self.setup, msblaze, flat_ext1d, desc="Blaze function")
                 else:
                     mspixelflat = mspixelflatnrm
             else:  # It must be the name of a file the user wishes to load
