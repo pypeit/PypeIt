@@ -418,13 +418,7 @@ def load_standard_file(std_dict):
 
 def find_standard(specobjs):
     # Repackage as necessary (some backwards compatability)
-    if isinstance(specobjs[0], list):
-        all_specobj = []
-        for sl in range(len(specobjs)):
-            for spobj in specobjs[sl]:
-                all_specobj.append(spobj)
-    else:
-        all_specobj = specobjs
+    all_specobj = arutils.unravel_specobjs(specobjs)
     # Do it
     medfx = []
     medix = []

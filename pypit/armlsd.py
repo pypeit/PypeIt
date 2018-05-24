@@ -328,7 +328,8 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
         if (settings.argflag['reduce']['calibrate']['sensfunc']['archival'] == 'None'):
             std_keys = list(std_dict.keys())
             std_key = std_keys[0] # Take the first extraction
-            FxSpec = fluxspec.FluxSpec(settings=fsettings, std_specobjs=std_dict[std_key]._specobjs, setup=setup)
+            FxSpec = fluxspec.FluxSpec(settings=fsettings, std_specobjs=std_dict[std_key]._specobjs,
+                                       setup=setup)  # This takes the last setup run, which is as sensible as any..
             sensfunc = FxSpec.master(fitstbl[std_key])
         else:  # Input by user
             FxSpec = fluxspec.FluxSpec(settings=fsettings,

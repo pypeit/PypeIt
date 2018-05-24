@@ -1041,7 +1041,13 @@ class TraceSlits(masterframe.MasterFrame):
 
     def __repr__(self):
         # Generate sets string
-        txt = '<{:s}: >'.format(self.__class__.__name__)
+        txt = '<{:s}: '.format(self.__class__.__name__)
+        if len(self.steps) > 0:
+            txt+= ' steps: ['
+            for step in self.steps:
+                txt += '{:s}, '.format(step)
+            txt = txt[:-2]+']'  # Trim the trailing comma
+        txt += '>'
         return txt
 
 
