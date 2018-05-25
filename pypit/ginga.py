@@ -207,7 +207,7 @@ def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0.):
         if trcdict['xtfit'][idx] is None:
             continue
         x = trcdict['xtfit'][idx] + xoff
-        y = trcdict['ytfit'][idx] + yoff  # FOR IMAGING (ALREADY OFFSET IN GINGA)
+        y = trcdict['ytfit'][idx] + yoff  # FOR IMAGING (Ginga offsets this value by 1 internally)
         gdy = y > 0.
         if np.sum(gdy) > 0:
             points = list(zip(x[gdy].tolist(),y[gdy].tolist()))

@@ -89,7 +89,8 @@ def analyze_spec_lines(msarc, slit, trcdict, ordcen, tilt_settings, maskval=-999
 
         # Perform a robust polynomial fit to the traces
         if tilt_settings['tilts']['method'].lower() == "spca":
-            yfit = ytfit[wmask] / (msarc.shape[0] - 1.0)
+            #yfit = ytfit[wmask] / (msarc.shape[0] - 1.0)
+            yfit = ytfit[wmask]
         else:
             yfit = (2.0 * model[sz] - ytfit[wmask]) / (msarc.shape[0] - 1.0)
         wmsk, mcoeff = arutils.robust_polyfit(xtfit[wmask], yfit,
@@ -105,11 +106,16 @@ def analyze_spec_lines(msarc, slit, trcdict, ordcen, tilt_settings, maskval=-999
                                                           minv=0.0, maxv=msarc.shape[1] - 1.0)
         # JXP fussing
         if tilt_settings['tilts']['method'].lower() == "spca":
-            m2 = (msarc.shape[0] - 1.0) * arutils.func_val(mcoeff, xtfit, tilt_settings['tilts']['function'], minv=0.0, maxv=msarc.shape[1] - 1.0)
+            #m2 = (msarc.shape[0] - 1.0) * arutils.func_val(
+            #    mcoeff, xtfit, tilt_settings['tilts']['function'], minv=0.0, maxv=msarc.shape[1] - 1.0)
+            m2 = arutils.func_val(
+                mcoeff, xtfit, tilt_settings['tilts']['function'], minv=0.0, maxv=msarc.shape[1] - 1.0)
         else:
-            m2 = 2*model[sz] - (msarc.shape[0] - 1.0) * arutils.func_val(mcoeff, xtfit, tilt_settings['tilts']['function'], minv=0.0, maxv=msarc.shape[1] - 1.0)
+            m2 = 2*model[sz] - (msarc.shape[0] - 1.0) * arutils.func_val(
+                mcoeff, xtfit, tilt_settings['tilts']['function'], minv=0.0, maxv=msarc.shape[1] - 1.0)
         xmodel.append(xtfit)
         ymodel.append(m2)
+        #debugger.set_trace()
         #
         idx = int(factr + 0.5)
         if (idx > 0) and (idx < msarc.shape[0]):
@@ -123,8 +129,9 @@ def analyze_spec_lines(msarc, slit, trcdict, ordcen, tilt_settings, maskval=-999
         xtilt[xint:lastx, j] = xtfit / (msarc.shape[1] - 1.0)
         ytilt[xint:lastx, j] = arcdet[j] / (msarc.shape[0] - 1.0)
         ztilt[xint:lastx, j] = ytfit / (msarc.shape[0] - 1.0)
-        if tilt_settings['tilts']['method'].lower() == "spline":
-            mtilt[xint:lastx, j] = model / (msarc.shape[0] - 1.0)
+        if tilt_settings['tilts']['method'].lower() in ["spline", "spca"]:
+            #mtilt[xint:lastx, j] = model / (msarc.shape[0] - 1.0)
+            mtilt[xint:lastx, j] = model
         elif tilt_settings['tilts']['method'].lower() == "interp":
             mtilt[xint:lastx, j] = (2.0 * model[sz] - model) / (msarc.shape[0] - 1.0)
         else:
@@ -848,7 +855,7 @@ def prepare_polytilts(msarc, maskrows, tcoeff, all_tilts, tilt_settings, maskval
     # Unpack
     xtilt, ytilt, ztilt, mtilt, wtilt = all_tilts
     #
-    fitxy = [tilt_settings['tilts']['order'], 1]
+    fitxy = [tilt_settings['tilts']['order'], tilt_settings['tilts']['yorder']]
     # Masking
     maskrw = np.where(maskrows == 1)[0]
     maskrw.sort()
@@ -862,7 +869,7 @@ def prepare_polytilts(msarc, maskrows, tcoeff, all_tilts, tilt_settings, maskval
     ofit = tilt_settings['tilts']['params']
     lnpc = len(ofit) - 1
     # Only do a PCA if there are enough good lines
-    if (np.sum(1.0 - extrap_row) > ofit[0] + 1):
+    if (np.sum(1.0 - extrap_row) > ofit[0] + 1) and (not tilt_settings['tilts']['poly_2D']):
         # Perform a PCA on the tilts
         msgs.info("Performing a PCA on the tilts")
         ordsnd = np.linspace(0.0, 1.0, msarc.shape[0])
@@ -881,11 +888,21 @@ def prepare_polytilts(msarc, maskrows, tcoeff, all_tilts, tilt_settings, maskval
         # Fit the model with a 2D polynomial
         msgs.warn("Could not perform a PCA when tracing the spectral tilt" + msgs.newline() +
                   "Not enough well-traced arc lines")
-        msgs.info("Fitting tilts with a low order, 2D polynomial")
+        msgs.info("Fitting tilts with a low order, 2D {:s}".format(tilt_settings['tilts']['poly_2Dfunc']))
         wgd = np.where(xtilt != maskval)
-        coeff = arutils.polyfit2d_general(xtilt[wgd], ytilt[wgd], mtilt[wgd], fitxy)
+        #debugger.set_trace()
+        coeff = arutils.polyfit2d_general(xtilt[wgd], ytilt[wgd], mtilt[wgd], fitxy,
+                                          minx=0., maxx=1., miny=0., maxy=1.,
+                                          function=tilt_settings['tilts']['poly_2Dfunc'])
         polytilts = arutils.polyval2d_general(coeff, np.linspace(0.0, 1.0, msarc.shape[1]),
-                                              np.linspace(0.0, 1.0, msarc.shape[0]))
+                                              np.linspace(0.0, 1.0, msarc.shape[0]),
+                                              minx=0., maxx=1., miny=0., maxy=1.,
+                                              function=tilt_settings['tilts']['poly_2Dfunc'])
+        #tmp = arutils.polyval2d_general(coeff, xtilt[30:50,0], ytilt[40,0:1],
+        #                                minx=0., maxx=1., miny=0., maxy=1.,
+        #                                function=tilt_settings['tilts']['poly_2Dfunc'])
+        #debugger.set_trace()
+        polytilts /= (msarc.shape[0]-1) # JXP hack
         outpar = None
 
     return polytilts, outpar
@@ -1023,9 +1040,10 @@ def tilts_spca(msarc, polytilts, ordcen, slit, arcdet, aduse, rordloc, lordloc):
     # Trace positions as measured+modeled
     zspl = np.zeros((msarc.shape[1], np.sum(aduse) + 2))
     zspl[:, 1:-1] = polytilts[arcdet[np.where(aduse)[0]], :].T
+    #   Pad the ends with a fake measurement to avoid run-away
     zspl[:, 0] = zspl[:, 1] + polytilts[0, :] - polytilts[arcdet[np.where(aduse)[0][0]], :]
     zspl[:, -1] = zspl[:, -2] + polytilts[-1, :] - polytilts[arcdet[np.where(aduse)[0][-1]], :]
-    # Make sure the endpoints are set to 0.0 and 1.0
+    # Make sure the endpoints are set to be nearly 0.0 and 1.0
     zspl[:, 0] -= zspl[ordcen[0, slit], 0]
     zspl[:, -1] = zspl[:, -1] - zspl[ordcen[-1, slit], -1] + 1.0
     # Prepare the spline variables
@@ -1040,6 +1058,7 @@ def tilts_spca(msarc, polytilts, ordcen, slit, arcdet, aduse, rordloc, lordloc):
     zsbs = zspl[pmin:pmax, :]
     # Spline
     msgs.work('Consider adding weights to SmoothBivariate in spca')
+    # Note how y and z are inverted (intentionally)!!
     tiltspl = interpolate.SmoothBivariateSpline(xsbs.flatten(), zsbs.flatten(),
                                                 ysbs.flatten(), kx=3, ky=3, s=xsbs.size)
     # Finish
@@ -1070,6 +1089,7 @@ def prep_tilts_qa(msarc, all_tilts, tilts, arcdet, ordcen, slit, maskval=-999999
     ztilto = ztilt.copy()
     adj = np.diag(tilts[arcdet, ordcen[arcdet, slit:slit+1]])
     zmsk = np.where(ztilto == maskval)
+    # This magic is likely correct  ;)
     ztilto = 2.0 * np.outer(np.ones(ztilto.shape[0]), adj) - ztilto
     ztilto[zmsk] = maskval
     ztilto[np.where(ztilto != maskval)] *= (msarc.shape[0] - 1.0)

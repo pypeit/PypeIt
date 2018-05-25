@@ -31,7 +31,10 @@ frametype = 'tilts'
 default_settings = dict(tilts={'idsonly': False,
                                'trthrsh': 1000.,
                                'order': 2,
-                               'function': 'legendre',
+                               'function': 'legendre',       # Function for arc line fits
+                               'yorder': 2,
+                               'poly_2D': False,           # Use 2D polynomial for polytilts
+                               'poly_2Dfunc': 'polynomial',  # Function for 2D fit
                                'method': 'spca',
                                'params': [1,1,0],
                                }
@@ -132,6 +135,7 @@ class WaveTilts(masterframe.MasterFrame):
 
     def _prepare_polytilts(self, skip_QA=False, show_QA=False):
         reload(artracewave)
+        reload(arutils)
         self.polytilts, self.outpar = artracewave.prepare_polytilts(
             self.msarc, self.maskrows, self.tcoeff, self.all_tilts, self.settings,
             setup=self.setup, skip_QA=skip_QA, show_QA=show_QA)
@@ -241,22 +245,24 @@ class WaveTilts(masterframe.MasterFrame):
         elif attr == 'polytilt_img':
             if self.polytilts is not None:
                 ginga.show_image(self.polytilts)
-        elif attr in ['tilts','polytilts']:
-            if slit is None:
-                msgs.warn("Need to input a slit")
-                return
+        elif attr in ['polytilts', 'tilts']:
             tmp = self.all_trcdict[slit].copy()
-            if attr == 'tilts':
-                tilts = self.tilts
-            else:
-                tilts = self.polytilts
-            self.tiltsplot, self.ztilto, self.xdat = artracewave.prep_tilts_qa(
-                self.msarc, self.all_tilts, tilts, tmp['arcdet'],
-                self.pixcen, slit)
-            tmp['xtfit'] = [self.xdat[:,ii] for ii in range(self.xdat.shape[1])]
-            tmp['ytfit'] = [self.ztilto[:,ii] for ii in range(self.ztilto.shape[1])]
+            tmp['xtfit'] = []
+            tmp['ytfit'] = []
+            # arcdet is only the approximately nearest pixel (not even necessarily)
+            for arcdet in self.all_trcdict[slit]['arcdet']:
+                tmp['xtfit'].append(np.arange(self.msarc.shape[1]))
+                if attr == 'tilts':  # Need to offset here as we finally fit to the lines not the row
+                    yval = (2*self.tilts[arcdet, self.pixcen[arcdet, slit]]-self.tilts[arcdet,:])*(self.msarc.shape[0]-1)
+                    # Offset onto the centroid arc line
+                    yval += self.polytilts[arcdet, self.pixcen[arcdet, slit]]*(self.msarc.shape[0]-1) - arcdet
+                else:
+                    yval = self.polytilts[arcdet,:] * (self.msarc.shape[0]-1)
+                # Save
+                tmp['ytfit'].append(yval)
+            # Show
             ginga.chk_arc_tilts(self.msarc, tmp,
-                                   sedges=(self.lordloc[:,slit], self.rordloc[:,slit]))
+                                sedges=(self.lordloc[:,slit], self.rordloc[:,slit]))
 
     def save_master(self, outfile=None, use_tilts_as_final=False):
         """
@@ -284,24 +290,25 @@ class WaveTilts(masterframe.MasterFrame):
         hdu0 = fits.PrimaryHDU(self.final_tilts)
         hdul = [hdu0]
 
-        for slit in self.nslit:
+        for slit in range(self.nslit):
             # fweight and model
             xtfits = self.all_trcdict[slit]['xtfit']  # For convenience
             xszs = [len(xtfit) for xtfit in xtfits]
             maxx = np.max(xszs)
             fwm_img = np.zeros((maxx, len(xtfits), 4))
             # Fill fweight and model
+            model_cnt = 0
             for kk, xtfit in enumerate(xtfits):
                 fwm_img[0:xszs[kk], kk, 0] = xtfit
                 fwm_img[0:xszs[kk], kk, 1] = self.all_trcdict[slit]['ytfit'][kk]
                 #
                 if self.all_trcdict[slit]['aduse'][kk]:
-                    fwm_img[0:xszs[kk], kk, 2] = self.all_trcdict[slit]['xmodel'][kk]
-                    fwm_img[0:xszs[kk], kk, 3] = self.all_trcdict[slit]['ymodel'][kk]
+                    fwm_img[0:xszs[kk], kk, 2] = self.all_trcdict[slit]['xmodel'][model_cnt]
+                    fwm_img[0:xszs[kk], kk, 3] = self.all_trcdict[slit]['ymodel'][model_cnt]
+                    model_cnt += 1
             hdu1 = fits.ImageHDU(fwm_img)
             hdu1.name = 'FWM{:03d}'.format(slit)
             hdul.append(hdu1)
-            debugger.set_trace()
         # Finish
         hdulist = fits.HDUList(hdul)
         hdulist.writeto(outfile, clobber=True)

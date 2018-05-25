@@ -618,7 +618,8 @@ def poly_to_gauss(coeffs):
     return [ampl, cent, sigm], False
 
 
-def polyfit2d_general(x, y, z, deg, w=None):
+def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
+                      minx=None, maxx=None, miny=None, maxy=None):
     """
     :param x: array of x values
     :param y: array of y values
@@ -632,7 +633,16 @@ def polyfit2d_general(x, y, z, deg, w=None):
     y = np.asarray(y)
     z = np.asarray(z)
     deg = np.asarray(deg)
-    vander = np.polynomial.polynomial.polyvander2d(x, y, deg)
+    # Vander
+    if function == 'polynomial':
+        vander = np.polynomial.polynomial.polyvander2d(x, y, deg)
+    elif function == 'legendre':
+        xv = scale_minmax(x, minx=minx, maxx=maxx)
+        yv = scale_minmax(y, minx=miny, maxx=maxy)
+        vander = np.polynomial.legendre.legvander2d(xv, yv, deg)
+    else:
+        msgs.error("Not read for this type of {:s}".format(function))
+    # Weights
     if w is not None:
         w = np.asarray(w) + 0.0
         if w.ndim != 1:
@@ -641,12 +651,22 @@ def polyfit2d_general(x, y, z, deg, w=None):
             msgs.bug("arutils.polyfit2d - Expected x, y and weights to have same length")
         z = z * w
         vander = vander * w[:,np.newaxis]
-
+    # Reshape
     vander = vander.reshape((-1,vander.shape[-1]))
     z = z.reshape((vander.shape[0],))
     c = np.linalg.lstsq(vander, z)[0]
     return c.reshape(deg+1)
 
+def scale_minmax(x, minx=None, maxx=None):
+    if minx is None or maxx is None:
+        if np.size(x) == 1:
+            xmin, xmax = -1.0, 1.0
+        else:
+            xmin, xmax = np.min(x), np.max(x)
+    else:
+        xmin, xmax = minx, maxx
+    xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
+    return xv
 
 def polyval2d_general(c, x, y, function="polynomial", minx=None, maxx=None, miny=None, maxy=None):
     if function == "polynomial":
@@ -654,23 +674,17 @@ def polyval2d_general(c, x, y, function="polynomial", minx=None, maxx=None, miny
         return np.polynomial.polynomial.polyval2d(xx, yy, c)
     elif function in ["legendre", "chebyshev"]:
         # Scale x-direction
-        if minx is None or maxx is None:
-            if np.size(x) == 1:
-                xmin, xmax = -1.0, 1.0
-            else:
-                xmin, xmax = np.min(x), np.max(x)
-        else:
-            xmin, xmax = minx, maxx
-        xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
+        xv = scale_minmax(x, minx=minx, maxx=maxx)
         # Scale y-direction
-        if miny is None or maxy is None:
-            if np.size(y) == 1:
-                ymin, ymax = -1.0, 1.0
-            else:
-                ymin, ymax = np.min(y), np.max(y)
-        else:
-            ymin, ymax = miny, maxy
-        yv = 2.0 * (y-ymin)/(ymax-ymin) - 1.0
+        yv = scale_minmax(y, minx=miny, maxx=maxy)
+        #if miny is None or maxy is None:
+        #    if np.size(y) == 1:
+        #        ymin, ymax = -1.0, 1.0
+        #    else:
+        #        ymin, ymax = np.min(y), np.max(y)
+        #else:
+        #    ymin, ymax = miny, maxy
+        #yv = 2.0 * (y-ymin)/(ymax-ymin) - 1.0
         xx, yy = np.meshgrid(xv, yv)
         if function == "legendre":
             return np.polynomial.legendre.legval2d(xx, yy, c)
