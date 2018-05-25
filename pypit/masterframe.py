@@ -68,29 +68,39 @@ class MasterFrame(object):
     def mdir(self):
         return self.settings['masters']['directory']
 
+    def _masters_load_chk(self):
+        # Logic on whether to load the masters frame
+        if (self.settings['masters']['reuse']) or (self.settings['masters']['force']):
+            return True
+
     def load_master_frame(self, force=False):
         """
+        Load a MasterFrame
+
+        Parameters
+        ----------
+
         Returns
         -------
         master_frame : ndarray or dict or None
         head0 : Header or None
         file_list : list or None
         """
-        if (self.settings['masters']['reuse']) or (self.settings['masters']['force']) or force:
+        if self._masters_load_chk() or force:
             return armasters.core_load_master_frame(self.frametype, self.setup, self.mdir, force=force)
         else:
             return None, None, None
 
-    def save_master(self, image, outfile=None, raw_files=None, steps=None):
+    def save_master(self, data, outfile=None, raw_files=None, steps=None):
         """
-        Save the stacked image as a MasterFrame FITS file
-          Primarily a wrapper to armasters.save_master
+        Save the input data as a MasterFrame file
+          Primarily a wrapper to armasters.core_save_master
 
         Intended for simple images only; more complex objects need their own method
 
         Parameters
         ----------
-        image : ndarray
+        data : ndarray or dict
         outfile : str (optional)
         raw_files : list (optional)
         steps : list (optional)
@@ -105,7 +115,7 @@ class MasterFrame(object):
         else:
             keywds = None
         # Finish
-        armasters.core_save_master(image, filename=outfile,
+        armasters.core_save_master(data, filename=outfile,
                                    raw_files=raw_files, keywds=keywds,
                                    frametype=self.frametype)
 

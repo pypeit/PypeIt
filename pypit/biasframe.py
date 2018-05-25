@@ -135,13 +135,13 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
     def master(self):
         """
-        Build the master frame and save to disk
-         OR
-        Load the master frame from disk
+        Load the master frame from disk, as the settings allow
+        or return the command
+        or return None
 
         Returns
         -------
-        msframe : ndarray or str
+        msframe : ndarray or str or None
 
         """
         # Generate a bias or dark image (or load a pre-made Master by PYPIT)?
@@ -149,11 +149,12 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
             # Load the MasterFrame if it exists and user requested one to load it
             msframe, header, raw_files = self.load_master_frame()
             if msframe is None:
+                return None
                 # Build
-                msgs.info("Preparing a master {0:s} frame".format(self.settings[self.frametype]['useframe']))
-                msframe = self.build_image()
+                #msgs.info("Preparing a master {0:s} frame".format(self.settings[self.frametype]['useframe']))
+                #msframe = self.build_image()
                 # Save to Masters
-                self.save_master(msframe, raw_files=self.file_list, steps=self.steps)
+                #self.save_master(msframe, raw_files=self.file_list, steps=self.steps)
             else:
                 # Prevent over-writing the master frame when it is time to save
                 self.settings['reduce']['masters']['loaded'].append(self.frametype)

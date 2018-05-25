@@ -86,7 +86,8 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
             # The following is somewhat kludgy and the current way we do settings may
             #   not touch all the options (not sure .update() would help)
             if 'combine' not in settings.keys():
-                self.settings['combine'] = settings[self.frametype]['combine']
+                if self.frametype in settings.keys():
+                    self.settings['combine'] = settings[self.frametype]['combine']
 
         # Child-specific Internals
         #    See ProcessImages for the rest
@@ -113,28 +114,22 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
 
     def master(self):
         """
-        Load the master frame from disk
-         OR
-        Build the master frame and save to disk
+        Load the master frame from disk, as settings allows
 
         Returns
         -------
-        msframe : ndarray
+        msframe : ndarray or None
           arc image
 
         """
         # Load the MasterFrame if it exists and user requested one to load it
         msframe, header, raw_files = self.load_master_frame()
-        # Build?
         if msframe is None:
-            msgs.info("Preparing a master {0:s} frame".format(self.frametype))
-            msframe = self.build_image()
-            # Save to Masters
-            self.save_master(msframe, raw_files=self.file_list, steps=self.steps)
+            return None
         else:
             # Prevent over-writing the master frame when it is time to save
             self.settings['reduce']['masters']['loaded'].append(self.frametype+self.setup)
-            # Put in
+            # Hold it
             self.stack = msframe
         # Return
         return msframe.copy()
