@@ -259,6 +259,17 @@ class WaveTilts(masterframe.MasterFrame):
                                    sedges=(self.lordloc[:,slit], self.rordloc[:,slit]))
 
     def save_master(self, outfile=None, use_tilts_as_final=False):
+        """
+
+        Parameters
+        ----------
+        outfile
+        use_tilts_as_final
+
+        Returns
+        -------
+
+        """
         if outfile is None:
             outfile = self.ms_name
         #
