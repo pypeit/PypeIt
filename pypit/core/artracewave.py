@@ -902,7 +902,6 @@ def prepare_polytilts(msarc, maskrows, tcoeff, all_tilts, tilt_settings, maskval
         #tmp = arutils.polyval2d_general(coeff, xtilt[30:50,0], ytilt[40,0:1],
         #                                minx=0., maxx=1., miny=0., maxy=1.,
         #                                function=tilt_settings['tilts']['poly_2Dfunc'])
-        #debugger.set_trace()
         polytilts /= (msarc.shape[0]-1) # JXP hack
         outpar = None
 
