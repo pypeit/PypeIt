@@ -273,6 +273,12 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                     # Settings kludges
                     tilt_settings = settings.argflag['trace']['slits'].copy()
                     tilt_settings['tilts']['function'] = settings.argflag['trace']['slits']['function']
+                    # Hacks for Kast blue
+                    tilt_settings['tilts']['trthrsh'] = 500.
+                    tilt_settings['tilts']['order'] = 3
+                    tilt_settings['tilts']['yorder'] = 3
+                    tilt_settings['tilts']['poly_2D'] = True
+                    tilt_settings['tilts']['poly_2Dfunc'] = 'legendre'
                     # First time tilts are derived for this arc frame --> derive the order tilts
                     tilts, satmask, outpar = artracewave.multislit_tilt(
                         msarc, Tslits.lcen, Tslits.rcen, Tslits.pixlocn, Tslits.pixcen,
@@ -281,7 +287,8 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
                     msgs.bug("This outpar is only the last slit!!  JXP doesn't think it matters for now")
-                    slf.SetFrame(slf._tiltpar, outpar, det)
+                    if outpar is not None:
+                        slf.SetFrame(slf._tiltpar, outpar, det)
                     armasters.save_masters(slf, det, mftype='tilts')
                 else:
                     slf.SetFrame(slf._tilts, tilts, det)
