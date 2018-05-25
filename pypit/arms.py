@@ -30,9 +30,9 @@ from pypit import traceimage
 from pypit import ardebug as debugger
 
 
-def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None):
+def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None):
     """
-    Automatic Reduction and Modeling of Long Slit Data
+    Automatic Reduction of Multislit Data
 
     Parameters
     ----------
