@@ -273,8 +273,8 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                     # Settings kludges
                     tilt_settings = settings.argflag['trace']['slits'].copy()
                     tilt_settings['tilts']['function'] = settings.argflag['trace']['slits']['function']
-                    # Hacks for Kast blue
-                    tilt_settings['tilts']['trthrsh'] = 500.
+                    # Hacks for Kast blue and now DEIMOS detector 7
+                    tilt_settings['tilts']['trthrsh'] = 400.
                     tilt_settings['tilts']['order'] = 3
                     tilt_settings['tilts']['yorder'] = 3
                     tilt_settings['tilts']['poly_2D'] = True

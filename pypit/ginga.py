@@ -174,7 +174,7 @@ def clear_canvas(cname):
     canvas.clear()
 
 
-def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0.):
+def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0., all_green=False, pstep=10):
     """  Display arc image and overlay the arcline tilt measurements
     Parameters
     ----------
@@ -210,11 +210,14 @@ def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0.):
         y = trcdict['ytfit'][idx] + yoff  # FOR IMAGING (Ginga offsets this value by 1 internally)
         gdy = y > 0.
         if np.sum(gdy) > 0:
-            points = list(zip(x[gdy].tolist(),y[gdy].tolist()))
+            points = list(zip(x[gdy][::pstep].tolist(),y[gdy][::pstep].tolist()))
             if trcdict['aduse'][idx]:
                 clr = 'green'  # Good line
             else:
-                clr = 'red'  # Bad line
+                if not all_green:
+                    clr = 'red'  # Bad line
+                else:
+                    clr = 'green'
             canvas.add('path', points, color=clr)
     #msgs.info("Check the Ginga viewer")
     # Show slit edges
@@ -222,7 +225,7 @@ def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0.):
         y = (np.arange(msarc.shape[0]) + yoff).tolist()
         # Left
         for edge in [0,1]:
-            points = list(zip(sedges[edge].tolist(),y))
+            points = list(zip(sedges[edge][::50].tolist(),y[::50]))
             canvas.add('path', points, color='cyan')
     # ALTERNATE for comparing methods
     if 'save_yt' in trcdict.keys():

@@ -155,7 +155,7 @@ class WaveTilts(masterframe.MasterFrame):
                                               self.polytilts, self.msarc)
 
     def _trace_tilts(self, slit):
-        #reload(artracewave)
+        reload(artracewave)
         # Determine the tilts for this slit
         trcdict = artracewave.trace_tilt(self.pixcen, self.rordloc, self.lordloc, self.det,
                                          self.msarc, slit, settings_spect, self.settings,
@@ -240,7 +240,7 @@ class WaveTilts(masterframe.MasterFrame):
             tmp = self.all_trcdict[slit].copy()
             tmp['xtfit'] = self.all_trcdict[slit]['xmodel']
             tmp['ytfit'] = self.all_trcdict[slit]['ymodel']
-            ginga.chk_arc_tilts(self.msarc, tmp, sedges=(self.lordloc[:,slit], self.rordloc[:,slit]))
+            ginga.chk_arc_tilts(self.msarc, tmp, sedges=(self.lordloc[:,slit], self.rordloc[:,slit]), all_green=True)
             msgs.info("Ignore the color scheme")
         elif attr == 'polytilt_img':
             if self.polytilts is not None:

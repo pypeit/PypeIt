@@ -805,7 +805,8 @@ def multislit_tilt(msarc, lordloc, rordloc, pixlocn, pixcen, slitpix, det,
     for slit in gdslits:
         # Determine the tilts for this slit
         trcdict = trace_tilt(pixcen, rordloc, lordloc, det, msarc, slit, settings_spect,
-                             tilt_settings, censpec=arccen[:, slit], nsmth=3, wv_calib=wv_calib)
+                             tilt_settings, censpec=arccen[:, slit], nsmth=3, wv_calib=wv_calib,
+                             trthrsh=tilt_settings['tilts']['trthrsh'])
         if trcdict is None:
             # No arc lines were available to determine the spectral tilt
             continue
