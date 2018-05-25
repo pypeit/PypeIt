@@ -45,7 +45,8 @@ def analyze_spec_lines(msarc, slit, trcdict, ordcen, tilt_settings, maskval=-999
     ztilt = np.ones((msarc.shape[1], arcdet.size)) * maskval
     mtilt = np.ones((msarc.shape[1], arcdet.size)) * maskval
     wtilt = np.ones((msarc.shape[1], arcdet.size)) * maskval
-    model2 = np.ones((msarc.shape[1], arcdet.size)) * maskval
+    xmodel = []
+    ymodel = []
 
     for j in range(arcdet.size):
         if not aduse[j]:
@@ -103,8 +104,12 @@ def analyze_spec_lines(msarc, slit, trcdict, ordcen, tilt_settings, maskval=-999
                                                           tilt_settings['tilts']['function'],
                                                           minv=0.0, maxv=msarc.shape[1] - 1.0)
         # JXP fussing
-        m2 = (msarc.shape[0] - 1.0) * arutils.func_val(mcoeff, xtfit, tilt_settings['tilts']['function'], minv=0.0, maxv=msarc.shape[1] - 1.0)
-        model2[xint:lastx, j] = m2
+        if tilt_settings['tilts']['method'].lower() == "spca":
+            m2 = (msarc.shape[0] - 1.0) * arutils.func_val(mcoeff, xtfit, tilt_settings['tilts']['function'], minv=0.0, maxv=msarc.shape[1] - 1.0)
+        else:
+            m2 = 2*model[sz] - (msarc.shape[0] - 1.0) * arutils.func_val(mcoeff, xtfit, tilt_settings['tilts']['function'], minv=0.0, maxv=msarc.shape[1] - 1.0)
+        xmodel.append(xtfit)
+        ymodel.append(m2)
         #
         idx = int(factr + 0.5)
         if (idx > 0) and (idx < msarc.shape[0]):
@@ -146,8 +151,12 @@ def analyze_spec_lines(msarc, slit, trcdict, ordcen, tilt_settings, maskval=-999
         mtilt[0:xint, j] = (glon / glod) * xlo + clo
         mtilt[lastx:, j] = (ghin / ghid) * xhi + chi
 
+    # Save model2
+    trcdict['xmodel'] = xmodel
+    trcdict['ymodel'] = ymodel
+    #
     all_tilts = (xtilt, ytilt, ztilt, mtilt, wtilt)
-    return badlines, maskrows, tcoeff, all_tilts, model2
+    return badlines, maskrows, tcoeff, all_tilts
 
 
 def new_tilts_image(tilts, lordloc, rordloc, pad, sz_y):
@@ -853,7 +862,7 @@ def prepare_polytilts(msarc, maskrows, tcoeff, all_tilts, tilt_settings, maskval
     ofit = tilt_settings['tilts']['params']
     lnpc = len(ofit) - 1
     # Only do a PCA if there are enough good lines
-    if np.sum(1.0 - extrap_row) > ofit[0] + 1:
+    if (np.sum(1.0 - extrap_row) > ofit[0] + 1):
         # Perform a PCA on the tilts
         msgs.info("Performing a PCA on the tilts")
         ordsnd = np.linspace(0.0, 1.0, msarc.shape[0])

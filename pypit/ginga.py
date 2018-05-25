@@ -202,7 +202,7 @@ def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0.):
     ch.load_np(name, msarc, 'fits', {})
     canvas.clear()
     # Show a trace
-    ntrc = len(trcdict['arcdet'])
+    ntrc = len(trcdict['xtfit'])
     for idx in range(ntrc):
         if trcdict['xtfit'][idx] is None:
             continue

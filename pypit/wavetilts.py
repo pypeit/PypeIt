@@ -7,6 +7,8 @@ import os
 
 from importlib import reload
 
+from astropy.io import fits
+
 from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import ararc
@@ -75,12 +77,18 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Attributes
         self.frametype = frametype
+        if self.lordloc is not None:
+            self.nslit = self.lordloc.shape[1]
+        else:
+            self.nslit = 0
 
         # Main outputs
+        self.final_tilts = None
 
         # Key Internals
-        self.all_trcdict = {}
+        self.all_trcdict = [None]*self.nslit
         self.polytilts = None
+        self.tilts = None
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, setup, self.settings)
@@ -107,8 +115,8 @@ class WaveTilts(masterframe.MasterFrame):
 
     def _analyze_tilt_traces(self, slit):
         reload(artracewave)
-        self.badlines, self.maskrows, self.tcoeff, self.all_tilts, self.model2, = artracewave.analyze_spec_lines(
-            self.msarc, slit, self.all_trcdict[str(slit)], self.pixcen, self.settings)
+        self.badlines, self.maskrows, self.tcoeff, self.all_tilts = artracewave.analyze_spec_lines(
+            self.msarc, slit, self.all_trcdict[slit], self.pixcen, self.settings)
         if self.badlines > 0:
             msgs.warn("There were {0:d} additional arc lines that should have been traced".format(self.badlines) +
                       msgs.newline() + "(perhaps lines were saturated?). Check the spectral tilt solution")
@@ -130,6 +138,18 @@ class WaveTilts(masterframe.MasterFrame):
         #
         return self.polytilts
 
+    def _tilts_spca(self, slit):
+        reload(artracewave)
+        self.tilts = artracewave.tilts_spca(self.msarc, self.polytilts, self.pixcen, slit,
+            self.all_trcdict[slit]['arcdet'], self.all_trcdict[slit]['aduse'],
+            self.rordloc, self.lordloc)
+
+    def _tilts_spline(self, slit):
+        reload(artracewave)
+        self.tilts = artracewave.tilts_spline(self.all_tilts,
+                                              self.all_trcdict[slit]['arcdet'], self.all_trcdict[slit]['aduse'],
+                                              self.polytilts, self.msarc)
+
     def _trace_tilts(self, slit):
         #reload(artracewave)
         # Determine the tilts for this slit
@@ -138,7 +158,7 @@ class WaveTilts(masterframe.MasterFrame):
                                          censpec=self.arccen[:, slit], nsmth=3,
                                               trthrsh=self.settings['tilts']['trthrsh'])
         # Load up
-        self.all_trcdict[str(slit)] = trcdict.copy()
+        self.all_trcdict[slit] = trcdict.copy()
         # Return
         return trcdict
 
@@ -159,7 +179,7 @@ class WaveTilts(masterframe.MasterFrame):
             return self.tilts, None, None
 
         # Extract the arc spectra for all slits
-        self.arccen, self.arc_maskslit = self._extract_arc()
+        self.arccen, self.arc_maskslit = self._extract_arcs()
 
         # Setup
         fitxy = [self.settings['order'], 1]
@@ -191,7 +211,7 @@ class WaveTilts(masterframe.MasterFrame):
         """
         reload(artracewave)
         self.tiltsplot, self.ztilto, self.xdat = artracewave.prep_tilts_qa(
-            self.msarc, self.all_tilts, self.tilts, self.all_trcdict[str(slit)]['arcdet'],
+            self.msarc, self.all_tilts, self.tilts, self.all_trcdict[slit]['arcdet'],
             self.pixcen, slit)
 
     def show(self, attr, slit=None, display='ginga'):
@@ -207,23 +227,25 @@ class WaveTilts(masterframe.MasterFrame):
         display : str (optional)
           'ginga' -- Display to an RC Ginga
         """
+        reload(ginga)
         if attr == 'sslit':
-            debugger.chk_arc_tilts(self.msarc, self.all_trcdict[str(slit)],
+            ginga.chk_arc_tilts(self.msarc, self.all_trcdict[slit],
                                    sedges=(self.lordloc[:,slit], self.rordloc[:,slit]))
             msgs.info("Green = ok line;  red=rejected")
-        elif attr == 'model2':
-            tmp = self.all_trcdict[str(slit)].copy()
-            tmp['xtfit'] = [np.arange(self.model2.shape[0])]*self.model2.shape[1]
-            tmp['ytfit'] = [self.model2[:,ii] for ii in range(self.model2.shape[1])]
-            debugger.chk_arc_tilts(self.msarc, tmp, sedges=(self.lordloc[:,slit], self.rordloc[:,slit]))
+        elif attr == 'model':
+            tmp = self.all_trcdict[slit].copy()
+            tmp['xtfit'] = self.all_trcdict[slit]['xmodel']
+            tmp['ytfit'] = self.all_trcdict[slit]['ymodel']
+            ginga.chk_arc_tilts(self.msarc, tmp, sedges=(self.lordloc[:,slit], self.rordloc[:,slit]))
+            msgs.info("Ignore the color scheme")
         elif attr == 'polytilt_img':
             if self.polytilts is not None:
-                debugger.show_image(self.polytilts)
-        elif attr == ['tilts','polytilts']:
+                ginga.show_image(self.polytilts)
+        elif attr in ['tilts','polytilts']:
             if slit is None:
                 msgs.warn("Need to input a slit")
                 return
-            tmp = self.all_trcdict[str(slit)].copy()
+            tmp = self.all_trcdict[slit].copy()
             if attr == 'tilts':
                 tilts = self.tilts
             else:
@@ -233,8 +255,45 @@ class WaveTilts(masterframe.MasterFrame):
                 self.pixcen, slit)
             tmp['xtfit'] = [self.xdat[:,ii] for ii in range(self.xdat.shape[1])]
             tmp['ytfit'] = [self.ztilto[:,ii] for ii in range(self.ztilto.shape[1])]
-            debugger.chk_arc_tilts(self.msarc, tmp,
+            ginga.chk_arc_tilts(self.msarc, tmp,
                                    sedges=(self.lordloc[:,slit], self.rordloc[:,slit]))
+
+    def save_master(self, outfile=None, use_tilts_as_final=False):
+        if outfile is None:
+            outfile = self.ms_name
+        #
+        if use_tilts_as_final:
+            msgs.warn("Using tilts as final.  Better know what you are doing!")
+            self.final_tilts = self.tilts
+        #
+        if self.final_tilts is None:
+            msgs.warn("final_tilts not yet created.  Make it!")
+            return
+        #
+        hdu0 = fits.PrimaryHDU(self.final_tilts)
+        hdul = [hdu0]
+
+        for slit in self.nslit:
+            # fweight and model
+            xtfits = self.all_trcdict[slit]['xtfit']  # For convenience
+            xszs = [len(xtfit) for xtfit in xtfits]
+            maxx = np.max(xszs)
+            fwm_img = np.zeros((maxx, len(xtfits), 4))
+            # Fill fweight and model
+            for kk, xtfit in enumerate(xtfits):
+                fwm_img[0:xszs[kk], kk, 0] = xtfit
+                fwm_img[0:xszs[kk], kk, 1] = self.all_trcdict[slit]['ytfit'][kk]
+                #
+                if self.all_trcdict[slit]['aduse'][kk]:
+                    fwm_img[0:xszs[kk], kk, 2] = self.all_trcdict[slit]['xmodel'][kk]
+                    fwm_img[0:xszs[kk], kk, 3] = self.all_trcdict[slit]['ymodel'][kk]
+            hdu1 = fits.ImageHDU(fwm_img)
+            hdu1.name = 'FWM{:03d}'.format(slit)
+            hdul.append(hdu1)
+            debugger.set_trace()
+        # Finish
+        hdulist = fits.HDUList(hdul)
+        hdulist.writeto(outfile, clobber=True)
 
 
     def __repr__(self):
