@@ -112,24 +112,4 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         #
         return self.stack
 
-    def master(self):
-        """
-        Load the master frame from disk, as settings allows
 
-        Returns
-        -------
-        msframe : ndarray or None
-          arc image
-
-        """
-        # Load the MasterFrame if it exists and user requested one to load it
-        msframe, header, raw_files = self.load_master_frame()
-        if msframe is None:
-            return None
-        else:
-            # Prevent over-writing the master frame when it is time to save
-            self.settings['reduce']['masters']['loaded'].append(self.frametype+self.setup)
-            # Hold it
-            self.stack = msframe
-        # Return
-        return msframe.copy()
