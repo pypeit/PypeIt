@@ -45,7 +45,7 @@ def main(args):
     from pypit import pyputils
     from pypit import armasters
     from pypit.arparse import get_dnum
-    from pypit.arspecobj import get_slitid
+    from pypit.core.artraceslits import get_slitid
 
     # List only?
     hdu = fits.open(args.file)
@@ -90,8 +90,8 @@ def main(args):
     Tslits = traceslits.TraceSlits.from_master_files(trc_file)
 
     # Get slit ids
-    stup = (Tslits.mstrace.shape, Tslits.lcen, Tslits.rcen)
-    slit_ids = [get_slitid(stup, None, ii)[0] for ii in range(Tslits.lcen.shape[1])]
+    #stup = (Tslits.mstrace.shape, Tslits.lcen, Tslits.rcen)
+    slit_ids = [get_slitid(Tslits.mstrace.shape, Tslits.lcen, Tslits.rcen, ii)[0] for ii in range(Tslits.lcen.shape[1])]
     pypit.ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
 
     # Object traces
