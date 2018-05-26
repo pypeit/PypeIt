@@ -278,11 +278,13 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                 tilt_settings['tilts']['function'] = settings.argflag['trace']['slits']['function']
                 tilt_settings['masters'] = settings.argflag['reduce']['masters']
                 tilt_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
+                settings_det = {}
+                settings_det[dnum] = settings.spect[dnum].copy()
                 # Instantiate
                 wTilt = wavetilts.WaveTilts(msarc, settings=tilt_settings, det=det, setup=setup,
                                             lordloc=Tslits.lcen, rordloc=Tslits.rcen,
                                             pixlocn=Tslits.pixlocn, pixcen=Tslits.pixcen,
-                                            slitpix=Tslits.slitpix)
+                                            slitpix=Tslits.slitpix, settings_det=settings_det)
                 # Master
                 mstilts = wTilt.master()
                 if mstilts is None:

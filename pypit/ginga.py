@@ -174,7 +174,8 @@ def clear_canvas(cname):
     canvas.clear()
 
 
-def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0., all_green=False, pstep=10):
+def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0., all_green=False, pstep=10,
+                  cname='ArcTilts'):
     """  Display arc image and overlay the arcline tilt measurements
     Parameters
     ----------
@@ -193,7 +194,6 @@ def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0., all_green=False
 
     """
     # Connect
-    cname = 'ArcTilts'
     viewer = connect_to_ginga()
     ch = viewer.channel(cname)
     canvas = viewer.canvas(ch._chname)
