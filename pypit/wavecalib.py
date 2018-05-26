@@ -187,27 +187,6 @@ class WaveCalib(masterframe.MasterFrame):
         self.maskslits = mask
         return self.maskslits
 
-    def master(self, shape):
-        """ Main driver for wavelength calibration
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        self.wv_calib : dict or None
-        self.maskslits : dict or None
-        """
-        # Attempt to load the Master Frame
-        self.wv_calib, _, _ = self.load_master_frame()
-        if self.wv_calib is None:
-            return None, None
-        # Mask
-        self.maskslits = self._make_maskslits(shape)
-        # Finish
-        return self.wv_calib, self.maskslits
-
-
     def run(self, lordloc, rordloc, pixlocn, nonlinear=None, skip_QA=False):
         """
         Main driver for wavelength calibration
@@ -222,6 +201,8 @@ class WaveCalib(masterframe.MasterFrame):
 
         Returns
         -------
+        self.wv_calib
+        self.maskslits
 
         """
         ###############

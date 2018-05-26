@@ -248,13 +248,15 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                 Wavecalib = wavecalib.WaveCalib(msarc, spectrograph=settings.argflag['run']['spectrograph'],
                                                 settings=tmp, det=det, setup=setup, fitstbl=fitstbl, sci_ID=sci_ID)
                 # Load from disk (MasterFrame)?
-                wv_calib, wv_maskslits = Wavecalib.master(Tslits.lcen.shape[1])#, Tslits.rcen, pixlocn, nonlinear=nonlinear)
+                wv_calib = Wavecalib.master()
                 # Build?
                 if wv_calib is None:
                     nonlinear = settings.spect[settings.get_dnum(det)]['saturation'] * settings.spect[settings.get_dnum(det)]['nonlinear']
-                    wv_calib, wv_maskslits = Wavecalib.run(Tslits.lcen, Tslits.rcen, pixlocn, nonlinear=nonlinear)
+                    wv_calib, _ = Wavecalib.run(Tslits.lcen, Tslits.rcen, pixlocn, nonlinear=nonlinear)
                     # Save to Masters
                     Wavecalib.save_master(Wavecalib.wv_calib)
+                # Mask
+                wv_maskslits = Wavecalib._make_maskslits(Tslits.lcen.shape[1])
 
                 # Save in calib
                 calib_dict[setup]['wavecalib'] = wv_calib
