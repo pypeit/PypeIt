@@ -20,7 +20,7 @@ from pypit import arsciexp
 from pypit.core import arsetup
 from pypit import arpixels
 from pypit.core import arsort
-from pypit.core import artracewave
+from pypit import wavetilts
 from pypit import artrace
 from pypit import arcimage
 from pypit import bpmimage
@@ -267,6 +267,20 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
 
             ###############
             # Derive the spectral tilt
+            if 'tilts' in calib_dict[setup].keys():
+                mstilts = calib_dict[setup]['tilts']
+            else:
+                # Settings kludges
+                tilt_settings = settings.argflag['trace']['slits'].copy()
+                tilt_settings['tilts']['function'] = settings.argflag['trace']['slits']['function']
+                # Instantiate
+                wTilt = wavetilts.WaveTilts(msarc, settings=tilt_settings, det=det, setup=setup,
+                                            lordloc=Tslits.lcen, rordloc=Tslits.rcen,
+                                            pixlocn=Tslits.pixlocn, pixcen=Tslits.pixcen)
+                mstilts = wTilt.master()
+                if mstilts is None:
+                    pass
+            '''
             if slf._tilts[det-1] is None:
                 tilts = armasters.load_master_frame(slf, "tilts")
                 if tilts is None:
@@ -292,6 +306,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                     armasters.save_masters(slf, det, mftype='tilts')
                 else:
                     slf.SetFrame(slf._tilts, tilts, det)
+            '''
 
             ###############
             # Prepare the pixel flat field frame

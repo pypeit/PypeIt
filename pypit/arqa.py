@@ -42,9 +42,11 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None):
     elif method == 'slit_profile_qa':
         outfile = 'QA/PNGs/Slit_Profile_{:s}_'.format(root)
     elif method == 'arc_fit_qa':
-        outfile = 'QA/PNGs/Arc_1dfit_{:s}_S{:04d}_.png'.format(root, slit)
+        outfile = 'QA/PNGs/Arc_1dfit_{:s}_S{:04d}.png'.format(root, slit)
     elif method == 'plot_orderfits_Arc':  # This is root for multiple PNGs
-        outfile = 'QA/PNGs/Arc_tilts_{:s}_S{:04d}_'.format(root, slit)
+        outfile = 'QA/PNGs/Arc_lines_{:s}_S{:04d}_'.format(root, slit)
+    elif method == 'plot_tiltres':
+        outfile = 'QA/PNGs/Arc_tilts_{:s}_S{:04d}.png'.format(root, slit)
     elif method == 'pca_plot':  # This is root for multiple PNGs
         outfile = 'QA/PNGs/{:s}_pca_{:s}_'.format(prefix, root)
     elif method == 'pca_arctilt':  # This is root for multiple PNGs

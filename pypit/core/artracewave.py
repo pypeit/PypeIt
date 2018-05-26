@@ -42,9 +42,10 @@ def analyze_spec_lines(msarc, slit, trcdict, ordcen, tilt_settings, maskval=-999
     tcoeff = np.ones((tilt_settings['tilts']['order'] + 1, msarc.shape[0]))
     xtilt = np.ones((msarc.shape[1], arcdet.size)) * maskval
     ytilt = np.ones((msarc.shape[1], arcdet.size)) * maskval
-    ztilt = np.ones((msarc.shape[1], arcdet.size)) * maskval
     mtilt = np.ones((msarc.shape[1], arcdet.size)) * maskval
     wtilt = np.ones((msarc.shape[1], arcdet.size)) * maskval
+
+    # For displaying later
     xmodel = []
     ymodel = []
 
@@ -66,8 +67,6 @@ def analyze_spec_lines(msarc, slit, trcdict, ordcen, tilt_settings, maskval=-999
             wmask = wmask[np.where(wmask < (xtfit.size+dx))]
 
         # Perform a scanning polynomial fit to the tilts
-        # model = arcyutils.polyfit_scan_intext(xtfit, ytfit, np.ones(ytfit.size, dtype=np.float), mtfit,
-        #                                       2, sz/6, 3, maskval)
         wmfit = np.where(ytfit != maskval)
         if wmfit[0].size > tilt_settings['tilts']['order'] + 1:
             cmfit = arutils.func_fit(xtfit[wmfit], ytfit[wmfit],
@@ -81,6 +80,7 @@ def analyze_spec_lines(msarc, slit, trcdict, ordcen, tilt_settings, maskval=-999
             badlines += 1
             continue
 
+        # Can this actually happen??
         if maskval in model:
             # Model contains masked values
             aduse[j] = False
@@ -88,84 +88,31 @@ def analyze_spec_lines(msarc, slit, trcdict, ordcen, tilt_settings, maskval=-999
             continue
 
         # Perform a robust polynomial fit to the traces
-        if tilt_settings['tilts']['method'].lower() == "spca":
-            #yfit = ytfit[wmask] / (msarc.shape[0] - 1.0)
-            yfit = ytfit[wmask]
-        else:
-            yfit = (2.0 * model[sz] - ytfit[wmask]) / (msarc.shape[0] - 1.0)
-        wmsk, mcoeff = arutils.robust_polyfit(xtfit[wmask], yfit,
+        wmsk, mcoeff = arutils.robust_polyfit(xtfit[wmask], ytfit[wmask],
                                               tilt_settings['tilts']['order'],
                                               function=tilt_settings['tilts']['function'],
                                               sigma=2.0, minv=0.0, maxv=msarc.shape[1] - 1.0)
-        # Update the mask
-        wmask = wmask[np.where(wmsk == 0)]
 
-        # Save the tilt angle, and unmask the row
-        factr = (msarc.shape[0] - 1.0) * arutils.func_val(mcoeff, ordcen[arcdet[j], slit],
-                                                          tilt_settings['tilts']['function'],
-                                                          minv=0.0, maxv=msarc.shape[1] - 1.0)
-        # JXP fussing
-        if tilt_settings['tilts']['method'].lower() == "spca":
-            #m2 = (msarc.shape[0] - 1.0) * arutils.func_val(
-            #    mcoeff, xtfit, tilt_settings['tilts']['function'], minv=0.0, maxv=msarc.shape[1] - 1.0)
-            m2 = arutils.func_val(
-                mcoeff, xtfit, tilt_settings['tilts']['function'], minv=0.0, maxv=msarc.shape[1] - 1.0)
-        else:
-            m2 = 2*model[sz] - (msarc.shape[0] - 1.0) * arutils.func_val(
-                mcoeff, xtfit, tilt_settings['tilts']['function'], minv=0.0, maxv=msarc.shape[1] - 1.0)
+        # Save model
+        model = arutils.func_val(mcoeff, xtfit, tilt_settings['tilts']['function'],
+                                 minv=0.0, maxv=msarc.shape[1] - 1.0)
         xmodel.append(xtfit)
-        ymodel.append(m2)
-        #debugger.set_trace()
-        #
-        idx = int(factr + 0.5)
-        if (idx > 0) and (idx < msarc.shape[0]):
-            maskrows[idx] = 0
-            tcoeff[:, idx] = mcoeff.copy()
-        # Restrict to good IDs?  Dealing with ghosts..
-        if tilt_settings['tilts']['idsonly']:
-            if not aduse[j]:
-                maskrows[idx] = 1
+        ymodel.append(model)
 
+        # Save
         xtilt[xint:lastx, j] = xtfit / (msarc.shape[1] - 1.0)
-        #ytilt[xint:lastx, j] = arcdet[j] / (msarc.shape[0] - 1.0)
-        # TODO -- Should probably be ordcen[arcdet[j],slit] not sz
-        ytilt[xint:lastx, j] = model[sz] #/ (msarc.shape[0] - 1.0)
-        ztilt[xint:lastx, j] = ytfit / (msarc.shape[0] - 1.0)
-        if tilt_settings['tilts']['method'].lower() in ["spline", "spca"]:
-            #mtilt[xint:lastx, j] = model / (msarc.shape[0] - 1.0)
-            mtilt[xint:lastx, j] = model
-        elif tilt_settings['tilts']['method'].lower() == "interp":
-            mtilt[xint:lastx, j] = (2.0 * model[sz] - model) / (msarc.shape[0] - 1.0)
-        else:
-            mtilt[xint:lastx, j] = (2.0 * model[sz] - model) / (msarc.shape[0] - 1.0)
-        wbad = np.where(ytfit == maskval)[0]
-        ztilt[xint + wbad, j] = maskval
-        if wmask.size != 0:
-            sigg = max(1.4826 * np.median(np.abs(ytfit - model)[wmask]) / np.sqrt(2.0), 1.0)
-            wtilt[xint:lastx, j] = 1.0 / sigg
-        # Extrapolate off the slit to the edges of the chip
-        nfit = 6  # Number of pixels to fit a linear function to at the end of each trace
-        xlof, xhif = np.arange(xint, xint + nfit), np.arange(lastx - nfit, lastx)
-        xlo, xhi = np.arange(xint), np.arange(lastx, msarc.shape[1])
-        glon = np.mean(xlof * mtilt[xint:xint + nfit, j]) - np.mean(xlof) * np.mean(mtilt[xint:xint + nfit, j])
-        glod = np.mean(xlof ** 2) - np.mean(xlof) ** 2
-        clo = np.mean(mtilt[xint:xint + nfit, j]) - (glon / glod) * np.mean(xlof)
-        yhi = mtilt[lastx - nfit:lastx, j]
-        try:
-            ghin = np.mean(xhif * yhi) - np.mean(xhif) * np.mean(yhi)
-        except:
-            debugger.set_trace()
-        ghid = np.mean(xhif ** 2) - np.mean(xhif) ** 2
-        chi = np.mean(yhi) - (ghin / ghid) * np.mean(xhif)
-        mtilt[0:xint, j] = (glon / glod) * xlo + clo
-        mtilt[lastx:, j] = (ghin / ghid) * xhi + chi
+        # These should be un-normalized for now
+        ytilt[xint:lastx, j] = model[sz]
+        mtilt[xint:lastx, j] = model
 
-    # Save model2
+    # Save
     trcdict['xmodel'] = xmodel
     trcdict['ymodel'] = ymodel
-    #
-    all_tilts = (xtilt, ytilt, ztilt, mtilt, wtilt)
-    return badlines, maskrows, tcoeff, all_tilts
+    trcdict["aduse"] = aduse
+
+    # Return
+    all_tilts = (xtilt, ytilt, mtilt, wtilt)
+    return badlines, all_tilts
 
 
 def new_tilts_image(tilts, lordloc, rordloc, pad, sz_y):
@@ -827,7 +774,7 @@ def multislit_tilt(msarc, lordloc, rordloc, pixlocn, pixcen, slitpix, det,
                       msgs.newline() + "(perhaps lines were saturated?). Check the spectral tilt solution")
 
         # Prepare polytilts
-        polytilts, outpar = prepare_polytilts(msarc, maskrows, tcoeff, all_tilts, tilt_settings, setup=setup)
+        polytilts, outpar = prepare_polytilts(msarc, slit, maskrows, tcoeff, all_tilts, tilt_settings, setup=setup)
 
         '''
         if tilt_settings['tilts']['method'].lower() == "interp":
@@ -856,87 +803,40 @@ def multislit_tilt(msarc, lordloc, rordloc, pixlocn, pixcen, slitpix, det,
     return final_tilts, satmask, outpar
 
 
-def prepare_polytilts(msarc, maskrows, tcoeff, all_tilts, tilt_settings, maskval=-999999.9,
-                      setup=None, skip_QA=False, show_QA=False):
+def fit_tilts(msarc, slit, all_tilts, tilt_settings, maskval=-999999.9, setup=None, show_QA=False):
     # Unpack
-    xtilt, ytilt, ztilt, mtilt, wtilt = all_tilts
+    xtilt, ytilt, mtilt, wtilt = all_tilts
     #
-    fitxy = [tilt_settings['tilts']['order'], tilt_settings['tilts']['yorder']]
-    # Masking
-    maskrw = np.where(maskrows == 1)[0]
-    maskrw.sort()
-    extrap_row = maskrows.copy()
-    xv = np.arange(msarc.shape[1])
+    fitxy = [tilt_settings['tilts']['order']+1, tilt_settings['tilts']['yorder']]
 
-    # Tilt values
-    tiltval = arutils.func_val(tcoeff, xv, tilt_settings['tilts']['function'],
-                               minv=0.0, maxv=msarc.shape[1] - 1.0).T
-    msgs.work("May need to do a check here to make sure ofit is reasonable")
-    ofit = tilt_settings['tilts']['params']
-    lnpc = len(ofit) - 1
-    # Only do a PCA if there are enough good lines
-    if (np.sum(1.0 - extrap_row) > ofit[0] + 1) and (not tilt_settings['tilts']['poly_2D']):
-        # Perform a PCA on the tilts
-        msgs.info("Performing a PCA on the tilts")
-        ordsnd = np.linspace(0.0, 1.0, msarc.shape[0])
-        xcen = xv[:, np.newaxis].repeat(msarc.shape[0], axis=1)
-        fitted, outpar = arpca.basis(xcen, tiltval, tcoeff, lnpc, ofit, weights=None,
-                                     x0in=ordsnd, mask=maskrw, skipx0=False,
-                                     function=tilt_settings['tilts']['function'])
-        if not skip_QA:
-            arpca.pca_plot(setup, outpar, ofit, 'Arc', pcadesc="Spectral Tilt PCA", addOne=False,
-                           show=show_QA)
-        # Extrapolate the remaining orders requested
-        orders = np.linspace(0.0, 1.0, msarc.shape[0])
-        extrap_tilt, outpar = arpca.extrapolate(outpar, orders, function=tilt_settings['tilts']['function'])
-        polytilts = extrap_tilt.T
-    else:
-        # Fit the model with a 2D polynomial
-        msgs.warn("Could not perform a PCA when tracing the spectral tilt" + msgs.newline() +
-                  "Not enough well-traced arc lines")
-        msgs.info("Fitting tilts with a low order, 2D {:s}".format(tilt_settings['tilts']['poly_2Dfunc']))
-        wgd = np.where(xtilt != maskval)
-        #debugger.set_trace()
-        coeff = arutils.polyfit2d_general(xtilt[wgd], ytilt[wgd], mtilt[wgd], fitxy,
+    # Fit the inverted model with a 2D polynomial
+    msgs.info("Fitting tilts with a low order, 2D {:s}".format(tilt_settings['tilts']['poly_2Dfunc']))
+    wgd = np.where(xtilt != maskval)
+    # Invert
+    coeff2 = arutils.polyfit2d_general(xtilt[wgd], mtilt[wgd]/(msarc.shape[0]-1),
+                                       mtilt[wgd]-ytilt[wgd], fitxy,
+                                              minx=0., maxx=1., miny=0., maxy=1.,
+                                              function=tilt_settings['tilts']['poly_2Dfunc'])
+    polytilts = arutils.polyval2d_general(coeff2, np.linspace(0.0, 1.0, msarc.shape[1]),
+                                          np.linspace(0.0, 1.0, msarc.shape[0]),
                                           minx=0., maxx=1., miny=0., maxy=1.,
                                           function=tilt_settings['tilts']['poly_2Dfunc'])
-        polytilts = arutils.polyval2d_general(coeff, np.linspace(0.0, 1.0, msarc.shape[1]),
-                                              np.linspace(0.0, 1.0, msarc.shape[0]),
-                                              minx=0., maxx=1., miny=0., maxy=1.,
-                                              function=tilt_settings['tilts']['poly_2Dfunc'])
-        tmp = arutils.polyval2d_general(coeff, xtilt[30:50,0], ytilt[40,0:1],
-                                        minx=0., maxx=1., miny=0., maxy=1.,
-                                        function=tilt_settings['tilts']['poly_2Dfunc']) + 40.
-        # Residuals
-        xv = arutils.scale_minmax(xtilt[wgd], minx=0., maxx=1)
-        yv = arutils.scale_minmax(ytilt[wgd], minx=0., maxx=1)
-        mfit = np.polynomial.legendre.legval2d(xv, yv, coeff)
-        res = mtilt[wgd]-mfit
-        msgs.info("RMS: {}".format(np.std(res)))
-        pres = (mtilt[wgd]-mfit)/mtilt[wgd]
-        polytilts /= (msarc.shape[0]-1) # JXP hack
+    # Residuals
+    xv2 = arutils.scale_minmax(xtilt[wgd], minx=0., maxx=1)
+    yv2 = arutils.scale_minmax(mtilt[wgd]/(msarc.shape[0]-1), minx=0., maxx=1)
+    yfit = np.polynomial.legendre.legval2d(xv2, yv2, coeff2)
+    res2 = (mtilt[wgd]-ytilt[wgd]) - yfit
+    msgs.info("RMS (pixels): {}".format(np.std(res2)))
 
-        # Invert
-        # TODO -- put fitxy back
-        coeff2 = arutils.polyfit2d_general(xtilt[wgd], mtilt[wgd]/(msarc.shape[0]-1),
-                                           mtilt[wgd]-ytilt[wgd],
-                                           [4,4],
-                                                  minx=0., maxx=1., miny=0., maxy=1.,
-                                                  function=tilt_settings['tilts']['poly_2Dfunc'])
-        polytilts = arutils.polyval2d_general(coeff2, np.linspace(0.0, 1.0, msarc.shape[1]),
-                                              np.linspace(0.0, 1.0, msarc.shape[0]),
-                                              minx=0., maxx=1., miny=0., maxy=1.,
-                                              function=tilt_settings['tilts']['poly_2Dfunc'])
-        # Residuals
-        xv2 = arutils.scale_minmax(xtilt[wgd], minx=0., maxx=1)
-        yv2 = arutils.scale_minmax(mtilt[wgd]/(msarc.shape[0]-1), minx=0., maxx=1)
-        yfit = np.polynomial.legendre.legval2d(xv2, yv2, coeff2)
-        res2 = (mtilt[wgd]-ytilt[wgd]) - yfit
-        msgs.info("RMS: {}".format(np.std(res2)))
-        debugger.plot1d(mtilt[wgd], res2, scatter=True)
-        #debugger.plot1d(xtilt[wgd], res2, scatter=True)
-        outpar = None
+    # QA
+    plot_tiltres(setup, mtilt[wgd], ytilt[wgd], yfit, slit=slit, show_QA=show_QA)
 
+    # y normalization and subtract
+    ynorm = np.outer(np.linspace(0., 1., msarc.shape[0]), np.ones(msarc.shape[1]))
+    polytilts = ynorm - polytilts/(msarc.shape[0]-1)
+
+    # Return
+    outpar = None
     return polytilts, outpar
 
 
@@ -1287,5 +1187,50 @@ def plot_orderfits(setup, model, ydata, xdata=None, xmodl=None, textplt="Slit",
 
     return
 
+
+
+def plot_tiltres(setup, mtilt, ytilt, yfit, slit=None, outfile=None, show_QA=False):
+    """ Generate a QA plot of the residuals for the fit to the tilts
+    One slit at a time
+
+    Parameters
+    ----------
+    """
+
+    plt.rcdefaults()
+    plt.rcParams['font.family']= 'times new roman'
+
+    # Outfil
+    method = inspect.stack()[0][3]
+    if (outfile is None) and (not show_QA):
+        outfile = arqa.set_qa_filename(setup, method, slit=slit)
+
+    # Setup
+    plt.figure(figsize=(8, 4.0))
+    plt.clf()
+    ax = plt.gca()
+
+    # Scatter plot
+    res = (mtilt-ytilt) - yfit
+    ax.scatter(mtilt, res)
+
+    rms = np.std(res)
+    ax.text(0.90, 0.90, 'Slit {:d}:  RMS (pix) = {:0.5f}'.format(slit, rms),
+            transform=ax.transAxes, size='large', ha='right', color='black')
+    # Label
+    ax.set_xlabel('Row')
+    ax.set_ylabel('Residual (pix)')
+
+    # Finish
+    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+    if show_QA:
+        plt.show()
+    else:
+        plt.savefig(outfile, dpi=400)
+    plt.close()
+
+    plt.rcdefaults()
+
+    return
 
 

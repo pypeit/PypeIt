@@ -2090,6 +2090,44 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
+    def trace_slits_tilts_yorder(self, v):
+        """ What is the order of the 2D function fitting the tilt shapes in the spectral dimension
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_int(v)
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        self.update(v)
+
+    def trace_slits_tilts_trthrsh(self, v):
+        """ What is the theshold for including an arc line in the tilt analysis
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_float(v)
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        self.update(v)
+
+    def trace_slits_tilts_func2D(self, v):
+        """ What is the type of the function used for the 2D fitting?
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        self.update(v)
+
     def trace_useframe(self, v):
         """ What frame should be used to trace the slit edges, based on the
         average of the left/right edges.

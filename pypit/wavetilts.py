@@ -32,11 +32,10 @@ default_settings = dict(tilts={'idsonly': False,
                                'trthrsh': 1000.,
                                'order': 2,
                                'function': 'legendre',       # Function for arc line fits
-                               'yorder': 2,
-                               'poly_2D': False,           # Use 2D polynomial for polytilts
-                               'poly_2Dfunc': 'polynomial',  # Function for 2D fit
-                               'method': 'spca',
-                               'params': [1,1,0],
+                               'yorder': 4,
+                               'func2D': 'legendre',  # Function for 2D fit
+                               'method': 'spca',  # defunct
+                               'params': [1,1,0],  # defunct
                                }
                         )
 settings_spect = dict(det01={'saturation': 60000., 'nonlinear': 0.9})
@@ -84,6 +83,7 @@ class WaveTilts(masterframe.MasterFrame):
             self.nslit = self.lordloc.shape[1]
         else:
             self.nslit = 0
+        self.steps = []
 
         # Main outputs
         self.final_tilts = None
@@ -118,11 +118,13 @@ class WaveTilts(masterframe.MasterFrame):
 
     def _analyze_tilt_traces(self, slit):
         reload(artracewave)
-        self.badlines, self.maskrows, self.tcoeff, self.all_tilts = artracewave.analyze_spec_lines(
+        self.badlines, self.all_tilts = artracewave.analyze_spec_lines(
             self.msarc, slit, self.all_trcdict[slit], self.pixcen, self.settings)
         if self.badlines > 0:
             msgs.warn("There were {0:d} additional arc lines that should have been traced".format(self.badlines) +
                       msgs.newline() + "(perhaps lines were saturated?). Check the spectral tilt solution")
+        # Step
+        self.steps.append(inspect.stack()[0][3])
         return self.badlines
 
     def _extract_arcs(self):
@@ -131,18 +133,20 @@ class WaveTilts(masterframe.MasterFrame):
                                                               self.pixlocn, self.msarc, self.det,
                                                               gen_satmask=False)
         self.satmask = np.zeros_like(self.msarc)
+        # Step
+        self.steps.append(inspect.stack()[0][3])
         return self.arccen, self.arc_maskslit
 
-    def _prepare_polytilts(self, skip_QA=False, show_QA=False):
+    def _fit_tilts(self, slit, show_QA=False):
         reload(artracewave)
         reload(arutils)
-        #self.polytilts, self.outpar = artracewave.prepare_polytilts(
-        self.tilts, self.outpar = artracewave.prepare_polytilts(
-            self.msarc, self.maskrows, self.tcoeff, self.all_tilts, self.settings,
-            setup=self.setup, skip_QA=skip_QA, show_QA=show_QA)
-        #
-        return self.polytilts
+        self.tilts, self.outpar = artracewave.fit_tilts(self.msarc, slit, self.all_tilts,
+                                                        self.settings, setup=self.setup, show_QA=show_QA)
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        return self.tilts
 
+    '''
     def _tilts_jxp_spca(self, slit):
         reload(artracewave)
         self.tilts = artracewave.tilts_spca(self.msarc, self.polytilts, self.pixcen, slit,
@@ -165,6 +169,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.tilts = artracewave.tilts_spline(self.all_tilts,
                                               self.all_trcdict[slit]['arcdet'], self.all_trcdict[slit]['aduse'],
                                               self.polytilts, self.msarc)
+    '''
 
     def _trace_tilts(self, slit):
         reload(artracewave)
@@ -175,6 +180,8 @@ class WaveTilts(masterframe.MasterFrame):
                                               trthrsh=self.settings['tilts']['trthrsh'])
         # Load up
         self.all_trcdict[slit] = trcdict.copy()
+        # Step
+        self.steps.append(inspect.stack()[0][3])
         # Return
         return trcdict
 
@@ -253,7 +260,6 @@ class WaveTilts(masterframe.MasterFrame):
             tmp['xtfit'] = self.all_trcdict[slit]['xmodel']
             tmp['ytfit'] = self.all_trcdict[slit]['ymodel']
             ginga.chk_arc_tilts(self.msarc, tmp, sedges=(self.lordloc[:,slit], self.rordloc[:,slit]), all_green=True)
-            msgs.info("Ignore the color scheme")
         elif attr == 'polytilt_img':
             if self.polytilts is not None:
                 ginga.show_image(self.polytilts)

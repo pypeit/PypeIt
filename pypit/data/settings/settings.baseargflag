@@ -102,6 +102,9 @@ trace slits tilts idsonly False       # Use only the arc lines that have an iden
 trace slits tilts method      spline        # What method should be used to trace the tilt of the slit along an order (PCA, spca, spline, interp, perp, zero)
 trace slits tilts params    [1,1,0]       # What order polynomials should be used to fit the tilt principle components
 trace slits tilts order  1             # What is the order of the function to be used for tilts in a given order
+trace slits tilts trthrsh  1000.       # Threshold for including an arc line in tilt analysis
+trace slits tilts yorder  4            # Order of 2D-fit in spectral dimension
+trace slits tilts func2D  legendre     # Function for 2D fit
 
 # TRACE OBJECT (parameters for finding + tracing object flux)
 trace object order 2                # What is the order of the polynomial function to be used to fit the object trace in each slit
