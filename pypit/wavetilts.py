@@ -185,7 +185,7 @@ class WaveTilts(masterframe.MasterFrame):
         # Return
         return trcdict
 
-    def run(self, maskslits):
+    def run(self, maskslits=None):
         """ Main driver for tracing arc lines
 
         Parameters
@@ -194,7 +194,6 @@ class WaveTilts(masterframe.MasterFrame):
         Returns
         -------
         """
-        #if settings.argflag['trace']['slits']['tilts']['method'].lower() == "zero":
         # If the user sets no tilts, return here
         if self.settings['method'].lower() == "zero":
             # Assuming there is no spectral tilt

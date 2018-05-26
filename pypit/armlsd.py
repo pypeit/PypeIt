@@ -277,9 +277,11 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                 wTilt = wavetilts.WaveTilts(msarc, settings=tilt_settings, det=det, setup=setup,
                                             lordloc=Tslits.lcen, rordloc=Tslits.rcen,
                                             pixlocn=Tslits.pixlocn, pixcen=Tslits.pixcen)
-                mstilts = wTilt.master()
+                # TODO - Need to pull from wvcalib
+                #mstilts = wTilt.master()
+                mstilts = None
                 if mstilts is None:
-                    pass
+                    mstilts = wTilt.run()
             '''
             if slf._tilts[det-1] is None:
                 tilts = armasters.load_master_frame(slf, "tilts")
