@@ -26,11 +26,8 @@ except ImportError:
     pass
 
 
-def analyze_spec_lines(msarc, slit, trcdict, ordcen, tilt_settings, maskval=-999999.9):
+def analyze_lines(msarc, trcdict, slit, pixcen, tilt_settings, maskval=-999999.9):
     # Analyze each spectral line
-    # settings.argflag['trace']['slits']['function']
-    # tilt_settings['method']
-    # tilt_settings['order']
     aduse = trcdict["aduse"]
     arcdet = trcdict["arcdet"]
     xtfits = trcdict["xtfit"]
@@ -38,8 +35,6 @@ def analyze_spec_lines(msarc, slit, trcdict, ordcen, tilt_settings, maskval=-999
     wmasks = trcdict["wmask"]
     badlines = trcdict["badlines"]
 
-    maskrows = np.ones(msarc.shape[0], dtype=np.int)
-    tcoeff = np.ones((tilt_settings['tilts']['order'] + 1, msarc.shape[0]))
     xtilt = np.ones((msarc.shape[1], arcdet.size)) * maskval
     ytilt = np.ones((msarc.shape[1], arcdet.size)) * maskval
     mtilt = np.ones((msarc.shape[1], arcdet.size)) * maskval
@@ -102,7 +97,8 @@ def analyze_spec_lines(msarc, slit, trcdict, ordcen, tilt_settings, maskval=-999
         # Save
         xtilt[xint:lastx, j] = xtfit / (msarc.shape[1] - 1.0)
         # These should be un-normalized for now
-        ytilt[xint:lastx, j] = model[sz]
+        pcen = pixcen[arcdet[j], slit]
+        ytilt[xint:lastx, j] = model[pcen-int(xtfit[wmask[0]])]
         mtilt[xint:lastx, j] = model
 
     # Save
@@ -810,17 +806,17 @@ def fit_tilts(msarc, slit, all_tilts, tilt_settings, maskval=-999999.9, setup=No
     fitxy = [tilt_settings['tilts']['order']+1, tilt_settings['tilts']['yorder']]
 
     # Fit the inverted model with a 2D polynomial
-    msgs.info("Fitting tilts with a low order, 2D {:s}".format(tilt_settings['tilts']['poly_2Dfunc']))
+    msgs.info("Fitting tilts with a low order, 2D {:s}".format(tilt_settings['tilts']['func2D']))
     wgd = np.where(xtilt != maskval)
     # Invert
     coeff2 = arutils.polyfit2d_general(xtilt[wgd], mtilt[wgd]/(msarc.shape[0]-1),
                                        mtilt[wgd]-ytilt[wgd], fitxy,
                                               minx=0., maxx=1., miny=0., maxy=1.,
-                                              function=tilt_settings['tilts']['poly_2Dfunc'])
+                                              function=tilt_settings['tilts']['func2D'])
     polytilts = arutils.polyval2d_general(coeff2, np.linspace(0.0, 1.0, msarc.shape[1]),
                                           np.linspace(0.0, 1.0, msarc.shape[0]),
                                           minx=0., maxx=1., miny=0., maxy=1.,
-                                          function=tilt_settings['tilts']['poly_2Dfunc'])
+                                          function=tilt_settings['tilts']['func2D'])
     # Residuals
     xv2 = arutils.scale_minmax(xtilt[wgd], minx=0., maxx=1)
     yv2 = arutils.scale_minmax(mtilt[wgd]/(msarc.shape[0]-1), minx=0., maxx=1)

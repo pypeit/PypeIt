@@ -1784,7 +1784,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
 '''
 
 
-def slit_image(slf, det, scitrace, obj, tilts=None):
+def slit_image(slf, det, scitrace, obj, tilts):
     """ Generate slit image for a given object
     Ignores changing plate scale (for now)
     The slit is approximated as a straight line in this calculation
@@ -1802,8 +1802,6 @@ def slit_image(slf, det, scitrace, obj, tilts=None):
     slit_img : ndarray
     """
     # Setup
-    if tilts is None:
-        tilts = slf._tilts[det-1]
     ximg = np.outer(np.ones(tilts.shape[0]), np.arange(tilts.shape[1]))
     dypix = 1./tilts.shape[0]
     #  Trace

@@ -59,7 +59,7 @@ class WaveTilts(masterframe.MasterFrame):
 
     """
     def __init__(self, msarc, settings=None, det=None, setup='',
-                 lordloc=None, rordloc=None, pixlocn=None, pixcen=None):
+                 lordloc=None, rordloc=None, pixlocn=None, pixcen=None, slitpix=None):
 
         # Required parameters (but can be None)
         self.msarc = msarc
@@ -67,6 +67,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.rordloc = rordloc
         self.pixlocn = pixlocn
         self.pixcen = pixcen
+        self.slitpix = slitpix
 
         # Optional parameters
         self.det = det
@@ -97,29 +98,10 @@ class WaveTilts(masterframe.MasterFrame):
         masterframe.MasterFrame.__init__(self, self.frametype, setup, self.settings)
 
 
-
-    def master(self):
-        """ Mainly for PYPIT running
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        loaded : bool
-
-        """
-        # Load master frame?
-        loaded = False
-        if self._masters_load_chk():
-            loaded = self.load_master()
-        # Return
-        return loaded
-
-    def _analyze_tilt_traces(self, slit):
+    def _analyze_lines(self, slit):
         reload(artracewave)
-        self.badlines, self.all_tilts = artracewave.analyze_spec_lines(
-            self.msarc, slit, self.all_trcdict[slit], self.pixcen, self.settings)
+        self.badlines, self.all_tilts = artracewave.analyze_lines(
+            self.msarc, self.all_trcdict[slit], slit, self.pixcen, self.settings)
         if self.badlines > 0:
             msgs.warn("There were {0:d} additional arc lines that should have been traced".format(self.badlines) +
                       msgs.newline() + "(perhaps lines were saturated?). Check the spectral tilt solution")
@@ -188,6 +170,14 @@ class WaveTilts(masterframe.MasterFrame):
     def run(self, maskslits=None):
         """ Main driver for tracing arc lines
 
+        Code flow:
+           1.  Extract an arc spectrum down the center of each slit/order
+           2.  Loop on slits/orders
+             i.   Trace the arc lines (fweight is the default)
+             ii.  Fit the individual arc lines
+             iii.  2D Fit to the offset from pixcen
+             iv. Save
+
         Parameters
         ----------
 
@@ -195,32 +185,40 @@ class WaveTilts(masterframe.MasterFrame):
         -------
         """
         # If the user sets no tilts, return here
-        if self.settings['method'].lower() == "zero":
+        if self.settings['tilts']['method'].lower() == "zero":
             # Assuming there is no spectral tilt
-            self.tilts = np.outer(np.linspace(0.0, 1.0, self.msarc.shape[0]), np.ones(self.msarc.shape[1]))
-            return self.tilts, None, None
+            self.final_tilts = np.outer(np.linspace(0.0, 1.0, self.msarc.shape[0]), np.ones(self.msarc.shape[1]))
+            return self.final_tilts, None, None
+
+        if maskslits is None:
+            maskslits = np.zeros(self.nslit, dtype=bool)
 
         # Extract the arc spectra for all slits
         self.arccen, self.arc_maskslit = self._extract_arcs()
 
-        # Setup
-        fitxy = [self.settings['order'], 1]
-
         # maskslit
-        if maskslits is not None:
-            mask = maskslits & (self.arc_maskslit==1)
-        else:
-            mask = self.arc_maskslit
-        # TODO -- NEED TO PASS THIS BACK!?
-        #slf._maskslits[det-1] = mask
+        mask = maskslits & (self.arc_maskslit==1)
         gdslits = np.where(mask == 0)[0]
 
+        # Final tilts image
+        self.final_tilts = np.zeros_like(self.msarc)
         # Loop on all slits
         for slit in gdslits:
-            pass
+            # Trace
+            _ = self._trace_tilts(slit)
 
-        # Final tilts image
-        final_tilts = np.zeros_like(self.msarc)
+            # Model line-by-line
+            _ = self._analyze_lines(slit)
+
+            # 2D model of the tilts
+            #   Includes QA
+            self.tilts = self._fit_tilts(slit)
+
+            # Save to final image
+            word = self.slitpix == slit+1
+            self.final_tilts[word] = self.tilts[word]
+
+        return self.final_tilts, maskslits
 
     def _qa(self, slit):
         """
@@ -291,7 +289,7 @@ class WaveTilts(masterframe.MasterFrame):
             ginga.chk_arc_tilts(self.msarc, tmp,
                                 sedges=(self.lordloc[:,slit], self.rordloc[:,slit]))
 
-    def save_master(self, outfile=None, use_tilts_as_final=False):
+    def save_master(self, outfile=None):
         """
 
         Parameters
@@ -305,10 +303,6 @@ class WaveTilts(masterframe.MasterFrame):
         """
         if outfile is None:
             outfile = self.ms_name
-        #
-        if use_tilts_as_final:
-            msgs.warn("Using tilts as final.  Better know what you are doing!")
-            self.final_tilts = self.tilts
         #
         if self.final_tilts is None:
             msgs.warn("final_tilts not yet created.  Make it!")
@@ -339,7 +333,6 @@ class WaveTilts(masterframe.MasterFrame):
         # Finish
         hdulist = fits.HDUList(hdul)
         hdulist.writeto(outfile, clobber=True)
-
 
     def __repr__(self):
         # Generate sets string

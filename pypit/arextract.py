@@ -222,7 +222,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, bpix, skyframe, crmask, scitr
 
 
 def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
-                 scitrace, COUNT_LIM=25., doqa=True, pickle_file=None):
+                 scitrace, tilts, COUNT_LIM=25., doqa=True, pickle_file=None):
     """ Derive spatial profiles for each object
     Parameters
     ----------
@@ -281,7 +281,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
             else:
                 objreg = scitrace[sl]['object'][:, :, o]
             # Calculate slit image
-            slit_img = artrace.slit_image(slf, det, scitrace[sl], o)#, tilts=tilts)
+            slit_img = artrace.slit_image(slf, det, scitrace[sl], o, tilts)
             # Object pixels
             weight = objreg.copy()
             # Identify good rows
@@ -433,7 +433,7 @@ def obj_profile_qa(slf, specobjs, scitrace, det):
 
 
 def optimal_extract(slf, det, specobjs, sciframe, varframe,
-                    skyframe, crmask, scitrace,
+                    skyframe, crmask, scitrace, tilts,
                     pickle_file=None, profiles=None):
     """ Preform optimal extraction
     Standard Horne approach
@@ -490,7 +490,7 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
             if 'param' not in fit_dict.keys():
                 continue
             # Slit image
-            slit_img = artrace.slit_image(slf, det, scitrace[sl], o)#, tilts=tilts)
+            slit_img = artrace.slit_image(slf, det, scitrace[sl], o, tilts)
             #msgs.warn("Turn off tilts")
             # Object pixels
             weight = objreg.copy()

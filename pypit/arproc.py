@@ -146,7 +146,7 @@ def background_subtraction(slf, sciframe, varframe, slitn, det, refine=0.0):
     return bgframe, nl, nr
 
 
-def bg_subtraction(slf, det, sciframe, varframe, bpix, crpix, **kwargs):
+def bg_subtraction(slf, tilts, det, sciframe, varframe, bpix, crpix, **kwargs):
     """ Wrapper to run the background subtraction on a series of slits
     Parameters
     ----------
@@ -171,7 +171,7 @@ def bg_subtraction(slf, det, sciframe, varframe, bpix, crpix, **kwargs):
         msgs.info("Working on slit: {:d}".format(slit))
         # TODO -- Replace this try/except when a more stable b-spline is used..
         try:
-            slit_bgframe = bg_subtraction_slit(slf, det, slit, sciframe, varframe, bpix, crpix, **kwargs)
+            slit_bgframe = bg_subtraction_slit(slf, det, slit, tilts, sciframe, varframe, bpix, crpix, **kwargs)
         except ValueError:  # Should have been bspline..
             msgs.warn("B-spline sky subtraction failed.  Slit {:d} will no longer be processed..".format(slit))
             #msgs.warn("Continue if you wish..")
@@ -182,7 +182,7 @@ def bg_subtraction(slf, det, sciframe, varframe, bpix, crpix, **kwargs):
     return bgframe
 
 
-def bg_subtraction_slit(slf, det, slit, sciframe, varframe, bpix, crpix, tracemask=None,
+def bg_subtraction_slit(slf, det, slit, tilts, sciframe, varframe, bpix, crpix, tracemask=None,
                    rejsigma=3.0, maskval=-999999.9):
     """ Extract a science target and background flux
     :param slf:
@@ -220,7 +220,6 @@ def bg_subtraction_slit(slf, det, slit, sciframe, varframe, bpix, crpix, tracema
     #whord = np.where(ordpix != 0)
 
     whord = np.where(ordpix == slit+1)
-    tilts = slf._tilts[det-1].copy()
     xvpix  = tilts[whord]
     scipix = sciframe[whord]
     varpix = varframe[whord]
@@ -1051,7 +1050,7 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
                         scitrace=scitrace, standard=standard)
 
 
-def reduce_multislit(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det, standard=False):
+def reduce_multislit(slf, tilts, sciframe, bpix, datasec_img, scidx, fitsdict, det, standard=False):
     """ Run standard extraction steps on an echelle frame
 
     Parameters
@@ -1089,7 +1088,7 @@ def reduce_multislit(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det, sta
             bgframe = hdu[1].data - hdu[2].data
         else:
             msgs.info("First estimate of the sky background")
-            bgframe = bg_subtraction(slf, det, sciframe, rawvarframe, bpix, crmask)
+            bgframe = bg_subtraction(slf, tilts, det, sciframe, rawvarframe, bpix, crmask)
         modelvarframe = arprocimg.variance_frame(datasec_img, det, sciframe, scidx,
                                        settings.spect[dnum], fitsdict=fitsdict, skyframe=bgframe)
     else:
@@ -1131,7 +1130,7 @@ def reduce_multislit(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det, sta
                     trcmask += scitrace[sl]['object'].sum(axis=2)
         trcmask[np.where(trcmask > 0.0)] = 1.0
         # Do it
-        bgframe = bg_subtraction(slf, det, sciframe, modelvarframe, bpix, crmask, tracemask=trcmask)
+        bgframe = bg_subtraction(slf, tilts, det, sciframe, modelvarframe, bpix, crmask, tracemask=trcmask)
         # Redetermine the variance frame based on the new sky model
         modelvarframe = arprocimg.variance_frame(datasec_img, det, sciframe, scidx,
                                        settings.spect[dnum], fitsdict=fitsdict, skyframe=bgframe)
@@ -1151,11 +1150,11 @@ def reduce_multislit(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det, sta
     # Perform an optimal extraction
     msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
     return reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, datasec_img, bgframe,
-                        scidx, fitsdict, det, crmask, standard=standard)
+                        scidx, fitsdict, det, crmask, tilts, standard=standard)
 
 
 def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, datasec_img,
-                 bgframe, scidx, fitsdict, det, crmask,
+                 bgframe, scidx, fitsdict, det, crmask, tilts,
                  scitrace=None, standard=False):
     """ Run standard extraction steps on a frame
 
@@ -1224,21 +1223,21 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, datasec_img,
 
         msgs.info("Attempting optimal extraction with model profile")
         arextract.obj_profiles(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                               modelvarframe, bgframe+bgcorr_box, crmask, scitrace, doqa=False)
+                               modelvarframe, bgframe+bgcorr_box, crmask, scitrace, tilts, doqa=False)
 #        newvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
 #                                           modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
         obj_model = arextract.optimal_extract(slf, det, slf._specobjs[det-1], sciframe-bgframe-bgcorr_box,
-                                              modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
+                                              modelvarframe, bgframe+bgcorr_box, crmask, scitrace, tilts)
         newvar = arprocimg.variance_frame(datasec_img, det, sciframe-bgframe-bgcorr_box, -1,
                                 settings.spect[dnum], skyframe=bgframe+bgcorr_box, objframe=obj_model)
         msgs.work("Should update variance image (and trace?) and repeat")
         #
         arextract.obj_profiles(slf, det, slf._specobjs[det-1], sciframe-bgframe-bgcorr_box,
-                               newvar, bgframe+bgcorr_box, crmask, scitrace)
+                               newvar, bgframe+bgcorr_box, crmask, scitrace, tilts)
 #        finalvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
 #                                             newvar, bgframe+bgcorr_box, crmask, scitrace)
         obj_model = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                                              newvar, bgframe+bgcorr_box, crmask, scitrace)
+                                              newvar, bgframe+bgcorr_box, crmask, scitrace, tilts)
         finalvar = arprocimg.variance_frame(datasec_img, det, sciframe-bgframe-bgcorr_box, -1,
                                   settings.spect[dnum], skyframe=bgframe+bgcorr_box, objframe=obj_model)
         slf._modelvarframe[det-1] = finalvar.copy()
@@ -1272,7 +1271,7 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, datasec_img,
 
 
 
-def slit_profile(slf, mstrace, det, ntcky=None):
+def slit_profile(slf, mstrace, det, tilts, ntcky=None):
     """ Generate an image of the spatial slit profile.
 
     Parameters
@@ -1348,7 +1347,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
             extrap_slit[o] = 1.0
             continue
         spatval = (word[1] - lordloc[word[0]])/(rordloc[word[0]] - lordloc[word[0]])
-        specval = slf._tilts[det-1][word]
+        specval = tilts[word]
         fluxval = mstrace[word]
 
         # Only use pixels where at least half the slit is on the chip
@@ -1435,7 +1434,7 @@ def slit_profile(slf, mstrace, det, ntcky=None):
     return slit_profiles, mstracenrm, msblaze, blazeext, extrap_slit
 
 
-def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
+def slit_profile_pca(slf, mstrace, det, tilts, msblaze, extrap_slit, slit_profiles):
     """ Perform a PCA analysis on the spatial slit profile and blaze function.
 
     Parameters
@@ -1581,7 +1580,7 @@ def slit_profile_pca(slf, mstrace, det, msblaze, extrap_slit, slit_profiles):
     mstracenrm = mstrace.copy()
     for o in range(nslits):
         word = np.where(slf._slitpix[det - 1] == o+1)
-        specval = slf._tilts[det-1][word]
+        specval = tilts[word]
         blzspl = interpolate.interp1d(np.linspace(0.0, 1.0, mstrace.shape[0]), extrap_blz[:, o],
                                       kind="linear", fill_value="extrapolate")
         mstracenrm[word] /= blzspl(specval)

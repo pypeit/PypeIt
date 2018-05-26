@@ -271,55 +271,38 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             # Derive the spectral tilt
             if 'tilts' in calib_dict[setup].keys():
                 mstilts = calib_dict[setup]['tilts']
+                wt_maskslits = calib_dict[setup]['wtmask']
             else:
                 # Settings kludges
-                tilt_settings = settings.argflag['trace']['slits'].copy()
+                tilt_settings = dict(tilts=settings.argflag['trace']['slits']['tilts'].copy())
                 tilt_settings['tilts']['function'] = settings.argflag['trace']['slits']['function']
+                tilt_settings['masters'] = settings.argflag['reduce']['masters']
+                tilt_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
                 # Instantiate
                 wTilt = wavetilts.WaveTilts(msarc, settings=tilt_settings, det=det, setup=setup,
                                             lordloc=Tslits.lcen, rordloc=Tslits.rcen,
-                                            pixlocn=Tslits.pixlocn, pixcen=Tslits.pixcen)
-                # TODO - Need to pull from wvcalib
-                #mstilts = wTilt.master()
-                mstilts = None
+                                            pixlocn=Tslits.pixlocn, pixcen=Tslits.pixcen,
+                                            slitpix=Tslits.slitpix)
+                # Master
+                mstilts = wTilt.master()
                 if mstilts is None:
-                    mstilts = wTilt.run()
-            '''
-            if slf._tilts[det-1] is None:
-                tilts = armasters.load_master_frame(slf, "tilts")
-                if tilts is None:
-                    # Settings kludges
-                    tilt_settings = settings.argflag['trace']['slits'].copy()
-                    tilt_settings['tilts']['function'] = settings.argflag['trace']['slits']['function']
-                    # Hacks for Kast blue and now DEIMOS detector 7
-                    tilt_settings['tilts']['trthrsh'] = 400.
-                    tilt_settings['tilts']['order'] = 3
-                    tilt_settings['tilts']['yorder'] = 4  # NOT BEING USED RIGHT NOW
-                    tilt_settings['tilts']['poly_2D'] = True
-                    tilt_settings['tilts']['poly_2Dfunc'] = 'legendre'
-                    # First time tilts are derived for this arc frame --> derive the order tilts
-                    tilts, satmask, outpar = artracewave.multislit_tilt(
-                        msarc, Tslits.lcen, Tslits.rcen, Tslits.pixlocn, Tslits.pixcen,
-                        Tslits.slitpix, det, slf._maskslits[det-1], tilt_settings, settings.spect,
-                        setup, wv_calib=wv_calib)
-                    slf.SetFrame(slf._tilts, tilts, det)
-                    slf.SetFrame(slf._satmask, satmask, det)
-                    msgs.bug("This outpar is only the last slit!!  JXP doesn't think it matters for now")
-                    if outpar is not None:
-                        slf.SetFrame(slf._tiltpar, outpar, det)
-                    armasters.save_masters(slf, det, mftype='tilts')
+                    mstilts, wt_maskslits = wTilt.run(maskslits=slf._maskslits[det-1])
+                    wTilt.save_master()
                 else:
-                    slf.SetFrame(slf._tilts, tilts, det)
-            '''
+                    wt_maskslits = np.zeros(len(slf._maskslits[det-1]), dtype=bool)
+                # Save
+                calib_dict[setup]['tilts'] = mstilts
+                calib_dict[setup]['wtmask'] = wt_maskslits
+            slf._maskslits[det-1] += wt_maskslits
 
             ###############
             # Prepare the pixel flat field frame
-            update = slf.MasterFlatField(fitstbl, det, msbias, datasec_img)
+            update = slf.MasterFlatField(fitstbl, det, msbias, datasec_img, mstilts)
             if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
 
             ###############
             # Generate/load a master wave frame
-            update = slf.MasterWave(det, wv_calib)
+            update = slf.MasterWave(det, wv_calib, mstilts)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
 
@@ -332,7 +315,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             sciframe = sciframe[:, :, 0]
             # Extract
             msgs.info("Processing science frame")
-            arproc.reduce_multislit(slf, sciframe, msbpm, datasec_img, scidx, fitstbl, det)
+            arproc.reduce_multislit(slf, mstilts, sciframe, msbpm, datasec_img, scidx, fitstbl, det)
 
             ######################################################
             # Reduce standard here; only legit todo if the mask is the same
@@ -345,7 +328,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             if stdslf.extracted is False:
                 # Fill up the necessary pieces
                 for iattr in ['pixlocn', 'lordloc', 'rordloc', 'pixcen', 'pixwid', 'lordpix', 'rordpix',
-                              'slitpix', 'tilts', 'satmask', 'maskslits', 'slitprof',
+                              'slitpix', 'satmask', 'maskslits', 'slitprof',
                               'mspixelflatnrm', 'mswave']:
                     setattr(stdslf, '_'+iattr, getattr(slf, '_'+iattr))  # Brings along all the detectors, but that is ok
                 # Load
@@ -353,7 +336,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                 stdframe = stdframe[:, :, 0]
                 # Reduce
                 msgs.info("Processing standard frame")
-                arproc.reduce_multislit(stdslf, stdframe, msbpm, datasec_img, std_idx, fitstbl, det, standard=True)
+                arproc.reduce_multislit(stdslf, mstilts, stdframe, msbpm, datasec_img, std_idx, fitstbl, det, standard=True)
                 # Finish
                 stdslf.extracted = True
 

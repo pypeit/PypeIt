@@ -2124,8 +2124,8 @@ class BaseArgFlag(BaseFunctions):
         v : str
           value of the keyword argument given by the name of this function
         """
-        if v < 0:
-            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        allowed = ['polynomial', 'legendre']
+        v = key_allowed(v, allowed)
         self.update(v)
 
     def trace_useframe(self, v):
