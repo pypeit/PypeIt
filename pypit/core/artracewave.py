@@ -127,7 +127,9 @@ def analyze_spec_lines(msarc, slit, trcdict, ordcen, tilt_settings, maskval=-999
                 maskrows[idx] = 1
 
         xtilt[xint:lastx, j] = xtfit / (msarc.shape[1] - 1.0)
-        ytilt[xint:lastx, j] = arcdet[j] / (msarc.shape[0] - 1.0)
+        #ytilt[xint:lastx, j] = arcdet[j] / (msarc.shape[0] - 1.0)
+        # TODO -- Should probably be ordcen[arcdet[j],slit] not sz
+        ytilt[xint:lastx, j] = model[sz] #/ (msarc.shape[0] - 1.0)
         ztilt[xint:lastx, j] = ytfit / (msarc.shape[0] - 1.0)
         if tilt_settings['tilts']['method'].lower() in ["spline", "spca"]:
             #mtilt[xint:lastx, j] = model / (msarc.shape[0] - 1.0)
@@ -827,6 +829,7 @@ def multislit_tilt(msarc, lordloc, rordloc, pixlocn, pixcen, slitpix, det,
         # Prepare polytilts
         polytilts, outpar = prepare_polytilts(msarc, maskrows, tcoeff, all_tilts, tilt_settings, setup=setup)
 
+        '''
         if tilt_settings['tilts']['method'].lower() == "interp":
             tilts = tilts_interp(ordcen, slit, all_tilts, polytilts, arcdet, aduse, msarc)
         elif tilt_settings['tilts']['method'].lower() == "spline":
@@ -835,10 +838,12 @@ def multislit_tilt(msarc, lordloc, rordloc, pixlocn, pixcen, slitpix, det,
             tilts = tilts_spca(msarc, polytilts, ordcen, slit, arcdet, aduse, rordloc, lordloc)
         elif tilt_settings['tilts']['method'].lower() == "pca":
             tilts = polytilts.copy()
+        '''
 
         # Save into final_tilts
         word = np.where(slitpix == slit+1)
-        final_tilts[word] = tilts[word]
+        #final_tilts[word] = tilts[word]
+        final_tilts[word] = polytilts[word]
 
         # Now do the QA
         if doqa:
@@ -899,10 +904,37 @@ def prepare_polytilts(msarc, maskrows, tcoeff, all_tilts, tilt_settings, maskval
                                               np.linspace(0.0, 1.0, msarc.shape[0]),
                                               minx=0., maxx=1., miny=0., maxy=1.,
                                               function=tilt_settings['tilts']['poly_2Dfunc'])
-        #tmp = arutils.polyval2d_general(coeff, xtilt[30:50,0], ytilt[40,0:1],
-        #                                minx=0., maxx=1., miny=0., maxy=1.,
-        #                                function=tilt_settings['tilts']['poly_2Dfunc'])
+        tmp = arutils.polyval2d_general(coeff, xtilt[30:50,0], ytilt[40,0:1],
+                                        minx=0., maxx=1., miny=0., maxy=1.,
+                                        function=tilt_settings['tilts']['poly_2Dfunc']) + 40.
+        # Residuals
+        xv = arutils.scale_minmax(xtilt[wgd], minx=0., maxx=1)
+        yv = arutils.scale_minmax(ytilt[wgd], minx=0., maxx=1)
+        mfit = np.polynomial.legendre.legval2d(xv, yv, coeff)
+        res = mtilt[wgd]-mfit
+        msgs.info("RMS: {}".format(np.std(res)))
+        pres = (mtilt[wgd]-mfit)/mtilt[wgd]
         polytilts /= (msarc.shape[0]-1) # JXP hack
+
+        # Invert
+        # TODO -- put fitxy back
+        coeff2 = arutils.polyfit2d_general(xtilt[wgd], mtilt[wgd]/(msarc.shape[0]-1),
+                                           mtilt[wgd]-ytilt[wgd],
+                                           [4,4],
+                                                  minx=0., maxx=1., miny=0., maxy=1.,
+                                                  function=tilt_settings['tilts']['poly_2Dfunc'])
+        polytilts = arutils.polyval2d_general(coeff2, np.linspace(0.0, 1.0, msarc.shape[1]),
+                                              np.linspace(0.0, 1.0, msarc.shape[0]),
+                                              minx=0., maxx=1., miny=0., maxy=1.,
+                                              function=tilt_settings['tilts']['poly_2Dfunc'])
+        # Residuals
+        xv2 = arutils.scale_minmax(xtilt[wgd], minx=0., maxx=1)
+        yv2 = arutils.scale_minmax(mtilt[wgd]/(msarc.shape[0]-1), minx=0., maxx=1)
+        yfit = np.polynomial.legendre.legval2d(xv2, yv2, coeff2)
+        res2 = (mtilt[wgd]-ytilt[wgd]) - yfit
+        msgs.info("RMS: {}".format(np.std(res2)))
+        debugger.plot1d(mtilt[wgd], res2, scatter=True)
+        #debugger.plot1d(xtilt[wgd], res2, scatter=True)
         outpar = None
 
     return polytilts, outpar

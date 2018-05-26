@@ -276,7 +276,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                     # Hacks for Kast blue and now DEIMOS detector 7
                     tilt_settings['tilts']['trthrsh'] = 400.
                     tilt_settings['tilts']['order'] = 3
-                    tilt_settings['tilts']['yorder'] = 3
+                    tilt_settings['tilts']['yorder'] = 4  # NOT BEING USED RIGHT NOW
                     tilt_settings['tilts']['poly_2D'] = True
                     tilt_settings['tilts']['poly_2Dfunc'] = 'legendre'
                     # First time tilts are derived for this arc frame --> derive the order tilts

@@ -136,7 +136,8 @@ class WaveTilts(masterframe.MasterFrame):
     def _prepare_polytilts(self, skip_QA=False, show_QA=False):
         reload(artracewave)
         reload(arutils)
-        self.polytilts, self.outpar = artracewave.prepare_polytilts(
+        #self.polytilts, self.outpar = artracewave.prepare_polytilts(
+        self.tilts, self.outpar = artracewave.prepare_polytilts(
             self.msarc, self.maskrows, self.tcoeff, self.all_tilts, self.settings,
             setup=self.setup, skip_QA=skip_QA, show_QA=show_QA)
         #
@@ -260,7 +261,16 @@ class WaveTilts(masterframe.MasterFrame):
             tmp = self.all_trcdict[slit].copy()
             tmp['xtfit'] = []
             tmp['ytfit'] = []
+
             # arcdet is only the approximately nearest pixel (not even necessarily)
+            for idx in np.where(self.all_trcdict[slit]['aduse'])[0]:
+                tmp['xtfit'].append(np.arange(self.msarc.shape[1]))
+                xgd = self.all_trcdict[slit]['xtfit'][idx][self.all_trcdict[slit]['xtfit'][idx].size//2]
+                ycen = self.all_tilts[1][int(xgd),idx]
+                # This is not exact.  Could make a correction.  Probably is close enough
+                yval = ycen + self.tilts[int(ycen),:]
+                tmp['ytfit'].append(yval)
+            '''
             for arcdet in self.all_trcdict[slit]['arcdet']:
                 tmp['xtfit'].append(np.arange(self.msarc.shape[1]))
                 if attr == 'tilts':  # Need to offset here as we finally fit to the lines not the row
@@ -271,6 +281,7 @@ class WaveTilts(masterframe.MasterFrame):
                     yval = self.polytilts[arcdet,:] * (self.msarc.shape[0]-1)
                 # Save
                 tmp['ytfit'].append(yval)
+            '''
             # Show
             ginga.chk_arc_tilts(self.msarc, tmp,
                                 sedges=(self.lordloc[:,slit], self.rordloc[:,slit]))
