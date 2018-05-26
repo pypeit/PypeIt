@@ -142,12 +142,23 @@ class WaveTilts(masterframe.MasterFrame):
         #
         return self.polytilts
 
+    def _tilts_jxp_spca(self, slit):
+        reload(artracewave)
+        self.tilts = artracewave.tilts_spca(self.msarc, self.polytilts, self.pixcen, slit,
+                                            self.all_trcdict[slit]['arcdet'], self.all_trcdict[slit]['aduse'],
+                                            self.rordloc, self.lordloc, self.all_tilts)
+
     def _tilts_spca(self, slit):
         reload(artracewave)
         self.tilts = artracewave.tilts_spca(self.msarc, self.polytilts, self.pixcen, slit,
             self.all_trcdict[slit]['arcdet'], self.all_trcdict[slit]['aduse'],
             self.rordloc, self.lordloc)
 
+    def _tilts_jxp_spline(self, slit):
+        reload(artracewave)
+        self.tilts = artracewave.tilts_spline(self.all_tilts,
+                                              self.all_trcdict[slit]['arcdet'], self.all_trcdict[slit]['aduse'],
+                                              self.polytilts, self.msarc, use_mtilt=True)
     def _tilts_spline(self, slit):
         reload(artracewave)
         self.tilts = artracewave.tilts_spline(self.all_tilts,

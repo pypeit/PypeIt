@@ -984,7 +984,7 @@ def tilts_interp(ordcen, slit, all_tilts, polytilts, arcdet, aduse, msarc):
     return tilts
 
 
-def tilts_spline(all_tilts, arcdet, aduse, polytilts, msarc, maskval=-999999.9):
+def tilts_spline(all_tilts, arcdet, aduse, polytilts, msarc, use_mtilt=False, maskval=-999999.9):
     msgs.info("Performing a spline fit to the tilts")
     # Unpack
     xtilt, ytilt, ztilt, mtilt, wtilt = all_tilts
@@ -992,7 +992,10 @@ def tilts_spline(all_tilts, arcdet, aduse, polytilts, msarc, maskval=-999999.9):
     wgd = np.where((ytilt != maskval) & (ztilt != maskval))
     txsbs = xtilt[wgd]
     tysbs = ytilt[wgd]
-    tzsbs = ztilt[wgd]
+    if use_mtilt:
+        tzsbs = mtilt[wgd]/(msarc.shape[0]-1)
+    else:
+        tzsbs = ztilt[wgd]
     twsbs = wtilt[wgd]
 
     # Append the end points
@@ -1002,17 +1005,24 @@ def tilts_spline(all_tilts, arcdet, aduse, polytilts, msarc, maskval=-999999.9):
     xhi = (xtilt[whi] * (msarc.shape[1] - 1.0)).astype(np.int)
     xsbs = np.append(xtilt[wlo], np.append(txsbs, xtilt[whi]))
     ysbs = np.append(np.zeros(wlo[0].size), np.append(tysbs, np.ones(whi[0].size)))
+
     zlo = ztilt[wlo] + polytilts[0, xlo] - polytilts[arcdet[np.where(aduse)[0][0]], xlo]
     zhi = ztilt[whi] + polytilts[-1, xhi] - polytilts[arcdet[np.where(aduse)[0][-1]], xhi]
     zsbs = np.append(zlo, np.append(tzsbs, zhi))
     wsbs = np.append(wtilt[wlo], np.append(twsbs, wtilt[whi]))
     # Generate the spline curve
     tiltspl = interpolate.SmoothBivariateSpline(xsbs, zsbs, ysbs, w=wsbs, kx=3, ky=3,
-                                                s=xsbs.size, bbox=[0.0, 1.0,
-                                                                   min(zsbs.min(),0.0), max(zsbs.max(),1.0)])
+                                                s=xsbs.size)#, bbox=[0.0, 1.0, min(zsbs.min(),0.0), max(zsbs.max(),1.0)])
     xspl = np.linspace(0.0, 1.0, msarc.shape[1])
     yspl = np.linspace(0.0, 1.0, msarc.shape[0])
     tilts = tiltspl(xspl, yspl, grid=True).T
+    #
+    tmp = (msarc.shape[0]-1)*tiltspl(np.arange(1490, 1499)/(msarc.shape[1]-1),
+                                     np.array([968.5, 969.34])/(msarc.shape[0]-1), grid=True)
+    tmp2 = (msarc.shape[0]-1)*ytilt[1497,28]
+    #tmp3 = tiltspl(xsbs, zsbs, grid=True)
+    print(tmp, tmp2)
+    debugger.set_trace()
     '''
     if msgs._debug['tilts']:
         tiltqa = tiltspl(xsbs, zsbs, grid=False)
@@ -1032,6 +1042,7 @@ def tilts_spline(all_tilts, arcdet, aduse, polytilts, msarc, maskval=-999999.9):
 
 def tilts_spca(msarc, polytilts, ordcen, slit, arcdet, aduse, rordloc, lordloc):
     msgs.info("Performing a spca analysis of the tilts")
+
     # Slit position
     xspl = np.linspace(0.0, 1.0, msarc.shape[1])
     # Trace positions down center of the order
@@ -1054,28 +1065,35 @@ def tilts_spca(msarc, polytilts, ordcen, slit, arcdet, aduse, rordloc, lordloc):
         pmin = int(max(0, np.min(lordloc)))
         pmax = int(min(msarc.shape[1], np.max(rordloc)))
     xsbs = np.outer(xspl, np.ones(yspl.size))[pmin:pmax, :]
-    ysbs = np.outer(np.ones(xspl.size), yspl)[pmin:pmax, :]
+    ysbs = np.outer(np.ones(xspl.size), yspl)[pmin:pmax, :]  * (msarc.shape[0]-1)
     zsbs = zspl[pmin:pmax, :]
     # Spline
     msgs.work('Consider adding weights to SmoothBivariate in spca')
     # Note how y and z are inverted (intentionally)!!
     tiltspl = interpolate.SmoothBivariateSpline(xsbs.flatten(), zsbs.flatten(),
-                                                ysbs.flatten(), kx=3, ky=3, s=xsbs.size)
+                                                ysbs.flatten(), kx=3, ky=3, s=xsbs.size/2)
     # Finish
     yval = np.linspace(0.0, 1.0, msarc.shape[0])
     tilts = tiltspl(xspl, yval, grid=True).T
-    '''
-    if False:
-        tiltqa = tiltspl(xsbs.flatten(), zsbs.flatten(), grid=False).reshape(xsbs.shape)
-        plt.clf()
-        # plt.imshow((zsbs-tiltqa)/zsbs, origin='lower')
-        plt.imshow((ysbs - tiltqa) / ysbs, origin='lower')
-        plt.colorbar()
-        plt.show()
-        debugger.set_trace()
-    '''
+    #
+    tmp = (msarc.shape[0]-1)*tiltspl(np.arange(1490, 1499)/(msarc.shape[1]-1),
+                                     np.array([968.5, 969.34])/(msarc.shape[0]-1), grid=True)
+    tmp2 = 940.
+    print(tmp, tmp2)
+    coeff = arutils.polyfit2d_general(xsbs, zsbs, ysbs, [5,5],
+                                      minx=0., maxx=1., miny=0., maxy=1.,
+                                      function='legendre')
+    #tmpa = (msarc.shape[0]-1)*arutils.polyval2d_general(coeff, np.arange(1490, 1499)/(msarc.shape[1]-1),
+    #tmpb = np.polynomial.legendre.legval2d(xsbs.flatten(), zsbs.flatten(), coeff)
+    tmpa = arutils.polyval2d_general(coeff, np.arange(1490, 1499)/(msarc.shape[1]-1),
+                                     np.array([968.5, 969.34])/(msarc.shape[0]-1),
+                                     minx=0., maxx=1., miny=0., maxy=1.,
+                                     function='legendre')
+    print(tmpa)
+    debugger.set_trace()
     # Return
     return tilts
+
 
 
 def prep_tilts_qa(msarc, all_tilts, tilts, arcdet, ordcen, slit, maskval=-999999.9):
