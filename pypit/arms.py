@@ -252,6 +252,9 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
 
             ###############
             # Prepare the pixel flat field frame
+            if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
+
+
             update = slf.MasterFlatField(fitstbl, det, msbias, datasec_img, mstilts)
             if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
 

@@ -409,6 +409,7 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
+        msgs.error("SHOULD NOT GET HERE")
         dnum = settings.get_dnum(det)
         if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
             # If the master pixelflat is already made, use it
