@@ -497,7 +497,7 @@ def flatnorm(slf, det, msflat, bpix, maskval=-999999.9, overpix=6, plotdesc=""):
 '''
 
 
-def get_ampscale(slf, det, msflat):
+def get_ampscale(datasec_img, msflat, namp):
     """ Normalize the flat-field frame
 
     Parameters
@@ -514,20 +514,18 @@ def get_ampscale(slf, det, msflat):
     sclframe : ndarray
       A frame to scale all amplifiers to the same counts at the amplifier borders
     """
-    dnum = settings.get_dnum(det)
-
     sclframe = np.ones_like(msflat)
-    ampdone = np.zeros(settings.spect[dnum]['numamplifiers'], dtype=int) # 1 = amplifiers have been assigned a scale
+    ampdone = np.zeros(namp, dtype=int) # 1 = amplifiers have been assigned a scale
     ampdone[0]=1
-    while np.sum(ampdone) != settings.spect[dnum]['numamplifiers']:
+    while np.sum(ampdone) != namp:
         abst, bbst, nbst, n0bst, n1bst = -1, -1, -1, -1, -1 # Reset the values for the most overlapping amplifier
-        for a in range(0, settings.spect[dnum]['numamplifiers']): # amplifier 'a' is always the reference amplifier
+        for a in range(0, namp): # amplifier 'a' is always the reference amplifier
             if ampdone[a] == 0: continue
-            for b in range(0, settings.spect[dnum]['numamplifiers']):
+            for b in range(0, namp):
                 if ampdone[b] == 1 or a == b: continue
                 tstframe = np.zeros_like(msflat)
-                tstframe[np.where(slf._datasec[det-1] == a+1)] = 1
-                tstframe[np.where(slf._datasec[det-1] == b+1)] = 2
+                tstframe[np.where(datasec_img == a+1)] = 1
+                tstframe[np.where(datasec_img == b+1)] = 2
                 # Determine the total number of adjacent edges between amplifiers a and b
                 n0 = np.sum(tstframe[1:,:]-tstframe[:-1,:])
                 n1 = np.sum(tstframe[:,1:]-tstframe[:,:-1])
@@ -539,8 +537,8 @@ def get_ampscale(slf, det, msflat):
                     bbst = b
         # Determine the scaling factor for these two amplifiers
         tstframe = np.zeros_like(msflat)
-        tstframe[np.where(slf._datasec[det-1] == abst+1)] = 1
-        tstframe[np.where(slf._datasec[det-1] == bbst+1)] = 2
+        tstframe[np.where(datasec_img == abst+1)] = 1
+        tstframe[np.where(datasec_img == bbst+1)] = 2
         if abs(n0bst) > abs(n1bst):
             # The amplifiers overlap on the zeroth index
             w = np.where(tstframe[1:,:]-tstframe[:-1,:] != 0)
@@ -565,7 +563,7 @@ def get_ampscale(slf, det, msflat):
                 # pixel w[1][0] falls on amplifier b
                 sclval = sclframe[w[0], w[1][0]+1] / sclval
         # Finally, apply the scale factor thwe amplifier b
-        w = np.where(slf._datasec[det-1] == bbst+1)
+        w = np.where(datasec_img == bbst+1)
         sclframe[w] = np.median(sclval)
         ampdone[bbst] = 1
     return sclframe
@@ -1271,7 +1269,8 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, datasec_img,
 
 
 
-def slit_profile(slf, mstrace, det, tilts, ntcky=None):
+def slit_profile(mstrace, datasec_img, lordloc, rordloc, pixwid,
+                 slitpix, det, tilts, ntcky=None):
     """ Generate an image of the spatial slit profile.
 
     Parameters
@@ -1300,17 +1299,17 @@ def slit_profile(slf, mstrace, det, tilts, ntcky=None):
       and blaze function for those slits should be extrapolated or determined from another means
     """
     dnum = settings.get_dnum(det)
-    nslits = slf._lordloc[det - 1].shape[1]
+    nslits = lordloc.shape[1]
 
     # First, determine the relative scale of each amplifier (assume amplifier 1 has a scale of 1.0)
     if (settings.spect[dnum]['numamplifiers'] > 1) & (nslits > 1):
-        sclframe = get_ampscale(slf, det, mstrace)
+        sclframe = get_ampscale(datasec_img, mstrace, settings.spect[dnum]['numamplifiers'])
         # Divide the master flat by the relative scale frame
         mstrace /= sclframe
 
     mstracenrm = mstrace.copy()
-    msblaze = np.ones_like(slf._lordloc[det - 1])
-    blazeext = np.ones_like(slf._lordloc[det - 1])
+    msblaze = np.ones_like(lordloc)
+    blazeext = np.ones_like(lordloc)
     slit_profiles = np.ones_like(mstrace)
     # Set the number of knots in the spectral direction
     if ntcky is None:
@@ -1325,7 +1324,7 @@ def slit_profile(slf, mstrace, det, tilts, ntcky=None):
             ntcky = int(1.0 / ntcky) + 0.5
     ntcky = int(ntcky)
     # Set the number of knots in the spatial direction
-    ntckx = 2 * np.max(slf._pixwid[det - 1])
+    ntckx = 2 * np.max(pixwid)
     if not settings.argflag["reduce"]["slitprofile"]["perform"]:
         # The slit profile is not needed, so just do the quickest possible fit
         ntckx = 3
@@ -1339,10 +1338,10 @@ def slit_profile(slf, mstrace, det, tilts, ntcky=None):
             msgs.info("Deriving the spatial profile and blaze function of slit {0:d}".format(o+1))
         else:
             msgs.info("Deriving the blaze function of slit {0:d}".format(o + 1))
-        lordloc = slf._lordloc[det - 1][:, o]
-        rordloc = slf._rordloc[det - 1][:, o]
-        word = np.where(slf._slitpix[det - 1] == o+1)
-        if word[0].size <= (ntcky+1)*(2*slf._pixwid[det - 1][o]+1):
+        lordloc = lordloc[:, o]
+        rordloc = rordloc[:, o]
+        word = np.where(slitpix == o+1)
+        if word[0].size <= (ntcky+1)*(2*pixwid[o]+1):
             msgs.warn("There are not enough pixels in slit {0:d}".format(o+1))
             extrap_slit[o] = 1.0
             continue
@@ -1356,7 +1355,7 @@ def slit_profile(slf, mstrace, det, tilts, ntcky=None):
 
         # Derive the blaze function
         wsp = np.where((spatval > 0.25) & (spatval < 0.75) & wcchip)
-        if wsp[0].size <= (ntcky+1)*(2*slf._pixwid[det - 1][o]+1):
+        if wsp[0].size <= (ntcky+1)*(2*pixwid[o]+1):
             msgs.warn("There are not enough pixels in slit {0:d}".format(o+1))
             extrap_slit[o] = 1.0
             continue
@@ -1434,13 +1433,12 @@ def slit_profile(slf, mstrace, det, tilts, ntcky=None):
     return slit_profiles, mstracenrm, msblaze, blazeext, extrap_slit
 
 
-def slit_profile_pca(slf, mstrace, det, tilts, msblaze, extrap_slit, slit_profiles):
+def slit_profile_pca(mstrace, tilts, msblaze, extrap_slit, slit_profiles,
+                     lordloc, rordloc, pixwid, slitpix):
     """ Perform a PCA analysis on the spatial slit profile and blaze function.
 
     Parameters
     ----------
-    slf : class
-      Science Exposure Class
     slit_profile : ndarray
       An image containing the slit profile
     det : int
@@ -1475,7 +1473,7 @@ def slit_profile_pca(slf, mstrace, det, tilts, msblaze, extrap_slit, slit_profil
     gds = np.where(extrap_slit == 0)
     maskord = np.where(extrap_slit == 1)[0]
     specfit = np.arange(mstrace.shape[0])
-    nspec = np.max(slf._pixwid[det - 1])*10
+    nspec = np.max(pixwid)*10
     spatbins = np.linspace(-0.25, 1.25, nspec + 1)
     # Perform a PCA on the spectral (i.e. blaze) function
     blzmxval = np.ones((1, nslits))
@@ -1484,9 +1482,9 @@ def slit_profile_pca(slf, mstrace, det, tilts, msblaze, extrap_slit, slit_profil
         # if extrap_slit[o] == 1:
         #     continue
         # Find which pixels are on the slit
-        wch = np.where((slf._lordloc[det-1][:, o] > 0.0) &
-                       (slf._rordloc[det - 1][:, o] < mstrace.shape[1]-1.0))
-        cordloc = np.round(0.5 * (slf._lordloc[det - 1][:, o] + slf._rordloc[det - 1][:, o])).astype(np.int)
+        wch = np.where((lordloc[:, o] > 0.0) &
+                       (rordloc[:, o] < mstrace.shape[1]-1.0))
+        cordloc = np.round(0.5 * (lordloc[:, o] + rordloc[:, o])).astype(np.int)
         if wch[0].size < mstrace.shape[0]:
             # The entire order is not on the chip
             if cordloc[int(0.5*mstrace.shape[0])] < mstrace.shape[1]/2:
@@ -1499,13 +1497,13 @@ def slit_profile_pca(slf, mstrace, det, tilts, msblaze, extrap_slit, slit_profil
         if lorr == -1:
             # A full order has been found, go back and fill in the gaps
             for i in range(1, o+1):
-                wch = np.where((slf._lordloc[det-1][:, o-i] > 0.0) &
-                               (slf._rordloc[det-1][:, o-i] < mstrace.shape[1] - 1.0))
+                wch = np.where((lordloc[:, o-i] > 0.0) &
+                               (rordloc[:, o-i] < mstrace.shape[1] - 1.0))
                 # Calculate the previous order flux
-                cordloc = np.round(0.5 * (slf._lordloc[det-1][:, o-i+1] + slf._rordloc[det-1][:, o-i+1])).astype(np.int)
+                cordloc = np.round(0.5 * (lordloc[:, o-i+1] + rordloc[:, o-i+1])).astype(np.int)
                 prval = mstrace[wch[0], cordloc[wch]]
                 # Calculate the current order flux
-                cordloc = np.round(0.5 * (slf._lordloc[det-1][:, o-i] + slf._rordloc[det-1][:, o-i])).astype(np.int)
+                cordloc = np.round(0.5 * (lordloc[:, o-i] + rordloc[:, o-i])).astype(np.int)
                 mnval = mstrace[wch[0], cordloc[wch]]
                 wnz = np.where(prval != 0.0)
                 blzmxval[0, o-i] = blzmxval[0, o-i+1] * np.median(mnval[wnz] / prval[wnz])
@@ -1513,7 +1511,7 @@ def slit_profile_pca(slf, mstrace, det, tilts, msblaze, extrap_slit, slit_profil
         elif lorr == +1:
             # Calibrate the current order with the previous one
             mnval = mstrace[wch[0], cordloc[wch]]
-            cordloc = np.round(0.5 * (slf._lordloc[det - 1][:, o-1] + slf._rordloc[det - 1][:, o-1])).astype(np.int)
+            cordloc = np.round(0.5 * (lordloc[:, o-1] + rordloc[:, o-1])).astype(np.int)
             prval = mstrace[wch[0], cordloc[wch]]
             wnz = np.where(prval != 0.0)
             blzmxval[0, o] = blzmxval[0, o-1] * np.median(mnval[wnz] / prval[wnz])
@@ -1579,7 +1577,7 @@ def slit_profile_pca(slf, mstrace, det, tilts, msblaze, extrap_slit, slit_profil
     # Normalize the trace frame, but don't remove the slit profile
     mstracenrm = mstrace.copy()
     for o in range(nslits):
-        word = np.where(slf._slitpix[det - 1] == o+1)
+        word = np.where(slitpix == o+1)
         specval = tilts[word]
         blzspl = interpolate.interp1d(np.linspace(0.0, 1.0, mstrace.shape[0]), extrap_blz[:, o],
                                       kind="linear", fill_value="extrapolate")
@@ -1592,9 +1590,9 @@ def slit_profile_pca(slf, mstrace, det, tilts, msblaze, extrap_slit, slit_profil
     for o in range(nslits):
         if extrap_slit[o] == 1:
             continue
-        word = np.where(slf._slitpix[det - 1] == o+1)
-        spatval = (word[1] + 0.5 - slf._lordloc[det-1][:, o][word[0]]) /\
-                  (slf._rordloc[det-1][:, o][word[0]] - slf._lordloc[det-1][:, o][word[0]])
+        word = np.where(slitpix == o+1)
+        spatval = (word[1] + 0.5 - lordloc[:, o][word[0]]) /\
+                  (rordloc[:, o][word[0]] - lordloc[:, o][word[0]])
         groups = np.digitize(spatval, spatbins)
         modelw = slit_profiles[word]
         for mm in range(1, spatbins.size):
@@ -1634,7 +1632,7 @@ def slit_profile_pca(slf, mstrace, det, tilts, msblaze, extrap_slit, slit_profil
                                      function=fitfunc)
         if not msgs._debug['no_qa']:
 #            arqa.pca_plot(slf, outpar, sofit, "Slit_Profile", pcadesc="PCA of slit profile fits")
-            arpca.pca_plot(slf.setup, outpar, sofit, "Slit_Profile", pcadesc="PCA of slit profile fits")
+            arpca.pca_plot(setup, outpar, sofit, "Slit_Profile", pcadesc="PCA of slit profile fits")
         # Extrapolate the remaining orders requested
         orders = 1.0 + np.arange(nslits)
         extrap_slt, outpar = arpca.extrapolate(outpar, orders, function=fitfunc)
@@ -1649,10 +1647,10 @@ def slit_profile_pca(slf, mstrace, det, tilts, msblaze, extrap_slit, slit_profil
     # Normalize the trace frame, but don't remove the slit profile
     slit_profiles = np.ones_like(mstrace)
     for o in range(nslits):
-        lordloc = slf._lordloc[det - 1][:, o]
-        rordloc = slf._rordloc[det - 1][:, o]
-        word = np.where(slf._slitpix[det - 1] == o+1)
-        spatval = (word[1] - lordloc[word[0]])/(rordloc[word[0]] - lordloc[word[0]])
+        tlordloc = lordloc[:, o]
+        trordloc = rordloc[:, o]
+        word = np.where(slitpix == o+1)
+        spatval = (word[1] - tlordloc[word[0]])/(trordloc[word[0]] - tlordloc[word[0]])
 
         sltspl = interpolate.interp1d(spatfit, extrap_slt[:, o],
                                       kind="linear", fill_value="extrapolate")

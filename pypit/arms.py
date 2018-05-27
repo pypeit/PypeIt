@@ -9,7 +9,6 @@ from astropy import units
 
 from pypit import msgs
 from pypit import arparse as settings
-from pypit.core import arflux
 from pypit import arload
 from pypit import armasters
 from pypit import armbase
@@ -21,12 +20,14 @@ from pypit.core import arsetup
 from pypit import arpixels
 from pypit.core import arsort
 from pypit import wavetilts
-from pypit import artrace
 from pypit import arcimage
 from pypit import bpmimage
 from pypit import biasframe
+from pypit import flatfield
+from pypit import fluxspec
 from pypit import traceslits
 from pypit import traceimage
+from pypit import wavecalib
 
 from pypit import ardebug as debugger
 
@@ -226,9 +227,38 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
 
             ###############
             # Generate the 1D wavelength solution
-            update = slf.MasterWaveCalib(fitstbl, det, msarc)
-            if update and reuseMaster:
-                armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
+            if 'wavecalib' in calib_dict[setup].keys():
+                wv_calib = calib_dict[setup]['wavecalib']
+                wv_maskslits = calib_dict[setup]['wvmask']
+            elif settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
+                msgs.info("A wavelength calibration will not be performed")
+                pass
+            else:
+                # Setup up the settings (will be Refactored with settings)
+                tmp = dict(calibrate=settings.argflag['arc']['calibrate'], masters=settings.argflag['reduce']['masters'])
+                tmp['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
+
+                # Instantiate
+                Wavecalib = wavecalib.WaveCalib(msarc, spectrograph=settings.argflag['run']['spectrograph'],
+                                                settings=tmp, det=det, setup=setup, fitstbl=fitstbl, sci_ID=sci_ID)
+                # Load from disk (MasterFrame)?
+                wv_calib = Wavecalib.master()
+                # Build?
+                if wv_calib is None:
+                    nonlinear = settings.spect[settings.get_dnum(det)]['saturation'] * settings.spect[settings.get_dnum(det)]['nonlinear']
+                    wv_calib, _ = Wavecalib.run(Tslits.lcen, Tslits.rcen, pixlocn, nonlinear=nonlinear)
+                    # Save to Masters
+                    Wavecalib.save_master(Wavecalib.wv_calib)
+                # Mask
+                wv_maskslits = Wavecalib._make_maskslits(Tslits.lcen.shape[1])
+
+                # Save in calib
+                calib_dict[setup]['wavecalib'] = wv_calib
+                calib_dict[setup]['wvmask'] = wv_maskslits
+
+            # Mask me
+            slf._maskslits[det-1] += wv_maskslits
+
 
             ###############
             # Derive the spectral tilt
@@ -263,6 +293,19 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             ###############
             # Prepare the pixel flat field frame
             if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
+                if 'normpixelflat' in calib_dict[setup].keys():
+                    mspixflat = calib_dict[setup]['normpixelflat']
+                else:
+                    # Instantiate
+                    pixflat_image_files = arsort.list_of_files(fitstbl, 'pixelflat', sci_ID)
+                    ftField = flatfield.FlatField(file_list=pixflat_image_files, msbias=msbias)
+
+                    # Load from disk (MasterFrame)?
+                    mspixflat = ftField.master()
+                    if mspixflat is None:
+                        mspixflat = ftField.run(trim=settings.argflag['reduce']['trim'])
+                        ftField.save_master()
+
 
 
             update = slf.MasterFlatField(fitstbl, det, msbias, datasec_img, mstilts)
