@@ -25,6 +25,12 @@ if msgs._debug is None:
 # Does not need to be global, but I prefer it
 frametype = 'normpixelflat'
 
+default_settings = dict(flatfield={'method': 'bspline',
+                                   "params": 20,
+                                   },
+                        slitprofile={'perform': True,
+                                     },
+                        )
 
 class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     """
@@ -83,6 +89,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             if 'combine' not in settings.keys():
                 if self.frametype in settings.keys():
                     self.settings['combine'] = settings[self.frametype]['combine']
+        if 'flatfield' not in settings.keys():
+            self.settings.update(default_settings)
 
         # Child-specific Internals
         #    See ProcessImages for the rest
@@ -97,6 +105,10 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     def build_pixflat(self, trim=True):
         # Generate the image
         self.mspixelflat = self.process(bias_subtract=self.msbias, trim=trim)
+
+    def _prep_tck(self):
+        reload(arflat)
+        self.ntckx, self.ntcky = arflat.prep_ntck(self.pixwid, self.settings)
 
     def slit_profile(self, slit, ntckx=3, ntcky=20):
         reload(arflat)
@@ -116,6 +128,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         # Apply gain
         self.apply_gain(datasec_img, settings_det)
+
+        # Prep tck
 
         # Normalize the flat field
         msgs.info("Normalizing the pixel flat")

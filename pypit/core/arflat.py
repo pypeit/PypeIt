@@ -195,6 +195,28 @@ def slit_profile(slit, mstrace, tilts, slordloc, srordloc, slitpix, pixwid, ntck
     '''
 
 
+def prep_ntck(pixwid, settings, ntcky=None):
+    # Set the number of knots in the spectral direction
+    if ntcky is None:
+        if settings["flatfield"]["method"] == "bspline":
+            ntcky = settings["flatfield"]["params"][0]
+            if settings["flatfield"]["params"][0] < 1.0:
+                ntcky = int(1.0/ntcky)+0.5
+        else:
+            ntcky = 20
+    else:
+        if ntcky < 1.0:
+            ntcky = int(1.0 / ntcky) + 0.5
+    ntcky = int(ntcky)
+    # Set the number of knots in the spatial direction
+    ntckx = 2 * np.max(pixwid)
+    if not settings["slitprofile"]["perform"]:
+        # The slit profile is not needed, so just do the quickest possible fit
+        ntckx = 3
+    # Return
+    return ntckx, ntcky
+
+
 def norm_slits(mstrace, datasec_img, lordloc, rordloc, pixwid,
                  slitpix, det, tilts, settings_argflag, settings_spect, ntcky=None):
     """ Generate an image of the spatial slit profile.
@@ -237,25 +259,10 @@ def norm_slits(mstrace, datasec_img, lordloc, rordloc, pixwid,
     msblaze = np.ones_like(lordloc)
     blazeext = np.ones_like(lordloc)
     slit_profiles = np.ones_like(mstrace)
-    # Set the number of knots in the spectral direction
-    if ntcky is None:
-        if settings_argflag["reduce"]["flatfield"]["method"] == "bspline":
-            ntcky = settings_argflag["reduce"]["flatfield"]["params"][0]
-            if settings_argflag["reduce"]["flatfield"]["params"][0] < 1.0:
-                ntcky = int(1.0/ntcky)+0.5
-        else:
-            ntcky = 20
-    else:
-        if ntcky < 1.0:
-            ntcky = int(1.0 / ntcky) + 0.5
-    ntcky = int(ntcky)
-    # Set the number of knots in the spatial direction
-    ntckx = 2 * np.max(pixwid)
-    if not settings_argflag["reduce"]["slitprofile"]["perform"]:
-        # The slit profile is not needed, so just do the quickest possible fit
-        ntckx = 3
-
     extrap_slit = np.zeros(nslits, dtype=np.int)
+
+    # Tck
+    ntckx, ntcky = prep_ntck(pixwid, settings_argflag['reduce'], ntcky=ntcky)
 
     # Calculate the slit and blaze profiles
     msgs.work("Multiprocess this step")
