@@ -20,10 +20,10 @@ from pypit.core import arsetup
 from pypit import arpixels
 from pypit.core import arsort
 from pypit import wavetilts
+from pypit import artrace
 from pypit import arcimage
 from pypit import bpmimage
 from pypit import biasframe
-from pypit import flatfield
 from pypit import fluxspec
 from pypit import traceslits
 from pypit import traceimage
@@ -137,8 +137,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             else:
                 # Init
                 bias = biasframe.BiasFrame(settings=tsettings, setup=setup, det=det, fitstbl=fitstbl, sci_ID=sci_ID)
-                # Grab/build the MasterFrame (ndarray or str)
-                #   If an image is generated, it will be saved to disk a a MasterFrame
+                # Load the MasterFrame (if it exists and is desired) or the command (e.g. 'overscan')
                 msbias = bias.master()
                 if msbias is None:  # Build it and save it
                     msbias = bias.build_image()
@@ -151,9 +150,11 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             if 'arc' in calib_dict[setup].keys():
                 msarc = calib_dict[setup]['arc']
             else:
+                # Instantiate with everything needed to generate the image (in case we do)
                 AImage = arcimage.ArcImage([], spectrograph=settings.argflag['run']['spectrograph'],
                                            settings=tsettings, det=det, setup=setup, sci_ID=sci_ID,
                                            msbias=msbias, fitstbl=fitstbl)
+                # Load the MasterFrame (if it exists and is desired)?
                 msarc = AImage.master()
                 if msarc is None:  # Otherwise build it
                     msgs.info("Preparing a master {0:s} frame".format(AImage.frametype))
@@ -265,7 +266,6 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             # Mask me
             slf._maskslits[det-1] += wv_maskslits
 
-
             ###############
             # Derive the spectral tilt
             if 'tilts' in calib_dict[setup].keys():
@@ -301,45 +301,11 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             update = slf.MasterFlatField(fitstbl, det, msbias, datasec_img, mstilts)
             if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
 
-
-            '''
-            ###############
-            # Prepare the pixel flat field frame
-            if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
-                if 'normpixelflat' in calib_dict[setup].keys():
-                    mspixflat = calib_dict[setup]['normpixelflat']
-                else:
-                    # Instantiate
-                    pixflat_image_files = arsort.list_of_files(fitstbl, 'pixelflat', sci_ID)
-                    ftField = flatfield.FlatField(file_list=pixflat_image_files, msbias=msbias)
-
-                    # Load from disk (MasterFrame)?
-                    mspixflat = ftField.master()
-                    if mspixflat is None:
-                        mspixflat = ftField.run(trim=settings.argflag['reduce']['trim'])
-                        ftField.save_master()
-            '''
-
-
             ###############
             # Generate/load a master wave frame
             update = slf.MasterWave(det, wv_calib, mstilts)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
-
-            ###############
-            # Check if the user only wants to prepare the calibrations only
-            #msgs.info("All calibration frames have been prepared")
-            #if settings.argflag['run']['preponly']:
-            #    msgs.info("If you would like to continue with the reduction, disable the command:" + msgs.newline() +
-            #              "run preponly False")
-            #    continue
-
-            ###############
-            # Write setup
-            #setup = arsort.calib_setup(sc, det, fitsdict, setup_dict, write=True)
-            # Write MasterFrames (currently per detector)
-            #armasters.save_masters(slf, det, setup)
 
             ###############
             # Load the science frame and from this generate a Poisson error frame
