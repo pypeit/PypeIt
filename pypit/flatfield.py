@@ -23,7 +23,7 @@ if msgs._debug is None:
     msgs.reset(debug=debug, verbosity=2)
 
 # Does not need to be global, but I prefer it
-frametype = 'normpixelflat'
+frametype = 'pixelflat'
 
 default_settings = dict(flatfield={'method': 'bspline',
                                    "params": [20],

@@ -915,6 +915,8 @@ class TraceSlits(masterframe.MasterFrame):
         self.tc_dict = ts_dict['tc_dict']
         # Load the pixel objects?
         self._make_pixel_arrays()
+        # Fill
+        self._fill_slits_dict()
         # Success
         return True
 

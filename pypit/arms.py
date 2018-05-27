@@ -330,12 +330,16 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                                                   tilts=mstilts, det=det, setup=setup)
 
                     # Load from disk (MasterFrame)?
-                    mspixflat = ftField.master()
-                    if mspixflat is None:
-                        # Cheat for the moment and use mstrace
-                        ftField.mspixelflat = Tslits.mstrace.copy()
+                    mspixflatnrm = ftField.master()
+                    if mspixflatnrm is None:
+                        # Use mstrace if the indices are identical
+                        if np.all(arsort.ftype_indices(fitstbl,'trace',1) ==
+                                          arsort.ftype_indices(fitstbl, 'pixelflat', 1)) and (Tslits.mstrace is not None):
+                            ftField.mspixelflat = Tslits.mstrace.copy()
+                        # Run
                         mspixflatnrm = ftField.run(datasec_img, armed=False)
                         # Save to Masters
+                        # TODO -- Do we need to write slitprof too??
                         ftField.save_master(mspixflatnrm, raw_files=pixflat_image_files, steps=ftField.steps)
                 calib_dict[setup]['normpixelflat'] = mspixflatnrm
             else:
