@@ -2,15 +2,12 @@
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-import yaml
 import numpy as np
-
-from astropy import units
+import os
 
 from pypit import msgs
 from pypit import arparse as settings
 from pypit import arload
-from pypit import armasters
 from pypit import armbase
 from pypit import arproc
 from pypit.core import arprocimg
@@ -20,7 +17,6 @@ from pypit.core import arsetup
 from pypit import arpixels
 from pypit.core import arsort
 from pypit import wavetilts
-from pypit import artrace
 from pypit import arcimage
 from pypit import bpmimage
 from pypit import biasframe
@@ -113,7 +109,16 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
 
             ###############
             # Get data sections (Could avoid doing this for every sciexp, but it is quick)
-            datasec_img = arprocimg.get_datasec_trimmed(fitstbl, det, scidx, settings.argflag, settings.spect)
+            # TODO -_ Clean this up!
+            scifile = os.path.join(fitstbl['directory'][scidx],fitstbl['filename'][scidx])
+            settings_det = settings.spect[dnum].copy()  # Should include naxis0, naxis1 in this
+            datasec_img, naxis0, naxis1 = arprocimg.get_datasec_trimmed(
+                settings.argflag['run']['spectrograph'], scifile, namp, det, settings_det,
+                naxis0=fitstbl['naxis0'][scidx],
+                naxis1=fitstbl['naxis1'][scidx])
+            # Yes, this looks goofy.  Is needed for LRIS and DEIMOS for now
+            fitstbl['naxis0'][scidx] = naxis0
+            fitstbl['naxis1'][scidx] = naxis1
             #slf._datasec[det-1] = pix_to_amp(naxis0, naxis1, datasec, numamplifiers)
 
             # Calib dict

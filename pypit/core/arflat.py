@@ -15,7 +15,8 @@ from matplotlib import pyplot as plt
 from pypit import msgs
 
 from pypit import arutils
-from pypit import arparse as settings
+#from pypit import arparse as settings
+from pypit import arparse
 from pypit import arqa
 from pypit import arpca
 
@@ -94,18 +95,20 @@ def get_ampscale(datasec_img, msflat, namp):
     return sclframe
 
 
-def slit_profile(slit, mstrace, tilts, slordloc, srordloc, slitpix, pixwid, extrap_slit,
-                 ntckx=3, ntcky=20):
-    if settings.argflag["reduce"]["slitprofile"]["perform"]:
+def slit_profile(slit, mstrace, tilts, slordloc, srordloc, slitpix, pixwid, ntckx=3, ntcky=20):
+    '''
+    if settings_argflag["reduce"]["slitprofile"]["perform"]:
         msgs.info("Deriving the spatial profile and blaze function of slit {0:d}".format(slit+1))
     else:
         msgs.info("Deriving the blaze function of slit {0:d}".format(slit + 1))
+    '''
     #slordloc = lordloc[:, slit]
     #srordloc = rordloc[:, slit]
+    iextrap_slit = 0.
     word = np.where(slitpix == slit+1)
     if word[0].size <= (ntcky+1)*(2*pixwid[slit]+1):
         msgs.warn("There are not enough pixels in slit {0:d}".format(slit+1))
-        return None, None, None, None
+        return None, None, None, None, 1.
     spatval = (word[1] - slordloc[word[0]])/(srordloc[word[0]] - slordloc[word[0]])
     specval = tilts[word]
     fluxval = mstrace[word]
@@ -118,9 +121,9 @@ def slit_profile(slit, mstrace, tilts, slordloc, srordloc, slitpix, pixwid, extr
     wsp = np.where((spatval > 0.25) & (spatval < 0.75) & wcchip)
     if wsp[0].size <= (ntcky+1)*(2*pixwid[slit]+1):
         msgs.warn("There are not enough pixels in slit {0:d}".format(slit+1))
-        return None, None, None, None
+        return None, None, None, None, 1.
     if (np.min(word[0]) > 0) or (np.max(word[0]) < mstrace.shape[0]-1):
-        extrap_slit[slit] = 1.0
+        iextrap_slit = 1.0
     tcky = np.linspace(min(0.0, np.min(specval[wsp])), max(1.0, np.max(specval[wsp])), ntcky)
     tcky = tcky[np.where((tcky > np.min(specval[wsp])) & (tcky < np.max(specval[wsp])))]
     srt = np.argsort(specval[wsp])
@@ -138,7 +141,7 @@ def slit_profile(slit, mstrace, tilts, slordloc, srordloc, slitpix, pixwid, extr
                                               sigma=5., maxone=False)
         blz_flat = arutils.func_val(blzspl, specval, 'polynomial')
         msblaze_slit = arutils.func_val(blzspl, np.linspace(0.0, 1.0, slordloc.shape[0]), 'polynomial')
-        extrap_slit[slit] = 1.0
+        iextrap_slit = 1.0
 
     # Extract a spectrum of the trace frame
     xext = np.arange(mstrace.shape[0])
@@ -148,7 +151,7 @@ def slit_profile(slit, mstrace, tilts, slordloc, srordloc, slitpix, pixwid, extr
     blazeext_slit = np.zeros(slordloc.shape[0])
     blazeext_slit[wcc[0]] = mstrace[(xext[wcc], yext[wcc],)]
     if wcc[0].size != mstrace.shape[0]:
-        extrap_slit[slit] = 1.0
+        iextrap_slit = 1.0
 
     # Calculate the slit profile
     sprof_fit = fluxval / (blz_flat + (blz_flat == 0.0))
@@ -170,13 +173,13 @@ def slit_profile(slit, mstrace, tilts, slordloc, srordloc, slitpix, pixwid, extr
                                               sigma=5., maxone=False)
         slt_flat = arutils.func_val(sltspl, spatval, 'polynomial')
         sltnrmval = arutils.func_val(sltspl, 0.5, 'polynomial')
-        extrap_slit[slit] = 1.0
+        iextrap_slit = 1.0
 
     modvals = blz_flat * slt_flat
     # Normalize to the value at the centre of the slit
     nrmvals = blz_flat * sltnrmval
 
-    return modvals, nrmvals, msblaze_slit, blazeext_slit
+    return modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit
     '''
     if msgs._debug['slit_profile']:
         debugger.set_trace()
@@ -193,7 +196,7 @@ def slit_profile(slit, mstrace, tilts, slordloc, srordloc, slitpix, pixwid, extr
 
 
 def norm_slits(mstrace, datasec_img, lordloc, rordloc, pixwid,
-                 slitpix, det, tilts, ntcky=None):
+                 slitpix, det, tilts, settings_argflag, settings_spect, ntcky=None):
     """ Generate an image of the spatial slit profile.
 
     Parameters
@@ -221,12 +224,12 @@ def norm_slits(mstrace, datasec_img, lordloc, rordloc, pixwid,
       Mask indicating if a slit is well-determined (0) or poor (1). If the latter, the slit profile
       and blaze function for those slits should be extrapolated or determined from another means
     """
-    dnum = settings.get_dnum(det)
+    dnum = arparse.get_dnum(det)
     nslits = lordloc.shape[1]
 
     # First, determine the relative scale of each amplifier (assume amplifier 1 has a scale of 1.0)
-    if (settings.spect[dnum]['numamplifiers'] > 1) & (nslits > 1):
-        sclframe = get_ampscale(datasec_img, mstrace, settings.spect[dnum]['numamplifiers'])
+    if (settings_spect[dnum]['numamplifiers'] > 1) & (nslits > 1):
+        sclframe = get_ampscale(datasec_img, mstrace, settings_spect[dnum]['numamplifiers'])
         # Divide the master flat by the relative scale frame
         mstrace /= sclframe
 
@@ -236,9 +239,9 @@ def norm_slits(mstrace, datasec_img, lordloc, rordloc, pixwid,
     slit_profiles = np.ones_like(mstrace)
     # Set the number of knots in the spectral direction
     if ntcky is None:
-        if settings.argflag["reduce"]["flatfield"]["method"] == "bspline":
-            ntcky = settings.argflag["reduce"]["flatfield"]["params"][0]
-            if settings.argflag["reduce"]["flatfield"]["params"][0] < 1.0:
+        if settings_argflag["reduce"]["flatfield"]["method"] == "bspline":
+            ntcky = settings_argflag["reduce"]["flatfield"]["params"][0]
+            if settings_argflag["reduce"]["flatfield"]["params"][0] < 1.0:
                 ntcky = int(1.0/ntcky)+0.5
         else:
             ntcky = 20
@@ -248,7 +251,7 @@ def norm_slits(mstrace, datasec_img, lordloc, rordloc, pixwid,
     ntcky = int(ntcky)
     # Set the number of knots in the spatial direction
     ntckx = 2 * np.max(pixwid)
-    if not settings.argflag["reduce"]["slitprofile"]["perform"]:
+    if not settings_argflag["reduce"]["slitprofile"]["perform"]:
         # The slit profile is not needed, so just do the quickest possible fit
         ntckx = 3
 
@@ -258,14 +261,16 @@ def norm_slits(mstrace, datasec_img, lordloc, rordloc, pixwid,
     msgs.work("Multiprocess this step")
     for slit in range(nslits):
         word = np.where(slitpix == slit+1)
-        modvals, nrmvals, msblaze_slit, blazeext_slit = slit_profile(
+        modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit = slit_profile(
             slit, mstrace, tilts, lordloc[:,slit], rordloc[:,slit], slitpix,
-            pixwid, extrap_slit, ntckx=ntckx, ntcky=ntcky)
+            pixwid, ntckx=ntckx, ntcky=ntcky)
         if modvals is None:
             extrap_slit[slit] = 1.0
             continue
+        else:
+            extrap_slit[slit] = iextrap_slit
         #
-        if settings.argflag["reduce"]["slitprofile"]["perform"]:
+        if settings_argflag["reduce"]["slitprofile"]["perform"]:
             # Leave slit_profiles as ones if the slitprofile is not being determined, otherwise, set the model.
             slit_profiles[word] = modvals/nrmvals
         mstracenrm[word] /= nrmvals

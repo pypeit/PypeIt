@@ -423,8 +423,11 @@ class ScienceExposure:
                     # Normalize the flat field
                     msgs.info("Normalizing the pixel flat")
                     slit_profiles, mstracenrm, msblaze, flat_ext1d, extrap_slit = \
-                        arflat.norm_slits(self.GetMasterFrame("pixelflat", det), datasec_img, self._lordloc[det-1], self._rordloc[det-1],
-                                      self._pixwid[det-1], self._slitpix[det-1], det, tilts, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
+                        arflat.norm_slits(
+                            self.GetMasterFrame("pixelflat", det), datasec_img, self._lordloc[det-1], self._rordloc[det-1],
+                            self._pixwid[det-1], self._slitpix[det-1], det, tilts,
+                            settings.argflag, settings.spect,
+                            ntcky=settings.argflag['reduce']['flatfield']['params'][0])
                     #arflat.norm_slits(self, self.GetMasterFrame("pixelflat", det),
                     #                  det, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
                     # If some slit profiles/blaze functions need to be extrapolated, do that now
@@ -491,7 +494,9 @@ class ScienceExposure:
                     msgs.info("Normalizing the pixel flat")
                     slit_profiles, mstracenrm, msblaze, flat_ext1d, extrap_slit = \
                         arflat.norm_slits(mspixelflat, datasec_img, self._lordloc[det-1], self._rordloc[det-1],
-                                          self._pixwid[det-1], self._slitpix[det-1], det, tilts, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
+                                          self._pixwid[det-1], self._slitpix[det-1], det, tilts,
+                                          settings.argflag, settings.spect,
+                                          ntcky=settings.argflag['reduce']['flatfield']['params'][0])
                     # If some slit profiles/blaze functions need to be extrapolated, do that now
                     if settings.spect['mosaic']['reduction'] == 'AMRED':
                         if np.sum(extrap_slit) != 0.0:

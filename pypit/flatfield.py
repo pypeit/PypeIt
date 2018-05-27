@@ -5,11 +5,14 @@ import inspect
 import numpy as np
 import os
 
+from importlib import reload
+
 from pypit import msgs
 from pypit import processimages
 from pypit import masterframe
 from pypit.core import arprocimg
 from pypit.core import arflat
+from pypit import ginga
 
 from pypit import ardebug as debugger
 
@@ -43,11 +46,20 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     """
     # Keep order same as processimages (or else!)
     def __init__(self, file_list=[], spectrograph=None, settings=None, msbias=None,
-                 det=None):
+                 lordloc=None, rordloc=None, pixlocn=None, pixcen=None, slitpix=None,
+                 tilts=None, pixwid=None, det=None, setup=None):
 
         # Parameters unique to this Object
         self.msbias = msbias
         self.det = det
+        self.setup = setup
+        self.lordloc = lordloc
+        self.rordloc = rordloc
+        self.pixlocn = pixlocn
+        self.pixcen = pixcen
+        self.slitpix = slitpix
+        self.pixwid = pixwid
+        self.tilts = tilts
 
         # Start us up
         processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph, settings=settings, det=det)
@@ -57,6 +69,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         # Key outputs
         self.mspixelflat = None
+        self.mspixelflatnrm = None
 
         # Settings
         # The copy allows up to update settings with user settings without changing the original
@@ -85,8 +98,17 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # Generate the image
         self.mspixelflat = self.process(bias_subtract=self.msbias, trim=trim)
 
+    def slit_profile(self, slit, ntckx=3, ntcky=20):
+        reload(arflat)
+        # Wrap me
+        slordloc = self.lordloc[:,slit]
+        srordloc = self.rordloc[:,slit]
+        modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit = arflat.slit_profile(
+            slit, self.mspixelflat, self.tilts, slordloc, srordloc, self.slitpix, self.pixwid, ntckx=ntckx, ntcky=ntcky)
+        return modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit
+
     def run(self, datasec_img, lordloc, rordloc, pixwid, slitpix, tilts, settings_det, armed=False):
-        #ntcky=settings.argflag['reduce']['flatfield']['params'][0])
+        #ntcky=settings.argflag['reduce']['flatfield']['params'][0]) : Default = 20
 
         # Build the pixel flat (as needed)
         if self.mspixelflat is None:
@@ -132,3 +154,10 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             artracewave.plot_orderfits(self.setup, msblaze, flat_ext1d, desc="Blaze function")
         #
         '''
+    def show(self, attr, slit=None, display='ginga', cname=None):
+        if attr == 'mspixelflat':
+            if self.mspixelflat is not None:
+                ginga.show_image(self.mspixelflat)
+        elif attr == 'norm':
+            if self.mspixelflatnrm is not None:
+                ginga.show_image(self.mspixelflatnrm)
