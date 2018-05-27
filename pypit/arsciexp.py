@@ -12,15 +12,10 @@ from astropy.time import Time
 # Import PYPIT routines
 from pypit import msgs
 from pypit import arparse as settings
-from pypit import artrace
 from pypit import arload
 from pypit import arcomb
 from pypit import armasters
-from pypit import arproc
-from pypit.core import arprocimg
 from pypit.core import arsort
-from pypit.core import artracewave
-from pypit.core import arflat
 from pypit import arutils
 from pypit import ardebug as debugger
 
@@ -41,14 +36,14 @@ class ScienceExposure:
             self._idx_sci = np.array([idx_sci])
         if settings_argflag['reduce']['masters']['force']:
             #self._idx_bias = []
-            self._idx_flat = []
+            #self._idx_flat = []
             self._idx_cent = []
-            self._idx_trace = []
+            #self._idx_trace = []
             #self._idx_arcs = []
-            self._idx_std = []
+            #self._idx_std = []
         else:
             #self._idx_arcs = arsort.ftype_indices(fitstbl, 'arc', self.sci_ID)
-            self._idx_std = arsort.ftype_indices(fitstbl, 'standard', self.sci_ID)
+            #self._idx_std = arsort.ftype_indices(fitstbl, 'standard', self.sci_ID)
             # Bias
             #if settings_argflag['bias']['useframe'] == 'bias':
             #    self._idx_bias = arsort.ftype_indices(fitstbl, 'bias', self.sci_ID)
@@ -56,13 +51,13 @@ class ScienceExposure:
             #    self._idx_bias = arsort.ftype_indices(fitstbl, 'dark', self.sci_ID)
             #else: self._idx_bias = []
             # Trace
-            self._idx_trace = arsort.ftype_indices(fitstbl, 'trace', self.sci_ID)
+            #self._idx_trace = arsort.ftype_indices(fitstbl, 'trace', self.sci_ID)
             # Flat
-            if settings_argflag['reduce']['flatfield']['useframe'] == 'pixelflat':
-                self._idx_flat = arsort.ftype_indices(fitstbl, 'pixelflat', self.sci_ID)
-            elif settings_argflag['reduce']['flatfield']['useframe'] == 'trace':
-                self._idx_flat = arsort.ftype_indices(fitstbl, 'trace', self.sci_ID)
-            else: self._idx_flat = []
+            #if settings_argflag['reduce']['flatfield']['useframe'] == 'pixelflat':
+            #    self._idx_flat = arsort.ftype_indices(fitstbl, 'pixelflat', self.sci_ID)
+            #elif settings_argflag['reduce']['flatfield']['useframe'] == 'trace':
+            #    self._idx_flat = arsort.ftype_indices(fitstbl, 'trace', self.sci_ID)
+            #else: self._idx_flat = []
             # Cent
             if settings_argflag['reduce']['slitcen']['useframe'] == 'trace':
                 self._idx_cent = arsort.ftype_indices(fitstbl, 'trace', self.sci_ID)
@@ -100,8 +95,8 @@ class ScienceExposure:
         #self._tilts    = [None for all in range(ndet)]   # Array of spectral tilts at each position on the detector
         #self._tiltpar  = [None for all in range(ndet)]   # Dict parameters for tilt fitting
         self._satmask  = [None for all in range(ndet)]   # Array of Arc saturation streaks
-        self._arcparam = [None for all in range(ndet)]   # Dict guiding wavelength calibration
-        self._wvcalib  = [None for all in range(ndet)]   # List of dict's
+        #self._arcparam = [None for all in range(ndet)]   # Dict guiding wavelength calibration
+        #self._wvcalib  = [None for all in range(ndet)]   # List of dict's
         self._resnarr  = [None for all in range(ndet)]   # Resolution array
         self._maskslits = [None for all in range(ndet)]  # Mask for whether to analyze a given slit (True=masked)
         # Initialize the Master Calibration frames
@@ -110,19 +105,19 @@ class ScienceExposure:
         self._mswave = [None for all in range(ndet)]         # Master Wavelength image
         #self._msbias = [None for all in range(ndet)]        # Master Bias
         self._msrn = [None for all in range(ndet)]          # Master ReadNoise image
-        self._mstrace = [None for all in range(ndet)]       # Master Trace
+        #self._mstrace = [None for all in range(ndet)]       # Master Trace
         self._mspinhole = [None for all in range(ndet)]       # Master Pinhole
-        self._mspixelflat = [None for all in range(ndet)]     # Master Pixel Flat
-        self._mspixelflatnrm = [None for all in range(ndet)]  # Normalized Master pixel flat
-        self._msblaze = [None for all in range(ndet)]       # Blaze function
-        self._msstd = [{} for all in range(ndet)]           # Master Standard dict
-        self._sensfunc = None                               # Sensitivity function
+        #self._mspixelflat = [None for all in range(ndet)]     # Master Pixel Flat
+        #self._mspixelflatnrm = [None for all in range(ndet)]  # Normalized Master pixel flat
+        #self._msblaze = [None for all in range(ndet)]       # Blaze function
+        #self._msstd = [{} for all in range(ndet)]           # Master Standard dict
+        #self._sensfunc = None                               # Sensitivity function
         # Initialize the Master Calibration frame names
         #self._msarc_name = [None for all in range(ndet)]      # Master Arc Name
         #self._msbias_name = [None for all in range(ndet)]     # Master Bias Name
-        self._mstrace_name = [None for all in range(ndet)]    # Master Trace Name
+        #self._mstrace_name = [None for all in range(ndet)]    # Master Trace Name
         self._mspinhole_name = [None for all in range(ndet)]    # Master Pinhole Name
-        self._mspixelflat_name = [None for all in range(ndet)]  # Master Pixel Flat Name
+        #self._mspixelflat_name = [None for all in range(ndet)]  # Master Pixel Flat Name
         # Initialize the science, variance, and background frames
         self._sciframe = [None for all in range(ndet)]
         self._rawvarframe = [None for all in range(ndet)]    # Variance based on detected counts + RN
@@ -413,7 +408,8 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-        #msgs.error("SHOULD NOT GET HERE")
+        msgs.error("SHOULD NOT GET HERE")
+        '''
         dnum = settings.get_dnum(det)
         if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
             # If the master pixelflat is already made, use it
@@ -544,6 +540,7 @@ class ScienceExposure:
         self.SetMasterFrame(mspixelflatnrm, "normpixelflat", det)
         armasters.save_masters(self, det, mftype='normpixelflat')
         return True
+        '''
 
     def MasterPinhole(self, fitsdict, det, msbias):
         """

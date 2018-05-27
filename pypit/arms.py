@@ -20,6 +20,7 @@ from pypit import wavetilts
 from pypit import arcimage
 from pypit import bpmimage
 from pypit import biasframe
+from pypit import flatfield
 from pypit import fluxspec
 from pypit import traceslits
 from pypit import traceimage
@@ -215,7 +216,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                     Tslits.mstrace = mstrace
                     _ = Tslits.make_binarr()
                     # Now we go forth
-                    Tslits.run(armlsd=True)#, ignore_orders=ignore_orders, add_user_slits=add_user_slits)
+                    _ = Tslits.run(armlsd=True)#, ignore_orders=ignore_orders, add_user_slits=add_user_slits)
                     # QA
                     Tslits._qa()
                     # Save to disk
@@ -280,9 +281,9 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 wt_maskslits = calib_dict[setup]['wtmask']
             else:
                 # Settings kludges
-                tilt_settings = dict(tilts=settings.argflag['trace']['slits']['tilts'].copy())
+                tilt_settings = dict(tilts=settings.argflag['trace']['slits']['tilts'].copy(),
+                                     masters=settings.argflag['reduce']['masters'])
                 tilt_settings['tilts']['function'] = settings.argflag['trace']['slits']['function']
-                tilt_settings['masters'] = settings.argflag['reduce']['masters']
                 tilt_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
                 settings_det = {}
                 settings_det[dnum] = settings.spect[dnum].copy()
@@ -306,26 +307,40 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
 
             ###############
             # Prepare the pixel flat field frame
-            update = slf.MasterFlatField(fitstbl, det, msbias, datasec_img, mstilts)
-            if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
+            #update = slf.MasterFlatField(fitstbl, det, msbias, datasec_img, mstilts)
+            #if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
 
-            '''
             ###############
             # Prepare the pixel flat field frame
             if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
                 if 'normpixelflat' in calib_dict[setup].keys():
-                    mspixflat = calib_dict[setup]['normpixelflat']
+                    mspixflatnrm = calib_dict[setup]['normpixelflat']
                 else:
+                    # Settings
+                    flat_settings = dict(flatfield=settings.argflag['reduce']['flatfield'].copy(),
+                                         slitprofile=settings.argflag['reduce']['slitprofile'].copy(),
+                                         masters=settings.argflag['reduce']['masters'].copy(),
+                                         detector=settings.spect[dnum])
+                    flat_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
                     # Instantiate
                     pixflat_image_files = arsort.list_of_files(fitstbl, 'pixelflat', sci_ID)
-                    ftField = flatfield.FlatField(file_list=pixflat_image_files, msbias=msbias)
+                    ftField = flatfield.FlatField(file_list=pixflat_image_files, msbias=msbias,
+                                                  settings=flat_settings,
+                                                  slits_dict=Tslits.slits_dict.copy(),
+                                                  tilts=mstilts, det=det, setup=setup)
 
                     # Load from disk (MasterFrame)?
                     mspixflat = ftField.master()
                     if mspixflat is None:
-                        mspixflat = ftField.run(trim=settings.argflag['reduce']['trim'])
-                        ftField.save_master()
-            '''
+                        # Cheat for the moment and use mstrace
+                        ftField.mspixelflat = Tslits.mstrace.copy()
+                        mspixflatnrm = ftField.run(datasec_img, armed=False)
+                        # Save to Masters
+                        ftField.save_master(mspixflatnrm, raw_files=pixflat_image_files, steps=ftField.steps)
+                calib_dict[setup]['normpixelflat'] = mspixflatnrm
+            else:
+                mspixflatnrm = None
+
 
             ###############
             # Generate/load a master wave frame
@@ -342,7 +357,8 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             sciframe = sciframe[:, :, 0]
             # Extract
             msgs.info("Processing science frame")
-            arproc.reduce_multislit(slf, mstilts, sciframe, msbpm, datasec_img, scidx, fitstbl, det)
+            arproc.reduce_multislit(slf, mstilts, sciframe, msbpm, datasec_img, scidx, fitstbl, det,
+                                    mspixelflatnrm=mspixflatnrm)
 
             ######################################################
             # Reduce standard here; only legit todo if the mask is the same
@@ -363,7 +379,8 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 stdframe = stdframe[:, :, 0]
                 # Reduce
                 msgs.info("Processing standard frame")
-                arproc.reduce_multislit(stdslf, mstilts, stdframe, msbpm, datasec_img, std_idx, fitstbl, det, standard=True)
+                arproc.reduce_multislit(stdslf, mstilts, stdframe, msbpm, datasec_img, std_idx, fitstbl, det,
+                                        standard=True, mspixelflatnrm=mspixflatnrm)
                 # Finish
                 stdslf.extracted = True
 

@@ -209,6 +209,7 @@ def prep_ntck(pixwid, settings, ntcky=None):
             ntcky = int(1.0 / ntcky) + 0.5
     ntcky = int(ntcky)
     # Set the number of knots in the spatial direction
+    # TODO -- Should this be set per slit/order?
     ntckx = 2 * np.max(pixwid)
     if not settings["slitprofile"]["perform"]:
         # The slit profile is not needed, so just do the quickest possible fit

@@ -572,7 +572,8 @@ def object_profile(slf, sciframe, slitn, det, refine=0.0, factor=3):
     return xedges, profile
 
 
-def reduce_prepare(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det, standard=False):
+def reduce_prepare(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det,
+                   mspixelflatnrm=None, standard=False):
     """ Prepare the Run standard extraction steps on a frame
 
     Parameters
@@ -615,7 +616,7 @@ def reduce_prepare(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det, stand
         msgs.info("Flat fielding the science frame")
         # JXP -- I think it is a bad idea to modify the rawvarframe
         #sciframe, rawvarframe = flatfield(slf, sciframe, slf._mspixelflatnrm[det-1], det, varframe=rawvarframe, slitprofile=slf._slitprof[det-1])
-        sciframe = arflat.flatfield(sciframe, slf._mspixelflatnrm[det-1], bpix, slitprofile=slf._slitprof[det-1])
+        sciframe = arflat.flatfield(sciframe, mspixelflatnrm, bpix, slitprofile=slf._slitprof[det-1])
     else:
         msgs.info("Not performing a flat field calibration")
     if not standard:
@@ -632,7 +633,8 @@ def reduce_prepare(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det, stand
 
 
 def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
-                   standard=False, triml=1, trimr=1):
+                   standard=False, triml=1, trimr=1,
+                   mspixelflatnrm=None):
     """ Run standard extraction steps on an echelle frame
 
     Parameters
@@ -656,7 +658,9 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
     nspec = sciframe.shape[0]
     nord = slf._lordloc[det-1].shape[1]
     # Prepare the frames for tracing and extraction
-    sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det, standard=standard)
+    sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det,
+                                                   mspixelflatnrm=mspixelflatnrm,
+                                                   standard=standard)
     bgframe = np.zeros_like(sciframe)
     bgnl, bgnr = np.zeros(nord, dtype=np.int), np.zeros(nord, dtype=np.int)
     skysub = True
@@ -817,7 +821,8 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
                         scitrace=scitrace, standard=standard)
 
 
-def reduce_multislit(slf, tilts, sciframe, bpix, datasec_img, scidx, fitsdict, det, standard=False):
+def reduce_multislit(slf, tilts, sciframe, bpix, datasec_img, scidx, fitsdict, det,
+                     mspixelflatnrm=None, standard=False):
     """ Run standard extraction steps on an echelle frame
 
     Parameters
@@ -838,7 +843,8 @@ def reduce_multislit(slf, tilts, sciframe, bpix, datasec_img, scidx, fitsdict, d
     #
     dnum = settings.get_dnum(det)
     sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, bpix, datasec_img,
-                                                   scidx, fitsdict, det)
+                                                   scidx, fitsdict, det,
+                                                   mspixelflatnrm=mspixelflatnrm)
 
     # Save sciframe
     slf._sciframe[det-1] = sciframe.copy()
