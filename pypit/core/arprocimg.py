@@ -106,20 +106,16 @@ def get_datasec_trimmed(spectrograph, scifile, numamplifiers, det, settings_det,
 
     Parameters
     ----------
-    slf
     fitstbl
     det : int
     scidx : int
 
     Returns
     -------
-    Fills slf._datasect
-    fitstbl['naxis0'] and fittsdict['naxis1']
+    datasec_img : ndarray
+    naxis0 : int
+    naxis1 : int
     """
-    #spectrograph = settings_argflag['run']['spectrograph']
-    #scifile = os.path.join(fitstbl['directory'][scidx],fitstbl['filename'][scidx])
-    #numamplifiers = settings_spect[dnum]['numamplifiers']
-
     # Instrument specific bits
     # TODO -- Remove instrument specific items in a method like this
     if spectrograph in ['keck_lris_blue', 'keck_lris_red', 'keck_deimos']:
@@ -142,7 +138,8 @@ def get_datasec_trimmed(spectrograph, scifile, numamplifiers, det, settings_det,
         datasec.append(settings_det[sdatasec])
     # Call
     #naxis0, naxis1 = int(fitstbl['naxis0'][scidx]), int(fitstbl['naxis1'][scidx])
-    return arpixels.pix_to_amp(naxis0, naxis1, datasec, numamplifiers), naxis0, naxis1
+    datasec_img = arpixels.pix_to_amp(naxis0, naxis1, datasec, numamplifiers)
+    return datasec_img, naxis0, naxis1
 
 
 def get_datasec(spectrograph, scifile, numamplifiers=None, det=None):

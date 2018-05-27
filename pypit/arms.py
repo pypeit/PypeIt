@@ -304,12 +304,6 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 calib_dict[setup]['wtmask'] = wt_maskslits
             slf._maskslits[det-1] += wt_maskslits
 
-
-            ###############
-            # Prepare the pixel flat field frame
-            #update = slf.MasterFlatField(fitstbl, det, msbias, datasec_img, mstilts)
-            #if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
-
             ###############
             # Prepare the pixel flat field frame
             if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
