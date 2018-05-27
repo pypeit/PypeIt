@@ -140,6 +140,9 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 # Grab/build the MasterFrame (ndarray or str)
                 #   If an image is generated, it will be saved to disk a a MasterFrame
                 msbias = bias.master()
+                if msbias is None:  # Build it and save it
+                    msbias = bias.build_image()
+                    bias.save_master(msbias, raw_files=bias.file_list, steps=bias.steps)
                 # Save
                 calib_dict[setup]['bias'] = msbias
 
@@ -152,6 +155,11 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                                            settings=tsettings, det=det, setup=setup, sci_ID=sci_ID,
                                            msbias=msbias, fitstbl=fitstbl)
                 msarc = AImage.master()
+                if msarc is None:  # Otherwise build it
+                    msgs.info("Preparing a master {0:s} frame".format(AImage.frametype))
+                    msarc = AImage.build_image()
+                    # Save to Masters
+                    AImage.save_master(msarc, raw_files=AImage.file_list, steps=AImage.steps)
                 # Save
                 calib_dict[setup]['arc'] = msarc
 
@@ -181,34 +189,32 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             if 'trace' in calib_dict[setup].keys():  # Internal
                 Tslits = calib_dict[setup]['trace']
             else:
-                # Load master frame?
-                if (settings.argflag['reduce']['masters']['reuse']) or (settings.argflag['reduce']['masters']['force']):
-                    mstrace_name = armasters.master_name('trace', setup)
-                    Tslits = traceslits.TraceSlits.from_master_files(mstrace_name, load_pix_obj=True)  # Returns None if none exists
-                else:
-                    Tslits = None
+                # Setup up the settings (will be Refactored with settings)
+                tmp = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
+                tmp['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
 
-                # Build it?  Beginning with the trace image
-                if Tslits is None:
+                # Instantiate (without mstrace)
+                Tslits = traceslits.TraceSlits(None, slf._pixlocn[det-1], settings=tmp, det=det, setup=setup, binbpx=msbpm)
+
+                # Load via masters, as desired
+                if not Tslits.master():
                     # Build the trace image first
                     trace_image_files = arsort.list_of_files(fitstbl, 'trace', sci_ID)
                     Timage = traceimage.TraceImage(trace_image_files,
-                                                        spectrograph=settings.argflag['run']['spectrograph'],
-                                                        settings=tsettings, det=det)
+                                                   spectrograph=settings.argflag['run']['spectrograph'],
+                                                   settings=tsettings, det=det)
                     mstrace = Timage.process(bias_subtract=msbias, trim=settings.argflag['reduce']['trim'])
 
-                    # Setup up the settings (will be Refactored with settings)
-                    tmp = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
-                    tmp['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-
-                    # Now trace me some slits
-                    Tslits = traceslits.TraceSlits(mstrace, slf._pixlocn[det-1], det=det, settings=tmp,
-                                                   binbpx=msbpm, setup=setup)
-                    _ = Tslits.run(armlsd=True)
+                    # Load up and get ready
+                    Tslits.mstrace = mstrace
+                    _ = Tslits.make_binarr()
+                    # Now we go forth
+                    Tslits.run(armlsd=True)#, ignore_orders=ignore_orders, add_user_slits=add_user_slits)
                     # QA
                     Tslits._qa()
                     # Save to disk
                     Tslits.save_master()
+
                 # Save in calib
                 calib_dict[setup]['trace'] = Tslits
 
@@ -292,6 +298,13 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
 
             ###############
             # Prepare the pixel flat field frame
+            update = slf.MasterFlatField(fitstbl, det, msbias, datasec_img, mstilts)
+            if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
+
+
+            '''
+            ###############
+            # Prepare the pixel flat field frame
             if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
                 if 'normpixelflat' in calib_dict[setup].keys():
                     mspixflat = calib_dict[setup]['normpixelflat']
@@ -305,11 +318,8 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                     if mspixflat is None:
                         mspixflat = ftField.run(trim=settings.argflag['reduce']['trim'])
                         ftField.save_master()
+            '''
 
-
-
-            update = slf.MasterFlatField(fitstbl, det, msbias, datasec_img, mstilts)
-            if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
 
             ###############
             # Generate/load a master wave frame

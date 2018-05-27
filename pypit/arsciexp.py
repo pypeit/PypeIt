@@ -20,6 +20,7 @@ from pypit import arproc
 from pypit.core import arprocimg
 from pypit.core import arsort
 from pypit.core import artracewave
+from pypit.core import arflat
 from pypit import arutils
 from pypit import ardebug as debugger
 
@@ -72,6 +73,9 @@ class ScienceExposure:
         # Set the base name and extract other names that will be used for output files
         #  Also parses the time input
         self.SetBaseName(fitstbl)
+
+        # Setup
+        self.setup = ''
 
         # Velocity correction (e.g. heliocentric)
         self.vel_correction = 0.
@@ -409,7 +413,7 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
-        msgs.error("SHOULD NOT GET HERE")
+        #msgs.error("SHOULD NOT GET HERE")
         dnum = settings.get_dnum(det)
         if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
             # If the master pixelflat is already made, use it
@@ -419,12 +423,18 @@ class ScienceExposure:
                     # Normalize the flat field
                     msgs.info("Normalizing the pixel flat")
                     slit_profiles, mstracenrm, msblaze, flat_ext1d, extrap_slit = \
-                        arproc.slit_profile(self, self.GetMasterFrame("pixelflat", det),
-                                            det, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
+                        arflat.norm_slits(self.GetMasterFrame("pixelflat", det), datasec_img, self._lordloc[det-1], self._rordloc[det-1],
+                                      self._pixwid[det-1], self._slitpix[det-1], det, tilts, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
+                    #arflat.norm_slits(self, self.GetMasterFrame("pixelflat", det),
+                    #                  det, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
                     # If some slit profiles/blaze functions need to be extrapolated, do that now
                     if settings.spect['mosaic']['reduction'] == 'AMRED':
                         if np.sum(extrap_slit) != 0.0:
-                            slit_profiles, mstracenrm, msblaze = arproc.slit_profile_pca(self, self.GetMasterFrame("pixelflat", det), det, msblaze, extrap_slit, slit_profiles)
+                            slit_profiles, mstracenrm, msblaze = arflat.slit_profile_pca(
+                                self.GetMasterFrame("pixelflat", det),
+                                tilts, msblaze, extrap_slit, slit_profiles,
+                                self._lordloc[det-1], self._rordloc[det-1], self._pixwid[det-1],
+                                self._slitpix[det-1], self.setup)
                     mspixelflatnrm = mstracenrm.copy()
                     winpp = np.where(slit_profiles != 0.0)
                     mspixelflatnrm[winpp] /= slit_profiles[winpp]
@@ -440,12 +450,12 @@ class ScienceExposure:
                             msgs.info("Preparing QA of each slit profile")
 #                            arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
 #                                              self._slitpix[det - 1], desc="Slit profile")
-                            arproc.slit_profile_qa(self, mstracenrm, slit_profiles,
+                            arflat.slit_profile_qa(self, mstracenrm, slit_profiles,
                                                    self._lordloc[det - 1], self._rordloc[det - 1],
                                                    self._slitpix[det - 1], desc="Slit profile")
                         msgs.info("Saving blaze function QA")
 #                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
-                        artrace.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
+                        artracewave.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
                 return False
             ###############
             # Generate/load a master pixel flat frame
@@ -480,11 +490,15 @@ class ScienceExposure:
                     # Normalize the flat field
                     msgs.info("Normalizing the pixel flat")
                     slit_profiles, mstracenrm, msblaze, flat_ext1d, extrap_slit = \
-                        arproc.slit_profile(self, mspixelflat, det, tilts, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
+                        arflat.norm_slits(mspixelflat, datasec_img, self._lordloc[det-1], self._rordloc[det-1],
+                                          self._pixwid[det-1], self._slitpix[det-1], det, tilts, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
                     # If some slit profiles/blaze functions need to be extrapolated, do that now
                     if settings.spect['mosaic']['reduction'] == 'AMRED':
                         if np.sum(extrap_slit) != 0.0:
-                            slit_profiles, mstracenrm, msblaze = arproc.slit_profile_pca(self, mspixelflat, det, tilts, msblaze, extrap_slit, slit_profiles)
+                            slit_profiles, mstracenrm, msblaze = arflat.slit_profile_pca(
+                                mspixelflat, tilts, msblaze, extrap_slit, slit_profiles,
+                            self._lordloc[det-1], self._rordloc[det-1], self._pixwid[det-1],
+                                self._slitpix[det-1], self.setup)
                     mspixelflatnrm = mstracenrm.copy()
                     winpp = np.where(slit_profiles != 0.0)
                     mspixelflatnrm[winpp] /= slit_profiles[winpp]
@@ -498,9 +512,10 @@ class ScienceExposure:
                             msgs.info("Preparing QA of each slit profile")
 #                            arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
 #                                              self._slitpix[det - 1], desc="Slit profile")
-                            arproc.slit_profile_qa(self, mstracenrm, slit_profiles,
+                            arflat.slit_profile_qa(mstracenrm, slit_profiles,
                                                    self._lordloc[det - 1], self._rordloc[det - 1],
-                                                   self._slitpix[det - 1], desc="Slit profile")
+                                                   self._slitpix[det - 1], desc="Slit profile",
+                                                   setup=self.setup)
                         msgs.info("Saving blaze function QA")
 #                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
                         artracewave.plot_orderfits(self.setup, msblaze, flat_ext1d, desc="Blaze function")
