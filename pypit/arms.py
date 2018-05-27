@@ -9,7 +9,7 @@ from astropy import units
 
 from pypit import msgs
 from pypit import arparse as settings
-from pypit import arflux
+from pypit.core import arflux
 from pypit import arload
 from pypit import armasters
 from pypit import armbase
@@ -53,16 +53,26 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
       0 = Successful full execution
       1 = Successful processing of setup or calcheck
     """
-    debugger.set_trace()  # MOVE ARMLSD ON TOP OF THIS YOU FOOL!
     status = 0
 
     # Generate sciexp list, if need be (it will be soon)
+    sv_std_idx = []
+    std_dict = {}
     if sciexp is None:
         sciexp = []
         all_sci_ID = fitstbl['sci_ID'].data[fitstbl['science']]  # Binary system: 1,2,4,8, etc.
-        for ii in all_sci_ID:
-            sciexp.append(arsciexp.ScienceExposure(ii, fitstbl, settings.argflag,
+        for sci_ID in all_sci_ID:
+            sciexp.append(arsciexp.ScienceExposure(sci_ID, fitstbl, settings.argflag,
                                                    settings.spect, do_qa=True))
+            std_idx = arsort.ftype_indices(fitstbl, 'standard', sci_ID)
+            if (len(std_idx) > 0):
+                if len(std_idx) > 1:
+                    msgs.warn("Will only reduce the first, unique standard for each standard frame!")
+                if std_idx[0] not in sv_std_idx:  # Only take the first one
+                    sv_std_idx.append(std_idx[0])
+                    # Standard stars
+                    std_dict[std_idx[0]] = arsciexp.ScienceExposure(sci_ID, fitstbl, settings.argflag,
+                                                                    settings.spect, do_qa=False, idx_sci=std_idx[0])
     numsci = len(sciexp)
 
     # Init calib dict
@@ -312,12 +322,58 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 # Finish
                 stdslf.extracted = True
 
+    # Write standard stars
+    for key in std_dict.keys():
+        outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(std_dict[key]._basename)
+        arsave.new_save_1d_spectra_fits(std_dict[key]._specobjs, fitstbl[std_idx], outfile,
+                                        obs_dict=settings.spect['mosaic'])
+
+    #########################
+    # Flux towards the very end..
+    #########################
+    if (settings.argflag['reduce']['calibrate']['flux'] == True) and (len(std_dict) > 0):
+        # Standard star (is this a calibration, e.g. goes above?)
+        msgs.info("Processing standard star")
+        msgs.info("Taking one star per detector mosaic")
+        msgs.info("Waited until very end to work on it")
+        msgs.warn("You should probably consider using the pypit_flux_spec script anyhow...")
+
+        # Kludge settings
+        fsettings = settings.spect.copy()
+        fsettings['run'] = settings.argflag['run']
+        fsettings['reduce'] = settings.argflag['reduce']
+        # Generate?
+        if (settings.argflag['reduce']['calibrate']['sensfunc']['archival'] == 'None'):
+            std_keys = list(std_dict.keys())
+            std_key = std_keys[0] # Take the first extraction
+            FxSpec = fluxspec.FluxSpec(settings=fsettings, std_specobjs=std_dict[std_key]._specobjs,
+                                       setup=setup)  # This takes the last setup run, which is as sensible as any..
+            sensfunc = FxSpec.master(fitstbl[std_key])
+        else:  # Input by user
+            FxSpec = fluxspec.FluxSpec(settings=fsettings,
+                                       sens_file=settings.argflag['reduce']['calibrate']['sensfunc']['archival'])
+            sensfunc = FxSpec.sensfunc
+        # Flux
+        msgs.info("Fluxing with {:s}".format(sensfunc['std']['name']))
+        for slf in sciexp:
+            scidx = slf._idx_sci[0]
+            FxSpec._flux_specobjs(slf._specobjs, fitstbl['airmass'][scidx], fitstbl['exptime'][scidx])
+
+
+    # Write science
+    for sc in range(numsci):
+        slf = sciexp[sc]
 
         # TODO -- When we refactor ScienceExposure, something will need to carry all the individual images until we write them out..
         # Write 1D spectra
         save_format = 'fits'
         if save_format == 'fits':
-            arsave.save_1d_spectra_fits(slf, fitstbl)
+            outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename)
+            helio_dict = dict(refframe=settings.argflag['reduce']['calibrate']['refframe'],
+                              vel_correction=slf.vel_correction)
+            arsave.new_save_1d_spectra_fits(slf._specobjs, fitstbl[slf._idx_sci[0]], outfile,
+                                            helio_dict=helio_dict, obs_dict=settings.spect['mosaic'])
+            #arsave.save_1d_spectra_fits(slf, fitstbl)
         elif save_format == 'hdf5':
             arsave.save_1d_spectra_hdf5(slf)
         else:
@@ -326,36 +382,6 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
         # Write 2D images for the Science Frame
         arsave.save_2d_images(slf, fitstbl)
         # Free up some memory by replacing the reduced ScienceExposure class
-        sciexp[sc] = None
-
-    #########################
-    # Flux at the very end..
-    #########################
-    if (settings.argflag['reduce']['calibrate']['flux'] == True) and False:
-        # Standard star (is this a calibration, e.g. goes above?)
-        msgs.info("Processing standard star")
-        msgs.info("Assuming one star per detector mosaic")
-        msgs.info("Waited until last detector to process")
-
-        if (settings.argflag['reduce']['calibrate']['sensfunc']['archival'] == 'None'):
-            update = slf.MasterStandard(fitstbl)
-            if update and reuseMaster:
-                armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
-        else:
-            sensfunc = yaml.load(open(settings.argflag['reduce']['calibrate']['sensfunc']['archival']))
-            # Yaml does not do quantities, so make the sensfunc min/max wave quantities
-            sensfunc['wave_max'] *= units.angstrom
-            sensfunc['wave_min'] *= units.angstrom
-            slf.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
-            msgs.info(
-                "Using archival sensfunc {:s}".format(settings.argflag['reduce']['calibrate']['sensfunc']['archival']))
-
-        msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
-        for kk in range(settings.spect['mosaic']['ndet']):
-            det = kk + 1  # Detectors indexed from 1
-            if slf._specobjs[det - 1] is not None:
-                arflux.apply_sensfunc(slf, det, scidx, fitstbl)
-            else:
-                msgs.info("There are no objects on detector {0:d} to apply a flux calibration".format(det))
+        #sciexp[sc] = None
 
     return status
