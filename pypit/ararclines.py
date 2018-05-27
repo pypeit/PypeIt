@@ -36,14 +36,12 @@ def load_arcline_list(lines, disperser, spectrograph, wvmnx=None, modify_parse_d
 
     Parameters
     ----------
-    idx : list  
-      indices of the arc
     lines : list
       List of ions to load
-    wvmnx : list or tuple
-      wvmin, wvmax for line list
     disperser : str
       Name of the disperser
+    wvmnx : list or tuple
+      wvmin, wvmax for line list
     modify_parse_dict : dict, optional
       Used to over-ride default settings of parse_dict
 

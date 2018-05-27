@@ -60,10 +60,14 @@ def main(args, unit_test=False):
                 raise IOError("You must input a sensfunc in -sensfunc_file to flux.")
 
     # Instantiate
+    if 'sensfunc' in steps:
+        sfile = None  # Need to create it, not load it
+    else:
+        sfile = args.sensfunc_file
     FxSpec = fluxspec.FluxSpec(std_spec1d_file=args.std_file,
                                sci_spec1d_file=args.sci_file,
                                spectrograph=args.instr,
-                               sens_file=args.sensfunc_file)
+                               sens_file=sfile)
     # Step through
     if 'sensfunc' in steps:
         # Find the star automatically?
