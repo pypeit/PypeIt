@@ -141,7 +141,6 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 if msbias is None:  # Build it and save it
                     msbias = bias.build_image()
                     bias.save_master(msbias, raw_files=bias.file_list, steps=bias.steps)
-                msbias = bias.master()
                 # Save
                 calib_dict[setup]['bias'] = msbias
 
@@ -150,6 +149,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             if 'arc' in calib_dict[setup].keys():
                 msarc = calib_dict[setup]['arc']
             else:
+                # Instantiate with everything needed to generate the image (in case we do)
                 AImage = arcimage.ArcImage([], spectrograph=settings.argflag['run']['spectrograph'],
                                            settings=tsettings, det=det, setup=setup, sci_ID=sci_ID,
                                            msbias=msbias, fitstbl=fitstbl)
