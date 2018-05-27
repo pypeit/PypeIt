@@ -109,7 +109,7 @@ class MasterFrame(object):
             return None
         else:
             # Prevent over-writing the master frame when it is time to save
-            self.settings['reduce']['masters']['loaded'].append(self.frametype+self.setup)
+            self.settings['masters']['loaded'].append(self.frametype+self.setup)
             # Hold it
             self.msframe = msframe
         # Return

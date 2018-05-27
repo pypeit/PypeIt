@@ -240,7 +240,7 @@ def _load(name, exten=0, frametype='<None>', force=False):
     else:
         msgs.info("Loading a pre-existing master calibration frame")
         hdu = fits.open(name)
-        msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
+        #msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
         head0 = hdu[0].header
         data = hdu[exten].data.astype(np.float)
         # List of files used to generate the Master frame (e.g. raw file frames)

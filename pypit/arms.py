@@ -255,6 +255,8 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                     wv_calib, _ = Wavecalib.run(Tslits.lcen, Tslits.rcen, pixlocn, nonlinear=nonlinear)
                     # Save to Masters
                     Wavecalib.save_master(Wavecalib.wv_calib)
+                else:
+                    Wavecalib.wv_calib = wv_calib
                 # Mask
                 wv_maskslits = Wavecalib._make_maskslits(Tslits.lcen.shape[1])
 
@@ -279,6 +281,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                     armasters.save_masters(slf, det, mftype='tilts')
                 else:
                     slf.SetFrame(slf._tilts, tilts, det)
+
 
             ###############
             # Prepare the pixel flat field frame
