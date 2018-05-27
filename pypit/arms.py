@@ -52,6 +52,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
       0 = Successful full execution
       1 = Successful processing of setup or calcheck
     """
+    debugger.set_trace()  # MOVE ARMLSD ON TOP OF THIS YOU FOOL!
     status = 0
 
     # Generate sciexp list, if need be (it will be soon)
