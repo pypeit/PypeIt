@@ -371,8 +371,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             if stdslf.extracted is False:
                 # Fill up the necessary pieces
                 for iattr in ['pixlocn', 'lordloc', 'rordloc', 'pixcen', 'pixwid', 'lordpix', 'rordpix',
-                              'slitpix', 'satmask', 'maskslits', 'slitprof',
-                              'mspixelflatnrm', 'mswave']:
+                              'slitpix', 'satmask', 'maskslits', 'slitprof', 'mswave']:
                     setattr(stdslf, '_'+iattr, getattr(slf, '_'+iattr))  # Brings along all the detectors, but that is ok
                 # Load
                 stdframe = arload.load_frames(fitstbl, [std_idx], det, frametype='standard', msbias=msbias)
