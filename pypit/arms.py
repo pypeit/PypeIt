@@ -301,6 +301,24 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             update = slf.MasterFlatField(fitstbl, det, msbias, datasec_img, mstilts)
             if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
 
+            '''
+            ###############
+            # Prepare the pixel flat field frame
+            if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
+                if 'normpixelflat' in calib_dict[setup].keys():
+                    mspixflat = calib_dict[setup]['normpixelflat']
+                else:
+                    # Instantiate
+                    pixflat_image_files = arsort.list_of_files(fitstbl, 'pixelflat', sci_ID)
+                    ftField = flatfield.FlatField(file_list=pixflat_image_files, msbias=msbias)
+
+                    # Load from disk (MasterFrame)?
+                    mspixflat = ftField.master()
+                    if mspixflat is None:
+                        mspixflat = ftField.run(trim=settings.argflag['reduce']['trim'])
+                        ftField.save_master()
+            '''
+
             ###############
             # Generate/load a master wave frame
             update = slf.MasterWave(det, wv_calib, mstilts)
