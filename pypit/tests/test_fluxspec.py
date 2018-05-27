@@ -60,25 +60,6 @@ def kast_blue_files():
 #    return kast_settings
 
 
-def test_script(kast_blue_files):
-    if skip_test:
-        assert True
-        return
-    std_file, sci_file = kast_blue_files
-    # Sensitivity function
-    pargs = flux_spec.parser(['sensfunc',
-                             '--std_file={:s}'.format(std_file),
-                             '--instr=shane_kast_blue',
-                             '--sensfunc_file={:s}'.format(data_path('tmp.yaml'))])
-    # Run
-    flux_spec.main(pargs)
-
-    # Flux me
-    pargs2 = flux_spec.parser(['flux',
-                              '--sci_file={:s}'.format(sci_file),
-                              '--sensfunc_file={:s}'.format(data_path('tmp.yaml')),
-                               '--flux_file={:s}'.format(data_path('tmp.fits'))])
-    flux_spec.main(pargs2)
 
 def test_run_from_spec1d(kast_blue_files):
     if skip_test:
@@ -116,3 +97,22 @@ def test_from_sens_func():
     assert isinstance(FxSpec3.sensfunc, dict)
 
 
+def test_script(kast_blue_files):
+    if skip_test:
+        assert True
+        return
+    std_file, sci_file = kast_blue_files
+    # Sensitivity function
+    pargs = flux_spec.parser(['sensfunc',
+                              '--std_file={:s}'.format(std_file),
+                              '--instr=shane_kast_blue',
+                              '--sensfunc_file={:s}'.format(data_path('tmp.yaml'))])
+    # Run
+    flux_spec.main(pargs)
+
+    # Flux me
+    pargs2 = flux_spec.parser(['flux',
+                               '--sci_file={:s}'.format(sci_file),
+                               '--sensfunc_file={:s}'.format(data_path('tmp.yaml')),
+                               '--flux_file={:s}'.format(data_path('tmp.fits'))])
+    flux_spec.main(pargs2)

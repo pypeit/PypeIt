@@ -28,7 +28,9 @@ from pypit import pypitsetup
 from pypit import arqa
     
 from pypit import armed
+#from pypit import arms
 from pypit import armlsd
+# TODO -- MOVE ARMLSD ONTO ARMS!
 
 def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosity=1,
           use_masters=False, devtest=False, logname=None):
@@ -262,6 +264,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
         # Send the data away to be reduced
         if spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMLSD':
             msgs.info('Data reduction will be performed using PYPIT-ARMLSD')
+            #status = arms.ARMS(fitstbl, setup_dict, sciexp=sciexp)
             status = armlsd.ARMLSD(fitstbl, setup_dict, sciexp=sciexp)
         elif spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMED':
             msgs.info('Data reduction will be performed using PYPIT-ARMED')

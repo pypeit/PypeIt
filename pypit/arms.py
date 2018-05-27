@@ -1,4 +1,3 @@
-
 """ Primary module for guiding the reduction of long/multi-slit data
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
@@ -10,7 +9,7 @@ from astropy import units
 
 from pypit import msgs
 from pypit import arparse as settings
-from pypit.core import arflux
+from pypit import arflux
 from pypit import arload
 from pypit import armasters
 from pypit import armbase
@@ -25,17 +24,15 @@ from pypit import artrace
 from pypit import arcimage
 from pypit import bpmimage
 from pypit import biasframe
-from pypit import fluxspec
 from pypit import traceslits
 from pypit import traceimage
-from pypit import wavecalib
 
 from pypit import ardebug as debugger
 
 
-def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None):
+def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None):
     """
-    Automatic Reduction and Modeling of Long Slit Data
+    Automatic Reduction of Multislit Data
 
     Parameters
     ----------
@@ -55,26 +52,16 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
       0 = Successful full execution
       1 = Successful processing of setup or calcheck
     """
+    debugger.set_trace()  # MOVE ARMLSD ON TOP OF THIS YOU FOOL!
     status = 0
 
     # Generate sciexp list, if need be (it will be soon)
-    sv_std_idx = []
-    std_dict = {}
     if sciexp is None:
         sciexp = []
         all_sci_ID = fitstbl['sci_ID'].data[fitstbl['science']]  # Binary system: 1,2,4,8, etc.
-        for sci_ID in all_sci_ID:
-            sciexp.append(arsciexp.ScienceExposure(sci_ID, fitstbl, settings.argflag,
+        for ii in all_sci_ID:
+            sciexp.append(arsciexp.ScienceExposure(ii, fitstbl, settings.argflag,
                                                    settings.spect, do_qa=True))
-            std_idx = arsort.ftype_indices(fitstbl, 'standard', sci_ID)
-            if (len(std_idx) > 0):
-                if len(std_idx) > 1:
-                    msgs.warn("Will only reduce the first, unique standard for each standard frame!")
-                if std_idx[0] not in sv_std_idx:  # Only take the first one
-                    sv_std_idx.append(std_idx[0])
-                    # Standard stars
-                    std_dict[std_idx[0]] = arsciexp.ScienceExposure(sci_ID, fitstbl, settings.argflag,
-                                               settings.spect, do_qa=False, idx_sci=std_idx[0])
     numsci = len(sciexp)
 
     # Init calib dict
@@ -138,11 +125,9 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             else:
                 # Init
                 bias = biasframe.BiasFrame(settings=tsettings, setup=setup, det=det, fitstbl=fitstbl, sci_ID=sci_ID)
-                # Load the MasterFrame (if it exists and is desired) or the command (e.g. 'overscan')
+                # Grab/build the MasterFrame (ndarray or str)
+                #   If an image is generated, it will be saved to disk a a MasterFrame
                 msbias = bias.master()
-                if msbias is None:  # Build it and save it
-                    msbias = bias.build_image()
-                    bias.save_master(msbias, raw_files=bias.file_list, steps=bias.steps)
                 # Save
                 calib_dict[setup]['bias'] = msbias
 
@@ -154,13 +139,7 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
                 AImage = arcimage.ArcImage([], spectrograph=settings.argflag['run']['spectrograph'],
                                            settings=tsettings, det=det, setup=setup, sci_ID=sci_ID,
                                            msbias=msbias, fitstbl=fitstbl)
-                # Load the MasterFrame (if it exists and is desired)?
                 msarc = AImage.master()
-                if msarc is None:  # Otherwise build it
-                    msgs.info("Preparing a master {0:s} frame".format(AImage.frametype))
-                    msarc = AImage.build_image()
-                    # Save to Masters
-                    AImage.save_master(msarc, raw_files=AImage.file_list, steps=AImage.steps)
                 # Save
                 calib_dict[setup]['arc'] = msarc
 
@@ -190,32 +169,34 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             if 'trace' in calib_dict[setup].keys():  # Internal
                 Tslits = calib_dict[setup]['trace']
             else:
-                # Setup up the settings (will be Refactored with settings)
-                tmp = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
-                tmp['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
+                # Load master frame?
+                if (settings.argflag['reduce']['masters']['reuse']) or (settings.argflag['reduce']['masters']['force']):
+                    mstrace_name = armasters.master_name('trace', setup)
+                    Tslits = traceslits.TraceSlits.from_master_files(mstrace_name, load_pix_obj=True)  # Returns None if none exists
+                else:
+                    Tslits = None
 
-                # Instantiate (without mstrace)
-                Tslits = traceslits.TraceSlits(None, slf._pixlocn[det-1], settings=tmp, det=det, setup=setup, binbpx=msbpm)
-
-                # Load via masters, as desired
-                if not Tslits.master():
+                # Build it?  Beginning with the trace image
+                if Tslits is None:
                     # Build the trace image first
                     trace_image_files = arsort.list_of_files(fitstbl, 'trace', sci_ID)
                     Timage = traceimage.TraceImage(trace_image_files,
-                                                   spectrograph=settings.argflag['run']['spectrograph'],
-                                                   settings=tsettings, det=det)
+                                                        spectrograph=settings.argflag['run']['spectrograph'],
+                                                        settings=tsettings, det=det)
                     mstrace = Timage.process(bias_subtract=msbias, trim=settings.argflag['reduce']['trim'])
 
-                    # Load up and get ready
-                    Tslits.mstrace = mstrace
-                    _ = Tslits.make_binarr()
-                    # Now we go forth
-                    Tslits.run(armlsd=True)#, ignore_orders=ignore_orders, add_user_slits=add_user_slits)
+                    # Setup up the settings (will be Refactored with settings)
+                    tmp = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
+                    tmp['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
+
+                    # Now trace me some slits
+                    Tslits = traceslits.TraceSlits(mstrace, slf._pixlocn[det-1], det=det, settings=tmp,
+                                                   binbpx=msbpm, setup=setup)
+                    _ = Tslits.run(armlsd=True)
                     # QA
                     Tslits._qa()
                     # Save to disk
                     Tslits.save_master()
-
                 # Save in calib
                 calib_dict[setup]['trace'] = Tslits
 
@@ -234,38 +215,9 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
 
             ###############
             # Generate the 1D wavelength solution
-            if 'wavecalib' in calib_dict[setup].keys():
-                wv_calib = calib_dict[setup]['wavecalib']
-                wv_maskslits = calib_dict[setup]['wvmask']
-            elif settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
-                msgs.info("A wavelength calibration will not be performed")
-                pass
-            else:
-                # Setup up the settings (will be Refactored with settings)
-                tmp = dict(calibrate=settings.argflag['arc']['calibrate'], masters=settings.argflag['reduce']['masters'])
-                tmp['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-
-                # Instantiate
-                Wavecalib = wavecalib.WaveCalib(msarc, spectrograph=settings.argflag['run']['spectrograph'],
-                                                settings=tmp, det=det, setup=setup, fitstbl=fitstbl, sci_ID=sci_ID)
-                # Load from disk (MasterFrame)?
-                wv_calib = Wavecalib.master()
-                # Build?
-                if wv_calib is None:
-                    nonlinear = settings.spect[settings.get_dnum(det)]['saturation'] * settings.spect[settings.get_dnum(det)]['nonlinear']
-                    wv_calib, _ = Wavecalib.run(Tslits.lcen, Tslits.rcen, pixlocn, nonlinear=nonlinear)
-                    # Save to Masters
-                    Wavecalib.save_master(Wavecalib.wv_calib)
-                # Mask
-                wv_maskslits = Wavecalib._make_maskslits(Tslits.lcen.shape[1])
-
-                # Save in calib
-                calib_dict[setup]['wavecalib'] = wv_calib
-                calib_dict[setup]['wvmask'] = wv_maskslits
-
-            # Mask me
-            slf._maskslits[det-1] += wv_maskslits
-
+            update = slf.MasterWaveCalib(fitstbl, det, msarc)
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
 
             ###############
             # Derive the spectral tilt
@@ -289,11 +241,25 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
 
             ###############
             # Generate/load a master wave frame
-            update = slf.MasterWave(det, wv_calib)
+            update = slf.MasterWave(fitstbl, sc, det)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
 
-            ######################################################
+            ###############
+            # Check if the user only wants to prepare the calibrations only
+            #msgs.info("All calibration frames have been prepared")
+            #if settings.argflag['run']['preponly']:
+            #    msgs.info("If you would like to continue with the reduction, disable the command:" + msgs.newline() +
+            #              "run preponly False")
+            #    continue
+
+            ###############
+            # Write setup
+            #setup = arsort.calib_setup(sc, det, fitsdict, setup_dict, write=True)
+            # Write MasterFrames (currently per detector)
+            #armasters.save_masters(slf, det, setup)
+
+            ###############
             # Load the science frame and from this generate a Poisson error frame
             msgs.info("Loading science frame")
             sciframe = arload.load_frames(fitstbl, [scidx], det,
@@ -304,81 +270,15 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
             msgs.info("Processing science frame")
             arproc.reduce_multislit(slf, sciframe, msbpm, datasec_img, scidx, fitstbl, det)
 
-            ######################################################
-            # Reduce standard here; only legit todo if the mask is the same
-            std_idx = arsort.ftype_indices(fitstbl, 'standard', sci_ID)
-            if len(std_idx) > 0:
-                std_idx = std_idx[0]
-            else:
-                continue
-            stdslf = std_dict[std_idx]
-            if stdslf.extracted is False:
-                # Fill up the necessary pieces
-                for iattr in ['pixlocn', 'lordloc', 'rordloc', 'pixcen', 'pixwid', 'lordpix', 'rordpix',
-                              'slitpix', 'tilts', 'satmask', 'maskslits', 'slitprof',
-                              'mspixelflatnrm', 'mswave']:
-                    setattr(stdslf, '_'+iattr, getattr(slf, '_'+iattr))  # Brings along all the detectors, but that is ok
-                # Load
-                stdframe = arload.load_frames(fitstbl, [std_idx], det, frametype='standard', msbias=msbias)
-                stdframe = stdframe[:, :, 0]
-                # Reduce
-                msgs.info("Processing standard frame")
-                arproc.reduce_multislit(stdslf, stdframe, msbpm, datasec_img, std_idx, fitstbl, det, standard=True)
-                # Finish
-                stdslf.extracted = True
+            ###############
+            # Using model sky, calculate a flexure correction
 
-    # Write standard stars
-    for key in std_dict.keys():
-        outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(std_dict[key]._basename)
-        arsave.new_save_1d_spectra_fits(std_dict[key]._specobjs, fitstbl[std_idx], outfile,
-            obs_dict=settings.spect['mosaic'])
-
-    #########################
-    # Flux towards the very end..
-    #########################
-    if (settings.argflag['reduce']['calibrate']['flux'] == True) and (len(std_dict) > 0):
-        # Standard star (is this a calibration, e.g. goes above?)
-        msgs.info("Processing standard star")
-        msgs.info("Taking one star per detector mosaic")
-        msgs.info("Waited until very end to work on it")
-        msgs.warn("You should probably consider using the pypit_flux_spec script anyhow...")
-
-        # Kludge settings
-        fsettings = settings.spect.copy()
-        fsettings['run'] = settings.argflag['run']
-        fsettings['reduce'] = settings.argflag['reduce']
-        # Generate?
-        if (settings.argflag['reduce']['calibrate']['sensfunc']['archival'] == 'None'):
-            std_keys = list(std_dict.keys())
-            std_key = std_keys[0] # Take the first extraction
-            FxSpec = fluxspec.FluxSpec(settings=fsettings, std_specobjs=std_dict[std_key]._specobjs,
-                                       setup=setup)  # This takes the last setup run, which is as sensible as any..
-            sensfunc = FxSpec.master(fitstbl[std_key])
-        else:  # Input by user
-            FxSpec = fluxspec.FluxSpec(settings=fsettings,
-                                       sens_file=settings.argflag['reduce']['calibrate']['sensfunc']['archival'])
-            sensfunc = FxSpec.sensfunc
-        # Flux
-        msgs.info("Fluxing with {:s}".format(sensfunc['std']['name']))
-        for slf in sciexp:
-            scidx = slf._idx_sci[0]
-            FxSpec._flux_specobjs(slf._specobjs, fitstbl['airmass'][scidx], fitstbl['exptime'][scidx])
-
-
-    # Write science
-    for sc in range(numsci):
-        slf = sciexp[sc]
 
         # TODO -- When we refactor ScienceExposure, something will need to carry all the individual images until we write them out..
         # Write 1D spectra
         save_format = 'fits'
         if save_format == 'fits':
-            outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename)
-            helio_dict = dict(refframe=settings.argflag['reduce']['calibrate']['refframe'],
-                              vel_correction=slf.vel_correction)
-            arsave.new_save_1d_spectra_fits(slf._specobjs, fitstbl[slf._idx_sci[0]], outfile,
-                                            helio_dict=helio_dict, obs_dict=settings.spect['mosaic'])
-            #arsave.save_1d_spectra_fits(slf, fitstbl)
+            arsave.save_1d_spectra_fits(slf, fitstbl)
         elif save_format == 'hdf5':
             arsave.save_1d_spectra_hdf5(slf)
         else:
@@ -387,6 +287,36 @@ def ARMLSD(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=Non
         # Write 2D images for the Science Frame
         arsave.save_2d_images(slf, fitstbl)
         # Free up some memory by replacing the reduced ScienceExposure class
-        #sciexp[sc] = None
+        sciexp[sc] = None
+
+    #########################
+    # Flux at the very end..
+    #########################
+    if (settings.argflag['reduce']['calibrate']['flux'] == True) and False:
+        # Standard star (is this a calibration, e.g. goes above?)
+        msgs.info("Processing standard star")
+        msgs.info("Assuming one star per detector mosaic")
+        msgs.info("Waited until last detector to process")
+
+        if (settings.argflag['reduce']['calibrate']['sensfunc']['archival'] == 'None'):
+            update = slf.MasterStandard(fitstbl)
+            if update and reuseMaster:
+                armbase.UpdateMasters(sciexp, sc, 0, ftype="standard")
+        else:
+            sensfunc = yaml.load(open(settings.argflag['reduce']['calibrate']['sensfunc']['archival']))
+            # Yaml does not do quantities, so make the sensfunc min/max wave quantities
+            sensfunc['wave_max'] *= units.angstrom
+            sensfunc['wave_min'] *= units.angstrom
+            slf.SetMasterFrame(sensfunc, "sensfunc", None, mkcopy=False)
+            msgs.info(
+                "Using archival sensfunc {:s}".format(settings.argflag['reduce']['calibrate']['sensfunc']['archival']))
+
+        msgs.info("Fluxing with {:s}".format(slf._sensfunc['std']['name']))
+        for kk in range(settings.spect['mosaic']['ndet']):
+            det = kk + 1  # Detectors indexed from 1
+            if slf._specobjs[det - 1] is not None:
+                arflux.apply_sensfunc(slf, det, scidx, fitstbl)
+            else:
+                msgs.info("There are no objects on detector {0:d} to apply a flux calibration".format(det))
 
     return status
