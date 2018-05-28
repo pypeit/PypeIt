@@ -799,7 +799,7 @@ def multislit_tilt(msarc, lordloc, rordloc, pixlocn, pixcen, slitpix, det,
     return final_tilts, satmask, outpar
 
 
-def fit_tilts(msarc, slit, all_tilts, tilt_settings, maskval=-999999.9, setup=None, show_QA=False):
+def fit_tilts(msarc, slit, all_tilts, tilt_settings, maskval=-999999.9, setup=None, doqa=True, show_QA=False):
     # Unpack
     xtilt, ytilt, mtilt, wtilt = all_tilts
     #
@@ -825,7 +825,8 @@ def fit_tilts(msarc, slit, all_tilts, tilt_settings, maskval=-999999.9, setup=No
     msgs.info("RMS (pixels): {}".format(np.std(res2)))
 
     # QA
-    plot_tiltres(setup, mtilt[wgd], ytilt[wgd], yfit, slit=slit, show_QA=show_QA)
+    if doqa:
+        plot_tiltres(setup, mtilt[wgd], ytilt[wgd], yfit, slit=slit, show_QA=show_QA)
 
     # y normalization and subtract
     ynorm = np.outer(np.linspace(0., 1., msarc.shape[0]), np.ones(msarc.shape[1]))
