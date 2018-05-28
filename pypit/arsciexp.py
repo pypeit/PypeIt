@@ -183,7 +183,6 @@ class ScienceExposure:
     ###################################
     # Reduction procedures
     ###################################
-
     '''
     def BadPixelMask(self, fitsdict, det, msbias):
         """
