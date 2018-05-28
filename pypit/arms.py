@@ -8,7 +8,6 @@ import os
 from pypit import msgs
 from pypit import arparse as settings
 from pypit import arload
-from pypit import armbase
 from pypit import arproc
 from pypit.core import arprocimg
 from pypit import arsave
@@ -25,6 +24,7 @@ from pypit import fluxspec
 from pypit import traceslits
 from pypit import traceimage
 from pypit import wavecalib
+from pypit import waveimage
 
 from pypit import ardebug as debugger
 
@@ -245,7 +245,8 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 wv_maskslits = calib_dict[setup]['wvmask']
             elif settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
                 msgs.info("A wavelength calibration will not be performed")
-                pass
+                wv_calib = None
+                wv_maskslits = np.zeros_like(slf._maskslits[det-1], dtype=bool)
             else:
                 # Setup up the settings (will be Refactored with settings)
                 tmp = dict(calibrate=settings.argflag['arc']['calibrate'], masters=settings.argflag['reduce']['masters'])
@@ -298,7 +299,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                     mstilts, wt_maskslits = wTilt.run(maskslits=slf._maskslits[det-1])
                     wTilt.save_master()
                 else:
-                    wt_maskslits = np.zeros(len(slf._maskslits[det-1]), dtype=bool)
+                    wt_maskslits = np.zeros_like(slf._maskslits[det-1], dtype=bool)
                 # Save
                 calib_dict[setup]['tilts'] = mstilts
                 calib_dict[setup]['wtmask'] = wt_maskslits
@@ -342,9 +343,32 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
 
             ###############
             # Generate/load a master wave frame
-            update = slf.MasterWave(det, wv_calib, mstilts)
-            if update and reuseMaster:
-                armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
+            #update = slf.MasterWave(det, wv_calib, mstilts)
+            #if update and reuseMaster:
+            #    armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
+
+            if 'wave' in calib_dict[setup].keys():
+                mswave = calib_dict[setup]['wave']
+            else:
+                if settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
+                    mswave = mstilts * (mstilts.shape[0]-1.0)
+                else:
+                    # Settings
+                    wvimg_settings = dict(masters=settings.argflag['reduce']['masters'].copy())
+                    wvimg_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
+                    # Instantiate
+                    wvImg = waveimage.WaveImage(mstilts, wv_calib, settings=wvimg_settings,
+                                                setup=setup, maskslits=slf._maskslits[det-1],
+                                                slitpix=Tslits.slitpix)
+                    # Attempt to load master
+                    mswave = wvImg.master()
+                    if mswave is None:
+                        mswave = wvImg._build_wave()
+                    # Save to hard-drive
+                    wvImg.save_master(mswave, steps=wvImg.steps)
+                # Save internally
+                calib_dict[setup]['wave'] = mswave
+
 
             ###############
             # Load the science frame and from this generate a Poisson error frame
