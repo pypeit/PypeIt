@@ -31,7 +31,7 @@ from pypit import ardebug as debugger
 mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5, bad_row=2**6)
 
 
-def boxcar(slf, det, specobjs, sciframe, varframe, bpix, skyframe, crmask, scitrace):
+def boxcar(slf, det, specobjs, sciframe, varframe, bpix, skyframe, crmask, scitrace, mswave):
     """ Perform boxcar extraction on the traced objects.
     Also perform a local sky subtraction
 
@@ -157,7 +157,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, bpix, skyframe, crmask, scitr
                 weight[fully_masked,:] = 1.
                 sumweight[fully_masked] = weight.shape[1]
             # Generate wavelength array (average over the pixels)
-            wvsum = np.sum(slf._mswave[det-1]*weight, axis=1)
+            wvsum = np.sum(mswave*weight, axis=1)
             wvsum /= sumweight
             # Generate sky spectrum (flux per pixel)
             skysum = np.sum(skyframe*weight, axis=1)
@@ -433,7 +433,7 @@ def obj_profile_qa(slf, specobjs, scitrace, det):
 
 
 def optimal_extract(slf, det, specobjs, sciframe, varframe,
-                    skyframe, crmask, scitrace, tilts,
+                    skyframe, crmask, scitrace, tilts, mswave,
                     pickle_file=None, profiles=None):
     """ Preform optimal extraction
     Standard Horne approach
@@ -512,14 +512,14 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
             opt_den = np.sum(mask * model_ivar * prof_img**2, axis=1)
             opt_flux = opt_num / (opt_den + (opt_den == 0.))
             # Optimal wave
-            opt_num = np.sum(slf._mswave[det-1] * model_ivar * prof_img**2, axis=1)
+            opt_num = np.sum(mswave * model_ivar * prof_img**2, axis=1)
             opt_den = np.sum(model_ivar * prof_img**2, axis=1)
             opt_wave = opt_num / (opt_den + (opt_den == 0.))
             # Replace fully masked rows with mean wavelength (they will have zero flux and ivar)
             full_mask = opt_num == 0.
             if np.any(full_mask):
                 msgs.warn("Replacing fully masked regions with mean wavelengths")
-                mnwv = np.mean(slf._mswave[det-1], axis=1)
+                mnwv = np.mean(mswave, axis=1)
                 opt_wave[full_mask] = mnwv[full_mask]
             if (np.sum(opt_wave < 1.) > 0) and settings.argflag["reduce"]["calibrate"]["wavelength"] != "pixel":
                 debugger.set_trace()

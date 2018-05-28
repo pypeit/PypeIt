@@ -822,7 +822,7 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
 
 
 def reduce_multislit(slf, tilts, sciframe, bpix, datasec_img, scidx, fitsdict, det,
-                     mspixelflatnrm=None, standard=False):
+                     mswave, mspixelflatnrm=None, standard=False):
     """ Run standard extraction steps on an echelle frame
 
     Parameters
@@ -923,11 +923,11 @@ def reduce_multislit(slf, tilts, sciframe, bpix, datasec_img, scidx, fitsdict, d
     # Perform an optimal extraction
     msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
     return reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, datasec_img, bgframe,
-                        scidx, fitsdict, det, crmask, tilts, standard=standard)
+                        scidx, fitsdict, det, crmask, tilts, mswave, standard=standard)
 
 
 def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, datasec_img,
-                 bgframe, scidx, fitsdict, det, crmask, tilts,
+                 bgframe, scidx, fitsdict, det, crmask, tilts, mswave,
                  scitrace=None, standard=False):
     """ Run standard extraction steps on a frame
 
@@ -984,7 +984,8 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, datasec_img,
 
     # Boxcar
     msgs.info("Performing boxcar extraction")
-    bgcorr_box = arextract.boxcar(slf, det, specobjs, sciframe-bgframe, rawvarframe, bpix, bgframe, crmask, scitrace)
+    bgcorr_box = arextract.boxcar(slf, det, specobjs, sciframe-bgframe, rawvarframe, bpix,
+                                  bgframe, crmask, scitrace, mswave)
 
     # Optimal
     if not standard:
@@ -1000,7 +1001,8 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, datasec_img,
 #        newvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
 #                                           modelvarframe, bgframe+bgcorr_box, crmask, scitrace)
         obj_model = arextract.optimal_extract(slf, det, slf._specobjs[det-1], sciframe-bgframe-bgcorr_box,
-                                              modelvarframe, bgframe+bgcorr_box, crmask, scitrace, tilts)
+                                              modelvarframe, bgframe+bgcorr_box, crmask, scitrace, tilts,
+                                              mswave)
         newvar = arprocimg.variance_frame(datasec_img, det, sciframe-bgframe-bgcorr_box, -1,
                                 settings.spect[dnum], skyframe=bgframe+bgcorr_box, objframe=obj_model)
         msgs.work("Should update variance image (and trace?) and repeat")
@@ -1010,7 +1012,8 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, datasec_img,
 #        finalvar = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
 #                                             newvar, bgframe+bgcorr_box, crmask, scitrace)
         obj_model = arextract.optimal_extract(slf, det, specobjs, sciframe-bgframe-bgcorr_box,
-                                              newvar, bgframe+bgcorr_box, crmask, scitrace, tilts)
+                                              newvar, bgframe+bgcorr_box, crmask, scitrace, tilts,
+                                              mswave)
         finalvar = arprocimg.variance_frame(datasec_img, det, sciframe-bgframe-bgcorr_box, -1,
                                   settings.spect[dnum], skyframe=bgframe+bgcorr_box, objframe=obj_model)
         slf._modelvarframe[det-1] = finalvar.copy()

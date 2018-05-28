@@ -343,9 +343,6 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
 
             ###############
             # Generate/load a master wave frame
-            #update = slf.MasterWave(det, wv_calib, mstilts)
-            #if update and reuseMaster:
-            #    armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
 
             if 'wave' in calib_dict[setup].keys():
                 mswave = calib_dict[setup]['wave']
@@ -380,7 +377,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             # Extract
             msgs.info("Processing science frame")
             arproc.reduce_multislit(slf, mstilts, sciframe, msbpm, datasec_img, scidx, fitstbl, det,
-                                    mspixelflatnrm=mspixflatnrm)
+                                    mswave, mspixelflatnrm=mspixflatnrm)
 
             ######################################################
             # Reduce standard here; only legit todo if the mask is the same
@@ -401,7 +398,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 # Reduce
                 msgs.info("Processing standard frame")
                 arproc.reduce_multislit(stdslf, mstilts, stdframe, msbpm, datasec_img, std_idx, fitstbl, det,
-                                        standard=True, mspixelflatnrm=mspixflatnrm)
+                                        mswave, standard=True, mspixelflatnrm=mspixflatnrm)
                 # Finish
                 stdslf.extracted = True
 
