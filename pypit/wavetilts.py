@@ -163,11 +163,12 @@ class WaveTilts(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
         return self.arccen, self.arc_maskslit
 
-    def _fit_tilts(self, slit, show_QA=False):
+    def _fit_tilts(self, slit, show_QA=False, doqa=True):
         reload(artracewave)
         reload(arutils)
         self.tilts, self.outpar = artracewave.fit_tilts(self.msarc, slit, self.all_tilts,
-                                                        self.settings, setup=self.setup, show_QA=show_QA)
+                                                        self.settings, setup=self.setup,
+                                                        show_QA=show_QA, doqa=doqa)
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.tilts
@@ -211,7 +212,7 @@ class WaveTilts(masterframe.MasterFrame):
         # Return
         return trcdict
 
-    def run(self, maskslits=None):
+    def run(self, maskslits=None, doqa=True):
         """ Main driver for tracing arc lines
 
         Code flow:
@@ -256,7 +257,7 @@ class WaveTilts(masterframe.MasterFrame):
 
             # 2D model of the tilts
             #   Includes QA
-            self.tilts = self._fit_tilts(slit)
+            self.tilts = self._fit_tilts(slit, doqa=doqa)
 
             # Save to final image
             word = self.slitpix == slit+1
