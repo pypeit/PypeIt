@@ -240,7 +240,7 @@ class FluxSpec(masterframe.MasterFrame):
         for sci_obj in arutils.unravel_specobjs(specobjs):
             if sci_obj is not None:
                 # Do it
-                arflux.new_apply_sensfunc(sci_obj, self.sensfunc, airmass, exptime, self.settings)
+                arflux.apply_sensfunc(sci_obj, self.sensfunc, airmass, exptime, self.settings)
 
 
     def flux_science(self):
@@ -261,7 +261,7 @@ class FluxSpec(masterframe.MasterFrame):
             self.settings['mosaic']['elevation'] = self.sci_header['ALT-OBS']
         # Flux
         for sci_obj in self.sci_specobjs:
-            arflux.new_apply_sensfunc(sci_obj, self.sensfunc,
+            arflux.apply_sensfunc(sci_obj, self.sensfunc,
                                   self.sci_header['AIRMASS'],
                                   self.sci_header['EXPTIME'],
                                   self.settings)
@@ -410,7 +410,7 @@ class FluxSpec(masterframe.MasterFrame):
                             latitude=self.sci_header['LAT-OBS'],
                             elevation=self.sci_header['ALT-OBS'],
                             )
-        arsave.new_save_1d_spectra_fits(self.sci_specobjs, self.sci_header, outfile,
+        arsave.save_1d_spectra_fits(self.sci_specobjs, self.sci_header, outfile,
                              helio_dict=helio_dict, clobber=True, obs_dict=obs_dict)
         # Step
         self.steps.append(inspect.stack()[0][3])
