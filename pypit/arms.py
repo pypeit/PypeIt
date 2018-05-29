@@ -281,7 +281,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             arproc.reduce_multislit(slf, sciframe, msbpm, datasec_img, scidx, fitstbl, det)
 
             ######################################################
-            # Reduce standard here; only legit todo if the mask is the same
+            # Reduce standard here; only legit if the mask is the same
             std_idx = arsort.ftype_indices(fitstbl, 'standard', sci_ID)
             if len(std_idx) > 0:
                 std_idx = std_idx[0]
@@ -312,7 +312,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
     #########################
     # Flux towards the very end..
     #########################
-    if (settings.argflag['reduce']['calibrate']['flux'] == True) and (len(std_dict) > 0):
+    if settings.argflag['reduce']['calibrate']['flux'] and (len(std_dict) > 0):
         # Standard star (is this a calibration, e.g. goes above?)
         msgs.info("Processing standard star")
         msgs.info("Taking one star per detector mosaic")

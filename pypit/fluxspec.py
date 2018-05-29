@@ -32,7 +32,7 @@ frametype = 'sensfunc'
 
 # Default settings, if any
 
-# TODO - Remove this kludge
+# TODO - Remove this kludge (only used for tests)
 def kludge_settings(instr):
     from pypit import arparse as settings
     settings.dummy_settings()

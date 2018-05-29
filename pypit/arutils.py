@@ -1172,22 +1172,24 @@ def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5):
 
 def unravel_specobjs(specobjs):
     """
-    Convert specobjs list of lists into a single list
-
-    Warning:  There is a bug in here that gets fixed in the next PR
+    Method to unwrap nested specobjs objects into a single list
 
     Parameters
     ----------
-    specobjs : list of lists or just a list
+    specobjs : list of lists or list of SpecObj
 
     Returns
     -------
-    all_specob : list of SpecObj/None
+    all_specobj : list of SpecObj
 
     """
-    if isinstance(specobjs[0], list):
+    # Wrapped is all None and lists
+    ans = [isinstance(ispec, (list, type(None))) for ispec in specobjs]
+    if np.all(ans):
         all_specobj = []
         for det in range(len(specobjs)):           # detector loop
+            if specobjs[det] is None:
+                continue
             for sl in range(len(specobjs[det])):   # slit loop
                 for spobj in specobjs[det][sl]:    # object loop
                     all_specobj.append(spobj)
