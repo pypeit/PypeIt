@@ -96,8 +96,10 @@ class PypitSetup(object):
           Dict describing the various setups
         """
         #
-        all_sci_idx = self.fitstbl['sci_ID'].data[self.fitstbl['science']]
-        self.group_dict = arsetup.build_group_dict(self.fitstbl, self.setupIDs, all_sci_idx)
+        all_sci_idx = np.where(self.fitstbl['science'])[0]
+        all_sci_ID = self.fitstbl['sci_ID'].data[self.fitstbl['science']]
+        self.group_dict = arsetup.build_group_dict(self.fitstbl, self.setupIDs,
+                                                   all_sci_idx, all_sci_ID)
 
         # Write .sorted file
         if len(self.group_dict) > 0:
