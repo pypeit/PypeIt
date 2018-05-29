@@ -134,7 +134,8 @@
 - Added a dict (std_dict) in arms.py to hold standard star extractions
 - Reducing standard stars in the main arms loop
 - Modified save_1d_spectra to handle loaded SpecObj in addition to internally generated ones
-- Movided arflux to core and stripped out slf, settings
+- Moved arflux to core and stripped out slf, settings
+- Really restricting to nobj when user requests it
 - New tests
 
 0.7 (2017-02-07)

@@ -24,6 +24,7 @@ def parser(options=None):
     parser.add_argument("--sensfunc_file", type=str, help="File containing the sensitivity function (input or output)")
     parser.add_argument("--flux_file", type=str, help="Output filename for fluxed science spectra")
     parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
+    parser.add_argument("--multi_det", type=str, help="Multiple detectors (e.g. 3,7 for DEIMOS)")
 
     if options is None:
         args = parser.parse_args()
@@ -41,6 +42,12 @@ def main(args, unit_test=False):
 
     # Parse the steps
     steps = args.steps.split(',')
+
+    # Multi detector?
+    if args.multi_det is not None:
+        multi_det = [int(det) for det in args.multi_det.split(',')]
+    else:
+        multi_det = None
 
     # Checks
     if 'sensfunc' in steps:
@@ -67,7 +74,8 @@ def main(args, unit_test=False):
     FxSpec = fluxspec.FluxSpec(std_spec1d_file=args.std_file,
                                sci_spec1d_file=args.sci_file,
                                spectrograph=args.instr,
-                               sens_file=sfile)
+                               sens_file=sfile,
+                               multi_det=multi_det)
     # Step through
     if 'sensfunc' in steps:
         # Find the star automatically?

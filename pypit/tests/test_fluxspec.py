@@ -25,15 +25,13 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-#@pytest.fixture
-#def deimos_flat_files():
-#    if not skip_test:
-#        deimos_flat_files = [os.getenv('PYPIT_DEV') + '/RAW_DATA/Keck_DEIMOS/830G_L/' + ifile for ifile in [  # Longslit in dets 3,7
-#            'd0914_0014.fits', 'd0914_0015.fits']]
-#        assert len(deimos_flat_files) == 2
-#    else:
-#        deimos_flat_files = None
-#    return deimos_flat_files
+@pytest.fixture
+def deimos_files():
+    if not skip_test:
+        deimos_std_file = os.getenv('PYPIT_DEV') + '/Cooked/Science/spec1d_G191B2B_DEIMOS_2017Sep14T152432.fits'
+    else:
+        deimos_std_file = None
+    return [deimos_std_file]
 
 @pytest.fixture
 def kast_blue_files():
@@ -84,7 +82,7 @@ def test_from_sens_func():
     assert isinstance(FxSpec3.sensfunc, dict)
 
 
-def test_script(kast_blue_files):
+def test_script(kast_blue_files, deimos_files):
     if skip_test:
         assert True
         return
@@ -103,3 +101,13 @@ def test_script(kast_blue_files):
                                '--sensfunc_file={:s}'.format(data_path('tmp.yaml')),
                                '--flux_file={:s}'.format(data_path('tmp.fits'))])
     flux_spec.main(pargs2)
+
+    # DEIMOS (multi-det)
+    #pypit_flux_spec sensfunc --std_file=spec1d_G191B2B_DEIMOS_2017Sep14T152432.fits  --instr=keck_deimos --sensfunc_file=sens.yaml --multi_det=3,7
+    std_file = deimos_files[0]
+    pargs3 = flux_spec.parser(['sensfunc',
+                               '--std_file={:s}'.format(std_file),
+                               '--instr=keck_deimos',
+                               '--sensfunc_file={:s}'.format(data_path('tmp2.yaml')),
+                               '--multi_det=3,7'])
+    flux_spec.main(pargs3)

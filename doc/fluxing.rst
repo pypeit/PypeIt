@@ -57,6 +57,10 @@ You can then flux any spec1d file with a command like::
 
 The output file with flam and flam_var arrays is given by --flux_file.
 
+For instruments like DEIMOS where the spectrum runs across multiple
+detectors, one can splice the spectra together to generate one
+sensfunc, e.g.::
+
 .. _fluxspec-class:
 
 FluxSpec Class
