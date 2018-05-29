@@ -63,6 +63,30 @@ def ftype_indices(fitstbl, ftype, sci_ID):
     idx = np.where(fitstbl[ftype] & (fitstbl['sci_ID'] & sci_ID > 0))[0]
     return idx
 
+def list_of_files(fitstbl, ftype, sci_ID):
+    """
+    Generate a list of filenames with path for a given frametype and sci_ID
+
+    Parameters
+    ----------
+    fitstbl : Table
+    ftype : str
+    sci_ID : int
+
+    Returns
+    -------
+    file_list : list
+
+    """
+    file_list = []
+    idx = ftype_indices(fitstbl, ftype, sci_ID)
+    # Saving the match_frames algorithm (perhaps only for posterity!)
+    #sframes = arsort.match_frames(frames, settings.argflag['trace']['combine']['match'], frametype='trace', satlevel=settings.spect[dnum]['saturation']*settings.spect['det'][det-1]['nonlinear'])
+    for ii in idx:
+        file_list.append(fitstbl['directory'][ii]+fitstbl['filename'][ii])
+    # Return
+    return file_list
+
 
 def type_data(fitstbl, settings_spect, settings_argflag, flag_unknown=False, ftdict=None):
     """ Generate a table of filetypes from the input fitsdict object

@@ -28,11 +28,9 @@ def test_setup_param():
     # Load Dummy self
     slf = arsciexp.dummy_self()
     settings.argflag['run']['spectrograph'] = 'shane_kast_blue'
-    settings.spect['arc'] = {}
-    settings.spect['arc']['index'] = [[0]]
     fitstbl = arsort.dummy_fitstbl()
     # Run
-    arcparm = ararc.setup_param(slf, 1, fitstbl)
+    arcparm = ararc.setup_param((2048,2048),fitstbl,0)
     for key in ['llist','disp','wvmnx']:
         assert key in arcparm
 

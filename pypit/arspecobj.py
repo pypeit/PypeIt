@@ -12,6 +12,7 @@ from astropy.table import Table
 
 from pypit import msgs
 from pypit import arparse as settings
+from pypit.core import artraceslits
 from pypit import ardebug as debugger
 
 class SpecObjExp(object):
@@ -152,7 +153,10 @@ def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
             # Loop on objects
             #for qq in range(trc_img[sl]['nobj']):
             for qq in range(trc_img[sl]['traces'].shape[1]):
-                slitid, slitcen, xslit = get_slitid(slf, det, sl, ypos=ypos)
+                slitid, slitcen, xslit = artraceslits.get_slitid(slf._sciframe[det-1].shape,
+                                                                 slf._lordloc[det-1],
+                                                                 slf._rordloc[det-1],
+                                                                 sl, ypos=ypos)
                 # xobj
                 _, xobj = get_objid(slf, det, sl, qq, trc_img, ypos=ypos)
                 # Generate
@@ -239,44 +243,6 @@ def mtch_obj_to_objects(iobj, objects, stol=50, otol=10, **kwargs):
         return np.array(objects)[gdrow].tolist(), np.where(gdrow)[0].tolist()
 
 
-def get_slitid(slf, det, islit, ypos=0.5):
-    """ Convert slit position to a slitid
-    Parameters
-    ----------
-    slf : SciExpObj or tuple
-    det : int
-    islit : int
-    ypos : float, optional
-
-    Returns
-    -------
-    slitid : int
-      Slit center position on the detector normalized to range from 0-10000
-    slitcen : float
-      Slitcenter relative to the detector ranging from 0-1
-    xslit : tuple
-      left, right positions of the slit edges
-    """
-    if isinstance(slf, tuple):
-        shape, lordloc, rordloc = slf
-    else:
-        shape = slf._mstrace[det-1].shape
-        lordloc = slf._lordloc[det-1]
-        rordloc = slf._rordloc[det-1]
-    # Index at ypos
-    yidx = int(np.round(ypos*lordloc.shape[0]))
-    # Slit at yidx
-    pixl_slit = lordloc[yidx, islit]
-    pixr_slit = rordloc[yidx, islit]
-    # Relative to full image
-    xl_slit = pixl_slit/shape[1]
-    xr_slit = pixr_slit/shape[1]
-    # Center
-    slitcen = np.mean([xl_slit, xr_slit])
-    slitid = int(np.round(slitcen*1e4))
-    # Return them all
-    return slitid, slitcen, (xl_slit, xr_slit)
-
 
 def get_objid(slf, det, islit, iobj, trc_img, ypos=0.5):
     """ Convert slit position to a slitid
@@ -291,12 +257,8 @@ def get_objid(slf, det, islit, iobj, trc_img, ypos=0.5):
 
     Returns
     -------
-    slitid : int
-      Slit center position on the detector normalized to range from 0-10000
-    slitcen : float
-      Slitcenter relative to the detector ranging from 0-1
-    xslit : tuple
-      left, right positions of the slit edges
+    objid : int
+    xobj : float
     """
     yidx = int(np.round(ypos*slf._lordloc[det-1].shape[0]))
     pixl_slit = slf._lordloc[det-1][yidx, islit]

@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
+import os
 from subprocess import Popen
 
 #from importlib import reload
@@ -16,6 +17,7 @@ from pypit import ardebug as debugger
 from pypit import arpixels
 from pypit.core import artraceslits
 from pypit import arutils
+from pypit import masterframe
 from pypit import ginga
 
 from scipy import ndimage
@@ -25,6 +27,8 @@ if msgs._debug is None:
     debug = debugger.init()
     debug['develop'] = True
     msgs.reset(debug=debug, verbosity=2)
+
+frametype = 'trace'
 
 # Place these here or elsewhere?
 #  Wherever they be, they need to be defined, described, etc.
@@ -42,10 +46,10 @@ default_settings = dict(trace={'slits': {'single': [],
                                        'extrapolate': {'pos': 0, 'neg':0}},
                                'sobel': {'mode': 'nearest'}}})
 
-# TODO -- Add data model for MasterFrame here
+#  See save_master() for the data model for output
 
 
-class TraceSlits(object):
+class TraceSlits(masterframe.MasterFrame):
     """Class to guide slit/order tracing
 
     Parameters
@@ -66,6 +70,8 @@ class TraceSlits(object):
 
     Attributes
     ----------
+    frametype : str
+      Hard-coded to 'trace'
     lcen : ndarray [nrow, nslit]
       Left edges, in physical space
     rcen : ndarray [nrow, nslit]
@@ -115,10 +121,10 @@ class TraceSlits(object):
       Number of right edges
     """
     def __init__(self, mstrace, pixlocn, binbpx=None, settings=None, det=None,
-                 ednum=100000):
+                 setup='', ednum=100000):
         # TODO -- Remove pixlocn as a required item
 
-        # Required parameters
+        # Required parameters (but can be None)
         self.mstrace = mstrace
         self.pixlocn = pixlocn
 
@@ -137,6 +143,7 @@ class TraceSlits(object):
             self.settings = settings
 
         # Attributes
+        self.frametype = frametype
 
         # Main outputs
         self.lcen = None     # narray
@@ -169,11 +176,15 @@ class TraceSlits(object):
         self.rcoeff = None
         self.rnmbrarr = None
         self.rdiffarr = None
-        self.rwghtarr  = None
+        self.rwghtarr = None
+
+        # MasterFrame
+        # MasterFrames -- Is this required?
+        masterframe.MasterFrame.__init__(self, self.frametype, setup, self.settings)
 
 
     @classmethod
-    def from_master_files(cls, root):
+    def from_master_files(cls, root, load_pix_obj=False):
         """
         Instantiate from the primary MasterFrame outputs of the class
 
@@ -189,6 +200,9 @@ class TraceSlits(object):
         """
         # FITS
         fits_file = root+'.fits.gz'
+        if not os.path.isfile(fits_file):
+            msgs.warn("No MasterTrace files found.  Returning None")
+            return None
         hdul = fits.open(fits_file)
         names = [ihdul.name for ihdul in hdul]
         if 'SLITPIXELS' in names:
@@ -221,6 +235,10 @@ class TraceSlits(object):
             slf.siglev = hdul[names.index('SIGLEV')].data
             msgs.info("Loading SIGLEV from {:s}".format(fits_file))
         slf.tc_dict = ts_dict['tc_dict']
+
+        # Load the pixel objects?
+        if load_pix_obj:
+            slf._make_pixel_arrays()
 
         # Return
         return slf
@@ -822,7 +840,7 @@ class TraceSlits(object):
             # TODO -- Figure out how to set the cut levels
             debugger.show_image(self.siglev)
 
-    def save_master(self, root, gzip=True):
+    def save_master(self, root=None, gzip=True):
         """
         Write the main pieces of TraceSlits to the hard drive as a MasterFrame
           FITS -- mstrace and other images
@@ -830,12 +848,13 @@ class TraceSlits(object):
 
         Parameters
         ----------
-        root : str
+        root : str (Optional)
           Path+root name for the output files
         gzip : bool (optional)
           gzip the FITS file (note astropy's method for this is *way* too slow)
         """
-
+        if root is None:
+            root = self.ms_name
         # Images
         outfile = root+'.fits'
         hdu = fits.PrimaryHDU(self.mstrace.astype(np.float32))
@@ -887,6 +906,19 @@ class TraceSlits(object):
         ltu.savejson(outfile, clean_dict, overwrite=True, easy_to_read=True)
         msgs.info("Writing TraceSlit dict to {:s}".format(outfile))
 
+    def _qa(self, use_slitid=True):
+        """
+        QA
+          Wrapper to artraceslits.slit_trace_qa()
+
+        Returns
+        -------
+
+        """
+        artraceslits.slit_trace_qa(self.mstrace, self.lcen,
+                                   self.rcen, self.extrapord, self.setup,
+                                   desc="Trace of the slit edges D{:02d}".format(self.det),
+                                   use_slitid=use_slitid)
 
     def run(self, armlsd=True, ignore_orders=False, add_user_slits=None):
         """ Main driver for tracing slits.
@@ -904,6 +936,7 @@ class TraceSlits(object):
            6.  Fit left/right slits
            7.  Synchronize
            8.  Extrapolate into blank regions (PCA)
+           9.  Perform pixel-level calculations
 
         Parameters
         ----------
@@ -917,11 +950,15 @@ class TraceSlits(object):
 
         Returns
         -------
-        lcen : ndarray
-          Left edge traces
-        rcen  : ndarray
-          Right edge traces
-        extrapord
+        trace_slits_dict : dict  -- MAY BE DEPRECATED
+          'lcen'
+          'rcen'
+          'pixcen'
+          'pixwid'
+          'lordpix'
+          'rordpix'
+          'extrapord'
+          'slitpix'
         """
         # Specify a single slit?
         if len(self.settings['trace']['slits']['single']) > 0:  # Single slit

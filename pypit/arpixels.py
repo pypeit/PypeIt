@@ -13,7 +13,7 @@ except ImportError:
     pass
 
 
-def gen_pixloc(frame, det, **kwargs):
+def gen_pixloc(frame_shape, det, settings_argflag):
     """ Now a simple wrapper to core_gen_pixloc
 
     Parameters
@@ -26,15 +26,21 @@ def gen_pixloc(frame, det, **kwargs):
     -------
 
     """
+    if settings_argflag['reduce']['pixel']['locations'] is None:
+        gen=True
+    elif settings_argflag['reduce']['pixel']['locations'] in ["mstrace"]:
+        gen=False
+    else:
+        msgs.error("NOT READY FOR THIS")
     dnum = settings.get_dnum(det)
     xgap = settings.spect[dnum]['xgap']
     ygap = settings.spect[dnum]['ygap']
     ysize = settings.spect[dnum]['ysize']
     # Do it
-    return core_gen_pixloc(frame, xgap=xgap, ygap=ygap, ysize=ysize, **kwargs)
+    return core_gen_pixloc(frame_shape, xgap=xgap, ygap=ygap, ysize=ysize, gen=gen)
 
 
-def core_gen_pixloc(frame, xgap=0, ygap=0, ysize=1., gen=True):
+def core_gen_pixloc(frame_shape, xgap=0, ygap=0, ysize=1., gen=True):
     """
     Generate an array of physical pixel coordinates
 
@@ -45,6 +51,8 @@ def core_gen_pixloc(frame, xgap=0, ygap=0, ysize=1., gen=True):
     xgap : int (optional)
     ygap : int (optional)
     ysize : float (optional)
+    gen : bool, optional
+      Only allows True right now
 
     Returns
     -------
@@ -54,16 +62,16 @@ def core_gen_pixloc(frame, xgap=0, ygap=0, ysize=1., gen=True):
     """
     #dnum = settings.get_dnum(det)
     msgs.info("Deriving physical pixel locations on the detector")
-    locations = np.zeros((frame.shape[0],frame.shape[1],4))
+    locations = np.zeros((frame_shape[0],frame_shape[1],4))
     if gen:
         msgs.info("Pixel gap in the dispersion direction = {0:4.3f}".format(xgap))
         msgs.info("Pixel size in the dispersion direction = {0:4.3f}".format(1.0))
-        xs = np.arange(frame.shape[0]*1.0)*xgap
-        xt = 0.5 + np.arange(frame.shape[0]*1.0) + xs
+        xs = np.arange(frame_shape[0]*1.0)*xgap
+        xt = 0.5 + np.arange(frame_shape[0]*1.0) + xs
         msgs.info("Pixel gap in the spatial direction = {0:4.3f}".format(ygap))
         msgs.info("Pixel size in the spatial direction = {0:4.3f}".format(ysize))
-        ys = np.arange(frame.shape[1])*ygap*ysize
-        yt = ysize*(0.5 + np.arange(frame.shape[1]*1.0)) + ys
+        ys = np.arange(frame_shape[1])*ygap*ysize
+        yt = ysize*(0.5 + np.arange(frame_shape[1]*1.0)) + ys
         xloc, yloc = np.meshgrid(xt, yt)
 #		xwid, ywid = np.meshgrid(xs,ys)
         msgs.info("Saving pixel locations")
@@ -220,4 +228,55 @@ def new_locate_order(lordloc, rordloc, sz_x, sz_y, pad):
     for x in np.arange(sz_x)[indx]:
         orderloc[x,ymin[x]:ymax[x]] = 1
     return orderloc
+
+
+def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
+    """ Generate a frame that identifies each pixel to an amplifier,
+    and then trim it to the data sections.
+    This frame can be used to later identify which trimmed pixels correspond to which amplifier
+
+    Parameters
+    ----------
+    naxis0 : int
+    naxis1 : int
+    datasec : list
+    numamplifiers : int
+
+    Returns
+    -------
+    retarr : ndarray
+      Frame assigning pixels to amplifiers
+
+    """
+    # For convenience
+    # Initialize the returned array
+    retarr = np.zeros((naxis0, naxis1))
+    for i in range(numamplifiers):
+        #datasec = "datasec{0:02d}".format(i+1)
+        #x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
+        #y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+        x0, x1 = datasec[i][0][0], datasec[i][0][1]
+        y0, y1 = datasec[i][1][0], datasec[i][1][1]
+        if x0 < 0: x0 += naxis0
+        if x1 <= 0: x1 += naxis0
+        if y0 < 0: y0 += naxis1
+        if y1 <= 0: y1 += naxis1
+        # Fill in the pixels for this amplifier
+        xv = np.arange(x0, x1)
+        yv = np.arange(y0, y1)
+        w = np.ix_(xv, yv)
+        try:
+            retarr[w] = i+1
+        except IndexError:
+            debugger.set_trace()
+        # Save these locations for trimming
+        if i == 0:
+            xfin = xv.copy()
+            yfin = yv.copy()
+        else:
+            xfin = np.unique(np.append(xfin, xv.copy()))
+            yfin = np.unique(np.append(yfin, yv.copy()))
+    # Construct and array with the rows and columns to be extracted
+    w = np.ix_(xfin, yfin)
+    return retarr[w]
 

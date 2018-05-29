@@ -31,7 +31,7 @@ from pypit import arcyutils
 mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5, bad_row=2**6)
 
 
-def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
+def boxcar(slf, det, specobjs, sciframe, varframe, bpix, skyframe, crmask, scitrace):
     """ Perform boxcar extraction on the traced objects.
     Also perform a local sky subtraction
 
@@ -175,7 +175,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
             # Mask
             boxmask = np.zeros(wvsum.shape, dtype=np.int)
             # Bad detector pixels
-            BPs = np.sum(weight*slf._bpix[det-1], axis=1)
+            BPs = np.sum(weight*bpix, axis=1)
             bp = BPs > 0.
             boxmask[bp] += mask_flags['bad_pix']
             # CR

@@ -21,10 +21,10 @@ from linetools.spectra.xspectrum1d import XSpectrum1D
 
 from pypit import msgs
 from pypit import arparse as settings
-from pypit import arproc
-from pypit import arlris
+from pypit.core import arprocimg
 from pypit import arspecobj
-from pypit import ardeimos
+from pypit.core import ardeimos
+from pypit.core import arlris
 from pypit import ardebug as debugger
 
 
@@ -255,9 +255,9 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
     dnum = settings.get_dnum(det)
     spectrograph = settings.argflag['run']['spectrograph']
     if 'dataext01' in settings.spect[dnum].keys():
-        dataexto01 = settings.spect[dnum]['dataext01']
+        dataext01 = settings.spect[dnum]['dataext01']
     else:
-        dataexto01 = None
+        dataext01 = None
     disp_dir = settings.argflag['trace']['dispersion']['direction']
     numamplifiers = settings.spect[dnum]['numamplifiers']
     # Build datasecs, oscansec
@@ -272,17 +272,17 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
     for i in range(len(ind)):
         raw_file = fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]]
         temp, head0 = load_raw_frame(spectrograph, raw_file, det,
-                              dataext01=dataexto01, disp_dir=disp_dir)
+                              dataext=dataext01, disp_dir=disp_dir)
 
         # TODO -- Take these next two steps out and put in a arproc.proc_image() method
         # Bias subtract?
         if msbias is not None:
-            temp = arproc.bias_subtract(temp, msbias, numamplifiers=numamplifiers,
+            temp = arprocimg.bias_subtract(temp, msbias, numamplifiers=numamplifiers,
                                         datasec=datasecs, oscansec=oscansecs)
 
         if trim:
             # Trim
-            temp = arproc.trim(temp, numamplifiers, datasecs)
+            temp = arprocimg.trim(temp, numamplifiers, datasecs)
 
         # Save
         if i == 0:
@@ -300,10 +300,9 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
     return frames
 
 
-def load_raw_frame(spectrograph, raw_file, det, dataext01=None, disp_dir=0):
+def load_raw_frame(spectrograph, raw_file, det, dataext=None, disp_dir=0):
     """
     Load data frames, usually raw.
-    Bias subtract (if not msbias!=None) and trim (if True)
 
     Parameters
     ----------
@@ -311,6 +310,8 @@ def load_raw_frame(spectrograph, raw_file, det, dataext01=None, disp_dir=0):
        Full path to raw_file
     det : int
       Detector number requested, starts at 1
+    dataext : int, optional
+      Data extension for this detector in the HDU list
     disp_dir : int, optional
       if 1, Transpose the image to align spectral dimension with columns
 
@@ -318,22 +319,22 @@ def load_raw_frame(spectrograph, raw_file, det, dataext01=None, disp_dir=0):
     -------
     frame : ndarray
       the raw_frame
+    head : FITS header of the 0th HDU
     """
     msgs.info("Loading raw_file: {:s}".format(raw_file))
-    # Get detector number
-    msgs.work("Implement multiprocessing here (better -- at the moment it's slower than not) to speed up data reading")
+    #msgs.work("Implement multiprocessing here (better -- at the moment it's slower than not) to speed up data reading")
     # Instrument specific read
     if spectrograph in ['keck_lris_blue', 'keck_lris_red']:
         #temp, head0, _ = arlris.read_lris(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]], det=det)
         temp, head0, _ = arlris.read_lris(raw_file, det=det)
     elif spectrograph in ['keck_deimos']:
-        temp, head0, _ = ardeimos.read_deimos(raw_file)
+        temp, head0, _ = ardeimos.read_deimos(raw_file, det=det)
         #temp, head0, _ = ardeimos.read_deimos(fitsdict['directory'][ind[i]] + fitsdict['filename'][ind[i]])
     else:
         #hdulist = fits.open(fitsdict['directory'][ind[i]]+fitsdict['filename'][ind[i]])
         hdulist = fits.open(raw_file)
         #temp = hdulist[settings.spect[dnum]['dataext01']].data
-        temp = hdulist[dataext01].data
+        temp = hdulist[dataext].data
         head0 = hdulist[0].header
     temp = temp.astype(np.float)  # Let us avoid uint16
     #if settings.argflag['trace']['dispersion']['direction'] == 1:
