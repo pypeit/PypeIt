@@ -110,7 +110,6 @@
 - Bug fix related to fluxing
 - Substantial refactor of arsort.py
 - Substantial refactor of arsetup.py
-
 - Introduced base-level ProcessImages class
 - Introduced abstract MasterFrame class
 - Introduced BiasFrame, BPMImage, ArcImage, and TraceImage classes
@@ -127,6 +126,16 @@
 - Refactoring of settings and slf out of core methods continues
 - Removed _msbias, _msarc, _datasec, _bpix from slf
 - New tests and Notebooks
+
+- Introduced FluxSpec class
+- Introduce pypit_flux_spec script (and docs)
+- Added FluxSpec Notebook
+- armlsd has reappeared (momentarily) but is not being used;  it goes away again in a future branch
+- Added a dict (std_dict) in arms.py to hold standard star extractions
+- Reducing standard stars in the main arms loop
+- Modified save_1d_spectra to handle loaded SpecObj in addition to internally generated ones
+- Movided arflux to core and stripped out slf, settings
+- New tests
 
 0.7 (2017-02-07)
 ----------------

@@ -1171,6 +1171,20 @@ def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5):
 
 
 def unravel_specobjs(specobjs):
+    """
+    Convert specobjs list of lists into a single list
+
+    Warning:  There is a bug in here that gets fixed in the next PR
+
+    Parameters
+    ----------
+    specobjs : list of lists or just a list
+
+    Returns
+    -------
+    all_specob : list of SpecObj/None
+
+    """
     if isinstance(specobjs[0], list):
         all_specobj = []
         for det in range(len(specobjs)):           # detector loop
