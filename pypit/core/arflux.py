@@ -24,7 +24,7 @@ from pypit import arutils
 from pypit import ardebug as debugger
 
 
-def new_apply_sensfunc(spec_obj, sensfunc, airmass, exptime, settings_spec, MAX_EXTRAP=0.05):
+def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, settings_spec, MAX_EXTRAP=0.05):
     """ Apply the sensitivity function to the data
     We also correct for extinction.
 
@@ -60,7 +60,7 @@ def new_apply_sensfunc(spec_obj, sensfunc, airmass, exptime, settings_spec, MAX_
         extract['flam'] = extract['counts']*scale/exptime
         extract['flam_var'] = (extract['var']*(scale/exptime)**2)
 
-
+'''
 def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
     """ Apply the sensitivity function to the data
     We also correct for extinction.
@@ -112,7 +112,7 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
                 extract['flam'] = extract['counts']*scale/fitsdict['exptime'][scidx]
                 extract['flam_var'] = (extract['var']*
                                        (scale/fitsdict['exptime'][scidx])**2)
-
+'''
 
 def bspline_magfit(wave, flux, var, flux_std, bspline_par=None):
     """

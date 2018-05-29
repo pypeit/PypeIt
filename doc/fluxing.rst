@@ -21,7 +21,7 @@ Here is the usage::
     usage: pypit_flux_spec [-h] [--std_file STD_FILE] [--std_obj STD_OBJ]
                            [--sci_file SCI_FILE] [--instr INSTR]
                            [--sensfunc_file SENSFUNC_FILE] [--flux_file FLUX_FILE]
-                           [--plot]
+                           [--plot] [--multi_det MULTI_DET]
                            steps
 
     Parse
@@ -41,6 +41,8 @@ Here is the usage::
       --flux_file FLUX_FILE
                             Output filename for fluxed science spectra
       --plot                Show the sensitivity function?
+      --multi_det MULTI_DET
+                            Multiple detectors (e.g. 3,7 for DEIMOS)
 
 
 We suggest you first generate the sensitivity function.  Here is an
@@ -56,6 +58,14 @@ You can then flux any spec1d file with a command like::
     pypit_flux_spec flux --sci_file=spec1d_J1217p3905_KASTb_2015May20T045733.56.fits --sensfunc_file=tmp.yaml --flux_file=tmp.fits
 
 The output file with flam and flam_var arrays is given by --flux_file.
+
+For instruments like DEIMOS where the spectrum runs across multiple
+detectors, one can splice the spectra together to generate one
+sensfunc, e.g.::
+
+    pypit_flux_spec sensfunc --std_file=spec1d_G191B2B_DEIMOS_2017Sep14T152432.fits  --instr=keck_deimos --sensfunc_file=sens.yaml --multi_det=3,7
+
+This should work on any spec1d science object with overlapping wavelength coverage.
 
 .. _fluxspec-class:
 

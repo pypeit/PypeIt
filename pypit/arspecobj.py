@@ -105,6 +105,13 @@ class SpecObjExp(object):
         else: 
             return False
 
+    def copy(self):
+        slf = SpecObjExp(self.shape, self.config, self.scidx, self.det, self.xslit, self.ypos, self.xobj,
+                       objtype=self.objtype)
+        slf.boxcar = self.boxcar.copy()
+        slf.optimal = self.optimal.copy()
+        return slf
+
     # Printing
     def __repr__(self):
         # Generate sets string

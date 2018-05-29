@@ -74,7 +74,7 @@ def test_save1d_fits():
     slf._specobjs.append([])
     slf._specobjs[0].append([mk_specobj()])
     # Write to FITS
-    arsave.save_1d_spectra_fits(slf, fitstbl)
+    arsave.save_1d_spectra_fits(slf._specobjs, fitstbl[5], data_path('tst.fits'))
 
 
 def test_save1d_hdf5():
