@@ -314,7 +314,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename)
             helio_dict = dict(refframe=settings.argflag['reduce']['calibrate']['refframe'],
                               vel_correction=slf.vel_correction)
-            arsave.new_save_1d_spectra_fits(slf._specobjs, fitstbl[slf._idx_sci[0]], outfile,
+            arsave.save_1d_spectra_fits(slf._specobjs, fitstbl[slf._idx_sci[0]], outfile,
                                             helio_dict=helio_dict, obs_dict=settings.spect['mosaic'])
             #arsave.save_1d_spectra_fits(slf, fitstbl)
         elif save_format == 'hdf5':
@@ -330,7 +330,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
     # Write standard stars
     for key in std_dict.keys():
         outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(std_dict[key]._basename)
-        arsave.new_save_1d_spectra_fits(std_dict[key]._specobjs, fitstbl[std_idx], outfile,
+        arsave.save_1d_spectra_fits(std_dict[key]._specobjs, fitstbl[std_idx], outfile,
                                         obs_dict=settings.spect['mosaic'])
 
     #########################
