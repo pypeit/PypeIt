@@ -130,7 +130,5 @@ def test_run_and_master(kast_blue_bias_files, kast_settings):
     bias3, _, _ = bias_frame3.load_master_frame()
     assert bias_frame3.stack is None
     assert np.array_equal(bias2, bias3)
-    # TODO -- NEED TO UPDATE THE NOTEBOOK, I SUSPECT
-    assert False
 
 # Should probably test overscan

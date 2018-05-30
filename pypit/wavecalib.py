@@ -296,13 +296,16 @@ class WaveCalib(masterframe.MasterFrame):
 
         Parameters
         ----------
-        lordloc
-        rordloc
-        pixlocn
+        lordloc : ndarray
+          From a TraceSlit object
+        rordloc : ndarray
+          From a TraceSlit object
+        pixlocn : ndarray
+          From a TraceSlit object
         nonlinear : float, optional
           Would be passed to ararc.detect_lines but that routine is
           currently being run in arclines.holy
-        skip_QA
+        skip_QA : bool, optional
 
         Returns
         -------
