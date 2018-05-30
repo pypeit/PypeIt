@@ -987,7 +987,7 @@ def new_tilts_image(tilts, lordloc, rordloc, pad, sz_y):
 
 
 def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
-               trthrsh=1000.0, nsmth=0, method = "fweight"):
+               trthrsh=1000.0, nsmth=0, method = "fweight", wv_calib=None):
     """
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
                trthrsh=1000.0, nsmth=0):
@@ -1048,7 +1048,7 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
                 break
     # Restricted to ID lines? [introduced to avoid LRIS ghosts]
     if settings.argflag['trace']['slits']['tilts']['idsonly']:
-        ids_pix = np.round(np.array(slf._wvcalib[det-1][str(slitnum)]['xfit'])*(msarc.shape[0]-1))
+        ids_pix = np.round(np.array(wv_calib[str(slitnum)]['xfit'])*(msarc.shape[0]-1))
         idxuse = np.arange(arcdet.size)[aduse]
         for s in idxuse:
             if np.min(np.abs(arcdet[s]-ids_pix)) > 2:
@@ -1588,7 +1588,7 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
     return tiltsimg, satmask, outpar
 
 
-def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
+def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False, wv_calib=None):
     """ Determine the spectral tilt of each slit in a multislit image
 
     Parameters
@@ -1642,7 +1642,8 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
     #for  o in range(arccen.shape[1]):
     for slit in gdslits:
         # Determine the tilts for this slit
-        trcdict = trace_tilt(slf, det, msarc, slit, censpec=arccen[:, slit], nsmth=3)
+        trcdict = trace_tilt(slf, det, msarc, slit, censpec=arccen[:, slit], nsmth=3,
+                             wv_calib=wv_calib)
         if trcdict is None:
             # No arc lines were available to determine the spectral tilt
             continue

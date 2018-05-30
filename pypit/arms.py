@@ -275,7 +275,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 tilts = armasters.load_master_frame(slf, "tilts")
                 if tilts is None:
                     # First time tilts are derived for this arc frame --> derive the order tilts
-                    tilts, satmask, outpar = artrace.multislit_tilt(slf, msarc, det)
+                    tilts, satmask, outpar = artrace.multislit_tilt(slf, msarc, det, wv_calib=wv_calib)
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
                     msgs.bug("This outpar is only the last slit!!  JXP doesn't think it matters for now")
