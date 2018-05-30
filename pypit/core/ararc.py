@@ -22,7 +22,6 @@ def get_censpec(lordloc, rordloc, pixlocn, frame, det, settings_spect, gen_satma
     """ Extract a simple spectrum down the center of each slit
     Parameters
     ----------
-    slf :
     frame : ndarray
       Image
     det : int
@@ -145,15 +144,13 @@ def get_censpec(lordloc, rordloc, pixlocn, frame, det, settings_spect, gen_satma
 
     return arccen, maskslit, satsnd
 
-def detect_lines(censpec, nfitpix=5):
+def detect_lines(censpec, nfitpix=5, nonlinear=None):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
 
     Parameters
     ----------
-    slf : Class instance
-      An instance of the Science Exposure class
     det : int
       Index of the detector
     msarc : ndarray
@@ -178,24 +175,6 @@ def detect_lines(censpec, nfitpix=5):
 
     # Extract a rough spectrum of the arc in each order
     msgs.info("Detecting lines")
-    #if msgs._debug['flexure'] or (msarc is None):
-    #    ordcen = slf._pixcen
-    #else:
-    #    ordcen = slf.GetFrame(slf._pixcen, det)
-    #if censpec is None:
-    #    msgs.info("Extracting an approximate arc spectrum at the centre of the chip")
-    #    #pixcen = np.arange(msarc.shape[0], dtype=np.int)
-    #    #ordcen = (msarc.shape[1]/2)*np.ones(msarc.shape[0],dtype=np.int)
-    #    #if len(ordcen.shape) != 1: msgs.error("The function artrace.model_tilt should only be used for"+msgs.newline()+"a single spectrum (or order)")
-    #    #ordcen = ordcen.reshape((ordcen.shape[0],1))
-    #    msgs.work("No orders being masked at the moment")
-    #    # Average over several pixels to remove some random fluctuations, and increase S/N
-    #    op1 = ordcen+1
-    #    op2 = ordcen+2
-    #    om1 = ordcen-1
-    #    om2 = ordcen-2
-    #    censpec = (msarc[:,ordcen]+msarc[:,op1]+msarc[:,op2]+msarc[:,om1]+msarc[:,om2])/5.0
-    # Generate a saturation mask
     '''
     if MK_SATMASK:
         ordwid = 0.5*np.abs(slf._lordloc[det-1] - slf._rordloc[det-1])
@@ -232,6 +211,7 @@ def detect_lines(censpec, nfitpix=5):
     xrng = np.arange(detns.size, dtype=np.float)
 
     # Find all significant detections
+    # TODO -- Need to add nonlinear back in here
     pixt = np.where((detns > 0.0) &  # (detns < slf._nonlinear[det-1]) &
                     (detns > np.roll(detns, 1)) & (detns >= np.roll(detns, -1)) &
                     (np.roll(detns, 1) > np.roll(detns, 2)) & (np.roll(detns, -1) > np.roll(detns, -2)) &#)[0]

@@ -12,8 +12,7 @@ from matplotlib import pyplot as plt
 from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import masterframe
-from pypit import ararc
-from pypit import ararclines
+from pypit.core import ararc
 from pypit import armasters
 from pypit.core import arsort
 
@@ -46,27 +45,36 @@ class WaveCalib(masterframe.MasterFrame):
 
     Parameters
     ----------
-    mstrace : ndarray
-      Trace image
-    pixlocn : ndarray
-      Pixel location array
-    binbpx : ndarray, optional
-      Bad pixel mask
-      If not provided, a dummy array with no masking is generated
+    msarc : ndarray
+      Arc image
     settings : dict, optional
       Settings for trace slits
     det : int, optional
       Detector number
-    ednum : int, optional
-      Edge number used for indexing
+    setup : str, optional
+    fitstbl : Table, optional
+      Used for arcparam
+    sci_ID : int, optional
+      Index of the science frame (also for arcparam)
 
     Attributes
     ----------
     frametype : str
       Hard-coded to 'wv_calib'
-
     steps : list
       List of the processing steps performed
+    wv_calib : dict
+      Primary output
+      Keys
+        0, 1, 2, 3 -- Solution for individual slit
+        arcparam -- Parameters used
+        steps
+    arccen : ndarray (nwave, nslit)
+      Extracted arc(s) down the center of the slit(s)
+    maskslit : ndarray (nslit)
+      Slits to ignore because they were not extacted
+    arcparam : dict
+      Arc parameter (instrument/disperser specific)
     """
     def __init__(self, msarc, spectrograph=None, settings=None, det=None, setup=None, fitstbl=None, sci_ID=None):
 
@@ -94,11 +102,29 @@ class WaveCalib(masterframe.MasterFrame):
         self.wv_calib = {}
 
         # Key Internals
+        self.arccen = None
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, setup, self.settings)
 
     def _build_wv_calib(self, method, skip_QA=False):
+        """
+        Main routine to generate the wavelength solutions in a loop over slits
+
+        Wrapper to ararc.simple_calib or ararc.calib_with_arclines
+
+        Parameters
+        ----------
+        method : str
+          'simple' -- ararc.simple_calib
+          'arclines' -- ararc.calib_with_arclines
+        skip_QA : bool, optional
+
+        Returns
+        -------
+        self.wv_calib : dict
+
+        """
         # Loop
         self.wv_calib = {}
         ok_mask = np.where(self.maskslits == 0)[0]
@@ -123,16 +149,56 @@ class WaveCalib(masterframe.MasterFrame):
         return self.wv_calib
 
     def calibrate_spec(self, slit, method='arclines'):
+        """
+        User method to calibrate a given spectrum from a chosen slit
+
+        Wrapper to ararc.simple_calib or ararc.calib_with_arclines
+
+        Parameters
+        ----------
+        slit : int
+        method : str, optional
+          'simple' -- ararc.simple_calib
+          'arclines' -- ararc.calib_with_arclines
+
+        Returns
+        -------
+        iwv_calib : dict
+          Solution for that single slit
+
+        """
         reload(ararc)
         spec = self.wv_calib[str(slit)]['spec']
         if method == 'simple':
-            iwv_calib = ararc.simple_calib(self.det, self.msarc, self.arcparam,
-                                           censpec=self.arccen[:, slit], slit=slit)
+            iwv_calib = ararc.simple_calib(self.msarc, self.arcparam,
+                                           self.arccen[:, slit])
         elif method == 'arclines':
             iwv_calib = ararc.calib_with_arclines(self.arcparam, spec)
+        else:
+            msgs.error("Not an allowed method")
         return iwv_calib
 
     def _extract_arcs(self, lordloc, rordloc, pixlocn):
+        """
+        Extract an arc down the center of each slit/order
+
+        Wrapper to ararc.get_censpec
+
+        Parameters
+        ----------
+        lordloc : ndarray
+          Left edges (from TraceSlit)
+        rordloc : ndarray
+          Right edges (from TraceSlit)
+        pixlocn : ndarray
+
+        Returns
+        -------
+        self.arccen
+          1D arc spectra from each slit
+        self.maskslits
+
+        """
         self.arccen, self.maskslits, _ = ararc.get_censpec(lordloc, rordloc, pixlocn,
                                                           self.msarc, self.det, self.settings,
                                                           gen_satmask=False)
@@ -142,6 +208,22 @@ class WaveCalib(masterframe.MasterFrame):
         return self.arccen, self.maskslits
 
     def load_wv_calib(self, filename):
+        """
+        Load a full (all slit) wv_calib dict
+
+        Includes converting the JSON lists of particular items into ndarray
+
+        Parameters
+        ----------
+        filename : str
+
+        Returns
+        -------
+        Fills:
+          self.wv_calib
+          self.arcparam
+
+        """
         self.wv_calib, _, _ =  armasters._load(filename, frametype=self.frametype)
         # Recast a few items as arrays -- MIGHT PUSH THIS INTO armasters._load
         for key in self.wv_calib.keys():
@@ -156,6 +238,9 @@ class WaveCalib(masterframe.MasterFrame):
 
     def _load_arcparam(self, calibrate_lamps=None):
         """
+        Load the arc parameters
+
+        Wrapper to ararc.setup_param
 
         Parameters
         ----------
@@ -176,9 +261,21 @@ class WaveCalib(masterframe.MasterFrame):
         # Return
         return self.arcparam
 
-    def _make_maskslits(self, shape):
+    def _make_maskslits(self, nslit):
+        """
+
+        Parameters
+        ----------
+        nslit : int
+          Number of slits/orders
+
+        Returns
+        -------
+        self.maskslits : ndarray (bool)
+
+        """
         # Set mask based on wv_calib
-        mask = np.array([True]*shape)
+        mask = np.array([True]*nslit)
         for key in self.wv_calib.keys():
             if key in ['steps', 'arcparam']:
                 continue
@@ -191,12 +288,20 @@ class WaveCalib(masterframe.MasterFrame):
         """
         Main driver for wavelength calibration
 
+        Code flow:
+          1. Extract 1D arc spectra down the center of each slit/order
+          2. Load the parameters guiding wavelength calibration
+          3. Generate the 1D wavelength fits
+          4. Generate a mask
+
         Parameters
         ----------
         lordloc
         rordloc
         pixlocn
-        nonlinear
+        nonlinear : float, optional
+          Would be passed to ararc.detect_lines but that routine is
+          currently being run in arclines.holy
         skip_QA
 
         Returns
@@ -226,6 +331,20 @@ class WaveCalib(masterframe.MasterFrame):
         return self.wv_calib, self.maskslits
 
     def show(self, item, slit=None):
+        """
+        Show one of the class internals
+
+        Parameters
+        ----------
+        item : str
+          'spec' -- Show the fitted points and solution;  requires slit
+          'fit' -- Show fit QA; requires slit
+        slit : int, optional
+
+        Returns
+        -------
+
+        """
         if item == 'spec':
             # spec
             spec = self.wv_calib[str(slit)]['spec']
@@ -248,7 +367,13 @@ class WaveCalib(masterframe.MasterFrame):
 
     def __repr__(self):
         # Generate sets string
-        txt = '<{:s}: >'.format(self.__class__.__name__)
+        txt = '<{:s}: '.format(self.__class__.__name__)
+        if len(self.steps) > 0:
+            txt+= ' steps: ['
+            for step in self.steps:
+                txt += '{:s}, '.format(step)
+            txt = txt[:-2]+']'  # Trim the trailing comma
+        txt += '>'
         return txt
 
 

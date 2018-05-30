@@ -15,10 +15,9 @@ from astropy.convolution import convolve, Gaussian1DKernel
 from pypit import msgs
 from pypit import arqa
 from pypit import arplot
-from pypit import ararc
+from pypit.core import ararc
 from pypit import arutils
 from pypit import arpca
-from pypit import arextract
 from pypit import arparse as settings
 from pypit.filter import BoxcarFilter
 from pypit import ardebug as debugger

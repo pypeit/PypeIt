@@ -12,7 +12,6 @@ from astropy.time import Time
 # Import PYPIT routines
 from pypit import msgs
 from pypit import arparse as settings
-from pypit import ararc
 from pypit import artrace
 from pypit import arload
 from pypit import arcomb
