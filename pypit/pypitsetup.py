@@ -170,6 +170,22 @@ class PypitSetup(object):
         self.steps.append(inspect.stack()[0][3])
         return self.setup_dict
 
+    def match_ABBA(self):
+        """
+          Matches science frames to their partner A/B frame
+          Mainly a wrapper to arsort.match_ABBA()
+
+        Returns
+        -------
+        self.fitstbl -- Updated with 'AB_frame' column
+
+        """
+        self.fitstbl = arsort.match_ABBA(self.fitstbl)
+
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        return self.fitstbl
+
     def match_to_science(self):
         """
           Matches calibration frames to the Science
