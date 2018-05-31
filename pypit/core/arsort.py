@@ -20,6 +20,8 @@ import shutil
 
 import numpy as np
 
+from astropy.coordinates import SkyCoord
+from astropy.table import Column
 from astropy.table import Table
 from astropy import units
 
@@ -528,6 +530,91 @@ def build_frametype_list(fitstbl):
     # Return
     return ftypes
 
+def match_ABBA(fitstbl):
+    # Make coords for all observations, including calibration frames
+    coords = SkyCoord(ra=fitstbl['ra'], dec=fitstbl['dec'], unit='deg')
+
+    # Indices of files classified as science frames
+    sci_idx = np.where(fitstbl['science'])[0]
+
+    # Create a mask, currently all True
+    mask = np.ones(np.sum(len(fitstbl)), dtype=bool)
+
+    # Create empty dictionary of targets
+    targets = {}
+
+    # Set science frames to False in the mask
+    mask[sci_idx] = False
+
+    while np.any(~mask):
+        idx = np.where(~mask)[0][0]
+        # Find indices corresponding to any others files that match the coordinates of current science frame in consideration
+        match = coords[idx].separation(coords[sci_idx]).deg < 1e-2 # 1e-2 separation is arbitrary
+        # Add this science target to the dictionary
+        targ_name = fitstbl[idx]['target']  # Grab the target name from fitstbl
+        # Create that target in dict and add corresponding indices that point to the relevant science frames
+        targets[targ_name] = sci_idx[match]
+        # Turn mask 'off' (i.e., to True) now that they have been grouped to this target
+        mask[targets[targ_name]] = True
+        #print(mask)
+
+    # Create an empty list of filenames that will store each frame's buddy A/B frame
+    AB_frame = [''] * len(fitstbl)
+
+    for key, value in targets.items():
+
+        #print(key, value)
+
+        files = fitstbl['filename'][value]
+        #print(files)
+
+        # Check here that there are more than 1 files and that # of files is even
+        if len(files) == 1:
+            msgs.warn('Cannot perform NIR A-B reduction on targets with 1 file')
+        elif len(files) % 2 != 0:
+            msgs.warn('Expected an even number of files associated with target ' + key)
+        #### Check for increasing time? Files are read in numerical sequential order -- should be in order
+        #### of increasing time anyway..?
+
+        # Assume that the files are initially in ABBA order and proceed
+        # ABBA coordinates for this target
+        ABBA_coords = coords[value]
+        # ABBA_coords = SkyCoord(ra=nod_ra, dec=nod_dec, unit='deg')
+
+        # Break files into ABBA groups (includes 'remainder' if there are only 2 files)
+        ABBA_groups = [ABBA_coords[i:i + 4] for i in range(0, len(ABBA_coords), 4)]
+        value_groups = [value[i:i + 4] for i in range(0, len(ABBA_coords), 4)]
+
+        for group in range(len(ABBA_groups)):
+            # Warn user that if there are any groups of only 2 files, assuming they are in order of A and B
+            if len(ABBA_groups[group]) == 2:
+                msgs.info('Assuming these two frames are A and B frame.')
+            # Check that we have a 4-file, ABBA sequence
+            elif len(ABBA_groups[group]) == 4:
+                # Check that frames 1, 4 of an ABBA sequence are at the same nod position (A) based on their RA, DEC
+                if not ABBA_coords[0].separation(ABBA_coords[-1]).deg < 5e-4:
+                    print(ABBA_groups[group])
+                    msgs.warn('Are frames ' + str((group * 4) + 1) + ' and ' + str(
+                        (group * 4) + 4) + ' for target ' + key + ' both A frames?')
+                # Check that frames 2, 3 of an ABBA sequence are both at the same nod position (B)
+                if not ABBA_coords[1].separation(ABBA_coords[2]).deg < 5e-4:
+                    msgs.warn('Are frames ' + str((group * 4) + 2) + ' and ' + str(
+                        (group * 4) + 3) + ' for target ' + key + ' both B frames?')
+            # Perhaps this isn't needed..? Should files either be in 4 or 2 at this point?
+            else:
+                msgs.warn('Check number of frames for this target -- files are not grouped in ABBA or AB')
+
+            # Create a copy of the array value_groups[group] (which gives the indices corresponding to the 4/2 ABBA/AB files in consideration)
+            AB_idx_flip = np.copy(value_groups[group])
+            # Flip such that, for example, (1, 2, 3, 4) --> (2, 1, 4, 3)
+            AB_idx_flip[::2], AB_idx_flip[1::2] = value_groups[group][1::2], value_groups[group][::2]
+
+            # Fill in AB_frame list
+            for i in range(len(value_groups[group])):
+                AB_frame[value_groups[group][i]] = fitstbl['filename'][AB_idx_flip[i]]
+
+    return AB_frame
+
 '''
 def sort_write(fitsdict, filesort, space=3):
     """
@@ -931,6 +1018,12 @@ def match_to_science(fitstbl, settings_spect, settings_argflag):
                     fitstbl['sci_ID'][wa[:numfr]] |= 2**ss  # Flip the switch (if need be)
 
     msgs.info("Science frames successfully matched to calibration frames")
+
+    # How to do this if statement only if '--custom' is on?
+    if settings_argflag['run']['spectrograph'] == 'keck_nirspec':
+        AB = Column(match_ABBA(fitstbl), name='AB_frame')
+
+    fitstbl.add_column(AB)
     return fitstbl
 
 '''
