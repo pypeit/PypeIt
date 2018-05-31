@@ -28,19 +28,15 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
-def settings_kludge():
+def settings_kludge(instr='shane_kast_blue'):
     # We be replaced with the settings Refactor
     from pypit import arparse as settings
-    settings.dummy_settings()
-    settings.argflag['run']['spectrograph'] = 'shane_kast_blue'
+    settings.dummy_settings(spectrograph=instr)
+    settings.argflag['run']['spectrograph'] = instr
     settings.argflag['reduce']['masters']['setup'] = 'C_01_aa'
     #
-    # Load default spectrograph settings
-    spect = settings.get_spect_class(('ARMLSD', 'shane_kast_blue', 'pypit'))  # '.'.join(redname.split('.')[:-1])))
-    lines = spect.load_file(base=True)  # Base spectrograph settings
-    spect.set_paramlist(lines)
-    lines = spect.load_file()  # Instrument specific
-    spect.set_paramlist(lines)
+    if 'nirspec' in instr:
+        pytest.set_trace()
     return settings.argflag, settings.spect
 
 def test_init():
@@ -131,7 +127,7 @@ def test_match_ABBA():
     files = glob.glob(file_root+'*')
     assert len(files) > 0
     # Settings
-    settings_argflag, settings_spect = settings_kludge()
+    settings_argflag, settings_spect = settings_kludge('keck_nirspec')
     # Init
     setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
     # fitstbl
