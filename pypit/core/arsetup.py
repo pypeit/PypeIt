@@ -682,7 +682,7 @@ def write_sorted(group_file, fitstbl, group_dict, setup_dict):
     ftypes.sort()
     # Loop on Setup
     asciiord = np.array(['filename', 'date', 'frameno', 'frametype',
-                         'target', 'exptime', 'dispname', 'decker'])
+                         'target', 'exptime', 'dispname', 'decker', 'AB_frame'])
     for setup in setups:
         ff.write('##########################################################\n')
         in_setup = []
@@ -706,7 +706,7 @@ def write_sorted(group_file, fitstbl, group_dict, setup_dict):
     ff.write('##end\n')
     ff.close()
 
-def build_group_dict(fitstbl, setupIDs, all_sci_idx):
+def build_group_dict(fitstbl, setupIDs, all_sci_idx, all_sci_ID):
     """ Generate a group dict
     Only used for generating the .sorted output file
 
@@ -727,6 +727,7 @@ def build_group_dict(fitstbl, setupIDs, all_sci_idx):
     for sc,setupID in enumerate(setupIDs):
         #scidx = sciexp[sc]._idx_sci[0]
         scidx = all_sci_idx[sc]
+        sci_ID = all_sci_ID[sc]
         # Set group_key
         config_key = setupID[0]
         # Plan init
@@ -744,7 +745,7 @@ def build_group_dict(fitstbl, setupIDs, all_sci_idx):
             if key in ['unknown', 'dark', 'failures']:
                 continue
             #for idx in settings_spect[key]['index'][sc]:
-            indices = arsort.ftype_indices(fitstbl, key, scidx)
+            indices = arsort.ftype_indices(fitstbl, key, sci_ID)
             #for idx in settings_spect[key]['index'][sc]:
             for idx in indices:
                 # Only add if new
