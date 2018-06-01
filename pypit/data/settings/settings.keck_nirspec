@@ -82,7 +82,7 @@ bias check condition1 lampstat01=0&lampstat02=0&lampstat03=0&lampstat04=0&lampst
 bias check condition2 hatch=0          # Required for bias
 bias check condition3 exptime<=1        # Required for bias
 bias check condition4 imagetype=dark # Check that KOA keyword is 'dark'
-#bias match binning ''             	   # Match the shape of standard and science frames
+bias match binning ''             	   # Match the shape of standard and science frames
 
 ### Pixel Flat frames -- Dome Flat required
 pixelflat number 3                     # Number of flat frames to use
