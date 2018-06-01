@@ -5,7 +5,7 @@ import inspect
 import numpy as np
 import os
 
-from importlib import reload
+#from importlib import reload
 
 from astropy.io import fits
 
@@ -13,7 +13,6 @@ from pypit import msgs
 from pypit import ardebug as debugger
 from pypit.core import ararc
 from pypit.core import artracewave
-from pypit import arutils
 from pypit import armasters
 from pypit import masterframe
 from pypit import ginga
@@ -52,11 +51,31 @@ class WaveTilts(masterframe.MasterFrame):
     ----------
     msarc : ndarray
       Arc image
+    lordloc : ndarray
+      Input from TraceSlits
+    rordloc : ndarray
+      Input from TraceSlits
+    pixlocn : ndarray
+    pixcen : ndarray
+    slitpix : ndarray
+    settings_det : dict
+      Detector settings
+    det : int
+    settings : dict
 
     Attributes
     ----------
     frametype : str
       Hard-coded to 'tilts'
+    steps : list
+    all_trcdict : list of dict
+      All trace dict's
+    tilts : ndarray
+      Tilts for a single slit/order
+    all_tilts : tuple
+      Tuple of tilts ndarray's
+    final_tilts : ndarray
+      Final tilts image
 
     """
     def __init__(self, msarc, settings=None, det=None, settings_det=None, setup='',
@@ -93,15 +112,28 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Key Internals
         self.all_trcdict = [None]*self.nslit
-        self.polytilts = None
         self.tilts = None
         self.all_tilts = None
+        self.final_tilts = None
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, setup, self.settings)
 
     @classmethod
     def from_master_files(cls, setup, mdir='./'):
+        """
+        Build the class from Master frames
+
+        Parameters
+        ----------
+        setup : str
+        mdir : str, optional
+
+        Returns
+        -------
+        slf
+
+        """
         # Arc
         msarc_file = armasters.core_master_name('arc', setup, mdir)
         msarc, _, _ = armasters._load(msarc_file)
@@ -143,7 +175,20 @@ class WaveTilts(masterframe.MasterFrame):
 
 
     def _analyze_lines(self, slit):
-        reload(artracewave)
+        """
+        Analyze the tilts of the arc lines in a given slit/order
+
+        Wrapper to artracewave.analyze_lines()
+
+        Parameters
+        ----------
+        slit : int
+
+        Returns
+        -------
+        self.badlines
+
+        """
         self.badlines, self.all_tilts = artracewave.analyze_lines(
             self.msarc, self.all_trcdict[slit], slit, self.pixcen, self.settings)
         if self.badlines > 0:
@@ -154,6 +199,17 @@ class WaveTilts(masterframe.MasterFrame):
         return self.badlines
 
     def _extract_arcs(self):
+        """
+        Extract the arcs down each slit/order
+
+        Wrapper to ararc.get_censpec()
+
+        Returns
+        -------
+        self.arccen
+        self.arc_maskslit
+
+        """
         # Extract an arc down each slit/order
         self.arccen, self.arc_maskslit, _ = ararc.get_censpec(self.lordloc, self.rordloc,
                                                               self.pixlocn, self.msarc, self.det,
@@ -164,8 +220,21 @@ class WaveTilts(masterframe.MasterFrame):
         return self.arccen, self.arc_maskslit
 
     def _fit_tilts(self, slit, show_QA=False, doqa=True):
-        reload(artracewave)
-        reload(arutils)
+        """
+
+        Parameters
+        ----------
+        slit : int
+        show_QA : bool, optional
+          Show the QA plot (e.g. in a Notebook)
+        doqa : bool, optional
+          Perform the QA
+
+        Returns
+        -------
+        self.tilts : ndarray
+
+        """
         self.tilts, self.outpar = artracewave.fit_tilts(self.msarc, slit, self.all_tilts,
                                                         self.settings, setup=self.setup,
                                                         show_QA=show_QA, doqa=doqa)
@@ -173,33 +242,22 @@ class WaveTilts(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
         return self.tilts
 
-    '''
-    def _tilts_jxp_spca(self, slit):
-        reload(artracewave)
-        self.tilts = artracewave.tilts_spca(self.msarc, self.polytilts, self.pixcen, slit,
-                                            self.all_trcdict[slit]['arcdet'], self.all_trcdict[slit]['aduse'],
-                                            self.rordloc, self.lordloc, self.all_tilts)
-
-    def _tilts_spca(self, slit):
-        reload(artracewave)
-        self.tilts = artracewave.tilts_spca(self.msarc, self.polytilts, self.pixcen, slit,
-            self.all_trcdict[slit]['arcdet'], self.all_trcdict[slit]['aduse'],
-            self.rordloc, self.lordloc)
-
-    def _tilts_jxp_spline(self, slit):
-        reload(artracewave)
-        self.tilts = artracewave.tilts_spline(self.all_tilts,
-                                              self.all_trcdict[slit]['arcdet'], self.all_trcdict[slit]['aduse'],
-                                              self.polytilts, self.msarc, use_mtilt=True)
-    def _tilts_spline(self, slit):
-        reload(artracewave)
-        self.tilts = artracewave.tilts_spline(self.all_tilts,
-                                              self.all_trcdict[slit]['arcdet'], self.all_trcdict[slit]['aduse'],
-                                              self.polytilts, self.msarc)
-    '''
-
     def _trace_tilts(self, slit, wv_calib=None):
-        reload(artracewave)
+        """
+
+        Parameters
+        ----------
+        slit : int
+        wv_calib : dict, optional
+          Used only for avoiding ghosts
+
+
+        Returns
+        -------
+        trcdict : dict
+          Filled in self.all_trcdict[]
+
+        """
         # Determine the tilts for this slit
         trcdict = artracewave.trace_tilt(self.pixcen, self.rordloc, self.lordloc, self.det,
                                          self.msarc, slit, self.settings_det, self.settings,
@@ -226,9 +284,14 @@ class WaveTilts(masterframe.MasterFrame):
 
         Parameters
         ----------
+        maskslits : ndarray (bool), optional
+        doqa : bool
+        wv_calib : dict
 
         Returns
         -------
+        self.final_tilts
+        maskslits
         """
         # If the user sets no tilts, return here
         if self.settings['tilts']['method'].lower() == "zero":
@@ -271,11 +334,14 @@ class WaveTilts(masterframe.MasterFrame):
         QA
           Wrapper to artraceslits.slit_trace_qa()
 
+        Parameters
+        ----------
+        slit : int
+
         Returns
         -------
 
         """
-        reload(artracewave)
         self.tiltsplot, self.ztilto, self.xdat = artracewave.prep_tilts_qa(
             self.msarc, self.all_tilts, self.tilts, self.all_trcdict[slit]['arcdet'],
             self.pixcen, slit)
@@ -340,12 +406,13 @@ class WaveTilts(masterframe.MasterFrame):
         Parameters
         ----------
         attr : str
-          'fweight' -- Show the mstrace image and the edges
-          'fweight' -- Show the mstrace image and the edges
+          'fweight' -- Show the msarc image and the tilts traced by fweight
+          'model' -- Show the msarc image and the tilts traced by fweight
+          'tilts' -- Show the msarc image and the tilts traced by fweight
+        slit : int, optional
         display : str (optional)
           'ginga' -- Display to an RC Ginga
         """
-        reload(ginga)
         if (self.lordloc is not None) and (slit is not None):
             sedges=(self.lordloc[:,slit], self.rordloc[:,slit])
         else:
@@ -386,18 +453,6 @@ class WaveTilts(masterframe.MasterFrame):
                     ycen = self.all_trcdict[slit]['ycen'][idx]
                 yval = ycen + self.tilts[int(ycen),:]
                 tmp['ytfit'].append(yval)
-            '''
-            for arcdet in self.all_trcdict[slit]['arcdet']:
-                tmp['xtfit'].append(np.arange(self.msarc.shape[1]))
-                if attr == 'tilts':  # Need to offset here as we finally fit to the lines not the row
-                    yval = (2*self.tilts[arcdet, self.pixcen[arcdet, slit]]-self.tilts[arcdet,:])*(self.msarc.shape[0]-1)
-                    # Offset onto the centroid arc line
-                    yval += self.polytilts[arcdet, self.pixcen[arcdet, slit]]*(self.msarc.shape[0]-1) - arcdet
-                else:
-                    yval = self.polytilts[arcdet,:] * (self.msarc.shape[0]-1)
-                # Save
-                tmp['ytfit'].append(yval)
-            '''
             # Show
             msgs.warn("Display via tilts is not exact")  # Could make a correction.  Probably is close enough
             ginga.chk_arc_tilts(self.msarc, tmp, sedges=sedges, all_green=True, cname=cname)
