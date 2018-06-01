@@ -128,6 +128,8 @@ def test_match_ABBA():
     assert len(files) > 0
     # Settings
     settings_argflag, settings_spect = settings_kludge('keck_nirspec')
+    settings_spect['bias']['number'] = 0
+    settings_spect['standard']['number'] = 0
     # Init
     setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
     # fitstbl
