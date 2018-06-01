@@ -34,9 +34,6 @@ def settings_kludge(instr='shane_kast_blue'):
     settings.dummy_settings(spectrograph=instr)
     settings.argflag['run']['spectrograph'] = instr
     settings.argflag['reduce']['masters']['setup'] = 'C_01_aa'
-    #
-    if 'nirspec' in instr:
-        pytest.set_trace()
     return settings.argflag, settings.spect
 
 def test_init():
