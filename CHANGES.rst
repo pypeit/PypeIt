@@ -126,7 +126,6 @@
 - Refactoring of settings and slf out of core methods continues
 - Removed _msbias, _msarc, _datasec, _bpix from slf
 - New tests and Notebooks
-
 - Introduced FluxSpec class
 - Introduce pypit_flux_spec script (and docs)
 - Added FluxSpec Notebook
@@ -137,6 +136,15 @@
 - Moved arflux to core and stripped out slf, settings
 - Really restricting to nobj when user requests it
 - New tests
+
+- Introduces WaveCalib class
+- Push ararc.py to core/ after removing slf and settings dependencies
+- Further refactor masters including MasterFrame; includes addressing previous comment from RC
+- Removed armlsd.py again
+- Strips wv_calib from ScienceExposure
+- Push get_censpec() to ararc.py
+- New tests; limited docs
+- TraceSlits load method pushed outside the class
 
 0.7 (2017-02-07)
 ----------------
