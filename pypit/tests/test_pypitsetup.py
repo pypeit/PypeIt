@@ -28,19 +28,12 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
-def settings_kludge():
+def settings_kludge(instr='shane_kast_blue'):
     # We be replaced with the settings Refactor
     from pypit import arparse as settings
-    settings.dummy_settings()
-    settings.argflag['run']['spectrograph'] = 'shane_kast_blue'
+    settings.dummy_settings(spectrograph=instr)
+    settings.argflag['run']['spectrograph'] = instr
     settings.argflag['reduce']['masters']['setup'] = 'C_01_aa'
-    #
-    # Load default spectrograph settings
-    spect = settings.get_spect_class(('ARMLSD', 'shane_kast_blue', 'pypit'))  # '.'.join(redname.split('.')[:-1])))
-    lines = spect.load_file(base=True)  # Base spectrograph settings
-    spect.set_paramlist(lines)
-    lines = spect.load_file()  # Instrument specific
-    spect.set_paramlist(lines)
     return settings.argflag, settings.spect
 
 def test_init():
@@ -122,6 +115,31 @@ def test_match():
     fitstbl = setupc.match_to_science()
     assert fitstbl['sci_ID'][fitstbl['science']].tolist() == [1,2,4]
 
+def test_match_ABBA():
+    if skip_test:
+        assert True
+        return
+    # Check for files
+    file_root = os.getenv('PYPIT_DEV') + 'RAW_DATA/Keck_NIRSPEC/NIRSPEC-1/NS'
+    files = glob.glob(file_root+'*')
+    assert len(files) > 0
+    # Settings
+    settings_argflag, settings_spect = settings_kludge('keck_nirspec')
+    settings_spect['bias']['number'] = 0
+    settings_spect['standard']['number'] = 0
+    # Init
+    setupc = pypitsetup.PypitSetup(settings_argflag, settings_spect)
+    # fitstbl
+    _ = setupc.build_fitstbl(files)
+
+    # Type
+    _ = setupc.type_data()
+
+    # Match to science
+    fitstbl = setupc.match_to_science()
+    fitstbl = setupc.match_ABBA()
+
+    assert fitstbl['AB_frame'][-1] == 'NS.20160414.55235.fits.gz'
 
 def test_run():
     if skip_test:

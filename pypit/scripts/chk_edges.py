@@ -59,7 +59,7 @@ def main(pargs):
     if pargs.dumb_ids:
         slit_ids = range(Tslits.lcen.shape[1])
     else:
-        slit_ids = [get_slitid(stup[0], stup[1], stup[2], None, ii)[0] for ii in range(Tslits.lcen.shape[1])]
+        slit_ids = [get_slitid(stup[0], stup[1], stup[2], ii)[0] for ii in range(Tslits.lcen.shape[1])]
     ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids, pstep=50)
     print("Check your Ginga viewer")
 

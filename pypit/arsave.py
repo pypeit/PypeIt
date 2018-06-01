@@ -354,7 +354,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
 
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 
-def new_save_1d_spectra_fits(specobjs, header, outfile,
+def save_1d_spectra_fits(specobjs, header, outfile,
                              helio_dict=None, obs_dict=None, clobber=True):
     """ Write 1D spectra to a multi-extension FITS file
 
@@ -375,7 +375,7 @@ def new_save_1d_spectra_fits(specobjs, header, outfile,
     prihdu = fits.PrimaryHDU()
     hdus = [prihdu]
     # Add critical data to header
-    for key in ['ra', 'dec', 'exptime', 'date', 'target', 'airmass']:
+    for key in ['ra', 'dec', 'exptime', 'date', 'target', 'airmass', 'instrume']:
         # Allow for fitstbl vs. header
         try:
             prihdu.header[key.upper()] = header[key.upper()]
@@ -452,7 +452,7 @@ def new_save_1d_spectra_fits(specobjs, header, outfile,
     msgs.info("Wrote 1D spectra to {:s}".format(outfile))
     return outfile
 
-
+'''
 def save_1d_spectra_fits(slf, fitsdict, clobber=True, outfile=None):
     """ Write 1D spectra to a multi-extension FITS file
 
@@ -551,6 +551,7 @@ def save_1d_spectra_fits(slf, fitsdict, clobber=True, outfile=None):
         outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename)
     hdulist.writeto(outfile, overwrite=clobber)
     return outfile
+'''
 
 
 

@@ -56,12 +56,14 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
     # Generate sciexp list, if need be (it will be soon)
     sv_std_idx = []
     std_dict = {}
+    basenames = []  # For fluxing at the very end
     if sciexp is None:
         sciexp = []
         all_sci_ID = fitstbl['sci_ID'].data[fitstbl['science']]  # Binary system: 1,2,4,8, etc.
         for sci_ID in all_sci_ID:
             sciexp.append(arsciexp.ScienceExposure(sci_ID, fitstbl, settings.argflag,
                                                    settings.spect, do_qa=True))
+            basenames.append(sciexp[-1]._basename)
             std_idx = arsort.ftype_indices(fitstbl, 'standard', sci_ID)
             if (len(std_idx) > 0):
                 if len(std_idx) > 1:
@@ -295,7 +297,8 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 # Master
                 mstilts = wTilt.master()
                 if mstilts is None:
-                    mstilts, wt_maskslits = wTilt.run(maskslits=slf._maskslits[det-1])
+                    mstilts, wt_maskslits = wTilt.run(maskslits=slf._maskslits[det-1],
+                                                      wv_calib=wv_calib)
                     wTilt.save_master()
                 else:
                     wt_maskslits = np.zeros(len(slf._maskslits[det-1]), dtype=bool)
@@ -358,15 +361,16 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             arproc.reduce_multislit(slf, mstilts, sciframe, msbpm, datasec_img, scidx, fitstbl, det,
                                     mspixelflatnrm=mspixflatnrm)
 
+
             ######################################################
-            # Reduce standard here; only legit todo if the mask is the same
+            # Reduce standard here; only legit if the mask is the same
             std_idx = arsort.ftype_indices(fitstbl, 'standard', sci_ID)
             if len(std_idx) > 0:
                 std_idx = std_idx[0]
             else:
                 continue
             stdslf = std_dict[std_idx]
-            if stdslf.extracted is False:
+            if stdslf.extracted[det-1] is False:
                 # Fill up the necessary pieces
                 for iattr in ['pixlocn', 'lordloc', 'rordloc', 'pixcen', 'pixwid', 'lordpix', 'rordpix',
                               'slitpix', 'satmask', 'maskslits', 'slitprof', 'mswave']:
@@ -379,18 +383,39 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 arproc.reduce_multislit(stdslf, mstilts, stdframe, msbpm, datasec_img, std_idx, fitstbl, det,
                                         standard=True, mspixelflatnrm=mspixflatnrm)
                 # Finish
-                stdslf.extracted = True
+                stdslf.extracted[det-1] = True
+
+        ###########################
+        # Write
+        # Write 1D spectra
+        save_format = 'fits'
+        if save_format == 'fits':
+            outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename)
+            helio_dict = dict(refframe=settings.argflag['reduce']['calibrate']['refframe'],
+                              vel_correction=slf.vel_correction)
+            arsave.save_1d_spectra_fits(slf._specobjs, fitstbl[slf._idx_sci[0]], outfile,
+                                            helio_dict=helio_dict, obs_dict=settings.spect['mosaic'])
+            #arsave.save_1d_spectra_fits(slf, fitstbl)
+        elif save_format == 'hdf5':
+            arsave.save_1d_spectra_hdf5(slf)
+        else:
+            msgs.error(save_format + ' is not a recognized output format!')
+        arsave.save_obj_info(slf, fitstbl)
+        # Write 2D images for the Science Frame
+        arsave.save_2d_images(slf, fitstbl)
+        # Free up some memory by replacing the reduced ScienceExposure class
+        sciexp[sc] = None
 
     # Write standard stars
     for key in std_dict.keys():
         outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(std_dict[key]._basename)
-        arsave.new_save_1d_spectra_fits(std_dict[key]._specobjs, fitstbl[std_idx], outfile,
+        arsave.save_1d_spectra_fits(std_dict[key]._specobjs, fitstbl[std_idx], outfile,
                                         obs_dict=settings.spect['mosaic'])
 
     #########################
     # Flux towards the very end..
     #########################
-    if (settings.argflag['reduce']['calibrate']['flux'] == True) and (len(std_dict) > 0):
+    if settings.argflag['reduce']['calibrate']['flux'] and (len(std_dict) > 0):
         # Standard star (is this a calibration, e.g. goes above?)
         msgs.info("Processing standard star")
         msgs.info("Taking one star per detector mosaic")
@@ -414,33 +439,18 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             sensfunc = FxSpec.sensfunc
         # Flux
         msgs.info("Fluxing with {:s}".format(sensfunc['std']['name']))
-        for slf in sciexp:
-            scidx = slf._idx_sci[0]
-            FxSpec._flux_specobjs(slf._specobjs, fitstbl['airmass'][scidx], fitstbl['exptime'][scidx])
-
-
-    # Write science
-    for sc in range(numsci):
-        slf = sciexp[sc]
-
-        # TODO -- When we refactor ScienceExposure, something will need to carry all the individual images until we write them out..
-        # Write 1D spectra
-        save_format = 'fits'
-        if save_format == 'fits':
-            outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename)
-            helio_dict = dict(refframe=settings.argflag['reduce']['calibrate']['refframe'],
-                              vel_correction=slf.vel_correction)
-            arsave.new_save_1d_spectra_fits(slf._specobjs, fitstbl[slf._idx_sci[0]], outfile,
-                                            helio_dict=helio_dict, obs_dict=settings.spect['mosaic'])
-            #arsave.save_1d_spectra_fits(slf, fitstbl)
-        elif save_format == 'hdf5':
-            arsave.save_1d_spectra_hdf5(slf)
-        else:
-            msgs.error(save_format + ' is not a recognized output format!')
-        arsave.save_obj_info(slf, fitstbl)
-        # Write 2D images for the Science Frame
-        arsave.save_2d_images(slf, fitstbl)
-        # Free up some memory by replacing the reduced ScienceExposure class
-        #sciexp[sc] = None
+        for kk, sci_ID in enumerate(all_sci_ID):
+            # Load from disk (we zero'd out the class to free memory)
+            if save_format == 'fits':
+                sci_spec1d_file = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(
+                    basenames[kk])
+            # Load
+            sci_specobjs, sci_header = arload.load_specobj(sci_spec1d_file)
+            FxSpec.sci_specobjs = sci_specobjs
+            FxSpec.sci_header = sci_header
+            # Flux
+            FxSpec.flux_science()
+            # Over-write
+            FxSpec.write_science(sci_spec1d_file)
 
     return status

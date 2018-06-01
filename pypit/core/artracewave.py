@@ -10,10 +10,9 @@ import numpy as np
 from scipy import interpolate
 
 import matplotlib.pyplot as plt
-from matplotlib import cm, font_manager
 
 from pypit import msgs
-from pypit import ararc
+from pypit.core import ararc
 from pypit import arutils
 from pypit import arparse
 from pypit import arpca
