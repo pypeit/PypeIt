@@ -5,7 +5,7 @@ import inspect
 import numpy as np
 import os
 
-from importlib import reload
+#from importlib import reload
 
 from matplotlib import pyplot as plt
 
@@ -167,7 +167,6 @@ class WaveCalib(masterframe.MasterFrame):
           Solution for that single slit
 
         """
-        reload(ararc)
         spec = self.wv_calib[str(slit)]['spec']
         if method == 'simple':
             iwv_calib = ararc.simple_calib(self.msarc, self.arcparam,
