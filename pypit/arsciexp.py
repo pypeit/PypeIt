@@ -34,8 +34,6 @@ class ScienceExposure:
         # Set indices used for frame combination
         self.sci_ID = sci_ID  # Binary 1,2,4,8,..
         self._idx_sci = np.where((fitstbl['sci_ID'] == sci_ID) & fitstbl['science'])[0]
-        #
-        self.extracted=False
         if idx_sci is not None:
             self._idx_sci = np.array([idx_sci])
         if settings_argflag['reduce']['masters']['force']:
@@ -82,6 +80,10 @@ class ScienceExposure:
 
         # Initialize Variables
         ndet = settings_spect['mosaic']['ndet']
+        self.extracted = [False for all in range(ndet)]   # Mainly for standard stars
+        self._nonlinear = [settings_spect[settings.get_dnum(det+1)]['saturation'] *
+                           settings_spect[settings.get_dnum(det+1)]['nonlinear']
+                           for det in range(ndet)]
         #self._nspec    = [None for all in range(ndet)]   # Number of spectral pixels
         #self._nspat    = [None for all in range(ndet)]   # Number of spatial pixels
         #self._datasec  = [None for all in range(ndet)]   # Locations of the data on each detector

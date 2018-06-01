@@ -1,3 +1,5 @@
+""" Module for PYPIT extraction code
+"""
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import time
@@ -17,8 +19,6 @@ from pypit import arqa
 from pypit import arparse as settings
 from pypit import artrace
 from pypit import arutils
-from pypit import ararc
-from pypit import arpixels
 from pypit import ardebug as debugger
 
 # MASK VALUES FROM EXTRACTION

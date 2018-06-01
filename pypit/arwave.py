@@ -14,7 +14,7 @@ from astropy.time import Time
 from linetools.spectra import xspectrum1d
 
 from pypit import msgs
-from pypit import ararc
+from pypit.core import ararc
 from pypit import arextract
 from pypit import arparse as settings
 from pypit import arutils

@@ -150,11 +150,6 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
             msframe, header, raw_files = self.load_master_frame()
             if msframe is None:
                 return None
-                # Build
-                #msgs.info("Preparing a master {0:s} frame".format(self.settings[self.frametype]['useframe']))
-                #msframe = self.build_image()
-                # Save to Masters
-                #self.save_master(msframe, raw_files=self.file_list, steps=self.steps)
             else:
                 # Prevent over-writing the master frame when it is time to save
                 self.settings['reduce']['masters']['loaded'].append(self.frametype)
