@@ -217,6 +217,9 @@ def load_headers(datlines, settings_spect, settings_argflag):
     fitstbl = Table(fitsdict)
     fitstbl.sort('time')
 
+    # Add instrument (PYPIT name; mainly for saving late in the game)
+    fitstbl['instrume'] = settings_argflag['run']['spectrograph']
+
     # TODO -- Remove the following (RC has an idea)
     # Instrument specific
     if settings_argflag['run']['spectrograph'] == 'keck_deimos':

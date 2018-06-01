@@ -126,7 +126,38 @@ class FluxSpec(masterframe.MasterFrame):
         self.frametype = frametype
         self.steps = []
 
-        # Settings (for now)
+        # Load science/std early to grab spectrograph from header
+        if self.std_spec1d_file is not None:
+            self.std_specobjs, self.std_header = arload.load_specobj(self.std_spec1d_file)
+            msgs.info("Loaded {:d} spectra from the spec1d standard star file: {:s}".format(len(self.std_specobjs),
+                                                                                            self.std_spec1d_file))
+            std_spectro = self.std_header['INSTRUME']
+        else:
+            std_spectro = None
+        # Science
+        if self.sci_spec1d_file is not None:
+            self.sci_specobjs, self.sci_header = arload.load_specobj(self.sci_spec1d_file)
+            msgs.info("Loaded spectra from the spec1d science file: {:s}".format(self.sci_spec1d_file))
+            sci_spectro = self.sci_header['INSTRUME']
+        else:
+            sci_spectro = None
+            self.sci_specobjs = []
+            self.sci_header = None
+
+        # Compare instruments if they exist
+        if (std_spectro is not None) and (sci_spectro is not None):
+            if std_spectro != sci_spectro:
+                msgs.error("Standard spectra are not the same instrument as science!!")
+
+        # Settings and spectrograph
+        if spectrograph is None:
+            if std_spectro is not None:
+                spectrograph = std_spectro
+                msgs.info("Spectrograph={:s} from standard file".format(spectrograph))
+            elif sci_spectro is not None:
+                spectrograph = sci_spectro
+                msgs.info("Spectrograph={:s} from science file".format(spectrograph))
+
         if spectrograph is not None:
             if settings is None:
                 self.settings = kludge_settings(spectrograph)
@@ -136,17 +167,7 @@ class FluxSpec(masterframe.MasterFrame):
         # Key Internals
         self.std = None         # Standard star spectrum (SpecObj object)
         self.std_idx = None     # Nested indices for the std_specobjs list that corresponds to the star!
-        self.sci_specobjs = []
-        self.sci_header = None
 
-        # Load
-        if self.std_spec1d_file is not None:
-            self.std_specobjs, self.std_header = arload.load_specobj(self.std_spec1d_file)
-            msgs.info("Loaded {:d} spectra from the spec1d standard star file: {:s}".format(len(self.std_specobjs),
-                                                                                            self.std_spec1d_file))
-        if self.sci_spec1d_file is not None:
-            self.sci_specobjs, self.sci_header = arload.load_specobj(self.sci_spec1d_file)
-            msgs.info("Loaded spectra from the spec1d science file: {:s}".format(self.sci_spec1d_file))
         if self.sens_file is not None:
             self.sensfunc, _, _ = armasters._load(self.sens_file, frametype=self.frametype)
 
