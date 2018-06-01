@@ -18,19 +18,20 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
-def test_load_headers():
-    arparse.dummy_settings(spectrograph='shane_kast_blue', set_idx=False)
-    kast_files = [data_path('b1.fits.gz'), data_path('b27.fits.gz')]
-    fitsdict, updates = arload.load_headers(kast_files)
-    # Test
-    headers = fitsdict['headers']
-    assert len(headers) == 2
-    assert headers[0][0]['OBJECT'] == 'Arcs'
+#  No longer pushing the headers into fitstbl
+#def test_load_headers():
+#    arparse.dummy_settings(spectrograph='shane_kast_blue', set_idx=False)
+#    kast_files = [data_path('b1.fits.gz'), data_path('b27.fits.gz')]
+#    fitstbl, updates = arload.load_headers(kast_files, arparse.spect, arparse.argflag)
+#    # Test
+#    headers = fitstbl['headers']
+#    assert len(headers) == 2
+#    assert headers[0][0]['OBJECT'] == 'Arcs'
 
 
 def test_load_specobj():
     spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
-    specobjs = arload.load_specobj(spec_file)
+    specobjs, head0 = arload.load_specobj(spec_file)
     # Test
     assert isinstance(specobjs, list)
     assert len(specobjs[0].boxcar['counts']) == 1199

@@ -1875,6 +1875,23 @@ class BaseArgFlag(BaseFunctions):
                 msgs.error("The argument of {0:s} must be > 1 to set the maximum slit gap".format(get_current_name()))
         self.update(v)
 
+    def trace_slits_medrep(self, v):
+        """ Number of times to median smooth a trace image prior
+        to analysis for slit/order edges
+
+        Parameters
+        ----------
+        v : int
+          value of the keyword argument given by the name of this function
+        """
+        try:
+            v = int(v)
+        except ValueError:
+            msgs.error("The argument of {0:s} must be of type int".format(get_current_name()))
+        if v < 0:
+            msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        self.update(v)
+
     def trace_slits_number(self, v):
         """ Manually set the number of slits to identify (>=1).
         'auto' or -1 will automatically identify the number of slits.
@@ -2948,6 +2965,39 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
+    def keyword_gratepos(self, v):
+        """ Grating position (keck_deimos)
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_keyword(v)
+        self.update(v)
+
+    def keyword_g3tltwav(self, v):
+        """ Grating 3 tilt (keck_deimos)
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_keyword(v)
+        self.update(v)
+
+    def keyword_g4tltwav(self, v):
+        """ Grating 4 tilt (keck_deimos)
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_keyword(v)
+        self.update(v)
+
     def keyword_hatch(self, v):
         """ Hatch open/close
 
@@ -2961,6 +3011,17 @@ class BaseSpect(BaseFunctions):
 
     def keyword_idname(self, v):
         """ The keyword that identifies the frame type (i.e. bias, flat, etc.)
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_keyword(v)
+        self.update(v)
+
+    def keyword_imagetype(self, v):
+        """ The KOA added keyword that identifies the frame type
 
         Parameters
         ----------
@@ -3087,6 +3148,17 @@ class BaseSpect(BaseFunctions):
 
     def keyword_time(self, v):
         """ The time stamp of the observation (i.e. decimal MJD)
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_keyword(v)
+        self.update(v)
+
+    def keyword_wavecen(self, v):
+        """ Estimate of central wavelength (keck_lris_red)
 
         Parameters
         ----------
@@ -4439,8 +4511,8 @@ def dummy_settings(pypitdir=None, nfile=10, spectrograph='shane_kast_blue',
 
     """
     # Dummy argflag
-    if spectrograph != 'shane_kast_blue':
-        msgs.error("Only setup for Kast Blue")  # You will need to fuss with scidx
+    if spectrograph not in ['shane_kast_blue', 'keck_nirspec']:
+        msgs.error("Not setup for your instrument")  # You will need to fuss with scidx
     argf = get_argflag_class(("ARMLSD", spectrograph))
     argf.init_param()
     if pypitdir is None:

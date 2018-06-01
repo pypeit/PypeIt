@@ -125,68 +125,7 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
     return
 
 
-def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
-                extensions=None, keywds=None, names=None):
-    """ Write a MasterFrame
-    Parameters
-    ----------
-    slf
-    data
-    filename
-    frametype
-    ind
-    extensions : list, optional
-      Additional data images to write
-    names : list, optional
-      Names of the extensions
-    keywds : Additional keywords for the Header
-    Returns
-    -------
-    """
-    msgs.info("Saving master {0:s} frame as:".format(frametype)+msgs.newline()+filename)
-    hdu = fits.PrimaryHDU(data)
-    hlist = [hdu]
-    # Extensions
-    if extensions is not None:
-        for kk,exten in enumerate(extensions):
-            hdu = fits.ImageHDU(exten)
-            if names is not None:
-                hdu.name = names[kk]
-            hlist.append(hdu)
-    # HDU list
-    hdulist = fits.HDUList(hlist)
-    # Header
-    msgs.info("Writing header information")
-    for i in range(len(ind)):
-        hdrname = "FRAME{0:03d}".format(i+1)
-        hdulist[0].header[hdrname] = (slf._fitsdict['filename'][ind[i]], 'PYPIT: File used to generate Master {0:s}'.format(frametype))
-    hdulist[0].header["FRAMETYP"] = (frametype, 'PYPIT: Master calibration frame type')
-    if keywds is not None:
-        for key in keywds.keys():
-            hdulist[0].header[key] = keywds[key]
-    # Write the file to disk
-    if os.path.exists(filename):
-        if settings.argflag['output']['overwrite'] is True:
-            msgs.warn("Overwriting file:"+msgs.newline()+filename)
-            os.remove(filename)
-            hdulist.writeto(filename)
-            msgs.info("Master {0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
-        else:
-            msgs.warn("This file already exists")
-            rmfil = ''
-            while rmfil != 'n' and rmfil != 'y' and rmfil != 'a':
-                rmfil = input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
-            if rmfil == 'n':
-                msgs.warn("Not saving master {0:s} frame:".format(frametype)+msgs.newline()+filename)
-            else:
-                os.remove(filename)
-                if rmfil == 'a': settings.argflag['output']['overwrite'] = True
-                hdulist.writeto(filename)
-                msgs.info("Master {0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
-    else:
-        hdulist.writeto(filename)
-        msgs.info("Master {0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
-    return
+
 
 
 def save_ordloc(slf, fname):
@@ -415,8 +354,106 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
 
     # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
 
+def save_1d_spectra_fits(specobjs, header, outfile,
+                             helio_dict=None, obs_dict=None, clobber=True):
+    """ Write 1D spectra to a multi-extension FITS file
 
-def save_1d_spectra_fits(slf, fitsdict, standard=False, clobber=True, outfile=None):
+    Parameters
+    ----------
+    specobjs : list of SpecObjExp objects or list of list of SpecObjExp
+    header : dict or Row (dict-like)
+    outfile : str
+    clobber : bool, optional
+
+    Returns
+    -------
+    outfile : str
+    """
+    # Repackage as necessary (some backwards compatability)
+    all_specobj = arutils.unravel_specobjs(specobjs)
+    # Primary hdu
+    prihdu = fits.PrimaryHDU()
+    hdus = [prihdu]
+    # Add critical data to header
+    for key in ['ra', 'dec', 'exptime', 'date', 'target', 'airmass', 'instrume']:
+        # Allow for fitstbl vs. header
+        try:
+            prihdu.header[key.upper()] = header[key.upper()]
+        except KeyError:
+            prihdu.header[key.upper()] = header[key]
+    try:
+        prihdu.header['MJD-OBS'] = header['MJD-OBS']
+    except KeyError:
+        prihdu.header['MJD-OBS'] = header['time']  # recorded as 'time' in fitstbl
+
+    # Observatory
+    if obs_dict is not None:
+        prihdu.header['LON-OBS'] = obs_dict['longitude']
+        prihdu.header['LAT-OBS'] = obs_dict['latitude']
+        prihdu.header['ALT-OBS'] = obs_dict['elevation']
+    # Helio
+    if helio_dict is not None:
+        prihdu.header['VEL-TYPE'] = helio_dict['refframe'] # settings.argflag['reduce']['calibrate']['refframe']
+        prihdu.header['VEL'] = helio_dict['vel_correction'] # slf.vel_correction
+
+    # Loop on detectors
+    npix = 0
+    ext = 0
+    for specobj in all_specobj:
+        if specobj is None:
+            continue
+        ext += 1
+        # Add header keyword
+        keywd = 'EXT{:04d}'.format(ext)
+        prihdu.header[keywd] = specobj.idx
+
+        # Add Spectrum Table
+        cols = []
+        # Trace
+        cols += [fits.Column(array=specobj.trace, name=str('obj_trace'), format=specobj.trace.dtype)]
+        if ext == 1:
+            npix = len(specobj.trace)
+        # Boxcar
+        for key in specobj.boxcar.keys():
+            # Skip some
+            if key in ['size']:
+                continue
+            if isinstance(specobj.boxcar[key], units.Quantity):
+                cols += [fits.Column(array=specobj.boxcar[key].value,
+                                     name=str('box_'+key), format=specobj.boxcar[key].value.dtype)]
+            else:
+                cols += [fits.Column(array=specobj.boxcar[key],
+                                     name=str('box_'+key), format=specobj.boxcar[key].dtype)]
+        # Optimal
+        for key in specobj.optimal.keys():
+            # Skip some
+            if key in ['fwhm']:
+                continue
+            # Generate column
+            if isinstance(specobj.optimal[key], units.Quantity):
+                cols += [fits.Column(array=specobj.optimal[key].value,
+                                       name=str('opt_'+key), format=specobj.optimal[key].value.dtype)]
+            else:
+                cols += [fits.Column(array=specobj.optimal[key],
+                                       name=str('opt_'+key), format=specobj.optimal[key].dtype)]
+        # Finish
+        coldefs = fits.ColDefs(cols)
+        tbhdu = fits.BinTableHDU.from_columns(coldefs)
+        tbhdu.name = specobj.idx
+        hdus += [tbhdu]
+    # A few more for the header
+    prihdu.header['NSPEC'] = ext
+    prihdu.header['NPIX'] = npix
+    # Finish
+    hdulist = fits.HDUList(hdus)
+    #if outfile is None:
+    #    outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename)
+    hdulist.writeto(outfile, overwrite=clobber)
+    msgs.info("Wrote 1D spectra to {:s}".format(outfile))
+    return outfile
+
+'''
+def save_1d_spectra_fits(slf, fitsdict, clobber=True, outfile=None):
     """ Write 1D spectra to a multi-extension FITS file
 
     Parameters
@@ -440,6 +477,7 @@ def save_1d_spectra_fits(slf, fitsdict, standard=False, clobber=True, outfile=No
     prihdu.header['MJD-OBS'] = fitsdict['time'][idx]
     prihdu.header['DATE'] = fitsdict['date'][idx]
     prihdu.header['TARGET'] = fitsdict['target'][idx]
+    prihdu.header['AIRMASS'] = fitsdict['airmass'][idx]
     prihdu.header['LON-OBS'] = settings.spect['mosaic']['longitude']
     prihdu.header['LAT-OBS'] = settings.spect['mosaic']['latitude']
     prihdu.header['ALT-OBS'] = settings.spect['mosaic']['elevation']
@@ -453,10 +491,10 @@ def save_1d_spectra_fits(slf, fitsdict, standard=False, clobber=True, outfile=No
         det = kk+1
 
         # Allow writing of standard
-        if standard:
-            specobjs = slf._msstd[det-1]['spobjs']
-        else:
-            specobjs = slf._specobjs[det-1]
+        #if standard:
+        #    specobjs = slf._msstd[det-1]['spobjs']
+        #else:
+        specobjs = slf._specobjs[det-1]
         if specobjs is None:
             continue
         # Loop on slits
@@ -513,6 +551,7 @@ def save_1d_spectra_fits(slf, fitsdict, standard=False, clobber=True, outfile=No
         outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename)
     hdulist.writeto(outfile, overwrite=clobber)
     return outfile
+'''
 
 
 

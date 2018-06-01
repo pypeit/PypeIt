@@ -1,0 +1,394 @@
+# SIMPLE RULES:
+#
+# 1. If a keyword is specified in science/pixflat/blzflat/trace/bias/arc frames
+#    it must also appear in the Keyword identifiers list.
+# 2. You must check NAXIS is 2 in ``checks to perform''.
+# 3. If a keyword value contains only some interesting value,
+#    you can split the keyword value using the '%,' notation.
+#    For example, suppose you have the string 10:50:23.45, and
+#    you're interested in the 50 for a match condition, you would
+#    use '%' to indicate you want to split the keyword value, ':'
+#    indicates the delimiter text, '1' indicates you're interested
+#    in the 1st argument (0-indexed), '<60' is an example criteria.
+#    Each of these should be specified in this order, seperated by
+#    commas, so the final string would be:
+#    %,:,1,<60
+# 4. If the text '|' appears in the match condition, the absolute
+#    value will be taken. For example '|<=0.05' means that a given
+#    keyword's value for a calibration frame must be within 0.05 of
+#    a science frame's value, in order to be matched.
+# 5. If a keyword's value contains spaces, replace all spaces with
+#    one underscore.
+# 6. If the header contains two keyword's of the same name, only
+#    the value of the first one will be recognised.
+# 7. Strictly speaking, ARMLSD likes a one-to-one relationship between
+#    a given frame and a frame type. If you would like a one-to-many
+#    relationship (i.e. a given frame can be both a pixel and a blaze
+#    flat, use the canbe option).
+#
+
+
+############################
+# Detector mosaic properties
+############################
+
+mosaic ndet 8                         # Number of detectors in the mosaic
+mosaic longitude 155.47833            # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+mosaic latitude 19.82833              # Latitude of the telescope
+mosaic elevation 4160.0               # Elevation of the telescope (in m)
+mosaic minexp 1.0                     # Minimum exposure time (s)
+mosaic reduction ARMLSD               # Which reduction pipeline should be used for this instrument
+mosaic camera DEIMOS                  # Camera name
+
+# See DEIMOS specs here:
+# http://www2.keck.hawaii.edu/inst/deimos/deimos_detector_data.html
+# http://www2.keck.hawaii.edu/inst/deimos/deimos_ccd_mosaic.html
+# Values for gain, read noise, and dark current are good as of 2015-Dec-30
+# Suffixes are taken to be the CCDLOC, from DEIMOS engineering drawing D0307
+# 1-4 are blue end, 5-8 are red end.
+# nonlinearity is currently unknown, using the default from LRIS
+# Default DEIMOS fits images are spatial in x-axis and dispersion in y-axis.
+#
+
+
+####################################
+# Individual detector specifications
+####################################
+
+det01 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
+det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
+det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
+det01 darkcurr 4.19                   # Dark current (e-/hour)
+det01 platescale 0.1185                # arcsec per pixel in the spatial dimension for an unbinned pixel
+det01 ronoise 2.570                   # Read-out noise (e-)
+det01 gain 1.226                      # Gain (e-/ADU) values
+det01 saturation 65535.0              # The detector Saturation level
+det01 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det01 numamplifiers 1                 # Number of amplifiers
+# det01 datasec01 [:,12:2060]
+# det01 oscansec01 [:,0:12]
+det01 suffix _01
+
+det02 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
+det02 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
+det02 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
+det02 darkcurr 3.46                   # Dark current (e-/hour)
+det02 platescale 0.1185               # arcsec per pixel in the spatial dimension for an unbinned pixel
+det02 ronoise 2.491                   # Read-out noise (e-)
+det02 gain 1.188                      # Gain (e-/ADU) values
+det02 saturation 65535.0              # The detector Saturation level
+det02 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det02 numamplifiers 1                 # Number of amplifiers
+# det02 datasec01 [:,12:2060]
+# det02 oscansec01 [:,0:12]
+det02 suffix _02
+
+det03 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
+det03 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
+det03 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
+det03 darkcurr 4.03                   # Dark current (e-/hour)
+det03 platescale 0.1185                # arcsec per pixel in the spatial dimension for an unbinned pixel
+det03 ronoise 2.618                   # Read-out noise (e-)
+det03 gain 1.248                      # Gain (e-/ADU) values
+det03 saturation 65535.0              # The detector Saturation level
+det03 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det03 numamplifiers 1                 # Number of amplifiers
+# det03 datasec01 [:,12:2060]
+# det03 oscansec01 [:,0:12]
+det03 suffix _03
+
+det04 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
+det04 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
+det04 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
+det04 darkcurr 3.80                   # Dark current (e-/hour)
+det04 platescale 0.1185                # arcsec per pixel in the spatial dimension for an unbinned pixel
+det04 ronoise 2.557                   # Read-out noise (e-)
+det04 gain 1.220                      # Gain (e-/ADU) values
+det04 saturation 65535.0              # The detector Saturation level
+det04 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det04 numamplifiers 1                 # Number of amplifiers
+# det04 datasec01 [:,12:2060]
+# det04 oscansec01 [:,0:12]
+det04 suffix _04
+
+det05 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
+det05 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
+det05 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
+det05 darkcurr 4.71                   # Dark current (e-/hour)
+det05 platescale 0.1185                # arcsec per pixel in the spatial dimension for an unbinned pixel
+det05 ronoise 2.482                   # Read-out noise (e-)
+det05 gain 1.184                      # Gain (e-/ADU) values
+det05 saturation 65535.0              # The detector Saturation level
+det05 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det05 numamplifiers 1                 # Number of amplifiers
+# det05 datasec01 [:,12:2060]
+# det05 oscansec01 [:,0:12]
+det05 suffix _05
+
+det06 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
+det06 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
+det06 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
+det06 darkcurr 4.28                   # Dark current (e-/hour)
+det06 platescale 0.1185                # arcsec per pixel in the spatial dimension for an unbinned pixel
+det06 ronoise 2.469                   # Read-out noise (e-)
+det06 gain 1.177                      # Gain (e-/ADU) values
+det06 saturation 65535.0              # The detector Saturation level
+det06 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det06 numamplifiers 1                 # Number of amplifiers
+# det06 datasec01 [:,12:2060]
+# det06 oscansec01 [:,0:12]
+det06 suffix _06
+
+det07 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
+det07 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
+det07 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
+det07 darkcurr 3.33                   # Dark current (e-/hour)
+det07 platescale 0.1185                # arcsec per pixel in the spatial dimension for an unbinned pixel
+det07 ronoise 2.518                   # Read-out noise (e-)
+det07 gain 1.201                      # Gain (e-/ADU) values
+det07 saturation 65535.0              # The detector Saturation level
+det07 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det07 numamplifiers 1                 # Number of amplifiers
+# det07 datasec01 [:,12:2060]
+# det07 oscansec01 [:,0:12]
+det07 suffix _07
+
+det08 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size)
+det08 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size)
+det08 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size
+det08 darkcurr 3.69                   # Dark current (e-/hour)
+det08 platescale 0.1185                # arcsec per pixel in the spatial dimension for an unbinned pixel
+det08 ronoise 2.580                   # Read-out noise (e-)
+det08 gain 1.230                      # Gain (e-/ADU) values
+det08 saturation 65535.0              # The detector Saturation level
+det08 nonlinear 0.86                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det08 numamplifiers 1                 # Number of amplifiers
+# det08 datasec01 [:,12:2060]
+# det08 oscansec01 [:,0:12]
+det08 suffix _08
+
+###########################
+# Fits header sanity checks
+###########################
+
+#check 01.INSTRUME DEIMOS: real science mosaic CCD subsystem with PowerPC in VME crate
+
+check 01.INSTRUME DEIMOS
+# verify that all eight HDUs past the mosaic HDU have 2D images
+check 02.NAXIS 2
+check 03.NAXIS 2
+check 04.NAXIS 2
+check 05.NAXIS 2
+check 06.NAXIS 2
+check 07.NAXIS 2
+check 08.NAXIS 2
+check 09.NAXIS 2
+
+# verify the CCD names
+check 02.CCDGEOM MIT/LL 2k*4k
+check 03.CCDGEOM MIT/LL 2k*4k
+check 04.CCDGEOM MIT/LL 2k*4k
+check 05.CCDGEOM MIT/LL 2k*4k
+check 06.CCDGEOM MIT/LL 2k*4k
+check 07.CCDGEOM MIT/LL 2k*4k
+check 08.CCDGEOM MIT/LL 2k*4k
+check 09.CCDGEOM MIT/LL 2k*4k
+check 02.CCDNAME 14-2-6
+check 03.CCDNAME 14-12-3
+check 04.CCDNAME 14-10-6
+check 05.CCDNAME 14-10-5
+check 06.CCDNAME 14-4-1
+check 07.CCDNAME 14-4-3
+check 08.CCDNAME 14-4-2
+check 09.CCDNAME 14-5-2
+
+#####################
+# Keyword identifiers
+#####################
+
+keyword target 01.TARGNAME             # Header keyword for the name given by the observer to a given frame
+keyword idname 01.OBSTYPE              # The keyword that identifies the frame type (i.e. bias, flat, etc.)
+keyword time 01.MJD-OBS                # The time stamp of the observation (i.e. decimal MJD)
+keyword date 01.DATE                   # The date of the observation (in the format YYYY-MM-DD  or  YYYY-MM-DDTHH:MM:SS.SS)
+keyword equinox 01.EQUINOX             # The equinox to use
+keyword ra 01.RA                       # Right Ascension of the target
+keyword dec 01.DEC                     # Declination of the target
+keyword airmass 01.AIRMASS             # Airmass at start of observation
+keyword binning 01.BINNING             # Binning
+keyword exptime 01.ELAPTIME            # Exposure time keyword
+keyword filter1 01.DWFILNAM             # Order-blocking filter name
+keyword filter2 None
+keyword decker 01.SLMSKNAM             # Slitmask name
+keyword hatch 01.HATCHPOS	       # [open/closed] state of hatch
+keyword detrot 01.ROTATVAL	       # Detector rotation angle
+keyword lamps 01.LAMPS		       # [On/Off] state of lamps, e.g, 'Off' if no lamps, 'Kr Xe Ar Ne' if those lamps are on
+
+# This is a crude hack until we have a general way of dealing with reading in multiple chips.
+# It assumes that the sizes of all the chips are the same.
+keyword naxis0 02.NAXIS2               # Number of pixels along the zeroth axis
+keyword naxis1 02.NAXIS1               # Number of pixels along the first axis
+
+# need to figure out how to represent these DEIMOS specific-header keys
+
+keyword dichroic None                  # Dichroic name
+keyword dispname 01.GRATENAM           # Grating name
+keyword dispangle 01.G3TLTWAV 	       # Central wavelength
+# This is a hack since for DEIMOS you need to know whether you are using grating in position
+# 3 or 4, which is indicated by the GRATEPOS keyword. This should be fixed somehow. 
+
+
+# keyword grating 01.GRATENAM	       # Grating name
+# keyword gratpos 01.GRATEPOS	       # Position of grating
+# keyword g3tltwav 01.G3TLTWAV	       # Central wavelength for position 3
+# keyword g3tltstat 01.G3TLTSTA	       # Status of grating in position 3
+# keyword g4tltwav 01.G4TLTWAV	       # Central wavelength for position 4
+# keyword g4tltstat 01.G4TLTSTA	       # Status of grating in position 4
+# keyword slitmask 01.SLMSKNAM	       # Slitmask name
+# keyword lamps 01.LAMPS		       # [On/Off] state of lamps, e.g, 'Off' if no lamps, 'Kr Xe Ar Ne' if those lamps are on
+
+#################
+# Fits properties
+#################
+
+fits timeunit mjd                   # The unit of keyword+time (s=seconds, m=minutes, h=hours, or any of the astropy Time formats)
+fits calwin 12.0                    # The window of time in hours to search for calibration frames for a science frame
+#fits dataext 1                      # Extension number of data
+fits numhead 9                      # How many headers need to be read in for a given file
+fits headext01 0                    # Extension number of header (one for each headnum, starting with 01)
+fits headext02 1                    # Extension number of header (one for each headnum, starting with 01)
+fits headext03 2                    # Extension number of header (one for each headnum, starting with 01)
+fits headext04 3                    # Extension number of header (one for each headnum, starting with 01)
+fits headext05 4                    # Extension number of header (one for each headnum, starting with 01)
+fits headext06 5                    # Extension number of header (one for each headnum, starting with 01)
+fits headext07 6                    # Extension number of header (one for each headnum, starting with 01)
+fits headext08 7                    # Extension number of header (one for each headnum, starting with 01)
+fits headext09 8                    # Extension number of header (one for each headnum, starting with 01)
+# need to figure out status of lamps from 'lamps' keyword
+# fits numlamps 16                    # How many lamps are there listed in the header
+
+################
+# Science frames
+################
+
+science idname Object               # Header key value of science frame for header keyword keyword+idname
+science canbe None                  # If there are frames that will be science ***in addition to other frame types***, include the other frame types here.
+science check condition1 lamps=Off
+science check condition2 hatch=open
+science check condition3 exptime>30
+
+######################
+# Standard star frames
+######################
+
+standard idname Object               # Header key value of science frame for header keyword keyword+idname
+standard number 1                    # Number of standard star frames to use
+standard canbe None                  # If there are frames that will be science ***in addition to other frame types***, include the other frame types here.
+standard check condition1 lamps=Off
+standard check condition2 hatch=open
+standard match decker ''
+standard match filter1 ''
+# should check grating central wavelength? check 3 or 4 based on gratpos?
+
+##################
+# Bias/dark frames
+##################
+
+bias idname Bias                    # Header key value of bias frame for header keyword keyword+idname
+bias number 3                       # Number of bias frames to use
+bias canbe None                     # If there are frames that will be bias ***in addition to other frame types***, include the other frame types here.
+bias check condition1 lamps=Off
+bias check condition2 hatch=closed  # Required for bias
+bias check condition3 exptime<2     # Required for bias
+bias match binning ''             		# Match the shape of standard and science frames
+
+
+###################
+# Pixel flat frames
+###################
+
+pixelflat idname IntFlat              # Header key value of flat frame for header keyword keyword+idname
+pixelflat number 1                    # Number of flat frames to use
+pixelflat canbe None                  # If there are frames that will be pixelflat ***in addition to other frame types***, include the other frame types here.
+pixelflat lscomb False                # Combine a long and short flat
+pixelflat check condition1 hatch=closed
+pixelflat check condition2 exptime<30 # Avoid stars
+pixelflat check condition3 lamps=Qz   # Quartz lamp on
+pixelflat match binning ''            # Match the shape of standard and science frames
+pixelflat match decker ''           # Check the same decker as the science frame was used
+pixelflat match filter1 ''
+
+###################
+# Blaze flat frames
+###################
+
+# blzflat idname IntFlat                   # Header key value of trace frame for header keyword keyword+idname
+# blzflat number 0                      # Number of trace frames to use
+# blzflat check condition1 hatch=closed   # Required for blaze flats 
+# blzflat check condition2 exptime<30   # Avoid stars
+# blzflat check condition3 lamps=Qz
+# blzflat canbe pixelflat                    # If there are frames that will be trace ***in addition to other frame types***, include the other frame types here.
+# blzflat match binning ''             		# Match the shape of standard and science frames
+# blzflat match decker ''           # Check the same decker as the science frame was used
+# blzflat match filter1 ''
+
+##############
+# Trace frames
+##############
+
+trace idname IntFlat               # Header key value of flat frame for header keyword keyword+idname
+trace number 0                    # Number of flat frames to use
+trace canbe pixelflat                 # If there are frames that will be pixflat ***in addition to other frame types***, include the other frame types here.
+trace lscomb False                # Combine a long and short flat
+trace check condition1 hatch=closed # Required for trace flats
+trace check condition2 exptime<30 # Calibration
+trace check condition3 lamps=Qz
+trace match binning ''                 # Match the shape of trace with science
+trace match decker ''           # Check the same decker as the science frame was used
+trace match filter1 ''
+
+############
+# Arc frames
+############
+
+arc idname Line                     # Header key value of arc frame for header keyword keyword+idname
+arc number 1                        # Number of arc frames to use
+arc canbe None                      # If there are frames that will be arc ***in addition to other frame types***, include the other frame types here.
+# arc lscomb False                    # Combine a long and short arc
+arc check condition1 lamps=Kr_Xe_Ar_Ne
+arc check condition2 hatch=closed   # Required for arcs
+arc match binning ''                 # Match the shape of arcs with science
+arc match decker ''
+arc match filter1 ''
+
+### Pinhole frames
+pinhole check condition1 exptime>999999 # Avoids any pinhole frames
+
+### Dark frames
+dark check condition1 exptime>999999 # Avoids any dark frames
+
+
+# Make some changes to the arguments and flags
+## JFH Trying to make slit identification more robust for DEIMOS
+#settings trace slits sigdetect 500.0
+#settings trace slits number 1
+#settings trace slits tilts params 1,1,1
+#settings trace slits tilts method spca
+#settings trace slits sobel mode constant    # JFH reports this is needed for slits running off the detector
+#settings bias useframe overscan
+#settings pixelflat combine method median
+#settings pixelflat combine reject level [10.0,10.0]
+
+# These are Ryan Cooke's suggested slit detection settings
+settings trace slits sigdetect 50.0
+settings trace slits number -1
+settings trace slits tilts params 1,1,1
+settings trace slits tilts method spca
+settings trace slits pca params [3,2,1,0]
+settings trace slits polyorder  3
+settings trace slits sobel mode nearest
+settings trace slits fracignore  0.02   # 0.02 removes star boxes of 40pix size or less (and any real ones too!)
+settings bias useframe overscan
+settings pixelflat combine method median
+settings pixelflat combine reject level [10.0,10.0]
+
+

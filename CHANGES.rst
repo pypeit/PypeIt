@@ -70,6 +70,73 @@
 - Turns off PCA tilt QA for now [very slow for each slit]
 - Several improvements for coadding
 - Modify lacosmic to identify tiny CR's
+- Enabled writing Arc_fit QA for each slit/order
+- Refactored comb_frames
+- Refactored load_frames
+- Refactored save_master
+- Refactored get_datasec_trimmed, get_datasec, pix_to_amp
+- Refactored slit_pixels
+- Refactored sub_overscan
+- Refactored trace_slits (currently named driver_trace_slits) and many of its dependencies
+- Added parameter trace_slits_medrep for optional smoothing of the trace slits image
+- Updated a few settings for DEIMOS and LRIS related to tracing slits
+- Added a replace_columns() method to arproc.py
+- Fixed a bug in new_match_edges()
+- Moved tracing docs -> slit_tracing and edited extensively
+- Updated docs on DEIMOS, LRIS
+- Added the pypit_chk_edges script
+- Added BPM for DEIMOS
+- Added the code for users to add slits [edgearr_from_users()] but have not documented nor made it accessible from the PYPIT file
+- Generated tcrude_edgearr() method for using trace crude on the slit edges
+- Added trace_crude() method that I ported previously for DESI
+- Added multi_sync() method for ARMLSD slit synchronization
+- Have somewhat deprecated the maxgap method
+- Refactored the gen_pixloc() method
+- Generate arpixels.py module for holding pixel level algorithms
+- Move all methods related to TraceSlits to artraceslits.py
+- Introduce the TraceSlits class
+- Update armlsd accordingly
+- Remove driver_trace_slits and refctor_trace_slits methods
+- Making Ginga a true dependency of PYPIT
+- Have TraceSlits write/load MasterFrames
+- Introduce SetupClass object
+- Replace armbase.setup_science() with SetupClass.run()
+- Move setup acitivites to inside pypit.py
+- doc updates in setup.rst
+- Refactor fitsdict -> fitstbl  (variable name not updated everywhere)
+- Removed slurped headers from fitsdict (and therefore fitstbl)
+- Include SetupClass Notebook
+- Move ftype_list from armeta.py to arsort.py
+- Bug fix related to fluxing
+- Substantial refactor of arsort.py
+- Substantial refactor of arsetup.py
+- Introduced base-level ProcessImages class
+- Introduced abstract MasterFrame class
+- Introduced BiasFrame, BPMImage, ArcImage, and TraceImage classes
+- Started NormPixelFlat class but have not yet implemented it
+- Substantial refactoring of armasters
+- Moved arlris, ardeimos to core/
+- Moved image processing methods to arprocimg in core/
+- Introduced calib_dict to hold calibration frames in armlsd (instead of slf)
+- Modified ardeimos to load only a single image (if desired)
+- Turned off fluxing in this branch;  is 'fixed' in the one that follows
+- Moved get_slitid() to artraceslits
+- Deprecates ['trace']['combine']['match'] > 0.0 option
+- Deprecates ['arc']['combine']['match'] > 0.0 option
+- Refactoring of settings and slf out of core methods continues
+- Removed _msbias, _msarc, _datasec, _bpix from slf
+- New tests and Notebooks
+
+- Introduced FluxSpec class
+- Introduce pypit_flux_spec script (and docs)
+- Added FluxSpec Notebook
+- armlsd has reappeared (momentarily) but is not being used;  it goes away again in a future branch
+- Added a dict (std_dict) in arms.py to hold standard star extractions
+- Reducing standard stars in the main arms loop
+- Modified save_1d_spectra to handle loaded SpecObj in addition to internally generated ones
+- Moved arflux to core and stripped out slf, settings
+- Really restricting to nobj when user requests it
+- New tests
 
 0.7 (2017-02-07)
 ----------------

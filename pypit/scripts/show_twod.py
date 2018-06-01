@@ -14,10 +14,11 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import argparse
+from pypit import traceslits
 
 def parser(options=None):
 
-    parser = argparse.ArgumentParser(description='Display spec2d image in a Ginga viewer.  Run above the Science/ folder',
+    parser = argparse.ArgumentParser(description='Display sky subtracted, spec2d image in a Ginga viewer.  Run above the Science/ folder',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('file', type = str, default = None, help = 'PYPIT spec2d file')
@@ -44,7 +45,7 @@ def main(args):
     from pypit import pyputils
     from pypit import armasters
     from pypit.arparse import get_dnum
-    from pypit.arspecobj import get_slitid
+    from pypit.core.artraceslits import get_slitid
 
     # List only?
     hdu = fits.open(args.file)
@@ -83,14 +84,15 @@ def main(args):
     else:
         mdir = head0['PYPMFDIR']+'/'
         setup = '{:s}_{:s}_{:s}'.format(head0['PYPCNFIG'], sdet, head0['PYPCALIB'])
+
+    # Load Tslits
     trc_file = armasters.master_name('trace', setup, mdir=mdir)
-    trc_hdu = fits.open(trc_file)
-    lordloc = trc_hdu[1].data  # Should check name
-    rordloc = trc_hdu[2].data  # Should check name
+    Tslits = traceslits.TraceSlits.from_master_files(trc_file)
+
     # Get slit ids
-    stup = (trc_hdu[0].data.shape, lordloc, rordloc)
-    slit_ids = [get_slitid(stup, None, ii)[0] for ii in range(lordloc.shape[1])]
-    pypit.ginga.show_slits(viewer, ch, lordloc, rordloc, slit_ids)#, args.det)
+    #stup = (Tslits.mstrace.shape, Tslits.lcen, Tslits.rcen)
+    slit_ids = [get_slitid(Tslits.mstrace.shape, Tslits.lcen, Tslits.rcen, ii)[0] for ii in range(Tslits.lcen.shape[1])]
+    pypit.ginga.show_slits(viewer, ch, Tslits.lcen, Tslits.rcen, slit_ids)#, args.det)
 
     # Object traces
     spec1d_file = args.file.replace('spec2d', 'spec1d')

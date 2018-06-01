@@ -22,9 +22,10 @@ from astropy import units
 import linetools.utils
 
 from pypit import arparse as settings
-from pypit import arflux
+from pypit.core import arflux
 from pypit import arload
 from pypit import arutils
+from pypit.core import arsort
 from pypit import arsciexp
 from pypit import armasters
 
@@ -41,8 +42,9 @@ def test_bspline_fit():
     wave = np.array(fit_dict['wave'])
     magfunc = np.array(fit_dict['magf'])
     logivar = np.array(fit_dict['logiv'])
-    kwargs = dict(bkspace=fit_dict['bkspec'])
-    mask, tck = arutils.robust_polyfit(wave, magfunc, 3, function='bspline', weights=np.sqrt(logivar), **kwargs)
+    bspline_par = dict(bkspace=fit_dict['bkspec'])
+    mask, tck = arutils.robust_polyfit(wave, magfunc, 3, function='bspline',
+                                       weights=np.sqrt(logivar), bspline_par=bspline_par)
 
 
 def test_gen_sensfunc():
@@ -55,21 +57,16 @@ def test_gen_sensfunc():
     settings.argflag['reduce']['masters']['setup'] = 'C_01_aa'
     settings.spect['arc'] = {}
     settings.spect['arc']['index'] = [[0]]
-    fitsdict = arutils.dummy_fitsdict()
-    slf = arsciexp.dummy_self()
-    slf._msstd[0]['RA'] = '05:06:36.6'
-    slf._msstd[0]['DEC'] = '52:52:01.0'
+    fitstbl = arsort.dummy_fitstbl()
+    slf = arsciexp.dummy_self(fitstbl=fitstbl)
+    RA = '05:06:36.6'
+    DEC = '52:52:01.0'
     # Generate
-    slf._sensfunc = arflux.generate_sensfunc(slf, 4, [specobjs], fitsdict)
-    # Save
-    try:
-        os.mkdir('MF_shane_kast_blue')
-    except FileExistsError:
-        pass
-    armasters.save_sensfunc(slf, 'C_01_aa')
+    sensfunc = arflux.generate_sensfunc(specobjs[0][0], RA, DEC, fitstbl['airmass'][4],
+                                             fitstbl['exptime'][4], settings.spect)
     # Test
-    assert isinstance(slf._sensfunc, dict)
-    assert isinstance(slf._sensfunc['wave_min'], units.Quantity)
+    assert isinstance(sensfunc, dict)
+    assert isinstance(sensfunc['wave_min'], units.Quantity)
 
 
 def test_find_standard():
@@ -95,7 +92,7 @@ def test_load_extinction():
     settings.spect['mosaic']['latitude'] = 37.3413889
     settings.spect['mosaic']['longitude'] = 121.6428
     # Load
-    extinct = arflux.load_extinction_data()
+    extinct = arflux.load_extinction_data(settings.spect)
     np.testing.assert_allclose(extinct['wave'][0], 3200.)
     assert extinct['wave'].unit == units.AA
     np.testing.assert_allclose(extinct['mag_ext'][0], 1.084)
@@ -103,7 +100,7 @@ def test_load_extinction():
     settings.spect['mosaic']['latitude'] = 37.3413889
     settings.spect['mosaic']['longitude'] = 0.
     #
-    extinct = arflux.load_extinction_data()
+    extinct = arflux.load_extinction_data(settings.spect)
     assert extinct is None
 
 
@@ -112,7 +109,7 @@ def test_extinction_correction():
     settings.spect['mosaic']['latitude'] = 37.3413889
     settings.spect['mosaic']['longitude'] = 121.6428
     # Load
-    extinct = arflux.load_extinction_data()
+    extinct = arflux.load_extinction_data(settings.spect)
     # Correction
     wave = np.arange(3000.,10000.)*units.AA
     AM=1.5

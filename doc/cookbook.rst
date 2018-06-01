@@ -25,7 +25,7 @@ following is for one instrument in one working directory.
   - The raw images can be gzip compressed although the Python FITS reader works much more slowly on gzipped files
   - We will refer to that folder as RAWDIR
 
-2. Run the :ref:`pypit_setup` *without* the --custom option
+2. Run the :ref:`pypit_setup` *without* the --custom option to handle instrument :doc:`setup`.
 
    Inputs are the path to the raw data with the data prefix (e.g. lrisb) and then
    one of the PYPIT-approved :doc:`instruments` (e.g. keck_lris_blue, shane_kast_red).
@@ -37,7 +37,7 @@ following is for one instrument in one working directory.
 
  - Generates a setup_files/ folder that holds a series of files
  - Generates the instrument PYPIT reduction file [not used further]
- - Generates the instrument .setups file (:doc:`setup`)
+ - Generates the instrument .setups file (see :doc:`setup`)
  - Generates a .sorted file which lists files sorted by setup
 
  You should scan the output WARNING messages for insufficient calibration files (e.g. missing arc frames)
