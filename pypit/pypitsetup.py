@@ -97,9 +97,8 @@ class PypitSetup(object):
         """
         #
         all_sci_idx = np.where(self.fitstbl['science'])[0]
-        all_sci_ID = self.fitstbl['sci_ID'].data[self.fitstbl['science']]
-        self.group_dict = arsetup.build_group_dict(self.fitstbl, self.setupIDs,
-                                                   all_sci_idx, all_sci_ID)
+        all_sci_ID = self.fitstbl['sci_ID'][self.fitstbl['science']]
+        self.group_dict = arsetup.build_group_dict(self.fitstbl, self.setupIDs, all_sci_idx, all_sci_ID)
 
         # Write .sorted file
         if len(self.group_dict) > 0:
@@ -170,6 +169,22 @@ class PypitSetup(object):
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.setup_dict
+
+    def match_ABBA(self):
+        """
+          Matches science frames to their partner A/B frame
+          Mainly a wrapper to arsort.match_ABBA()
+
+        Returns
+        -------
+        self.fitstbl -- Updated with 'AB_frame' column
+
+        """
+        self.fitstbl = arsort.match_ABBA(self.fitstbl)
+
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        return self.fitstbl
 
     def match_to_science(self):
         """

@@ -3020,6 +3020,17 @@ class BaseSpect(BaseFunctions):
         v = key_keyword(v)
         self.update(v)
 
+    def keyword_imagetype(self, v):
+        """ The KOA added keyword that identifies the frame type
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_keyword(v)
+        self.update(v)
+
     def keyword_lamps(self, v):
         """ Lamps being used
 
@@ -4500,8 +4511,8 @@ def dummy_settings(pypitdir=None, nfile=10, spectrograph='shane_kast_blue',
 
     """
     # Dummy argflag
-    if spectrograph != 'shane_kast_blue':
-        msgs.error("Only setup for Kast Blue")  # You will need to fuss with scidx
+    if spectrograph not in ['shane_kast_blue', 'keck_nirspec']:
+        msgs.error("Not setup for your instrument")  # You will need to fuss with scidx
     argf = get_argflag_class(("ARMLSD", spectrograph))
     argf.init_param()
     if pypitdir is None:

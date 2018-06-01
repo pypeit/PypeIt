@@ -682,7 +682,7 @@ def write_sorted(group_file, fitstbl, group_dict, setup_dict):
     ftypes.sort()
     # Loop on Setup
     asciiord = np.array(['filename', 'date', 'frameno', 'frametype',
-                         'target', 'exptime', 'dispname', 'decker'])
+                         'target', 'exptime', 'dispname', 'decker', 'AB_frame'])
     for setup in setups:
         ff.write('##########################################################\n')
         in_setup = []
