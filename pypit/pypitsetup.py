@@ -250,7 +250,7 @@ class PypitSetup(object):
         msgs.info("Loaded fitstbl from {:s}".format(fits_file))
         return self.fitstbl
 
-    def write_fitstbl(self, outfile, overwrite=True):
+    def write_fitstbl(self, outfile=None, overwrite=True):
         """
         Write fitstbl to FITS
 
@@ -259,6 +259,8 @@ class PypitSetup(object):
         outfile : str
         overwrite : bool (optional)
         """
+        if outfile is None:
+            outfile = self.settings_argflag['run']['redname'].replace('.pypit', '.fits')
         self.fitstbl.write(outfile, overwrite=overwrite)
 
     def run(self, file_list=None):

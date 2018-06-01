@@ -19,7 +19,7 @@ def test_load_linelist():
     # Init
     arparse.dummy_settings()
     # Load
-    alist = ararclines.load_arcline_list(None, ['CuI','ArI','NeI'], None,
+    alist = ararclines.load_arcline_list(['CuI','ArI','NeI'], '600/7500', 'keck_lris_red',
                                          modify_parse_dict=dict(NeI={'min_wave': 3000.},
                                                                 ArI={'min_intensity': 399.}))
     # Min NeI

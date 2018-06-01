@@ -1,3 +1,5 @@
+""" Module for PYPIT extraction code
+"""
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import time
@@ -18,8 +20,6 @@ from pypit import arparse as settings
 from pypit import artrace
 from pypit import arutils
 from pypit import ardebug as debugger
-
-from pypit import arcyutils
 
 # MASK VALUES FROM EXTRACTION
 # 0 
@@ -643,4 +643,6 @@ def new_func2d_fit_val(y, order, x=None, w=None):
 
     # Return the model with the appropriate shape
     return ym if y.ndim == 2 else ym[0,:]
+
+
 

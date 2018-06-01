@@ -97,7 +97,7 @@ def test_read_write(kast_blue_bias_files, kast_settings):
     assert np.array_equal(bias_frame2.stack, bias_img)
 
 
-def test_master(kast_blue_bias_files, kast_settings):
+def test_run_and_master(kast_blue_bias_files, kast_settings):
     if skip_test:
         assert True
         return
@@ -117,7 +117,7 @@ def test_master(kast_blue_bias_files, kast_settings):
     kast_settings['reduce']['masters']['reuse'] = False
     bias_frame = biasframe.BiasFrame(settings=kast_settings, file_list=kast_blue_bias_files, setup=setup)
     # Run
-    _ = bias_frame.master()
+    _ = bias_frame.build_image()
     assert bias_frame.steps[-1] == 'combine'
     # Run with reuse (should simply load the file)
     kast_settings['reduce']['masters']['reuse'] = True
@@ -131,4 +131,4 @@ def test_master(kast_blue_bias_files, kast_settings):
     assert bias_frame3.stack is None
     assert np.array_equal(bias2, bias3)
 
-# Should probaby test overscan
+# Should probably test overscan

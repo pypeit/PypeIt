@@ -12,7 +12,6 @@ from astropy.time import Time
 # Import PYPIT routines
 from pypit import msgs
 from pypit import arparse as settings
-from pypit import ararc
 from pypit import artrace
 from pypit import arload
 from pypit import arcomb
@@ -642,7 +641,7 @@ class ScienceExposure:
         return True
     '''
 
-    def MasterWave(self, fitsdict, sc, det):
+    def MasterWave(self, det, all_wvcalib):
         """
         Generate Master Wave frame for a given detector
 
@@ -669,10 +668,10 @@ class ScienceExposure:
             else:
                 ok_slits = np.where(~self._maskslits[det-1])[0]
                 mswave = np.zeros_like(self._tilts[det-1])
-                for kk,slit in enumerate(ok_slits):
-                    wv_calib = self._wvcalib[det - 1][str(slit)]
-                    tmpwv = arutils.func_val(wv_calib['fitc'], self._tilts[det - 1], wv_calib['function'],
-                                          minv=wv_calib['fmin'], maxv=wv_calib['fmax'])
+                for slit in ok_slits:
+                    iwv_calib = all_wvcalib[str(slit)]
+                    tmpwv = arutils.func_val(iwv_calib['fitc'], self._tilts[det - 1], iwv_calib['function'],
+                                          minv=iwv_calib['fmin'], maxv=iwv_calib['fmax'])
                     word = np.where(self._slitpix[det - 1] == slit+1)
                     mswave[word] = tmpwv[word]
         # Set and then delete the Master Arc frame
@@ -681,6 +680,7 @@ class ScienceExposure:
         del mswave
         return True
 
+    '''
     def MasterWaveCalib(self, fitstbl, det, msarc):
         """
         Generate Master 1D Wave Solution (down slit/order centers)
@@ -741,6 +741,7 @@ class ScienceExposure:
             #
             del wv_calib
         return True
+    '''
 
     def MasterStandard(self, fitsdict, msbias):
         """

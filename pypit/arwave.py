@@ -14,7 +14,7 @@ from astropy.time import Time
 from linetools.spectra import xspectrum1d
 
 from pypit import msgs
-from pypit import ararc
+from pypit.core import ararc
 from pypit import arextract
 from pypit import arparse as settings
 from pypit import arutils
@@ -36,8 +36,8 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     """
     #Determine the brightest emission lines
     msgs.warn("If we use Paranal, cut down on wavelength early on")
-    arx_amp, arx_cent, arx_wid, arx_w, arx_satsnd, arx_yprep = ararc.detect_lines(slf, det, msarc=None, censpec=arx_skyspec.flux.value, MK_SATMASK=False)
-    obj_amp, obj_cent, obj_wid, obj_w, obj_satsnd, obj_yprep = ararc.detect_lines(slf, det, msarc=None, censpec=obj_skyspec.flux.value, MK_SATMASK=False)
+    arx_amp, arx_cent, arx_wid, arx_w, arx_yprep = ararc.detect_lines(arx_skyspec.flux.value)
+    obj_amp, obj_cent, obj_wid, obj_w, obj_yprep = ararc.detect_lines(obj_skyspec.flux.value)
 
     #Keep only 5 brightest amplitude lines (xxx_keep is array of indices within arx_w of the 5 brightest)
     arx_keep = np.argsort(arx_amp[arx_w])[-5:]

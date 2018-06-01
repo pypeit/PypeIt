@@ -30,20 +30,18 @@ def parse_nist(ion):
     return nist_tbl
 
 
-def load_arcline_list(idx, lines, disperser, wvmnx=None, modify_parse_dict=None):
+def load_arcline_list(lines, disperser, spectrograph, wvmnx=None, modify_parse_dict=None):
     """Loads arc line list from NIST files
     Parses and rejects
 
     Parameters
     ----------
-    idx : list  
-      indices of the arc
     lines : list
       List of ions to load
-    wvmnx : list or tuple
-      wvmin, wvmax for line list
     disperser : str
       Name of the disperser
+    wvmnx : list or tuple
+      wvmin, wvmax for line list
     modify_parse_dict : dict, optional
       Used to over-ride default settings of parse_dict
 
@@ -54,8 +52,8 @@ def load_arcline_list(idx, lines, disperser, wvmnx=None, modify_parse_dict=None)
     """
     # Get the parse dict
     parse_dict = load_parse_dict(modify_dict=modify_parse_dict)
-    root = settings.argflag['run']['pypitdir']
-    with open(root+'/data/arc_lines/rejected_lines.yaml', 'r') as infile:
+    root = resource_filename('pypit', 'data/arc_lines')
+    with open(root+'/rejected_lines.yaml', 'r') as infile:
         rej_dict = yaml.load(infile)
     # Loop through the NIST Tables
     tbls = []
@@ -68,7 +66,7 @@ def load_arcline_list(idx, lines, disperser, wvmnx=None, modify_parse_dict=None)
         # Reject
         if iline in rej_dict.keys():
             msgs.info("Rejecting select {:s} lines".format(iline))
-            tbl = reject_lines(tbl,idx,rej_dict[iline],disperser)
+            tbl = reject_lines(tbl,rej_dict[iline], disperser, spectrograph)
         tbls.append(tbl[['Ion','wave','RelInt']])
     # Stack
     alist = vstack(tbls)
@@ -82,18 +80,17 @@ def load_arcline_list(idx, lines, disperser, wvmnx=None, modify_parse_dict=None)
     return alist
 
 
-def reject_lines(tbl, idx, rej_dict, disperser):
+def reject_lines(tbl, rej_dict, disperser, spectrograph):
     '''Parses a NIST table using various criteria
     Parameters
     ----------
     tbl : Table
       Read previously from NIST ASCII file
-    idx : list  
-      indices of the arc
     rej_dict : dict
       Dict of rejected lines
     disperser : str
       Name of the disperser
+    spectrograph : str
 
     Returns
     -------
@@ -106,8 +103,8 @@ def reject_lines(tbl, idx, rej_dict, disperser):
         close = np.where(np.abs(wave-tbl['wave']) < 0.1)[0]
         if rej_dict[wave] == 'all':
             msk[close] = False
-        elif settings.argflag['run']['spectrograph'] in rej_dict[wave].keys():
-            if rej_dict[wave][settings.argflag['run']['spectrograph']] == 'all':
+        elif spectrograph in rej_dict[wave].keys():
+            if rej_dict[wave][spectrograph] == 'all':
                 msk[close] = False
             elif disperser in rej_dict[wave][settings.argflag['run']['spectrograph']]:
                 msk[close] = False
