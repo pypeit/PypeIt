@@ -21,7 +21,7 @@ def parser(options=None):
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('option', type = str, default = None, help='Item to show [fweight, model, tilts, final_tilts]')
-    parser.add_argument('setup', type = str, default = None, help='setup (e.g. A_01_aa)')
+    parser.add_argument('setup', type = str, default = None, help='setup  -- Run from MF folder (e.g. A_01_aa)')
     parser.add_argument('--slit', type=int, default=None, help='Slit/Order [0,1,2..]')
     #parser.add_argument("--dumb_ids", default=False, action="store_true", help="Slit ID just by order?")
 

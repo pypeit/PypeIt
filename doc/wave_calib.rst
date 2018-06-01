@@ -114,13 +114,6 @@ where the default value is a heliocentric wavelength scale.
 More details are provided in :doc:`heliocorr`.
 
 
-Tilts
-=====
-
-Limit tilt analysis to only the arc lines identified in 1D wavelength solution::
-
-    trace slits tilts idsonly True
-
 Developers
 ==========
 

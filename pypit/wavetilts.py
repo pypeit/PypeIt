@@ -351,10 +351,14 @@ class WaveTilts(masterframe.MasterFrame):
         else:
             sedges = None
         if attr == 'fweight':
+            if slit is None:
+                msgs.error("Need to provide the slit with this option")
             ginga.chk_arc_tilts(self.msarc, self.all_trcdict[slit],
                                 sedges=sedges)
             msgs.info("Green = ok line;  red=not used")
         elif attr == 'model':
+            if slit is None:
+                msgs.error("Need to provide the slit with this option")
             tmp = self.all_trcdict[slit].copy()
             tmp['xtfit'] = self.all_trcdict[slit]['xmodel']
             tmp['ytfit'] = self.all_trcdict[slit]['ymodel']
@@ -366,6 +370,8 @@ class WaveTilts(masterframe.MasterFrame):
             if self.final_tilts is not None:
                 ginga.show_image(self.final_tilts)
         elif attr in ['tilts']:
+            if slit is None:
+                msgs.error("Need to provide the slit with this option")
             tmp = self.all_trcdict[slit].copy()
             tmp['xtfit'] = []
             tmp['ytfit'] = []
