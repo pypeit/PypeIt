@@ -11,7 +11,7 @@ from astropy.io import fits
 
 from pypit import msgs
 from pypit import ardebug as debugger
-from pypit import ararc
+from pypit.core import ararc
 from pypit.core import artracewave
 from pypit import arutils
 from pypit import armasters
@@ -198,13 +198,14 @@ class WaveTilts(masterframe.MasterFrame):
                                               self.polytilts, self.msarc)
     '''
 
-    def _trace_tilts(self, slit):
+    def _trace_tilts(self, slit, wv_calib=None):
         reload(artracewave)
         # Determine the tilts for this slit
         trcdict = artracewave.trace_tilt(self.pixcen, self.rordloc, self.lordloc, self.det,
                                          self.msarc, slit, self.settings_det, self.settings,
                                          censpec=self.arccen[:, slit], nsmth=3,
-                                              trthrsh=self.settings['tilts']['trthrsh'])
+                                              trthrsh=self.settings['tilts']['trthrsh'],
+                                         wv_calib=wv_calib)
         # Load up
         self.all_trcdict[slit] = trcdict.copy()
         # Step
@@ -212,7 +213,7 @@ class WaveTilts(masterframe.MasterFrame):
         # Return
         return trcdict
 
-    def run(self, maskslits=None, doqa=True):
+    def run(self, maskslits=None, doqa=True, wv_calib=None):
         """ Main driver for tracing arc lines
 
         Code flow:
@@ -250,7 +251,7 @@ class WaveTilts(masterframe.MasterFrame):
         # Loop on all slits
         for slit in gdslits:
             # Trace
-            _ = self._trace_tilts(slit)
+            _ = self._trace_tilts(slit, wv_calib=wv_calib)
 
             # Model line-by-line
             _ = self._analyze_lines(slit)

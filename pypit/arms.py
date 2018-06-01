@@ -291,7 +291,8 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 # Master
                 mstilts = wTilt.master()
                 if mstilts is None:
-                    mstilts, wt_maskslits = wTilt.run(maskslits=slf._maskslits[det-1])
+                    mstilts, wt_maskslits = wTilt.run(maskslits=slf._maskslits[det-1],
+                                                      wv_calib=wv_calib)
                     wTilt.save_master()
                 else:
                     wt_maskslits = np.zeros(len(slf._maskslits[det-1]), dtype=bool)
