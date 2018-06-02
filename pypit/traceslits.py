@@ -937,7 +937,7 @@ class TraceSlits(masterframe.MasterFrame):
         return loaded
 
 
-    def run(self, armlsd=True, ignore_orders=False, add_user_slits=None):
+    def run(self, arms=True, ignore_orders=False, add_user_slits=None):
         """ Main driver for tracing slits.
 
           Code flow

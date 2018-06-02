@@ -37,8 +37,8 @@ def test_load_from_master():
     mstrace_root = os.getenv('PYPIT_DEV') + 'Cooked/Trace/MasterTrace_KeckLRISr_150420_402'
     assert chk_for_files(mstrace_root)
     # Load
-    Tslits = traceslits.TraceSlits.from_master_files(mstrace_root)
-    assert isinstance(Tslits.mstrace, np.ndarray)
+    traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
+    assert isinstance(traceSlits.mstrace, np.ndarray)
 
 
 def test_add_slit():
@@ -49,13 +49,13 @@ def test_add_slit():
     mstrace_root = os.getenv('PYPIT_DEV') + 'Cooked/Trace/MasterTrace_KeckLRISr_150420_402'
     assert chk_for_files(mstrace_root)
     # Load
-    Tslits = traceslits.TraceSlits.from_master_files(mstrace_root)
-    norig = Tslits.nslit
+    traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
+    norig = traceSlits.nslit
     #  left edge, right edge, row on image
     add_user_slits = [[489, 563, 1024]]
     # run_to_finish resets things in a proper manner
-    Tslits.add_user_slits(add_user_slits, run_to_finish=True)
-    assert Tslits.nslit == (norig+1)
+    traceSlits.add_user_slits(add_user_slits, run_to_finish=True)
+    assert traceSlits.nslit == (norig+1)
 
 def test_remove_slit():
     if skip_test:
@@ -65,11 +65,11 @@ def test_remove_slit():
     mstrace_root = os.getenv('PYPIT_DEV') + 'Cooked/Trace/MasterTrace_KeckLRISr_20160110_A'
     assert chk_for_files(mstrace_root)
     # Load
-    Tslits = traceslits.TraceSlits.from_master_files(mstrace_root)
-    norig = Tslits.nslit
+    traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
+    norig = traceSlits.nslit
     # Setup slit to remove --  xleft, yleft at yrow=nrow/2
     rm_slits = [[229, 380]]
     # Remove
-    Tslits.remove_slit(rm_slits)
-    assert Tslits.nslit == (norig-1)
+    traceSlits.remove_slit(rm_slits)
+    assert traceSlits.nslit == (norig-1)
 
