@@ -272,6 +272,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
 
             ###############
             # Derive the spectral tilt
+            assert False  # PUT IN THE BUG FIXES FROM overlapping branch
             if 'tilts' in calib_dict[setup].keys():
                 mstilts = calib_dict[setup]['tilts']
                 wt_maskslits = calib_dict[setup]['wtmask']
