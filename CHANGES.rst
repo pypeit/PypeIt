@@ -136,7 +136,6 @@
 - Moved arflux to core and stripped out slf, settings
 - Really restricting to nobj when user requests it
 - New tests
-
 - Introduces WaveCalib class
 - Push ararc.py to core/ after removing slf and settings dependencies
 - Further refactor masters including MasterFrame; includes addressing previous comment from RC
@@ -145,6 +144,16 @@
 - Push get_censpec() to ararc.py
 - New tests; limited docs
 - TraceSlits load method pushed outside the class
+
+- Introduces WaveTilts class
+- Significant modification to tilt recipe including deprecation of PCA
+- Moved tilt tracing algorithms from artrace.py to artracewave.py in core/
+- Added 2D Legendre fitting to polyfit2d_general
+- New trace slits tilts  settings (for 2D fitting)
+- New QA plot
+- New pypit_chk_tilts script
+- New docs
+- New tests
 
 0.7 (2017-02-07)
 ----------------

@@ -272,7 +272,6 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
 
             ###############
             # Derive the spectral tilt
-            assert False  # PUT IN THE BUG FIXES FROM overlapping branch
             if 'tilts' in calib_dict[setup].keys():
                 mstilts = calib_dict[setup]['tilts']
                 wt_maskslits = calib_dict[setup]['wtmask']
@@ -286,9 +285,9 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 settings_det[dnum] = settings.spect[dnum].copy()
                 # Instantiate
                 wTilt = wavetilts.WaveTilts(msarc, settings=tilt_settings, det=det, setup=setup,
-                                            lordloc=Tslits.lcen, rordloc=Tslits.rcen,
-                                            pixlocn=Tslits.pixlocn, pixcen=Tslits.pixcen,
-                                            slitpix=Tslits.slitpix, settings_det=settings_det)
+                                            lordloc=traceSlits.lcen, rordloc=traceSlits.rcen,
+                                            pixlocn=traceSlits.pixlocn, pixcen=traceSlits.pixcen,
+                                            slitpix=traceSlits.slitpix, settings_det=settings_det)
                 # Master
                 mstilts = wTilt.master()
                 if mstilts is None:
