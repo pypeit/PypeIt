@@ -95,15 +95,44 @@ def get_ampscale(datasec_img, msflat, namp):
     return sclframe
 
 
-def slit_profile(slit, mstrace, tilts, slordloc, srordloc, slitpix, pixwid, ntckx=3, ntcky=20):
-    '''
-    if settings_argflag["reduce"]["slitprofile"]["perform"]:
-        msgs.info("Deriving the spatial profile and blaze function of slit {0:d}".format(slit+1))
-    else:
-        msgs.info("Deriving the blaze function of slit {0:d}".format(slit + 1))
-    '''
-    #slordloc = lordloc[:, slit]
-    #srordloc = rordloc[:, slit]
+def slit_profile(slit, mstrace, tilts, slordloc, srordloc, slitpix, pixwid,
+                 ntckx=3, ntcky=20):
+    """
+
+    Parameters
+    ----------
+    slit : int
+      Slit (indexed from 0)
+    mstrace : ndarray
+      Flat field image
+    tilts : ndarray
+      Tilts image
+    slordloc : ndarray (nwave)
+      Left edge of the slit
+    srordloc : ndarray (nwave)
+      Right edge of the slit
+    slitpix : ndarray
+      Slit pixel image
+    pixwid : ndarray
+      Slit width array
+    ntckx : int, optional
+      Spacking of knots in spatial dimensions
+    ntcky : int, optional
+      Spacking of knots in spectral dimensions
+
+    Returns
+    -------
+    modvals : ndarray
+      Pixels in the slit
+    nrmvals : ndarray
+      Pixels in the slit
+    msblaze_slit : ndarray (nwave)
+    blazeext_slit : ndarray (nwave)
+    iextrap_slit : float
+      0 = Do not extrapolate
+      1 = Do extrapolate
+
+    """
     iextrap_slit = 0.
     word = np.where(slitpix == slit+1)
     if word[0].size <= (ntcky+1)*(2*pixwid[slit]+1):

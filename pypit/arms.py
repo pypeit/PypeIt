@@ -11,6 +11,7 @@ from pypit import arload
 from pypit import armbase
 from pypit import arproc
 from pypit.core import arprocimg
+from pypit import armasters
 from pypit import arsave
 from pypit import arsciexp
 from pypit.core import arsetup
@@ -120,6 +121,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 naxis0=fitstbl['naxis0'][scidx],
                 naxis1=fitstbl['naxis1'][scidx])
             # Yes, this looks goofy.  Is needed for LRIS and DEIMOS for now
+            settings.spect[dnum] = settings_det.copy()  # Used internally..
             fitstbl['naxis0'][scidx] = naxis0
             fitstbl['naxis1'][scidx] = naxis1
             #slf._datasec[det-1] = pix_to_amp(naxis0, naxis1, datasec, numamplifiers)
@@ -312,6 +314,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
                 if 'normpixelflat' in calib_dict[setup].keys():
                     mspixflatnrm = calib_dict[setup]['normpixelflat']
+                    slitprof = calib_dict[setup]['slitprof']
                 else:
                     # Settings
                     flat_settings = dict(flatfield=settings.argflag['reduce']['flatfield'].copy(),
@@ -321,26 +324,31 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                     flat_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
                     # Instantiate
                     pixflat_image_files = arsort.list_of_files(fitstbl, 'pixelflat', sci_ID)
-                    ftField = flatfield.FlatField(file_list=pixflat_image_files, msbias=msbias,
+                    flatField = flatfield.FlatField(file_list=pixflat_image_files, msbias=msbias,
                                                   settings=flat_settings,
-                                                  slits_dict=Tslits.slits_dict.copy(),
+                                                  slits_dict=traceSlits.slits_dict.copy(),
                                                   tilts=mstilts, det=det, setup=setup)
 
                     # Load from disk (MasterFrame)?
-                    mspixflatnrm = ftField.master()
+                    mspixflatnrm = flatField.master()
                     if mspixflatnrm is None:
                         # Use mstrace if the indices are identical
                         if np.all(arsort.ftype_indices(fitstbl,'trace',1) ==
-                                          arsort.ftype_indices(fitstbl, 'pixelflat', 1)) and (Tslits.mstrace is not None):
-                            ftField.mspixelflat = Tslits.mstrace.copy()
+                                          arsort.ftype_indices(fitstbl, 'pixelflat', 1)) and (traceSlits.mstrace is not None):
+                            flatField.mspixelflat = traceSlits.mstrace.copy()
                         # Run
-                        mspixflatnrm = ftField.run(datasec_img, armed=False)
+                        mspixflatnrm, slitprof = flatField.run(datasec_img, armed=False)
                         # Save to Masters
-                        # TODO -- Do we need to write slitprof too??
-                        ftField.save_master(mspixflatnrm, raw_files=pixflat_image_files, steps=ftField.steps)
+                        flatField.save_master(mspixflatnrm, raw_files=pixflat_image_files, steps=flatField.steps)
+                        flatField.save_master(slitprof, raw_files=pixflat_image_files, steps=flatField.steps,
+                                              outfile=armasters.core_master_name('slitprof', setup, flat_settings['masters']['directory']))
+                    else:
+                        slitprof, _, _ = flatField.load_master_slitprofile()
                 calib_dict[setup]['normpixelflat'] = mspixflatnrm
+                calib_dict[setup]['slitprof'] = slitprof
             else:
                 mspixflatnrm = None
+                slitprof = None
 
 
             ###############
@@ -354,12 +362,12 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             msgs.info("Loading science frame")
             sciframe = arload.load_frames(fitstbl, [scidx], det,
                                           frametype='science',
-                                          msbias=msbias) # slf._msbias[det-1])
+                                          msbias=msbias)
             sciframe = sciframe[:, :, 0]
             # Extract
             msgs.info("Processing science frame")
             arproc.reduce_multislit(slf, mstilts, sciframe, msbpm, datasec_img, scidx, fitstbl, det,
-                                    mspixelflatnrm=mspixflatnrm)
+                                    mspixelflatnrm=mspixflatnrm, slitprof=slitprof)
 
 
             ######################################################
@@ -373,7 +381,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             if stdslf.extracted[det-1] is False:
                 # Fill up the necessary pieces
                 for iattr in ['pixlocn', 'lordloc', 'rordloc', 'pixcen', 'pixwid', 'lordpix', 'rordpix',
-                              'slitpix', 'satmask', 'maskslits', 'slitprof', 'mswave']:
+                              'slitpix', 'satmask', 'maskslits', 'mswave']:
                     setattr(stdslf, '_'+iattr, getattr(slf, '_'+iattr))  # Brings along all the detectors, but that is ok
                 # Load
                 stdframe = arload.load_frames(fitstbl, [std_idx], det, frametype='standard', msbias=msbias)
@@ -381,7 +389,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 # Reduce
                 msgs.info("Processing standard frame")
                 arproc.reduce_multislit(stdslf, mstilts, stdframe, msbpm, datasec_img, std_idx, fitstbl, det,
-                                        standard=True, mspixelflatnrm=mspixflatnrm)
+                                        standard=True, mspixelflatnrm=mspixflatnrm, slitprof=slitprof)
                 # Finish
                 stdslf.extracted[det-1] = True
 
