@@ -365,15 +365,15 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                     wvimg_settings = dict(masters=settings.argflag['reduce']['masters'].copy())
                     wvimg_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
                     # Instantiate
-                    wvImg = waveimage.WaveImage(mstilts, wv_calib, settings=wvimg_settings,
+                    waveImage = waveimage.WaveImage(mstilts, wv_calib, settings=wvimg_settings,
                                                 setup=setup, maskslits=slf._maskslits[det-1],
-                                                slitpix=Tslits.slitpix)
+                                                slitpix=traceSlits.slitpix)
                     # Attempt to load master
-                    mswave = wvImg.master()
+                    mswave = waveImage.master()
                     if mswave is None:
-                        mswave = wvImg._build_wave()
+                        mswave = waveImage._build_wave()
                     # Save to hard-drive
-                    wvImg.save_master(mswave, steps=wvImg.steps)
+                    waveImage.save_master(mswave, steps=waveImage.steps)
                 # Save internally
                 calib_dict[setup]['wave'] = mswave
 
@@ -410,8 +410,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 # Reduce
                 msgs.info("Processing standard frame")
                 arproc.reduce_multislit(stdslf, mstilts, stdframe, msbpm, datasec_img, std_idx, fitstbl, det,
-                                        mswave, standard=True, mspixelflatnrm=mspixflatnrm, standard=True,
-                                        slitprof=slitprof)
+                                        mswave, mspixelflatnrm=mspixflatnrm, standard=True, slitprof=slitprof)
                 # Finish
                 stdslf.extracted[det-1] = True
 
