@@ -284,16 +284,16 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 settings_det = {}
                 settings_det[dnum] = settings.spect[dnum].copy()
                 # Instantiate
-                wTilt = wavetilts.WaveTilts(msarc, settings=tilt_settings, det=det, setup=setup,
+                waveTilts = wavetilts.WaveTilts(msarc, settings=tilt_settings, det=det, setup=setup,
                                             lordloc=traceSlits.lcen, rordloc=traceSlits.rcen,
                                             pixlocn=traceSlits.pixlocn, pixcen=traceSlits.pixcen,
                                             slitpix=traceSlits.slitpix, settings_det=settings_det)
                 # Master
-                mstilts = wTilt.master()
+                mstilts = waveTilts.master()
                 if mstilts is None:
-                    mstilts, wt_maskslits = wTilt.run(maskslits=slf._maskslits[det-1],
+                    mstilts, wt_maskslits = waveTilts.run(maskslits=slf._maskslits[det-1],
                                                       wv_calib=wv_calib)
-                    wTilt.save_master()
+                    waveTilts.save_master()
                 else:
                     wt_maskslits = np.zeros(len(slf._maskslits[det-1]), dtype=bool)
                 # Save
