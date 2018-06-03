@@ -26,12 +26,14 @@ if msgs._debug is None:
 # Does not need to be global, but I prefer it
 frametype = 'pixelflat'
 
-default_settings = dict(flatfield={'method': 'bspline',
+def default_settings():
+    default_settings = dict(flatfield={'method': 'bspline',
                                    "params": [20],
                                    },
                         slitprofile={'perform': True,
                                      },
                         )
+    return default_settings
 
 class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     """
@@ -97,7 +99,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # The copy allows up to update settings with user settings without changing the original
         if settings is None:
             # Defaults
-            self.settings = processimages.default_settings.copy()
+            self.settings = processimages.default_settings()
         else:
             self.settings = settings.copy()
             # The following is somewhat kludgy and the current way we do settings may
@@ -106,7 +108,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                 if self.frametype in settings.keys():
                     self.settings['combine'] = settings[self.frametype]['combine']
         if 'flatfield' not in settings.keys():
-            self.settings.update(default_settings)
+            self.settings.update(default_settings())
 
         # Child-specific Internals
         #    See ProcessImages and MasterFrame for others

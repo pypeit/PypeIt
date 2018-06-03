@@ -23,7 +23,10 @@ if msgs._debug is None:
 
 # Place these here or elsewhere?
 #  Wherever they be, they need to be defined, described, etc.
-default_settings = dict(detector={'numamplifiers': 1,   # This dict is not complete; consider readnoise, binning
+def default_settings():
+    # Hiding in a def because of the nested dicts
+    #  I prefer this to deepcopy
+    default_settings = dict(detector={'numamplifiers': 1,   # This dict is not complete; consider readnoise, binning
                                   'saturation': 60000.,  # Spectra aligned with columns
                                   'dispaxis': 0,  # Spectra aligned with columns
                                   'dataext': None},
@@ -35,6 +38,7 @@ default_settings = dict(detector={'numamplifiers': 1,   # This dict is not compl
                                             'level': [3.,3.],
                                             'replace': 'maxnonsat'}}
                         )
+    return default_settings
 
 class ProcessImages(object):
     """Base class to guide image loading+processing
@@ -75,7 +79,7 @@ class ProcessImages(object):
         # Optional
         self.det = det
         if settings is None:
-            self.settings = default_settings.copy()
+            self.settings = default_settings()
         else:
             # The copy allows up to update settings with user settings without changing the original
             self.settings = settings.copy()

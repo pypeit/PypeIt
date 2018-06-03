@@ -44,21 +44,22 @@ def test_step_by_step():
     settings, TSlits, tilts, datasec_img = tstutils.load_kast_blue_masters(
         get_settings=True, tslits=True, tilts=True, datasec=True)
     # Instantiate
-    ftField = flatfield.FlatField(spectrograph='shane_kast_blue', settings=settings, det=1,
+    flatField = flatfield.FlatField(spectrograph='shane_kast_blue', settings=settings, det=1,
                                   tilts=tilts, slits_dict=TSlits.slits_dict.copy())
     # Use mstrace
-    ftField.mspixelflat = TSlits.mstrace.copy()
+    flatField.mspixelflat = TSlits.mstrace.copy()
     # Gain
-    ftField.apply_gain(datasec_img)
+    flatField.apply_gain(datasec_img)
     # Normalize a slit
     slit=0
-    modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit = ftField.slit_profile(slit)
+    flatField._prep_tck()
+    modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit = flatField.slit_profile(slit)
     assert np.isclose(iextrap_slit, 0.)
     # Apply
-    word = np.where(ftField.slits_dict['slitpix'] == slit + 1)
-    ftField.mspixelflatnrm = ftField.mspixelflat.copy()
-    ftField.mspixelflatnrm[word] /= nrmvals
-    assert np.isclose(np.median(ftField.mspixelflatnrm), 1.0011169)
+    word = np.where(flatField.slits_dict['slitpix'] == slit + 1)
+    flatField.mspixelflatnrm = flatField.mspixelflat.copy()
+    flatField.mspixelflatnrm[word] /= nrmvals
+    assert np.isclose(np.median(flatField.mspixelflatnrm), 1.0291708)
 
 def test_run():
     if skip_test:
@@ -68,10 +69,10 @@ def test_run():
     settings, TSlits, tilts, datasec_img = tstutils.load_kast_blue_masters(
         get_settings=True, tslits=True, tilts=True, datasec=True)
     # Instantiate
-    ftField = flatfield.FlatField(spectrograph='shane_kast_blue', settings=settings, det=1,
+    flatField = flatfield.FlatField(spectrograph='shane_kast_blue', settings=settings, det=1,
                                   tilts=tilts, slits_dict=TSlits.slits_dict.copy())
     # Use mstrace
-    ftField.mspixelflat = TSlits.mstrace.copy()
-    mspixelflatnrm = ftField.run(datasec_img)
-    assert np.isclose(np.median(mspixelflatnrm), 1.003463)
+    flatField.mspixelflat = TSlits.mstrace.copy()
+    mspixelflatnrm = flatField.run(datasec_img)
+    assert np.isclose(np.median(mspixelflatnrm), 1.0125809)
 

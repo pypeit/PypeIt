@@ -33,7 +33,8 @@ frametype = 'trace'
 
 # Place these here or elsewhere?
 #  Wherever they be, they need to be defined, described, etc.
-default_settings = dict(trace={'slits': {'single': [],
+def default_settings():
+    default_settings = dict(trace={'slits': {'single': [],
                                'function': 'legendre',
                                'polyorder': 3,
                                'diffpolyorder': 2,
@@ -46,6 +47,7 @@ default_settings = dict(trace={'slits': {'single': [],
                                'pca': {'params': [3,2,1,0,0,0], 'type': 'pixel',
                                        'extrapolate': {'pos': 0, 'neg':0}},
                                'sobel': {'mode': 'nearest'}}})
+    return default_settings
 
 #  See save_master() for the data model for output
 
@@ -139,7 +141,7 @@ class TraceSlits(masterframe.MasterFrame):
             self.binbpx = binbpx
             self.input_binbpx = True
         if settings is None:
-            self.settings = default_settings.copy()
+            self.settings = default_settings()
         else:
             self.settings = settings
 
