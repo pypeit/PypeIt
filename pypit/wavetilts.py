@@ -38,9 +38,6 @@ default_settings = dict(tilts={'idsonly': False,
                                'params': [1,1,0],  # defunct
                                }
                         )
-#settings_spect = dict(det01={'saturation': 60000., 'nonlinear': 0.9})
-#settings_spect[dnum]['saturation']*settings_spect[dnum]['nonlinear']
-
 #  See save_master() for the data model for output
 
 
@@ -56,12 +53,17 @@ class WaveTilts(masterframe.MasterFrame):
     rordloc : ndarray
       Input from TraceSlits
     pixlocn : ndarray
+      Input from TraceSlits
     pixcen : ndarray
+      Input from TraceSlits
     slitpix : ndarray
+      Input from TraceSlits
     settings_det : dict
-      Detector settings
+      Detector settings -- Needed for arc line saturation
     det : int
+      Detector index
     settings : dict
+      Tilts settings
 
     Attributes
     ----------
@@ -72,7 +74,7 @@ class WaveTilts(masterframe.MasterFrame):
       All trace dict's
     tilts : ndarray
       Tilts for a single slit/order
-    all_tilts : tuple
+    all_ttilts : list of tuples
       Tuple of tilts ndarray's
     final_tilts : ndarray
       Final tilts image
@@ -113,7 +115,7 @@ class WaveTilts(masterframe.MasterFrame):
         # Key Internals
         self.all_trcdict = [None]*self.nslit
         self.tilts = None
-        self.all_tilts = None
+        self.all_ttilts = [None]*self.nslit
         self.final_tilts = None
 
         # MasterFrame
@@ -189,7 +191,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.badlines
 
         """
-        self.badlines, self.all_tilts = artracewave.analyze_lines(
+        self.badlines, self.all_ttilts[slit] = artracewave.analyze_lines(
             self.msarc, self.all_trcdict[slit], slit, self.pixcen, self.settings)
         if self.badlines > 0:
             msgs.warn("There were {0:d} additional arc lines that should have been traced".format(self.badlines) +
@@ -235,7 +237,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.tilts : ndarray
 
         """
-        self.tilts, self.outpar = artracewave.fit_tilts(self.msarc, slit, self.all_tilts,
+        self.tilts, self.outpar = artracewave.fit_tilts(self.msarc, slit, self.all_ttilts[slit],
                                                         self.settings, setup=self.setup,
                                                         show_QA=show_QA, doqa=doqa)
         # Step
@@ -343,7 +345,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         self.tiltsplot, self.ztilto, self.xdat = artracewave.prep_tilts_qa(
-            self.msarc, self.all_tilts, self.tilts, self.all_trcdict[slit]['arcdet'],
+            self.msarc, self.all_ttilts[slit], self.tilts, self.all_trcdict[slit]['arcdet'],
             self.pixcen, slit)
 
     def save_master(self, outfile=None):
@@ -390,7 +392,10 @@ class WaveTilts(masterframe.MasterFrame):
                     model_cnt += 1
                     # ycen
                     xgd = self.all_trcdict[slit]['xtfit'][kk][self.all_trcdict[slit]['xtfit'][kk].size//2]
-                    ycen = self.all_tilts[1][int(xgd),kk]
+                    try:
+                        ycen = self.all_ttilts[slit][1][int(xgd),kk]
+                    except:
+                        debugger.set_trace()
                     fwm_img[-1, kk, 1] = ycen
             hdu1 = fits.ImageHDU(fwm_img)
             hdu1.name = 'FWM{:03d}'.format(slit)
@@ -446,9 +451,9 @@ class WaveTilts(masterframe.MasterFrame):
             # arcdet is only the approximately nearest pixel (not even necessarily)
             for idx in np.where(self.all_trcdict[slit]['aduse'])[0]:
                 tmp['xtfit'].append(np.arange(self.msarc.shape[1]))
-                if self.all_tilts is not None:  # None if read from disk
+                if self.all_ttilts is not None:  # None if read from disk
                     xgd = self.all_trcdict[slit]['xtfit'][idx][self.all_trcdict[slit]['xtfit'][idx].size//2]
-                    ycen = self.all_tilts[1][int(xgd),idx]
+                    ycen = self.all_ttilts[slit][1][int(xgd),idx]
                 else:
                     ycen = self.all_trcdict[slit]['ycen'][idx]
                 yval = ycen + self.tilts[int(ycen),:]

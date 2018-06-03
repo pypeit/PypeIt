@@ -939,7 +939,7 @@ class TraceSlits(masterframe.MasterFrame):
         return loaded
 
 
-    def run(self, armlsd=True, ignore_orders=False, add_user_slits=None):
+    def run(self, arms=True, ignore_orders=False, add_user_slits=None):
         """ Main driver for tracing slits.
 
           Code flow
@@ -959,7 +959,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         Parameters
         ----------
-        armlsd : bool (optional)
+        arms : bool (optional)
           Running longslit or multi-slit?
         ignore_orders : bool (optional)
           Perform ignore_orders algorithm (recommended only for echelle data)
@@ -1012,7 +1012,7 @@ class TraceSlits(masterframe.MasterFrame):
             self._final_left_right()
 
         #   Developed for ARMLSD not ARMED
-        if armlsd:
+        if arms:
             # Trace crude me
             #   -- Mainly to deal with duplicates and improve the traces
             self._mslit_tcrude()
@@ -1048,7 +1048,7 @@ class TraceSlits(masterframe.MasterFrame):
 
             # Remove any slits that are completely off the detector
             #   Also remove short slits here for multi-slit and long-slit (aligntment stars)
-            self._trim_slits(usefracpix=armlsd)
+            self._trim_slits(usefracpix=arms)
 
         # Generate pixel arrays
         self._make_pixel_arrays()

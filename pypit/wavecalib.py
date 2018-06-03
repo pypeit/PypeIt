@@ -224,7 +224,8 @@ class WaveCalib(masterframe.MasterFrame):
 
         """
         self.wv_calib, _, _ =  armasters._load(filename, frametype=self.frametype)
-        # Recast a few items as arrays -- MIGHT PUSH THIS INTO armasters._load
+        # Recast a few items as arrays
+        # TODO -- Consider pushing into armaster
         for key in self.wv_calib.keys():
             if key in ['steps', 'arcparam']:  # This isn't really necessary
                 continue

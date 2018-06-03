@@ -816,6 +816,9 @@ def fit_tilts(msarc, slit, all_tilts, tilt_settings, maskval=-999999.9, setup=No
                                           np.linspace(0.0, 1.0, msarc.shape[0]),
                                           minx=0., maxx=1., miny=0., maxy=1.,
                                           function=tilt_settings['tilts']['func2D'])
+
+    # TODO -- Add a rejection iteration (or two)
+
     # Residuals
     xv2 = arutils.scale_minmax(xtilt[wgd], minx=0., maxx=1)
     yv2 = arutils.scale_minmax(mtilt[wgd]/(msarc.shape[0]-1), minx=0., maxx=1)
