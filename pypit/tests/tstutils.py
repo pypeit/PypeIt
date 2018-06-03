@@ -17,7 +17,7 @@ pypdev_path = os.getenv('PYPIT_DEV')
 
 def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=False,
                            datasec=False, wvcalib=False):
-    settings = processimages.default_settings.copy()
+    settings = processimages.default_settings()
     settings['masters'] = {}
     settings['masters']['directory'] = pypdev_path + '/Cooked/MF_shane_kast_blue'
     settings['masters']['reuse'] = True

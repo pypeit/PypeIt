@@ -44,11 +44,11 @@ def test_user_redo():
     wvcalib_file = os.getenv('PYPIT_DEV') + '/Cooked/WaveCalib/MasterWaveCalib_ShaneKastBlue_A.json'
     assert chk_for_files(wvcalib_file)
     # Instantiate
-    wvCalib = wavecalib.WaveCalib(None, spectrograph='shane_kast_blue')
-    wvCalib.load_wv_calib(wvcalib_file)
+    waveCalib = wavecalib.WaveCalib(None, spectrograph='shane_kast_blue')
+    waveCalib.load_wv_calib(wvcalib_file)
     # Do it
-    wvCalib.arcparam['min_ampl'] = 1000.
-    new_wv_calib = wvCalib.calibrate_spec(0)
+    waveCalib.arcparam['min_ampl'] = 1000.
+    new_wv_calib = waveCalib.calibrate_spec(0)
     # Test
     assert new_wv_calib['rms'] < 0.035
 
@@ -68,19 +68,19 @@ def test_step_by_step():
     fitstbl = Table.read(settings['masters']['directory']+'/shane_kast_blue_setup_A.fits')
 
     # Instantiate
-    wvCalib = wavecalib.WaveCalib(msarc, spectrograph='shane_kast_blue', settings=settings, setup=setup,
+    waveCalib = wavecalib.WaveCalib(msarc, spectrograph='shane_kast_blue', settings=settings, setup=setup,
                                     fitstbl=fitstbl, sci_ID=1, det=1)
     # Extract arcs
-    arccen, maskslits = wvCalib._extract_arcs(TSlits.lcen, TSlits.rcen, TSlits.pixlocn)
+    arccen, maskslits = waveCalib._extract_arcs(TSlits.lcen, TSlits.rcen, TSlits.pixlocn)
     assert arccen.shape == (2048,1)
     # Arcparam
-    arcparam = wvCalib._load_arcparam()
+    arcparam = waveCalib._load_arcparam()
     assert isinstance(arcparam, dict)
     # wv_calib
-    wv_calib = wvCalib._build_wv_calib('arclines', skip_QA=True)
+    wv_calib = waveCalib._build_wv_calib('arclines', skip_QA=True)
     assert isinstance(wv_calib, dict)
     # Master
-    wvCalib.save_master(wv_calib, outfile=data_path('tmp.json'))  # This doesn't save steps nor arcparam which *is* done in the master() call
+    waveCalib.save_master(wv_calib, outfile=data_path('tmp.json'))  # This doesn't save steps nor arcparam which *is* done in the master() call
 
 
 def test_one_shot():
@@ -100,8 +100,8 @@ def test_one_shot():
     # Do it
     settings['masters']['reuse'] = False
     settings['masters']['force'] = False
-    wvCalib = wavecalib.WaveCalib(msarc, spectrograph='shane_kast_blue', settings=settings, setup=setup,
+    waveCalib = wavecalib.WaveCalib(msarc, spectrograph='shane_kast_blue', settings=settings, setup=setup,
                                     fitstbl=fitstbl, sci_ID=1, det=1)
-    wv_calib2, _ = wvCalib.run(TSlits.lcen, TSlits.rcen, TSlits.pixlocn, skip_QA=True)
+    wv_calib2, _ = waveCalib.run(TSlits.lcen, TSlits.rcen, TSlits.pixlocn, skip_QA=True)
     #
     assert 'arcparam' in wv_calib2.keys()

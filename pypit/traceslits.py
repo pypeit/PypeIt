@@ -33,7 +33,8 @@ frametype = 'trace'
 
 # Place these here or elsewhere?
 #  Wherever they be, they need to be defined, described, etc.
-default_settings = dict(trace={'slits': {'single': [],
+def default_settings():
+    default_settings = dict(trace={'slits': {'single': [],
                                'function': 'legendre',
                                'polyorder': 3,
                                'diffpolyorder': 2,
@@ -46,6 +47,7 @@ default_settings = dict(trace={'slits': {'single': [],
                                'pca': {'params': [3,2,1,0,0,0], 'type': 'pixel',
                                        'extrapolate': {'pos': 0, 'neg':0}},
                                'sobel': {'mode': 'nearest'}}})
+    return default_settings
 
 #  See save_master() for the data model for output
 
@@ -139,7 +141,7 @@ class TraceSlits(masterframe.MasterFrame):
             self.binbpx = binbpx
             self.input_binbpx = True
         if settings is None:
-            self.settings = default_settings.copy()
+            self.settings = default_settings()
         else:
             self.settings = settings
 
@@ -939,7 +941,7 @@ class TraceSlits(masterframe.MasterFrame):
         return loaded
 
 
-    def run(self, armlsd=True, ignore_orders=False, add_user_slits=None):
+    def run(self, arms=True, ignore_orders=False, add_user_slits=None):
         """ Main driver for tracing slits.
 
           Code flow
@@ -959,7 +961,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         Parameters
         ----------
-        armlsd : bool (optional)
+        arms : bool (optional)
           Running longslit or multi-slit?
         ignore_orders : bool (optional)
           Perform ignore_orders algorithm (recommended only for echelle data)
@@ -1012,7 +1014,7 @@ class TraceSlits(masterframe.MasterFrame):
             self._final_left_right()
 
         #   Developed for ARMLSD not ARMED
-        if armlsd:
+        if arms:
             # Trace crude me
             #   -- Mainly to deal with duplicates and improve the traces
             self._mslit_tcrude()
@@ -1048,7 +1050,7 @@ class TraceSlits(masterframe.MasterFrame):
 
             # Remove any slits that are completely off the detector
             #   Also remove short slits here for multi-slit and long-slit (aligntment stars)
-            self._trim_slits(usefracpix=armlsd)
+            self._trim_slits(usefracpix=arms)
 
         # Generate pixel arrays
         self._make_pixel_arrays()

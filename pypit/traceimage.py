@@ -69,7 +69,7 @@ class TraceImage(processimages.ProcessImages):
         # The copy allows up to update settings with user settings without changing the original
         if settings is None:
             # Defaults
-            self.settings = processimages.default_settings.copy()
+            self.settings = processimages.default_settings()
         else:
             self.settings = settings.copy()
             # The following is somewhat kludgy and the current way we do settings may

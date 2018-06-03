@@ -55,9 +55,10 @@ Calibrations
 
    calibrations
    bias
-   flatfielding
    slit_tracing
    wave_calib
+   wavetilts
+   flatfielding
    fluxing
 
 Instruments

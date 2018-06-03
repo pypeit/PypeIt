@@ -1,4 +1,4 @@
-.. _wavecalib:
+.. _wavetilts:
 
 .. highlight:: rest
 
@@ -28,6 +28,12 @@ Here is the code flow:
 
 See this `WaveTilts <https://github.com/PYPIT/PYPIT/blob/master/doc/nb/WaveCalib.ipynb>`_
 Notebook for some examples.
+
+QA
+==
+
+The code will output a residual plot of the 2D fit to offsets.
+It should be possible to achieve an RMS < 0.05 pixels.
 
 Scripts
 =======
@@ -59,11 +65,39 @@ And here is an example or two::
 These will displace in a RC Ginga window.
 
 
-Tilts
-=====
+Settings
+========
+
+IdsOnly
+-------
 
 Limit tilt analysis to only the arc lines identified in 1D wavelength solution::
 
     trace slits tilts idsonly True
+
+This is critical when using instrument with a significant number of
+ghosts (e.g. LRISb).
+
+Threshold
+---------
+
+Minimum amplitude of an arc line for analysis.  The default is 1000 (counts).
+You may wish to lower this parameter to include more lines, especially if you
+are short on lines near the spectral edges of the slit/order, e.g.::
+
+    trace slits tilts trthrsh 400.
+
+We may eventually tune this parameter for the various instruments.
+
+Order
+-----
+
+Order of the function (default is Legendre) that is fit to each arc line
+across the slit/order.  Very long slits will likely require order=3 or higher,
+e.g.::
+
+    trace slits tilts order 3
+
+The default is 1 which may be raised.
 
 

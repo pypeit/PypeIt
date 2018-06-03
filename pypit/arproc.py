@@ -573,7 +573,7 @@ def object_profile(slf, sciframe, slitn, det, refine=0.0, factor=3):
 
 
 def reduce_prepare(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det,
-                   mspixelflatnrm=None, standard=False):
+                   mspixelflatnrm=None, standard=False, slitprof=None):
     """ Prepare the Run standard extraction steps on a frame
 
     Parameters
@@ -616,7 +616,7 @@ def reduce_prepare(slf, sciframe, bpix, datasec_img, scidx, fitsdict, det,
         msgs.info("Flat fielding the science frame")
         # JXP -- I think it is a bad idea to modify the rawvarframe
         #sciframe, rawvarframe = flatfield(slf, sciframe, slf._mspixelflatnrm[det-1], det, varframe=rawvarframe, slitprofile=slf._slitprof[det-1])
-        sciframe = arflat.flatfield(sciframe, mspixelflatnrm, bpix, slitprofile=slf._slitprof[det-1])
+        sciframe = arflat.flatfield(sciframe, mspixelflatnrm, bpix, slitprofile=slitprof)
     else:
         msgs.info("Not performing a flat field calibration")
     if not standard:
@@ -660,7 +660,7 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
     # Prepare the frames for tracing and extraction
     sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, scidx, fitsdict, det,
                                                    mspixelflatnrm=mspixelflatnrm,
-                                                   standard=standard)
+                                                   standard=standard, slitprof=slitprof)
     bgframe = np.zeros_like(sciframe)
     bgnl, bgnr = np.zeros(nord, dtype=np.int), np.zeros(nord, dtype=np.int)
     skysub = True
@@ -822,7 +822,7 @@ def reduce_echelle(slf, sciframe, scidx, fitsdict, det,
 
 
 def reduce_multislit(slf, tilts, sciframe, bpix, datasec_img, scidx, fitsdict, det,
-                     mswave, mspixelflatnrm=None, standard=False):
+                     mswave, mspixelflatnrm=None, standard=False, slitprof=None):
     """ Run standard extraction steps on an echelle frame
 
     Parameters
@@ -844,7 +844,8 @@ def reduce_multislit(slf, tilts, sciframe, bpix, datasec_img, scidx, fitsdict, d
     dnum = settings.get_dnum(det)
     sciframe, rawvarframe, crmask = reduce_prepare(slf, sciframe, bpix, datasec_img,
                                                    scidx, fitsdict, det,
-                                                   mspixelflatnrm=mspixelflatnrm)
+                                                   mspixelflatnrm=mspixelflatnrm,
+                                                   slitprof=slitprof)
 
     # Save sciframe
     slf._sciframe[det-1] = sciframe.copy()
