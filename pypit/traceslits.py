@@ -401,7 +401,7 @@ class TraceSlits(masterframe.MasterFrame):
         else:
             return False
 
-    def _fill_slits_dict(self):
+    def _fill_tslits_dict(self):
         """
         Build a simple object holding the key trace bits and pieces that PYPIT wants
           NOT USED ANY LONGER (but maybe in the future, depending on how we choosed
@@ -413,11 +413,11 @@ class TraceSlits(masterframe.MasterFrame):
         self.trace_slits_dict
 
         """
-        self.slits_dict = {}
+        self.tslits_dict = {}
         for key in ['lcen', 'rcen', 'pixcen', 'pixwid', 'lordpix',
                     'rordpix', 'extrapord', 'slitpix']:
-            self.slits_dict[key] = getattr(self, key)
-        return self.slits_dict
+            self.tslits_dict[key] = getattr(self, key)
+        return self.tslits_dict
 
     def _final_left_right(self):
         """
@@ -918,7 +918,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Load the pixel objects?
         self._make_pixel_arrays()
         # Fill
-        self._fill_slits_dict()
+        self._fill_tslits_dict()
         # Success
         return True
 
@@ -971,7 +971,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         Returns
         -------
-        trace_slits_dict : dict  -- MAY BE DEPRECATED
+        tslits_dict : dict
           'lcen'
           'rcen'
           'pixcen'
@@ -1055,11 +1055,11 @@ class TraceSlits(masterframe.MasterFrame):
         # Generate pixel arrays
         self._make_pixel_arrays()
 
-        # dict for PYPIT
-        self.slits_dict = self._fill_slits_dict()
+        # fill dict for PYPIT
+        _ = self._fill_tslits_dict()
 
-        # Return
-        return self.slits_dict
+        # Return it
+        return self.tslits_dict
 
     def _qa(self, use_slitid=True):
         """

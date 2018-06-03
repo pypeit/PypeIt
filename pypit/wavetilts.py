@@ -50,15 +50,7 @@ class WaveTilts(masterframe.MasterFrame):
     ----------
     msarc : ndarray
       Arc image
-    lordloc : ndarray
-      Input from TraceSlits
-    rordloc : ndarray
-      Input from TraceSlits
-    pixlocn : ndarray
-      Input from TraceSlits
-    pixcen : ndarray
-      Input from TraceSlits
-    slitpix : ndarray
+    tslits_dict : dict
       Input from TraceSlits
     settings_det : dict
       Detector settings -- Needed for arc line saturation
@@ -83,15 +75,12 @@ class WaveTilts(masterframe.MasterFrame):
 
     """
     def __init__(self, msarc, settings=None, det=None, settings_det=None, setup='',
-                 lordloc=None, rordloc=None, pixlocn=None, pixcen=None, slitpix=None):
+                 tslits_dict=None, pixlocn=None):
 
         # Parameters (but can be None)
         self.msarc = msarc
-        self.lordloc = lordloc
-        self.rordloc = rordloc
+        self.tslits_dict = tslits_dict
         self.pixlocn = pixlocn
-        self.pixcen = pixcen
-        self.slitpix = slitpix
         self.settings_det = settings_det
 
         # Optional parameters
@@ -105,8 +94,8 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Attributes
         self.frametype = frametype
-        if self.lordloc is not None:
-            self.nslit = self.lordloc.shape[1]
+        if self.tslits_dict is not None:
+            self.nslit = self.tslits_dict['lcen'].shape[1]
         else:
             self.nslit = 0
         self.steps = []
@@ -194,7 +183,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         self.badlines, self.all_ttilts[slit] = artracewave.analyze_lines(
-            self.msarc, self.all_trcdict[slit], slit, self.pixcen, self.settings)
+            self.msarc, self.all_trcdict[slit], slit, self.tslits_dict['pixcen'], self.settings)
         if self.badlines > 0:
             msgs.warn("There were {0:d} additional arc lines that should have been traced".format(self.badlines) +
                       msgs.newline() + "(perhaps lines were saturated?). Check the spectral tilt solution")
@@ -215,7 +204,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         # Extract an arc down each slit/order
-        self.arccen, self.arc_maskslit, _ = ararc.get_censpec(self.lordloc, self.rordloc,
+        self.arccen, self.arc_maskslit, _ = ararc.get_censpec(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
                                                               self.pixlocn, self.msarc, self.det,
                                                               gen_satmask=False)
         self.satmask = np.zeros_like(self.msarc)
@@ -263,7 +252,8 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         # Determine the tilts for this slit
-        trcdict = artracewave.trace_tilt(self.pixcen, self.rordloc, self.lordloc, self.det,
+        trcdict = artracewave.trace_tilt(self.tslits_dict['pixcen'], self.tslits_dict['lcen'],
+                                         self.tslits_dict['rcen'], self.det,
                                          self.msarc, slit, self.settings_det, self.settings,
                                          censpec=self.arccen[:, slit], nsmth=3,
                                               trthrsh=self.settings['tilts']['trthrsh'],
@@ -328,7 +318,7 @@ class WaveTilts(masterframe.MasterFrame):
             self.tilts = self._fit_tilts(slit, doqa=doqa)
 
             # Save to final image
-            word = self.slitpix == slit+1
+            word = self.tslits_dict['slitpix'] == slit+1
             self.final_tilts[word] = self.tilts[word]
 
         return self.final_tilts, maskslits

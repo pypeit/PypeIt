@@ -7,6 +7,7 @@ import os
 
 from pypit import msgs
 from pypit import arparse as settings
+from pypit import arcalib
 from pypit import arload
 from pypit import arproc
 from pypit.core import arprocimg
@@ -17,20 +18,15 @@ from pypit.core import arsetup
 from pypit import arpixels
 from pypit.core import arsort
 from pypit import wavetilts
-from pypit import arcimage
-from pypit import bpmimage
-from pypit import biasframe
 from pypit import flatfield
 from pypit import fluxspec
-from pypit import traceslits
-from pypit import traceimage
 from pypit import wavecalib
 from pypit import waveimage
 
 from pypit import ardebug as debugger
 
 
-def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None):
+def ARMS(spectrograph, fitstbl, setup_dict):
     """
     Automatic Reduction of Multislit Data
 
@@ -58,50 +54,47 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
     sv_std_idx = []
     std_dict = {}
     basenames = []  # For fluxing at the very end
-    if sciexp is None:
-        sciexp = []
-        all_sci_ID = fitstbl['sci_ID'].data[fitstbl['science']]  # Binary system: 1,2,4,8, etc.
-        for sci_ID in all_sci_ID:
-            sciexp.append(arsciexp.ScienceExposure(sci_ID, fitstbl, settings.argflag,
-                                                   settings.spect, do_qa=True))
-            basenames.append(sciexp[-1]._basename)
-            std_idx = arsort.ftype_indices(fitstbl, 'standard', sci_ID)
-            if (len(std_idx) > 0):
-                if len(std_idx) > 1:
-                    msgs.warn("Will only reduce the first, unique standard for each standard frame!")
-                if std_idx[0] not in sv_std_idx:  # Only take the first one
-                    sv_std_idx.append(std_idx[0])
-                    # Standard stars
-                    std_dict[std_idx[0]] = arsciexp.ScienceExposure(sci_ID, fitstbl, settings.argflag,
-                                                                    settings.spect, do_qa=False, idx_sci=std_idx[0])
+    sciexp = []
+    all_sci_ID = fitstbl['sci_ID'].data[fitstbl['science']]  # Binary system: 1,2,4,8, etc.
+    for sci_ID in all_sci_ID:
+        sciexp.append(arsciexp.ScienceExposure(sci_ID, fitstbl, settings.argflag,
+                                               settings.spect, do_qa=True))
+        basenames.append(sciexp[-1]._basename)
+        std_idx = arsort.ftype_indices(fitstbl, 'standard', sci_ID)
+        if (len(std_idx) > 0):
+            if len(std_idx) > 1:
+                msgs.warn("Will only reduce the first, unique standard for each standard frame!")
+            if std_idx[0] not in sv_std_idx:  # Only take the first one
+                sv_std_idx.append(std_idx[0])
+                # Standard stars
+                std_dict[std_idx[0]] = arsciexp.ScienceExposure(sci_ID, fitstbl, settings.argflag,
+                                                                settings.spect, do_qa=False, idx_sci=std_idx[0])
     numsci = len(sciexp)
 
     # Init calib dict
     calib_dict = {}
 
-    # Loop on science exposure
-    for sc in range(numsci):
+    # Loop on Detectors
+    for kk in range(settings.spect['mosaic']['ndet']):
+        det = kk + 1  # Detectors indexed from 1
+        if settings.argflag['reduce']['detnum'] is not None:
+            if det not in map(int, settings.argflag['reduce']['detnum']):
+                msgs.warn("Skipping detector {:d}".format(det))
+                continue
+            else:
+                msgs.warn("Restricting the reduction to detector {:d}".format(det))
 
-        slf = sciexp[sc]
-        sci_ID = slf.sci_ID
-        scidx = slf._idx_sci[0]
-        msgs.info("Reducing file {0:s}, target {1:s}".format(fitstbl['filename'][scidx], slf._target_name))
-        msgs.sciexp = slf  # For QA writing on exit, if nothing else.  Could write Masters too
+        # Loop on science exposure (somewhat necessary as instruments can get paired with specific
+        #  calib frames, e.g. arcs)
+        for sc in range(numsci):
 
-        #if reloadMaster and (sc > 0):
-        #    settings.argflag['reduce']['masters']['reuse'] = True
+            #sci_ID = slf.sci_ID
+            sci_ID = all_sci_ID[sc]
+            scidx = np.where((fitstbl['sci_ID'] == sci_ID) & fitstbl['science'])[0][0]
+            #scidx = slf._idx_sci[0]
+            msgs.info("Reducing file {0:s}, target {1:s}".format(fitstbl['filename'][scidx],
+                                                                 fitstbl['target'][scidx])) #slf._target_name))
 
-        # Loop on Detectors
-        for kk in range(settings.spect['mosaic']['ndet']):
-            det = kk + 1  # Detectors indexed from 1
-            if settings.argflag['reduce']['detnum'] is not None:
-                if det not in map(int, settings.argflag['reduce']['detnum']):
-                    msgs.warn("Skipping detector {:d}".format(det))
-                    continue
-                else:
-                    msgs.warn("Restricting the reduction to detector {:d}".format(det))
-
-            slf.det = det
             dnum = settings.get_dnum(det)
             msgs.info("Working on detector {:s}".format(dnum))
 
@@ -109,7 +102,6 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             namp = settings.spect[dnum]["numamplifiers"]
             setup = arsetup.instr_setup(sci_ID, det, fitstbl, setup_dict, namp, must_exist=True)
             settings.argflag['reduce']['masters']['setup'] = setup
-            slf.setup = setup
 
             ###############
             # Get data sections (Could avoid doing this for every sciexp, but it is quick)
@@ -124,7 +116,6 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             settings.spect[dnum] = settings_det.copy()  # Used internally..
             fitstbl['naxis0'][scidx] = naxis0
             fitstbl['naxis1'][scidx] = naxis1
-            #slf._datasec[det-1] = pix_to_amp(naxis0, naxis1, datasec, numamplifiers)
 
             # Calib dict
             if setup not in calib_dict.keys():
@@ -141,17 +132,12 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
 
             ###############
             # Prepare for Bias subtraction
-            #   bias will either be an image (ndarray) or a command (str, e.g. 'overscan') or none
             if 'bias' in calib_dict[setup].keys():
                 msbias = calib_dict[setup]['bias']
             else:
-                # Init
-                biasFrame = biasframe.BiasFrame(settings=tsettings, setup=setup, det=det, fitstbl=fitstbl, sci_ID=sci_ID)
-                # Load the MasterFrame (if it exists and is desired) or the command (e.g. 'overscan')
-                msbias = biasFrame.master()
-                if msbias is None:  # Build it and save it
-                    msbias = biasFrame.build_image()
-                    biasFrame.save_master(msbias, raw_files=biasFrame.file_list, steps=biasFrame.steps)
+                # Grab it
+                #   Bias will either be an image (ndarray) or a command (str, e.g. 'overscan') or none
+                msbias, _ = arcalib.msbias(det, setup, sci_ID, fitstbl, tsettings)
                 # Save
                 calib_dict[setup]['bias'] = msbias
 
@@ -160,17 +146,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             if 'arc' in calib_dict[setup].keys():
                 msarc = calib_dict[setup]['arc']
             else:
-                # Instantiate with everything needed to generate the image (in case we do)
-                arcImage = arcimage.ArcImage([], spectrograph=settings.argflag['run']['spectrograph'],
-                                           settings=tsettings, det=det, setup=setup, sci_ID=sci_ID,
-                                           msbias=msbias, fitstbl=fitstbl)
-                # Load the MasterFrame (if it exists and is desired)?
-                msarc = arcImage.master()
-                if msarc is None:  # Otherwise build it
-                    msgs.info("Preparing a master {0:s} frame".format(arcImage.frametype))
-                    msarc = arcImage.build_image()
-                    # Save to Masters
-                    arcImage.save_master(msarc, raw_files=arcImage.file_list, steps=arcImage.steps)
+                msarc, _ = arcalib.msarc(det, setup, sci_ID, spectrograph, fitstbl, tsettings, msbias)
                 # Save
                 calib_dict[setup]['arc'] = msarc
 
@@ -179,68 +155,37 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             if 'bpm' in calib_dict[setup].keys():
                 msbpm = calib_dict[setup]['bpm']
             else:
-                bpmImage = bpmimage.BPMImage(spectrograph=settings.argflag['run']['spectrograph'],
-                                             settings=tsettings, det=det,
-                                             shape=msarc.shape,
-                                             binning=fitstbl['binning'][scidx],
-                                             reduce_badpix=settings.argflag['reduce']['badpix'],
-                                             msbias=msbias)
-                msbpm = bpmImage.build()
+                # Grab it
+                msbpm, _ = arcalib.mspbm(det, spectrograph, tsettings, msarc.shape,
+                                      binning=fitstbl['binning'][scidx],
+                                      reduce_badpix=settings.argflag['reduce']['badpix'],
+                                      msbias=msbias)
                 # Save
                 calib_dict[setup]['bpm'] = msbpm
 
             ###############
             # Generate an array that provides the physical pixel locations on the detector
             pixlocn = arpixels.gen_pixloc(msarc.shape, det, settings.argflag)
-            # TODO -- Deprecate using slf for this
-            slf.SetFrame(slf._pixlocn, pixlocn, det)
 
             ###############
             # Slit Tracing
             if 'trace' in calib_dict[setup].keys():  # Internal
-                traceSlits = calib_dict[setup]['trace']
+                tslits_dict = calib_dict[setup]['trace']
             else:
                 # Setup up the settings (will be Refactored with settings)
-                tmp = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
-                tmp['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-
-                # Instantiate (without mstrace)
-                traceSlits = traceslits.TraceSlits(None, slf._pixlocn[det-1], settings=tmp, det=det, setup=setup, binbpx=msbpm)
-
-                # Load via masters, as desired
-                if not traceSlits.master():
-                    # Build the trace image first
-                    trace_image_files = arsort.list_of_files(fitstbl, 'trace', sci_ID)
-                    Timage = traceimage.TraceImage(trace_image_files,
-                                                   spectrograph=settings.argflag['run']['spectrograph'],
-                                                   settings=tsettings, det=det)
-                    mstrace = Timage.process(bias_subtract=msbias, trim=settings.argflag['reduce']['trim'])
-
-                    # Load up and get ready
-                    traceSlits.mstrace = mstrace
-                    _ = traceSlits.make_binarr()
-                    # Now we go forth
-                    traceSlits.run(arms=True)#, ignore_orders=ignore_orders, add_user_slits=add_user_slits)
-                    # QA
-                    traceSlits._qa()
-                    # Save to disk
-                    traceSlits.save_master()
-
+                ts_settings = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
+                ts_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
+                # Get it
+                tslits_dict, _ = arcalib.tslits_dict(det, setup, spectrograph, sci_ID, ts_settings,
+                                                tsettings, fitstbl, pixlocn, msbias, msbpm,
+                                                trim=settings.argflag['reduce']['trim'])
                 # Save in calib
-                calib_dict[setup]['trace'] = traceSlits
+                calib_dict[setup]['trace'] = tslits_dict
 
-            # Save in slf
-            # TODO -- Deprecate this means of holding the info (e.g. just pass around traceSlits)
-            slf.SetFrame(slf._lordloc, traceSlits.lcen, det)
-            slf.SetFrame(slf._rordloc, traceSlits.rcen, det)
-            slf.SetFrame(slf._pixcen, traceSlits.pixcen, det)
-            slf.SetFrame(slf._pixwid, traceSlits.pixwid, det)
-            slf.SetFrame(slf._lordpix, traceSlits.lordpix, det)
-            slf.SetFrame(slf._rordpix, traceSlits.rordpix, det)
-            slf.SetFrame(slf._slitpix, traceSlits.slitpix, det)
 
             # Initialize maskslit
-            slf._maskslits[det-1] = np.zeros(slf._lordloc[det-1].shape[1], dtype=bool)
+            nslits = tslits_dict['lcen'].shape[1]
+            maskslits = np.zeros(nslits, dtype=bool)
 
             ###############
             # Generate the 1D wavelength solution
@@ -250,7 +195,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             elif settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
                 msgs.info("A wavelength calibration will not be performed")
                 wv_calib = None
-                wv_maskslits = np.zeros_like(slf._maskslits[det-1], dtype=bool)
+                wv_maskslits = np.zeros_like(maskslits, dtype=bool)
             else:
                 # Setup up the settings (will be Refactored with settings)
                 tmp = dict(calibrate=settings.argflag['arc']['calibrate'], masters=settings.argflag['reduce']['masters'])
@@ -264,20 +209,21 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 # Build?
                 if wv_calib is None:
                     nonlinear = settings.spect[settings.get_dnum(det)]['saturation'] * settings.spect[settings.get_dnum(det)]['nonlinear']
-                    wv_calib, _ = waveCalib.run(traceSlits.lcen, traceSlits.rcen, pixlocn, nonlinear=nonlinear)
+                    #wv_calib, _ = waveCalib.run(traceSlits.lcen, traceSlits.rcen, pixlocn, nonlinear=nonlinear)
+                    wv_calib, _ = waveCalib.run(tslits_dict['lcen'], tslits_dict['rcen'], pixlocn, nonlinear=nonlinear)
                     # Save to Masters
                     waveCalib.save_master(waveCalib.wv_calib)
                 else:
                     waveCalib.wv_calib = wv_calib
                 # Mask
-                wv_maskslits = waveCalib._make_maskslits(traceSlits.lcen.shape[1])
+                wv_maskslits = waveCalib._make_maskslits(tslits_dict['lcen'].shape[1])
 
                 # Save in calib
                 calib_dict[setup]['wavecalib'] = wv_calib
                 calib_dict[setup]['wvmask'] = wv_maskslits
 
             # Mask me
-            slf._maskslits[det-1] += wv_maskslits
+            maskslits += wv_maskslits
 
             ###############
             # Derive the spectral tilt
@@ -294,21 +240,19 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 settings_det[dnum] = settings.spect[dnum].copy()
                 # Instantiate
                 waveTilts = wavetilts.WaveTilts(msarc, settings=tilt_settings, det=det, setup=setup,
-                                            lordloc=traceSlits.lcen, rordloc=traceSlits.rcen,
-                                            pixlocn=traceSlits.pixlocn, pixcen=traceSlits.pixcen,
-                                            slitpix=traceSlits.slitpix, settings_det=settings_det)
+                                                tslits_dict=tslits_dict, settings_det=settings_det,
+                                                pixlocn=pixlocn)
                 # Master
                 mstilts = waveTilts.master()
                 if mstilts is None:
-                    mstilts, wt_maskslits = waveTilts.run(maskslits=slf._maskslits[det-1],
+                    mstilts, wt_maskslits = waveTilts.run(maskslits=maskslits,
                                                       wv_calib=wv_calib)
                     waveTilts.save_master()
                 else:
-                    wt_maskslits = np.zeros_like(slf._maskslits[det-1], dtype=bool)
+                    wt_maskslits = np.zeros_like(maskslits, dtype=bool)
                 # Save
                 calib_dict[setup]['tilts'] = mstilts
                 calib_dict[setup]['wtmask'] = wt_maskslits
-            slf._maskslits[det-1] += wt_maskslits
 
             ###############
             # Prepare the pixel flat field frame
@@ -320,6 +264,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                     # Settings
                     flat_settings = dict(flatfield=settings.argflag['reduce']['flatfield'].copy(),
                                          slitprofile=settings.argflag['reduce']['slitprofile'].copy(),
+                                         combine=settings.argflag['pixelflat']['combine'].copy(),
                                          masters=settings.argflag['reduce']['masters'].copy(),
                                          detector=settings.spect[dnum])
                     flat_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
@@ -327,16 +272,16 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                     pixflat_image_files = arsort.list_of_files(fitstbl, 'pixelflat', sci_ID)
                     flatField = flatfield.FlatField(file_list=pixflat_image_files, msbias=msbias,
                                                   settings=flat_settings,
-                                                  slits_dict=traceSlits.slits_dict.copy(),
+                                                  tslits_dict=tslits_dict,
                                                   tilts=mstilts, det=det, setup=setup)
 
                     # Load from disk (MasterFrame)?
                     mspixflatnrm = flatField.master()
                     if mspixflatnrm is None:
                         # Use mstrace if the indices are identical
-                        if np.all(arsort.ftype_indices(fitstbl,'trace',1) ==
-                                          arsort.ftype_indices(fitstbl, 'pixelflat', 1)) and (traceSlits.mstrace is not None):
-                            flatField.mspixelflat = traceSlits.mstrace.copy()
+                        #if np.all(arsort.ftype_indices(fitstbl,'trace',1) ==
+                        #                  arsort.ftype_indices(fitstbl, 'pixelflat', 1)) and (traceSlits.mstrace is not None):
+                        #    flatField.mspixelflat = traceSlits.mstrace.copy()
                         # Run
                         mspixflatnrm, slitprof = flatField.run(datasec_img, armed=False)
                         # Save to Masters
@@ -366,8 +311,8 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                     wvimg_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
                     # Instantiate
                     waveImage = waveimage.WaveImage(mstilts, wv_calib, settings=wvimg_settings,
-                                                setup=setup, maskslits=slf._maskslits[det-1],
-                                                slitpix=traceSlits.slitpix)
+                                                setup=setup, maskslits=maskslits,
+                                                slitpix=tslits_dict['slitpix'])
                     # Attempt to load master
                     mswave = waveImage.master()
                     if mswave is None:
@@ -387,6 +332,24 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             sciframe = sciframe[:, :, 0]
             # Extract
             msgs.info("Processing science frame")
+
+            slf = sciexp[sc]
+            slf.det = det
+            slf.setup = setup
+            msgs.sciexp = slf  # For QA on crash
+            # Save in slf
+            # TODO -- Deprecate this means of holding the info (e.g. just pass around traceSlits)
+            slf.SetFrame(slf._lordloc, tslits_dict['lcen'], det)
+            slf.SetFrame(slf._rordloc, tslits_dict['rcen'], det)
+            slf.SetFrame(slf._pixcen, tslits_dict['pixcen'], det)
+            slf.SetFrame(slf._pixwid, tslits_dict['pixwid'], det)
+            slf.SetFrame(slf._lordpix, tslits_dict['lordpix'], det)
+            slf.SetFrame(slf._rordpix, tslits_dict['rordpix'], det)
+            slf.SetFrame(slf._slitpix, tslits_dict['slitpix'], det)
+            # TODO -- Deprecate using slf for this
+            slf.SetFrame(slf._pixlocn, pixlocn, det)
+            #
+            slf._maskslits[det-1] = maskslits
             arproc.reduce_multislit(slf, mstilts, sciframe, msbpm, datasec_img, scidx, fitstbl, det,
                                     mswave, mspixelflatnrm=mspixflatnrm, slitprof=slitprof)
 

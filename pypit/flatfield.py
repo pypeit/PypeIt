@@ -47,7 +47,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     spectrograph : str
     settings : dict-like
     msbias : ndarray or str or None
-    slits_dict : dict
+    tslits_dict : dict
       dict from TraceSlits class (e.g. slitpix)
     tilts : ndarray
       tilts from WaveTilts class
@@ -76,13 +76,13 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     """
     # Keep order same as processimages (or else!)
     def __init__(self, file_list=[], spectrograph=None, settings=None, msbias=None,
-                 slits_dict=None, tilts=None, det=None, setup=None):
+                 tslits_dict=None, tilts=None, det=None, setup=None):
 
         # Parameters unique to this Object
         self.msbias = msbias
         self.det = det
         self.setup = setup
-        self.slits_dict = slits_dict
+        self.tslits_dict = tslits_dict
         self.tilts = tilts
 
         # Start us up
@@ -132,8 +132,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         nslits : int
 
         """
-        if self.slits_dict is not None:
-            return self.slits_dict['lcen'].shape[1]
+        if self.tslits_dict is not None:
+            return self.tslits_dict['lcen'].shape[1]
         else:
             return 0
 
@@ -191,7 +191,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         """
         # Step
         self.steps.append(inspect.stack()[0][3])
-        self.ntckx, self.ntcky = arflat.prep_ntck(self.slits_dict['pixwid'], self.settings)
+        self.ntckx, self.ntcky = arflat.prep_ntck(self.tslits_dict['pixwid'], self.settings)
 
     def load_master_slitprofile(self):
         """
@@ -228,11 +228,11 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         """
         # Wrap me
-        slordloc = self.slits_dict['lcen'][:,slit]
-        srordloc = self.slits_dict['rcen'][:,slit]
+        slordloc = self.tslits_dict['lcen'][:,slit]
+        srordloc = self.tslits_dict['rcen'][:,slit]
         modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit = arflat.slit_profile(
             slit, self.mspixelflat, self.tilts, slordloc, srordloc,
-            self.slits_dict['slitpix'], self.slits_dict['pixwid'],
+            self.tslits_dict['slitpix'], self.tslits_dict['pixwid'],
             ntckx=self.ntckx, ntcky=self.ntcky)
         # Step
         step = inspect.stack()[0][3]
@@ -279,8 +279,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # Setup
         self.extrap_slit = np.zeros(self.nslits, dtype=np.int)
         self.mspixelflatnrm = self.mspixelflat.copy()
-        self.msblaze = np.ones_like(self.slits_dict['lcen'])
-        self.blazeext = np.ones_like(self.slits_dict['lcen'])
+        self.msblaze = np.ones_like(self.tslits_dict['lcen'])
+        self.blazeext = np.ones_like(self.tslits_dict['lcen'])
         self.slit_profiles = np.ones_like(self.mspixelflat)
 
         # Loop on slits
@@ -288,7 +288,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             # Normalize a single slit
             modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit = self.slit_profile(slit)
 
-            word = np.where(self.slits_dict['slitpix'] == slit+1)
+            word = np.where(self.tslits_dict['slitpix'] == slit+1)
             self.extrap_slit[slit] = iextrap_slit
             if modvals is None:
                 continue
@@ -307,8 +307,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             if np.sum(self.extrap_slit) != 0.0:
                 slit_profiles, mstracenrm, msblaze = arflat.slit_profile_pca(
                     self.mspixelflat, self.tilts, self.msblaze, self.extrap_slit, self.slit_profiles,
-                    self.slits_dict['lcen'], self.slits_dict['rcen'], self.slits_dict['pixwid'],
-                    self.slits_dict['slitpix'])
+                    self.tslits_dict['lcen'], self.tslits_dict['rcen'], self.tslits_dict['pixwid'],
+                    self.tslits_dict['slitpix'])
 
         # Apply slit profile
         winpp = np.where(self.slit_profiles != 0.0)
