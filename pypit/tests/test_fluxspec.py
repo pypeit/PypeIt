@@ -66,6 +66,7 @@ def test_run_from_spec1d(kast_blue_files):
     # Write
     FxSpec.write_science(data_path('tmp.fits'))
     # Master
+    FxSpec.settings['masters']['directory'] = data_path('MF_shane_kast_blue')
     FxSpec.save_master()
     # Load from Master
     sensfunc2, _, _ = FxSpec.load_master_frame(force=True)
@@ -78,7 +79,7 @@ def test_from_sens_func():
     if skip_test:
         assert True
         return
-    FxSpec3 = fluxspec.FluxSpec(sens_file='MF_shane_kast_blue/MasterSensFunc_A_aa.yaml')
+    FxSpec3 = fluxspec.FluxSpec(sens_file=data_path('MF_shane_kast_blue/MasterSensFunc_A_aa.yaml'))
     assert isinstance(FxSpec3.sensfunc, dict)
 
 

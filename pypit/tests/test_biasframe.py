@@ -117,7 +117,8 @@ def test_run_and_master(kast_blue_bias_files, kast_settings):
     kast_settings['reduce']['masters']['reuse'] = False
     bias_frame = biasframe.BiasFrame(settings=kast_settings, file_list=kast_blue_bias_files, setup=setup)
     # Run
-    _ = bias_frame.build_image()
+    msbias = bias_frame.build_image()
+    bias_frame.save_master(msbias)
     assert bias_frame.steps[-1] == 'combine'
     # Run with reuse (should simply load the file)
     kast_settings['reduce']['masters']['reuse'] = True
