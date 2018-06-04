@@ -733,7 +733,7 @@ def trim(frame, numamplifiers, datasec):
         msgs.error("Cannot trim file")
 
 
-def variance_frame(datasec_img, det, sciframe, settings_det,
+def variance_frame(datasec_img, det, sciframe, settings_det=None,
                    fitsdict=None, skyframe=None, objframe=None,
                    idx=None, dnoise=None):
     """ Calculate the variance image including detector noise

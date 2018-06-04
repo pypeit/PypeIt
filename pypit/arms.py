@@ -278,8 +278,12 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             # Load the science frame and from this generate a Poisson error frame
             msgs.info("Loading science frame")
             sci_image_files = arsort.list_of_files(fitstbl, 'science', sci_ID)
+            sci_settings = tsettings.copy()
+            # Instantiate
             scienceImage = scienceimage.ScienceImage(file_list=sci_image_files, datasec_img=datasec_img,
-                                                     bpm=msbpm, det=det, setup=setup)
+                                                     bpm=msbpm, det=det, setup=setup, settings=sci_settings,
+                                                     maskslits=maskslits, pixlocn=pixlocn, tslits_dict=tslits_dict,
+                                                     tilts=mstilts)
             msgs.sciexp = scienceImage  # For QA on crash
             #sciframe = arload.load_frames(fitstbl, [scidx], det,
             #                              frametype='science',
@@ -297,22 +301,22 @@ def ARMS(spectrograph, fitstbl, setup_dict):
 
             # CR mask
             crmask = scienceImage.build_crmask(varframe=varframe)
+
+            # Add em in
+            # TODO -- Find a way to get these set internally
+            scienceImage.sciframe = sciframe
+            scienceImage.varframe = varframe
+            scienceImage.crmask = crmask
+
+            # Skysub
+            setting_skysub = settings.argflag['reduce']['skysub']
+            global_sky = scienceImage.global_skysub(setting_skysub)
+            modelvframe = scienceImage.build_modelvar()
+
             debugger.set_trace()
 
 
-            # Save in slf
-            # TODO -- Deprecate this means of holding the info (e.g. just pass around traceSlits)
-            slf.SetFrame(slf._lordloc, tslits_dict['lcen'], det)
-            slf.SetFrame(slf._rordloc, tslits_dict['rcen'], det)
-            slf.SetFrame(slf._pixcen, tslits_dict['pixcen'], det)
-            slf.SetFrame(slf._pixwid, tslits_dict['pixwid'], det)
-            slf.SetFrame(slf._lordpix, tslits_dict['lordpix'], det)
-            slf.SetFrame(slf._rordpix, tslits_dict['rordpix'], det)
-            slf.SetFrame(slf._slitpix, tslits_dict['slitpix'], det)
-            # TODO -- Deprecate using slf for this
-            slf.SetFrame(slf._pixlocn, pixlocn, det)
             #
-            slf._maskslits[det-1] = maskslits
             arproc.reduce_multislit(slf, mstilts, sciframe, msbpm, datasec_img, scidx, fitstbl, det,
                                     mswave, mspixelflatnrm=mspixflatnrm, slitprof=slitprof)
 

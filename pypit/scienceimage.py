@@ -9,10 +9,8 @@ import os
 
 from pypit import msgs
 from pypit import processimages
-from pypit import armasters
-from pypit import masterframe
 from pypit.core import arprocimg
-from pypit.core import arflat
+from pypit.core import arskysub
 from pypit import ginga
 
 from pypit import ardebug as debugger
@@ -69,13 +67,15 @@ class ScienceImage(processimages.ProcessImages):
     # Keep order same as processimages (or else!)
     def __init__(self, file_list=[], spectrograph=None, settings=None,
                  tslits_dict=None, tilts=None, det=None, setup=None, datasec_img=None,
-                 bpm=None):
+                 bpm=None, maskslits=None, pixlocn=None):
 
         # Parameters unique to this Object
         self.det = det
         self.setup = setup
         self.tslits_dict = tslits_dict
         self.tilts = tilts
+        self.maskslits = maskslits
+        self.pixlocn = pixlocn
 
         # Start us up
         processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph,
@@ -86,8 +86,8 @@ class ScienceImage(processimages.ProcessImages):
         self.frametype = frametype
 
         # Key outputs
-        self.mspixelflat = None
-        self.mspixelflatnrm = None
+        self.sciframe = None
+        self.varframe = None
 
         # Settings
         # The copy allows up to update settings with user settings without changing the original
@@ -100,6 +100,35 @@ class ScienceImage(processimages.ProcessImages):
         # Child-specific Internals
         #    See ProcessImages
 
+    def global_skysub(self, settings_skysub):
+
+        self.bgframe = np.zeros_like(self.sciframe)
+        gdslits = np.where(~self.maskslits)[0]
+
+        for slit in gdslits:
+            msgs.info("Working on slit: {:d}".format(slit))
+            # TODO -- Replace this try/except when a more stable b-spline is used..
+            try:
+                slit_bgframe = arskysub.bg_subtraction_slit(self.tslits_dict, self.pixlocn,
+                                                            slit, self.tilts, self.sciframe,
+                                                            self.varframe, self.bpm,
+                                                            self.crmask, settings_skysub)
+            except ValueError:  # Should have been bspline..
+                msgs.warn("B-spline sky subtraction failed.  Slit {:d} will no longer be processed..".format(slit))
+                #msgs.warn("Continue if you wish..")
+                debugger.set_trace()
+                self.maskslits[slit] = True
+            else:
+                self.bgframe += slit_bgframe
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.bgframe
+
+    def build_modelvar(self):
+        self.modelvarframe = arprocimg.variance_frame(
+                self.datasec_img, self.det, self.sciframe, skyframe=self.bgframe)
+        return self.modelvarframe
 
     def show(self, attr, display='ginga'):
         """

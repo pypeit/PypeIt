@@ -366,7 +366,10 @@ class ProcessImages(object):
             for kk,image in enumerate(self.raw_images):
                 self.proc_images[:,:,kk] = image
         # Combine
-        self.stack = self.combine()
+        if self.proc_images.shape[2] == 1:  # Nothing to combine
+            self.stack = self.proc_images[:,:,0]
+        else:
+            self.stack = self.combine()
 
         # Apply gain?
         if apply_gain:
