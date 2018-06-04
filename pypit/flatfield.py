@@ -137,26 +137,6 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         else:
             return 0
 
-    def apply_gain(self, datasec_img):
-        """
-        # Apply gain (instead of ampsec scale)
-
-        Parameters
-        ----------
-        datasec_img : ndarray
-          Defines which pixels belong to which amplifier
-
-        Returns
-        -------
-        self.mspixelflat -- Modified internally
-
-        """
-        self.mspixelflat *= arprocimg.gain_frame(datasec_img,
-                                                 self.settings['detector']['numamplifiers'],
-                                                 self.settings['detector']['gain'])
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-
     def build_pixflat(self, trim=True):
         """
         # Generate the flat image
@@ -167,7 +147,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         Returns
         -------
-        self.mspixelflat
+        self.mspixelflat (points at self.stack)
 
         """
         self.mspixelflat = self.process(bias_subtract=self.msbias, trim=trim)
@@ -271,7 +251,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             self.mspixelflat = self.build_pixflat()
 
         # Apply gain
-        self.apply_gain(datasec_img)
+        self.mspixelflat = self.apply_gain(datasec_img)
 
         # Prep tck (sets self.ntckx, self.ntcky)
         self._prep_tck()

@@ -213,9 +213,8 @@ def sn_frame(slf, sciframe, idx):
 '''
 
 
-def lacosmic(datasec_img, fitsdict, det, sciframe, scidx, settings_det,
-             maxiter=1, grow=1.5, maskval=-999999.9,
-             simple_var=False, varframe=None, remove_compact_obj=True):
+def lacosmic(det, sciframe, settings_det, maxiter=1, grow=1.5,
+             varframe=None, remove_compact_obj=True):
     """
     settings_det : settings.spect[dnum]
       Detector info
@@ -265,10 +264,7 @@ def lacosmic(datasec_img, fitsdict, det, sciframe, scidx, settings_det,
         # Build a custom noise map, and compare  this to the laplacian
         m5 = ndimage.filters.median_filter(scicopy, size=5, mode='mirror')
         if varframe is None:
-            if simple_var:
-                noise = np.sqrt(np.abs(m5)) #variance_frame(slf, det, m5, scidx, fitsdict))
-            else:
-                noise = np.sqrt(variance_frame(datasec_img, det, m5, scidx, settings_det, fitsdict=fitsdict))
+            noise = np.sqrt(np.abs(m5))
         else:
             noise = np.sqrt(varframe)
         msgs.info("Calculating Laplacian signal to noise ratio")
@@ -737,19 +733,20 @@ def trim(frame, numamplifiers, datasec):
         msgs.error("Cannot trim file")
 
 
-def variance_frame(datasec_img, det, sciframe, idx, settings_det,
-                   fitsdict=None, skyframe=None, objframe=None):
+def variance_frame(datasec_img, det, sciframe, settings_det,
+                   fitsdict=None, skyframe=None, objframe=None,
+                   idx=None, dnoise=None):
     """ Calculate the variance image including detector noise
     Parameters
     ----------
     datasec_img : ndarray
     det
     sciframe
-    idx
     settings_det : settings.spect[dnum]
       Detector info
     fitsdict : dict, optional
       Contains relevant information from fits header files
+    idx : int, optional
     objframe : ndarray, optional
       Model of object counts
     Returns
@@ -766,7 +763,8 @@ def variance_frame(datasec_img, det, sciframe, idx, settings_det,
     else:
         scicopy = sciframe.copy()
         # Dark Current noise
-        dnoise = (settings_det['darkcurr'] * float(fitsdict["exptime"][idx])/3600.0)
+        if dnoise is None:
+            dnoise = (settings_det['darkcurr'] * float(fitsdict["exptime"][idx])/3600.0)
         # Return
         return np.abs(scicopy) + rnoise + dnoise
 

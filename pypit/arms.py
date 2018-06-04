@@ -17,6 +17,7 @@ from pypit.core import arsetup
 from pypit import arpixels
 from pypit.core import arsort
 from pypit import fluxspec
+from pypit import scienceimage
 
 from pypit import ardebug as debugger
 
@@ -171,9 +172,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 ts_settings = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
                 ts_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
                 # Get it
-                tslits_dict, _ = arcalib.get_tslits_dict(
-                    det, setup, spectrograph, sci_ID, ts_settings, tsettings, fitstbl, pixlocn,
-                    msbias, msbpm, trim=settings.argflag['reduce']['trim'])
+                tslits_dict, _ = arcalib.get_tslits_dict( det, setup, spectrograph, sci_ID, ts_settings, tsettings, fitstbl, pixlocn, msbias, msbpm, trim=settings.argflag['reduce']['trim'])
                 # Save in calib
                 calib_dict[setup]['trace'] = tslits_dict
 
@@ -278,17 +277,29 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             ###############
             # Load the science frame and from this generate a Poisson error frame
             msgs.info("Loading science frame")
-            sciframe = arload.load_frames(fitstbl, [scidx], det,
-                                          frametype='science',
-                                          msbias=msbias)
-            sciframe = sciframe[:, :, 0]
+            sci_image_files = arsort.list_of_files(fitstbl, 'science', sci_ID)
+            scienceImage = scienceimage.ScienceImage(file_list=sci_image_files, datasec_img=datasec_img,
+                                                     bpm=msbpm, det=det, setup=setup)
+            msgs.sciexp = scienceImage  # For QA on crash
+            #sciframe = arload.load_frames(fitstbl, [scidx], det,
+            #                              frametype='science',
+            #                              msbias=msbias)
+            #sciframe = sciframe[:, :, 0]
             # Extract
             msgs.info("Processing science frame")
 
-            slf = sciexp[sc]
-            slf.det = det
-            slf.setup = setup
-            msgs.sciexp = slf  # For QA on crash
+            # Simple process
+            sciframe = scienceImage.process(bias_subtract=msbias, apply_gain=True, pixel_flat=mspixflatnrm)
+
+            # Variance image
+            dnoise = (settings_det['darkcurr'] * float(fitstbl["exptime"][scidx])/3600.0)
+            varframe = scienceImage.build_varframe(dnoise=dnoise)
+
+            # CR mask
+            crmask = scienceImage.build_crmask(varframe=varframe)
+            debugger.set_trace()
+
+
             # Save in slf
             # TODO -- Deprecate this means of holding the info (e.g. just pass around traceSlits)
             slf.SetFrame(slf._lordloc, tslits_dict['lcen'], det)
