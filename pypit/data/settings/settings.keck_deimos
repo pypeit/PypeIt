@@ -379,6 +379,7 @@ settings trace slits sigdetect 50.0
 settings trace slits number -1
 settings trace slits tilts params 1,1,1
 settings trace slits tilts method spca
+settings trace slits tilts order  3             # What is the order of the function to be used for tilts in a given order
 settings trace slits pca params [3,2,1,0]
 settings trace slits polyorder  3
 settings trace slits sobel mode nearest
