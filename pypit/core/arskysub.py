@@ -2,10 +2,7 @@
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-import time
-
 import numpy as np
-import os
 from matplotlib import pyplot as plt
 
 
@@ -13,7 +10,6 @@ from pypit import msgs
 
 from pypit import arutils
 from pypit import arpixels
-from pypit import artrace
 
 from pypit import ardebug as debugger
 
@@ -120,7 +116,6 @@ def bg_subtraction_slit(tslits_dict, pixlocn,
 
     # Check tilts? -- Can also be error in flat fielding or slit illumination
     if False:
-        gdp = scifrcp != maskval
         idx = 1893
         plt.clf()
         ax = plt.gca()

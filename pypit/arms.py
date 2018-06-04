@@ -308,7 +308,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             scienceImage.varframe = varframe
             scienceImage.crmask = crmask
 
-            # Skysub
+            # Global skysub
             setting_skysub = settings.argflag['reduce']['skysub']
             global_sky = scienceImage.global_skysub(setting_skysub)
             modelvframe = scienceImage.build_modelvar()
