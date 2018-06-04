@@ -9,7 +9,6 @@ from astropy import units
 
 from pypit import msgs
 from pypit import arparse as settings
-from pypit import fluxspec
 from pypit import arload
 from pypit import armasters
 from pypit import armbase
@@ -24,8 +23,10 @@ from pypit import artrace
 from pypit import arcimage
 from pypit import bpmimage
 from pypit import biasframe
+from pypit import fluxspec
 from pypit import traceslits
 from pypit import traceimage
+from pypit import wavecalib
 
 from pypit import ardebug as debugger
 
@@ -136,10 +137,12 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 msbias = calib_dict[setup]['bias']
             else:
                 # Init
-                bias = biasframe.BiasFrame(settings=tsettings, setup=setup, det=det, fitstbl=fitstbl, sci_ID=sci_ID)
-                # Grab/build the MasterFrame (ndarray or str)
-                #   If an image is generated, it will be saved to disk a a MasterFrame
-                msbias = bias.master()
+                biasFrame = biasframe.BiasFrame(settings=tsettings, setup=setup, det=det, fitstbl=fitstbl, sci_ID=sci_ID)
+                # Load the MasterFrame (if it exists and is desired) or the command (e.g. 'overscan')
+                msbias = biasFrame.master()
+                if msbias is None:  # Build it and save it
+                    msbias = biasFrame.build_image()
+                    biasFrame.save_master(msbias, raw_files=biasFrame.file_list, steps=biasFrame.steps)
                 # Save
                 calib_dict[setup]['bias'] = msbias
 
@@ -148,10 +151,17 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             if 'arc' in calib_dict[setup].keys():
                 msarc = calib_dict[setup]['arc']
             else:
-                AImage = arcimage.ArcImage([], spectrograph=settings.argflag['run']['spectrograph'],
+                # Instantiate with everything needed to generate the image (in case we do)
+                arcImage = arcimage.ArcImage([], spectrograph=settings.argflag['run']['spectrograph'],
                                            settings=tsettings, det=det, setup=setup, sci_ID=sci_ID,
                                            msbias=msbias, fitstbl=fitstbl)
-                msarc = AImage.master()
+                # Load the MasterFrame (if it exists and is desired)?
+                msarc = arcImage.master()
+                if msarc is None:  # Otherwise build it
+                    msgs.info("Preparing a master {0:s} frame".format(arcImage.frametype))
+                    msarc = arcImage.build_image()
+                    # Save to Masters
+                    arcImage.save_master(msarc, raw_files=arcImage.file_list, steps=arcImage.steps)
                 # Save
                 calib_dict[setup]['arc'] = msarc
 
@@ -179,57 +189,85 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             ###############
             # Slit Tracing
             if 'trace' in calib_dict[setup].keys():  # Internal
-                Tslits = calib_dict[setup]['trace']
+                traceSlits = calib_dict[setup]['trace']
             else:
-                # Load master frame?
-                if (settings.argflag['reduce']['masters']['reuse']) or (settings.argflag['reduce']['masters']['force']):
-                    mstrace_name = armasters.master_name('trace', setup)
-                    Tslits = traceslits.TraceSlits.from_master_files(mstrace_name, load_pix_obj=True)  # Returns None if none exists
-                else:
-                    Tslits = None
+                # Setup up the settings (will be Refactored with settings)
+                tmp = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
+                tmp['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
 
-                # Build it?  Beginning with the trace image
-                if Tslits is None:
+                # Instantiate (without mstrace)
+                traceSlits = traceslits.TraceSlits(None, slf._pixlocn[det-1], settings=tmp, det=det, setup=setup, binbpx=msbpm)
+
+                # Load via masters, as desired
+                if not traceSlits.master():
                     # Build the trace image first
                     trace_image_files = arsort.list_of_files(fitstbl, 'trace', sci_ID)
                     Timage = traceimage.TraceImage(trace_image_files,
-                                                        spectrograph=settings.argflag['run']['spectrograph'],
-                                                        settings=tsettings, det=det)
+                                                   spectrograph=settings.argflag['run']['spectrograph'],
+                                                   settings=tsettings, det=det)
                     mstrace = Timage.process(bias_subtract=msbias, trim=settings.argflag['reduce']['trim'])
 
-                    # Setup up the settings (will be Refactored with settings)
-                    tmp = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
-                    tmp['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-
-                    # Now trace me some slits
-                    Tslits = traceslits.TraceSlits(mstrace, slf._pixlocn[det-1], det=det, settings=tmp,
-                                                   binbpx=msbpm, setup=setup)
-                    _ = Tslits.run(armlsd=True)
+                    # Load up and get ready
+                    traceSlits.mstrace = mstrace
+                    _ = traceSlits.make_binarr()
+                    # Now we go forth
+                    traceSlits.run(arms=True)#, ignore_orders=ignore_orders, add_user_slits=add_user_slits)
                     # QA
-                    Tslits._qa()
+                    traceSlits._qa()
                     # Save to disk
-                    Tslits.save_master()
+                    traceSlits.save_master()
+
                 # Save in calib
-                calib_dict[setup]['trace'] = Tslits
+                calib_dict[setup]['trace'] = traceSlits
 
             # Save in slf
-            # TODO -- Deprecate this means of holding the info (e.g. just pass around Tslits)
-            slf.SetFrame(slf._lordloc, Tslits.lcen, det)
-            slf.SetFrame(slf._rordloc, Tslits.rcen, det)
-            slf.SetFrame(slf._pixcen, Tslits.pixcen, det)
-            slf.SetFrame(slf._pixwid, Tslits.pixwid, det)
-            slf.SetFrame(slf._lordpix, Tslits.lordpix, det)
-            slf.SetFrame(slf._rordpix, Tslits.rordpix, det)
-            slf.SetFrame(slf._slitpix, Tslits.slitpix, det)
+            # TODO -- Deprecate this means of holding the info (e.g. just pass around traceSlits)
+            slf.SetFrame(slf._lordloc, traceSlits.lcen, det)
+            slf.SetFrame(slf._rordloc, traceSlits.rcen, det)
+            slf.SetFrame(slf._pixcen, traceSlits.pixcen, det)
+            slf.SetFrame(slf._pixwid, traceSlits.pixwid, det)
+            slf.SetFrame(slf._lordpix, traceSlits.lordpix, det)
+            slf.SetFrame(slf._rordpix, traceSlits.rordpix, det)
+            slf.SetFrame(slf._slitpix, traceSlits.slitpix, det)
 
             # Initialize maskslit
             slf._maskslits[det-1] = np.zeros(slf._lordloc[det-1].shape[1], dtype=bool)
 
             ###############
             # Generate the 1D wavelength solution
-            update = slf.MasterWaveCalib(fitstbl, det, msarc)
-            if update and reuseMaster:
-                armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="trace")
+            if 'wavecalib' in calib_dict[setup].keys():
+                wv_calib = calib_dict[setup]['wavecalib']
+                wv_maskslits = calib_dict[setup]['wvmask']
+            elif settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
+                msgs.info("A wavelength calibration will not be performed")
+                pass
+            else:
+                # Setup up the settings (will be Refactored with settings)
+                tmp = dict(calibrate=settings.argflag['arc']['calibrate'], masters=settings.argflag['reduce']['masters'])
+                tmp['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
+
+                # Instantiate
+                waveCalib = wavecalib.WaveCalib(msarc, spectrograph=settings.argflag['run']['spectrograph'],
+                                                settings=tmp, det=det, setup=setup, fitstbl=fitstbl, sci_ID=sci_ID)
+                # Load from disk (MasterFrame)?
+                wv_calib = waveCalib.master()
+                # Build?
+                if wv_calib is None:
+                    nonlinear = settings.spect[settings.get_dnum(det)]['saturation'] * settings.spect[settings.get_dnum(det)]['nonlinear']
+                    wv_calib, _ = waveCalib.run(traceSlits.lcen, traceSlits.rcen, pixlocn, nonlinear=nonlinear)
+                    # Save to Masters
+                    waveCalib.save_master(waveCalib.wv_calib)
+                else:
+                    waveCalib.wv_calib = wv_calib
+                # Mask
+                wv_maskslits = waveCalib._make_maskslits(traceSlits.lcen.shape[1])
+
+                # Save in calib
+                calib_dict[setup]['wavecalib'] = wv_calib
+                calib_dict[setup]['wvmask'] = wv_maskslits
+
+            # Mask me
+            slf._maskslits[det-1] += wv_maskslits
 
             ###############
             # Derive the spectral tilt
@@ -237,7 +275,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 tilts = armasters.load_master_frame(slf, "tilts")
                 if tilts is None:
                     # First time tilts are derived for this arc frame --> derive the order tilts
-                    tilts, satmask, outpar = artrace.multislit_tilt(slf, msarc, det)
+                    tilts, satmask, outpar = artrace.multislit_tilt(slf, msarc, det, wv_calib=wv_calib)
                     slf.SetFrame(slf._tilts, tilts, det)
                     slf.SetFrame(slf._satmask, satmask, det)
                     msgs.bug("This outpar is only the last slit!!  JXP doesn't think it matters for now")
@@ -246,6 +284,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 else:
                     slf.SetFrame(slf._tilts, tilts, det)
 
+
             ###############
             # Prepare the pixel flat field frame
             update = slf.MasterFlatField(fitstbl, det, msbias, datasec_img)
@@ -253,23 +292,9 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
 
             ###############
             # Generate/load a master wave frame
-            update = slf.MasterWave(fitstbl, sc, det)
+            update = slf.MasterWave(det, wv_calib)
             if update and reuseMaster:
                 armbase.UpdateMasters(sciexp, sc, det, ftype="arc", chktype="wave")
-
-            ###############
-            # Check if the user only wants to prepare the calibrations only
-            #msgs.info("All calibration frames have been prepared")
-            #if settings.argflag['run']['preponly']:
-            #    msgs.info("If you would like to continue with the reduction, disable the command:" + msgs.newline() +
-            #              "run preponly False")
-            #    continue
-
-            ###############
-            # Write setup
-            #setup = arsort.calib_setup(sc, det, fitsdict, setup_dict, write=True)
-            # Write MasterFrames (currently per detector)
-            #armasters.save_masters(slf, det, setup)
 
             ###############
             # Load the science frame and from this generate a Poisson error frame

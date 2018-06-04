@@ -1539,6 +1539,7 @@ def dummy_fitstbl(nfile=10, spectrograph='shane_kast_blue', directory='./', noty
         fitsdict[k] = np.array(fitsdict[k])
     # Table me
     fitstbl = Table(fitsdict)
+    fitstbl['instrume'] = spectrograph
     # Image typing
     if not notype:
         for ftype in ftype_list:

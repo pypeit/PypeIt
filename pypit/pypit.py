@@ -244,6 +244,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     # Instantiate
     psetup = pypitsetup.PypitSetup(arparse.argflag, arparse.spect, fitstbl=fitstbl)
     mode, fitstbl, setup_dict = psetup.run()
+    psetup.write_fitstbl()
     sciexp = None
     if mode == 'setup':
         status = 1

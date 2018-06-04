@@ -198,7 +198,7 @@ def core_load_master_frame(mftype, setup, mdir, force=False):
 def _load(name, exten=0, frametype='<None>', force=False):
     """
     Low level load method for master frames
-      Should only be called by core_load_master_frame
+      Should mainly be called by core_load_master_frame
 
     Parameters
     ----------
@@ -240,7 +240,7 @@ def _load(name, exten=0, frametype='<None>', force=False):
     else:
         msgs.info("Loading a pre-existing master calibration frame")
         hdu = fits.open(name)
-        msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
+        #msgs.info("Master {0:s} frame loaded successfully:".format(hdu[0].header['FRAMETYP'])+msgs.newline()+name)
         head0 = hdu[0].header
         data = hdu[exten].data.astype(np.float)
         # List of files used to generate the Master frame (e.g. raw file frames)
@@ -347,8 +347,7 @@ def core_save_master(data, filename="temp.fits", frametype="<None>",
                 extensions=None, keywds=None, names=None, raw_files=None,
                      overwrite=True):
     """ Core function to write a MasterFrame image
-    Only handles simple 2D images.
-    More sophisticated MasterFrame objects are written by their own Class, e.g. TraceSlits
+    More sophisticated MasterFrame objects may be written by their own Class, e.g. TraceSlits
 
     Parameters
     ----------
@@ -373,32 +372,38 @@ def core_save_master(data, filename="temp.fits", frametype="<None>",
         return
     #
     msgs.info("Saving master {0:s} frame as:".format(frametype)+msgs.newline()+filename)
-    hdu = fits.PrimaryHDU(data)
-    hlist = [hdu]
-    # Extensions
-    if extensions is not None:
-        for kk,exten in enumerate(extensions):
-            hdu = fits.ImageHDU(exten)
-            if names is not None:
-                hdu.name = names[kk]
-            hlist.append(hdu)
-    # HDU list
-    hdulist = fits.HDUList(hlist)
-    # Header
-    msgs.info("Writing header information")
-    if raw_files is not None:
-        for i in range(len(raw_files)):
-            hdrname = "FRAME{0:03d}".format(i+1)
-            hdulist[0].header[hdrname] = (raw_files[i], 'PYPIT: File used to generate Master {0:s}'.format(frametype))
-    hdulist[0].header["FRAMETYP"] = (frametype, 'PYPIT: Master calibration frame type')
-    if keywds is not None:
-        for key in keywds.keys():
-            hdulist[0].header[key] = keywds[key]
-    # Write the file to disk
-    if os.path.exists(filename):
-        msgs.warn("Overwriting file:"+msgs.newline()+filename)
+    if frametype == 'wv_calib':
+        # Wavelength fit(s)
+        gddict = linetools.utils.jsonify(data)
+        linetools.utils.savejson(filename, gddict, easy_to_read=True, overwrite=True)
+    else:  # 2D Image
+        hdu = fits.PrimaryHDU(data)
+        hlist = [hdu]
+        # Extensions
+        if extensions is not None:
+            for kk,exten in enumerate(extensions):
+                hdu = fits.ImageHDU(exten)
+                if names is not None:
+                    hdu.name = names[kk]
+                hlist.append(hdu)
+        # HDU list
+        hdulist = fits.HDUList(hlist)
+        # Header
+        msgs.info("Writing header information")
+        if raw_files is not None:
+            for i in range(len(raw_files)):
+                hdrname = "FRAME{0:03d}".format(i+1)
+                hdulist[0].header[hdrname] = (raw_files[i], 'PYPIT: File used to generate Master {0:s}'.format(frametype))
+        hdulist[0].header["FRAMETYP"] = (frametype, 'PYPIT: Master calibration frame type')
+        if keywds is not None:
+            for key in keywds.keys():
+                hdulist[0].header[key] = keywds[key]
+        # Write the file to disk
+        if os.path.exists(filename):
+            msgs.warn("Overwriting file:"+msgs.newline()+filename)
 
-    hdulist.writeto(filename, overwrite=True)
+        hdulist.writeto(filename, overwrite=True)
+    # Finish
     msgs.info("Master {0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
     return
 
