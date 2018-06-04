@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/PYPIT.iml" filepath="$PROJECT_DIR$/.idea/PYPIT.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../PYPIT-development-suite/.idea/PYPIT-development-suite.iml" filepath="$PROJECT_DIR$/../PYPIT-development-suite/.idea/PYPIT-development-suite.iml" />
     </modules>
   </component>
 </project>

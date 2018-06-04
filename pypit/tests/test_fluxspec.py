@@ -10,7 +10,6 @@ from __future__ import unicode_literals
 import os
 
 import pytest
-import numpy as np
 
 from pypit import fluxspec
 from pypit.scripts import flux_spec
