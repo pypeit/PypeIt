@@ -132,8 +132,8 @@ def get_tslits_dict(det, setup, spectrograph, sci_ID, ts_settings, tsettings,
         traceSlits._qa()
         # Save to disk
         traceSlits.save_master()
-        # Return
-        return traceSlits.tslits_dict, traceSlits
+    # Return
+    return traceSlits.tslits_dict, traceSlits
 
 
 def get_wv_calib(det, setup, spectrograph, sci_ID, wvc_settings, fitstbl,
