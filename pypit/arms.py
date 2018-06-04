@@ -17,7 +17,6 @@ from pypit.core import arsetup
 from pypit import arpixels
 from pypit.core import arsort
 from pypit import fluxspec
-from pypit import waveimage
 
 from pypit import ardebug as debugger
 
@@ -126,7 +125,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 tsettings['detector']['dataext'] = None
             tsettings['detector']['dispaxis'] = settings.argflag['trace']['dispersion']['direction']
 
-            ###############
+            ###############################################################################
             # Prepare for Bias subtraction
             if 'bias' in calib_dict[setup].keys():
                 msbias = calib_dict[setup]['bias']
@@ -137,7 +136,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 # Save
                 calib_dict[setup]['bias'] = msbias
 
-            ###############
+            ###############################################################################
             # Generate a master arc frame
             if 'arc' in calib_dict[setup].keys():
                 msarc = calib_dict[setup]['arc']
@@ -146,7 +145,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 # Save
                 calib_dict[setup]['arc'] = msarc
 
-            ###############
+            ###############################################################################
             # Generate a bad pixel mask (should not repeat)
             if 'bpm' in calib_dict[setup].keys():
                 msbpm = calib_dict[setup]['bpm']
@@ -159,11 +158,11 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 # Save
                 calib_dict[setup]['bpm'] = msbpm
 
-            ###############
+            ###############################################################################
             # Generate an array that provides the physical pixel locations on the detector
             pixlocn = arpixels.gen_pixloc(msarc.shape, det, settings.argflag)
 
-            ###############
+            ###############################################################################
             # Slit Tracing
             if 'trace' in calib_dict[setup].keys():  # Internal
                 tslits_dict = calib_dict[setup]['trace']
@@ -178,12 +177,12 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 # Save in calib
                 calib_dict[setup]['trace'] = tslits_dict
 
-            ###############
+            ###############################################################################
             # Initialize maskslits
             nslits = tslits_dict['lcen'].shape[1]
             maskslits = np.zeros(nslits, dtype=bool)
 
-            ###############
+            ###############################################################################
             # Generate the 1D wavelength solution
             if 'wavecalib' in calib_dict[setup].keys():
                 wv_calib = calib_dict[setup]['wavecalib']
@@ -207,7 +206,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             # Mask me
             maskslits += wv_maskslits
 
-            ###############
+            ###############################################################################
             # Derive the spectral tilt
             if 'tilts' in calib_dict[setup].keys():
                 mstilts = calib_dict[setup]['tilts']
@@ -229,7 +228,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             # Mask me
             maskslits += wt_maskslits
 
-            ###############
+            ###############################################################################
             # Prepare the pixel flat field frame
             if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
                 if 'normpixelflat' in calib_dict[setup].keys():
@@ -255,9 +254,8 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 slitprof = None
 
 
-            ###############
+            ###############################################################################
             # Generate/load a master wave frame
-
             if 'wave' in calib_dict[setup].keys():
                 mswave = calib_dict[setup]['wave']
             else:
@@ -267,18 +265,14 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                     # Settings
                     wvimg_settings = dict(masters=settings.argflag['reduce']['masters'].copy())
                     wvimg_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                    # Instantiate
-                    waveImage = waveimage.WaveImage(mstilts, wv_calib, settings=wvimg_settings,
-                                                setup=setup, maskslits=maskslits,
-                                                slitpix=tslits_dict['slitpix'])
-                    # Attempt to load master
-                    mswave = waveImage.master()
-                    if mswave is None:
-                        mswave = waveImage._build_wave()
-                    # Save to hard-drive
-                    waveImage.save_master(mswave, steps=waveImage.steps)
+                    # Get it
+                    mswave, _ = arcalib.get_mswave(
+                        setup, tslits_dict, wvimg_settings, mstilts, wv_calib, maskslits)
                 # Save internally
                 calib_dict[setup]['wave'] = mswave
+
+            # CALIBS END HERE
+            ###############################################################################
 
 
             ###############

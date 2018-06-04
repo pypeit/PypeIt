@@ -4,10 +4,7 @@ of duplicating them within their codes
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-import inspect
-
 import numpy as np
-import os
 
 from pypit import msgs
 
@@ -23,6 +20,7 @@ from pypit import traceslits
 from pypit import traceimage
 from pypit import wavecalib
 from pypit import wavetilts
+from pypit import waveimage
 
 from pypit import ardebug as debugger
 
@@ -94,6 +92,20 @@ def get_msflat(det, setup, sci_ID, fitstbl, tslits_dict, datasec_img,
         slitprof, _, _ = flatField.load_master_slitprofile()
     # Return
     return mspixflatnrm, slitprof, flatField
+
+def get_mswave(setup, tslits_dict, wvimg_settings, mstilts, wv_calib, maskslits):
+    # Instantiate
+    waveImage = waveimage.WaveImage(mstilts, wv_calib, settings=wvimg_settings,
+                                    setup=setup, maskslits=maskslits,
+                                    slitpix=tslits_dict['slitpix'])
+    # Attempt to load master
+    mswave = waveImage.master()
+    if mswave is None:
+        mswave = waveImage._build_wave()
+    # Save to hard-drive
+    waveImage.save_master(mswave, steps=waveImage.steps)
+    # Return
+    return mswave, waveImage
 
 
 def get_tslits_dict(det, setup, spectrograph, sci_ID, ts_settings, tsettings,
