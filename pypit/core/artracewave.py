@@ -204,7 +204,7 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_spect,
 
     msgs.work("Detecting lines for slit {0:d}".format(slitnum+1))
     tampl, tcent, twid, w, _ = ararc.detect_lines(censpec)
-    satval = settings_spect[dnum]['saturation']*settings_spect[dnum]['nonlinear']
+    satval = settings_spect['saturation']*settings_spect['nonlinear']
     # Order of the polynomials to be used when fitting the tilts.
     arcdet = (tcent[w]+0.5).astype(np.int)
     ampl = tampl[w]
