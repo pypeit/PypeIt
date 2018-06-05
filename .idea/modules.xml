@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/PYPIT.iml" filepath="$PROJECT_DIR$/.idea/PYPIT.iml" />
       <module fileurl="file://$PROJECT_DIR$/../PYPIT-development-suite/.idea/PYPIT-development-suite.iml" filepath="$PROJECT_DIR$/../PYPIT-development-suite/.idea/PYPIT-development-suite.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../arclines/.idea/arclines.iml" filepath="$PROJECT_DIR$/../arclines/.idea/arclines.iml" />
     </modules>
   </component>
 </project>

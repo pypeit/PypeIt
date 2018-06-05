@@ -37,6 +37,8 @@ default_settings = dict(tilts={'idsonly': False,
                                'method': 'spca',  # defunct
                                'params': [1,1,0],  # defunct
                                }
+                        )
+
 #  See save_master() for the data model for output
 
 
