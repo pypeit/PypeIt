@@ -31,18 +31,17 @@ from pypit import ardebug as debugger
 mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5, bad_row=2**6)
 
 
-def boxcar(slf, det, specobjs, sciframe, varframe, bpix, skyframe, crmask, scitrace, mswave):
+def boxcar(specobjs, sciframe, varframe, bpix, skyframe, crmask, scitrace, mswave,
+           maskslits, slitpix):
     """ Perform boxcar extraction on the traced objects.
     Also perform a local sky subtraction
 
     Parameters
     ----------
-    det : int
-      Detector index
     specobjs : list of dict
       list of SpecObj objects
     sciframe : ndarray
-      science frame
+      science frame, should be sky subtracted
     varframe : ndarray
       variance image
     bgframe : ndarray
@@ -57,11 +56,13 @@ def boxcar(slf, det, specobjs, sciframe, varframe, bpix, skyframe, crmask, scitr
     bgcorr : ndarray
       Correction to the sky background in the object window
     """
+    # Subtract the global sky
+    skysub = sciframe-skyframe
 
     bgfitord = 1  # Polynomial order used to fit the background
     slits = range(len(scitrace))
     nslit = len(slits)
-    gdslits = np.where(~slf._maskslits[det-1])[0]
+    gdslits = np.where(~maskslits)[0]
     cr_mask = 1.0-crmask
     bgfit = np.linspace(0.0, 1.0, sciframe.shape[1])
     bgcorr = np.zeros_like(cr_mask)
@@ -69,7 +70,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, bpix, skyframe, crmask, scitr
     for sl in slits:
         if sl not in gdslits:
             continue
-        word = np.where((slf._slitpix[det - 1] == sl + 1) & (varframe > 0.))
+        word = np.where((slitpix == sl + 1) & (varframe > 0.))
         if word[0].size == 0:
             continue
         mask_slit = np.zeros(sciframe.shape, dtype=np.float)
@@ -81,7 +82,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, bpix, skyframe, crmask, scitr
             if scitrace[sl]['object'] is None:
                 # The object for all slits is provided in the first extension
                 objreg = np.copy(scitrace[0]['object'][:, :, o])
-                wzro = np.where(slf._slitpix[det - 1] != sl + 1)
+                wzro = np.where(slitpix != sl + 1)
                 objreg[wzro] = 0.0
             else:
                 objreg = scitrace[sl]['object'][:, :, o]
@@ -90,15 +91,15 @@ def boxcar(slf, det, specobjs, sciframe, varframe, bpix, skyframe, crmask, scitr
             if scitrace[sl]['background'] is None:
                 # The background for all slits is provided in the first extension
                 bckreg = np.copy(scitrace[0]['background'][:, :, o])
-                wzro = np.where(slf._slitpix[det - 1] != sl + 1)
+                wzro = np.where(slitpix != sl + 1)
                 bckreg[wzro] = 0.0
             else:
                 bckreg = scitrace[sl]['background'][:, :, o]
             # Trim CRs further
             bg_mask = np.zeros_like(sciframe)
             bg_mask[np.where((bckreg*cr_mask <= 0.))] = 1.
-            bg_mask[np.where((slf._slitpix[det - 1] != sl + 1))] = 1.
-            mask_sci = np.ma.array(sciframe, mask=bg_mask, fill_value=0.)
+            bg_mask[np.where((slitpix != sl + 1))] = 1.
+            mask_sci = np.ma.array(skysub, mask=bg_mask, fill_value=0.)
             clip_image = sigma_clip(mask_sci, axis=1, sigma=3.)  # For the mask only
             # Fit
 #            print('calling func2d_fit_val')
@@ -107,7 +108,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, bpix, skyframe, crmask, scitr
 #                                                (~clip_image.mask)*bckreg*cr_mask, bgfitord)
 #            print('Old func2d_fit_val: {0} seconds'.format(time.clock() - t))
 #            t = time.clock()
-            bgframe = new_func2d_fit_val(sciframe, bgfitord, x=bgfit,
+            bgframe = new_func2d_fit_val(skysub, bgfitord, x=bgfit,
                                          w=(~clip_image.mask)*bckreg*cr_mask)
 #            print('New func2d_fit_val: {0} seconds'.format(time.clock() - t))
             # Some fits are really wonky ... in both methods
@@ -164,13 +165,13 @@ def boxcar(slf, det, specobjs, sciframe, varframe, bpix, skyframe, crmask, scitr
             skysum /= sumweight
             # Total the object flux
             msgs.info("   Summing object counts")
-            scisum = np.sum((sciframe-bgframe)*weight, axis=1)
+            scisum = np.sum((skysub-bgframe)*weight, axis=1)
             # Total the variance array
             msgs.info("   Summing variance array")
             varsum = np.sum(varframe*weight, axis=1)
             # Update background correction image
             tmp = bckreg + objreg
-            gdp = np.where((tmp > 0) & (slf._slitpix[det - 1] == sl + 1))
+            gdp = np.where((tmp > 0) & (slitpix == sl + 1))
             bgcorr[gdp] = bgframe[gdp]
             # Mask
             boxmask = np.zeros(wvsum.shape, dtype=np.int)

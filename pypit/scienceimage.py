@@ -12,6 +12,7 @@ from pypit import processimages
 from pypit import arspecobj
 from pypit.core import arprocimg
 from pypit.core import arskysub
+from pypit.core import arextract
 from pypit import artrace
 from pypit import ginga
 
@@ -70,16 +71,13 @@ class ScienceImage(processimages.ProcessImages):
     def __init__(self, file_list=[], spectrograph=None, settings=None,
                  tslits_dict=None, tilts=None, det=None, setup=None, datasec_img=None,
                  bpm=None, maskslits=None, pixlocn=None, objtype='science',
-                 fitstbl=None, scidx=0,
-                 msbias=None, pixflat=None):
+                 fitstbl=None, scidx=0, mswave=None):
 
         # Parameters unique to this Object
         self.det = det
         self.setup = setup
         self.tslits_dict = tslits_dict
         self.tilts = tilts
-        self.msbias = msbias
-        self.pixflat = pixflat
         self.maskslits = maskslits
         self.fitstbl = fitstbl
         self.pixlocn = pixlocn
@@ -114,9 +112,10 @@ class ScienceImage(processimages.ProcessImages):
         #    See ProcessImages
         self.crmask = None
 
-    def extraction(self):
+    def extraction(self, mswave):
         reload(arspecobj)
         # Another find object iteration
+        #  Nested -- self.specobjs[slit][object]
         self.specobjs = arspecobj.init_exp(self.tslits_dict['lcen'],
                                       self.tslits_dict['rcen'],
                                       self.sciframe.shape,
@@ -124,6 +123,14 @@ class ScienceImage(processimages.ProcessImages):
                                       self.det, self.scidx, self.fitstbl,
                                       self.tracelist, self.settings,
                                       objtype=self.objtype)
+        
+        # Boxcar -- Fills specobj.boxcar in place
+        msgs.info("Performing boxcar extraction")
+        self.skycorr_box = arextract.boxcar(self.specobjs, self.sciframe,
+                                            self.modelvarframe, self.bpm,
+                                            self.global_sky, self.crmask,
+                                            self.tracelist, mswave,
+                                            self.maskslits, self.tslits_dict['slitpix'])
         debugger.set_trace()
 
     def find_objects(self, doqa=False):
