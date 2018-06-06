@@ -91,6 +91,7 @@ class ScienceImage(processimages.ProcessImages):
         self.sciframe = None
         self.varframe = None
         self.modelvarframe = None
+        self.global_sky = None
         self.tracelist = []
 
 
@@ -131,8 +132,9 @@ class ScienceImage(processimages.ProcessImages):
 
 
     def global_skysub(self, settings_skysub):
+        reload(arskysub)
 
-        self.bgframe = np.zeros_like(self.sciframe)
+        self.global_sky = np.zeros_like(self.sciframe)
         gdslits = np.where(~self.maskslits)[0]
 
         for slit in gdslits:
@@ -149,11 +151,11 @@ class ScienceImage(processimages.ProcessImages):
                 debugger.set_trace()
                 self.maskslits[slit] = True
             else:
-                self.bgframe += slit_bgframe
+                self.global_sky += slit_bgframe
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
-        return self.bgframe
+        return self.global_sky
 
     def build_modelvar(self):
         self.modelvarframe = arprocimg.variance_frame(
@@ -165,7 +167,7 @@ class ScienceImage(processimages.ProcessImages):
         return self.sciframe
 
 
-    def show(self, attr, display='ginga'):
+    def show(self, attr, image=None, display='ginga'):
         """
         Show one of the internal images
 
@@ -180,12 +182,21 @@ class ScienceImage(processimages.ProcessImages):
         -------
 
         """
-        if attr == 'bgframe':
-            if self.bgframe is not None:
-                ginga.show_image(self.bgframe)
+        if attr == 'global':
+            if self.global_sky is not None:
+                ginga.show_image(self.global_sky, chname='Global')
         elif attr == 'sci':
             if self.sciframe is not None:
                 ginga.show_image(self.sciframe)
+        elif attr == 'rawvar':
+            if self.varframe is not None:
+                ginga.show_image(self.varframe)
         elif attr == 'modelvar':
             if self.modelvarframe is not None:
                 ginga.show_image(self.modelvarframe)
+        elif attr == 'crmasked':
+            ginga.show_image(self.sciframe*(1-self.crmask), chname='CR')
+        elif attr == 'image':
+            ginga.show_image(image)
+        else:
+            msgs.warn("Not an option for show")

@@ -302,14 +302,9 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             # CR mask
             crmask = scienceImage.build_crmask(varframe=varframe)
 
-            # Add em in
-            # TODO -- Find a way to get these set internally
-            scienceImage.sciframe = sciframe
-            scienceImage.varframe = varframe
-            scienceImage.crmask = crmask
-
             # Global skysub
-            setting_skysub = settings.argflag['reduce']['skysub']
+            setting_skysub = {}
+            setting_skysub['skysub'] = settings.argflag['reduce']['skysub'].copy()
             global_sky = scienceImage.global_skysub(setting_skysub)
             modelvarframe = scienceImage.build_modelvar()
 

@@ -16,7 +16,7 @@ from pypit import ardebug as debugger
 
 def bg_subtraction_slit(tslits_dict, pixlocn,
                         slit, tilts, sciframe, varframe, bpix, crpix,
-                        settings_skysub,
+                        settings,
                         tracemask=None,
                         rejsigma=3.0, maskval=-999999.9,
                         method='bspline'):
@@ -139,7 +139,7 @@ def bg_subtraction_slit(tslits_dict, pixlocn,
                                             function='bspline',
                                             weights=np.sqrt(ivar)[gdp][srt],
                                             sigma=5., maxone=False,
-                                            bspline_par=settings_skysub['bspline'])
+                                            bspline_par=settings['skysub']['bspline'])
         # Just those in the slit
         in_slit = np.where(slitpix == slit+1)
         bgf_flat = arutils.func_val(bspl, tilts[in_slit].flatten(), 'bspline')
