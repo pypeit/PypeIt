@@ -108,6 +108,8 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 settings.argflag['run']['spectrograph'], scifile, det, settings_det,
                 naxis0=fitstbl['naxis0'][scidx],
                 naxis1=fitstbl['naxis1'][scidx])
+            # Binning
+            settings_det['binning'] = fitstbl['binning'][0]
             # Yes, this looks goofy.  Is needed for LRIS and DEIMOS for now
             settings.spect[dnum] = settings_det.copy()  # Used internally..
             fitstbl['naxis0'][scidx] = naxis0
@@ -281,40 +283,27 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             sci_settings = tsettings.copy()
             # Instantiate
             sciI = scienceimage.ScienceImage(file_list=sci_image_files, datasec_img=datasec_img,
-                                                     bpm=msbpm, det=det, setup=setup, settings=sci_settings,
-                                                     maskslits=maskslits, pixlocn=pixlocn, tslits_dict=tslits_dict,
-                                                     tilts=mstilts)
+                                             bpm=msbpm, det=det, setup=setup, settings=sci_settings,
+                                             maskslits=maskslits, pixlocn=pixlocn, tslits_dict=tslits_dict,
+                                             tilts=mstilts, fitstbl=fitstbl, scidx=scidx)
             msgs.sciexp = sciI  # For QA on crash
-            #sciframe = arload.load_frames(fitstbl, [scidx], det,
-            #                              frametype='science',
-            #                              msbias=msbias)
-            #sciframe = sciframe[:, :, 0]
-            # Extract
-            msgs.info("Processing science frame")
 
-            # Simple process
-            sciframe = sciI._process(msbias, mspixflatnrm, apply_gain=True)
-
-            # Variance image
+            # Process (includes Variance image and CRs)
             dnoise = (settings_det['darkcurr'] * float(fitstbl["exptime"][scidx])/3600.0)
-            _ = sciI.build_rawvarframe(dnoise=dnoise)
-
-            # CR mask
-            _ = sciI.build_crmask()
+            sciframe, rawvarframe, crmask = sciI._process(
+                msbias, mspixflatnrm, apply_gain=True, dnoise=dnoise)
 
             # Global skysub
             setting_skysub = {}
             setting_skysub['skysub'] = settings.argflag['reduce']['skysub'].copy()
             if settings.argflag['reduce']['skysub']['perform']:
                 _ = sciI.global_skysub(setting_skysub)
-                _ = sciI.build_modelvar()
             else:
                 sciI.global_sky = np.zeros_like(sciframe)
                 sciI.modelvarframe = np.zeros_like(sciframe)
 
             # Find objects
-            tracelist = sciI.find_objects()
-            nobj = np.sum([tdict['nobj'] for tdict in tracelist if 'nobj' in tdict.keys()])
+            _, nobj = sciI.find_objects()
             if nobj == 0:
                 msgs.warn("No objects to extract for science frame" + msgs.newline() + fitsdict['filename'][scidx])
                 continue
@@ -322,12 +311,17 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             # Another round of sky sub
             if settings.argflag['reduce']['skysub']['perform']:
                 _ = sciI.global_skysub(setting_skysub, use_tracemask=True)
-                _ = sciI.build_modelvar()
 
-            #
-            arproc.reduce_multislit(slf, mstilts, sciframe, msbpm, datasec_img, scidx, fitstbl, det,
-                                    mswave, mspixelflatnrm=mspixflatnrm, slitprof=slitprof)
+            # Another round of finding objects
+            _, nobj = sciI.find_objects()
+            if nobj == 0:
+                msgs.warn("No objects to extract for science frame" + msgs.newline() + fitsdict['filename'][scidx])
+                continue
 
+            # Extraction
+
+
+            debugger.set_trace()
 
             ######################################################
             # Reduce standard here; only legit if the mask is the same

@@ -9,6 +9,7 @@ from importlib import reload
 
 from pypit import msgs
 from pypit import processimages
+from pypit import arspecobj
 from pypit.core import arprocimg
 from pypit.core import arskysub
 from pypit import artrace
@@ -68,16 +69,22 @@ class ScienceImage(processimages.ProcessImages):
     # Keep order same as processimages (or else!)
     def __init__(self, file_list=[], spectrograph=None, settings=None,
                  tslits_dict=None, tilts=None, det=None, setup=None, datasec_img=None,
-                 bpm=None, maskslits=None, pixlocn=None, standard=False):
+                 bpm=None, maskslits=None, pixlocn=None, objtype='science',
+                 fitstbl=None, scidx=0,
+                 msbias=None, pixflat=None):
 
         # Parameters unique to this Object
         self.det = det
         self.setup = setup
         self.tslits_dict = tslits_dict
         self.tilts = tilts
+        self.msbias = msbias
+        self.pixflat = pixflat
         self.maskslits = maskslits
+        self.fitstbl = fitstbl
         self.pixlocn = pixlocn
-        self.standard = standard
+        self.objtype = objtype
+        self.scidx = scidx
 
         # Start us up
         processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph,
@@ -107,6 +114,18 @@ class ScienceImage(processimages.ProcessImages):
         #    See ProcessImages
         self.crmask = None
 
+    def extraction(self):
+        reload(arspecobj)
+        # Another find object iteration
+        self.specobjs = arspecobj.init_exp(self.tslits_dict['lcen'],
+                                      self.tslits_dict['rcen'],
+                                      self.sciframe.shape,
+                                      self.maskslits,
+                                      self.det, self.scidx, self.fitstbl,
+                                      self.tracelist, self.settings,
+                                      objtype=self.objtype)
+        debugger.set_trace()
+
     def find_objects(self, doqa=False):
         reload(artrace)
 
@@ -131,7 +150,8 @@ class ScienceImage(processimages.ProcessImages):
         if doqa: # and (not msgs._debug['no_qa']):
             obj_trace_qa(slf, sciframe, det, tracelist, root="object_trace", normalize=False)
 
-        return self.tracelist
+        self.nobj = np.sum([tdict['nobj'] for tdict in self.tracelist if 'nobj' in tdict.keys()])
+        return self.tracelist, self.nobj
 
 
     def global_skysub(self, settings_skysub, use_tracemask=False):
@@ -163,25 +183,36 @@ class ScienceImage(processimages.ProcessImages):
                 self.maskslits[slit] = True
             else:
                 self.global_sky += slit_bgframe
+
+        # Build model variance
+        msgs.info("Building model variance from the Sky frame")
+        self.modelvarframe = self._build_modelvar()
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
-        return self.global_sky
+        return self.global_sky, self.modelvarframe
 
-    def build_modelvar(self):
+    def _build_modelvar(self):
         self.modelvarframe = arprocimg.variance_frame(
             self.datasec_img, self.det, self.sciframe, skyframe=self.global_sky,
             settings_det=self.settings['detector'])
         return self.modelvarframe
 
-    def _process(self, bias_subtract, pixel_flat, apply_gain=True):
+    def _process(self, bias_subtract, pixel_flat, apply_gain=True, dnoise=0.):
         """ Process the image
         Wrapper to ProcessImages.process()
 
         Needed in part to set self.sciframe, although I could kludge it another way..
         """
         self.sciframe = self.process(bias_subtract=bias_subtract, apply_gain=apply_gain, pixel_flat=pixel_flat)
-        return self.sciframe
+
+        # Variance image
+        self.rawvarframe = self.build_rawvarframe(dnoise=dnoise)
+
+        # CR mask
+        self.crmask = self.build_crmask()
+
+        return self.sciframe, self.rawvarframe, self.crmask
 
     def _grab_varframe(self):
         #
@@ -202,6 +233,7 @@ class ScienceImage(processimages.ProcessImages):
                     self.trcmask += self.tracelist[sl]['object'].sum(axis=2)
         self.trcmask[np.where(self.trcmask > 0.0)] = 1.0
         return self.trcmask
+
 
     def show(self, attr, image=None, display='ginga'):
         """

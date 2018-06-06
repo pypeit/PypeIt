@@ -11,7 +11,7 @@ from astropy import units
 from astropy.table import Table
 
 from pypit import msgs
-from pypit import arparse as settings
+from pypit import arparse
 from pypit.core import artraceslits
 from pypit import ardebug as debugger
 
@@ -79,7 +79,7 @@ class SpecObjExp(object):
         #self.idx = '{:02d}'.format(self.setup)
         self.idx = 'O{:03d}'.format(self.objid)
         self.idx += '-S{:04d}'.format(self.slitid)
-        sdet = settings.get_dnum(self.det, prefix=False)
+        sdet = arparse.get_dnum(self.det, prefix=False)
         self.idx += '-D{:s}'.format(sdet)
         self.idx += '-I{:04d}'.format(self.scidx)
 
@@ -115,12 +115,13 @@ class SpecObjExp(object):
     # Printing
     def __repr__(self):
         # Generate sets string
-        sdet = settings.get_dnum(self.det, prefix=False)
+        sdet = arparse.get_dnum(self.det, prefix=False)
         return ('<SpecObjExp: {:s} == Setup {:s} Object at {:g} in Slit at {:g} with det={:s}, scidx={:d} and objtype={:s}>'.format(
                 self.idx, self.config, self.xobj, self.slitcen, sdet, self.scidx, self.objtype))
 
 
-def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
+def init_exp(lordloc, rordloc, shape, maskslits,
+             det, scidx, fitstbl, tracelist, settings, ypos=0.5, **kwargs):
     """ Generate a list of SpecObjExp objects for a given exposure
 
     Parameters
@@ -131,7 +132,7 @@ def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
        Index of file
     det : int
        Detector index 
-    trc_img : list of dict
+    tracelist : list of dict
        Contains trace info
     ypos : float, optional [0.5]
        Row on trimmed detector (fractional) to define slit (and object)
@@ -144,9 +145,13 @@ def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
 
     # Init
     specobjs = []
-    config = instconfig(det, scidx, fitsdict)
-    slits = range(len(trc_img))
-    gdslits = np.where(~slf._maskslits[det-1])[0]
+    if fitstbl is None:
+        fitsrow = None
+    else:
+        fitsrow = fitstbl[scidx]
+    config = instconfig(fitsrow=fitsrow, binning=settings['detector']['binning'])
+    slits = range(len(tracelist))
+    gdslits = np.where(~maskslits)[0]
 
     # Loop on slits
     for sl in slits:
@@ -156,24 +161,22 @@ def init_exp(slf, scidx, det, fitsdict, trc_img, ypos=0.5, **kwargs):
             specobjs[sl].append(None)
             continue
         # Object traces
-        if trc_img[sl]['nobj'] != 0:
+        if tracelist[sl]['nobj'] != 0:
             # Loop on objects
             #for qq in range(trc_img[sl]['nobj']):
-            for qq in range(trc_img[sl]['traces'].shape[1]):
-                slitid, slitcen, xslit = artraceslits.get_slitid(slf._sciframe[det-1].shape,
-                                                                 slf._lordloc[det-1],
-                                                                 slf._rordloc[det-1],
+            for qq in range(tracelist[sl]['traces'].shape[1]):
+                slitid, slitcen, xslit = artraceslits.get_slitid(shape, lordloc, rordloc,
                                                                  sl, ypos=ypos)
                 # xobj
-                _, xobj = get_objid(slf, det, sl, qq, trc_img, ypos=ypos)
+                _, xobj = get_objid(lordloc, rordloc, sl, qq, tracelist, ypos=ypos)
                 # Generate
-                if trc_img[sl]['object'] is None:
-                    specobj = SpecObjExp((trc_img[0]['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj, **kwargs)
+                if tracelist[sl]['object'] is None:
+                    specobj = SpecObjExp((tracelist[0]['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj, **kwargs)
                 else:
-                    specobj = SpecObjExp((trc_img[sl]['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj,
+                    specobj = SpecObjExp((tracelist[sl]['object'].shape[:2]), config, scidx, det, xslit, ypos, xobj,
                                          **kwargs)
                 # Add traces
-                specobj.trace = trc_img[sl]['traces'][:, qq]
+                specobj.trace = tracelist[sl]['traces'][:, qq]
                 # Append
                 specobjs[sl].append(copy.deepcopy(specobj))
         else:
@@ -251,11 +254,10 @@ def mtch_obj_to_objects(iobj, objects, stol=50, otol=10, **kwargs):
 
 
 
-def get_objid(slf, det, islit, iobj, trc_img, ypos=0.5):
+def get_objid(lordloc, rordloc, islit, iobj, trc_img, ypos=0.5):
     """ Convert slit position to a slitid
     Parameters
     ----------
-    slf
     det : int
     islit : int
     iobj : int
@@ -267,9 +269,9 @@ def get_objid(slf, det, islit, iobj, trc_img, ypos=0.5):
     objid : int
     xobj : float
     """
-    yidx = int(np.round(ypos*slf._lordloc[det-1].shape[0]))
-    pixl_slit = slf._lordloc[det-1][yidx, islit]
-    pixr_slit = slf._rordloc[det-1][yidx, islit]
+    yidx = int(np.round(ypos*lordloc.shape[0]))
+    pixl_slit = lordloc[yidx, islit]
+    pixr_slit = rordloc[yidx, islit]
     #
     xobj = (trc_img[islit]['traces'][yidx,iobj]-pixl_slit) / (pixr_slit-pixl_slit)
     objid= int(np.round(xobj*1e3))
@@ -277,15 +279,12 @@ def get_objid(slf, det, islit, iobj, trc_img, ypos=0.5):
     return objid, xobj
 
 
-def instconfig(det, scidx, fitsdict):
-    """ Returns a unique config string for the current slf
+def instconfig(fitsrow=None, binning=None):
+    """ Returns a unique config string
 
     Parameters
     ----------
-    det : int
-    scidx : int
-       Exposure index (max=9999)
-    fitsdict : dict
+    fitsrow : Row
     """
 
     config_dict = OrderedDict()
@@ -297,8 +296,8 @@ def instconfig(det, scidx, fitsdict):
     config = ''
     for key in config_dict.keys():
         try:
-            comp = str(fitsdict[config_dict[key]][scidx])
-        except KeyError:
+            comp = str(fitsrow[config_dict[key]])
+        except (KeyError, TypeError):
             comp = '0'
         #
         val = ''
@@ -307,9 +306,7 @@ def instconfig(det, scidx, fitsdict):
                 val += s
         config = config + key+'{:s}-'.format(val)
     # Binning
-    try:
-        binning = settings.spect['det'][det-1]['binning']
-    except KeyError:
+    if binning is None:
         msgs.warn("Assuming 1x1 binning for your detector")
         binning = '1x1'
     val = ''
