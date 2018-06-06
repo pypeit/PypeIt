@@ -26,7 +26,7 @@ def bg_subtraction_slit(tslits_dict, pixlocn,
     :param varframe:
     :return:
     """
-    # Unpack
+    # Unpack tslits
     lordloc = tslits_dict['lcen']
     rordloc = tslits_dict['rcen']
     slitpix = tslits_dict['slitpix']

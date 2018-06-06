@@ -237,7 +237,9 @@ class ProcessImages(object):
         self.mspixelflat -- Modified internally
 
         """
-        self.stack *= arprocimg.gain_frame(datasec_img,
+        if datasec_img is None:
+            msgs.error("Need to input datasec_img!")
+        self.stack = self.stack*arprocimg.gain_frame(datasec_img,
                                                  self.settings['detector']['numamplifiers'],
                                                  self.settings['detector']['gain'])
         # Step

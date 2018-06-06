@@ -5,12 +5,13 @@ import inspect
 import numpy as np
 import os
 
-#from importlib import reload
+from importlib import reload
 
 from pypit import msgs
 from pypit import processimages
 from pypit.core import arprocimg
 from pypit.core import arskysub
+from pypit import artrace
 from pypit import ginga
 
 from pypit import ardebug as debugger
@@ -67,7 +68,7 @@ class ScienceImage(processimages.ProcessImages):
     # Keep order same as processimages (or else!)
     def __init__(self, file_list=[], spectrograph=None, settings=None,
                  tslits_dict=None, tilts=None, det=None, setup=None, datasec_img=None,
-                 bpm=None, maskslits=None, pixlocn=None):
+                 bpm=None, maskslits=None, pixlocn=None, standard=False):
 
         # Parameters unique to this Object
         self.det = det
@@ -76,6 +77,7 @@ class ScienceImage(processimages.ProcessImages):
         self.tilts = tilts
         self.maskslits = maskslits
         self.pixlocn = pixlocn
+        self.standard = standard
 
         # Start us up
         processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph,
@@ -85,9 +87,12 @@ class ScienceImage(processimages.ProcessImages):
         # Attributes (set after init)
         self.frametype = frametype
 
-        # Key outputs
+        # Key outputs/internals
         self.sciframe = None
         self.varframe = None
+        self.modelvarframe = None
+        self.tracelist = []
+
 
         # Settings
         # The copy allows up to update settings with user settings without changing the original
@@ -99,6 +104,31 @@ class ScienceImage(processimages.ProcessImages):
 
         # Child-specific Internals
         #    See ProcessImages
+        self.crmask = None
+
+    def find_objects(self, doqa=False):
+        reload(artrace)
+
+        nslit = len(self.maskslits)
+        gdslits = np.where(~self.maskslits)[0]
+        self.tracelist = []
+
+        # Loop on good slits
+        for slit in range(nslit):
+            if slit not in gdslits:
+                self.tracelist.append({})
+                continue
+            tlist = artrace.trace_objects_in_slit(
+                self.det, slit, self.sciframe-self.bgframe,
+                self.modelvarframe, self.crmask)
+            # Append
+            self.tracelist += tlist
+
+        # QA?
+        if doqa: # and (not msgs._debug['no_qa']):
+            obj_trace_qa(slf, sciframe, det, tracelist, root="object_trace", normalize=False)
+
+
 
     def global_skysub(self, settings_skysub):
 
@@ -130,6 +160,11 @@ class ScienceImage(processimages.ProcessImages):
                 self.datasec_img, self.det, self.sciframe, skyframe=self.bgframe)
         return self.modelvarframe
 
+    def _process(self, bias_subtract, pixel_flat, apply_gain=True):
+        self.sciframe = self.process(bias_subtract=bias_subtract, apply_gain=apply_gain, pixel_flat=pixel_flat)
+        return self.sciframe
+
+
     def show(self, attr, display='ginga'):
         """
         Show one of the internal images
@@ -137,7 +172,7 @@ class ScienceImage(processimages.ProcessImages):
         Parameters
         ----------
         attr : str
-          mspixelflat -- Show the combined flat image, unnormalized
+          bgframe -- Show the combined flat image, unnormalized
           norm -- Show the combined normalized flat image
         display : str, optional
 
@@ -145,9 +180,12 @@ class ScienceImage(processimages.ProcessImages):
         -------
 
         """
-        if attr == 'mspixelflat':
-            if self.mspixelflat is not None:
-                ginga.show_image(self.mspixelflat)
-        elif attr == 'norm':
-            if self.mspixelflatnrm is not None:
-                ginga.show_image(self.mspixelflatnrm)
+        if attr == 'bgframe':
+            if self.bgframe is not None:
+                ginga.show_image(self.bgframe)
+        elif attr == 'sci':
+            if self.sciframe is not None:
+                ginga.show_image(self.sciframe)
+        elif attr == 'modelvar':
+            if self.modelvarframe is not None:
+                ginga.show_image(self.modelvarframe)

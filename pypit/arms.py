@@ -105,7 +105,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             scifile = os.path.join(fitstbl['directory'][scidx],fitstbl['filename'][scidx])
             settings_det = settings.spect[dnum].copy()  # Should include naxis0, naxis1 in this
             datasec_img, naxis0, naxis1 = arprocimg.get_datasec_trimmed(
-                settings.argflag['run']['spectrograph'], scifile, namp, det, settings_det,
+                settings.argflag['run']['spectrograph'], scifile, det, settings_det,
                 naxis0=fitstbl['naxis0'][scidx],
                 naxis1=fitstbl['naxis1'][scidx])
             # Yes, this looks goofy.  Is needed for LRIS and DEIMOS for now
@@ -293,7 +293,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             msgs.info("Processing science frame")
 
             # Simple process
-            sciframe = scienceImage.process(bias_subtract=msbias, apply_gain=True, pixel_flat=mspixflatnrm)
+            sciframe = scienceImage._process(msbias, mspixflatnrm, apply_gain=True)
 
             # Variance image
             dnoise = (settings_det['darkcurr'] * float(fitstbl["exptime"][scidx])/3600.0)
@@ -311,7 +311,9 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             # Global skysub
             setting_skysub = settings.argflag['reduce']['skysub']
             global_sky = scienceImage.global_skysub(setting_skysub)
-            modelvframe = scienceImage.build_modelvar()
+            modelvarframe = scienceImage.build_modelvar()
+
+            # Find objects
 
             debugger.set_trace()
 

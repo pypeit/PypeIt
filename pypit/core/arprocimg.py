@@ -99,7 +99,7 @@ def error_frame_postext(sciframe, idx, fitsdict, settings_spect):
 '''
 
 
-def get_datasec_trimmed(spectrograph, scifile, numamplifiers, det, settings_det,
+def get_datasec_trimmed(spectrograph, scifile, det, settings_det,
                         naxis0=None, naxis1=None):
     """
     Primarily a wrapper with calls to get_datasec and pix_to_amp()
@@ -121,9 +121,9 @@ def get_datasec_trimmed(spectrograph, scifile, numamplifiers, det, settings_det,
     if spectrograph in ['keck_lris_blue', 'keck_lris_red', 'keck_deimos']:
         # Grab
         datasec, oscansec, naxis0, naxis1 = get_datasec(spectrograph, scifile,
-                                                        numamplifiers=numamplifiers, det=det)
+                                                        numamplifiers=settings_det['numamplifiers'], det=det)
         # Fill (for backwards compatability)
-        for kk in range(numamplifiers):
+        for kk in range(settings_det['numamplifiers']):
             sdatasec = "datasec{0:02d}".format(kk+1)
             settings_det[sdatasec] = datasec[kk]
             soscansec = "oscansec{0:02d}".format(kk+1)
@@ -133,12 +133,12 @@ def get_datasec_trimmed(spectrograph, scifile, numamplifiers, det, settings_det,
 
     # Build the datasec lists for pix_to_amp
     datasec = []
-    for i in range(numamplifiers):
+    for i in range(settings_det['numamplifiers']):
         sdatasec = "datasec{0:02d}".format(i+1)
         datasec.append(settings_det[sdatasec])
     # Call
     #naxis0, naxis1 = int(fitstbl['naxis0'][scidx]), int(fitstbl['naxis1'][scidx])
-    datasec_img = arpixels.pix_to_amp(naxis0, naxis1, datasec, numamplifiers)
+    datasec_img = arpixels.pix_to_amp(naxis0, naxis1, datasec, settings_det['numamplifiers'])
     return datasec_img, naxis0, naxis1
 
 
@@ -487,9 +487,9 @@ def gain_frame(datasec_img, namp, gain_list):
 
     Parameters
     ----------
-    slf
-    det
+    datasec_img : ndarray
     namp : int
+    gain_list : list
 
     Returns
     -------
