@@ -89,7 +89,7 @@ class ScienceImage(processimages.ProcessImages):
 
         # Key outputs/internals
         self.sciframe = None
-        self.varframe = None
+        self.rawvarframe = None
         self.modelvarframe = None
         self.global_sky = None
         self.tracelist = []
@@ -110,6 +110,8 @@ class ScienceImage(processimages.ProcessImages):
     def find_objects(self, doqa=False):
         reload(artrace)
 
+        varframe = self._grab_varframe()
+
         nslit = len(self.maskslits)
         gdslits = np.where(~self.maskslits)[0]
         self.tracelist = []
@@ -119,9 +121,9 @@ class ScienceImage(processimages.ProcessImages):
             if slit not in gdslits:
                 self.tracelist.append({})
                 continue
-            tlist = artrace.trace_objects_in_slit(
-                self.det, slit, self.sciframe-self.bgframe,
-                self.modelvarframe, self.crmask)
+            tlist = artrace.trace_objects_in_slit(self.det, slit, self.tslits_dict,
+                                                  self.sciframe-self.global_sky,
+                                                  varframe, self.crmask, self.settings)
             # Append
             self.tracelist += tlist
 
@@ -129,13 +131,21 @@ class ScienceImage(processimages.ProcessImages):
         if doqa: # and (not msgs._debug['no_qa']):
             obj_trace_qa(slf, sciframe, det, tracelist, root="object_trace", normalize=False)
 
+        return self.tracelist
 
 
-    def global_skysub(self, settings_skysub):
+    def global_skysub(self, settings_skysub, use_tracemask=False):
         reload(arskysub)
 
         self.global_sky = np.zeros_like(self.sciframe)
         gdslits = np.where(~self.maskslits)[0]
+
+        varframe = self._grab_varframe()
+
+        if use_tracemask:
+            tracemask = self._build_tracemask()
+        else:
+            tracemask = None
 
         for slit in gdslits:
             msgs.info("Working on slit: {:d}".format(slit))
@@ -143,8 +153,9 @@ class ScienceImage(processimages.ProcessImages):
             try:
                 slit_bgframe = arskysub.bg_subtraction_slit(self.tslits_dict, self.pixlocn,
                                                             slit, self.tilts, self.sciframe,
-                                                            self.varframe, self.bpm,
-                                                            self.crmask, settings_skysub)
+                                                            varframe, self.bpm,
+                                                            self.crmask, settings_skysub,
+                                                            tracemask=tracemask)
             except ValueError:  # Should have been bspline..
                 msgs.warn("B-spline sky subtraction failed.  Slit {:d} will no longer be processed..".format(slit))
                 #msgs.warn("Continue if you wish..")
@@ -159,17 +170,43 @@ class ScienceImage(processimages.ProcessImages):
 
     def build_modelvar(self):
         self.modelvarframe = arprocimg.variance_frame(
-                self.datasec_img, self.det, self.sciframe, skyframe=self.bgframe)
+            self.datasec_img, self.det, self.sciframe, skyframe=self.global_sky,
+            settings_det=self.settings['detector'])
         return self.modelvarframe
 
     def _process(self, bias_subtract, pixel_flat, apply_gain=True):
+        """ Process the image
+        Wrapper to ProcessImages.process()
+
+        Needed in part to set self.sciframe, although I could kludge it another way..
+        """
         self.sciframe = self.process(bias_subtract=bias_subtract, apply_gain=apply_gain, pixel_flat=pixel_flat)
         return self.sciframe
 
+    def _grab_varframe(self):
+        #
+        if self.modelvarframe is None:
+            msgs.info("Using raw variance frame for sky sub")
+            varframe = self.rawvarframe
+        else:
+            msgs.info("Using model variance frame for sky sub")
+            varframe = self.modelvarframe
+        return varframe
+
+    def _build_tracemask(self):
+        # Create a trace mask of the object
+        self.trcmask = np.zeros_like(self.sciframe)
+        for sl in range(len(self.tracelist)):
+            if 'nobj' in self.tracelist[sl].keys():
+                if self.tracelist[sl]['nobj'] > 0:
+                    self.trcmask += self.tracelist[sl]['object'].sum(axis=2)
+        self.trcmask[np.where(self.trcmask > 0.0)] = 1.0
+        return self.trcmask
 
     def show(self, attr, image=None, display='ginga'):
         """
         Show one of the internal images
+          Should probably put some of these in ProcessImages
 
         Parameters
         ----------
@@ -189,13 +226,15 @@ class ScienceImage(processimages.ProcessImages):
             if self.sciframe is not None:
                 ginga.show_image(self.sciframe)
         elif attr == 'rawvar':
-            if self.varframe is not None:
-                ginga.show_image(self.varframe)
+            if self.rawvarframe is not None:
+                ginga.show_image(self.rawvarframe)
         elif attr == 'modelvar':
             if self.modelvarframe is not None:
                 ginga.show_image(self.modelvarframe)
         elif attr == 'crmasked':
             ginga.show_image(self.sciframe*(1-self.crmask), chname='CR')
+        elif attr == 'skysub':
+            ginga.show_image(self.sciframe-self.global_sky, chname='SkySub')
         elif attr == 'image':
             ginga.show_image(image)
         else:

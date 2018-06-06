@@ -280,11 +280,11 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             sci_image_files = arsort.list_of_files(fitstbl, 'science', sci_ID)
             sci_settings = tsettings.copy()
             # Instantiate
-            scienceImage = scienceimage.ScienceImage(file_list=sci_image_files, datasec_img=datasec_img,
+            sciI = scienceimage.ScienceImage(file_list=sci_image_files, datasec_img=datasec_img,
                                                      bpm=msbpm, det=det, setup=setup, settings=sci_settings,
                                                      maskslits=maskslits, pixlocn=pixlocn, tslits_dict=tslits_dict,
                                                      tilts=mstilts)
-            msgs.sciexp = scienceImage  # For QA on crash
+            msgs.sciexp = sciI  # For QA on crash
             #sciframe = arload.load_frames(fitstbl, [scidx], det,
             #                              frametype='science',
             #                              msbias=msbias)
@@ -293,25 +293,36 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             msgs.info("Processing science frame")
 
             # Simple process
-            sciframe = scienceImage._process(msbias, mspixflatnrm, apply_gain=True)
+            sciframe = sciI._process(msbias, mspixflatnrm, apply_gain=True)
 
             # Variance image
             dnoise = (settings_det['darkcurr'] * float(fitstbl["exptime"][scidx])/3600.0)
-            varframe = scienceImage.build_varframe(dnoise=dnoise)
+            _ = sciI.build_rawvarframe(dnoise=dnoise)
 
             # CR mask
-            crmask = scienceImage.build_crmask(varframe=varframe)
+            _ = sciI.build_crmask()
 
             # Global skysub
             setting_skysub = {}
             setting_skysub['skysub'] = settings.argflag['reduce']['skysub'].copy()
-            global_sky = scienceImage.global_skysub(setting_skysub)
-            modelvarframe = scienceImage.build_modelvar()
+            if settings.argflag['reduce']['skysub']['perform']:
+                _ = sciI.global_skysub(setting_skysub)
+                _ = sciI.build_modelvar()
+            else:
+                sciI.global_sky = np.zeros_like(sciframe)
+                sciI.modelvarframe = np.zeros_like(sciframe)
 
             # Find objects
+            tracelist = sciI.find_objects()
+            nobj = np.sum([tdict['nobj'] for tdict in tracelist if 'nobj' in tdict.keys()])
+            if nobj == 0:
+                msgs.warn("No objects to extract for science frame" + msgs.newline() + fitsdict['filename'][scidx])
+                continue
 
-            debugger.set_trace()
-
+            # Another round of sky sub
+            if settings.argflag['reduce']['skysub']['perform']:
+                _ = sciI.global_skysub(setting_skysub, use_tracemask=True)
+                _ = sciI.build_modelvar()
 
             #
             arproc.reduce_multislit(slf, mstilts, sciframe, msbpm, datasec_img, scidx, fitstbl, det,

@@ -386,14 +386,14 @@ class ProcessImages(object):
         # Done
         return self.stack.copy()
 
-    def build_varframe(self, dnoise=None):
+    def build_rawvarframe(self, dnoise=None):
         msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
-        self.varframe = arprocimg.variance_frame(self.datasec_img, self.det, self.stack,
+        self.rawvarframe = arprocimg.variance_frame(self.datasec_img, self.det, self.stack,
                                                self.settings['detector'], dnoise=dnoise)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
-        return self.varframe
+        return self.rawvarframe
 
     def show(self, attr, idx=None, display='ginga'):
         """
