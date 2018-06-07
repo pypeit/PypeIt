@@ -28,12 +28,10 @@ def get_ampscale(datasec_img, msflat, namp):
 
     Parameters
     ----------
-    slf : class
-      An instance of the Science Exposure class
-    det : int
-      Detector number
+    datasec_img : ndarray
     msflat : ndarray
       Flat-field image
+    namp : int
 
     Returns
     -------
@@ -209,22 +207,27 @@ def slit_profile(slit, mstrace, tilts, slordloc, srordloc, slitpix, pixwid,
     nrmvals = blz_flat * sltnrmval
 
     return modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit
-    '''
-    if msgs._debug['slit_profile']:
-        debugger.set_trace()
-        model = np.zeros_like(mstrace)
-        model[word] = modvals
-        diff = mstrace - model
-        hdu = fits.PrimaryHDU(mstrace)
-        hdu.writeto("mstrace_{0:02d}.fits".format(det), overwrite=True)
-        hdu = fits.PrimaryHDU(model)
-        hdu.writeto("model_{0:02d}.fits".format(det), overwrite=True)
-        hdu = fits.PrimaryHDU(diff)
-        hdu.writeto("diff_{0:02d}.fits".format(det), overwrite=True)
-    '''
 
 
 def prep_ntck(pixwid, settings, ntcky=None):
+    """
+    Prepare the number of knots for the bspline fitting
+
+    Parameters
+    ----------
+    pixwid : int
+      Width of slit in pixels
+    settings : dict
+      Could probably replace this with the few parameters needed
+    ntcky : int, optional
+      Number of knots in spectral
+
+    Returns
+    -------
+    ntckx : int
+    ntcky : int
+
+    """
     # Set the number of knots in the spectral direction
     if ntcky is None:
         if settings["flatfield"]["method"] == "bspline":
@@ -251,15 +254,24 @@ def norm_slits(mstrace, datasec_img, lordloc, rordloc, pixwid,
                  slitpix, det, tilts, settings_argflag, settings_spect, ntcky=None):
     """ Generate an image of the spatial slit profile.
 
+    DEPRECATED?
+
     Parameters
     ----------
-    slf : class
-      Science Exposure Class
     mstrace : ndarray
       Master trace frame that is used to trace the slit edges.
+    datasec_img : ndarra
+      Image of amp positions
+    lordloc : ndarray
+    rordloc : ndarray
+    pixwid : int
+    slitpix : ndarray
+      Image of slit positions
     det : int
-      Detector index
-    ntcky : int
+    tilts : ndarray
+    settings_argflag : dict
+    settings_spect : dict
+    ntcky : int, optional
       Number of bspline knots in the spectral direction.
 
     Returns
@@ -325,10 +337,8 @@ def slit_profile_pca(mstrace, tilts, msblaze, extrap_slit, slit_profiles,
 
     Parameters
     ----------
-    slit_profile : ndarray
-      An image containing the slit profile
-    det : int
-      Detector index
+    mstrace : ndarray
+    tilts : ndarray
     msblaze : ndarray
       A model of the blaze function of each slit
     extrap_slit : ndarray
@@ -336,6 +346,11 @@ def slit_profile_pca(mstrace, tilts, msblaze, extrap_slit, slit_profiles,
       and blaze function for those slits should be extrapolated or determined from another means
     slit_profiles : ndarray
       An image containing the slit profile
+    lordloc : ndarray
+    rordloc : ndarray
+    pixwid : ndarray
+    slitpix : ndarray
+    setup : str
 
     Returns
     -------
@@ -552,8 +567,6 @@ def slit_profile_qa(mstrace, model, lordloc, rordloc, msordloc, textplt="Slit", 
 
     Parameters
     ----------
-    slf : class
-      Science Exposure class
     mstrace : ndarray
       trace frame
     model : ndarray
@@ -570,6 +583,8 @@ def slit_profile_qa(mstrace, model, lordloc, rordloc, msordloc, textplt="Slit", 
       Maximum number of panels per page
     desc : str, (optional)
       A description added to the top of each page
+    setup : str, optional
+    outroot : str, optional
     """
 
     plt.rcdefaults()
