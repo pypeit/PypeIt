@@ -280,3 +280,27 @@ def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
     w = np.ix_(xfin, yfin)
     return retarr[w]
 
+
+def new_order_pixels(pixlocn, lord, rord):
+    """
+    Based on physical pixel locations, determine which pixels are within the orders
+    """
+
+    sz_x, sz_y, _ = pixlocn.shape
+    sz_o = lord.shape[1]
+
+    outfr = np.zeros((sz_x, sz_y), dtype=int)
+
+    for y in range(sz_y):
+        for o in range(sz_o):
+            indx = (lord[:,o] < rord[:,o]) & (pixlocn[:,y,1] > lord[:,o]) \
+                   & (pixlocn[:,y,1] < rord[:,o])
+            indx |= ( (lord[:,o] > rord[:,o]) & (pixlocn[:,y,1] < lord[:,o])
+                      & (pixlocn[:,y,1] > rord[:,o]) )
+            if np.any(indx):
+                # Only assign a single order to a given pixel
+                outfr[indx,y] = o+1
+                break
+
+    return outfr
+

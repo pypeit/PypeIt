@@ -12,6 +12,7 @@ from pypit import ardebug as debugger
 from pypit import arcomb
 from pypit import arload
 from pypit.core import arprocimg
+from pypit.core import arflat
 from pypit import ginga
 
 
@@ -29,7 +30,9 @@ def default_settings():
     default_settings = dict(detector={'numamplifiers': 1,   # This dict is not complete; consider readnoise, binning
                                   'saturation': 60000.,  # Spectra aligned with columns
                                   'dispaxis': 0,  # Spectra aligned with columns
-                                  'dataext': None},
+                                  'dataext': None,
+                                  'gain': [1.],
+                                      },
                         combine={'match': -1.,
                                  'satpix': 'reject',
                                  'method': 'weightmean',
@@ -69,7 +72,8 @@ class ProcessImages(object):
     datasec : list
     oscansec : list
     """
-    def __init__(self, file_list, spectrograph=None, settings=None, det=1, user_settings=None):
+    def __init__(self, file_list, spectrograph=None, settings=None, det=1, user_settings=None,
+                 datasec_img=None, bpm=None):
 
         # Required parameters
         if not isinstance(file_list, list):
@@ -78,6 +82,9 @@ class ProcessImages(object):
 
         # Optional
         self.det = det
+        self.datasec_img = datasec_img
+        self.bpm = bpm
+
         if settings is None:
             self.settings = default_settings()
         else:
@@ -216,6 +223,31 @@ class ProcessImages(object):
         else:
             msgs.error("datasec not properly loaded!")
 
+    def apply_gain(self, datasec_img):
+        """
+        # Apply gain (instead of ampsec scale)
+
+        Parameters
+        ----------
+        datasec_img : ndarray
+          Defines which pixels belong to which amplifier
+
+        Returns
+        -------
+        self.mspixelflat -- Modified internally
+
+        """
+        if datasec_img is None:
+            msgs.error("Need to input datasec_img!")
+        self.stack = self.stack*arprocimg.gain_frame(datasec_img,
+                                                 self.settings['detector']['numamplifiers'],
+                                                 self.settings['detector']['gain'])
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.stack
+
+
     def bias_subtract(self, msbias, trim=True, force=False):
         """
 
@@ -273,7 +305,30 @@ class ProcessImages(object):
         self.steps.append(inspect.stack()[0][3])
         return self.stack
 
-    def process(self, bias_subtract=None, trim=True, overwrite=False):
+    def build_crmask(self, varframe=None):
+        self.crmask = arprocimg.lacosmic(self.det, self.stack, self.settings['detector'],
+                                    grow=1.5, varframe=varframe)
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.crmask
+
+    def flat_field(self):
+        """
+
+        Returns
+        -------
+
+        """
+        if self.bpm is None:
+            msgs.error("Need to set the BPM image, even if all zeros")
+        self.stack = arflat.flatfield(self.stack, self.pixel_flat, self.bpm, slitprofile=self.slitprof)
+        return self.stack
+
+
+    def process(self, bias_subtract=None, apply_gain=False,
+                trim=True, overwrite=False,
+                pixel_flat=None, slitprof=None):
         """
         Process the images from loading to combining
 
@@ -294,9 +349,10 @@ class ProcessImages(object):
             msgs.warn("Images already combined.  Use overwrite=True to do it again.")
             return
 
-        # Allow for one-stop-shopping
+        # Load images
         if 'load_images' not in self.steps:
             self.load_images()
+        # Bias subtract
         if (bias_subtract is not None):
             self.bias_subtract(bias_subtract, trim=trim)
         else:
@@ -312,18 +368,32 @@ class ProcessImages(object):
             for kk,image in enumerate(self.raw_images):
                 self.proc_images[:,:,kk] = image
         # Combine
-        self.stack = self.combine()
+        if self.proc_images.shape[2] == 1:  # Nothing to combine
+            self.stack = self.proc_images[:,:,0]
+        else:
+            self.stack = self.combine()
+
+        # Apply gain?
+        if apply_gain:
+            self.apply_gain(self.datasec_img)
+
+        # Flat field?
+        if pixel_flat is not None:
+            self.pixel_flat = pixel_flat
+            self.slitprof = slitprof
+            self.stack = self.flat_field()
+
+        # Done
         return self.stack.copy()
 
-    def flat_field(self):
-        """
-        Coming soon
-
-        Returns
-        -------
-
-        """
-        pass
+    def build_rawvarframe(self, dnoise=None):
+        msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
+        self.rawvarframe = arprocimg.variance_frame(self.datasec_img, self.det, self.stack,
+                                               self.settings['detector'], dnoise=dnoise)
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.rawvarframe
 
     def show(self, attr, idx=None, display='ginga'):
         """
