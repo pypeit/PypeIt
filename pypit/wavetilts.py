@@ -29,7 +29,7 @@ frametype = 'tilts'
 # Place these here or elsewhere?
 #  Wherever they be, they need to be defined, described, etc.
 default_settings = dict(tilts={'idsonly': False,
-                               'trthrsh': 1000.,
+                               'tracethresh': 1000.,
                                'order': 2,
                                'function': 'legendre',       # Function for arc line fits
                                'yorder': 4,
@@ -200,7 +200,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
         return self.badlines
 
-    def _extract_arcs(self):
+    def _extract_arcs(self, gen_satmask=False):
         """
         Extract the arcs down each slit/order
 
@@ -215,7 +215,7 @@ class WaveTilts(masterframe.MasterFrame):
         # Extract an arc down each slit/order
         self.arccen, self.arc_maskslit, _ = ararc.get_censpec(self.lordloc, self.rordloc,
                                                               self.pixlocn, self.msarc, self.det,
-                                                              gen_satmask=False)
+                                                              gen_satmask=gen_satmask)
         self.satmask = np.zeros_like(self.msarc)
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -264,7 +264,7 @@ class WaveTilts(masterframe.MasterFrame):
         trcdict = artracewave.trace_tilt(self.pixcen, self.rordloc, self.lordloc, self.det,
                                          self.msarc, slit, self.settings_det, self.settings,
                                          censpec=self.arccen[:, slit], nsmth=3,
-                                              trthrsh=self.settings['tilts']['trthrsh'],
+                                         tracethresh=self.settings['tilts']['tracethresh'],
                                          wv_calib=wv_calib)
         # Load up
         self.all_trcdict[slit] = trcdict.copy()
@@ -273,7 +273,7 @@ class WaveTilts(masterframe.MasterFrame):
         # Return
         return trcdict
 
-    def run(self, maskslits=None, doqa=True, wv_calib=None):
+    def run(self, maskslits=None, doqa=True, wv_calib=None, gen_satmask=False):
         """ Main driver for tracing arc lines
 
         Code flow:
@@ -289,6 +289,8 @@ class WaveTilts(masterframe.MasterFrame):
         maskslits : ndarray (bool), optional
         doqa : bool
         wv_calib : dict
+        gen_satmask : bool, optional
+          Generate a saturation mask?
 
         Returns
         -------
@@ -305,7 +307,7 @@ class WaveTilts(masterframe.MasterFrame):
             maskslits = np.zeros(self.nslit, dtype=bool)
 
         # Extract the arc spectra for all slits
-        self.arccen, self.arc_maskslit = self._extract_arcs()
+        self.arccen, self.arc_maskslit = self._extract_arcs(gen_satmask=gen_satmask)
 
         # maskslit
         mask = maskslits & (self.arc_maskslit==1)

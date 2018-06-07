@@ -2103,8 +2103,8 @@ class BaseArgFlag(BaseFunctions):
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
-    def trace_slits_tilts_trthrsh(self, v):
-        """ What is the theshold for including an arc line in the tilt analysis
+    def trace_slits_tilts_tracethresh(self, v):
+        """ What is the threshold for including an arc line in the tilt analysis
 
         Parameters
         ----------

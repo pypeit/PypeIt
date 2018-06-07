@@ -15,8 +15,8 @@ To construct a wavelength image that assigns a wavelength
 value to every pixel in the science frame, one must measure
 the tilts of the arc lines (or sky lines) across the slits/orders.
 
-This process is orgainzed by the WaveTilts class which
-is primarily a wrapper to methocs in the artracewave.py module.
+This process is organized by the WaveTilts class which
+is primarily a wrapper to methods in the artracewave.py module.
 Here is the code flow:
 
   1.  Extract an arc spectrum down the center of each slit/order
