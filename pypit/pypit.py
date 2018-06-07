@@ -258,9 +258,10 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     if mode == 'run':
         arsort.make_dirs(arparse.argflag)
         # Send the data away to be reduced
-        if spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMLSD':
-            msgs.info('Data reduction will be performed using PYPIT-ARMLSD')
-            status = arms.ARMS(specname, fitstbl, setup_dict)
+        if spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMS':
+            msgs.info('Data reduction will be performed using PYPIT-ARMS')
+            #status = arms.ARMS(fitstbl, setup_dict, sciexp=sciexp)
+            status = arms.ARMS(fitstbl, setup_dict)
         elif spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMED':
             msgs.info('Data reduction will be performed using PYPIT-ARMED')
             status = armed.ARMED(fitstbl)

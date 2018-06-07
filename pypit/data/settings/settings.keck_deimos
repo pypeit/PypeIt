@@ -37,7 +37,7 @@ mosaic longitude 155.47833            # Longitude of the telescope (NOTE: West s
 mosaic latitude 19.82833              # Latitude of the telescope
 mosaic elevation 4160.0               # Elevation of the telescope (in m)
 mosaic minexp 1.0                     # Minimum exposure time (s)
-mosaic reduction ARMLSD               # Which reduction pipeline should be used for this instrument
+mosaic reduction ARMS                 # Which reduction pipeline should be used for this instrument
 mosaic camera DEIMOS                  # Camera name
 
 # See DEIMOS specs here:
@@ -379,6 +379,7 @@ settings trace slits sigdetect 50.0
 settings trace slits number -1
 settings trace slits tilts params 1,1,1
 settings trace slits tilts method spca
+settings trace slits tilts order  3             # What is the order of the function to be used for tilts in a given order
 settings trace slits pca params [3,2,1,0]
 settings trace slits polyorder  3
 settings trace slits sobel mode nearest

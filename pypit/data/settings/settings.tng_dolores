@@ -4,7 +4,7 @@ mosaic latitude 28.754               # Latitude of the telescope
 mosaic longitude +17.88906             # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
 mosaic elevation 2387.2               # Elevation of the telescope (in m)
 mosaic minexp 0.0                     # Minimum exposure time (s)
-mosaic reduction ARMLSD               # Which reduction pipeline should be used for this instrument
+mosaic reduction ARMS                 # Which reduction pipeline should be used for this instrument
 mosaic camera DOLORES                 # Which reduction pipeline should be used for this instrument
 
 ### Detector properties
