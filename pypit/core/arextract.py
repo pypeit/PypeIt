@@ -16,7 +16,6 @@ from astropy.stats import sigma_clip
 
 from pypit import msgs
 from pypit import arqa
-from pypit import arparse as settings
 from pypit import artrace
 from pypit import arutils
 from pypit import ardebug as debugger
@@ -48,7 +47,7 @@ def boxcar(specobjs, sciframe, varframe, bpix, skyframe, crmask, scitrace, mswav
       sky background frame
     crmask : int ndarray
         mask of cosmic ray hits
-    scitrace : dict
+    scitrace : list
       traces, object and background trace images
 
     Returns
@@ -222,45 +221,32 @@ def boxcar(specobjs, sciframe, varframe, bpix, skyframe, crmask, scitrace, mswav
     return bgcorr
 
 
-def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
-                 scitrace, tilts, COUNT_LIM=25., doqa=True, pickle_file=None):
+def obj_profiles(det, specobjs, sciframe, varframe, crmask,
+                 scitrace, tilts, maskslits, slitpix,
+                 extraction_profile='gaussian',
+                 COUNT_LIM=25., doqa=True, pickle_file=None):
     """ Derive spatial profiles for each object
     Parameters
     ----------
-    slf
-    det
-    specobjs
-    sciframe
-    varframe
-    skyframe
-    crmask
-    scitrace
+    det : int
+    specobjs : list
+    sciframe : ndarray
+      Sky subtracted science frame
+    varframe : ndarray
+    crmask : ndarray
+    scitrace : list
+    tilts : ndarray
+    maskslits : ndarray
+
     Returns
     -------
+    All internal on specobj and scitrace objects
     """
-    '''  FOR DEVELOPING
-    import pickle
-    if False:
-        tilts = slf._tilts[det-1]
-        args = [det, specobjs, sciframe, varframe, skyframe, crmask, scitrace, tilts]
-        msgs.warn("Pickling in the profile code")
-        with open("trc_pickle.p",'wb') as f:
-            pickle.dump(args,f)
-        debugger.set_trace()
-    if pickle_file is not None:
-        f = open(pickle_file,'r')
-        args = pickle.load(f)
-        f.close()
-        det, specobjs, sciframe, varframe, skyframe, crmask, scitrace, tilts = args
-        slf = None
-    else:
-        tilts = slf._tilts[det-1]
-    '''
     # Init QA
     #
     sigframe = np.sqrt(varframe)
     slits = range(len(specobjs))
-    gdslits = np.where(~slf._maskslits[det-1])[0]
+    gdslits = np.where(~maskslits)[0]
     # Loop on slits
     for sl in slits:
         if sl not in gdslits:
@@ -277,12 +263,12 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
             if scitrace[sl]['background'] is None:
                 # The object for all slits is provided in the first extension
                 objreg = np.copy(scitrace[0]['object'][:, :, o])
-                wzro = np.where(slf._slitpix[det - 1] != sl + 1)
+                wzro = np.where(slitpix != sl + 1)
                 objreg[wzro] = 0.0
             else:
                 objreg = scitrace[sl]['object'][:, :, o]
             # Calculate slit image
-            slit_img = artrace.slit_image(slf, det, scitrace[sl], o, tilts)
+            slit_img = artrace.slit_image(scitrace[sl], o, tilts)
             # Object pixels
             weight = objreg.copy()
             # Identify good rows
@@ -307,7 +293,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
                 weight_val = 1./sigframe[gdprof]  # 1/N
                 msgs.work("Weight by S/N in boxcar extraction? [avoid CRs; smooth?]")
                 # Fit
-                fdict = dict(func=settings.argflag['science']['extraction']['profile'], deg=3, extrap=False)
+                fdict = dict(func=extraction_profile, deg=3, extrap=False)
                 if fdict['func'] == 'gaussian':
                     fdict['deg'] = 2
                 elif fdict['func'] == 'moffat':
@@ -372,7 +358,8 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
     if doqa: #not msgs._debug['no_qa'] and doqa:
         msgs.info("Preparing QA for spatial object profiles")
 #        arqa.obj_profile_qa(slf, specobjs, scitrace, det)
-        obj_profile_qa(slf, specobjs, scitrace, det)
+        debugger.set_trace()  # Need to avoid slf
+        obj_profile_qa(specobjs, scitrace, det)
     return
 
 
@@ -433,8 +420,9 @@ def obj_profile_qa(slf, specobjs, scitrace, det):
     plt.rcdefaults()
 
 
-def optimal_extract(slf, det, specobjs, sciframe, varframe,
-                    skyframe, crmask, scitrace, tilts, mswave,
+def optimal_extract(specobjs, sciframe, varframe,
+                    crmask, scitrace, tilts, mswave,
+                    maskslits, slitpix, calib_wavelength='vacuum',
                     pickle_file=None, profiles=None):
     """ Preform optimal extraction
     Standard Horne approach
@@ -456,10 +444,6 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
     newvar : ndarray
       Updated variance array that includes object model
     """
-    # Setup
-    #rnimg = arproc.rn_frame(slf,det)
-    #model_var = np.abs(skyframe + sciframe - np.sqrt(2)*rnimg + rnimg**2)  # sqrt 2 term deals with negative flux/sky
-    #model_ivar = 1./model_var
     # Inverse variance
     model_ivar = np.zeros_like(varframe)
     cr_mask = 1.0-crmask
@@ -467,7 +451,7 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
     model_ivar[gdvar] = arutils.calc_ivar(varframe[gdvar])
     # Object model image
     obj_model = np.zeros_like(varframe)
-    gdslits = np.where(~slf._maskslits[det-1])[0]
+    gdslits = np.where(maskslits)[0]
     # Loop on slits
     for sl in range(len(specobjs)):
         if sl not in gdslits:
@@ -482,7 +466,7 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
             if scitrace[sl]['background'] is None:
                 # The object for all slits is provided in the first extension
                 objreg = np.copy(scitrace[0]['object'][:, :, o])
-                wzro = np.where(slf._slitpix[det - 1] != sl + 1)
+                wzro = np.where(slitpix != sl + 1)
                 objreg[wzro] = 0.0
             else:
                 objreg = scitrace[sl]['object'][:, :, o]
@@ -491,7 +475,7 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
             if 'param' not in fit_dict.keys():
                 continue
             # Slit image
-            slit_img = artrace.slit_image(slf, det, scitrace[sl], o, tilts)
+            slit_img = artrace.slit_image(scitrace[sl], o, tilts)
             #msgs.warn("Turn off tilts")
             # Object pixels
             weight = objreg.copy()
@@ -522,7 +506,7 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
                 msgs.warn("Replacing fully masked regions with mean wavelengths")
                 mnwv = np.mean(mswave, axis=1)
                 opt_wave[full_mask] = mnwv[full_mask]
-            if (np.sum(opt_wave < 1.) > 0) and settings.argflag["reduce"]["calibrate"]["wavelength"] != "pixel":
+            if (np.sum(opt_wave < 1.) > 0) and calib_wavelength != "pixel":
                 debugger.set_trace()
                 msgs.error("Zero value in wavelength array. Uh-oh")
             # Optimal ivar

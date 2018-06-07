@@ -319,9 +319,12 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 continue
 
             # Extraction
+            specobjs = sciI.extraction(mswave)
 
-
+            # Flexure
             debugger.set_trace()
+
+            # Helio
 
             ######################################################
             # Reduce standard here; only legit if the mask is the same

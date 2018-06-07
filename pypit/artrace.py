@@ -207,8 +207,8 @@ def trace_objects_in_slits(slf, det, sciframe, varframe, crmask, doqa=False, **k
     return tracelist
 
 
-def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, varframe, crmask,
-                          settings_trace,
+def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe,
+                          varframe, crmask, settings_trace,
                           trim=2, triml=None, trimr=None, sigmin=2.0, bgreg=None,
                           maskval=-999999.9, xedge=0.03, standard=False, debug=False):
     """ Finds objects, and traces their location on the detector
@@ -221,11 +221,13 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, varframe, crmask,
       Index of the detector
     slitn : int
       Slit (or order) number
-    sciframe: numpy ndarray
-      Science frame, preferably sky subtracted
-    varframe: numpy ndarray
+    sciframe : numpy ndarray
+      Science frame
+    skyframe : numpy ndarray
+      Science frame
+    varframe : numpy ndarray
       Variance frame
-    crmask: numpy ndarray
+    crmask : numpy ndarray
       Mask or cosmic rays
     trim : int (optional)
       Number of pixels to trim from the left and right slit edges.
@@ -258,6 +260,9 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, varframe, crmask,
     lordloc = tslits_dict['lcen']
     rordloc = tslits_dict['rcen']
 
+    #
+    skysub = sciframe - skyframe
+
     # Find the trace of each object
     tracefunc = settings_trace['trace']['object']['function']
     traceorder = settings_trace['trace']['object']['order']
@@ -276,21 +281,21 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, varframe, crmask,
                     tracefunc=tracefunc, traceorder=traceorder, xedge=xedge)
     # Interpolate the science array onto a new grid (with constant spatial slit length)
     msgs.info("Rectifying science frame")
-    xint = np.linspace(0.0, 1.0, sciframe.shape[0])
-    yint = np.linspace(0.0, 1.0, sciframe.shape[1])
-    scispl = interpolate.RectBivariateSpline(xint, yint, sciframe, bbox=[0.0, 1.0, 0.0, 1.0],
+    xint = np.linspace(0.0, 1.0, skysub.shape[0])
+    yint = np.linspace(0.0, 1.0, skysub.shape[1])
+    scispl = interpolate.RectBivariateSpline(xint, yint, skysub, bbox=[0.0, 1.0, 0.0, 1.0],
                                              kx=1, ky=1, s=0)
     varspl = interpolate.RectBivariateSpline(xint, yint, varframe, bbox=[0.0, 1.0, 0.0, 1.0],
                                              kx=1, ky=1, s=0)
     crmspl = interpolate.RectBivariateSpline(xint, yint, crmask, bbox=[0.0, 1.0, 0.0, 1.0], kx=1,
                                              ky=1, s=0)
-    xx, yy = np.meshgrid(np.linspace(0.0, 1.0, sciframe.shape[0]), np.linspace(0.0, 1.0, npix), indexing='ij')
-    ro = (rordloc[:, slitn] - trimr).reshape((-1, 1)) / (sciframe.shape[1] - 1.0)
-    lo = (lordloc[:, slitn] + triml).reshape((-1, 1)) / (sciframe.shape[1] - 1.0)
+    xx, yy = np.meshgrid(np.linspace(0.0, 1.0, skysub.shape[0]), np.linspace(0.0, 1.0, npix), indexing='ij')
+    ro = (rordloc[:, slitn] - trimr).reshape((-1, 1)) / (skysub.shape[1] - 1.0)
+    lo = (lordloc[:, slitn] + triml).reshape((-1, 1)) / (skysub.shape[1] - 1.0)
     vv = (lo+(ro-lo)*yy).flatten()
     xx = xx.flatten()
-    recsh = (sciframe.shape[0], npix)
-    rec_sciframe = scispl.ev(xx, vv).reshape(recsh)
+    recsh = (skysub.shape[0], npix)
+    rec_skysub = scispl.ev(xx, vv).reshape(recsh)
     rec_varframe = varspl.ev(xx, vv).reshape(recsh)
     rec_crmask   = crmspl.ev(xx, vv).reshape(recsh)
     # Update the CR mask to ensure it only contains 1's and 0's
@@ -309,13 +314,13 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, varframe, crmask,
 #    _rec_sigframe_bin = arcyutils.smooth_x(rec_sciframe/np.sqrt(rec_varframe), 1.0-rec_crmask,
 #                                           smthby, rejhilo, maskval)
 #    print('Old smooth_x: {0} seconds'.format(time.clock() - t))
-    tmp = np.ma.MaskedArray(rec_sciframe/np.sqrt(rec_varframe), mask=rec_crmask.astype(bool))
+    tmp = np.ma.MaskedArray(rec_skysub/np.sqrt(rec_varframe), mask=rec_crmask.astype(bool))
 #    # TODO: Add rejection to BoxcarFilter?
 #    t = time.clock()
     rec_sigframe_bin = BoxcarFilter(smthby).smooth(tmp.T).T
 #    print('BoxcarFilter: {0} seconds'.format(time.clock() - t))
 #    t = time.clock()
-#    rec_sigframe_bin = new_smooth_x(rec_sciframe/np.sqrt(rec_varframe), 1.0-rec_crmask, smthby,
+#    rec_sigframe_bin = new_smooth_x(rec_skysub/np.sqrt(rec_varframe), 1.0-rec_crmask, smthby,
 #                                    rejhilo, maskval)
 #    print('New smooth_x: {0} seconds'.format(time.clock() - t))
     # TODO: BoxcarFilter and smooth_x will provide different results.
@@ -351,7 +356,7 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, varframe, crmask,
 
     #rec_varframe_bin = arcyutils.smooth_x(rec_varframe, 1.0-rec_crmask, smthby, rejhilo, maskval)
     #rec_sigframe_bin = np.sqrt(rec_varframe_bin/(smthby-2.0*rejhilo))
-    #sigframe = rec_sciframe_bin*(1.0-rec_crmask)/rec_sigframe_bin
+    #sigframe = rec_skysub*(1.0-rec_crmask)/rec_sigframe_bin
     ww = np.where(rec_crmask == 0.0)
     med, mad = arutils.robust_meanstd(rec_sigframe_bin[ww])
     ww = np.where(rec_crmask == 1.0)
@@ -384,7 +389,7 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, varframe, crmask,
     #objl, objr, bckl, bckr = arcytrace.find_objects(smth_prof, bgreg, mad)
     if settings_trace['trace']['object']['find'] == 'nminima':
         nsmooth = settings_trace['trace']['object']['nsmooth']
-        trcprof2 = np.mean(rec_sciframe, axis=0)
+        trcprof2 = np.mean(rec_skysub, axis=0)
         objl, objr, bckl, bckr = find_obj_minima(trcprof2, triml=triml, trimr=trimr, nsmooth=nsmooth)
     elif settings_trace['trace']['object']['find'] == 'standard':
 #        print('calling find_objects')
@@ -474,7 +479,7 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, varframe, crmask,
         wght = np.ma.sum(clip_image2[:, objl[o]:objr[o]], axis=1)
         cent /= wght
         centfit = cent.filled(maskval)
-        specfit = np.linspace(-1.0, 1.0, sciframe.shape[0])
+        specfit = np.linspace(-1.0, 1.0, skysub.shape[0])
         w = np.where(centfit != maskval)
         specfit = specfit[w]
         centfit = centfit[w]
@@ -490,7 +495,7 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, varframe, crmask,
     # Tracing
     msgs.info("Performing global trace to all objects")
     mskbad, coeffs = arutils.robust_polyfit(allxfit, allsfit, traceorder, function=tracefunc, minv=-1.0, maxv=1.0)
-    trcfunc = arutils.func_val(coeffs, np.linspace(-1.0, 1.0, sciframe.shape[0]), tracefunc, minv=-1.0, maxv=1.0)
+    trcfunc = arutils.func_val(coeffs, np.linspace(-1.0, 1.0, skysub.shape[0]), tracefunc, minv=-1.0, maxv=1.0)
     msgs.info("Constructing a trace for all objects")
     trcfunc = trcfunc.reshape((-1, 1)).repeat(nobj, axis=1)
     trccopy = trcfunc.copy()
@@ -515,12 +520,12 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, varframe, crmask,
         trccopy[:, o] = trcfunc[:, o] - cval[o] + objr[o]/(npix-1.0)
     #trobjr = ofst + (diff-triml-trimr)*trccopy
     # Generate an image of pixel weights for each object
-    rec_obj_img, rec_bg_img = trace_objbg_image(lordloc, sciframe, slitn,
+    rec_obj_img, rec_bg_img = trace_objbg_image(lordloc, skysub, slitn,
                                                 [objl, objr], [bckl, bckr],
                                                 triml=triml, trimr=trimr)
     # Check object traces in ginga
     if msgs._debug['trace_obj']:
-        viewer, ch = ginga.show_image(sciframe)
+        viewer, ch = ginga.show_image(skysub)
         for ii in range(nobj):
             ginga.show_trace(viewer, ch, traces[:, ii], '{:d}'.format(ii), clear=(ii == 0))
         debugger.set_trace()
@@ -1788,7 +1793,7 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
 '''
 
 
-def slit_image(slf, det, scitrace, obj, tilts):
+def slit_image(scitrace, obj, tilts):
     """ Generate slit image for a given object
     Ignores changing plate scale (for now)
     The slit is approximated as a straight line in this calculation
@@ -1797,8 +1802,6 @@ def slit_image(slf, det, scitrace, obj, tilts):
     so that the 'error' is compensated for.
     Parameters
     ----------
-    slf
-    det
     scitrace
     obj
     Returns

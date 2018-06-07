@@ -112,26 +112,69 @@ class ScienceImage(processimages.ProcessImages):
         #    See ProcessImages
         self.crmask = None
 
-    def extraction(self, mswave):
-        reload(arspecobj)
-        # Another find object iteration
-        #  Nested -- self.specobjs[slit][object]
+    def _build_specobj(self):
         self.specobjs = arspecobj.init_exp(self.tslits_dict['lcen'],
-                                      self.tslits_dict['rcen'],
-                                      self.sciframe.shape,
-                                      self.maskslits,
-                                      self.det, self.scidx, self.fitstbl,
-                                      self.tracelist, self.settings,
-                                      objtype=self.objtype)
+                                           self.tslits_dict['rcen'],
+                                           self.sciframe.shape,
+                                           self.maskslits,
+                                           self.det, self.scidx, self.fitstbl,
+                                           self.tracelist, self.settings,
+                                           objtype=self.objtype)
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.specobjs
 
-        # Boxcar -- Fills specobj.boxcar in place
+    def boxcar(self, mswave):
         msgs.info("Performing boxcar extraction")
         self.skycorr_box = arextract.boxcar(self.specobjs, self.sciframe,
                                             self.modelvarframe, self.bpm,
                                             self.global_sky, self.crmask,
                                             self.tracelist, mswave,
                                             self.maskslits, self.tslits_dict['slitpix'])
-        debugger.set_trace()
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.skycorr_box
+
+    def original_optimal(self, mswave):
+        msgs.info("Attempting optimal extraction with model profile")
+        arextract.obj_profiles(self.det, self.specobjs, self.sciframe-self.global_sky-self.skycorr_box,
+                               self.modelvarframe, self.crmask, self.tracelist, self.tilts,
+                               self.maskslits, self.tslits_dict['slitpix'], doqa=False)
+        obj_model = arextract.optimal_extract(self.specobjs,
+                                              self.sciframe-self.global_sky-self.skycorr_box,
+                                              self.modelvarframe, self.crmask,
+                                              self.tracelist, self.tilts,
+                                              mswave, self.maskslits, self.tslits_dict['slitpix'])
+
+    def extraction(self, mswave):
+        reload(arspecobj)
+        reload(arextract)
+
+        # Init specobjs
+        #  Nested -- self.specobjs[slit][object]
+        self.specobjs = self._build_specobj()
+
+        # Boxcar -- Fills specobj.boxcar in place
+        self.skycorr_box = self.boxcar(mswave)
+
+        # Optimal (original recipe)
+        self.original_optimal(mswave)
+        #
+        msgs.info("Update model variance image (and trace?) and repeat")
+        _ = self._build_modelvar(skyframe=self.global_sky+self.skycorr_box, objframe=obj_model)
+        self.original_optimal(mswave)
+
+        # Final variance image
+        self.finalvar = self._build_modelvar(skyframe=self.global_sky+self.skycorr_box, objframe=obj_model)
+
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+
+        # Return
+        return self.specobjs
+
 
     def find_objects(self, doqa=False):
         reload(artrace)
@@ -148,7 +191,7 @@ class ScienceImage(processimages.ProcessImages):
                 self.tracelist.append({})
                 continue
             tlist = artrace.trace_objects_in_slit(self.det, slit, self.tslits_dict,
-                                                  self.sciframe-self.global_sky,
+                                                  self.sciframe, self.global_sky,
                                                   varframe, self.crmask, self.settings)
             # Append
             self.tracelist += tlist
@@ -199,10 +242,12 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.global_sky, self.modelvarframe
 
-    def _build_modelvar(self):
+    def _build_modelvar(self, skyframe=None, objframe=None):
+        if skyframe is None:
+            skyframe = self.global_sky
         self.modelvarframe = arprocimg.variance_frame(
-            self.datasec_img, self.det, self.sciframe, skyframe=self.global_sky,
-            settings_det=self.settings['detector'])
+            self.datasec_img, self.det, self.sciframe, skyframe=skyframe,
+            settings_det=self.settings['detector'], objframe=objframe)
         return self.modelvarframe
 
     def _process(self, bias_subtract, pixel_flat, apply_gain=True, dnoise=0.):
