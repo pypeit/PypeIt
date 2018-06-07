@@ -288,6 +288,9 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                                              maskslits=maskslits, pixlocn=pixlocn, tslits_dict=tslits_dict,
                                              tilts=mstilts, fitstbl=fitstbl, scidx=scidx)
             msgs.sciexp = sciI  # For QA on crash
+            # Names
+            sciI.init_names(settings.spect['mosaic']['camera'],
+                            timeunit=settings.spect["fits"]["timeunit"])
 
             # Process (includes Variance image and CRs)
             dnoise = (settings_det['darkcurr'] * float(fitstbl["exptime"][scidx])/3600.0)
@@ -323,7 +326,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             specobjs = sciI.extraction(mswave)
 
             # Flexure correction?
-            if settings.argflag['reduce']['flexure']['perform'] and (not standard):
+            if settings.argflag['reduce']['flexure']['perform']:
                 if settings.argflag['reduce']['flexure']['method'] is not None:
                     flex_list = arwave.flexure_obj(
                         specobjs, maskslits, settings.argflag['reduce']['flexure']['method'],
@@ -331,7 +334,8 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                         skyspec_fil = settings.argflag['reduce']['flexure']['spectrum'],
                         mxshft = settings.argflag['reduce']['flexure']['maxshift'])
                     #if not msgs._debug['no_qa']:
-                    arproc.flexure_qa(slf, det, flex_list)
+                    arwave.flexure_qa(specobjs, maskslits, sciI._basename,
+                                      det, flex_list)
             debugger.set_trace()
 
             # Helio

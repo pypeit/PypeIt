@@ -6,6 +6,9 @@ import numpy as np
 import os
 
 from importlib import reload
+import datetime
+
+from astropy.time import Time
 
 from pypit import msgs
 from pypit import processimages
@@ -111,6 +114,33 @@ class ScienceImage(processimages.ProcessImages):
         # Child-specific Internals
         #    See ProcessImages
         self.crmask = None
+
+    def init_names(self, camera, timeunit='mjd'):
+        tbname = None
+        try:
+            if "T" in self.fitstbl['date'][self.scidx]:
+                tbname = self.fitstbl['date'][self.scidx]
+        except IndexError:
+            debugger.set_trace()
+        else:
+            if tbname is None:
+                if timeunit == "mjd":
+                    # Not ideal, but convert MJD into a date+time
+                    timval = Time(self.fitstbl['time'][self.scidx] / 24.0, scale='tt', format='mjd')
+                    tbname = timval.isot
+                else:
+                    # Really not ideal... just append date and time
+                    tbname = self.fitstbl['date'][self.scidx] + "T" + str(self.fitstbl['time'][self.scidx])
+        tval = Time(tbname, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
+        dtime = datetime.datetime.strptime(tval.value, '%Y-%m-%dT%H:%M:%S.%f')
+        # Finish
+        self._inst_name = camera
+        self._target_name = self.fitstbl['target'][self.scidx].replace(" ", "")
+        self._basename = self._target_name+'_'+self._inst_name+'_'+ \
+                         datetime.datetime.strftime(dtime, '%Y%b%dT') + \
+                         tbname.split("T")[1].replace(':','')
+        # Save Time object
+        self._time = tval
 
     def _build_specobj(self):
         self.specobjs = arspecobj.init_exp(self.tslits_dict['lcen'],
