@@ -612,7 +612,7 @@ def reduce_multislit(slf, tilts, sciframe, bpix, datasec_img, scidx, fitsdict, d
         flex_dict = arwave.flexure_slit(slf, det)
         #if not msgs._debug['no_qa']:
 #        arqa.flexure(slf, det, flex_dict, slit_cen=True)
-        flexure_qa(slf, det, flex_dict, slit_cen=True)
+        arwave.flexure_qa(slf, det, flex_dict, slit_cen=True)
 
     # Perform an optimal extraction
     msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
@@ -717,7 +717,7 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, datasec_img,
         if settings.argflag['reduce']['flexure']['method'] is not None:
             flex_list = arwave.flexure_obj(slf, det)
             #if not msgs._debug['no_qa']:
-            flexure_qa(slf, det, flex_list)
+            arwave.flexure_qa(slf, det, flex_list)
 
     # Correct Earth's motion
     if (settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']) and \

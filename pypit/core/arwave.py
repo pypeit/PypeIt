@@ -336,31 +336,29 @@ def flexure_obj(specobjs, maskslits, method, spectrograph,
     return flex_list
 
 
-def geomotion_calculate(fitstbl, idx):
+def geomotion_calculate(fitstbl, idx, time, settings_mosaic, refframe):
     """
     Correct the wavelength calibration solution to the desired reference frame
     """
 
-    frame = settings.argflag["reduce"]["calibrate"]["refframe"]
-    lat = settings.spect['mosaic']['latitude']
-    lon = settings.spect['mosaic']['longitude']
-    alt = settings.spect['mosaic']['elevation']
+    lat = settings_mosaic['mosaic']['latitude']
+    lon = settings_mosaic['mosaic']['longitude']
+    alt = settings_mosaic['mosaic']['elevation']
     loc = (lon * units.deg, lat * units.deg, alt * units.m,)
 
-    radec = SkyCoord(fitsdict["ra"][idx], fitsdict["dec"][idx], unit=(units.hourangle, units.deg), frame='fk5')
-    obstime = Time(slf._time.value, format=slf._time.format, scale='utc', location=loc)
+    radec = SkyCoord(fitstbl["ra"][idx], fitstbl["dec"][idx], unit=(units.hourangle, units.deg), frame='fk5')
+    obstime = Time(time.value, format=time.format, scale='utc', location=loc)
 
-    vcorr = geomotion_velocity(obstime, radec, frame=frame)
+    vcorr = geomotion_velocity(obstime, radec, frame=refframe)
     return vcorr
 
 
-def geomotion_correct(slf, det, fitsdict):
+def geomotion_correct(specobjs, maskslits, fitstbl, scidx, time, settings_mosaic,
+                      refframe):
     """ Correct the wavelength of every pixel to a barycentric/heliocentric frame.
 
     Parameters
     ----------
-    slf : class
-      Science exposure class
     det : int
       Detector index
     fitsdict : dict
@@ -376,20 +374,17 @@ def geomotion_correct(slf, det, fitsdict):
       reference frame.
 
     """
-    frame = settings.argflag["reduce"]["calibrate"]["refframe"]
     # Calculate
-    vel = geomotion_calculate(slf, fitsdict, slf._idx_sci[0])
+    vel = geomotion_calculate(fitstbl, scidx, time, settings_mosaic, refframe)
     vel_corr = np.sqrt((1. + vel/299792.458) / (1. - vel/299792.458))
-    # Save
-    slf.vel_correction = vel
 
-    gdslits = np.where(~slf._maskslits[det-1])[0]
+    gdslits = np.where(~maskslits)[0]
     # Loop on slits to apply
-    for sl in range(len(slf._specobjs[det-1])):
+    for sl in range(len(specobjs)):
         if sl not in gdslits:
             continue
         # Loop on objects
-        for specobj in slf._specobjs[det-1][sl]:
+        for specobj in specobjs[sl]:
             if specobj is None:
                 continue
             # Loop on extraction methods
@@ -397,7 +392,7 @@ def geomotion_correct(slf, det, fitsdict):
                 if not hasattr(specobj, attr):
                     continue
                 if 'wave' in getattr(specobj, attr).keys():
-                    msgs.info("Applying {0:s} correction to {1:s} extraction for object:".format(frame, attr) +
+                    msgs.info("Applying {0:s} correction to {1:s} extraction for object:".format(refframe, attr) +
                               msgs.newline() + "{0:s}".format(str(specobj)))
                     getattr(specobj, attr)['wave'] = getattr(specobj, attr)['wave'] * vel_corr
     # Return

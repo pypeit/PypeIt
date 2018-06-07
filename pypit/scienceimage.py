@@ -115,7 +115,7 @@ class ScienceImage(processimages.ProcessImages):
         #    See ProcessImages
         self.crmask = None
 
-    def init_names(self, camera, timeunit='mjd'):
+    def init_time_names(self, camera, timeunit='mjd'):
         tbname = None
         try:
             if "T" in self.fitstbl['date'][self.scidx]:
@@ -141,6 +141,8 @@ class ScienceImage(processimages.ProcessImages):
                          tbname.split("T")[1].replace(':','')
         # Save Time object
         self._time = tval
+        # Return time
+        return self._time
 
     def _build_specobj(self):
         self.specobjs = arspecobj.init_exp(self.tslits_dict['lcen'],
@@ -169,9 +171,11 @@ class ScienceImage(processimages.ProcessImages):
 
     def original_optimal(self, mswave):
         msgs.info("Attempting optimal extraction with model profile")
+        # Profile
         arextract.obj_profiles(self.det, self.specobjs, self.sciframe-self.global_sky-self.skycorr_box,
                                self.modelvarframe, self.crmask, self.tracelist, self.tilts,
                                self.maskslits, self.tslits_dict['slitpix'], doqa=False)
+        # Extract
         self.obj_model = arextract.optimal_extract(self.specobjs,
                                               self.sciframe-self.global_sky-self.skycorr_box,
                                               self.modelvarframe, self.crmask,

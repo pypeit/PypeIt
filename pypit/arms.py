@@ -288,8 +288,8 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                                              maskslits=maskslits, pixlocn=pixlocn, tslits_dict=tslits_dict,
                                              tilts=mstilts, fitstbl=fitstbl, scidx=scidx)
             msgs.sciexp = sciI  # For QA on crash
-            # Names
-            sciI.init_names(settings.spect['mosaic']['camera'],
+            # Names and time
+            obstime = sciI.init_time_names(settings.spect['mosaic']['camera'],
                             timeunit=settings.spect["fits"]["timeunit"])
 
             # Process (includes Variance image and CRs)
@@ -336,9 +336,26 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                     #if not msgs._debug['no_qa']:
                     arwave.flexure_qa(specobjs, maskslits, sciI._basename,
                                       det, flex_list)
-            debugger.set_trace()
 
             # Helio
+            # Correct Earth's motion
+            if (settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']) and \
+                    (settings.argflag['reduce']['calibrate']['wavelength'] != "pixel"):
+                if settings.argflag['science']['extraction']['reuse']:
+                    msgs.warn("{0:s} correction will not be applied if an extracted science frame exists, and is used".format(settings.argflag['reduce']['calibrate']['refframe']))
+                if specobjs is not None:
+                    msgs.info("Performing a {0:s} correction".format(settings.argflag['reduce']['calibrate']['refframe']))
+                    settings_mosaic = {}
+                    settings_mosaic['mosaic'] = settings.spect['mosaic'].copy()
+                    vel, vel_corr = arwave.geomotion_correct(specobjs, maskslits, fitstbl, scidx,
+                                                             obstime, settings_mosaic,
+                                                             settings.argflag['reduce']['calibrate']['refframe'])
+                else:
+                    msgs.info("There are no objects on detector {0:d} to perform a {1:s} correction".format(
+                        det, settings.argflag['reduce']['calibrate']['refframe']))
+            else:
+                msgs.info("A heliocentric correction will not be performed")
+            debugger.set_trace()
 
             ######################################################
             # Reduce standard here; only legit if the mask is the same

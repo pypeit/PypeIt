@@ -451,7 +451,7 @@ def optimal_extract(specobjs, sciframe, varframe,
     model_ivar[gdvar] = arutils.calc_ivar(varframe[gdvar])
     # Object model image
     obj_model = np.zeros_like(varframe)
-    gdslits = np.where(maskslits)[0]
+    gdslits = np.where(~maskslits)[0]
     # Loop on slits
     for sl in range(len(specobjs)):
         if sl not in gdslits:
