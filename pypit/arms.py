@@ -385,9 +385,11 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 continue
             #
             std_image_files = arsort.list_of_files(fitstbl, 'standard', sci_ID)
-            std_key = '{:d}-{:d}'.format(std_idx, det)
-            if std_key in std_dict.keys():
-                continue
+            if std_idx in std_dict.keys():
+                if det in std_dict[std_idx].keys():
+                    continue
+            else:
+                std_dict[std_idx] = {}
 
             '''
             if stdslf.extracted[det-1] is False:
@@ -409,7 +411,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             stdI = scienceimage.ScienceImage(file_list=std_image_files, datasec_img=datasec_img,
                                              bpm=msbpm, det=det, setup=setup, settings=sci_settings,
                                              maskslits=maskslits, pixlocn=pixlocn, tslits_dict=tslits_dict,
-                                             tilts=mstilts, fitstbl=fitstbl, scidx=scidx,
+                                             tilts=mstilts, fitstbl=fitstbl, scidx=std_idx,
                                              objtype='standard')
             # Names and time
             _, std_basename = stdI.init_time_names(settings.spect['mosaic']['camera'],
@@ -426,7 +428,10 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             _ = stdI.global_skysub(setting_skysub, use_tracemask=True)
             # Extract
             stdobjs, _, _ = sciI.extraction(mswave)
-            std_dict[std_key] = arutils.unravel_specobjs([stdobjs])
+            # Save
+            std_dict[std_idx][det] = {}
+            std_dict[std_idx][det]['basename'] = std_basename
+            std_dict[std_idx][det]['specobjs'] = arutils.unravel_specobjs([stdobjs])
 
         ###########################
         # Write
@@ -460,9 +465,12 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             settings.argflag['run']['directory']['science'], basename)
 
     # Write standard stars
-    for key in std_dict.keys():
-        outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(std_dict[key]._basename)
-        arsave.save_1d_spectra_fits(std_dict[key], fitstbl[std_idx], outfile,
+    for std_idx in std_dict.keys():
+        all_std_objs = []
+        for det in std_dict[std_idx].keys():
+            all_std_objs += std_dict[std_idx][det]['specobjs']
+        outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(std_dict[std_idx][det]['basename'])
+        arsave.save_1d_spectra_fits(all_std_objs, fitstbl[std_idx], outfile,
                                         obs_dict=settings.spect['mosaic'])
 
     #########################
@@ -481,12 +489,15 @@ def ARMS(spectrograph, fitstbl, setup_dict):
         fsettings['reduce'] = settings.argflag['reduce']
         # Generate?
         if settings.argflag['reduce']['calibrate']['sensfunc']['archival'] == 'None':
+            # Take the first standard
+            std_idx = list(std_dict.keys())[0]
             # Build the list of stdobjs
-            std_keys = list(std_dict.keys())
-            std_key = std_keys[0] # Take the first extraction
-            FxSpec = fluxspec.FluxSpec(settings=fsettings, std_specobjs=std_dict[std_key]._specobjs,
+            all_std_objs = []
+            for det in std_dict[std_idx].keys():
+                all_std_objs += std_dict[std_idx][det]['specobjs']
+            FxSpec = fluxspec.FluxSpec(settings=fsettings, std_specobjs=all_std_objs,
                                        setup=setup)  # This takes the last setup run, which is as sensible as any..
-            sensfunc = FxSpec.master(fitstbl[std_key])
+            sensfunc = FxSpec.master(fitstbl[std_idx])
         else:  # Input by user
             FxSpec = fluxspec.FluxSpec(settings=fsettings,
                                        sens_file=settings.argflag['reduce']['calibrate']['sensfunc']['archival'])
