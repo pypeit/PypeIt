@@ -64,6 +64,8 @@ class WaveTilts(masterframe.MasterFrame):
     frametype : str
       Hard-coded to 'tilts'
     steps : list
+    mask : ndarray, bool
+      True = Ignore this slit
     all_trcdict : list of dict
       All trace dict's
     tilts : ndarray
@@ -104,6 +106,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.final_tilts = None
 
         # Key Internals
+        self.mask = None
         self.all_trcdict = [None]*self.nslit
         self.tilts = None
         self.all_ttilts = [None]*self.nslit
@@ -300,8 +303,8 @@ class WaveTilts(masterframe.MasterFrame):
         self.arccen, self.arc_maskslit = self._extract_arcs()
 
         # maskslit
-        mask = maskslits & (self.arc_maskslit==1)
-        gdslits = np.where(mask == 0)[0]
+        self.mask = maskslits & (self.arc_maskslit==1)
+        gdslits = np.where(self.mask == 0)[0]
 
         # Final tilts image
         self.final_tilts = np.zeros_like(self.msarc)
@@ -363,6 +366,9 @@ class WaveTilts(masterframe.MasterFrame):
         hdul = [hdu0]
 
         for slit in range(self.nslit):
+            # Bad slit?
+            if self.mask[slit]:
+                continue
             # fweight and model
             xtfits = self.all_trcdict[slit]['xtfit']  # For convenience
             xszs = [len(xtfit) if xtfit is not None else 0 for xtfit in xtfits]
@@ -379,15 +385,13 @@ class WaveTilts(masterframe.MasterFrame):
                 fwm_img[0:xszs[kk], kk, 1] = self.all_trcdict[slit]['ytfit'][kk]
                 #
                 if self.all_trcdict[slit]['aduse'][kk]:
-                    fwm_img[0:xszs[kk], kk, 2] = self.all_trcdict[slit]['xmodel'][model_cnt]
-                    fwm_img[0:xszs[kk], kk, 3] = self.all_trcdict[slit]['ymodel'][model_cnt]
+                    szmod = self.all_trcdict[slit]['xmodel'][model_cnt].size # Slits on edge can be smaller
+                    fwm_img[0:szmod, kk, 2] = self.all_trcdict[slit]['xmodel'][model_cnt]
+                    fwm_img[0:szmod, kk, 3] = self.all_trcdict[slit]['ymodel'][model_cnt]
                     model_cnt += 1
                     # ycen
                     xgd = self.all_trcdict[slit]['xtfit'][kk][self.all_trcdict[slit]['xtfit'][kk].size//2]
-                    try:
-                        ycen = self.all_ttilts[slit][1][int(xgd),kk]
-                    except:
-                        debugger.set_trace()
+                    ycen = self.all_ttilts[slit][1][int(xgd),kk]
                     fwm_img[-1, kk, 1] = ycen
             hdu1 = fits.ImageHDU(fwm_img)
             hdu1.name = 'FWM{:03d}'.format(slit)
