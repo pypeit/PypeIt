@@ -16,10 +16,10 @@ msgs = pyputils.get_dummy_logger()
 #    return os.path.join(data_dir, filename)
 
 
-def test_load_armlsd():
-    """ Test loading of ARMLSD
+def test_load_arms():
+    """ Test loading of ARMS
     """
-    argf = arparse.get_argflag_class(('ARMLSD', ''))
+    argf = arparse.get_argflag_class(('ARMS', ''))
     argf.init_param()
     argf.set_param('run pypitdir {0:s}'.format('pypit'))
     argf.set_param('run redname {0:s}'.format('shane_kast_blue_setup_01'))
@@ -35,7 +35,7 @@ def test_load_spectrograph():
     """ Test loading of spectrograph
     Using kast_blue as a fiducial example
     """
-    spect = arparse.get_spect_class(('ARMLSD', 'shane_kast_blue', 'shane_kast_blue_setup_01'))
+    spect = arparse.get_spect_class(('ARMS', 'shane_kast_blue', 'shane_kast_blue_setup_01'))
     lines = spect.load_file()
     spect.set_paramlist(lines)
     # Test
