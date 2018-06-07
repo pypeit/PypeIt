@@ -290,8 +290,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                                      masters=settings.argflag['reduce']['masters'])
                 tilt_settings['tilts']['function'] = settings.argflag['trace']['slits']['function']
                 tilt_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                settings_det = {}
-                settings_det[dnum] = settings.spect[dnum].copy()
+                settings_det = settings.spect[dnum].copy()
                 # Instantiate
                 waveTilts = wavetilts.WaveTilts(msarc, settings=tilt_settings, det=det, setup=setup,
                                             lordloc=traceSlits.lcen, rordloc=traceSlits.rcen,
