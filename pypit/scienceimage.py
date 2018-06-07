@@ -123,7 +123,7 @@ class ScienceImage(processimages.ProcessImages):
                                       self.det, self.scidx, self.fitstbl,
                                       self.tracelist, self.settings,
                                       objtype=self.objtype)
-        
+
         # Boxcar -- Fills specobj.boxcar in place
         msgs.info("Performing boxcar extraction")
         self.skycorr_box = arextract.boxcar(self.specobjs, self.sciframe,
