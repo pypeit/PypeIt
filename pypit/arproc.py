@@ -16,16 +16,16 @@ from astropy.io import fits
 
 from pypit import msgs
 
-from pypit import arextract
+from pypit.core import arextract
 from pypit.core import arprocimg
 from pypit.core import arflat
+from pypit.core import arwave
 from pypit import artrace
 from pypit import arutils
 from pypit import arparse as settings
 from pypit import arspecobj
 from pypit import arqa
 from pypit import arpca
-from pypit import arwave
 
 from pypit import ardebug as debugger
 

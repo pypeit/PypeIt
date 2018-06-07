@@ -5,6 +5,7 @@ import copy
 import numpy as np
 
 from scipy import interpolate
+from pkg_resources import resource_filename
 
 from astropy import units
 from astropy.coordinates import SkyCoord, solar_system, EarthLocation, ICRS
@@ -15,18 +16,16 @@ from linetools.spectra import xspectrum1d
 
 from pypit import msgs
 from pypit.core import ararc
-from pypit import arextract
-from pypit import arparse as settings
+from pypit.core import arextract
 from pypit import arutils
 from pypit import ardebug as debugger
 
-def flex_shift(slf, det, obj_skyspec, arx_skyspec):
+
+def flex_shift(obj_skyspec, arx_skyspec, mxshft=None):
     """ Calculate shift between object sky spectrum and archive sky spectrum
 
     Parameters
     ----------
-    slf
-    det
     obj_skyspec
     arx_skyspec
 
@@ -34,6 +33,8 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     -------
     flex_dict
     """
+    if mxshft is None:
+        mxshft = 20
     #Determine the brightest emission lines
     msgs.warn("If we use Paranal, cut down on wavelength early on")
     arx_amp, arx_cent, arx_wid, arx_w, arx_yprep = ararc.detect_lines(arx_skyspec.flux.value)
@@ -153,7 +154,7 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     #Create array around the max of the correlation function for fitting for subpixel max
     # Restrict to pixels within maxshift of zero lag
     lag0 = corr.size//2
-    mxshft = settings.argflag['reduce']['flexure']['maxshift']
+    #mxshft = settings.argflag['reduce']['flexure']['maxshift']
     max_corr = np.argmax(corr[lag0-mxshft:lag0+mxshft]) + lag0-mxshft
     subpix_grid = np.linspace(max_corr-3., max_corr+3., 7.)
 
@@ -180,22 +181,20 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     return flex_dict
 
 
-def flexure_archive():
+def flexure_archive(spectrograph=None, skyspec_fil=None):
     """  Load archived sky spectrum
     """
     #   latitude = settings.spect['mosaic']['latitude']
     #   longitude = settings.spect['mosaic']['longitude']
-    root = settings.argflag['run']['pypitdir']
-    if settings.argflag['reduce']['flexure']['spectrum'] is None:
+    root = resource_filename('pypit', 'data/sky_spec')
+    if skyspec_fil is None: #settings.argflag['reduce']['flexure']['spectrum'] is None:
         # Red or blue?
-        if settings.argflag['run']['spectrograph'] in ['shane_kast_blue']:
+        if spectrograph in ['shane_kast_blue']:
             skyspec_fil = 'sky_kastb_600.fits'
-        elif settings.argflag['run']['spectrograph'] in ['keck_lris_blue']:
+        elif spectrograph in ['keck_lris_blue']:
             skyspec_fil = 'sky_LRISb_600.fits'
         else:
             skyspec_fil = 'paranal_sky.fits'
-    else:
-        skyspec_fil = settings.argflag['reduce']['flexure']['spectrum']
     #
     msgs.info("Using {:s} file for Sky spectrum".format(skyspec_fil))
     arx_sky = xspectrum1d.XSpectrum1D.from_file(root+'/data/sky_spec/'+skyspec_fil)
@@ -207,7 +206,8 @@ def flexure_archive():
     return skyspec_fil, arx_sky
 
 
-def flexure_slit(slf, det):
+'''
+def flexure_slit():
     """Correct wavelength down slit center for flexure
 
     Parameters:
@@ -215,6 +215,7 @@ def flexure_slit(slf, det):
     slf :
     det : int
     """
+    debugger.set_trace()  # THIS METHOD IS NOT BEING USED THESE DAYS
     # Load Archive
     skyspec_fil, arx_sky = flexure_archive()
 
@@ -251,18 +252,15 @@ def flexure_slit(slf, det):
     for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'sky_spec', 'arx_spec']:
         flex_dict[key].append(fdict[key])
     return flex_dict
+'''
 
 
-def flexure_obj(slf, det):
+def flexure_obj(specobjs, maskslits, method, spectrograph,
+                skyspec_fil=None, mxshft=None):
     """Correct wavelengths for flexure, object by object
 
     Parameters:
     ----------
-    slf :
-    det : int
-      detector number
-    center : bool, optional
-      Extract arc down the center?
 
     Returns:
     ----------
@@ -274,13 +272,13 @@ def flexure_obj(slf, det):
     """
     msgs.work("Consider doing 2 passes in flexure as in LowRedux")
     # Load Archive
-    skyspec_fil, arx_sky = flexure_archive()
+    skyspec_fil, arx_sky = flexure_archive(spectrograph=spectrograph, skyspec_fil=skyspec_fil)
 
     # Loop on objects
     flex_list = []
 
-    gdslits = np.where(~slf._maskslits[det-1])[0]
-    for sl in range(len(slf._specobjs[det-1])):
+    gdslits = np.where(~maskslits)[0]
+    for sl in range(len(specobjs)):
         # Reset
         flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
                          corr_cen=[], spec_file=skyspec_fil, smooth=[],
@@ -289,23 +287,22 @@ def flexure_obj(slf, det):
             flex_list.append(flex_dict.copy())
             continue
         msgs.info("Working on flexure in slit (if an object was detected): {:d}".format(sl))
-        for specobj in slf._specobjs[det-1][sl]:  # for convenience
+        for specobj in specobjs[sl]:  # for convenience
             if specobj is None:
                 continue
 
             # Using boxcar
-            if settings.argflag['reduce']['flexure']['method'] in ['boxcar', 'slitcen']:
+            if method in ['boxcar', 'slitcen']:
                 sky_wave = specobj.boxcar['wave'].to('AA').value
                 sky_flux = specobj.boxcar['sky']
             else:
-                msgs.error("Not ready for this flexure method: {}".format(
-                        settings.argflag['reduce']['flexure']))
+                msgs.error("Not ready for this flexure method: {}".format(method))
 
             # Generate 1D spectrum for object
             obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave, sky_flux))
 
             # Calculate the shift
-            fdict = flex_shift(slf, det, obj_sky, arx_sky)
+            fdict = flex_shift(obj_sky, arx_sky, mxshft=mxshft)
 
             # Simple interpolation to apply
             npix = len(sky_wave)
@@ -334,7 +331,7 @@ def flexure_obj(slf, det):
     return flex_list
 
 
-def geomotion_calculate(slf, fitsdict, idx):
+def geomotion_calculate(fitstbl, idx):
     """
     Correct the wavelength calibration solution to the desired reference frame
     """

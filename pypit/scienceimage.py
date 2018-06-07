@@ -142,11 +142,15 @@ class ScienceImage(processimages.ProcessImages):
         arextract.obj_profiles(self.det, self.specobjs, self.sciframe-self.global_sky-self.skycorr_box,
                                self.modelvarframe, self.crmask, self.tracelist, self.tilts,
                                self.maskslits, self.tslits_dict['slitpix'], doqa=False)
-        obj_model = arextract.optimal_extract(self.specobjs,
+        self.obj_model = arextract.optimal_extract(self.specobjs,
                                               self.sciframe-self.global_sky-self.skycorr_box,
                                               self.modelvarframe, self.crmask,
                                               self.tracelist, self.tilts,
                                               mswave, self.maskslits, self.tslits_dict['slitpix'])
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.obj_model
 
     def extraction(self, mswave):
         reload(arspecobj)
@@ -160,21 +164,20 @@ class ScienceImage(processimages.ProcessImages):
         self.skycorr_box = self.boxcar(mswave)
 
         # Optimal (original recipe)
-        self.original_optimal(mswave)
+        self.obj_model = self.original_optimal(mswave)
         #
         msgs.info("Update model variance image (and trace?) and repeat")
-        _ = self._build_modelvar(skyframe=self.global_sky+self.skycorr_box, objframe=obj_model)
-        self.original_optimal(mswave)
+        _ = self._build_modelvar(skyframe=self.global_sky+self.skycorr_box, objframe=self.obj_model)
+        self.obj_model = self.original_optimal(mswave)
 
         # Final variance image
-        self.finalvar = self._build_modelvar(skyframe=self.global_sky+self.skycorr_box, objframe=obj_model)
+        self.finalvar = self._build_modelvar(skyframe=self.global_sky+self.skycorr_box, objframe=self.obj_model)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
 
         # Return
         return self.specobjs
-
 
     def find_objects(self, doqa=False):
         reload(artrace)

@@ -12,6 +12,7 @@ from pypit import arload
 from pypit import arproc
 from pypit.core import arprocimg
 from pypit import arsave
+from pypit.core import arwave
 from pypit import arsciexp
 from pypit.core import arsetup
 from pypit import arpixels
@@ -321,7 +322,16 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             # Extraction
             specobjs = sciI.extraction(mswave)
 
-            # Flexure
+            # Flexure correction?
+            if settings.argflag['reduce']['flexure']['perform'] and (not standard):
+                if settings.argflag['reduce']['flexure']['method'] is not None:
+                    flex_list = arwave.flexure_obj(
+                        specobjs, maskslits, settings.argflag['reduce']['flexure']['method'],
+                        spectrograph,
+                        skyspec_fil = settings.argflag['reduce']['flexure']['spectrum'],
+                        mxshft = settings.argflag['reduce']['flexure']['maxshift'])
+                    #if not msgs._debug['no_qa']:
+                    arproc.flexure_qa(slf, det, flex_list)
             debugger.set_trace()
 
             # Helio
