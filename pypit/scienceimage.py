@@ -142,7 +142,7 @@ class ScienceImage(processimages.ProcessImages):
         # Save Time object
         self._time = tval
         # Return time
-        return self._time
+        return self._time, self._basename
 
     def _build_specobj(self):
         self.specobjs = arspecobj.init_exp(self.tslits_dict['lcen'],
@@ -196,22 +196,26 @@ class ScienceImage(processimages.ProcessImages):
 
         # Boxcar -- Fills specobj.boxcar in place
         self.skycorr_box = self.boxcar(mswave)
+        self.finalsky = self.global_sky+self.skycorr_box
 
-        # Optimal (original recipe)
-        self.obj_model = self.original_optimal(mswave)
-        #
-        msgs.info("Update model variance image (and trace?) and repeat")
-        _ = self._build_modelvar(skyframe=self.global_sky+self.skycorr_box, objframe=self.obj_model)
-        self.obj_model = self.original_optimal(mswave)
+        if self.objtype != 'standard':
+            # Optimal (original recipe)
+            self.obj_model = self.original_optimal(mswave)
+            #
+            msgs.info("Update model variance image (and trace?) and repeat")
+            _ = self._build_modelvar(skyframe=self.finalsky, objframe=self.obj_model)
+            self.obj_model = self.original_optimal(mswave)
 
-        # Final variance image
-        self.finalvar = self._build_modelvar(skyframe=self.global_sky+self.skycorr_box, objframe=self.obj_model)
+            # Final variance image
+            self.finalvar = self._build_modelvar(skyframe=self.finalsky, objframe=self.obj_model)
+        else:
+            self.finalvar = self._grab_varframe()
 
         # Step
         self.steps.append(inspect.stack()[0][3])
 
         # Return
-        return self.specobjs
+        return self.specobjs, self.finalvar, self.finalsky
 
     def find_objects(self, doqa=False):
         reload(artrace)
