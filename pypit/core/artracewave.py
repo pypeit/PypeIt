@@ -164,12 +164,12 @@ def new_tilts_image(tilts, lordloc, rordloc, pad, sz_y):
     return tiltsimg
 
 
-def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_spect,
+def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
                tilt_settings, censpec=None, maskval=-999999.9,
-               trthrsh=1000.0, nsmth=0, method="fweight", wv_calib=None):
+               tracethresh=1000.0, nsmth=0, method="fweight", wv_calib=None):
     """
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
-               trthrsh=1000.0, nsmth=0):
+               tracethresh=1000.0, nsmth=0):
 
     Parameters
     ----------
@@ -180,7 +180,7 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_spect,
       Slit number, here indexed from 0
     censpec
     maskval
-    trthrsh
+    tracethresh : float, optional
     nsmth
     method : str (fweight or cc)
 
@@ -204,7 +204,7 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_spect,
 
     msgs.work("Detecting lines for slit {0:d}".format(slitnum+1))
     tampl, tcent, twid, w, _ = ararc.detect_lines(censpec)
-    satval = settings_spect['saturation']*settings_spect['nonlinear']
+    satval = settings_det['saturation']*settings_det['nonlinear']
     # Order of the polynomials to be used when fitting the tilts.
     arcdet = (tcent[w]+0.5).astype(np.int)
     ampl = tampl[w]
@@ -212,7 +212,7 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_spect,
     # Determine the best lines to use to trace the tilts
     ncont = 15
     aduse = np.zeros(arcdet.size, dtype=np.bool)  # Which lines should be used to trace the tilts
-    w = np.where(ampl >= trthrsh)
+    w = np.where(ampl >= tracethresh)
     aduse[w] = 1
     # Remove lines that are within ncont pixels
     nuse = np.sum(aduse)
@@ -415,36 +415,6 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_spect,
                 if np.isfinite(centv) is False: debugger.set_trace() #embed()
                 pcen = int(0.5 + centv)
                 mtfit[sz-k] = 0
-        '''
-        jxp_fix = False
-        if jxp_fix:
-            from desispec.bootcalib import trace_crude_init
-            from desispec.bootcalib import trace_fweight as dbtf
-            from pypit import ginga
-            pcen = arcdet[j]
-            img = msarc[pcen-nspecfit:pcen+nspecfit+1, ordcen[arcdet[j], slitnum]-sz:ordcen[arcdet[j], slitnum]+sz+1]
-            rot_img = np.rot90(img,3) - 980.  # Bias!
-            #
-            xcen = np.array([6.6]) # 8.5, 173
-            ypass = 173
-            # Tune-up first
-            for ii in range(4):
-                xcen, xsig = dbtf(rot_img, xcen, ycen=np.array([ypass]).astype(int), invvar=None, radius=2.)
-            xset, xerr = trace_crude_init(rot_img, xcen, ypass, invvar=None, radius=3., maxshift0=0.5, maxshift=0.15, maxerr=0.2)
-            #xcen, xsig = dbtf(rot_img, np.array([6.5,6.5]), ycen=np.array([173,173]).astype(int), invvar=None, radius=2.)
-            # Convert back
-            y0 = pcen+nspecfit
-            ycrude = y0 - xset[:,0]
-            #debugger.set_trace()
-            #cytfit = ytfit.copy()
-            #cytfit[np.where(ytfit < 0)] = np.median(cytfit)
-            #debugger.xplot(np.arange(img.shape[1]), ycrude, cytfit)
-            #
-            #trcdict['save_yt'] = ytfit.copy()
-            assert ycrude.size == ytfit.size
-            ytfit = ycrude
-            #debugger.set_trace()
-        '''
 
         if offchip:
             # Don't use lines that go off the chip (could lead to a bad trace)
@@ -469,7 +439,8 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_spect,
 
 
 
-def trace_fweight(fimage, xinit, ltrace=None, rtraceinvvar=None, radius=3.):
+def trace_fweight(fimage, xinit, ltrace=None, rtraceinvvar=None, radius=3.,
+                  maskval=999999.9):
     """ Python port of trace_fweight.pro from IDLUTILS
 
     Parameters:
@@ -482,6 +453,7 @@ def trace_fweight(fimage, xinit, ltrace=None, rtraceinvvar=None, radius=3.):
       Inverse variance array for the image
     radius: float, optional
       Radius for centroiding; default to 3.0
+    maskval : float, optional
     """
 
     # Init
@@ -489,7 +461,7 @@ def trace_fweight(fimage, xinit, ltrace=None, rtraceinvvar=None, radius=3.):
     ny = fimage.shape[0]
     ncen = len(xinit)
     xnew = copy.deepcopy(xinit)
-    xerr = np.zeros(ncen) + 999.
+    xerr = np.zeros(ncen) + maskval
 
     ycen = np.arange(ny, dtype=int)
     invvar = 0. * fimage + 1.
@@ -535,7 +507,7 @@ def trace_fweight(fimage, xinit, ltrace=None, rtraceinvvar=None, radius=3.):
     bad = np.any([np.abs(xnew-xinit) > radius + 0.5, xinit < radius - 0.5, xinit > nx - 0.5 - radius], axis=0)
     if np.sum(bad) > 0:
         xnew[bad] = xinit[bad]
-        xerr[bad] = 999.0
+        xerr[bad] = maskval
 
     # Return
     return xnew, xerr
@@ -695,6 +667,7 @@ def echelle_tilt(slf, msarc, det, settings_argflag, settings_spect, pcadesc="PCA
     return tiltsimg, satmask, outpar
 
 
+'''
 def multislit_tilt(msarc, lordloc, rordloc, pixlocn, pixcen, slitpix, det,
                    maskslits, tilt_settings, settings_spect, setup,
                    maskval=-999999.9, doqa=False, wv_calib=None):
@@ -702,8 +675,6 @@ def multislit_tilt(msarc, lordloc, rordloc, pixlocn, pixcen, slitpix, det,
 
     Parameters
     ----------
-    slf : Class instance
-      An instance of the Science Exposure class
     msarc : numpy ndarray
       Wavelength calibration frame that will be used to trace constant wavelength
     det : int
@@ -750,7 +721,7 @@ def multislit_tilt(msarc, lordloc, rordloc, pixlocn, pixcen, slitpix, det,
         # Determine the tilts for this slit
         trcdict = trace_tilt(pixcen, rordloc, lordloc, det, msarc, slit, settings_spect,
                              tilt_settings, censpec=arccen[:, slit], nsmth=3, wv_calib=wv_calib,
-                             trthrsh=tilt_settings['tilts']['trthrsh'])
+                             tracethresh=tilt_settings['tilts']['tracethresh'])
         if trcdict is None:
             # No arc lines were available to determine the spectral tilt
             continue
@@ -771,7 +742,7 @@ def multislit_tilt(msarc, lordloc, rordloc, pixlocn, pixcen, slitpix, det,
         # Prepare polytilts
         polytilts, outpar = prepare_polytilts(msarc, slit, maskrows, tcoeff, all_tilts, tilt_settings, setup=setup)
 
-        '''
+        """
         if tilt_settings['tilts']['method'].lower() == "interp":
             tilts = tilts_interp(ordcen, slit, all_tilts, polytilts, arcdet, aduse, msarc)
         elif tilt_settings['tilts']['method'].lower() == "spline":
@@ -780,7 +751,7 @@ def multislit_tilt(msarc, lordloc, rordloc, pixlocn, pixcen, slitpix, det,
             tilts = tilts_spca(msarc, polytilts, ordcen, slit, arcdet, aduse, rordloc, lordloc)
         elif tilt_settings['tilts']['method'].lower() == "pca":
             tilts = polytilts.copy()
-        '''
+        """
 
         # Save into final_tilts
         word = np.where(slitpix == slit+1)
@@ -796,6 +767,7 @@ def multislit_tilt(msarc, lordloc, rordloc, pixlocn, pixcen, slitpix, det,
                    maskval=maskval, slit=slit)
     # Finish
     return final_tilts, satmask, outpar
+'''
 
 
 def fit_tilts(msarc, slit, all_tilts, tilt_settings, maskval=-999999.9, setup=None, doqa=True, show_QA=False):
@@ -839,6 +811,7 @@ def fit_tilts(msarc, slit, all_tilts, tilt_settings, maskval=-999999.9, setup=No
     return polytilts, outpar
 
 
+'''
 def slit_image(slf, det, scitrace, obj, tilts=None):
     """ Generate slit image for a given object
     Ignores changing plate scale (for now)
@@ -877,6 +850,7 @@ def slit_image(slf, det, scitrace, obj, tilts=None):
     slit_img[neg] *= -1
     # Return
     return slit_img
+'''
 
 
 def tilts_interp(ordcen, slit, all_tilts, polytilts, arcdet, aduse, msarc):
@@ -953,7 +927,6 @@ def tilts_spline(all_tilts, arcdet, aduse, polytilts, msarc, use_mtilt=False, ma
     tmp2 = (msarc.shape[0]-1)*ytilt[1497,28]
     #tmp3 = tiltspl(xsbs, zsbs, grid=True)
     print(tmp, tmp2)
-    debugger.set_trace()
     '''
     if msgs._debug['tilts']:
         tiltqa = tiltspl(xsbs, zsbs, grid=False)

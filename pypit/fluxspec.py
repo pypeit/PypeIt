@@ -43,7 +43,7 @@ def kludge_settings(instr):
     #settings.argflag['reduce']['masters']['setup'] = 'C_01_aa'
     #
     # Load default spectrograph settings
-    spect = settings.get_spect_class(('ARMLSD', instr, 'pypit'))  # '.'.join(redname.split('.')[:-1])))
+    spect = settings.get_spect_class(('ARMS', instr, 'pypit'))  # '.'.join(redname.split('.')[:-1])))
     lines = spect.load_file(base=True)  # Base spectrograph settings
     spect.set_paramlist(lines)
     lines = spect.load_file()  # Instrument specific

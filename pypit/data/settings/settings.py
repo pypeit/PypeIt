@@ -88,7 +88,7 @@ def archive_instr():
 
 
 def argf_diff_and_dup():
-    """ Compares default argf values against those in the ARMLSD and AMRED files
+    """ Compares default argf values against those in the ARMS and AMRED files
     Returns
     -------
 
@@ -98,16 +98,16 @@ def argf_diff_and_dup():
     base_lines = baseargf.load_file()
     baseargf.set_paramlist(base_lines)
 
-    # ARMLSD
+    # ARMS
     msgs.info("===============================================")
-    msgs.info("Working on ARMLSD vs. Base")
-    armlsd = arparse.get_argflag_class(('ARMLSD', '.tmp'))
-    armlsd_lines = armlsd.load_file()
-    armlsd.set_paramlist(armlsd_lines)
+    msgs.info("Working on ARMS vs. Base")
+    arms = arparse.get_argflag_class(('ARMS', '.tmp'))
+    arms_lines = arms.load_file()
+    arms.set_paramlist(arms_lines)
     # Look for duplicates and diffs
     for key in baseargf._argflag.keys():
-        if key in armlsd._argflag.keys():
-            compare_dicts(key, baseargf._argflag[key], armlsd._argflag[key])
+        if key in arms._argflag.keys():
+            compare_dicts(key, baseargf._argflag[key], arms._argflag[key])
 
     # ARMED
     msgs.info("===============================================")
@@ -146,11 +146,11 @@ def spect_diff_and_dup():
     base_lines = basespect.load_file()
     basespect.set_paramlist(base_lines)
 
-    # ARMLSD instruments
+    # ARMS instruments
     for specname in ['shane_kast_blue', 'shane_kast_red', 'keck_lris_blue', 'keck_lris_red', 'wht_isis_blue', 'keck_deimos']:
         msgs.info("===============================================")
         msgs.info("Working on {:s}".format(specname))
-        spect = arparse.get_spect_class(('ARMLSD', specname, ".tmp"))
+        spect = arparse.get_spect_class(('ARMS', specname, ".tmp"))
         spect_lines = spect.load_file()
         spect.set_paramlist(spect_lines)
         msgs.info("===============================================")
