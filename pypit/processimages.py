@@ -349,6 +349,9 @@ class ProcessImages(object):
             img = self.raw_images[idx]
         elif 'stack' in attr:
             img = self.stack
+        else:
+            msgs.warn("Options:  proc_image, raw_image, stack")
+            return
         # Show
         viewer, ch = ginga.show_image(img)
 

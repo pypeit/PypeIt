@@ -536,7 +536,8 @@ def edgearr_mslit_sync(edgearr, tc_dict, ednum, insert_buff=5, add_left_edge_sli
     return new_edgearr
 
 
-def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False):
+def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
+                   maxshift=0.15):
     """ Use trace_crude to refine slit edges
     It is also used to remove bad slit edges and merge slit edges
 
@@ -554,6 +555,8 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False):
     tfrac : float (optional)
       Fraction of the slit edge that must be traced to keep
       There are exceptions, however (e.g. single slits)
+    maxshift : float
+      Maximum shift in trace crude
 
     Returns
     -------
@@ -568,6 +571,7 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False):
              xset -- trace set values
              xerr -- trace set errors
     """
+    msgs.info("Crude tracing the edges")
     # Init
     ycen = edgearr.shape[0] // 2
 
@@ -636,9 +640,9 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False):
                     pass
             # Trace crude
             if side == 'left':
-                xset, xerr = trace_crude_init(np.maximum(siglev, -0.1), np.array(xinit), yrow)
+                xset, xerr = trace_crude_init(np.maximum(siglev, -0.1), np.array(xinit), yrow, maxshift=maxshift)
             else:
-                xset, xerr = trace_crude_init(np.maximum(-1*siglev, -0.1), np.array(xinit), yrow)
+                xset, xerr = trace_crude_init(np.maximum(-1*siglev, -0.1), np.array(xinit), yrow, maxshift=maxshift)
             # Save
             if niter == 0:
                 tc_dict[side]['xset'] = xset
