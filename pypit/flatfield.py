@@ -227,6 +227,10 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
           1 = Do extrapolate
 
         """
+        # Check
+        if self.ntckx is None:
+            msgs.warn("Need to set self.ntckx with _prep_tck first!")
+            return [None]*5
         # Wrap me
         slordloc = self.slits_dict['lcen'][:,slit]
         srordloc = self.slits_dict['rcen'][:,slit]
