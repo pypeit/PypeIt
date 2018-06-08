@@ -18,7 +18,7 @@ from pypit import arpixels
 from pypit import ardebug as debugger
 
 
-def get_censpec(lordloc, rordloc, pixlocn, frame, det, settings_spect, gen_satmask=False):
+def get_censpec(lordloc, rordloc, pixlocn, frame, det, settings_spect=None, gen_satmask=False):
     """ Extract a simple spectrum down the center of each slit
     Parameters
     ----------

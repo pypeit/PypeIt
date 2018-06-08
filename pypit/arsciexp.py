@@ -19,6 +19,7 @@ from pypit import armasters
 from pypit import arproc
 from pypit.core import arprocimg
 from pypit.core import arsort
+from pypit.core import artracewave
 from pypit import arutils
 from pypit import ardebug as debugger
 
@@ -94,8 +95,8 @@ class ScienceExposure:
         self._lordpix  = [None for all in range(ndet)]   # Array of slit traces (left side) in apparent pixel coordinates
         self._rordpix  = [None for all in range(ndet)]   # Array of slit traces (right side) in apparent pixel coordinates
         self._slitpix  = [None for all in range(ndet)]   # Array identifying if a given pixel belongs to a given slit
-        self._tilts    = [None for all in range(ndet)]   # Array of spectral tilts at each position on the detector
-        self._tiltpar  = [None for all in range(ndet)]   # Dict parameters for tilt fitting
+        #self._tilts    = [None for all in range(ndet)]   # Array of spectral tilts at each position on the detector
+        #self._tiltpar  = [None for all in range(ndet)]   # Dict parameters for tilt fitting
         self._satmask  = [None for all in range(ndet)]   # Array of Arc saturation streaks
         self._arcparam = [None for all in range(ndet)]   # Dict guiding wavelength calibration
         self._wvcalib  = [None for all in range(ndet)]   # List of dict's
@@ -394,7 +395,7 @@ class ScienceExposure:
         return True
     '''
 
-    def MasterFlatField(self, fitsdict, det, msbias, datasec_img):
+    def MasterFlatField(self, fitsdict, det, msbias, datasec_img, tilts):
         """
         Generate Master Flat-field frame for a given detector
 
@@ -480,11 +481,11 @@ class ScienceExposure:
                     # Normalize the flat field
                     msgs.info("Normalizing the pixel flat")
                     slit_profiles, mstracenrm, msblaze, flat_ext1d, extrap_slit = \
-                        arproc.slit_profile(self, mspixelflat, det, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
+                        arproc.slit_profile(self, mspixelflat, det, tilts, ntcky=settings.argflag['reduce']['flatfield']['params'][0])
                     # If some slit profiles/blaze functions need to be extrapolated, do that now
                     if settings.spect['mosaic']['reduction'] == 'AMRED':
                         if np.sum(extrap_slit) != 0.0:
-                            slit_profiles, mstracenrm, msblaze = arproc.slit_profile_pca(self, mspixelflat, det, msblaze, extrap_slit, slit_profiles)
+                            slit_profiles, mstracenrm, msblaze = arproc.slit_profile_pca(self, mspixelflat, det, tilts, msblaze, extrap_slit, slit_profiles)
                     mspixelflatnrm = mstracenrm.copy()
                     winpp = np.where(slit_profiles != 0.0)
                     mspixelflatnrm[winpp] /= slit_profiles[winpp]
@@ -503,7 +504,7 @@ class ScienceExposure:
                                                    self._slitpix[det - 1], desc="Slit profile")
                         msgs.info("Saving blaze function QA")
 #                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
-                        artrace.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
+                        artracewave.plot_orderfits(self.setup, msblaze, flat_ext1d, desc="Blaze function")
                 else:
                     mspixelflat = mspixelflatnrm
             else:  # It must be the name of a file the user wishes to load
@@ -641,7 +642,7 @@ class ScienceExposure:
         return True
     '''
 
-    def MasterWave(self, det, all_wvcalib):
+    def MasterWave(self, det, all_wvcalib, tilts):
         """
         Generate Master Wave frame for a given detector
 
@@ -664,13 +665,13 @@ class ScienceExposure:
         if mswave is None:
             msgs.info("Preparing a master wave frame")
             if settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
-                mswave = self._tilts[det - 1] * (self._tilts[det - 1].shape[0]-1.0)
+                mswave = tilts * (tilts.shape[0]-1.0)
             else:
                 ok_slits = np.where(~self._maskslits[det-1])[0]
-                mswave = np.zeros_like(self._tilts[det-1])
+                mswave = np.zeros_like(tilts)
                 for slit in ok_slits:
                     iwv_calib = all_wvcalib[str(slit)]
-                    tmpwv = arutils.func_val(iwv_calib['fitc'], self._tilts[det - 1], iwv_calib['function'],
+                    tmpwv = arutils.func_val(iwv_calib['fitc'], tilts, iwv_calib['function'],
                                           minv=iwv_calib['fmin'], maxv=iwv_calib['fmax'])
                     word = np.where(self._slitpix[det - 1] == slit+1)
                     mswave[word] = tmpwv[word]
