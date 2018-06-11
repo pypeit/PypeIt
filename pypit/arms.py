@@ -178,7 +178,6 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 ts_settings = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
                 ts_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
                 # Get it
-                tslits_dict, _ = arcalib.get_tslits_dict( det, setup, spectrograph, sci_ID, ts_settings, tsettings, fitstbl, pixlocn, msbias, msbpm, trim=settings.argflag['reduce']['trim'])
                 tslits_dict, _ = arcalib.get_tslits_dict(
                     det, setup, spectrograph, sci_ID, ts_settings, tsettings, fitstbl, pixlocn,
                     msbias, msbpm, datasec_img, trim=settings.argflag['reduce']['trim'])
