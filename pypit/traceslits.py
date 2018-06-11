@@ -41,6 +41,7 @@ def default_settings():
                                'medrep': 0,
                                'number': -1,
                                'maxgap': None,
+                               'maxshift': 0.15,  # Used by trace crude
                                'sigdetect': 20.,
                                'pad': 0.,
                                'pca': {'params': [3,2,1,0,0,0], 'type': 'pixel',
@@ -599,10 +600,12 @@ class TraceSlits(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def _mslit_tcrude(self):
+    def _mslit_tcrude(self, maxshift=0.15):
         """
         Trace crude me
           And fuss with slits
+
+        Wrapper to artraceslits.edgearr_tcrude()
 
         Returns
         -------
@@ -610,7 +613,12 @@ class TraceSlits(masterframe.MasterFrame):
         self.tc_dict  : dict (internal)
 
         """
-        self.edgearr, self.tc_dict = artraceslits.edgearr_tcrude(self.edgearr, self.siglev, self.ednum)
+        # Settings
+        if 'maxshift' in self.settings['trace']['slits'].keys():
+            maxshift=self.settings['trace']['slits']['maxshift']
+
+        self.edgearr, self.tc_dict = artraceslits.edgearr_tcrude(self.edgearr, self.siglev, self.ednum,
+                                                                 maxshift=maxshift)
         # Step
         self.steps.append(inspect.stack()[0][3])
 

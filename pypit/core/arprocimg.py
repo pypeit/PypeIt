@@ -106,9 +106,13 @@ def get_datasec_trimmed(spectrograph, scifile, det, settings_det,
 
     Parameters
     ----------
-    fitstbl
+    spectrograph : str
+    scifile : str
+    numamplifiers : int
     det : int
-    scidx : int
+    settings_det : dict
+    naxis0 : int, optional
+    naxis1 : int, optional
 
     Returns
     -------

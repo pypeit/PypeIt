@@ -19,7 +19,7 @@ def instr_list():
     settings_files = glob.glob(settings_path+'/settings.*')
     instruments = [ifile.split('.')[-1] for ifile in settings_files]  # This includes base
     # Trim
-    for kpop in ['armed', 'armlsd', 'baseargflag', 'basespect', 'py']:
+    for kpop in ['armed', 'arms', 'baseargflag', 'basespect', 'py']:
         instruments.remove(kpop)
     # Return
     return instruments

@@ -60,6 +60,8 @@ class ProcessImages(object):
     user_settings : dict, optional
       Allow for user to over-ride individual internal/default settings
       without providing a full settings dict
+    datasec_img : ndarray, optional
+      Specifies which pixels go with which amplifier
 
     Attributes
     ----------
@@ -336,6 +338,8 @@ class ProcessImages(object):
         ----------
         bias_subtract : str or ndarray or None
           Guides bias subtraction
+        apply_gain : bool, optional
+          Apply gain to the various amplifier regions
         trim : bool, optional
         overwrite :
 
@@ -419,6 +423,9 @@ class ProcessImages(object):
             img = self.raw_images[idx]
         elif 'stack' in attr:
             img = self.stack
+        else:
+            msgs.warn("Options:  proc_image, raw_image, stack")
+            return
         # Show
         viewer, ch = ginga.show_image(img)
 

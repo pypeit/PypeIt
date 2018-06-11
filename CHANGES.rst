@@ -144,7 +144,6 @@
 - Push get_censpec() to ararc.py
 - New tests; limited docs
 - TraceSlits load method pushed outside the class
-
 - Introduces WaveTilts class
 - Significant modification to tilt recipe including deprecation of PCA
 - Moved tilt tracing algorithms from artrace.py to artracewave.py in core/
@@ -153,6 +152,16 @@
 - New QA plot
 - New pypit_chk_tilts script
 - New docs
+- New tests
+- Introduces FlatField class
+- Adds FlatField Notebook, tests
+- Pushes flat field algorithms into core/arflat.py
+- Main flatfield method broken into a few pieces
+- Further refactoring of armasters
+- Further refactoring related to settings and ScienceExposure
+
+- WaveImage class
+- Strip mswave from ScienceExposure
 - New tests
 
 0.7 (2017-02-07)
