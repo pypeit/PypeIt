@@ -9,7 +9,7 @@ try:
 except ImportError:  # Ginga is not yet required
     pass
 else:
-    from pypit.ginga import chk_arc_tilts
+    from pypit.ginga import chk_arc_tilts, clear_canvas
 # Moved to the top and changed to only import set_trace
 from pdb import set_trace
 

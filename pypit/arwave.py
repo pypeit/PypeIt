@@ -14,7 +14,7 @@ from astropy.time import Time
 from linetools.spectra import xspectrum1d
 
 from pypit import msgs
-from pypit import ararc
+from pypit.core import ararc
 from pypit import arextract
 from pypit import arparse as settings
 from pypit import arutils
@@ -36,8 +36,8 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     """
     #Determine the brightest emission lines
     msgs.warn("If we use Paranal, cut down on wavelength early on")
-    arx_amp, arx_cent, arx_wid, arx_w, arx_satsnd, arx_yprep = ararc.detect_lines(slf, det, msarc=None, censpec=arx_skyspec.flux.value, MK_SATMASK=False)
-    obj_amp, obj_cent, obj_wid, obj_w, obj_satsnd, obj_yprep = ararc.detect_lines(slf, det, msarc=None, censpec=obj_skyspec.flux.value, MK_SATMASK=False)
+    arx_amp, arx_cent, arx_wid, arx_w, arx_yprep = ararc.detect_lines(arx_skyspec.flux.value)
+    obj_amp, obj_cent, obj_wid, obj_w, obj_yprep = ararc.detect_lines(obj_skyspec.flux.value)
 
     #Keep only 5 brightest amplitude lines (xxx_keep is array of indices within arx_w of the 5 brightest)
     arx_keep = np.argsort(arx_amp[arx_w])[-5:]
@@ -133,12 +133,13 @@ def flex_shift(slf, det, obj_skyspec, arx_skyspec):
     #deal with underlying continuum
     msgs.work("Consider taking median first [5 pixel]")
     everyn = obj_skyspec.npix // 20
+    bspline_par = dict(everyn=everyn)
     mask, ct = arutils.robust_polyfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value, 3, function='bspline',
-                                  sigma=3., everyn=everyn)
+                                  sigma=3., bspline_par=bspline_par)# everyn=everyn)
     obj_sky_cont = arutils.func_val(ct, obj_skyspec.wavelength.value, 'bspline')
     obj_sky_flux = obj_skyspec.flux.value - obj_sky_cont
     mask, ct_arx = arutils.robust_polyfit(arx_skyspec.wavelength.value, arx_skyspec.flux.value, 3, function='bspline',
-                                      sigma=3., everyn=everyn)
+                                      sigma=3., bspline_par=bspline_par)# everyn=everyn)
     arx_sky_cont = arutils.func_val(ct_arx, arx_skyspec.wavelength.value, 'bspline')
     arx_sky_flux = arx_skyspec.flux.value - arx_sky_cont
 
@@ -267,6 +268,8 @@ def flexure_obj(slf, det):
     ----------
     flex_list: list
       list of dicts containing flexure results
+        Aligned with specobjs
+        Filled with a basically empty dict if the slit is skipped or there is no object
 
     """
     msgs.work("Consider doing 2 passes in flexure as in LowRedux")
@@ -275,13 +278,15 @@ def flexure_obj(slf, det):
 
     # Loop on objects
     flex_list = []
-    flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
-                     corr_cen=[], spec_file=skyspec_fil, smooth=[],
-                     arx_spec=[], sky_spec=[])
 
     gdslits = np.where(~slf._maskslits[det-1])[0]
     for sl in range(len(slf._specobjs[det-1])):
+        # Reset
+        flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
+                         corr_cen=[], spec_file=skyspec_fil, smooth=[],
+                         arx_spec=[], sky_spec=[])
         if sl not in gdslits:
+            flex_list.append(flex_dict.copy())
             continue
         msgs.info("Working on flexure in slit (if an object was detected): {:d}".format(sl))
         for specobj in slf._specobjs[det-1][sl]:  # for convenience
@@ -325,7 +330,7 @@ def flexure_obj(slf, det):
             for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec']:
                 flex_dict[key].append(fdict[key])
             flex_dict['sky_spec'].append(new_sky)
-        flex_list.append(copy.deepcopy(flex_dict))
+        flex_list.append(flex_dict.copy())
     return flex_list
 
 

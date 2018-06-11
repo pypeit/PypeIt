@@ -1,0 +1,123 @@
+# Old Kast red Reticon detector
+### Detector properties
+mosaic ndet 1                         # Number of detectors in the mosaic
+mosaic latitude 37.3413889             # Latitude of the telescope
+mosaic longitude +121.6428             # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+mosaic elevation 1283.0                # Elevation of the telescope (in m)
+mosaic minexp 0.0                     # Minimum exposure time (s)
+mosaic reduction ARMLSD                # Which reduction pipeline should be used for this instrument
+mosaic camera KASTr                    # Which reduction pipeline should be used for this instrument
+
+det01 xgap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the x pixel size -- x is predominantly the dispersion axis)
+det01 ygap 0.0                        # Gap between the square detector pixels (expressed as a fraction of the y pixel size -- x is predominantly the dispersion axis)
+det01 ysize 1.0                       # The size of a pixel in the y-direction as a multiple of the x pixel size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)
+det01 darkcurr 0.0                    # Dark current (e-/hour)
+det01 platescale 0.774                # arcsec per pixel in the spatial dimension for an unbinned pixel  (27 microns)
+det01 saturation 65535.0              # The detector Saturation level
+det01 nonlinear 0.76                  # Percentage of detector range which is linear (i.e. everything above nonlinear*saturation will be flagged as saturated)
+det01 numamplifiers 1                 # Number of amplifiers
+det01 gain 3.0                        # Inverse gain (e-/ADU)
+det01 ronoise 12.5                    # Read-out noise (e-)
+det01 suffix _red                     # Suffix to be appended to all saved calibration and extraction frames
+det01 dataext01 0                     # Extension number of the data
+det01 datasec01 01.DATASEC       # Either the data sections (IRAF format) or the header keyword where the valid data sections can be obtained
+det01 oscansec01 [1203:1232,:]   # Either the overscan sections (IRAF format) or the header keyword where the valid overscan sections can be obtained
+
+### Checks to perform
+check 01.NAXIS 2                       # THIS IS A MUST! It performs a standard check to make sure the data are 2D.
+check 01.DSENSOR Ret 400x1200          # Check the CCD name (replace any spaces with underscores)
+
+### Keyword Identifiers
+keyword time 01.TSEC                   # The time stamp of the observation (i.e. decimal MJD)
+keyword naxis0 01.NAXIS2               # Number of pixels along the zeroth axis
+keyword naxis1 01.NAXIS1               # Number of pixels along the first axis
+keyword binning None                   # Binning
+keyword filter1 01.RDFILT_N            # Filter 1
+keyword decker 01.SLIT_N               # Which decker is being used
+keyword lampname01 01.LAMPNAM1         # Name of a lamp
+keyword lampstat01 01.LAMPSTA1         # Status of a lamp
+keyword lampname02 01.LAMPNAM2         # Name of a lamp
+keyword lampstat02 01.LAMPSTA2         # Status of a lamp
+keyword lampname03 01.LAMPNAM3         # Name of a lamp
+keyword lampstat03 01.LAMPSTA3         # Status of a lamp
+keyword lampname04 01.LAMPNAM4         # Name of a lamp
+keyword lampstat04 01.LAMPSTA4         # Status of a lamp
+keyword lampname05 01.LAMPNAM5         # Name of a lamp
+keyword lampstat05 01.LAMPSTA5         # Status of a lamp
+keyword lampname06 01.LAMPNAMA         # Name of a lamp
+keyword lampstat06 01.LAMPSTAA         # Status of a lamp
+keyword lampname07 01.LAMPNAMB         # Name of a lamp
+keyword lampstat07 01.LAMPSTAB         # Status of a lamp
+keyword lampname08 01.LAMPNAMC         # Name of a lamp
+keyword lampstat08 01.LAMPSTAC         # Status of a lamp
+keyword lampname09 01.LAMPNAMD         # Name of a lamp
+keyword lampstat09 01.LAMPSTAD         # Status of a lamp
+keyword lampname10 01.LAMPNAME         # Name of a lamp
+keyword lampstat10 01.LAMPSTAE         # Status of a lamp
+keyword lampname11 01.LAMPNAMF         # Name of a lamp
+keyword lampstat11 01.LAMPSTAF         # Status of a lamp
+keyword lampname12 01.LAMPNAMG         # Name of a lamp
+keyword lampstat12 01.LAMPSTAG         # Status of a lamp
+keyword lampname13 01.LAMPNAMH         # Name of a lamp
+keyword lampstat13 01.LAMPSTAH         # Status of a lamp
+keyword lampname14 01.LAMPNAMI         # Name of a lamp
+keyword lampstat14 01.LAMPSTAI         # Status of a lamp
+keyword lampname15 01.LAMPNAMJ         # Name of a lamp
+keyword lampstat15 01.LAMPSTAJ         # Status of a lamp
+keyword lampname16 01.LAMPNAMK         # Name of a lamp
+keyword lampstat16 01.LAMPSTAK         # Status of a lamp
+keyword slitwid 01.SLIT_P              # Slit Width
+keyword dichroic 01.BSPLIT_N           # Dichroic name
+keyword dispname 01.GRATNG_N           # Grating name
+keyword dispangle 01.GRTILT_P          # Grating angle
+
+### Fits properties
+fits timeunit s                     # The unit of keyword+time (s=seconds, m=minutes, h=hours, or any of the astropy Time formats)
+fits calwin 12.0                    # The window of time in hours to search for calibration frames for a science frame
+fits numlamps 16                    # How many lamps are there listed in the header
+
+### Science frames
+science check condition5 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off
+science check condition6 exptime>1     #
+
+### Standard Star frames
+standard check condition5 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off
+standard match naxis0 =0             # Match the shape of standard and science frames
+standard match naxis1 =0             # Match the shape of standard and science frames
+standard match dispangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 20 ~ 2pixel)
+
+### Bias/Dark frames
+bias check condition1 exptime<1     # Required for bias
+bias check condition5 lampstat01=off&lampstat02=off&lampstat03=off&lampstat04=off&lampstat05=off&lampstat06=off&lampstat07=off&lampstat08=off&lampstat09=off&lampstat10=off&lampstat11=off&lampstat12=off&lampstat13=off&lampstat14=off&lampstat15=off&lampstat16=off
+bias match naxis0 =0                # Match the shape of bias and science frames
+bias match naxis1 =0                # Match the shape of bias and science frames
+
+### Pixel Flat frames
+pixelflat check condition5 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
+pixelflat check condition6 exptime>0  # Required for bad lamp header values
+pixelflat match naxis0 =0             # Match the shape of flats with science
+pixelflat match naxis1 =0             # Match the shape of flats with science
+pixelflat match dispangle |<=20         # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 5 ~ 1pixel)
+
+### Pinhole frames
+pinhole check condition99 exptime>999999 # Avoids any pinhole frames
+
+### Dark frames
+dark check condition99 exptime>999999    # Avoids darks
+
+### Trace frames
+trace check condition5 lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on|lampstat05=on
+trace check condition6 exptime>0  # Required to avoid bias
+trace match naxis0 =0             # Match the shape of flats with science
+trace match naxis1 =0             # Match the shape of flats with science
+
+### Arc frames
+arc check condition5 lampstat07=on|lampstat08=on|lampstat09=on|lampstat10=on|lampstat11=on|lampstat12=on|lampstat13=on|lampstat14=on|lampstat15=on|lampstat16=on
+arc check condition6 exptime>0      # Lamps aren't always listed as on
+arc match decker any                # People frequently use a more narrow slit
+arc match naxis0 =0                 # Match the shape of arcs with science
+arc match naxis1 =0                 # Match the shape of arcs with science
+arc match dispangle |<=10              # Match the cross-disperser angle (an uncertainty in the KAST RED tilt angle of 10 ~ 2pixel)
+
+# Make some changes to the arguments and flags
+settings trace dispersion direction 1

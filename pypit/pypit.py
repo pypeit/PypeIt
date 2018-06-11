@@ -5,6 +5,7 @@ from __future__ import unicode_literals
 
 import os
 import time
+import warnings
 import glob
 import numpy as np
 
@@ -13,17 +14,20 @@ try:
 except ImportError:
     pass
 
+from astropy.table import Table
+
 from pypit import msgs
 from pypit import ardebug
 from pypit import archeck  # THIS IMPORT DOES THE CHECKING.  KEEP IT
 from pypit import arparse
 from pypit import ardevtest
-from pypit.arload import load_headers
+from pypit.core import arsort
+from pypit import arload
+from pypit import pypitsetup
 
 from pypit import arqa
     
-from pypit import armed
-from pypit import armlsd
+from pypit import arms
 
 def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosity=1,
           use_masters=False, devtest=False, logname=None):
@@ -197,7 +201,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     """
 
     # Load the important information from the fits headers
-    fitsdict, updates = load_headers(datlines)
+    fitstbl, updates = arload.load_headers(datlines, arparse.spect, arparse.argflag)
 
     # If some settings were updated because of the fits headers, globalize the settings again
     if len(updates) != 0:
@@ -207,10 +211,10 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     # If the dispersion direction is 1, flip the axes
     if arparse.argflag['trace']['dispersion']['direction'] == 1:
         # Update the keywords of all fits files
-        for ff in range(len(fitsdict['naxis0'])):
-            temp = fitsdict['naxis0'][ff]
-            fitsdict['naxis0'][ff] = fitsdict['naxis1'][ff]
-            fitsdict['naxis1'][ff] = temp
+        for ff in range(len(fitstbl['naxis0'])):
+            temp = fitstbl['naxis0'][ff]
+            fitstbl['naxis0'][ff] = fitstbl['naxis1'][ff]
+            fitstbl['naxis1'][ff] = temp
         # Update the spectrograph settings for all detectors in the mosaic
         for dd in range(arparse.spect['mosaic']['ndet']):
             ddnum = arparse.get_dnum(dd+1)
@@ -227,15 +231,32 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
                 arparse.spect[ddnum]['oscansec{0:02d}'.format(i + 1)] \
                         = arparse.spect[ddnum]['oscansec{0:02d}'.format(i + 1)][::-1]
 
+    # Set me up here
+    # Instantiate
+    psetup = pypitsetup.PypitSetup(arparse.argflag, arparse.spect, fitstbl=fitstbl)
+    mode, fitstbl, setup_dict = psetup.run()
+    psetup.write_fitstbl()
+    sciexp = None
+    if mode == 'setup':
+        status = 1
+        return status
+    elif mode == 'calcheck':
+        status = 2
+        return status
+    else:
+        pass
+
     # Reduce the data!
-    status = 0
-    # Send the data away to be reduced
-    if spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMLSD':
-        msgs.info('Data reduction will be performed using PYPIT-ARMLSD')
-        status = armlsd.ARMLSD(fitsdict)
-    elif spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMED':
-        msgs.info('Data reduction will be performed using PYPIT-ARMED')
-        status = armed.ARMED(fitsdict)
+    if mode == 'run':
+        arsort.make_dirs(arparse.argflag)
+        # Send the data away to be reduced
+        if spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMS':
+            msgs.info('Data reduction will be performed using PYPIT-ARMS')
+            #status = arms.ARMS(fitstbl, setup_dict, sciexp=sciexp)
+            status = arms.ARMS(fitstbl, setup_dict, sciexp=sciexp)
+        elif spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMED':
+            msgs.info('Data reduction will be performed using PYPIT-ARMED')
+            status = armed.ARMED(fitstbl)
 
     # Check for successful reduction
     if status == 0:
@@ -378,7 +399,10 @@ def load_input(redname, msgs):
                     paths.append(linspl[1])
                 else:  # Grab filename and frametype
                     if ftype_col == -1:  # Identify columns for frametype
-                        ftype_col = np.where(np.array(linspl) == 'frametype')[0][0]
+                        try:
+                            ftype_col = np.where(np.array(linspl) == 'frametype')[0][0]
+                        except:
+                            import pdb; pdb.set_trace()
                         dfile_col = np.where(np.array(linspl) == 'filename')[0][0]
                     else:
                         # Skip commented lines
