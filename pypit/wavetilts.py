@@ -28,7 +28,8 @@ frametype = 'tilts'
 
 # Place these here or elsewhere?
 #  Wherever they be, they need to be defined, described, etc.
-default_settings = dict(tilts={'idsonly': False,
+def default_settings():
+    default_settings = dict(tilts={'idsonly': False,
                                'tracethresh': 1000.,
                                'order': 2,
                                'function': 'legendre',       # Function for arc line fits
@@ -38,7 +39,7 @@ default_settings = dict(tilts={'idsonly': False,
                                'params': [1,1,0],  # defunct
                                }
                         )
-
+    return default_settings
 #  See save_master() for the data model for output
 
 
@@ -98,11 +99,11 @@ class WaveTilts(masterframe.MasterFrame):
         # Optional parameters
         self.det = det
         if settings is None:
-            self.settings = default_settings.copy()
+            self.settings = default_settings()
         else:
             self.settings = settings
             if 'tilts' not in self.settings:
-                self.settings.update(default_settings.copy())
+                self.settings.update(default_settings())
 
         # Attributes
         self.frametype = frametype

@@ -101,7 +101,7 @@ def core_master_name(ftype, setup, mdir):
                      badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir, setup),
                      trace='{:s}/MasterTrace_{:s}'.format(mdir, setup),   # Just a root as FITS+JSON are generated
                      pinhole='{:s}/MasterPinhole_{:s}.fits'.format(mdir, setup),
-                     normpixelflat='{:s}/MasterFlatField_{:s}.fits'.format(mdir, setup),
+                     pixelflat='{:s}/MasterFlatField_{:s}.fits'.format(mdir, setup),
                      arc='{:s}/MasterArc_{:s}.fits'.format(mdir, setup),
                      wave='{:s}/MasterWave_{:s}.fits'.format(mdir, setup),
                      wv_calib='{:s}/MasterWaveCalib_{:s}.json'.format(mdir, setup),
@@ -271,17 +271,19 @@ def save_masters(slf, det, mftype='all'):
         msgs.error("Should not get here anymore.  Save the bias in the BiasFrame class")
     # Bad Pixel
     if (mftype in ['badpix', 'all']) and ('badpix'+setup not in settings.argflag['reduce']['masters']['loaded']):
-        save_master(slf, slf._bpix[det-1],
-                               filename=master_name('badpix', setup),
-                               frametype='badpix')
+        msgs.error("Should not get here anymore.  Save the trace in the TraceSlits class")
+        #save_master(slf, slf._bpix[det-1],
+        #                       filename=master_name('badpix', setup),
+        #                       frametype='badpix')
     # Trace
     if (mftype in ['trace', 'all']) and ('trace'+setup not in settings.argflag['reduce']['masters']['loaded']):
         msgs.error("Should not get here anymore.  Save the trace in the TraceSlits class")
     # Pixel Flat
-    if (mftype in ['normpixelflat', 'all']) and ('normpixelflat'+setup not in settings.argflag['reduce']['masters']['loaded']):
-        save_master(slf, slf._mspixelflatnrm[det-1],
-                           filename=master_name('normpixelflat', setup),
-                           frametype='normpixelflat')
+    if (mftype in ['pixelflat', 'all']) and ('pixelflat'+setup not in settings.argflag['reduce']['masters']['loaded']):
+        msgs.error("Should not get here anymore.  Save the trace in the TraceSlits class")
+        #save_master(slf, slf._mspixelflatnrm[det-1],
+        #                   filename=master_name('normpixelflat', setup),
+        #                   frametype='normpixelflat')
     # Pinhole Flat
     if (mftype in ['pinhole', 'all']) and ('pinhole'+setup not in settings.argflag['reduce']['masters']['loaded']):
         save_master(slf, slf._mspinhole[det-1],
@@ -296,18 +298,20 @@ def save_masters(slf, det, mftype='all'):
                            filename=master_name('wave', setup),
                            frametype='wave')
     if (mftype in ['wv_calib', 'all']) and ('wv_calib'+setup not in settings.argflag['reduce']['masters']['loaded']):
+        msgs.error("Should not get here anymore.  Save the arc in the ArcImage class")
         # Wavelength fit
-        gddict = linetools.utils.jsonify(slf._wvcalib[det-1])
-        json_file = master_name('wv_calib', setup)
-        if gddict is not None:
-            linetools.utils.savejson(json_file, gddict, easy_to_read=True, overwrite=True)
-        else:
-            msgs.warn("The master wavelength solution has not been saved")
+        #gddict = linetools.utils.jsonify(slf._wvcalib[det-1])
+        #json_file = master_name('wv_calib', setup)
+        #if gddict is not None:
+        #    linetools.utils.savejson(json_file, gddict, easy_to_read=True, overwrite=True)
+        #else:
+        #    msgs.warn("The master wavelength solution has not been saved")
     # Tilts
     if (mftype in ['tilts', 'all']) and ('tilts'+setup not in settings.argflag['reduce']['masters']['loaded']):
-        save_master(slf, slf._tilts[det-1],
-                           filename=master_name('tilts', setup),
-                           frametype='tilts')
+        msgs.error("Should not get here anymore.  Save the arc in the ArcImage class")
+        #save_master(slf, slf._tilts[det-1],
+        #                   filename=master_name('tilts', setup),
+        #                   frametype='tilts')
     # Spatial slit profile
     if (mftype in ['slitprof', 'all']) and ('slitprof'+setup not in settings.argflag['reduce']['masters']['loaded']):
         save_master(slf, slf._slitprof[det - 1],

@@ -83,7 +83,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         # The copy allows up to update settings with user settings without changing the original
         if settings is None:
             # Defaults
-            self.settings = processimages.default_settings.copy().update(additional_default_settings)
+            self.settings = processimages.default_settings().update(additional_default_settings)
         else:
             self.settings = settings.copy()
             # The following is somewhat kludgy and the current way we do settings may

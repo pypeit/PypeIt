@@ -55,12 +55,13 @@ class TraceImage(processimages.ProcessImages):
     stack : ndarray
     """
     # Keep order same as processimages (or else!)
-    def __init__(self, file_list, spectrograph=None, settings=None, det=1):
+    def __init__(self, file_list, spectrograph=None, settings=None, det=1, datasec_img=None):
 
         # Parameters unique to this Object
 
         # Start us up
-        processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph, settings=settings, det=det)
+        processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph,
+                                             settings=settings, det=det, datasec_img=datasec_img)
 
         # Attributes (set after init)
         self.frametype = frametype
@@ -69,7 +70,7 @@ class TraceImage(processimages.ProcessImages):
         # The copy allows up to update settings with user settings without changing the original
         if settings is None:
             # Defaults
-            self.settings = processimages.default_settings.copy()
+            self.settings = processimages.default_settings()
         else:
             self.settings = settings.copy()
             # The following is somewhat kludgy and the current way we do settings may

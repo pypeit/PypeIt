@@ -33,7 +33,8 @@ frametype = 'trace'
 
 # Place these here or elsewhere?
 #  Wherever they be, they need to be defined, described, etc.
-default_settings = dict(trace={'slits': {'single': [],
+def default_settings():
+    default_settings = dict(trace={'slits': {'single': [],
                                'function': 'legendre',
                                'polyorder': 3,
                                'diffpolyorder': 2,
@@ -41,11 +42,13 @@ default_settings = dict(trace={'slits': {'single': [],
                                'medrep': 0,
                                'number': -1,
                                'maxgap': None,
+                               'maxshift': 0.15,  # Used by trace crude
                                'sigdetect': 20.,
                                'pad': 0.,
                                'pca': {'params': [3,2,1,0,0,0], 'type': 'pixel',
                                        'extrapolate': {'pos': 0, 'neg':0}},
                                'sobel': {'mode': 'nearest'}}})
+    return default_settings
 
 #  See save_master() for the data model for output
 
@@ -139,7 +142,7 @@ class TraceSlits(masterframe.MasterFrame):
             self.binbpx = binbpx
             self.input_binbpx = True
         if settings is None:
-            self.settings = default_settings.copy()
+            self.settings = default_settings()
         else:
             self.settings = settings
 
@@ -399,7 +402,7 @@ class TraceSlits(masterframe.MasterFrame):
         else:
             return False
 
-    def _fill_trace_slit_dict(self):
+    def _fill_slits_dict(self):
         """
         Build a simple object holding the key trace bits and pieces that PYPIT wants
           NOT USED ANY LONGER (but maybe in the future, depending on how we choosed
@@ -411,11 +414,11 @@ class TraceSlits(masterframe.MasterFrame):
         self.trace_slits_dict
 
         """
-        self.trace_slits_dict = {}
+        self.slits_dict = {}
         for key in ['lcen', 'rcen', 'pixcen', 'pixwid', 'lordpix',
                     'rordpix', 'extrapord', 'slitpix']:
-            self.trace_slits_dict[key] = getattr(self, key)
-        return self.trace_slits_dict
+            self.slits_dict[key] = getattr(self, key)
+        return self.slits_dict
 
     def _final_left_right(self):
         """
@@ -598,10 +601,12 @@ class TraceSlits(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def _mslit_tcrude(self):
+    def _mslit_tcrude(self, maxshift=0.15):
         """
         Trace crude me
           And fuss with slits
+
+        Wrapper to artraceslits.edgearr_tcrude()
 
         Returns
         -------
@@ -609,7 +614,12 @@ class TraceSlits(masterframe.MasterFrame):
         self.tc_dict  : dict (internal)
 
         """
-        self.edgearr, self.tc_dict = artraceslits.edgearr_tcrude(self.edgearr, self.siglev, self.ednum)
+        # Settings
+        if 'maxshift' in self.settings['trace']['slits'].keys():
+            maxshift=self.settings['trace']['slits']['maxshift']
+
+        self.edgearr, self.tc_dict = artraceslits.edgearr_tcrude(self.edgearr, self.siglev, self.ednum,
+                                                                 maxshift=maxshift)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -915,6 +925,8 @@ class TraceSlits(masterframe.MasterFrame):
         self.tc_dict = ts_dict['tc_dict']
         # Load the pixel objects?
         self._make_pixel_arrays()
+        # Fill
+        self._fill_slits_dict()
         # Success
         return True
 
@@ -1052,10 +1064,10 @@ class TraceSlits(masterframe.MasterFrame):
         self._make_pixel_arrays()
 
         # dict for PYPIT
-        self.trace_slits_dict = self._fill_trace_slit_dict()
+        self.slits_dict = self._fill_slits_dict()
 
         # Return
-        return self.trace_slits_dict
+        return self.slits_dict
 
     def _qa(self, use_slitid=True):
         """

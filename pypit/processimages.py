@@ -23,7 +23,10 @@ if msgs._debug is None:
 
 # Place these here or elsewhere?
 #  Wherever they be, they need to be defined, described, etc.
-default_settings = dict(detector={'numamplifiers': 1,   # This dict is not complete; consider readnoise, binning
+def default_settings():
+    # Hiding in a def because of the nested dicts
+    #  I prefer this to deepcopy
+    default_settings = dict(detector={'numamplifiers': 1,   # This dict is not complete; consider readnoise, binning
                                   'saturation': 60000.,  # Spectra aligned with columns
                                   'dispaxis': 0,  # Spectra aligned with columns
                                   'dataext': None},
@@ -35,6 +38,7 @@ default_settings = dict(detector={'numamplifiers': 1,   # This dict is not compl
                                             'level': [3.,3.],
                                             'replace': 'maxnonsat'}}
                         )
+    return default_settings
 
 class ProcessImages(object):
     """Base class to guide image loading+processing
@@ -53,6 +57,8 @@ class ProcessImages(object):
     user_settings : dict, optional
       Allow for user to over-ride individual internal/default settings
       without providing a full settings dict
+    datasec_img : ndarray, optional
+      Specifies which pixels go with which amplifier
 
     Attributes
     ----------
@@ -65,7 +71,8 @@ class ProcessImages(object):
     datasec : list
     oscansec : list
     """
-    def __init__(self, file_list, spectrograph=None, settings=None, det=1, user_settings=None):
+    def __init__(self, file_list, spectrograph=None, settings=None, det=1, user_settings=None,
+                 datasec_img=None):
 
         # Required parameters
         if not isinstance(file_list, list):
@@ -74,8 +81,9 @@ class ProcessImages(object):
 
         # Optional
         self.det = det
+        self.datasec_img = datasec_img
         if settings is None:
-            self.settings = default_settings.copy()
+            self.settings = default_settings()
         else:
             # The copy allows up to update settings with user settings without changing the original
             self.settings = settings.copy()
@@ -212,6 +220,31 @@ class ProcessImages(object):
         else:
             msgs.error("datasec not properly loaded!")
 
+    def apply_gain(self, datasec_img):
+        """
+        # Apply gain (instead of ampsec scale)
+
+        Parameters
+        ----------
+        datasec_img : ndarray
+          Defines which pixels belong to which amplifier
+
+        Returns
+        -------
+        self.mspixelflat -- Modified internally
+
+        """
+        if datasec_img is None:
+            msgs.error("Need to input datasec_img!")
+        self.stack = self.stack*arprocimg.gain_frame(datasec_img,
+                                                 self.settings['detector']['numamplifiers'],
+                                                 self.settings['detector']['gain'])
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.stack
+
+
     def bias_subtract(self, msbias, trim=True, force=False):
         """
 
@@ -269,7 +302,7 @@ class ProcessImages(object):
         self.steps.append(inspect.stack()[0][3])
         return self.stack
 
-    def process(self, bias_subtract=None, trim=True, overwrite=False):
+    def process(self, bias_subtract=None, apply_gain=False, trim=True, overwrite=False):
         """
         Process the images from loading to combining
 
@@ -277,6 +310,8 @@ class ProcessImages(object):
         ----------
         bias_subtract : str or ndarray or None
           Guides bias subtraction
+        apply_gain : bool, optional
+          Apply gain to the various amplifier regions
         trim : bool, optional
         overwrite :
 
@@ -309,6 +344,11 @@ class ProcessImages(object):
                 self.proc_images[:,:,kk] = image
         # Combine
         self.stack = self.combine()
+
+        # Apply gain?
+        if apply_gain:
+            self.apply_gain(self.datasec_img)
+
         return self.stack.copy()
 
     def flat_field(self):
@@ -345,6 +385,9 @@ class ProcessImages(object):
             img = self.raw_images[idx]
         elif 'stack' in attr:
             img = self.stack
+        else:
+            msgs.warn("Options:  proc_image, raw_image, stack")
+            return
         # Show
         viewer, ch = ginga.show_image(img)
 

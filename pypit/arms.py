@@ -2,28 +2,26 @@
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-import yaml
 import numpy as np
-
-from astropy import units
+import os
 
 from pypit import msgs
 from pypit import arparse as settings
 from pypit import arload
-from pypit import armasters
 from pypit import armbase
 from pypit import arproc
 from pypit.core import arprocimg
+from pypit import armasters
 from pypit import arsave
 from pypit import arsciexp
 from pypit.core import arsetup
 from pypit import arpixels
 from pypit.core import arsort
 from pypit import wavetilts
-from pypit import artrace
 from pypit import arcimage
 from pypit import bpmimage
 from pypit import biasframe
+from pypit import flatfield
 from pypit import fluxspec
 from pypit import traceslits
 from pypit import traceimage
@@ -115,7 +113,17 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
 
             ###############
             # Get data sections (Could avoid doing this for every sciexp, but it is quick)
-            datasec_img = arprocimg.get_datasec_trimmed(fitstbl, det, scidx, settings.argflag, settings.spect)
+            # TODO -_ Clean this up!
+            scifile = os.path.join(fitstbl['directory'][scidx],fitstbl['filename'][scidx])
+            settings_det = settings.spect[dnum].copy()  # Should include naxis0, naxis1 in this
+            datasec_img, naxis0, naxis1 = arprocimg.get_datasec_trimmed(
+                settings.argflag['run']['spectrograph'], scifile, namp, det, settings_det,
+                naxis0=fitstbl['naxis0'][scidx],
+                naxis1=fitstbl['naxis1'][scidx])
+            # Yes, this looks goofy.  Is needed for LRIS and DEIMOS for now
+            settings.spect[dnum] = settings_det.copy()  # Used internally..
+            fitstbl['naxis0'][scidx] = naxis0
+            fitstbl['naxis1'][scidx] = naxis1
             #slf._datasec[det-1] = pix_to_amp(naxis0, naxis1, datasec, numamplifiers)
 
             # Calib dict
@@ -205,8 +213,9 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                     trace_image_files = arsort.list_of_files(fitstbl, 'trace', sci_ID)
                     Timage = traceimage.TraceImage(trace_image_files,
                                                    spectrograph=settings.argflag['run']['spectrograph'],
-                                                   settings=tsettings, det=det)
-                    mstrace = Timage.process(bias_subtract=msbias, trim=settings.argflag['reduce']['trim'])
+                                                   settings=tsettings, det=det, datasec_img=datasec_img)
+                    mstrace = Timage.process(bias_subtract=msbias, trim=settings.argflag['reduce']['trim'],
+                                             apply_gain=True)
 
                     # Load up and get ready
                     traceSlits.mstrace = mstrace
@@ -277,9 +286,9 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 wt_maskslits = calib_dict[setup]['wtmask']
             else:
                 # Settings kludges
-                tilt_settings = dict(tilts=settings.argflag['trace']['slits']['tilts'].copy())
+                tilt_settings = dict(tilts=settings.argflag['trace']['slits']['tilts'].copy(),
+                                     masters=settings.argflag['reduce']['masters'])
                 tilt_settings['tilts']['function'] = settings.argflag['trace']['slits']['function']
-                tilt_settings['masters'] = settings.argflag['reduce']['masters']
                 tilt_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
                 settings_det = settings.spect[dnum].copy()
                 # Instantiate
@@ -300,11 +309,48 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                 calib_dict[setup]['wtmask'] = wt_maskslits
             slf._maskslits[det-1] += wt_maskslits
 
-
             ###############
             # Prepare the pixel flat field frame
-            update = slf.MasterFlatField(fitstbl, det, msbias, datasec_img, mstilts)
-            if update and reuseMaster: armbase.UpdateMasters(sciexp, sc, det, ftype="flat", chktype="pixelflat")
+            if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
+                if 'normpixelflat' in calib_dict[setup].keys():
+                    mspixflatnrm = calib_dict[setup]['normpixelflat']
+                    slitprof = calib_dict[setup]['slitprof']
+                else:
+                    # Settings
+                    flat_settings = dict(flatfield=settings.argflag['reduce']['flatfield'].copy(),
+                                         slitprofile=settings.argflag['reduce']['slitprofile'].copy(),
+                                         masters=settings.argflag['reduce']['masters'].copy(),
+                                         detector=settings.spect[dnum])
+                    flat_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
+                    # Instantiate
+                    pixflat_image_files = arsort.list_of_files(fitstbl, 'pixelflat', sci_ID)
+                    flatField = flatfield.FlatField(file_list=pixflat_image_files, msbias=msbias,
+                                                  settings=flat_settings,
+                                                  slits_dict=traceSlits.slits_dict.copy(),
+                                                  tilts=mstilts, det=det, setup=setup,
+                                                    datasec_img=datasec_img)
+
+                    # Load from disk (MasterFrame)?
+                    mspixflatnrm = flatField.master()
+                    if mspixflatnrm is None:
+                        # Use mstrace if the indices are identical
+                        if np.all(arsort.ftype_indices(fitstbl,'trace',1) ==
+                                          arsort.ftype_indices(fitstbl, 'pixelflat', 1)) and (traceSlits.mstrace is not None):
+                            flatField.mspixelflat = traceSlits.mstrace.copy()
+                        # Run
+                        mspixflatnrm, slitprof = flatField.run(armed=False)
+                        # Save to Masters
+                        flatField.save_master(mspixflatnrm, raw_files=pixflat_image_files, steps=flatField.steps)
+                        flatField.save_master(slitprof, raw_files=pixflat_image_files, steps=flatField.steps,
+                                              outfile=armasters.core_master_name('slitprof', setup, flat_settings['masters']['directory']))
+                    else:
+                        slitprof, _, _ = flatField.load_master_slitprofile()
+                calib_dict[setup]['normpixelflat'] = mspixflatnrm
+                calib_dict[setup]['slitprof'] = slitprof
+            else:
+                mspixflatnrm = None
+                slitprof = None
+
 
             ###############
             # Generate/load a master wave frame
@@ -317,11 +363,12 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             msgs.info("Loading science frame")
             sciframe = arload.load_frames(fitstbl, [scidx], det,
                                           frametype='science',
-                                          msbias=msbias) # slf._msbias[det-1])
+                                          msbias=msbias)
             sciframe = sciframe[:, :, 0]
             # Extract
             msgs.info("Processing science frame")
-            arproc.reduce_multislit(slf, mstilts, sciframe, msbpm, datasec_img, scidx, fitstbl, det)
+            arproc.reduce_multislit(slf, mstilts, sciframe, msbpm, datasec_img, scidx, fitstbl, det,
+                                    mspixelflatnrm=mspixflatnrm, slitprof=slitprof)
 
 
             ######################################################
@@ -335,15 +382,15 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
             if stdslf.extracted[det-1] is False:
                 # Fill up the necessary pieces
                 for iattr in ['pixlocn', 'lordloc', 'rordloc', 'pixcen', 'pixwid', 'lordpix', 'rordpix',
-                              'slitpix', 'satmask', 'maskslits', 'slitprof',
-                              'mspixelflatnrm', 'mswave']:
+                              'slitpix', 'satmask', 'maskslits', 'mswave']:
                     setattr(stdslf, '_'+iattr, getattr(slf, '_'+iattr))  # Brings along all the detectors, but that is ok
                 # Load
                 stdframe = arload.load_frames(fitstbl, [std_idx], det, frametype='standard', msbias=msbias)
                 stdframe = stdframe[:, :, 0]
                 # Reduce
                 msgs.info("Processing standard frame")
-                arproc.reduce_multislit(stdslf, mstilts, stdframe, msbpm, datasec_img, std_idx, fitstbl, det, standard=True)
+                arproc.reduce_multislit(stdslf, mstilts, stdframe, msbpm, datasec_img, std_idx, fitstbl, det,
+                                        standard=True, mspixelflatnrm=mspixflatnrm, slitprof=slitprof)
                 # Finish
                 stdslf.extracted[det-1] = True
 

@@ -99,27 +99,27 @@ def error_frame_postext(sciframe, idx, fitsdict, settings_spect):
 '''
 
 
-def get_datasec_trimmed(fitstbl, det, scidx, settings_argflag, settings_spect):
+def get_datasec_trimmed(spectrograph, scifile, numamplifiers, det, settings_det,
+                        naxis0=None, naxis1=None):
     """
     Primarily a wrapper with calls to get_datasec and pix_to_amp()
 
     Parameters
     ----------
-    slf
-    fitstbl
+    spectrograph : str
+    scifile : str
+    numamplifiers : int
     det : int
-    scidx : int
+    settings_det : dict
+    naxis0 : int, optional
+    naxis1 : int, optional
 
     Returns
     -------
-    Fills slf._datasect
-    fitstbl['naxis0'] and fittsdict['naxis1']
+    datasec_img : ndarray
+    naxis0 : int
+    naxis1 : int
     """
-    dnum = arparse.get_dnum(det)
-    spectrograph = settings_argflag['run']['spectrograph']
-    scifile = os.path.join(fitstbl['directory'][scidx],fitstbl['filename'][scidx])
-    numamplifiers = settings_spect[dnum]['numamplifiers']
-
     # Instrument specific bits
     # TODO -- Remove instrument specific items in a method like this
     if spectrograph in ['keck_lris_blue', 'keck_lris_red', 'keck_deimos']:
@@ -129,20 +129,21 @@ def get_datasec_trimmed(fitstbl, det, scidx, settings_argflag, settings_spect):
         # Fill (for backwards compatability)
         for kk in range(numamplifiers):
             sdatasec = "datasec{0:02d}".format(kk+1)
-            settings_spect[dnum][sdatasec] = datasec[kk]
+            settings_det[sdatasec] = datasec[kk]
             soscansec = "oscansec{0:02d}".format(kk+1)
-            settings_spect[dnum][soscansec] = oscansec[kk]
-        fitstbl['naxis0'][scidx] = naxis0
-        fitstbl['naxis1'][scidx] = naxis1
+            settings_det[soscansec] = oscansec[kk]
+        #fitstbl['naxis0'][scidx] = naxis0
+        #fitstbl['naxis1'][scidx] = naxis1
 
     # Build the datasec lists for pix_to_amp
     datasec = []
     for i in range(numamplifiers):
         sdatasec = "datasec{0:02d}".format(i+1)
-        datasec.append(settings_spect[dnum][sdatasec])
+        datasec.append(settings_det[sdatasec])
     # Call
-    naxis0, naxis1 = int(fitstbl['naxis0'][scidx]), int(fitstbl['naxis1'][scidx])
-    return arpixels.pix_to_amp(naxis0, naxis1, datasec, numamplifiers)
+    #naxis0, naxis1 = int(fitstbl['naxis0'][scidx]), int(fitstbl['naxis1'][scidx])
+    datasec_img = arpixels.pix_to_amp(naxis0, naxis1, datasec, numamplifiers)
+    return datasec_img, naxis0, naxis1
 
 
 def get_datasec(spectrograph, scifile, numamplifiers=None, det=None):
@@ -505,6 +506,7 @@ def gain_frame(datasec_img, namp, gain_list):
     """
     #namp = settings.spect[dnum]['numamplifiers'])
     #gains = settings.spect[dnum]['gain'][amp - 1]
+    msgs.warn("Should probably be measuring the gain across the amplifier boundary")
 
     # Loop on amplifiers
     gain_img = np.zeros_like(datasec_img)
