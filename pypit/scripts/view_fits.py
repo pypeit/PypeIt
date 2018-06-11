@@ -38,8 +38,8 @@ def main(args):
     from astropy.io import fits
 
     from pypit import pyputils
-    from pypit import arlris
-    from pypit import ardeimos
+    from pypit.core import arlris
+    from pypit.core import ardeimos
 
     # List only?
     if args.list:
