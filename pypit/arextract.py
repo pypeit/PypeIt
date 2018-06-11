@@ -1,3 +1,5 @@
+""" Module for PYPIT extraction code
+"""
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import time
@@ -19,8 +21,6 @@ from pypit import artrace
 from pypit import arutils
 from pypit import ardebug as debugger
 
-from pypit import arcyutils
-
 # MASK VALUES FROM EXTRACTION
 # 0 
 # 2**0 = Flagged as bad detector pixel
@@ -31,7 +31,7 @@ from pypit import arcyutils
 mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5, bad_row=2**6)
 
 
-def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
+def boxcar(slf, det, specobjs, sciframe, varframe, bpix, skyframe, crmask, scitrace):
     """ Perform boxcar extraction on the traced objects.
     Also perform a local sky subtraction
 
@@ -175,7 +175,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
             # Mask
             boxmask = np.zeros(wvsum.shape, dtype=np.int)
             # Bad detector pixels
-            BPs = np.sum(weight*slf._bpix[det-1], axis=1)
+            BPs = np.sum(weight*bpix, axis=1)
             bp = BPs > 0.
             boxmask[bp] += mask_flags['bad_pix']
             # CR
@@ -222,7 +222,7 @@ def boxcar(slf, det, specobjs, sciframe, varframe, skyframe, crmask, scitrace):
 
 
 def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
-                 scitrace, COUNT_LIM=25., doqa=True, pickle_file=None):
+                 scitrace, tilts, COUNT_LIM=25., doqa=True, pickle_file=None):
     """ Derive spatial profiles for each object
     Parameters
     ----------
@@ -281,7 +281,7 @@ def obj_profiles(slf, det, specobjs, sciframe, varframe, skyframe, crmask,
             else:
                 objreg = scitrace[sl]['object'][:, :, o]
             # Calculate slit image
-            slit_img = artrace.slit_image(slf, det, scitrace[sl], o)#, tilts=tilts)
+            slit_img = artrace.slit_image(slf, det, scitrace[sl], o, tilts)
             # Object pixels
             weight = objreg.copy()
             # Identify good rows
@@ -433,7 +433,7 @@ def obj_profile_qa(slf, specobjs, scitrace, det):
 
 
 def optimal_extract(slf, det, specobjs, sciframe, varframe,
-                    skyframe, crmask, scitrace,
+                    skyframe, crmask, scitrace, tilts,
                     pickle_file=None, profiles=None):
     """ Preform optimal extraction
     Standard Horne approach
@@ -490,7 +490,7 @@ def optimal_extract(slf, det, specobjs, sciframe, varframe,
             if 'param' not in fit_dict.keys():
                 continue
             # Slit image
-            slit_img = artrace.slit_image(slf, det, scitrace[sl], o)#, tilts=tilts)
+            slit_img = artrace.slit_image(slf, det, scitrace[sl], o, tilts)
             #msgs.warn("Turn off tilts")
             # Object pixels
             weight = objreg.copy()
@@ -643,4 +643,6 @@ def new_func2d_fit_val(y, order, x=None, w=None):
 
     # Return the model with the appropriate shape
     return ym if y.ndim == 2 else ym[0,:]
+
+
 

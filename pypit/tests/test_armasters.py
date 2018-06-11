@@ -22,8 +22,10 @@ def test_master_name():
     suff = ['Bias', 'BadPix', 'Trace', 'FlatField', 'Arc', 'Wave', 'WaveCalib', 'Tilts']
     for isuff,itype in zip(suff,types):
         if itype == 'wv_calib':
-            exten = 'json'
+            exten = '.json'
+        elif itype == 'trace':
+            exten = ''
         else:
-            exten = 'fits'
-        assert armasters.master_name(itype, '01', mdir='MasterFrames') == 'MasterFrames/Master{:s}_01.{:s}'.format(isuff,exten)
+            exten = '.fits'
+        assert armasters.master_name(itype, '01', mdir='MasterFrames') == 'MasterFrames/Master{:s}_01{:s}'.format(isuff,exten)
 

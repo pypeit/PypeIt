@@ -7,6 +7,8 @@ import glob
 import numpy as np
 import scipy
 
+from pkg_resources import resource_filename
+
 from astropy import units
 from astropy import coordinates
 from astropy.table import Table, Column
@@ -18,11 +20,47 @@ except ImportError:
     pass
 
 from pypit import msgs
-from pypit import arparse as settings
 from pypit import arutils
 from pypit import ardebug as debugger
 
 
+def apply_sensfunc(spec_obj, sensfunc, airmass, exptime, settings_spec, MAX_EXTRAP=0.05):
+    """ Apply the sensitivity function to the data
+    We also correct for extinction.
+
+    Parameters
+    ----------
+    MAX_EXTRAP : float, optional [0.05]
+      Fractional amount to extrapolate sensitivity function
+    """
+    # Load extinction data
+    extinct = load_extinction_data(settings_spec)
+    #airmass = fitsdict['airmass'][scidx]
+
+    # Loop on extraction modes
+    for extract_type in ['boxcar', 'optimal']:
+        extract = getattr(spec_obj, extract_type)
+        if len(extract) == 0:
+            continue
+        msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() +
+                  "{}".format(spec_obj))
+        wave = extract['wave']  # for convenience
+        scale = np.zeros(wave.size)
+        # Allow for some extrapolation
+        dwv = sensfunc['wave_max']-sensfunc['wave_min']
+        inds = ((wave >= sensfunc['wave_min']-dwv*MAX_EXTRAP)
+            & (wave <= sensfunc['wave_max']+dwv*MAX_EXTRAP))
+        mag_func = arutils.func_val(sensfunc['c'], wave[inds],
+                                    sensfunc['func'])
+        sens = 10.0**(0.4*mag_func)
+        # Extinction
+        ext_corr = extinction_correction(wave[inds], airmass, extinct)
+        scale[inds] = sens*ext_corr
+        # Fill
+        extract['flam'] = extract['counts']*scale/exptime
+        extract['flam_var'] = (extract['var']*(scale/exptime)**2)
+
+'''
 def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
     """ Apply the sensitivity function to the data
     We also correct for extinction.
@@ -74,9 +112,9 @@ def apply_sensfunc(slf, det, scidx, fitsdict, MAX_EXTRAP=0.05, standard=False):
                 extract['flam'] = extract['counts']*scale/fitsdict['exptime'][scidx]
                 extract['flam_var'] = (extract['var']*
                                        (scale/fitsdict['exptime'][scidx])**2)
+'''
 
-
-def bspline_magfit(wave, flux, var, flux_std, **kwargs):
+def bspline_magfit(wave, flux, var, flux_std, bspline_par=None):
     """
     Perform a bspline fit to the flux ratio of standard to
     observed counts.  Used to generate a sensitivity function.
@@ -90,7 +128,8 @@ def bspline_magfit(wave, flux, var, flux_std, **kwargs):
       variance
     flux_std : Quantity array
       standard star true flux (erg/s/cm^2/A)
-    **kwargs : keywords for robust_polyfit
+    bspline_par : dict, optional
+      keywords for robust_polyfit
 
     Returns
     -------
@@ -122,7 +161,8 @@ def bspline_magfit(wave, flux, var, flux_std, **kwargs):
     '''
 
     #  First iteration
-    mask, tck = arutils.robust_polyfit(wave, magfunc, 3, function='bspline', weights=np.sqrt(logivar), **kwargs)
+    mask, tck = arutils.robust_polyfit(wave, magfunc, 3, function='bspline', weights=np.sqrt(logivar),
+                                       bspline_par=bspline_par)
     logfit1 = arutils.func_val(tck,wave,'bspline')
     modelfit1 = 10.0**(0.4*(logfit1))
 
@@ -145,8 +185,11 @@ def bspline_magfit(wave, flux, var, flux_std, **kwargs):
     # Fuss with the knots first ()
     inner_knots = arutils.bspline_inner_knots(tck[0])
     #
+    if bspline_par is None:
+        bspline_par = {}
+    bspline_par['knots'] = inner_knots # This over-rides everyn
     mask, tck_residual = arutils.robust_polyfit(wave, residual, 3, function='bspline',
-                                                weights=np.sqrt(residual_ivar), knots=inner_knots, **kwargs)
+                                                weights=np.sqrt(residual_ivar), bspline_par=bspline_par) #**kwargs)
     if tck_residual[1].size != tck[1].size:
         msgs.error('Problem with bspline knots in bspline_magfit')
     #bset_residual = bspline_iterfit(wave, residual, weights=np.sqrt(residual_ivar), knots = tck[0])
@@ -288,13 +331,13 @@ def load_calspec():
     """
     # Read
     calspec_path = '/data/standards/calspec/'
-    calspec_file = settings.argflag['run']['pypitdir'] + calspec_path + 'calspec_info.txt'
+    calspec_file = resource_filename('pypit', calspec_path+'calspec_info.txt')
     calspec_stds = Table.read(calspec_file, comment='#', format='ascii')
     # Return
     return calspec_path, calspec_stds
 
 
-def load_extinction_data(toler=5.*units.deg):
+def load_extinction_data(settings_spect, toler=5.*units.deg):
     """
     Find the best extinction file to use, based on longitude and latitude
     Loads it and returns a Table
@@ -310,11 +353,11 @@ def load_extinction_data(toler=5.*units.deg):
       astropy Table containing the 'wavelength', 'extinct' data for AM=1.
     """
     # Mosaic coord
-    mosaic_coord = coordinates.SkyCoord(settings.spect['mosaic']['longitude'],
-                                        settings.spect['mosaic']['latitude'], frame='gcrs',
+    mosaic_coord = coordinates.SkyCoord(settings_spect['mosaic']['longitude'],
+                                        settings_spect['mosaic']['latitude'], frame='gcrs',
                                         unit=units.deg)
     # Read list
-    extinct_path = settings.argflag['run']['pypitdir']+'/data/extinction/'
+    extinct_path = resource_filename('pypit', '/data/extinction/')
     extinct_summ = extinct_path+'README'
     extinct_files = Table.read(extinct_summ,comment='#',format='ascii')
     # Coords
@@ -354,8 +397,8 @@ def load_standard_file(std_dict):
     std_flux : Quantity array
       Flux of standard star
     """
-    fil = glob.glob(settings.argflag['run']['pypitdir'] +
-                    std_dict['file']+'*')
+    root = resource_filename('pypit', std_dict['file']+'*')
+    fil = glob.glob(root)
     if len(fil) == 0:
         msgs.error("No standard star file: {:s}".format(fil))
     else:
@@ -373,18 +416,36 @@ def load_standard_file(std_dict):
     return
 
 
-def generate_sensfunc(slf, stdidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=20):
+def find_standard(specobjs):
+    # Repackage as necessary (some backwards compatability)
+    all_specobj = arutils.unravel_specobjs(specobjs)
+    # Do it
+    medfx = []
+    medix = []
+    for indx, spobj in enumerate(all_specobj):
+        medfx.append(np.median(spobj.boxcar['counts']))
+        medix.append(indx)
+    mxix = np.argmax(np.array(medfx))
+    msgs.info("Putative standard star has a median boxcar count of {}".format(np.max(medfx)))
+    # Return
+    return mxix
+
+
+def generate_sensfunc(std_obj, RA, DEC, airmass, exptime, settings_spect, BALM_MASK_WID=5., nresln=20):
     """
     Generate sensitivity function from current standard star
     Currently, we are using a bspline generated by bspline_magfit
 
     Parameters
     ----------
-    slf : 
-    stdidx : int
-      index for standard  (may not be necessary) -- Differs from scidx!!
-    specobjs : list
+    std_obj : list
       List of spectra
+    RA : float
+      Deg
+    DEC : float
+      Deg
+    airmass : float
+    exptime : float
     BALM_MASK_WID : float
       Mask parameter for Balmer absorption.  A region equal to
       BALM_MASK_WID*resln is masked wher resln is the estimate
@@ -397,30 +458,18 @@ def generate_sensfunc(slf, stdidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=
     sens_dict : dict
       sensitivity function described by a dict
     """
-    # Find brightest object in the exposures
-    # Search over all slits (over all detectors), and all objects
-    medfx = []
-    medix = []
-    for sl in range(len(specobjs)):
-        indx = 0
-        for spobj in specobjs[sl]:
-            medfx.append(np.median(spobj.boxcar['counts']))
-            medix.append([sl, indx])
-            indx += 1
-    mxix = medix[np.argmax(np.array(medfx))]
-    std_obj = specobjs[mxix[0]][mxix[1]]
     wave = std_obj.boxcar['wave']
     # Apply Extinction
-    extinct = load_extinction_data()
-    ext_corr = extinction_correction(wave, fitsdict['airmass'][stdidx], extinct)
+    extinct = load_extinction_data(settings_spect) # Observatory specific
+    ext_corr = extinction_correction(wave, airmass, extinct)
     flux_corr = std_obj.boxcar['counts']*ext_corr
     var_corr = std_obj.boxcar['var']*ext_corr**2
     # Convert to electrons / s
-    flux_corr /= fitsdict['exptime'][stdidx]
-    var_corr /= fitsdict['exptime'][stdidx]**2
+    flux_corr /= exptime
+    var_corr /= exptime**2
 
     # Grab closest standard within a tolerance
-    std_dict = find_standard_file((slf._msstd[0]['RA'], slf._msstd[0]['DEC']))
+    std_dict = find_standard_file((RA, DEC))
     # Load standard
     load_standard_file(std_dict)
     # Interpolate onto observed wavelengths
@@ -473,7 +522,8 @@ def generate_sensfunc(slf, stdidx, specobjs, fitsdict, BALM_MASK_WID=5., nresln=
 
     # Fit in magnitudes
     var_corr[msk == False] = -1.
-    mag_tck = bspline_magfit(wave.value, flux_corr, var_corr, flux_true, bkspace=resln.value*nresln)
+    bspline_par = dict(bkspace=resln.value*nresln)
+    mag_tck = bspline_magfit(wave.value, flux_corr, var_corr, flux_true, bspline_par=bspline_par) #bkspace=resln.value*nresln)
     sens_dict = dict(c=mag_tck, func='bspline',min=None,max=None, std=std_dict)
     # Add in wavemin,wavemax
     sens_dict['wave_min'] = np.min(wave)

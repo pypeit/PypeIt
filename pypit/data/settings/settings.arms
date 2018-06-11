@@ -17,6 +17,7 @@ reduce flexure spectrum None
 
 # TRACE FRAMES (used to trace the slit edges)
 trace slits tilts order 2
+trace slits medrep 0
 
 # PIXEL FLAT FRAMES (used to correct pixel-to-pixel variations)
 

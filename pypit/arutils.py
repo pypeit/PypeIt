@@ -18,6 +18,7 @@ from scipy import interpolate
 from astropy import units
 from astropy.io import fits
 from astropy.convolution import convolve, Gaussian1DKernel
+from astropy.table import Table
 
 from pypit import msgs
 from pypit import ardebug as debugger
@@ -75,7 +76,6 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     tck : tuple
       describes the bspline
     '''
-    #
     task = 0  # Default of splrep
     if w is None:
         ngd = x.size
@@ -136,67 +136,9 @@ def calc_offset(raA, decA, raB, decB, distance=False):
     else:
         return delRA, delDEC
 
-
 def dummy_fitsdict(nfile=10, spectrograph='shane_kast_blue', directory='./'):
-    """
-    Parameters
-    ----------
-    nfile : int, optional
-      Number of files to mimic
-    spectrograph : str, optional
-      Name of spectrograph to mimic
+    pass
 
-    Returns
-    -------
-
-    """
-    fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
-    fitsdict['utc'] = ['2015-01-23']*nfile
-    fitsdict['directory'] = [directory]*nfile
-    fitsdict['filename'] = ['b{:03d}.fits'.format(i) for i in range(nfile)]
-    fitsdict['date'] = ['2015-01-23T00:{:02d}:11.04'.format(i) for i in range(nfile)]  # Will fail at 60
-    fitsdict['time'] = [(1432085758+i*60)/3600. for i in range(nfile)]
-    fitsdict['target'] = ['Dummy']*nfile
-    fitsdict['ra'] = ['00:00:00']*nfile
-    fitsdict['dec'] = ['+00:00:00']*nfile
-    fitsdict['exptime'] = [300.] * nfile
-    fitsdict['naxis0'] = [2048] * nfile
-    fitsdict['naxis1'] = [2048] * nfile
-    fitsdict['dispname'] = ['600/4310'] * nfile
-    fitsdict['dichroic'] = ['560'] * nfile
-    fitsdict['dispangle'] = ['none'] * nfile
-    fitsdict["binning"] = ['1x1']*nfile
-    fitsdict["airmass"] = [1.0]*nfile
-    #
-    if spectrograph == 'shane_kast_blue':
-        fitsdict['numamplifiers'] = [1] * nfile
-        fitsdict['naxis0'] = [2112] * nfile
-        fitsdict['naxis1'] = [2048] * nfile
-        fitsdict['slitwid'] = [1.] * nfile
-        fitsdict['slitlen'] = ['none'] * nfile
-        # Lamps
-        for i in range(1,17):
-            fitsdict['lampstat{:02d}'.format(i)] = ['off'] * nfile
-        fitsdict['exptime'][0] = 0        # Bias
-        fitsdict['lampstat06'][1] = 'on'  # Arc
-        fitsdict['exptime'][1] = 30       # Arc
-        fitsdict['lampstat01'][2] = 'on'  # Trace, pixel, slit flat
-        fitsdict['lampstat01'][3] = 'on'  # Trace, pixel, slit flat
-        fitsdict['exptime'][2] = 30     # flat
-        fitsdict['exptime'][3] = 30     # flat
-        fitsdict['ra'][4] = '05:06:36.6'  # Standard
-        fitsdict['dec'][4] = '52:52:01.0'
-        fitsdict['airmass'][4] = 1.2
-        fitsdict['ra'][5] = '07:06:23.45' # Random object
-        fitsdict['dec'][5] = '+30:20:50.5'
-        fitsdict['decker'] = ['0.5 arcsec'] * nfile
-    elif spectrograph == 'none':
-        pass
-    # arrays
-    for k in fitsdict.keys():
-        fitsdict[k] = np.array(fitsdict[k])
-    # Return
-    return fitsdict
 
 
 def func_der(coeffs, func, nderive=1):
@@ -212,7 +154,7 @@ def func_der(coeffs, func, nderive=1):
 
 
 def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
-             **kwargs):
+             bspline_par=None):
     """ General routine to fit a function to a given set of x,y points
 
     Parameters
@@ -227,7 +169,8 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
     maxv
     w
     guesses : tuple
-    kwargs
+    bspline_par : dict
+      Passed to bspline_fit()
 
     Returns
     -------
@@ -259,7 +202,10 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
         return np.polynomial.chebyshev.chebfit(xv, y, deg, w=w)
     elif func == "bspline":
-        return bspline_fit(x, y, order=deg, w=w, **kwargs)
+        if bspline_par is None:
+            bspline_par = {}
+        # TODO -- Deal with this kwargs-like kludge
+        return bspline_fit(x, y, order=deg, w=w, **bspline_par)
     elif func in ["gaussian"]:
         # Guesses
         if guesses is None:
@@ -672,7 +618,8 @@ def poly_to_gauss(coeffs):
     return [ampl, cent, sigm], False
 
 
-def polyfit2d_general(x, y, z, deg, w=None):
+def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
+                      minx=None, maxx=None, miny=None, maxy=None):
     """
     :param x: array of x values
     :param y: array of y values
@@ -686,7 +633,16 @@ def polyfit2d_general(x, y, z, deg, w=None):
     y = np.asarray(y)
     z = np.asarray(z)
     deg = np.asarray(deg)
-    vander = np.polynomial.polynomial.polyvander2d(x, y, deg)
+    # Vander
+    if function == 'polynomial':
+        vander = np.polynomial.polynomial.polyvander2d(x, y, deg)
+    elif function == 'legendre':
+        xv = scale_minmax(x, minx=minx, maxx=maxx)
+        yv = scale_minmax(y, minx=miny, maxx=maxy)
+        vander = np.polynomial.legendre.legvander2d(xv, yv, deg)
+    else:
+        msgs.error("Not read for this type of {:s}".format(function))
+    # Weights
     if w is not None:
         w = np.asarray(w) + 0.0
         if w.ndim != 1:
@@ -695,12 +651,22 @@ def polyfit2d_general(x, y, z, deg, w=None):
             msgs.bug("arutils.polyfit2d - Expected x, y and weights to have same length")
         z = z * w
         vander = vander * w[:,np.newaxis]
-
+    # Reshape
     vander = vander.reshape((-1,vander.shape[-1]))
     z = z.reshape((vander.shape[0],))
     c = np.linalg.lstsq(vander, z)[0]
     return c.reshape(deg+1)
 
+def scale_minmax(x, minx=None, maxx=None):
+    if minx is None or maxx is None:
+        if np.size(x) == 1:
+            xmin, xmax = -1.0, 1.0
+        else:
+            xmin, xmax = np.min(x), np.max(x)
+    else:
+        xmin, xmax = minx, maxx
+    xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
+    return xv
 
 def polyval2d_general(c, x, y, function="polynomial", minx=None, maxx=None, miny=None, maxy=None):
     if function == "polynomial":
@@ -708,23 +674,17 @@ def polyval2d_general(c, x, y, function="polynomial", minx=None, maxx=None, miny
         return np.polynomial.polynomial.polyval2d(xx, yy, c)
     elif function in ["legendre", "chebyshev"]:
         # Scale x-direction
-        if minx is None or maxx is None:
-            if np.size(x) == 1:
-                xmin, xmax = -1.0, 1.0
-            else:
-                xmin, xmax = np.min(x), np.max(x)
-        else:
-            xmin, xmax = minx, maxx
-        xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
+        xv = scale_minmax(x, minx=minx, maxx=maxx)
         # Scale y-direction
-        if miny is None or maxy is None:
-            if np.size(y) == 1:
-                ymin, ymax = -1.0, 1.0
-            else:
-                ymin, ymax = np.min(y), np.max(y)
-        else:
-            ymin, ymax = miny, maxy
-        yv = 2.0 * (y-ymin)/(ymax-ymin) - 1.0
+        yv = scale_minmax(y, minx=miny, maxx=maxy)
+        #if miny is None or maxy is None:
+        #    if np.size(y) == 1:
+        #        ymin, ymax = -1.0, 1.0
+        #    else:
+        #        ymin, ymax = np.min(y), np.max(y)
+        #else:
+        #    ymin, ymax = miny, maxy
+        #yv = 2.0 * (y-ymin)/(ymax-ymin) - 1.0
         xx, yy = np.meshgrid(xv, yv)
         if function == "legendre":
             return np.polynomial.legendre.legval2d(xx, yy, c)
@@ -837,7 +797,7 @@ def rebin(frame, newshape):
 
 def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
                    function="polynomial", initialmask=None, forceimask=False,
-                   minv=None, maxv=None, guesses=None, **kwargs):
+                   minv=None, maxv=None, guesses=None, bspline_par=None):
     """
     A robust (equally weighted) polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are masked values
@@ -875,7 +835,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
         else:
             wfit = None
         ct = func_fit(xfit, yfit, function, order, w=wfit,
-                      guesses=ct, minv=minv, maxv=maxv, **kwargs)
+                      guesses=ct, minv=minv, maxv=maxv, bspline_par=bspline_par)
         yrng = func_val(ct, xarray, function, minv=minv, maxv=maxv)
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
         if xarray.size-np.sum(mask) <= order+2:
@@ -905,7 +865,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
         wfit = weights[w]
     else:
         wfit = None
-    ct = func_fit(xfit, yfit, function, order, w=wfit, minv=minv, maxv=maxv, **kwargs)
+    ct = func_fit(xfit, yfit, function, order, w=wfit, minv=minv, maxv=maxv, bspline_par=bspline_par)
     return mask, ct
 
 
@@ -1223,3 +1183,31 @@ def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5):
             npeak = nfind
     return np.array(peaks), np.array(sigmas), np.array(ledges), np.array(redges)
 
+
+def unravel_specobjs(specobjs):
+    """
+    Method to unwrap nested specobjs objects into a single list
+
+    Parameters
+    ----------
+    specobjs : list of lists or list of SpecObj
+
+    Returns
+    -------
+    all_specobj : list of SpecObj
+
+    """
+    # Wrapped is all None and lists
+    ans = [isinstance(ispec, (list, type(None))) for ispec in specobjs]
+    if np.all(ans):
+        all_specobj = []
+        for det in range(len(specobjs)):           # detector loop
+            if specobjs[det] is None:
+                continue
+            for sl in range(len(specobjs[det])):   # slit loop
+                for spobj in specobjs[det][sl]:    # object loop
+                    all_specobj.append(spobj)
+    else:
+        all_specobj = specobjs
+    # Return
+    return all_specobj

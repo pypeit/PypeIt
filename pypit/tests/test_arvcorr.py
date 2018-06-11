@@ -13,9 +13,9 @@ from astropy import units
 
 from pypit import arparse
 from pypit import arwave
-from pypit import arutils
 from pypit import arspecobj
 from pypit import arsciexp
+from pypit.core import arsort
 
 mjd = 57783.269661
 RA = '07:06:23.45'
@@ -25,9 +25,10 @@ lon = 155.47833            # Longitude of the telescope (NOTE: West should corre
 lat = 19.82833             # Latitude of the telescope
 alt = 4160.0               # Elevation of the telescope (in m)
 
+
 @pytest.fixture
-def fitsdict():
-    return arutils.dummy_fitsdict()
+def fitstbl():
+    return arsort.dummy_fitstbl()
 
 
 def test_geovelocity():
@@ -48,20 +49,20 @@ def test_geovelocity():
     assert np.isclose(corrbary, -12.510015817405023, rtol=1e-5)
 
 
-def test_geocorrect(fitsdict):
+def test_geocorrect(fitstbl):
     """
     """
     # Initialize some settings
     arparse.dummy_settings(spectrograph='shane_kast_blue')#, set_idx=False)
-    # Load Dummy self
-    slf = arsciexp.dummy_self(fitsdict=fitsdict)
+    # Dummy self
+    slf = arsciexp.dummy_self(fitstbl=fitstbl)
     # Specobjs
-    specobjs = arspecobj.dummy_specobj(fitsdict, extraction=True)
+    specobjs = arspecobj.dummy_specobj(fitstbl, extraction=True)
     slf._specobjs[0] = [specobjs]
     slf._maskslits[0] = np.array([False]*len(slf._specobjs[0]))
     # Run
     # vhel = x_keckhelio(106.59770833333332, 30.34736111111111, 2000., jd=2457046.5036, OBS='lick')  9.3166 km/s
-    helio, hel_corr = arwave.geomotion_correct(slf, 1, fitsdict)
+    helio, hel_corr = arwave.geomotion_correct(slf, 1, fitstbl)
     assert np.isclose(helio, -9.3350877, rtol=1e-5)  # Checked against x_keckhelio
     #assert np.isclose(helio, -9.3344957, rtol=1e-5)  # Original
     assert np.isclose(slf._specobjs[0][0][0].boxcar['wave'][0].value, 3999.8754558341816, rtol=1e-8)
