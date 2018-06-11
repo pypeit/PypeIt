@@ -55,12 +55,13 @@ class TraceImage(processimages.ProcessImages):
     stack : ndarray
     """
     # Keep order same as processimages (or else!)
-    def __init__(self, file_list, spectrograph=None, settings=None, det=1):
+    def __init__(self, file_list, spectrograph=None, settings=None, det=1, datasec_img=None):
 
         # Parameters unique to this Object
 
         # Start us up
-        processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph, settings=settings, det=det)
+        processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph,
+                                             settings=settings, det=det, datasec_img=datasec_img)
 
         # Attributes (set after init)
         self.frametype = frametype

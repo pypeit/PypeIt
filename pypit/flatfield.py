@@ -5,7 +5,7 @@ import inspect
 import numpy as np
 import os
 
-from importlib import reload
+#from importlib import reload
 
 from pypit import msgs
 from pypit import processimages
@@ -77,6 +77,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     # Keep order same as processimages (or else!)
     def __init__(self, file_list=[], spectrograph=None, settings=None, msbias=None,
                  tslits_dict=None, tilts=None, det=None, setup=None):
+                 slits_dict=None, tilts=None, det=None, setup=None, datasec_img=None):
 
         # Parameters unique to this Object
         self.msbias = msbias
@@ -86,7 +87,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.tilts = tilts
 
         # Start us up
-        processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph, settings=settings, det=det)
+        processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph,
+                                             settings=settings, det=det, datasec_img=datasec_img)
 
         # Attributes (set after init)
         self.frametype = frametype
@@ -137,26 +139,6 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         else:
             return 0
 
-    def apply_gain(self, datasec_img):
-        """
-        # Apply gain (instead of ampsec scale)
-
-        Parameters
-        ----------
-        datasec_img : ndarray
-          Defines which pixels belong to which amplifier
-
-        Returns
-        -------
-        self.mspixelflat -- Modified internally
-
-        """
-        self.mspixelflat *= arprocimg.gain_frame(datasec_img,
-                                                 self.settings['detector']['numamplifiers'],
-                                                 self.settings['detector']['gain'])
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-
     def build_pixflat(self, trim=True):
         """
         # Generate the flat image
@@ -170,7 +152,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.mspixelflat
 
         """
-        self.mspixelflat = self.process(bias_subtract=self.msbias, trim=trim)
+        self.mspixelflat = self.process(bias_subtract=self.msbias, trim=trim, apply_gain=True)
         # Step
         self.steps.append(inspect.stack()[0][3])
         #
@@ -227,6 +209,10 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
           1 = Do extrapolate
 
         """
+        # Check
+        if self.ntckx is None:
+            msgs.warn("Need to set self.ntckx with _prep_tck first!")
+            return [None]*5
         # Wrap me
         slordloc = self.tslits_dict['lcen'][:,slit]
         srordloc = self.tslits_dict['rcen'][:,slit]
@@ -241,15 +227,14 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # Return
         return modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit
 
-    def run(self, datasec_img, armed=False):
+    def run(self, armed=False):
         """
         Main driver to generate normalized flat field
 
         Code flow:
           1.  Generate the pixelflat image (if necessary)
-          2.  Apply the gain
-          3.  Prepare b-spline knot spacing
-          4.  Loop on slits/orders
+          2.  Prepare b-spline knot spacing
+          3.  Loop on slits/orders
              a. Calculate the slit profile
              b. Normalize
              c. Save
@@ -269,9 +254,6 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # Build the pixel flat (as needed)
         if self.mspixelflat is None:
             self.mspixelflat = self.build_pixflat()
-
-        # Apply gain
-        self.apply_gain(datasec_img)
 
         # Prep tck (sets self.ntckx, self.ntcky)
         self._prep_tck()
@@ -301,7 +283,6 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             self.msblaze[:,slit] = msblaze_slit
             self.blazeext[:,slit] = blazeext_slit
 
-
         # If some slit profiles/blaze functions need to be extrapolated, do that now
         if armed:
             if np.sum(self.extrap_slit) != 0.0:
@@ -313,6 +294,11 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # Apply slit profile
         winpp = np.where(self.slit_profiles != 0.0)
         self.mspixelflatnrm[winpp] /= self.slit_profiles[winpp]
+
+        # Set pixels not in slits to 1.
+        msgs.info("Setting pixels outside of slits to 1. in the flat.")
+        inslit = self.slits_dict['slitpix'] >= 1.
+        self.mspixelflatnrm[~inslit] = 1.
 
         # QA
         '''
