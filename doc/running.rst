@@ -30,7 +30,7 @@ should have been installed in your Python path.  Here is its usage::
     ##  PYPIT : The Python Spectroscopic Data Reduction Pipeline v0.7.0.dev0
     ##
     ##  Available pipelines include:
-    ##   armed, armlsd
+    ##   armed, arms
     ##  Available spectrographs include:
     ##   isis_blue, lris_blue, kast_red, lris_red, kast_blue
     ##  Last updated: 07Feb2017
