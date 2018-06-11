@@ -213,8 +213,9 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                     trace_image_files = arsort.list_of_files(fitstbl, 'trace', sci_ID)
                     Timage = traceimage.TraceImage(trace_image_files,
                                                    spectrograph=settings.argflag['run']['spectrograph'],
-                                                   settings=tsettings, det=det)
-                    mstrace = Timage.process(bias_subtract=msbias, trim=settings.argflag['reduce']['trim'])
+                                                   settings=tsettings, det=det, datasec_img=datasec_img)
+                    mstrace = Timage.process(bias_subtract=msbias, trim=settings.argflag['reduce']['trim'],
+                                             apply_gain=True)
 
                     # Load up and get ready
                     traceSlits.mstrace = mstrace
@@ -326,7 +327,8 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                     flatField = flatfield.FlatField(file_list=pixflat_image_files, msbias=msbias,
                                                   settings=flat_settings,
                                                   slits_dict=traceSlits.slits_dict.copy(),
-                                                  tilts=mstilts, det=det, setup=setup)
+                                                  tilts=mstilts, det=det, setup=setup,
+                                                    datasec_img=datasec_img)
 
                     # Load from disk (MasterFrame)?
                     mspixflatnrm = flatField.master()
@@ -336,7 +338,7 @@ def ARMS(fitstbl, setup_dict, reuseMaster=False, reloadMaster=True, sciexp=None)
                                           arsort.ftype_indices(fitstbl, 'pixelflat', 1)) and (traceSlits.mstrace is not None):
                             flatField.mspixelflat = traceSlits.mstrace.copy()
                         # Run
-                        mspixflatnrm, slitprof = flatField.run(datasec_img, armed=False)
+                        mspixflatnrm, slitprof = flatField.run(armed=False)
                         # Save to Masters
                         flatField.save_master(mspixflatnrm, raw_files=pixflat_image_files, steps=flatField.steps)
                         flatField.save_master(slitprof, raw_files=pixflat_image_files, steps=flatField.steps,
