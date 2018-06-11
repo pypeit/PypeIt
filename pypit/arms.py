@@ -173,7 +173,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 # Get it
                 tslits_dict, _ = arcalib.get_tslits_dict(
                     det, setup, spectrograph, sci_ID, ts_settings, tsettings, fitstbl, pixlocn,
-                    msbias, msbpm, trim=settings.argflag['reduce']['trim'])
+                    msbias, msbpm, datasec_img, trim=settings.argflag['reduce']['trim'])
                 # Save in calib
                 calib_dict[setup]['trace'] = tslits_dict
 

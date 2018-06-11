@@ -76,8 +76,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     """
     # Keep order same as processimages (or else!)
     def __init__(self, file_list=[], spectrograph=None, settings=None, msbias=None,
-                 tslits_dict=None, tilts=None, det=None, setup=None):
-                 slits_dict=None, tilts=None, det=None, setup=None, datasec_img=None):
+                 tslits_dict=None, tilts=None, det=None, setup=None, datasec_img=None):
 
         # Parameters unique to this Object
         self.msbias = msbias

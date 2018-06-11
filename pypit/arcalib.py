@@ -73,7 +73,8 @@ def get_msflat(det, setup, sci_ID, fitstbl, tslits_dict, datasec_img,
     flatField = flatfield.FlatField(file_list=pixflat_image_files, msbias=msbias,
                                     settings=flat_settings,
                                     tslits_dict=tslits_dict,
-                                    tilts=mstilts, det=det, setup=setup)
+                                    tilts=mstilts, det=det, setup=setup,
+                                    datasec_img=datasec_img)
 
     # Load from disk (MasterFrame)?
     mspixflatnrm = flatField.master()
@@ -83,7 +84,7 @@ def get_msflat(det, setup, sci_ID, fitstbl, tslits_dict, datasec_img,
         #                  arsort.ftype_indices(fitstbl, 'pixelflat', 1)) and (traceSlits.mstrace is not None):
         #    flatField.mspixelflat = traceSlits.mstrace.copy()
         # Run
-        mspixflatnrm, slitprof = flatField.run(datasec_img, armed=False)
+        mspixflatnrm, slitprof = flatField.run(armed=False)
         # Save to Masters
         flatField.save_master(mspixflatnrm, raw_files=pixflat_image_files, steps=flatField.steps)
         flatField.save_master(slitprof, raw_files=pixflat_image_files, steps=flatField.steps,
@@ -109,7 +110,7 @@ def get_mswave(setup, tslits_dict, wvimg_settings, mstilts, wv_calib, maskslits)
 
 
 def get_tslits_dict(det, setup, spectrograph, sci_ID, ts_settings, tsettings,
-               fitstbl, pixlocn, msbias, msbpm, trim=True):
+               fitstbl, pixlocn, msbias, msbpm, datasec_img, trim=True):
     # Instantiate (without mstrace)
     traceSlits = traceslits.TraceSlits(None, pixlocn, settings=ts_settings,
                                        det=det, setup=setup, binbpx=msbpm)
@@ -120,8 +121,9 @@ def get_tslits_dict(det, setup, spectrograph, sci_ID, ts_settings, tsettings,
         trace_image_files = arsort.list_of_files(fitstbl, 'trace', sci_ID)
         Timage = traceimage.TraceImage(trace_image_files,
                                        spectrograph=spectrograph,
-                                       settings=tsettings, det=det)
-        mstrace = Timage.process(bias_subtract=msbias, trim=trim)
+                                       settings=tsettings, det=det,
+                                       datasec_img=datasec_img)
+        mstrace = Timage.process(bias_subtract=msbias, trim=trim, apply_gain=True)
 
         # Load up and get ready
         traceSlits.mstrace = mstrace
