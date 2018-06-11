@@ -131,6 +131,7 @@ def slit_profile(slit, mstrace, tilts, slordloc, srordloc, slitpix, pixwid,
       1 = Do extrapolate
 
     """
+    # TODO -- Refactor to use new bspline when it is ready
     iextrap_slit = 0.
     word = np.where(slitpix == slit+1)
     if word[0].size <= (ntcky+1)*(2*pixwid[slit]+1):
