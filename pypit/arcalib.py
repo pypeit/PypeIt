@@ -140,7 +140,7 @@ def get_mspbm(det, spectrograph, tsettings, shape, binning=None, reduce_badpix=N
     return msbpm, bpmImage
 
 
-def get_msflat(det, setup, sci_ID, fitstbl, tslits_dict, datasec_img,
+def get_msflat(det, setup, spectrograph, sci_ID, fitstbl, tslits_dict, datasec_img,
                flat_settings, msbias, mstilts):
     """
     Load/Generate the normalized flat field image
@@ -151,6 +151,8 @@ def get_msflat(det, setup, sci_ID, fitstbl, tslits_dict, datasec_img,
       Required for processing
     setup : str
       Required for MasterFrame loading
+    spectrograph : str
+      Required for processing
     sci_ID : int
       Required to choose the right flats for processing
     fitstbl : Table
@@ -176,6 +178,7 @@ def get_msflat(det, setup, sci_ID, fitstbl, tslits_dict, datasec_img,
     # Instantiate
     pixflat_image_files = arsort.list_of_files(fitstbl, 'pixelflat', sci_ID)
     flatField = flatfield.FlatField(file_list=pixflat_image_files, msbias=msbias,
+                                    spectrograph=spectrograph,
                                     settings=flat_settings,
                                     tslits_dict=tslits_dict,
                                     tilts=mstilts, det=det, setup=setup,
