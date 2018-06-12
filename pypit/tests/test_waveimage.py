@@ -1,4 +1,4 @@
-# Module to run tests on FlatField class
+# Module to run tests on WaveImage class
 #   Requires files in Development suite and an Environmental variable
 from __future__ import absolute_import
 from __future__ import division
