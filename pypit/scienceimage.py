@@ -5,7 +5,7 @@ import inspect
 import numpy as np
 import os
 
-from importlib import reload
+#from importlib import reload
 import datetime
 
 from astropy.time import Time
@@ -33,8 +33,8 @@ frametype = 'science'
 
 class ScienceImage(processimages.ProcessImages):
     """
-    This class will generat the pixel-level FlatField
-      The master() method returns the image
+    This class will organize and run actions related to
+    a Science or Standard star exposure
 
     Parameters
     ----------
@@ -42,39 +42,70 @@ class ScienceImage(processimages.ProcessImages):
       List of raw files to produce the flat field
     spectrograph : str
     settings : dict-like
-    msbias : ndarray or str or None
     tslits_dict : dict
       dict from TraceSlits class (e.g. slitpix)
     tilts : ndarray
       tilts from WaveTilts class
     det : int
     setup : str
+    datasec_img : ndarray
+      Identifies pixels to amplifiers
+    bpm : ndarray
+      Bad pixel mask
+    maskslits : ndarray (bool)
+      Specifies masked out slits
+    pixlocn : ndarray
+    objtype : str
+      'science'
+      'standard'
+    fitstbl : Table
+      Header info
+    scidx : int
+      Row in the fitstbl corresponding to the exposure
 
     Attributes
     ----------
     frametype : str
-      Set to 'pixelflat'
-    mspixelflat : ndarray
-      Stacked image
-    mspixelflatnrm : ndarray
-      Normalized flat
-    extrap_slit
-    msblaze : ndarray
-      Blaze function fit to normalize
-    blazeext :
-    slit_profiles : ndarray
-      Slit profile(s)
-    self.ntckx : int
-      Number of knots in the spatial dimension
-    self.ntcky : int
-      Number of knots in the spectral dimension
+      Set to 'science'
+    sciframe : ndarray
+      Processed 2D frame
+    rawvarframe : ndarray
+      Variance generated without a sky (or object) model
+    modelvarframe : ndarray
+      Variance generated with a sky model
+    finalvar : ndarray
+      Final variance frame
+    global_sky : ndarray
+      Sky model across the slit/order
+    skycorr_box : ndarray
+      Local corrections to the sky model
+    final_sky : ndarray
+      Final sky model; may include 'local' corrections
+    obj_model : ndarray
+      Model of the object flux
+    trcmask : ndarray
+      Masks of objects for sky subtraction
+    tracelist : list
+      List of traces for objects in slits
+    inst_name : str
+      Short name of the spectrograph, e.g. KASTb
+    target_name : str
+      Parsed from the Header
+    basename : str
+      Combination of camera, target, and time
+      e.g. J1217p3905_KASTb_2015May20T045733.56
+    time : Time
+      time object
+    specobjs : list
+      List of specobjs
+
 
     """
     # Keep order same as processimages (or else!)
     def __init__(self, file_list=[], spectrograph=None, settings=None,
                  tslits_dict=None, tilts=None, det=None, setup=None, datasec_img=None,
                  bpm=None, maskslits=None, pixlocn=None, objtype='science',
-                 fitstbl=None, scidx=0, mswave=None):
+                 fitstbl=None, scidx=0):
 
         # Parameters unique to this Object
         self.det = det
@@ -99,8 +130,20 @@ class ScienceImage(processimages.ProcessImages):
         self.sciframe = None
         self.rawvarframe = None
         self.modelvarframe = None
+        self.obj_model = None
         self.global_sky = None
+        self.skycorr_box = None
+        self.finalvar = None
+        self.finalsky = None
+        self.trcmask = None
         self.tracelist = []
+
+        self.time = None
+        self.inst_name = None
+        self.target_name = None
+        self.basename = None
+
+        self.specobjs = []
 
 
         # Settings
@@ -116,6 +159,23 @@ class ScienceImage(processimages.ProcessImages):
         self.crmask = None
 
     def init_time_names(self, camera, timeunit='mjd'):
+        """
+        Setup the basename (for file output mainly)
+        and time objects (for heliocentric)
+
+        Parameters
+        ----------
+        camera : str
+          Taken from settings['mosaic']['camera']
+        timeunit : str
+          mjd
+
+        Returns
+        -------
+        self.time : Time
+        self.basename : str
+
+        """
         tbname = None
         try:
             if "T" in self.fitstbl['date'][self.scidx]:
@@ -134,17 +194,28 @@ class ScienceImage(processimages.ProcessImages):
         tval = Time(tbname, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
         dtime = datetime.datetime.strptime(tval.value, '%Y-%m-%dT%H:%M:%S.%f')
         # Finish
-        self._inst_name = camera
-        self._target_name = self.fitstbl['target'][self.scidx].replace(" ", "")
-        self._basename = self._target_name+'_'+self._inst_name+'_'+ \
+        self.inst_name = camera
+        self.target_name = self.fitstbl['target'][self.scidx].replace(" ", "")
+        self.basename = self.target_name+'_'+self.inst_name+'_'+ \
                          datetime.datetime.strftime(dtime, '%Y%b%dT') + \
                          tbname.split("T")[1].replace(':','')
         # Save Time object
-        self._time = tval
+        self.time = tval
         # Return time
-        return self._time, self._basename
+        return self.time, self.basename
 
     def _build_specobj(self):
+        """
+        Initialize the specobjs for all slits
+        Key input is self.tracelist
+
+        Wrapper to arspecobj.init_exp
+
+        Returns
+        -------
+        self.specobjs
+
+        """
         self.specobjs = arspecobj.init_exp(self.tslits_dict['lcen'],
                                            self.tslits_dict['rcen'],
                                            self.sciframe.shape,
@@ -157,7 +228,52 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.specobjs
 
+    def _build_modelvar(self, skyframe=None, objframe=None):
+        """
+        Generate a model variance image using the sky model
+        and (optional) object model
+
+        Wrapper to arprocimg.variance_frame
+
+        Parameters
+        ----------
+        skyframe : ndarray
+          Sky model
+        objframe : ndarray
+          Object model
+
+        Returns
+        -------
+        self.modelvarframe
+          Model variance image
+
+        """
+        if skyframe is None:
+            skyframe = self.global_sky
+        self.modelvarframe = arprocimg.variance_frame(
+            self.datasec_img, self.det, self.sciframe, skyframe=skyframe,
+            settings_det=self.settings['detector'], objframe=objframe)
+        return self.modelvarframe
+
     def boxcar(self, mswave):
+        """
+        Perform boxcar extraction
+
+        Wrapper to arextract.boxcar
+
+        Parameters
+        ----------
+        mswave : ndarray
+          Wavelength image
+
+        Returns
+        -------
+        self.skycorr_box
+          Local corrections to the sky model
+
+        Extractions are ingested within self.specobjs
+
+        """
         msgs.info("Performing boxcar extraction")
         self.skycorr_box = arextract.boxcar(self.specobjs, self.sciframe,
                                             self.modelvarframe, self.bpm,
@@ -170,6 +286,22 @@ class ScienceImage(processimages.ProcessImages):
         return self.skycorr_box
 
     def original_optimal(self, mswave):
+        """
+        Perform optimal extraction using the 'original' PYPIT algorithm
+
+        Wrapper to arextract.obj_profiles and arextract.optimal_extract
+
+        Parameters
+        ----------
+        mswave : ndarray
+          Wavelength image
+
+        Returns
+        -------
+        self.obj_model : ndarray
+          Model of the object flux; used for improving the variance estimate
+
+        """
         msgs.info("Attempting optimal extraction with model profile")
         # Profile
         arextract.obj_profiles(self.det, self.specobjs, self.sciframe-self.global_sky-self.skycorr_box,
@@ -187,9 +319,31 @@ class ScienceImage(processimages.ProcessImages):
         return self.obj_model
 
     def extraction(self, mswave):
-        reload(arspecobj)
-        reload(arextract)
+        """
+        Perform the extraction
+          Boxcar and optimal (as desired)
 
+        Code flow:
+          1. Instantiate the specobjs list -- This should be done when finding objects
+          2. Boxcar extraction
+            i. Update sky model
+          3. Optimal extraction
+            i. Iterative
+            ii. With an update to the variance image
+          4. One last update to the variance image
+
+        Parameters
+        ----------
+        mswave : ndarray
+          Wavelength image
+
+        Returns
+        -------
+        self.specobjs
+        self.finalvar
+        self.finalsky
+
+        """
         # Init specobjs
         #  Nested -- self.specobjs[slit][object]
         self.specobjs = self._build_specobj()
@@ -213,19 +367,36 @@ class ScienceImage(processimages.ProcessImages):
 
         # Step
         self.steps.append(inspect.stack()[0][3])
-
         # Return
         return self.specobjs, self.finalvar, self.finalsky
 
     def find_objects(self, doqa=False):
-        reload(artrace)
+        """
+        Find objects in the slits
+        This is currently only for arms.py
 
+        Wrapper to artrace.trace_objects_in_slit
+
+        Parameters
+        ----------
+        doqa : bool, optional
+          Generate QA?
+
+        Returns
+        -------
+        self.tracelist : list
+          List of tracedict objects genreated by object finding (to be Refactored)
+        self.nobj : int
+          Total number of objects in all slits
+
+        """
+        # Grab the 'best' variance frame
         varframe = self._grab_varframe()
 
+        # Prepare to loop on slits
         nslit = len(self.maskslits)
         gdslits = np.where(~self.maskslits)[0]
         self.tracelist = []
-
         # Loop on good slits
         for slit in range(nslit):
             if slit not in gdslits:
@@ -237,27 +408,48 @@ class ScienceImage(processimages.ProcessImages):
             # Append
             self.tracelist += tlist
 
-        # QA?
-        if doqa: # and (not msgs._debug['no_qa']):
-            obj_trace_qa(slf, sciframe, det, tracelist, root="object_trace", normalize=False)
-
+        # Finish
         self.nobj = np.sum([tdict['nobj'] for tdict in self.tracelist if 'nobj' in tdict.keys()])
+        if doqa:  # QA?
+            obj_trace_qa(slf, sciframe, det, tracelist, root="object_trace", normalize=False)
+        # Steps
+        self.steps.append(inspect.stack()[0][3])
+        # Return
         return self.tracelist, self.nobj
 
-
     def global_skysub(self, settings_skysub, use_tracemask=False):
-        reload(arskysub)
+        """
+        Perform global sky subtraction, slit by slit
 
+        Wrapper to arskysub.bg_subtraction_slit
+
+        Parameters
+        ----------
+        settings_skysub : dict
+          Guides sky subtraction algorithm(s)
+        use_tracemask : bool, optional
+          Mask objects (requires they were found previously)
+
+        Returns
+        -------
+        self.global_sky : ndarray
+        self.modelvarframe : ndarray
+          Variance image using the sky model
+
+        """
+        # Prep
         self.global_sky = np.zeros_like(self.sciframe)
         gdslits = np.where(~self.maskslits)[0]
-
+        # Grab the currently 'best' variance frame
         varframe = self._grab_varframe()
 
+        # Mask objects?
         if use_tracemask:
             tracemask = self._build_tracemask()
         else:
             tracemask = None
 
+        # Loop on slits
         for slit in gdslits:
             msgs.info("Working on slit: {:d}".format(slit))
             # TODO -- Replace this try/except when a more stable b-spline is used..
@@ -283,48 +475,73 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.global_sky, self.modelvarframe
 
-    def _build_modelvar(self, skyframe=None, objframe=None):
-        if skyframe is None:
-            skyframe = self.global_sky
-        self.modelvarframe = arprocimg.variance_frame(
-            self.datasec_img, self.det, self.sciframe, skyframe=skyframe,
-            settings_det=self.settings['detector'], objframe=objframe)
-        return self.modelvarframe
-
     def _process(self, bias_subtract, pixel_flat, apply_gain=True, dnoise=0.):
         """ Process the image
+
         Wrapper to ProcessImages.process()
 
         Needed in part to set self.sciframe, although I could kludge it another way..
+
+        Returns
+        -------
+        self.sciframe
+        self.rawvarframe
+        self.crmask
+
         """
+        # Process
         self.sciframe = self.process(bias_subtract=bias_subtract, apply_gain=apply_gain, pixel_flat=pixel_flat)
 
-        # Variance image
+        # Construct raw variance image
         self.rawvarframe = self.build_rawvarframe(dnoise=dnoise)
 
-        # CR mask
+        # Build CR mask
         self.crmask = self.build_crmask()
 
         return self.sciframe, self.rawvarframe, self.crmask
 
     def _grab_varframe(self):
-        #
-        if self.modelvarframe is None:
-            msgs.info("Using raw variance frame for sky sub")
-            varframe = self.rawvarframe
-        else:
-            msgs.info("Using model variance frame for sky sub")
+        """
+        Simple algorithm to grab the currently 'best' variance image
+
+        Order --
+          finalvar
+          modelvarframe
+          rawvarframe
+
+        Returns
+        -------
+        varframe : ndarray
+
+        """
+        # Make the choice
+        if self.finalvar is not None:
+            varframe = self.finalvar
+        elif self.modelvarframe is not None:
             varframe = self.modelvarframe
+        else:
+            varframe = self.rawvarframe
+        # Return it
         return varframe
 
     def _build_tracemask(self):
-        # Create a trace mask of the object
+        """
+        Create a tracemask for the object
+        Used in sky subtraction
+
+        Returns
+        -------
+        self.trcmask
+
+        """
         self.trcmask = np.zeros_like(self.sciframe)
+        # Create a trace mask of the object
         for sl in range(len(self.tracelist)):
             if 'nobj' in self.tracelist[sl].keys():
                 if self.tracelist[sl]['nobj'] > 0:
                     self.trcmask += self.tracelist[sl]['object'].sum(axis=2)
         self.trcmask[np.where(self.trcmask > 0.0)] = 1.0
+        # Return
         return self.trcmask
 
 
@@ -364,3 +581,15 @@ class ScienceImage(processimages.ProcessImages):
             ginga.show_image(image)
         else:
             msgs.warn("Not an option for show")
+            
+    def __repr__(self):
+        txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,
+                                        self.nfiles)
+        if len(self.steps) > 0:
+            txt+= ' steps: ['
+            for step in self.steps:
+                txt += '{:s}, '.format(step)
+            txt = txt[:-2]+']'  # Trim the trailing comma
+        txt += '>'
+        return txt
+
