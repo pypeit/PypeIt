@@ -31,14 +31,10 @@ def ARMS(spectrograph, fitstbl, setup_dict):
 
     Parameters
     ----------
-    fitsdict : dict
+    spectrograph : str
+    fitstbl : Table
       Contains relevant information from fits header files
-    reuseMaster : bool
-      If True, a master frame that will be used for another science frame
-      will not be regenerated after it is first made.
-      This setting comes with a price, and if a large number of science frames are
-      being generated, it may be more efficient to simply regenerate the master
-      calibrations on the fly.
+    setup_dict : dict
 
     Returns
     -------
