@@ -141,6 +141,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             if 'arc' in calib_dict[setup].keys():
                 msarc = calib_dict[setup]['arc']
             else:
+                # Grab it -- msarc will be a 2D image
                 msarc, _ = arcalib.get_msarc(det, setup, sci_ID, spectrograph, fitstbl, tsettings, msbias)
                 # Save
                 calib_dict[setup]['arc'] = msarc
@@ -150,7 +151,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             if 'bpm' in calib_dict[setup].keys():
                 msbpm = calib_dict[setup]['bpm']
             else:
-                # Grab it
+                # Grab it -- msbpm is a 2D image
                 msbpm, _ = arcalib.get_mspbm(det, spectrograph, tsettings, msarc.shape,
                                       binning=fitstbl['binning'][scidx],
                                       reduce_badpix=settings.argflag['reduce']['badpix'],
@@ -170,7 +171,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 # Setup up the settings (will be Refactored with settings)
                 ts_settings = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
                 ts_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                # Get it
+                # Get it -- Key arrays are in the tslits_dict
                 tslits_dict, _ = arcalib.get_tslits_dict(
                     det, setup, spectrograph, sci_ID, ts_settings, tsettings, fitstbl, pixlocn,
                     msbias, msbpm, datasec_img, trim=settings.argflag['reduce']['trim'])
