@@ -3,7 +3,6 @@ from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
-import os
 
 #from importlib import reload
 
@@ -11,7 +10,6 @@ from pypit import msgs
 from pypit import processimages
 from pypit import armasters
 from pypit import masterframe
-from pypit.core import arprocimg
 from pypit.core import arflat
 from pypit import ginga
 
