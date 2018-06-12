@@ -296,7 +296,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         # Set pixels not in slits to 1.
         msgs.info("Setting pixels outside of slits to 1. in the flat.")
-        inslit = self.slits_dict['slitpix'] >= 1.
+        inslit = self.tslits_dict['slitpix'] >= 1.
         self.mspixelflatnrm[~inslit] = 1.
 
         # QA
