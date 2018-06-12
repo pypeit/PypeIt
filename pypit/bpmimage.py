@@ -53,6 +53,7 @@ class BPMImage(object):
     msbias : ndarray, optional
       Used to construct the BPM if reduce_badpix=='bias'
     reduce_badpix : str, optional
+      'bias' -- Build from bias images
 
     Attributes
     ----------
