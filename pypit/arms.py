@@ -248,7 +248,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                     flat_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
                     # Get it
                     mspixflatnrm, slitprof, _ = arcalib.get_msflat(
-                        det, setup, sci_ID, fitstbl, tslits_dict, datasec_img,
+                        det, setup, spectrograph, sci_ID, fitstbl, tslits_dict, datasec_img,
                         flat_settings, msbias, mstilts)
                     # Save internallly
                     calib_dict[setup]['normpixelflat'] = mspixflatnrm
