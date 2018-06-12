@@ -581,7 +581,7 @@ class ScienceImage(processimages.ProcessImages):
             ginga.show_image(image)
         else:
             msgs.warn("Not an option for show")
-            
+
     def __repr__(self):
         txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,
                                         self.nfiles)
