@@ -9,13 +9,14 @@ import os
 from pypit import arcimage
 from pypit.core import arprocimg
 from pypit import traceslits
+from pypit import wavecalib
 from pypit import wavetilts
 from pypit import processimages
 
 pypdev_path = os.getenv('PYPIT_DEV')
 
 def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=False,
-                           datasec=False):
+                           datasec=False, wvcalib=False):
     settings = processimages.default_settings()
     settings['masters'] = {}
     settings['masters']['directory'] = pypdev_path + '/Cooked/MF_shane_kast_blue'
@@ -58,6 +59,10 @@ def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=F
             'shane_kast_blue', None, settings['detector']['numamplifiers'], 1, settings['detector'],
             naxis0=settings['detector']['naxis0'], naxis1=settings['detector']['naxis1'])
         ret.append(datasec_img)
+    if wvcalib:
+        Wavecalib = wavecalib.WaveCalib(None, settings=settings, setup=setup)
+        wv_calib = Wavecalib.master()
+        ret.append(wv_calib)
 
     # Return
     return ret

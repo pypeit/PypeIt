@@ -675,6 +675,8 @@ class ScienceExposure:
         boolean : bool
           Should other ScienceExposure classes be updated?
         """
+        msgs.error("SHOULD NOT BE HERE ANYMORE")
+        '''
         if self._mswave[det-1] is not None:
             msgs.info("An identical master arc frame already exists")
             return False
@@ -697,6 +699,7 @@ class ScienceExposure:
         armasters.save_masters(self, det, mftype='wave')
         del mswave
         return True
+        '''
 
     '''
     def MasterWaveCalib(self, fitstbl, det, msarc):
