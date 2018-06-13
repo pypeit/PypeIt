@@ -48,10 +48,10 @@ def ARMS(spectrograph, fitstbl, setup_dict):
     # Generate sciexp list, if need be (it will be soon)
     #sv_std_idx = []
     std_dict = {}
-    basenames = []  # For fluxing at the very end
     #sciexp = []
     all_sci_ID = fitstbl['sci_ID'].data[fitstbl['science']]  # Binary system: 1,2,4,8, etc.
     numsci = len(all_sci_ID)
+    basenames = [None]*numsci  # For fluxing at the very end
     '''
     for sci_ID in all_sci_ID:
         sciexp.append(arsciexp.ScienceExposure(sci_ID, fitstbl, settings.argflag,
@@ -297,6 +297,8 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             # Names and time
             obstime, basename = sciI.init_time_names(settings.spect['mosaic']['camera'],
                             timeunit=settings.spect["fits"]["timeunit"])
+            if basenames[sc] is None:
+                basenames[sc] = basename
 
             # Process (includes Variance image and CRs)
             dnoise = (settings_det['darkcurr'] * float(fitstbl["exptime"][scidx])/3600.0)

@@ -676,7 +676,11 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
     prihdu.header['PYPMFDIR'] = str(mfdir)
 
     ext = 0
-    for det in sci_output.keys():
+    for key in sci_output.keys():
+        if key in ['meta']:
+            continue
+        else:
+            det = key
         sdet = arparse.get_dnum(det, caps=True)  # e.g. DET02
         # Specified detector number?
         #if settings.argflag['reduce']['detnum'] is not None:
