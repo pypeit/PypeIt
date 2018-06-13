@@ -663,9 +663,12 @@ def replace_columns(img, bad_cols, replace_with='mean'):
     # Deal with first column
     if bad_cols[0]:
         tmp2[0]=1
+    # Deal with last column
+    if bad_cols[-1]:
+        tmp2[-1]=-1
     ledges = np.where(tmp2 == 1)[0]
     redges = np.where(tmp2 == -1)[0]
-    # Last column
+    # Last column?
     if tmp2[-1] == 1:
         redges = np.concatenate([redges, np.array([bad_cols.size-1])])
     # Loop on em

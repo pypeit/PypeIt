@@ -122,6 +122,12 @@ class BPMImage(object):
                 self.bpm = arlris.bpm(xbin, ybin, 'red', self.det)
             elif self.spectrograph in ['keck_deimos']:
                 self.bpm = ardeimos.bpm(self.det)
+            elif self.spectrograph in ['keck_nirspec']:
+                # Edges of the detector are junk
+                msgs.info("Custom bad pixel mask for NIRSPEC")
+                self.bpm = np.zeros((self.shape[0], self.shape[1]))
+                self.bpm[:, :20] = 1.
+                self.bpm[:, 1000:] = 1.
             else:
                 ###############
                 # Set the number of spectral and spatial pixels, and the bad pixel mask is it does not exist
