@@ -437,13 +437,14 @@ class ParSet(object):
 
 
     def to_config(self, cfg_file, section_name=None, section_comment=None, section_level=0,
-                  append=False, quiet=False):
+                  append=False, quiet=False, just_lines=False):
         """
         Write/Append the parameter set to a configuration file.
 
         Args:
             cfg_file (str):
-                The name of the file to write/append to.
+                The name of the file to write/append to.  Can be None if
+                :arg:`just_lines` is true.
             section_name (:obj:`str`, optional):
                 The top-level name for the config section.  This must be
                 provided if :attr:`cfg_section` is None or any of the
@@ -460,6 +461,8 @@ class ParSet(object):
                 exists, the file is automatically overwritten.
             quiet (:obj:`bool`, optional):
                 Suppress all standard output from the function.
+            just_lines (:obj:`bool`, optional):
+                Do not write the file.  Just construct the file lines.
 
         Raises:
             ValueError:
@@ -467,7 +470,7 @@ class ParSet(object):
                 parameter list, :attr:`cfg_section` is None, and no
                 section_name argument was provided.
         """
-        if os.path.isfile(cfg_file) and not append and not quiet:
+        if not just_lines and os.path.isfile(cfg_file) and not append and not quiet:
             warnings.warn('Selected configuration file already exists and will be overwritten!')
 
         config_output = []
@@ -478,6 +481,7 @@ class ParSet(object):
                 config_output += self.data[k]._config_lines(section_name=k,
                                                             section_comment=self.descr[k],
                                                             section_level=section_level)
+                config_output += ['']
         else:
             if section_name is None and self.cfg_section is None:
                 raise ValueError('No top-level section name available for configuration!')
@@ -487,6 +491,9 @@ class ParSet(object):
             config_output += self._config_lines(section_name=_section_name,
                                                 section_comment=_section_comment,
                                                 section_level=section_level)
+
+        if just_lines:
+            return config_output
 
         with open(cfg_file, 'a' if append else 'w') as f:
             f.write('\n'.join(config_output))
