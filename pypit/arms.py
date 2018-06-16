@@ -7,7 +7,6 @@ import os
 
 from pypit import msgs
 from pypit import arparse as settings
-from pypit import arcalib
 from pypit import arload
 from pypit import arproc
 from pypit.core import arprocimg
