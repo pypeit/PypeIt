@@ -291,7 +291,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
 
             ###############
             #  Process and extract the science frame
-            msgs.info("Loading science frame")
+            msgs.info("Working on the science frame")
             sci_image_files = arsort.list_of_files(fitstbl, 'science', sci_ID)
             # Settings
             sci_settings = tsettings.copy()

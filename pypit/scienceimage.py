@@ -374,7 +374,7 @@ class ScienceImage(processimages.ProcessImages):
     def find_objects(self, doqa=False):
         """
         Find objects in the slits
-        This is currently only for arms.py
+        This is currently setup only for ARMS
 
         Wrapper to artrace.trace_objects_in_slit
 
