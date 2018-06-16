@@ -3,7 +3,6 @@ from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
-import os
 
 #from importlib import reload
 import datetime
@@ -46,6 +45,7 @@ class ScienceImage(processimages.ProcessImages):
       dict from TraceSlits class (e.g. slitpix)
     tilts : ndarray
       tilts from WaveTilts class
+      used for sky subtraction and object finding
     det : int
     setup : str
     datasec_img : ndarray
@@ -113,14 +113,15 @@ class ScienceImage(processimages.ProcessImages):
         self.tslits_dict = tslits_dict
         self.tilts = tilts
         self.maskslits = maskslits
-        self.fitstbl = fitstbl
         self.pixlocn = pixlocn
         self.objtype = objtype
+        self.fitstbl = fitstbl
         self.scidx = scidx
 
         # Start us up
         processimages.ProcessImages.__init__(self, file_list, spectrograph=spectrograph,
-                                             settings=settings, det=det, datasec_img=datasec_img,
+                                             settings=settings, det=det,
+                                             datasec_img=datasec_img,
                                              bpm=bpm)
 
         # Attributes (set after init)
@@ -191,17 +192,17 @@ class ScienceImage(processimages.ProcessImages):
                 else:
                     # Really not ideal... just append date and time
                     tbname = self.fitstbl['date'][self.scidx] + "T" + str(self.fitstbl['time'][self.scidx])
+        # Time
         tval = Time(tbname, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
         dtime = datetime.datetime.strptime(tval.value, '%Y-%m-%dT%H:%M:%S.%f')
-        # Finish
+        self.time = tval
+        # Basename
         self.inst_name = camera
         self.target_name = self.fitstbl['target'][self.scidx].replace(" ", "")
         self.basename = self.target_name+'_'+self.inst_name+'_'+ \
                          datetime.datetime.strftime(dtime, '%Y%b%dT') + \
                          tbname.split("T")[1].replace(':','')
-        # Save Time object
-        self.time = tval
-        # Return time
+        # Return
         return self.time, self.basename
 
     def _build_specobj(self):
@@ -213,7 +214,7 @@ class ScienceImage(processimages.ProcessImages):
 
         Returns
         -------
-        self.specobjs
+        self.specobjs : list
 
         """
         self.specobjs = arspecobj.init_exp(self.tslits_dict['lcen'],
@@ -244,7 +245,7 @@ class ScienceImage(processimages.ProcessImages):
 
         Returns
         -------
-        self.modelvarframe
+        self.modelvarframe : ndarray
           Model variance image
 
         """
@@ -268,7 +269,7 @@ class ScienceImage(processimages.ProcessImages):
 
         Returns
         -------
-        self.skycorr_box
+        self.skycorr_box : ndarray
           Local corrections to the sky model
 
         Extractions are ingested within self.specobjs
@@ -504,7 +505,7 @@ class ScienceImage(processimages.ProcessImages):
         """
         Simple algorithm to grab the currently 'best' variance image
 
-        Order --
+        Order of priority --
           finalvar
           modelvarframe
           rawvarframe
@@ -544,7 +545,6 @@ class ScienceImage(processimages.ProcessImages):
         # Return
         return self.trcmask
 
-
     def show(self, attr, image=None, display='ginga'):
         """
         Show one of the internal images
@@ -553,9 +553,16 @@ class ScienceImage(processimages.ProcessImages):
         Parameters
         ----------
         attr : str
-          bgframe -- Show the combined flat image, unnormalized
-          norm -- Show the combined normalized flat image
+          global -- Sky model (global)
+          sci -- Processed science image
+          rawvar -- Raw variance image
+          modelvar -- Model variance image
+          crmasked -- Science image with CRs set to 0
+          skysub -- Science image with global sky subtracted
+          image -- Input image
         display : str, optional
+        image : ndarray, optional
+          User supplied image to display
 
         Returns
         -------
