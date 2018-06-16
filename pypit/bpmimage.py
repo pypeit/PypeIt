@@ -136,3 +136,39 @@ class BPMImage(object):
         return self.bpm
 
 
+def get_mspbm(det, spectrograph, tsettings, shape, binning=None, reduce_badpix=None, msbias=None):
+    """
+    Load/Generate the bad pixel image
+
+    Parameters
+    ----------
+    det : int
+      Required for processing
+    spectrograph : str
+      Required if processing
+    tsettings : dict
+      Required if processing or loading MasterFrame
+    shape : tuple
+      Required if processing
+    binning : str, optional
+      Required if processing
+    reduce_badpix : str, optional
+      'bias' -- Build from bias images
+    msbias : ndarray or str, optional
+      Required if processing with reduce_badpix
+
+    Returns
+    -------
+    msbpm : ndarray
+    bpmImage : BPMImage object
+
+    """
+    bpmImage = BPMImage(spectrograph=spectrograph,
+                                 settings=tsettings, det=det,
+                                 shape=shape,
+                                 binning=binning,
+                                 reduce_badpix=reduce_badpix,
+                                 msbias=msbias)
+    msbpm = bpmImage.build()
+    # Return
+    return msbpm, bpmImage

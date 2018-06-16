@@ -10,6 +10,7 @@ from pypit import msgs
 from pypit import processimages
 from pypit import armasters
 from pypit import masterframe
+from pypit.core import arsort
 from pypit.core import arflat
 from pypit import ginga
 
@@ -342,3 +343,67 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         elif attr == 'norm':
             if self.mspixelflatnrm is not None:
                 ginga.show_image(self.mspixelflatnrm)
+
+
+def get_msflat(det, setup, spectrograph, sci_ID, fitstbl, tslits_dict, datasec_img,
+               flat_settings, msbias, mstilts):
+    """
+    Load/Generate the normalized flat field image
+
+    Parameters
+    ----------
+    det : int
+      Required for processing
+    setup : str
+      Required for MasterFrame loading
+    spectrograph : str
+      Required for processing
+    sci_ID : int
+      Required to choose the right flats for processing
+    fitstbl : Table
+      Required to choose the right flats for processing
+    tslits_dict : dict
+      Slits dict; required for processing
+    datasec_img : ndarray
+      Required for processing
+    flat_settings : dict
+    msbias : ndarray or str
+      Required for processing
+    mstilts : ndarray
+      Tilts image; required for processing
+
+    Returns
+    -------
+    mspixflatnrm : ndarray
+      Normalized pixel flat
+    slitprof : ndarray
+      Slit profile image
+    flatField : FlatField object
+    """
+    # Instantiate
+    pixflat_image_files = arsort.list_of_files(fitstbl, 'pixelflat', sci_ID)
+    flatField = FlatField(file_list=pixflat_image_files, msbias=msbias,
+                                    spectrograph=spectrograph,
+                                    settings=flat_settings,
+                                    tslits_dict=tslits_dict,
+                                    tilts=mstilts, det=det, setup=setup,
+                                    datasec_img=datasec_img)
+
+    # Load from disk (MasterFrame)?
+    mspixflatnrm = flatField.master()
+    if mspixflatnrm is None:
+        # TODO -- Consider turning the following back on.  I'm regenerating for now
+        # Use mstrace if the indices are identical
+        #if np.all(arsort.ftype_indices(fitstbl,'trace',1) ==
+        #                  arsort.ftype_indices(fitstbl, 'pixelflat', 1)) and (traceSlits.mstrace is not None):
+        #    flatField.mspixelflat = traceSlits.mstrace.copy()
+        # Run
+        mspixflatnrm, slitprof = flatField.run(armed=False)
+        # Save to Masters
+        flatField.save_master(mspixflatnrm, raw_files=pixflat_image_files, steps=flatField.steps)
+        flatField.save_master(slitprof, raw_files=pixflat_image_files, steps=flatField.steps,
+                              outfile=armasters.core_master_name('slitprof', setup, flat_settings['masters']['directory']))
+    else:
+        slitprof, _, _ = flatField.load_master_slitprofile()
+    # Return
+    return mspixflatnrm, slitprof, flatField

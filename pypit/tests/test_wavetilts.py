@@ -45,8 +45,9 @@ def test_step_by_step():
     # Instantiate
     setup = 'A_01_aa'
     settings_det = dict(saturation=60000., nonlinear=0.9)
-    waveTilts = wavetilts.WaveTilts(msarc, det=1, setup=setup, rordloc=TSlits.rcen, lordloc=TSlits.lcen,
-                                    pixlocn=TSlits.pixlocn, pixcen=TSlits.pixcen,
+    waveTilts = wavetilts.WaveTilts(msarc, det=1, setup=setup,
+                                    tslits_dict=TSlits.tslits_dict,
+                                    pixlocn=TSlits.pixlocn,
                                     settings_det=settings_det)
     # Extract arcs
     arccen, maskslits = waveTilts._extract_arcs()
@@ -75,8 +76,9 @@ def test_run():
     # Instantiate
     setup = 'A_01_aa'
     settings_det = dict(saturation=60000., nonlinear=0.9)
-    waveTilts = wavetilts.WaveTilts(msarc, det=1, setup=setup, rordloc=TSlits.rcen, lordloc=TSlits.lcen,
-                                    pixlocn=TSlits.pixlocn, pixcen=TSlits.pixcen, settings_det=settings_det)
+    waveTilts = wavetilts.WaveTilts(msarc, det=1, setup=setup,
+                                    tslits_dict=TSlits.tslits_dict,
+                                    pixlocn=TSlits.pixlocn, settings_det=settings_det)
     # Run
     tilts, mask = waveTilts.run(doqa=False)
     assert isinstance(tilts, np.ndarray)

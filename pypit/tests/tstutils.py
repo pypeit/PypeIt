@@ -48,7 +48,7 @@ def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=F
     if tslits:
         TSlits = traceslits.TraceSlits.from_master_files(settings['masters']['directory'] + '/MasterTrace_A_01_aa')
         TSlits._make_pixel_arrays()
-        _ = TSlits._fill_slits_dict()
+        _ = TSlits._fill_tslits_dict()
         ret.append(TSlits)
     if tilts:
         wvTilts = wavetilts.WaveTilts(None, settings=settings, setup=setup)

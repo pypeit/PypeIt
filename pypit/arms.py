@@ -9,7 +9,6 @@ from collections import OrderedDict
 
 from pypit import msgs
 from pypit import arparse as settings
-from pypit import arcalib
 from pypit import arload
 from pypit import arutils
 from pypit.core import arprocimg
@@ -19,7 +18,15 @@ from pypit import arsciexp
 from pypit.core import arsetup
 from pypit import arpixels
 from pypit.core import arsort
+from pypit import arcimage
+from pypit import biasframe
+from pypit import bpmimage
+from pypit import flatfield
 from pypit import fluxspec
+from pypit import traceslits
+from pypit import wavecalib
+from pypit import waveimage
+from pypit import wavetilts
 from pypit import scienceimage
 
 from pypit import ardebug as debugger
@@ -138,7 +145,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             else:
                 # Grab it
                 #   Bias will either be an image (ndarray) or a command (str, e.g. 'overscan') or none
-                msbias, _ = arcalib.get_msbias(det, setup, sci_ID, fitstbl, tsettings)
+                msbias, _ = biasframe.get_msbias(det, setup, sci_ID, fitstbl, tsettings)
                 # Save
                 calib_dict[setup]['bias'] = msbias
 
@@ -148,7 +155,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 msarc = calib_dict[setup]['arc']
             else:
                 # Grab it -- msarc will be a 2D image
-                msarc, _ = arcalib.get_msarc(det, setup, sci_ID, spectrograph, fitstbl, tsettings, msbias)
+                msarc, _ = arcimage.get_msarc(det, setup, sci_ID, spectrograph, fitstbl, tsettings, msbias)
                 # Save
                 calib_dict[setup]['arc'] = msarc
 
@@ -158,7 +165,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 msbpm = calib_dict[setup]['bpm']
             else:
                 # Grab it -- msbpm is a 2D image
-                msbpm, _ = arcalib.get_mspbm(det, spectrograph, tsettings, msarc.shape,
+                msbpm, _ = bpmimage.get_mspbm(det, spectrograph, tsettings, msarc.shape,
                                       binning=fitstbl['binning'][scidx],
                                       reduce_badpix=settings.argflag['reduce']['badpix'],
                                       msbias=msbias)
@@ -178,7 +185,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 ts_settings = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
                 ts_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
                 # Get it -- Key arrays are in the tslits_dict
-                tslits_dict, _ = arcalib.get_tslits_dict(
+                tslits_dict, _ = traceslits.get_tslits_dict(
                     det, setup, spectrograph, sci_ID, ts_settings, tsettings, fitstbl, pixlocn,
                     msbias, msbpm, datasec_img, trim=settings.argflag['reduce']['trim'])
                 # Save in calib
@@ -204,7 +211,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 wvc_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
                 nonlinear = settings.spect[settings.get_dnum(det)]['saturation'] * settings.spect[settings.get_dnum(det)]['nonlinear']
                 # Get it
-                wv_calib, wv_maskslits, _ = arcalib.get_wv_calib(
+                wv_calib, wv_maskslits, _ = wavecalib.get_wv_calib(
                     det, setup, spectrograph, sci_ID, wvc_settings, fitstbl, tslits_dict, pixlocn,
                     msarc, nonlinear=nonlinear)
                 # Save in calib
@@ -225,7 +232,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 tilt_settings['tilts']['function'] = settings.argflag['trace']['slits']['function']
                 tilt_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
                 # Get it
-                mstilts, wt_maskslits, _ = arcalib.get_wv_tilts(
+                mstilts, wt_maskslits, _ = wavetilts.get_wv_tilts(
                     det, setup, tilt_settings, settings_det, tslits_dict, pixlocn,
                     msarc, wv_calib, maskslits)
                 # Save
@@ -250,7 +257,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                                          detector=settings.spect[dnum])
                     flat_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
                     # Get it
-                    mspixflatnrm, slitprof, _ = arcalib.get_msflat(
+                    mspixflatnrm, slitprof, _ = flatfield.get_msflat(
                         det, setup, spectrograph, sci_ID, fitstbl, tslits_dict, datasec_img,
                         flat_settings, msbias, mstilts)
                     # Save internallly
@@ -273,7 +280,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                     wvimg_settings = dict(masters=settings.argflag['reduce']['masters'].copy())
                     wvimg_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
                     # Get it
-                    mswave, _ = arcalib.get_mswave(
+                    mswave, _ = waveimage.get_mswave(
                         setup, tslits_dict, wvimg_settings, mstilts, wv_calib, maskslits)
                 # Save internally
                 calib_dict[setup]['wave'] = mswave
