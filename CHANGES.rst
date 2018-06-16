@@ -163,7 +163,7 @@
 - Strip mswave from ScienceExposure
 - New tests
 
-- Push individual calibration steps into arcalib.py
+- Push get_calib methods into the individual classes
 - Significant refactoring in arms.py followed
 - Rename slits_dict -> tslits_dict
 - Use tslits_dict in wavetilts.py
