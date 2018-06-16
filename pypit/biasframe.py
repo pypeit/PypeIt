@@ -168,3 +168,37 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         self.stack = msframe
         return msframe.copy()
 
+
+def get_msbias(det, setup, sci_ID, fitstbl, tsettings):
+    """
+    Grab/generate an Bias image or the command for bias subtraction (e.g. 'overscan')
+
+    Parameters
+    ----------
+    det : int
+      Required for processing
+    setup : str
+      Required for MasterFrame loading
+    sci_ID : int
+      Required to choose the right bias frames
+    fitstbl : Table
+      Required to choose the right bias frames
+    tsettings : dict
+      Required if processing or loading MasterFrame
+
+    Returns
+    -------
+    msbias : ndarray or str
+    biasFrame : BiasFrame object
+
+    """
+    # Init
+    biasFrame = BiasFrame(settings=tsettings, setup=setup,
+                                    det=det, fitstbl=fitstbl, sci_ID=sci_ID)
+    # Load the MasterFrame (if it exists and is desired) or the command (e.g. 'overscan')
+    msbias = biasFrame.master()
+    if msbias is None:  # Build it and save it
+        msbias = biasFrame.build_image()
+        biasFrame.save_master(msbias, raw_files=biasFrame.file_list, steps=biasFrame.steps)
+    # Return
+    return msbias, biasFrame

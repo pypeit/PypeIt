@@ -123,4 +123,41 @@ class WaveImage(masterframe.MasterFrame):
         return txt
 
 
+def get_mswave(setup, tslits_dict, wvimg_settings, mstilts, wv_calib, maskslits):
+    """
+    Load/Generate the wavelength image
 
+
+    Parameters
+    ----------
+    setup : str
+      Required for MasterFrame loading
+    tslits_dict : dict
+      Slits dict; required for processing
+    wvimg_settings : dict
+      Settings for wavelength image loading or generation
+    mstilts : ndarray
+      Tilts image; required for processing
+    wv_calib : dict
+      1D wavelength fits
+    maskslits : ndarray (bool)
+      Indicates which slits are masked
+
+    Returns
+    -------
+    mswave : ndarray
+    waveImage : WaveImage object
+
+    """
+    # Instantiate
+    waveImage = WaveImage(mstilts, wv_calib, settings=wvimg_settings,
+                                    setup=setup, maskslits=maskslits,
+                                    slitpix=tslits_dict['slitpix'])
+    # Attempt to load master
+    mswave = waveImage.master()
+    if mswave is None:
+        mswave = waveImage._build_wave()
+    # Save to hard-drive
+    waveImage.save_master(mswave, steps=waveImage.steps)
+    # Return
+    return mswave, waveImage

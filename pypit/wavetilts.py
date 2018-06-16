@@ -471,3 +471,53 @@ class WaveTilts(masterframe.MasterFrame):
         txt += '>'
         return txt
 
+
+def get_wv_tilts(det, setup, tilt_settings, settings_det, tslits_dict,
+                 pixlocn, msarc, wv_calib, maskslits):
+    """
+    Load/Generate the tilts image
+
+    Parameters
+    ----------
+    det : int
+      Required for processing
+    setup : str
+      Required for MasterFrame loading
+    tilt_settings : dict
+      Tilt specific settings
+    settings_det : dict
+      Detector settings
+    tslits_dict : dict
+      Slits dict; required for processing
+    pixlocn : ndarray
+      Required for processing
+    msarc : ndarray
+      Required for processing
+    wv_calib : dict
+      1D wavelength fits
+    maskslits : ndarray (bool)
+      Indicates which slits are masked
+
+    Returns
+    -------
+    mstilts : ndarray
+      Tilt image
+    wv_maskslits : ndarray (bool)
+      Indicates slits that were masked (skipped)
+    waveTilts : WaveTilts object
+    """
+    # Instantiate
+    waveTilts = WaveTilts(msarc, settings=tilt_settings,
+                                    det=det, setup=setup,
+                                    tslits_dict=tslits_dict, settings_det=settings_det,
+                                    pixlocn=pixlocn)
+    # Master
+    mstilts = waveTilts.master()
+    if mstilts is None:
+        mstilts, wt_maskslits = waveTilts.run(maskslits=maskslits,
+                                              wv_calib=wv_calib)
+        waveTilts.save_master()
+    else:
+        wt_maskslits = np.zeros_like(maskslits, dtype=bool)
+    # Return
+    return mstilts, wt_maskslits, waveTilts
