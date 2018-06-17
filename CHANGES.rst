@@ -159,10 +159,14 @@
 - Main flatfield method broken into a few pieces
 - Further refactoring of armasters
 - Further refactoring related to settings and ScienceExposure
-
 - WaveImage class
 - Strip mswave from ScienceExposure
 - New tests
+
+- Push get_calib methods into the individual classes
+- Significant refactoring in arms.py followed
+- Rename slits_dict -> tslits_dict
+- Use tslits_dict in wavetilts.py
 
 0.7 (2017-02-07)
 ----------------

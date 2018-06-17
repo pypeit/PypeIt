@@ -16,6 +16,7 @@ from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import arpixels
 from pypit.core import artraceslits
+from pypit.core import arsort
 from pypit import arutils
 from pypit import masterframe
 from pypit import ginga
@@ -402,7 +403,7 @@ class TraceSlits(masterframe.MasterFrame):
         else:
             return False
 
-    def _fill_slits_dict(self):
+    def _fill_tslits_dict(self):
         """
         Build a simple object holding the key trace bits and pieces that PYPIT wants
           NOT USED ANY LONGER (but maybe in the future, depending on how we choosed
@@ -414,11 +415,11 @@ class TraceSlits(masterframe.MasterFrame):
         self.trace_slits_dict
 
         """
-        self.slits_dict = {}
+        self.tslits_dict = {}
         for key in ['lcen', 'rcen', 'pixcen', 'pixwid', 'lordpix',
                     'rordpix', 'extrapord', 'slitpix']:
-            self.slits_dict[key] = getattr(self, key)
-        return self.slits_dict
+            self.tslits_dict[key] = getattr(self, key)
+        return self.tslits_dict
 
     def _final_left_right(self):
         """
@@ -926,7 +927,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Load the pixel objects?
         self._make_pixel_arrays()
         # Fill
-        self._fill_slits_dict()
+        self._fill_tslits_dict()
         # Success
         return True
 
@@ -979,7 +980,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         Returns
         -------
-        trace_slits_dict : dict  -- MAY BE DEPRECATED
+        tslits_dict : dict
           'lcen'
           'rcen'
           'pixcen'
@@ -1063,11 +1064,11 @@ class TraceSlits(masterframe.MasterFrame):
         # Generate pixel arrays
         self._make_pixel_arrays()
 
-        # dict for PYPIT
-        self.slits_dict = self._fill_slits_dict()
+        # fill dict for PYPIT
+        _ = self._fill_tslits_dict()
 
-        # Return
-        return self.slits_dict
+        # Return it
+        return self.tslits_dict
 
     def _qa(self, use_slitid=True):
         """
@@ -1137,3 +1138,69 @@ def load_traceslit_files(root):
 
     # Return
     return fits_dict, ts_dict
+
+
+def get_tslits_dict(det, setup, spectrograph, sci_ID, ts_settings, ti_settings,
+                    fitstbl, pixlocn, msbias, msbpm, datasec_img, trim=True):
+    """
+    Load/generate the trace image and then the trace slits objects
+
+    Parameters
+    ----------
+    det : int
+      Required for processing
+    setup : str
+      Required for MasterFrame loading
+    spectrograph : str
+      Required for processing
+    sci_ID : int
+      Required to choose the right flats for processing
+    ts_settings : dict
+      Trace slit settings
+    ti_settings ; dict
+      Required for processing
+      Trace image settings
+    fitstbl : Table
+      Required to choose the right flats for processing
+    pixlocn : ndarray
+      Required for processing
+    msbias : ndarray or str
+      Required for processing
+    msbpm : ndarray
+      Bad pixel image
+      Required for processing
+    datasec_img : ndarray
+    trim : bool, optional
+      Trim the image?  Could probably hide in ti_settings
+
+    Returns
+    -------
+    tslits_dict : dict
+    traceSlits : TraceSlits object
+
+    """
+    # Instantiate (without mstrace)
+    traceSlits = TraceSlits(None, pixlocn, settings=ts_settings,
+                                       det=det, setup=setup, binbpx=msbpm)
+
+    # Load via masters, as desired
+    if not traceSlits.master():
+        # Build the trace image first
+        trace_image_files = arsort.list_of_files(fitstbl, 'trace', sci_ID)
+        Timage = traceimage.TraceImage(trace_image_files,
+                                       spectrograph=spectrograph,
+                                       settings=ti_settings, det=det,
+                                       datasec_img=datasec_img)
+        mstrace = Timage.process(bias_subtract=msbias, trim=trim, apply_gain=True)
+
+        # Load up and get ready
+        traceSlits.mstrace = mstrace
+        _ = traceSlits.make_binarr()
+        # Now we go forth
+        traceSlits.run(arms=True)
+        # QA
+        traceSlits._qa()
+        # Save to disk
+        traceSlits.save_master()
+    # Return
+    return traceSlits.tslits_dict, traceSlits

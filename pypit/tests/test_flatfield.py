@@ -45,21 +45,19 @@ def test_step_by_step():
         get_settings=True, tslits=True, tilts=True, datasec=True)
     # Instantiate
     flatField = flatfield.FlatField(spectrograph='shane_kast_blue', settings=settings, det=1,
-                                  tilts=tilts, slits_dict=TSlits.slits_dict.copy())
+                                  tilts=tilts, tslits_dict=TSlits.tslits_dict.copy())
     # Use mstrace
     flatField.mspixelflat = TSlits.mstrace.copy()
-    # Gain
-    flatField.apply_gain(datasec_img)
     # Normalize a slit
     slit=0
     flatField._prep_tck()
     modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit = flatField.slit_profile(slit)
     assert np.isclose(iextrap_slit, 0.)
     # Apply
-    word = np.where(flatField.slits_dict['slitpix'] == slit + 1)
+    word = np.where(flatField.tslits_dict['slitpix'] == slit + 1)
     flatField.mspixelflatnrm = flatField.mspixelflat.copy()
     flatField.mspixelflatnrm[word] /= nrmvals
-    assert np.isclose(np.median(flatField.mspixelflatnrm), 1.0291708)
+    assert np.isclose(np.median(flatField.mspixelflatnrm), 1.0291458)
 
 def test_run():
     if skip_test:
@@ -70,9 +68,10 @@ def test_run():
         get_settings=True, tslits=True, tilts=True, datasec=True)
     # Instantiate
     flatField = flatfield.FlatField(spectrograph='shane_kast_blue', settings=settings, det=1,
-                                  tilts=tilts, slits_dict=TSlits.slits_dict.copy())
+                                  tilts=tilts, tslits_dict=TSlits.tslits_dict.copy(),
+                                    datasec_img=datasec_img)
     # Use mstrace
     flatField.mspixelflat = TSlits.mstrace.copy()
-    mspixelflatnrm = flatField.run(datasec_img)
-    assert np.isclose(np.median(mspixelflatnrm), 1.0125809)
+    mspixelflatnrm = flatField.run()
+    assert np.isclose(np.median(mspixelflatnrm), 1.0086422)
 

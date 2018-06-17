@@ -3,7 +3,6 @@ from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
-import os
 
 #from importlib import reload
 
@@ -11,7 +10,7 @@ from pypit import msgs
 from pypit import processimages
 from pypit import armasters
 from pypit import masterframe
-from pypit.core import arprocimg
+from pypit.core import arsort
 from pypit.core import arflat
 from pypit import ginga
 
@@ -47,7 +46,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     spectrograph : str
     settings : dict-like
     msbias : ndarray or str or None
-    slits_dict : dict
+    tslits_dict : dict
       dict from TraceSlits class (e.g. slitpix)
     tilts : ndarray
       tilts from WaveTilts class
@@ -76,13 +75,13 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     """
     # Keep order same as processimages (or else!)
     def __init__(self, file_list=[], spectrograph=None, settings=None, msbias=None,
-                 slits_dict=None, tilts=None, det=None, setup=None, datasec_img=None):
+                 tslits_dict=None, tilts=None, det=None, setup=None, datasec_img=None):
 
         # Parameters unique to this Object
         self.msbias = msbias
         self.det = det
         self.setup = setup
-        self.slits_dict = slits_dict
+        self.tslits_dict = tslits_dict
         self.tilts = tilts
 
         # Start us up
@@ -133,8 +132,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         nslits : int
 
         """
-        if self.slits_dict is not None:
-            return self.slits_dict['lcen'].shape[1]
+        if self.tslits_dict is not None:
+            return self.tslits_dict['lcen'].shape[1]
         else:
             return 0
 
@@ -172,7 +171,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         """
         # Step
         self.steps.append(inspect.stack()[0][3])
-        self.ntckx, self.ntcky = arflat.prep_ntck(self.slits_dict['pixwid'], self.settings)
+        self.ntckx, self.ntcky = arflat.prep_ntck(self.tslits_dict['pixwid'], self.settings)
 
     def load_master_slitprofile(self):
         """
@@ -213,11 +212,11 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             msgs.warn("Need to set self.ntckx with _prep_tck first!")
             return [None]*5
         # Wrap me
-        slordloc = self.slits_dict['lcen'][:,slit]
-        srordloc = self.slits_dict['rcen'][:,slit]
+        slordloc = self.tslits_dict['lcen'][:,slit]
+        srordloc = self.tslits_dict['rcen'][:,slit]
         modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit = arflat.slit_profile(
             slit, self.mspixelflat, self.tilts, slordloc, srordloc,
-            self.slits_dict['slitpix'], self.slits_dict['pixwid'],
+            self.tslits_dict['slitpix'], self.tslits_dict['pixwid'],
             ntckx=self.ntckx, ntcky=self.ntcky)
         # Step
         step = inspect.stack()[0][3]
@@ -260,8 +259,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # Setup
         self.extrap_slit = np.zeros(self.nslits, dtype=np.int)
         self.mspixelflatnrm = self.mspixelflat.copy()
-        self.msblaze = np.ones_like(self.slits_dict['lcen'])
-        self.blazeext = np.ones_like(self.slits_dict['lcen'])
+        self.msblaze = np.ones_like(self.tslits_dict['lcen'])
+        self.blazeext = np.ones_like(self.tslits_dict['lcen'])
         self.slit_profiles = np.ones_like(self.mspixelflat)
 
         # Loop on slits
@@ -269,7 +268,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             # Normalize a single slit
             modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit = self.slit_profile(slit)
 
-            word = np.where(self.slits_dict['slitpix'] == slit+1)
+            word = np.where(self.tslits_dict['slitpix'] == slit+1)
             self.extrap_slit[slit] = iextrap_slit
             if modvals is None:
                 continue
@@ -287,8 +286,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             if np.sum(self.extrap_slit) != 0.0:
                 slit_profiles, mstracenrm, msblaze = arflat.slit_profile_pca(
                     self.mspixelflat, self.tilts, self.msblaze, self.extrap_slit, self.slit_profiles,
-                    self.slits_dict['lcen'], self.slits_dict['rcen'], self.slits_dict['pixwid'],
-                    self.slits_dict['slitpix'])
+                    self.tslits_dict['lcen'], self.tslits_dict['rcen'], self.tslits_dict['pixwid'],
+                    self.tslits_dict['slitpix'])
 
         # Apply slit profile
         winpp = np.where(self.slit_profiles != 0.0)
@@ -296,7 +295,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         # Set pixels not in slits to 1.
         msgs.info("Setting pixels outside of slits to 1. in the flat.")
-        inslit = self.slits_dict['slitpix'] >= 1.
+        inslit = self.tslits_dict['slitpix'] >= 1.
         self.mspixelflatnrm[~inslit] = 1.
 
         # QA
@@ -344,3 +343,67 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         elif attr == 'norm':
             if self.mspixelflatnrm is not None:
                 ginga.show_image(self.mspixelflatnrm)
+
+
+def get_msflat(det, setup, spectrograph, sci_ID, fitstbl, tslits_dict, datasec_img,
+               flat_settings, msbias, mstilts):
+    """
+    Load/Generate the normalized flat field image
+
+    Parameters
+    ----------
+    det : int
+      Required for processing
+    setup : str
+      Required for MasterFrame loading
+    spectrograph : str
+      Required for processing
+    sci_ID : int
+      Required to choose the right flats for processing
+    fitstbl : Table
+      Required to choose the right flats for processing
+    tslits_dict : dict
+      Slits dict; required for processing
+    datasec_img : ndarray
+      Required for processing
+    flat_settings : dict
+    msbias : ndarray or str
+      Required for processing
+    mstilts : ndarray
+      Tilts image; required for processing
+
+    Returns
+    -------
+    mspixflatnrm : ndarray
+      Normalized pixel flat
+    slitprof : ndarray
+      Slit profile image
+    flatField : FlatField object
+    """
+    # Instantiate
+    pixflat_image_files = arsort.list_of_files(fitstbl, 'pixelflat', sci_ID)
+    flatField = FlatField(file_list=pixflat_image_files, msbias=msbias,
+                                    spectrograph=spectrograph,
+                                    settings=flat_settings,
+                                    tslits_dict=tslits_dict,
+                                    tilts=mstilts, det=det, setup=setup,
+                                    datasec_img=datasec_img)
+
+    # Load from disk (MasterFrame)?
+    mspixflatnrm = flatField.master()
+    if mspixflatnrm is None:
+        # TODO -- Consider turning the following back on.  I'm regenerating for now
+        # Use mstrace if the indices are identical
+        #if np.all(arsort.ftype_indices(fitstbl,'trace',1) ==
+        #                  arsort.ftype_indices(fitstbl, 'pixelflat', 1)) and (traceSlits.mstrace is not None):
+        #    flatField.mspixelflat = traceSlits.mstrace.copy()
+        # Run
+        mspixflatnrm, slitprof = flatField.run(armed=False)
+        # Save to Masters
+        flatField.save_master(mspixflatnrm, raw_files=pixflat_image_files, steps=flatField.steps)
+        flatField.save_master(slitprof, raw_files=pixflat_image_files, steps=flatField.steps,
+                              outfile=armasters.core_master_name('slitprof', setup, flat_settings['masters']['directory']))
+    else:
+        slitprof, _, _ = flatField.load_master_slitprofile()
+    # Return
+    return mspixflatnrm, slitprof, flatField

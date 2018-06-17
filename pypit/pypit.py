@@ -245,7 +245,6 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
     psetup = pypitsetup.PypitSetup(arparse.argflag, arparse.spect, fitstbl=fitstbl)
     mode, fitstbl, setup_dict = psetup.run()
     psetup.write_fitstbl()
-    sciexp = None
     if mode == 'setup':
         status = 1
         return status
@@ -262,7 +261,7 @@ def PYPIT(redname, debug=None, progname=__file__, quick=False, ncpus=1, verbosit
         if spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMS':
             msgs.info('Data reduction will be performed using PYPIT-ARMS')
             #status = arms.ARMS(fitstbl, setup_dict, sciexp=sciexp)
-            status = arms.ARMS(fitstbl, setup_dict, sciexp=sciexp)
+            status = arms.ARMS(specname, fitstbl, setup_dict)
         elif spect.__dict__['_spect']['mosaic']['reduction'] == 'ARMED':
             msgs.info('Data reduction will be performed using PYPIT-ARMED')
             status = armed.ARMED(fitstbl)
