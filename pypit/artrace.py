@@ -215,18 +215,20 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe,
 
     Parameters
     ----------
-    slf : Class instance
-      An instance of the Science Exposure class
     det : int
       Index of the detector
     slitn : int
       Slit (or order) number
+    tslits_dict : dict
+      Slits definition
     sciframe : numpy ndarray
       Science frame
     skyframe : numpy ndarray
       Science frame
     varframe : numpy ndarray
       Variance frame
+    settings_trace : dict
+      Settings for object finding + tracing
     crmask : numpy ndarray
       Mask or cosmic rays
     trim : int (optional)

@@ -316,7 +316,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             settings_skysub = {}
             settings_skysub['skysub'] = settings.argflag['reduce']['skysub'].copy()
             if settings.argflag['reduce']['skysub']['perform']:
-                _ = sciI.global_skysub(settings_skysub)
+                global_sky, modelvarframe = sciI.global_skysub(settings_skysub)
             else:
                 sciI.global_sky = np.zeros_like(sciframe)
                 sciI.modelvarframe = np.zeros_like(sciframe)
@@ -325,22 +325,21 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             _, nobj = sciI.find_objects()
             if nobj == 0:
                 msgs.warn("No objects to extract for science frame" + msgs.newline() + fitstbl['filename'][scidx])
-                specobjs = []
-                flg_objs = False
+                specobjs, flg_objs = [], None
             else:
                 flg_objs = True  # Objects were found
 
             # Another round of sky sub
             if settings.argflag['reduce']['skysub']['perform'] and flg_objs:
-                _ = sciI.global_skysub(settings_skysub, use_tracemask=True)
+                global_sky, modelvarframe = sciI.global_skysub(settings_skysub,
+                                                               use_tracemask=True)
 
             # Another round of finding objects
             if flg_objs:
                 _, nobj = sciI.find_objects()
                 if nobj == 0:
                     msgs.warn("No objects to extract for science frame" + msgs.newline() + fitstbl['filename'][scidx])
-                    specobjs = []
-                    flg_objs = False
+                    specobjs, flg_objs = [], None
 
             # Extraction
             if flg_objs:
