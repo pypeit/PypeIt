@@ -406,13 +406,11 @@ class TraceSlits(masterframe.MasterFrame):
     def _fill_tslits_dict(self):
         """
         Build a simple object holding the key trace bits and pieces that PYPIT wants
-          NOT USED ANY LONGER (but maybe in the future, depending on how we choosed
-          to package slit information *outside* of the ScienceExposure object)
 
 
         Returns
         -------
-        self.trace_slits_dict
+        self.trace_slits_dict : dict
 
         """
         self.tslits_dict = {}

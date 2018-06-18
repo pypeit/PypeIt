@@ -135,6 +135,15 @@ def bg_subtraction_slit(tslits_dict, pixlocn,
         #bspl = arutils.func_fit(tilts[gdp][srt], scifrcp[gdp][srt], 'bspline', 3,
         #                        **settings.argflag['reduce']['skysub']['bspline'])
         ivar = arutils.calc_ivar(varframe)
+        if True:
+            from astropy.io import fits
+            hdu0 = fits.PrimaryHDU(scifrcp)
+            hdu1 = fits.ImageHDU(ivar)
+            hdu2 = fits.ImageHDU(ordpix)
+            hdu3 = fits.ImageHDU(tilts)
+            hdul = fits.HDUList([hdu0,hdu1,hdu2,hdu3])
+            hdul.writeto('test_skysub.fits',overwrite=True)
+            debugger.set_trace()
         mask, bspl = arutils.robust_polyfit(tilts[gdp][srt], scifrcp[gdp][srt], 3,
                                             function='bspline',
                                             weights=np.sqrt(ivar)[gdp][srt],
