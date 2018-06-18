@@ -182,6 +182,7 @@
 - Completed the deprecation of arsciexp (RIP)
 - Many test updates
 - Doc strings improved but no new main docs
+- Completed armasters refactor and moved to core/
 
 0.7 (2017-02-07)
 ----------------
