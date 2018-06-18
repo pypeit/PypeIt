@@ -306,7 +306,26 @@ def new_order_pixels(pixlocn, lord, rord):
 
     return outfr
 
-def slits_to_x_and_edge(lord, rord, slitpix, tol_edg=(3,3), xshift=0.):
+def ximg_and_edgemask(lord, rord, slitpix, trim_edg=(3,3), xshift=0.):
+    """
+    Generate the ximg and edgemask
+
+    Parameters
+    ----------
+    lord
+    rord
+    slitpix
+    trim_edg
+    xshift
+
+    Returns
+    -------
+    ximg : ndarray
+      Specifies spatial location of pixel in its own slit
+      Scaled from 0 to 1
+    edgmask : ndarray, bool
+      True = Masked because it is too close to the edge
+    """
     #; Generate the output image
     ximg = np.zeros_like(slitpix)
     # Intermediary arrays
@@ -319,7 +338,7 @@ def slits_to_x_and_edge(lord, rord, slitpix, tol_edg=(3,3), xshift=0.):
     #; Loop over each slit
     for islit in range(nslit):
         #; How many pixels wide is the slit at each Y?
-        xsize = lord[:, islit] - rord[:, islit]
+        xsize = rord[:, islit] - lord[:, islit]
         badp = xsize <= 0.
         if np.any(badp):
             meds = np.median(xsize)
@@ -329,21 +348,21 @@ def slits_to_x_and_edge(lord, rord, slitpix, tol_edg=(3,3), xshift=0.):
             msgs.warn('Proceed at your own risk, with a slit width of {:d}'.format(meds))
             msgs.warn('Or set meds to your liking')
             debugger.set_trace()
-            lord[:, islit] = rord[:, islit] + meds
+            rord[:, islit] = lord[:, islit] + meds
 
         # Loop down the slit
         for iy in range(lord.shape[0]):
             # Set the pixels
-            ix1 = max(int(np.ceil(rord[iy, islit])),0)
-            ix2 = min(int(lord[iy, islit]),ximg.shape[1]-1)
+            ix1 = max(int(np.ceil(lord[iy, islit])),0)
+            ix2 = min(int(rord[iy, islit]),ximg.shape[1]-1)
             ix1 = min(ix1,ximg.shape[1] - 1)
             ix2 = max(ix2, 0)
             #
-            ximg[iy, ix1:ix2] = (np.arange(ix2 - ix1 + 1) + ix1 - rord[iy, islit]) / xsize[iy]
-            pixleft[iy, ix1:ix2] = (np.arange(ix2 - ix1 + 1) + ix1 - rord[iy, islit])
-            pixright[iy, ix1:ix2] = (lord[iy, islit] - ix2 + np.flip(np.arange(ix2-ix1+1)))
+            ximg[iy, ix1:ix2+1] = (np.arange(ix2 - ix1 + 1) + ix1 - lord[iy, islit]) / xsize[iy]
+            pixleft[iy, ix1:ix2+1] = (np.arange(ix2 - ix1 + 1) + ix1 - lord[iy, islit])
+            pixright[iy, ix1:ix2+1] = (rord[iy, islit] - ix2 + np.flip(np.arange(ix2-ix1+1),0))
 
     # Generate the edge mask
-    edgmask = (slitpix > 0) & np.any([pixleft < tol_edg[0], pixright < tol_edg[1]], axis=0)
+    edgmask = (slitpix > 0) & np.any([pixleft < trim_edg[0], pixright < trim_edg[1]], axis=0)
     # Return
     return ximg, edgmask
