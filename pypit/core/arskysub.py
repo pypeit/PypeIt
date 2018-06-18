@@ -3,8 +3,10 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import numpy as np
+import sys, os
 from matplotlib import pyplot as plt
 
+from pydl.pydlutils.bspline import bspline
 
 from pypit import msgs
 
@@ -13,14 +15,84 @@ from pypit import arpixels
 
 from pypit import ardebug as debugger
 
+sys.path.append(os.getenv('PYPIT_DEV')+'dev_algorithms/')
+import dev_extract
 
-def bg_subtraction_slit(tslits_dict, sciframe):
+
+def bg_subtraction_slit(slit, tslits_dict, sciframe, varframe, bpix, crpix, tilts,
+                        tracemask=None, bsp=0.6, sigrej=3.):
     # Unpack tslits
-    lordloc = tslits_dict['lcen']
-    rordloc = tslits_dict['rcen']
     slitpix = tslits_dict['slitpix']
+    edge_mask = tslits_dict['edge_mask']
     # Init
     bgframe = np.zeros_like(sciframe)
+    ivar = arutils.calc_ivar(varframe)
+    ny = sciframe.shape[0]
+    piximg = tilts * (ny-1)
+
+    #
+    ordpix = slitpix.copy()
+    # Mask
+    ordpix *= (1-bpix.astype(np.int)) * (1-crpix.astype(np.int))
+    if tracemask is not None: ordpix *= (1-tracemask.astype(np.int))
+
+    # Sky pixels for fitting
+    fit_sky = (ordpix == slit+1) & (ivar > 0.) & (~edge_mask)
+    isrt = np.argsort(piximg[fit_sky])
+    wsky = piximg[fit_sky][isrt]
+    sky = sciframe[fit_sky][isrt]
+    sky_ivar = ivar[fit_sky][isrt]
+
+    # All for evaluation
+    all_slit = (slitpix == slit+1) & (~edge_mask)
+
+    # Pre-fit
+    pos_sky = (sky > 1.0) & (sky_ivar > 0.)
+    if np.sum(pos_sky) > ny:
+        lsky = np.log(sky[pos_sky])
+        lsky_ivar = lsky * 0. + 0.1
+
+        # Init bspline to get the sky breakpoints (kludgy)
+        tmp = bspline(wsky[pos_sky], nord=4, bkspace=bsp)
+
+        #skybkpt = bspline_bkpts(wsky[pos_sky], nord=4, bkspace=bsp $
+        #, / silent)
+        lskyset, outmask, lsky_fit, red_chi = dev_extract.bspline_longslit(
+            wsky[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
+            fullbkpt = tmp.breakpoints, upper=sigrej, lower=sigrej,
+            kwargs_reject={'groupbadpix':True})
+        res = (sky[pos_sky] - np.exp(lsky_fit)) * np.sqrt(sky_ivar[pos_sky])
+        lmask = (res < 5.0) & (res > -4.0)
+        sky_ivar[pos_sky] = sky_ivar[pos_sky] * lmask
+
+    # Full
+    if False:
+        from matplotlib import pyplot as plt
+        plt.clf()
+        ax = plt.gca()
+        ax.scatter(wsky, sky)
+        #ax.scatter(wsky[~full_out], sky[~full_out], color='red')
+        #ax.plot(wsky[pos_sky], lsky_fit, color='green')
+        plt.show()
+        debugger.set_trace()
+    full_bspline = bspline(wsky, nord=4, bkspace=bsp)
+    skyset, full_out, yfit, _ = dev_extract.bspline_longslit(
+        wsky, sky, sky_ivar, np.ones_like(sky),
+        fullbkpt=full_bspline.breakpoints,
+        upper=sigrej, lower=sigrej, kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+    bgframe[all_slit] = skyset.value(piximg[all_slit])[0] #, skyset)
+
+    if False:
+        from matplotlib import pyplot as plt
+        plt.clf()
+        ax = plt.gca()
+        ax.scatter(wsky[full_out], sky[full_out])
+        ax.scatter(wsky[~full_out], sky[~full_out], color='red')
+        ax.plot(wsky, yfit, color='green')
+        plt.show()
+    # Return
+    return bgframe
+
 
 def orig_bg_subtraction_slit(tslits_dict, pixlocn,
                         slit, tilts, sciframe, varframe, bpix, crpix,
