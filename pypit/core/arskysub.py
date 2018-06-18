@@ -90,6 +90,85 @@ def bg_subtraction_slit(slit, tslits_dict, sciframe, varframe, bpix, crpix, tilt
     return bgframe
 
 
+# Utility routine used by local_bg_subtraction_slit
+def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial = None, fullbkpt = None):
+
+    nx = data.size
+    nc = oprof.shape[0]
+    nobj = int(oprof.size / nc)
+    if nc != nx:
+        raise ValueError('Object profile should have oprof.shape[0] equal to nx')
+
+    msgs.info('Iter     Chi^2     Rejected Pts')
+    xmin = 0.0
+    xmax = 1.0
+
+    if ((npoly == 1) | (spatial == None)):
+        profile_basis = np.column_stack((oprof, np.ones(nx)))
+    else:
+        xmin = spatial.min()
+        xmax = spatial.max()
+        x2 = 2.0 * (spatial - xmin) / (xmax - xmin) - 1
+        poly_basis = flegendre(x2, npoly).T
+        profile_basis = np.column_stack((oprof, poly_basis))
+
+    #ToDo this seems different from IDL
+    if nobj == 1:
+        relative_mask = (oprof > 1e-10)
+    else:
+        relative_mask = (np.sum(oprof, axis=1) > 1e-10)
+
+    indx, = np.where(ivar[sortpix] > 0.0)
+    ngood = indx.size
+    good = sortpix[indx]
+    good = good[wave[good].argsort()]
+    relative, = np.where(relative_mask[good])
+
+    (sset1, outmask_good1, yfit1, red_chi1) = bspline_longslit(wave[good], data[good], ivar[good], profile_basis[good, :],
+                                                               fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
+                                                               relative=relative,
+                                                               kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+
+    chi2 = (data[good] - yfit1) ** 2 * ivar[good]
+    chi2_srt = np.sort(chi2)
+    gauss_prob = 1.0 - 2.0 * ndtr(-1.2 * sigrej)
+    sigind = int(np.fmin(np.rint(gauss_prob * float(ngood)), ngood - 1))
+    chi2_sigrej = chi2_srt[sigind]
+    mask1 = (chi2 < chi2_sigrej)
+    msgs.info('2nd round....')
+    msgs.info('Iter     Chi^2     Rejected Pts')
+
+    (sset, outmask_good, yfit, red_chi) = bspline_longslit(wave[good], data[good], ivar[good] * mask1,
+                                                           profile_basis[good, :],
+                                                           fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
+                                                           relative=relative,
+                                                           kwargs_reject={'groupbadpix': True, 'maxrej': 1})
+
+    ncoeff = npoly + nobj
+    skyset = bspline(None, fullbkpt=sset.breakpoints, nord=sset.nord, npoly=npoly)
+    skyset.coeff = sset.coeff[nobj:, :]  # Coefficients for the sky
+    skyset.mask = sset.mask
+    skyset.xmin = xmin
+    skyset.xmax = xmax
+
+    sky_bmodel, _ = skyset.value(wave, x2=spatial)
+
+    obj_bmodel = np.zeros(sky_bmodel.shape)
+    objset = bspline(None, fullbkpt=sset.breakpoints, nord=sset.nord)
+    objset.mask = sset.mask
+    for i in range(nobj):
+        objset.coeff = sset.coeff[i, :]
+        obj_bmodel1, _ = objset.value(wave)
+        obj_bmodel = obj_bmodel + obj_bmodel1 * profile_basis[:, i]
+
+    outmask = np.zeros(wave.shape, dtype=bool)
+    outmask[good] = outmask_good
+
+    return (sky_bmodel, obj_bmodel, outmask)
+
+
+
+# This code is deprecated and replaced by bg_subtraction_slit
 def orig_bg_subtraction_slit(tslits_dict, pixlocn,
                         slit, tilts, sciframe, varframe, bpix, crpix,
                         settings,
