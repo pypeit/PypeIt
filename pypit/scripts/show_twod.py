@@ -43,7 +43,7 @@ def main(args):
 
     import pypit.ginga
     from pypit import pyputils
-    from pypit import armasters
+    from pypit.core import armasters
     from pypit.arparse import get_dnum
     from pypit.core.artraceslits import get_slitid
 
