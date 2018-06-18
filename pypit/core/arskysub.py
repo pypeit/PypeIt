@@ -15,10 +15,6 @@ from pypit import arpixels
 
 from pypit import ardebug as debugger
 
-sys.path.append(os.getenv('PYPIT_DEV')+'dev_algorithms/')
-import dev_extract
-
-
 def bg_subtraction_slit(slit, tslits_dict, sciframe, varframe, bpix, crpix, tilts,
                         tracemask=None, bsp=0.6, sigrej=3.):
     # Unpack tslits
@@ -57,7 +53,7 @@ def bg_subtraction_slit(slit, tslits_dict, sciframe, varframe, bpix, crpix, tilt
 
         #skybkpt = bspline_bkpts(wsky[pos_sky], nord=4, bkspace=bsp $
         #, / silent)
-        lskyset, outmask, lsky_fit, red_chi = dev_extract.bspline_longslit(
+        lskyset, outmask, lsky_fit, red_chi = arutils.bspline_profile(
             wsky[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
             fullbkpt = tmp.breakpoints, upper=sigrej, lower=sigrej,
             kwargs_reject={'groupbadpix':True})
@@ -76,7 +72,7 @@ def bg_subtraction_slit(slit, tslits_dict, sciframe, varframe, bpix, crpix, tilt
         plt.show()
         debugger.set_trace()
     full_bspline = bspline(wsky, nord=4, bkspace=bsp)
-    skyset, full_out, yfit, _ = dev_extract.bspline_longslit(
+    skyset, full_out, yfit, _ = arutils.bspline_profile(
         wsky, sky, sky_ivar, np.ones_like(sky),
         fullbkpt=full_bspline.breakpoints,
         upper=sigrej, lower=sigrej, kwargs_reject={'groupbadpix':True, 'maxrej': 10})
