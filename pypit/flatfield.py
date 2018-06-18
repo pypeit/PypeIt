@@ -410,7 +410,7 @@ def get_msflat(det, setup, spectrograph, sci_ID, fitstbl, tslits_dict, datasec_i
         # Save to Masters
         flatField.save_master(mspixflatnrm, raw_files=pixflat_image_files, steps=flatField.steps)
         flatField.save_master(slitprof, raw_files=pixflat_image_files, steps=flatField.steps,
-                              outfile=armasters.core_master_name('slitprof', setup, flat_settings['masters']['directory']))
+                              outfile=armasters.master_name('slitprof', setup, flat_settings['masters']['directory']))
     else:
         if slitprof is None:
             slitprof, _, _ = flatField.load_master_slitprofile()
