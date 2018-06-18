@@ -316,9 +316,6 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             if settings.argflag['reduce']['skysub']['perform'] and flg_objs:
                 global_sky, modelvarframe = sciI.global_skysub(settings_skysub,
                                                                use_tracemask=True)
-            debugger.show_image((sciframe-global_sky)*(~tslits_dict['edge_mask']))
-            debugger.set_trace()
-
             # Another round of finding objects
             if flg_objs:
                 _, nobj = sciI.find_objects()
