@@ -1,11 +1,6 @@
 """ Routines related to MasterFrames"""
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
-try:
-    basestring
-except NameError:  # For Python 3
-    basestring = str
-
 import numpy as np
 import os
 import yaml
@@ -16,74 +11,11 @@ from astropy import units
 import linetools.utils
 
 from pypit import msgs
-from pypit import arparse as settings
-from pypit import arutils
 
 from pypit import ardebug as debugger
 
-'''
-class MasterFrames:
 
-    def __init__(self, ndet):
-        """
-        A Master Calibrations class that carries the information generated for the master calibration
-        """
-
-        self._nspec    = [None for all in range(ndet)]   # Number of spectral pixels
-        self._nspat    = [None for all in range(ndet)]   # Number of spatial pixels
-        self._ampsec   = [None for all in range(ndet)]   # Locations of the amplifiers on each detector
-        self._pixlocn  = [None for all in range(ndet)]   # Physical locations of each pixel on the detector
-        self._lordloc  = [None for all in range(ndet)]   # Array of slit traces (left side) in physical pixel coordinates
-        self._rordloc  = [None for all in range(ndet)]   # Array of slit traces (left side) in physical pixel coordinates
-        self._pixcen   = [None for all in range(ndet)]   # Central slit traces in apparent pixel coordinates
-        self._pixwid   = [None for all in range(ndet)]   # Width of slit (at each row) in apparent pixel coordinates
-        self._lordpix  = [None for all in range(ndet)]   # Array of slit traces (left side) in apparent pixel coordinates
-        self._rordpix  = [None for all in range(ndet)]   # Array of slit traces (right side) in apparent pixel coordinates
-        self._tilts    = [None for all in range(ndet)]   # Array of spectral tilts at each position on the detector
-        self._satmask  = [None for all in range(ndet)]   # Array of Arc saturation streaks
-        self._arcparam = [None for all in range(ndet)]   #
-        self._wvcalib  = [None for all in range(ndet)]   # List of dicts
-        self._resnarr  = [None for all in range(ndet)]   # Resolution array
-        # Initialize the Master Calibration frames
-        self._bpix = [None for all in range(ndet)]          # Bad Pixel Mask
-        self._msarc = [None for all in range(ndet)]         # Master Arc
-        self._msbias = [None for all in range(ndet)]        # Master Bias
-        self._mstrace = [None for all in range(ndet)]       # Master Trace
-        self._mspinhole = [None for all in range(ndet)]       # Master Pinhole
-        self._mspixelflat = [None for all in range(ndet)]     # Master pixel flat
-        self._mspixelflatnrm = [None for all in range(ndet)]  # Normalized Master pixel flat
-        self._msblaze = [None for all in range(ndet)]       # Blaze function
-        self._sensfunc = [None for all in range(ndet)]       # Sensitivity function
-        # Initialize the Master Calibration frame names
-        self._msarc_name = [None for all in range(ndet)]      # Master Arc Name
-        self._msbias_name = [None for all in range(ndet)]     # Master Bias Name
-        self._mstrace_name = [None for all in range(ndet)]    # Master Trace Name
-        self._mspixelflat_name = [None for all in range(ndet)]  # Master Pixel Flat Name
-'''
-
-
-def master_name(ftype, setup, mdir=None):
-    """
-    Mainly a wrapper to core_master_name
-      generates mdir from settings
-
-    Parameters
-    ----------
-    ftype : str
-    setup : str
-    mdir : str, optional
-
-    Returns
-    -------
-    msname : str
-
-    """
-    if mdir is None:
-        mdir = settings.argflag['run']['directory']['master']+'_'+settings.argflag['run']['spectrograph']
-    return core_master_name(ftype, setup, mdir)
-
-
-def core_master_name(ftype, setup, mdir):
+def master_name(ftype, setup, mdir):
     """ Default filenames for MasterFrames
 
     Parameters
@@ -111,7 +43,7 @@ def core_master_name(ftype, setup, mdir):
                      )
     return name_dict[ftype]
 
-
+'''
 def load_master_frame(slf, mftype, det=None):
     """
     Mainly a wrapper on core_load_master_frame
@@ -163,9 +95,10 @@ def load_master_frame(slf, mftype, det=None):
     # Append as loaded
     settings.argflag['reduce']['masters']['loaded'].append(mftype+slf.setup)
     return ret
+'''
 
 
-def core_load_master_frame(mftype, setup, mdir, force=False):
+def load_master_frame(mftype, setup, mdir, force=False):
     """ If a MasterFrame exists, load it
     Will soon replace the load_master_frame above
 
@@ -184,7 +117,7 @@ def core_load_master_frame(mftype, setup, mdir, force=False):
 
     """
     # Name
-    ms_name = core_master_name(mftype, setup, mdir)
+    ms_name = master_name(mftype, setup, mdir)
     # Load
     msframe, head, file_list = _load(ms_name, exten=0, frametype=mftype, force=force)
     # Check
@@ -251,6 +184,7 @@ def _load(name, exten=0, frametype='<None>', force=False):
         return data, head0, file_list
 
 
+'''
 def save_masters(slf, det, mftype='all'):
     """ Save Master Frames
     THIS WILL BE DEPRECATED BIT BY BIT
@@ -317,8 +251,9 @@ def save_masters(slf, det, mftype='all'):
         save_master(slf, slf._slitprof[det - 1],
                            filename=master_name('slitprof', setup),
                            frametype='slit profile')
+'''
 
-
+'''
 def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
                         extensions=None, keywds=None, names=None):
     """ Wrapper to core_save_master
@@ -346,8 +281,9 @@ def save_master(slf, data, filename="temp.fits", frametype="<None>", ind=[],
     core_save_master(data, filename=filename, frametype=frametype,
                      extensions=extensions, keywds=keywds, names=names,
                      raw_files=raw_files)
+'''
 
-def core_save_master(data, filename="temp.fits", frametype="<None>",
+def save_master(data, filename="temp.fits", frametype="<None>",
                 extensions=None, keywds=None, names=None, raw_files=None,
                      overwrite=True):
     """ Core function to write a MasterFrame image

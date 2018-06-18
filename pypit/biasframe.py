@@ -9,7 +9,7 @@ import os
 
 from pypit import msgs
 from pypit import ardebug as debugger
-from pypit import armasters
+from pypit.core import armasters
 from pypit.core import arsort
 from pypit import processimages
 from pypit import masterframe

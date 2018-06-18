@@ -8,7 +8,7 @@ import numpy as np
 
 from pypit import msgs
 from pypit import processimages
-from pypit import armasters
+from pypit.core import armasters
 from pypit import masterframe
 from pypit.core import arsort
 from pypit.core import arflat
@@ -182,7 +182,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.slit_profiles
 
         """
-        return armasters.core_load_master_frame('slitprof', self.setup, self.mdir)
+        return armasters.load_master_frame('slitprof', self.setup, self.mdir)
 
     def slit_profile(self, slit):
         """
@@ -391,8 +391,16 @@ def get_msflat(det, setup, spectrograph, sci_ID, fitstbl, tslits_dict, datasec_i
 
     # Load from disk (MasterFrame)?
     mspixflatnrm = flatField.master()
+    slitprof = None
+    # Load user supplied flat (e.g. LRISb with pixel flat)?
+    if flat_settings['flatfield']['useframe'] not in ['pixelflat', 'trace']:
+        mspixelflat_name = armasters.user_master_name(flat_settings['masters']['directory'],
+                                                  flat_settings['flatfield']['useframe'])
+        mspixflatnrm, head, _ = armasters._load(mspixelflat_name, exten=det, frametype=None, force=True)
+        # TODO -- Handle slitprof properly, i.e.g from a slit flat for LRISb
+        slitprof = np.ones_like(mspixflatnrm)
     if mspixflatnrm is None:
-        # TODO -- Consider turning the following back on.  I'm regenerating for now
+        # TODO -- Consider turning the following back on.  I'm regenerating the flat for now
         # Use mstrace if the indices are identical
         #if np.all(arsort.ftype_indices(fitstbl,'trace',1) ==
         #                  arsort.ftype_indices(fitstbl, 'pixelflat', 1)) and (traceSlits.mstrace is not None):
@@ -404,6 +412,7 @@ def get_msflat(det, setup, spectrograph, sci_ID, fitstbl, tslits_dict, datasec_i
         flatField.save_master(slitprof, raw_files=pixflat_image_files, steps=flatField.steps,
                               outfile=armasters.core_master_name('slitprof', setup, flat_settings['masters']['directory']))
     else:
-        slitprof, _, _ = flatField.load_master_slitprofile()
+        if slitprof is None:
+            slitprof, _, _ = flatField.load_master_slitprofile()
     # Return
     return mspixflatnrm, slitprof, flatField

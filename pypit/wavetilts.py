@@ -13,7 +13,7 @@ from pypit import msgs
 from pypit import ardebug as debugger
 from pypit.core import ararc
 from pypit.core import artracewave
-from pypit import armasters
+from pypit.core import armasters
 from pypit import masterframe
 from pypit import ginga
 
