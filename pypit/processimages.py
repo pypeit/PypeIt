@@ -43,6 +43,7 @@ def default_settings():
                         )
     return default_settings
 
+
 class ProcessImages(object):
     """Base class to guide image loading+processing
 
@@ -308,6 +309,21 @@ class ProcessImages(object):
         return self.stack
 
     def build_crmask(self, varframe=None):
+        """
+        Generate the CR mask frame
+
+        Wrapper to arprocimg.lacosmic
+
+        Parameters
+        ----------
+        varframe : ndarray, optional
+
+        Returns
+        -------
+        self.crmask : ndarray
+          1. = Masked CR
+
+        """
         self.crmask = arprocimg.lacosmic(self.det, self.stack, self.settings['detector'],
                                     grow=1.5, varframe=varframe)
         # Step
@@ -317,9 +333,14 @@ class ProcessImages(object):
 
     def flat_field(self):
         """
+        Flat field the stack image
+
+        Wrapper to arflat.flatfield()
 
         Returns
         -------
+        self.stack : ndarray
+          Flat fielded
 
         """
         if self.bpm is None:
@@ -391,6 +412,21 @@ class ProcessImages(object):
         return self.stack.copy()
 
     def build_rawvarframe(self, dnoise=None):
+        """
+        Generate the Raw Variance frame
+
+        Wrapper to arprocimg.variance_frame
+
+        Parameters
+        ----------
+        dnoise : float
+          Noise related to dark current (generally 0.)
+
+        Returns
+        -------
+        self.rawvarframe : ndarray
+
+        """
         msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
         self.rawvarframe = arprocimg.variance_frame(self.datasec_img, self.det, self.stack,
                                                self.settings['detector'], dnoise=dnoise)

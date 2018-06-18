@@ -768,11 +768,12 @@ def variance_frame(datasec_img, det, sciframe, settings_det=None,
         varframe = np.abs(skyframe + objframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise
         return varframe
     else:
-        scicopy = sciframe.copy()
         # Dark Current noise
         if dnoise is None:
             dnoise = (settings_det['darkcurr'] * float(fitsdict["exptime"][idx])/3600.0)
         # Return
-        return np.abs(scicopy) + rnoise + dnoise
+        varframe = np.abs(sciframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise + dnoise
+        #return np.abs(scicopy) + rnoise + dnoise
+        return varframe
 
 

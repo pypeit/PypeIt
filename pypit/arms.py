@@ -12,9 +12,8 @@ from pypit import arparse as settings
 from pypit import arload
 from pypit import arutils
 from pypit.core import arprocimg
-from pypit import arsave
+from pypit.core import arsave
 from pypit.core import arwave
-from pypit import arsciexp
 from pypit.core import arsetup
 from pypit import arpixels
 from pypit.core import arsort
@@ -59,22 +58,6 @@ def ARMS(spectrograph, fitstbl, setup_dict):
     all_sci_ID = fitstbl['sci_ID'].data[fitstbl['science']]  # Binary system: 1,2,4,8, etc.
     numsci = len(all_sci_ID)
     basenames = [None]*numsci  # For fluxing at the very end
-    '''
-    for sci_ID in all_sci_ID:
-        sciexp.append(arsciexp.ScienceExposure(sci_ID, fitstbl, settings.argflag,
-                                               settings.spect, do_qa=True))
-        basenames.append(sciexp[-1]._basename)
-        std_idx = arsort.ftype_indices(fitstbl, 'standard', sci_ID)
-        if (len(std_idx) > 0):
-            if len(std_idx) > 1:
-                msgs.warn("Will only reduce the first, unique standard for each standard frame!")
-            if std_idx[0] not in sv_std_idx:  # Only take the first one
-                sv_std_idx.append(std_idx[0])
-                # Standard stars
-                #std_dict[std_idx[0]] = arsciexp.ScienceExposure(sci_ID, fitstbl, settings.argflag,
-                #                                                settings.spect, do_qa=False, idx_sci=std_idx[0])
-    numsci = len(sciexp)
-    '''
 
     # Init calib dict
     calib_dict = {}
