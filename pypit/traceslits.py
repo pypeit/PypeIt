@@ -528,6 +528,9 @@ class TraceSlits(masterframe.MasterFrame):
         self.slitpix = arpixels.core_slit_pixels(self.lcen, self.rcen,
                                                  self.mstrace.shape,
                                                  self.settings['trace']['slits']['pad'])
+        # ximg and edge mask
+        self.ximg, self.edge_mask = arpixels.slits_to_x_and_edge(
+            self.lcen, self.rcen, self.slitpix)
 
     def _match_edges(self):
         """

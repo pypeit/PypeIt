@@ -14,7 +14,15 @@ from pypit import arpixels
 from pypit import ardebug as debugger
 
 
-def bg_subtraction_slit(tslits_dict, pixlocn,
+def bg_subtraction_slit(tslits_dict, sciframe):
+    # Unpack tslits
+    lordloc = tslits_dict['lcen']
+    rordloc = tslits_dict['rcen']
+    slitpix = tslits_dict['slitpix']
+    # Init
+    bgframe = np.zeros_like(sciframe)
+
+def orig_bg_subtraction_slit(tslits_dict, pixlocn,
                         slit, tilts, sciframe, varframe, bpix, crpix,
                         settings,
                         tracemask=None,

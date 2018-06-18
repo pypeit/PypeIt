@@ -7,6 +7,8 @@ import numpy as np
 from pypit import msgs
 from pypit import arparse as settings
 
+from pypit import ardebug as debugger
+
 try:
     from pypit import ginga
 except ImportError:
@@ -304,3 +306,44 @@ def new_order_pixels(pixlocn, lord, rord):
 
     return outfr
 
+def slits_to_x_and_edge(lord, rord, slitpix, tol_edg=(3,3), xshift=0.):
+    #; Generate the output image
+    ximg = np.zeros_like(slitpix)
+    # Intermediary arrays
+    pixleft = np.zeros_like(slitpix)
+    pixright = np.zeros_like(slitpix)
+    #
+    nslit = lord.shape[1]
+
+
+    #; Loop over each slit
+    for islit in range(nslit):
+        #; How many pixels wide is the slit at each Y?
+        xsize = lord[:, islit] - rord[:, islit]
+        badp = xsize <= 0.
+        if np.any(badp):
+            meds = np.median(xsize)
+            msgs.warn('Something goofy in slit # {:d}'.format(islit))
+            msgs.warn('Probably a bad slit (e.g. a star box)')
+            msgs.warn('It is best to expunge this slit')
+            msgs.warn('Proceed at your own risk, with a slit width of {:d}'.format(meds))
+            msgs.warn('Or set meds to your liking')
+            debugger.set_trace()
+            lord[:, islit] = rord[:, islit] + meds
+
+        # Loop down the slit
+        for iy in range(lord.shape[0]):
+            # Set the pixels
+            ix1 = max(int(np.ceil(rord[iy, islit])),0)
+            ix2 = min(int(lord[iy, islit]),ximg.shape[1]-1)
+            ix1 = min(ix1,ximg.shape[1] - 1)
+            ix2 = max(ix2, 0)
+            #
+            ximg[iy, ix1:ix2] = (np.arange(ix2 - ix1 + 1) + ix1 - rord[iy, islit]) / xsize[iy]
+            pixleft[iy, ix1:ix2] = (np.arange(ix2 - ix1 + 1) + ix1 - rord[iy, islit])
+            pixright[iy, ix1:ix2] = (lord[iy, islit] - ix2 + np.flip(np.arange(ix2-ix1+1)))
+
+    # Generate the edge mask
+    edgmask = (slitpix > 0) & np.any([pixleft < tol_edg[0], pixright < tol_edg[1]], axis=0)
+    # Return
+    return ximg, edgmask
