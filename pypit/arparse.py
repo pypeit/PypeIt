@@ -1941,8 +1941,21 @@ class BaseArgFlag(BaseFunctions):
           value of the keyword argument given by the name of this function
         """
         v = key_int(v)
-        if v < 0.0:
+        if v < 0:
             msgs.error("The argument of {0:s} must be >= 0".format(get_current_name()))
+        self.update(v)
+
+    def trace_slits_trim(self, v):
+        """ How many pixels should be trimmed for analysis like sky subtraction
+
+        Parameters
+        ----------
+        v : str
+          value of the keyword argument given by the name of this function
+        """
+        v = key_list(v)
+        if (v[0] < 0) or (v[1] < 0):
+            msgs.error("The arguments of {0:s} must be >= 0".format(get_current_name()))
         self.update(v)
 
     def trace_slits_pca_type(self, v):

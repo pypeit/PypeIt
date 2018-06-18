@@ -42,6 +42,7 @@ def default_settings():
                                'fracignore': 0.01,
                                'medrep': 0,
                                'number': -1,
+                               'trim': (3,3),  # pixels
                                'maxgap': None,
                                'maxshift': 0.15,  # Used by trace crude
                                'sigdetect': 20.,
@@ -415,7 +416,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         self.tslits_dict = {}
         for key in ['lcen', 'rcen', 'pixcen', 'pixwid', 'lordpix',
-                    'rordpix', 'extrapord', 'slitpix']:
+                    'rordpix', 'extrapord', 'slitpix', 'ximg', 'edge_mask']:
             self.tslits_dict[key] = getattr(self, key)
         return self.tslits_dict
 
@@ -529,8 +530,9 @@ class TraceSlits(masterframe.MasterFrame):
                                                  self.mstrace.shape,
                                                  self.settings['trace']['slits']['pad'])
         # ximg and edge mask
-        self.ximg, self.edge_mask = arpixels.slits_to_x_and_edge(
-            self.lcen, self.rcen, self.slitpix)
+        self.ximg, self.edge_mask = arpixels.ximg_and_edgemask(
+            self.lcen, self.rcen, self.slitpix,
+            trim_edg=self.settings['trace']['slits']['trim'])
 
     def _match_edges(self):
         """
