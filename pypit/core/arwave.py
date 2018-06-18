@@ -172,10 +172,10 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=None):
     msgs.info("Flexure correction of {:g} pixels".format(shift))
     #model = (fit[2]*(subpix_grid**2.))+(fit[1]*subpix_grid)+fit[0]
 
-    if msgs._debug['flexure']:
-        debugger.plot1d(arx_skyspec.wavelength, arx_sky_flux, xtwo=np.roll(obj_skyspec.wavelength,int(-1*shift)), ytwo=obj_sky_flux)
-        #debugger.xplot(arx_sky.wavelength, arx_sky.flux, xtwo=np.roll(obj_sky.wavelength.value,9), ytwo=obj_sky.flux*100)
-        debugger.set_trace()
+    #if msgs._debug['flexure']:
+    #    debugger.plot1d(arx_skyspec.wavelength, arx_sky_flux, xtwo=np.roll(obj_skyspec.wavelength,int(-1*shift)), ytwo=obj_sky_flux)
+    #    #debugger.xplot(arx_sky.wavelength, arx_sky.flux, xtwo=np.roll(obj_sky.wavelength.value,9), ytwo=obj_sky.flux*100)
+    #    debugger.set_trace()
 
     flex_dict = dict(polyfit=fit, shift=shift, subpix=subpix_grid,
                      corr=corr[subpix_grid.astype(np.int)],

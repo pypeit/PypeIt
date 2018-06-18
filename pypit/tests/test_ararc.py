@@ -12,7 +12,6 @@ from linetools.spectra import xspectrum1d
 
 import pypit
 from pypit.core import arsort
-from pypit import arsciexp
 from pypit.core import ararc
 from pypit import arparse as settings
 

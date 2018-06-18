@@ -26,7 +26,6 @@ from pypit.core import arflux
 from pypit import arload
 from pypit import arutils
 from pypit.core import arsort
-from pypit import arsciexp
 
 #from xastropy.xutils import afits as xafits
 #from xastropy.xutils import xdebug as xdb

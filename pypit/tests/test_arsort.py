@@ -14,7 +14,6 @@ from pypit import arparse as settings
 from pypit.core import arsort
 from pypit.core import arsetup
 from pypit.armsgs import PypitError
-from pypit import arsciexp
 
 
 @pytest.fixture
