@@ -56,7 +56,7 @@ def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=F
         ret.append(tilts)
     if datasec:
         datasec_img, naxis0, naxis1 = arprocimg.get_datasec_trimmed(
-            'shane_kast_blue', None, settings['detector']['numamplifiers'], 1, settings['detector'],
+            'shane_kast_blue', None, 1, settings['detector'],
             naxis0=settings['detector']['naxis0'], naxis1=settings['detector']['naxis1'])
         ret.append(datasec_img)
     if wvcalib:

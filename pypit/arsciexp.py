@@ -28,6 +28,7 @@ class ScienceExposure:
                  idx_sci=None):
 
         # Set indices used for frame combination
+        msgs.error("DEPRECATED")
         self.sci_ID = sci_ID  # Binary 1,2,4,8,..
         self._idx_sci = np.where((fitstbl['sci_ID'] == sci_ID) & fitstbl['science'])[0]
         if idx_sci is not None:

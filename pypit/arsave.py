@@ -637,8 +637,14 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
     """ Write 2D images to the hard drive
     Parameters
     ----------
-    slf
-    clobber
+    sci_output : dict
+    fitstbl
+    scidx
+    ext0
+    setup
+    mfdir
+    outdir
+    basename
 
     Returns
     -------

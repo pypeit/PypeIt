@@ -266,6 +266,9 @@ def flexure_obj(specobjs, maskslits, method, spectrograph,
 
     Parameters:
     ----------
+    method : str
+      'boxcar' -- Recommneded
+      'slitpix' --
 
     Returns:
     ----------
@@ -359,10 +362,14 @@ def geomotion_correct(specobjs, maskslits, fitstbl, scidx, time, settings_mosaic
 
     Parameters
     ----------
-    det : int
-      Detector index
-    fitsdict : dict
-      Dictionary containing the properties of every fits file
+    specobjs
+    maskslits
+    fitstbl : Table
+      Containing the properties of every fits file
+    scidx
+    time
+    settings_mosaic
+    refframe
 
     Returns
     -------

@@ -285,6 +285,11 @@ def instconfig(fitsrow=None, binning=None):
     Parameters
     ----------
     fitsrow : Row
+    binnings : str, optional
+
+    Returns
+    -------
+    config : str
     """
 
     config_dict = OrderedDict()
@@ -318,17 +323,17 @@ def instconfig(fitsrow=None, binning=None):
     return config
 
 
-def dummy_specobj(fitsdict, det=1, extraction=True):
+def dummy_specobj(fitstbl, det=1, extraction=True):
     """ Generate dummy specobj classes
     Parameters
     ----------
-    fitsdict : dict
+    fitstbl : Table
       Expecting the fitsdict from dummy_fitsdict
     Returns
     -------
 
     """
-    shape = fitsdict['naxis1'][0], fitsdict['naxis0'][0]
+    shape = fitstbl['naxis1'][0], fitstbl['naxis0'][0]
     config = 'AA'
     scidx = 5 # Could be wrong
     xslit = (0.3,0.7) # Center of the detector

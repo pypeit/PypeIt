@@ -20,6 +20,7 @@ from pypit.core import arsort
 from pypit import arutils
 from pypit import masterframe
 from pypit import ginga
+from pypit import traceimage
 
 from scipy import ndimage
 

@@ -19,7 +19,7 @@ from linetools.spectra.io import readspec
 import pypit
 #from pypit import msgs
 from pypit import arsciexp
-from pypit import arwave
+from pypit.core import arwave
 from pypit import arparse as settings
 
 
