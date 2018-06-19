@@ -7,7 +7,7 @@ from __future__ import unicode_literals
 import pytest
 
 from pypit import pyputils
-from pypit import armasters
+from pypit.core import armasters
 
 msgs = pyputils.get_dummy_logger()
 

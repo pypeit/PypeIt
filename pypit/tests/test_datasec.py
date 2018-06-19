@@ -27,7 +27,7 @@ def test_ampsec(fitstbl):
     dnum = 'det01'
     settings_det = settings.spect[dnum].copy()  # Should include naxis0, naxis1 in this
     datasec_img, naxis0, naxis1 = arprocimg.get_datasec_trimmed(
-        settings.argflag['run']['spectrograph'], None, namp, det, settings_det,
+        settings.argflag['run']['spectrograph'], None, det, settings_det,
         naxis0=fitstbl['naxis0'][scidx],
         naxis1=fitstbl['naxis1'][scidx])
     # Test

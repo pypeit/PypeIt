@@ -11,11 +11,10 @@ from astropy.time import Time
 from astropy.coordinates import SkyCoord
 from astropy import units
 
-from pypit import arparse
-from pypit import arwave
+from pypit.core import arwave
 from pypit import arspecobj
-from pypit import arsciexp
 from pypit.core import arsort
+from .tstutils import load_kast_blue_masters
 
 mjd = 57783.269661
 RA = '07:06:23.45'
@@ -52,18 +51,26 @@ def test_geovelocity():
 def test_geocorrect(fitstbl):
     """
     """
-    # Initialize some settings
-    arparse.dummy_settings(spectrograph='shane_kast_blue')#, set_idx=False)
-    # Dummy self
-    slf = arsciexp.dummy_self(fitstbl=fitstbl)
-    # Specobjs
-    specobjs = arspecobj.dummy_specobj(fitstbl, extraction=True)
-    slf._specobjs[0] = [specobjs]
-    slf._maskslits[0] = np.array([False]*len(slf._specobjs[0]))
-    # Run
-    # vhel = x_keckhelio(106.59770833333332, 30.34736111111111, 2000., jd=2457046.5036, OBS='lick')  9.3166 km/s
-    helio, hel_corr = arwave.geomotion_correct(slf, 1, fitstbl)
-    assert np.isclose(helio, -9.3350877, rtol=1e-5)  # Checked against x_keckhelio
+    # Settings
+    settings = load_kast_blue_masters(get_settings=True)[0]
+    settings['mosaic'] = {}
+    settings['mosaic']['latitude'] = lat
+    settings['mosaic']['longitude'] = lon
+    settings['mosaic']['elevation'] = alt
+    settings['reduce'] = {}
+    settings['reduce']['calibrate'] = {}
+    settings['reduce']['calibrate']['refframe'] = 'heliocentric'
+    # Specobjs (wrap in a list to mimic a slit)
+    specobjs = [arspecobj.dummy_specobj(fitstbl, extraction=True)]
+    scidx = 5
+    tbname = fitstbl['date'][scidx]
+    obstime = Time(tbname, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
+    maskslits = np.array([False]*len(specobjs))
+
+    helio, hel_corr = arwave.geomotion_correct(specobjs, maskslits, fitstbl, scidx,
+                                             obstime, settings,
+                                             settings['reduce']['calibrate']['refframe'])
+    assert np.isclose(helio, -9.17461338, rtol=1e-5)  # Checked against x_keckhelio
     #assert np.isclose(helio, -9.3344957, rtol=1e-5)  # Original
-    assert np.isclose(slf._specobjs[0][0][0].boxcar['wave'][0].value, 3999.8754558341816, rtol=1e-8)
+    assert np.isclose(specobjs[0][0].boxcar['wave'][0].value, 3999.877589008, rtol=1e-8)
 

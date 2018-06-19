@@ -9,7 +9,7 @@ import os
 
 from pypit import msgs
 from pypit import ardebug as debugger
-from pypit import armasters
+from pypit.core import armasters
 from pypit.core import arsort
 from pypit import processimages
 from pypit import masterframe
@@ -152,7 +152,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
                 return None
             else:
                 # Prevent over-writing the master frame when it is time to save
-                self.settings['reduce']['masters']['loaded'].append(self.frametype)
+                self.settings['masters']['loaded'].append(self.frametype)
         # Simple command?
         elif self.settings[self.frametype]['useframe'] in ['overscan', 'none']:
             if self.settings[self.frametype]['useframe'] == 'none':
@@ -162,7 +162,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         else:
             msframe_name = self.settings['run']['directory']['master']+u'/'+self.settings[self.frametype]['useframe']
             msframe, head, _ = armasters._core_load(msframe_name, frametype=self.frametype)
-            self.settings['reduce']['masters']['loaded'].append(self.frametype+self.setup)
+            self.settings['masters']['loaded'].append(self.frametype+self.setup)
 
         # Put in
         self.stack = msframe

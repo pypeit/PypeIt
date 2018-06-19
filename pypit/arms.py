@@ -5,13 +5,15 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 import numpy as np
 import os
 
+from collections import OrderedDict
+
 from pypit import msgs
 from pypit import arparse as settings
 from pypit import arload
-from pypit import arproc
+from pypit import arutils
 from pypit.core import arprocimg
-from pypit import arsave
-from pypit import arsciexp
+from pypit.core import arsave
+from pypit.core import arwave
 from pypit.core import arsetup
 from pypit import arpixels
 from pypit.core import arsort
@@ -24,6 +26,7 @@ from pypit import traceslits
 from pypit import wavecalib
 from pypit import waveimage
 from pypit import wavetilts
+from pypit import scienceimage
 
 from pypit import ardebug as debugger
 
@@ -34,14 +37,10 @@ def ARMS(spectrograph, fitstbl, setup_dict):
 
     Parameters
     ----------
-    fitsdict : dict
+    spectrograph : str
+    fitstbl : Table
       Contains relevant information from fits header files
-    reuseMaster : bool
-      If True, a master frame that will be used for another science frame
-      will not be regenerated after it is first made.
-      This setting comes with a price, and if a large number of science frames are
-      being generated, it may be more efficient to simply regenerate the master
-      calibrations on the fly.
+    setup_dict : dict
 
     Returns
     -------
@@ -53,54 +52,42 @@ def ARMS(spectrograph, fitstbl, setup_dict):
     status = 0
 
     # Generate sciexp list, if need be (it will be soon)
-    sv_std_idx = []
+    #sv_std_idx = []
     std_dict = {}
-    basenames = []  # For fluxing at the very end
-    sciexp = []
+    #sciexp = []
     all_sci_ID = fitstbl['sci_ID'].data[fitstbl['science']]  # Binary system: 1,2,4,8, etc.
-    for sci_ID in all_sci_ID:
-        sciexp.append(arsciexp.ScienceExposure(sci_ID, fitstbl, settings.argflag,
-                                               settings.spect, do_qa=True))
-        basenames.append(sciexp[-1]._basename)
-        std_idx = arsort.ftype_indices(fitstbl, 'standard', sci_ID)
-        if (len(std_idx) > 0):
-            if len(std_idx) > 1:
-                msgs.warn("Will only reduce the first, unique standard for each standard frame!")
-            if std_idx[0] not in sv_std_idx:  # Only take the first one
-                sv_std_idx.append(std_idx[0])
-                # Standard stars
-                std_dict[std_idx[0]] = arsciexp.ScienceExposure(sci_ID, fitstbl, settings.argflag,
-                                                                settings.spect, do_qa=False, idx_sci=std_idx[0])
-    numsci = len(sciexp)
+    numsci = len(all_sci_ID)
+    basenames = [None]*numsci  # For fluxing at the very end
 
     # Init calib dict
     calib_dict = {}
 
-    # Loop on Detectors
-    for kk in range(settings.spect['mosaic']['ndet']):
-        det = kk + 1  # Detectors indexed from 1
-        if settings.argflag['reduce']['detnum'] is not None:
-            if det not in map(int, settings.argflag['reduce']['detnum']):
-                msgs.warn("Skipping detector {:d}".format(det))
-                continue
-            else:
-                msgs.warn("Restricting the reduction to detector {:d}".format(det))
 
-        # Loop on science exposure (somewhat necessary as instruments can get paired with specific
-        #  calib frames, e.g. arcs)
-        for sc in range(numsci):
-
-            #sci_ID = slf.sci_ID
-            sci_ID = all_sci_ID[sc]
-            scidx = np.where((fitstbl['sci_ID'] == sci_ID) & fitstbl['science'])[0][0]
-            #scidx = slf._idx_sci[0]
-            msgs.info("Reducing file {0:s}, target {1:s}".format(fitstbl['filename'][scidx],
-                                                                 fitstbl['target'][scidx])) #slf._target_name))
-
+    # Loop on science exposure first
+    #  calib frames, e.g. arcs)
+    for sc in range(numsci):
+        # Init
+        sci_dict = OrderedDict()  # This needs to be ordered
+        sci_dict['meta'] = {}
+        sci_dict['meta']['vel_corr'] = 0.
+        sci_ID = all_sci_ID[sc]
+        scidx = np.where((fitstbl['sci_ID'] == sci_ID) & fitstbl['science'])[0][0]
+        msgs.info("Reducing file {0:s}, target {1:s}".format(fitstbl['filename'][scidx],
+                                                             fitstbl['target'][scidx])) #slf._target_name))
+        # Loop on Detectors
+        for kk in range(settings.spect['mosaic']['ndet']):
+            det = kk + 1  # Detectors indexed from 1
+            if settings.argflag['reduce']['detnum'] is not None:
+                if det not in map(int, settings.argflag['reduce']['detnum']):
+                    msgs.warn("Skipping detector {:d}".format(det))
+                    continue
+                else:
+                    msgs.warn("Restricting the reduction to detector {:d}".format(det))
+            # Setup
             dnum = settings.get_dnum(det)
             msgs.info("Working on detector {:s}".format(dnum))
+            sci_dict[det] = {}
 
-            # Setup
             namp = settings.spect[dnum]["numamplifiers"]
             setup = arsetup.instr_setup(sci_ID, det, fitstbl, setup_dict, namp, must_exist=True)
             settings.argflag['reduce']['masters']['setup'] = setup
@@ -111,9 +98,11 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             scifile = os.path.join(fitstbl['directory'][scidx],fitstbl['filename'][scidx])
             settings_det = settings.spect[dnum].copy()  # Should include naxis0, naxis1 in this
             datasec_img, naxis0, naxis1 = arprocimg.get_datasec_trimmed(
-                settings.argflag['run']['spectrograph'], scifile, namp, det, settings_det,
+                settings.argflag['run']['spectrograph'], scifile, det, settings_det,
                 naxis0=fitstbl['naxis0'][scidx],
                 naxis1=fitstbl['naxis1'][scidx])
+            # Binning
+            settings_det['binning'] = fitstbl['binning'][0]
             # Yes, this looks goofy.  Is needed for LRIS and DEIMOS for now
             settings.spect[dnum] = settings_det.copy()  # Used internally..
             fitstbl['naxis0'][scidx] = naxis0
@@ -284,34 +273,104 @@ def ARMS(spectrograph, fitstbl, setup_dict):
 
 
             ###############
-            # Load the science frame and from this generate a Poisson error frame
-            msgs.info("Loading science frame")
-            sciframe = arload.load_frames(fitstbl, [scidx], det,
-                                          frametype='science',
-                                          msbias=msbias)
-            sciframe = sciframe[:, :, 0]
-            # Extract
-            msgs.info("Processing science frame")
+            #  Process and extract the science frame
+            msgs.info("Working on the science frame")
+            sci_image_files = arsort.list_of_files(fitstbl, 'science', sci_ID)
+            # Settings
+            sci_settings = tsettings.copy()
+            # Instantiate
+            sciI = scienceimage.ScienceImage(file_list=sci_image_files, datasec_img=datasec_img,
+                                             bpm=msbpm, det=det, setup=setup, settings=sci_settings,
+                                             maskslits=maskslits, pixlocn=pixlocn, tslits_dict=tslits_dict,
+                                             tilts=mstilts, fitstbl=fitstbl, scidx=scidx)
+            msgs.sciexp = sciI  # For QA on crash
+            # Names and time
+            obstime, basename = sciI.init_time_names(settings.spect['mosaic']['camera'],
+                            timeunit=settings.spect["fits"]["timeunit"])
+            if basenames[sc] is None:
+                basenames[sc] = basename
 
-            slf = sciexp[sc]
-            slf.det = det
-            slf.setup = setup
-            msgs.sciexp = slf  # For QA on crash
-            # Save in slf
-            # TODO -- Deprecate this means of holding the info (e.g. just pass around traceSlits)
-            slf.SetFrame(slf._lordloc, tslits_dict['lcen'], det)
-            slf.SetFrame(slf._rordloc, tslits_dict['rcen'], det)
-            slf.SetFrame(slf._pixcen, tslits_dict['pixcen'], det)
-            slf.SetFrame(slf._pixwid, tslits_dict['pixwid'], det)
-            slf.SetFrame(slf._lordpix, tslits_dict['lordpix'], det)
-            slf.SetFrame(slf._rordpix, tslits_dict['rordpix'], det)
-            slf.SetFrame(slf._slitpix, tslits_dict['slitpix'], det)
-            # TODO -- Deprecate using slf for this
-            slf.SetFrame(slf._pixlocn, pixlocn, det)
-            #
-            slf._maskslits[det-1] = maskslits
-            arproc.reduce_multislit(slf, mstilts, sciframe, msbpm, datasec_img, scidx, fitstbl, det,
-                                    mswave, mspixelflatnrm=mspixflatnrm, slitprof=slitprof)
+            # Process (includes Variance image and CRs)
+            dnoise = (settings_det['darkcurr'] * float(fitstbl["exptime"][scidx])/3600.0)
+            sciframe, rawvarframe, crmask = sciI._process(
+                msbias, mspixflatnrm, apply_gain=True, dnoise=dnoise)
+
+            # Global skysub
+            settings_skysub = {}
+            settings_skysub['skysub'] = settings.argflag['reduce']['skysub'].copy()
+            if settings.argflag['reduce']['skysub']['perform']:
+                global_sky, modelvarframe = sciI.global_skysub(settings_skysub)
+            else:
+                sciI.global_sky = np.zeros_like(sciframe)
+                sciI.modelvarframe = np.zeros_like(sciframe)
+
+            # Find objects
+            _, nobj = sciI.find_objects()
+            if nobj == 0:
+                msgs.warn("No objects to extract for science frame" + msgs.newline() + fitstbl['filename'][scidx])
+                specobjs, flg_objs = [], None
+            else:
+                flg_objs = True  # Objects were found
+
+            # Another round of sky sub
+            if settings.argflag['reduce']['skysub']['perform'] and flg_objs:
+                global_sky, modelvarframe = sciI.global_skysub(settings_skysub,
+                                                               use_tracemask=True)
+
+            # Another round of finding objects
+            if flg_objs:
+                _, nobj = sciI.find_objects()
+                if nobj == 0:
+                    msgs.warn("No objects to extract for science frame" + msgs.newline() + fitstbl['filename'][scidx])
+                    specobjs, flg_objs = [], None
+
+            # Extraction
+            if flg_objs:
+                specobjs, finalvar, finalsky = sciI.extraction(mswave)
+
+            # Flexure correction?
+            if settings.argflag['reduce']['flexure']['perform'] and flg_objs:
+                if settings.argflag['reduce']['flexure']['method'] is not None:
+                    flex_list = arwave.flexure_obj(
+                        specobjs, maskslits, settings.argflag['reduce']['flexure']['method'],
+                        spectrograph,
+                        skyspec_fil = settings.argflag['reduce']['flexure']['spectrum'],
+                        mxshft = settings.argflag['reduce']['flexure']['maxshift'])
+                    # QA
+                    arwave.flexure_qa(specobjs, maskslits, basename, det, flex_list)
+
+            # Helio
+            # Correct Earth's motion
+            vel_corr = -999999.9
+            if (settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']) and \
+                    (settings.argflag['reduce']['calibrate']['wavelength'] != "pixel") and flg_objs:
+                if settings.argflag['science']['extraction']['reuse']:
+                    msgs.warn("{0:s} correction will not be applied if an extracted science frame exists, and is used".format(settings.argflag['reduce']['calibrate']['refframe']))
+                if specobjs is not None:
+                    msgs.info("Performing a {0:s} correction".format(settings.argflag['reduce']['calibrate']['refframe']))
+                    settings_mosaic = {}  # For long, lat of observatory
+                    settings_mosaic['mosaic'] = settings.spect['mosaic'].copy()
+                    vel, vel_corr = arwave.geomotion_correct(specobjs, maskslits, fitstbl, scidx,
+                                                             obstime, settings_mosaic,
+                                                             settings.argflag['reduce']['calibrate']['refframe'])
+                else:
+                    msgs.info("There are no objects on detector {0:d} to perform a {1:s} correction".format(
+                        det, settings.argflag['reduce']['calibrate']['refframe']))
+            else:
+                msgs.info("A heliocentric correction will not be performed")
+
+            # Save for outputing (after all detectors are done)
+            sci_dict[det]['sciframe'] = sciframe
+            if vel_corr > -999999.9:
+                sci_dict['meta']['vel_corr'] = vel_corr
+            if flg_objs:
+                sci_dict[det]['specobjs'] = arutils.unravel_specobjs([specobjs])
+                sci_dict[det]['finalvar'] = finalvar
+                sci_dict[det]['finalsky'] = finalsky
+            else:  # Nothing extracted
+                sci_dict[det]['specobjs'] = []
+                sci_dict[det]['finalvar'] = sciI.modelvarframe
+                sci_dict[det]['finalsky'] = sciI.global_sky
 
 
             ######################################################
@@ -320,48 +379,82 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             if len(std_idx) > 0:
                 std_idx = std_idx[0]
             else:
+                msgs.info("No standard star associated with this science frame")
                 continue
-            stdslf = std_dict[std_idx]
-            if stdslf.extracted[det-1] is False:
-                # Fill up the necessary pieces
-                for iattr in ['pixlocn', 'lordloc', 'rordloc', 'pixcen', 'pixwid', 'lordpix', 'rordpix',
-                              'slitpix', 'satmask', 'maskslits', 'mswave']:
-                    setattr(stdslf, '_'+iattr, getattr(slf, '_'+iattr))  # Brings along all the detectors, but that is ok
-                # Load
-                stdframe = arload.load_frames(fitstbl, [std_idx], det, frametype='standard', msbias=msbias)
-                stdframe = stdframe[:, :, 0]
-                # Reduce
-                msgs.info("Processing standard frame")
-                arproc.reduce_multislit(stdslf, mstilts, stdframe, msbpm, datasec_img, std_idx, fitstbl, det,
-                                        mswave, mspixelflatnrm=mspixflatnrm, standard=True, slitprof=slitprof)
-                # Finish
-                stdslf.extracted[det-1] = True
+            #
+            std_image_files = arsort.list_of_files(fitstbl, 'standard', sci_ID)
+            if std_idx in std_dict.keys():
+                if det in std_dict[std_idx].keys():
+                    continue
+            else:
+                std_dict[std_idx] = {}
+
+            # Instantiate for the Standard
+            stdI = scienceimage.ScienceImage(file_list=std_image_files, datasec_img=datasec_img,
+                                             bpm=msbpm, det=det, setup=setup, settings=sci_settings,
+                                             maskslits=maskslits, pixlocn=pixlocn, tslits_dict=tslits_dict,
+                                             tilts=mstilts, fitstbl=fitstbl, scidx=std_idx,
+                                             objtype='standard')
+            # Names and time
+            _, std_basename = stdI.init_time_names(settings.spect['mosaic']['camera'],
+                                                     timeunit=settings.spect["fits"]["timeunit"])
+            # Process (includes Variance image and CRs)
+            stdframe, _, _ = stdI._process(msbias, mspixflatnrm, apply_gain=True, dnoise=dnoise)
+            # Sky
+            _ = stdI.global_skysub(settings_skysub)
+            # Find objects
+            _, nobj = stdI.find_objects()
+            if nobj == 0:
+                msgs.warn("No objects to extract for standard frame" + msgs.newline() + fitstbl['filename'][scidx])
+                continue
+            _ = stdI.global_skysub(settings_skysub, use_tracemask=True)
+            # Extract
+            stdobjs, _, _ = sciI.extraction(mswave)
+            # Save for fluxing and output later
+            std_dict[std_idx][det] = {}
+            std_dict[std_idx][det]['basename'] = std_basename
+            std_dict[std_idx][det]['specobjs'] = arutils.unravel_specobjs([stdobjs])
 
         ###########################
         # Write
+        # Build the final list of specobjs and vel_corr
+        all_specobjs = []
+        for key in sci_dict:
+            if key in ['meta']:
+                continue
+            #
+            all_specobjs += sci_dict[key]['specobjs']
+
         # Write 1D spectra
         save_format = 'fits'
         if save_format == 'fits':
-            outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename)
+            outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(basename)
             helio_dict = dict(refframe=settings.argflag['reduce']['calibrate']['refframe'],
-                              vel_correction=slf.vel_correction)
-            arsave.save_1d_spectra_fits(slf._specobjs, fitstbl[slf._idx_sci[0]], outfile,
+                              vel_correction=sci_dict['meta']['vel_corr'])
+            arsave.save_1d_spectra_fits(all_specobjs, fitstbl[scidx], outfile,
                                             helio_dict=helio_dict, obs_dict=settings.spect['mosaic'])
-            #arsave.save_1d_spectra_fits(slf, fitstbl)
         elif save_format == 'hdf5':
-            arsave.save_1d_spectra_hdf5(slf)
+            debugger.set_trace()  # NEEDS REFACTORINGj
+            arsave.save_1d_spectra_hdf5(None)
         else:
             msgs.error(save_format + ' is not a recognized output format!')
-        arsave.save_obj_info(slf, fitstbl)
+        # Obj info
+        arsave.save_obj_info(all_specobjs, fitstbl, settings.spect, basename,
+            settings.argflag['run']['directory']['science'])
         # Write 2D images for the Science Frame
-        arsave.save_2d_images(slf, fitstbl)
-        # Free up some memory by replacing the reduced ScienceExposure class
-        sciexp[sc] = None
+        arsave.save_2d_images(
+            sci_dict, fitstbl, scidx,
+            settings.spect['fits']['headext{0:02d}'.format(1)], setup,
+            settings.argflag['run']['directory']['master']+'_'+spectrograph, # MFDIR
+            settings.argflag['run']['directory']['science'], basename)
 
-    # Write standard stars
-    for key in std_dict.keys():
-        outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(std_dict[key]._basename)
-        arsave.save_1d_spectra_fits(std_dict[key]._specobjs, fitstbl[std_idx], outfile,
+    # Write standard stars at the very end
+    for std_idx in std_dict.keys():
+        all_std_objs = []
+        for det in std_dict[std_idx].keys():
+            all_std_objs += std_dict[std_idx][det]['specobjs']
+        outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(std_dict[std_idx][det]['basename'])
+        arsave.save_1d_spectra_fits(all_std_objs, fitstbl[std_idx], outfile,
                                         obs_dict=settings.spect['mosaic'])
 
     #########################
@@ -379,12 +472,16 @@ def ARMS(spectrograph, fitstbl, setup_dict):
         fsettings['run'] = settings.argflag['run']
         fsettings['reduce'] = settings.argflag['reduce']
         # Generate?
-        if (settings.argflag['reduce']['calibrate']['sensfunc']['archival'] == 'None'):
-            std_keys = list(std_dict.keys())
-            std_key = std_keys[0] # Take the first extraction
-            FxSpec = fluxspec.FluxSpec(settings=fsettings, std_specobjs=std_dict[std_key]._specobjs,
+        if settings.argflag['reduce']['calibrate']['sensfunc']['archival'] == 'None':
+            # Take the first standard
+            std_idx = list(std_dict.keys())[0]
+            # Build the list of stdobjs
+            all_std_objs = []
+            for det in std_dict[std_idx].keys():
+                all_std_objs += std_dict[std_idx][det]['specobjs']
+            FxSpec = fluxspec.FluxSpec(settings=fsettings, std_specobjs=all_std_objs,
                                        setup=setup)  # This takes the last setup run, which is as sensible as any..
-            sensfunc = FxSpec.master(fitstbl[std_key])
+            sensfunc = FxSpec.master(fitstbl[std_idx])
         else:  # Input by user
             FxSpec = fluxspec.FluxSpec(settings=fsettings,
                                        sens_file=settings.argflag['reduce']['calibrate']['sensfunc']['archival'])
@@ -392,7 +489,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
         # Flux
         msgs.info("Fluxing with {:s}".format(sensfunc['std']['name']))
         for kk, sci_ID in enumerate(all_sci_ID):
-            # Load from disk (we zero'd out the class to free memory)
+            # Load from disk (we zero'd out the object to free memory)
             if save_format == 'fits':
                 sci_spec1d_file = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(
                     basenames[kk])

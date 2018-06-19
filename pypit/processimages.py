@@ -12,6 +12,7 @@ from pypit import ardebug as debugger
 from pypit import arcomb
 from pypit import arload
 from pypit.core import arprocimg
+from pypit.core import arflat
 from pypit import ginga
 
 
@@ -29,7 +30,9 @@ def default_settings():
     default_settings = dict(detector={'numamplifiers': 1,   # This dict is not complete; consider readnoise, binning
                                   'saturation': 60000.,  # Spectra aligned with columns
                                   'dispaxis': 0,  # Spectra aligned with columns
-                                  'dataext': None},
+                                  'dataext': None,
+                                  'gain': [1.],
+                                      },
                         combine={'match': -1.,
                                  'satpix': 'reject',
                                  'method': 'weightmean',
@@ -39,6 +42,7 @@ def default_settings():
                                             'replace': 'maxnonsat'}}
                         )
     return default_settings
+
 
 class ProcessImages(object):
     """Base class to guide image loading+processing
@@ -72,7 +76,7 @@ class ProcessImages(object):
     oscansec : list
     """
     def __init__(self, file_list, spectrograph=None, settings=None, det=1, user_settings=None,
-                 datasec_img=None):
+                 datasec_img=None, bpm=None):
 
         # Required parameters
         if not isinstance(file_list, list):
@@ -82,6 +86,8 @@ class ProcessImages(object):
         # Optional
         self.det = det
         self.datasec_img = datasec_img
+        self.bpm = bpm
+
         if settings is None:
             self.settings = default_settings()
         else:
@@ -302,7 +308,50 @@ class ProcessImages(object):
         self.steps.append(inspect.stack()[0][3])
         return self.stack
 
-    def process(self, bias_subtract=None, apply_gain=False, trim=True, overwrite=False):
+    def build_crmask(self, varframe=None):
+        """
+        Generate the CR mask frame
+
+        Wrapper to arprocimg.lacosmic
+
+        Parameters
+        ----------
+        varframe : ndarray, optional
+
+        Returns
+        -------
+        self.crmask : ndarray
+          1. = Masked CR
+
+        """
+        self.crmask = arprocimg.lacosmic(self.det, self.stack, self.settings['detector'],
+                                    grow=1.5, varframe=varframe)
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.crmask
+
+    def flat_field(self):
+        """
+        Flat field the stack image
+
+        Wrapper to arflat.flatfield()
+
+        Returns
+        -------
+        self.stack : ndarray
+          Flat fielded
+
+        """
+        if self.bpm is None:
+            msgs.error("Need to set the BPM image, even if all zeros")
+        self.stack = arflat.flatfield(self.stack, self.pixel_flat, self.bpm, slitprofile=self.slitprof)
+        return self.stack
+
+
+    def process(self, bias_subtract=None, apply_gain=False,
+                trim=True, overwrite=False,
+                pixel_flat=None, slitprof=None):
         """
         Process the images from loading to combining
 
@@ -325,9 +374,10 @@ class ProcessImages(object):
             msgs.warn("Images already combined.  Use overwrite=True to do it again.")
             return
 
-        # Allow for one-stop-shopping
+        # Load images
         if 'load_images' not in self.steps:
             self.load_images()
+        # Bias subtract
         if (bias_subtract is not None):
             self.bias_subtract(bias_subtract, trim=trim)
         else:
@@ -343,23 +393,47 @@ class ProcessImages(object):
             for kk,image in enumerate(self.raw_images):
                 self.proc_images[:,:,kk] = image
         # Combine
-        self.stack = self.combine()
+        if self.proc_images.shape[2] == 1:  # Nothing to combine
+            self.stack = self.proc_images[:,:,0]
+        else:
+            self.stack = self.combine()
 
         # Apply gain?
         if apply_gain:
             self.apply_gain(self.datasec_img)
 
+        # Flat field?
+        if pixel_flat is not None:
+            self.pixel_flat = pixel_flat
+            self.slitprof = slitprof
+            self.stack = self.flat_field()
+
+        # Done
         return self.stack.copy()
 
-    def flat_field(self):
+    def build_rawvarframe(self, dnoise=None):
         """
-        Coming soon
+        Generate the Raw Variance frame
+
+        Wrapper to arprocimg.variance_frame
+
+        Parameters
+        ----------
+        dnoise : float
+          Noise related to dark current (generally 0.)
 
         Returns
         -------
+        self.rawvarframe : ndarray
 
         """
-        pass
+        msgs.info("Generate raw variance frame (from detected counts [flat fielded])")
+        self.rawvarframe = arprocimg.variance_frame(self.datasec_img, self.det, self.stack,
+                                               self.settings['detector'], dnoise=dnoise)
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+        # Return
+        return self.rawvarframe
 
     def show(self, attr, idx=None, display='ginga'):
         """

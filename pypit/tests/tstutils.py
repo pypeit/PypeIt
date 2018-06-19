@@ -15,11 +15,20 @@ from pypit import processimages
 
 pypdev_path = os.getenv('PYPIT_DEV')
 
+
+def data_path(filename):
+    data_dir = os.path.join(os.path.dirname(__file__), 'files')
+    return os.path.join(data_dir, filename)
+
+
 def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=False,
                            datasec=False, wvcalib=False):
     settings = processimages.default_settings()
     settings['masters'] = {}
-    settings['masters']['directory'] = pypdev_path + '/Cooked/MF_shane_kast_blue'
+    if pypdev_path is not None:
+        settings['masters']['directory'] = pypdev_path + '/Cooked/MF_shane_kast_blue'
+    else:
+        settings['masters']['directory'] = data_path('MF')+'_shane_kast_blue'
     settings['masters']['reuse'] = True
     settings['masters']['loaded'] = []
 
@@ -56,7 +65,7 @@ def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=F
         ret.append(tilts)
     if datasec:
         datasec_img, naxis0, naxis1 = arprocimg.get_datasec_trimmed(
-            'shane_kast_blue', None, settings['detector']['numamplifiers'], 1, settings['detector'],
+            'shane_kast_blue', None, 1, settings['detector'],
             naxis0=settings['detector']['naxis0'], naxis1=settings['detector']['naxis1'])
         ret.append(datasec_img)
     if wvcalib:

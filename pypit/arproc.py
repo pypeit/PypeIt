@@ -1,31 +1,27 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import time
-import inspect
 
 import numpy as np
 import os
 
 from scipy import signal, ndimage, interpolate
 
-from matplotlib import pyplot as plt
-from matplotlib import gridspec, font_manager
 
 from astropy import units
 from astropy.io import fits
 
 from pypit import msgs
 
-from pypit import arextract
+from pypit.core import arextract
 from pypit.core import arprocimg
 from pypit.core import arflat
+from pypit.core import arwave
 from pypit import artrace
 from pypit import arutils
 from pypit import arparse as settings
 from pypit import arspecobj
-from pypit import arqa
 from pypit import arpca
-from pypit import arwave
 
 from pypit import ardebug as debugger
 
@@ -183,160 +179,6 @@ def bg_subtraction(slf, tilts, det, sciframe, varframe, bpix, crpix, **kwargs):
     return bgframe
 
 
-def bg_subtraction_slit(slf, det, slit, tilts, sciframe, varframe, bpix, crpix, tracemask=None,
-                   rejsigma=3.0, maskval=-999999.9):
-    """ Extract a science target and background flux
-    :param slf:
-    :param sciframe:
-    :param varframe:
-    :return:
-    """
-    bgframe = np.zeros_like(sciframe)
-    # Set some starting parameters (maybe make these available to the user)
-    msgs.work("Should these parameters be made available to the user?")
-    polyorder, repeat = 5, 1
-    # Begin the algorithm
-    errframe = np.sqrt(varframe)
-    # Find which pixels are within the order edges
-    msgs.info("Identifying pixels within each order")
-#    print('calling order_pixels')
-#    t = time.clock()
-#    _ordpix = arcyutils.order_pixels(slf._pixlocn[det-1],
-#                                     slf._lordloc[det-1]*0.95+slf._rordloc[det-1]*0.05,
-#                                     slf._lordloc[det-1]*0.05+slf._rordloc[det-1]*0.95)
-#    print('Old order_pixels: {0} seconds'.format(time.clock() - t))
-#    t = time.clock()
-    ordpix = new_order_pixels(slf._pixlocn[det-1],
-                              slf._lordloc[det-1]*0.95+slf._rordloc[det-1]*0.05,
-                              slf._lordloc[det-1]*0.05+slf._rordloc[det-1]*0.95)
-#    print('New order_pixels: {0} seconds'.format(time.clock() - t))
-#    assert np.sum(_ordpix != ordpix) == 0, \
-#                    'Difference between old and new order_pixels'
-
-    msgs.info("Applying bad pixel mask")
-    ordpix *= (1-bpix.astype(np.int)) * (1-crpix.astype(np.int))
-    if tracemask is not None: ordpix *= (1-tracemask.astype(np.int))
-    # Construct an array of pixels to be fit with a spline
-    msgs.bug("Remember to include the following in a loop over order number")
-    #whord = np.where(ordpix != 0)
-
-    whord = np.where(ordpix == slit+1)
-    xvpix  = tilts[whord]
-    scipix = sciframe[whord]
-    varpix = varframe[whord]
-    xargsrt = np.argsort(xvpix, kind='mergesort')
-    sxvpix  = xvpix[xargsrt]
-    sscipix = scipix[xargsrt]
-    svarpix = varpix[xargsrt]
-    # Reject deviant pixels -- step through every 1.0/sciframe.shape[0] in sxvpix and reject significantly deviant pixels
-    edges = np.linspace(min(0.0,np.min(sxvpix)),max(1.0,np.max(sxvpix)),sciframe.shape[0])
-    fitcls = np.zeros(sciframe.shape[0])
-    #if tracemask is None:
-    if True:
-        maskpix = np.zeros(sxvpix.size)
-        msgs.info("Identifying pixels containing the science target")
-        msgs.work("Speed up this step in cython")
-        for i in range(sciframe.shape[0]-1):
-            wpix = np.where((sxvpix>=edges[i]) & (sxvpix<=edges[i+1]))
-            if (wpix[0].size>5):
-                txpix = sxvpix[wpix]
-                typix = sscipix[wpix]
-                msk, cf = arutils.robust_polyfit(txpix, typix, 0, sigma=rejsigma)
-                maskpix[wpix] = msk
-                #fitcls[i] = cf[0]
-                wgd=np.where(msk == 0)
-                szt = np.size(wgd[0])
-                if szt > 8:
-                    fitcls[i] = np.mean(typix[wgd][szt//2-3:szt//2+4]) # Average the 7 middle pixels
-                    #fitcls[i] = np.mean(np.random.shuffle(typix[wgd])[:5]) # Average the 5 random pixels
-                else:
-                    fitcls[i] = cf[0]
-    else:
-        msgs.work("Speed up this step in cython")
-        for i in range(sciframe.shape[0]-1):
-            wpix = np.where((sxvpix >= edges[i]) & (sxvpix <= edges[i+1]))
-            typix = sscipix[wpix]
-            szt = typix.size
-            if szt > 8:
-                fitcls[i] = np.mean(typix[szt//2-3:szt//2+4])  # Average the 7 middle pixels
-            elif szt != 0:
-                fitcls[i] = np.mean(typix)
-            else:
-                fitcls[i] = 0.0
-        # Trace the sky lines to get a better estimate of the tilts
-        scicopy = sciframe.copy()
-        scicopy[np.where(ordpix == slit)] = maskval
-        scitilts, _ = artrace.model_tilt(slf, det, scicopy, guesstilts=tilts.copy(), censpec=fitcls, maskval=maskval, plotQA=True)
-        xvpix  = scitilts[whord]
-        scipix = sciframe[whord]
-        varpix = varframe[whord]
-        mskpix = tracemask[whord]
-        xargsrt = np.argsort(xvpix, kind='mergesort')
-        sxvpix  = xvpix[xargsrt]
-        sscipix = scipix[xargsrt]
-        svarpix = varpix[xargsrt]
-        maskpix = mskpix[xargsrt]
-    # Check the mask is reasonable
-    scimask = sciframe.copy()
-    rxargsrt = np.argsort(xargsrt, kind='mergesort')
-    scimask[whord] *= (1.0-maskpix)[rxargsrt]
-    #arutils.ds9plot(scimask)
-    # Now trace the sky lines to get a better estimate of the spectral tilt during the observations
-    scifrcp = scimask.copy()
-    scifrcp[whord] += (maskval*maskpix)[rxargsrt]
-    scifrcp[np.where(ordpix != slit+1)] = maskval
-    # Check tilts? -- Can also be error in flat fielding or slit illumination
-    if msgs._debug['sky_sub']:
-        gdp = scifrcp != maskval
-        #debugger.xplot(tilts[gdp]*tilts.shape[0], scifrcp[gdp], scatter=True)
-        idx = 1893
-        if True:
-            plt.clf()
-            ax = plt.gca()
-            ax.scatter(tilts[idx-2,:], scifrcp[idx-2,:], color='green')
-            ax.scatter(tilts[idx-1,:], scifrcp[idx-1,:], color='blue')
-            ax.scatter(tilts[idx,:], scifrcp[idx,:], color='red')
-            ax.scatter(tilts[idx+1,:], scifrcp[idx+1,:], color='orange')
-            ax.set_ylim(0., 3000)
-            plt.show()
-            debugger.set_trace()
-    #
-    msgs.info("Fitting sky background spectrum")
-    if settings.argflag['reduce']['skysub']['method'].lower() == 'bspline':
-        msgs.info("Using bspline sky subtraction")
-        gdp = (scifrcp != maskval) & (ordpix == slit+1) & (varframe > 0.)
-        srt = np.argsort(tilts[gdp])
-        #bspl = arutils.func_fit(tilts[gdp][srt], scifrcp[gdp][srt], 'bspline', 3,
-        #                        **settings.argflag['reduce']['skysub']['bspline'])
-        ivar = arutils.calc_ivar(varframe)
-        mask, bspl = arutils.robust_polyfit(tilts[gdp][srt], scifrcp[gdp][srt], 3,
-                                            function='bspline',
-                                            weights=np.sqrt(ivar)[gdp][srt],
-                                            sigma=5., maxone=False,
-                                            bspline_par=settings.argflag['reduce']['skysub']['bspline'])
-        # Just those in the slit
-        in_slit = np.where(slf._slitpix[det-1] == slit+1)
-        bgf_flat = arutils.func_val(bspl, tilts[in_slit].flatten(), 'bspline')
-        #bgframe = bgf_flat.reshape(tilts.shape)
-        bgframe[in_slit] = bgf_flat
-        if msgs._debug['sky_sub']:
-            plt_bspline_sky(tilts, scifrcp, bgf_flat, in_slit, gdp)
-            debugger.set_trace()
-    else:
-        msgs.error('Not ready for this method for skysub {:s}'.format(
-                settings.argflag['reduce']['skysub']['method'].lower()))
-    if np.sum(np.isnan(bgframe)) > 0:
-        msgs.warn("NAN in bgframe.  Replacing with 0")
-        bad = np.isnan(bgframe)
-        bgframe[bad] = 0.
-    if msgs._debug['sky_sub']:
-        debugger.set_trace()
-        #debugger.show_image(sciframe-bgframe)
-    # Plot to make sure that the result is good
-    #arutils.ds9plot(bgframe)
-    #arutils.ds9plot(sciframe-bgframe)
-    return bgframe
-
 
 def get_wscale(slf):
     """
@@ -357,155 +199,6 @@ def get_wscale(slf):
     return wave
 
 
-def flexure_qa(slf, det, flex_list, slit_cen=False):
-    """ QA on flexure measurement
-
-    Parameters
-    ----------
-    slf
-    det
-    flex_list : list
-      list of dict containing flexure results
-    slit_cen : bool, optional
-      QA on slit center instead of objects
-
-    Returns
-    -------
-
-    """
-    plt.rcdefaults()
-    plt.rcParams['font.family']= 'times new roman'
-
-    # Grab the named of the method
-    method = inspect.stack()[0][3]
-    #
-    gdslits = np.where(~slf._maskslits[det-1])[0]
-    for sl in range(len(slf._specobjs[det-1])):
-        if sl not in gdslits:
-            continue
-        if slf._specobjs[det-1][sl][0] is None:
-            continue
-        # Setup
-        if slit_cen:
-            nobj = 1
-            ncol = 1
-        else:
-            nobj = len(slf._specobjs[det-1][sl])
-            ncol = min(3, nobj)
-        #
-        if nobj==0:
-            continue
-        nrow = nobj // ncol + ((nobj % ncol) > 0)
-
-        # Get the flexure dictionary
-        flex_dict = flex_list[sl]
-
-        # Outfile
-        outfile = arqa.set_qa_filename(slf._basename, method+'_corr', det=det,
-                                       slit=slf._specobjs[det-1][sl][0].slitid)
-
-        plt.figure(figsize=(8, 5.0))
-        plt.clf()
-        gs = gridspec.GridSpec(nrow, ncol)
-
-        # Correlation QA
-        for o in range(nobj):
-            ax = plt.subplot(gs[o//ncol, o % ncol])
-            # Fit
-            fit = flex_dict['polyfit'][o]
-            xval = np.linspace(-10., 10, 100) + flex_dict['corr_cen'][o] #+ flex_dict['shift'][o]
-            #model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
-            model = arutils.func_val(fit, xval, 'polynomial')
-            mxmod = np.max(model)
-            ylim = [np.min(model/mxmod), 1.3]
-            ax.plot(xval-flex_dict['corr_cen'][o], model/mxmod, 'k-')
-            # Measurements
-            ax.scatter(flex_dict['subpix'][o]-flex_dict['corr_cen'][o],
-                       flex_dict['corr'][o]/mxmod, marker='o')
-            # Final shift
-            ax.plot([flex_dict['shift'][o]]*2, ylim, 'g:')
-            # Label
-            if slit_cen:
-                ax.text(0.5, 0.25, 'Slit Center', transform=ax.transAxes, size='large', ha='center')
-            else:
-                ax.text(0.5, 0.25, '{:s}'.format(slf._specobjs[det-1][sl][o].idx), transform=ax.transAxes, size='large', ha='center')
-            ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(flex_dict['shift'][o]),
-                    transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
-            # Axes
-            ax.set_ylim(ylim)
-            ax.set_xlabel('Lag')
-
-        # Finish
-        plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        plt.savefig(outfile, dpi=600)
-        plt.close()
-
-        # Sky line QA (just one object)
-        if slit_cen:
-            o = 0
-        else:
-            o = 0
-            specobj = slf._specobjs[det-1][sl][o]
-        sky_spec = flex_dict['sky_spec'][o]
-        arx_spec = flex_dict['arx_spec'][o]
-
-        # Sky lines
-        sky_lines = np.array([3370.0, 3914.0, 4046.56, 4358.34, 5577.338, 6300.304,
-                  7340.885, 7993.332, 8430.174, 8919.610, 9439.660,
-                  10013.99, 10372.88])*units.AA
-        dwv = 20.*units.AA
-        gdsky = np.where((sky_lines > sky_spec.wvmin) & (sky_lines < sky_spec.wvmax))[0]
-        if len(gdsky) == 0:
-            msgs.warn("No sky lines for Flexure QA")
-            return
-        if len(gdsky) > 6:
-            idx = np.array([0, 1, len(gdsky)//2, len(gdsky)//2+1, -2, -1])
-            gdsky = gdsky[idx]
-
-        # Outfile
-        outfile = arqa.set_qa_filename(slf._basename, method+'_sky', det=det,
-                                       slit=slf._specobjs[det-1][sl][0].slitid)
-        # Figure
-        plt.figure(figsize=(8, 5.0))
-        plt.clf()
-        nrow, ncol = 2, 3
-        gs = gridspec.GridSpec(nrow, ncol)
-        if slit_cen:
-            plt.suptitle('Sky Comparison for Slit Center', y=1.05)
-        else:
-            plt.suptitle('Sky Comparison for {:s}'.format(specobj.idx), y=1.05)
-
-        for ii, igdsky in enumerate(gdsky):
-            skyline = sky_lines[igdsky]
-            ax = plt.subplot(gs[ii//ncol, ii % ncol])
-            # Norm
-            pix = np.where(np.abs(sky_spec.wavelength-skyline) < dwv)[0]
-            f1 = np.sum(sky_spec.flux[pix])
-            f2 = np.sum(arx_spec.flux[pix])
-            norm = f1/f2
-            # Plot
-            ax.plot(sky_spec.wavelength[pix], sky_spec.flux[pix], 'k-', label='Obj',
-                    drawstyle='steps-mid')
-            pix2 = np.where(np.abs(arx_spec.wavelength-skyline) < dwv)[0]
-            ax.plot(arx_spec.wavelength[pix2], arx_spec.flux[pix2]*norm, 'r-', label='Arx',
-                    drawstyle='steps-mid')
-            # Axes
-            ax.xaxis.set_major_locator(plt.MultipleLocator(dwv.value))
-            ax.set_xlabel('Wavelength')
-            ax.set_ylabel('Counts')
-
-        # Legend
-        plt.legend(loc='upper left', scatterpoints=1, borderpad=0.3,
-                   handletextpad=0.3, fontsize='small', numpoints=1)
-
-        # Finish
-        plt.savefig(outfile, dpi=800)
-        plt.close()
-        #plt.close()
-
-    plt.rcdefaults()
-
-    return
 
 
 def object_profile(slf, sciframe, slitn, det, refine=0.0, factor=3):
@@ -919,7 +612,7 @@ def reduce_multislit(slf, tilts, sciframe, bpix, datasec_img, scidx, fitsdict, d
         flex_dict = arwave.flexure_slit(slf, det)
         #if not msgs._debug['no_qa']:
 #        arqa.flexure(slf, det, flex_dict, slit_cen=True)
-        flexure_qa(slf, det, flex_dict, slit_cen=True)
+        arwave.flexure_qa(slf, det, flex_dict, slit_cen=True)
 
     # Perform an optimal extraction
     msgs.work("For now, perform extraction -- really should do this after the flexure+heliocentric correction")
@@ -1024,7 +717,7 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, datasec_img,
         if settings.argflag['reduce']['flexure']['method'] is not None:
             flex_list = arwave.flexure_obj(slf, det)
             #if not msgs._debug['no_qa']:
-            flexure_qa(slf, det, flex_list)
+            arwave.flexure_qa(slf, det, flex_list)
 
     # Correct Earth's motion
     if (settings.argflag['reduce']['calibrate']['refframe'] in ['heliocentric', 'barycentric']) and \
@@ -1045,42 +738,4 @@ def reduce_frame(slf, sciframe, rawvarframe, modelvarframe, bpix, datasec_img,
         slf._bgframe[det-1] += bgcorr_box
     # Return
     return True
-
-
-def new_order_pixels(pixlocn, lord, rord):
-    """
-    Based on physical pixel locations, determine which pixels are within the orders
-    """
-
-    sz_x, sz_y, _ = pixlocn.shape
-    sz_o = lord.shape[1]
-
-    outfr = np.zeros((sz_x, sz_y), dtype=int)
-
-    for y in range(sz_y):
-        for o in range(sz_o):
-            indx = (lord[:,o] < rord[:,o]) & (pixlocn[:,y,1] > lord[:,o])\
-                        & (pixlocn[:,y,1] < rord[:,o])
-            indx |= ( (lord[:,o] > rord[:,o]) & (pixlocn[:,y,1] < lord[:,o])
-                        & (pixlocn[:,y,1] > rord[:,o]) )
-            if np.any(indx):
-                # Only assign a single order to a given pixel
-                outfr[indx,y] = o+1
-                break
-
-    return outfr
-
-
-def plt_bspline_sky(tilts, scifrcp, bgf_flat, inslit, gdp):
-    # Setup
-    srt = np.argsort(tilts[inslit].flatten())
-    # Plot
-    plt.close()
-    plt.clf()
-    ax = plt.gca()
-    ax.scatter(tilts[gdp]*tilts.shape[0], scifrcp[gdp], marker='o')
-    ax.plot(tilts[inslit].flatten()[srt]*tilts.shape[0], bgf_flat[srt], 'r-')
-    plt.show()
-
-
 

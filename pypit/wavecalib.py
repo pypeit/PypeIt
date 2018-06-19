@@ -13,7 +13,7 @@ from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import masterframe
 from pypit.core import ararc
-from pypit import armasters
+from pypit.core import armasters
 from pypit.core import arsort
 
 # For out of PYPIT running

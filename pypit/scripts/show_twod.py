@@ -43,7 +43,7 @@ def main(args):
 
     import pypit.ginga
     from pypit import pyputils
-    from pypit import armasters
+    from pypit.core import armasters
     from pypit.arparse import get_dnum
     from pypit.core.artraceslits import get_slitid
 
@@ -86,7 +86,7 @@ def main(args):
         setup = '{:s}_{:s}_{:s}'.format(head0['PYPCNFIG'], sdet, head0['PYPCALIB'])
 
     # Load Tslits
-    trc_file = armasters.master_name('trace', setup, mdir=mdir)
+    trc_file = armasters.master_name('trace', setup, mdir)
     Tslits = traceslits.TraceSlits.from_master_files(trc_file)
 
     # Get slit ids
