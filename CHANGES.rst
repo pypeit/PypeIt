@@ -185,7 +185,7 @@
 
 - Adds bspline_profile() method;  Used here for skysub but will also show up in extraction
 - Introduces new skysub method;  still a bspline but now the new one
-- Adds several methods from the PYDL repository into a pydl.py module
+- Adds several methods from the PYDL repository into a pydl.py module including bspline Class
 - Adds method to generate ximg and edgemask frames
 - Adds new trace_slits_trim settings
 
