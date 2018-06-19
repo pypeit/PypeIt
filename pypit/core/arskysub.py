@@ -16,15 +16,20 @@ from pypit import arpixels
 
 from pypit import ardebug as debugger
 
-def bg_subtraction_slit(slit, tslits_dict, sciframe, varframe, tilts,
+
+def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
                         bpm=None, crmask=None, tracemask=None, bsp=0.6, sigrej=3.):
     """
+    Perform sky subtraction on an input slit
 
     Parameters
     ----------
     slit : int
       Slit number; indexed 1, 2,
-    tslits_dict
+    slitpix : ndarray
+      Specifies pixels in the slits
+    edgemask : ndarray
+      Mask edges of the slit
     sciframe : ndarray
       science frame
     varframe : ndarray
@@ -49,9 +54,6 @@ def bg_subtraction_slit(slit, tslits_dict, sciframe, varframe, tilts,
 
     """
 
-    # Unpack tslits
-    slitpix = tslits_dict['slitpix']
-    edge_mask = tslits_dict['edge_mask']
     # Init
     bgframe = np.zeros_like(sciframe)
     ivar = arutils.calc_ivar(varframe)
