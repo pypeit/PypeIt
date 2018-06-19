@@ -2688,6 +2688,71 @@ def trace_fweight(fimage, xinit, ycen=None, invvar=None, radius=2., debug=False)
     # Return
     return xnew, xerr
 
+
+def trace_gweight(fimage, xcen, ycen, sigma, invvar=None, maskval=-999999.9):
+    """ Determines the trace centroid by weighting the flux by the integral
+    of a Gaussian over a pixel
+    Port of SDSS trace_gweight algorithm
+
+    Parameters
+    ----------
+    fimage : ndarray
+      image to centroid on
+    xcen : ndarray
+      guess of centroids in x (column) dimension
+    ycen : ndarray (usually int)
+      guess of centroids in y (rows) dimension
+    sigma : float
+      Width of gaussian
+    invvar : ndarray, optional
+    maskval : float, optional
+      Value for masking
+
+    Returns
+    -------
+    xnew : ndarray
+      New estimate for trace in x-dimension
+    xerr : ndarray
+      Error estimate for trace.  Rejected points have maskval
+
+    """
+    # Setup
+    nx = fimage.shape[1]
+    xnew = np.zeros_like(xcen)
+    xerr = maskval*np.ones_like(xnew)
+
+    if invvar is None:
+        invvar = np.ones_like(fimage)
+
+    # More setting up
+    x_int = np.round(xcen).astype(int)
+    nstep = 2*int(3.0*sigma) - 1
+
+    weight = np.zeros_like(xcen)
+    numer  = np.zeros_like(xcen)
+    meanvar = np.zeros_like(xcen)
+    bad = np.zeros_like(xcen).astype(bool)
+
+    for i in range(nstep):
+        xh = x_int - nstep//2 + i
+        xtemp = (xh - xcen - 0.5)/sigma/np.sqrt(2.0)
+        g_int = (erf(xtemp+1./sigma/np.sqrt(2.0)) - erf(xtemp))/2.
+        xs = np.minimum(np.maximum(xh,0),(nx-1))
+        cur_weight = fimage[ycen, xs] * (invvar[ycen, xs] > 0) * g_int * ((xh >= 0) & (xh < nx))
+        weight += cur_weight
+        numer += cur_weight * xh
+        meanvar += cur_weight * cur_weight * (xcen-xh)**2 / (
+                invvar[ycen, xs] + (invvar[ycen, xs] == 0))
+        bad = np.any([bad, xh < 0, xh >= nx], axis=0)
+
+    # Masking
+    good = (~bad) & (weight > 0)
+    if np.sum(good) > 0:
+        xnew[good] = numer[good]/weight[good]
+        xerr[good] = np.sqrt(meanvar[good])/weight[good]
+    # Return
+    return xnew, xerr
+
 def tc_indices(tc_dict):
     """ Quick parser of tc_dict
 
