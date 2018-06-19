@@ -64,7 +64,7 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
     ordpix = slitpix.copy()
     # Masks
     if bpm is not None:
-        ordpix *= 1-bpix.astype(np.int)
+        ordpix *= 1-bpm.astype(np.int)
     if crmask is not None:
         ordpix *= 1-crmask.astype(np.int)
     if tracemask is not None:
