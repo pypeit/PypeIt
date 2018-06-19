@@ -17,7 +17,6 @@ future>=0.16.0
 # linetools
 # arclines
 numba>=0.37.0
-pydl>=0.7.0.dev728
 
 # Develop
 #ginga>=2.7.0
