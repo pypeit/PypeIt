@@ -19,8 +19,10 @@ from astropy import units
 from astropy.io import fits
 from astropy.convolution import convolve, Gaussian1DKernel
 
-from pydl.pydlutils import math
-from pydl.pydlutils import bspline
+#from pydl.pydlutils import math
+#from pydl.pydlutils import bspline
+
+from pypit.core import pydl
 
 from pypit import msgs
 from pypit import ardebug as debugger
@@ -211,7 +213,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
         msgs.error('No valid data points in bspline_profile!.')
     else:
         # Init bspline class
-        sset = bspline.bspline(xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt,
+        sset = pydl.bspline(xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt,
                        funcname='Bspline longslit special', **kwargs_bspline)
         if maskwork.sum() < sset.nord:
             msgs.warn('Number of good data points fewer than nord.')
@@ -270,7 +272,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
                     relative_factor = np.sqrt(this_chi2)
                 relative_factor = max(relative_factor,1.0)
             # Rejection
-            maskwork, qdone = math.djs_reject(ydata, yfit, invvar=invvar,
+            maskwork, qdone = pydl.djs_reject(ydata, yfit, invvar=invvar,
                                          inmask=tempin, outmask=maskwork,
                                          upper=upper*relative_factor,
                                          lower=lower*relative_factor, **kwargs_reject)

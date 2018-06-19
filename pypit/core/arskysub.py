@@ -6,7 +6,8 @@ import numpy as np
 import sys, os
 from matplotlib import pyplot as plt
 
-from pydl.pydlutils.bspline import bspline
+#from pydl.pydlutils.bspline import bspline
+from pypit.core import pydl
 
 from pypit import msgs
 
@@ -49,7 +50,7 @@ def bg_subtraction_slit(slit, tslits_dict, sciframe, varframe, bpix, crpix, tilt
         lsky_ivar = lsky * 0. + 0.1
 
         # Init bspline to get the sky breakpoints (kludgy)
-        tmp = bspline(wsky[pos_sky], nord=4, bkspace=bsp)
+        tmp = pydl.bspline(wsky[pos_sky], nord=4, bkspace=bsp)
 
         #skybkpt = bspline_bkpts(wsky[pos_sky], nord=4, bkspace=bsp $
         #, / silent)
@@ -71,7 +72,7 @@ def bg_subtraction_slit(slit, tslits_dict, sciframe, varframe, bpix, crpix, tilt
         #ax.plot(wsky[pos_sky], lsky_fit, color='green')
         plt.show()
         debugger.set_trace()
-    full_bspline = bspline(wsky, nord=4, bkspace=bsp)
+    full_bspline = pydl.bspline(wsky, nord=4, bkspace=bsp)
     skyset, full_out, yfit, _ = arutils.bspline_profile(
         wsky, sky, sky_ivar, np.ones_like(sky),
         fullbkpt=full_bspline.breakpoints,
