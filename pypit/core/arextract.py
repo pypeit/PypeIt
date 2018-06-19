@@ -30,7 +30,6 @@ from pypit import ardebug as debugger
 mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5, bad_row=2**6)
 
 
-# This routine is deprecated, replaced by extract_boxcar
 def boxcar(specobjs, sciframe, varframe, bpix, skyframe, crmask, scitrace, mswave,
            maskslits, slitpix):
     """ Perform boxcar extraction on the traced objects.
@@ -221,7 +220,7 @@ def boxcar(specobjs, sciframe, varframe, bpix, skyframe, crmask, scitrace, mswav
     # Return
     return bgcorr
 
-# This routine is deprecated
+
 def obj_profiles(det, specobjs, sciframe, varframe, crmask,
                  scitrace, tilts, maskslits, slitpix,
                  extraction_profile='gaussian',
@@ -364,7 +363,7 @@ def obj_profiles(det, specobjs, sciframe, varframe, crmask,
     return
 
 
-# This routine is deprecated, replaced by fit_profile_qa
+
 def obj_profile_qa(slf, specobjs, scitrace, det):
     """ Generate a QA plot for the object spatial profile
     Parameters
@@ -421,7 +420,7 @@ def obj_profile_qa(slf, specobjs, scitrace, det):
 
     plt.rcdefaults()
 
-# This routine is deprecated, replaced by extract_optimal
+
 def optimal_extract(specobjs, sciframe, varframe,
                     crmask, scitrace, tilts, mswave,
                     maskslits, slitpix, calib_wavelength='vacuum',

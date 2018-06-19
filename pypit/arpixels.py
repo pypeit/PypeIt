@@ -308,22 +308,27 @@ def new_order_pixels(pixlocn, lord, rord):
 
 def ximg_and_edgemask(lord, rord, slitpix, trim_edg=(3,3), xshift=0.):
     """
-    Generate the ximg and edgemask
+    Generate the ximg and edgemask frames
 
     Parameters
     ----------
-    lord
-    rord
-    slitpix
-    trim_edg
-    xshift
+    lord : ndarray
+      Left edge traces
+    rord : ndarray
+      Right edge traces
+    slitpix : ndarray
+      Specifies pixel locations
+    trim_edg : tuple
+      How much to trim off each edge of each slit
+    xshift : float, optional
+      Future implementation may need to shift the edges
 
     Returns
     -------
     ximg : ndarray
       Specifies spatial location of pixel in its own slit
       Scaled from 0 to 1
-    edgmask : ndarray, bool
+    edgemask : ndarray, bool
       True = Masked because it is too close to the edge
     """
     #; Generate the output image
@@ -363,6 +368,6 @@ def ximg_and_edgemask(lord, rord, slitpix, trim_edg=(3,3), xshift=0.):
             pixright[iy, ix1:ix2+1] = (rord[iy, islit] - ix2 + np.flip(np.arange(ix2-ix1+1),0))
 
     # Generate the edge mask
-    edgmask = (slitpix > 0) & np.any([pixleft < trim_edg[0], pixright < trim_edg[1]], axis=0)
+    edgemask = (slitpix > 0) & np.any([pixleft < trim_edg[0], pixright < trim_edg[1]], axis=0)
     # Return
-    return ximg, edgmask
+    return ximg, edgemask

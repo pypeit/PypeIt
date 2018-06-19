@@ -457,21 +457,12 @@ class ScienceImage(processimages.ProcessImages):
         # Loop on slits
         for slit in gdslits:
             msgs.info("Working on slit: {:d}".format(slit))
+            # Find sky
             slit_bgframe = arskysub.bg_subtraction_slit(
                 slit+1, self.tslits_dict['slitpix'], self.tslits_dict['edge_mask'],
                 self.sciframe, varframe, self.tilts,
                 bpm=self.bpm, crmask=self.crmask, tracemask=tracemask)
-            #slit_bgframe = arskysub.bg_subtraction_slit(self.tslits_dict, self.pixlocn,
-            #                                            slit, self.tilts, self.sciframe,
-            #                                            varframe, self.bpm,
-            #                                            self.crmask, settings_skysub,
-            #                                            tracemask=tracemask)
-            #except ValueError:  # Should have been bspline..
-            #    msgs.warn("B-spline sky subtraction failed.  Slit {:d} will no longer be processed..".format(slit))
-            #    #msgs.warn("Continue if you wish..")
-            #    debugger.set_trace()
-            #    self.maskslits[slit] = True
-            #else:
+            # Add
             self.global_sky += slit_bgframe
 
         # Build model variance

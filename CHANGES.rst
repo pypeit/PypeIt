@@ -166,7 +166,6 @@
 - Significant refactoring in arms.py followed
 - Rename slits_dict -> tslits_dict
 - Use tslits_dict in wavetilts.py
-
 - Introduce ScienceImage class
 - Substantial refactoring in arms.py followed
 - Notebook too
@@ -183,6 +182,12 @@
 - Many test updates
 - Doc strings improved but no new main docs
 - Completed armasters refactor and moved to core/
+
+- Adds bspline_profile() method;  Used here for skysub but will also show up in extraction
+- Introduces new skysub method;  still a bspline but now the new one
+- Adds several methods from the PYDL repository into a pydl.py module
+- Adds method to generate ximg and edgemask frames
+- Adds new trace_slits_trim settings
 
 0.7 (2017-02-07)
 ----------------
