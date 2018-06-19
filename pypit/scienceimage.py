@@ -457,11 +457,10 @@ class ScienceImage(processimages.ProcessImages):
         # Loop on slits
         for slit in gdslits:
             msgs.info("Working on slit: {:d}".format(slit))
-            slit_bgframe = arskysub.bg_subtraction_slit(slit, self.tslits_dict,
-                                                            self.sciframe,
-                                                            varframe, self.bpm,
-                                                            self.crmask, self.tilts,
-                                                            tracemask=tracemask)
+            slit_bgframe = arskysub.bg_subtraction_slit(
+                slit+1, self.tslits_dict['slitpix'], self.tslits_dict['edge_mask'],
+                self.sciframe, varframe, self.tilts,
+                bpm=self.bpm, crmask=self.crmask, tracemask=tracemask)
             #slit_bgframe = arskysub.bg_subtraction_slit(self.tslits_dict, self.pixlocn,
             #                                            slit, self.tilts, self.sciframe,
             #                                            varframe, self.bpm,

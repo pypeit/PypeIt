@@ -16,11 +16,44 @@ from pypit import arpixels
 
 from pypit import ardebug as debugger
 
-def bg_subtraction_slit(slit, tslits_dict, sciframe, varframe, bpix, crpix, tilts,
-                        tracemask=None, bsp=0.6, sigrej=3.):
-    # Unpack tslits
-    slitpix = tslits_dict['slitpix']
-    edge_mask = tslits_dict['edge_mask']
+
+def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
+                        bpm=None, crmask=None, tracemask=None, bsp=0.6, sigrej=3.):
+    """
+    Perform sky subtraction on an input slit
+
+    Parameters
+    ----------
+    slit : int
+      Slit number; indexed 1, 2,
+    slitpix : ndarray
+      Specifies pixels in the slits
+    edgemask : ndarray
+      Mask edges of the slit
+    sciframe : ndarray
+      science frame
+    varframe : ndarray
+      Variance array
+    tilts : ndarray
+      Tilts of the wavelengths
+    bpm : ndarray, optional
+      Bad pixel mask
+    crmask : ndarray
+      Cosmic ray mask
+    tracemask : ndarray
+      Object mask
+    bsp : float
+      Break point spacing
+    sigrej : float
+      rejection
+
+    Returns
+    -------
+    bgframe : ndarray
+      Sky background image
+
+    """
+
     # Init
     bgframe = np.zeros_like(sciframe)
     ivar = arutils.calc_ivar(varframe)
@@ -29,19 +62,23 @@ def bg_subtraction_slit(slit, tslits_dict, sciframe, varframe, bpix, crpix, tilt
 
     #
     ordpix = slitpix.copy()
-    # Mask
-    ordpix *= (1-bpix.astype(np.int)) * (1-crpix.astype(np.int))
-    if tracemask is not None: ordpix *= (1-tracemask.astype(np.int))
+    # Masks
+    if bpm is not None:
+        ordpix *= 1-bpix.astype(np.int)
+    if crmask is not None:
+        ordpix *= 1-crmask.astype(np.int)
+    if tracemask is not None:
+        ordpix *= (1-tracemask.astype(np.int))
 
     # Sky pixels for fitting
-    fit_sky = (ordpix == slit+1) & (ivar > 0.) & (~edge_mask)
+    fit_sky = (ordpix == slit) & (ivar > 0.) & (~edge_mask)
     isrt = np.argsort(piximg[fit_sky])
     wsky = piximg[fit_sky][isrt]
     sky = sciframe[fit_sky][isrt]
     sky_ivar = ivar[fit_sky][isrt]
 
     # All for evaluation
-    all_slit = (slitpix == slit+1) & (~edge_mask)
+    all_slit = (slitpix == slit) & (~edge_mask)
 
     # Pre-fit
     pos_sky = (sky > 1.0) & (sky_ivar > 0.)
