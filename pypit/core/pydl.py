@@ -811,7 +811,7 @@ def uniq(x, index=None):
         if indicies.size > 0:
             return indicies
         else:
-            return array([x.size - 1, ])
+            return array([len(x) - 1, ])
     else:
         q = x[index]
         indicies = (q != roll(q, -1)).nonzero()[0]
