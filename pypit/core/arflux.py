@@ -417,14 +417,26 @@ def load_standard_file(std_dict):
 
 
 def find_standard(specobjs):
+    """
+    Take the median boxcar and then the max object as the standard
+
+    Parameters
+    ----------
+    specobjs : list
+
+    Returns
+    -------
+
+    """
     # Repackage as necessary (some backwards compatability)
     all_specobj = arutils.unravel_specobjs(specobjs)
     # Do it
     medfx = []
-    medix = []
     for indx, spobj in enumerate(all_specobj):
-        medfx.append(np.median(spobj.boxcar['counts']))
-        medix.append(indx)
+        if spobj is None:
+            medfx.append(0.)
+        else:
+            medfx.append(np.median(spobj.boxcar['counts']))
     mxix = np.argmax(np.array(medfx))
     msgs.info("Putative standard star has a median boxcar count of {}".format(np.max(medfx)))
     # Return

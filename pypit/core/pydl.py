@@ -8,6 +8,7 @@ import numpy as np
 from warnings import warn
 
 from pypit import msgs
+from pypit import ardebug as debugger
 
 class bspline(object):
     """Bspline class.
@@ -413,10 +414,13 @@ class bspline(object):
     def maskpoints(self, err):
         """Perform simple logic of which breakpoints to mask.
 
+
         Parameters
         ----------
-        err : :class:`numpy.ndarray`
+        err : :class:`numpy.ndarray` or int
             The list of indexes returned by the cholesky routines.
+            This is indexed to the set of currently *good* breakpoints (i.e. self.mask=True)
+            And the first nord are skipped
 
         Returns
         -------
@@ -430,22 +434,28 @@ class bspline(object):
         The mask attribute is modified, assuming it is possible to create the
         mask.
         """
-        nbkpt = self.mask.sum()
+        # Recast err as an array if a single value int was passed in (occasional)
+        if not isinstance(err, np.ndarray):
+            err = np.array([err])
+        # Currently good points
+        goodbkpt = np.where(self.mask)[0]
+        nbkpt = len(goodbkpt)
         if nbkpt <= 2*self.nord:
             return -2
-        # TODO
-        # JXP thinks the following line is broken
-        hmm = err[np.unique(err/self.npoly)]/self.npoly
+        # Find the unique ones for the polynomial
+        hmm = err[uniq(err//self.npoly)]//self.npoly
+
         n = nbkpt - self.nord
         if np.any(hmm >= n):
             return -2
         test = np.zeros(nbkpt, dtype='bool')
-        for jj in range(-np.ceil(self.nord/2.0), self.nord/2.0):
+        for jj in range(-int(np.ceil(self.nord/2)), int(self.nord/2.)):
             foo = np.where((hmm+jj) > 0, hmm+jj, np.zeros(hmm.shape, dtype=hmm.dtype))
             inside = np.where((foo+self.nord) < n-1, foo+self.nord, np.zeros(hmm.shape, dtype=hmm.dtype)+n-1)
-            test[inside] = True
+            if len(inside)>0:
+                test[inside] = True
         if test.any():
-            reality = self.mask[test]
+            reality = goodbkpt[test]
             if self.mask[reality].any():
                 self.mask[reality] = False
                 return -1
@@ -507,7 +517,10 @@ class bspline(object):
         for k in range(nn-self.nord+1):
             itop = k*self.npoly
             ibottom = min(itop, nfull) + bw - 1
-            ict = upper[k] - lower[k] + 1
+            try:
+                ict = upper[k] - lower[k] + 1
+            except:
+                debugger.set_trace()
             if ict > 0:
                 work = np.dot(a2[lower[k]:upper[k]+1, :].T, a2[lower[k]:upper[k]+1, :])
                 wb = np.dot(ydata[lower[k]:upper[k]+1]*np.sqrt(invvar[lower[k]:upper[k]+1]), a2[lower[k]:upper[k]+1, :])

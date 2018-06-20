@@ -175,7 +175,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
     # Checks
     nx = xdata.size
     if ydata.size != nx:
-        raise ValueError('Dimensions of xdata and ydata do not agree.')
+        msgs.error('Dimensions of xdata and ydata do not agree.')
 
     # ToDO at the moment invvar is a required variable input
     #    if invvar is not None:
@@ -193,7 +193,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
 
     npoly = int(profile_basis.size/nx)
     if profile_basis.size != nx*npoly:
-        raise ValueError('Profile basis is not a multiple of the number of data points.')
+        msgs.error('Profile basis is not a multiple of the number of data points.')
 
     msgs.info("Fitting npoly =" + "{:3d}".format(npoly) + " profile basis functions, nx=" + "{:3d}".format(nx) + " pixels")
     msgs.info("****************************  Iter  Chi^2  # rejected  Rel. fact   ****************************")
@@ -245,7 +245,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
             if error != 0:
                 bf1, laction, uaction = sset.action(xdata)
                 if(bf1.size !=nx*nord):
-                    raise ValueError("BSPLINE_ACTION failed!")
+                    msgs.error("BSPLINE_ACTION failed!")
                 action = action_multiple
                 for ipoly in range(npoly):
                     action[:, np.arange(nord)*npoly + ipoly] *= bf1

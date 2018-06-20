@@ -91,6 +91,15 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
 
         #skybkpt = bspline_bkpts(wsky[pos_sky], nord=4, bkspace=bsp $
         #, / silent)
+        if False:
+            from matplotlib import pyplot as plt
+            plt.clf()
+            ax = plt.gca()
+            ax.scatter(wsky[pos_sky], lsky)
+            #ax.scatter(wsky[~full_out], sky[~full_out], color='red')
+            #ax.plot(wsky, yfit, color='green')
+            plt.show()
+            debugger.set_trace()
         lskyset, outmask, lsky_fit, red_chi = arutils.bspline_profile(
             wsky[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
             fullbkpt = tmp.breakpoints, upper=sigrej, lower=sigrej,
@@ -99,23 +108,16 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
         lmask = (res < 5.0) & (res > -4.0)
         sky_ivar[pos_sky] = sky_ivar[pos_sky] * lmask
 
-    # Full
-    if False:
-        from matplotlib import pyplot as plt
-        plt.clf()
-        ax = plt.gca()
-        ax.scatter(wsky, sky)
-        #ax.scatter(wsky[~full_out], sky[~full_out], color='red')
-        #ax.plot(wsky[pos_sky], lsky_fit, color='green')
-        plt.show()
-        debugger.set_trace()
+    # Full fit now
     full_bspline = pydl.bspline(wsky, nord=4, bkspace=bsp)
     skyset, full_out, yfit, _ = arutils.bspline_profile(
         wsky, sky, sky_ivar, np.ones_like(sky),
         fullbkpt=full_bspline.breakpoints,
         upper=sigrej, lower=sigrej, kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+    # Evaluate and save
     bgframe[all_slit] = skyset.value(piximg[all_slit])[0] #, skyset)
 
+    # Debugging/checking
     if False:
         from matplotlib import pyplot as plt
         plt.clf()
@@ -124,6 +126,7 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
         ax.scatter(wsky[~full_out], sky[~full_out], color='red')
         ax.plot(wsky, yfit, color='green')
         plt.show()
+
     # Return
     return bgframe
 
@@ -328,15 +331,6 @@ def orig_bg_subtraction_slit(tslits_dict, pixlocn,
         #bspl = arutils.func_fit(tilts[gdp][srt], scifrcp[gdp][srt], 'bspline', 3,
         #                        **settings.argflag['reduce']['skysub']['bspline'])
         ivar = arutils.calc_ivar(varframe)
-        if True:
-            from astropy.io import fits
-            hdu0 = fits.PrimaryHDU(scifrcp)
-            hdu1 = fits.ImageHDU(ivar)
-            hdu2 = fits.ImageHDU(ordpix)
-            hdu3 = fits.ImageHDU(tilts)
-            hdul = fits.HDUList([hdu0,hdu1,hdu2,hdu3])
-            hdul.writeto('test_skysub.fits',overwrite=True)
-            debugger.set_trace()
         mask, bspl = arutils.robust_polyfit(tilts[gdp][srt], scifrcp[gdp][srt], 3,
                                             function='bspline',
                                             weights=np.sqrt(ivar)[gdp][srt],
