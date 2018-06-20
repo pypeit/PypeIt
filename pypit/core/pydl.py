@@ -417,7 +417,7 @@ class bspline(object):
 
         Parameters
         ----------
-        err : :class:`numpy.ndarray`
+        err : :class:`numpy.ndarray` or int
             The list of indexes returned by the cholesky routines.
             This is indexed to the set of currently *good* breakpoints (i.e. self.mask=True)
             And the first nord are skipped
@@ -434,6 +434,9 @@ class bspline(object):
         The mask attribute is modified, assuming it is possible to create the
         mask.
         """
+        # Recast err as an array if a single value int was passed in (occasional)
+        if not isinstance(err, np.ndarray):
+            err = np.array([err])
         # Currently good points
         goodbkpt = np.where(self.mask)[0]
         nbkpt = len(goodbkpt)
@@ -441,6 +444,7 @@ class bspline(object):
             return -2
         # Find the unique ones for the polynomial
         hmm = err[uniq(err//self.npoly)]//self.npoly
+
         n = nbkpt - self.nord
         if np.any(hmm >= n):
             return -2
@@ -811,7 +815,7 @@ def uniq(x, index=None):
         if indicies.size > 0:
             return indicies
         else:
-            return array([len(x) - 1, ])
+            return array([x.size - 1, ])
     else:
         q = x[index]
         indicies = (q != roll(q, -1)).nonzero()[0]
