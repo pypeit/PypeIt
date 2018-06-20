@@ -177,6 +177,7 @@ class FluxSpec(masterframe.MasterFrame):
     def find_standard(self):
         """
         Identify the standard star from the list of all spectra in the specobjs
+
           Wrapper to arflux.find_standard which simply takes the brightest
 
         Returns
