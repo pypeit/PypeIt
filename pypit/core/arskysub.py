@@ -91,6 +91,15 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
 
         #skybkpt = bspline_bkpts(wsky[pos_sky], nord=4, bkspace=bsp $
         #, / silent)
+        if False:
+            from matplotlib import pyplot as plt
+            plt.clf()
+            ax = plt.gca()
+            ax.scatter(wsky[pos_sky], lsky)
+            #ax.scatter(wsky[~full_out], sky[~full_out], color='red')
+            #ax.plot(wsky, yfit, color='green')
+            plt.show()
+            debugger.set_trace()
         lskyset, outmask, lsky_fit, red_chi = arutils.bspline_profile(
             wsky[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
             fullbkpt = tmp.breakpoints, upper=sigrej, lower=sigrej,
