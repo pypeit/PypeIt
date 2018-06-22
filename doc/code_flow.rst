@@ -12,7 +12,7 @@ ARMS
 Multi-slit and longslit reductions.
 
 ===============  ============= ============= ============================================ ===========================
-Step             Class         Internals     Outputs                                      QA
+Step             Class/module  Internals     Outputs                                      QA
 ===============  ============= ============= ============================================ ===========================
 Setup            PypitSetup    fitstbl       keck_lris_red_setup_A.fits
 ..                             setup_dict    setup_files/keck_lris_red_2018-Jun-19.setups
@@ -33,4 +33,6 @@ Find objects     ScienceImage  tracelist
 Extraction       ScienceImage  specobjs
 Flexure          arflex        flex_list                                                  basename_flex_sky.png
 ..                                                                                        basename_flex_corr.png
+Heliocentric     arwave        velcorr
+Flux             FlexSpec      sensfunc      spec1d_basename.fits
 ===============  ============= ============= ============================================ ===========================
