@@ -409,7 +409,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 continue
             _ = stdI.global_skysub(settings_skysub, use_tracemask=True)
             # Extract
-            stdobjs, _, _ = sciI.extraction(mswave)
+            stdobjs, _, _ = stdI.extraction(mswave)
             # Save for fluxing and output later
             std_dict[std_idx][det] = {}
             std_dict[std_idx][det]['basename'] = std_basename
