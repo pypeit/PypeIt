@@ -151,7 +151,7 @@ def slit_pixels(slf, frameshape, det):
                 settings.argflag['trace']['slits']['pad'])
 
 
-def core_slit_pixels(all_lordloc, all_rordloc, frameshape, pad):
+def core_slit_pixels(all_lordloc_in, all_rordloc_in, frameshape, pad):
     """ Generate an image indicating the slit/order associated with each pixel.
 
     Parameters
@@ -169,7 +169,18 @@ def core_slit_pixels(all_lordloc, all_rordloc, frameshape, pad):
       that this pixel does not belong to any slit.
     """
 
-    nslits = all_lordloc.shape[1]
+    # This little bit of code allows the input lord and rord to either be (nspec, nslit) arrays or a single
+    # vectors of size (nspec)
+    if all_lordloc_in.ndim == 2:
+        nslits = all_lordloc.shape[1]
+        all_lordloc = all_lordloc_in
+        all_rordloc = all_rordloc_in
+    else:
+        nslits = 1
+        all_lordloc = all_lordloc_in.reshape(all_lordloc_in.size,1)
+        all_rordloc = all_rordloc_in.reshape(all_rordloc_in.size,1)
+
+#    nslits = all_lordloc.shape[1]
     msordloc = np.zeros(frameshape)
     for o in range(nslits):
         lordloc = all_lordloc[:, o]
@@ -306,15 +317,15 @@ def new_order_pixels(pixlocn, lord, rord):
 
     return outfr
 
-def ximg_and_edgemask(lord, rord, slitpix, trim_edg=(3,3), xshift=0.):
+def ximg_and_edgemask(lord_in, rord_in, slitpix, trim_edg=(3,3), xshift=0.):
     """
     Generate the ximg and edgemask frames
 
     Parameters
     ----------
-    lord : ndarray
+    lord_in : ndarray
       Left edge traces
-    rord : ndarray
+    rord_in : ndarray
       Right edge traces
     slitpix : ndarray
       Specifies pixel locations
@@ -332,12 +343,22 @@ def ximg_and_edgemask(lord, rord, slitpix, trim_edg=(3,3), xshift=0.):
       True = Masked because it is too close to the edge
     """
     #; Generate the output image
-    ximg = np.zeros_like(slitpix)
+    ximg = np.zeros_like(slitpix, dtype=float)
     # Intermediary arrays
-    pixleft = np.zeros_like(slitpix)
-    pixright = np.zeros_like(slitpix)
+    pixleft = np.zeros_like(slitpix, dtype=float)
+    pixright = np.zeros_like(slitpix, dtype=float)
     #
-    nslit = lord.shape[1]
+
+    # This little bit of code allows the input lord and rord to either be (nspec, nslit) arrays or a single
+    # vectors of size (nspec)
+    if lord_in.ndim == 2:
+        nslit = lord_in.shape[1]
+        lord = lord_in
+        rord = rord_in
+    else:
+        nslit = 1
+        lord = lord_in.reshape(lord_in.size,1)
+        rord = rord_in.reshape(rord_in.size,1)
 
 
     #; Loop over each slit

@@ -34,7 +34,7 @@ mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5, bad_row=2**6)
 
 
 
-def extract_asymbox2(image,left,right,ycen = None,weight_image = None):
+def extract_asymbox2(image,left_in,right_in,ycen = None,weight_image = None):
     """ Extract the total flux within a boxcar window at many positions.
     This routine will accept an asymmetric/variable window
     Traces are expected to run vertically to be consistent with other
@@ -43,17 +43,17 @@ def extract_asymbox2(image,left,right,ycen = None,weight_image = None):
     Parameters
     ----------
     image :   numpy float 2-d array [nspec, nspat]
-    left  :   Lower boundary of boxcar window (given as floating pt pixels) [nTrace,nspec]
-    right     - Upper boundary of boxcar window (given as floating pt pixels) [nTrace,nspec]
+    left  :   Lower boundary of boxcar window (given as floating pt pixels) [nspec, nTrace]
+    right     - Upper boundary of boxcar window (given as floating pt pixels) [nspec, nTrace]
 
     Optional Parameters
     -------------------
-    ycen :    Y positions corresponding to "left" (expected as integers) [nTrace, nspec]
+    ycen :    Y positions corresponding to "left" (expected as integers) [nspec,nTrace]
     weight_image:  Weights to be applied to image before boxcar [nspec, nspat]
 
     Returns
     -------
-    fextract:   Extracted flux at positions specified by (left<-->right, ycen) [nTrace, nspec]
+    fextract:   Extracted flux at positions specified by (left<-->right, ycen) [nspec, nTrace]
 
     Revision History
     ----------------
@@ -63,8 +63,11 @@ def extract_asymbox2(image,left,right,ycen = None,weight_image = None):
     22-Apr-2018  Ported to python by Joe Hennawi
     """
 
+    left = left_in.T
+    right = right_in.T
+
     dim = left.shape
-    ndim = len(dim)
+    ndim = left.ndim
     if (ndim == 1):
         nTrace = 1
         npix = dim[0]
@@ -130,31 +133,33 @@ def extract_asymbox2(image,left,right,ycen = None,weight_image = None):
 
     if(nTrace ==1):
         fextract = fextract.reshape(npix)
-    return fextract
+    return fextract.T
 
 
-def extract_boxcar(image,trace, radius, ycen = None):
+def extract_boxcar(image,trace_in, radius, ycen = None):
     """ Extract the total flux within a boxcar window at many positions. Based on idlspec2d/spec2d/extract_boxcar.pro
 
     Parameters
     ----------
     image :   numpy float 2-d array [nspec, nspat]
-    trace :   Lower boundary of boxcar window (given as floating pt pixels) [nTrace,nspec]
+    trace :   Lower boundary of boxcar window (given as floating pt pixels) [nspec,nTrace]
     radius :  boxcar radius (given as floating pt pixels)
 
     Optional Parameters
     -------------------
-    ycen :    Y positions corresponding to "trace" (expected as integers) [nTrace, nspec]
+    ycen :    Y positions corresponding to "trace" (expected as integers) [nspec,nTrace]
 
     Returns
     -------
-    fextract:   Extracted flux at positions within (trace +- radius, ycen) [nTrace, nspec]
+    fextract:   Extracted flux at positions within (trace +- radius, ycen) [nspec,nTrace]
 
     Revision History
     ----------------
     24-Mar-1999  Written by David Schlegel, Princeton.
     22-Apr-2018  Ported to python by Joe Hennawi, UCSB
     """
+
+    trace = trace_in.T
 
     if not (isinstance(radius,int) or isinstance(radius,float)):
         raise ValueError('Boxcar radius must a be a floating point number')
