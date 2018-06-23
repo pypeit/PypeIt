@@ -4,7 +4,7 @@
 Code Flow
 =========
 
-This describes the standard code flow of PYPIT
+This describes the standard code flow of PYPIT.
 
 ARMS
 ====
