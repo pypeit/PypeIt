@@ -42,6 +42,7 @@ def default_settings():
                                'fracignore': 0.01,
                                'medrep': 0,
                                'number': -1,
+                               'trim': (3,3),  # pixels
                                'maxgap': None,
                                'maxshift': 0.15,  # Used by trace crude
                                'sigdetect': 20.,
@@ -406,18 +407,16 @@ class TraceSlits(masterframe.MasterFrame):
     def _fill_tslits_dict(self):
         """
         Build a simple object holding the key trace bits and pieces that PYPIT wants
-          NOT USED ANY LONGER (but maybe in the future, depending on how we choosed
-          to package slit information *outside* of the ScienceExposure object)
 
 
         Returns
         -------
-        self.trace_slits_dict
+        self.trace_slits_dict : dict
 
         """
         self.tslits_dict = {}
         for key in ['lcen', 'rcen', 'pixcen', 'pixwid', 'lordpix',
-                    'rordpix', 'extrapord', 'slitpix']:
+                    'rordpix', 'extrapord', 'slitpix', 'ximg', 'edge_mask']:
             self.tslits_dict[key] = getattr(self, key)
         return self.tslits_dict
 
@@ -530,6 +529,10 @@ class TraceSlits(masterframe.MasterFrame):
         self.slitpix = arpixels.core_slit_pixels(self.lcen, self.rcen,
                                                  self.mstrace.shape,
                                                  self.settings['trace']['slits']['pad'])
+        # ximg and edge mask
+        self.ximg, self.edge_mask = arpixels.ximg_and_edgemask(
+            self.lcen, self.rcen, self.slitpix,
+            trim_edg=self.settings['trace']['slits']['trim'])
 
     def _match_edges(self):
         """

@@ -364,7 +364,7 @@ class ScienceImage(processimages.ProcessImages):
             # Final variance image
             self.finalvar = self._build_modelvar(skyframe=self.finalsky, objframe=self.obj_model)
         else:
-            self.finalvar = self._grab_varframe()
+            self.finalvar = self.rawvarframe
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -392,7 +392,7 @@ class ScienceImage(processimages.ProcessImages):
 
         """
         # Grab the 'best' variance frame
-        varframe = self._grab_varframe()
+        varframe = self.rawvarframe
 
         # Prepare to loop on slits
         nslit = len(self.maskslits)
@@ -442,7 +442,11 @@ class ScienceImage(processimages.ProcessImages):
         self.global_sky = np.zeros_like(self.sciframe)
         gdslits = np.where(~self.maskslits)[0]
         # Grab the currently 'best' variance frame
-        varframe = self._grab_varframe()
+        if self.modelvarframe is not None:
+            # JFH does not quite approve of this..
+            varframe = self.modelvarframe
+        else:
+            varframe = self.rawvarframe
 
         # Mask objects?
         if use_tracemask:
@@ -453,20 +457,13 @@ class ScienceImage(processimages.ProcessImages):
         # Loop on slits
         for slit in gdslits:
             msgs.info("Working on slit: {:d}".format(slit))
-            # TODO -- Replace this try/except when a more stable b-spline is used..
-            try:
-                slit_bgframe = arskysub.bg_subtraction_slit(self.tslits_dict, self.pixlocn,
-                                                            slit, self.tilts, self.sciframe,
-                                                            varframe, self.bpm,
-                                                            self.crmask, settings_skysub,
-                                                            tracemask=tracemask)
-            except ValueError:  # Should have been bspline..
-                msgs.warn("B-spline sky subtraction failed.  Slit {:d} will no longer be processed..".format(slit))
-                #msgs.warn("Continue if you wish..")
-                debugger.set_trace()
-                self.maskslits[slit] = True
-            else:
-                self.global_sky += slit_bgframe
+            # Find sky
+            slit_bgframe = arskysub.bg_subtraction_slit(
+                slit+1, self.tslits_dict['slitpix'], self.tslits_dict['edge_mask'],
+                self.sciframe, varframe, self.tilts,
+                bpm=self.bpm, crmask=self.crmask, tracemask=tracemask)
+            # Add
+            self.global_sky += slit_bgframe
 
         # Build model variance
         msgs.info("Building model variance from the Sky frame")
@@ -501,6 +498,7 @@ class ScienceImage(processimages.ProcessImages):
 
         return self.sciframe, self.rawvarframe, self.crmask
 
+    '''
     def _grab_varframe(self):
         """
         Simple algorithm to grab the currently 'best' variance image
@@ -524,6 +522,7 @@ class ScienceImage(processimages.ProcessImages):
             varframe = self.rawvarframe
         # Return it
         return varframe
+    '''
 
     def _build_tracemask(self):
         """

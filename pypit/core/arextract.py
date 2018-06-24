@@ -363,6 +363,7 @@ def obj_profiles(det, specobjs, sciframe, varframe, crmask,
     return
 
 
+
 def obj_profile_qa(slf, specobjs, scitrace, det):
     """ Generate a QA plot for the object spatial profile
     Parameters

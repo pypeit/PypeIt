@@ -37,7 +37,7 @@ def test_load_from_master():
     mstrace_root = os.getenv('PYPIT_DEV') + 'Cooked/Trace/MasterTrace_KeckLRISr_150420_402'
     assert chk_for_files(mstrace_root)
     # Load
-    traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
+    traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)#, load_pix_obj=True)
     assert isinstance(traceSlits.mstrace, np.ndarray)
 
 

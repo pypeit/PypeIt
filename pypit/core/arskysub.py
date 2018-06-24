@@ -3,8 +3,11 @@
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import numpy as np
+import sys, os
 from matplotlib import pyplot as plt
 
+#from pydl.pydlutils.bspline import bspline
+from pypit.core import pydl
 
 from pypit import msgs
 
@@ -14,7 +17,122 @@ from pypit import arpixels
 from pypit import ardebug as debugger
 
 
-def bg_subtraction_slit(tslits_dict, pixlocn,
+def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
+                        bpm=None, crmask=None, tracemask=None, bsp=0.6, sigrej=3.):
+    """
+    Perform sky subtraction on an input slit
+
+    Parameters
+    ----------
+    slit : int
+      Slit number; indexed 1, 2,
+    slitpix : ndarray
+      Specifies pixels in the slits
+    edgemask : ndarray
+      Mask edges of the slit
+    sciframe : ndarray
+      science frame
+    varframe : ndarray
+      Variance array
+    tilts : ndarray
+      Tilts of the wavelengths
+    bpm : ndarray, optional
+      Bad pixel mask
+    crmask : ndarray
+      Cosmic ray mask
+    tracemask : ndarray
+      Object mask
+    bsp : float
+      Break point spacing
+    sigrej : float
+      rejection
+
+    Returns
+    -------
+    bgframe : ndarray
+      Sky background image
+
+    """
+
+    # Init
+    bgframe = np.zeros_like(sciframe)
+    ivar = arutils.calc_ivar(varframe)
+    ny = sciframe.shape[0]
+    piximg = tilts * (ny-1)
+
+    #
+    ordpix = slitpix.copy()
+    # Masks
+    if bpm is not None:
+        ordpix *= 1-bpm.astype(np.int)
+    if crmask is not None:
+        ordpix *= 1-crmask.astype(np.int)
+    if tracemask is not None:
+        ordpix *= (1-tracemask.astype(np.int))
+
+    # Sky pixels for fitting
+    fit_sky = (ordpix == slit) & (ivar > 0.) & (~edge_mask)
+    isrt = np.argsort(piximg[fit_sky])
+    wsky = piximg[fit_sky][isrt]
+    sky = sciframe[fit_sky][isrt]
+    sky_ivar = ivar[fit_sky][isrt]
+
+    # All for evaluation
+    all_slit = (slitpix == slit) & (~edge_mask)
+
+    # Pre-fit
+    pos_sky = (sky > 1.0) & (sky_ivar > 0.)
+    if np.sum(pos_sky) > ny:
+        lsky = np.log(sky[pos_sky])
+        lsky_ivar = lsky * 0. + 0.1
+
+        # Init bspline to get the sky breakpoints (kludgy)
+        tmp = pydl.bspline(wsky[pos_sky], nord=4, bkspace=bsp)
+
+        #skybkpt = bspline_bkpts(wsky[pos_sky], nord=4, bkspace=bsp $
+        #, / silent)
+        if False:
+            from matplotlib import pyplot as plt
+            plt.clf()
+            ax = plt.gca()
+            ax.scatter(wsky[pos_sky], lsky)
+            #ax.scatter(wsky[~full_out], sky[~full_out], color='red')
+            #ax.plot(wsky, yfit, color='green')
+            plt.show()
+            debugger.set_trace()
+        lskyset, outmask, lsky_fit, red_chi = arutils.bspline_profile(
+            wsky[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
+            fullbkpt = tmp.breakpoints, upper=sigrej, lower=sigrej,
+            kwargs_reject={'groupbadpix':True})
+        res = (sky[pos_sky] - np.exp(lsky_fit)) * np.sqrt(sky_ivar[pos_sky])
+        lmask = (res < 5.0) & (res > -4.0)
+        sky_ivar[pos_sky] = sky_ivar[pos_sky] * lmask
+
+    # Full fit now
+    full_bspline = pydl.bspline(wsky, nord=4, bkspace=bsp)
+    skyset, full_out, yfit, _ = arutils.bspline_profile(
+        wsky, sky, sky_ivar, np.ones_like(sky),
+        fullbkpt=full_bspline.breakpoints,
+        upper=sigrej, lower=sigrej, kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+    # Evaluate and save
+    bgframe[all_slit] = skyset.value(piximg[all_slit])[0] #, skyset)
+
+    # Debugging/checking
+    if False:
+        from matplotlib import pyplot as plt
+        plt.clf()
+        ax = plt.gca()
+        ax.scatter(wsky[full_out], sky[full_out])
+        ax.scatter(wsky[~full_out], sky[~full_out], color='red')
+        ax.plot(wsky, yfit, color='green')
+        plt.show()
+
+    # Return
+    return bgframe
+
+
+# This code is deprecated and replaced by bg_subtraction_slit
+def orig_bg_subtraction_slit(tslits_dict, pixlocn,
                         slit, tilts, sciframe, varframe, bpix, crpix,
                         settings,
                         tracemask=None,

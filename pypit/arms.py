@@ -316,7 +316,6 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             if settings.argflag['reduce']['skysub']['perform'] and flg_objs:
                 global_sky, modelvarframe = sciI.global_skysub(settings_skysub,
                                                                use_tracemask=True)
-
             # Another round of finding objects
             if flg_objs:
                 _, nobj = sciI.find_objects()
@@ -382,6 +381,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 msgs.info("No standard star associated with this science frame")
                 continue
             #
+            msgs.info("Processing standard star")
             std_image_files = arsort.list_of_files(fitstbl, 'standard', sci_ID)
             if std_idx in std_dict.keys():
                 if det in std_dict[std_idx].keys():
@@ -409,7 +409,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 continue
             _ = stdI.global_skysub(settings_skysub, use_tracemask=True)
             # Extract
-            stdobjs, _, _ = sciI.extraction(mswave)
+            stdobjs, _, _ = stdI.extraction(mswave)
             # Save for fluxing and output later
             std_dict[std_idx][det] = {}
             std_dict[std_idx][det]['basename'] = std_basename
@@ -462,7 +462,6 @@ def ARMS(spectrograph, fitstbl, setup_dict):
     #########################
     if settings.argflag['reduce']['calibrate']['flux'] and (len(std_dict) > 0):
         # Standard star (is this a calibration, e.g. goes above?)
-        msgs.info("Processing standard star")
         msgs.info("Taking one star per detector mosaic")
         msgs.info("Waited until very end to work on it")
         msgs.warn("You should probably consider using the pypit_flux_spec script anyhow...")

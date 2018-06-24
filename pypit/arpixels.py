@@ -7,6 +7,8 @@ import numpy as np
 from pypit import msgs
 from pypit import arparse as settings
 
+from pypit import ardebug as debugger
+
 try:
     from pypit import ginga
 except ImportError:
@@ -304,3 +306,68 @@ def new_order_pixels(pixlocn, lord, rord):
 
     return outfr
 
+def ximg_and_edgemask(lord, rord, slitpix, trim_edg=(3,3), xshift=0.):
+    """
+    Generate the ximg and edgemask frames
+
+    Parameters
+    ----------
+    lord : ndarray
+      Left edge traces
+    rord : ndarray
+      Right edge traces
+    slitpix : ndarray
+      Specifies pixel locations
+    trim_edg : tuple
+      How much to trim off each edge of each slit
+    xshift : float, optional
+      Future implementation may need to shift the edges
+
+    Returns
+    -------
+    ximg : ndarray
+      Specifies spatial location of pixel in its own slit
+      Scaled from 0 to 1
+    edgemask : ndarray, bool
+      True = Masked because it is too close to the edge
+    """
+    #; Generate the output image
+    ximg = np.zeros_like(slitpix)
+    # Intermediary arrays
+    pixleft = np.zeros_like(slitpix)
+    pixright = np.zeros_like(slitpix)
+    #
+    nslit = lord.shape[1]
+
+
+    #; Loop over each slit
+    for islit in range(nslit):
+        #; How many pixels wide is the slit at each Y?
+        xsize = rord[:, islit] - lord[:, islit]
+        badp = xsize <= 0.
+        if np.any(badp):
+            meds = np.median(xsize)
+            msgs.warn('Something goofy in slit # {:d}'.format(islit))
+            msgs.warn('Probably a bad slit (e.g. a star box)')
+            msgs.warn('It is best to expunge this slit')
+            msgs.warn('Proceed at your own risk, with a slit width of {:d}'.format(meds))
+            msgs.warn('Or set meds to your liking')
+            debugger.set_trace()
+            rord[:, islit] = lord[:, islit] + meds
+
+        # Loop down the slit
+        for iy in range(lord.shape[0]):
+            # Set the pixels
+            ix1 = max(int(np.ceil(lord[iy, islit])),0)
+            ix2 = min(int(rord[iy, islit]),ximg.shape[1]-1)
+            ix1 = min(ix1,ximg.shape[1] - 1)
+            ix2 = max(ix2, 0)
+            #
+            ximg[iy, ix1:ix2+1] = (np.arange(ix2 - ix1 + 1) + ix1 - lord[iy, islit]) / xsize[iy]
+            pixleft[iy, ix1:ix2+1] = (np.arange(ix2 - ix1 + 1) + ix1 - lord[iy, islit])
+            pixright[iy, ix1:ix2+1] = (rord[iy, islit] - ix2 + np.flip(np.arange(ix2-ix1+1),0))
+
+    # Generate the edge mask
+    edgemask = (slitpix > 0) & np.any([pixleft < trim_edg[0], pixright < trim_edg[1]], axis=0)
+    # Return
+    return ximg, edgemask
