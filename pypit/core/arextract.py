@@ -514,7 +514,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
                value of the reduced chi^2
      """
 
-
+    from scipy.interpolate import interp1d
     if hwidth is None: 3.0*(np.max(thisfwhm) + 1.0)
     if PROF_NSIGMA is not None:
         NO_DERIV = True
@@ -564,7 +564,8 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     ngd = np.sum(igood)
     if(ngd > 0):
         isrt = np.argsort(wave[indsp])
-        sn2_sub[igood] = np.interp(sub_wave[igood],(wave[indsp])[isrt],sn2_med[isrt])
+        sn2_interp = interp1d((wave[indsp])[isrt],sn2_med[isrt],assume_sorted=False)
+        sn2_sub[igood] = s2n_interp(sub_wave[igood])
     msgs.info('sqrt(med(S/N)^2) = ' + "{:5.2f}".format(np.sqrt(med_sn2)))
 
     min_wave = np.min(wave[indsp])
@@ -577,7 +578,8 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     spline_flux1[ispline] = spline_tmp
     cont_tmp, _ = c_answer.value(wave[ispline])
     cont_flux1[ispline] = cont_tmp
-    sn2_1[ispline] = np.interp(wave[ispline], (wave[indsp])[isrt], sn2[isrt])
+    s2_1_interp = interp1d((wave[indsp])[isrt], sn2[isrt],assume_sorted=False)
+    sn2_1[ispline] = s2_1_interp(wave[ispline])
     bmask = np.zeros(nspec,dtype='bool')
     bmask[indsp] = bmask2
     spline_flux1 = djs_maskinterp(spline_flux1,(bmask == False))
@@ -609,7 +611,8 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         # Create the normalized object image
         if(ngd > 0):
             isrt = np.argsort(wave)
-            spline_sub[igood] = np.interp(sub_wave[igood],wave[isrt],spline_flux1[isrt])
+            spline_sub_interp = interp1d(wave[isrt],spline_flux1[isrt],assume_sorted=False)
+            spline_sub[igood] = spline_sub_interp(sub_wave[igood])
         else:
             spline_sub[igood] = np.fmax(sigma1, 0)
 
