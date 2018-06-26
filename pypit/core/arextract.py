@@ -34,35 +34,51 @@ mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5, bad_row=2**6)
 
 
 
-def extract_asymbox2(image,left_in,right_in,ycen = None,weight_image = None):
-    """ Extract the total flux within a boxcar window at many positions.
-    This routine will accept an asymmetric/variable window
-    Traces are expected to run vertically to be consistent with other
+def extract_asymbox2(image,left_in,right_in,ycen_in = None,weight_image = None):
+    """ Extract the total flux within a variable window at many positions. This routine will accept an asymmetric/variable window
+    specified by the left_in and right_in traces.  The ycen position is optional. If it is not provied, it is assumed to be integers
+    in the spectral direction (as is typical for traces). Traces are expected to run vertically to be consistent with other
     extract_  routines. Based on idlspec2d/spec2d/extract_asymbox2.pro
 
     Parameters
     ----------
-    image :   numpy float 2-d array [nspec, nspat]
-    left  :   Lower boundary of boxcar window (given as floating pt pixels) [nspec, nTrace]
-    right     - Upper boundary of boxcar window (given as floating pt pixels) [nspec, nTrace]
+    image :  float ndarray
+        Image to extract from. It is a 2-d array with shape (nspec, nspat)
+    left  :  float ndarray
+        Left boundary of region to be extracted (given as floating pt pixels). This can either be an 2-d  array with shape
+        (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
+
+    right  :  float ndarray
+        Right boundary of region to be extracted (given as floating pt pixels). This can either be an 2-d  array with shape
+        (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
+
 
     Optional Parameters
     -------------------
-    ycen :    Y positions corresponding to "left" (expected as integers) [nspec,nTrace]
-    weight_image:  Weights to be applied to image before boxcar [nspec, nspat]
+    ycen :  float ndarray
+        Y positions corresponding to "Left"  and "Right" (expected as integers). Will be cast to an integer if floats
+        are provided. This needs to have the same shape as left and right broundarys provided above. In other words,
+        either a  2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
+
+    weight_image: float ndarray
+        Weight map to be applied to image before boxcar. It is a 2-d array with shape (nspec, nspat)
 
     Returns
     -------
-    fextract:   Extracted flux at positions specified by (left<-->right, ycen) [nspec, nTrace]
+    fextract:   ndarray
+       Extracted flux at positions specified by (left<-->right, ycen). The output will have the same shape as
+       Left and Right, i.e.  an 2-d  array with shape (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for
+       the case of a single trace.
+
 
     Revision History
     ----------------
     24-Mar-1999  Written by David Schlegel, Princeton.
     17-Feb-2003  Written with slow IDL routine, S. Burles, MIT
-    27-Jan-2004  Adopted to do asymmetric/varying boxcar
     22-Apr-2018  Ported to python by Joe Hennawi
     """
 
+    # ToDO it would be nice to avoid this transposing, but I got confused during the IDL port
     left = left_in.T
     right = right_in.T
 
@@ -75,17 +91,19 @@ def extract_asymbox2(image,left_in,right_in,ycen = None,weight_image = None):
         nTrace = dim[0]
         npix = dim[1]
 
-    if ycen == None:
+    if ycen_in == None:
         if ndim == 1:
             ycen = np.arange(npix, dtype='int')
         elif ndim == 2:
             ycen = np.outer(np.ones(nTrace, dtype='int'), np.arange(npix, dtype='int'), )
         else:
-            raise ValueError('left is not 1 or 2 dimensional')
+            raise ValueError('trace is not 1 or 2 dimensional')
+    else:
+        ycen = ycen_in.T
+        ycen = np.rint(ycen).astype(int)
 
-    ycen_out = ycen.astype(int)
-    if np.size(left) != np.size(ycen):
-        raise ValueError('Number of elements in left and ycen must be equal')
+    if ((np.size(left) != np.size(ycen)) | (np.shape(left) != np.shape(ycen)):
+        raise ValueError('Number of elements and left of trace and ycen must be equal')
 
     idims = image.shape
     nspat = idims[1]
@@ -136,33 +154,58 @@ def extract_asymbox2(image,left_in,right_in,ycen = None,weight_image = None):
     return fextract.T
 
 
-def extract_boxcar(image,trace_in, radius, ycen = None):
-    """ Extract the total flux within a boxcar window at many positions. Based on idlspec2d/spec2d/extract_boxcar.pro
+def extract_boxcar(image,trace_in, radius_in, ycen_in = None):
+    """ Extract the total flux within a boxcar window at many positions. The ycen position is optional. If it is not provied, it is assumed to be integers
+     in the spectral direction (as is typical for traces). Traces are expected to run vertically to be consistent with other
+     extract_  routines. Based on idlspec2d/spec2d/extract_boxcar.pro
 
-    Parameters
-    ----------
-    image :   numpy float 2-d array [nspec, nspat]
-    trace :   Lower boundary of boxcar window (given as floating pt pixels) [nspec,nTrace]
-    radius :  boxcar radius (given as floating pt pixels)
+     Parameters
+     ----------
+     image :  float ndarray
+         Image to extract from. It is a 2-d array with shape (nspec, nspat)
 
-    Optional Parameters
-    -------------------
-    ycen :    Y positions corresponding to "trace" (expected as integers) [nspec,nTrace]
+     trace_in :  float ndarray
+         Trace for the region to be extracted (given as floating pt pixels). This can either be an 2-d  array with shape
+         (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
 
-    Returns
-    -------
-    fextract:   Extracted flux at positions within (trace +- radius, ycen) [nspec,nTrace]
+     radius :  float or ndarray
+         boxcar radius in floating point pixels. This can be either be in put as a scalar or as an array to perform
+         boxcar extraction a varaible radius. If an array is input it must have the same size and shape as trace_in, i.e.
+         a 2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
 
-    Revision History
-    ----------------
-    24-Mar-1999  Written by David Schlegel, Princeton.
-    22-Apr-2018  Ported to python by Joe Hennawi, UCSB
-    """
+
+     Optional Parameters
+     -------------------
+     ycen :  float ndarray
+         Y positions corresponding to trace_in (expected as integers). Will be rounded to the nearest integer if floats
+         are provided. This needs to have the same shape as trace_in  provided above. In other words,
+         either a  2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
+
+
+     Returns
+     -------
+     fextract:   ndarray
+         Extracted flux at positions specified by (left<-->right, ycen). The output will have the same shape as
+         Left and Right, i.e.  an 2-d  array with shape (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for
+         the case of a single trace.
+
+     Revision History
+     ----------------
+     24-Mar-1999  Written by David Schlegel, Princeton.
+     22-Apr-2018  Ported to python by Joe Hennawi
+     """
+
+
+    # Checks on radius
+    if (isinstance(radius_in,int) or isinstance(radius_in,float)):
+        radius = radius_in
+    elif (np.size(radius)==np.size(trace_in) & np.shape(radius) == np.shape(trace_in)):
+        radius = radius_in.T
+    else:
+        raise ValueError('Boxcar radius must a be either an integer, a floating point number, or an ndarray '
+                         'with the same shape and size as trace_in')
 
     trace = trace_in.T
-
-    if not (isinstance(radius,int) or isinstance(radius,float)):
-        raise ValueError('Boxcar radius must a be a floating point number')
 
     dim = trace.shape
     ndim = len(dim)
@@ -173,17 +216,21 @@ def extract_boxcar(image,trace_in, radius, ycen = None):
         nTrace = dim[0]
         npix = dim[1]
 
-    if ycen == None:
+    if ycen_in == None:
         if ndim == 1:
             ycen = np.arange(npix, dtype='int')
         elif ndim == 2:
             ycen = np.outer(np.ones(nTrace, dtype='int'), np.arange(npix, dtype='int'), )
         else:
             raise ValueError('trace is not 1 or 2 dimensional')
+    else:
+        ycen = ycen_in.T
+        ycen = np.rint(ycen).astype(int)
 
-    ycen_out = ycen.astype(int)
-    if np.size(trace) != np.size(ycen_out):
-        raise ValueError('Number of elements in trace and ycen must be equal')
+    if ((np.size(trace) != np.size(ycen)) | (np.shape(trace) != np.shape(ycen)):
+        raise ValueError('Number of elements and shape of trace and ycen must be equal')
+
+
 
     left = trace - radius
     right = trace + radius
