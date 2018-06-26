@@ -2608,7 +2608,7 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, radius=2.,
     return xset, xerr
 
 
-def trace_fweight(fimage, xinit, ycen=None, invvar=None, radius=2., debug=False):
+def trace_fweight(fimage, xinit_in, ycen_in=None, invvar=None, radius=2., debug=False):
     '''Python port of trace_fweight.pro from IDLUTILS
 
     Parameters
@@ -2616,31 +2616,54 @@ def trace_fweight(fimage, xinit, ycen=None, invvar=None, radius=2., debug=False)
     fimage: 2D ndarray
       Image for tracing
     xinit: ndarray
-      Initial guesses for x-trace
+      Initial guesses for x-trace [nspec, nTrace] array
     invvar: ndarray, optional
       Inverse variance array for the image
     radius: float, optional
       Radius for centroiding; default to 3.0
+
+    Optional Parameters:
+    ycen: ndarray
+      Optionally y-position of trace can be provided. It should be the same size as x-trace [nspec, nTrace]. If
+      not provided np.arange(nspec) will be assumed for each trace
     '''
-    # Definitions for Cython
-    #cdef int nx,ny,ncen
 
     # Init
     nx = fimage.shape[1]
     ny = fimage.shape[0]
-    ncen = len(xinit)
+
+    # Figure out dimensions of xinit
+    dim = xinit_in.shape
+    ndim = xinit_in.ndim
+    if (ndim == 1):
+        nTrace = 1
+        npix = dim[0]
+    else:
+        nTrace = dim[1]
+        npix = dim[0]
+
+    ncen = xinit_in.size
+
+    xinit = xinit_in.flatten()
     # Create xnew, xerr
     xnew = xinit.astype(float)
-    xerr = np.zeros(ncen) + 999.
+    xerr = np.full(ncen,999.)
 
-    # ycen
-    if ycen is None:
-        if ncen != ny:
-            raise ValueError('Bad input')
-        ycen = np.arange(ny, dtype=int)
-    else:
-        if len(ycen) != ncen:
-            raise ValueError('Bad ycen input.  Wrong length')
+    if ycen_in == None:
+        if ndim == 1:
+            ycen_in = np.arange(npix, dtype='int')
+        elif ndim == 2:
+            ycen_in = np.outer(np.arange(npix, dtype='int'), np.ones(nTrace, dtype='int'))
+        else:
+            raise ValueError('xinit is not 1 or 2 dimensional')
+
+    ycen = ycen_in.astype(int)
+    ycen = ycen_in.flatten()
+
+    if np.size(xinit) != np.size(ycen):
+        raise ValueError('Number of elements in xinit and ycen must be equal')
+
+
     x1 = xinit - radius + 0.5
     x2 = xinit + radius + 0.5
     ix1 = np.floor(x1).astype(int)
@@ -2684,6 +2707,11 @@ def trace_fweight(fimage, xinit, ycen=None, invvar=None, radius=2., debug=False)
     if np.sum(bad) > 0:
         xnew[bad] = xinit[bad]
         xerr[bad] = 999.0
+
+    # Reshape to the right size for output if more than one trace was input
+    if ndim > 1:
+        xnew = xnew.reshape(npix,nTrace)
+        xerr = xerr.reshape(npix,nTrace)
 
     # Return
     return xnew, xerr
