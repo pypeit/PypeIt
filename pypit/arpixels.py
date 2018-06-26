@@ -157,9 +157,16 @@ def core_slit_pixels(all_lordloc_in, all_rordloc_in, frameshape, pad):
     Parameters
     ----------
     all_lordloc : ndarray
+        Array containing the left trace. This can either be a 2-d array with shape (nspec, nTrace)
+        for multiple traces, or simply a 1-d array with shape  (nspec) for a single trace.
+
     all_rordloc : ndarray
+        Array containing the right trace. This can either be a 2-d array with shape (nspec, nTrace)
+        for multiple traces, or simply a 1-d array with shape  (nspec) for a single trace.
+
     frameshape : tuple
       A two element tuple providing the shape of a trace frame.
+
     pad : int
 
     Returns
@@ -172,7 +179,7 @@ def core_slit_pixels(all_lordloc_in, all_rordloc_in, frameshape, pad):
     # This little bit of code allows the input lord and rord to either be (nspec, nslit) arrays or a single
     # vectors of size (nspec)
     if all_lordloc_in.ndim == 2:
-        nslits = all_lordloc.shape[1]
+        nslits = all_lordloc_in.shape[1]
         all_lordloc = all_lordloc_in
         all_rordloc = all_rordloc_in
     else:
@@ -324,13 +331,19 @@ def ximg_and_edgemask(lord_in, rord_in, slitpix, trim_edg=(3,3), xshift=0.):
     Parameters
     ----------
     lord_in : ndarray
-      Left edge traces
+        Array containing the left trace. This can either be a 2-d array with shape (nspec, nTrace)
+        for multiple traces, or simply a 1-d array with shape  (nspec) for a single trace.
+
     rord_in : ndarray
-      Right edge traces
+        Array containing the right trace. This can either be a 2-d array with shape (nspec, nTrace)
+        for multiple traces, or simply a 1-d array with shape  (nspec) for a single trace.
+
     slitpix : ndarray
-      Specifies pixel locations
+      Image with shape (nspec, nspat) specifying pixel locations. This is created by core_slit_pixels above.
+
     trim_edg : tuple
       How much to trim off each edge of each slit
+
     xshift : float, optional
       Future implementation may need to shift the edges
 
