@@ -34,7 +34,7 @@ mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5, bad_row=2**6)
 
 
 
-def extract_asymbox2(image,left_in,right_in,ycen_in = None,weight_image = None):
+def extract_asymbox2(image,left_in,right_in,ycen = None,weight_image = None):
     """ Extract the total flux within a variable window at many positions. This routine will accept an asymmetric/variable window
     specified by the left_in and right_in traces.  The ycen position is optional. If it is not provied, it is assumed to be integers
     in the spectral direction (as is typical for traces). Traces are expected to run vertically to be consistent with other
@@ -91,18 +91,18 @@ def extract_asymbox2(image,left_in,right_in,ycen_in = None,weight_image = None):
         nTrace = dim[0]
         npix = dim[1]
 
-    if ycen_in == None:
+    if ycen == None:
         if ndim == 1:
-            ycen = np.arange(npix, dtype='int')
+            ycen_out = np.arange(npix, dtype='int')
         elif ndim == 2:
-            ycen = np.outer(np.ones(nTrace, dtype='int'), np.arange(npix, dtype='int'), )
+            ycen_out = np.outer(np.ones(nTrace, dtype='int'), np.arange(npix, dtype='int'), )
         else:
             raise ValueError('trace is not 1 or 2 dimensional')
     else:
-        ycen = ycen_in.T
-        ycen = np.rint(ycen).astype(int)
+        ycen_out = ycen.T
+        ycen_out = np.rint(ycen_out).astype(int)
 
-    if ((np.size(left) != np.size(ycen)) | (np.shape(left) != np.shape(ycen)):
+    if ((np.size(left_in) != np.size(ycen)) | (np.shape(left_in) != np.shape(ycen))):
         raise ValueError('Number of elements and left of trace and ycen must be equal')
 
     idims = image.shape
@@ -154,7 +154,7 @@ def extract_asymbox2(image,left_in,right_in,ycen_in = None,weight_image = None):
     return fextract.T
 
 
-def extract_boxcar(image,trace_in, radius_in, ycen_in = None):
+def extract_boxcar(image,trace_in, radius_in, ycen = None):
     """ Extract the total flux within a boxcar window at many positions. The ycen position is optional. If it is not provied, it is assumed to be integers
      in the spectral direction (as is typical for traces). Traces are expected to run vertically to be consistent with other
      extract_  routines. Based on idlspec2d/spec2d/extract_boxcar.pro
@@ -199,7 +199,7 @@ def extract_boxcar(image,trace_in, radius_in, ycen_in = None):
     # Checks on radius
     if (isinstance(radius_in,int) or isinstance(radius_in,float)):
         radius = radius_in
-    elif (np.size(radius)==np.size(trace_in) & np.shape(radius) == np.shape(trace_in)):
+    elif ((np.size(radius)==np.size(trace_in)) & (np.shape(radius) == np.shape(trace_in))):
         radius = radius_in.T
     else:
         raise ValueError('Boxcar radius must a be either an integer, a floating point number, or an ndarray '
@@ -216,18 +216,18 @@ def extract_boxcar(image,trace_in, radius_in, ycen_in = None):
         nTrace = dim[0]
         npix = dim[1]
 
-    if ycen_in == None:
+    if ycen == None:
         if ndim == 1:
-            ycen = np.arange(npix, dtype='int')
+            ycen_out = np.arange(npix, dtype='int')
         elif ndim == 2:
-            ycen = np.outer(np.ones(nTrace, dtype='int'), np.arange(npix, dtype='int'), )
+            ycen_out = np.outer(np.ones(nTrace, dtype='int'), np.arange(npix, dtype='int'), )
         else:
             raise ValueError('trace is not 1 or 2 dimensional')
     else:
-        ycen = ycen_in.T
-        ycen = np.rint(ycen).astype(int)
+        ycen_out = ycen.T
+        ycen_out = np.rint(ycen_out).astype(int)
 
-    if ((np.size(trace) != np.size(ycen)) | (np.shape(trace) != np.shape(ycen)):
+    if ((np.size(trace_in) != np.size(ycen)) | (np.shape(trace_in) != np.shape(ycen))):
         raise ValueError('Number of elements and shape of trace and ycen must be equal')
 
 
@@ -243,7 +243,6 @@ def extract_optimal(waveimg, imgminsky, ivar, mask, oprof, skyimg, rn_img, box_r
 
     nspat = imgminsky.shape[1]
     nspec = imgminsky.shape[0]
-    nobj = len(specobjs)
 
     spec_vec = np.arange(nspec)
     spat_vec = np.arange(nspat)
@@ -262,7 +261,7 @@ def extract_optimal(waveimg, imgminsky, ivar, mask, oprof, skyimg, rn_img, box_r
 
     rn2_sub = rn_img[:,mincol:maxcol]**2
     img_sub = imgminsky[:,mincol:maxcol]
-    sky_sub = skyimage[:,mincol:maxcol]
+    sky_sub = skyimg[:,mincol:maxcol]
     oprof_sub = oprof[:,mincol:maxcol]
     # enforce normalization and positivity of object profiles
     norm = np.nansum(oprof_sub,axis = 1)
@@ -333,7 +332,7 @@ def extract_optimal(waveimg, imgminsky, ivar, mask, oprof, skyimg, rn_img, box_r
     varimg = 1.0/(ivar + (ivar == 0.0))
     var_box  = extract_boxcar(varimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
     nvar_box  = extract_boxcar(var_no*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
-    sky_box  = extract_boxcar(skyimage*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    sky_box  = extract_boxcar(skyimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
     rn2_box  = extract_boxcar(rn_img**2*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
     rn_posind = (rn2_box > 0.0)
     rn_box = np.zeros(rn2_box.shape,dtype=float)
@@ -562,6 +561,14 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
      """
 
     from scipy.interpolate import interp1d
+    from scipy.ndimage.filters import median_filter
+    from pypit.core.pydl import bspline
+    from pypit.core.pydl import iterfit as  bspline_iterfit
+    from pypit.core.pydl import djs_maskinterp
+    from pypit.arutils import bspline_profile
+    from astropy.stats import sigma_clipped_stats
+    from scipy.special import erfcinv
+
     if hwidth is None: 3.0*(np.max(thisfwhm) + 1.0)
     if PROF_NSIGMA is not None:
         NO_DERIV = True
@@ -584,9 +591,10 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     spline_sub = np.zeros((nspec,nspat))
 
 
-
-    flux_sm = djs_median(flux, width = 5, boundary = 'reflect')
-    fluxivar_sm =  djs_median(fluxivar, width = 5, boundary = 'reflect')
+    flux_sm = median_filter(flux, size=5, mode = 'reflect')
+    fluxivar_sm =  median_filter(fluxivar, size = 5, mode = 'reflect')
+#    flux_sm = djs_median(flux, width = 5, boundary = 'reflect')
+    #    fluxivar_sm =  djs_median(fluxivar, width = 5, boundary = 'reflect')
     fluxivar_sm = fluxivar_sm*(fluxivar > 0.0)
 
     indsp = (wave > wvmnx[0]) & (wave < wvmnx[1]) & \
@@ -606,13 +614,14 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     if(nonzero >0):
         (mean, med_sn2, stddev) = sigma_clipped_stats(sn2,sigma_lower=3.0,sigma_upper=5.0)
     else: med_sn2 = 0.0
-    sn2_med = djs_median(sn2, width = 9, boundary = 'reflect')
+    sn2_med = median_filter(sn2, size=9, mode='reflect')
+    #sn2_med = djs_median(sn2, width = 9, boundary = 'reflect')
     igood = (ivar > 0.0)
     ngd = np.sum(igood)
     if(ngd > 0):
         isrt = np.argsort(wave[indsp])
-        sn2_interp = interp1d((wave[indsp])[isrt],sn2_med[isrt],assume_sorted=False)
-        sn2_sub[igood] = s2n_interp(sub_wave[igood])
+        sn2_interp = interp1d((wave[indsp])[isrt],sn2_med[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
+        sn2_sub[igood] = sn2_interp(sub_wave[igood])
     msgs.info('sqrt(med(S/N)^2) = ' + "{:5.2f}".format(np.sqrt(med_sn2)))
 
     min_wave = np.min(wave[indsp])
@@ -625,7 +634,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     spline_flux1[ispline] = spline_tmp
     cont_tmp, _ = c_answer.value(wave[ispline])
     cont_flux1[ispline] = cont_tmp
-    s2_1_interp = interp1d((wave[indsp])[isrt], sn2[isrt],assume_sorted=False)
+    s2_1_interp = interp1d((wave[indsp])[isrt], sn2[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
     sn2_1[ispline] = s2_1_interp(wave[ispline])
     bmask = np.zeros(nspec,dtype='bool')
     bmask[indsp] = bmask2
@@ -652,13 +661,13 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         nbad2 = np.sum(indbad2)
         ngood0 = np.sum(~badpix)
         if((nbad2 > 0) or (ngood0 > 0)):
-            spline_flux1[indbad2] = djs_median(spline_flux1[~badpix])
+            spline_flux1[indbad2] = np.median(spline_flux1[~badpix])
         # take a 5-pixel median to filter out some hot pixels
-        spline_flux1 = djs_median(spline_flux1,width=5,boundary ='reflect')
+        spline_flux1 = median_filter(spline_flux1,size=5,mode ='reflect')
         # Create the normalized object image
         if(ngd > 0):
             isrt = np.argsort(wave)
-            spline_sub_interp = interp1d(wave[isrt],spline_flux1[isrt],assume_sorted=False)
+            spline_sub_interp = interp1d(wave[isrt],spline_flux1[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
             spline_sub[igood] = spline_sub_interp(sub_wave[igood])
         else:
             spline_sub[igood] = np.fmax(sigma1, 0)
@@ -855,7 +864,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         xx = np.sum(xtemp, 1)/nspat
         profile_basis = np.column_stack((mode_zero,mode_shift))
 
-        mode_shift_out = bspline_longslit(xtemp.flat[inside], norm_obj.flat[inside], norm_ivar.flat[inside], profile_basis
+        mode_shift_out = bspline_profile(xtemp.flat[inside], norm_obj.flat[inside], norm_ivar.flat[inside], profile_basis
                                       ,maxiter=1,kwargs_bspline= {'nbkpts':nbkpts})
         mode_shift_set = mode_shift_out[0]
         temp_set = bspline(None, fullbkpt = mode_shift_set.breakpoints,nord=mode_shift_set.nord)
@@ -868,7 +877,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         trace_corr = trace_corr + delta_trace_corr
 
         profile_basis = np.column_stack((mode_zero,mode_stretch))
-        mode_stretch_out = bspline_longslit(xtemp.flat[inside], norm_obj.flat[inside], norm_ivar.flat[inside], profile_basis,
+        mode_stretch_out = bspline_profile(xtemp.flat[inside], norm_obj.flat[inside], norm_ivar.flat[inside], profile_basis,
                                             maxiter=1,fullbkpt = mode_shift_set.breakpoints)
         mode_stretch_set = mode_stretch_out[0]
         temp_set = bspline(None, fullbkpt = mode_stretch_set.breakpoints,nord=mode_stretch_set.nord)
@@ -896,7 +905,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
             keep = (bkpt >= sigma_x.flat[inside].min()) & (bkpt <= sigma_x.flat[inside].max())
             if keep.sum() == 0:
                 keep = np.ones(bkpt.size, type=bool)
-            bset_out = bspline_longslit(sigma_x.flat[inside[ss]],norm_obj.flat[inside[ss]],norm_ivar.flat[inside[ss]],pb[ss],
+            bset_out = bspline_profile(sigma_x.flat[inside[ss]],norm_obj.flat[inside[ss]],norm_ivar.flat[inside[ss]],pb[ss],
                                     nord = 4, bkpt=bkpt[keep],maxiter=2)
             bset = bset_out[0] # This updated bset used for the next set of trace corrections
 
@@ -914,7 +923,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
                        np.isfinite(norm_obj.flat[ss]) &
                        np.isfinite(norm_ivar.flat[ss]))
     pb = (np.outer(area, np.ones(nspat,dtype=float)))
-    bset_out = bspline_longslit(sigma_x.flat[ss[inside]],norm_obj.flat[ss[inside]], norm_ivar.flat[ss[inside]], pb.flat[ss[inside]],
+    bset_out = bspline_profile(sigma_x.flat[ss[inside]],norm_obj.flat[ss[inside]], norm_ivar.flat[ss[inside]], pb.flat[ss[inside]],
                             nord=4, bkpt = bkpt, upper = 10, lower=10)
     bset = bset_out[0]
     outmask = bset_out[1]

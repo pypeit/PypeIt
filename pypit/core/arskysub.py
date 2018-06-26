@@ -134,6 +134,10 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
 # Utility routine used by local_bg_subtraction_slit
 def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial = None, fullbkpt = None):
 
+    from pypit.arutils import bspline_profile
+    from pypit.core.pydl import flegendre, bspline
+    from scipy.special import ndtr
+
     nx = data.size
     nc = oprof.shape[0]
     nobj = int(oprof.size / nc)
@@ -165,10 +169,10 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
     good = good[wave[good].argsort()]
     relative, = np.where(relative_mask[good])
 
-    (sset1, outmask_good1, yfit1, red_chi1) = bspline_longslit(wave[good], data[good], ivar[good], profile_basis[good, :],
-                                                               fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
-                                                               relative=relative,
-                                                               kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+    (sset1, outmask_good1, yfit1, red_chi1) = bspline_profile(wave[good], data[good], ivar[good], profile_basis[good, :],
+                                                              fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
+                                                              relative=relative,
+                                                              kwargs_reject={'groupbadpix': True, 'maxrej': 5})
 
     chi2 = (data[good] - yfit1) ** 2 * ivar[good]
     chi2_srt = np.sort(chi2)
@@ -179,11 +183,11 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
     msgs.info('2nd round....')
     msgs.info('Iter     Chi^2     Rejected Pts')
 
-    (sset, outmask_good, yfit, red_chi) = bspline_longslit(wave[good], data[good], ivar[good] * mask1,
-                                                           profile_basis[good, :],
-                                                           fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
-                                                           relative=relative,
-                                                           kwargs_reject={'groupbadpix': True, 'maxrej': 1})
+    (sset, outmask_good, yfit, red_chi) = bspline_profile(wave[good], data[good], ivar[good] * mask1,
+                                                          profile_basis[good, :],
+                                                          fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
+                                                          relative=relative,
+                                                          kwargs_reject={'groupbadpix': True, 'maxrej': 1})
 
     ncoeff = npoly + nobj
     skyset = bspline(None, fullbkpt=sset.breakpoints, nord=sset.nord, npoly=npoly)
