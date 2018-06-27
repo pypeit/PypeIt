@@ -24,17 +24,16 @@ PYPIT depends on the following list of Python packages.
 
 We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to install and/or update these packages.
 
-* `python <http://www.python.org/>`_ versions 2.7, or 3.5 or later
+* `python <http://www.python.org/>`_ versions 2.7, or 3.5 or later (2.7 will be deprecated)
 * `numpy <http://www.numpy.org/>`_ version 1.13 or later
 * `astropy <http://www.astropy.org/>`_ version 1.3 or later
-* `scipy <http://www.scipy.org/>`_ version 0.17 or later
+* `scipy <http://www.scipy.org/>`_ version 0.18 or later
 * `matplotlib <http://matplotlib.org/>`_  version 1.4 or later
 * `PyQT5 <https://wiki.python.org/moin/PyQt/>`_ version 5 (needed for linetools)
-* `Ginga <https://ginga.readthedocs.io/en/latest/>`_ latest version (highly recommended; essentially required)
 * `h5py <https://www.h5py.org/>`_ version 2.6 (for data I/O)
 *  yaml -- On Python 3 (at least), you may need to install pyyaml
 * `future <https://pypi.python.org/pypi/future/0.6.0>`_ version 0.6
-* `arclines <https://github.com/PYPIT/arclines>`_ development version
+* `arclines <https://github.com/PYPIT/arclines>`_
 * `ginga <https://github.com/profxj/ginga>`_ JXP's fork of Ginga
 
 If you are using Anaconda, you can check the presence of these packages with::
@@ -62,7 +61,7 @@ also required for PYPIT.
 Linetools is a package designed for the analysis of 1-D spectra.
 The installation steps for linetools are provided
 `here <http://linetools.readthedocs.io/en/latest/install.html/>`_.
-Do not use pip install.
+Do **not** use the pip install.
 
 According to the linetools documentation page, "If you wish to have
 full functionality of the GUIs and are using MacOSX, then you probably
