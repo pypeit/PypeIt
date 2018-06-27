@@ -104,7 +104,6 @@ def extract_asymbox2(image,left_in,right_in,ycen = None,weight_image = None):
         ycen_out = ycen.T
         ycen_out = np.rint(ycen_out).astype(int)
 
-    embed()
     if ((np.size(left) != np.size(ycen_out)) | (np.shape(left) != np.shape(ycen_out))):
         raise ValueError('Number of elements and left of trace and ycen must be equal')
 
