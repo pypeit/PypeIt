@@ -384,7 +384,7 @@ def ximg_and_edgemask(lord_in, rord_in, slitpix, trim_edg=(3,3), xshift=0.):
             msgs.warn('Something goofy in slit # {:d}'.format(islit))
             msgs.warn('Probably a bad slit (e.g. a star box)')
             msgs.warn('It is best to expunge this slit')
-            msgs.warn('Proceed at your own risk, with a slit width of {:d}'.format(meds))
+            msgs.warn('Proceed at your own risk, with a slit width of {}'.format(meds))
             msgs.warn('Or set meds to your liking')
             debugger.set_trace()
             rord[:, islit] = lord[:, islit] + meds
