@@ -20,6 +20,8 @@ from pypit import artrace
 from pypit import arutils
 from pypit import ardebug as debugger
 
+from IPython import embed
+
 # MASK VALUES FROM EXTRACTION
 # 0 
 # 2**0 = Flagged as bad detector pixel
@@ -102,7 +104,8 @@ def extract_asymbox2(image,left_in,right_in,ycen = None,weight_image = None):
         ycen_out = ycen.T
         ycen_out = np.rint(ycen_out).astype(int)
 
-    if ((np.size(left_in) != np.size(ycen)) | (np.shape(left_in) != np.shape(ycen))):
+    embed()
+    if ((np.size(left) != np.size(ycen_out)) | (np.shape(left) != np.shape(ycen_out))):
         raise ValueError('Number of elements and left of trace and ycen must be equal')
 
     idims = image.shape
@@ -227,7 +230,7 @@ def extract_boxcar(image,trace_in, radius_in, ycen = None):
         ycen_out = ycen.T
         ycen_out = np.rint(ycen_out).astype(int)
 
-    if ((np.size(trace_in) != np.size(ycen)) | (np.shape(trace_in) != np.shape(ycen))):
+    if ((np.size(trace) != np.size(ycen_out)) | (np.shape(trace) != np.shape(ycen_out))):
         raise ValueError('Number of elements and shape of trace and ycen must be equal')
 
 
