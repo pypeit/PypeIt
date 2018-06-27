@@ -657,13 +657,11 @@ class bspline(object):
 
         Returns
         -------
-        :func:`tuple`
-            A tuple containing an integer error code, and the evaluation of the
-            b-spline at the input values.  The error codes are as follows:
-             -2:  is a failure,
-             -1:  indicates dropped breakpoints
-              0:  is success
-              positive integers:  indicate ill-conditioned breakpoints.
+        :func:`tuple` (success, yfit)
+            A tuple containing an boolean error code, and the evaluation of the b-spline yfit at the input values.  The error codes are as follows:
+
+             False:  is a failure,
+              True:  is success
         """
         goodbk = self.mask[self.nord:]
         nn = goodbk.sum()
@@ -699,11 +697,15 @@ class bspline(object):
         # Right now we are not returning the covariance, although it may arise that we should
         covariance = alpha
         errb = cholesky_band(alpha, mininf=min_influence)  # ,verbose=True)
-        if isinstance(errb[0], int) and errb[0] == -1:
+        if isinstance(errb[0], int) and errb[0] == -1: # successful cholseky_band returns -1
             a = errb[1]
         else:
             yfit, foo = self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)
-            return (self.maskpoints(errb[0]), yfit)
+            return (False, yfit)
+            # JFH changed to simply return -2 to indicate a failure.
+            # Before it was returning the integer locations where the failure occurred, but I think that is best
+            # left for debugging and simple success or failure is better.
+            #return (self.maskpoints(errb[0]), yfit)
         errs = cholesky_solve(a, beta)
         if isinstance(errs[0], int) and errs[0] == -1:
             sol = errs[1]
@@ -714,7 +716,7 @@ class bspline(object):
             # errs[0] == -1
             #
             yfit, foo = self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)
-            return (self.maskpoints(errs[0]), yfit)
+            return (False, yfit)
 
         if self.coeff.ndim == 2:
             self.icoeff[:, goodbk] = np.array(a[0, 0:nfull].T.reshape(self.npoly, nn,order='F'), dtype=a.dtype)
@@ -724,7 +726,7 @@ class bspline(object):
             self.coeff[goodbk] = np.array(sol[0:nfull], dtype=sol.dtype)
 
         yfit, foo = self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)
-        return (0, yfit)
+        return (True, yfit)
 
 
 
