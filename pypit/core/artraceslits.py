@@ -2695,7 +2695,7 @@ def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
     xnew = xinit.astype(float)
     xerr = np.full(ncen,999.)
 
-    if ycen == None:
+    if ycen is None:
         if ndim == 1:
             ycen = np.arange(npix, dtype='int')
         elif ndim == 2:
