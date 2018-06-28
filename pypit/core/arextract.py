@@ -91,7 +91,7 @@ def extract_asymbox2(image,left_in,right_in,ycen = None,weight_image = None):
         nTrace = dim[0]
         npix = dim[1]
 
-    if ycen == None:
+    if ycen is None:
         if ndim == 1:
             ycen_out = np.arange(npix, dtype='int')
         elif ndim == 2:
@@ -216,7 +216,7 @@ def extract_boxcar(image,trace_in, radius_in, ycen = None):
         nTrace = dim[0]
         npix = dim[1]
 
-    if ycen == None:
+    if ycen is None:
         if ndim == 1:
             ycen_out = np.arange(npix, dtype='int')
         elif ndim == 2:

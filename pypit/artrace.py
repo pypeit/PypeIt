@@ -1211,8 +1211,10 @@ def trace_weighted(frame, ltrace, rtrace, mask=None, wght="flux"):
     error = np.sqrt(np.sum((idxarr-trace.reshape(nspec, 1))**2 * extwght, axis=1) * wfact)
     return trace, error
 
+# This should be deprecated, since there is another version of trace_fweight in core.artraceslits
 
-def trace_fweight(fimage, xinit, ltrace=None, rtraceinvvar=None, radius=3.):
+#def trace_fweight(fimage, xinit, ltrace=None, rtraceinvvar=None, radius=3.):
+def trace_fweight_deprecated(fimage, xinit, ltrace=None, rtraceinvvar=None, radius=3.):
     """ Python port of trace_fweight.pro from IDLUTILS
 
     Parameters:
