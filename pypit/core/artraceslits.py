@@ -2608,7 +2608,7 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, radius=2.,
     return xset, xerr
 
 
-def trace_fweight(fimage, xinit_in, ycen_in=None, invvar=None, radius=2., debug=False):
+def trace_fweight(fimage, xinit_in, ycen=None, invvar=None, radius=2., debug=False):
     '''Python port of trace_fweight.pro from IDLUTILS
 
     Parameters
@@ -2649,16 +2649,16 @@ def trace_fweight(fimage, xinit_in, ycen_in=None, invvar=None, radius=2., debug=
     xnew = xinit.astype(float)
     xerr = np.full(ncen,999.)
 
-    if ycen_in == None:
+    if ycen == None:
         if ndim == 1:
-            ycen_in = np.arange(npix, dtype='int')
+            ycen = np.arange(npix, dtype='int')
         elif ndim == 2:
-            ycen_in = np.outer(np.arange(npix, dtype='int'), np.ones(nTrace, dtype='int'))
+            ycen = np.outer(np.arange(npix, dtype='int'), np.ones(nTrace, dtype='int'))
         else:
             raise ValueError('xinit is not 1 or 2 dimensional')
 
-    ycen = ycen_in.astype(int)
-    ycen = ycen_in.flatten()
+    ycen_out = ycen.astype(int)
+    ycen_out = ycen_out.flatten()
 
     if np.size(xinit) != np.size(ycen):
         raise ValueError('Number of elements in xinit and ycen must be equal')
@@ -2687,14 +2687,14 @@ def trace_fweight(fimage, xinit_in, ycen_in=None, invvar=None, radius=2., debug=
         xdiff = spot - xinit
         #
         wt = np.clip(radius - np.abs(xdiff) + 0.5,0,1) * ((spot >= 0) & (spot < nx))
-        sumw = sumw + fimage[ycen,ih] * wt
+        sumw = sumw + fimage[ycen_out,ih] * wt
         sumwt = sumwt + wt
-        sumxw = sumxw + fimage[ycen,ih] * xdiff * wt
-        var_term = wt**2 / (invvar[ycen,ih] + (invvar[ycen,ih] == 0))
+        sumxw = sumxw + fimage[ycen_out,ih] * xdiff * wt
+        var_term = wt**2 / (invvar[ycen_out,ih] + (invvar[ycen_out,ih] == 0))
         sumsx2 = sumsx2 + var_term
         sumsx1 = sumsx1 + xdiff**2 * var_term
-        #qbad = qbad or (invvar[ycen,ih] <= 0)
-        qbad = np.any([qbad, invvar[ycen,ih] <= 0], axis=0)
+        #qbad = qbad or (invvar[ycen_out,ih] <= 0)
+        qbad = np.any([qbad, invvar[ycen_out,ih] <= 0], axis=0)
 
     # Fill up
     good = (sumw > 0) &  (~qbad)
