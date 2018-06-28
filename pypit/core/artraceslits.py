@@ -2547,6 +2547,8 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
 def trace_crude_init(image, xinit0, ypass, invvar=None, radius=2.,
     maxshift0=0.5, maxshift=0.15, maxerr=0.2):
     """Python port of trace_crude_idl.pro from IDLUTILS
+    #TODO this routine needs better docs. I'm also not sure why it is called trace_crude_init instead of just trace_crude.
+    #TODO Consistent naming with IDLUTILS makes it easier to figure out what rourine is what.
 
     Modified for initial guess
 
@@ -2578,7 +2580,7 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, radius=2.,
     #  Recenter INITIAL Row for all traces simultaneously
     #
     iy = ypass * np.ones(ntrace,dtype=int)
-    xfit,xfiterr = trace_fweight(image, xinit, iy, invvar=invvar, radius=radius)
+    xfit,xfiterr = trace_fweight(image, xinit, ycen = iy, invvar=invvar, radius=radius)
     # Shift
     xshift = np.clip(xfit-xinit, -1*maxshift0, maxshift0) * (xfiterr < maxerr)
     xset[ypass,:] = xinit + xshift
@@ -2588,7 +2590,7 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, radius=2.,
     for iy in range(ypass+1, ny):
         xinit = xset[iy-1, :]
         ycen = iy * np.ones(ntrace,dtype=int)
-        xfit,xfiterr = trace_fweight(image, xinit, ycen, invvar=invvar, radius=radius)
+        xfit,xfiterr = trace_fweight(image, xinit, ycen = ycen, invvar=invvar, radius=radius)
         # Shift
         xshift = np.clip(xfit-xinit, -1*maxshift, maxshift) * (xfiterr < maxerr)
         # Save
@@ -2598,7 +2600,7 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, radius=2.,
     for iy in range(ypass-1, -1,-1):
         xinit = xset[iy+1, :]
         ycen = iy * np.ones(ntrace,dtype=int)
-        xfit,xfiterr = trace_fweight(image, xinit, ycen, invvar=invvar, radius=radius)
+        xfit,xfiterr = trace_fweight(image, xinit, ycen = ycen, invvar=invvar, radius=radius)
         # Shift
         xshift = np.clip(xfit-xinit, -1*maxshift, maxshift) * (xfiterr < maxerr)
         # Save
