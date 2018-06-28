@@ -226,23 +226,23 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
     #--------------------
     # Iterate spline fit
     iiter = 0
-    error = -1
+    success = False
     qdone = False
 
+    relative_factor = 1.0
     tempin = None
-    while (error != 0 or qdone is False) and iiter <= maxiter:
+    while (success == False or qdone is False) and iiter <= maxiter:
         goodbk = sset.mask.nonzero()[0]
         if ngood <= 1 or not sset.mask.any():
             sset.coeff = 0
             iiter = maxiter + 1 # End iterations
         else:
-            # Do the fit. Return values for ERROR are as follows:
-            #    0: if fit sis good
-            #   -1: if all break points are masked
-            #   -2: if everything is screwed
+            # Do the fit. Return values from workit for success are as follows:
+            #    True: if fit is good
+            #    False: if everything is screwed
 
             # we'll do the fit right here..............
-            if error != 0:
+            if success == False:
                 bf1, laction, uaction = sset.action(xdata)
                 if(bf1.size !=nx*nord):
                     msgs.error("BSPLINE_ACTION failed!")
@@ -252,12 +252,12 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
                 del bf1 # Clear the memory
             if np.sum(np.isfinite(action) is False) > 0:
                 msgs.error("Infinities in action matrix, wavelengths may be very messed up!!!")
-            error, yfit = sset.workit(xdata, ydata, invvar*maskwork,action, laction, uaction)
+            success, yfit = sset.workit(xdata, ydata, invvar*maskwork,action, laction, uaction)
         iiter += 1
-        if error == -2:
+        if success == False:
             msgs.warn(" All break points have been dropped!!")
             return (sset, outmask, yfit, reduced_chi)
-        elif error == 0:
+        elif success == True:
             # Iterate the fit -- next rejection iteration
             chi_array = (ydata - yfit)*np.sqrt(invvar * maskwork)
             reduced_chi = np.sum(chi_array**2)/(ngood - npoly*(len(goodbk) + nord)-1)
@@ -1112,69 +1112,6 @@ def subsample(frame):
     return frame[tuple(indices)]
 
 
-def trace_gweight(fimage, xcen, ycen, sigma, invvar=None, maskval=-999999.9):
-    """ Determines the trace centroid by weighting the flux by the integral
-    of a Gaussian over a pixel
-    Port of SDSS trace_gweight algorithm
-
-    Parameters
-    ----------
-    fimage : ndarray
-      image to centroid on
-    xcen : ndarray
-      guess of centroids in x (column) dimension
-    ycen : ndarray (usually int)
-      guess of centroids in y (rows) dimension
-    sigma : float
-      Width of gaussian
-    invvar : ndarray, optional
-    maskval : float, optional
-      Value for masking
-
-    Returns
-    -------
-    xnew : ndarray
-      New estimate for trace in x-dimension
-    xerr : ndarray
-      Error estimate for trace.  Rejected points have maskval
-
-    """
-    # Setup
-    nx = fimage.shape[1]
-    xnew = np.zeros_like(xcen)
-    xerr = maskval*np.ones_like(xnew)
-
-    if invvar is None:
-        invvar = np.ones_like(fimage)
-
-    # More setting up
-    x_int = np.round(xcen).astype(int)
-    nstep = 2*int(3.0*sigma) - 1
-
-    weight = np.zeros_like(xcen)
-    numer  = np.zeros_like(xcen)
-    meanvar = np.zeros_like(xcen)
-    bad = np.zeros_like(xcen).astype(bool)
-
-    for i in range(nstep):
-        xh = x_int - nstep//2 + i
-        xtemp = (xh - xcen - 0.5)/sigma/np.sqrt(2.0)
-        g_int = (erf(xtemp+1./sigma/np.sqrt(2.0)) - erf(xtemp))/2.
-        xs = np.minimum(np.maximum(xh,0),(nx-1))
-        cur_weight = fimage[ycen, xs] * (invvar[ycen, xs] > 0) * g_int * ((xh >= 0) & (xh < nx))
-        weight += cur_weight
-        numer += cur_weight * xh
-        meanvar += cur_weight * cur_weight * (xcen-xh)**2 / (
-                            invvar[ycen, xs] + (invvar[ycen, xs] == 0))
-        bad = np.any([bad, xh < 0, xh >= nx], axis=0)
-
-    # Masking
-    good = (~bad) & (weight > 0)
-    if np.sum(good) > 0:
-        xnew[good] = numer[good]/weight[good]
-        xerr[good] = np.sqrt(meanvar[good])/weight[good]
-    # Return
-    return xnew, xerr
 
 def yamlify(obj, debug=False):
     """Recursively process an object so it can be serialised for yaml.

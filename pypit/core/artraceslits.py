@@ -2608,7 +2608,7 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, radius=2.,
     return xset, xerr
 
 
-def trace_fweight(fimage, xinit, ycen=None, invvar=None, radius=2., debug=False):
+def trace_fweight(fimage, xinit_in, ycen=None, invvar=None, radius=2., debug=False):
     '''Python port of trace_fweight.pro from IDLUTILS
 
     Parameters
@@ -2616,31 +2616,54 @@ def trace_fweight(fimage, xinit, ycen=None, invvar=None, radius=2., debug=False)
     fimage: 2D ndarray
       Image for tracing
     xinit: ndarray
-      Initial guesses for x-trace
+      Initial guesses for x-trace [nspec, nTrace] array
     invvar: ndarray, optional
       Inverse variance array for the image
     radius: float, optional
       Radius for centroiding; default to 3.0
+
+    Optional Parameters:
+    ycen: ndarray
+      Optionally y-position of trace can be provided. It should be the same size as x-trace [nspec, nTrace]. If
+      not provided np.arange(nspec) will be assumed for each trace
     '''
-    # Definitions for Cython
-    #cdef int nx,ny,ncen
 
     # Init
     nx = fimage.shape[1]
     ny = fimage.shape[0]
-    ncen = len(xinit)
+
+    # Figure out dimensions of xinit
+    dim = xinit_in.shape
+    ndim = xinit_in.ndim
+    if (ndim == 1):
+        nTrace = 1
+        npix = dim[0]
+    else:
+        nTrace = dim[1]
+        npix = dim[0]
+
+    ncen = xinit_in.size
+
+    xinit = xinit_in.flatten()
     # Create xnew, xerr
     xnew = xinit.astype(float)
-    xerr = np.zeros(ncen) + 999.
+    xerr = np.full(ncen,999.)
 
-    # ycen
-    if ycen is None:
-        if ncen != ny:
-            raise ValueError('Bad input')
-        ycen = np.arange(ny, dtype=int)
-    else:
-        if len(ycen) != ncen:
-            raise ValueError('Bad ycen input.  Wrong length')
+    if ycen == None:
+        if ndim == 1:
+            ycen = np.arange(npix, dtype='int')
+        elif ndim == 2:
+            ycen = np.outer(np.arange(npix, dtype='int'), np.ones(nTrace, dtype='int'))
+        else:
+            raise ValueError('xinit is not 1 or 2 dimensional')
+
+    ycen_out = ycen.astype(int)
+    ycen_out = ycen_out.flatten()
+
+    if np.size(xinit) != np.size(ycen):
+        raise ValueError('Number of elements in xinit and ycen must be equal')
+
+
     x1 = xinit - radius + 0.5
     x2 = xinit + radius + 0.5
     ix1 = np.floor(x1).astype(int)
@@ -2664,14 +2687,14 @@ def trace_fweight(fimage, xinit, ycen=None, invvar=None, radius=2., debug=False)
         xdiff = spot - xinit
         #
         wt = np.clip(radius - np.abs(xdiff) + 0.5,0,1) * ((spot >= 0) & (spot < nx))
-        sumw = sumw + fimage[ycen,ih] * wt
+        sumw = sumw + fimage[ycen_out,ih] * wt
         sumwt = sumwt + wt
-        sumxw = sumxw + fimage[ycen,ih] * xdiff * wt
-        var_term = wt**2 / (invvar[ycen,ih] + (invvar[ycen,ih] == 0))
+        sumxw = sumxw + fimage[ycen_out,ih] * xdiff * wt
+        var_term = wt**2 / (invvar[ycen_out,ih] + (invvar[ycen_out,ih] == 0))
         sumsx2 = sumsx2 + var_term
         sumsx1 = sumsx1 + xdiff**2 * var_term
-        #qbad = qbad or (invvar[ycen,ih] <= 0)
-        qbad = np.any([qbad, invvar[ycen,ih] <= 0], axis=0)
+        #qbad = qbad or (invvar[ycen_out,ih] <= 0)
+        qbad = np.any([qbad, invvar[ycen_out,ih] <= 0], axis=0)
 
     # Fill up
     good = (sumw > 0) &  (~qbad)
@@ -2685,6 +2708,76 @@ def trace_fweight(fimage, xinit, ycen=None, invvar=None, radius=2., debug=False)
         xnew[bad] = xinit[bad]
         xerr[bad] = 999.0
 
+    # Reshape to the right size for output if more than one trace was input
+    if ndim > 1:
+        xnew = xnew.reshape(npix,nTrace)
+        xerr = xerr.reshape(npix,nTrace)
+
+    # Return
+    return xnew, xerr
+
+
+def trace_gweight(fimage, xcen, ycen, sigma, invvar=None, maskval=-999999.9):
+    """ Determines the trace centroid by weighting the flux by the integral
+    of a Gaussian over a pixel
+    Port of SDSS trace_gweight algorithm
+
+    Parameters
+    ----------
+    fimage : ndarray
+      image to centroid on
+    xcen : ndarray
+      guess of centroids in x (column) dimension
+    ycen : ndarray (usually int)
+      guess of centroids in y (rows) dimension
+    sigma : float
+      Width of gaussian
+    invvar : ndarray, optional
+    maskval : float, optional
+      Value for masking
+
+    Returns
+    -------
+    xnew : ndarray
+      New estimate for trace in x-dimension
+    xerr : ndarray
+      Error estimate for trace.  Rejected points have maskval
+
+    """
+    # Setup
+    nx = fimage.shape[1]
+    xnew = np.zeros_like(xcen)
+    xerr = maskval*np.ones_like(xnew)
+
+    if invvar is None:
+        invvar = np.ones_like(fimage)
+
+    # More setting up
+    x_int = np.round(xcen).astype(int)
+    nstep = 2*int(3.0*sigma) - 1
+
+    weight = np.zeros_like(xcen)
+    numer  = np.zeros_like(xcen)
+    meanvar = np.zeros_like(xcen)
+    bad = np.zeros_like(xcen).astype(bool)
+
+    for i in range(nstep):
+        xh = x_int - nstep//2 + i
+        xtemp = (xh - xcen - 0.5)/sigma/np.sqrt(2.0)
+        g_int = (erf(xtemp+1./sigma/np.sqrt(2.0)) - erf(xtemp))/2.
+        xs = np.minimum(np.maximum(xh,0),(nx-1))
+        cur_weight = fimage[ycen, xs] * (invvar[ycen, xs] > 0) * g_int * ((xh >= 0) & (xh < nx))
+        weight += cur_weight
+        numer += cur_weight * xh
+        meanvar += cur_weight * cur_weight * (xcen-xh)**2 / (
+                invvar[ycen, xs] + (invvar[ycen, xs] == 0))
+        bad = np.any([bad, xh < 0, xh >= nx], axis=0)
+
+    # Masking
+    good = (~bad) & (weight > 0)
+    if np.sum(good) > 0:
+        xnew[good] = numer[good]/weight[good]
+        xerr[good] = np.sqrt(meanvar[good])/weight[good]
     # Return
     return xnew, xerr
 
