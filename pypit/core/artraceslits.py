@@ -2762,9 +2762,8 @@ def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
 
 
 def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskval=-999999.9):
-    ''' Routine to recenter a trace using gaussian-weighted centroiding.
-
-    Python port of trace_gweight.pro from IDLUTILS
+    ''' Routine to recenter a trace using gaussian-weighted centroiding. Specifically the flux in the image is weighted
+    by the integral of a Gaussian over a pixel. Port of idlutils trace_gweight.pro algorithm
 
 
     Parameters
@@ -2801,7 +2800,7 @@ def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskv
          Formal propagated error on recentroided trace. These errors will only make sense if invvar is passed in, since
          otherwise invvar is set to 1.0.   The output will have the same shape as xinit i.e.  an 2-d  array with shape
          (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for the case of a single
-         trace. Locations where the flux weighted centroid deviates from the input guess by  > radius, or where it falls
+         trace. Locations where the gaussian weighted centroid deviates from the input guess by  > radius, or where it falls
          off the image, will have this error set to 999 and will their xnew values set to that of the input trace. These
          should thus be masked in any fit.
 
@@ -2810,35 +2809,8 @@ def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskv
      Python port of trace_fweight.pro from IDLUTILS
      24-Mar-1999  Written by David Schlegel, Princeton.
      27-Jun-2018  Ported to python by X. Prochaska and J. Hennawi
-    """
+    '''
 
-
-    """ Determines the trace centroid by weighting the flux by the integral
-    of a Gaussian over a pixel
-    Port of SDSS trace_gweight algorithm
-
-    Parameters
-    ----------
-    fimage : ndarray
-      image to centroid on
-    xcen : ndarray
-      guess of centroids in x (column) dimension
-    ycen : ndarray (usually int)
-      guess of centroids in y (rows) dimension
-    sigma : float
-      Width of gaussian
-    invvar : ndarray, optional
-    maskval : float, optional
-      Value for masking
-
-    Returns
-    -------
-    xnew : ndarray
-      New estimate for trace in x-dimension
-    xerr : ndarray
-      Error estimate for trace.  Rejected points have maskval
-
-    """
     # Setup
     nx = fimage.shape[1]
     xnew = np.zeros_like(xcen)
