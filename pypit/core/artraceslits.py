@@ -2608,29 +2608,73 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, radius=2.,
     return xset, xerr
 
 
-def trace_fweight(fimage, xinit_in, ycen=None, invvar=None, radius=2., debug=False):
-    '''Python port of trace_fweight.pro from IDLUTILS
+def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
+
+    ''' Routine to recenter a trace using flux-weighted centroiding.
+
+    Python port of trace_fweight.pro from IDLUTILS
+
 
     Parameters
     ----------
     fimage: 2D ndarray
-      Image for tracing
+      Image for tracing which shape (nspec, nspat)
+
     xinit: ndarray
-      Initial guesses for x-trace [nspec, nTrace] array
-    invvar: ndarray, optional
-      Inverse variance array for the image
-    radius: float, optional
-      Radius for centroiding; default to 3.0
+      Initial guesses for spatial direction trace. This can either be an 2-d  array with shape
+         (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
 
     Optional Parameters:
-    ycen: ndarray
-      Optionally y-position of trace can be provided. It should be the same size as x-trace [nspec, nTrace]. If
+    --------------------
+    ycen: ndarray, default = None
+      Optionally y-position of trace can be provided. It should be an integer array the same size as x-trace (nspec, nTrace). If
       not provided np.arange(nspec) will be assumed for each trace
+
+    invvar: ndarray, default = None
+         Inverse variance array for the image. Array with shape (nspec, nspat) matching fimage
+
+    radius :  float or ndarray, default = 3.0
+         Radius for centroiding in floating point pixels. This can be either be input as a scalar or as an array to perform
+         centroiding with a varaible radius. If an array is input it must have the same size and shape as xinit_in, i.e.
+         a 2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
+
+    Returns
+    -------
+    xnew:   ndarray
+         Recentroided trace. The output will have the same shape as xinit i.e.  an 2-d  array with shape (nspec, nTrace)
+         array if multiple traces were input, or a 1-d array with shape (nspec) for
+         the case of a single trace.
+    xerr: ndarray
+         Formal propagated error on recentroided trace. These errors will only make sense if invvar is passed in, since
+         otherwise invvar is set to 1.0.   The output will have the same shape as xinit i.e.  an 2-d  array with shape
+         (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for the case of a single
+         trace. Locations where the flux weighted centroid deviates from the input guess by  > radius, or where it falls
+         off the image, will have this error set to 999 and will their xnew values set to that of the input trace. These
+         should thus be masked in any fit.
+
+     Revision History
+     ----------------
+     Python port of trace_fweight.pro from IDLUTILS
+     24-Mar-1999  Written by David Schlegel, Princeton.
+     27-Jun-2018  Ported to python by X. Prochaska and J. Hennawi
+    """
+
+
     '''
 
     # Init
     nx = fimage.shape[1]
     ny = fimage.shape[0]
+
+    # Checks on radius
+    if (isinstance(radius,int) or isinstance(radius,float)):
+        radius_out = radius
+    elif ((np.size(radius)==np.size(xinit_in)) & (np.shape(radius) == np.shape(xinit_in))):
+        radius_out = radius
+    else:
+        raise ValueError('Boxcar radius must a be either an integer, a floating point number, or an ndarray '
+                         'with the same shape and size as trace_in')
+
 
     # Figure out dimensions of xinit
     dim = xinit_in.shape
@@ -2664,8 +2708,8 @@ def trace_fweight(fimage, xinit_in, ycen=None, invvar=None, radius=2., debug=Fal
         raise ValueError('Number of elements in xinit and ycen must be equal')
 
 
-    x1 = xinit - radius + 0.5
-    x2 = xinit + radius + 0.5
+    x1 = xinit - radius_out + 0.5
+    x2 = xinit + radius_out + 0.5
     ix1 = np.floor(x1).astype(int)
     ix2 = np.floor(x2).astype(int)
 
@@ -2686,7 +2730,7 @@ def trace_fweight(fimage, xinit_in, ycen=None, invvar=None, radius=2., debug=Fal
         ih = np.clip(spot,0,nx-1)
         xdiff = spot - xinit
         #
-        wt = np.clip(radius - np.abs(xdiff) + 0.5,0,1) * ((spot >= 0) & (spot < nx))
+        wt = np.clip(radius_out - np.abs(xdiff) + 0.5,0,1) * ((spot >= 0) & (spot < nx))
         sumw = sumw + fimage[ycen_out,ih] * wt
         sumwt = sumwt + wt
         sumxw = sumxw + fimage[ycen_out,ih] * xdiff * wt
@@ -2703,7 +2747,7 @@ def trace_fweight(fimage, xinit_in, ycen=None, invvar=None, radius=2., debug=Fal
         xnew[good] = delta_x + xinit[good]
         xerr[good] = np.sqrt(sumsx1[good] + sumsx2[good]*delta_x**2)/sumw[good]
 
-    bad = np.any([np.abs(xnew-xinit) > radius + 0.5,xinit < radius - 0.5,xinit > nx - 0.5 - radius],axis=0)
+    bad = np.any([np.abs(xnew-xinit) > radius_out + 0.5,xinit < radius_out - 0.5,xinit > nx - 0.5 - radius_out],axis=0)
     if np.sum(bad) > 0:
         xnew[bad] = xinit[bad]
         xerr[bad] = 999.0
@@ -2717,7 +2761,58 @@ def trace_fweight(fimage, xinit_in, ycen=None, invvar=None, radius=2., debug=Fal
     return xnew, xerr
 
 
-def trace_gweight(fimage, xcen, ycen, sigma, invvar=None, maskval=-999999.9):
+def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskval=-999999.9):
+    ''' Routine to recenter a trace using gaussian-weighted centroiding.
+
+    Python port of trace_gweight.pro from IDLUTILS
+
+
+    Parameters
+    ----------
+    fimage: 2D ndarray
+      Image for tracing which shape (nspec, nspat)
+
+    xinit: ndarray
+      Initial guesses for spatial direction trace. This can either be an 2-d  array with shape
+         (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
+
+
+    Optional Parameters:
+    --------------------
+    sigma :  float or ndarray, default = 1.0
+         Sigma of Gaussian for centroiding in floating point pixels. This can be either be input as a scalar or as an array to perform
+         centroiding with a varaible sigma. If an array is input it must have the same size and shape as xinit_in, i.e.
+         a 2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
+
+    ycen: ndarray, default = None
+      Optionally y-position of trace can be provided. It should be an integer array the same size as x-trace (nspec, nTrace). If
+      not provided np.arange(nspec) will be assumed for each trace.
+
+    invvar: ndarray, default = None
+         Inverse variance array for the image. Array with shape (nspec, nspat) matching fimage
+
+    Returns
+    -------
+    xnew:   ndarray
+         Recentroided trace. The output will have the same shape as xinit i.e.  an 2-d  array with shape (nspec, nTrace)
+         array if multiple traces were input, or a 1-d array with shape (nspec) for
+         the case of a single trace.
+    xerr: ndarray
+         Formal propagated error on recentroided trace. These errors will only make sense if invvar is passed in, since
+         otherwise invvar is set to 1.0.   The output will have the same shape as xinit i.e.  an 2-d  array with shape
+         (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for the case of a single
+         trace. Locations where the flux weighted centroid deviates from the input guess by  > radius, or where it falls
+         off the image, will have this error set to 999 and will their xnew values set to that of the input trace. These
+         should thus be masked in any fit.
+
+     Revision History
+     ----------------
+     Python port of trace_fweight.pro from IDLUTILS
+     24-Mar-1999  Written by David Schlegel, Princeton.
+     27-Jun-2018  Ported to python by X. Prochaska and J. Hennawi
+    """
+
+
     """ Determines the trace centroid by weighting the flux by the integral
     of a Gaussian over a pixel
     Port of SDSS trace_gweight algorithm
