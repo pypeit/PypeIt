@@ -20,8 +20,6 @@ from pypit import artrace
 from pypit import arutils
 from pypit import ardebug as debugger
 
-from IPython import embed
-
 # MASK VALUES FROM EXTRACTION
 # 0 
 # 2**0 = Flagged as bad detector pixel
