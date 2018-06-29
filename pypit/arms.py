@@ -168,9 +168,11 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 ts_settings = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
                 ts_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
                 # Get it -- Key arrays are in the tslits_dict
-                tslits_dict, _ = traceslits.get_tslits_dict(
-                    det, setup, spectrograph, sci_ID, ts_settings, tsettings, fitstbl, pixlocn,
-                    msbias, msbpm, datasec_img, trim=settings.argflag['reduce']['trim'])
+                tslits_dict, _ = traceslits.get_tslits_dict(det, setup, spectrograph, sci_ID,
+                                                            ts_settings['trace']['slits'],
+                                                            tsettings, fitstbl, pixlocn, msbias,
+                                                            msbpm, datasec_img,
+                                                            trim=settings.argflag['reduce']['trim'])
                 # Save in calib
                 calib_dict[setup]['trace'] = tslits_dict
 
