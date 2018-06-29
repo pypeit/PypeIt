@@ -127,51 +127,26 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 tsettings['detector']['dataext'] = None
             tsettings['detector']['dispaxis'] = settings.argflag['trace']['dispersion']['direction']
 
+            # New ones
+            ts_settings = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
+            ts_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
+            tsettings['trace'] = ts_settings.copy()
+
             ###############################################################################
             # Begin calibrations
             caliBrate.set(setup, det, sci_ID, tsettings)
 
+            # Bias frame or command
             msbias = caliBrate.get_bias()
+            # Arc Image
             msarc = caliBrate.get_arc(msbias)
-            msbpm = caliBrate.get_bpm()
-
-
-            ###############################################################################
-            # Generate a bad pixel mask (should not repeat)
-            if 'bpm' in calib_dict[setup].keys():
-                msbpm = calib_dict[setup]['bpm']
-            else:
-                # Grab it -- msbpm is a 2D image
-                msbpm, _ = bpmimage.get_mspbm(det, spectrograph, tsettings, msarc.shape,
-                                      binning=fitstbl['binning'][scidx],
-                                      reduce_badpix=settings.argflag['reduce']['badpix'],
-                                      msbias=msbias)
-                # Save
-                calib_dict[setup]['bpm'] = msbpm
-
-            ###############################################################################
+            # Bad pixel mask
+            msbpm = caliBrate.get_bpm(msarc, msbias)
             # Generate an array that provides the physical pixel locations on the detector
-            pixlocn = arpixels.gen_pixloc(msarc.shape, det, settings.argflag)
+            pixlocn = caliBrate.make_pixlocn(msarc)
 
             ###############################################################################
             # Slit Tracing
-            if 'trace' in calib_dict[setup].keys():  # Internal
-                tslits_dict = calib_dict[setup]['trace']
-            else:
-                # Setup up the settings (will be Refactored with settings)
-                ts_settings = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
-                ts_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                # Get it -- Key arrays are in the tslits_dict
-                tslits_dict, _ = traceslits.get_tslits_dict(
-                    det, setup, spectrograph, sci_ID, ts_settings, tsettings, fitstbl, pixlocn,
-                    msbias, msbpm, datasec_img, trim=settings.argflag['reduce']['trim'])
-                # Save in calib
-                calib_dict[setup]['trace'] = tslits_dict
-
-            ###############################################################################
-            # Initialize maskslits
-            nslits = tslits_dict['lcen'].shape[1]
-            maskslits = np.zeros(nslits, dtype=bool)
 
             ###############################################################################
             # Generate the 1D wavelength solution

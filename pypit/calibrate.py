@@ -9,8 +9,11 @@ import os
 
 from pypit import msgs
 from pypit import ardebug as debugger
+from pypit import arpixels
+
 from pypit import arcimage
 from pypit import biasframe
+from pypit.spectrographs import bpmimage
 
 
 # For out of PYPIT running
@@ -57,13 +60,15 @@ class Calibrate(object):
         # Internals
         self.msarc = None
         self.msbias = None
+        self.mbpm = None
+        self.pixlocn = None
 
     def set(self, setup, det, sci_ID, settings):
         self.setup = setup
         self.det = det
         self.sci_ID = sci_ID
         self.settings = settings.copy()
-        #
+        # Setup the calib_dict
         if self.setup not in self.calib_dict.keys():
             self.calib_dict[self.setup] = {}
 
@@ -73,6 +78,8 @@ class Calibrate(object):
             self.msbias = bias
         if self.msbias is None:
             msgs.error("msbias needs to be set prior to arc")
+        # Check
+        self._chk_set(['setup', 'det', 'sci_ID', 'settings'])
         #
         if 'arc' in self.calib_dict[self.setup].keys():
             self.msarc = self.calib_dict[self.setup]['arc']
@@ -86,10 +93,7 @@ class Calibrate(object):
         return self.msarc
 
     def get_bias(self):
-        for item in ['setup', 'det', 'sci_ID', 'settings']:
-            if getattr(self, item) is None:
-                msgs.error("Use self.set to specify '{:s}' prior to generating the bias".format(item))
-
+        self._chk_set(['setup', 'det', 'sci_ID', 'settings'])
         if 'bias' in self.calib_dict[self.setup].keys():
             self.msbias = self.calib_dict[self.setup]['bias']
         else:
@@ -102,6 +106,68 @@ class Calibrate(object):
         # Return
         return self.msbias
 
+    def get_bpm(self, arc=None, bias=None):
+        if arc is not None:
+            self.msarc = arc
+        if bias is not None:
+            self.msbias = bias
+        # Check me
+        self._chk_set(['det', 'settings'])
+        ###############################################################################
+        # Generate a bad pixel mask (should not repeat)
+        if 'bpm' in self.calib_dict[self.setup].keys():
+            self.msbpm = self.calib_dict[self.setup]['bpm']
+        else:
+            # Grab it -- msbpm is a 2D image
+            scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
+            self.msbpm, _ = bpmimage.get_mspbm(self.det, self.fitstbl['instrume'][0],
+                                          self.settings, self.msarc.shape,
+                                          binning=self.fitstbl['binning'][scidx],
+                                          reduce_badpix=self.settings['reduce']['badpix'],
+                                          msbias=self.msbias)
+            # Save
+            self.calib_dict[self.setup]['bpm'] = self.msbpm
+        # Return
+        return self.msbpm
+
+    def get_slits(self):
+        if 'trace' in self.calib_dict[self.setup].keys():  # Internal
+            tslits_dict = self.calib_dict[self.setup]['trace']
+        else:
+            # Setup up the settings (will be Refactored with settings)
+            # Get it -- Key arrays are in the tslits_dict
+            tslits_dict, _ = traceslits.get_tslits_dict(
+                det, setup, spectrograph, sci_ID, ts_settings, tsettings, fitstbl, pixlocn,
+                msbias, msbpm, datasec_img, trim=settings.argflag['reduce']['trim'])
+            # Save in calib
+            calib_dict[setup]['trace'] = tslits_dict
+
+        ###############################################################################
+        # Initialize maskslits
+        nslits = tslits_dict['lcen'].shape[1]
+        maskslits = np.zeros(nslits, dtype=bool)
+
+    def make_pixlocn(self, arc=None):
+        if arc is not None:
+            self.msarc = arc
+        # Check
+        self._chk_set('settings')
+        #
+        xgap = self.settings['detector']['xgap']
+        ygap = self.settings['detector']['ygap']
+        ysize = self.settings['detector']['ysize']
+        self.pixlocn = arpixels.core_gen_pixloc(self.msarc.shape, xgap=xgap, ygap=ygap, ysize=ysize)
+        # Return
+        return self.pixlocn
+
+    def _chk_set(self, items):
+        for item in items:
+            if getattr(self, item) is None:
+                msgs.error("Use self.set to specify '{:s}' prior to generating the bias".format(item))
+
+
     def full_calibrate(self):
         self.msbias = self.get_bias()
-        self.msarc = self.get_arc()
+        self.msarc = self.get_arc(self.msbias)
+        self.msbpm = self.get_bpm(self.msarc, self.msbias)
+        self.pixlocn = self.make_pixlocn(self.msarc)

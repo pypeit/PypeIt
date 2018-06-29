@@ -190,6 +190,7 @@ def setup_param(spectrograph, msarc_shape, fitstbl, arc_idx,
         slmps=slmps+','+lamp
     msgs.info('Loading line list using {:s} lamps'.format(slmps))
     #    arcparam['llist'] = ararclines.load_arcline_list(slf, idx, lamps, disperser,
+    from pypit import ararclines
     arcparam['llist'] = ararclines.load_arcline_list(lamps, disperser, spectrograph,
                                                      wvmnx=arcparam['wvmnx'],
                                                      modify_parse_dict=modify_dict)
