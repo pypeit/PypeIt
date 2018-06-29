@@ -19,7 +19,7 @@ from pypit import arpixels
 from pypit.core import arsort
 from pypit import arcimage
 from pypit import biasframe
-from pypit import bpmimage
+from pypit.spectrographs import bpmimage
 from pypit import flatfield
 from pypit import fluxspec
 from pypit import traceslits
@@ -27,6 +27,7 @@ from pypit import wavecalib
 from pypit import waveimage
 from pypit import wavetilts
 from pypit import scienceimage
+from pypit.spectrographs import io
 
 from pypit import ardebug as debugger
 
@@ -97,16 +98,19 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             # TODO -_ Clean this up!
             scifile = os.path.join(fitstbl['directory'][scidx],fitstbl['filename'][scidx])
             settings_det = settings.spect[dnum].copy()  # Should include naxis0, naxis1 in this
-            datasec_img, naxis0, naxis1 = arprocimg.get_datasec_trimmed(
-                settings.argflag['run']['spectrograph'], scifile, det, settings_det,
-                naxis0=fitstbl['naxis0'][scidx],
-                naxis1=fitstbl['naxis1'][scidx])
             # Binning
             settings_det['binning'] = fitstbl['binning'][0]
             # Yes, this looks goofy.  Is needed for LRIS and DEIMOS for now
+            datasec, _ = io.get_datasec(spectrograph,
+                                        filename=scifile,
+                                        det_settings=settings_det,
+                                        numamplifiers=settings_det['numamplifiers'],
+                                        det=det)
+            # Build the datasec_img
+            datasec_img = arpixels.pix_to_amp(fitstbl['naxis0'][0],
+                                              fitstbl['naxis1'][0],
+                                              datasec, settings_det['numamplifiers'])
             settings.spect[dnum] = settings_det.copy()  # Used internally..
-            fitstbl['naxis0'][scidx] = naxis0
-            fitstbl['naxis1'][scidx] = naxis1
 
             # Calib dict
             if setup not in calib_dict.keys():

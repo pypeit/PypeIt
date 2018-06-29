@@ -15,6 +15,7 @@ from pypit import masterframe
 from pypit.core import ararc
 from pypit.core import armasters
 from pypit.core import arsort
+from pypit.spectrographs import wavelengths
 
 # For out of PYPIT running
 if msgs._debug is None:
@@ -253,7 +254,7 @@ class WaveCalib(masterframe.MasterFrame):
         """
         # Setup arc parameters (e.g. linelist)
         arc_idx = arsort.ftype_indices(self.fitstbl, 'arc', self.sci_ID)
-        self.arcparam = ararc.setup_param(self.spectrograph, self.msarc.shape,
+        self.arcparam = wavelengths.setup_param(self.spectrograph, self.msarc.shape,
                                           self.fitstbl, arc_idx[0],
                                           calibrate_lamps=calibrate_lamps)
         # Step

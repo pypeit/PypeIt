@@ -212,7 +212,7 @@ class ProcessImages(object):
         self.datasec, self.oscansec = io.get_datasec(self.spectrograph,
                                                      filename=self.file_list[0],
                                                      det_settings=self.settings['detector'],
-                                                     numamplifiers=self.settings['numamplifiers'],
+                                                     numamplifiers=self.settings['detector']['numamplifiers'],
                                                      det=self.det)
         '''
         # TODO -- Eliminate this instrument specific bit here. Probably by generating a Detector object

@@ -11,11 +11,8 @@ from scipy import signal, ndimage
 
 from pypit import msgs
 
-from pypit.core import arlris
-from pypit.core import ardeimos
 from pypit import arutils
 from pypit import arparse
-from pypit import arpixels
 
 from pypit import ardebug as debugger
 
@@ -98,7 +95,7 @@ def error_frame_postext(sciframe, idx, fitsdict, settings_spect):
     return errframe
 '''
 
-
+'''
 def get_datasec_trimmed(spectrograph, scifile, det, settings_det,
                         naxis0=None, naxis1=None):
     """
@@ -144,10 +141,9 @@ def get_datasec_trimmed(spectrograph, scifile, det, settings_det,
     #naxis0, naxis1 = int(fitstbl['naxis0'][scidx]), int(fitstbl['naxis1'][scidx])
     datasec_img = arpixels.pix_to_amp(naxis0, naxis1, datasec, settings_det['numamplifiers'])
     return datasec_img, naxis0, naxis1
+'''
 
 
-def get_datasec():
-    pass
 '''
 def sn_frame(slf, sciframe, idx):
     # Dark Current noise

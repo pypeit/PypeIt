@@ -85,11 +85,11 @@ def get_datasec(spectrograph, filename=None, det_settings=None, numamplifiers=No
         datasec.append(arparse.load_sections(secs[0][0], fmt_iraf=False))
         oscansec.append(arparse.load_sections(secs[1][0], fmt_iraf=False))
     else:  # Other instruments are set in their settings file
-        for i in range(det_settings['detector']['numamplifiers']):
+        for i in range(det_settings['numamplifiers']):
             sdatasec = "datasec{0:02d}".format(i+1)
-            datasec.append(det_settings['detector'][sdatasec])
+            datasec.append(det_settings[sdatasec])
             soscansec = "oscansec{0:02d}".format(i+1)
-            oscansec.append(det_settings['detector'][soscansec])
+            oscansec.append(det_settings[soscansec])
 
     # Return
     return datasec, oscansec
