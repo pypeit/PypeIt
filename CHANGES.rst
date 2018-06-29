@@ -191,6 +191,9 @@
 - Small install edits
 - Fixes Travis failure that crept into the previous PR
 
+- Introduce pypit/par and pypit/config directories
+- Introduce PypitPar as an initial step toward refactoring the front end
+
 0.7 (2017-02-07)
 ----------------
 
