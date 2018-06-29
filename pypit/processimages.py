@@ -10,7 +10,7 @@ from astropy.io import fits
 from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import arcomb
-from pypit import arload
+from pypit.spectrographs import io
 from pypit.core import arprocimg
 from pypit.core import arflat
 from pypit import ginga
@@ -182,7 +182,7 @@ class ProcessImages(object):
         self.raw_images = []  # Zeros out any previous load
         self.headers = []
         for ifile in self.file_list:
-            img, head = arload.load_raw_frame(self.spectrograph, ifile, self.det,
+            img, head = io.load_raw_frame(self.spectrograph, ifile, self.det,
                                         dataext=self.settings['detector']['dataext'],
                                         disp_dir=self.settings['detector']['dispaxis'])
             # Save
@@ -205,10 +205,16 @@ class ProcessImages(object):
         -------
         self.datasec : list
         self.oscansec : list
-
         """
         if (self.datasec is not None) and (not redo):
             return
+        # Spectrograph specific
+        self.datasec, self.oscansec = io.get_datasec(self.spectrograph,
+                                                     filename=self.file_list[0],
+                                                     det_settings=self.settings['detector'],
+                                                     numamplifiers=self.settings['numamplifiers'],
+                                                     det=self.det)
+        '''
         # TODO -- Eliminate this instrument specific bit here. Probably by generating a Detector object
         if self.spectrograph in ['keck_lris_blue', 'keck_lris_red', 'keck_deimos']:
             self.datasec, self.oscansec, _, _ = arprocimg.get_datasec(
@@ -225,6 +231,7 @@ class ProcessImages(object):
                 self.oscansec.append(self.settings['detector'][soscansec])
         else:
             msgs.error("datasec not properly loaded!")
+        '''
 
     def apply_gain(self, datasec_img):
         """
