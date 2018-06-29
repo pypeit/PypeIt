@@ -16,6 +16,7 @@ from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import arpixels
 from pypit.core import artraceslits
+from pypit.core import arsort
 from pypit import arutils
 from pypit import masterframe
 from pypit import ginga
@@ -33,19 +34,23 @@ frametype = 'trace'
 
 # Place these here or elsewhere?
 #  Wherever they be, they need to be defined, described, etc.
-default_settings = dict(trace={'slits': {'single': [],
+def default_settings():
+    default_settings = dict(trace={'slits': {'single': [],
                                'function': 'legendre',
                                'polyorder': 3,
                                'diffpolyorder': 2,
                                'fracignore': 0.01,
                                'medrep': 0,
                                'number': -1,
+                               'trim': (3,3),  # pixels
                                'maxgap': None,
+                               'maxshift': 0.15,  # Used by trace crude
                                'sigdetect': 20.,
                                'pad': 0.,
                                'pca': {'params': [3,2,1,0,0,0], 'type': 'pixel',
                                        'extrapolate': {'pos': 0, 'neg':0}},
                                'sobel': {'mode': 'nearest'}}})
+    return default_settings
 
 #  See save_master() for the data model for output
 
@@ -139,7 +144,7 @@ class TraceSlits(masterframe.MasterFrame):
             self.binbpx = binbpx
             self.input_binbpx = True
         if settings is None:
-            self.settings = default_settings.copy()
+            self.settings = default_settings()
         else:
             self.settings = settings
 
@@ -399,23 +404,21 @@ class TraceSlits(masterframe.MasterFrame):
         else:
             return False
 
-    def _fill_trace_slit_dict(self):
+    def _fill_tslits_dict(self):
         """
         Build a simple object holding the key trace bits and pieces that PYPIT wants
-          NOT USED ANY LONGER (but maybe in the future, depending on how we choosed
-          to package slit information *outside* of the ScienceExposure object)
 
 
         Returns
         -------
-        self.trace_slits_dict
+        self.trace_slits_dict : dict
 
         """
-        self.trace_slits_dict = {}
+        self.tslits_dict = {}
         for key in ['lcen', 'rcen', 'pixcen', 'pixwid', 'lordpix',
-                    'rordpix', 'extrapord', 'slitpix']:
-            self.trace_slits_dict[key] = getattr(self, key)
-        return self.trace_slits_dict
+                    'rordpix', 'extrapord', 'slitpix', 'ximg', 'edge_mask']:
+            self.tslits_dict[key] = getattr(self, key)
+        return self.tslits_dict
 
     def _final_left_right(self):
         """
@@ -526,6 +529,10 @@ class TraceSlits(masterframe.MasterFrame):
         self.slitpix = arpixels.core_slit_pixels(self.lcen, self.rcen,
                                                  self.mstrace.shape,
                                                  self.settings['trace']['slits']['pad'])
+        # ximg and edge mask
+        self.ximg, self.edge_mask = arpixels.ximg_and_edgemask(
+            self.lcen, self.rcen, self.slitpix,
+            trim_edg=self.settings['trace']['slits']['trim'])
 
     def _match_edges(self):
         """
@@ -598,10 +605,12 @@ class TraceSlits(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def _mslit_tcrude(self):
+    def _mslit_tcrude(self, maxshift=0.15):
         """
         Trace crude me
           And fuss with slits
+
+        Wrapper to artraceslits.edgearr_tcrude()
 
         Returns
         -------
@@ -609,7 +618,12 @@ class TraceSlits(masterframe.MasterFrame):
         self.tc_dict  : dict (internal)
 
         """
-        self.edgearr, self.tc_dict = artraceslits.edgearr_tcrude(self.edgearr, self.siglev, self.ednum)
+        # Settings
+        if 'maxshift' in self.settings['trace']['slits'].keys():
+            maxshift=self.settings['trace']['slits']['maxshift']
+
+        self.edgearr, self.tc_dict = artraceslits.edgearr_tcrude(self.edgearr, self.siglev, self.ednum,
+                                                                 maxshift=maxshift)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -915,6 +929,8 @@ class TraceSlits(masterframe.MasterFrame):
         self.tc_dict = ts_dict['tc_dict']
         # Load the pixel objects?
         self._make_pixel_arrays()
+        # Fill
+        self._fill_tslits_dict()
         # Success
         return True
 
@@ -967,7 +983,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         Returns
         -------
-        trace_slits_dict : dict  -- MAY BE DEPRECATED
+        tslits_dict : dict
           'lcen'
           'rcen'
           'pixcen'
@@ -1051,11 +1067,11 @@ class TraceSlits(masterframe.MasterFrame):
         # Generate pixel arrays
         self._make_pixel_arrays()
 
-        # dict for PYPIT
-        self.trace_slits_dict = self._fill_trace_slit_dict()
+        # fill dict for PYPIT
+        _ = self._fill_tslits_dict()
 
-        # Return
-        return self.trace_slits_dict
+        # Return it
+        return self.tslits_dict
 
     def _qa(self, use_slitid=True):
         """
@@ -1125,3 +1141,69 @@ def load_traceslit_files(root):
 
     # Return
     return fits_dict, ts_dict
+
+
+def get_tslits_dict(det, setup, spectrograph, sci_ID, ts_settings, ti_settings,
+                    fitstbl, pixlocn, msbias, msbpm, datasec_img, trim=True):
+    """
+    Load/generate the trace image and then the trace slits objects
+
+    Parameters
+    ----------
+    det : int
+      Required for processing
+    setup : str
+      Required for MasterFrame loading
+    spectrograph : str
+      Required for processing
+    sci_ID : int
+      Required to choose the right flats for processing
+    ts_settings : dict
+      Trace slit settings
+    ti_settings ; dict
+      Required for processing
+      Trace image settings
+    fitstbl : Table
+      Required to choose the right flats for processing
+    pixlocn : ndarray
+      Required for processing
+    msbias : ndarray or str
+      Required for processing
+    msbpm : ndarray
+      Bad pixel image
+      Required for processing
+    datasec_img : ndarray
+    trim : bool, optional
+      Trim the image?  Could probably hide in ti_settings
+
+    Returns
+    -------
+    tslits_dict : dict
+    traceSlits : TraceSlits object
+
+    """
+    # Instantiate (without mstrace)
+    traceSlits = TraceSlits(None, pixlocn, settings=ts_settings,
+                                       det=det, setup=setup, binbpx=msbpm)
+
+    # Load via masters, as desired
+    if not traceSlits.master():
+        # Build the trace image first
+        trace_image_files = arsort.list_of_files(fitstbl, 'trace', sci_ID)
+        Timage = traceimage.TraceImage(trace_image_files,
+                                       spectrograph=spectrograph,
+                                       settings=ti_settings, det=det,
+                                       datasec_img=datasec_img)
+        mstrace = Timage.process(bias_subtract=msbias, trim=trim, apply_gain=True)
+
+        # Load up and get ready
+        traceSlits.mstrace = mstrace
+        _ = traceSlits.make_binarr()
+        # Now we go forth
+        traceSlits.run(arms=True)
+        # QA
+        traceSlits._qa()
+        # Save to disk
+        traceSlits.save_master()
+    # Return
+    return traceSlits.tslits_dict, traceSlits

@@ -98,20 +98,35 @@ def show_image(inp, chname='Image', wcs_img=None, **kwargs):
     return viewer, ch
 
 
-def show_slits(viewer, ch, lordloc, rordloc, slit_ids, rotate=False, pstep=1):
+def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pstep=1):
     """ Overplot slits on image in Ginga
     Parameters
     ----------
     viewer
     ch
-    lordloc : ndarray
-    rordloc : ndarray
+    lord_in : ndarray
+    rord_in : ndarray
     slit_ids : list of int
     rotate : bool, optional
       Allow for a rotated image
     pstep : int
       Show every pstep point of the edges
     """
+
+    # This allows the input lord and rord to either be (nspec, nslit) arrays or a single
+    # vectors of size (nspec)
+    if lord_in.ndim == 2:
+        nslit = lord_in.shape[1]
+        lordloc = lord_in
+        rordloc = rord_in
+    else:
+        nslit = 1
+        lordloc = lord_in.reshape(lord_in.size,1)
+        rordloc = rord_in.reshape(rord_in.size,1)
+
+    if slit_ids == None:
+        slit_ids = [str(slit) for slit in np.arange(nslit)]
+
     # Canvas
     canvas = viewer.canvas(ch._chname)
     canvas.clear()
@@ -137,10 +152,10 @@ def show_slits(viewer, ch, lordloc, rordloc, slit_ids, rotate=False, pstep=1):
             xt, yt = float(y[tthrd]), float(lordloc[tthrd,slit])
         else:
             xt, yt = float(lordloc[tthrd,slit]), float(y[tthrd])
-        canvas.add(str('text'), xt, yt, str('S{:d}'.format(slit_ids[slit])), color=str('red'),
+        canvas.add(str('text'), xt, yt, str('S{:}'.format(slit_ids[slit])), color=str('red'),
                    fontsize=20.)
 
-def show_trace(viewer, ch, trace, trc_name, color='blue', clear=False,
+def show_trace(viewer, ch, trace, trc_name = 'Trace', color='blue', clear=False,
                rotate=False, pstep=1):
     """
     rotate : bool, optional

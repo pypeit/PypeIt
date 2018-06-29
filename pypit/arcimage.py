@@ -80,7 +80,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         # The copy allows up to update settings with user settings without changing the original
         if settings is None:
             # Defaults
-            self.settings = processimages.default_settings.copy()
+            self.settings = processimages.default_settings()
         else:
             self.settings = settings.copy()
             # The following is somewhat kludgy and the current way we do settings may
@@ -113,3 +113,43 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         return self.stack
 
 
+def get_msarc(det, setup, sci_ID, spectrograph, fitstbl, tsettings, msbias):
+    """
+    Grab/generate an Arc image
+
+    Parameters
+    ----------
+    det : int
+      Required for processing
+    setup : str
+      Required for MasterFrame loading
+    sci_ID : int
+      Required to choose the right arc
+    spectrograph : str
+      Required if processing
+    fitstbl : Table
+      Required to choose the right arc
+    tsettings : dict
+      Required if processing or loading MasterFrame
+    msbias : ndarray or str
+      Required if processing
+
+    Returns
+    -------
+    msarc : ndarray
+    arcImage : ArcImage object
+
+    """
+    # Instantiate with everything needed to generate the image (in case we do)
+    arcImage = ArcImage([], spectrograph=spectrograph,
+                                 settings=tsettings, det=det, setup=setup,
+                                 sci_ID=sci_ID, msbias=msbias, fitstbl=fitstbl)
+    # Load the MasterFrame (if it exists and is desired)?
+    msarc = arcImage.master()
+    if msarc is None:  # Otherwise build it
+        msgs.info("Preparing a master {0:s} frame".format(arcImage.frametype))
+        msarc = arcImage.build_image()
+        # Save to Masters
+        arcImage.save_master(msarc, raw_files=arcImage.file_list, steps=arcImage.steps)
+    # Return
+    return msarc, arcImage

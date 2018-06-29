@@ -18,8 +18,8 @@ from pypit import msgs
 from pypit import ardebug as debugger
 from pypit.core import arflux
 from pypit import arload
-from pypit import armasters
-from pypit import arsave
+from pypit.core import armasters
+from pypit.core import arsave
 from pypit import arutils
 from pypit import masterframe
 
@@ -177,6 +177,7 @@ class FluxSpec(masterframe.MasterFrame):
     def find_standard(self):
         """
         Identify the standard star from the list of all spectra in the specobjs
+
           Wrapper to arflux.find_standard which simply takes the brightest
 
         Returns

@@ -6,8 +6,9 @@ from __future__ import absolute_import, division, print_function
 import warnings
 
 from pypit import msgs
+from pypit.core import armasters
+
 from pypit import ardebug as debugger
-from pypit import armasters
 
 from abc import ABCMeta
 
@@ -62,7 +63,7 @@ class MasterFrame(object):
 
     @property
     def ms_name(self):
-        ms_name = armasters.core_master_name(self.frametype, self.setup,
+        ms_name = armasters.master_name(self.frametype, self.setup,
                                              self.settings['masters']['directory'])
         return ms_name
 
@@ -89,7 +90,7 @@ class MasterFrame(object):
         file_list : list or None
         """
         if self._masters_load_chk() or force:
-            return armasters.core_load_master_frame(self.frametype, self.setup, self.mdir, force=force)
+            return armasters.load_master_frame(self.frametype, self.setup, self.mdir, force=force)
         else:
             return None, None, None
 
@@ -139,7 +140,7 @@ class MasterFrame(object):
         else:
             keywds = None
         # Finish
-        armasters.core_save_master(data, filename=outfile,
+        armasters.save_master(data, filename=outfile,
                                    raw_files=raw_files, keywds=keywds,
                                    frametype=self.frametype)
 

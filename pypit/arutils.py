@@ -18,7 +18,11 @@ from scipy import interpolate
 from astropy import units
 from astropy.io import fits
 from astropy.convolution import convolve, Gaussian1DKernel
-from astropy.table import Table
+
+#from pydl.pydlutils import math
+#from pydl.pydlutils import bspline
+
+from pypit.core import pydl
 
 from pypit import msgs
 from pypit import ardebug as debugger
@@ -115,6 +119,182 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
         msgs.warn("Problem in the bspline knot")
         raise ValueError("Crashing out of bspline fitting")
     return tck
+
+
+def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
+                    maxiter=25, nord = 4, bkpt=None, fullbkpt=None,
+                    relative=None, kwargs_bspline={}, kwargs_reject={}):
+    """
+    Create a B-spline in the least squares sense with rejection, using a model profile
+
+     Parameters
+     ----------
+     xdata : :class:`numpy.ndarray`
+         Independent variable.
+     ydata : :class:`numpy.ndarray`
+         Dependent variable.
+     invvar : :class:`numpy.ndarray`
+         Inverse variance of `ydata`.
+     profile_basis : :class:`numpy.ndarray`
+         model profiles
+     upper : :class:`int` or :class:`float`, optional
+         Upper rejection threshold in units of sigma, defaults to 5 sigma.
+     lower : :class:`int` or :class:`float`, optional
+         Lower rejection threshold in units of sigma, defaults to 5 sigma.
+     maxiter : :class:`int`, optional
+         Maximum number of rejection iterations, default 10.  Set this to
+         zero to disable rejection.
+     nord : :class:`int`, optional
+         Order of B-spline fit
+     bkpt : :class:`numpy.ndarray`
+         Array of breakpoints to be used for the b-spline
+     fullbkpt : :class:`numpy.ndarray`
+         Full array of breakpoints to be used for the b-spline, without letting the b-spline class append on any extra bkpts
+     relative : class:`numpy.ndarray`
+        Array of integer indices to be used for computing the reduced chi^2 of the fits, which then is used as a scale factor for
+         the upper,lower rejection thresholds
+     kwargs_bspline : dict
+       Passed to bspline
+     kwargs_reject : dict
+       Passed to djs_reject
+
+     Returns
+     -------
+     :func:`tuple`
+         A tuple containing the (sset, outmask, yfit, reduced_chi), where
+
+            sset: object
+               bspline object
+            outmask: : :class:`numpy.ndarray`
+               output mask which the same size as xdata
+            yfit  : :class:`numpy.ndarray`
+               result of the bspline fit (same size as xdata)
+            reduced_chi: float
+               value of the reduced chi^2
+     """
+    # Checks
+    nx = xdata.size
+    if ydata.size != nx:
+        msgs.error('Dimensions of xdata and ydata do not agree.')
+
+    # ToDO at the moment invvar is a required variable input
+    #    if invvar is not None:
+    #        if invvar.size != nx:
+    #            raise ValueError('Dimensions of xdata and invvar do not agree.')
+    #        else:
+    #            #
+    #            # This correction to the variance makes it the same
+    #            # as IDL's variance()
+    #            #
+    #            var = ydata.var()*(float(nx)/float(nx-1))
+    #            if var == 0:
+    #                var = 1.0
+    #            invvar = np.ones(ydata.shape, dtype=ydata.dtype)/var
+
+    npoly = int(profile_basis.size/nx)
+    if profile_basis.size != nx*npoly:
+        msgs.error('Profile basis is not a multiple of the number of data points.')
+
+    msgs.info("Fitting npoly =" + "{:3d}".format(npoly) + " profile basis functions, nx=" + "{:3d}".format(nx) + " pixels")
+    msgs.info("****************************  Iter  Chi^2  # rejected  Rel. fact   ****************************")
+    msgs.info("                              ----  -----  ----------  --------- ")
+
+    # Init
+    yfit = np.zeros(ydata.shape)
+    reduced_chi = 0.
+
+    if invvar.size == 1:
+        outmask = True
+    else:
+        outmask = np.ones(invvar.shape, dtype='bool')
+    maskwork = outmask & (invvar > 0)
+    ngood= maskwork.sum()
+    if not maskwork.any():
+        msgs.error('No valid data points in bspline_profile!.')
+    else:
+        # Init bspline class
+        sset = pydl.bspline(xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt,
+                       funcname='Bspline longslit special', **kwargs_bspline)
+        if maskwork.sum() < sset.nord:
+            msgs.warn('Number of good data points fewer than nord.')
+            return (sset, outmask, yfit, reduced_chi)
+
+    # This was checked in detail against IDL for identical inputs
+    outer = (np.outer(np.ones(nord, dtype=float), profile_basis.flatten('F'))).T
+    action_multiple = outer.reshape((nx, npoly * nord), order='F')
+
+    #--------------------
+    # Iterate spline fit
+    iiter = 0
+    success = False
+    qdone = False
+
+    relative_factor = 1.0
+    tempin = None
+    while (success == False or qdone is False) and iiter <= maxiter:
+        goodbk = sset.mask.nonzero()[0]
+        if ngood <= 1 or not sset.mask.any():
+            sset.coeff = 0
+            iiter = maxiter + 1 # End iterations
+        else:
+            # Do the fit. Return values from workit for success are as follows:
+            #    True: if fit is good
+            #    False: if everything is screwed
+
+            # we'll do the fit right here..............
+            if success == False:
+                bf1, laction, uaction = sset.action(xdata)
+                if(bf1.size !=nx*nord):
+                    msgs.error("BSPLINE_ACTION failed!")
+                action = action_multiple
+                for ipoly in range(npoly):
+                    action[:, np.arange(nord)*npoly + ipoly] *= bf1
+                del bf1 # Clear the memory
+            if np.sum(np.isfinite(action) is False) > 0:
+                msgs.error("Infinities in action matrix, wavelengths may be very messed up!!!")
+            success, yfit = sset.workit(xdata, ydata, invvar*maskwork,action, laction, uaction)
+        iiter += 1
+        if success == False:
+            msgs.warn(" All break points have been dropped!!")
+            return (sset, outmask, yfit, reduced_chi)
+        elif success == True:
+            # Iterate the fit -- next rejection iteration
+            chi_array = (ydata - yfit)*np.sqrt(invvar * maskwork)
+            reduced_chi = np.sum(chi_array**2)/(ngood - npoly*(len(goodbk) + nord)-1)
+            relative_factor = 1.0
+            # JFH -- What is
+            if relative is not None:
+                nrel = len(relative)
+                if nrel == 1:
+                    relative_factor = np.sqrt(reduced_chi)
+                else:
+                    this_chi2 = np.sum(chi_array[relative]**2)/(nrel - (len(goodbk) + nord) - 1)
+                    relative_factor = np.sqrt(this_chi2)
+                relative_factor = max(relative_factor,1.0)
+            # Rejection
+            maskwork, qdone = pydl.djs_reject(ydata, yfit, invvar=invvar,
+                                         inmask=tempin, outmask=maskwork,
+                                         upper=upper*relative_factor,
+                                         lower=lower*relative_factor, **kwargs_reject)
+            tempin = maskwork
+            msgs.info("                             {:4d}".format(iiter) + "{:8.3f}".format(reduced_chi) +
+                      "  {:7d}".format((maskwork == 0).sum()) + "      {:6.2f}".format(relative_factor))
+
+        else:
+            pass
+
+    msgs.info("***********************************************************************************************")
+    msgs.info(
+        "Final fit after " + "{:2d}".format(iiter) + " iterations: reduced_chi = " + "{:8.3f}".format(reduced_chi) +
+        ", rejected = " + "{:7d}".format((maskwork == 0).sum()) + ", relative_factor = {:6.2f}".format(relative_factor))
+    # Finish
+    outmask = maskwork
+    # Return
+    return sset, outmask, yfit, reduced_chi
+
+
+
+
 
 
 def calc_ivar(varframe):
@@ -932,69 +1112,6 @@ def subsample(frame):
     return frame[tuple(indices)]
 
 
-def trace_gweight(fimage, xcen, ycen, sigma, invvar=None, maskval=-999999.9):
-    """ Determines the trace centroid by weighting the flux by the integral
-    of a Gaussian over a pixel
-    Port of SDSS trace_gweight algorithm
-
-    Parameters
-    ----------
-    fimage : ndarray
-      image to centroid on
-    xcen : ndarray
-      guess of centroids in x (column) dimension
-    ycen : ndarray (usually int)
-      guess of centroids in y (rows) dimension
-    sigma : float
-      Width of gaussian
-    invvar : ndarray, optional
-    maskval : float, optional
-      Value for masking
-
-    Returns
-    -------
-    xnew : ndarray
-      New estimate for trace in x-dimension
-    xerr : ndarray
-      Error estimate for trace.  Rejected points have maskval
-
-    """
-    # Setup
-    nx = fimage.shape[1]
-    xnew = np.zeros_like(xcen)
-    xerr = maskval*np.ones_like(xnew)
-
-    if invvar is None:
-        invvar = np.ones_like(fimage)
-
-    # More setting up
-    x_int = np.round(xcen).astype(int)
-    nstep = 2*int(3.0*sigma) - 1
-
-    weight = np.zeros_like(xcen)
-    numer  = np.zeros_like(xcen)
-    meanvar = np.zeros_like(xcen)
-    bad = np.zeros_like(xcen).astype(bool)
-
-    for i in range(nstep):
-        xh = x_int - nstep//2 + i
-        xtemp = (xh - xcen - 0.5)/sigma/np.sqrt(2.0)
-        g_int = (erf(xtemp+1./sigma/np.sqrt(2.0)) - erf(xtemp))/2.
-        xs = np.minimum(np.maximum(xh,0),(nx-1))
-        cur_weight = fimage[ycen, xs] * (invvar[ycen, xs] > 0) * g_int * ((xh >= 0) & (xh < nx))
-        weight += cur_weight
-        numer += cur_weight * xh
-        meanvar += cur_weight * cur_weight * (xcen-xh)**2 / (
-                            invvar[ycen, xs] + (invvar[ycen, xs] == 0))
-        bad = np.any([bad, xh < 0, xh >= nx], axis=0)
-
-    # Masking
-    good = (~bad) & (weight > 0)
-    if np.sum(good) > 0:
-        xnew[good] = numer[good]/weight[good]
-        xerr[good] = np.sqrt(meanvar[good])/weight[good]
-    # Return
-    return xnew, xerr
 
 def yamlify(obj, debug=False):
     """Recursively process an object so it can be serialised for yaml.

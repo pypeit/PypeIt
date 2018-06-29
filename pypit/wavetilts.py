@@ -13,7 +13,7 @@ from pypit import msgs
 from pypit import ardebug as debugger
 from pypit.core import ararc
 from pypit.core import artracewave
-from pypit import armasters
+from pypit.core import armasters
 from pypit import masterframe
 from pypit import ginga
 
@@ -28,7 +28,8 @@ frametype = 'tilts'
 
 # Place these here or elsewhere?
 #  Wherever they be, they need to be defined, described, etc.
-default_settings = dict(tilts={'idsonly': False,
+def default_settings():
+    default_settings = dict(tilts={'idsonly': False,
                                'tracethresh': 1000.,
                                'order': 2,
                                'function': 'legendre',       # Function for arc line fits
@@ -38,7 +39,7 @@ default_settings = dict(tilts={'idsonly': False,
                                'params': [1,1,0],  # defunct
                                }
                         )
-
+    return default_settings
 #  See save_master() for the data model for output
 
 
@@ -49,15 +50,7 @@ class WaveTilts(masterframe.MasterFrame):
     ----------
     msarc : ndarray
       Arc image
-    lordloc : ndarray
-      Input from TraceSlits
-    rordloc : ndarray
-      Input from TraceSlits
-    pixlocn : ndarray
-      Input from TraceSlits
-    pixcen : ndarray
-      Input from TraceSlits
-    slitpix : ndarray
+    tslits_dict : dict
       Input from TraceSlits
     settings_det : dict
       Detector settings -- Needed for arc line saturation
@@ -84,30 +77,27 @@ class WaveTilts(masterframe.MasterFrame):
 
     """
     def __init__(self, msarc, settings=None, det=None, settings_det=None, setup='',
-                 lordloc=None, rordloc=None, pixlocn=None, pixcen=None, slitpix=None):
+                 tslits_dict=None, pixlocn=None):
 
         # Parameters (but can be None)
         self.msarc = msarc
-        self.lordloc = lordloc
-        self.rordloc = rordloc
+        self.tslits_dict = tslits_dict
         self.pixlocn = pixlocn
-        self.pixcen = pixcen
-        self.slitpix = slitpix
         self.settings_det = settings_det
 
         # Optional parameters
         self.det = det
         if settings is None:
-            self.settings = default_settings.copy()
+            self.settings = default_settings()
         else:
             self.settings = settings
             if 'tilts' not in self.settings:
-                self.settings.update(default_settings.copy())
+                self.settings.update(default_settings())
 
         # Attributes
         self.frametype = frametype
-        if self.lordloc is not None:
-            self.nslit = self.lordloc.shape[1]
+        if self.tslits_dict is not None:
+            self.nslit = self.tslits_dict['lcen'].shape[1]
         else:
             self.nslit = 0
         self.steps = []
@@ -196,7 +186,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         self.badlines, self.all_ttilts[slit] = artracewave.analyze_lines(
-            self.msarc, self.all_trcdict[slit], slit, self.pixcen, self.settings)
+            self.msarc, self.all_trcdict[slit], slit, self.tslits_dict['pixcen'], self.settings)
         if self.badlines > 0:
             msgs.warn("There were {0:d} additional arc lines that should have been traced".format(self.badlines) +
                       msgs.newline() + "(perhaps lines were saturated?). Check the spectral tilt solution")
@@ -217,7 +207,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         # Extract an arc down each slit/order
-        self.arccen, self.arc_maskslit, _ = ararc.get_censpec(self.lordloc, self.rordloc,
+        self.arccen, self.arc_maskslit, _ = ararc.get_censpec(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
                                                               self.pixlocn, self.msarc, self.det,
                                                               gen_satmask=gen_satmask)
         self.satmask = np.zeros_like(self.msarc)
@@ -265,7 +255,8 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         # Determine the tilts for this slit
-        trcdict = artracewave.trace_tilt(self.pixcen, self.rordloc, self.lordloc, self.det,
+        trcdict = artracewave.trace_tilt(self.tslits_dict['pixcen'], self.tslits_dict['lcen'],
+                                         self.tslits_dict['rcen'], self.det,
                                          self.msarc, slit, self.settings_det, self.settings,
                                          censpec=self.arccen[:, slit], nsmth=3,
                                          tracethresh=self.settings['tilts']['tracethresh'],
@@ -332,7 +323,7 @@ class WaveTilts(masterframe.MasterFrame):
             self.tilts = self._fit_tilts(slit, doqa=doqa)
 
             # Save to final image
-            word = self.slitpix == slit+1
+            word = self.tslits_dict['slitpix'] == slit+1
             self.final_tilts[word] = self.tilts[word]
 
         return self.final_tilts, maskslits
@@ -480,3 +471,53 @@ class WaveTilts(masterframe.MasterFrame):
         txt += '>'
         return txt
 
+
+def get_wv_tilts(det, setup, tilt_settings, settings_det, tslits_dict,
+                 pixlocn, msarc, wv_calib, maskslits):
+    """
+    Load/Generate the tilts image
+
+    Parameters
+    ----------
+    det : int
+      Required for processing
+    setup : str
+      Required for MasterFrame loading
+    tilt_settings : dict
+      Tilt specific settings
+    settings_det : dict
+      Detector settings
+    tslits_dict : dict
+      Slits dict; required for processing
+    pixlocn : ndarray
+      Required for processing
+    msarc : ndarray
+      Required for processing
+    wv_calib : dict
+      1D wavelength fits
+    maskslits : ndarray (bool)
+      Indicates which slits are masked
+
+    Returns
+    -------
+    mstilts : ndarray
+      Tilt image
+    wv_maskslits : ndarray (bool)
+      Indicates slits that were masked (skipped)
+    waveTilts : WaveTilts object
+    """
+    # Instantiate
+    waveTilts = WaveTilts(msarc, settings=tilt_settings,
+                                    det=det, setup=setup,
+                                    tslits_dict=tslits_dict, settings_det=settings_det,
+                                    pixlocn=pixlocn)
+    # Master
+    mstilts = waveTilts.master()
+    if mstilts is None:
+        mstilts, wt_maskslits = waveTilts.run(maskslits=maskslits,
+                                              wv_calib=wv_calib)
+        waveTilts.save_master()
+    else:
+        wt_maskslits = np.zeros_like(maskslits, dtype=bool)
+    # Return
+    return mstilts, wt_maskslits, waveTilts

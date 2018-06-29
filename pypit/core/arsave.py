@@ -18,15 +18,11 @@ import linetools.utils
 
 from pypit import msgs
 from pypit import arutils
-from pypit import arparse as settings
+from pypit import arparse
 from pypit import ardebug as debugger
 
-try:
-    input = raw_input
-except NameError:
-    pass
 
-
+'''
 def save_arcids(fname, pixels):
     # Setup the HDU
     hdu = fits.PrimaryHDU()
@@ -47,8 +43,9 @@ def save_arcids(fname, pixels):
         msgs.info("Arc IDs saved successfully to file:"+msgs.newline()+fname)
         hdulist.writeto(fname)
     return
+'''
 
-
+'''
 def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frametype='Extraction', wave=None, sky=None, skyerr=None, extprops=None):
     msgs.info("Saving {0:s} frame as:".format(frametype)+msgs.newline()+filename)
     # Setup the HDU
@@ -123,11 +120,11 @@ def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frame
         hdulist.writeto(filename)
         msgs.info("{0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
     return
+'''
 
 
 
-
-
+'''
 def save_ordloc(slf, fname):
     # Derive a suitable name
     mstrace_bname, mstrace_bext = os.path.splitext(fname)
@@ -241,6 +238,7 @@ def save_tilts(slf, fname):
         msgs.info("Saved saturation mask for frame:"+msgs.newline()+fname)
 
     return
+'''
 
 
 def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
@@ -255,6 +253,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
     -------
 
     """
+    debugger.set_trace()  # NEEDS REFACTORING
     if clobber is False:
         msgs.error("NOT IMPLEMENTED")
     # Open file
@@ -564,43 +563,55 @@ def save_1d_spectra_fits(slf, fitsdict, clobber=True, outfile=None):
     #    f.write(unicode(json.dumps(slf._sensfunc, sort_keys=True, indent=4, separators=(',', ': '))))
 
 
-def save_obj_info(slf, fitsdict, clobber=True):
+def save_obj_info(all_specobjs, fitstbl, settings_spect, basename, science_dir):
+    """
+
+    Parameters
+    ----------
+    all_specobjs : list
+    fitstbl : Table
+
+    Returns
+    -------
+
+    """
     # Lists for a Table
     slits, names, boxsize, opt_fwhm, s2n = [], [], [], [], []
     # Loop on detectors
-    for kk in range(settings.spect['mosaic']['ndet']):
-        det = kk+1
-        if slf._specobjs[det-1] is None:
+    #for kk in range(settings.spect['mosaic']['ndet']):
+    #    det = kk+1
+    #    if all_specobjs is None:
+    #        continue
+    #    dnum = settings.get_dnum(det)
+    #    # Loop on slits
+    #    for sl in range(len(all_specobjs)):
+    #        # Loop on spectra
+    for specobj in all_specobjs:
+        if specobj is None:
             continue
-        dnum = settings.get_dnum(det)
-        # Loop on slits
-        for sl in range(len(slf._specobjs[det-1])):
-            # Loop on spectra
-            for specobj in slf._specobjs[det-1][sl]:
-                if specobj is None:
-                    continue
-                # Append
-                names.append(specobj.idx)
-                slits.append(sl+1)
-                # Boxcar width
-                if 'size' in specobj.boxcar.keys():
-                    slit_pix = specobj.boxcar['size']
-                    # Convert to arcsec
-                    binspatial, binspectral = settings.parse_binning(fitsdict['binning'][specobj.scidx])
-                    boxsize.append(slit_pix*binspatial*settings.spect[dnum]['platescale'])
-                else:
-                    boxsize.append(0.)
-                # Optimal profile (FWHM)
-                if 'fwhm' in specobj.optimal.keys():
-                    binspatial, binspectral = settings.parse_binning(fitsdict['binning'][specobj.scidx])
-                    opt_fwhm.append(specobj.optimal['fwhm']*binspatial*settings.spect[dnum]['platescale'])
-                else:
-                    opt_fwhm.append(0.)
-                # S2N -- default to boxcar
-                sext = (specobj.boxcar if (len(specobj.boxcar) > 0) else specobj.optimal)
-                ivar = arutils.calc_ivar(sext['var'])
-                is2n = np.median(sext['counts']*np.sqrt(ivar))
-                s2n.append(is2n)
+        # Append
+        names.append(specobj.idx)
+        dnum = arparse.get_dnum(specobj.det)
+        slits.append(specobj.slitid)
+        # Boxcar width
+        if 'size' in specobj.boxcar.keys():
+            slit_pix = specobj.boxcar['size']
+            # Convert to arcsec
+            binspatial, binspectral = arparse.parse_binning(fitstbl['binning'][specobj.scidx])
+            boxsize.append(slit_pix*binspatial*settings_spect[dnum]['platescale'])
+        else:
+            boxsize.append(0.)
+        # Optimal profile (FWHM)
+        if 'fwhm' in specobj.optimal.keys():
+            binspatial, binspectral = arparse.parse_binning(fitstbl['binning'][specobj.scidx])
+            opt_fwhm.append(specobj.optimal['fwhm']*binspatial*settings_spect[dnum]['platescale'])
+        else:
+            opt_fwhm.append(0.)
+        # S2N -- default to boxcar
+        sext = (specobj.boxcar if (len(specobj.boxcar) > 0) else specobj.optimal)
+        ivar = arutils.calc_ivar(sext['var'])
+        is2n = np.median(sext['counts']*np.sqrt(ivar))
+        s2n.append(is2n)
 
     # Generate the table, if we have at least one source
     if len(names) > 0:
@@ -617,70 +628,78 @@ def save_obj_info(slf, fitsdict, clobber=True):
         obj_tbl['s2n'] = s2n
         obj_tbl['s2n'].format = '.2f'
         # Write
-        obj_tbl.write(settings.argflag['run']['directory']['science']+'/objinfo_{:s}.txt'.format(slf._basename), format='ascii.fixed_width', overwrite=True)
+        obj_tbl.write(science_dir+'/objinfo_{:s}.txt'.format(basename),
+                      format='ascii.fixed_width', overwrite=True)
 
 
-def save_2d_images(slf, fitsdict, clobber=True):
+def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
+                   outdir, basename, clobber=True):
     """ Write 2D images to the hard drive
     Parameters
     ----------
-    slf
-    clobber
+    sci_output : dict
+    fitstbl
+    scidx
+    ext0
+    setup
+    mfdir
+    outdir
+    basename
 
     Returns
     -------
 
     """
     # Original header
-    scidx = slf._idx_sci[0]
-    path = fitsdict['directory'][scidx]
-    ifile = fitsdict['filename'][scidx]
-    headarr = [None for k in range(settings.spect['fits']['numhead'])]
-    for k in range(settings.spect['fits']['numhead']):
-        headarr[k] = fits.getheader(path+ifile, ext=settings.spect['fits']['headext{0:02d}'.format(k+1)])
+    path = fitstbl['directory'][scidx]
+    ifile = fitstbl['filename'][scidx]
+    head0 = fits.getheader(path+ifile, ext=ext0)
 
-    # Primary header
+    # Primary HDU for output
     prihdu = fits.PrimaryHDU()
     # Update with original header, skipping a few keywords
     hdus = [prihdu]
     hdukeys = ['BUNIT', 'COMMENT', '', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2',
                'HISTORY', 'EXTEND', 'DATASEC']
-    for key in headarr[0].keys():
+    for key in head0.keys():
         # Use new ones
         if key in hdukeys:
             continue
         # Update unused ones
-        prihdu.header[key] = headarr[0][key]
+        prihdu.header[key] = head0[key]
     # History
-    if 'HISTORY' in headarr[0].keys():
+    if 'HISTORY' in head0.keys():
         # Strip \n
-        tmp = str(headarr[0]['HISTORY']).replace('\n', ' ')
+        tmp = str(head0['HISTORY']).replace('\n', ' ')
         prihdu.header.add_history(str(tmp))
 
     # PYPIT
     prihdu.header['PIPELINE'] = str('PYPIT')
     prihdu.header['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
-    setup = settings.argflag['reduce']['masters']['setup'].split('_')
-    prihdu.header['PYPCNFIG'] = str(setup[0])
-    prihdu.header['PYPCALIB'] = str(setup[2])
-    prihdu.header['PYPMFDIR'] = str(settings.argflag['run']['directory']['master']+'_'+settings.argflag['run']['spectrograph'])
+    ssetup = setup.split('_') #settings.argflag['reduce']['masters']['setup'].split('_')
+    prihdu.header['PYPCNFIG'] = str(ssetup[0])
+    prihdu.header['PYPCALIB'] = str(ssetup[2])
+    prihdu.header['PYPMFDIR'] = str(mfdir)
 
     ext = 0
-    for kk in range(settings.spect['mosaic']['ndet']):
-        det = kk+1
-        sdet = settings.get_dnum(det, caps=True)  # e.g. DET02
+    for key in sci_output.keys():
+        if key in ['meta']:
+            continue
+        else:
+            det = key
+        sdet = arparse.get_dnum(det, caps=True)  # e.g. DET02
         # Specified detector number?
-        if settings.argflag['reduce']['detnum'] is not None:
-            if det not in map(int, settings.argflag['reduce']['detnum']):
-                continue
-            else:
-                msgs.warn("Restricting the reduction to detector {:d}".format(det))
+        #if settings.argflag['reduce']['detnum'] is not None:
+        #    if det not in map(int, settings.argflag['reduce']['detnum']):
+        #        continue
+        #    else:
+        #        msgs.warn("Restricting the reduction to detector {:d}".format(det))
 
         # Processed frame
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
         prihdu.header[keywd] = '{:s}-Processed'.format(sdet)
-        hdu = fits.ImageHDU(slf._sciframe[det-1])
+        hdu = fits.ImageHDU(sci_output[det]['sciframe']) #slf._sciframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
 
@@ -688,7 +707,7 @@ def save_2d_images(slf, fitsdict, clobber=True):
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
         prihdu.header[keywd] = '{:s}-Var'.format(sdet)
-        hdu = fits.ImageHDU(slf._modelvarframe[det-1])
+        hdu = fits.ImageHDU(sci_output[det]['finalvar']) #slf._modelvarframe[det-1])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
 
@@ -696,10 +715,10 @@ def save_2d_images(slf, fitsdict, clobber=True):
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
         prihdu.header[keywd] = '{:s}-Skysub'.format(sdet)
-        hdu = fits.ImageHDU(slf._sciframe[det-1]-slf._bgframe[det-1])
+        hdu = fits.ImageHDU(sci_output[det]['sciframe']-sci_output[det]['finalsky'])
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
 
     # Finish
     hdulist = fits.HDUList(hdus)
-    hdulist.writeto(settings.argflag['run']['directory']['science']+'/spec2d_{:s}.fits'.format(slf._basename), overwrite=clobber)
+    hdulist.writeto(outdir+'/spec2d_{:s}.fits'.format(basename), overwrite=clobber)

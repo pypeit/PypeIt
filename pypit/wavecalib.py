@@ -13,7 +13,7 @@ from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import masterframe
 from pypit.core import ararc
-from pypit import armasters
+from pypit.core import armasters
 from pypit.core import arsort
 
 # For out of PYPIT running
@@ -381,3 +381,58 @@ class WaveCalib(masterframe.MasterFrame):
 
 
 
+def get_wv_calib(det, setup, spectrograph, sci_ID, wvc_settings, fitstbl,
+                 tslits_dict, pixlocn, msarc, nonlinear=None):
+    """
+    Load/Generate the wavelength calibration dict
+
+    Parameters
+    ----------
+    det : int
+      Required for processing
+    setup : str
+      Required for MasterFrame loading
+    spectrograph : str
+      Required for processing
+    sci_ID : int
+      Required to choose the instr configuration
+    wvc_settings : dict
+    fitstbl : Table
+      Required to choose the right flats for processing
+    tslits_dict : dict
+      Slits dict; required for processing
+    pixlocn : ndarray
+      Required for processing
+    msarc : ndarray
+      Required for processing
+    nonlinear : float, optional
+
+    Returns
+    -------
+    wv_calib : dict
+      1D wavelength calibration fits
+    wv_maskslits : ndarray (bool)
+      Indicates slits that were masked (skipped)
+    waveCalib : WaveCalib object
+
+    """
+
+    # Instantiate
+    waveCalib = WaveCalib(msarc, spectrograph=spectrograph,
+                                    settings=wvc_settings, det=det,
+                                    setup=setup, fitstbl=fitstbl, sci_ID=sci_ID)
+    # Load from disk (MasterFrame)?
+    wv_calib = waveCalib.master()
+    # Build?
+    if wv_calib is None:
+        wv_calib, _ = waveCalib.run(tslits_dict['lcen'], tslits_dict['rcen'],
+                                    pixlocn, nonlinear=nonlinear)
+        # Save to Masters
+        waveCalib.save_master(waveCalib.wv_calib)
+    else:
+        waveCalib.wv_calib = wv_calib
+    # Mask
+    wv_maskslits = waveCalib._make_maskslits(tslits_dict['lcen'].shape[1])
+
+    # Return
+    return wv_calib, wv_maskslits, waveCalib

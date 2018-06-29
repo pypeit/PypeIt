@@ -7,7 +7,7 @@ from __future__ import unicode_literals
 import pytest
 
 from pypit import pyputils
-from pypit import armasters
+from pypit.core import armasters
 
 msgs = pyputils.get_dummy_logger()
 
@@ -18,7 +18,7 @@ msgs = pyputils.get_dummy_logger()
 def test_master_name():
     """ Test master name method
     """
-    types = ['bias', 'badpix', 'trace', 'normpixelflat', 'arc', 'wave', 'wv_calib', 'tilts']
+    types = ['bias', 'badpix', 'trace', 'pixelflat', 'arc', 'wave', 'wv_calib', 'tilts']
     suff = ['Bias', 'BadPix', 'Trace', 'FlatField', 'Arc', 'Wave', 'WaveCalib', 'Tilts']
     for isuff,itype in zip(suff,types):
         if itype == 'wv_calib':

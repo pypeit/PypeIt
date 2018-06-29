@@ -144,7 +144,6 @@
 - Push get_censpec() to ararc.py
 - New tests; limited docs
 - TraceSlits load method pushed outside the class
-
 - Introduces WaveTilts class
 - Significant modification to tilt recipe including deprecation of PCA
 - Moved tilt tracing algorithms from artrace.py to artracewave.py in core/
@@ -154,6 +153,43 @@
 - New pypit_chk_tilts script
 - New docs
 - New tests
+- Introduces FlatField class
+- Adds FlatField Notebook, tests
+- Pushes flat field algorithms into core/arflat.py
+- Main flatfield method broken into a few pieces
+- Further refactoring of armasters
+- Further refactoring related to settings and ScienceExposure
+- WaveImage class
+- Strip mswave from ScienceExposure
+- New tests
+- Push get_calib methods into the individual classes
+- Significant refactoring in arms.py followed
+- Rename slits_dict -> tslits_dict
+- Use tslits_dict in wavetilts.py
+- Introduce ScienceImage class
+- Substantial refactoring in arms.py followed
+- Notebook too
+- Reversed exposure/det loops for the (last?) time
+- Generated arskysub.py in core/
+- Significant portions of arproc.py are now superfluous
+- Moved flexure_qa to arwave.py
+- Significant refactoring of arsave.py (also moved to core/)
+- Removed settings and slf from arspecobj.py
+- Refactored trace_objects_in_slit()
+- Refactoring of flexure algorithms
+- Adds build_crmask() and flat_field() methods to ProcessImages
+- Completed the deprecation of arsciexp (RIP)
+- Many test updates
+- Doc strings improved but no new main docs
+- Completed armasters refactor and moved to core/
+- Adds bspline_profile() method;  Used here for skysub but will also show up in extraction
+- Introduces new skysub method;  still a bspline but now the new one
+- Adds several methods from the PYDL repository into a pydl.py module including bspline Class
+- Adds method to generate ximg and edgemask frames
+- Adds new trace_slits_trim settings
+
+- Small install edits
+- Fixes Travis failure that crept into the previous PR
 
 0.7 (2017-02-07)
 ----------------

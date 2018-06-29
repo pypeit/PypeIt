@@ -46,7 +46,7 @@ def kast_blue_bias_files():
 
 @pytest.fixture
 def kast_settings():
-    kast_settings = processimages.default_settings.copy()
+    kast_settings = processimages.default_settings()
     kast_settings['detector']['dataext'] = 0
     kast_settings['detector']['datasec01'] = [[0, 1024], [0, 0]]
     kast_settings['detector']['datasec02'] = [[1024, 2048], [0, 0]]

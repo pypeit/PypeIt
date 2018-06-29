@@ -536,7 +536,8 @@ def edgearr_mslit_sync(edgearr, tc_dict, ednum, insert_buff=5, add_left_edge_sli
     return new_edgearr
 
 
-def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False):
+def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
+                   maxshift=0.15):
     """ Use trace_crude to refine slit edges
     It is also used to remove bad slit edges and merge slit edges
 
@@ -554,6 +555,8 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False):
     tfrac : float (optional)
       Fraction of the slit edge that must be traced to keep
       There are exceptions, however (e.g. single slits)
+    maxshift : float
+      Maximum shift in trace crude
 
     Returns
     -------
@@ -568,6 +571,7 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False):
              xset -- trace set values
              xerr -- trace set errors
     """
+    msgs.info("Crude tracing the edges")
     # Init
     ycen = edgearr.shape[0] // 2
 
@@ -636,9 +640,9 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False):
                     pass
             # Trace crude
             if side == 'left':
-                xset, xerr = trace_crude_init(np.maximum(siglev, -0.1), np.array(xinit), yrow)
+                xset, xerr = trace_crude_init(np.maximum(siglev, -0.1), np.array(xinit), yrow, maxshift=maxshift)
             else:
-                xset, xerr = trace_crude_init(np.maximum(-1*siglev, -0.1), np.array(xinit), yrow)
+                xset, xerr = trace_crude_init(np.maximum(-1*siglev, -0.1), np.array(xinit), yrow, maxshift=maxshift)
             # Save
             if niter == 0:
                 tc_dict[side]['xset'] = xset
@@ -2543,6 +2547,8 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
 def trace_crude_init(image, xinit0, ypass, invvar=None, radius=2.,
     maxshift0=0.5, maxshift=0.15, maxerr=0.2):
     """Python port of trace_crude_idl.pro from IDLUTILS
+    #TODO this routine needs better docs. I'm also not sure why it is called trace_crude_init instead of just trace_crude.
+    #TODO Consistent naming with IDLUTILS makes it easier to figure out what rourine is what.
 
     Modified for initial guess
 
@@ -2574,7 +2580,7 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, radius=2.,
     #  Recenter INITIAL Row for all traces simultaneously
     #
     iy = ypass * np.ones(ntrace,dtype=int)
-    xfit,xfiterr = trace_fweight(image, xinit, iy, invvar=invvar, radius=radius)
+    xfit,xfiterr = trace_fweight(image, xinit, ycen = iy, invvar=invvar, radius=radius)
     # Shift
     xshift = np.clip(xfit-xinit, -1*maxshift0, maxshift0) * (xfiterr < maxerr)
     xset[ypass,:] = xinit + xshift
@@ -2584,7 +2590,7 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, radius=2.,
     for iy in range(ypass+1, ny):
         xinit = xset[iy-1, :]
         ycen = iy * np.ones(ntrace,dtype=int)
-        xfit,xfiterr = trace_fweight(image, xinit, ycen, invvar=invvar, radius=radius)
+        xfit,xfiterr = trace_fweight(image, xinit, ycen = ycen, invvar=invvar, radius=radius)
         # Shift
         xshift = np.clip(xfit-xinit, -1*maxshift, maxshift) * (xfiterr < maxerr)
         # Save
@@ -2594,7 +2600,7 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, radius=2.,
     for iy in range(ypass-1, -1,-1):
         xinit = xset[iy+1, :]
         ycen = iy * np.ones(ntrace,dtype=int)
-        xfit,xfiterr = trace_fweight(image, xinit, ycen, invvar=invvar, radius=radius)
+        xfit,xfiterr = trace_fweight(image, xinit, ycen = ycen, invvar=invvar, radius=radius)
         # Shift
         xshift = np.clip(xfit-xinit, -1*maxshift, maxshift) * (xfiterr < maxerr)
         # Save
@@ -2604,41 +2610,108 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, radius=2.,
     return xset, xerr
 
 
-def trace_fweight(fimage, xinit, ycen=None, invvar=None, radius=2., debug=False):
-    '''Python port of trace_fweight.pro from IDLUTILS
+def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
+
+    ''' Routine to recenter a trace using flux-weighted centroiding.
+
+    Python port of trace_fweight.pro from IDLUTILS
+
 
     Parameters
     ----------
     fimage: 2D ndarray
-      Image for tracing
+      Image for tracing which shape (nspec, nspat)
+
     xinit: ndarray
-      Initial guesses for x-trace
-    invvar: ndarray, optional
-      Inverse variance array for the image
-    radius: float, optional
-      Radius for centroiding; default to 3.0
+      Initial guesses for spatial direction trace. This can either be an 2-d  array with shape
+         (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
+
+    Optional Parameters:
+    --------------------
+    ycen: ndarray, default = None
+      Optionally y-position of trace can be provided. It should be an integer array the same size as x-trace (nspec, nTrace). If
+      not provided np.arange(nspec) will be assumed for each trace
+
+    invvar: ndarray, default = None
+         Inverse variance array for the image. Array with shape (nspec, nspat) matching fimage
+
+    radius :  float or ndarray, default = 3.0
+         Radius for centroiding in floating point pixels. This can be either be input as a scalar or as an array to perform
+         centroiding with a varaible radius. If an array is input it must have the same size and shape as xinit_in, i.e.
+         a 2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
+
+    Returns
+    -------
+    xnew:   ndarray
+         Recentroided trace. The output will have the same shape as xinit i.e.  an 2-d  array with shape (nspec, nTrace)
+         array if multiple traces were input, or a 1-d array with shape (nspec) for
+         the case of a single trace.
+    xerr: ndarray
+         Formal propagated error on recentroided trace. These errors will only make sense if invvar is passed in, since
+         otherwise invvar is set to 1.0.   The output will have the same shape as xinit i.e.  an 2-d  array with shape
+         (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for the case of a single
+         trace. Locations where the flux weighted centroid deviates from the input guess by  > radius, or where it falls
+         off the image, will have this error set to 999 and will their xnew values set to that of the input trace. These
+         should thus be masked in any fit.
+
+     Revision History
+     ----------------
+     Python port of trace_fweight.pro from IDLUTILS
+     24-Mar-1999  Written by David Schlegel, Princeton.
+     27-Jun-2018  Ported to python by X. Prochaska and J. Hennawi
+    """
+
+
     '''
-    # Definitions for Cython
-    #cdef int nx,ny,ncen
 
     # Init
     nx = fimage.shape[1]
     ny = fimage.shape[0]
-    ncen = len(xinit)
+
+    # Checks on radius
+    if (isinstance(radius,int) or isinstance(radius,float)):
+        radius_out = radius
+    elif ((np.size(radius)==np.size(xinit_in)) & (np.shape(radius) == np.shape(xinit_in))):
+        radius_out = radius
+    else:
+        raise ValueError('Boxcar radius must a be either an integer, a floating point number, or an ndarray '
+                         'with the same shape and size as trace_in')
+
+
+    # Figure out dimensions of xinit
+    dim = xinit_in.shape
+    ndim = xinit_in.ndim
+    if (ndim == 1):
+        nTrace = 1
+        npix = dim[0]
+    else:
+        nTrace = dim[1]
+        npix = dim[0]
+
+    ncen = xinit_in.size
+
+    xinit = xinit_in.flatten()
     # Create xnew, xerr
     xnew = xinit.astype(float)
-    xerr = np.zeros(ncen) + 999.
+    xerr = np.full(ncen,999.)
 
-    # ycen
     if ycen is None:
-        if ncen != ny:
-            raise ValueError('Bad input')
-        ycen = np.arange(ny, dtype=int)
-    else:
-        if len(ycen) != ncen:
-            raise ValueError('Bad ycen input.  Wrong length')
-    x1 = xinit - radius + 0.5
-    x2 = xinit + radius + 0.5
+        if ndim == 1:
+            ycen = np.arange(npix, dtype='int')
+        elif ndim == 2:
+            ycen = np.outer(np.arange(npix, dtype='int'), np.ones(nTrace, dtype='int'))
+        else:
+            raise ValueError('xinit is not 1 or 2 dimensional')
+
+    ycen_out = ycen.astype(int)
+    ycen_out = ycen_out.flatten()
+
+    if np.size(xinit) != np.size(ycen):
+        raise ValueError('Number of elements in xinit and ycen must be equal')
+
+
+    x1 = xinit - radius_out + 0.5
+    x2 = xinit + radius_out + 0.5
     ix1 = np.floor(x1).astype(int)
     ix2 = np.floor(x2).astype(int)
 
@@ -2659,15 +2732,15 @@ def trace_fweight(fimage, xinit, ycen=None, invvar=None, radius=2., debug=False)
         ih = np.clip(spot,0,nx-1)
         xdiff = spot - xinit
         #
-        wt = np.clip(radius - np.abs(xdiff) + 0.5,0,1) * ((spot >= 0) & (spot < nx))
-        sumw = sumw + fimage[ycen,ih] * wt
+        wt = np.clip(radius_out - np.abs(xdiff) + 0.5,0,1) * ((spot >= 0) & (spot < nx))
+        sumw = sumw + fimage[ycen_out,ih] * wt
         sumwt = sumwt + wt
-        sumxw = sumxw + fimage[ycen,ih] * xdiff * wt
-        var_term = wt**2 / (invvar[ycen,ih] + (invvar[ycen,ih] == 0))
+        sumxw = sumxw + fimage[ycen_out,ih] * xdiff * wt
+        var_term = wt**2 / (invvar[ycen_out,ih] + (invvar[ycen_out,ih] == 0))
         sumsx2 = sumsx2 + var_term
         sumsx1 = sumsx1 + xdiff**2 * var_term
-        #qbad = qbad or (invvar[ycen,ih] <= 0)
-        qbad = np.any([qbad, invvar[ycen,ih] <= 0], axis=0)
+        #qbad = qbad or (invvar[ycen_out,ih] <= 0)
+        qbad = np.any([qbad, invvar[ycen_out,ih] <= 0], axis=0)
 
     # Fill up
     good = (sumw > 0) &  (~qbad)
@@ -2676,11 +2749,104 @@ def trace_fweight(fimage, xinit, ycen=None, invvar=None, radius=2., debug=False)
         xnew[good] = delta_x + xinit[good]
         xerr[good] = np.sqrt(sumsx1[good] + sumsx2[good]*delta_x**2)/sumw[good]
 
-    bad = np.any([np.abs(xnew-xinit) > radius + 0.5,xinit < radius - 0.5,xinit > nx - 0.5 - radius],axis=0)
+    bad = np.any([np.abs(xnew-xinit) > radius_out + 0.5,xinit < radius_out - 0.5,xinit > nx - 0.5 - radius_out],axis=0)
     if np.sum(bad) > 0:
         xnew[bad] = xinit[bad]
         xerr[bad] = 999.0
 
+    # Reshape to the right size for output if more than one trace was input
+    if ndim > 1:
+        xnew = xnew.reshape(npix,nTrace)
+        xerr = xerr.reshape(npix,nTrace)
+
+    # Return
+    return xnew, xerr
+
+
+def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskval=-999999.9):
+    ''' Routine to recenter a trace using gaussian-weighted centroiding. Specifically the flux in the image is weighted
+    by the integral of a Gaussian over a pixel. Port of idlutils trace_gweight.pro algorithm
+
+
+    Parameters
+    ----------
+    fimage: 2D ndarray
+      Image for tracing which shape (nspec, nspat)
+
+    xinit: ndarray
+      Initial guesses for spatial direction trace. This can either be an 2-d  array with shape
+         (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
+
+
+    Optional Parameters:
+    --------------------
+    sigma :  float or ndarray, default = 1.0
+         Sigma of Gaussian for centroiding in floating point pixels. This can be either be input as a scalar or as an array to perform
+         centroiding with a varaible sigma. If an array is input it must have the same size and shape as xinit_in, i.e.
+         a 2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
+
+    ycen: ndarray, default = None
+      Optionally y-position of trace can be provided. It should be an integer array the same size as x-trace (nspec, nTrace). If
+      not provided np.arange(nspec) will be assumed for each trace.
+
+    invvar: ndarray, default = None
+         Inverse variance array for the image. Array with shape (nspec, nspat) matching fimage
+
+    Returns
+    -------
+    xnew:   ndarray
+         Recentroided trace. The output will have the same shape as xinit i.e.  an 2-d  array with shape (nspec, nTrace)
+         array if multiple traces were input, or a 1-d array with shape (nspec) for
+         the case of a single trace.
+    xerr: ndarray
+         Formal propagated error on recentroided trace. These errors will only make sense if invvar is passed in, since
+         otherwise invvar is set to 1.0.   The output will have the same shape as xinit i.e.  an 2-d  array with shape
+         (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for the case of a single
+         trace. Locations where the gaussian weighted centroid deviates from the input guess by  > radius, or where it falls
+         off the image, will have this error set to 999 and will their xnew values set to that of the input trace. These
+         should thus be masked in any fit.
+
+     Revision History
+     ----------------
+     Python port of trace_fweight.pro from IDLUTILS
+     24-Mar-1999  Written by David Schlegel, Princeton.
+     27-Jun-2018  Ported to python by X. Prochaska and J. Hennawi
+    '''
+
+    # Setup
+    nx = fimage.shape[1]
+    xnew = np.zeros_like(xcen)
+    xerr = maskval*np.ones_like(xnew)
+
+    if invvar is None:
+        invvar = np.ones_like(fimage)
+
+    # More setting up
+    x_int = np.round(xcen).astype(int)
+    nstep = 2*int(3.0*sigma) - 1
+
+    weight = np.zeros_like(xcen)
+    numer  = np.zeros_like(xcen)
+    meanvar = np.zeros_like(xcen)
+    bad = np.zeros_like(xcen).astype(bool)
+
+    for i in range(nstep):
+        xh = x_int - nstep//2 + i
+        xtemp = (xh - xcen - 0.5)/sigma/np.sqrt(2.0)
+        g_int = (erf(xtemp+1./sigma/np.sqrt(2.0)) - erf(xtemp))/2.
+        xs = np.minimum(np.maximum(xh,0),(nx-1))
+        cur_weight = fimage[ycen, xs] * (invvar[ycen, xs] > 0) * g_int * ((xh >= 0) & (xh < nx))
+        weight += cur_weight
+        numer += cur_weight * xh
+        meanvar += cur_weight * cur_weight * (xcen-xh)**2 / (
+                invvar[ycen, xs] + (invvar[ycen, xs] == 0))
+        bad = np.any([bad, xh < 0, xh >= nx], axis=0)
+
+    # Masking
+    good = (~bad) & (weight > 0)
+    if np.sum(good) > 0:
+        xnew[good] = numer[good]/weight[good]
+        xerr[good] = np.sqrt(meanvar[good])/weight[good]
     # Return
     return xnew, xerr
 

@@ -13,6 +13,8 @@ import pytest
 
 #import pypit
 
+from astropy.table import Table
+
 from pypit import arspecobj
 from pypit import pyputils
 
@@ -54,9 +56,10 @@ def test_instr_config():
     # Make dummy fitsdict
     fitsdict = {'slitwid': [0.5], 'dichroic': ['d55'],
                  'dispname': ['B600/400'], 'dispangle': [11000.]}
+    fitstbl = Table(fitsdict)
     det, scidx = 1, 0
     #
-    config = arspecobj.instconfig(det, scidx, fitsdict)
+    config = arspecobj.instconfig(fitstbl[scidx])
     # Test
     assert config == 'S05-D55-G600400-T110000-B11'
 

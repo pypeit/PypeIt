@@ -9,7 +9,7 @@ import os
 
 from pypit import msgs
 from pypit import ardebug as debugger
-from pypit import armasters
+from pypit.core import armasters
 from pypit.core import arsort
 from pypit import processimages
 from pypit import masterframe
@@ -83,7 +83,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         # The copy allows up to update settings with user settings without changing the original
         if settings is None:
             # Defaults
-            self.settings = processimages.default_settings.copy().update(additional_default_settings)
+            self.settings = processimages.default_settings().update(additional_default_settings)
         else:
             self.settings = settings.copy()
             # The following is somewhat kludgy and the current way we do settings may
@@ -152,7 +152,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
                 return None
             else:
                 # Prevent over-writing the master frame when it is time to save
-                self.settings['reduce']['masters']['loaded'].append(self.frametype)
+                self.settings['masters']['loaded'].append(self.frametype)
         # Simple command?
         elif self.settings[self.frametype]['useframe'] in ['overscan', 'none']:
             if self.settings[self.frametype]['useframe'] == 'none':
@@ -162,9 +162,43 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         else:
             msframe_name = self.settings['run']['directory']['master']+u'/'+self.settings[self.frametype]['useframe']
             msframe, head, _ = armasters._core_load(msframe_name, frametype=self.frametype)
-            self.settings['reduce']['masters']['loaded'].append(self.frametype+self.setup)
+            self.settings['masters']['loaded'].append(self.frametype+self.setup)
 
         # Put in
         self.stack = msframe
         return msframe.copy()
 
+
+def get_msbias(det, setup, sci_ID, fitstbl, tsettings):
+    """
+    Grab/generate an Bias image or the command for bias subtraction (e.g. 'overscan')
+
+    Parameters
+    ----------
+    det : int
+      Required for processing
+    setup : str
+      Required for MasterFrame loading
+    sci_ID : int
+      Required to choose the right bias frames
+    fitstbl : Table
+      Required to choose the right bias frames
+    tsettings : dict
+      Required if processing or loading MasterFrame
+
+    Returns
+    -------
+    msbias : ndarray or str
+    biasFrame : BiasFrame object
+
+    """
+    # Init
+    biasFrame = BiasFrame(settings=tsettings, setup=setup,
+                                    det=det, fitstbl=fitstbl, sci_ID=sci_ID)
+    # Load the MasterFrame (if it exists and is desired) or the command (e.g. 'overscan')
+    msbias = biasFrame.master()
+    if msbias is None:  # Build it and save it
+        msbias = biasFrame.build_image()
+        biasFrame.save_master(msbias, raw_files=biasFrame.file_list, steps=biasFrame.steps)
+    # Return
+    return msbias, biasFrame

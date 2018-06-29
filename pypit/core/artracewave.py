@@ -437,10 +437,9 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
     msgs.info("Completed spectral tilt tracing".format(np.sum(aduse)))
     return trcdict
 
-
-
-def trace_fweight(fimage, xinit, ltrace=None, rtraceinvvar=None, radius=3.,
-                  maskval=999999.9):
+# This should be deprecated, since there is another version in core.artraceslits
+#def trace_fweight(fimage, xinit, ltrace=None, rtraceinvvar=None, radius=3.,maskval=999999.9):
+def trace_fweight_deprecated(fimage, xinit, ltrace=None, rtraceinvvar=None, radius=3., maskval=999999.9):
     """ Python port of trace_fweight.pro from IDLUTILS
 
     Parameters:

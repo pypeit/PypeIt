@@ -26,8 +26,6 @@ from pypit.core import arflux
 from pypit import arload
 from pypit import arutils
 from pypit.core import arsort
-from pypit import arsciexp
-from pypit import armasters
 
 #from xastropy.xutils import afits as xafits
 #from xastropy.xutils import xdebug as xdb
@@ -58,7 +56,6 @@ def test_gen_sensfunc():
     settings.spect['arc'] = {}
     settings.spect['arc']['index'] = [[0]]
     fitstbl = arsort.dummy_fitstbl()
-    slf = arsciexp.dummy_self(fitstbl=fitstbl)
     RA = '05:06:36.6'
     DEC = '52:52:01.0'
     # Generate

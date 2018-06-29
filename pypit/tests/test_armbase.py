@@ -9,11 +9,6 @@ from __future__ import unicode_literals
 import numpy as np
 import pytest
 
-from pypit import arparse
-from pypit import arsciexp
-from pypit import armbase
-
-
 def test_update_masters():
     pass
 '''    

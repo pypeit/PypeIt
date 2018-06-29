@@ -53,6 +53,7 @@ class BPMImage(object):
     msbias : ndarray, optional
       Used to construct the BPM if reduce_badpix=='bias'
     reduce_badpix : str, optional
+      'bias' -- Build from bias images
 
     Attributes
     ----------
@@ -121,6 +122,12 @@ class BPMImage(object):
                 self.bpm = arlris.bpm(xbin, ybin, 'red', self.det)
             elif self.spectrograph in ['keck_deimos']:
                 self.bpm = ardeimos.bpm(self.det)
+            elif self.spectrograph in ['keck_nirspec']:
+                # Edges of the detector are junk
+                msgs.info("Custom bad pixel mask for NIRSPEC")
+                self.bpm = np.zeros((self.shape[0], self.shape[1]))
+                self.bpm[:, :20] = 1.
+                self.bpm[:, 1000:] = 1.
             else:
                 ###############
                 # Set the number of spectral and spatial pixels, and the bad pixel mask is it does not exist
@@ -129,3 +136,39 @@ class BPMImage(object):
         return self.bpm
 
 
+def get_mspbm(det, spectrograph, tsettings, shape, binning=None, reduce_badpix=None, msbias=None):
+    """
+    Load/Generate the bad pixel image
+
+    Parameters
+    ----------
+    det : int
+      Required for processing
+    spectrograph : str
+      Required if processing
+    tsettings : dict
+      Required if processing or loading MasterFrame
+    shape : tuple
+      Required if processing
+    binning : str, optional
+      Required if processing
+    reduce_badpix : str, optional
+      'bias' -- Build from bias images
+    msbias : ndarray or str, optional
+      Required if processing with reduce_badpix
+
+    Returns
+    -------
+    msbpm : ndarray
+    bpmImage : BPMImage object
+
+    """
+    bpmImage = BPMImage(spectrograph=spectrograph,
+                                 settings=tsettings, det=det,
+                                 shape=shape,
+                                 binning=binning,
+                                 reduce_badpix=reduce_badpix,
+                                 msbias=msbias)
+    msbpm = bpmImage.build()
+    # Return
+    return msbpm, bpmImage
