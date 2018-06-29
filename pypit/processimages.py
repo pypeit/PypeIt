@@ -214,24 +214,6 @@ class ProcessImages(object):
                                                      det_settings=self.settings['detector'],
                                                      numamplifiers=self.settings['detector']['numamplifiers'],
                                                      det=self.det)
-        '''
-        # TODO -- Eliminate this instrument specific bit here. Probably by generating a Detector object
-        if self.spectrograph in ['keck_lris_blue', 'keck_lris_red', 'keck_deimos']:
-            self.datasec, self.oscansec, _, _ = arprocimg.get_datasec(
-                self.spectrograph, self.file_list[0],
-                numamplifiers=self.settings['detector']['numamplifiers'],
-                det=self.det)
-        elif 'detector' in self.settings.keys():
-            self.datasec = []
-            self.oscansec = []
-            for i in range(self.settings['detector']['numamplifiers']):
-                sdatasec = "datasec{0:02d}".format(i+1)
-                self.datasec.append(self.settings['detector'][sdatasec])
-                soscansec = "oscansec{0:02d}".format(i+1)
-                self.oscansec.append(self.settings['detector'][soscansec])
-        else:
-            msgs.error("datasec not properly loaded!")
-        '''
 
     def apply_gain(self, datasec_img):
         """
