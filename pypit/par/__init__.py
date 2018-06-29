@@ -1,4 +1,3 @@
 
-#from .parset import ParSet, ParDatabase
-from .derived import RunPar
+from .pypitpar import PypitPar
 

@@ -33,6 +33,9 @@ Define a utility base class used to hold parameters.
     | **19 Apr 2018**: (KBW) Spruce up the __repr__ function and add the
         info function.  Add to_config function to write to a
         configuration file.
+    | **28 Jun 2018**: (KBW) Change config_lines to a static method, and
+        allow it to print the configuration lines for a dictionary, not
+        just ParSets.
 
 .. _isinstance: https://docs.python.org/2/library/functions.html#isinstance
 
@@ -221,6 +224,12 @@ class ParSet(object):
             self.data[key] = value
             return
 
+        if isinstance(value, list):
+            is_parset_or_dict = [ isinstance(v, (ParSet, dict)) for v in value ]
+            if numpy.any(is_parset_or_dict) and not numpy.all(is_parset_or_dict):
+                warnings.warn('List includes a mix of ParSet and dicts with other types.  '
+                              'Displaying and writing the ParSet will not be correct!')
+
         if self.options[key] is not None and value not in self.options[key]:
             raise ValueError('Input value for {0} invalid: {1}.\nOptions are: {2}'.format(
                                                                     key, value, self.options[key]))
@@ -317,38 +326,66 @@ class ParSet(object):
         return [t.__name__ for t in self.dtype[key]]
 
 
-    def _config_lines(self, section_name=None, section_comment=None, section_level=0):
+    @staticmethod
+    def config_lines(par, section_name=None, section_comment=None, section_level=0):
         """
         Recursively generate the lines of a configuration file based on
-        this ParSet and its ParSet members.
+        the provided ParSet or dict (par).
         """
         # Get the list of parameters that are ParSets
-        parset_keys = [ k for k in self.keys() if isinstance(self.data[k], ParSet) ]
+        parset_keys = [ k for k in par.keys() if isinstance(par[k], (ParSet, dict)) ]
         n_parsets = len(parset_keys)
 
         # Set the top-level comment and section name
         section_indent = ' '*4*section_level
         component_indent = section_indent + ' '*4
-        config_lines = [] if section_comment is None \
+        lines = [] if section_comment is None \
                             else ParSet._config_comment(section_comment, section_indent)
-        config_lines += [ section_indent + '['*(section_level+1) + section_name
-                            + ']'*(section_level+1) ]
+        lines += [ section_indent + '['*(section_level+1) + section_name
+                   + ']'*(section_level+1) ]
 
         # Add all the parameters that are not ParSets
-        for k in self.keys():
+        for k in par.keys():
+            # Skip it if this element is a ParSet
             if n_parsets > 0 and k in parset_keys:
                 continue
-            if self.descr[k] is not None:
-                config_lines += ParSet._config_comment(self.descr[k], component_indent)
-            config_lines += [ component_indent + k + ' = ' + ParSet._data_string(self.data[k]) ]
+
+            # If the value is a list, determine if all the elements of
+            # the list are also dictionaries or ParSets
+            if isinstance(par[k], list):
+                is_parset_or_dict = [ isinstance(v, (ParSet, dict)) for v in par[k] ]
+                if numpy.all(is_parset_or_dict):
+                    ndig = int(numpy.log10(len(par[k])))+1
+                    for i, v in enumerate(par[k]):
+                        indx = str(i+1).zfill(ndig)
+                        # Try to add the section comment
+                        try:
+                            section_comment = par.descr[k] + ': ' + indx
+                        except:
+                            section_comment = None
+                        lines += ParSet.config_lines(v, section_name=k+indx,
+                                                     section_comment=section_comment,
+                                                     section_level=section_level+1)
+                    continue
+
+            # Working with a single element
+            # Try to add the description for this parameter
+            try:
+                if par.descr[k] is not None:
+                    lines += ParSet._config_comment(par.descr[k], component_indent)
+            except:
+                pass
+            lines += [ component_indent + k + ' = ' + ParSet._data_string(par[k]) ]
 
         # Then add the items that are ParSets as subsections
         for k in parset_keys:
-            config_lines += self.data[k]._config_lines(section_name=k,
-                                                       section_comment=self.descr[k],
-                                                       section_level=section_level+1)
-
-        return config_lines
+            try:
+                section_comment = par.descr[k]
+            except:
+                section_comment = None
+            lines += ParSet.config_lines(par[k], section_name=k, section_comment=section_comment,
+                                         section_level=section_level+1)
+        return lines
 
 
     @staticmethod
@@ -437,13 +474,14 @@ class ParSet(object):
 
 
     def to_config(self, cfg_file, section_name=None, section_comment=None, section_level=0,
-                  append=False, quiet=False):
+                  append=False, quiet=False, just_lines=False):
         """
         Write/Append the parameter set to a configuration file.
 
         Args:
             cfg_file (str):
-                The name of the file to write/append to.
+                The name of the file to write/append to.  Can be None if
+                :arg:`just_lines` is true.
             section_name (:obj:`str`, optional):
                 The top-level name for the config section.  This must be
                 provided if :attr:`cfg_section` is None or any of the
@@ -460,6 +498,8 @@ class ParSet(object):
                 exists, the file is automatically overwritten.
             quiet (:obj:`bool`, optional):
                 Suppress all standard output from the function.
+            just_lines (:obj:`bool`, optional):
+                Do not write the file.  Just construct the file lines.
 
         Raises:
             ValueError:
@@ -467,7 +507,7 @@ class ParSet(object):
                 parameter list, :attr:`cfg_section` is None, and no
                 section_name argument was provided.
         """
-        if os.path.isfile(cfg_file) and not append and not quiet:
+        if not just_lines and os.path.isfile(cfg_file) and not append and not quiet:
             warnings.warn('Selected configuration file already exists and will be overwritten!')
 
         config_output = []
@@ -475,18 +515,22 @@ class ParSet(object):
             # All the elements are ParSets themselves, so just iterate
             # through each one
             for k in self.keys():
-                config_output += self.data[k]._config_lines(section_name=k,
-                                                            section_comment=self.descr[k],
-                                                            section_level=section_level)
+                config_output += ParSet.config_lines(self.data[k], section_name=k,
+                                                     section_comment=self.descr[k],
+                                                     section_level=section_level)
+                config_output += ['']
         else:
             if section_name is None and self.cfg_section is None:
                 raise ValueError('No top-level section name available for configuration!')
 
             _section_name = self.cfg_section if section_name is None else section_name
             _section_comment = self.cfg_comment if section_comment is None else section_comment
-            config_output += self._config_lines(section_name=_section_name,
-                                                section_comment=_section_comment,
-                                                section_level=section_level)
+            config_output += ParSet.config_lines(self, section_name=_section_name,
+                                                 section_comment=_section_comment,
+                                                 section_level=section_level)
+
+        if just_lines:
+            return config_output
 
         with open(cfg_file, 'a' if append else 'w') as f:
             f.write('\n'.join(config_output))
