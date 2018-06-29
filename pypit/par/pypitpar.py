@@ -39,17 +39,19 @@ data:
 And those that define the parameters of the instrument used to collect
 the data:
 
-    - TelescopePar: Specifies the location and name of the telescope
-
     - DetectorPar: Specifies the properties of a given detector
 
-    - CameraPar: Specifies the camera used for a given observation and
-      contains the list of detectors for the camera.
+    - InstrumentPar: Specifies the instrument used for a given
+      observation and contains the list of detectors for the camera.
 
-    FitsPar
+    - FrameFitsPar: Defines the set of fits files properties that all
+      fits files from the given instrument should have.
 
+    - FrameIDPar: Defines a set of parameters used to identify fits
+      files as a certain frame type.
 
-    FramePar
+These are collected into the main, high-level paramter set, called
+PypitPar.
 
 .. todo::
     - Warn the user if a default value is being used?
