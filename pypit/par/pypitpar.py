@@ -1284,9 +1284,9 @@ class TraceSlitsPar(ParSet):
     """
     Parameters specific to PypIts slit tracing algorithm
     """
-    def __init__(self, function=None, polyorder=None, medrep=None, number=None, maxgap=None,
-                 pad=None, sigdetect=None, fracignore=None, diffpolyorder=None, single=None,
-                 sobel_mode=None, pca=None):
+    def __init__(self, function=None, polyorder=None, medrep=None, number=None, trim=None,
+                 maxgap=None, maxshift=None, pad=None, sigdetect=None, fracignore=None,
+                 diffpolyorder=None, single=None, sobel_mode=None, pca=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1326,10 +1326,24 @@ class TraceSlitsPar(ParSet):
         descr['number'] = 'Manually set the number of slits to identify (>=1). \'auto\' or -1 ' \
                           'will automatically identify the number of slits.'
 
+        # Force trim to be a tuple
+        if pars['trim'] is not None and not isinstance(pars['trim'], tuple):
+            try:
+                pars['trim'] = tuple(pars['trim'])
+            except:
+                raise TypeError('Could not convert provided trim to a tuple.')
+        defaults['trim'] = (3,3)
+        dtypes['trim'] = tuple
+        descr['trim'] = 'How much to trim off each edge of each slit'
+
         dtypes['maxgap'] = int
         descr['maxgap'] = 'Maximum number of pixels to allow for the gap between slits.  Use ' \
                           'None if the neighbouring slits are far apart or of similar ' \
                           'illumination.'
+
+        defaults['maxshift'] = 0.15
+        dtypes['maxshift'] = [int, float]
+        descr['maxshift'] = 'Maximum shift in trace crude'
 
         defaults['pad'] = 0
         dtypes['pad'] = int
@@ -1382,8 +1396,8 @@ class TraceSlitsPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'function', 'polyorder', 'medrep', 'number', 'maxgap', 'pad', 'sigdetect',
-                    'fracignore', 'diffpolyorder', 'single', 'sobel_mode' ]
+        parkeys = [ 'function', 'polyorder', 'medrep', 'number', 'trim', 'maxgap', 'maxshift',
+                    'pad', 'sigdetect', 'fracignore', 'diffpolyorder', 'single', 'sobel_mode' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
