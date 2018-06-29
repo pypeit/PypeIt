@@ -17,8 +17,7 @@ from pypit.core import arwave
 from pypit.core import arsetup
 from pypit import arpixels
 from pypit.core import arsort
-from pypit import arcimage
-from pypit import biasframe
+from pypit import calibrate
 from pypit.spectrographs import bpmimage
 from pypit import flatfield
 from pypit import fluxspec
@@ -62,6 +61,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
 
     # Init calib dict
     calib_dict = {}
+    caliBrate = calibrate.Calibrate(fitstbl)
 
 
     # Loop on science exposure first
@@ -91,6 +91,8 @@ def ARMS(spectrograph, fitstbl, setup_dict):
 
             namp = settings.spect[dnum]["numamplifiers"]
             setup = arsetup.instr_setup(sci_ID, det, fitstbl, setup_dict, namp, must_exist=True)
+
+
             settings.argflag['reduce']['masters']['setup'] = setup
 
             ###############
@@ -126,25 +128,13 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             tsettings['detector']['dispaxis'] = settings.argflag['trace']['dispersion']['direction']
 
             ###############################################################################
-            # Prepare for Bias subtraction
-            if 'bias' in calib_dict[setup].keys():
-                msbias = calib_dict[setup]['bias']
-            else:
-                # Grab it
-                #   Bias will either be an image (ndarray) or a command (str, e.g. 'overscan') or none
-                msbias, _ = biasframe.get_msbias(det, setup, sci_ID, fitstbl, tsettings)
-                # Save
-                calib_dict[setup]['bias'] = msbias
+            # Begin calibrations
+            caliBrate.set(setup, det, sci_ID, tsettings)
 
-            ###############################################################################
-            # Generate a master arc frame
-            if 'arc' in calib_dict[setup].keys():
-                msarc = calib_dict[setup]['arc']
-            else:
-                # Grab it -- msarc will be a 2D image
-                msarc, _ = arcimage.get_msarc(det, setup, sci_ID, spectrograph, fitstbl, tsettings, msbias)
-                # Save
-                calib_dict[setup]['arc'] = msarc
+            msbias = caliBrate.get_bias()
+            msarc = caliBrate.get_arc(msbias)
+            msbpm = caliBrate.get_bpm()
+
 
             ###############################################################################
             # Generate a bad pixel mask (should not repeat)
