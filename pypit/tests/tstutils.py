@@ -7,11 +7,12 @@ from __future__ import unicode_literals
 import os
 
 from pypit import arcimage
-from pypit.core import arprocimg
+from pypit import arpixels
 from pypit import traceslits
 from pypit import wavecalib
 from pypit import wavetilts
 from pypit import processimages
+from pypit.spectrographs import io
 
 pypdev_path = os.getenv('PYPIT_DEV')
 
@@ -23,6 +24,7 @@ def data_path(filename):
 
 def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=False,
                            datasec=False, wvcalib=False):
+    spectrograph = 'shane_kast_blue'
     settings = processimages.default_settings()
     settings['masters'] = {}
     if pypdev_path is not None:
@@ -64,9 +66,11 @@ def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=F
         tilts = wvTilts.master()
         ret.append(tilts)
     if datasec:
-        datasec_img, naxis0, naxis1 = arprocimg.get_datasec_trimmed(
-            'shane_kast_blue', None, 1, settings['detector'],
-            naxis0=settings['detector']['naxis0'], naxis1=settings['detector']['naxis1'])
+        datasec, _ = io.get_datasec(spectrograph, filename=None, det_settings=settings['detector'],
+                                    numamplifiers=settings['detector']['numamplifiers'], det=1)
+        datasec_img = arpixels.pix_to_amp(settings['detector']['naxis0'],
+                                          settings['detector']['naxis1'],
+                                          datasec, settings['detector']['numamplifiers'])
         ret.append(datasec_img)
     if wvcalib:
         Wavecalib = wavecalib.WaveCalib(None, settings=settings, setup=setup)
