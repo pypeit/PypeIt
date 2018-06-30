@@ -103,10 +103,10 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             settings_det['dispaxis'] = settings.argflag['trace']['dispersion']['direction']
             # Yes, this looks goofy.  Is needed for LRIS and DEIMOS for now
             datasec, _, naxis0, naxis1 = io.get_datasec(spectrograph, scifile, det, settings_det)
-            # Build the datasec_img
-            datasec_img = arpixels.pix_to_amp(naxis0, naxis1, datasec, settings_det['numamplifiers'])
             settings.spect[dnum]['naxis0'] = naxis0
             settings.spect[dnum]['naxis1'] = naxis1
+            # Build the datasec_img
+            datasec_img = arpixels.pix_to_amp(naxis0, naxis1, datasec, settings_det['numamplifiers'])
             settings.spect[dnum] = settings_det.copy()  # Used internally..
 
             # Calib dict
@@ -299,6 +299,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             # Global skysub
             settings_skysub = {}
             settings_skysub['skysub'] = settings.argflag['reduce']['skysub'].copy()
+            debugger.set_trace()
             if settings.argflag['reduce']['skysub']['perform']:
                 global_sky, modelvarframe = sciI.global_skysub(settings_skysub)
             else:
@@ -337,6 +338,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                         skyspec_fil = settings.argflag['reduce']['flexure']['spectrum'],
                         mxshft = settings.argflag['reduce']['flexure']['maxshift'])
                     # QA
+                    debugger.set_trace()
                     arwave.flexure_qa(specobjs, maskslits, basename, det, flex_list)
 
             # Helio

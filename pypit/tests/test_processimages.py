@@ -45,6 +45,7 @@ def kast_settings():
     # Instantiate
     kast_settings = processimages.default_settings()
     kast_settings['detector']['dataext'] = 0
+    kast_settings['detector']['dataext01'] = 0
     kast_settings['detector']['datasec01'] = [[0, 1024], [0, 0]]
     kast_settings['detector']['datasec02'] = [[1024, 2048], [0, 0]]
     kast_settings['detector']['oscansec01'] = [[2049, 2080], [0, 0]]
