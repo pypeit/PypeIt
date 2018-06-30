@@ -100,16 +100,13 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             settings_det = settings.spect[dnum].copy()  # Should include naxis0, naxis1 in this
             # Binning
             settings_det['binning'] = fitstbl['binning'][0]
+            settings_det['dispaxis'] = settings.argflag['trace']['dispersion']['direction']
             # Yes, this looks goofy.  Is needed for LRIS and DEIMOS for now
-            datasec, _ = io.get_datasec(spectrograph,
-                                        filename=scifile,
-                                        det_settings=settings_det,
-                                        numamplifiers=settings_det['numamplifiers'],
-                                        det=det)
+            datasec, _, naxis0, naxis1 = io.get_datasec(spectrograph, scifile, det, settings_det)
             # Build the datasec_img
-            datasec_img = arpixels.pix_to_amp(fitstbl['naxis0'][0],
-                                              fitstbl['naxis1'][0],
-                                              datasec, settings_det['numamplifiers'])
+            datasec_img = arpixels.pix_to_amp(naxis0, naxis1, datasec, settings_det['numamplifiers'])
+            settings.spect[dnum]['naxis0'] = naxis0
+            settings.spect[dnum]['naxis1'] = naxis1
             settings.spect[dnum] = settings_det.copy()  # Used internally..
 
             # Calib dict

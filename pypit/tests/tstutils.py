@@ -35,6 +35,7 @@ def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=F
     settings['masters']['loaded'] = []
 
     settings['detector']['dataext'] = 0
+    settings['detector']['dataext01'] = 0
     settings['detector']['datasec01'] = [[0, 1024], [0, 0]]
     settings['detector']['datasec02'] = [[1024, 2048], [0, 0]]
     settings['detector']['oscansec01'] = [[2049, 2080], [0, 0]]
@@ -66,7 +67,7 @@ def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=F
         tilts = wvTilts.master()
         ret.append(tilts)
     if datasec:
-        datasec, _ = io.get_datasec(spectrograph, filename=None, det_settings=settings['detector'],
+        datasec, _, _, _ = io.get_datasec(spectrograph, filename=None, det_settings=settings['detector'],
                                     numamplifiers=settings['detector']['numamplifiers'], det=1)
         datasec_img = arpixels.pix_to_amp(settings['detector']['naxis0'],
                                           settings['detector']['naxis1'],
