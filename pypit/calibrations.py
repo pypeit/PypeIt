@@ -26,6 +26,8 @@ from pypit import wavecalib
 from pypit import wavetilts
 from pypit import waveimage
 
+from pypit import ardebug as debugger
+
 from pypit.spectrographs import io
 
 # For out of PYPIT running
@@ -59,10 +61,12 @@ class Calibrations(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, fitstbl):
+    def __init__(self, fitstbl, save_masters=True, write_qa=True):
 
         # Parameters unique to this Object
         self.fitstbl = fitstbl
+        self.save_masters = save_masters
+        self.write_qa = write_qa
 
         # Set spectrograph from FITS table
         self.spectrograph = self.fitstbl['instrume'][0]
@@ -129,7 +133,8 @@ class Calibrations(object):
                 msgs.info("Preparing a master {0:s} frame".format(self.arcImage.frametype))
                 self.msarc = self.arcImage.build_image()
                 # Save to Masters
-                self.arcImage.save_master(self.msarc, raw_files=self.arcImage.file_list, steps=self.arcImage.steps)
+                if self.save_masters:
+                    self.arcImage.save_master(self.msarc, raw_files=self.arcImage.file_list, steps=self.arcImage.steps)
             # Return
             return self.msarc
             '''
@@ -148,6 +153,7 @@ class Calibrations(object):
         #
         if 'bias' in self.calib_dict[self.setup].keys():
             self.msbias = self.calib_dict[self.setup]['bias']
+            msgs.info("Reloading the bias from the internal dict")
         else:
             # Init
             self.biasFrame = biasframe.BiasFrame(settings=self.settings, setup=self.setup,
@@ -156,18 +162,17 @@ class Calibrations(object):
             self.msbias = self.biasFrame.master()
             if self.msbias is None:  # Build it and save it
                 self.msbias = self.biasFrame.build_image()
-                self.biasFrame.save_master(self.msbias, raw_files=self.biasFrame.file_list,
+                if self.save_masters:
+                    self.biasFrame.save_master(self.msbias, raw_files=self.biasFrame.file_list,
                                       steps=self.biasFrame.steps)
-            # Return
-            return self.msbias#, biasFrame
             '''
             # Grab it
             #   Bias will either be an image (ndarray) or a command (str, e.g. 'overscan') or none
             self.msbias, self.biasFrame = biasframe.get_msbias(
                 self.det, self.setup, self.sci_ID, self.fitstbl, self.settings)
+            '''
             # Save
             self.calib_dict[self.setup]['bias'] = self.msbias
-            '''
         # Return
         return self.msbias
 
@@ -223,7 +228,7 @@ class Calibrations(object):
     def get_pixflatnrm(self):
         if self.settings['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
             # Checks
-            if not self._chk_objs(['tslits_dict', 'mstilts']):
+            if not self._chk_objs(['tslits_dict', 'mstilts', 'datasec_img']):
                 return
             self._chk_set(['det', 'settings', 'sci_ID', 'setup'])
             #
@@ -266,8 +271,9 @@ class Calibrations(object):
                     # Run
                     self.mspixflatnrm, self.slitprof = self.flatField.run(armed=False)
                     # Save to Masters
-                    self.flatField.save_master(self.mspixflatnrm, raw_files=pixflat_image_files, steps=self.flatField.steps)
-                    self.flatField.save_master(self.slitprof, raw_files=pixflat_image_files, steps=self.flatField.steps,
+                    if self.save_masters:
+                        self.flatField.save_master(self.mspixflatnrm, raw_files=pixflat_image_files, steps=self.flatField.steps)
+                        self.flatField.save_master(self.slitprof, raw_files=pixflat_image_files, steps=self.flatField.steps,
                                           outfile=armasters.master_name('slitprof', self.setup, flat_settings['masters']['directory']))
                 else:
                     if self.slitprof is None:
@@ -283,7 +289,7 @@ class Calibrations(object):
         return self.mspixflatnrm, self.slitprof
 
     def get_slits(self):
-        if not self._chk_objs(['pixlocn']):
+        if not self._chk_objs(['pixlocn', 'datasec_img']):
             return
         # Check me
         self._chk_set(['det', 'settings', 'setup', 'sci_ID'])
@@ -312,9 +318,12 @@ class Calibrations(object):
                 # Now we go forth
                 self.traceSlits.run(arms=True)
                 # QA
-                self.traceSlits._qa()
+                if self.write_qa:
+                    self.traceSlits._qa()
                 # Save to disk
-                self.traceSlits.save_master()
+                if self.save_masters:
+                    # Master
+                    self.traceSlits.save_master()
 
             # Dict
             self.tslits_dict = self.traceSlits._fill_tslits_dict()
@@ -350,7 +359,8 @@ class Calibrations(object):
                 if self.mswave is None:
                     self.mswave = self.waveImage._build_wave()
                 # Save to hard-drive
-                self.waveImage.save_master(self.mswave, steps=self.waveImage.steps)
+                if self.save_masters:
+                    self.waveImage.save_master(self.mswave, steps=self.waveImage.steps)
 
             # Save internally
             self.calib_dict[self.setup]['wave'] = self.mswave
@@ -386,9 +396,10 @@ class Calibrations(object):
             # Build?
             if self.wv_calib is None:
                 self.wv_calib, _ = self.waveCalib.run(self.tslits_dict['lcen'], self.tslits_dict['rcen'],
-                                            self.pixlocn, nonlinear=nonlinear)
+                                            self.pixlocn, nonlinear=nonlinear, skip_QA=(~self.write_qa))
                 # Save to Masters
-                self.waveCalib.save_master(self.waveCalib.wv_calib)
+                if self.save_masters:
+                    self.waveCalib.save_master(self.waveCalib.wv_calib)
             else:
                 self.waveCalib.wv_calib = self.wv_calib
             # Mask
@@ -440,8 +451,9 @@ class Calibrations(object):
             self.mstilts = self.waveTilts.master()
             if self.mstilts is None:
                 self.mstilts, self.wt_maskslits = self.waveTilts.run(maskslits=self.maskslits,
-                                                      wv_calib=self.wv_calib)
-                self.waveTilts.save_master()
+                                                      wv_calib=self.wv_calib, doqa=self.write_qa)
+                if self.save_masters:
+                    self.waveTilts.save_master()
             else:
                 self.wt_maskslits = np.zeros_like(self.maskslits, dtype=bool)
             # Save
@@ -480,15 +492,21 @@ class Calibrations(object):
                 return False
         return True
 
+    def show(self, obj):
+        if isinstance(obj, np.ndarray):
+            if len(obj.shape) == 2:
+                debugger.show_image(obj)
+        else:
+            msgs.warn("Not ready for this type of object")
 
 class MultiSlitCalibrations(Calibrations):
 
-    def __init__(self, fitstbl, steps=None):
+    def __init__(self, fitstbl, steps=None, **kwargs):
         # Get started
-        Calibrations.__init__(self, fitstbl)
+        Calibrations.__init__(self, fitstbl, **kwargs)
 
         # Standard steps
         if steps is None:
-            self.steps = ['bias', 'arc', 'bpm', 'pixlocn', 'slits', 'wv_calib', 'tilts', 'pixflatnrm', 'wave']
+            self.steps = ['datasec_img', 'bias', 'arc', 'bpm', 'pixlocn', 'slits', 'wv_calib', 'tilts', 'pixflatnrm', 'wave']
         else:
             self.steps = steps
