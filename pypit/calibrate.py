@@ -15,6 +15,9 @@ from pypit import arcimage
 from pypit import biasframe
 from pypit.spectrographs import bpmimage
 
+from pypit import arcimage
+from pypit import biasframe
+
 
 # For out of PYPIT running
 if msgs._debug is None:
@@ -84,9 +87,24 @@ class Calibrate(object):
         if 'arc' in self.calib_dict[self.setup].keys():
             self.msarc = self.calib_dict[self.setup]['arc']
         else:
+            # Instantiate with everything needed to generate the image (in case we do)
+            self.arcImage = arcimage.ArcImage([], spectrograph=self.fitstbl['instrume'][0],
+                                settings=self.settings, det=self.det, setup=self.setup,
+                                sci_ID=self.sci_ID, msbias=self.msbias, fitstbl=self.fitstbl)
+            # Load the MasterFrame (if it exists and is desired)?
+            self.msarc = self.arcImage.master()
+            if self.msarc is None:  # Otherwise build it
+                msgs.info("Preparing a master {0:s} frame".format(self.arcImage.frametype))
+                self.msarc = self.arcImage.build_image()
+                # Save to Masters
+                self.arcImage.save_master(self.msarc, raw_files=self.arcImage.file_list, steps=self.arcImage.steps)
+            # Return
+            return self.msarc
+            '''
             # Grab it -- msarc will be a 2D image
             self.msarc, self.arcImage = arcimage.get_msarc(self.det, self.setup, self.sci_ID,
                                           self.fitstbl, self.settings, self.msbias)
+            '''
             # Save
             self.calib_dict[self.setup]['arc'] = self.msarc
         # Return
@@ -97,12 +115,25 @@ class Calibrate(object):
         if 'bias' in self.calib_dict[self.setup].keys():
             self.msbias = self.calib_dict[self.setup]['bias']
         else:
+            # Init
+            self.biasFrame = biasframe.BiasFrame(settings=self.settings, setup=self.setup,
+                                  det=self.det, fitstbl=self.fitstbl, sci_ID=self.sci_ID)
+            # Load the MasterFrame (if it exists and is desired) or the command (e.g. 'overscan')
+            msbias = self.biasFrame.master()
+            if msbias is None:  # Build it and save it
+                msbias = self.biasFrame.build_image()
+                self.biasFrame.save_master(msbias, raw_files=self.biasFrame.file_list,
+                                      steps=self.biasFrame.steps)
+            # Return
+            return msbias#, biasFrame
+            '''
             # Grab it
             #   Bias will either be an image (ndarray) or a command (str, e.g. 'overscan') or none
             self.msbias, self.biasFrame = biasframe.get_msbias(
                 self.det, self.setup, self.sci_ID, self.fitstbl, self.settings)
             # Save
             self.calib_dict[self.setup]['bias'] = self.msbias
+            '''
         # Return
         return self.msbias
 
@@ -118,6 +149,15 @@ class Calibrate(object):
         if 'bpm' in self.calib_dict[self.setup].keys():
             self.msbpm = self.calib_dict[self.setup]['bpm']
         else:
+            scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
+            bpmImage = bpmimage.BPMImage(spectrograph=self.fitstbl['instrume'][0],
+                            settings=self.settings, det=self.det,
+                            shape=self.msarc.shape,
+                            binning=self.fitstbl['binning'][scidx],
+                            reduce_badpix=self.settings['reduce']['badpix'],
+                            msbias=self.msbias)
+            self.msbpm = bpmImage.build()
+            '''
             # Grab it -- msbpm is a 2D image
             scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
             self.msbpm, _ = bpmimage.get_mspbm(self.det, self.fitstbl['instrume'][0],
@@ -125,6 +165,7 @@ class Calibrate(object):
                                           binning=self.fitstbl['binning'][scidx],
                                           reduce_badpix=self.settings['reduce']['badpix'],
                                           msbias=self.msbias)
+            '''
             # Save
             self.calib_dict[self.setup]['bpm'] = self.msbpm
         # Return

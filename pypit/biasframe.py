@@ -169,6 +169,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         return msframe.copy()
 
 
+'''
 def get_msbias(det, setup, sci_ID, fitstbl, tsettings):
     """
     Grab/generate an Bias image or the command for bias subtraction (e.g. 'overscan')
@@ -202,3 +203,4 @@ def get_msbias(det, setup, sci_ID, fitstbl, tsettings):
         biasFrame.save_master(msbias, raw_files=biasFrame.file_list, steps=biasFrame.steps)
     # Return
     return msbias, biasFrame
+'''

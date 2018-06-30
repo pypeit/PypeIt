@@ -135,7 +135,7 @@ class BPMImage(object):
         # Return
         return self.bpm
 
-
+'''
 def get_mspbm(det, spectrograph, tsettings, shape, binning=None, reduce_badpix=None, msbias=None):
     """
     Load/Generate the bad pixel image
@@ -172,3 +172,4 @@ def get_mspbm(det, spectrograph, tsettings, shape, binning=None, reduce_badpix=N
     msbpm = bpmImage.build()
     # Return
     return msbpm, bpmImage
+'''

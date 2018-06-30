@@ -112,7 +112,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         #
         return self.stack
 
-
+'''
 def get_msarc(det, setup, sci_ID, fitstbl, tsettings, msbias):
     """
     Grab/generate an Arc image
@@ -151,3 +151,4 @@ def get_msarc(det, setup, sci_ID, fitstbl, tsettings, msbias):
         arcImage.save_master(msarc, raw_files=arcImage.file_list, steps=arcImage.steps)
     # Return
     return msarc, arcImage
+'''

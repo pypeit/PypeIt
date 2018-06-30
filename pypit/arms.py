@@ -142,6 +142,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             msarc = caliBrate.get_arc(msbias)
             # Bad pixel mask
             msbpm = caliBrate.get_bpm(msarc, msbias)
+            debugger.set_trace()
             # Generate an array that provides the physical pixel locations on the detector
             pixlocn = caliBrate.make_pixlocn(msarc)
 
