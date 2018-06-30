@@ -660,8 +660,10 @@ class bspline(object):
         :func:`tuple` (success, yfit)
             A tuple containing an boolean error code, and the evaluation of the b-spline yfit at the input values.  The error codes are as follows:
 
-             False:  is a failure,
-              True:  is success
+                 0 is good
+                -1 is dropped breakpoints, try again
+                -2 is failure, should abort
+
         """
         goodbk = self.mask[self.nord:]
         nn = goodbk.sum()
@@ -701,11 +703,7 @@ class bspline(object):
             a = errb[1]
         else:
             yfit, foo = self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)
-            return (False, yfit)
-            # JFH changed to simply return -2 to indicate a failure.
-            # Before it was returning the integer locations where the failure occurred, but I think that is best
-            # left for debugging and simple success or failure is better.
-            #return (self.maskpoints(errb[0]), yfit)
+            return (self.maskpoints(errb[0]), yfit)
         errs = cholesky_solve(a, beta)
         if isinstance(errs[0], int) and errs[0] == -1:
             sol = errs[1]
@@ -716,7 +714,7 @@ class bspline(object):
             # errs[0] == -1
             #
             yfit, foo = self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)
-            return (False, yfit)
+            return (self.maskpoints(errs[0]), yfit)
 
         if self.coeff.ndim == 2:
             self.icoeff[:, goodbk] = np.array(a[0, 0:nfull].T.reshape(self.npoly, nn,order='F'), dtype=a.dtype)
@@ -726,7 +724,7 @@ class bspline(object):
             self.coeff[goodbk] = np.array(sol[0:nfull], dtype=sol.dtype)
 
         yfit, foo = self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)
-        return (True, yfit)
+        return (0, yfit)
 
 
 
@@ -898,7 +896,7 @@ def iterfit(xdata, ydata, invvar=None, upper=5, lower=5, x2=None,
     else:
         x2work = None
     iiter = 0
-    error = 0
+    error = -1
     # JFH fixed major bug here. Codes were not iterating
     qdone = False
     while (error != 0 or qdone == False) and iiter <= maxiter:
