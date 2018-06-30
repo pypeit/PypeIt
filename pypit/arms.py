@@ -141,28 +141,13 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             tslits_dict, maskslits = caliBrate.get_slits(datasec_img) # Slit Tracing
             wv_calib, maskslits = caliBrate.get_wv_calib() # Generate the 1D wavelength solution
             mstilts, maskslits = caliBrate.get_tilts() # Derive the spectral tilt
-
             mspixflatnrm, slitprof = caliBrate.get_pixflatnrm(datasec_img) # Prepare the pixel flat field frame
+            mswave = caliBrate.get_wave() # Generate/load a master wave frame
 
             debugger.set_trace()
 
 
             ###############################################################################
-            # Generate/load a master wave frame
-            if 'wave' in calib_dict[setup].keys():
-                mswave = calib_dict[setup]['wave']
-            else:
-                if settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
-                    mswave = mstilts * (mstilts.shape[0]-1.0)
-                else:
-                    # Settings
-                    wvimg_settings = dict(masters=settings.argflag['reduce']['masters'].copy())
-                    wvimg_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                    # Get it
-                    mswave, _ = waveimage.get_mswave(
-                        setup, tslits_dict, wvimg_settings, mstilts, wv_calib, maskslits)
-                # Save internally
-                calib_dict[setup]['wave'] = mswave
 
             # CALIBS END HERE
             ###############################################################################

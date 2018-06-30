@@ -22,6 +22,7 @@ from pypit import traceimage
 from pypit import traceslits
 from pypit import wavecalib
 from pypit import wavetilts
+from pypit import waveimage
 
 
 # For out of PYPIT running
@@ -135,13 +136,13 @@ class Calibrations(object):
             self.biasFrame = biasframe.BiasFrame(settings=self.settings, setup=self.setup,
                                   det=self.det, fitstbl=self.fitstbl, sci_ID=self.sci_ID)
             # Load the MasterFrame (if it exists and is desired) or the command (e.g. 'overscan')
-            msbias = self.biasFrame.master()
-            if msbias is None:  # Build it and save it
-                msbias = self.biasFrame.build_image()
-                self.biasFrame.save_master(msbias, raw_files=self.biasFrame.file_list,
+            self.msbias = self.biasFrame.master()
+            if self.msbias is None:  # Build it and save it
+                self.msbias = self.biasFrame.build_image()
+                self.biasFrame.save_master(self.msbias, raw_files=self.biasFrame.file_list,
                                       steps=self.biasFrame.steps)
             # Return
-            return msbias#, biasFrame
+            return self.msbias#, biasFrame
             '''
             # Grab it
             #   Bias will either be an image (ndarray) or a command (str, e.g. 'overscan') or none
@@ -302,6 +303,34 @@ class Calibrations(object):
 
         # Return
         return self.tslits_dict, self.maskslits
+
+    def get_wave(self):
+        # Checks
+        if not self._chk_objs(['mstilts','tslits_dict','wv_calib','maskslits']):
+            return
+        self._chk_set(['det', 'settings', 'setup'])
+        #
+        if 'wave' in self.calib_dict[self.setup].keys():
+            self.mswave = self.calib_dict[self.setup]['wave']
+        else:
+            if self.settings["reduce"]["calibrate"]["wavelength"] == "pixel":
+                self.mswave = self.mstilts * (self.mstilts.shape[0]-1.0)
+            else:
+                # Instantiate
+                self.waveImage = waveimage.WaveImage(self.mstilts, self.wv_calib, settings=self.settings,
+                                      setup=self.setup, maskslits=self.maskslits,
+                                      slitpix=self.tslits_dict['slitpix'])
+                # Attempt to load master
+                self.mswave = self.waveImage.master()
+                if self.mswave is None:
+                    self.mswave = self.waveImage._build_wave()
+                # Save to hard-drive
+                self.waveImage.save_master(self.mswave, steps=self.waveImage.steps)
+
+            # Save internally
+            self.calib_dict[self.setup]['wave'] = self.mswave
+        # Return
+        return self.mswave
 
     def get_wv_calib(self, arc=None):
         if arc is not None:

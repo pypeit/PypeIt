@@ -123,6 +123,7 @@ class WaveImage(masterframe.MasterFrame):
         return txt
 
 
+'''
 def get_mswave(setup, tslits_dict, wvimg_settings, mstilts, wv_calib, maskslits):
     """
     Load/Generate the wavelength image
@@ -161,3 +162,4 @@ def get_mswave(setup, tslits_dict, wvimg_settings, mstilts, wv_calib, maskslits)
     waveImage.save_master(mswave, steps=waveImage.steps)
     # Return
     return mswave, waveImage
+'''
