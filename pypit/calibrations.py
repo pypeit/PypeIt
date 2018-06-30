@@ -69,6 +69,10 @@ class Calibrations(object):
         self.settings = None
         self.setup = None
 
+        #
+        self._reset_internals()
+
+    def _reset_internals(self):
         # Internals
         self.msarc = None
         self.msbias = None
@@ -77,8 +81,12 @@ class Calibrations(object):
         self.tslits_dict = None
         self.maskslits = None
         self.wavecalib = None
+        self.mstilts = None
+        self.mspixflatnrm = None
+        self.slitprof = None
+        self.mswave = None
 
-    def set(self, setup, det, sci_ID, settings):
+    def reset(self, setup, det, sci_ID, settings):
         self.setup = setup
         self.det = det
         self.sci_ID = sci_ID
@@ -88,7 +96,7 @@ class Calibrations(object):
             self.calib_dict[self.setup] = {}
 
         # Reset internals to None
-        msgs.work("Reset all the internals to None")
+        self._reset_internals()
 
     def get_arc(self, bias=None):
         # Checks

@@ -132,7 +132,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
 
             ###############################################################################
             # Begin calibrations
-            caliBrate.set(setup, det, sci_ID, tsettings)
+            caliBrate.reset(setup, det, sci_ID, tsettings)
 
             msbias = caliBrate.get_bias() # Bias frame or command
             msarc = caliBrate.get_arc() # Arc Image
@@ -143,11 +143,6 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             mstilts, maskslits = caliBrate.get_tilts() # Derive the spectral tilt
             mspixflatnrm, slitprof = caliBrate.get_pixflatnrm(datasec_img) # Prepare the pixel flat field frame
             mswave = caliBrate.get_wave() # Generate/load a master wave frame
-
-            debugger.set_trace()
-
-
-            ###############################################################################
 
             # CALIBS END HERE
             ###############################################################################
