@@ -61,7 +61,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
 
     # Init calib dict
     calib_dict = {}
-    caliBrate = calibrations.Calibrations(fitstbl)
+    caliBrate = calibrations.MultiSlitCalibrations(fitstbl)
 
 
     # Loop on science exposure first
@@ -132,17 +132,22 @@ def ARMS(spectrograph, fitstbl, setup_dict):
 
             ###############################################################################
             # Begin calibrations
-            caliBrate.reset(setup, det, sci_ID, tsettings)
+            caliBrate.reset(setup, det, sci_ID, tsettings, datasec_img)
+
 
             msbias = caliBrate.get_bias() # Bias frame or command
             msarc = caliBrate.get_arc() # Arc Image
             msbpm = caliBrate.get_bpm() # Bad pixel mask
             pixlocn = caliBrate.get_pixlocn()  # Physical pixel locations on the detector
-            tslits_dict, maskslits = caliBrate.get_slits(datasec_img) # Slit Tracing
+            tslits_dict, maskslits = caliBrate.get_slits() # Slit Tracing
             wv_calib, maskslits = caliBrate.get_wv_calib() # Generate the 1D wavelength solution
             mstilts, maskslits = caliBrate.get_tilts() # Derive the spectral tilt
-            mspixflatnrm, slitprof = caliBrate.get_pixflatnrm(datasec_img) # Prepare the pixel flat field frame
+            mspixflatnrm, slitprof = caliBrate.get_pixflatnrm() # Prepare the pixel flat field frame
             mswave = caliBrate.get_wave() # Generate/load a master wave frame
+
+            ''' Could also be run with 
+            caliBrate.run_the_steps()
+            '''
 
             # CALIBS END HERE
             ###############################################################################

@@ -7,6 +7,8 @@ import numpy as np
 import os
 
 
+from abc import ABCMeta
+
 from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import arpixels
@@ -54,6 +56,8 @@ class Calibrations(object):
     Inherited Attributes
     --------------------
     """
+    __metaclass__ = ABCMeta
+
     def __init__(self, fitstbl):
 
         # Parameters unique to this Object
@@ -69,11 +73,13 @@ class Calibrations(object):
         self.settings = None
         self.setup = None
 
-        #
+        # Steps
+        self.steps = []
+
+        # Internals
         self._reset_internals()
 
     def _reset_internals(self):
-        # Internals
         self.msarc = None
         self.msbias = None
         self.mbpm = None
@@ -86,11 +92,13 @@ class Calibrations(object):
         self.slitprof = None
         self.mswave = None
 
-    def reset(self, setup, det, sci_ID, settings):
+    def reset(self, setup, det, sci_ID, settings, datasec_img):
         self.setup = setup
         self.det = det
         self.sci_ID = sci_ID
         self.settings = settings.copy()
+        self.datasec_img = datasec_img
+
         # Setup the calib_dict
         if self.setup not in self.calib_dict.keys():
             self.calib_dict[self.setup] = {}
@@ -196,7 +204,7 @@ class Calibrations(object):
         # Return
         return self.msbpm
 
-    def get_pixflatnrm(self, datasec_img):
+    def get_pixflatnrm(self):
         if self.settings['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
             # Checks
             if not self._chk_objs(['tslits_dict', 'mstilts']):
@@ -221,7 +229,7 @@ class Calibrations(object):
                                       settings=flat_settings,
                                       tslits_dict=self.tslits_dict,
                                       tilts=self.mstilts, det=self.det, setup=self.setup,
-                                      datasec_img=datasec_img)
+                                      datasec_img=self.datasec_img)
 
                 # Load from disk (MasterFrame)?
                 self.mspixflatnrm = self.flatField.master()
@@ -258,7 +266,7 @@ class Calibrations(object):
         # Return
         return self.mspixflatnrm, self.slitprof
 
-    def get_slits(self, datasec_img):
+    def get_slits(self):
         if not self._chk_objs(['pixlocn']):
             return
         # Check me
@@ -267,13 +275,6 @@ class Calibrations(object):
         if 'trace' in self.calib_dict[self.setup].keys():  # Internal
             self.tslits_dict = self.calib_dict[self.setup]['trace']
         else:
-            '''
-            # Setup up the settings (will be Refactored with settings)
-            # Get it -- Key arrays are in the tslits_dict
-            tslits_dict, _ = traceslits.get_tslits_dict(
-                det, setup, spectrograph, sci_ID, ts_settings, tsettings, fitstbl, pixlocn,
-                msbias, msbpm, datasec_img, trim=settings.argflag['reduce']['trim'])
-            '''
             # Instantiate (without mstrace)
             self.traceSlits = traceslits.TraceSlits(None, self.pixlocn, settings=self.settings,
                                     det=self.det, setup=self.setup, binbpx=self.msbpm)
@@ -285,7 +286,7 @@ class Calibrations(object):
                 Timage = traceimage.TraceImage(trace_image_files,
                                                spectrograph=self.spectrograph,
                                                settings=self.settings, det=self.det,
-                                               datasec_img=datasec_img)
+                                               datasec_img=self.datasec_img)
                 mstrace = Timage.process(bias_subtract=self.msbias, trim=self.settings['reduce']['trim'],
                                          apply_gain=True)
 
@@ -437,6 +438,11 @@ class Calibrations(object):
         # Return
         return self.mstilts, self.maskslits
 
+    def run_the_steps(self):
+        for step in self.steps:
+            getattr(self, 'get_{:s}'.format(step))()
+
+
     def _chk_set(self, items):
         for item in items:
             if getattr(self, item) is None:
@@ -459,8 +465,14 @@ class Calibrations(object):
         return True
 
 
-    def full_calibrate(self):
-        self.msbias = self.get_bias()
-        self.msarc = self.get_arc(self.msbias)
-        self.msbpm = self.get_bpm(self.msarc, self.msbias)
-        self.pixlocn = self.make_pixlocn(self.msarc)
+class MultiSlitCalibrations(Calibrations):
+
+    def __init__(self, fitstbl, steps=None):
+        # Get started
+        Calibrations.__init__(self, fitstbl)
+
+        # Standard steps
+        if steps is None:
+            self.steps = ['bias', 'arc', 'bpm', 'pixlocn', 'slits', 'wv_calib', 'tilts', 'pixflatnrm', 'wave']
+        else:
+            self.steps = steps
