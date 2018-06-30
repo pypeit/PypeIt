@@ -10,6 +10,7 @@ from collections import Counter
 import numpy as np
 
 from scipy import ndimage
+from scipy.special import erf
 
 import matplotlib.pyplot as plt
 from matplotlib import cm, font_manager
@@ -2650,9 +2651,12 @@ def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
          Formal propagated error on recentroided trace. These errors will only make sense if invvar is passed in, since
          otherwise invvar is set to 1.0.   The output will have the same shape as xinit i.e.  an 2-d  array with shape
          (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for the case of a single
-         trace. Locations where the flux weighted centroid deviates from the input guess by  > radius, or where it falls
-         off the image, will have this error set to 999 and will their xnew values set to that of the input trace. These
-         should thus be masked in any fit.
+         trace. Locations will have this error set to 999 if any of the following conditions are true: 1) the flux weighted
+         centroid deviates from the input guess by  > radius, or 2)  the centering window falls off the image, or 3) where any masked
+         pixels (invvar == 0.0) contribute to the centroiding. The xnew values for the pixels which have xerr = 999 are reset to
+         that of the input trace. These should thus be masked in any fit using the condition (xerr < 999)
+
+         TODO we should probably either output a mask or set this 999 to something else, since I could imagine this causing problems.
 
      Revision History
      ----------------
@@ -2666,7 +2670,6 @@ def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
 
     # Init
     nx = fimage.shape[1]
-    ny = fimage.shape[0]
 
     # Checks on radius
     if (isinstance(radius,int) or isinstance(radius,float)):
@@ -2675,7 +2678,7 @@ def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
         radius_out = radius
     else:
         raise ValueError('Boxcar radius must a be either an integer, a floating point number, or an ndarray '
-                         'with the same shape and size as trace_in')
+                         'with the same shape and size as xinit_in')
 
 
     # Figure out dimensions of xinit
@@ -2693,7 +2696,7 @@ def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
     xinit = xinit_in.flatten()
     # Create xnew, xerr
     xnew = xinit.astype(float)
-    xerr = np.full(ncen,999.)
+    xerr = np.full(ncen,999.0)
 
     if ycen is None:
         if ndim == 1:
@@ -2706,9 +2709,11 @@ def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
     ycen_out = ycen.astype(int)
     ycen_out = ycen_out.flatten()
 
-    if np.size(xinit) != np.size(ycen):
+    if np.size(xinit) != np.size(ycen_out):
         raise ValueError('Number of elements in xinit and ycen must be equal')
 
+    if invvar is None:
+        invvar = np.zeros_like(fimage) + 1.
 
     x1 = xinit - radius_out + 0.5
     x2 = xinit + radius_out + 0.5
@@ -2716,15 +2721,12 @@ def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
     ix2 = np.floor(x2).astype(int)
 
     fullpix = int(np.maximum(np.min(ix2-ix1)-1,0))
-    sumw = np.zeros(ncen)
-    sumxw = np.zeros(ncen)
-    sumwt = np.zeros(ncen)
-    sumsx1 = np.zeros(ncen)
-    sumsx2 = np.zeros(ncen)
-    qbad = np.array([False]*ncen)
-
-    if invvar is None:
-        invvar = np.zeros_like(fimage) + 1.
+    sumw = np.zeros_like(xinit)
+    sumxw = np.zeros_like(xinit)
+    sumwt = np.zeros_like(xinit)
+    sumsx1 = np.zeros_like(xinit)
+    sumsx2 = np.zeros_like(xinit)
+    qbad = np.zeros_like(xinit,dtype=bool)
 
     # Compute
     for ii in range(0,fullpix+3):
@@ -2740,7 +2742,10 @@ def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
         sumsx2 = sumsx2 + var_term
         sumsx1 = sumsx1 + xdiff**2 * var_term
         #qbad = qbad or (invvar[ycen_out,ih] <= 0)
-        qbad = np.any([qbad, invvar[ycen_out,ih] <= 0], axis=0)
+        #qbad = np.any([qbad, invvar[ycen_out,ih] <= 0], axis=0)
+        qbad = qbad | (invvar[ycen_out,ih] <= 0)
+
+
 
     # Fill up
     good = (sumw > 0) &  (~qbad)
@@ -2802,51 +2807,97 @@ def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskv
          Formal propagated error on recentroided trace. These errors will only make sense if invvar is passed in, since
          otherwise invvar is set to 1.0.   The output will have the same shape as xinit i.e.  an 2-d  array with shape
          (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for the case of a single
-         trace. Locations where the gaussian weighted centroid deviates from the input guess by  > radius, or where it falls
-         off the image, will have this error set to 999 and will their xnew values set to that of the input trace. These
-         should thus be masked in any fit.
+         trace. Locations where the gaussian weighted centroid falls off the image, will have this error set to 999 and
+         will their xnew values set to that of the input trace. These should thus be masked in any fit via a condition like (xerr < 999)
 
      Revision History
      ----------------
      Python port of trace_fweight.pro from IDLUTILS
-     24-Mar-1999  Written by David Schlegel, Princeton.
+     17-Jan-2000  Written by Scott Burles, Chicago
      27-Jun-2018  Ported to python by X. Prochaska and J. Hennawi
     '''
 
-    # Setup
+
+    # Init
     nx = fimage.shape[1]
-    xnew = np.zeros_like(xcen)
-    xerr = maskval*np.ones_like(xnew)
+
+    # Checks on radius
+    if (isinstance(sigma,int) or isinstance(sigma,float)):
+        sigma_out = sigma
+    elif ((np.size(sigma)==np.size(xinit_in)) & (np.shape(sigma) == np.shape(xinit_in))):
+        sigma_out = sigma
+    else:
+        raise ValueError('Gaussian sigma must a be either an integer, a floating point number, or an ndarray '
+                         'with the same shape and size as xinit_in')
+
+
+    # Figure out dimensions of xinit
+    dim = xinit_in.shape
+    ndim = xinit_in.ndim
+    if (ndim == 1):
+        nTrace = 1
+        npix = dim[0]
+    else:
+        nTrace = dim[1]
+        npix = dim[0]
+
+    ncen = xinit_in.size
+
+    xinit = xinit_in.flatten()
+    # Create xnew, xerr
+    xnew = xinit.astype(float)
+    xerr = np.full(ncen,999.)
+
+    if ycen is None:
+        if ndim == 1:
+            ycen = np.arange(npix, dtype='int')
+        elif ndim == 2:
+            ycen = np.outer(np.arange(npix, dtype='int'), np.ones(nTrace, dtype='int'))
+        else:
+            raise ValueError('xinit is not 1 or 2 dimensional')
+
+    ycen_out = ycen.astype(int)
+    ycen_out = ycen_out.flatten()
+
+    if np.size(xinit) != np.size(ycen_out):
+        raise ValueError('Number of elements in xinit and ycen must be equal')
 
     if invvar is None:
-        invvar = np.ones_like(fimage)
+        invvar = np.zeros_like(fimage) + 1.
 
     # More setting up
-    x_int = np.round(xcen).astype(int)
-    nstep = 2*int(3.0*sigma) - 1
+    x_int = np.rint(xinit).astype(int)
+    nstep = 2*int(3.0*np.max(sigma_out)) - 1
 
-    weight = np.zeros_like(xcen)
-    numer  = np.zeros_like(xcen)
-    meanvar = np.zeros_like(xcen)
-    bad = np.zeros_like(xcen).astype(bool)
+    weight = np.zeros_like(xinit)
+    numer  = np.zeros_like(xinit)
+    meanvar = np.zeros_like(xinit)
+    qbad = np.zeros_like(xinit).astype(bool)
 
+    nby2 = nstep//2
     for i in range(nstep):
-        xh = x_int - nstep//2 + i
-        xtemp = (xh - xcen - 0.5)/sigma/np.sqrt(2.0)
-        g_int = (erf(xtemp+1./sigma/np.sqrt(2.0)) - erf(xtemp))/2.
-        xs = np.minimum(np.maximum(xh,0),(nx-1))
-        cur_weight = fimage[ycen, xs] * (invvar[ycen, xs] > 0) * g_int * ((xh >= 0) & (xh < nx))
+        xh = x_int - nby2 + i
+        xtemp = (xh - xinit - 0.5)/sigma_out/np.sqrt(2.0)
+        g_int = (erf(xtemp+1./sigma_out/np.sqrt(2.0)) - erf(xtemp))/2.
+        xs = np.fmin(np.fmax(xh,0),(nx-1))
+        cur_weight = fimage[ycen_out, xs] * (invvar[ycen_out, xs] > 0) * g_int * ((xh >= 0) & (xh < nx))
         weight += cur_weight
         numer += cur_weight * xh
-        meanvar += cur_weight * cur_weight * (xcen-xh)**2 / (
-                invvar[ycen, xs] + (invvar[ycen, xs] == 0))
-        bad = np.any([bad, xh < 0, xh >= nx], axis=0)
+        meanvar += cur_weight * cur_weight * (xinit-xh)**2/(invvar[ycen_out, xs] + (invvar[ycen_out, xs] == 0))
+        qbad = qbad | (xh < 0) | (xh >= nx)
+        # bad = np.any([bad, xh < 0, xh >= nx], axis=0)
 
     # Masking
-    good = (~bad) & (weight > 0)
+    good = (~qbad) & (weight > 0)
     if np.sum(good) > 0:
         xnew[good] = numer[good]/weight[good]
         xerr[good] = np.sqrt(meanvar[good])/weight[good]
+
+    # Reshape to the right size for output if more than one trace was input
+    if ndim > 1:
+        xnew = xnew.reshape(npix,nTrace)
+        xerr = xerr.reshape(npix,nTrace)
+
     # Return
     return xnew, xerr
 
