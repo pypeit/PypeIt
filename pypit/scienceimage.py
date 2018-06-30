@@ -403,6 +403,7 @@ class ScienceImage(processimages.ProcessImages):
             if slit not in gdslits:
                 self.tracelist.append({})
                 continue
+            msgs.info("Finding objects in slit: {}".format(slit))
             tlist = artrace.trace_objects_in_slit(self.det, slit, self.tslits_dict,
                                                   self.sciframe, self.global_sky,
                                                   varframe, self.crmask, self.settings)
@@ -455,7 +456,7 @@ class ScienceImage(processimages.ProcessImages):
             tracemask = None
 
         # Loop on slits
-        gdslits = [gdslits[-1]]
+        #gdslits = [gdslits[-1]]
         for slit in gdslits:
             msgs.info("Working on slit: {:d}".format(slit))
             # Find sky
