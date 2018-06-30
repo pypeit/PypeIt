@@ -299,7 +299,6 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             # Global skysub
             settings_skysub = {}
             settings_skysub['skysub'] = settings.argflag['reduce']['skysub'].copy()
-            debugger.set_trace()
             if settings.argflag['reduce']['skysub']['perform']:
                 global_sky, modelvarframe = sciI.global_skysub(settings_skysub)
             else:
@@ -338,7 +337,6 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                         skyspec_fil = settings.argflag['reduce']['flexure']['spectrum'],
                         mxshft = settings.argflag['reduce']['flexure']['maxshift'])
                     # QA
-                    debugger.set_trace()
                     arwave.flexure_qa(specobjs, maskslits, basename, det, flex_list)
 
             # Helio

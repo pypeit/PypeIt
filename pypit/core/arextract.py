@@ -1190,7 +1190,6 @@ def boxcar(specobjs, sciframe, varframe, bpix, skyframe, crmask, scitrace, mswav
             specobjs[sl][o].boxcar['var'] = varsum.copy()
             if np.sum(specobjs[sl][o].boxcar['var']) == 0.:
                 debugger.set_trace()
-            debugger.set_trace()
             specobjs[sl][o].boxcar['sky'] = skysum.copy()  # per pixel
             specobjs[sl][o].boxcar['mask'] = boxmask.copy()
             # Find boxcar size
