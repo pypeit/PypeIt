@@ -26,6 +26,7 @@ from pypit import wavecalib
 from pypit import wavetilts
 from pypit import waveimage
 
+from pypit.spectrographs import io
 
 # For out of PYPIT running
 if msgs._debug is None:
@@ -91,13 +92,13 @@ class Calibrations(object):
         self.mspixflatnrm = None
         self.slitprof = None
         self.mswave = None
+        self.datasec_img = None
 
-    def reset(self, setup, det, sci_ID, settings, datasec_img):
+    def reset(self, setup, det, sci_ID, settings):
         self.setup = setup
         self.det = det
         self.sci_ID = sci_ID
         self.settings = settings.copy()
-        self.datasec_img = datasec_img
 
         # Setup the calib_dict
         if self.setup not in self.calib_dict.keys():
@@ -203,6 +204,21 @@ class Calibrations(object):
             self.calib_dict[self.setup]['bpm'] = self.msbpm
         # Return
         return self.msbpm
+
+    def get_datasec_img(self):
+        # Checks
+        self._chk_set(['det', 'settings', 'sci_ID'])
+        #
+        scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
+        scifile = os.path.join(self.fitstbl['directory'][scidx],self.fitstbl['filename'][scidx])
+        # datasec, etc.
+        datasec, _, naxis0, naxis1 = io.get_datasec(self.spectrograph, scifile, self.det, self.settings['detector'])
+        self.settings['detector']['naxis0'] = naxis0
+        self.settings['detector']['naxis1'] = naxis1
+        # Datasec image
+        self.datasec_img = arpixels.pix_to_amp(naxis0, naxis1, datasec, self.settings['detector']['numamplifiers'])
+        # Return
+        return self.datasec_img, naxis0, naxis1
 
     def get_pixflatnrm(self):
         if self.settings['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field

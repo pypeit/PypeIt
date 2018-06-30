@@ -92,28 +92,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             namp = settings.spect[dnum]["numamplifiers"]
             setup = arsetup.instr_setup(sci_ID, det, fitstbl, setup_dict, namp, must_exist=True)
 
-
-            settings.argflag['reduce']['masters']['setup'] = setup
-
-            ###############
-            # Get data sections (Could avoid doing this for every sciexp, but it is quick)
-            # TODO -_ Clean this up!
-            scifile = os.path.join(fitstbl['directory'][scidx],fitstbl['filename'][scidx])
-            settings_det = settings.spect[dnum].copy()  # Should include naxis0, naxis1 in this
-            # Binning
-            settings_det['binning'] = fitstbl['binning'][0]
-            settings_det['dispaxis'] = settings.argflag['trace']['dispersion']['direction']
-            # Yes, this looks goofy.  Is needed for LRIS and DEIMOS for now
-            datasec, _, naxis0, naxis1 = io.get_datasec(spectrograph, scifile, det, settings_det)
-            settings.spect[dnum]['naxis0'] = naxis0
-            settings.spect[dnum]['naxis1'] = naxis1
-            # Build the datasec_img
-            datasec_img = arpixels.pix_to_amp(naxis0, naxis1, datasec, settings_det['numamplifiers'])
-            settings.spect[dnum] = settings_det.copy()  # Used internally..
-
-            # Calib dict
-            if setup not in calib_dict.keys():
-                calib_dict[setup] = {}
+            #settings.argflag['reduce']['masters']['setup'] = setup
 
             # TODO -- Update/avoid the following with new settings
             tsettings = settings.argflag.copy()
@@ -123,17 +102,20 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             except KeyError: # LRIS, DEIMOS
                 tsettings['detector']['dataext'] = None
             tsettings['detector']['dispaxis'] = settings.argflag['trace']['dispersion']['direction']
+            tsettings['detector']['binning'] = fitstbl['binning'][0]
 
             # New ones
             ts_settings = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
             ts_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
+            ts_settings['masters']['setup'] = setup
             tsettings['trace'] = ts_settings['trace'].copy()
             tsettings['masters'] = ts_settings['masters'].copy()
 
             ###############################################################################
             # Begin calibrations
-            caliBrate.reset(setup, det, sci_ID, tsettings, datasec_img)
+            caliBrate.reset(setup, det, sci_ID, tsettings)
 
+            datasec_img, naxis0, naxis1 = caliBrate.get_datasec_img()
 
             msbias = caliBrate.get_bias() # Bias frame or command
             msarc = caliBrate.get_arc() # Arc Image
@@ -147,6 +129,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
 
             ''' Could also be run with 
             caliBrate.run_the_steps()
+            #  And we could pull the items we need out of it or just use the attributes
             '''
 
             # CALIBS END HERE
@@ -172,7 +155,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
                 basenames[sc] = basename
 
             # Process (includes Variance image and CRs)
-            dnoise = (settings_det['darkcurr'] * float(fitstbl["exptime"][scidx])/3600.0)
+            dnoise = (tsettings['detector']['darkcurr'] * float(fitstbl["exptime"][scidx])/3600.0)
             sciframe, rawvarframe, crmask = sciI._process(
                 msbias, mspixflatnrm, apply_gain=True, dnoise=dnoise)
 
