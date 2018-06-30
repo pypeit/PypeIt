@@ -209,11 +209,9 @@ class ProcessImages(object):
         if (self.datasec is not None) and (not redo):
             return
         # Spectrograph specific
-        self.datasec, self.oscansec = io.get_datasec(self.spectrograph,
-                                                     filename=self.file_list[0],
-                                                     det_settings=self.settings['detector'],
-                                                     numamplifiers=self.settings['detector']['numamplifiers'],
-                                                     det=self.det)
+        self.datasec, self.oscansec, _, _ = io.get_datasec(self.spectrograph,
+                                                     self.file_list[0], self.det,
+                                                     self.settings['detector'])
 
     def apply_gain(self, datasec_img):
         """

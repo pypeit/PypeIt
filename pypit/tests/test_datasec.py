@@ -6,10 +6,12 @@ from __future__ import unicode_literals
 
 import pytest
 
+import os
 import numpy as np
 
 from pypit import arparse as settings
-from pypit.core import arprocimg
+from pypit import arpixels
+from pypit.spectrographs import io
 from pypit.core import arsort
 
 
@@ -17,23 +19,37 @@ from pypit.core import arsort
 def fitstbl():
     return arsort.dummy_fitstbl()
 
+def data_path(filename):
+    data_dir = os.path.join(os.path.dirname(__file__), 'files')
+    return os.path.join(data_dir, filename)
 
 def test_ampsec(fitstbl):
     """ Test sort_data
     """
-    settings.dummy_settings(spectrograph='shane_kast_blue')
+    spectrograph='shane_kast_blue'
+    settings.dummy_settings(spectrograph=spectrograph)
     # Run
-    namp, det, scidx = 2, 1, 5
     dnum = 'det01'
-    settings_det = settings.spect[dnum].copy()  # Should include naxis0, naxis1 in this
-    datasec_img, naxis0, naxis1 = arprocimg.get_datasec_trimmed(
-        settings.argflag['run']['spectrograph'], None, det, settings_det,
-        naxis0=fitstbl['naxis0'][scidx],
-        naxis1=fitstbl['naxis1'][scidx])
+    settings_det = settings.spect[dnum].copy()
+    settings_det['datasec01'] = [[0, 1024], [0, 0]]
+    settings_det['datasec02'] = [[1024, 2048], [0, 0]]
+    settings_det['oscansec01'] = [[2049, 2080], [0, 0]]
+    settings_det['oscansec02'] = [[2080, 2111], [0, 0]]
+    settings_det['dispaxis'] = 1
+    #datasec_img, naxis0, naxis1 = arprocimg.get_datasec_trimmed(
+    #    settings.argflag['run']['spectrograph'], None, det, settings_det,
+    #    naxis0=fitstbl['naxis0'][scidx],
+    #    naxis1=fitstbl['naxis1'][scidx])
+    datasec, _, naxis0, naxis1 = io.get_datasec(spectrograph, data_path('b1.fits.gz'),
+                                                1, settings_det)
+    datasec_img = arpixels.pix_to_amp(naxis0, naxis1,
+                                      datasec, settings_det['numamplifiers'])
     # Test
-    assert datasec_img.shape == (2112, 2048)
-    assert np.sum(np.isclose(datasec_img, 1)) == 2162688  # Data region
-    assert np.sum(np.isclose(datasec_img, 2)) == 2162688  # second amp
-    assert settings.spect[dnum]['oscansec01'] == [[0, 0], [2049, 2080]]
-    assert settings.spect[dnum]['datasec01'] == [[0, 0], [0, 1024]]
+    assert datasec_img.shape == (2048, 350)
+    #assert np.sum(np.isclose(datasec_img, 1)) == 2162688  # Data region
+    #assert np.sum(np.isclose(datasec_img, 2)) == 2162688  # second amp
+    assert np.sum(np.isclose(datasec_img, 1)) == 358400  # Data region
+    assert np.sum(np.isclose(datasec_img, 2)) == 358400  # second amp
+    #assert settings.spect[dnum]['oscansec01'] == [[0, 0], [2049, 2080]]
+    #assert settings.spect[dnum]['datasec01'] == [[0, 0], [0, 1024]]
 
