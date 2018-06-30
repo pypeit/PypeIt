@@ -35,7 +35,7 @@ frametype = 'bias'
 additional_default_settings = {frametype: {'useframe': 'none'}}
 
 
-class Calibrate(object):
+class Calibrations(object):
     """
     This class is primarily designed to guide the generation of calibration images
     and objects in PYPIT

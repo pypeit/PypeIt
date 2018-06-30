@@ -17,7 +17,7 @@ from pypit.core import arwave
 from pypit.core import arsetup
 from pypit import arpixels
 from pypit.core import arsort
-from pypit import calibrate
+from pypit import calibrations
 from pypit.spectrographs import bpmimage
 from pypit import flatfield
 from pypit import fluxspec
@@ -61,7 +61,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
 
     # Init calib dict
     calib_dict = {}
-    caliBrate = calibrate.Calibrate(fitstbl)
+    caliBrate = calibrations.Calibrations(fitstbl)
 
 
     # Loop on science exposure first
