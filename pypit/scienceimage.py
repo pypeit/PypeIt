@@ -455,6 +455,7 @@ class ScienceImage(processimages.ProcessImages):
             tracemask = None
 
         # Loop on slits
+        gdslits = [gdslits[-1]]
         for slit in gdslits:
             msgs.info("Working on slit: {:d}".format(slit))
             # Find sky
@@ -462,8 +463,11 @@ class ScienceImage(processimages.ProcessImages):
                 slit+1, self.tslits_dict['slitpix'], self.tslits_dict['edge_mask'],
                 self.sciframe, varframe, self.tilts,
                 bpm=self.bpm, crmask=self.crmask, tracemask=tracemask)
-            # Add
-            self.global_sky += slit_bgframe
+            # Mask?
+            if np.sum(slit_bgframe) == 0.:
+                self.maskslits[slit] = True
+            else:
+                self.global_sky += slit_bgframe
 
         # Build model variance
         msgs.info("Building model variance from the Sky frame")
