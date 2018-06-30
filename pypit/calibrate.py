@@ -11,12 +11,13 @@ from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import arpixels
 
-from pypit import arcimage
-from pypit import biasframe
-from pypit.spectrographs import bpmimage
+from pypit.core import arsort
 
 from pypit import arcimage
 from pypit import biasframe
+from pypit.spectrographs import bpmimage
+from pypit import traceimage
+from pypit import traceslits
 
 
 # For out of PYPIT running
@@ -53,6 +54,9 @@ class Calibrate(object):
         # Parameters unique to this Object
         self.fitstbl = fitstbl
 
+        # Set spectrograph from FITS table
+        self.spectrograph = self.fitstbl['instrume'][0]
+
         # Attributes
         self.calib_dict = {}
         self.det = None
@@ -65,6 +69,8 @@ class Calibrate(object):
         self.msbias = None
         self.mbpm = None
         self.pixlocn = None
+        self.tslits_dict = None
+        self.maskslits = None
 
     def set(self, setup, det, sci_ID, settings):
         self.setup = setup
@@ -143,14 +149,14 @@ class Calibrate(object):
         if bias is not None:
             self.msbias = bias
         # Check me
-        self._chk_set(['det', 'settings'])
+        self._chk_set(['det', 'settings', 'sci_ID'])
         ###############################################################################
         # Generate a bad pixel mask (should not repeat)
         if 'bpm' in self.calib_dict[self.setup].keys():
             self.msbpm = self.calib_dict[self.setup]['bpm']
         else:
             scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
-            bpmImage = bpmimage.BPMImage(spectrograph=self.fitstbl['instrume'][0],
+            bpmImage = bpmimage.BPMImage(spectrograph=self.spectrograph,
                             settings=self.settings, det=self.det,
                             shape=self.msarc.shape,
                             binning=self.fitstbl['binning'][scidx],
@@ -171,22 +177,62 @@ class Calibrate(object):
         # Return
         return self.msbpm
 
-    def get_slits(self):
+    def get_slits(self, datasec_img):
+        if self.pixlocn is None:
+            msgs.warn("You need to generate pixlocn prior to tracing slits..")
+            msgs.warn("Use make_pixlocn(msarc)")
+            return
+        # Check me
+        self._chk_set(['det', 'settings', 'setup', 'sci_ID'])
+        #
         if 'trace' in self.calib_dict[self.setup].keys():  # Internal
-            tslits_dict = self.calib_dict[self.setup]['trace']
+            self.tslits_dict = self.calib_dict[self.setup]['trace']
         else:
+            '''
             # Setup up the settings (will be Refactored with settings)
             # Get it -- Key arrays are in the tslits_dict
             tslits_dict, _ = traceslits.get_tslits_dict(
                 det, setup, spectrograph, sci_ID, ts_settings, tsettings, fitstbl, pixlocn,
                 msbias, msbpm, datasec_img, trim=settings.argflag['reduce']['trim'])
+            '''
+            # Instantiate (without mstrace)
+            self.traceSlits = traceslits.TraceSlits(None, self.pixlocn, settings=self.settings,
+                                    det=self.det, setup=self.setup, binbpx=self.msbpm)
+
+            # Load via masters, as desired
+            if not self.traceSlits.master():
+                # Build the trace image first
+                trace_image_files = arsort.list_of_files(self.fitstbl, 'trace', self.sci_ID)
+                Timage = traceimage.TraceImage(trace_image_files,
+                                               spectrograph=self.spectrograph,
+                                               settings=self.settings, det=self.det,
+                                               datasec_img=datasec_img)
+                mstrace = Timage.process(bias_subtract=self.msbias, trim=self.settings['reduce']['trim'],
+                                         apply_gain=True)
+
+                # Load up and get ready
+                self.traceSlits.mstrace = mstrace
+                _ = self.traceSlits.make_binarr()
+                # Now we go forth
+                self.traceSlits.run(arms=True)
+                # QA
+                self.traceSlits._qa()
+                # Save to disk
+                self.traceSlits.save_master()
+
+            # Dict
+            self.tslits_dict = self.traceSlits._fill_tslits_dict()
             # Save in calib
-            calib_dict[setup]['trace'] = tslits_dict
+            self.calib_dict[self.setup]['trace'] = self.tslits_dict
 
         ###############################################################################
         # Initialize maskslits
-        nslits = tslits_dict['lcen'].shape[1]
-        maskslits = np.zeros(nslits, dtype=bool)
+        nslits = self.tslits_dict['lcen'].shape[1]
+        self.maskslits = np.zeros(nslits, dtype=bool)
+
+        # Return
+        return self.tslits_dict, self.maskslits
+
 
     def make_pixlocn(self, arc=None):
         if arc is not None:

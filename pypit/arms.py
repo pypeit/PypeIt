@@ -136,18 +136,17 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             # Begin calibrations
             caliBrate.set(setup, det, sci_ID, tsettings)
 
-            # Bias frame or command
-            msbias = caliBrate.get_bias()
-            # Arc Image
-            msarc = caliBrate.get_arc(msbias)
-            # Bad pixel mask
-            msbpm = caliBrate.get_bpm(msarc, msbias)
-            debugger.set_trace()
-            # Generate an array that provides the physical pixel locations on the detector
-            pixlocn = caliBrate.make_pixlocn(msarc)
+            msbias = caliBrate.get_bias() # Bias frame or command
+            msarc = caliBrate.get_arc(msbias) # Arc Image
+            msbpm = caliBrate.get_bpm(msarc, msbias) # Bad pixel mask
+            pixlocn = caliBrate.make_pixlocn(msarc)  # Physical pixel locations on the detector
+
 
             ###############################################################################
             # Slit Tracing
+            tslits_dict, maskslits = caliBrate.get_slits(datasec_img)
+
+            debugger.set_trace()
 
             ###############################################################################
             # Generate the 1D wavelength solution
