@@ -282,7 +282,8 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
                       "  {:7d}".format((maskwork == 0).sum()) + "      {:6.2f}".format(relative_factor))
 
         else:
-            pass
+            msgs.info("                             {:4d}".format(iiter) + "    ---    ---    ---    ---")
+
 
     msgs.info("***********************************************************************************************")
     msgs.info(
