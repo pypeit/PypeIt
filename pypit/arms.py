@@ -127,94 +127,24 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             # New ones
             ts_settings = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
             ts_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-            tsettings['trace'] = ts_settings.copy()
+            tsettings['trace'] = ts_settings['trace'].copy()
+            tsettings['masters'] = ts_settings['masters'].copy()
 
             ###############################################################################
             # Begin calibrations
             caliBrate.set(setup, det, sci_ID, tsettings)
 
             msbias = caliBrate.get_bias() # Bias frame or command
-            msarc = caliBrate.get_arc(msbias) # Arc Image
-            msbpm = caliBrate.get_bpm(msarc, msbias) # Bad pixel mask
-            pixlocn = caliBrate.make_pixlocn(msarc)  # Physical pixel locations on the detector
+            msarc = caliBrate.get_arc() # Arc Image
+            msbpm = caliBrate.get_bpm() # Bad pixel mask
+            pixlocn = caliBrate.get_pixlocn()  # Physical pixel locations on the detector
+            tslits_dict, maskslits = caliBrate.get_slits(datasec_img) # Slit Tracing
+            wv_calib, maskslits = caliBrate.get_wv_calib() # Generate the 1D wavelength solution
+            mstilts, maskslits = caliBrate.get_tilts() # Derive the spectral tilt
 
-
-            ###############################################################################
-            # Slit Tracing
-            tslits_dict, maskslits = caliBrate.get_slits(datasec_img)
+            mspixflatnrm, slitprof = caliBrate.get_pixflatnrm(datasec_img) # Prepare the pixel flat field frame
 
             debugger.set_trace()
-
-            ###############################################################################
-            # Generate the 1D wavelength solution
-            if 'wavecalib' in calib_dict[setup].keys():
-                wv_calib = calib_dict[setup]['wavecalib']
-                wv_maskslits = calib_dict[setup]['wvmask']
-            elif settings.argflag["reduce"]["calibrate"]["wavelength"] == "pixel":
-                msgs.info("A wavelength calibration will not be performed")
-                wv_calib = None
-                wv_maskslits = np.zeros_like(maskslits, dtype=bool)
-            else:
-                # Setup up the settings (will be Refactored with settings)
-                wvc_settings = dict(calibrate=settings.argflag['arc']['calibrate'], masters=settings.argflag['reduce']['masters'])
-                wvc_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                nonlinear = settings.spect[settings.get_dnum(det)]['saturation'] * settings.spect[settings.get_dnum(det)]['nonlinear']
-                # Get it
-                wv_calib, wv_maskslits, _ = wavecalib.get_wv_calib(
-                    det, setup, spectrograph, sci_ID, wvc_settings, fitstbl, tslits_dict, pixlocn,
-                    msarc, nonlinear=nonlinear)
-                # Save in calib
-                calib_dict[setup]['wavecalib'] = wv_calib
-                calib_dict[setup]['wvmask'] = wv_maskslits
-            # Mask me
-            maskslits += wv_maskslits
-
-            ###############################################################################
-            # Derive the spectral tilt
-            if 'tilts' in calib_dict[setup].keys():
-                mstilts = calib_dict[setup]['tilts']
-                wt_maskslits = calib_dict[setup]['wtmask']
-            else:
-                # Settings kludges
-                tilt_settings = dict(tilts=settings.argflag['trace']['slits']['tilts'].copy(),
-                                     masters=settings.argflag['reduce']['masters'])
-                tilt_settings['tilts']['function'] = settings.argflag['trace']['slits']['function']
-                tilt_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                # Get it
-                mstilts, wt_maskslits, _ = wavetilts.get_wv_tilts(
-                    det, setup, tilt_settings, settings_det, tslits_dict, pixlocn,
-                    msarc, wv_calib, maskslits)
-                # Save
-                calib_dict[setup]['tilts'] = mstilts
-                calib_dict[setup]['wtmask'] = wt_maskslits
-
-            # Mask me
-            maskslits += wt_maskslits
-
-            ###############################################################################
-            # Prepare the pixel flat field frame
-            if settings.argflag['reduce']['flatfield']['perform']:  # Only do it if the user wants to flat field
-                if 'normpixelflat' in calib_dict[setup].keys():
-                    mspixflatnrm = calib_dict[setup]['normpixelflat']
-                    slitprof = calib_dict[setup]['slitprof']
-                else:
-                    # Settings
-                    flat_settings = dict(flatfield=settings.argflag['reduce']['flatfield'].copy(),
-                                         slitprofile=settings.argflag['reduce']['slitprofile'].copy(),
-                                         combine=settings.argflag['pixelflat']['combine'].copy(),
-                                         masters=settings.argflag['reduce']['masters'].copy(),
-                                         detector=settings.spect[dnum])
-                    flat_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-                    # Get it
-                    mspixflatnrm, slitprof, _ = flatfield.get_msflat(
-                        det, setup, spectrograph, sci_ID, fitstbl, tslits_dict, datasec_img,
-                        flat_settings, msbias, mstilts)
-                    # Save internallly
-                    calib_dict[setup]['normpixelflat'] = mspixflatnrm
-                    calib_dict[setup]['slitprof'] = slitprof
-            else:
-                mspixflatnrm = None
-                slitprof = None
 
 
             ###############################################################################
