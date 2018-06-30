@@ -189,8 +189,10 @@
 - Adds new trace_slits_trim settings
 - Small install edits
 - Fixes Travis failure that crept into the previous PR
-
 - Move spectrograph specific code into spectographs/ folder
+
+- Introduces the Calibrations class
+- with Notebook
 
 
 0.7 (2017-02-07)

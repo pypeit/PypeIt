@@ -60,9 +60,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
     basenames = [None]*numsci  # For fluxing at the very end
 
     # Init calib dict
-    calib_dict = {}
-    caliBrate = calibrations.MultiSlitCalibrations(fitstbl)
-
+    caliBrate = calibrations.MultiSlitCalibrations(fitstbl, save_masters=True)
 
     # Loop on science exposure first
     #  calib frames, e.g. arcs)
@@ -105,11 +103,10 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             tsettings['detector']['binning'] = fitstbl['binning'][0]
 
             # New ones
-            ts_settings = dict(trace=settings.argflag['trace'], masters=settings.argflag['reduce']['masters'])
-            ts_settings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
-            ts_settings['masters']['setup'] = setup
-            tsettings['trace'] = ts_settings['trace'].copy()
-            tsettings['masters'] = ts_settings['masters'].copy()
+            #tsettings['trace'] = settings.argflag['trace'].copy()
+            tsettings['masters'] = settings.argflag['reduce']['masters']
+            tsettings['masters']['directory'] = settings.argflag['run']['directory']['master']+'_'+ settings.argflag['run']['spectrograph']
+            tsettings['masters']['setup'] = setup
 
             ###############################################################################
             # Begin calibrations

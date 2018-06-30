@@ -4578,6 +4578,9 @@ def dummy_settings(pypitdir=None, nfile=10, spectrograph='shane_kast_blue',
     spect.set_paramlist(lines)
     lines = spect.load_file()
     spect.set_paramlist(lines)
+    # If the instrument settings file sets some argflag settings, implement those changes now
+    if len(spect.__dict__['_settings']) != 0:
+        argf.set_paramlist(spect.__dict__['_settings'])
     if set_idx:
         for jj, key in enumerate(spect._spect.keys()):
             if key in ['det']:
