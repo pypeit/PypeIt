@@ -12,43 +12,6 @@ from pypit import arparse
 from pypit import ardebug as debugger
 
 
-def load_raw_frame(spectrograph, raw_file, det, dataext=None, disp_dir=0):
-    """
-    Load data frames, usually raw.
-
-    Parameters
-    ----------
-    raw_file : str
-       Full path to raw_file
-    det : int
-      Detector number requested, starts at 1
-    dataext : int, optional
-      Data extension for this detector in the HDU list
-    disp_dir : int, optional
-      if 1, Transpose the image to align spectral dimension with columns
-
-    Returns
-    -------
-    frame : ndarray
-      the raw_frame
-    head : FITS header of the 0th HDU
-    """
-    msgs.info("Loading raw_file: {:s}".format(raw_file))
-    if spectrograph in ['keck_lris_blue', 'keck_lris_red']:
-        temp, head0, _ = lris.read_lris(raw_file, det=det)
-    elif spectrograph in ['keck_deimos']:
-        temp, head0, _ = deimos.read_deimos(raw_file, det=det)
-    else:
-        hdulist = fits.open(raw_file)
-        temp = hdulist[dataext].data
-        head0 = hdulist[0].header
-    # Turn to float
-    temp = temp.astype(np.float)
-    if disp_dir == 1:
-        temp = temp.T
-    return temp, head0
-
-
 def get_datasec(spectrograph, filename, det, settings_det):
     """  Determine the data and overscan sections of an image
 
