@@ -47,39 +47,9 @@ def get_censpec(lordloc, rordloc, pixlocn, frame, det, settings_spect=None, gen_
     satsnd = None
     if gen_satmask:
         msgs.info("Generating a mask of arc line saturation streaks")
-        #        t = time.clock()
-        #        _satmask = arcyarc.saturation_mask(frame,
-        #                            settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear'])
-        #        print('Old saturation_mask: {0} seconds'.format(time.clock() - t))
-        satmask = new_saturation_mask(frame,
-                                            settings_spect[dnum]['saturation']*settings_spect[dnum]['nonlinear'])
-        #        print('New saturation_mask: {0} seconds'.format(time.clock() - t))
-        #        # Allow for minor differences
-        #        if np.sum(_satmask != satmask) > 0.1*np.prod(satmask.shape):
-        #            plt.imshow(_satmask, origin='lower', interpolation='nearest', aspect='auto')
-        #            plt.colorbar()
-        #            plt.show()
-        #            plt.imshow(satmask, origin='lower', interpolation='nearest', aspect='auto')
-        #            plt.colorbar()
-        #            plt.show()
-        #            plt.imshow(_satmask-satmask, origin='lower', interpolation='nearest', aspect='auto')
-        #            plt.colorbar()
-        #            plt.show()
-        #
-        #        assert np.sum(_satmask != satmask) < 0.1*np.prod(satmask.shape), \
-        #                    'Old and new saturation_mask are too different'
-
-        #        print('calling order saturation')
-        #        t = time.clock()
-        #        _satsnd = arcyarc.order_saturation(satmask, (ordcen+0.5).astype(int),
-        #                                          (ordwid+0.5).astype(int))
-        #        print('Old order_saturation: {0} seconds'.format(time.clock() - t))
-        #        t = time.clock()
-        satsnd = new_order_saturation(satmask, (ordcen+0.5).astype(int),
-                                            (ordwid+0.5).astype(int))
-    #        print('New order_saturation: {0} seconds'.format(time.clock() - t))
-    #        assert np.sum(_satsnd != satsnd) == 0, \
-    #                    'Difference between old and new order_saturation, satsnd'
+        nonlinear_counts = settings_spect[dnum]['saturation'] * settings_spect[dnum]['nonlinear']
+        satmask = saturation_mask(frame, nonlinear_counts)
+        satsnd = order_saturation(satmask, (ordcen+0.5).astype(int), (ordwid+0.5).astype(int))
 
     # Extract a rough spectrum of the arc in each slit
     msgs.info("Extracting an approximate arc spectrum at the centre of each slit")
@@ -179,23 +149,8 @@ def detect_lines(censpec, nfitpix=5, nonlinear=None):
     if MK_SATMASK:
         ordwid = 0.5*np.abs(slf._lordloc[det-1] - slf._rordloc[det-1])
         msgs.info("Generating a mask of arc line saturation streaks")
-#        print('calling saturation_mask')
-#        t = time.clock()
-#        _satmask = arcyarc.saturation_mask(msarc, slf._nonlinear[det-1])
-#        print('Old saturation_mask: {0} seconds'.format(time.clock() - t))
-#        t = time.clock()
-        satmask = new_saturation_mask(msarc, nonlinear)
-#        print('New saturation_mask: {0} seconds'.format(time.clock() - t))
-#        assert np.sum(_satmask != satmask) == 0, 'Difference between old and new saturation_mask'
-
-#        print('calling order_saturation')
-#        t = time.clock()
-#        _satsnd = arcyarc.order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int))
-#        print('Old order_saturation: {0} seconds'.format(time.clock() - t))
-#        t = time.clock()
-        satsnd = new_order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int))
-#        print('New order_saturation: {0} seconds'.format(time.clock() - t))
-#        assert np.sum(_satsnd != satsnd) == 0, 'Difference between old and new order_saturation'
+        satmask = saturation_mask(msarc, nonlinear)
+        satsnd = order_saturation(satmask, ordcen, (ordwid+0.5).astype(np.int))
     else:
         satsnd = np.zeros_like(ordcen)
     '''
@@ -712,9 +667,11 @@ def calib_with_arclines(aparm, spec, use_method="general"):
     return final_fit
 
 
-
-def new_order_saturation(satmask, ordcen, ordwid):
-
+def order_saturation(satmask, ordcen, ordwid):
+    """
+    .. todo::
+        Document this!
+    """
     sz_y, sz_x = satmask.shape
     sz_o = ordcen.shape[1]
 
@@ -760,8 +717,11 @@ def determine_saturation_region(a, x, y, sy, dy, satdown, satlevel, mask):
         localy = a[x,y+sy]
 
 
-def new_saturation_mask(a, satlevel):
-
+def saturation_mask(a, satlevel):
+    """
+    ... todo::
+        Document this!
+    """
     mask = np.zeros(a.shape, dtype=bool)
     a_is_saturated = a >= satlevel
     if not np.any(a_is_saturated):

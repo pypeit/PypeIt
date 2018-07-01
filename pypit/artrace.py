@@ -311,50 +311,9 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe,
         rec_crmask[zero_var] = 1.
     # Smooth the S/N frame
     smthby, rejhilo = tracepar['smthby'], tracepar['rejhilo']
-#    print('calling smooth_x')
-#    t = time.clock()
-#    _rec_sigframe_bin = arcyutils.smooth_x(rec_sciframe/np.sqrt(rec_varframe), 1.0-rec_crmask,
-#                                           smthby, rejhilo, maskval)
-#    print('Old smooth_x: {0} seconds'.format(time.clock() - t))
     tmp = np.ma.MaskedArray(rec_skysub/np.sqrt(rec_varframe), mask=rec_crmask.astype(bool))
-#    # TODO: Add rejection to BoxcarFilter?
-#    t = time.clock()
+    # TODO: Add rejection to BoxcarFilter?
     rec_sigframe_bin = BoxcarFilter(smthby).smooth(tmp.T).T
-#    print('BoxcarFilter: {0} seconds'.format(time.clock() - t))
-#    t = time.clock()
-#    rec_sigframe_bin = new_smooth_x(rec_skysub/np.sqrt(rec_varframe), 1.0-rec_crmask, smthby,
-#                                    rejhilo, maskval)
-#    print('New smooth_x: {0} seconds'.format(time.clock() - t))
-    # TODO: BoxcarFilter and smooth_x will provide different results.
-    # Need to assess their importance.
-#    if np.sum(_rec_sigframe_bin != rec_sigframe_bin) != 0:
-#
-#        plt.plot(tmp[:,200])
-#        plt.plot(rec_sigframe_bin[:,200])
-#        plt.plot(_rec_sigframe_bin[:,200])
-#        plt.show()
-#
-#        plt.imshow( np.ma.MaskedArray(_rec_sigframe_bin, mask=rec_crmask.astype(bool)),
-#                   origin='lower', interpolation='nearest', aspect='auto')
-#        plt.colorbar()
-#        plt.show()
-#        plt.imshow(np.ma.MaskedArray(rec_sigframe_bin, mask=rec_crmask.astype(bool)),
-#                   origin='lower', interpolation='nearest', aspect='auto')
-#        plt.colorbar()
-#        plt.show()
-#        plt.imshow(np.ma.MaskedArray(_rec_sigframe_bin-rec_sigframe_bin,
-#                                     mask=rec_crmask.astype(bool)),
-#                   origin='lower', interpolation='nearest', aspect='auto')
-#        plt.colorbar()
-#        plt.show()
-#        t = np.ma.divide(_rec_sigframe_bin,rec_sigframe_bin)
-#        t[rec_crmask.astype(bool)] = np.ma.masked
-#        plt.imshow(t,
-#                   origin='lower', interpolation='nearest', aspect='auto')
-#        plt.colorbar()
-#        plt.show()
-#    assert np.sum(_rec_sigframe_bin != rec_sigframe_bin) == 0, \
-#                    'Difference between old and new smooth_x'
 
     #rec_varframe_bin = arcyutils.smooth_x(rec_varframe, 1.0-rec_crmask, smthby, rejhilo, maskval)
     #rec_sigframe_bin = np.sqrt(rec_varframe_bin/(smthby-2.0*rejhilo))
@@ -388,33 +347,12 @@ def trace_objects_in_slit(det, slitn, tslits_dict, sciframe, skyframe,
     #from scipy.ndimage.filters import gaussian_filter1d
     #smth_prof = gaussian_filter1d(trcprof, fwhm/2.35)
     # Define all 5 sigma deviations as objects (should make the 5 user-defined)
-    #objl, objr, bckl, bckr = arcytrace.find_objects(smth_prof, bgreg, mad)
     if settings_trace['trace']['object']['find'] == 'nminima':
         nsmooth = settings_trace['trace']['object']['nsmooth']
         trcprof2 = np.mean(rec_skysub, axis=0)
         objl, objr, bckl, bckr = find_obj_minima(trcprof2, triml=triml, trimr=trimr, nsmooth=nsmooth)
     elif settings_trace['trace']['object']['find'] == 'standard':
-#        print('calling find_objects')
-#        t = time.clock()
-#        _objl, _objr, _bckl, _bckr = arcytrace.find_objects(trcprof, bgreg, mad)
-#        print('Old find_objects: {0} seconds'.format(time.clock() - t))
-#        t = time.clock()
-        objl, objr, bckl, bckr = new_find_objects(trcprof, bgreg, mad)
-#        print('New find_objects: {0} seconds'.format(time.clock() - t))
-#        print('objl:', objl)
-#        print('_objl:', _objl)
-#        print('objr:', objr)
-#        print('_objr:', _objr)
-#        print(_objl.shape, objl.shape)
-#        print(_objr.shape, objr.shape)
-#        print(np.sum(_objl != objl))
-#        print(np.sum(_objr != objr))
-#        assert np.sum(_objl != objl) == 0, 'Difference between old and new find_objects, objl'
-#        assert np.sum(_objr != objr) == 0, 'Difference between old and new find_objects, objr'
-#        assert np.sum(_bckl != bckl) == 0, 'Difference between old and new find_objects, bckl'
-#        assert np.sum(_bckr != bckr) == 0, 'Difference between old and new find_objects, bckr'
-#        objl, objr, bckl, bckr = new_find_objects(trcprof, bgreg, mad)
-
+        objl, objr, bckl, bckr = find_objects(trcprof, bgreg, mad)
     else:
         msgs.error("Bad object identification algorithm!!")
     if msgs._debug['trace_obj']:
@@ -648,7 +586,7 @@ def obj_trace_qa(slf, frame, det, tracelist, root='trace', normalize=True, desc=
     plt.rcdefaults()
 
 
-def new_find_objects(profile, bgreg, stddev):
+def find_objects(profile, bgreg, stddev):
     """
     Find significantly detected objects in the profile array
     For all objects found, the background regions will be defined.
@@ -714,75 +652,80 @@ def new_find_objects(profile, bgreg, stddev):
            (bgr & np.invert(has_obj)[:,None]).astype(int)
 
 
-def new_find_peak_limits(hist, pks):
-    """
-    Find all values between the zeros of hist
-
-    Parameters
-    ----------
-    hist : ndarray
-      1D vector
-    pks : ndarray
-      1D vector
-    """
-    if len(hist.shape) != 1 or len(pks.shape) != 1:
-        msgs.error('Arrays provided to find_peak_limits must be vectors.')
-    # Pixel indices in hist for each peak
-    hn = np.arange(hist.shape[0])
-    indx = np.ma.MaskedArray(np.array([hn]*pks.shape[0]))
-    # Instantiate output
-    edges = np.zeros((pks.shape[0],2), dtype=int)
-    # Find the left edges
-    indx.mask = (hist != 0)[None,:] | (hn[None,:] > pks[:,None])
-    edges[:,0] = np.ma.amax(indx, axis=1)
-    # Find the right edges
-    indx.mask = (hist != 0)[None,:] | (hn[None,:] < pks[:,None])
-    edges[:,1] = np.ma.amin(indx, axis=1)
-    return edges
-
-
-
-def new_mean_weight(array, weight, rejhilo, maskval):
-    _a = array if rejhilo == 0 else np.sort(array)
-    sumw = np.sum(weight[rejhilo:-rejhilo])
-    sumwa = np.sum(weight[rejhilo:-rejhilo]*_a[rejhilo:-rejhilo])
-    return maskval if sumw == 0.0 else sumwa/sumw
+# TODO: I think this was moved to core/artraceslits.py and left here by
+# mistake
+#def new_find_peak_limits(hist, pks):
+#    """
+#    Find all values between the zeros of hist
+#
+#    Parameters
+#    ----------
+#    hist : ndarray
+#      1D vector
+#    pks : ndarray
+#      1D vector
+#    """
+#    if len(hist.shape) != 1 or len(pks.shape) != 1:
+#        msgs.error('Arrays provided to find_peak_limits must be vectors.')
+#    # Pixel indices in hist for each peak
+#    hn = np.arange(hist.shape[0])
+#    indx = np.ma.MaskedArray(np.array([hn]*pks.shape[0]))
+#    # Instantiate output
+#    edges = np.zeros((pks.shape[0],2), dtype=int)
+#    # Find the left edges
+#    indx.mask = (hist != 0)[None,:] | (hn[None,:] > pks[:,None])
+#    edges[:,0] = np.ma.amax(indx, axis=1)
+#    # Find the right edges
+#    indx.mask = (hist != 0)[None,:] | (hn[None,:] < pks[:,None])
+#    edges[:,1] = np.ma.amin(indx, axis=1)
+#    return edges
 
 
-def new_minbetween(mstrace, loord, hiord):
-    # TODO: Check shapes
-    ymin = np.clip(loord, 0, mstrace.shape[1])
-    ymax = np.clip(hiord, 0, mstrace.shape[1])
-    minarr = np.zeros(mstrace.shape[0])
-    indx = ymax > ymin
-    minarr[indx] = np.array([ np.amin(t[l:h])
-                                for t,l,h in zip(mstrace[indx], ymin[indx], ymax[indx]) ])
-    return minarr
+
+# TODO: I think this was moved to core/artraceslits.py and left here by
+# mistake
+#def new_minbetween(mstrace, loord, hiord):
+#    # TODO: Check shapes
+#    ymin = np.clip(loord, 0, mstrace.shape[1])
+#    ymax = np.clip(hiord, 0, mstrace.shape[1])
+#    minarr = np.zeros(mstrace.shape[0])
+#    indx = ymax > ymin
+#    minarr[indx] = np.array([ np.amin(t[l:h])
+#                                for t,l,h in zip(mstrace[indx], ymin[indx], ymax[indx]) ])
+#    return minarr
 
 
-# Weighted boxcar smooothing with rejection
-def new_smooth_x(array, weight, fact, rejhilo, maskval):
-    hf = fact // 2
+# USE BoxcarFilter instead!
+#def mean_weight(array, weight, rejhilo, maskval):
+#    _a = array if rejhilo == 0 else np.sort(array)
+#    sumw = np.sum(weight[rejhilo:-rejhilo])
+#    sumwa = np.sum(weight[rejhilo:-rejhilo]*_a[rejhilo:-rejhilo])
+#    return maskval if sumw == 0.0 else sumwa/sumw
+#
+#
+## Weighted boxcar smooothing with rejection
+#def new_smooth_x(array, weight, fact, rejhilo, maskval):
+#    hf = fact // 2
+#
+#    sz_x, sz_y = array.shape
+#
+#    smtarr = np.zeros((sz_x,sz_y), dtype=float)
+#    medarr = np.zeros((fact+1), dtype=float)
+#    wgtarr = np.zeros((fact+1), dtype=float)
+#
+#    for y in range(sz_y):
+#        for x in range(sz_x):
+#            for b in range(fact+1):
+#                if (x+b-hf < 0) or (x+b-hf >= sz_x):
+#                    wgtarr[b] = 0.0
+#                else:
+#                    medarr[b] = array[x+b-hf,y]
+#                    wgtarr[b] = weight[x+b-hf,y]
+#            smtarr[x,y] = mean_weight(medarr, wgtarr, rejhilo, maskval)
+#    return smtarr
 
-    sz_x, sz_y = array.shape
 
-    smtarr = np.zeros((sz_x,sz_y), dtype=float)
-    medarr = np.zeros((fact+1), dtype=float)
-    wgtarr = np.zeros((fact+1), dtype=float)
-
-    for y in range(sz_y):
-        for x in range(sz_x):
-            for b in range(fact+1):
-                if (x+b-hf < 0) or (x+b-hf >= sz_x):
-                    wgtarr[b] = 0.0
-                else:
-                    medarr[b] = array[x+b-hf,y]
-                    wgtarr[b] = weight[x+b-hf,y]
-            smtarr[x,y] = new_mean_weight(medarr, wgtarr, rejhilo, maskval)
-    return smtarr
-
-
-def new_tilts_image(tilts, lordloc, rordloc, pad, sz_y):
+def tilts_image(tilts, lordloc, rordloc, pad, sz_y):
     """
     Using the tilt (assumed to be fit with a first order polynomial)
     generate an image of the tilts for each slit.
@@ -869,7 +812,6 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
         indict["wmask"].append(None)
         return indict
 
-    # from pypit import arcyutils
     dnum = settings.get_dnum(det)
 
     msgs.work("Detecting lines for slit {0:d}".format(slitnum+1))
@@ -1010,6 +952,8 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
                     ccval = arcdet[j] + np.sum(xfit*ccyfit)/np.sum(ccyfit)
                     tstcc = False  # Once we have an array, there's no need to keep looking
                 cc = np.correlate(ccyfit, yfit, mode='same')
+                # TODO: This must have been obsolete even before I (KBW)
+                # removed the cython functionality!
                 params, fail = arutils.gauss_lsqfit(xfit, cc, 0.0)
                 centv = ccval + pcen - arcdet[j] - params[1]
             xtfit[k+sz] = ordcen[arcdet[j], slitnum] + k
@@ -1073,6 +1017,8 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
                     ccval = arcdet[j] + np.sum(xfit*ccyfit)/np.sum(ccyfit)
                     tstcc = False  # Once we have an array, there's no need to keep looking
                 cc = np.correlate(ccyfit, yfit, mode='same')
+                # TODO: This must have been obsolete even before I (KBW)
+                # removed the cython functionality!
                 params, fail = arutils.gauss_lsqfit(xfit, cc, 0.0)
                 centv = ccval + pcen - arcdet[j] - params[1]
             xtfit[sz-k] = ordcen[arcdet[j], slitnum] - k
@@ -1426,16 +1372,8 @@ def echelle_tilt(slf, msarc, det, pcadesc="PCA trace of the spectral tilts", mas
             tilts = np.zeros_like(slf._lordloc)
 
     # Generate tilts image
-#    print('calling tilts_image')
-#    t = time.clock()
-#    _tiltsimg = arcytrace.tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1],
-#                                     settings.argflag['trace']['slits']['pad'], msarc.shape[1])
-#    print('Old tilts_image: {0} seconds'.format(time.clock() - t))
-#    t = time.clock()
-    tiltsimg = new_tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1],
-                                settings.argflag['trace']['slits']['pad'], msarc.shape[1])
-#    print('New tilts_image: {0} seconds'.format(time.clock() - t))
-#    assert np.sum(_tiltsimg != tiltsimg) == 0, 'Difference between old and new tilts_image'
+    tiltsimg = tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1],
+                           settings.argflag['trace']['slits']['pad'], msarc.shape[1])
 
     return tiltsimg, satmask, outpar
 
@@ -1536,11 +1474,10 @@ def multislit_tilt(slf, msarc, det, maskval=-999999.9, doqa=False):
                 wmask = wmask[np.where(wmask < (xtfit.size+dx))]
 
             # Perform a scanning polynomial fit to the tilts
-            # model = arcyutils.polyfit_scan_intext(xtfit, ytfit, np.ones(ytfit.size, dtype=np.float), mtfit,
-            #                                       2, sz/6, 3, maskval)
             wmfit = np.where(ytfit != maskval)
             if wmfit[0].size > settings.argflag['trace']['slits']['tilts']['order'] + 1:
-                cmfit = arutils.func_fit(xtfit[wmfit], ytfit[wmfit], settings.argflag['trace']['slits']['function'],
+                cmfit = arutils.func_fit(xtfit[wmfit], ytfit[wmfit],
+                                         settings.argflag['trace']['slits']['function'],
                                          settings.argflag['trace']['slits']['tilts']['order'],
                                          minv=0.0, maxv=msarc.shape[1] - 1.0)
                 model = arutils.func_val(cmfit, xtfit, settings.argflag['trace']['slits']['function'],
