@@ -97,6 +97,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         # Child-specific Internals
         #    See ProcessImages for the rest
 
+    '''
     def process_bias(self, overwrite=False):
         """
         Process the input bias frames with ProcessImages.process()
@@ -115,8 +116,9 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         # Wrapper
         self.stack = self.process(bias_subtract=None, trim=False, overwrite=overwrite)
         return self.stack.copy()
+    '''
 
-    def build_image(self):
+    def build_image(self, overwrite=False):
         """
         Generate the image
 
@@ -129,7 +131,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         if self.nfiles == 0:
             self.file_list = arsort.list_of_files(self.fitstbl, 'bias', self.sci_ID)
         # Combine
-        self.stack = self.process_bias()
+        self.stack = self.process(bias_subtract=None, trim=False, overwrite=overwrite)
         #
         return self.stack
 
