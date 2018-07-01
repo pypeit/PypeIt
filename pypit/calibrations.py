@@ -99,6 +99,20 @@ class Calibrations(object):
         self.datasec_img = None
 
     def reset(self, setup, det, sci_ID, settings):
+        """
+        Specify the settings of the Calibrations class
+          and reset all the internals to None
+          The internal dict is left unmodafied
+
+        Args:
+            setup:
+            det:
+            sci_ID:
+            settings:
+
+        Returns:
+
+        """
         self.setup = setup
         self.det = det
         self.sci_ID = sci_ID
