@@ -56,7 +56,6 @@ if sys.version > '3':
 
 import numpy
 from astropy.table import Table
-import pandas
 
 class ParSet(object):
     """
@@ -180,7 +179,8 @@ class ParSet(object):
         # Set the calling flags
         self.descr = dict([ (p, t) for p, t in zip(pars, _descr) ])
 
-        # Set the data dictionary using the internal functions
+        # Set the data dictionary using the overloaded
+        # __setitem__function so that value checking is performed
         self.data = {}
         for p, d, v in zip(pars, _defaults, _values):
             if v is None:
@@ -198,7 +198,8 @@ class ParSet(object):
         Return the value of the designated key.
 
         Args:
-            key (str) : Key for new parameter
+            key (str):
+                Key for new parameter
         """
         return self.data[key]
 
@@ -208,7 +209,8 @@ class ParSet(object):
         Set the value for a key.
 
         Args:
-            key (str) : Key for new parameter
+            key (str):
+                Key for new parameter
             value (*dtype*) : Parameter value, must have a type in the
                 list provided (*dtype*), if the list is provided
 
@@ -260,6 +262,19 @@ class ParSet(object):
 
     
     def _output_string(self, header=None):
+        """
+        Constructs the short-format table strings for the :func:`__repr__`
+        method.
+
+        Args:
+            header (:obj:`str`, optional):
+                String header to provide for the table.  This is
+                typically the name of the configuration section.
+
+        Returns:
+            str: Single long string with the parameter table for the
+            :func:`__repr__` method.
+        """
         additional_par_strings = []
         data_table = numpy.empty((self.npar+1, 5), dtype=object)
         data_table[0,:] = ['Parameter', 'Value', 'Default', 'Type', 'Callable']
@@ -286,6 +301,17 @@ class ParSet(object):
 
     @staticmethod
     def _data_table_string(data_table):
+        """
+        Provided the array of data, format it with equally spaced
+        columns and add a header (first row) and contents delimiter.
+
+        Args:
+            data_table (:obj:`numpy.ndarray`):
+                Array of string representations of the data to print.
+
+        Returns:
+            str: Single long string with the data table.
+        """
         nrows, ncols = data_table.shape
         col_width = [ numpy.amax([ len(dij) for dij in dj]) for dj in data_table.T ]
         row_string = ['']*(nrows+1)
@@ -301,6 +327,17 @@ class ParSet(object):
 
     @staticmethod
     def _data_string(data):
+        """
+        Convert a single datum into a string
+        
+        Simply return strings, recursively convert the elements of any
+        objects with a :attr:`__len__` attribute, and use the object's
+        own :attr:`__repr__` attribute for all other objects.
+
+        Args:
+            data (object):
+                The object to stringify.
+        """
         if isinstance(data, str):
             return data
         elif hasattr(data, '__len__'):
@@ -310,6 +347,19 @@ class ParSet(object):
 
 
     def _wrap_print(self, head, output, tcols):
+        """
+        Wrap the contents of an output string for a fixed terminal
+        width.  Used for the long-format :func:`info` method.
+
+        Args:
+            head (str):
+                The inline header for the output.  Can be an empty
+                string, but cannot be None.
+            output (str):
+                The main body of the text to write.
+            tcols (int):
+                The allowed width for the output.
+        """
         tail = ' '*len(head)
         if tcols is not None:
             lines = textwrap.wrap('{0}'.format(output), tcols-len(head))
@@ -323,6 +373,7 @@ class ParSet(object):
 
 
     def _types_list(self, key):
+        """Return the string names for the specified data types."""
         return [t.__name__ for t in self.dtype[key]]
 
 
@@ -331,6 +382,22 @@ class ParSet(object):
         """
         Recursively generate the lines of a configuration file based on
         the provided ParSet or dict (par).
+
+        Args:
+            section_name (:obj:`str`, optional):
+                Name to give to the top-level of the configuration
+                output.
+            section_comment (:obj:`str`, optional):
+                Description to provide for the top-level configuration
+                output.
+            section_level (:obj:`int`, optional):
+                The level for the configuration output.  Sets the
+                indentation level and the number of square brackets
+                assigned to the section name.
+
+        Returns:
+            list: The list of the lines to write to a configuration
+            file.
         """
         # Get the list of parameters that are ParSets
         parset_keys = [ k for k in par.keys() if isinstance(par[k], (ParSet, dict)) ]
@@ -390,6 +457,23 @@ class ParSet(object):
 
     @staticmethod
     def _config_comment(comment, indent, full_width=72):
+        """
+        Create the list of lines for the description of a given
+        parameter in the configuration file.
+
+        Args:
+            comment (str):
+                The description of the configuration parameter.
+            indent (str):
+                The string used to indent the text.
+            full_width (:obj:`int`, optional):
+                The full width allowed for each output string in the
+                returned list.
+
+        Returns:
+            list: List of the strings to write to the output
+            configuration file.
+        """
         head = indent + '# '
         lines = textwrap.wrap('{0}'.format(comment), full_width-len(head))
         return [ head + l for l in lines ]
@@ -424,6 +508,7 @@ class ParSet(object):
 
 
     def keys(self):
+        """Return the list of parameter set keys."""
         return list(self.data.keys())
 
     
@@ -450,6 +535,10 @@ class ParSet(object):
             can_call (:obj:`bool`, optional):
                 Flag that the parameters are callable operations.
                 Default is False.
+
+        Raises:
+            ValueError:
+                Raised if the keyword alread exists.
         """
         if key in self.data.keys():
             raise ValueError('Keyword {0} already exists and cannot be added!')
@@ -520,6 +609,8 @@ class ParSet(object):
                                                      section_level=section_level)
                 config_output += ['']
         else:
+            # Cannot write the parameters as a configuration file
+            # without a top-level configuration section
             if section_name is None and self.cfg_section is None:
                 raise ValueError('No top-level section name available for configuration!')
 
@@ -530,14 +621,20 @@ class ParSet(object):
                                                  section_level=section_level)
 
         if just_lines:
+            # Only return the list of lines for the output file.  Useful
+            # if you want to use instantly create a new ConfigObj
+            # instance without having to write a file
             return config_output
 
+        # Write the file
         with open(cfg_file, 'a' if append else 'w') as f:
             f.write('\n'.join(config_output))
 
 
 class ParDatabase(object):
     """
+    NOTE: This isn't used in pypit yet...
+
     Class used as a list of ParSets in a glorified structured numpy
     array.
 
