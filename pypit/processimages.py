@@ -15,6 +15,8 @@ from pypit.core import arprocimg
 from pypit.core import arflat
 from pypit import ginga
 
+from pypit.spectrographs import spectroclass
+from pypit.spectrographs import lris
 
 # For out of PYPIT running
 if msgs._debug is None:
@@ -110,6 +112,11 @@ class ProcessImages(object):
             except:
                 msgs.warn("No information on the spectrograph was given.  Do not attempt to (re)process the images")
         self.spectrograph = spectrograph
+        if 'keck_lris' in spectrograph:
+            self.spectro_class = lris.LRISSpectrograph()
+        else:
+            self.spectro_class = spectroclass.Spectrograph()
+
         self.raw_images = []
         self.proc_images = None  # Will be an ndarray
         self.headers = []
@@ -182,9 +189,14 @@ class ProcessImages(object):
         self.raw_images = []  # Zeros out any previous load
         self.headers = []
         for ifile in self.file_list:
+            '''
             img, head = io.load_raw_frame(self.spectrograph, ifile, self.det,
                                         dataext=self.settings['detector']['dataext'],
                                         disp_dir=self.settings['detector']['dispaxis'])
+            '''
+            img, head = self.spectro_class.load_raw_frame(ifile, det=self.det,
+                                           dataext=self.settings['detector']['dataext'],
+                                           disp_dir=self.settings['detector']['dispaxis'])
             # Save
             self.raw_images.append(img)
             self.headers.append(head)
