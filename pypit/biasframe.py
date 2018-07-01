@@ -120,7 +120,14 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
     def build_image(self, overwrite=False):
         """
-        Generate the image
+        Grab the bias files (as needed) and then
+         process the input bias frames with ProcessImages.process()
+          Avoid bias subtraction
+          Avoid trim
+
+        Parameters
+        ----------
+        overwrite : bool, optional
 
         Returns
         -------
