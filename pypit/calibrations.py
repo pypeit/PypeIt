@@ -36,14 +36,6 @@ if msgs._debug is None:
     debug['develop'] = True
     msgs.reset(debug=debug, verbosity=2)
 
-# Does not need to be global, but I prefer it
-frametype = 'bias'
-
-# Place these here or elsewhere?
-#  Wherever they be, they need to be defined, described, etc.
-#  These are settings beyond those in the Parent class (ProcessImages)
-additional_default_settings = {frametype: {'useframe': 'none'}}
-
 
 class Calibrations(object):
     """
