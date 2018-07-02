@@ -1350,8 +1350,8 @@ class WavelengthSolutionPar(ParSet):
                           'Options are: {0}'.format(', '.join(options['method']))
 
         # Force lamps to be a list
-        if par['lamps'] is not None and not isinstance(par['lamps'], list):
-            par['lamps'] = [par['lamps']]
+        if pars['lamps'] is not None and not isinstance(pars['lamps'], list):
+            pars['lamps'] = [pars['lamps']]
         options['lamps'] = WavelengthSolutionPar.valid_lamps()
         dtypes['lamps'] = list
         descr['lamps'] = 'Name of one or more ions used for the wavelength calibration.  Use ' \
@@ -1602,7 +1602,7 @@ class TraceTiltsPar(ParSet):
         defaults['function'] = 'legendre'
         # TODO: Allowed values?
         dtypes['function'] = str
-        descr['function'] 'Type of function for arc line fits'
+        descr['function'] = 'Type of function for arc line fits'
 
         defaults['yorder'] = 1
         dtypes['yorder'] = int
@@ -1612,7 +1612,7 @@ class TraceTiltsPar(ParSet):
         defaults['func2D'] = 'legendre'
         # TODO: Allowed values?
         dtypes['func2D'] = str
-        descr['func2D'] 'Type of function for 2D fit'
+        descr['func2D'] = 'Type of function for 2D fit'
 
         defaults['method'] = 'spline'
         options['method'] = TraceTiltsPar.valid_methods()
@@ -1942,7 +1942,7 @@ class DetectorPar(ParSet):
                            'contains more than one amplifier.'
 
         # TODO: Allow this to be None?
-        default['suffix'] = ''
+        defaults['suffix'] = ''
         dtypes['suffix'] = str
         descr['suffix'] = 'Suffix to be appended to all saved calibration and extraction frames.'
 
