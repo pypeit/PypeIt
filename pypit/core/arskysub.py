@@ -92,7 +92,7 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
 
             #skybkpt = bspline_bkpts(wsky[pos_sky], nord=4, bkspace=bsp $
             #, / silent)
-            if PLOT_FIT:
+            if False:
                 from matplotlib import pyplot as plt
                 plt.clf()
                 ax = plt.gca()
@@ -121,13 +121,16 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
     # Debugging/checking
     if PLOT_FIT:
         from matplotlib import pyplot as plt
+        from IPython import embed
+        goodbk = skyset.mask
+        yfit_bkpt = np.interp(skyset.breakpoints[goodbk], wsky,yfit)
         plt.clf()
         ax = plt.gca()
         ax.plot(wsky, sky, color='k', marker='o', markersize=0.3, mfc='k', fillstyle='full', linestyle='None')
-        ax.plot(wsky[~full_out], sky[~full_out], color='red', marker='+', markersize=1.0, mfc='red', fillstyle='full', linestyle='None')
-        #ax.scatter(wsky[full_out], sky[full_out])
-        #ax.scatter(wsky[~full_out], sky[~full_out], color='red')
+        ax.plot(wsky[~full_out], sky[~full_out], color='red', marker='+', markersize=1.5, mfc='red', fillstyle='full', linestyle='None')
         ax.plot(wsky, yfit, color='cornflowerblue')
+        ax.plot(skyset.breakpoints[goodbk], yfit_bkpt, color='lawngreen', marker='o', markersize=2.0, mfc='lawngreen', fillstyle='full', linestyle='None')
+        ax.set_ylim((0.99*yfit.min(),1.01*yfit.max()))
         plt.show()
 
     # Return
