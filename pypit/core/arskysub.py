@@ -18,7 +18,7 @@ from pypit import ardebug as debugger
 
 
 def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
-                        bpm=None, crmask=None, tracemask=None, bsp=0.6, sigrej=3.):
+                        bpm=None, crmask=None, tracemask=None, bsp=0.6, sigrej=3., POS_MASK=True, PLOT_FIT=False):
     """
     Perform sky subtraction on an input slit
 
@@ -80,33 +80,34 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
     # All for evaluation
     all_slit = (slitpix == slit) & (~edge_mask)
 
-    # Pre-fit
-    pos_sky = (sky > 1.0) & (sky_ivar > 0.)
-    if np.sum(pos_sky) > ny:
-        lsky = np.log(sky[pos_sky])
-        lsky_ivar = lsky * 0. + 0.1
+    # Restrict fit to positive pixels only and mask out large outliers via a pre-fit to the log
+    if (POS_MASK==True):
+        pos_sky = (sky > 1.0) & (sky_ivar > 0.)
+        if np.sum(pos_sky) > ny:
+            lsky = np.log(sky[pos_sky])
+            lsky_ivar = lsky * 0. + 0.1
 
-        # Init bspline to get the sky breakpoints (kludgy)
-        tmp = pydl.bspline(wsky[pos_sky], nord=4, bkspace=bsp)
+            # Init bspline to get the sky breakpoints (kludgy)
+            tmp = pydl.bspline(wsky[pos_sky], nord=4, bkspace=bsp)
 
-        #skybkpt = bspline_bkpts(wsky[pos_sky], nord=4, bkspace=bsp $
-        #, / silent)
-        if False:
-            from matplotlib import pyplot as plt
-            plt.clf()
-            ax = plt.gca()
-            ax.scatter(wsky[pos_sky], lsky)
-            #ax.scatter(wsky[~full_out], sky[~full_out], color='red')
-            #ax.plot(wsky, yfit, color='green')
-            plt.show()
-            debugger.set_trace()
-        lskyset, outmask, lsky_fit, red_chi = arutils.bspline_profile(
-            wsky[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
-            fullbkpt = tmp.breakpoints, upper=sigrej, lower=sigrej,
-            kwargs_reject={'groupbadpix':True})
-        res = (sky[pos_sky] - np.exp(lsky_fit)) * np.sqrt(sky_ivar[pos_sky])
-        lmask = (res < 5.0) & (res > -4.0)
-        sky_ivar[pos_sky] = sky_ivar[pos_sky] * lmask
+            #skybkpt = bspline_bkpts(wsky[pos_sky], nord=4, bkspace=bsp $
+            #, / silent)
+            if PLOT_FIT:
+                from matplotlib import pyplot as plt
+                plt.clf()
+                ax = plt.gca()
+                ax.scatter(wsky[pos_sky], lsky)
+                #ax.scatter(wsky[~full_out], sky[~full_out], color='red')
+                #ax.plot(wsky, yfit, color='green')
+                plt.show()
+                debugger.set_trace()
+            lskyset, outmask, lsky_fit, red_chi = arutils.bspline_profile(
+                wsky[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
+                fullbkpt = tmp.breakpoints, upper=sigrej, lower=sigrej,
+                kwargs_reject={'groupbadpix':True})
+            res = (sky[pos_sky] - np.exp(lsky_fit)) * np.sqrt(sky_ivar[pos_sky])
+            lmask = (res < 5.0) & (res > -4.0)
+            sky_ivar[pos_sky] = sky_ivar[pos_sky] * lmask
 
     # Full fit now
     full_bspline = pydl.bspline(wsky, nord=4, bkspace=bsp)
@@ -118,7 +119,7 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
     bgframe[all_slit] = skyset.value(piximg[all_slit])[0] #, skyset)
 
     # Debugging/checking
-    if False:
+    if PLOT_FIT:
         from matplotlib import pyplot as plt
         plt.clf()
         ax = plt.gca()
