@@ -193,6 +193,8 @@
 
 - Introduce pypit/par and pypit/config directories
 - Introduce PypitPar as an initial step toward refactoring the front end
+- Final nail in the coffin for cython
+- Add API docs
 
 0.7 (2017-02-07)
 ----------------
