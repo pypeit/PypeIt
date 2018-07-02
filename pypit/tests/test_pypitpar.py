@@ -103,10 +103,11 @@ def test_readcfg():
     os.remove(default_file)
 
 def test_mergecfg():
-    specdir = os.path.abspath(__file__)
-    for i in range(3):
-        specdir = os.path.split(specdir)[0]
-    usr_example = os.path.join(specdir, 'doc', 'nb', 'keck_lris_blue_long_400_3400_d560.cfg')
+#    specdir = os.path.abspath(__file__)
+#    for i in range(3):
+#        specdir = os.path.split(specdir)[0]
+#    usr_example = os.path.join(specdir, 'doc', 'nb', 'keck_lris_blue_long_400_3400_d560.cfg')
+    usr_example = 'usr_merge_test.cfg'
     p = pypitpar.PypitPar.from_cfg_file(merge_with=usr_example)
     assert p['rdx']['spectrograph'] == 'KECK_LRISb', 'Test spectrograph is incorrect!'
     assert p['rdx']['pipeline'] == 'ARMS', 'Test pipeline is incorrect!'
