@@ -6,8 +6,8 @@ import os
 
 from pypit import msgs
 from pypit.core import arprocimg
-from pypit.core import arlris
-from pypit.core import ardeimos
+from pypit.spectrographs import lris
+from pypit.spectrographs import deimos
 
 from pypit import ardebug as debugger
 
@@ -119,9 +119,9 @@ class BPMImage(object):
             if self.spectrograph in ['keck_lris_red']:
                 # Index in fitstbl for binning
                 xbin, ybin = [int(ii) for ii in self.binning.split(',')]
-                self.bpm = arlris.bpm(xbin, ybin, 'red', self.det)
+                self.bpm = lris.bpm(xbin, ybin, 'red', self.det)
             elif self.spectrograph in ['keck_deimos']:
-                self.bpm = ardeimos.bpm(self.det)
+                self.bpm = deimos.bpm(self.det)
             elif self.spectrograph in ['keck_nirspec']:
                 # Edges of the detector are junk
                 msgs.info("Custom bad pixel mask for NIRSPEC")

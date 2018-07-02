@@ -10,7 +10,7 @@ from astropy.io import fits
 from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import arcomb
-from pypit import arload
+from pypit.spectrographs import io
 from pypit.core import arprocimg
 from pypit.core import arflat
 from pypit import ginga
@@ -182,7 +182,7 @@ class ProcessImages(object):
         self.raw_images = []  # Zeros out any previous load
         self.headers = []
         for ifile in self.file_list:
-            img, head = arload.load_raw_frame(self.spectrograph, ifile, self.det,
+            img, head = io.load_raw_frame(self.spectrograph, ifile, self.det,
                                         dataext=self.settings['detector']['dataext'],
                                         disp_dir=self.settings['detector']['dispaxis'])
             # Save
@@ -205,26 +205,13 @@ class ProcessImages(object):
         -------
         self.datasec : list
         self.oscansec : list
-
         """
         if (self.datasec is not None) and (not redo):
             return
-        # TODO -- Eliminate this instrument specific bit here. Probably by generating a Detector object
-        if self.spectrograph in ['keck_lris_blue', 'keck_lris_red', 'keck_deimos']:
-            self.datasec, self.oscansec, _, _ = arprocimg.get_datasec(
-                self.spectrograph, self.file_list[0],
-                numamplifiers=self.settings['detector']['numamplifiers'],
-                det=self.det)
-        elif 'detector' in self.settings.keys():
-            self.datasec = []
-            self.oscansec = []
-            for i in range(self.settings['detector']['numamplifiers']):
-                sdatasec = "datasec{0:02d}".format(i+1)
-                self.datasec.append(self.settings['detector'][sdatasec])
-                soscansec = "oscansec{0:02d}".format(i+1)
-                self.oscansec.append(self.settings['detector'][soscansec])
-        else:
-            msgs.error("datasec not properly loaded!")
+        # Spectrograph specific
+        self.datasec, self.oscansec, _, _ = io.get_datasec(self.spectrograph,
+                                                     self.file_list[0], self.det,
+                                                     self.settings['detector'])
 
     def apply_gain(self, datasec_img):
         """

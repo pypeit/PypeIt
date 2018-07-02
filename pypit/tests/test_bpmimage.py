@@ -13,7 +13,7 @@ import pytest
 import glob
 import numpy as np
 
-from pypit import bpmimage
+from pypit.spectrographs import bpmimage
 from pypit.armsgs import PypitError
 
 # These tests are not run on Travis

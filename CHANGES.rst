@@ -194,6 +194,9 @@
 - Adds a demo Notebook for LRISr redux
 - Other odds and ends including code flow doc
 
+- Move spectrograph specific code into spectographs/ folder
+
+
 0.7 (2017-02-07)
 ----------------
 
