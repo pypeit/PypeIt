@@ -494,6 +494,7 @@ def gain_frame(datasec_img, namp, gain_list):
     datasec_img : ndarray
     namp : int
     gain_list : list
+    # TODO need to beef up the docs here
 
     Returns
     -------
