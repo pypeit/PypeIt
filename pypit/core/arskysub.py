@@ -127,7 +127,7 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
         plt.clf()
         ax = plt.gca()
         was_fit = (sky_ivar > 0.0)
-        was_fit_and_masked = (was_fit == True) & (full_out = False)
+        was_fit_and_masked = (was_fit == True) & (full_out == False)
         ax.plot(wsky[was_fit], sky[was_fit], color='k', marker='o', markersize=0.4, mfc='k', fillstyle='full', linestyle='None')
         ax.plot(wsky[was_fit_and_masked], sky[was_fit_and_masked], color='red', marker='+', markersize=1.5, mfc='red', fillstyle='full', linestyle='None')
         ax.plot(wsky, yfit, color='cornflowerblue')
