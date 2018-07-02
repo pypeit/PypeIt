@@ -773,8 +773,8 @@ def variance_frame(datasec_img, det, sciframe, settings_det=None,
         if dnoise is None:
             dnoise = (settings_det['darkcurr'] * float(fitsdict["exptime"][idx])/3600.0)
         # Return
-        #varframe = np.abs(sciframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise + dnoise
-        #return varframe
-        return np.abs(sciframe.copy()) + rnoise + dnoise
+        varframe = np.abs(sciframe - np.sqrt(2)*np.sqrt(rnoise)) + rnoise + dnoise
+        return varframe
+#        return np.abs(sciframe.copy()) + rnoise + dnoise
 
 
