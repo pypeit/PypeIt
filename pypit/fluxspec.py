@@ -5,7 +5,7 @@ import inspect
 import numpy as np
 import yaml
 
-#from importlib import reload
+from importlib import reload
 
 try:
     basestring
@@ -185,6 +185,7 @@ class FluxSpec(masterframe.MasterFrame):
         self.std : SpecObj
           Corresponds to the chosen spectrum
         """
+        reload(arflux)
         if self.multi_det is not None:
             sv_stds = []
             # Find the standard in each detector
@@ -321,7 +322,7 @@ class FluxSpec(masterframe.MasterFrame):
         # Return
         return self.std
 
-    def master(self, row_fitstbl, clobber=False):
+    def master(self, row_fitstbl, clobber=False, save=True):
         """
         Load or generate+save the MasterFrame sensitivity function
         The solution is applied to the list of science spectra loaded (if any)
@@ -332,6 +333,8 @@ class FluxSpec(masterframe.MasterFrame):
           Row of the fitstbl corresponding to the Standard star
           Used to parse RA, DEC, AIRMASS, EXPTIME
         clobber : bool, optional
+        save : bool, optional
+          Save to master frame?
 
         Returns
         -------
@@ -358,7 +361,8 @@ class FluxSpec(masterframe.MasterFrame):
             _ = self.generate_sensfunc()
 
             # Save to master
-            self.save_master()
+            if save:
+                self.save_master()
 
         # Apply to science
         if len(self.sci_specobjs) > 0:
