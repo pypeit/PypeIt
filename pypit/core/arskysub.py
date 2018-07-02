@@ -100,7 +100,7 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
                 #ax.scatter(wsky[~full_out], sky[~full_out], color='red')
                 #ax.plot(wsky, yfit, color='green')
                 plt.show()
-                debugger.set_trace()
+                #debugger.set_trace()
             lskyset, outmask, lsky_fit, red_chi = arutils.bspline_profile(
                 wsky[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
                 fullbkpt = tmp.breakpoints, upper=sigrej, lower=sigrej,
@@ -123,9 +123,11 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
         from matplotlib import pyplot as plt
         plt.clf()
         ax = plt.gca()
-        ax.scatter(wsky[full_out], sky[full_out])
-        ax.scatter(wsky[~full_out], sky[~full_out], color='red')
-        ax.plot(wsky, yfit, color='green')
+        ax.plot(wsky, sky, color='k', marker='o', markersize=0.3, mfc='k', fillstyle='full', linestyle='None')
+        ax.plot(wsky[~full_out], sky[~full_out], color='red', marker='+', markersize=1.0, mfc='red', fillstyle='full', linestyle='None')
+        #ax.scatter(wsky[full_out], sky[full_out])
+        #ax.scatter(wsky[~full_out], sky[~full_out], color='red')
+        ax.plot(wsky, yfit, color='cornflowerblue')
         plt.show()
 
     # Return
