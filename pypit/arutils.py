@@ -166,7 +166,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
             sset: object
                bspline object
             outmask: : :class:`numpy.ndarray`
-               output mask which the same size as xdata
+               output mask which the same size as xdata, such that rejected points have outmask set to False
             yfit  : :class:`numpy.ndarray`
                result of the bspline fit (same size as xdata)
             reduced_chi: float
