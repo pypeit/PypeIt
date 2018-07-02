@@ -411,7 +411,7 @@ class WaveTilts(masterframe.MasterFrame):
         attr : str
           'fweight' -- Show the msarc image and the tilts traced by fweight
           'model' -- Show the msarc image and the tilts traced by fweight
-          'tilts' -- Show the msarc image and the tilts traced by fweight
+          'tilts_img' -- Show the msarc image and the tilts traced by fweight
           'final_tilts' -- Show the msarc image and the tilts traced by fweight
         slit : int, optional
         display : str (optional)
