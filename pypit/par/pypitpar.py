@@ -30,7 +30,7 @@ data:
 
     - TraceTiltsPar: Parameters for tracing tilts of arc lines
 
-    - TraceObjectsPar: Parameter for tracing objects
+    - TraceObjectsPar: Parameters for tracing objects
 
     - ExtractObjectPar: Parameters for extracting 1D object spectra
         - ManualExtractionPar: Parameters needed for manual extraction
@@ -53,9 +53,43 @@ the data:
 These are collected into the main, high-level paramter set, called
 PypitPar.
 
-.. todo::
-    - Warn the user if a default value is being used?
 
+**New Parameters**:
+
+To add a new parameter, let's call it `foo`, to any of the provided
+parameter sets:
+    - Add `foo=None` to the __init__ method of the relevant parameter
+      set.
+
+    - Add any default value (the default value is None unless you set
+      it), options list, data type, and description to the body of the
+      __init__ method.  Like so::
+
+        defaults['foo'] = 'bar'
+        options['foo'] = [ 'bar', 'boo' ]
+        dtypes['foo'] = str
+        descr['foo'] = 'foo? who you callin a foo!  ' \
+                       'Options are: {0}'.format(', '.join(options['foo']))
+
+    - Add the parameter to the `from_dict` method:
+    
+        - If the parameter is something that does not require
+          instantiation, add the keyword to the `parkeys` list in the
+          `from_dict` method
+
+        - If the parameter is another ParSet or requires instantiation,
+          provide the instantiation.  For example, see how the
+          `CombineFramesPar` parameter set is defined in the
+          `FrameGroupPar` class.  E.g.::
+
+            pk = 'foo'
+            kwargs[pk] = FooPar.from_dict(cfg[pk]) if pk in k else None
+
+**New Parameter Sets:**
+
+To add an entirely new parameter set, use one of the existing parameter
+sets as a template, then add the parameter set to `PypitPar` (assuming
+you want it to be accessed throughout the code.
 """
 
 from __future__ import division
@@ -63,12 +97,13 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
-import sys
 import os
 import glob
 import warnings
-import numpy
+from pkg_resources import resource_filename
 import inspect
+
+import numpy
 
 from configobj import ConfigObj
 from astropy.time import Time
@@ -80,16 +115,31 @@ from .parset import ParSet
 
 def _pypit_root_directory():
     """
-    Determine the root directory for the PYPIT source code.
+    Get the root directory for the PYPIT source distribution.
 
     .. todo::
         - Set this in __init__.py
+
+    Returns:
+        str: Root directory to PYPIT
+
+    Raises:
+        OSError: Raised if `pkg_resources.resource_filename` fails.
     """
-    for p in sys.path:
-        if 'PYPIT'.lower() in p.lower() \
-                and len(glob.glob(os.path.join(p, 'pypit', 'pypit.py'))) == 1:
-            return p
-    raise OSError('Could not find PYPIT in system path.')
+    try:
+        # Get the directory with the pypit source code
+        code_dir = resource_filename('pypit', '')
+    except:
+        # TODO: pypit should always be installed as a package, so is
+        # this try/except block necessary?
+        raise OSError('Could not find PYPIT package!')
+    # Root directory is one level up from source code
+    return os.path.split(code_dir)[0]
+#    for p in sys.path:
+#        if 'PYPIT'.lower() in p.lower() \
+#                and len(glob.glob(os.path.join(p, 'pypit', 'pypit.py'))) == 1:
+#            return p
+#    raise OSError('Could not find PYPIT in system path.')
 
 
 def _eval_ignore():
@@ -99,7 +149,36 @@ def _eval_ignore():
 
 def _recursive_dict_evaluate(d):
     """
-    will not work for lists of dicts...
+    Recursively run :func:`eval` on each element of the provided
+    dictionary.
+
+    A raw read of a configuration file with `ConfigObj` results in a
+    dictionary that contains strings or lists of strings.  However, when
+    assigning the values for the various ParSets, the `from_dict`
+    methods expect the dictionary values to have the appropriate type.
+    E.g., the ConfigObj will have something like d['foo'] = '1', when
+    the `from_dict` method expects the value to be an integer (d['foo']
+    = 1).
+
+    This function tries to evaluate *all* dictionary values, except for
+    those listed above in the :func:`_eval_ignore` function.  Any value
+    in this list or where::
+
+        eval(d[k]) for k in d.keys()
+
+    raises an exception is returned as the original string.
+
+    This is currently only used in :func:`PypitPar.from_cfg_file`; see
+    further comments there.
+
+    Args:
+        d (dict):
+            Dictionary of values to evaluate
+
+    Returns:
+        dict: Identical to input dictionary, but with all string values
+        replaced with the result of `eval(d[k])` for all `k` in
+        `d.keys()`.
     """
     ignore = _eval_ignore()
     for k in d.keys():
@@ -126,24 +205,76 @@ def _recursive_dict_evaluate(d):
 
 
 def _get_parset_list(cfg, pk, parsetclass):
-        k = cfg.keys()
-        par = []
-        order = []
-        for _k in k:
-            if _k == pk and cfg[_k] is None:
+    """
+    Create a list of ParSets based on a root keyword for a set of
+    defined groups in the configuration file.
+    
+    For example, the :class:`InstrumentPar` group allows for a list of
+    detectors (:class:`DetectorPar`) with keywords like `detector1`,
+    `detector2`, etc.  This function parses the provided configuration
+    object (`cfg`) to find any sections with `detector` (`pk`) as its
+    root.  The remainder of the section name must be able to be
+    converted to an integer and the section itself must be able to setup
+    an instance of `parsetclass`.  The sections must be number
+    sequentially from 1..N.  E.g., the :class:`InstrumentPar`
+    configuration file cannot have `dectector1` and `detector3`, but no
+    `detector2`.  The call to setup the detectors in the
+    :class:`InstrumentPar` is::
+
+        kwargs['detector'] = _get_parset_list(cfg, 'detector', DetectorPar)
+
+    Args:
+        cfg (:class:`ConfigObj`, :obj:`dict`):
+            The top-level configuration that defines a list of
+            sub-ParSets.
+        pk (str):
+            The root of the keywords used to set a list of sub-ParSets.
+        parsetclass (:class:`pypit.par.parset.ParSet`):
+            The class used to construct each element in the list of
+            parameter subsets.  The class **must** have a `from_dict`
+            method that instantiates the
+            :class:`pypit.par.parset.ParSet` based on the provide
+            subsection/subdict from cfg.
+
+    Returns:
+        list: A list of instances of `parsetclass` parsed from the
+        provided configuration data.
+
+    Raises:
+        ValueError:
+            Raised if the indices of the subsections are not sequential
+            and 1-indexed.
+    """
+    # Get the full list of keys
+    k = cfg.keys()
+
+    # Iterate through the list of keys to find the appropriate sub
+    # parameter sets and their order.
+    par = []
+    order = []
+    for _k in k:
+        if _k == pk and cfg[_k] is None:
+            continue
+        if pk in _k:
+            try:
+                # Get the order for this subgroup (e.g., 2 for
+                # 'detector2'
+                order += [ int(_k.replace(pk,'')) ]
+                # And instantiate the parameter set
+                par += [ parsetclass.from_dict(cfg[_k]) ]
+            except:
                 continue
-            if pk in _k:
-                try:
-                    order += [ int(_k.replace(pk,'')) ]
-                    par += [ parsetclass.from_dict(cfg[_k]) ]
-                except:
-                    continue
-        if len(par) > 0:
-            srt = numpy.argsort(order)
-            if numpy.any(numpy.array(order)[srt]-1 != numpy.arange(order[srt[-1]])):
-                raise ValueError('Parameter set series must be sequential and 1-indexed.')
-            return [par[i] for i in srt]
-        return None
+
+    if len(par) > 0:
+        # Make sure the instances are correctly sorted and sequential
+        srt = numpy.argsort(order)
+        if numpy.any(numpy.array(order)[srt]-1 != numpy.arange(order[srt[-1]])):
+            raise ValueError('Parameter set series must be sequential and 1-indexed.')
+        # Return the sorted instances
+        return [par[i] for i in srt]
+
+    # No such subsets were defined, so return a null result
+    return None
 
 #-----------------------------------------------------------------------------
 # Reduction ParSets
@@ -587,7 +718,7 @@ class WavelengthCalibrationPar(ParSet):
         descr['medium'] = 'Medium used when wavelength calibrating the data.  ' \
                           'Options are: {0}'.format(', '.join(options['medium']))
 
-        defaults['refframe'] = 'heliocentric'
+#        defaults['refframe'] = 'heliocentric'
         options['refframe'] = WavelengthCalibrationPar.valid_reference_frames()
         dtypes['refframe'] = str
         descr['refframe'] = 'Frame of reference for the wavelength calibration.  ' \
@@ -1218,8 +1349,11 @@ class WavelengthSolutionPar(ParSet):
                           '\'arclines\' uses the arclines python package.' \
                           'Options are: {0}'.format(', '.join(options['method']))
 
+        # Force lamps to be a list
+        if par['lamps'] is not None and not isinstance(par['lamps'], list):
+            par['lamps'] = [par['lamps']]
         options['lamps'] = WavelengthSolutionPar.valid_lamps()
-        dtypes['lamps'] = [str, list]
+        dtypes['lamps'] = list
         descr['lamps'] = 'Name of one or more ions used for the wavelength calibration.  Use ' \
                          'None for no calibration.  ' \
                          'Options are: {0}'.format(', '.join(options['lamps']))
@@ -1427,8 +1561,14 @@ class TraceSlitsPar(ParSet):
 class TraceTiltsPar(ParSet):
     """
     Parameters specific to PypIts slit tracing algorithm
+
+    TODO: Changed to reflect wavetilts.py settings.  Was `yorder`
+    previously `disporder`?  If so, I think I prefer the generality of
+    `disporder`...
     """
-    def __init__(self, idsonly=None, method=None, params=None, order=None, disporder=None):
+    def __init__(self, idsonly=None, tracethresh=None, order=None, function=None, yorder=None,
+                 func2D=None, method=None, params=None):
+
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1450,6 +1590,30 @@ class TraceTiltsPar(ParSet):
         descr['idsonly'] = 'Only use the arc lines that have an identified wavelength to trace ' \
                            'tilts'
 
+        defaults['tracethresh'] = 1000.
+        dtypes['tracethresh'] = [int, float]
+        descr['tracethresh'] = 'TODO: X fill in the doc for this'
+
+        defaults['order'] = 1
+        dtypes['order'] = int
+        descr['order'] = 'Order of the polynomial function to be used for the tilt of an ' \
+                         'individual arc line.  Must be 1 for eschelle data (ARMED pipeline).'
+
+        defaults['function'] = 'legendre'
+        # TODO: Allowed values?
+        dtypes['function'] = str
+        descr['function'] 'Type of function for arc line fits'
+
+        defaults['yorder'] = 1
+        dtypes['yorder'] = int
+        descr['yorder'] = 'Order of the polynomial function to be used to fit the tilts ' \
+                          'along the y direction.  TODO: Only used by ARMED pipeline?'
+
+        defaults['func2D'] = 'legendre'
+        # TODO: Allowed values?
+        dtypes['func2D'] = str
+        descr['func2D'] 'Type of function for 2D fit'
+
         defaults['method'] = 'spline'
         options['method'] = TraceTiltsPar.valid_methods()
         dtypes['method'] = str
@@ -1460,16 +1624,6 @@ class TraceTiltsPar(ParSet):
         defaults['params'] = [ 1, 1, 0 ]
         dtypes['params'] = [ int, list ]
         descr['params'] = 'Parameters to use for the provided method.  TODO: Need more explanation'
-
-        defaults['order'] = 1
-        dtypes['order'] = int
-        descr['order'] = 'Order of the polynomial function to be used for the tilt of an ' \
-                         'individual arc line.  Must be 1 for eschelle data (ARMED pipeline).'
-
-        defaults['disporder'] = 1
-        dtypes['disporder'] = int
-        descr['disporder'] = 'Order of the polynomial function to be used to fit the tilts ' \
-                             'along the dispersion direction.  Only used by ARMED pipeline.'
 
         # Instantiate the parameter set
         super(TraceTiltsPar, self).__init__(list(pars.keys()),
@@ -1483,7 +1637,9 @@ class TraceTiltsPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'idsonly', 'method', 'params', 'order', 'disporder' ]
+#        parkeys = [ 'idsonly', 'method', 'params', 'order', 'disporder' ]
+        parkeys = [ 'idsonly', 'tracethresh', 'order', 'function', 'yorder', 'func2D',
+                    'method', 'params' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1785,7 +1941,8 @@ class DetectorPar(ParSet):
         descr['ronoise'] = 'Read-out noise (e-). A list should be provided if a detector ' \
                            'contains more than one amplifier.'
 
-        # TODO: What happens if this is None
+        # TODO: Allow this to be None?
+        default['suffix'] = ''
         dtypes['suffix'] = str
         descr['suffix'] = 'Suffix to be appended to all saved calibration and extraction frames.'
 
@@ -1910,7 +2067,7 @@ class InstrumentPar(ParSet):
     @staticmethod
     def valid_telescopes():
         """
-        Return the valid overscane methods.
+        Return the valid telescopes.
         """
         return [ 'KECK', 'SHANE', 'WHT', 'APF', 'TNG' ]
 
