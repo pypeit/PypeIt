@@ -435,16 +435,16 @@ class ProcessImages(object):
         # Return
         return self.rawvarframe
 
-    def show(self, attr, idx=None, display='ginga'):
+    def show(self, attr='stack', idx=None, display='ginga'):
         """
         Show an image
 
         Parameters
         ----------
-        attr : str
+        attr : str, optional
           Internal name of the image to show
             proc_image, raw_image, stack
-        idx : int
+        idx : int, optional
           Specifies the index of the raw or processed image
           Required if proc_image or raw_image is called
         display : str
