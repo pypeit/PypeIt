@@ -5,7 +5,7 @@ import inspect
 import numpy as np
 import yaml
 
-from importlib import reload
+#from importlib import reload
 
 try:
     basestring
@@ -185,7 +185,6 @@ class FluxSpec(masterframe.MasterFrame):
         self.std : SpecObj
           Corresponds to the chosen spectrum
         """
-        reload(arflux)
         if self.multi_det is not None:
             sv_stds = []
             # Find the standard in each detector
