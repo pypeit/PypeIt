@@ -195,6 +195,7 @@
 - Introduce PypitPar as an initial step toward refactoring the front end
 - Final nail in the coffin for cython
 - Add API docs
+- Add bumpversion
 
 0.7 (2017-02-07)
 ----------------
