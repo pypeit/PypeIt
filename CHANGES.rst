@@ -187,9 +187,10 @@
 - Adds several methods from the PYDL repository into a pydl.py module including bspline Class
 - Adds method to generate ximg and edgemask frames
 - Adds new trace_slits_trim settings
-
 - Small install edits
 - Fixes Travis failure that crept into the previous PR
+
+- Fix bug in bspline
 
 0.7 (2017-02-07)
 ----------------
