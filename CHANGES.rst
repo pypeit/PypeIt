@@ -189,7 +189,6 @@
 - Adds new trace_slits_trim settings
 - Small install edits
 - Fixes Travis failure that crept into the previous PR
-
 - Fix bug in bspline
 
 - Adds a demo Notebook for LRISr redux
