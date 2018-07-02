@@ -25,14 +25,14 @@ data:
     - WavelengthSolutionPar: Parameters used for constructing the wavelength
       solution
 
-    - TraceSlitPar: Parameters for tracing slits
+    - TraceSlitsPar: Parameters for tracing slits
         - PCAPar: PCA parameters
 
     - TraceTiltsPar: Parameters for tracing tilts of arc lines
 
     - TraceObjectsPar: Parameters for tracing objects
 
-    - ExtractObjectPar: Parameters for extracting 1D object spectra
+    - ExtractObjectsPar: Parameters for extracting 1D object spectra
         - ManualExtractionPar: Parameters needed for manual extraction
           of 1D spectra
 
