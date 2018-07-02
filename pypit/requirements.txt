@@ -11,6 +11,7 @@ astropy>=2.0.5
 Cython>=0.26.1
 PyYAML>=3.11
 future>=0.16.0
+configobj>=5.0.6
 
 # PyQt5>=5.10 ?
 

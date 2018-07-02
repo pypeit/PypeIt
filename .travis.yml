@@ -156,6 +156,7 @@ install:
     - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/profxj/ginga.git; fi
     - conda install numpy
     - conda install Cython
+    - conda install configobj
 
 script:
     - $MAIN_CMD $SETUP_CMD

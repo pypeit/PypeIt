@@ -194,6 +194,9 @@
 - Adds a demo Notebook for LRISr redux
 - Other odds and ends including code flow doc
 
+- Introduce pypit/par and pypit/config directories
+- Introduce PypitPar as an initial step toward refactoring the front end
+
 0.7 (2017-02-07)
 ----------------
 
