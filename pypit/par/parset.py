@@ -53,6 +53,11 @@ import sys
 if sys.version > '3':
     long = int
 
+try:
+    basestring
+except NameError:
+    basestring = str
+
 
 import numpy
 from astropy.table import Table
@@ -130,9 +135,9 @@ class ParSet(object):
         if not isinstance(pars, list):
             raise TypeError('Input parameter keys must be provided as a list.')
         for key in pars:
-            if not isinstance(key, str):
+            if not isinstance(key, basestring):
                 raise TypeError('Input parameter keys must be strings.')
-        
+
         # Get the length of the parameter list and make sure the list
         # has unique values
         self.npar = len(pars)
@@ -338,7 +343,7 @@ class ParSet(object):
             data (object):
                 The object to stringify.
         """
-        if isinstance(data, str):
+        if isinstance(data, basestring):
             return data
         elif hasattr(data, '__len__'):
             return ', '.join([ ParSet._data_string(d) for d in data ])
@@ -722,7 +727,7 @@ class ParDatabase(object):
                     or inp[i].dtype[k] == numpy.ndarray:
                 _inp = numpy.asarray(inp[i][k])
                 dtypes += [(k,_inp.dtype,_inp.shape)]
-            elif isinstance(inp[i][k], str):
+            elif isinstance(inp[i][k], basestring):
                 if any([ _inp[k] is None for _inp in inp]):
                     dtypes += [(k, object)]
                 else:
