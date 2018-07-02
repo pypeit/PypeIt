@@ -24,7 +24,7 @@ Getting Started
    :maxdepth: 1
 
    installing
-   overview
+   code_flow
 
 Running PYPIT
 +++++++++++++

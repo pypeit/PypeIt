@@ -4562,7 +4562,7 @@ def dummy_settings(pypitdir=None, nfile=10, spectrograph='shane_kast_blue',
 
     """
     # Dummy argflag
-    if spectrograph not in ['shane_kast_blue', 'keck_nirspec']:
+    if spectrograph not in ['shane_kast_blue', 'keck_nirspec', 'keck_lris_red']:
         msgs.error("Not setup for your instrument")  # You will need to fuss with scidx
     argf = get_argflag_class(("ARMS", spectrograph))
     argf.init_param()
@@ -4578,6 +4578,10 @@ def dummy_settings(pypitdir=None, nfile=10, spectrograph='shane_kast_blue',
     spect.set_paramlist(lines)
     lines = spect.load_file()
     spect.set_paramlist(lines)
+
+    if len(spect.__dict__['_settings']) != 0:
+        argf.set_paramlist(spect.__dict__['_settings'])
+    #
     if set_idx:
         for jj, key in enumerate(spect._spect.keys()):
             if key in ['det']:

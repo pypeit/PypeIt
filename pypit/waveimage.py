@@ -99,13 +99,13 @@ class WaveImage(masterframe.MasterFrame):
         # Return
         return self.wave
 
-    def show(self, item):
+    def show(self, item='wave'):
         """
         Show the image
 
         Parameters
         ----------
-        item
+        item : str, optional
 
         Returns
         -------

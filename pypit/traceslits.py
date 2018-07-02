@@ -815,13 +815,13 @@ class TraceSlits(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def show(self, attr, display='ginga'):
+    def show(self, attr='edges', display='ginga'):
         """
         Display an image or spectrum in TraceSlits
 
         Parameters
         ----------
-        attr : str
+        attr : str, optional
           'edges' -- Show the mstrace image and the edges
           'edgearr' -- Show the edgearr image
           'siglev' -- Show the Sobolev image

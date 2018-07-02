@@ -103,12 +103,29 @@ def test_readcfg():
     os.remove(default_file)
 
 def test_mergecfg():
-    specdir = os.path.abspath(__file__)
-    for i in range(3):
-        specdir = os.path.split(specdir)[0]
-    usr_example = os.path.join(specdir, 'doc', 'nb', 'keck_lris_blue_long_400_3400_d560.cfg')
-    p = pypitpar.PypitPar.from_cfg_file(merge_with=usr_example)
+    # Create a file with the defaults
+    user_file = 'user_adjust.cfg'
+    if os.path.isfile(user_file):
+        os.remove(user_file)
+    p = pypitpar.PypitPar.from_cfg_file()
+
+    # Make some modifications
+    p['rdx']['spectrograph'] = 'KECK_LRISb'
+    p['rdx']['pipeline'] = 'ARMS'
+    p['biasgroup']['useframe'] = 'overscan'
+
+    # Write the modified config
+    p.to_config(user_file)
+    assert os.path.isfile(user_file), 'User file was not written!'
+
+    # Read it in as a config to merge with the defaults
+    p = pypitpar.PypitPar.from_cfg_file(merge_with=user_file)
+
+    # Check the values are correctly read in
     assert p['rdx']['spectrograph'] == 'KECK_LRISb', 'Test spectrograph is incorrect!'
     assert p['rdx']['pipeline'] == 'ARMS', 'Test pipeline is incorrect!'
     assert p['biasgroup']['useframe'] == 'overscan', 'Test biasgroup:useframe is incorrect!'
+
+    # Clean-up
+    os.remove(user_file)
 
