@@ -16,7 +16,7 @@ from pypit import arpixels
 
 from pypit import ardebug as debugger
 
-
+# ToDO Fix masking logic. This code should take an ivar for consistency with rest of extraction
 def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
                         bpm=None, crmask=None, tracemask=None, bsp=0.6, sigrej=3., POS_MASK=True, PLOT_FIT=False):
     """
@@ -126,8 +126,10 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
         yfit_bkpt = np.interp(skyset.breakpoints[goodbk], wsky,yfit)
         plt.clf()
         ax = plt.gca()
-        ax.plot(wsky, sky, color='k', marker='o', markersize=0.3, mfc='k', fillstyle='full', linestyle='None')
-        ax.plot(wsky[~full_out], sky[~full_out], color='red', marker='+', markersize=1.5, mfc='red', fillstyle='full', linestyle='None')
+        was_fit = (sky_ivar > 0.0)
+        was_fit_and_masked = (was_fit == True) & (full_out = False)
+        ax.plot(wsky[was_fit], sky[was_fit], color='k', marker='o', markersize=0.4, mfc='k', fillstyle='full', linestyle='None')
+        ax.plot(wsky[was_fit_and_masked], sky[was_fit_and_masked], color='red', marker='+', markersize=1.5, mfc='red', fillstyle='full', linestyle='None')
         ax.plot(wsky, yfit, color='cornflowerblue')
         ax.plot(skyset.breakpoints[goodbk], yfit_bkpt, color='lawngreen', marker='o', markersize=2.0, mfc='lawngreen', fillstyle='full', linestyle='None')
         ax.set_ylim((0.99*yfit.min(),1.01*yfit.max()))
