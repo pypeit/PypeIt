@@ -52,11 +52,10 @@ def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
                     nsig_rej_final=3.0,  # Number of sigma for rejection (final fit)
                     Nstrong=13)          # Number of lines for auto-analysis
 
-    modify_dict = None
     # Instrument/disperser specific
     disperser = fitstbl["dispname"][arc_idx]
     binspatial, binspectral = arparse.parse_binning(fitstbl['binning'][arc_idx])
-    modify_dict = spectro_class.setup_arcparam(arcparam, disperser=None, fitstbl=None, arc_idx=None,
+    modify_dict = spectro_class.setup_arcparam(arcparam, disperser=disperser, fitstbl=fitstbl, arc_idx=arc_idx,
                        binspatial=binspatial, binspectral=binspectral, msarc_shape=msarc_shape)
     # Load linelist
     #if settings.argflag['arc']['calibrate']['lamps'] is not None:

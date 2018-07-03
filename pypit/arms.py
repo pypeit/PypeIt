@@ -19,7 +19,7 @@ from pypit import arpixels
 from pypit.core import arsort
 from pypit import arcimage
 from pypit import biasframe
-from pypit.spectrographs import bpmimage
+from pypit import bpmimage
 from pypit import flatfield
 from pypit import fluxspec
 from pypit import traceslits
