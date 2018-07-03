@@ -191,14 +191,9 @@ class ProcessImages(object):
         self.raw_images = []  # Zeros out any previous load
         self.headers = []
         for ifile in self.file_list:
-            '''
-            img, head = io.load_raw_frame(self.spectrograph, ifile, self.det,
-                                        dataext=self.settings['detector']['dataext'],
-                                        disp_dir=self.settings['detector']['dispaxis'])
-            '''
-            img, head = self.spectro_class.load_raw_frame(ifile, det=self.det,
-                                           dataext=self.settings['detector']['dataext'],
-                                           disp_dir=self.settings['detector']['dispaxis'])
+            img, head = self.spectro_class.load_raw_frame(
+                ifile, self.settings['detector']['dispaxis'],
+                det=self.det, dataext=self.settings['detector']['dataext'])
             # Save
             self.raw_images.append(img)
             self.headers.append(head)
