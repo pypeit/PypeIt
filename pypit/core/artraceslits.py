@@ -24,6 +24,7 @@ from pypit import arpixels
 from pypit.core import arprocimg
 from pypit import arparse as settings
 from pypit import ardebug as debugger
+from pypit.arutils import calc_ivar
 
 try:
     from pypit import ginga
@@ -2865,12 +2866,14 @@ def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskv
     if invvar is None:
         invvar = np.zeros_like(fimage) + 1.
 
+    var =calc_ivar(invvar)
     # More setting up
     x_int = np.rint(xinit).astype(int)
     nstep = 2*int(3.0*np.max(sigma_out)) - 1
 
     weight = np.zeros_like(xinit)
     numer  = np.zeros_like(xinit)
+    numer_var  = np.zeros_like(xinit)
     meanvar = np.zeros_like(xinit)
     qbad = np.zeros_like(xinit).astype(bool)
 
@@ -2883,6 +2886,8 @@ def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskv
         cur_weight = fimage[ycen_out, xs] * (invvar[ycen_out, xs] > 0) * g_int * ((xh >= 0) & (xh < nx))
         weight += cur_weight
         numer += cur_weight * xh
+        numer_var += var[ycen_out,xs]*(invvar[ycen_out, xs] > 0) * (g_int**2) *((xh >= 0) & (xh < nx))
+        # Below is Burles calculation of the error which I'm not following
         meanvar += cur_weight * cur_weight * (xinit-xh)**2/(invvar[ycen_out, xs] + (invvar[ycen_out, xs] == 0))
         qbad = qbad | (xh < 0) | (xh >= nx)
         # bad = np.any([bad, xh < 0, xh >= nx], axis=0)
@@ -2891,7 +2896,8 @@ def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskv
     good = (~qbad) & (weight > 0)
     if np.sum(good) > 0:
         xnew[good] = numer[good]/weight[good]
-        xerr[good] = np.sqrt(meanvar[good])/weight[good]
+        xerr[good] = np.sqrt(numer_var[good])/weight[good]
+#        xerr[good] = np.sqrt(meanvar[good])/weight[good] # Burles error which I don't follow
 
     # Reshape to the right size for output if more than one trace was input
     if ndim > 1:
