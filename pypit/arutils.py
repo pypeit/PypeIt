@@ -296,9 +296,6 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
 
 
 
-
-
-
 def calc_ivar(varframe):
     """ Calculate the inverse variance based on the input array
     """
