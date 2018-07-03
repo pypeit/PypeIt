@@ -55,7 +55,7 @@ def get_datasec(spectrograph, filename, det, settings_det):
             soscansec = "oscansec{0:02d}".format(i+1)
             oscansec.append(settings_det[soscansec])
         # Read the image for the shape (just in case)
-        temp, _ = load_raw_frame(spectrograph, filename, det, dataext=settings_det['dataext01'],
+        temp, _ = load_raw_img_head(spectrograph, filename, det, dataext=settings_det['dataext01'],
                               disp_dir=settings_det['dispaxis'])
 
     # Need naxis0, naxis1 too

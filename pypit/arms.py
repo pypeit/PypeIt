@@ -27,7 +27,6 @@ from pypit import wavecalib
 from pypit import waveimage
 from pypit import wavetilts
 from pypit import scienceimage
-from pypit.spectrographs import io
 
 from pypit import ardebug as debugger
 

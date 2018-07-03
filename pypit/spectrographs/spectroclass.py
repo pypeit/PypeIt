@@ -31,3 +31,24 @@ class Spectrograph(object):
         head0 = hdulist[0].header
         # Return
         return raw_img, head0
+
+    def get_datasec(self, filename, det, settings_det):
+
+        datasec, oscansec, naxis0, naxis1 = [], [], 0, 0
+        for i in range(settings_det['numamplifiers']):
+            sdatasec = "datasec{0:02d}".format(i+1)
+            datasec.append(settings_det[sdatasec])
+            soscansec = "oscansec{0:02d}".format(i+1)
+            oscansec.append(settings_det[soscansec])
+
+        # Read the image for the shape (just in case)
+        temp, _ = self.load_raw_img_head(filename, det=det, dataext=settings_det['dataext01'],
+                                    disp_dir=settings_det['dispaxis'])
+        # Need naxis0, naxis1 too
+        naxis0 = temp.shape[0]
+        naxis1 = temp.shape[1]
+
+        # Return
+        return datasec, oscansec, naxis0, naxis1
+
+

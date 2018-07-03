@@ -15,8 +15,7 @@ from pypit.core import arprocimg
 from pypit.core import arflat
 from pypit import ginga
 
-from pypit.spectrographs import spectroclass
-from pypit.spectrographs import lris
+from pypit.spectrographs import spectro_utils
 
 # For out of PYPIT running
 if msgs._debug is None:
@@ -78,7 +77,7 @@ class ProcessImages(object):
     oscansec : list
     """
     def __init__(self, file_list, spectrograph=None, settings=None, det=1, user_settings=None,
-                 datasec_img=None, bpm=None):
+                 datasec_img=None, bpm=None, spectro_class=None):
 
         # Required parameters
         if not isinstance(file_list, list):
@@ -112,10 +111,12 @@ class ProcessImages(object):
             except:
                 msgs.warn("No information on the spectrograph was given.  Do not attempt to (re)process the images")
         self.spectrograph = spectrograph
-        if 'keck_lris' in spectrograph:
-            self.spectro_class = lris.LRISSpectrograph()
-        else:
-            self.spectro_class = spectroclass.Spectrograph()
+
+        if self.spectro_class is None:
+            if self.spectrograph is not None:
+                self.spectro_class = spectro_utils.load_spec_class(spectrograph=spectrograph)
+            else:
+                debugger.set_trace()  # NEED ANOTHER ROUTE
 
         self.raw_images = []
         self.proc_images = None  # Will be an ndarray
@@ -197,6 +198,7 @@ class ProcessImages(object):
             img, head = self.spectro_class.load_raw_frame(ifile, det=self.det,
                                            dataext=self.settings['detector']['dataext'],
                                            disp_dir=self.settings['detector']['dispaxis'])
+            debugger.set_trace()
             # Save
             self.raw_images.append(img)
             self.headers.append(head)
