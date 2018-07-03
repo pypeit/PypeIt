@@ -13,6 +13,7 @@ from matplotlib import gridspec, font_manager
 
 from astropy import units
 from astropy.stats import sigma_clip
+from astropy.stats import sigma_clipped_stats
 
 from pypit import msgs
 from pypit import arqa
@@ -603,7 +604,6 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     from pypit.core.pydl import iterfit as  bspline_iterfit
     from pypit.core.pydl import djs_maskinterp
     from pypit.arutils import bspline_profile
-    from astropy.stats import sigma_clipped_stats
     from scipy.special import erfcinv
 
     if hwidth is None: 3.0*(np.max(thisfwhm) + 1.0)
