@@ -1072,31 +1072,20 @@ def edgearr_close_slits(binarr, edgearrcp, edgearr, ednum, maxgap, function='leg
             wvla = np.unique(edgearr[wdup][wdda])
             wvlb = np.unique(edgearr[wdup][wddb])
             # Now generate the dual edge
-<<<<<<< HEAD
-#                print('calling dual_edge')
-#                exit()
-            arcytrace.dual_edge(edgearr, edgearrcp, wdup[0], wdup[1], wvla, wvlb, shadj,
-                                int(maxgap), edgedup[jj])
-=======
 #            arcytrace.dual_edge(edgearr, edgearrcp, wdup[0], wdup[1], wvla, wvlb, shadj,
 #                                int(settings['trace']['slits']['maxgap']), edgedup[jj])
             # TODO: This pure python function was never tested!
             dual_edge(edgearr, edgearrcp, wdup[0], wdup[1], wvla, wvlb, shadj,
                       int(settings['trace']['slits']['maxgap']), edgedup[jj])
->>>>>>> calibrate
     # Now introduce new edge locations
     vals = np.sort(np.unique(edgearrcp[np.where(edgearrcp != 0)]))
 #        print('calling close_slits')
 #        exit()
-<<<<<<< HEAD
-    edgearrcp = arcytrace.close_slits(binarr, edgearrcp, vals, int(maxgap), int(ednum))
-=======
 #    edgearrcp = arcytrace.close_slits(binarr, edgearrcp, vals,
 #                                      int(settings['trace']['slits']['maxgap']), int(ednum))
     # TODO: This pure python function was never tested!
     return close_slits(binarr, edgearrcp, vals, int(settings['trace']['slits']['maxgap']),
                        int(ednum))
->>>>>>> calibrate
 
 
 
@@ -1271,10 +1260,7 @@ def expand_slits(slf, mstrace, det, ordcen, extord):
     rordloc = ordcen + rdiff_fit.T
     return lordloc, rordloc
 
-<<<<<<< HEAD
-=======
 
->>>>>>> calibrate
 def fit_edges(edgearr, lmin, lmax, plxbin, plybin, left=True, polyorder=3, function='ledgendre'):
     """ Fit the edges, either left or right ones
 
@@ -2422,21 +2408,9 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
     if msgs._debug['trace']:
         debugger.set_trace()
     if mnvalp > mnvalm:
-<<<<<<< HEAD
-        lvp = (arutils.func_val(lcoeff[:, lval + 1 - lmin], xv, function, minv=minvf, maxv=maxvf) \
-                    + 0.5).astype(np.int)
-        #        t = time.clock()
-        #        _edgbtwn = arcytrace.find_between(edgearr, lv, lvp, 1)
-        #        print('Old find_between: {0} seconds'.format(time.clock() - t))
-        #        t = time.clock()
-        edgbtwn = new_find_between(edgearr, lv, lvp, 1)
-        #        print('New find_between: {0} seconds'.format(time.clock() - t))
-        #        assert np.sum(_edgbtwn != edgbtwn) == 0, 'Difference between old and new find_between'
-=======
         lvp = (arutils.func_val(lcoeff[:, lval + 1 - lmin], xv,
                                 settings['trace']['slits']['function'], minv=minvf, maxv=maxvf) \
                + 0.5).astype(np.int)
->>>>>>> calibrate
 
         edgbtwn = find_between(edgearr, lv, lvp, 1)
         # edgbtwn is a 3 element array that determines what is between two adjacent left edges
@@ -2450,21 +2424,9 @@ def synchronize_edges(binarr, edgearr, plxbin, lmin, lmax, lcoeff, rmin, rcoeff,
         else:  # There's an order overlap
             rsub = edgbtwn[1] - lval
     else:
-<<<<<<< HEAD
-        lvp = (arutils.func_val(lcoeff[:, lval - 1 - lmin], xv, function, minv=minvf, maxv=maxvf) \
-                    + 0.5).astype(np.int)
-        #        t = time.clock()
-        #        _edgbtwn = arcytrace.find_between(edgearr, lvp, lv, -1)
-        #        print('Old find_between: {0} seconds'.format(time.clock() - t))
-        #        t = time.clock()
-        edgbtwn = new_find_between(edgearr, lvp, lv, -1)
-        #        assert np.sum(_edgbtwn != edgbtwn) == 0, 'Difference between old and new find_between'
-        #        print('New find_between: {0} seconds'.format(time.clock() - t))
-=======
         lvp = (arutils.func_val(lcoeff[:, lval - 1 - lmin], xv, settings['trace']['slits']['function'],
                                 minv=minvf, maxv=maxvf) + 0.5).astype(np.int)
         edgbtwn = find_between(edgearr, lvp, lv, -1)
->>>>>>> calibrate
 
         if edgbtwn[0] == -1 and edgbtwn[1] == -1:
             rsub = edgbtwn[2] - (lval - 1)  # There's an order overlap
