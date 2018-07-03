@@ -19,6 +19,7 @@ from pypit import arparse as settings
 
 def test_setup_param():
     """ Run the parameter setup script
+    
     Returns
     -------
 

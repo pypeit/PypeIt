@@ -189,6 +189,13 @@
 - Adds new trace_slits_trim settings
 - Small install edits
 - Fixes Travis failure that crept into the previous PR
+- Fix bug in bspline
+
+- Adds a demo Notebook for LRISr redux
+- Other odds and ends including code flow doc
+
+- Introduce pypit/par and pypit/config directories
+- Introduce PypitPar as an initial step toward refactoring the front end
 - Move spectrograph specific code into spectographs/ folder
 
 - Introduces the Calibrations class
