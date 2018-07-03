@@ -155,7 +155,6 @@ class TraceSlits(masterframe.MasterFrame):
         self.lcen = None     # narray
         self.rcen = None     # narray
         self.tc_dict = None  # dict
-        # TODO Why is there a tc_dict and a tslits_dict. This is confusing naming without some docs or comments here.
         self.edgearr = None  # ndarray
         self.siglev = None   # ndarray
         self.steps = []
@@ -710,6 +709,10 @@ class TraceSlits(masterframe.MasterFrame):
           List of slits to remove
             [[left0, right0], [left1, right1]]
           Specified at ycen = nrows//2
+
+        Optional Parameters
+        -------------------
+        TOL =  tolerance in pixels for grabbing the slit to remove
 
         Returns
         -------
