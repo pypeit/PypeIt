@@ -349,8 +349,8 @@ def load_raw_frame(spectrograph, raw_file, det, dataext = 0, disp_dir=0):
         temp = temp.T
     elif disp_dir == -1:
         temp = np.flip(temp.T,axis=0)
-    else:
-        msgs.error('disp_dir must be 0, 1 or -1') # ToDO we need to deal with flips in the spectral direction someday
+#    else:
+#        msgs.error('disp_dir must be 0, 1 or -1') # ToDO we need to deal with flips in the spectral direction someday
 
     return temp, head0
 
