@@ -19,6 +19,7 @@ from pypit import msgs
 from pypit import arqa
 from pypit import artrace
 from pypit import arutils
+from pypit import arpixels
 from pypit import ardebug as debugger
 from pypit import ginga
 
@@ -1099,9 +1100,9 @@ specobj_dict = {'config': None, 'slitid': None, 'scidx': 1, 'det': 1, 'objtype':
 
 
 
-def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thismask = None, ximg = None, edgmask = None,
+def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thismask = None,
             HAND_DICT = None, std_trace = None, ncoeff = 5, nperslit = 10,  BG_SMTH = 5.0, PKWDTH = 3.0,
-            SIG_THRESH = 5.0, PEAK_THRESH = 0.0, ABS_THRESH = 0.0, EDG_TOL = 0.03, OBJMASK_NTHRESH = 2.0,
+            SIG_THRESH = 5.0, PEAK_THRESH = 0.0, ABS_THRESH = 0.0, TRIM_EDG = (3,3), OBJMASK_NTHRESH = 2.0,
             SHOW_TRACE = False, SHOW_QA = False, specobj_dict=specobj_dict):
 
     """ DOCS COMING SOON
@@ -1119,7 +1120,6 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     23-June-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
-    from pypit.arpixels import core_slit_pixels, ximg_and_edgemask
     from pypit.arutils import find_nminima
     from pypit.core.artraceslits import trace_fweight, trace_gweight
     from pypit.specobj import SpecObj
@@ -1145,18 +1145,18 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     # routine would save time, but not change functionality
     if thismask is None:
         pad =0
-        slitpix = core_slit_pixels(slit_left, slit_righ, frameshape, pad)
+        slitpix = arpixels.core_slit_pixels(slit_left, slit_righ, frameshape, pad)
         thismask = (slitpix > 0)
 
-    if (ximg is None) | (edgmask is None):
-        ximg, edgmask = ximg_and_edgemask(slit_left, slit_righ, thismask)
+#    if (ximg is None) | (edgmask is None):
+    ximg, edgmask = arpixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = TRIM_EDG)
 
     # If a mask was not passed in, create it
     if mask is None:
         mask = thismask & (invvar > 0.0)
 
 
-    thisimg =image*((thismask == True) & (mask == True))
+    thisimg =image*((thismask == True) & (mask == True) & (edgmask == False))
     #  Smash the image (for this slit) into a single flux vector.  How many pixels wide is the slit at each Y?
     xsize = slit_righ - slit_left
     nsamp = np.ceil(np.median(xsize))
@@ -1180,7 +1180,8 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
         if frac_bad > 0.9:
             fluxsub = flux_mean.data - np.median(flux_mean.data)
 
-    fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, FWHM/2.3548,mode='reflect')
+    fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, FWHM/2.3548,mode='nearest')
+
     xcen, sigma, ledg, redg = find_nminima(-fluxconv,nfind=nperslit, width = PKWDTH, minsep = np.fmax(FWHM, PKWDTH))
     ypeak = np.interp(xcen,np.arange(nsamp),fluxconv)
     # Create a mask for pixels to use for a background flucutation level estimate. Mask spatial pixels that hit an object
@@ -1209,13 +1210,14 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     else:
         pass
 
-    # Get rid of peaks within EDG_TOL of slit edge which are almost always spurious
-    not_near_edge = (xcen > nsamp*EDG_TOL) & (xcen < nsamp*(1.0 - EDG_TOL))
+    # Get rid of peaks within TRIM_EDG of slit edge which are almost always spurious, this should have been handled
+    # with the edgemask, but we do it here anyway
+    not_near_edge = (xcen > TRIM_EDG[0]) & (xcen < (nsamp - TRIM_EDG[1]))
     if np.any(~not_near_edge):
-        msgs.warn('Discaring {:d}'.format(np.sum(~not_near_edge)) + ' at spatial pixels spat = {:}'.format(xcen[~not_near_edge]) +
-                  ' which land within EDG_TOL*nsamp = {:5.2f}'.format(nsamp*EDG_TOL) +
+        msgs.warn('Discarding {:d}'.format(np.sum(~not_near_edge)) + ' at spatial pixels spat = {:}'.format(xcen[~not_near_edge]) +
+                  ' which land within TRIM_EDG = {:5.2f}'.format(TRIM_EDG) +
                   ' pixels from the slit boundary for this nsamp = {:5.2f}'.format(nsamp) + ' wide slit')
-        msgs.warn('You must decrease from the current value of EDG_TOL = {:5.2f}'.format(EDG_TOL) +  ' in order to keep them')
+        msgs.warn('You must decrease from the current value of TRIM_EDG in order to keep them')
         msgs.warn('Such edge objects are often spurious')
 
     xcen = xcen[not_near_edge]
@@ -1246,7 +1248,16 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     else:
         nobj_reg = 0
 
-    #ToDo
+    #ToDo add peak finding QA here!
+    if(PLOT_QA == True):
+        plt.plot(np.arange(nsamp), fluxsub, color ='cornflowerblue',linestyle=':', label='Collapsed Slit profile')
+        plt.plot(np.arange(nsamp), fluxconv, color='black', label = 'FWHM Convolved Profile')
+        plt.plot(xcen, ypeak, color='lawngreen', marker='o', markersize=2.0, mfc='lawngreen', fillstyle='full',
+                 linestyle='None', zorder = 10,label='Object Found')
+        plt.legend()
+        plt.show()
+
+
     # Now loop over all the regular apertures and assign preliminary traces to them.
     for iobj in range(nobj_reg):
         # Was a standard trace provided? If so, use that as a crutch.
