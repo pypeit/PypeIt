@@ -16,7 +16,7 @@ from pypit import arpixels
 
 from pypit import ardebug as debugger
 
-# ToDO Fix masking logic. This code should take an ivar for consistency with rest of extraction
+# ToDO Fix masking logic. This code should also take an ivar for consistency with rest of extraction
 def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
                         bpm=None, crmask=None, tracemask=None, bsp=0.6, sigrej=3., POS_MASK=True, PLOT_FIT=False):
     """
@@ -156,7 +156,7 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
     xmin = 0.0
     xmax = 1.0
 
-    if ((npoly == 1) | (spatial == None)):
+    if ((npoly == 1) | (spatial is None)):
         profile_basis = np.column_stack((oprof, np.ones(nx)))
     else:
         xmin = spatial.min()
