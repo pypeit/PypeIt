@@ -43,30 +43,46 @@ def data_path(filename):
 fitstbl = arsort.dummy_fitstbl(directory=data_path(''))
 fitstbl['filename'][1] = 'b1.fits.gz'
 
-setup = 'A_01_aa'
-det = 1
-sci_ID = 1
-settings = tstutils.load_kast_blue_masters(get_settings=True)[0]
+@pytest.fixture
+def multi_caliBrate():
+    setup = 'A_01_aa'
+    det = 1
+    sci_ID = 1
+    settings = tstutils.load_kast_blue_masters(get_settings=True)[0]
+    multi_caliBrate= calibrations.MultiSlitCalibrations(fitstbl)
+    #
+    multi_caliBrate.reset(setup, det, sci_ID, settings)
+    # Return
+    return multi_caliBrate
+
 
 def test_instantiate():
     caliBrate = calibrations.MultiSlitCalibrations(fitstbl)
     print(caliBrate)
 
-def test_bias():
-    caliBrate = calibrations.MultiSlitCalibrations(fitstbl)
-    #
-    settings['bias'] = {}
-    settings['bias']['useframe'] = 'overscan'
-    caliBrate.reset(setup, det, sci_ID, settings)
-    # Build
-    caliBrate.get_bias()
 
-def test_arc():
-    caliBrate = calibrations.MultiSlitCalibrations(fitstbl)
+def test_bias(multi_caliBrate):
     #
-    caliBrate.reset(setup, det, sci_ID, settings)
-    caliBrate.msbias = 'overscan'
-    caliBrate.settings['masters']['reuse'] = False
+    multi_caliBrate.settings['bias'] = {}
+    multi_caliBrate.settings['bias']['useframe'] = 'overscan'
     # Build
-    arc = caliBrate.get_arc()
+    multi_caliBrate.get_bias()
+
+
+def test_arc(multi_caliBrate):
+    multi_caliBrate.msbias = 'overscan'
+    multi_caliBrate.settings['masters']['reuse'] = False
+    # Build
+    arc = multi_caliBrate.get_arc()
     assert arc.shape == (2048,350)
+
+
+def test_bpm(multi_caliBrate):
+    # Prep
+    multi_caliBrate.settings['reduce'] = {}
+    multi_caliBrate.settings['reduce']['badpix'] = False
+    multi_caliBrate.shape = (2048,350)
+    # Build
+    bpm = multi_caliBrate.get_bpm()
+    assert bpm.shape == (2048,350)
+    assert np.sum(bpm) == 0.

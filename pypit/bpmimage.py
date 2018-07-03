@@ -76,6 +76,9 @@ class BPMImage(object):
         self.shape = shape
         self.settings = settings
 
+        if self.spectrograph is None and (not spectro_class is None):
+            self.spectrograph = self.spectro_class.spectrograph
+
         # Checks
         if (self.reduce_badpix == 'bias') and (self.msbias is None):
             msgs.error("Need to supply msbias image with this option")

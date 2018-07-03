@@ -90,6 +90,7 @@ class Calibrations(object):
         Returns:
 
         """
+        self.shape = None
         self.msarc = None
         self.msbias = None
         self.mbpm = None
@@ -170,6 +171,7 @@ class Calibrations(object):
             # Save
             self.calib_dict[self.setup]['arc'] = self.msarc
         # Return
+        self.shape = self.msarc.shape
         return self.msarc
 
     def get_bias(self):
@@ -205,52 +207,60 @@ class Calibrations(object):
         # Return
         return self.msbias
 
-    def get_bpm(self, arc=None, bias=None):
-        if arc is not None:
-            self.msarc = arc
-        if bias is not None:
-            self.msbias = bias
+    def get_bpm(self):
+        """
+        Load or generate the bad pixel mask
+
+        Requirements:
+           Instrument dependent
+
+        Returns:
+            self.msbpm: ndarray
+
+        """
         # Check me
-        self._chk_set(['det', 'settings', 'sci_ID'])
+        self._chk_set(['settings', 'sci_ID'])
         ###############################################################################
         # Generate a bad pixel mask (should not repeat)
         if 'bpm' in self.calib_dict[self.setup].keys():
             self.msbpm = self.calib_dict[self.setup]['bpm']
         else:
             scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
-            bpmImage = bpmimage.BPMImage(spectrograph=self.spectrograph,
-                            settings=self.settings, det=self.det,
-                            shape=self.msarc.shape,
-                            binning=self.fitstbl['binning'][scidx],
-                            reduce_badpix=self.settings['reduce']['badpix'],
-                            msbias=self.msbias)
+            bpmImage = bpmimage.BPMImage(spectro_class=self.spectro_class,
+                settings=self.settings, det=self.det, shape=self.shape,
+                binning=self.fitstbl['binning'][scidx],
+                reduce_badpix=self.settings['reduce']['badpix'],
+                msbias=self.msbias)
             self.msbpm = bpmImage.build()
-            '''
-            # Grab it -- msbpm is a 2D image
-            scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
-            self.msbpm, _ = bpmimage.get_mspbm(self.det, self.fitstbl['instrume'][0],
-                                          self.settings, self.msarc.shape,
-                                          binning=self.fitstbl['binning'][scidx],
-                                          reduce_badpix=self.settings['reduce']['badpix'],
-                                          msbias=self.msbias)
-            '''
             # Save
             self.calib_dict[self.setup]['bpm'] = self.msbpm
         # Return
         return self.msbpm
 
     def get_datasec_img(self):
+        """
+        Generate the datasec image
+
+        Requirements:
+           det, sci_ID, settings
+
+        Returns:
+            self.datasec_img: ndarray
+
+        """
         # Checks
         self._chk_set(['det', 'settings', 'sci_ID'])
         #
         scidx = np.where((self.fitstbl['sci_ID'] == self.sci_ID) & self.fitstbl['science'])[0][0]
         scifile = os.path.join(self.fitstbl['directory'][scidx],self.fitstbl['filename'][scidx])
         # datasec, etc.
-        datasec, _, naxis0, naxis1 = io.get_datasec(self.spectrograph, scifile, self.det, self.settings['detector'])
+        datasec, _, naxis0, naxis1 = self.spectro_class.get_datasec(
+            scifile, self.det, self.settings['detector'])
         self.settings['detector']['naxis0'] = naxis0
         self.settings['detector']['naxis1'] = naxis1
         # Datasec image
-        self.datasec_img = arpixels.pix_to_amp(naxis0, naxis1, datasec, self.settings['detector']['numamplifiers'])
+        self.datasec_img = arpixels.pix_to_amp(naxis0, naxis1, datasec,
+                                               self.settings['detector']['numamplifiers'])
         # Return
         return self.datasec_img, naxis0, naxis1
 
