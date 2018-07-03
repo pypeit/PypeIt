@@ -90,6 +90,41 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         spectroclass.Spectrograph.__init__(self)
         self.spectrograph = 'keck_lris_blue'
 
+    def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
+        """
+        Setup the arc parameters
+
+        Args:
+            arcparam: dict
+            disperser: str, REQUIRED
+            **null_kwargs:
+              Captured and never used
+
+        Returns:
+            arcparam is modified in place
+
+        """
+        arcparam['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'CdI', 'HgI']
+        if disperser == '600/4000':
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=0.63 # Ang per pixel (unbinned)
+            arcparam['b1']= 4.54698031e-04
+            arcparam['b2']= -6.86414978e-09
+            arcparam['wvmnx'][1] = 6000.
+            arcparam['wv_cen'] = 4000.
+        elif disperser == '400/3400':
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=1.02
+            arcparam['b1']= 2.72694493e-04
+            arcparam['b2']= -5.30717321e-09
+            arcparam['wvmnx'][1] = 6000.
+        elif disperser == '300/5000':
+            arcparam['n_first'] = 2
+            arcparam['wv_cen'] = 4500.
+            arcparam['disp'] = 1.43
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+
 class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """
     Child to handle Keck/LRISr specific code
@@ -128,6 +163,45 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Return
         return badpix
 
+    def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None,
+                       msarc_shape=None, binspectral=None, **null_kwargs):
+        """
+        Setup the arc parameters
+
+        Args:
+            arcparam: dict
+            disperser: str, REQUIRED
+
+        Returns:
+            arcparam is modified in place
+
+        """
+        arcparam['wv_cen'] = fitstbl['wavecen'][arc_idx]
+        arcparam['lamps'] = ['ArI','NeI','HgI','KrI','XeI']  # Should set according to the lamps that were on
+        if disperser == '600/7500':
+            arcparam['n_first']=3 # Too much curvature for 1st order
+            arcparam['disp']=0.80 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
+            arcparam['wvmnx'][1] = 11000.
+        elif disperser == '600/10000':
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=0.80 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
+            arcparam['wvmnx'][1] = 12000.
+        elif disperser == '400/8500':
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=1.19 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
+            arcparam['wvmnx'][1] = 11000.
+            arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
+            arcparam['nsig_rej_final'] = 5.
+        elif disperser == '900/5500':
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=0.53 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
+            arcparam['wvmnx'][1] = 7000.
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
 def read_lris(raw_file, det=None, TRIM=False):
     """

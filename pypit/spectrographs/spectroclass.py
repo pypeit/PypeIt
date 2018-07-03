@@ -6,10 +6,13 @@ import numpy as np
 
 from astropy.io import fits
 
+from abc import ABCMeta
+
 class Spectrograph(object):
     """
     Generic class for spectrograph-specific codes
     """
+    __metaclass__ = ABCMeta
 
     def __init__(self):
 
@@ -128,3 +131,7 @@ class Spectrograph(object):
         bpm = np.zeros((shape[0], shape[1]), dtype=int)
         #
         return bpm
+
+    def setup_arcparam(self, **null_kwargs):
+        modify_dict = None
+        return modify_dict

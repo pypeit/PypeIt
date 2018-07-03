@@ -45,3 +45,27 @@ class KeckNIRSPECSpectrograph(spectroclass.Spectrograph):
         self.bpm[:, :20] = 1.
         self.bpm[:, 1000:] = 1.
 
+    def setup_arcparam(self, arcparam, fitstbl=None, arc_idx=None,
+                       msarc_shape=None, **null_kwargs):
+        """
+
+        Args:
+            arcparam:
+            disperser:
+            fitstbl:
+            arc_idx:
+            msarc_shape:
+            **null_kwargs:
+
+        Returns:
+
+        """
+        arcparam['lamps'] = ['OH_R24000']
+        if fitstbl['filter1'][arc_idx] == 'NIRSPEC-1':
+            arcparam['n_first'] = 2  # Too much curvature for 1st order
+            arcparam['disp'] = 2.1093  # Ang per pixel for Low-Res, NIRSPEC-1 filter
+            arcparam['b1'] = 1. / arcparam['disp'] / msarc_shape[0]
+            arcparam['wvmnx'][0] = 9400.  # Min wavelength
+            arcparam['wvmnx'][1] = 11300.  # Max wavelength
+            arcparam['wv_cen'] = 10000.  # Central wavelength
+

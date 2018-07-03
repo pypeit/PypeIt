@@ -119,6 +119,34 @@ class KeckDEIMOSSpectrograph(spectroclass.Spectrograph):
 
         return bpix
 
+    def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None,
+                       msarc_shape=None, **null_kwargs):
+        """
+
+        Args:
+            arcparam:
+            disperser:
+            fitstbl:
+            arc_idx:
+            msarc_shape:
+            binspectral:
+            **null_kwargs:
+
+        Returns:
+
+        """
+        arcparam['wv_cen'] = fitstbl['dispangle'][arc_idx]
+        # TODO -- Should set according to the lamps that were on
+        arcparam['lamps'] = ['ArI','NeI','KrI','XeI']
+        if disperser == '830G': # Blaze 8640
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=0.47 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
+            arcparam['wvmnx'][0] = 550.
+            arcparam['wvmnx'][1] = 11000.
+            arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
 def read_deimos(raw_file, det=None):
     """
