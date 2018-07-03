@@ -441,9 +441,9 @@ class WaveTilts(masterframe.MasterFrame):
         elif attr == 'model':
             if slit is None:
                 msgs.error("Need to provide the slit with this option")
-            tmp = self.all_trcdict[slit].copy()
-            tmp['xtfit'] = self.all_trcdict[slit]['xmodel']
-            tmp['ytfit'] = self.all_trcdict[slit]['ymodel']
+            tmp = self.all_trcdict[slit-1].copy()
+            tmp['xtfit'] = self.all_trcdict[slit-1]['xmodel']
+            tmp['ytfit'] = self.all_trcdict[slit-1]['ymodel']
             ginga.chk_arc_tilts(self.msarc, tmp, sedges=sedges, all_green=True)
         elif attr in ['arcmodel']:
             if slit is None:
@@ -454,17 +454,21 @@ class WaveTilts(masterframe.MasterFrame):
 
             ynorm = np.outer(np.linspace(0., 1., self.msarc.shape[0]), np.ones(self.msarc.shape[1]))
             polytilts = (ynorm-self.tilts)*(self.msarc.shape[0]-1)
-
+            slitpix = self.tslits_dict['slitpix']
             # arcdet is only the approximately nearest pixel (not even necessarily)
-            for idx in np.where(self.all_trcdict[slit]['aduse'])[0]:
-                tmp['xtfit'].append(np.arange(self.msarc.shape[1]))
+            for idx in np.where(self.all_trcdict[slit-1]['aduse'])[0]:
+                xnow = np.arange(self.msarc.shape[1])
                 if self.all_ttilts is not None:  # None if read from disk
-                    xgd = self.all_trcdict[slit]['xtfit'][idx][self.all_trcdict[slit]['xtfit'][idx].size//2]
-                    ycen = self.all_ttilts[slit][1][int(xgd),idx]
+                    xgd = self.all_trcdict[slit-1]['xtfit'][idx][self.all_trcdict[slit]['xtfit'][idx].size//2]
+                    ycen = self.all_ttilts[slit-1][1][int(xgd),idx]
                 else:
-                    ycen = self.all_trcdict[slit]['ycen'][idx]
-                yval = ycen + polytilts[int(ycen),:]
-                tmp['ytfit'].append(yval)
+                    ycen = self.all_trcdict[slit-1]['ycen'][idx]
+                ynow = ycen + polytilts[int(ycen),:]
+                # Only plot the xnow, ynow values that are on this slit
+                onslit = (slitpix[int(np.rint(xnow)),int(np.rint(ynow))]) == slit
+                tmp['xtfit'].append(xnow[onslit])
+                tmp['ytfit'].append(ynow[onslit])
+
             # Show
             msgs.warn("Display via tilts is not exact")  # Could make a correction.  Probably is close enough
             ginga.chk_arc_tilts(self.msarc, tmp, sedges=sedges, all_green=True, cname=cname)
