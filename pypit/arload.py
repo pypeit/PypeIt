@@ -303,7 +303,7 @@ def load_frames(fitsdict, ind, det, frametype='<None>', msbias=None, trim=True):
     return frames
 
 
-def load_raw_frame(spectrograph, raw_file, det, dataext=None, disp_dir=0):
+def load_raw_frame(spectrograph, raw_file, det, dataext = 0, disp_dir=0):
     """
     Load data frames, usually raw.
 
@@ -324,6 +324,10 @@ def load_raw_frame(spectrograph, raw_file, det, dataext=None, disp_dir=0):
       the raw_frame
     head : FITS header of the 0th HDU
     """
+
+    # ToDO this would be a great place to parse the spectrograph name from the header that you are about to read in
+    # and figure out the instrument omitting one parameter. Remember the PYPIT philosophy -- the fewer parameters the better
+
     msgs.info("Loading raw_file: {:s}".format(raw_file))
     #msgs.work("Implement multiprocessing here (better -- at the moment it's slower than not) to speed up data reading")
     # Instrument specific read
@@ -343,6 +347,11 @@ def load_raw_frame(spectrograph, raw_file, det, dataext=None, disp_dir=0):
     #if settings.argflag['trace']['dispersion']['direction'] == 1:
     if disp_dir == 1:
         temp = temp.T
+    elif disp_dir == -1:
+        temp = np.flip(temp.T,axis=0)
+    else:
+        msgs.error('disp_dir must be 0, 1 or -1') # ToDO we need to deal with flips in the spectral direction someday
+
     return temp, head0
 
 
