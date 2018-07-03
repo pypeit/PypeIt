@@ -1126,9 +1126,10 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     if ((PEAK_THRESH >=0.0) & (PEAK_THRESH <=1.0)) == False:
         msgs.error('Invalid value of PEAK_THRESH. It must be between 0.0 and 1.0')
 
-    frameshape = sciimg.shape
+    frameshape = image.shape
     nspec = frameshape[0]
     nspat = frameshape[1]
+    specmid = nspec//2
 
     # Some information about this slit we need for later when we instantiate specobj objects
     spec_vec = np.arange(nspec)
@@ -1151,14 +1152,6 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     if mask is None:
         mask = thismask & (invvar > 0.0)
 
-
-    idims = sciimg.shape
-    nspat = idims[1]
-    nspec = idims[0]
-    specmid = nspec//2
-
-    #skymask = thismask & (edgmask == False)
-    objmask = np.zeros_like(thismask)
 
     thisimg =image*((thismask == True) & (mask == True))
     #  Smash the image (for this slit) into a single flux vector.  How many pixels wide is the slit at each Y?
