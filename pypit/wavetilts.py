@@ -471,6 +471,8 @@ class WaveTilts(masterframe.MasterFrame):
         elif attr == 'final_tilts':
             if self.final_tilts is not None:
                 ginga.show_image(self.final_tilts)
+        else:
+            msgs.error('Unrecognized attribute')
 
     def __repr__(self):
         # Generate sets string
