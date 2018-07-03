@@ -1211,6 +1211,12 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
 
     # Get rid of peaks within EDG_TOL of slit edge which are almost always spurious
     not_near_edge = (xcen > nsamp*EDG_TOL) & (xcen < nsamp*(1.0 - EDG_TOL))
+    if np.any(~not_near_edge):
+        msgs.warn('Discaring {:d}'.format(np.sum(~not_near_edge)) + ' at spatial pixels spat = {:}'.format(xcen[~not_near_edge]) +
+                  ' which land within EDG_TOL*nsamp = {:5.2f}'.format(nsamp*EDG_TOL) +  ' pixels from the slit boundary.')
+        msgs.warn('You must decrease from the current value of EDG_TOL = {:5.2f}'.format(EDG_TOL) +  ' in order to keep them')
+        msgs.warn('Such edge objects are often spurious')
+
     xcen = xcen[not_near_edge]
     ypeak = ypeak[not_near_edge]
     npeak = len(xcen)
