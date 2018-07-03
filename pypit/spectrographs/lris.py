@@ -12,8 +12,38 @@ import numpy as np
 from astropy.io import fits
 
 from pypit import msgs
-from pypit.arparse import load_sections
+from pypit import arparse
 from pypit import ardebug as debugger
+from. import spectroclass
+
+class LRISSpectrograph(spectroclass.Spectrograph):
+
+    def __init__(self):
+
+        spectroclass.Spectrograph.__init__(self)
+        self.spectrograph = 'keck_lris'  # Note this is a base of keck_lris_red and keck_lris_blue; we might have to sub-class each
+
+    def load_raw_img_head(self, raw_file, det=1, **null_kwargs):
+        raw_img, head0, _ = read_lris(raw_file, det=det)
+
+        return raw_img, head0
+
+    def get_datasec(self, filename, det, settings_det):
+
+        datasec, oscansec, naxis0, naxis1 = [], [], 0, 0
+        temp, head0, secs = read_lris(filename, det)
+        for kk in range(settings_det['numamplifiers']):
+            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
+            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
+
+        # Need naxis0, naxis1 too
+        naxis0 = temp.shape[0]
+        naxis1 = temp.shape[1]
+
+        # Return
+        return datasec, oscansec, naxis0, naxis1
+
+
 
 def read_lris(raw_file, det=None, TRIM=False):
     """
@@ -75,7 +105,7 @@ def read_lris(raw_file, det=None, TRIM=False):
         detsec = theader['DETSEC']
         if detsec != '0':
             # parse the DETSEC keyword to determine the size of the array.
-            x1, x2, y1, y2 = np.array(load_sections(detsec, fmt_iraf=False)).flatten()
+            x1, x2, y1, y2 = np.array(arparse.load_sections(detsec, fmt_iraf=False)).flatten()
 
             # find the range of detector space occupied by the data
             # [xmin:xmax,ymin:ymax]
@@ -260,11 +290,11 @@ def lris_read_amp(inp, ext):
     # parse the DETSEC keyword to determine the size of the array.
     header = hdu[ext].header
     detsec = header['DETSEC']
-    x1, x2, y1, y2 = np.array(load_sections(detsec, fmt_iraf=False)).flatten()
+    x1, x2, y1, y2 = np.array(arparse.load_sections(detsec, fmt_iraf=False)).flatten()
 
     # parse the DATASEC keyword to determine the size of the science region (unbinned)
     datasec = header['DATASEC']
-    xdata1, xdata2, ydata1, ydata2 = np.array(load_sections(datasec, fmt_iraf=False)).flatten()
+    xdata1, xdata2, ydata1, ydata2 = np.array(arparse.load_sections(datasec, fmt_iraf=False)).flatten()
 
     # grab the components...
     predata = temp[0:precol, :]

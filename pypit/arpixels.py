@@ -253,7 +253,8 @@ def new_locate_order(lordloc, rordloc, sz_x, sz_y, pad):
 def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
     """ Generate a frame that identifies each pixel to an amplifier,
     and then trim it to the data sections.
-    This frame can be used to later identify which trimmed pixels correspond to which amplifier
+    This frame can be used to later identify which trimmed pixels
+    correspond to which amplifier
 
     Parameters
     ----------

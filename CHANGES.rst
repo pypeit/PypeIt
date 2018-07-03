@@ -197,6 +197,9 @@
 - Introduce pypit/par and pypit/config directories
 - Introduce PypitPar as an initial step toward refactoring the front end
 
+- Move spectrograph specific code into spectographs/ folder
+
+
 0.7 (2017-02-07)
 ----------------
 
