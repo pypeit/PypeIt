@@ -121,7 +121,6 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
     # Debugging/checking
     if PLOT_FIT:
         from matplotlib import pyplot as plt
-        from IPython import embed
         goodbk = skyset.mask
         yfit_bkpt = np.interp(skyset.breakpoints[goodbk], wsky,yfit)
         plt.clf()
