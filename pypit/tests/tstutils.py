@@ -34,6 +34,7 @@ def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=F
     else:
         settings['masters']['directory'] = data_path('MF')+'_shane_kast_blue'
     settings['masters']['reuse'] = True
+    settings['masters']['force'] = False
     settings['masters']['loaded'] = []
 
     settings['detector']['dataext'] = 0

@@ -40,7 +40,9 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 # MultiSlit
-fitstbl = arsort.dummy_fitstbl()
+fitstbl = arsort.dummy_fitstbl(directory=data_path(''))
+fitstbl['filename'][1] = 'b1.fits.gz'
+
 setup = 'A_01_aa'
 det = 1
 sci_ID = 1
@@ -48,6 +50,7 @@ settings = tstutils.load_kast_blue_masters(get_settings=True)[0]
 
 def test_instantiate():
     caliBrate = calibrations.MultiSlitCalibrations(fitstbl)
+    print(caliBrate)
 
 def test_bias():
     caliBrate = calibrations.MultiSlitCalibrations(fitstbl)
@@ -58,3 +61,12 @@ def test_bias():
     # Build
     caliBrate.get_bias()
 
+def test_arc():
+    caliBrate = calibrations.MultiSlitCalibrations(fitstbl)
+    #
+    caliBrate.reset(setup, det, sci_ID, settings)
+    caliBrate.msbias = 'overscan'
+    caliBrate.settings['masters']['reuse'] = False
+    # Build
+    arc = caliBrate.get_arc()
+    assert arc.shape == (2048,350)

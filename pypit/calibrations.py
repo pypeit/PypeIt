@@ -84,6 +84,12 @@ class Calibrations(object):
         self._reset_internals()
 
     def _reset_internals(self):
+        """
+        Reset all of the key internals to None
+
+        Returns:
+
+        """
         self.msarc = None
         self.msbias = None
         self.mbpm = None
@@ -124,12 +130,23 @@ class Calibrations(object):
         # Reset internals to None
         self._reset_internals()
 
-    def get_arc(self, bias=None):
+    def get_arc(self):
+        """
+        Load or generate the bias frame/command
+
+        Requirements:
+          self.msbias
+          setup, det, sci_ID, settings
+
+        Args:
+
+        Returns:
+            self.msarc: ndarray
+
+        """
         # Checks
-        if bias is not None:
-            self.msbias = bias
-        if self.msbias is None:
-            msgs.error("msbias needs to be set prior to arc")
+        if not self._chk_objs(['msbias']):
+            return
         # Check
         self._chk_set(['setup', 'det', 'sci_ID', 'settings'])
         #
@@ -150,11 +167,6 @@ class Calibrations(object):
                     self.arcImage.save_master(self.msarc, raw_files=self.arcImage.file_list, steps=self.arcImage.steps)
             # Return
             return self.msarc
-            '''
-            # Grab it -- msarc will be a 2D image
-            self.msarc, self.arcImage = arcimage.get_msarc(self.det, self.setup, self.sci_ID,
-                                          self.fitstbl, self.settings, self.msbias)
-            '''
             # Save
             self.calib_dict[self.setup]['arc'] = self.msarc
         # Return
@@ -164,7 +176,8 @@ class Calibrations(object):
         """
         Load or generate the bias frame/command
 
-        Requires setup, det, sci_ID, settings
+        Requirements:
+           setup, det, sci_ID, settings
 
         Returns:
             self.msbias: ndarray or str
