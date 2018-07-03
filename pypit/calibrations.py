@@ -9,6 +9,8 @@ import os
 
 from abc import ABCMeta
 
+from astropy.table import Table
+
 from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import arpixels
@@ -55,6 +57,9 @@ class Calibrations(object):
 
     def __init__(self, fitstbl, spectro_class=None, save_masters=True, write_qa=True):
 
+        if not isinstance(fitstbl, Table):
+            msgs.error("fitstbl must be an astropy.Table")
+
         # Parameters unique to this Object
         self.fitstbl = fitstbl
         self.spectro_class = spectro_class
@@ -63,7 +68,7 @@ class Calibrations(object):
 
         # Set spectrograph from FITS table
         if spectro_class is None:
-            self.spectro_class = spectro_utils(spectrograph=self.fitstbl['instrume'][0])
+            self.spectro_class = spectro_utils.load_spec_class(spectrograph=self.fitstbl['instrume'][0])
 
         # Attributes
         self.calib_dict = {}
@@ -96,13 +101,13 @@ class Calibrations(object):
         """
         Specify the settings of the Calibrations class
           and reset all the internals to None
-          The internal dict is left unmodafied
+          The internal dict is left unmodified
 
         Args:
-            setup:
-            det:
-            sci_ID:
-            settings:
+            setup: str
+            det: int
+            sci_ID: int
+            settings: ParSet
 
         Returns:
 
@@ -156,14 +161,23 @@ class Calibrations(object):
         return self.msarc
 
     def get_bias(self):
+        """
+        Load or generate the bias frame/command
+
+        Requires setup, det, sci_ID, settings
+
+        Returns:
+            self.msbias: ndarray or str
+
+        """
         # Checks
         self._chk_set(['setup', 'det', 'sci_ID', 'settings'])
-        #
+        # Grab from internal dict?
         if 'bias' in self.calib_dict[self.setup].keys():
             self.msbias = self.calib_dict[self.setup]['bias']
             msgs.info("Reloading the bias from the internal dict")
         else:
-            # Init
+            # Instantiate
             self.biasFrame = biasframe.BiasFrame(settings=self.settings, setup=self.setup,
                                   det=self.det, fitstbl=self.fitstbl, sci_ID=self.sci_ID)
             # Load the MasterFrame (if it exists and is desired) or the command (e.g. 'overscan')
@@ -173,12 +187,6 @@ class Calibrations(object):
                 if self.save_masters:
                     self.biasFrame.save_master(self.msbias, raw_files=self.biasFrame.file_list,
                                       steps=self.biasFrame.steps)
-            '''
-            # Grab it
-            #   Bias will either be an image (ndarray) or a command (str, e.g. 'overscan') or none
-            self.msbias, self.biasFrame = biasframe.get_msbias(
-                self.det, self.setup, self.sci_ID, self.fitstbl, self.settings)
-            '''
             # Save
             self.calib_dict[self.setup]['bias'] = self.msbias
         # Return
@@ -506,6 +514,15 @@ class Calibrations(object):
                 debugger.show_image(obj)
         else:
             msgs.warn("Not ready for this type of object")
+
+    def __repr__(self):
+        # Generate sets string
+        txt = '<{:s}: setup={}, det={}, sci_ID={}'.format(self.__class__.__name__,
+                                                          self.setup,
+                                                          self.det,
+                                                          self.sci_ID)
+        txt += '>'
+        return txt
 
 class MultiSlitCalibrations(Calibrations):
 
