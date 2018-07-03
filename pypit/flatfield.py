@@ -322,7 +322,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # Return
         return self.mspixelflatnrm, self.slit_profiles
 
-    def show(self, attr, display='ginga'):
+    def show(self, attr='norm', display='ginga'):
         """
         Show one of the internal images
 

@@ -41,3 +41,11 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# ADDED by KBW
+.eggs
+*egg-info*
+*.ipynb_checkpoints
+*.pytest_cache
+*.swp
+

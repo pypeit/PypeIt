@@ -18,6 +18,64 @@ from pypit import arpixels
 from pypit import ardebug as debugger
 
 
+def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
+                calibrate_lamps=None):
+    """ Setup for arc analysis
+
+    Parameters
+    ----------
+    spectrograph : str
+    msarc_shape : tuple
+    fitstbl : Table
+      Contains relevant information from fits header files
+    arc_idx : int
+      Index of the arc frame in the fitstbl
+    calibrate_lamps : str, optional
+       List of lamps used
+
+    """
+    # Defaults
+    arcparam = dict(llist='',
+                    disp=0.,             # Ang/unbinned pixel
+                    b1=0.,               # Pixel fit term (binning independent)
+                    b2=0.,               # Pixel fit term
+                    lamps=[],            # Line lamps on
+                    wv_cen=0.,           # Estimate of central wavelength
+                    wvmnx=[2900.,12000.],# Guess at wavelength range
+                    disp_toler=0.1,      # 10% tolerance
+                    match_toler=3.,      # Matching tolerance (pixels)
+                    min_ampl=300.,       # Minimum amplitude
+                    func='legendre',     # Function for fitting
+                    n_first=1,           # Order of polynomial for first fit
+                    n_final=4,           # Order of polynomial for final fit
+                    nsig_rej=2.,         # Number of sigma for rejection
+                    nsig_rej_final=3.0,  # Number of sigma for rejection (final fit)
+                    Nstrong=13)          # Number of lines for auto-analysis
+
+    # Instrument/disperser specific
+    disperser = fitstbl["dispname"][arc_idx]
+    binspatial, binspectral = arparse.parse_binning(fitstbl['binning'][arc_idx])
+    modify_dict = spectro_class.setup_arcparam(arcparam, disperser=disperser, fitstbl=fitstbl, arc_idx=arc_idx,
+                       binspatial=binspatial, binspectral=binspectral, msarc_shape=msarc_shape)
+    # Load linelist
+    #if settings.argflag['arc']['calibrate']['lamps'] is not None:
+    if calibrate_lamps is not None:
+        arcparam['lamps'] = calibrate_lamps
+    slmps = arcparam['lamps'][0]
+    for lamp in arcparam['lamps'][1:]:
+        slmps=slmps+','+lamp
+    msgs.info('Loading line list using {:s} lamps'.format(slmps))
+
+    arcparam['llist'] = ararclines.load_arcline_list(arcparam['lamps'], disperser,
+                                                     spectro_class.spectrograph,
+                                                     wvmnx=arcparam['wvmnx'],
+                                                     modify_parse_dict=modify_dict)
+    # Binning
+    arcparam['disp'] *= binspectral
+
+    # Return
+    return arcparam
+
 def get_censpec(lordloc, rordloc, pixlocn, frame, det, settings_spect=None, gen_satmask=False):
     """ Extract a simple spectrum down the center of each slit
     Parameters

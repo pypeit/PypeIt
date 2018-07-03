@@ -8,13 +8,145 @@ import numpy as np
 from astropy.io import fits
 
 from pypit import msgs
-from pypit.arparse import load_sections
+from pypit import arparse
+from pypit.spectrographs import spectroclass
+
 from pypit import ardebug as debugger
 
 
 # Logging
 #msgs = armsgs.get_logger()
 
+class KeckDEIMOSSpectrograph(spectroclass.Spectrograph):
+    """
+    Child to handle Keck/DEIMOS specific code
+    """
+
+    def __init__(self):
+
+        # Get it started
+        spectroclass.Spectrograph.__init__(self)
+        self.spectrograph = 'keck_deimos'
+
+    def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
+        """
+        Wrapper to the raw image reader for DEIMOS
+
+        Args:
+            raw_file:  str, filename
+            det: int, REQUIRED
+              Desired detector
+            **null_kwargs:
+              Captured and never used
+
+        Returns:
+            raw_img: ndarray
+              Raw image;  likely unsigned int
+            head0: Header
+
+        """
+        raw_img, head0, _ = read_deimos(raw_file, det=det)
+
+        return raw_img, head0
+
+    def get_datasec(self, filename, det, settings_det):
+        """
+        Load up the datasec and oscansec and also naxis0 and naxis1
+
+        Args:
+            filename: str
+              data filename
+            det: int
+              Detector specification
+            settings_det: ParSet
+              numamplifiers
+
+        Returns:
+            datasec: list
+            oscansec: list
+            naxis0: int
+            naxis1: int
+        """
+
+        datasec, oscansec, naxis0, naxis1 = [], [], 0, 0
+        temp, head0, secs = read_deimos(filename, det)
+        for kk in range(settings_det['numamplifiers']):
+            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
+            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
+
+        # Need naxis0, naxis1 too
+        naxis0 = temp.shape[0]
+        naxis1 = temp.shape[1]
+
+        # Return
+        return datasec, oscansec, naxis0, naxis1
+
+    def bpm(self, det=None, **null_kwargs):
+        """ Generate a BPM for DEIMOS
+        Currently assumes 1x1 binning
+
+        Parameters
+        ----------
+        det : int, REQUIRED
+        **null_kwargs:
+            Captured and never used
+
+        Returns
+        -------
+        bpix : ndarray
+          0 = ok; 1 = Mask
+
+        """
+        bpix = np.zeros((4096, 2048), dtype=int)
+        if det == 1:
+            bpix[:,1052:1054] = 1.
+        elif det == 2:
+            bpix[:,0:4] = 1.
+            bpix[:,376:380] = 1.
+            bpix[:,2047] = 1.
+        elif det == 3:
+            bpix[:,851] = 1.
+        elif det == 4:
+            bpix[:,0:4] = 1.
+            bpix[:,997:998] = 1.
+        elif det == 5:
+            bpix[:,129] = 1.
+        elif det == 7:
+            bpix[:,426:428] = 1.
+        elif det == 8:
+            bpix[:,931] = 1.
+            bpix[:,933] = 1.
+
+        return bpix
+
+    def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None,
+                       msarc_shape=None, **null_kwargs):
+        """
+
+        Args:
+            arcparam:
+            disperser:
+            fitstbl:
+            arc_idx:
+            msarc_shape:
+            binspectral:
+            **null_kwargs:
+
+        Returns:
+
+        """
+        arcparam['wv_cen'] = fitstbl['dispangle'][arc_idx]
+        # TODO -- Should set according to the lamps that were on
+        arcparam['lamps'] = ['ArI','NeI','KrI','XeI']
+        if disperser == '830G': # Blaze 8640
+            arcparam['n_first']=2 # Too much curvature for 1st order
+            arcparam['disp']=0.47 # Ang per pixel (unbinned)
+            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
+            arcparam['wvmnx'][0] = 550.
+            arcparam['wvmnx'][1] = 11000.
+            arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
+        else:
+            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
 def read_deimos(raw_file, det=None):
     """
@@ -56,7 +188,7 @@ def read_deimos(raw_file, det=None):
     preline = head0['PRELINE']
     postline = head0['POSTLINE']
     detlsize = head0['DETLSIZE']
-    x0, x_npix, y0, y_npix = np.array(load_sections(detlsize)).flatten()
+    x0, x_npix, y0, y_npix = np.array(arparse.load_sections(detlsize)).flatten()
 
     # Create final image
     if det is None:
@@ -168,8 +300,8 @@ def deimos_read_1chip(hdu,chipno):
     postpix = hdu[0].header['POSTPIX']
     precol = hdu[0].header['PRECOL']
 
-    x1_dat, x2_dat, y1_dat, y2_dat = np.array(load_sections(datsec)).flatten()
-    x1_det, x2_det, y1_det, y2_det = np.array(load_sections(detsec)).flatten()
+    x1_dat, x2_dat, y1_dat, y2_dat = np.array(arparse.load_sections(datsec)).flatten()
+    x1_det, x2_det, y1_det, y2_det = np.array(arparse.load_sections(detsec)).flatten()
 
     # This rotates the image to be increasing wavelength to the top
     #data = np.rot90((hdu[chipno].data).T, k=2)
@@ -194,41 +326,5 @@ def deimos_read_1chip(hdu,chipno):
 
     # Return
     return data, oscan
-
-def bpm(det):
-    """ Generate a BPM for DEIMOS
-    Currently assumes 1x1 binning
-
-    Parameters
-    ----------
-    det : int
-
-    Returns
-    -------
-    bpix : ndarray
-      0 = ok; 1. = Mask
-
-    """
-    bpix = np.zeros((4096, 2048))
-    if det == 1:
-        bpix[:,1052:1054] = 1.
-    elif det == 2:
-        bpix[:,0:4] = 1.
-        bpix[:,376:380] = 1.
-        bpix[:,2047] = 1.
-    elif det == 3:
-        bpix[:,851] = 1.
-    elif det == 4:
-        bpix[:,0:4] = 1.
-        bpix[:,997:998] = 1.
-    elif det == 5:
-        bpix[:,129] = 1.
-    elif det == 7:
-        bpix[:,426:428] = 1.
-    elif det == 8:
-        bpix[:,931] = 1.
-        bpix[:,933] = 1.
-
-    return bpix
 
 

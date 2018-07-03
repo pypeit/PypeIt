@@ -13,7 +13,7 @@ import pytest
 import glob
 import numpy as np
 
-from pypit.spectrographs import bpmimage
+from pypit import bpmimage
 from pypit.armsgs import PypitError
 
 # These tests are not run on Travis
@@ -46,7 +46,7 @@ def test_instantiate():
 def test_dummy_image():
     # Simple
     shape=(2048,2048)
-    bpmImage = bpmimage.BPMImage(shape=shape)
+    bpmImage = bpmimage.BPMImage(shape=shape, spectrograph='shane_kast_blue')
     bpm = bpmImage.build()
     assert isinstance(bpm, np.ndarray)
     assert bpm.shape == shape

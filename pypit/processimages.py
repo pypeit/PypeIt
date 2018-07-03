@@ -10,11 +10,11 @@ from astropy.io import fits
 from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import arcomb
-from pypit.spectrographs import io
 from pypit.core import arprocimg
 from pypit.core import arflat
 from pypit import ginga
 
+from pypit.spectrographs import spectro_utils
 
 # For out of PYPIT running
 if msgs._debug is None:
@@ -76,7 +76,7 @@ class ProcessImages(object):
     oscansec : list
     """
     def __init__(self, file_list, spectrograph=None, settings=None, det=1, user_settings=None,
-                 datasec_img=None, bpm=None):
+                 datasec_img=None, bpm=None, spectro_class=None):
 
         # Required parameters
         if not isinstance(file_list, list):
@@ -87,6 +87,7 @@ class ProcessImages(object):
         self.det = det
         self.datasec_img = datasec_img
         self.bpm = bpm
+        self.spectro_class = spectro_class
 
         if settings is None:
             self.settings = default_settings()
@@ -110,6 +111,10 @@ class ProcessImages(object):
             except:
                 msgs.warn("No information on the spectrograph was given.  Do not attempt to (re)process the images")
         self.spectrograph = spectrograph
+
+        if self.spectro_class is None:
+            self.spectro_class = spectro_utils.load_spec_class(spectrograph=spectrograph)
+
         self.raw_images = []
         self.proc_images = None  # Will be an ndarray
         self.headers = []
@@ -182,9 +187,9 @@ class ProcessImages(object):
         self.raw_images = []  # Zeros out any previous load
         self.headers = []
         for ifile in self.file_list:
-            img, head = io.load_raw_frame(self.spectrograph, ifile, self.det,
-                                        dataext=self.settings['detector']['dataext'],
-                                        disp_dir=self.settings['detector']['dispaxis'])
+            img, head = self.spectro_class.load_raw_frame(
+                ifile, self.settings['detector']['dispaxis'],
+                det=self.det, dataext=self.settings['detector']['dataext'])
             # Save
             self.raw_images.append(img)
             self.headers.append(head)
@@ -209,9 +214,8 @@ class ProcessImages(object):
         if (self.datasec is not None) and (not redo):
             return
         # Spectrograph specific
-        self.datasec, self.oscansec, _, _ = io.get_datasec(self.spectrograph,
-                                                     self.file_list[0], self.det,
-                                                     self.settings['detector'])
+        self.datasec, self.oscansec, _, _ = self.spectro_class.get_datasec(
+            self.file_list[0], self.det, self.settings['detector'])
 
     def apply_gain(self, datasec_img):
         """
@@ -422,16 +426,16 @@ class ProcessImages(object):
         # Return
         return self.rawvarframe
 
-    def show(self, attr, idx=None, display='ginga'):
+    def show(self, attr='stack', idx=None, display='ginga'):
         """
         Show an image
 
         Parameters
         ----------
-        attr : str
+        attr : str, optional
           Internal name of the image to show
             proc_image, raw_image, stack
-        idx : int
+        idx : int, optional
           Specifies the index of the raw or processed image
           Required if proc_image or raw_image is called
         display : str

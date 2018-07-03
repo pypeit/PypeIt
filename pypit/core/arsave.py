@@ -635,6 +635,7 @@ def save_obj_info(all_specobjs, fitstbl, settings_spect, basename, science_dir):
 def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
                    outdir, basename, clobber=True):
     """ Write 2D images to the hard drive
+
     Parameters
     ----------
     sci_output : dict
@@ -721,4 +722,6 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
 
     # Finish
     hdulist = fits.HDUList(hdus)
-    hdulist.writeto(outdir+'/spec2d_{:s}.fits'.format(basename), overwrite=clobber)
+    outfile = outdir+'/spec2d_{:s}.fits'.format(basename)
+    hdulist.writeto(outfile, overwrite=clobber)
+    msgs.info("Wrote: {:s}".format(outfile))
