@@ -231,7 +231,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
 
     relative_factor = 1.0
     tempin = None
-    while (error != 0 or qdone is False) and iiter <= maxiter:
+    while (error != 0 or qdone == False) and iiter <= maxiter:
         goodbk = sset.mask.nonzero()[0]
         if ngood <= 1 or not sset.mask.any():
             sset.coeff = 0
@@ -277,6 +277,8 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
                                          inmask=tempin, outmask=maskwork,
                                          upper=upper*relative_factor,
                                          lower=lower*relative_factor, **kwargs_reject)
+            from IPython import embed
+            embed()
             tempin = maskwork
             msgs.info("                             {:4d}".format(iiter) + "{:8.3f}".format(reduced_chi) +
                       "  {:7d}".format((maskwork == 0).sum()) + "      {:6.2f}".format(relative_factor))
