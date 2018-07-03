@@ -171,6 +171,7 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
     This function performs a PCA analysis on the arc tilts for a single spectrum (or order)
                tracethresh=1000.0, nsmth=0):
 
+    # TODO Please expand these docs! This is no simple code.
     Parameters
     ----------
     slf
@@ -204,6 +205,7 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
 
     msgs.work("Detecting lines for slit {0:d}".format(slitnum+1))
     tampl, tcent, twid, w, _ = ararc.detect_lines(censpec)
+
     satval = settings_det['saturation']*settings_det['nonlinear']
     # Order of the polynomials to be used when fitting the tilts.
     arcdet = (tcent[w]+0.5).astype(np.int)
@@ -371,11 +373,14 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
             # yfit = msarc[pcen-nspecfit:pcen+nspecfit+1,ordcen[arcdet[j],0]-k]
             yfit = msarc[pcen - nspecfit:pcen + nspecfit + 1,
                    ordcen[arcdet[j], slitnum] - k - nsmth:ordcen[arcdet[j], slitnum] - k + nsmth + 1]
-            if len(yfit.shape) == 2:
-                yfit = np.median(yfit, axis=1)
+            # check whether the yfit is offchip FW
             if np.size(yfit) == 0:
                 offchip = True
                 break
+            elif len(yfit.shape) == 2:
+                yfit = np.median(yfit, axis=1)
+            else:
+                pass
             wgd = np.where(yfit == maskval)
             if wgd[0].size != 0:
                 continue
@@ -387,6 +392,9 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
                 sumxw = yfit * (pcen+xfit) * wfit
                 sumw = yfit * wfit
                 centv = np.sum(sumxw)/np.sum(sumw)
+                #if np.isfinite(centv) == False: # debugging
+                #    from IPython import embed
+                #    embed()
                 fail = False
             elif method == "cc":
                 # Get a copy of the array that will be used to cross-correlate
@@ -412,7 +420,7 @@ def trace_tilt(ordcen, rordloc, lordloc, det, msarc, slitnum, settings_det,
                 mtfit[sz-k] = 1
             else:
                 #from IPython import embed
-                if np.isfinite(centv) is False: debugger.set_trace() #embed()
+                if np.isfinite(centv) == False: debugger.set_trace() #embed()
                 pcen = int(0.5 + centv)
                 mtfit[sz-k] = 0
 
