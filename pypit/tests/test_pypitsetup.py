@@ -53,7 +53,7 @@ def test_build_fitstbl():
         assert True
         return
     # Check for files
-    file_root = os.getenv('PYPIT_DEV') + 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b'
+    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
     files = glob.glob(file_root+'*')
     assert len(files) > 0
     # Settings
@@ -76,7 +76,7 @@ def test_image_type():
         assert True
         return
     # Check for files
-    file_root = os.getenv('PYPIT_DEV') + 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b'
+    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
     files = glob.glob(file_root+'*')
     assert len(files) > 0
     # Settings
@@ -98,7 +98,7 @@ def test_match():
         assert True
         return
     # Check for files
-    file_root = os.getenv('PYPIT_DEV') + 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b'
+    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
     files = glob.glob(file_root+'*')
     assert len(files) > 0
     # Settings
@@ -120,7 +120,7 @@ def test_match_ABBA():
         assert True
         return
     # Check for files
-    file_root = os.getenv('PYPIT_DEV') + 'RAW_DATA/Keck_NIRSPEC/NIRSPEC-1/NS'
+    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Keck_NIRSPEC/NIRSPEC-1/NS')
     files = glob.glob(file_root+'*')
     assert len(files) > 0
     # Settings
@@ -146,7 +146,7 @@ def test_run():
         assert True
         return
     # Check for files
-    file_root = os.getenv('PYPIT_DEV') + 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b'
+    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
     files = glob.glob(file_root+'*')
     assert len(files) > 0
     # Settings
@@ -166,7 +166,7 @@ def test_run_calcheck():
         assert True
         return
     # Check for files
-    file_root = os.getenv('PYPIT_DEV') + 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b'
+    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
     files = glob.glob(file_root+'*')
     assert len(files) > 0
     # Settings
@@ -186,7 +186,7 @@ def test_run_setup():
         assert True
         return
     # Check for files
-    file_root = os.getenv('PYPIT_DEV') + 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b'
+    file_root = os.path.join(os.getenv('PYPIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
     files = glob.glob(file_root+'*')
     assert len(files) > 0
     # Settings
