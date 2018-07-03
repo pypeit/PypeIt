@@ -5,6 +5,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import os
+import pytest
 
 from pypit import arcimage
 from pypit import arpixels
@@ -12,7 +13,7 @@ from pypit import traceslits
 from pypit import wavecalib
 from pypit import wavetilts
 from pypit import processimages
-from pypit.spectrographs import io
+from pypit.spectrographs import spectro_utils
 
 pypdev_path = os.getenv('PYPIT_DEV')
 
@@ -25,6 +26,7 @@ def data_path(filename):
 def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=False,
                            datasec=False, wvcalib=False):
     spectrograph = 'shane_kast_blue'
+    spec_class = spectro_utils.load_spec_class(spectrograph=spectrograph)
     settings = processimages.default_settings()
     settings['masters'] = {}
     if pypdev_path is not None:
@@ -68,7 +70,7 @@ def load_kast_blue_masters(get_settings=False, aimg=False, tslits=False, tilts=F
         tilts = wvTilts.master()
         ret.append(tilts)
     if datasec:
-        datasec, _, _, _ = io.get_datasec(spectrograph, data_path('b1.fits.gz'), 1,
+        datasec, _, _, _ = spec_class.get_datasec(data_path('b1.fits.gz'), 1,
                                           settings['detector'])
         datasec_img = arpixels.pix_to_amp(settings['detector']['naxis0'],
                                           settings['detector']['naxis1'],

@@ -11,7 +11,7 @@ import numpy as np
 
 from pypit import arparse as settings
 from pypit import arpixels
-from pypit.spectrographs import io
+from pypit.spectrographs import spectro_utils
 from pypit.core import arsort
 
 
@@ -19,11 +19,15 @@ from pypit.core import arsort
 def fitstbl():
     return arsort.dummy_fitstbl()
 
+@pytest.fixture
+def spec_class():
+    return spectro_utils.load_spec_class(spectrograph='generic')
+
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-def test_ampsec(fitstbl):
+def test_ampsec(spec_class):
     """ Test sort_data
     """
     spectrograph='shane_kast_blue'
@@ -40,7 +44,7 @@ def test_ampsec(fitstbl):
     #    settings.argflag['run']['spectrograph'], None, det, settings_det,
     #    naxis0=fitstbl['naxis0'][scidx],
     #    naxis1=fitstbl['naxis1'][scidx])
-    datasec, _, naxis0, naxis1 = io.get_datasec(spectrograph, data_path('b1.fits.gz'),
+    datasec, _, naxis0, naxis1 = spec_class.get_datasec(data_path('b1.fits.gz'),
                                                 1, settings_det)
     datasec_img = arpixels.pix_to_amp(naxis0, naxis1,
                                       datasec, settings_det['numamplifiers'])

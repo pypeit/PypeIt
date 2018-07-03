@@ -10,7 +10,6 @@ from astropy.io import fits
 from pypit import msgs
 from pypit import ardebug as debugger
 from pypit import arcomb
-from pypit.spectrographs import io
 from pypit.core import arprocimg
 from pypit.core import arflat
 from pypit import ginga
@@ -117,7 +116,8 @@ class ProcessImages(object):
             if self.spectrograph is not None:
                 self.spectro_class = spectro_utils.load_spec_class(spectrograph=spectrograph)
             else:
-                debugger.set_trace()  # NEED ANOTHER ROUTE
+                msgs.warn("No Spectograph class instantiated.  Limited functionality...")
+                self.spectro_class = None
 
         self.raw_images = []
         self.proc_images = None  # Will be an ndarray
