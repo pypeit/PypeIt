@@ -424,6 +424,7 @@ class WaveTilts(masterframe.MasterFrame):
                        tilts evaluated at the location of the specific arclines that wered use for the fit.
           'final_tilts' -- Show the final 2-d tilt model for all the slits that were fit.
         slit : int, optional
+                    -- The slit to plot. This needs to be an integer between 1 and nslit
         display : str (optional)
           'ginga' -- Display to an RC Ginga
         """
