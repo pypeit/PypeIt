@@ -20,6 +20,7 @@ from pypit import arqa
 from pypit import artrace
 from pypit import arutils
 from pypit import ardebug as debugger
+from pypit import ginga
 
 # MASK VALUES FROM EXTRACTION
 # 0 
@@ -1121,6 +1122,7 @@ def objfind(image, invvar, slit_left, slit_righ, mask = None, FWHM = 3.0, thisma
     from pypit.arpixels import core_slit_pixels, ximg_and_edgemask
     from pypit.arutils import find_nminima
     from pypit.core.artraceslits import trace_fweight, trace_gweight
+    from pypit.specobj import SpecObj
     import scipy
 
     # Check that PEAK_THRESH values make sense
