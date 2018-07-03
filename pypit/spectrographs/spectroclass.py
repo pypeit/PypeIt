@@ -12,20 +12,22 @@ class Spectrograph(object):
         self.spectrograph = 'generic'
 
     def load_raw_frame(self, raw_file, dataext=None, disp_dir=0, det=None):
+
+        # Load the raw image
+        raw_img, head0 = self.load_raw_img_head(raw_file, dataext=dataext, det=det)
+
+        # Turn to float
+        img = raw_img.astype(np.float)
+        # Transpose?
+        if disp_dir == 1:
+            img = img.T
+        # Return
+        return img, head0
+
+    def load_raw_img_head(self, raw_file, dataext=None, **null_kwargs):
+
         hdulist = fits.open(raw_file)
         raw_img = hdulist[dataext].data
         head0 = hdulist[0].header
-
         # Return
-        return self.fuss_with_raw(raw_img, disp_dir=disp_dir), head0
-
-    def fuss_with_raw(self, raw_img, disp_dir=0):
-        # Turn to float
-        temp = raw_img.astype(np.float)
-        # Transpose?
-        if disp_dir == 1:
-            temp = temp.T
-        # Return
-        return temp
-
-
+        return raw_img, head0
