@@ -200,6 +200,7 @@ def detect_lines(censpec, nfitpix=5, nonlinear=None):
       The spectrum used to find detections. This spectrum has
       had any "continuum" emission subtracted off
     """
+    # TODO I don't see that there is any continuum subtraction being done here contrary to what the docs say.
 
     # Extract a rough spectrum of the arc in each order
     msgs.info("Detecting lines")

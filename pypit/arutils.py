@@ -166,7 +166,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
             sset: object
                bspline object
             outmask: : :class:`numpy.ndarray`
-               output mask which the same size as xdata
+               output mask which the same size as xdata, such that rejected points have outmask set to False
             yfit  : :class:`numpy.ndarray`
                result of the bspline fit (same size as xdata)
             reduced_chi: float
@@ -226,23 +226,24 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
     #--------------------
     # Iterate spline fit
     iiter = 0
-    success = False
+    error = -1
     qdone = False
 
     relative_factor = 1.0
     tempin = None
-    while (success == False or qdone is False) and iiter <= maxiter:
+    while (error != 0 or qdone is False) and iiter <= maxiter:
         goodbk = sset.mask.nonzero()[0]
         if ngood <= 1 or not sset.mask.any():
             sset.coeff = 0
             iiter = maxiter + 1 # End iterations
         else:
-            # Do the fit. Return values from workit for success are as follows:
-            #    True: if fit is good
-            #    False: if everything is screwed
+            # Do the fit. Return values from workit for error are as follows:
+            #    0 if fit is good
+            #   -1 if some breakpoints are masked, so try the fit again
+            #   -2 if everything is screwed
 
             # we'll do the fit right here..............
-            if success == False:
+            if error != 0:
                 bf1, laction, uaction = sset.action(xdata)
                 if(bf1.size !=nx*nord):
                     msgs.error("BSPLINE_ACTION failed!")
@@ -252,12 +253,12 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
                 del bf1 # Clear the memory
             if np.sum(np.isfinite(action) is False) > 0:
                 msgs.error("Infinities in action matrix, wavelengths may be very messed up!!!")
-            success, yfit = sset.workit(xdata, ydata, invvar*maskwork,action, laction, uaction)
+            error, yfit = sset.workit(xdata, ydata, invvar*maskwork,action, laction, uaction)
         iiter += 1
-        if success == False:
+        if error == -2:
             msgs.warn(" All break points have been dropped!!")
             return (sset, outmask, yfit, reduced_chi)
-        elif success == True:
+        elif error == 0:
             # Iterate the fit -- next rejection iteration
             chi_array = (ydata - yfit)*np.sqrt(invvar * maskwork)
             reduced_chi = np.sum(chi_array**2)/(ngood - npoly*(len(goodbk) + nord)-1)
@@ -281,7 +282,8 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
                       "  {:7d}".format((maskwork == 0).sum()) + "      {:6.2f}".format(relative_factor))
 
         else:
-            pass
+            msgs.info("                             {:4d}".format(iiter) + "    ---    ---    ---    ---")
+
 
     msgs.info("***********************************************************************************************")
     msgs.info(
@@ -291,9 +293,6 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
     outmask = maskwork
     # Return
     return sset, outmask, yfit, reduced_chi
-
-
-
 
 
 

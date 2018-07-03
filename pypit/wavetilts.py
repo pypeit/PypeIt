@@ -255,11 +255,19 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         # Determine the tilts for this slit
+        tracethresh_in = self.settings['tilts']['tracethresh']
+        if isinstance(tracethresh_in,(float, int)):
+            tracethresh = tracethresh_in
+        elif isinstance(tracethresh_in, (list, np.ndarray)):
+            tracethresh = tracethresh_in[slit]
+        else:
+            raise ValueError('Invalid input for parameter tracethresh')
+
         trcdict = artracewave.trace_tilt(self.tslits_dict['pixcen'], self.tslits_dict['lcen'],
                                          self.tslits_dict['rcen'], self.det,
                                          self.msarc, slit, self.settings_det, self.settings,
                                          censpec=self.arccen[:, slit], nsmth=3,
-                                         tracethresh=self.settings['tilts']['tracethresh'],
+                                         tracethresh=tracethresh,
                                          wv_calib=wv_calib)
         # Load up
         self.all_trcdict[slit] = trcdict.copy()
@@ -409,14 +417,18 @@ class WaveTilts(masterframe.MasterFrame):
         Parameters
         ----------
         attr : str
-          'fweight' -- Show the msarc image and the tilts traced by fweight
-          'model' -- Show the msarc image and the tilts traced by fweight
-          'tilts' -- Show the msarc image and the tilts traced by fweight
-          'final_tilts' -- Show the msarc image and the tilts traced by fweight
+          'fweight'  -- Show the msarc image and the tilts traced by fweight
+          'model'    -- Show the msarc image and the poylynomial model fits to the individual arc lines that
+                        were traced by fweight.
+          'arcmodel -- This illustrates the global final 2-d model fit to the indivdiaul models of each traced fweight arc line
+                       tilts evaluated at the location of the specific arclines that wered use for the fit.
+          'final_tilts' -- Show the final 2-d tilt model for all the slits that were fit.
         slit : int, optional
+                    -- The slit to plot. This needs to be an integer between 1 and nslit
         display : str (optional)
           'ginga' -- Display to an RC Ginga
         """
+        # ToDO I don't see why we are not looping over all slits for all of this. Why should we restrict to an individual fit?
         if (self.tslits_dict['lcen'] is not None) and (slit is not None):
             sedges=(self.tslits_dict['lcen'][:,slit], self.tslits_dict['rcen'][:,slit])
         else:
@@ -430,17 +442,11 @@ class WaveTilts(masterframe.MasterFrame):
         elif attr == 'model':
             if slit is None:
                 msgs.error("Need to provide the slit with this option")
-            tmp = self.all_trcdict[slit].copy()
-            tmp['xtfit'] = self.all_trcdict[slit]['xmodel']
-            tmp['ytfit'] = self.all_trcdict[slit]['ymodel']
+            tmp = self.all_trcdict[slit-1].copy()
+            tmp['xtfit'] = self.all_trcdict[slit-1]['xmodel']
+            tmp['ytfit'] = self.all_trcdict[slit-1]['ymodel']
             ginga.chk_arc_tilts(self.msarc, tmp, sedges=sedges, all_green=True)
-        elif attr == 'tilts_img':
-            if self.tilts is not None:
-                ginga.show_image(self.tilts)
-        elif attr == 'final_tilts':
-            if self.final_tilts is not None:
-                ginga.show_image(self.final_tilts)
-        elif attr in ['tilts']:
+        elif attr in ['arcmodel']:
             if slit is None:
                 msgs.error("Need to provide the slit with this option")
             tmp = self.all_trcdict[slit].copy()
@@ -449,20 +455,29 @@ class WaveTilts(masterframe.MasterFrame):
 
             ynorm = np.outer(np.linspace(0., 1., self.msarc.shape[0]), np.ones(self.msarc.shape[1]))
             polytilts = (ynorm-self.tilts)*(self.msarc.shape[0]-1)
-
+            slitpix = self.tslits_dict['slitpix']
             # arcdet is only the approximately nearest pixel (not even necessarily)
-            for idx in np.where(self.all_trcdict[slit]['aduse'])[0]:
-                tmp['xtfit'].append(np.arange(self.msarc.shape[1]))
+            for idx in np.where(self.all_trcdict[slit-1]['aduse'])[0]:
+                xnow = np.arange(self.msarc.shape[1])
                 if self.all_ttilts is not None:  # None if read from disk
-                    xgd = self.all_trcdict[slit]['xtfit'][idx][self.all_trcdict[slit]['xtfit'][idx].size//2]
-                    ycen = self.all_ttilts[slit][1][int(xgd),idx]
+                    xgd = self.all_trcdict[slit-1]['xtfit'][idx][self.all_trcdict[slit]['xtfit'][idx].size//2]
+                    ycen = self.all_ttilts[slit-1][1][int(xgd),idx]
                 else:
-                    ycen = self.all_trcdict[slit]['ycen'][idx]
-                yval = ycen + polytilts[int(ycen),:]
-                tmp['ytfit'].append(yval)
+                    ycen = self.all_trcdict[slit-1]['ycen'][idx]
+                ynow = ycen + polytilts[int(ycen),:]
+                # Only plot the xnow, ynow values that are on this slit
+                onslit = (slitpix[int(np.rint(xnow)),int(np.rint(ynow))]) == slit
+                tmp['xtfit'].append(xnow[onslit])
+                tmp['ytfit'].append(ynow[onslit])
+
             # Show
             msgs.warn("Display via tilts is not exact")  # Could make a correction.  Probably is close enough
             ginga.chk_arc_tilts(self.msarc, tmp, sedges=sedges, all_green=True, cname=cname)
+        elif attr == 'final_tilts':
+            if self.final_tilts is not None:
+                ginga.show_image(self.final_tilts)
+        else:
+            msgs.error('Unrecognized attribute')
 
     def __repr__(self):
         # Generate sets string

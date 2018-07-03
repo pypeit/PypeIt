@@ -697,7 +697,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def remove_slit(self, rm_slits):
+    def remove_slit(self, rm_slits, TOL = 3.):
         """
         Remove a user-specified slit
 
@@ -710,6 +710,10 @@ class TraceSlits(masterframe.MasterFrame):
             [[left0, right0], [left1, right1]]
           Specified at ycen = nrows//2
 
+        Optional Parameters
+        -------------------
+        TOL =  tolerance in pixels for grabbing the slit to remove
+
         Returns
         -------
         self.edgearr  : ndarray (internal)
@@ -719,7 +723,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         """
         self.edgearr, self.lcen, self.rcen, self.tc_dict = artraceslits.remove_slit(
-            self.edgearr, self.lcen, self.rcen, self.tc_dict, rm_slits)
+            self.edgearr, self.lcen, self.rcen, self.tc_dict, rm_slits, TOL=TOL)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -815,7 +819,8 @@ class TraceSlits(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def show(self, attr='edges', display='ginga'):
+
+    def show(self, attr='edges', pstep=50):
         """
         Display an image or spectrum in TraceSlits
 
@@ -831,7 +836,7 @@ class TraceSlits(masterframe.MasterFrame):
         if attr == 'edges':
             viewer, ch = ginga.show_image(self.mstrace)
             if self.lcen is not None:
-                ginga.show_slits(viewer, ch, self.lcen, self.rcen, np.arange(self.lcen.shape[1]) + 1, pstep=50)
+                ginga.show_slits(viewer, ch, self.lcen, self.rcen, slit_ids = np.arange(self.lcen.shape[1]) + 1, pstep=pstep)
         elif attr == 'edgearr':
             # TODO -- Figure out how to set the cut levels
             debugger.show_image(self.edgearr)
