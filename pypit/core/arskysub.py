@@ -93,7 +93,6 @@ def bg_subtraction_slit(slit, slitpix, edge_mask, sciframe, varframe, tilts,
             #skybkpt = bspline_bkpts(wsky[pos_sky], nord=4, bkspace=bsp $
             #, / silent)
             if False:
-                from matplotlib import pyplot as plt
                 plt.clf()
                 ax = plt.gca()
                 ax.scatter(wsky[pos_sky], lsky)
