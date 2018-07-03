@@ -8,12 +8,41 @@ import numpy as np
 from astropy.io import fits
 
 from pypit import msgs
-from pypit.arparse import load_sections
+from pypit import arparse
+from pypit.spectrographs import spectroclass
+
 from pypit import ardebug as debugger
 
 
 # Logging
 #msgs = armsgs.get_logger()
+
+class DEIMOSSpectrograph(spectroclass.Spectrograph):
+
+    def __init__(self):
+
+        spectroclass.Spectrograph.__init__(self)
+        self.spectrograph = 'keck_lris'  # Note this is a base of keck_lris_red and keck_lris_blue; we might have to sub-class each
+
+    def load_raw_img_head(self, raw_file, det=1, **null_kwargs):
+        raw_img, head0, _ = read_deimos(raw_file, det=det)
+
+        return raw_img, head0
+
+    def get_datasec(self, filename, det, settings_det):
+
+        datasec, oscansec, naxis0, naxis1 = [], [], 0, 0
+        temp, head0, secs = read_deimos(filename, det)
+        for kk in range(settings_det['numamplifiers']):
+            datasec.append(arparse.load_sections(secs[0][kk], fmt_iraf=False))
+            oscansec.append(arparse.load_sections(secs[1][kk], fmt_iraf=False))
+
+        # Need naxis0, naxis1 too
+        naxis0 = temp.shape[0]
+        naxis1 = temp.shape[1]
+
+        # Return
+        return datasec, oscansec, naxis0, naxis1
 
 
 def read_deimos(raw_file, det=None):
@@ -56,7 +85,7 @@ def read_deimos(raw_file, det=None):
     preline = head0['PRELINE']
     postline = head0['POSTLINE']
     detlsize = head0['DETLSIZE']
-    x0, x_npix, y0, y_npix = np.array(load_sections(detlsize)).flatten()
+    x0, x_npix, y0, y_npix = np.array(arparse.load_sections(detlsize)).flatten()
 
     # Create final image
     if det is None:
@@ -168,8 +197,8 @@ def deimos_read_1chip(hdu,chipno):
     postpix = hdu[0].header['POSTPIX']
     precol = hdu[0].header['PRECOL']
 
-    x1_dat, x2_dat, y1_dat, y2_dat = np.array(load_sections(datsec)).flatten()
-    x1_det, x2_det, y1_det, y2_det = np.array(load_sections(detsec)).flatten()
+    x1_dat, x2_dat, y1_dat, y2_dat = np.array(arparse.load_sections(datsec)).flatten()
+    x1_det, x2_det, y1_det, y2_det = np.array(arparse.load_sections(detsec)).flatten()
 
     # This rotates the image to be increasing wavelength to the top
     #data = np.rot90((hdu[chipno].data).T, k=2)

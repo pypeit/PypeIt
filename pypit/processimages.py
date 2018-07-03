@@ -88,6 +88,7 @@ class ProcessImages(object):
         self.det = det
         self.datasec_img = datasec_img
         self.bpm = bpm
+        self.spectro_class = spectro_class
 
         if settings is None:
             self.settings = default_settings()
@@ -198,7 +199,6 @@ class ProcessImages(object):
             img, head = self.spectro_class.load_raw_frame(ifile, det=self.det,
                                            dataext=self.settings['detector']['dataext'],
                                            disp_dir=self.settings['detector']['dispaxis'])
-            debugger.set_trace()
             # Save
             self.raw_images.append(img)
             self.headers.append(head)
@@ -223,9 +223,8 @@ class ProcessImages(object):
         if (self.datasec is not None) and (not redo):
             return
         # Spectrograph specific
-        self.datasec, self.oscansec, _, _ = io.get_datasec(self.spectrograph,
-                                                     self.file_list[0], self.det,
-                                                     self.settings['detector'])
+        self.datasec, self.oscansec, _, _ = self.spectro_class.get_datasec(
+            self.file_list[0], self.det, self.settings['detector'])
 
     def apply_gain(self, datasec_img):
         """

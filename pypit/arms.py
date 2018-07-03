@@ -28,6 +28,8 @@ from pypit import waveimage
 from pypit import wavetilts
 from pypit import scienceimage
 
+from pypit.spectrographs import spectro_utils
+
 from pypit import ardebug as debugger
 
 
@@ -61,6 +63,9 @@ def ARMS(spectrograph, fitstbl, setup_dict):
 
     # Init calib dict
     calib_dict = {}
+
+    # Spectrometer class
+    spectro_class = spectro_utils.load_spec_class(spectrograph=spectrograph)
 
 
     # Loop on science exposure first
@@ -101,7 +106,8 @@ def ARMS(spectrograph, fitstbl, setup_dict):
             settings_det['binning'] = fitstbl['binning'][0]
             settings_det['dispaxis'] = settings.argflag['trace']['dispersion']['direction']
             # Yes, this looks goofy.  Is needed for LRIS and DEIMOS for now
-            datasec, _, naxis0, naxis1 = io.get_datasec(spectrograph, scifile, det, settings_det)
+            datasec, _, naxis0, naxis1 = spectro_class.get_datasec(scifile, det, settings_det)
+
             settings.spect[dnum]['naxis0'] = naxis0
             settings.spect[dnum]['naxis1'] = naxis1
             # Build the datasec_img

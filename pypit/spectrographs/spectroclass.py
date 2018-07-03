@@ -42,7 +42,7 @@ class Spectrograph(object):
             oscansec.append(settings_det[soscansec])
 
         # Read the image for the shape (just in case)
-        temp, _ = self.load_raw_img_head(filename, det=det, dataext=settings_det['dataext01'],
+        temp, _ = self.load_raw_frame(filename, det=det, dataext=settings_det['dataext01'],
                                     disp_dir=settings_det['dispaxis'])
         # Need naxis0, naxis1 too
         naxis0 = temp.shape[0]
