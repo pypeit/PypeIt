@@ -2672,7 +2672,7 @@ def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
     nx = fimage.shape[1]
 
     # Checks on radius
-    if (isinstance(radius,int) or isinstance(radius,float)):
+    if isinstance(radius,(int, float)):
         radius_out = radius
     elif ((np.size(radius)==np.size(xinit_in)) & (np.shape(radius) == np.shape(xinit_in))):
         radius_out = radius
@@ -2822,7 +2822,7 @@ def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskv
     nx = fimage.shape[1]
 
     # Checks on radius
-    if (isinstance(sigma,int) or isinstance(sigma,float)):
+    if isinstance(sigma,(int,float)):
         sigma_out = sigma
     elif ((np.size(sigma)==np.size(xinit_in)) & (np.shape(sigma) == np.shape(xinit_in))):
         sigma_out = sigma
@@ -2850,7 +2850,7 @@ def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskv
 
     if ycen is None:
         if ndim == 1:
-            ycen = np.arange(npix, dtype='int')
+            ycen = np.arange(npix, dtype=int)
         elif ndim == 2:
             ycen = np.outer(np.arange(npix, dtype='int'), np.ones(nTrace, dtype='int'))
         else:
