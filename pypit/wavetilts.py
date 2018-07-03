@@ -417,14 +417,17 @@ class WaveTilts(masterframe.MasterFrame):
         Parameters
         ----------
         attr : str
-          'fweight' -- Show the msarc image and the tilts traced by fweight
-          'model' -- Show the msarc image and the tilts traced by fweight
-          'tilts_img' -- Show the msarc image and the tilts traced by fweight
-          'final_tilts' -- Show the msarc image and the tilts traced by fweight
+          'fweight'  -- Show the msarc image and the tilts traced by fweight
+          'model'    -- Show the msarc image and the poylynomial model fits to the individual arc lines that
+                        were traced by fweight.
+          'arcmodel -- This illustrates the global final 2-d model fit to the indivdiaul models of each traced fweight arc line
+                       tilts evaluated at the location of the specific arclines that wered use for the fit.
+          'final_tilts' -- Show the final 2-d tilt model for all the slits that were fit.
         slit : int, optional
         display : str (optional)
           'ginga' -- Display to an RC Ginga
         """
+        # ToDO I don't see why we are not looping over all slits for all of this. Why should we restrict to an individual fit?
         if (self.tslits_dict['lcen'] is not None) and (slit is not None):
             sedges=(self.tslits_dict['lcen'][:,slit], self.tslits_dict['rcen'][:,slit])
         else:
@@ -442,13 +445,7 @@ class WaveTilts(masterframe.MasterFrame):
             tmp['xtfit'] = self.all_trcdict[slit]['xmodel']
             tmp['ytfit'] = self.all_trcdict[slit]['ymodel']
             ginga.chk_arc_tilts(self.msarc, tmp, sedges=sedges, all_green=True)
-        elif attr == 'tilts_img':
-            if self.tilts is not None:
-                ginga.show_image(self.tilts)
-        elif attr == 'final_tilts':
-            if self.final_tilts is not None:
-                ginga.show_image(self.final_tilts)
-        elif attr in ['tilts']:
+        elif attr in ['arcmodel']:
             if slit is None:
                 msgs.error("Need to provide the slit with this option")
             tmp = self.all_trcdict[slit].copy()
@@ -471,6 +468,9 @@ class WaveTilts(masterframe.MasterFrame):
             # Show
             msgs.warn("Display via tilts is not exact")  # Could make a correction.  Probably is close enough
             ginga.chk_arc_tilts(self.msarc, tmp, sedges=sedges, all_green=True, cname=cname)
+        elif attr == 'final_tilts':
+            if self.final_tilts is not None:
+                ginga.show_image(self.final_tilts)
 
     def __repr__(self):
         # Generate sets string
