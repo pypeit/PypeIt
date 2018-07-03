@@ -196,7 +196,7 @@
 - Introduce PypitPar as an initial step toward refactoring the front end
 
 - Move spectrograph specific code into spectographs/ folder
-- Introduces the Spectrgraphs class
+- Introduces the Spectrographs class
 
 
 0.7 (2017-02-07)

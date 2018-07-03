@@ -65,7 +65,6 @@ def ARMS(spectrograph, fitstbl, setup_dict):
     calib_dict = {}
 
     # Spectrometer class
-    # This will be passed into the Calibrations class in PR #368
     spectro_class = spectro_utils.load_spec_class(spectrograph=spectrograph)
 
     # Loop on science exposure first
