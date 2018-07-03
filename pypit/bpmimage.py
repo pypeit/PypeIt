@@ -6,7 +6,8 @@ import os
 
 from pypit import msgs
 from pypit.core import arprocimg
-from pypit.spectrographs import spectro_utils
+
+from .spectrographs.util import load_spec_class
 
 from pypit import ardebug as debugger
 
@@ -88,7 +89,7 @@ class BPMImage(object):
 
         # Spectrograph class
         if self.spectro_class is None:
-            self.spectro_class = spectro_utils.load_spec_class(spectrograph=spectrograph)
+            self.spectro_class = load_spec_class(spectrograph=spectrograph)
 
         # Attributes (set after init)
         self.frametype = frametype

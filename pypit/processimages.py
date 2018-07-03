@@ -14,7 +14,7 @@ from pypit.core import arprocimg
 from pypit.core import arflat
 from pypit import ginga
 
-from pypit.spectrographs import spectro_utils
+from .spectrographs.util import load_spec_class
 
 # For out of PYPIT running
 if msgs._debug is None:
@@ -113,7 +113,7 @@ class ProcessImages(object):
         self.spectrograph = spectrograph
 
         if self.spectro_class is None:
-            self.spectro_class = spectro_utils.load_spec_class(spectrograph=spectrograph)
+            self.spectro_class = load_spec_class(spectrograph=spectrograph)
 
         self.raw_images = []
         self.proc_images = None  # Will be an ndarray

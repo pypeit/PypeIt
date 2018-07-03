@@ -19,7 +19,7 @@ from pypit import calibrations
 from pypit import fluxspec
 from pypit import scienceimage
 
-from pypit.spectrographs import spectro_utils
+from .spectrographs.util import load_spec_class
 
 from pypit import ardebug as debugger
 
@@ -53,7 +53,7 @@ def ARMS(spectrograph, fitstbl, setup_dict):
     basenames = [None]*numsci  # For fluxing at the very end
 
     # Spectrometer class
-    spectro_class = spectro_utils.load_spec_class(spectrograph=spectrograph)
+    spectro_class = load_spec_class(spectrograph=spectrograph)
 
     # Init calib dict
     caliBrate = calibrations.MultiSlitCalibrations(fitstbl, spectro_class, save_masters=True)
