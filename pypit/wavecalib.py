@@ -47,7 +47,10 @@ class WaveCalib(masterframe.MasterFrame):
     Parameters
     ----------
     msarc : ndarray
-      Arc image
+      Arc image, created by the ArcImage class
+
+    Optional Parameters
+    --------------------
     settings : dict, optional
       Settings for trace slits
     det : int, optional
@@ -78,7 +81,8 @@ class WaveCalib(masterframe.MasterFrame):
       Arc parameter (instrument/disperser specific)
     """
     def __init__(self, msarc, spectrograph=None, settings=None, det=None,
-                 setup=None, fitstbl=None, sci_ID=None, spectro_class=None):
+                 setup=None, fitstbl=None, sci_ID=None, spectro_class=None,
+                 arcparam=None):
 
         # Required parameters (but can be None)
         self.msarc = msarc
@@ -96,6 +100,7 @@ class WaveCalib(masterframe.MasterFrame):
             if 'calibrate' not in self.settings.keys():
                 self.settings.update(default_settings)
         self.spectrograph = spectrograph
+        self.arcparam = arcparam
 
         # Attributes
         self.frametype = frametype
@@ -325,8 +330,12 @@ class WaveCalib(masterframe.MasterFrame):
         #   The settings here are settings.spect (saturation and nonlinear)
         _, _ = self._extract_arcs(lordloc, rordloc, pixlocn)
 
-        # Load the arcparam
-        _ = self._load_arcparam()
+        # Load the arcparam, if one was not passed in.
+        if self.arcparam is None:
+            _ = self._load_arcparam()
+        # This call is unfortunate since it requires the fitstable in the true PYPIT style of bloated overloaded and uncenessary argument lists.
+        # It is mainly here for backwards compatibility with old methods for wavelength calibration that have been superceded by holy grail. Holy grail only
+        # requires a linelist in the arcparam dict, so if the user passes in an arcparam, no need to run this.
 
         # Fill up the calibrations and generate QA
         self.wv_calib = self._build_wv_calib(self.settings['calibrate']['method'], skip_QA=skip_QA)
@@ -443,3 +452,5 @@ def get_wv_calib(det, setup, spectrograph, sci_ID, wvc_settings, fitstbl,
 
     # Return
     return wv_calib, wv_maskslits, waveCalib
+
+
